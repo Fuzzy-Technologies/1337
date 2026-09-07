@@ -330,6 +330,19 @@ Protected boundaries include:
 - state machines;
 - error codes and machine-readable statuses.
 
+### Coverage contract
+
+Test coverage is a release/merge contract, not an informational metric.
+
+- Coverage must be measured with branch coverage enabled.
+- Every first-party production Python module must remain **strictly above 80%** combined statement/branch coverage once the coverage gate is enabled.
+- New modules must meet the threshold before they are considered complete.
+- A change must not reduce an existing module below the threshold.
+- Generated code, vendored third-party code, localization/data-only files, and other non-executable artifacts may be excluded only through an explicit documented coverage configuration; exclusions must not be used to hide untested production logic.
+- Security-critical boundaries such as scope/authorization policy, executor control, evidence integrity, parser/normalization logic, and failure-state handling require direct tests of both allowed/success and denied/failure paths; satisfying the numeric threshold alone is not sufficient evidence.
+- CI must fail when the configured per-module coverage contract is violated. Coverage warnings without a failing gate do not satisfy this protocol.
+- If a non-Python production component is introduced, an equivalent coverage contract must be defined for that component before it becomes release-critical.
+
 ## 10. Test gates and evidence
 
 During implementation:
@@ -345,6 +358,8 @@ python -m pytest -q
 python -m compileall -q src tests tools
 python -m ruff check .
 ```
+
+The canonical pytest/coverage gate must additionally collect branch coverage and enforce the per-module `>80%` contract defined above once coverage tooling is configured.
 
 Add the configured type checker and security/package checks when the repository introduces them.
 
@@ -404,6 +419,7 @@ A change is done only when all applicable items are true:
 - scope is understood;
 - implementation is complete;
 - relevant unit/contract tests pass;
+- applicable production modules satisfy the test-coverage contract;
 - integration/E2E evidence exists where needed;
 - failure behavior was considered;
 - no secret or unrelated file entered the diff;
