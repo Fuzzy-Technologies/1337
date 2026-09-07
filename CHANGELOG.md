@@ -8,6 +8,28 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 1 — v0.1.1 — 2026-09-07
+
+#### Digest
+
+- Completed the M0 governance baseline for branch/release handling and public extension compatibility.
+- Added a versioned machine-readable extension manifest contract without exposing implementation-private boundaries.
+
+#### Added
+
+- Canonical branch/release workflow covering protected branches, normal development, release branches, deterministic SemVer tags, hotfixes, and back-merges.
+- Public Compatibility Contract v1 with Stable/Experimental/Internal surfaces, schema-version rules, deprecation policy, and extension-consumer requirements.
+- JSON Schema Draft 2020-12 extension manifest v1 plus a validating public example.
+
+#### Changed
+
+- README development references now link the release workflow, compatibility policy, and machine-readable public contracts.
+
+#### Security
+
+- Unsupported security-sensitive contract versions are required to fail closed rather than be guessed or silently downgraded.
+- Public extension manifests explicitly exclude secrets, credentials, license material, and machine-local absolute paths.
+
 ### Patch 0 — v0.1.0 — 2026-09-07
 
 #### Digest

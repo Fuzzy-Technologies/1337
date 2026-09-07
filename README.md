@@ -48,10 +48,13 @@ Roadmap scope and ordering may evolve as the Community platform matures. Detaile
 
 ## Development
 
-Repository-level rules for humans and AI agents are defined in:
+Repository-level rules for humans, extensions, and AI agents are defined in:
 
 - [AGENTS.md](AGENTS.md) — mandatory agent entry point and project-scope policy;
 - [DEVELOPMENT_PROTOCOL.md](DEVELOPMENT_PROTOCOL.md) — development workflow, Python house style, testing, Git, and documentation rules;
+- [docs/RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) — protected branches, merge policy, deterministic releases, tags, and hotfix flow;
+- [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) — public compatibility, stability, versioning, and extension-boundary contract;
+- [contracts/](contracts/) — versioned machine-readable public contracts and examples;
 - [CHANGELOG.md](CHANGELOG.md) — strict chronological project history.
 
 The stable branch is `master`. Active integration development occurs on `develop`; feature work is performed on short-lived branches and reviewed before merge.

@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/extension-manifest.schema.json",
+  "title": "1337 Extension Manifest",
+  "description": "Public compatibility manifest for extensions integrating with 1337 Security Workbench.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "extension",
+    "compatibility",
+    "entry_points"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "extension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core"
+      ],
+      "properties": {
+        "core": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A declared core-version compatibility range. The exact range syntax is defined by the packaging contract when packaging is introduced."
+        },
+        "contracts": {
+          "type": "object",
+          "default": {},
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_.-]*$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "entry_points": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool_adapters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entryPoint"
+          },
+          "uniqueItems": true
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entryPoint"
+          },
+          "uniqueItems": true
+        },
+        "reporters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entryPoint"
+          },
+          "uniqueItems": true
+        },
+        "integrations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entryPoint"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.:-]*$"
+      },
+      "uniqueItems": true,
+      "default": []
+    }
+  },
+  "$defs": {
+    "entryPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "target"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.-]*$"
+        },
+        "target": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Implementation locator resolved by the future SDK/packaging layer. Its concrete import syntax is intentionally not fixed by M0."
+        }
+      }
+    }
+  }
+}
