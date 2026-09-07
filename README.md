@@ -44,7 +44,7 @@ See [SECURITY.md](SECURITY.md).
 | **M8** | 1337 Trace                   | DFIR, incident timeline, observed attack graph                                           |
 | **M9** | Cloud & Enterprise Contracts | Verified assets, cloud-safe contracts and stable enterprise extension interfaces         |
 
-Roadmap scope and ordering may evolve as the Community platform matures. Detailed planning is tracked through GitHub milestones, native issue types, and sub-issues.
+Roadmap scope and ordering may evolve as the Community platform matures. Detailed planning is tracked through GitHub milestones and issues.
 
 ## Development
 
