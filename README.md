@@ -31,20 +31,20 @@ See [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-| Phase | Focus | Target outcome |
-| --- | --- | --- |
-| **M0** | Foundation | Repository baseline, engineering controls, CI, containers, synthetic test lab |
-| **M1** | Community Core | `1337` shell, workspace, scope, configuration, diagnostics, localization foundation |
-| **M2** | Scanner MVP | Executor runtime, tool adapters, impact profiles, Quick Scan, useful Community scanner |
-| **M3** | Evidence & Intelligence | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, Fuzzy reports |
-| **M4** | 1337 Scope | Attack surface, reachability, attack paths, native Web Scanner NG |
-| **M5** | Security Intelligence UX | Tables, attack graphs, business events, explainable risk, standards mapping |
-| **M6** | Automation & Agents | CI/CD, integrations, distributed execution, Domain API, SDK, MCP |
-| **M7** | Fuzzy Striker | Red/Blue/Purple workflows and authorized validation |
-| **M8** | 1337 Trace | DFIR, incident timeline, observed attack graph |
-| **M9** | Cloud & Enterprise | SaaS, enterprise control plane, RBAC/SSO, commercial distribution |
+| Phase  | Focus                         | Target outcome                                                                                       |
+| ------ | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **M0** | Foundation                    | Repository baseline, engineering controls, CI, containers, synthetic test lab                       |
+| **M1** | Community Core & Shell        | `1337` shell, workspace, scope, diagnostics, localization and functional-test foundation             |
+| **M2** | Scanner MVP                   | Executor runtime, tool adapters, impact profiles, Quick Scan, useful Community scanner               |
+| **M3** | Evidence & Intelligence       | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, Fuzzy reports                                      |
+| **M4** | 1337 Scope                    | Attack surface, reachability, attack paths, native Web Scanner NG                                    |
+| **M5** | Security Intelligence UX      | Tables, attack graphs, business events, explainable risk, standards mapping                          |
+| **M6** | Automation & Agents           | CI/CD, integrations, distributed execution, Domain API, SDK, MCP                                     |
+| **M7** | Fuzzy Striker                 | Red/Blue/Purple workflows and authorized validation                                                  |
+| **M8** | 1337 Trace                    | DFIR, incident timeline, observed attack graph                                                       |
+| **M9** | Cloud & Enterprise Contracts  | Verified assets, cloud-safe contracts and stable enterprise extension interfaces                    |
 
-Roadmap scope and ordering may evolve as the Community platform matures. Detailed planning is tracked through GitHub milestones and issues.
+Roadmap scope and ordering may evolve as the Community platform matures. Detailed planning is tracked through GitHub milestones, native issue types, and sub-issues.
 
 ## Development
 
