@@ -71,6 +71,35 @@ master → hotfix/* → master → tag
 
 Until real customer support obligations exist, do not create multiple parallel supported release lines without an explicit owner decision.
 
+### Project planning and traceability
+
+GitHub planning follows this hierarchy:
+
+```text
+Milestone
+└── Feature issue
+    ├── Task issue
+    ├── Task issue
+    └── Pull request(s)
+```
+
+Rules:
+
+- A milestone represents a major roadmap outcome and owns its feature/issues for planning and delivery tracking.
+- A feature issue describes one coherent product/subsystem capability and uses the existing `feature` label.
+- A task issue describes an implementable unit of work and uses the existing `task` label.
+- Do not create new issue labels merely for convenience; use the owner-approved repository label set unless the owner explicitly requests a new label.
+- Feature and task titles should include the roadmap identifier while milestones are active, for example `M2 Feature: Tool Adapter SDK` and `M2 Task: Implement typed ToolAdapter contract`.
+- Every task must reference its parent feature using the GitHub issue number, for example `Parent feature: #28`.
+- A feature should list or otherwise link its child tasks when practical so the hierarchy is navigable in both directions.
+- Pull requests must reference the task(s) and feature(s) they implement.
+- A pull request that fully completes a task may use `Closes #NN` or `Fixes #NN` in the PR body. Do not use closing keywords when the PR only partially advances the task.
+- Ordinary intermediate commits reference their owning issue without closing it.
+- A feature is closed only after its required child tasks are complete and its acceptance criteria are satisfied.
+- Milestone target dates are planning targets, not evidence of completion. A milestone is complete only when the tracked work and applicable acceptance evidence are actually complete.
+- The public README contains only a high-level roadmap. Detailed implementation planning belongs in GitHub milestones/issues and internal planning artifacts.
+- Public repository issues and documentation must describe public contracts and generic extension boundaries only; do not expose private repository names, proprietary implementation details, secrets, or confidential roadmap internals.
+
 ### Pull requests
 
 - No normal direct push to `master`.
@@ -84,17 +113,39 @@ Until real customer support obligations exist, do not create multiple parallel s
 
 Do not use Conventional Commits prefixes such as `feat:`, `fix:`, or `chore:`.
 
-Ordinary development:
+For cross-project/shared work:
 
 ```text
-1337: concise English description
+1337: concise English description (#NN)
 ```
 
-Release-specific product work:
+For module-owned work, use the module name as the prefix:
 
 ```text
-1337 vX.Y.Z: concise English description
+1337 Scope: concise English description (#NN)
+1337 Scan: concise English description (#NN)
+1337 Intel: concise English description (#NN)
+1337 Report: concise English description (#NN)
+1337 Trace: concise English description (#NN)
+Fuzzy Striker: concise English description (#NN)
 ```
+
+Release-specific product work may include the release version when useful:
+
+```text
+1337 vX.Y.Z: concise English description (#NN)
+```
+
+Issue references normally appear at the end of the subject as `(#NN)` so the human-readable action remains first and GitHub still creates the link.
+
+If one coherent commit legitimately contributes to several issues, either list the references in the subject when concise or use the commit body:
+
+```text
+Refs #45
+Refs #46
+```
+
+Do not use `Closes #NN`, `Fixes #NN`, or equivalent closing keywords in ordinary intermediate commits. Closing semantics belong in the pull request that actually completes the task.
 
 A commit should represent one coherent logical change. Infrastructure repair, behavior changes, broad refactoring, and unrelated documentation cleanup should not be mixed.
 
