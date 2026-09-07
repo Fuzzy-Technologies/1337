@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.1`  
+Protocol version: `0.2`  
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -44,13 +44,13 @@ Canonical repository language is English:
 
 Localization resources are the only normal exception. Canonical commands and APIs remain English.
 
-## 3. Branching and release flow
+## 3. Branching, project tracking, and release flow
 
 Canonical branches:
 
 - `master` — latest stable/released state;
 - `develop` — integration branch for the next release;
-- `feature/<name>` — feature work from `develop`;
+- `feature/<name>` — feature/work-item branches from `develop`;
 - `fix/<name>` — non-release fixes from `develop`;
 - `release/<version>` — release stabilization;
 - `hotfix/<name-or-version>` — urgent fix from `master`.
@@ -58,8 +58,8 @@ Canonical branches:
 Normal flow:
 
 ```text
-feature/* → develop → release/X.Y.Z → master → tag vX.Y.Z
-                              └──────────────→ develop (back-merge)
+feature/* or fix/* → develop → release/X.Y.Z → master → tag vX.Y.Z
+                                           └──────────→ develop (back-merge)
 ```
 
 Hotfix flow:
@@ -69,6 +69,8 @@ master → hotfix/* → master → tag
                     └──────→ develop
 ```
 
+Detailed protected-branch, merge, release, tag, and hotfix rules are defined in [`docs/RELEASE_WORKFLOW.md`](docs/RELEASE_WORKFLOW.md).
+
 Until real customer support obligations exist, do not create multiple parallel supported release lines without an explicit owner decision.
 
 ### Project planning and traceability
@@ -77,9 +79,9 @@ GitHub planning follows this hierarchy:
 
 ```text
 Milestone
-└── Feature issue
-    ├── Task issue
-    ├── Task issue
+└── Feature issue          native Type: Feature
+    ├── Task issue         native Type: Task + native sub-issue
+    ├── Task issue         native Type: Task + native sub-issue
     └── Pull request(s)
 ```
 
@@ -87,22 +89,25 @@ Rules:
 
 - A milestone represents a major roadmap outcome and owns its feature/issues for planning and delivery tracking.
 - The milestone's GitHub due date is the canonical schedule. Do not duplicate target dates in issue bodies when they can drift from the milestone.
-- A feature issue describes one coherent product/subsystem capability and uses the existing `feature` label.
-- A task issue describes an implementable unit of work and uses the existing `task` label.
+- Native GitHub Issue Type is the canonical work classification: `Feature`, `Task`, or `Bug`.
+- Native GitHub Sub-issues are the canonical Feature → Task hierarchy. Do not maintain duplicate `Parent feature: #NN` or `Child tasks: #NN` lists in issue bodies.
+- Issue labels are supplementary metadata only. Do not duplicate native Issue Type with `feature`, `task`, or `bug` labels on issues.
+- Pull requests may continue to use the owner-approved labels because PRs do not have Issue Type.
 - Do not create new issue labels merely for convenience; use the owner-approved repository label set unless the owner explicitly requests a new label.
 - Feature and task titles should include the roadmap identifier while milestones are active, for example `M2 Feature: Tool Adapter SDK` and `M2 Task: Implement typed ToolAdapter contract`.
-- Every task must reference its parent feature using the GitHub issue number, for example `Parent feature: #28`.
-- A feature should list or otherwise link its child tasks when practical so the hierarchy is navigable in both directions.
 - Every feature and task must belong to the appropriate GitHub milestone.
 - Backlog feature/task issues remain unassigned. Assignment means active work, not roadmap ownership.
 - When work on one or more task issues actually begins, assign the project owner (`Tim55667757`) to those active task issues. If work is explicitly returned to the backlog before completion, remove the assignee.
 - Pull requests must reference the task(s) and feature(s) they implement and should use the milestone of the primary owning task/feature unless the PR is explicitly cross-milestone.
 - A pull request that fully completes a task may use `Closes #NN` or `Fixes #NN` in the PR body. Do not use closing keywords when the PR only partially advances the task.
 - Ordinary intermediate commits reference their owning issue without closing it.
-- A feature is closed only after its required child tasks are complete and its acceptance criteria are satisfied.
+- When a task implementation is ready for owner review, add a short plain-English issue comment describing what changed, what the change enables, and how it was actually verified. Keep it readable for a human; use a small Markdown table only when it improves clarity.
+- A task remains open while its completing PR is in review. Normal completion is PR merge → Task closed.
+- A feature is closed only after its required native sub-issues are complete and its feature-level acceptance criteria are satisfied.
+- Before feature closure, add a concise feature-level acceptance comment when useful to summarize the completed capability and evidence.
 - Milestone target dates are planning targets, not evidence of completion. A milestone is complete only when the tracked work and applicable acceptance evidence are actually complete.
 - The public README contains only a high-level roadmap. Detailed implementation planning belongs in GitHub milestones/issues and internal planning artifacts.
-- Public repository issues and documentation must describe public contracts and generic extension boundaries only; do not expose private repository names, proprietary implementation details, secrets, or confidential roadmap internals.
+- Public repository issues and documentation must describe public contracts and generic extension boundaries only; do not expose proprietary implementation details, secrets, or confidential roadmap internals.
 
 ### Pull request labels
 
@@ -118,12 +123,14 @@ Multiple existing labels may be used when each is materially true. Do not create
 
 ### Pull requests
 
-- No normal direct push to `master`.
-- Prefer pull requests for `develop` as soon as the bootstrap supports them.
-- CI and relevant tests must pass before merge.
+- No normal direct push to `master` or `develop`.
+- Open work PRs against `develop` unless a release/hotfix workflow explicitly requires another base.
+- Draft PRs are the normal place for work still being implemented or validated.
+- CI and relevant tests must pass before merge once those checks exist.
 - Human owner review is the normal merge gate.
 - Automated agents must not self-merge unless explicitly instructed for that specific PR.
 - Force-push and history rewriting on protected branches are prohibited.
+- Default merge method for ordinary work PRs is Squash and merge; exceptions are defined in `docs/RELEASE_WORKFLOW.md`.
 
 ## 4. Commit messages
 
@@ -173,7 +180,7 @@ A commit should represent one coherent logical change. Infrastructure repair, be
 - Related tiny edits may be combined into one coherent commit; unrelated work must remain separate.
 - Do not fabricate, backdate, randomize, or deliberately delay commit timestamps to imitate a human contributor. Repository history must reflect real execution time and real work boundaries.
 
-## 5. Change discipline
+## 5. Change discipline and public compatibility
 
 - Keep each change narrow and reviewable.
 - Architecture-impacting work requires an ADR/design decision before or together with implementation.
@@ -183,6 +190,9 @@ A commit should represent one coherent logical change. Infrastructure repair, be
 - Do not silently remove fallbacks, guards, validation, logging, audit evidence, or tests.
 - Do not add `TODO`, `FIXME`, `TEMP`, or `HACK` to tracked source.
 - Avoid speculative abstractions. Introduce a layer when it has a concrete contract or at least two credible consumers.
+- Public compatibility boundaries, stability classes, schema-version rules, and extension-consumer expectations are defined in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
+- A source symbol, import path, JSON field, route, or file format is not automatically public/stable merely because it is visible. Stability must be explicitly declared.
+- Changes to Stable public contracts require compatibility impact review and the version/schema transition required by the compatibility policy.
 
 ## 6. Python house style
 
@@ -501,7 +511,8 @@ A change is done only when all applicable items are true:
 - documentation is updated;
 - changelog is updated when the change is user-visible, security-relevant, or release-relevant;
 - exact diff was reviewed;
-- required CI/local gates pass.
+- required CI/local gates pass;
+- a human-readable completion comment is present on the task when the implementation is being handed to the owner for review.
 
 If a required check is missing, timed out, or was not executed, report that fact and do not label the result complete.
 
