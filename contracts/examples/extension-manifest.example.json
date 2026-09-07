@@ -1,0 +1,26 @@
+{
+  "$schema": "../extension-manifest.schema.json",
+  "schema_version": 1,
+  "extension": {
+    "id": "example.community-extension",
+    "name": "Example Community Extension",
+    "version": "0.1.0"
+  },
+  "compatibility": {
+    "core": ">=0.1.0,<0.2.0",
+    "contracts": {
+      "extension_manifest": 1
+    }
+  },
+  "entry_points": {
+    "tool_adapters": [
+      {
+        "name": "example_scanner",
+        "target": "example_extension.adapters:ExampleScannerAdapter"
+      }
+    ]
+  },
+  "capabilities": [
+    "scanner.example"
+  ]
+}
