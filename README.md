@@ -2,7 +2,7 @@
 
 **1337 Security Workbench by Fuzzy Technologies** is a fast, extensible security workbench for humans, tools, automation, and AI agents.
 
-> **Technology · Knowledge · Science**
+> **Technologies · Knowledge · Science**
 
 ## Status
 
