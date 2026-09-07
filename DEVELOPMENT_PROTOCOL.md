@@ -86,19 +86,35 @@ Milestone
 Rules:
 
 - A milestone represents a major roadmap outcome and owns its feature/issues for planning and delivery tracking.
+- The milestone's GitHub due date is the canonical schedule. Do not duplicate target dates in issue bodies when they can drift from the milestone.
 - A feature issue describes one coherent product/subsystem capability and uses the existing `feature` label.
 - A task issue describes an implementable unit of work and uses the existing `task` label.
 - Do not create new issue labels merely for convenience; use the owner-approved repository label set unless the owner explicitly requests a new label.
 - Feature and task titles should include the roadmap identifier while milestones are active, for example `M2 Feature: Tool Adapter SDK` and `M2 Task: Implement typed ToolAdapter contract`.
 - Every task must reference its parent feature using the GitHub issue number, for example `Parent feature: #28`.
 - A feature should list or otherwise link its child tasks when practical so the hierarchy is navigable in both directions.
-- Pull requests must reference the task(s) and feature(s) they implement.
+- Every feature and task must belong to the appropriate GitHub milestone.
+- Backlog feature/task issues remain unassigned. Assignment means active work, not roadmap ownership.
+- When work on one or more task issues actually begins, assign the project owner (`Tim55667757`) to those active task issues. If work is explicitly returned to the backlog before completion, remove the assignee.
+- Pull requests must reference the task(s) and feature(s) they implement and should use the milestone of the primary owning task/feature unless the PR is explicitly cross-milestone.
 - A pull request that fully completes a task may use `Closes #NN` or `Fixes #NN` in the PR body. Do not use closing keywords when the PR only partially advances the task.
 - Ordinary intermediate commits reference their owning issue without closing it.
 - A feature is closed only after its required child tasks are complete and its acceptance criteria are satisfied.
 - Milestone target dates are planning targets, not evidence of completion. A milestone is complete only when the tracked work and applicable acceptance evidence are actually complete.
 - The public README contains only a high-level roadmap. Detailed implementation planning belongs in GitHub milestones/issues and internal planning artifacts.
 - Public repository issues and documentation must describe public contracts and generic extension boundaries only; do not expose private repository names, proprietary implementation details, secrets, or confidential roadmap internals.
+
+### Pull request labels
+
+Use only the owner-approved repository label set. PR labels describe the actual content of the PR rather than merely mirroring the parent issue type.
+
+- `feature` — new product/subsystem capability or meaningful extension of an existing capability;
+- `bug` — defect correction;
+- `documentation` — documentation-only or materially documentation-dominant work;
+- `task` — engineering infrastructure, testing, maintenance, refactoring, packaging, or another implementation task not better represented by `feature`, `bug`, or `documentation`;
+- `duplicate` — only when the item is genuinely a duplicate; normally not an implementation-PR label.
+
+Multiple existing labels may be used when each is materially true. Do not create a new label simply to describe one PR.
 
 ### Pull requests
 
@@ -148,6 +164,14 @@ Refs #46
 Do not use `Closes #NN`, `Fixes #NN`, or equivalent closing keywords in ordinary intermediate commits. Closing semantics belong in the pull request that actually completes the task.
 
 A commit should represent one coherent logical change. Infrastructure repair, behavior changes, broad refactoring, and unrelated documentation cleanup should not be mixed.
+
+### Work slicing and commit cadence
+
+- Commit after a coherent logical implementation slice has been completed and the applicable targeted tests/evidence for that slice have been checked.
+- A non-trivial task should normally contain multiple small logical commits when that improves reviewability, diagnosis, or rollback.
+- Avoid both one giant catch-all commit and mechanical commit spam for every touched file or trivial edit.
+- Related tiny edits may be combined into one coherent commit; unrelated work must remain separate.
+- Do not fabricate, backdate, randomize, or deliberately delay commit timestamps to imitate a human contributor. Repository history must reflect real execution time and real work boundaries.
 
 ## 5. Change discipline
 
@@ -283,9 +307,28 @@ Rules:
 
 ## 9. Test organization
 
-Tests are grouped by stable subsystem, not by temporary roadmap stage, patch, or incident.
+`pytest` is the canonical test runner for Python-backed project tests. Test layers are separated by purpose while files inside each layer remain grouped/named by stable subsystem rather than by roadmap stage, patch, or incident.
 
-Good:
+Canonical layout:
+
+```text
+tests/
+├── unit/
+├── contract/
+├── functional/
+├── integration/
+└── e2e/
+```
+
+Layer responsibilities:
+
+- `tests/unit/` — fast deterministic tests of isolated first-party units; no Docker, network, external service, or real tool dependency;
+- `tests/contract/` — CLI/API/schema/adapter/evidence/plugin/state-machine compatibility contracts;
+- `tests/functional/` — black-box product behavior against repository-defined isolated synthetic or explicitly pinned vulnerable targets;
+- `tests/integration/` — real first-party components and adapters communicating through their actual boundaries;
+- `tests/e2e/` — user-level workflows through the assembled product.
+
+Good subsystem-oriented names inside these layers include:
 
 ```text
 test_shell.py
@@ -296,7 +339,7 @@ test_reporting.py
 test_security_policy.py
 ```
 
-Avoid:
+Avoid roadmap/incident-oriented names:
 
 ```text
 test_g0.py
@@ -330,6 +373,34 @@ Protected boundaries include:
 - state machines;
 - error codes and machine-readable statuses.
 
+### Functional-test contract
+
+Functional tests are reproducible pytest suites, not ad-hoc manual scanner runs.
+
+- `tests/functional/` owns functional scenarios and should use a stable scenario/oracle/fixture structure (for example `scenarios/`, `oracles/`, `fixtures/`, and runner helpers where useful).
+- Pytest fixtures/hooks own target lifecycle: startup, deterministic readiness/health checks, test metadata, cleanup, and teardown even after failures.
+- Session/module/scenario fixture scope should be chosen to minimize startup cost without leaking state between tests.
+- Functional tests must run the same way locally and in CI.
+- Automated functional tests must never depend on Internet-hosted demo targets or arbitrary external systems.
+- First-party micro-targets are the primary deterministic known-answer oracle. Each relevant route/scenario declares what must and must not be discovered or reported.
+- External intentionally vulnerable applications such as OWASP Juice Shop, WebGoat, crAPI, or Benchmark-style targets complement the micro-targets. Pin their versions/digests and record the exact target provenance in results.
+- A realistic vulnerable application without a complete machine-readable oracle must not be presented as an absolute scanner-accuracy benchmark.
+- Preserve raw scan/tool evidence together with normalized functional assertions so every regression can be explained.
+- Where a known-answer oracle exists, measure TP/FP/FN/TN and derived accuracy/regression metrics rather than relying only on a binary smoke result.
+- Security-sensitive scenarios such as command execution, file upload, file inclusion, callback behavior, or SSRF should use isolated markers/canaries and bounded postconditions in ordinary CI rather than deploying a reusable general-purpose shell.
+- Proxy/WAF variants are explicit versioned functional profiles and must preserve the intermediary configuration/provenance with the result.
+
+### Scanner capability coverage matrix
+
+Functional-test metadata is also the canonical source for a scanner capability coverage matrix.
+
+- Rows represent vulnerability/check capabilities.
+- Columns represent target packs/scenarios such as first-party synthetic targets, OWASP Juice Shop, WebGoat, crAPI, Benchmark-style targets, and future packs.
+- Each cell records applicability plus expected/detected/not-detected (or an equivalent explicit machine-readable state).
+- The matrix must be generated from test/oracle metadata rather than maintained as a disconnected hand-edited marketing table.
+- Provide machine-readable output plus readable Markdown/HTML views.
+- Design the schema so future comparative scanner/tool columns can be added for controlled competitive analysis without rewriting the functional-test oracle model.
+
 ### Coverage contract
 
 Test coverage is a release/merge contract, not an informational metric.
@@ -347,7 +418,8 @@ Test coverage is a release/merge contract, not an informational metric.
 
 During implementation:
 
-- run targeted tests for fast feedback;
+- run the smallest relevant pytest layer/subsystem for fast feedback;
+- run functional/integration/E2E suites when the change crosses those boundaries;
 - after the final tracked change, run the canonical full repository gate;
 - any later tracked-file edit invalidates the full gate and requires it again before commit/release.
 
@@ -360,6 +432,8 @@ python -m ruff check .
 ```
 
 The canonical pytest/coverage gate must additionally collect branch coverage and enforce the per-module `>80%` contract defined above once coverage tooling is configured.
+
+Functional-test commands must remain ordinary pytest invocations (for example a `tests/functional` selection and/or pytest markers), with Docker target setup performed by fixtures/hooks rather than by a separate unverifiable manual procedure.
 
 Add the configured type checker and security/package checks when the repository introduces them.
 
@@ -420,7 +494,8 @@ A change is done only when all applicable items are true:
 - implementation is complete;
 - relevant unit/contract tests pass;
 - applicable production modules satisfy the test-coverage contract;
-- integration/E2E evidence exists where needed;
+- functional/integration/E2E evidence exists where the changed behavior crosses those layers;
+- functional scanner behavior is reflected in the capability/oracle metadata when applicable;
 - failure behavior was considered;
 - no secret or unrelated file entered the diff;
 - documentation is updated;
