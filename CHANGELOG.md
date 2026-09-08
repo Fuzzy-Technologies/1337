@@ -23,6 +23,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added an architecture decision record for the M0 container boundary.
 - Clarified the public README around the needs of security practitioners and
   security leaders, without presenting planned scanner capabilities as shipped.
+- Added ADRs for the intelligence-first workbench, CLI-primary interaction
+  model, and AI-neutral 1337Scope direction.
 
 #### Security
 
