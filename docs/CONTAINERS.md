@@ -14,7 +14,7 @@ run the following commands from the repository root.
 
 ```bash
 docker compose build
-docker compose --profile quality run --rm quality
+LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile quality run --rm quality
 ```
 
 The quality service executes the same `1337-dev check` command used by the
@@ -33,8 +33,11 @@ docker compose down
 Compose bind-mounts the current checkout at `/workspace`. The image-owned
 virtual environment remains outside that mount, so a local `.venv` is neither
 required nor copied into the image. On Linux, use a local Compose override if
-your Docker setup requires a specific UID/GID mapping; override files are
-intentionally ignored and must not be committed.
+your Docker setup requires a specific UID/GID mapping. The quality command
+above passes the current host identity explicitly to prevent generated files
+from being owned by the container user. Docker Desktop users can normally run
+the same command as written; override files are intentionally ignored and must
+not be committed.
 
 ## Safety and evidence
 

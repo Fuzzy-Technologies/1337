@@ -29,6 +29,8 @@ The M0 baseline uses a repository-owned Dockerfile and Compose file.
 - The development source is mounted only by Compose at `/workspace`; the
   virtual environment is kept outside that mount at `/opt/1337/.venv` so the
   container image remains usable with or without a bind mount.
+- Compose supports an explicit unprivileged host UID/GID mapping for writable
+  source mounts rather than relaxing the container to root.
 - The baseline accepts only repository-local source and later repository-owned
   synthetic targets. It does not define a remote scan target, credential, or
   external service dependency.

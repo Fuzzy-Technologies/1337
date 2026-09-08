@@ -70,4 +70,4 @@ jobs:
       - name: Build locked development image
         run: docker compose build
       - name: Run container quality gate
-        run: docker compose --profile quality run --rm quality
+        run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile quality run --rm quality

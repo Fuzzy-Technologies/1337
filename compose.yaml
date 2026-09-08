@@ -6,6 +6,7 @@ x-workbench: &workbench
     target: development
   image: fuzzy-technologies/1337-dev:local
   init: true
+  user: "${LOCAL_UID:-1337}:${LOCAL_GID:-1337}"
   working_dir: /workspace
   environment:
     PYTHONDONTWRITEBYTECODE: "1"
