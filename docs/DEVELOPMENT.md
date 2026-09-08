@@ -29,7 +29,7 @@ interactive shell and scanner workflows belong to subsequent product work.
 
 | Command                              | Behavior                                                                   |
 |--------------------------------------|----------------------------------------------------------------------------|
-| `uv run --locked 1337-dev setup`     | Synchronize the locked development environment                            |
+| `uv run --locked 1337-dev setup`     | Synchronize the locked development environment                             |
 | `uv run --locked 1337-dev lint`      | Non-mutating Ruff checks                                                   |
 | `uv run --locked 1337-dev typecheck` | Strict mypy checks for production Python                                   |
 | `uv run --locked 1337-dev compile`   | Compile source and tests                                                   |
