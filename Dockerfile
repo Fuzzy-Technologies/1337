@@ -32,5 +32,5 @@ RUN uv sync --locked --extra dev \
 
 USER workbench
 
-ENTRYPOINT ["uv", "run", "--locked", "--extra", "dev"]
+ENTRYPOINT ["uv", "run", "--locked", "--no-sync", "--extra", "dev"]
 CMD ["1337", "--help"]

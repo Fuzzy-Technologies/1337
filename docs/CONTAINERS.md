@@ -20,6 +20,8 @@ LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile quality run -
 The quality service executes the same `1337-dev check` command used by the
 repository's native workflow. It compiles, lints, type-checks, tests, validates
 coverage, and builds the package inside the locked container environment.
+Rebuild the image after changing `pyproject.toml` or `uv.lock`; the runtime
+intentionally does not resynchronize its prebuilt environment.
 
 ## Interactive workbench
 

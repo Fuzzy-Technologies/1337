@@ -13,7 +13,7 @@ Repository releases use Semantic Versioning. Individual machine-readable contrac
 ## Stability classes
 
 | Stability class  | Meaning                                                               | Compatibility promise                                              |
-|------------------|-----------------------------------------------------------------------|--------------------------------------------------------------------|
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | **Stable**       | Explicitly documented public contract intended for external consumers | Breaking changes require the version transition defined below      |
 | **Experimental** | Publicly visible preview surface that is still being designed         | May change between releases; changes must be documented            |
 | **Internal**     | Implementation detail not declared as public                          | No compatibility promise; external consumers must not depend on it |
@@ -25,7 +25,7 @@ A surface is **not** Stable merely because it is importable, visible in source, 
 The following areas are the intended extension boundaries as they are introduced:
 
 | Boundary                   | Public when                                                         | Not a public guarantee                                             |
-|----------------------------|---------------------------------------------------------------------|--------------------------------------------------------------------|
+| -------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | Machine-readable contracts | Versioned schema is published under `contracts/`                    | Unversioned internal JSON/YAML/state                               |
 | Python/API SDK             | Symbol is explicitly documented as public SDK surface               | Arbitrary internal modules, classes, helpers, or import paths      |
 | Tool adapters              | Adapter interface/schema is published as a versioned contract       | Executor internals or third-party tool implementation details      |

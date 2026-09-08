@@ -21,6 +21,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added CI validation of the Compose configuration, image build, and in-container
   `1337-dev check` execution.
 - Added an architecture decision record for the M0 container boundary.
+- Clarified the public README around the needs of security practitioners and
+  security leaders, without presenting planned scanner capabilities as shipped.
 
 #### Security
 
