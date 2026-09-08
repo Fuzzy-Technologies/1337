@@ -53,10 +53,15 @@ Use Python 3.11+ and run from the repository root:
 
 ```bash
 python -m pip install uv==0.11.33
-uv sync --locked --extra dev
+uv run --locked 1337-dev setup
 uv run --locked 1337 --version
 uv run --locked 1337-dev check
 ```
+
+`1337-dev setup` synchronizes the development environment with the committed
+lockfile (`uv sync --locked --extra dev`). It is safe to repeat and refuses stale
+dependency metadata. The initial one-time prerequisite is the pinned `uv`
+installation shown above.
 
 The full gate checks compilation, lint, types, tests, strictly greater than 80%
 combined branch/statement coverage for every production module, and packaging.

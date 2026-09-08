@@ -8,6 +8,29 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 3 — v0.1.3 — 2026-09-08
+
+#### Digest
+
+- Completed the deterministic developer-command entry point for issue #9.
+
+#### Added
+
+- Added `1337-dev setup` for repeatable locked development-environment
+  synchronization through the pinned `uv` tool.
+- Added a typed command-step registry that describes Python and external-tool
+  invocations from one source.
+
+#### Fixed
+
+- Developer-command execution now reports missing external tools explicitly
+  and preserves fail-closed exit-code behavior across platforms.
+
+#### Security
+
+- The setup path resolves `uv` without a shell and retains the existing bounded
+  timeout and argument-array execution contract.
+
 ### Patch 2 — v0.1.2 — 2026-09-08
 
 #### Digest

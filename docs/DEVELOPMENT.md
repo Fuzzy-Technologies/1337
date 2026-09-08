@@ -8,7 +8,7 @@ Run these commands from the repository root:
 
 ```bash
 python -m pip install uv==0.11.33
-uv sync --locked --extra dev
+uv run --locked 1337-dev setup
 uv run --locked 1337 --version
 uv run --locked 1337-dev check
 ```
@@ -18,11 +18,17 @@ rejects stale dependency metadata instead of rewriting the lock. Build backend
 constraints also pin the editable-build environment. Update dependency pins and
 the lock together in a reviewed change; do not regenerate them during CI.
 
+`1337-dev setup` is the repeatable CLI entry point for the locked development
+environment. It invokes `uv sync --locked --extra dev` with `shell=False` and
+fails if the pinned `uv` executable is unavailable. The initial one-time
+prerequisite is installing `uv==0.11.33` as shown above.
+
 The current `1337` entry point provides help and installed-version output. The
 interactive shell and scanner workflows belong to subsequent product work.
 
 | Command                              | Behavior                                                                   |
 | ------------------------------------ | -------------------------------------------------------------------------- |
+| `uv run --locked 1337-dev setup`     | Synchronize the locked development environment                            |
 | `uv run --locked 1337-dev lint`      | Non-mutating Ruff checks                                                   |
 | `uv run --locked 1337-dev typecheck` | Strict mypy checks for production Python                                   |
 | `uv run --locked 1337-dev compile`   | Compile source and tests                                                   |

@@ -53,6 +53,31 @@ def test_check_runs_all_quality_steps_and_removes_stale_report(repository, monke
     ]
 
 
+def test_setup_uses_locked_uv(repository, monkeypatch):
+    process = Mock(return_value=subprocess.CompletedProcess([], 0))
+    monkeypatch.setattr(subprocess, "run", process)
+    monkeypatch.setattr(dev_commands.shutil, "which", lambda command: "/tools/uv")
+
+    assert dev_commands.run("setup") == 0
+
+    process.assert_called_once_with(
+        ["/tools/uv", "sync", "--locked", "--extra", "dev"],
+        shell=False,
+        timeout=300,
+        check=False,
+    )
+
+
+def test_setup_fails_closed_when_uv_is_missing(repository, monkeypatch, capsys):
+    process = Mock()
+    monkeypatch.setattr(subprocess, "run", process)
+    monkeypatch.setattr(dev_commands.shutil, "which", lambda command: None)
+
+    assert dev_commands.run("setup") == 127
+    assert "uv" in capsys.readouterr().err
+    process.assert_not_called()
+
+
 @pytest.mark.parametrize("returncode, expected", [(1, 1), (42, 42), (-9, 137)])
 def test_child_failure_stops_the_gate(repository, monkeypatch, returncode, expected):
     process = Mock(return_value=subprocess.CompletedProcess([], returncode))

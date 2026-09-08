@@ -10,9 +10,12 @@ from fuzzy1337.cli import get_commands, main
 def test_developer_commands_are_registered():
     commands = get_commands()
 
-    assert set(commands) == {"test", "lint", "typecheck", "compile", "build", "check"}
+    assert set(commands) == {
+        "setup", "test", "lint", "typecheck", "compile", "build", "check",
+    }
     assert "mypy" in commands["check"]
     assert "fuzzy1337.coverage_gate" in commands["test"]
+    assert commands["setup"] == "uv sync --locked --extra dev"
     commands["test"] = "changed by a consumer"
     assert get_commands()["test"] != commands["test"]
 
