@@ -21,6 +21,21 @@ The project is being designed around a few durable principles:
 - English as the canonical language for code, commands, APIs, and documentation;
 - localization as a first-class extension boundary.
 
+## Product direction
+
+1337 Community is the only current public edition. It is an Apache-2.0,
+early pre-alpha foundation; the roadmap describes intent, not a claim that every
+capability already exists.
+
+| Track | Engineering intention | Current boundary |
+| ----- | --------------------- | ---------------- |
+| **Community** | A security workstation that connects specialized tools, their evidence, and the reasoning needed to understand attack paths and remediation priority. | The public open-source foundation. Its currently implemented scope is the M0 bootstrap; capability arrives through the published roadmap. |
+| **Enterprise direction** | A future commercial direction for turning security data into governed decisions through correlation, business context, prioritization, automation, audit, and integrations. | Not released or available. This is a design direction, not a feature list, delivery date, or commercial commitment. |
+
+The architectural principle is not to replace every specialist scanner. 1337 aims
+to become the reasoning layer that lets tools, evidence, and risk decisions work
+together.
+
 ## Responsible use
 
 1337 is intended for defensive security engineering, authorized security assessment, training, research, CTF/lab environments, and systems you own or are explicitly authorized to test.
