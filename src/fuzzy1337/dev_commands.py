@@ -45,7 +45,8 @@ COMMANDS: dict[str, tuple[CommandStep, ...]] = {
     "compile": (python_step("-m", "compileall", "-q", "src", "tests"),),
     "lint": (python_step("-m", "ruff", "check", "."),),
     "typecheck": (python_step("-m", "mypy"),),
-    "test": (python_step("-m", "pytest"), _coverage_gate),
+    "unit": (python_step("-m", "pytest", "tests/unit"), _coverage_gate),
+    "test": (python_step("-m", "pytest", "tests"), _coverage_gate),
     "build": (python_step("-m", "build", "--no-isolation"),),
 }
 COMMANDS["check"] = (

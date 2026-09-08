@@ -51,6 +51,30 @@ def test_check_runs_all_quality_steps_and_removes_stale_report(repository, monke
     assert [call[2] for call in calls] == [
         "compileall", "ruff", "mypy", "pytest", "fuzzy1337.coverage_gate", "build",
     ]
+    assert calls[3][3:] == ["tests"]
+
+
+def test_unit_runs_only_the_unit_suite_and_coverage_gate(repository, monkeypatch):
+    calls = []
+
+    def process(arguments, **kwargs):
+        calls.append(arguments)
+        assert kwargs == {"shell": False, "timeout": 300, "check": False}
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr(subprocess, "run", process)
+
+    assert dev_commands.run("unit") == 0
+    assert calls == [
+        [sys.executable, "-m", "pytest", "tests/unit"],
+        [
+            sys.executable,
+            "-m",
+            "fuzzy1337.coverage_gate",
+            "coverage/coverage.json",
+            "src/fuzzy1337",
+        ],
+    ]
 
 
 def test_setup_uses_locked_uv(repository, monkeypatch):

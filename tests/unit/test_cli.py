@@ -11,9 +11,10 @@ def test_developer_commands_are_registered():
     commands = get_commands()
 
     assert set(commands) == {
-        "setup", "test", "lint", "typecheck", "compile", "build", "check",
+        "setup", "unit", "test", "lint", "typecheck", "compile", "build", "check",
     }
     assert "mypy" in commands["check"]
+    assert commands["unit"].startswith("python -m pytest tests/unit")
     assert "fuzzy1337.coverage_gate" in commands["test"]
     assert commands["setup"] == "uv sync --locked --extra dev"
     commands["test"] = "changed by a consumer"

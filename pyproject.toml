@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "1337"
-version = "0.1.3"
+version = "0.1.4"
 description = "1337 Security Workbench open-source core"
 readme = "README.md"
 license = "Apache-2.0"
@@ -47,7 +47,7 @@ include = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/unit"]
 addopts = "--strict-config --strict-markers --cov=fuzzy1337 --cov-branch --cov-report=term-missing --cov-report=json:coverage/coverage.json --junitxml=coverage/tests.xml"
 markers = ["integration: real package build and installation boundaries"]
 
