@@ -48,6 +48,22 @@ Roadmap scope and ordering may evolve as the Community platform matures. Detaile
 
 ## Development
 
+The Python bootstrap provides installable `1337` and `1337-dev` commands.
+Use Python 3.11+ and run from the repository root:
+
+```bash
+python -m pip install uv==0.11.33
+uv sync --locked --extra dev
+uv run --locked 1337 --version
+uv run --locked 1337-dev check
+```
+
+The full gate checks compilation, lint, types, tests, strictly greater than 80%
+combined branch/statement coverage for every production module, and packaging.
+The bootstrap CLI provides help/version; the interactive shell and scanners
+remain planned work. See [Python development](docs/DEVELOPMENT.md) for individual
+commands, test layers, package validation, and dependency handling.
+
 Repository-level rules for humans, extensions, and AI agents are defined in:
 
 - [AGENTS.md](AGENTS.md) — mandatory agent entry point and project-scope policy;

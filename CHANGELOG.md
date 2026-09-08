@@ -8,6 +8,30 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 2 — v0.1.2 — 2026-09-08
+
+#### Digest
+
+- Made the Python bootstrap installable and established reproducible developer quality gates for issue #8.
+
+#### Added
+
+- Installed `1337` help/version and `1337-dev` quality-command entry points.
+- Pinned build/development tools, a hashed dependency lock, and a packaging architecture decision.
+- Strict type checks, branch coverage, and an executable per-module coverage gate requiring more than 80%.
+- Failure-path unit tests, public manifest contract tests, and clean wheel-installation integration tests.
+
+#### Fixed
+
+- Explicit package selection now builds `fuzzy1337` from the `1337` distribution.
+- Developer command descriptions and execution now share one registry; the full gate runs every declared check.
+- Development commands no longer advertise a formatter outside the approved house-style contract.
+
+#### Security
+
+- Missing coverage reports/modules, invalid measurement data, and undocumented exclusions fail the quality gate.
+- Developer subprocesses use argument arrays, bounded execution, and explicit failure propagation.
+
 ### Patch 1 — v0.1.1 — 2026-09-07
 
 #### Digest
