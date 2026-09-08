@@ -21,6 +21,21 @@ The project is being designed around a few durable principles:
 - English as the canonical language for code, commands, APIs, and documentation;
 - localization as a first-class extension boundary.
 
+## Product direction
+
+1337 Community is the only current public edition. It is an Apache-2.0,
+early pre-alpha foundation; the roadmap describes intent, not a claim that every
+capability already exists.
+
+| Track | Engineering intention | Current boundary |
+| ----- | --------------------- | ---------------- |
+| **Community** | A security workstation that connects specialized tools, their evidence, and the reasoning needed to understand attack paths and remediation priority. | The public open-source foundation. Its currently implemented scope is the M0 bootstrap; capability arrives through the published roadmap. |
+| **Enterprise direction** | A future commercial direction for turning security data into governed decisions through correlation, business context, prioritization, automation, audit, and integrations. | Not released or available. This is a design direction, not a feature list, delivery date, or commercial commitment. |
+
+The architectural principle is not to replace every specialist scanner. 1337 aims
+to become the reasoning layer that lets tools, evidence, and risk decisions work
+together.
+
 ## Responsible use
 
 1337 is intended for defensive security engineering, authorized security assessment, training, research, CTF/lab environments, and systems you own or are explicitly authorized to test.
@@ -55,6 +70,7 @@ Use Python 3.11+ and run from the repository root:
 python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 --version
+uv run --locked 1337-dev unit
 uv run --locked 1337-dev check
 ```
 
@@ -63,11 +79,13 @@ lockfile (`uv sync --locked --extra dev`). It is safe to repeat and refuses stal
 dependency metadata. The initial one-time prerequisite is the pinned `uv`
 installation shown above.
 
-The full gate checks compilation, lint, types, tests, strictly greater than 80%
-combined branch/statement coverage for every production module, and packaging.
-The bootstrap CLI provides help/version; the interactive shell and scanners
-remain planned work. See [Python development](docs/DEVELOPMENT.md) for individual
-commands, test layers, package validation, and dependency handling.
+`1337-dev unit` is the default fast feedback path. It runs only `tests/unit`,
+blocks real network connections, and enforces strictly greater than 80% combined
+branch/statement coverage for every production module. The full `check` gate also
+checks compilation, lint, types, all test layers, and packaging. The bootstrap CLI
+provides help/version; the interactive shell and scanners remain planned work.
+See [Python development](docs/DEVELOPMENT.md) for individual commands, test layers,
+package validation, and dependency handling.
 
 Repository-level rules for humans, extensions, and AI agents are defined in:
 

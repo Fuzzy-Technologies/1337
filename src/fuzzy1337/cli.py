@@ -23,5 +23,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"1337 {version('1337')}")
     parser.parse_args(argv)
+
     parser.print_help()
     return 0
