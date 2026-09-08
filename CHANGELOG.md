@@ -8,6 +8,25 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 6 — v0.1.6 — 2026-09-08
+
+#### Digest
+
+- Added the isolated M0 synthetic security lab skeleton for issue #11.
+
+#### Added
+
+- Added the repository-owned safe web target, internal Docker network, and
+  stable target-family locations for future lab packs.
+- Added CI lifecycle and health-contract validation for the safe target.
+- Added an architecture decision record for synthetic-lab isolation.
+
+#### Security
+
+- Lab services are unprivileged, read-only, capability-restricted, internal-only
+  containers with no published host ports; M0 adds no vulnerable application or
+  authorization beyond this repository-owned lab.
+
 ### Patch 5 — v0.1.5 — 2026-09-08
 
 #### Digest

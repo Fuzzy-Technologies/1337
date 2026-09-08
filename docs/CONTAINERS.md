@@ -41,6 +41,21 @@ from being owned by the container user. Docker Desktop users can normally run
 the same command as written; override files are intentionally ignored and must
 not be committed.
 
+## Synthetic lab
+
+The M0 lab is an isolated safe target for container lifecycle verification. It
+does not publish a host port, does not provide an external target, and does not
+yet claim scanner coverage or detection accuracy.
+
+```bash
+docker compose --profile lab up --build --wait lab-web-safe
+docker compose ps
+docker compose down
+```
+
+See [Synthetic security lab](../labs/README.md) for the target contract and
+reserved target-family boundaries.
+
 ## Safety and evidence
 
 Container execution does not extend authorization. Do not add remote targets,

@@ -71,3 +71,22 @@ jobs:
         run: docker compose build
       - name: Run container quality gate
         run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile quality run --rm quality
+
+  synthetic-lab:
+    name: Synthetic lab lifecycle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Start isolated safe target
+        run: docker compose --profile lab up --build --wait lab-web-safe
+      - name: Verify safe target contract
+        run: >-
+          docker compose exec -T lab-web-safe python -c
+          "from urllib.request import urlopen; import json; response = urlopen('http://127.0.0.1:8080/health', timeout=1); assert json.load(response) == {'status': 'ok', 'target': 'web-safe'}"
+      - name: Stop synthetic lab
+        if: always()
+        run: docker compose --profile lab down --volumes --remove-orphans
