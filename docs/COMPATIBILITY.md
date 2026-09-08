@@ -12,11 +12,11 @@ Repository releases use Semantic Versioning. Individual machine-readable contrac
 
 ## Stability classes
 
-| Stability class | Meaning                                                                 | Compatibility promise                                                                 |
-| --------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| **Stable**      | Explicitly documented public contract intended for external consumers  | Breaking changes require the version transition defined below                         |
-| **Experimental**| Publicly visible preview surface that is still being designed           | May change between releases; changes must be documented                              |
-| **Internal**    | Implementation detail not declared as public                            | No compatibility promise; external consumers must not depend on it                   |
+| Stability class  | Meaning                                                               | Compatibility promise                                              |
+|------------------|-----------------------------------------------------------------------|--------------------------------------------------------------------|
+| **Stable**       | Explicitly documented public contract intended for external consumers | Breaking changes require the version transition defined below      |
+| **Experimental** | Publicly visible preview surface that is still being designed         | May change between releases; changes must be documented            |
+| **Internal**     | Implementation detail not declared as public                          | No compatibility promise; external consumers must not depend on it |
 
 A surface is **not** Stable merely because it is importable, visible in source, reachable over HTTP, or present in a serialized file. Stability must be declared by public documentation or a versioned schema/SDK contract.
 
@@ -24,15 +24,15 @@ A surface is **not** Stable merely because it is importable, visible in source, 
 
 The following areas are the intended extension boundaries as they are introduced:
 
-| Boundary                    | Public when                                                        | Not a public guarantee                                                     |
-| --------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| Machine-readable contracts  | Versioned schema is published under `contracts/`                   | Unversioned internal JSON/YAML/state                                       |
-| Python/API SDK              | Symbol is explicitly documented as public SDK surface              | Arbitrary internal modules, classes, helpers, or import paths               |
-| Tool adapters               | Adapter interface/schema is published as a versioned contract      | Executor internals or third-party tool implementation details               |
-| CLI                         | Command/option behavior is documented as a stable CLI contract     | Human-oriented formatting, spacing, colors, or incidental log text         |
-| REST/OpenAPI                | Endpoint/schema is included in a versioned public API specification| Internal routes, debug endpoints, or undocumented fields                    |
-| Evidence/finding formats    | A versioned schema is published                                    | Temporary runtime/cache/storage representation                             |
-| Extension manifest          | Validates against `contracts/extension-manifest.schema.json`       | Extra undeclared fields or implementation-specific metadata                 |
+| Boundary                   | Public when                                                         | Not a public guarantee                                             |
+|----------------------------|---------------------------------------------------------------------|--------------------------------------------------------------------|
+| Machine-readable contracts | Versioned schema is published under `contracts/`                    | Unversioned internal JSON/YAML/state                               |
+| Python/API SDK             | Symbol is explicitly documented as public SDK surface               | Arbitrary internal modules, classes, helpers, or import paths      |
+| Tool adapters              | Adapter interface/schema is published as a versioned contract       | Executor internals or third-party tool implementation details      |
+| CLI                        | Command/option behavior is documented as a stable CLI contract      | Human-oriented formatting, spacing, colors, or incidental log text |
+| REST/OpenAPI               | Endpoint/schema is included in a versioned public API specification | Internal routes, debug endpoints, or undocumented fields           |
+| Evidence/finding formats   | A versioned schema is published                                     | Temporary runtime/cache/storage representation                     |
+| Extension manifest         | Validates against `contracts/extension-manifest.schema.json`        | Extra undeclared fields or implementation-specific metadata        |
 
 The M0 repository does **not** freeze a Python import namespace before packaging is implemented. Future packaging work may choose the concrete import/package names, but once a symbol is declared Stable it must follow this compatibility policy.
 
