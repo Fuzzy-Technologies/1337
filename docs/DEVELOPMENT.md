@@ -89,3 +89,7 @@ hashes are recorded in the lock. Broader supply-chain/release inventory remains
 part of the M0/release acceptance process.
 
 Architecture decision: [Python toolchain baseline](adr/0001-python-toolchain.md).
+
+For the repository-owned container workflow, see
+[Container development](CONTAINERS.md). It provides `docker compose` commands
+for the same locked quality gate and a persistent interactive workbench service.

@@ -1,0 +1,36 @@
+# Git metadata and local development state
+.git
+.venv
+.idea
+.vscode
+
+# Python, test, and package outputs
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage/
+dist/
+build/
+
+# Local runtime state, secrets, and generated evidence
+.env
+.env.*
+!.env.example
+.local/
+.runtime/
+.work/
+.tmp/
+tmp/
+logs/
+artifacts/
+evidence/
+reports/
+
+# Repository-local Compose overrides must never enter an image build context.
+compose.override.yaml
+docker-compose.override.yml

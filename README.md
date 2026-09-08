@@ -1,25 +1,34 @@
 # 1337 Security Workbench
 
-**1337 Security Workbench by Fuzzy Technologies** is a fast, extensible security workbench for humans, tools, automation, and AI agents.
+**1337 Security Workbench by Fuzzy Technologies** is an open security workstation
+for practitioners and security teams.
 
 > **Technologies · Knowledge · Science**
 
+## Why 1337
+
+**For hackers and security engineers**
+
+> The modern open security workstation: one command to build your hacking lab.
+
+**For security leaders**
+
+> Attack-path intelligence: understand what attackers can actually reach and what to fix first.
+
 ## Status
 
-`1337` is in early pre-alpha bootstrap. The public repository is the Community/open-source foundation of the platform.
+`1337` is in early pre-alpha bootstrap. The public repository is the Apache-2.0
+Community foundation of the platform; the currently implemented scope is the M0
+engineering baseline, not a finished scanner.
 
-The project is being designed around a few durable principles:
+1337 is built around a few durable principles:
 
 - one fast entry point: `1337`;
-- native CLI feel with structured evidence;
-- useful Community edition rather than a crippled demo;
-- local-first and container-first operation;
-- modular scanner/tool adapters instead of a hard dependency on one distribution;
-- deterministic evidence and findings before AI interpretation;
-- reachability and attack paths, not severity scores alone;
-- vendor-neutral APIs for humans, automation, and AI agents;
-- English as the canonical language for code, commands, APIs, and documentation;
-- localization as a first-class extension boundary.
+- local-first, container-first operation;
+- modular adapters for specialist tools rather than dependence on one distribution;
+- structured evidence before conclusions;
+- attack paths and reachability, not severity scores alone;
+- a useful Community edition, not a crippled demo.
 
 ## Product direction
 
@@ -27,14 +36,13 @@ The project is being designed around a few durable principles:
 early pre-alpha foundation; the roadmap describes intent, not a claim that every
 capability already exists.
 
-| Track | Engineering intention | Current boundary |
-| ----- | --------------------- | ---------------- |
-| **Community** | A security workstation that connects specialized tools, their evidence, and the reasoning needed to understand attack paths and remediation priority. | The public open-source foundation. Its currently implemented scope is the M0 bootstrap; capability arrives through the published roadmap. |
-| **Enterprise direction** | A future commercial direction for turning security data into governed decisions through correlation, business context, prioritization, automation, audit, and integrations. | Not released or available. This is a design direction, not a feature list, delivery date, or commercial commitment. |
+| Track                    | Engineering intention                                                                                                                                     | Current boundary                                                                                                    |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Community**            | An open security workstation connecting specialist tools, their evidence, attack paths, and remediation priorities.                                       | The public foundation. M0 provides the engineering baseline; capability follows the published roadmap.              |
+| **Enterprise direction** | A future commercial direction for governed security decisions through correlation, business context, prioritization, automation, audit, and integrations. | Not released or available. This is a design direction, not a feature list, delivery date, or commercial commitment. |
 
-The architectural principle is not to replace every specialist scanner. 1337 aims
-to become the reasoning layer that lets tools, evidence, and risk decisions work
-together.
+1337 is not trying to replace every specialist scanner. It is the layer that
+connects tools, evidence, and risk decisions into a usable security picture.
 
 ## Responsible use
 
@@ -87,9 +95,13 @@ provides help/version; the interactive shell and scanners remain planned work.
 See [Python development](docs/DEVELOPMENT.md) for individual commands, test layers,
 package validation, and dependency handling.
 
-Repository-level rules for humans, extensions, and AI agents are defined in:
+For Docker Engine or Docker Desktop development, see
+[Container development](docs/CONTAINERS.md). The container workflow runs the same
+locked quality gate and is restricted to this source tree and repository-defined
+synthetic targets.
 
-- [AGENTS.md](AGENTS.md) — mandatory agent entry point and project-scope policy;
+Project development and compatibility references:
+
 - [DEVELOPMENT_PROTOCOL.md](DEVELOPMENT_PROTOCOL.md) — development workflow, Python house style, testing, Git, and documentation rules;
 - [docs/RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) — protected branches, merge policy, deterministic releases, tags, and hotfix flow;
 - [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) — public compatibility, stability, versioning, and extension-boundary contract;
