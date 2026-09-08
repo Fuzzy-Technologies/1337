@@ -31,6 +31,8 @@ The M0 baseline uses a repository-owned Dockerfile and Compose file.
   container image remains usable with or without a bind mount.
 - Compose supports an explicit unprivileged host UID/GID mapping for writable
   source mounts rather than relaxing the container to root.
+- The `uv` cache is an ephemeral sticky-bit `/tmp` directory so an explicitly
+  mapped host identity does not need a writable image-home directory.
 - The baseline accepts only repository-local source and later repository-owned
   synthetic targets. It does not define a remote scan target, credential, or
   external service dependency.

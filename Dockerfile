@@ -7,6 +7,7 @@ FROM ${PYTHON_IMAGE} AS development
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    UV_CACHE_DIR=/tmp/uv-cache \
     UV_PROJECT_ENVIRONMENT=/opt/1337/.venv
 
 RUN groupadd --gid 1337 workbench \
@@ -15,6 +16,8 @@ RUN groupadd --gid 1337 workbench \
 WORKDIR /workspace
 
 RUN python -m pip install --no-cache-dir uv==0.11.33
+
+RUN mkdir --mode=1777 /tmp/uv-cache
 
 COPY pyproject.toml uv.lock README.md LICENSE ./
 
