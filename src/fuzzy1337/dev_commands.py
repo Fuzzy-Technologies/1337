@@ -37,7 +37,10 @@ def uv_step(*arguments: str) -> CommandStep:
 
 
 _coverage_gate = python_step(
-    "-m", "fuzzy1337.coverage_gate", "coverage/coverage.json", "src/fuzzy1337"
+    "-m",
+    "fuzzy1337.coverage_gate",
+    "coverage/coverage.json",
+    "src/fuzzy1337",
 )
 
 COMMANDS: dict[str, tuple[CommandStep, ...]] = {
@@ -50,8 +53,11 @@ COMMANDS: dict[str, tuple[CommandStep, ...]] = {
     "build": (python_step("-m", "build", "--no-isolation"),),
 }
 COMMANDS["check"] = (
-    COMMANDS["compile"] + COMMANDS["lint"] + COMMANDS["typecheck"]
-    + COMMANDS["test"] + COMMANDS["build"]
+    COMMANDS["compile"]
+    + COMMANDS["lint"]
+    + COMMANDS["typecheck"]
+    + COMMANDS["test"]
+    + COMMANDS["build"]
 )
 
 
@@ -70,8 +76,12 @@ def _resolve_step(step: CommandStep) -> list[str] | None:
 
     executable = shutil.which(step.executable)
     if executable is None:
-        print(f"Required developer tool was not found: {step.executable}", file=sys.stderr)
+        print(
+            f"Required developer tool was not found: {step.executable}",
+            file=sys.stderr,
+        )
         return None
+
     return [executable, *step.arguments]
 
 
@@ -79,6 +89,7 @@ def run(command: str) -> int:
     """Run one gate from the repository root and stop at the first failure."""
     if command not in COMMANDS:
         raise ValueError(f"Unknown developer command: {command}")
+
     if not Path("pyproject.toml").is_file() or not Path("src/fuzzy1337").is_dir():
         print("Run developer commands from the 1337 repository root.", file=sys.stderr)
         return 2
@@ -86,12 +97,19 @@ def run(command: str) -> int:
     for step in COMMANDS[command]:
         if step.executable == "python" and step.arguments[:2] == ("-m", "pytest"):
             Path("coverage/coverage.json").unlink(missing_ok=True)
+
         print(f"Running: {step.display()}", flush=True)
         arguments = _resolve_step(step)
         if arguments is None:
             return 127
+
         try:
-            result = subprocess.run(arguments, shell=False, timeout=300, check=False)
+            result = subprocess.run(
+                arguments,
+                shell=False,
+                timeout=300,
+                check=False,
+            )
         except subprocess.TimeoutExpired:
             print("Developer command exceeded its 300-second limit.", file=sys.stderr)
             return 124
@@ -99,6 +117,7 @@ def run(command: str) -> int:
             detail = error.strerror or str(error)
             print(f"Could not start developer command: {detail}", file=sys.stderr)
             return 127
+
         if result.returncode:
             return 128 - result.returncode if result.returncode < 0 else result.returncode
 
@@ -107,7 +126,10 @@ def run(command: str) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Select a developer gate without accepting arbitrary shell commands."""
-    parser = argparse.ArgumentParser(prog="1337-dev", description="1337 repository quality gates")
+    parser = argparse.ArgumentParser(
+        prog="1337-dev",
+        description="1337 repository quality gates",
+    )
     parser.add_argument("command", choices=COMMANDS)
     return run(parser.parse_args(argv).command)
 

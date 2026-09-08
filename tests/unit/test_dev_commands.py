@@ -44,12 +44,18 @@ def test_check_runs_all_quality_steps_and_removes_stale_report(repository, monke
         assert kwargs == {"shell": False, "timeout": 300, "check": False}
         if arguments[1:3] == ["-m", "pytest"]:
             assert not report.exists()
+
         return subprocess.CompletedProcess(arguments, 0)
 
     monkeypatch.setattr(subprocess, "run", process)
     assert dev_commands.run("check") == 0
     assert [call[2] for call in calls] == [
-        "compileall", "ruff", "mypy", "pytest", "fuzzy1337.coverage_gate", "build",
+        "compileall",
+        "ruff",
+        "mypy",
+        "pytest",
+        "fuzzy1337.coverage_gate",
+        "build",
     ]
     assert calls[3][3:] == ["tests"]
 
@@ -102,7 +108,10 @@ def test_setup_fails_closed_when_uv_is_missing(repository, monkeypatch, capsys):
     process.assert_not_called()
 
 
-@pytest.mark.parametrize("returncode, expected", [(1, 1), (42, 42), (-9, 137)])
+@pytest.mark.parametrize(
+    "returncode, expected",
+    [(1, 1), (42, 42), (-9, 137)],
+)
 def test_child_failure_stops_the_gate(repository, monkeypatch, returncode, expected):
     process = Mock(return_value=subprocess.CompletedProcess([], returncode))
     monkeypatch.setattr(subprocess, "run", process)
@@ -112,7 +121,10 @@ def test_child_failure_stops_the_gate(repository, monkeypatch, returncode, expec
 
 @pytest.mark.parametrize(
     "error, code",
-    [(FileNotFoundError(2, "Executable missing"), 127), (subprocess.TimeoutExpired("python", 300), 124)],
+    [
+        (FileNotFoundError(2, "Executable missing"), 127),
+        (subprocess.TimeoutExpired("python", 300), 124),
+    ],
 )
 def test_process_start_and_timeout_fail_closed(repository, monkeypatch, error, code, capsys):
     process = Mock(side_effect=error)

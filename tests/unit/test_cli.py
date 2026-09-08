@@ -11,7 +11,14 @@ def test_developer_commands_are_registered():
     commands = get_commands()
 
     assert set(commands) == {
-        "setup", "unit", "test", "lint", "typecheck", "compile", "build", "check",
+        "setup",
+        "unit",
+        "test",
+        "lint",
+        "typecheck",
+        "compile",
+        "build",
+        "check",
     }
     assert "mypy" in commands["check"]
     assert commands["unit"].startswith("python -m pytest tests/unit")
@@ -29,10 +36,14 @@ def test_no_arguments_describe_bootstrap(capsys):
     assert not output.err
 
 
-@pytest.mark.parametrize("arguments, code", [(["--version"], 0), (["--help"], 0), (["scan"], 2)])
+@pytest.mark.parametrize(
+    "arguments, code",
+    [(["--version"], 0), (["--help"], 0), (["scan"], 2)],
+)
 def test_cli_options(arguments, code, capsys):
     with pytest.raises(SystemExit) as caught:
         main(arguments)
+
     assert caught.value.code == code
     output = capsys.readouterr()
     if arguments == ["--version"]:
