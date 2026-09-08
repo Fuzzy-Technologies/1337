@@ -8,6 +8,26 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 5 — v0.1.5 — 2026-09-08
+
+#### Digest
+
+- Added the container-first development and quality baseline for issue #10.
+
+#### Added
+
+- Added the repository-owned Dockerfile, Compose services, and container
+  development guidance for an interactive workbench and one-shot quality gate.
+- Added CI validation of the Compose configuration, image build, and in-container
+  `1337-dev check` execution.
+- Added an architecture decision record for the M0 container boundary.
+
+#### Security
+
+- Container conventions use an unprivileged runtime user, a locked dependency
+  environment, and repository-local inputs only; they do not authorize remote
+  targets, privileged execution, secrets, or host networking.
+
 ### Patch 4 — v0.1.4 — 2026-09-08
 
 #### Digest

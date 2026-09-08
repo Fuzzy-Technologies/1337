@@ -87,6 +87,11 @@ provides help/version; the interactive shell and scanners remain planned work.
 See [Python development](docs/DEVELOPMENT.md) for individual commands, test layers,
 package validation, and dependency handling.
 
+For Docker Engine or Docker Desktop development, see
+[Container development](docs/CONTAINERS.md). The container workflow runs the same
+locked quality gate and is restricted to this source tree and repository-defined
+synthetic targets.
+
 Repository-level rules for humans, extensions, and AI agents are defined in:
 
 - [AGENTS.md](AGENTS.md) — mandatory agent entry point and project-scope policy;

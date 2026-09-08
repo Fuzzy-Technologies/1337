@@ -55,3 +55,19 @@ jobs:
             dist/
           if-no-files-found: ignore
           retention-days: 14
+
+  container-quality:
+    name: Container configuration and quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build locked development image
+        run: docker compose build
+      - name: Run container quality gate
+        run: docker compose --profile quality run --rm quality
