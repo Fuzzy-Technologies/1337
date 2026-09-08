@@ -3,20 +3,50 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
-COMMANDS: dict[str, tuple[tuple[str, ...], ...]] = {
-    "compile": (("-m", "compileall", "-q", "src", "tests"),),
-    "lint": (("-m", "ruff", "check", "."),),
-    "typecheck": (("-m", "mypy"),),
-    "test": (
-        ("-m", "pytest"),
-        ("-m", "fuzzy1337.coverage_gate", "coverage/coverage.json", "src/fuzzy1337"),
-    ),
-    "build": (("-m", "build", "--no-isolation"),),
+Executable = Literal["python", "uv"]
+
+
+@dataclass(frozen=True, slots=True)
+class CommandStep:
+    """One deterministic process invocation in a developer command."""
+
+    executable: Executable
+    arguments: tuple[str, ...]
+
+    def display(self) -> str:
+        """Return the human-readable command without exposing local paths."""
+        return " ".join((self.executable, *self.arguments))
+
+
+def python_step(*arguments: str) -> CommandStep:
+    """Create a step executed by the current Python interpreter."""
+    return CommandStep("python", arguments)
+
+
+def uv_step(*arguments: str) -> CommandStep:
+    """Create a step executed by the pinned external uv installation."""
+    return CommandStep("uv", arguments)
+
+
+_coverage_gate = python_step(
+    "-m", "fuzzy1337.coverage_gate", "coverage/coverage.json", "src/fuzzy1337"
+)
+
+COMMANDS: dict[str, tuple[CommandStep, ...]] = {
+    "setup": (uv_step("sync", "--locked", "--extra", "dev"),),
+    "compile": (python_step("-m", "compileall", "-q", "src", "tests"),),
+    "lint": (python_step("-m", "ruff", "check", "."),),
+    "typecheck": (python_step("-m", "mypy"),),
+    "test": (python_step("-m", "pytest"), _coverage_gate),
+    "build": (python_step("-m", "build", "--no-isolation"),),
 }
 COMMANDS["check"] = (
     COMMANDS["compile"] + COMMANDS["lint"] + COMMANDS["typecheck"]
@@ -27,9 +57,21 @@ COMMANDS["check"] = (
 def describe_commands() -> dict[str, str]:
     """Describe execution steps without exposing mutable registry state."""
     return {
-        name: " then ".join("python " + " ".join(step) for step in steps)
+        name: " then ".join(step.display() for step in steps)
         for name, steps in COMMANDS.items()
     }
+
+
+def _resolve_step(step: CommandStep) -> list[str] | None:
+    """Resolve a step to an argv list, failing closed when a tool is absent."""
+    if step.executable == "python":
+        return [sys.executable, *step.arguments]
+
+    executable = shutil.which(step.executable)
+    if executable is None:
+        print(f"Required developer tool was not found: {step.executable}", file=sys.stderr)
+        return None
+    return [executable, *step.arguments]
 
 
 def run(command: str) -> int:
@@ -41,16 +83,20 @@ def run(command: str) -> int:
         return 2
 
     for step in COMMANDS[command]:
-        if step[:2] == ("-m", "pytest"):
+        if step.executable == "python" and step.arguments[:2] == ("-m", "pytest"):
             Path("coverage/coverage.json").unlink(missing_ok=True)
-        print("Running: python " + " ".join(step), flush=True)
+        print(f"Running: {step.display()}", flush=True)
+        arguments = _resolve_step(step)
+        if arguments is None:
+            return 127
         try:
-            result = subprocess.run([sys.executable, *step], shell=False, timeout=300, check=False)
+            result = subprocess.run(arguments, shell=False, timeout=300, check=False)
         except subprocess.TimeoutExpired:
             print("Developer command exceeded its 300-second limit.", file=sys.stderr)
             return 124
         except OSError as error:
-            print(f"Could not start developer command: {error.strerror}", file=sys.stderr)
+            detail = error.strerror or str(error)
+            print(f"Could not start developer command: {detail}", file=sys.stderr)
             return 127
         if result.returncode:
             return 128 - result.returncode if result.returncode < 0 else result.returncode
