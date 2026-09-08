@@ -55,6 +55,7 @@ Use Python 3.11+ and run from the repository root:
 python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 --version
+uv run --locked 1337-dev unit
 uv run --locked 1337-dev check
 ```
 
@@ -63,11 +64,13 @@ lockfile (`uv sync --locked --extra dev`). It is safe to repeat and refuses stal
 dependency metadata. The initial one-time prerequisite is the pinned `uv`
 installation shown above.
 
-The full gate checks compilation, lint, types, tests, strictly greater than 80%
-combined branch/statement coverage for every production module, and packaging.
-The bootstrap CLI provides help/version; the interactive shell and scanners
-remain planned work. See [Python development](docs/DEVELOPMENT.md) for individual
-commands, test layers, package validation, and dependency handling.
+`1337-dev unit` is the default fast feedback path. It runs only `tests/unit`,
+blocks real network connections, and enforces strictly greater than 80% combined
+branch/statement coverage for every production module. The full `check` gate also
+checks compilation, lint, types, all test layers, and packaging. The bootstrap CLI
+provides help/version; the interactive shell and scanners remain planned work.
+See [Python development](docs/DEVELOPMENT.md) for individual commands, test layers,
+package validation, and dependency handling.
 
 Repository-level rules for humans, extensions, and AI agents are defined in:
 

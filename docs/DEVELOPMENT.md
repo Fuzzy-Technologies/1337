@@ -10,6 +10,7 @@ Run these commands from the repository root:
 python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 --version
+uv run --locked 1337-dev unit
 uv run --locked 1337-dev check
 ```
 
@@ -28,11 +29,12 @@ interactive shell and scanner workflows belong to subsequent product work.
 
 | Command                              | Behavior                                                                   |
 |--------------------------------------|----------------------------------------------------------------------------|
-| `uv run --locked 1337-dev setup`     | Synchronize the locked development environment                             |
+| `uv run --locked 1337-dev setup`     | Synchronize the locked development environment                            |
 | `uv run --locked 1337-dev lint`      | Non-mutating Ruff checks                                                   |
 | `uv run --locked 1337-dev typecheck` | Strict mypy checks for production Python                                   |
 | `uv run --locked 1337-dev compile`   | Compile source and tests                                                   |
-| `uv run --locked 1337-dev test`      | Pytest, branch coverage, and mandatory per-module coverage validation      |
+| `uv run --locked 1337-dev unit`      | Unit tests plus mandatory per-module branch/statement coverage validation  |
+| `uv run --locked 1337-dev test`      | All test layers plus mandatory per-module coverage validation              |
 | `uv run --locked 1337-dev build`     | Build sdist and wheel using locked build tools                             |
 | `uv run --locked 1337-dev check`     | Compile, lint, typecheck, test/coverage, then build; stop on first failure |
 
@@ -40,26 +42,29 @@ Each child step has a 300-second limit. Normal child exit codes are propagated;
 timeouts return 124, process-start failures return 127, and POSIX signal exits
 are mapped to 128 plus the signal number. Run gates from the repository root.
 
-For a targeted diagnostic run:
+For the canonical fast feedback run:
 
 ```bash
-uv run --locked python -m pytest tests/unit -q
+uv run --locked 1337-dev unit
 ```
 
-Plain pytest is useful for feedback; `1337-dev test` additionally enforces the
-per-module contract and `1337-dev check` is the full repository gate. A stale
-coverage JSON file is removed before tests. Missing reports/modules, disabled
-branch measurement, invalid counts, and undocumented exclusions fail the gate.
-Every executable production module must exceed 80% combined statement/branch
-coverage. Exactly 80% fails. There are no production exclusions. Source modules
-not imported by the tests still belong to the required source inventory.
+Plain `pytest` also defaults to `tests/unit`. The `1337-dev unit` command additionally
+enforces the per-module contract; `1337-dev test` runs all test layers, and
+`1337-dev check` is the full repository gate. A stale coverage JSON file is removed
+before tests. Missing reports/modules, disabled branch measurement, invalid counts,
+and undocumented exclusions fail the gate. Every executable production module must
+exceed 80% combined statement/branch coverage. Exactly 80% fails. There are no
+production exclusions. Source modules not imported by the tests still belong to the
+required source inventory.
 
 Tests are organized by subsystem in `tests/unit`, `tests/contract`, and
 `tests/integration`; `tests/functional` retains the future synthetic-target
-boundary. The packaging integration test builds an sdist, builds its wheel,
-installs that wheel into a clean virtual environment without an index or
-dependencies, then invokes both installed entry points outside the checkout.
-It does not contact scan targets or external services.
+boundary. Unit tests are deterministic and carry an automatic fail-closed guard
+against real network connections, including local or Docker service sockets. The
+packaging integration test builds an sdist, builds its wheel, installs that wheel
+into a clean virtual environment without an index or dependencies, then invokes
+both installed entry points outside the checkout. It does not contact scan targets
+or external services.
 
 Generated evidence is under `coverage/`; distributable packages are under
 `dist/`. Both are ignored by Git. Dependencies must be installed before gates

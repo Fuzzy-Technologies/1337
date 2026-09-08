@@ -8,6 +8,30 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 4 — v0.1.4 — 2026-09-08
+
+#### Digest
+
+- Established the canonical fast unit-test baseline for issue #91.
+
+#### Added
+
+- Added `1337-dev unit` as the deterministic fast feedback entry point for
+  `tests/unit` with mandatory per-module coverage validation.
+- Added an automatic unit-test isolation guard and a self-test that prove real
+  network connections fail closed.
+
+#### Changed
+
+- Plain `pytest` now defaults to `tests/unit`; `1337-dev test` explicitly runs
+  every test layer and remains part of the full `1337-dev check` gate.
+
+#### Security
+
+- Unit tests cannot silently reach network or external service sockets, while
+  every production module must still exceed 80% combined statement/branch
+  coverage in the fast lane.
+
 ### Patch 3 — v0.1.3 — 2026-09-08
 
 #### Digest
