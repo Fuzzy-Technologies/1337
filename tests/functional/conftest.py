@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import platform
 import shutil
 import subprocess
 from collections.abc import Iterator
@@ -141,6 +142,9 @@ def functional_lab() -> Iterator[ComposeLab]:
 
 def _docker_compose_available() -> bool:
     """Return whether Docker Compose can be used in the current local or CI environment."""
+    if platform.system() != "Linux":
+        return False
+
     if shutil.which("docker") is None:
         return False
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from . import conftest
 from .conftest import ComposeLab
 from .scenarios import WEB_SAFE_HEALTH
 
@@ -42,3 +43,10 @@ def test_web_safe_health_contract(functional_lab: ComposeLab):
 
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {"status": "ok", "target": "web-safe"}
+
+
+def test_non_linux_runner_does_not_advertise_container_test_capability(monkeypatch):
+    """Keep the Linux-only target from running on unsupported CI runners."""
+    monkeypatch.setattr(conftest.platform, "system", lambda: "Windows")
+
+    assert not conftest._docker_compose_available()
