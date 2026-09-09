@@ -8,6 +8,24 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 7 — v0.1.7 — 2026-09-09
+
+#### Digest
+
+- Added the M1 centralized Command Registry foundation for issue #16.
+
+#### Added
+
+- Added immutable command descriptors with canonical names, aliases, usage,
+  summaries, and declared capability identifiers.
+- Added deterministic command resolution, prefix completion, and search APIs
+  for future shell, command-palette, documentation, and agent consumers.
+
+#### Changed
+
+- Bootstrap CLI help is now rendered from the Command Registry and exposes
+  only the currently implemented `help` and `--version` commands.
+
 ### Patch 6 — v0.1.6 — 2026-09-08
 
 #### Digest

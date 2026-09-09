@@ -4,7 +4,7 @@ from importlib.metadata import version
 
 import pytest
 
-from fuzzy1337.cli import get_commands, main
+from fuzzy1337.cli import get_command_registry, get_commands, main
 
 
 def test_developer_commands_are_registered():
@@ -32,8 +32,18 @@ def test_no_arguments_describe_bootstrap(capsys):
     assert main([]) == 0
     output = capsys.readouterr()
     assert "1337 Security Workbench" in output.out
+    assert "1337 help" in output.out
+    assert "1337 --version" in output.out
     assert "not available yet" in output.out
     assert not output.err
+
+
+def test_help_command_uses_the_command_registry(capsys):
+    assert main(["help"]) == 0
+
+    output = capsys.readouterr()
+    assert "Currently available commands:" in output.out
+    assert get_command_registry().resolve("help") is not None
 
 
 @pytest.mark.parametrize(
