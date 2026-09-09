@@ -8,6 +8,44 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 8 — v0.1.8 — 2026-09-09
+
+#### Digest
+
+- Added the pytest-native functional-test harness foundation for issue #93.
+
+#### Added
+
+- Added machine-readable functional scenario contracts and a pytest-owned
+  Docker Compose lifecycle for the repository-owned `web-safe` target.
+- Added deterministic raw lifecycle evidence and a container-backed health
+  contract test on Linux CI.
+- Added functional-testing guidance and ADR 0007 for the harness boundary.
+
+#### Security
+
+- Functional targets remain repository-owned and isolated. The first
+  container-backed scenario runs only where Linux container capability is
+  available; unsupported runners skip it explicitly.
+
+### Patch 7 — v0.1.7 — 2026-09-09
+
+#### Digest
+
+- Added the M1 centralized Command Registry foundation for issue #16.
+
+#### Added
+
+- Added immutable command descriptors with canonical names, aliases, usage,
+  summaries, and declared capability identifiers.
+- Added deterministic command resolution, prefix completion, and search APIs
+  for future shell, command-palette, documentation, and agent consumers.
+
+#### Changed
+
+- Bootstrap CLI help is now rendered from the Command Registry and exposes
+  only the currently implemented `help` and `--version` commands.
+
 ### Patch 6 — v0.1.6 — 2026-09-08
 
 #### Digest

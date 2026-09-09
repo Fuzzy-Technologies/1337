@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "1337"
-version = "0.1.6"
+version = "0.1.8"
 description = "1337 Security Workbench open-source core"
 readme = "README.md"
 license = "Apache-2.0"
