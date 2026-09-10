@@ -1,0 +1,51 @@
+name: fuzzy-1337
+
+x-workbench: &workbench
+  build:
+    context: .
+    target: development
+  image: fuzzy-technologies/1337-dev:local
+  init: true
+  user: "${LOCAL_UID:-1337}:${LOCAL_GID:-1337}"
+  working_dir: /workspace
+  environment:
+    PYTHONDONTWRITEBYTECODE: "1"
+    PYTHONUNBUFFERED: "1"
+    UV_PROJECT_ENVIRONMENT: /opt/1337/.venv
+  volumes:
+    - .:/workspace:rw
+
+services:
+  workbench:
+    <<: *workbench
+    command: ["sh", "-c", "while :; do sleep 3600; done"]
+    healthcheck:
+      test: ["CMD", "uv", "run", "--locked", "--extra", "dev", "1337", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  quality:
+    <<: *workbench
+    profiles: ["quality"]
+    command: ["1337-dev", "check"]
+
+  lab-web-safe:
+    profiles: ["lab"]
+    build:
+      context: ./labs/targets/web-safe
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - synthetic-lab
+
+networks:
+  synthetic-lab:
+    internal: true

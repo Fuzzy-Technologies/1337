@@ -1,0 +1,208 @@
+# 1337 Security Workbench Changelog
+
+1337 Security Workbench Changelog — a chronological record of product development, documenting key features, fixes, architectural changes, optimizations, limitations, security boundaries, and release-relevant results for each version.
+
+# Major 0
+
+Major 0 — the pre-stable 1337 Security Workbench line, establishing the Community foundation, development contracts, security boundaries, core workbench experience, and the path toward the first stable release.
+
+## Minor 0.1
+
+### Patch 8 — v0.1.8 — 2026-09-10
+
+#### Digest
+
+- Established the first public pre-alpha baseline: the completed M0 engineering
+  foundation plus early M1 Command Registry and functional-test harness work.
+
+#### Added
+
+- Added machine-readable functional scenario contracts and a pytest-owned
+  Docker Compose lifecycle for the repository-owned `web-safe` target.
+- Added deterministic raw lifecycle evidence and a container-backed health
+  contract test on Linux CI.
+- Added functional-testing guidance and ADR 0007 for the harness boundary.
+
+#### Documentation
+
+- Added the public product vision, AI-agent discovery reference, compact machine
+  summary, and ADR 0008 for the model-neutral cyber execution/state/evidence
+  platform boundary.
+
+#### Security
+
+- Functional targets remain repository-owned and isolated. The first
+  container-backed scenario runs only where Linux container capability is
+  available; unsupported runners skip it explicitly.
+
+### Patch 7 — v0.1.7 — 2026-09-09
+
+#### Digest
+
+- Added the M1 centralized Command Registry foundation for issue #16.
+
+#### Added
+
+- Added immutable command descriptors with canonical names, aliases, usage,
+  summaries, and declared capability identifiers.
+- Added deterministic command resolution, prefix completion, and search APIs
+  for future shell, command-palette, documentation, and agent consumers.
+
+#### Changed
+
+- Bootstrap CLI help is now rendered from the Command Registry and exposes
+  only the currently implemented `help` and `--version` commands.
+
+### Patch 6 — v0.1.6 — 2026-09-08
+
+#### Digest
+
+- Added the isolated M0 synthetic security lab skeleton for issue #11.
+
+#### Added
+
+- Added the repository-owned safe web target, internal Docker network, and
+  stable target-family locations for future lab packs.
+- Added CI lifecycle and health-contract validation for the safe target.
+- Added an architecture decision record for synthetic-lab isolation.
+
+#### Security
+
+- Lab services are unprivileged, read-only, capability-restricted, internal-only
+  containers with no published host ports; M0 adds no vulnerable application or
+  authorization beyond this repository-owned lab.
+
+### Patch 5 — v0.1.5 — 2026-09-08
+
+#### Digest
+
+- Added the container-first development and quality baseline for issue #10.
+
+#### Added
+
+- Added the repository-owned Dockerfile, Compose services, and container
+  development guidance for an interactive workbench and one-shot quality gate.
+- Added CI validation of the Compose configuration, image build, and in-container
+  `1337-dev check` execution.
+- Added an architecture decision record for the M0 container boundary.
+- Clarified the public README around the needs of security practitioners and
+  security leaders, without presenting planned scanner capabilities as shipped.
+- Added ADRs for the intelligence-first workbench, CLI-primary interaction
+  model, and AI-neutral 1337Scope direction.
+
+#### Security
+
+- Container conventions use an unprivileged runtime user, a locked dependency
+  environment, and repository-local inputs only; they do not authorize remote
+  targets, privileged execution, secrets, or host networking.
+
+### Patch 4 — v0.1.4 — 2026-09-08
+
+#### Digest
+
+- Established the canonical fast unit-test baseline for issue #91.
+
+#### Added
+
+- Added `1337-dev unit` as the deterministic fast feedback entry point for
+  `tests/unit` with mandatory per-module coverage validation.
+- Added an automatic unit-test isolation guard and a self-test that prove real
+  network connections fail closed.
+
+#### Changed
+
+- Plain `pytest` now defaults to `tests/unit`; `1337-dev test` explicitly runs
+  every test layer and remains part of the full `1337-dev check` gate.
+
+#### Security
+
+- Unit tests cannot silently reach network or external service sockets, while
+  every production module must still exceed 80% combined statement/branch
+  coverage in the fast lane.
+
+### Patch 3 — v0.1.3 — 2026-09-08
+
+#### Digest
+
+- Completed the deterministic developer-command entry point for issue #9.
+
+#### Added
+
+- Added `1337-dev setup` for repeatable locked development-environment
+  synchronization through the pinned `uv` tool.
+- Added a typed command-step registry that describes Python and external-tool
+  invocations from one source.
+
+#### Fixed
+
+- Developer-command execution now reports missing external tools explicitly
+  and preserves fail-closed exit-code behavior across platforms.
+
+#### Security
+
+- The setup path resolves `uv` without a shell and retains the existing bounded
+  timeout and argument-array execution contract.
+
+### Patch 2 — v0.1.2 — 2026-09-08
+
+#### Digest
+
+- Made the Python bootstrap installable and established reproducible developer quality gates for issue #8.
+
+#### Added
+
+- Installed `1337` help/version and `1337-dev` quality-command entry points.
+- Pinned build/development tools, a hashed dependency lock, and a packaging architecture decision.
+- Strict type checks, branch coverage, and an executable per-module coverage gate requiring more than 80%.
+- Failure-path unit tests, public manifest contract tests, and clean wheel-installation integration tests.
+
+#### Fixed
+
+- Explicit package selection now builds `fuzzy1337` from the `1337` distribution.
+- Developer command descriptions and execution now share one registry; the full gate runs every declared check.
+- Development commands no longer advertise a formatter outside the approved house-style contract.
+
+#### Security
+
+- Missing coverage reports/modules, invalid measurement data, and undocumented exclusions fail the quality gate.
+- Developer subprocesses use argument arrays, bounded execution, and explicit failure propagation.
+
+### Patch 1 — v0.1.1 — 2026-09-07
+
+#### Digest
+
+- Completed the M0 governance baseline for branch/release handling and public extension compatibility.
+- Added a versioned machine-readable extension manifest contract without exposing implementation-private boundaries.
+
+#### Added
+
+- Canonical branch/release workflow covering protected branches, normal development, release branches, deterministic SemVer tags, hotfixes, and back-merges.
+- Public Compatibility Contract v1 with Stable/Experimental/Internal surfaces, schema-version rules, deprecation policy, and extension-consumer requirements.
+- JSON Schema Draft 2020-12 extension manifest v1 plus a validating public example.
+
+#### Changed
+
+- README development references now link the release workflow, compatibility policy, and machine-readable public contracts.
+
+#### Security
+
+- Unsupported security-sensitive contract versions are required to fail closed rather than be guessed or silently downgraded.
+- Public extension manifests explicitly exclude secrets, credentials, license material, and machine-local absolute paths.
+
+### Patch 0 — v0.1.0 — 2026-09-07
+
+#### Digest
+
+- Established the initial public Community repository identity for 1337 Security Workbench by Fuzzy Technologies.
+- Added the first repository-level development, agent, security, language, Git, and changelog contracts before implementation work begins.
+
+#### Added
+
+- Root `AGENTS.md` as the mandatory entry point for AI agents and automation.
+- Root `DEVELOPMENT_PROTOCOL.md` with the initial Python house style, branch/review flow, test discipline, evidence rules, and strict documentation contract.
+- Minimal project README, security-reporting policy, ignore rules, and agent prompts.
+
+#### Security
+
+- Default automated security testing is limited to repository-defined synthetic/local targets unless the owner explicitly authorizes another target for the specific task.
+- Secrets, unrelated local data, sibling repositories, and out-of-scope filesystem locations are excluded from agent scope.
