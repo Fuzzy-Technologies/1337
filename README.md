@@ -1,25 +1,75 @@
 # 1337 Security Workbench
 
-**1337 Security Workbench by Fuzzy Technologies** is an open security workstation
-for practitioners and security teams.
+## The cybersecurity runtime for humans and AI agents
+
+**1337 Security Workbench (1337-SW) by Fuzzy Technologies** is an open security
+workstation for security engineers, penetration testers, researchers, and security
+teams — and a model-neutral execution, state, and evidence layer for future AI
+security agents.
+
+> **Bring your model. 1337 brings the cyber workspace.**
+>
+> **Models reason. 1337 remembers, governs, executes and proves.**
 
 > **Technologies · Knowledge · Science**
 
 ## Why 1337
 
+Security practitioners already have excellent specialist tools. The hard part is
+turning their disconnected outputs into a durable picture of **what exists, what is
+reachable, what is proven, what changed, and what should be fixed first**.
+
+1337 is not another all-in-one scanner and does not try to replace Nmap, Nuclei,
+browsers, commercial scanners, or frontier AI models. It is designed to connect
+them through one security workspace:
+
+```text
+Human / AI Agent / CI/CD
+          ↓
+         1337
+Security Objects + Capabilities
+     Scope + Policy
+          ↓
+ Tools / Executors / Browsers
+          ↓
+        Evidence
+          ↓
+        Findings
+          ↓
+Reachability / Attack Paths
+          ↓
+ Security & Business Decisions
+```
+
 **For hackers and security engineers**
 
-> The modern open security workstation: one command to build your hacking lab.
+> One entry point to build a security workstation, connect specialist tools,
+> preserve evidence and context, and understand real attack paths.
 
-**For security leaders**
+**For AI security builders**
 
-> Attack-path intelligence: understand what attackers can actually reach and what to fix first.
+> A model-neutral cyber agent runtime / security harness: structured security
+> objects and typed capabilities between AI reasoning and raw security tooling.
+
+**For security teams and CISOs**
+
+> A future continuous-security layer for answering what changed, what is actually
+> reachable, which critical paths matter, and which remediation should come first.
+
+The architectural core is intentionally AI-neutral and local-first. The same
+workspace is intended to remain useful when the human operator, AI model, tool,
+or execution environment changes.
+
+Canonical concepts include **Security Object Model**, **Capability Fabric**,
+**Executor Runtime**, **evidence-first security**, **reachability and attack-path
+reasoning**, and **bring-your-own-model (BYO-AI)** integration.
 
 ## Status
 
-`1337` is in early pre-alpha bootstrap. The public repository is the Apache-2.0
-Community foundation of the platform; the currently implemented scope is the M0
-engineering baseline, not a finished scanner.
+`1337` is in **early pre-alpha**. The public repository is the Apache-2.0 Community
+foundation of the platform. The implemented code currently covers the engineering
+baseline and early M1 foundations; the interactive shell, scanners, attack graph,
+and AI-agent interfaces remain roadmap work unless explicitly documented otherwise.
 
 1337 is built around a few durable principles:
 
@@ -28,46 +78,59 @@ engineering baseline, not a finished scanner.
 - modular adapters for specialist tools rather than dependence on one distribution;
 - structured evidence before conclusions;
 - attack paths and reachability, not severity scores alone;
+- human and future AI clients over the same domain contracts;
 - a useful Community edition, not a crippled demo.
 
 ## Product direction
 
-1337 Community is the only current public edition. It is an Apache-2.0,
-early pre-alpha foundation; the roadmap describes intent, not a claim that every
-capability already exists.
+1337 Community is the only current public edition. The roadmap describes design
+intent, not a claim that every capability already exists.
 
-| Track                    | Engineering intention                                                                                                                                     | Current boundary                                                                                                    |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Community**            | An open security workstation connecting specialist tools, their evidence, attack paths, and remediation priorities.                                       | The public foundation. M0 provides the engineering baseline; capability follows the published roadmap.              |
-| **Enterprise direction** | A future commercial direction for governed security decisions through correlation, business context, prioritization, automation, audit, and integrations. | Not released or available. This is a design direction, not a feature list, delivery date, or commercial commitment. |
+| Track | Engineering intention | Current boundary |
+| --- | --- | --- |
+| **Community** | Open security workstation connecting specialist tools, structured evidence, security objects, reachability, attack paths, and future AI-agent interfaces. | Public pre-alpha foundation; capability follows the roadmap. |
+| **Enterprise direction** | Governed continuous security using an organization's approved AI, private execution, correlation, business context, prioritization, audit, and integrations. | Not released or available; design direction only. |
 
-1337 is not trying to replace every specialist scanner. It is the layer that
-connects tools, evidence, and risk decisions into a usable security picture.
+The strategic boundary is simple: **models provide replaceable reasoning; 1337
+provides durable security state, governed execution, evidence, and the security
+graph.**
 
 ## Responsible use
 
-1337 is intended for defensive security engineering, authorized security assessment, training, research, CTF/lab environments, and systems you own or are explicitly authorized to test.
+1337 is intended for defensive security engineering, authorized security assessment,
+training, research, CTF/lab environments, and systems you own or are explicitly
+authorized to test.
 
-Do not use the project to scan, probe, exploit, or disrupt third-party systems without authorization.
+Do not use the project to scan, probe, exploit, or disrupt third-party systems
+without authorization.
 
 See [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-| Phase  | Focus                        | Target outcome                                                                           |
-| ------ | ---------------------------- | ---------------------------------------------------------------------------------------- |
-| **M0** | Foundation                   | Repository baseline, engineering controls, CI, containers, synthetic test lab            |
-| **M1** | Community Core & Shell       | `1337` shell, workspace, scope, diagnostics, localization and functional-test foundation |
-| **M2** | Scanner MVP                  | Executor runtime, tool adapters, impact profiles, Quick Scan, useful Community scanner   |
-| **M3** | Evidence & Intelligence      | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, Fuzzy reports                           |
-| **M4** | 1337 Scope                   | Attack surface, reachability, attack paths, native Web Scanner NG                        |
-| **M5** | Security Intelligence UX     | Tables, attack graphs, business events, explainable risk, standards mapping              |
-| **M6** | Automation & Agents          | CI/CD, integrations, distributed execution, Domain API, SDK, MCP                         |
-| **M7** | Fuzzy Striker                | Red/Blue/Purple workflows and authorized validation                                      |
-| **M8** | 1337 Trace                   | DFIR, incident timeline, observed attack graph                                           |
-| **M9** | Cloud & Enterprise Contracts | Verified assets, cloud-safe contracts and stable enterprise extension interfaces         |
+| Phase | Focus | Target outcome |
+| --- | --- | --- |
+| **M0** | Foundation | Repository baseline, engineering controls, CI, containers, synthetic test lab, durable architecture contracts |
+| **M1** | Community Core & Shell | `1337` shell, workspace, scope, diagnostics, localization, machine-readable command/capability foundations |
+| **M2** | Scanner & Execution MVP | Executor runtime, tool adapters, structured capability execution, impact profiles, Quick Scan |
+| **M3** | Evidence & Intelligence | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, graph-lite foundations, Fuzzy reports |
+| **M4** | 1337 Scope | Attack surface, reachability, attack paths, native Web Scanner NG |
+| **M5** | Security Intelligence UX | Tables, attack graphs, business events, explainable risk, standards mapping |
+| **M6** | Automation & Agents | CI/CD, integrations, distributed execution, Domain API, SDK, MCP, advanced agent workflows |
+| **M7** | Fuzzy Striker | Red/Blue/Purple workflows and authorized validation |
+| **M8** | 1337 Trace | DFIR, incident timeline, observed attack graph |
+| **M9** | Cloud & Enterprise Contracts | Verified assets, cloud-safe contracts and stable enterprise extension interfaces |
 
-Roadmap scope and ordering may evolve as the Community platform matures. Detailed planning is tracked through GitHub milestones and issues.
+Roadmap scope and ordering may evolve as the Community platform matures. Detailed
+planning is tracked through GitHub milestones and issues.
+
+## Project vision and architecture
+
+- [Vision](docs/VISION.md) — the human-facing product thesis and long-term direction;
+- [1337 for AI security agents](docs/AI_AGENTS.md) — model-neutral agent/runtime concepts and discovery vocabulary;
+- [ADR 0008: AI-native cyber execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md) — the architectural boundary;
+- [Machine-readable project summary](llms.txt) — compact discovery metadata for automated readers;
+- [Compatibility](docs/COMPATIBILITY.md) — public stability and extension-boundary contract.
 
 ## Development
 
@@ -104,11 +167,11 @@ Project development and compatibility references:
 
 - [DEVELOPMENT_PROTOCOL.md](DEVELOPMENT_PROTOCOL.md) — development workflow, Python house style, testing, Git, and documentation rules;
 - [docs/RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) — protected branches, merge policy, deterministic releases, tags, and hotfix flow;
-- [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) — public compatibility, stability, versioning, and extension-boundary contract;
 - [contracts/](contracts/) — versioned machine-readable public contracts and examples;
 - [CHANGELOG.md](CHANGELOG.md) — strict chronological project history.
 
-The stable branch is `master`. Active integration development occurs on `develop`; feature work is performed on short-lived branches and reviewed before merge.
+The stable branch is `master`. Active integration development occurs on `develop`;
+feature work is performed on short-lived branches and reviewed before merge.
 
 ## License
 
