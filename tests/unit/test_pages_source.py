@@ -58,7 +58,7 @@ def test_pages_have_balanced_html_tags() -> None:
         content = read(page)
 
         for tag in PAIRED_TAGS:
-            opening = len(re.findall(rf"<{tag}\\b", content))
+            opening = len(re.findall(rf"<{tag}(?:[ >])", content))
             closing = content.count(f"</{tag}>")
             assert opening == closing, (
                 f"{page.relative_to(ROOT)} has unbalanced <{tag}> tags: "
