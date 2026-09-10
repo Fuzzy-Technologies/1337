@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible problem in 1337
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: "Do not report security vulnerabilities here. Follow SECURITY.md instead."
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "e.g. v0.1.8 or commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "OS, Python version, container/runtime if relevant"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the actual and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reproducible sequence. Include only non-sensitive logs if needed.
+    validations:
+      required: true
