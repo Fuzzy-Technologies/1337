@@ -8,7 +8,7 @@ It complements `DEVELOPMENT_PROTOCOL.md`. If these documents ever conflict, stop
 
 | Branch pattern        | Purpose                                              | Normal source             | Normal destination |
 | --------------------- | ---------------------------------------------------- | ------------------------- | ------------------ |
-| `master`              | Stable/released repository state                     | `release/*`, `hotfix/*`   | release tag        |
+| `master`              | Stable public state; tagged commits are releases     | release/hotfix/docs paths | tag or publication |
 | `develop`             | Integration branch for the next release              | `feature/*`, `fix/*`      | `release/*`        |
 | `feature/<name>`      | Product, subsystem, governance, or feature work      | `develop`                 | `develop`          |
 | `fix/<name>`          | Non-release defect correction                        | `develop`                 | `develop`          |
@@ -65,6 +65,69 @@ The final integration commit title should follow the project convention, for exa
 ```text
 1337: add public compatibility contract (#7)
 ```
+
+
+## Documentation and GitHub Pages publication
+
+Product releases and public documentation do not need the same publication cadence.
+A commit on `master` is therefore not automatically a product release.
+
+**Annotated `vX.Y.Z` tags identify product releases.** Between product releases,
+documentation-only and static-site-only commits may be merged to `master` without
+creating a new version tag or GitHub Release when all conditions below are satisfied.
+
+Typical eligible files include `README.md`, `docs/`, `index.md`, Jekyll
+configuration/layouts, and static site assets. Eligibility is determined by the
+actual diff, not by the path name alone.
+
+A documentation/site publication PR to `master` must satisfy all of these rules:
+
+1. The diff changes only human-facing documentation or static-site presentation.
+   It must not change runtime/product behavior, package/version metadata,
+   dependencies or lockfiles, executable CI behavior, public machine-readable
+   contracts, security/authorization policy, persisted data/schema, or release
+   artifacts.
+2. The publication branch is created from the current `master` so the PR contains
+   only the intended public-documentation/site delta. If the content was first
+   accepted in `develop`, port only the accepted publication files into the
+   dedicated branch; do not merge unrelated `develop` work into `master`.
+3. The PR body explicitly states **Documentation/site publication — no product
+   release** and identifies the latest tagged product release whose capability
+   boundary the page describes.
+4. Claims about implemented capability, current version, security boundaries, and
+   roadmap work must remain consistent with the latest tagged release and stable
+   public contracts.
+5. Applicable CI and static-site/document checks must pass. A documentation-only
+   exception does not bypass protected-branch review or required checks.
+6. Do not create a SemVer bump, release tag, GitHub Release, or changelog Patch
+   solely to publish qualifying documentation/site changes.
+7. After publication, keep `develop` consistent. If the same change is not already
+   present there, propagate the `master` publication commit back through a PR.
+
+The intended flow is:
+
+```text
+normal product work
+feature/* → develop → release/X.Y.Z → master → tag vX.Y.Z
+
+documentation/site work
+docs change → develop
+                 \
+                  \ accepted publication content
+                   ↓
+          docs/* from current master
+                   ↓ PR
+                 master
+                   ↓
+             GitHub Pages
+
+             no version tag
+             no GitHub Release
+```
+
+This exception exists to publish accurate project information and GitHub Pages
+updates promptly. It must not be used to smuggle product behavior or unreleased
+contracts into `master`.
 
 ## Release flow
 
@@ -207,6 +270,7 @@ branch. Do not add decorative links or make a roadmap item look implemented.
 - The tag, changelog version, package metadata, and release artifact version must agree once those artifacts exist.
 - A failed or incomplete release attempt does not reuse an already published version/tag.
 - Pre-release identifiers, when introduced, must use valid SemVer syntax and be explicitly documented.
+- Not every `master` commit is a product release: qualifying documentation/site publication commits may be untagged under the dedicated exception above. The latest product release remains the latest valid annotated `vX.Y.Z` tag.
 
 ## Hotfix flow
 
