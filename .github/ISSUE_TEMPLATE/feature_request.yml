@@ -1,0 +1,20 @@
+name: Feature proposal
+description: Suggest an improvement or new capability for 1337
+title: "[Feature]: "
+labels:
+  - feature
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Problem or use case
+      description: What should become easier, safer, or more useful?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome
+      description: Describe the result you would like to see. Keep implementation details optional.
+    validations:
+      required: true
