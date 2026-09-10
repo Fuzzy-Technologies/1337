@@ -59,9 +59,9 @@ Reachability / Attack Paths
 > focus on reachable risk, attack paths, and the remediation that removes the most
 > exposure.
 
-The core is intentionally model-agnostic and local-first. The same workspace is
-designed to remain useful when the human operator, AI model, tool, or execution
-environment changes.
+The core is intentionally agnostic to the AI model and provider, and local-first.
+The same workspace is designed to remain useful when the human operator, AI model,
+tool, or execution environment changes.
 
 Canonical concepts include **Security Object Model**, **Capability Fabric**,
 **Executor Runtime**, **evidence-first security**, **reachability and attack-path
@@ -94,7 +94,7 @@ intent, not a claim that every capability already exists.
 | Track                    | Engineering intention                                                                                                                                    | Current boundary                                             |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | **Community**            | Open security workstation connecting specialist tools, structured evidence, security objects, reachability, attack paths, and future AI-agent interfaces | Public pre-alpha foundation; capability follows the roadmap  |
-| **Enterprise direction** | Governed continuous security using an organization's approved AI, private execution, correlation, business context, prioritization, audit, and integrations | Not released or available; design direction only             |
+| **Enterprise direction** | Governed continuous security with approved AI models, private execution, correlation, business context, prioritization, audit, and integrations          | Not released or available; design direction only             |
 
 The strategic boundary is simple: **models provide replaceable reasoning; 1337
 provides durable security state, governed execution, evidence, and the security
@@ -137,7 +137,7 @@ evidence-backed security state underneath them. See
 ## Project vision and architecture
 
 - [Vision](docs/VISION.md) — the human-facing product thesis and long-term direction;
-- [1337 for AI security agents](docs/AI_AGENTS.md) — model-agnostic agent/runtime concepts and discovery vocabulary;
+- [1337 for AI security agents](docs/AI_AGENTS.md) — AI-model-agnostic agent/runtime concepts and discovery vocabulary;
 - [ADR 0008: AI-native cyber execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md) — the architectural boundary;
 - [Machine-readable project summary](llms.txt) — compact discovery metadata for automated readers;
 - [Compatibility](docs/COMPATIBILITY.md) — public stability and extension-boundary contract.
