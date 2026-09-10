@@ -8,11 +8,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
-### Patch 8 — v0.1.8 — 2026-09-09
+### Patch 8 — v0.1.8 — 2026-09-10
 
 #### Digest
 
-- Added the pytest-native functional-test harness foundation for issue #93.
+- Established the first public pre-alpha baseline: the completed M0 engineering
+  foundation plus early M1 Command Registry and functional-test harness work.
 
 #### Added
 
@@ -21,6 +22,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added deterministic raw lifecycle evidence and a container-backed health
   contract test on Linux CI.
 - Added functional-testing guidance and ADR 0007 for the harness boundary.
+
+#### Documentation
+
+- Added the public product vision, AI-agent discovery reference, compact machine
+  summary, and ADR 0008 for the model-neutral cyber execution/state/evidence
+  platform boundary.
 
 #### Security
 
