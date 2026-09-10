@@ -8,7 +8,7 @@ It complements `DEVELOPMENT_PROTOCOL.md`. If these documents ever conflict, stop
 
 | Branch pattern        | Purpose                                              | Normal source             | Normal destination |
 | --------------------- | ---------------------------------------------------- | ------------------------- | ------------------ |
-| `master`              | Stable public state; tagged commits are releases      | release/hotfix/docs paths | tag or publication |
+| `master`              | Stable public state; tagged commits are releases     | release/hotfix/docs paths | tag or publication |
 | `develop`             | Integration branch for the next release              | `feature/*`, `fix/*`      | `release/*`        |
 | `feature/<name>`      | Product, subsystem, governance, or feature work      | `develop`                 | `develop`          |
 | `fix/<name>`          | Non-release defect correction                        | `develop`                 | `develop`          |
