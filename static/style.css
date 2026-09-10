@@ -155,23 +155,20 @@ blockquote {
   color: var(--green);
 }
 
-.content-section {
-  margin-top: 2.8rem;
-}
+.content-section { margin-top: 2.8rem; }
+.hero { padding: 0.85rem 0 0.3rem; }
 
-.hero {
-  padding: 0.85rem 0 0.3rem;
-}
-
-.hero-grid {
+.hero-grid,
+.workbench-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: clamp(1.5rem, 4vw, 3rem);
+  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.35fr);
+  gap: clamp(1.25rem, 3vw, 2.4rem);
   align-items: start;
 }
 
 .hero-primary,
-.hero-secondary {
+.hero-secondary,
+.workbench-copy {
   min-width: 0;
 }
 
@@ -189,9 +186,9 @@ blockquote {
 }
 
 .hero-hook {
-  margin: 0.85rem 0 1rem;
+  margin: 0.8rem 0 1rem;
   color: var(--text-strong);
-  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-size: clamp(1.15rem, 2.25vw, 1.55rem);
   line-height: 1.35;
 }
 
@@ -209,18 +206,22 @@ blockquote {
   font-weight: 700;
 }
 
-.hero-quote {
-  margin-top: 1rem;
-}
+.hero-quote { margin-top: 1rem; }
 
 .links,
 .hero-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.6rem;
 }
 
-.links { margin: 1.3rem 0 1.8rem; }
+.links {
+  flex-wrap: wrap;
+  margin: 1.3rem 0 1.8rem;
+}
+
+.hero-actions {
+  flex-wrap: nowrap;
+}
 
 .links a {
   display: inline-block;
@@ -231,6 +232,10 @@ blockquote {
   font-weight: 700;
 }
 
+.hero-actions a {
+  white-space: nowrap;
+}
+
 .links a:hover {
   border-color: #ff555599;
   box-shadow: 0 0 12px #ff555522;
@@ -239,8 +244,7 @@ blockquote {
 .grid,
 .architecture-grid,
 .proof-grid,
-.case-grid,
-.workbench-grid {
+.case-grid {
   display: grid;
   gap: 1rem;
 }
@@ -251,8 +255,7 @@ blockquote {
 }
 
 .architecture-grid,
-.proof-grid,
-.workbench-grid {
+.proof-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -314,14 +317,9 @@ blockquote {
   color: var(--text-strong);
 }
 
-.workbench-grid {
-  width: 100%;
-  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.35fr);
-  align-items: stretch;
-}
-
 .flow-panel {
   width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0.55rem;
 }
@@ -333,6 +331,7 @@ blockquote {
 
 .workbench-copy {
   display: flex;
+  min-height: 100%;
   flex-direction: column;
   justify-content: center;
 }
@@ -395,9 +394,9 @@ blockquote {
 
 .site-footer {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.45rem 1rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
   margin-top: 3rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border-soft);
@@ -407,6 +406,11 @@ blockquote {
 }
 
 .site-footer strong { color: var(--cyan); }
+
+.footer-motto {
+  width: 100%;
+  text-align: center;
+}
 
 ::selection {
   background: var(--pink);
@@ -424,6 +428,10 @@ blockquote {
   .grid,
   .case-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hero-actions {
+    flex-wrap: wrap;
   }
 
   .case-card p { font-size: 0.92rem; }
@@ -446,10 +454,7 @@ blockquote {
     justify-content: space-between;
   }
 
-  .brand-button {
-    margin-left: auto;
-  }
-
+  .brand-button { margin-left: auto; }
   .hero { padding-top: 0.4rem; }
 
   .roadmap-heading {
