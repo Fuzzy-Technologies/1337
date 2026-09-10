@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.2`  
+Protocol version: `0.3`  
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -48,7 +48,7 @@ Localization resources are the only normal exception. Canonical commands and API
 
 Canonical branches:
 
-- `master` — latest stable/released state;
+- `master` — stable public state; tagged commits identify product releases, while qualifying documentation/site publications may be untagged;
 - `develop` — integration branch for the next release;
 - `feature/<name>` — feature/work-item branches from `develop`;
 - `fix/<name>` — non-release fixes from `develop`;
@@ -69,7 +69,7 @@ master → hotfix/* → master → tag
                     └──────→ develop
 ```
 
-Detailed protected-branch, merge, release, tag, and hotfix rules are defined in [`docs/RELEASE_WORKFLOW.md`](docs/RELEASE_WORKFLOW.md).
+Detailed protected-branch, merge, release, tag, hotfix, and documentation/site publication rules are defined in [`docs/RELEASE_WORKFLOW.md`](docs/RELEASE_WORKFLOW.md).
 
 Until real customer support obligations exist, do not create multiple parallel supported release lines without an explicit owner decision.
 
@@ -124,7 +124,7 @@ Multiple existing labels may be used when each is materially true. Do not create
 ### Pull requests
 
 - No normal direct push to `master` or `develop`.
-- Open work PRs against `develop` unless a release/hotfix workflow explicitly requires another base.
+- Open work PRs against `develop` unless a release/hotfix workflow or the documentation/site publication exception in `docs/RELEASE_WORKFLOW.md` explicitly requires another base.
 - Draft PRs are the normal place for work still being implemented or validated.
 - CI and relevant tests must pass before merge once those checks exist.
 - Human owner review is the normal merge gate.
@@ -279,6 +279,7 @@ Prefer readable source over clever compression. A dense one-liner or nested comp
 - Historical changes belong in `CHANGELOG.md`.
 - Do not regenerate or broadly rewrite README/CHANGELOG during an unrelated patch.
 - Documentation changes should be localized to the affected sections.
+- Qualifying documentation and GitHub Pages updates may be published to `master` between product releases without a version tag only under the explicit documentation/site publication rules in `docs/RELEASE_WORKFLOW.md`.
 
 ## 8. CHANGELOG contract
 
@@ -509,7 +510,7 @@ A change is done only when all applicable items are true:
 - failure behavior was considered;
 - no secret or unrelated file entered the diff;
 - documentation is updated;
-- changelog is updated when the change is user-visible, security-relevant, or release-relevant;
+- changelog is updated when the change is user-visible, security-relevant, or release-relevant, except a qualifying documentation/site-only publication that explicitly requires no product version under `docs/RELEASE_WORKFLOW.md`;
 - exact diff was reviewed;
 - required CI/local gates pass;
 - a human-readable completion comment is present on the task when the implementation is being handed to the owner for review.
