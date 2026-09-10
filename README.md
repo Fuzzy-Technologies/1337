@@ -113,26 +113,27 @@ See [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-| Phase  | Focus                        | Target outcome                                                                                                                 |
-| ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **M0** | Foundation                   | Repository baseline, engineering controls, CI, containers, synthetic test lab, durable architecture contracts                  |
-| **M1** | Community Core & Shell       | `1337` shell, workspace, scope, diagnostics, localization, machine-readable command/capability foundations                     |
-| **M2** | Scanner & Execution MVP      | Executor runtime, tool adapters, structured capability execution, impact profiles, Quick Scan                                  |
-| **M3** | Evidence & Intelligence      | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, graph-lite foundations, Fuzzy reports                                         |
-| **M4** | 1337 Scope                   | Attack surface, reachability, attack paths, native Web Scanner NG, reproducible three-case attack-path showcase                |
-| **M5** | Security Intelligence UX     | Tables, attack graphs, business events, explainable risk, standards mapping                                                    |
-| **M6** | Automation & Agents          | CI/CD, integrations, distributed execution, Domain API, SDK, MCP, advanced agent workflows                                     |
-| **M7** | Fuzzy Striker                | Red/Blue/Purple workflows and authorized validation                                                                            |
-| **M8** | 1337 Trace                   | DFIR, incident timeline, observed attack graph                                                                                 |
-| **M9** | Cloud & Enterprise Contracts | Verified assets, cloud-safe contracts and stable enterprise extension interfaces                                               |
+| Phase                                                             | Focus                          | Target outcome                                                                                                                                                                                 |
+| --------------------------------------------------------------    | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**M0**](https://github.com/Fuzzy-Technologies/1337/milestone/1)  | Foundation                     | Repository baseline, engineering controls, CI, containers, synthetic test lab, durable architecture contracts                                                                                  |
+| [**M1**](https://github.com/Fuzzy-Technologies/1337/milestone/2)  | Community Core & Shell         | `1337` shell, workspace, scope, diagnostics, localization, machine-readable command/capability foundations                                                                                     |
+| [**M2**](https://github.com/Fuzzy-Technologies/1337/milestone/3)  | Scanner & Execution MVP        | Executor runtime, tool adapters, structured capability execution, impact profiles, Quick Scan                                                                                                  |
+| [**M3**](https://github.com/Fuzzy-Technologies/1337/milestone/4)  | Evidence & Intelligence        | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, graph-lite foundations, Fuzzy reports                                                                                                         |
+| [**M4**](https://github.com/Fuzzy-Technologies/1337/milestone/5)  | 1337 Scope                     | Attack surface, reachability, attack paths, native Web Scanner NG, and the full reproducible attack-path showcase ([#115](https://github.com/Fuzzy-Technologies/1337/issues/115))              |
+| [**M5**](https://github.com/Fuzzy-Technologies/1337/milestone/6)  | Security Intelligence UX       | Tables, attack graphs, business events, explainable risk, standards mapping                                                                                                                    |
+| [**M6**](https://github.com/Fuzzy-Technologies/1337/milestone/7)  | Automation & Agents            | CI/CD, integrations, distributed execution, Domain API, SDK, MCP, advanced agent workflows                                                                                                     |
+| [**M7**](https://github.com/Fuzzy-Technologies/1337/milestone/8)  | Fuzzy Striker                  | Red/Blue/Purple workflows and authorized validation                                                                                                                                            |
+| [**M8**](https://github.com/Fuzzy-Technologies/1337/milestone/9)  | 1337 Trace                     | DFIR, incident timeline, observed attack graph                                                                                                                                                 |
+| [**M9**](https://github.com/Fuzzy-Technologies/1337/milestone/10) | Cloud & Enterprise Contracts   | Verified assets, cloud-safe contracts and stable enterprise extension interfaces                                                                                                               |
 
 Roadmap scope and ordering may evolve as the Community platform matures. Detailed
-planning is tracked through GitHub milestones and issues.
+planning is tracked through the linked GitHub milestones and issues.
 
-The planned M4 showcase is intentionally reproducible rather than prerecorded:
-one repository-owned Docker Compose lab, three attack-path scenarios, and the same
-evidence-backed security state underneath them. See
-[showcase specification #115](https://github.com/Fuzzy-Technologies/1337/issues/115).
+The M4 milestone includes the **full reproducible attack-path showcase** tracked in
+[Feature #115](https://github.com/Fuzzy-Technologies/1337/issues/115): one
+repository-owned Docker Compose lab, three attack-path scenarios, and the same
+evidence-backed security state underneath them. The showcase is intended to be
+independently runnable and verifiable rather than prerecorded.
 
 ## Project vision and architecture
 
