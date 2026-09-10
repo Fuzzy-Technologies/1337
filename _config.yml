@@ -1,0 +1,8 @@
+title: "1337 Security Workbench"
+description: "1337 Security Workbench by Fuzzy Technologies — open security workstation and model-neutral cybersecurity runtime for humans and AI agents."
+url: "https://fuzzy-technologies.github.io"
+baseurl: "/1337"
+markdown: CommonMarkGhPages
+commonmark:
+  options: ["UNSAFE", "SMART", "FOOTNOTES"]
+  extensions: ["strikethrough", "autolink", "table", "tagfilter"]

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="{{ page.description | default: site.description }}" />
+    <meta name="keywords" content="1337 Security Workbench, cybersecurity, security workstation, AI security, cyber agent runtime, security agent harness, pentesting, security automation, attack graph, attack path, reachability analysis, evidence-first security, Fuzzy Technologies" />
+    <meta name="theme-color" content="#0d0d0d" />
+
+    <meta property="og:title" content="{{ page.title | default: site.title }}" />
+    <meta property="og:description" content="{{ page.description | default: site.description }}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{ page.url | absolute_url }}" />
+    <meta property="og:site_name" content="1337 Security Workbench" />
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="canonical" href="{{ page.url | absolute_url }}" />
+    <link rel="stylesheet" href="{{ '/static/style.css' | relative_url }}" />
+    <title>{{ page.title | default: site.title }}</title>
+  </head>
+  <body>
+    <main>
+      {{ content }}
+    </main>
+  </body>
+</html>
