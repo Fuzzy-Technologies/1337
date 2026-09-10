@@ -1,0 +1,122 @@
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #0d0d0d, #191919);
+  color: #b3ecff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  line-height: 1.6;
+}
+
+main {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+h1, h2, h3 {
+  color: #66d9ef;
+  text-shadow: 0 0 3px #00eaff55;
+}
+
+h1 {
+  margin-bottom: 0.25rem;
+  font-size: clamp(2rem, 6vw, 3.8rem);
+}
+
+h2 {
+  margin-top: 2.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid #00eaff22;
+}
+
+a {
+  color: #ff79c6;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #ff5555;
+  text-shadow: 0 0 4px #ff555588;
+}
+
+blockquote {
+  margin: 1.5rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid #ff79c6;
+  border-radius: 6px;
+  background: #1c0e17;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #151515;
+  box-shadow: 0 0 12px #00eaff18;
+}
+
+code {
+  color: #50fa7b;
+}
+
+.hero-subtitle {
+  margin-top: 0;
+  color: #e7f8ff;
+  font-size: 1.15rem;
+}
+
+.status {
+  display: inline-block;
+  margin: 0.5rem 0 1rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #00eaff55;
+  border-radius: 999px;
+  background: #00eaff0d;
+  color: #66d9ef;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.links a {
+  display: inline-block;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #ff79c655;
+  border-radius: 6px;
+  background: #1e1e1e;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  padding: 1rem;
+  border: 1px solid #00eaff22;
+  border-radius: 8px;
+  background: #121212;
+}
+
+.card h3 {
+  margin-top: 0;
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid #00eaff22;
+  color: #86aebc;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  main {
+    padding-top: 1.25rem;
+  }
+}
