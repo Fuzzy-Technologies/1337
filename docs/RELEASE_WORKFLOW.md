@@ -100,6 +100,24 @@ Release procedure:
 10. Propagate the released `master` state back to `develop` through a PR so release-only fixes/metadata cannot be lost.
 11. Delete the release branch after the back-merge is complete unless a specific support reason requires retaining it.
 
+## Published release notes
+
+GitHub Release notes are a public product interface. They must lead with an
+immediately understandable `## Digest`: one short paragraph explaining what the
+release gives a human reader and its maturity boundary.
+
+The remaining detail uses this stable structure when applicable:
+
+1. `## What's Changed`, organized under concise categories such as Added,
+   Changed, Fixed, Documentation, and Security;
+2. `## Validation`, with the exact relevant gates and their actual results;
+3. `## Breaking Changes`, stating `None` explicitly when there are none;
+4. `## Notes`, covering pre-release status, security boundaries, known
+   limitations, upgrade guidance, and immediate follow-up work.
+
+Release notes must distinguish implemented behavior from roadmap direction and
+avoid marketing claims that cannot be demonstrated by the released artifact.
+
 ## Version and tag invariants
 
 - Release versions use Semantic Versioning: `X.Y.Z`.
