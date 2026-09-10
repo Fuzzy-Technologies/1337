@@ -53,6 +53,7 @@ artifacts/
 evidence/
 reports/
 coverage/
+functional-evidence/
 
 # Downloaded tool/runtime caches
 .cache/

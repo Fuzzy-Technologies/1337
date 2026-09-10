@@ -53,6 +53,7 @@ jobs:
           path: |
             coverage/
             dist/
+            functional-evidence/
           if-no-files-found: ignore
           retention-days: 14
 

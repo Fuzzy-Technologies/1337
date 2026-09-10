@@ -8,6 +8,26 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.1
 
+### Patch 8 — v0.1.8 — 2026-09-09
+
+#### Digest
+
+- Added the pytest-native functional-test harness foundation for issue #93.
+
+#### Added
+
+- Added machine-readable functional scenario contracts and a pytest-owned
+  Docker Compose lifecycle for the repository-owned `web-safe` target.
+- Added deterministic raw lifecycle evidence and a container-backed health
+  contract test on Linux CI.
+- Added functional-testing guidance and ADR 0007 for the harness boundary.
+
+#### Security
+
+- Functional targets remain repository-owned and isolated. The first
+  container-backed scenario runs only where Linux container capability is
+  available; unsupported runners skip it explicitly.
+
 ### Patch 7 — v0.1.7 — 2026-09-09
 
 #### Digest
