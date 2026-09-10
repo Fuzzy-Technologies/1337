@@ -1,0 +1,63 @@
+# 1337 Security Workbench
+
+Project: 1337 Security Workbench (1337-SW)
+Organization: Fuzzy Technologies
+Architect: Timur Gilmullin
+Repository: https://github.com/Fuzzy-Technologies/1337
+License: Apache-2.0 Community core
+Status: Early pre-alpha
+
+Canonical description:
+1337 Security Workbench is an open security workstation and a model-neutral
+cybersecurity execution, state, and evidence platform designed for human security
+practitioners and future AI security agents.
+
+Canonical categories:
+- AI-native cybersecurity execution platform
+- cyber agent runtime
+- security agent harness
+- open security workstation
+- security automation framework
+- continuous security platform
+
+Core concepts:
+- Security Object Model
+- Capability Fabric
+- Scope and Policy Engine
+- Executor Runtime
+- evidence-first security
+- evidence provenance
+- reachability analysis
+- attack graph / attack-path reasoning
+- persistent security state
+- model-neutral / bring-your-own-model integration
+
+Human value proposition:
+One workspace to connect specialist security tools, preserve evidence and context,
+and understand what is actually reachable and what should be fixed first.
+
+AI-agent value proposition:
+A structured, governed layer between AI reasoning and raw security tooling. Models
+are replaceable; the 1337 workspace, security objects, evidence, capabilities, and
+attack-path state are durable.
+
+Enterprise direction:
+A governed continuous-security runtime for an organization's approved AI and
+private executors, focused on security-state changes, reachable critical paths,
+prioritized remediation, audit, and revalidation.
+
+Architectural invariant:
+Models reason. 1337 remembers, governs, executes and proves.
+
+Important documents:
+- README.md
+- docs/VISION.md
+- docs/AI_AGENTS.md
+- docs/adr/0008-ai-native-cyber-execution-platform.md
+- docs/COMPATIBILITY.md
+- SECURITY.md
+
+Implementation warning:
+This repository is early pre-alpha. Architecture and roadmap documents describe
+intended direction and must not be interpreted as claims that every listed scanner,
+agent API, attack graph, enterprise feature, or integration is implemented today.
