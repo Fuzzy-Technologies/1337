@@ -8,7 +8,7 @@ teams — and a model-neutral execution, state, and evidence layer for future AI
 security agents.
 
 > **Bring your model. 1337 brings the cyber workspace.**
->
+> 
 > **Models reason. 1337 remembers, governs, executes and proves.**
 
 > **Technologies · Knowledge · Science**
@@ -86,10 +86,10 @@ and AI-agent interfaces remain roadmap work unless explicitly documented otherwi
 1337 Community is the only current public edition. The roadmap describes design
 intent, not a claim that every capability already exists.
 
-| Track | Engineering intention | Current boundary |
-| --- | --- | --- |
-| **Community** | Open security workstation connecting specialist tools, structured evidence, security objects, reachability, attack paths, and future AI-agent interfaces. | Public pre-alpha foundation; capability follows the roadmap. |
-| **Enterprise direction** | Governed continuous security using an organization's approved AI, private execution, correlation, business context, prioritization, audit, and integrations. | Not released or available; design direction only. |
+| Track                    | Engineering intention                                                                                                                                        | Current boundary                                             |
+|--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|
+| **Community**            | Open security workstation connecting specialist tools, structured evidence, security objects, reachability, attack paths, and future AI-agent interfaces.    | Public pre-alpha foundation; capability follows the roadmap. |
+| **Enterprise direction** | Governed continuous security using an organization's approved AI, private execution, correlation, business context, prioritization, audit, and integrations. | Not released or available; design direction only.            |
 
 The strategic boundary is simple: **models provide replaceable reasoning; 1337
 provides durable security state, governed execution, evidence, and the security
@@ -108,18 +108,18 @@ See [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-| Phase | Focus | Target outcome |
-| --- | --- | --- |
-| **M0** | Foundation | Repository baseline, engineering controls, CI, containers, synthetic test lab, durable architecture contracts |
-| **M1** | Community Core & Shell | `1337` shell, workspace, scope, diagnostics, localization, machine-readable command/capability foundations |
-| **M2** | Scanner & Execution MVP | Executor runtime, tool adapters, structured capability execution, impact profiles, Quick Scan |
-| **M3** | Evidence & Intelligence | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, graph-lite foundations, Fuzzy reports |
-| **M4** | 1337 Scope | Attack surface, reachability, attack paths, native Web Scanner NG |
-| **M5** | Security Intelligence UX | Tables, attack graphs, business events, explainable risk, standards mapping |
-| **M6** | Automation & Agents | CI/CD, integrations, distributed execution, Domain API, SDK, MCP, advanced agent workflows |
-| **M7** | Fuzzy Striker | Red/Blue/Purple workflows and authorized validation |
-| **M8** | 1337 Trace | DFIR, incident timeline, observed attack graph |
-| **M9** | Cloud & Enterprise Contracts | Verified assets, cloud-safe contracts and stable enterprise extension interfaces |
+| Phase  | Focus                        | Target outcome                                                                                                |
+|--------|------------------------------|---------------------------------------------------------------------------------------------------------------|
+| **M0** | Foundation                   | Repository baseline, engineering controls, CI, containers, synthetic test lab, durable architecture contracts |
+| **M1** | Community Core & Shell       | `1337` shell, workspace, scope, diagnostics, localization, machine-readable command/capability foundations    |
+| **M2** | Scanner & Execution MVP      | Executor runtime, tool adapters, structured capability execution, impact profiles, Quick Scan                 |
+| **M3** | Evidence & Intelligence      | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, graph-lite foundations, Fuzzy reports                        |
+| **M4** | 1337 Scope                   | Attack surface, reachability, attack paths, native Web Scanner NG                                             |
+| **M5** | Security Intelligence UX     | Tables, attack graphs, business events, explainable risk, standards mapping                                   |
+| **M6** | Automation & Agents          | CI/CD, integrations, distributed execution, Domain API, SDK, MCP, advanced agent workflows                    |
+| **M7** | Fuzzy Striker                | Red/Blue/Purple workflows and authorized validation                                                           |
+| **M8** | 1337 Trace                   | DFIR, incident timeline, observed attack graph                                                                |
+| **M9** | Cloud & Enterprise Contracts | Verified assets, cloud-safe contracts and stable enterprise extension interfaces                              |
 
 Roadmap scope and ordering may evolve as the Community platform matures. Detailed
 planning is tracked through GitHub milestones and issues.
@@ -167,7 +167,7 @@ Project development and compatibility references:
 
 - [DEVELOPMENT_PROTOCOL.md](DEVELOPMENT_PROTOCOL.md) — development workflow, Python house style, testing, Git, and documentation rules;
 - [docs/RELEASE_WORKFLOW.md](docs/RELEASE_WORKFLOW.md) — protected branches, merge policy, deterministic releases, tags, and hotfix flow;
-- [contracts/](contracts/) — versioned machine-readable public contracts and examples;
+- [contracts/](contracts) — versioned machine-readable public contracts and examples;
 - [CHANGELOG.md](CHANGELOG.md) — strict chronological project history.
 
 The stable branch is `master`. Active integration development occurs on `develop`;
