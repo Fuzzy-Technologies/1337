@@ -19,7 +19,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <section class="hero hero-grid">
   <div class="hero-primary">
     <p class="eyebrow">Открытая рабочая среда ИБ · Рантайм для ИИ-агентов без привязки к конкретной модели</p>
-    <p class="hero-hook">Инструменты находят факты.<br><strong>1337 сохраняет состояние защищённости.</strong></p>
+    <p class="hero-hook">Инструменты находят факты.<br><strong>1337 сохраняет состояние защищённости</strong></p>
     <span class="status">Pre-alpha · Community core (Apache-2.0) · v0.1.8</span>
   </div>
 
@@ -103,7 +103,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
     <section class="card">
       <span class="card-label">Операционная ИБ</span>
       <h3>Команды безопасности</h3>
-      <p>Единый контекст по активам, находкам, идентичностям и защитным мерам помогает фокусироваться на реально достижимых рисках, путях атаки и remediation с наибольшим эффектом.</p>
+      <p>Единый контекст по активам, находкам, идентичностям и защитным мерам помогает фокусироваться на реально достижимых рисках, путях атаки и исправлениях с наибольшим эффектом.</p>
     </section>
   </div>
 </section>
