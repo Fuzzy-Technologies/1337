@@ -8,16 +8,17 @@ CSS = ROOT / "static/style.css"
 CONFIG = ROOT / "_config.yml"
 SITEMAP = ROOT / "sitemap.xml"
 
-SITE_SOURCE_ROOTS = {
+SITE_SOURCE_FILES = {
     "_config.yml",
-    "_layouts",
+    "_layouts/default.html",
     "index.md",
     "llms.txt",
-    "ru",
+    "ru/index.md",
     "sitemap.xml",
-    "static",
-    "zh-cn",
+    "static/style.css",
+    "zh-cn/index.md",
 }
+SITE_SOURCE_ROOTS = {Path(path).parts[0] for path in SITE_SOURCE_FILES}
 
 BLOCK_HTML_INDENT = re.compile(r"^ {4,}</?[A-Za-z]")
 CLASS_ATTRIBUTE = re.compile(r'class="([^"]+)"')
@@ -54,7 +55,7 @@ def page_classes(content: str) -> set[str]:
     return classes
 
 
-def tracked_root_entries() -> set[str]:
+def tracked_files() -> set[str]:
     result = subprocess.run(
         ["git", "ls-files", "-z"],
         cwd=ROOT,
@@ -62,11 +63,7 @@ def tracked_root_entries() -> set[str]:
         capture_output=True,
         text=True,
     )
-    return {
-        Path(path).parts[0]
-        for path in result.stdout.split("\0")
-        if path
-    }
+    return {path for path in result.stdout.split("\0") if path}
 
 
 def configured_page_excludes() -> set[str]:
@@ -161,7 +158,8 @@ def test_language_routes_are_present_on_all_pages() -> None:
 
 
 def test_pages_publish_boundary_is_explicit_and_fail_closed() -> None:
-    tracked_roots = tracked_root_entries()
+    tracked = tracked_files()
+    tracked_roots = {Path(path).parts[0] for path in tracked}
     excluded_roots = configured_page_excludes()
     non_site_roots = tracked_roots - SITE_SOURCE_ROOTS
 
@@ -169,6 +167,17 @@ def test_pages_publish_boundary_is_explicit_and_fail_closed() -> None:
     assert not missing_excludes, (
         "Tracked repository roots would be published by GitHub Pages unless "
         f"explicitly excluded: {', '.join(missing_excludes)}"
+    )
+
+    unapproved_site_files = sorted(
+        path
+        for path in tracked
+        if Path(path).parts[0] in SITE_SOURCE_ROOTS
+        and path not in SITE_SOURCE_FILES
+    )
+    assert not unapproved_site_files, (
+        "Files inside public Pages roots require explicit approval in "
+        f"SITE_SOURCE_FILES: {', '.join(unapproved_site_files)}"
     )
 
     published_but_excluded = sorted(SITE_SOURCE_ROOTS & excluded_roots)
