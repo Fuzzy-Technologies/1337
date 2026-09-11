@@ -1,6 +1,9 @@
 import re
+import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 PAGES = (ROOT / "index.md", ROOT / "ru/index.md", ROOT / "zh-cn/index.md")
@@ -19,6 +22,29 @@ SITE_SOURCE_FILES = {
     "zh-cn/index.md",
 }
 SITE_SOURCE_ROOTS = {Path(path).parts[0] for path in SITE_SOURCE_FILES}
+EXPECTED_EXCLUDED_ROOTS = {
+    ".dockerignore",
+    ".github",
+    ".gitignore",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "DEVELOPMENT_PROTOCOL.md",
+    "Dockerfile",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "compose.yaml",
+    "contracts",
+    "docs",
+    "labs",
+    "prompts",
+    "pyproject.toml",
+    "src",
+    "tests",
+    "uv.lock",
+}
 
 BLOCK_HTML_INDENT = re.compile(r"^ {4,}</?[A-Za-z]")
 CLASS_ATTRIBUTE = re.compile(r'class="([^"]+)"')
@@ -157,13 +183,22 @@ def test_language_routes_are_present_on_all_pages() -> None:
         assert 'class="lang-button active"' in content
 
 
-def test_pages_publish_boundary_is_explicit_and_fail_closed() -> None:
+def test_pages_publish_boundary_matches_canonical_excludes() -> None:
+    excluded_roots = configured_page_excludes()
+
+    assert excluded_roots == EXPECTED_EXCLUDED_ROOTS
+    assert not SITE_SOURCE_ROOTS & excluded_roots
+
+
+def test_pages_publish_boundary_rejects_unclassified_tracked_files() -> None:
+    if shutil.which("git") is None:
+        pytest.skip("git is not installed in the container quality image")
+
     tracked = tracked_files()
     tracked_roots = {Path(path).parts[0] for path in tracked}
-    excluded_roots = configured_page_excludes()
     non_site_roots = tracked_roots - SITE_SOURCE_ROOTS
 
-    missing_excludes = sorted(non_site_roots - excluded_roots)
+    missing_excludes = sorted(non_site_roots - EXPECTED_EXCLUDED_ROOTS)
     assert not missing_excludes, (
         "Tracked repository roots would be published by GitHub Pages unless "
         f"explicitly excluded: {', '.join(missing_excludes)}"
@@ -178,12 +213,6 @@ def test_pages_publish_boundary_is_explicit_and_fail_closed() -> None:
     assert not unapproved_site_files, (
         "Files inside public Pages roots require explicit approval in "
         f"SITE_SOURCE_FILES: {', '.join(unapproved_site_files)}"
-    )
-
-    published_but_excluded = sorted(SITE_SOURCE_ROOTS & excluded_roots)
-    assert not published_but_excluded, (
-        "Required Pages sources must not be excluded: "
-        + ", ".join(published_but_excluded)
     )
 
 
