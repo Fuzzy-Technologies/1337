@@ -1,12 +1,54 @@
 import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 PAGES = (ROOT / "index.md", ROOT / "ru/index.md", ROOT / "zh-cn/index.md")
 CSS = ROOT / "static/style.css"
+CONFIG = ROOT / "_config.yml"
+SITEMAP = ROOT / "sitemap.xml"
+
+SITE_SOURCE_FILES = {
+    "_config.yml",
+    "_layouts/default.html",
+    "index.md",
+    "llms.txt",
+    "ru/index.md",
+    "sitemap.xml",
+    "static/style.css",
+    "zh-cn/index.md",
+}
+SITE_SOURCE_ROOTS = {Path(path).parts[0] for path in SITE_SOURCE_FILES}
+EXPECTED_EXCLUDED_ROOTS = {
+    ".dockerignore",
+    ".github",
+    ".gitignore",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "DEVELOPMENT_PROTOCOL.md",
+    "Dockerfile",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "compose.yaml",
+    "contracts",
+    "docs",
+    "labs",
+    "prompts",
+    "pyproject.toml",
+    "src",
+    "tests",
+    "uv.lock",
+}
 
 BLOCK_HTML_INDENT = re.compile(r"^ {4,}</?[A-Za-z]")
 CLASS_ATTRIBUTE = re.compile(r'class="([^"]+)"')
+CONFIG_EXCLUDE_ITEM = re.compile(r"^\s{2}-\s+(.+?)\s*$")
 PAIRED_TAGS = (
     "section",
     "div",
@@ -37,6 +79,40 @@ def page_classes(content: str) -> set[str]:
     for value in CLASS_ATTRIBUTE.findall(content):
         classes.update(value.split())
     return classes
+
+
+def tracked_files() -> set[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return {path for path in result.stdout.split("\0") if path}
+
+
+def configured_page_excludes() -> set[str]:
+    excludes: set[str] = set()
+    in_exclude_block = False
+
+    for line in read(CONFIG).splitlines():
+        if line == "exclude:":
+            in_exclude_block = True
+            continue
+
+        if not in_exclude_block:
+            continue
+
+        match = CONFIG_EXCLUDE_ITEM.match(line)
+        if match:
+            excludes.add(match.group(1).strip("'\"").rstrip("/"))
+            continue
+
+        if line and not line.startswith(" "):
+            break
+
+    return excludes
 
 
 def test_pages_do_not_indent_raw_html_as_markdown_code() -> None:
@@ -85,6 +161,15 @@ def test_site_css_covers_all_page_classes() -> None:
     assert not missing, f"Page classes without CSS selectors: {', '.join(missing)}"
 
 
+def test_simplified_chinese_page_has_native_font_fallbacks() -> None:
+    css = read(CSS)
+
+    assert 'html[lang="zh-CN"] body' in css
+    assert '"PingFang SC"' in css
+    assert '"Microsoft YaHei"' in css
+    assert '"Noto Sans SC"' in css
+
+
 def test_language_routes_are_present_on_all_pages() -> None:
     routes = (
         "{{ '/' | relative_url }}",
@@ -96,3 +181,51 @@ def test_language_routes_are_present_on_all_pages() -> None:
         content = read(page)
         assert all(route in content for route in routes)
         assert 'class="lang-button active"' in content
+
+
+def test_pages_publish_boundary_matches_canonical_excludes() -> None:
+    excluded_roots = configured_page_excludes()
+
+    assert excluded_roots == EXPECTED_EXCLUDED_ROOTS
+    assert not SITE_SOURCE_ROOTS & excluded_roots
+
+
+def test_pages_publish_boundary_rejects_unclassified_tracked_files() -> None:
+    if shutil.which("git") is None:
+        pytest.skip("git is not installed in the container quality image")
+
+    tracked = tracked_files()
+    tracked_roots = {Path(path).parts[0] for path in tracked}
+    non_site_roots = tracked_roots - SITE_SOURCE_ROOTS
+
+    missing_excludes = sorted(non_site_roots - EXPECTED_EXCLUDED_ROOTS)
+    assert not missing_excludes, (
+        "Tracked repository roots would be published by GitHub Pages unless "
+        f"explicitly excluded: {', '.join(missing_excludes)}"
+    )
+
+    unapproved_site_files = sorted(
+        path
+        for path in tracked
+        if Path(path).parts[0] in SITE_SOURCE_ROOTS
+        and path not in SITE_SOURCE_FILES
+    )
+    assert not unapproved_site_files, (
+        "Files inside public Pages roots require explicit approval in "
+        f"SITE_SOURCE_FILES: {', '.join(unapproved_site_files)}"
+    )
+
+
+def test_sitemap_contains_only_public_localized_routes() -> None:
+    sitemap = read(SITEMAP)
+    routes = (
+        "{{ '/' | absolute_url }}",
+        "{{ '/ru/' | absolute_url }}",
+        "{{ '/zh-cn/' | absolute_url }}",
+    )
+
+    assert sitemap.count("<url>") == len(routes)
+    assert all(f"<loc>{route}</loc>" in sitemap for route in routes)
+
+    for language in ("en", "ru", "zh-CN", "x-default"):
+        assert f'hreflang="{language}"' in sitemap
