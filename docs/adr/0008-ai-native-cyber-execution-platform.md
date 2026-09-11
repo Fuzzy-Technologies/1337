@@ -14,7 +14,7 @@ ADR 0003 established 1337 as an intelligence-first security workbench where
 specialist tools act as sensors and evidence, reachability, attack paths, and
 remediation context matter more than raw vulnerability volume.
 
-ADR 0005 established an model-agnostic security knowledge layer and requires future
+ADR 0005 established a model-agnostic security knowledge layer and requires future
 human, automation, and AI clients to consume shared structured security data through
 explicit contracts.
 
@@ -229,8 +229,8 @@ security using the organization's approved AI and private execution environment.
 The intended output is material security-state change and remediation priority, not
 only vulnerability counts.
 
-For AI and security-platform builders, 1337 becomes a reusable runtime for AI
-security agents instead of requiring each integration to rebuild scope, adapters,
+For AI and security-platform builders, 1337 becomes a reusable AI-agent runtime
+for cybersecurity instead of requiring each integration to rebuild scope, adapters,
 evidence storage, state, and attack-path context independently.
 
 ## Roadmap consequence
