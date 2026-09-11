@@ -100,46 +100,10 @@ The strategic boundary is simple: **models provide replaceable reasoning; 1337
 provides durable security state, governed execution, evidence, and the security
 graph**.
 
-## DFIR and investigations
-
-The M8 **1337 Trace / DFIR** direction extends the same evidence-first security
-state into incident response, digital forensics, internal investigations, CERT/CSIRT
-work, forensic consulting, and cybercrime investigations.
-
-The planned evidence model is intended to preserve more than a finding or alert:
-
-```text
-Case / Investigation
-        ↓
-Evidence / Artifact
-        ↓
-Acquisition + Integrity Hash
-        ↓
-Custody / Provenance
-        ↓
-Timeline / Correlation
-        ↓
-Observed Attack Path
-        ↓
-Investigation Report / Evidence Bundle
-```
-
-Source, acquisition time, collector/examiner, hashes, original-versus-derived
-artifacts, parser/tool provenance, custody events, normalized timestamps, and the
-boundary between evidence and interpretation should remain auditable.
-
-This makes 1337 relevant not only to SOC teams, but also to IR teams, forensic
-consultants, CERT/CSIRT, internal investigations, and — where organizations choose
-to adopt it — law-enforcement investigations and forensic workflows supporting
-judicial proceedings.
-
-Legal and evidentiary rules vary by jurisdiction. 1337 does not claim that data is
-automatically admissible in court; the goal is to preserve factual provenance,
-integrity, chain of custody, and reproducibility so local forensic and legal
-procedures can be applied.
-
-See [M8 evidence ingestion #83](https://github.com/Fuzzy-Technologies/1337/issues/83)
-and [incident timeline / observed attack graph #84](https://github.com/Fuzzy-Technologies/1337/issues/84).
+M8 / **1337 Trace** extends the same evidence and provenance model into DFIR and
+incident reconstruction, including evidence integrity and chain-of-custody records
+where required. See [#83](https://github.com/Fuzzy-Technologies/1337/issues/83) and
+[#84](https://github.com/Fuzzy-Technologies/1337/issues/84).
 
 ## Responsible use
 
