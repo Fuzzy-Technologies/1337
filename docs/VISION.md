@@ -34,7 +34,7 @@ A durable environment still needs to know:
 - where and how a capability may execute;
 - which credentials may be referenced;
 - what evidence was actually produced;
-- which findings are proven versus inferred;
+- which findings are confirmed versus inferred;
 - what is reachable from where;
 - which attack paths exist;
 - what changed since the previous assessment;
@@ -75,8 +75,8 @@ The Community vision is a practical open security workstation: one entry point f
 building a lab, connecting specialist tools, preserving context and evidence, and
 understanding real attack paths.
 
-A future AI-assisted penetration test should not repeatedly reconstruct the environment from
-terminal noise. It should be able to operate over durable objects such as assets,
+A future AI-assisted penetration test should not repeatedly reconstruct the
+environment from terminal noise. It should be able to operate over durable objects such as assets,
 services, endpoints, credential references, findings, evidence, capabilities, and
 attack paths.
 
@@ -105,12 +105,13 @@ operators faster, more reproducible, and less dependent on transient shell state
 
 ## For AI-agent builders
 
-1337 is designed as infrastructure beneath an AI model or agent used for security workflows.
+1337 is designed as infrastructure beneath an AI model or agent used for security
+workflows.
 
 The project deliberately does **not** compete on ownership of a frontier model.
 Models from OpenAI, Anthropic, Google, Microsoft ecosystems, local inference stacks,
-private enterprise providers, or future security-specialized models should be able to
-use the same 1337 security state and execution contracts when integrations exist.
+private enterprise providers, or future security-specialized models should be able
+to use the same 1337 security state and execution contracts when integrations exist.
 
 The model supplies replaceable reasoning. 1337 supplies the durable operational
 layer around that reasoning:
@@ -283,8 +284,8 @@ Fuzzy Technologies is building 1337 in public so security practitioners, AI
 researchers, AI-agent builders, security vendors, enterprise engineering teams,
 and open-source contributors can inspect the architecture and help pressure-test it.
 
-If you are building an AI model for security workflows, AI agent for cybersecurity, scanner,
-execution runtime, security graph, or enterprise security platform, the intended relationship
+If you are building an AI model or agent for cybersecurity, a scanner, execution
+runtime, security graph, or enterprise security platform, the intended relationship
 is interoperability rather than duplicated infrastructure.
 
 **Model vendors should be able to focus on better intelligence. Tool vendors should
