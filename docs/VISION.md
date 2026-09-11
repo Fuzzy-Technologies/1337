@@ -17,7 +17,7 @@ environments through durable, governed, evidence-backed infrastructure.
 It is both an open workstation for human security practitioners and a model-agnostic
 security execution, state, and evidence platform for future AI security agents.
 
-> **Models reason. 1337 remembers, governs, executes and proves.**
+> **Models reason. 1337 keeps state, governs execution, and preserves evidence.**
 
 ## The problem
 
