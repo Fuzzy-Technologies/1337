@@ -9,14 +9,18 @@ Accepted — 2026-09-11
 1337 is intended to serve several security workflows without becoming several
 different products.
 
-The same Core should support, among others:
+The same Core supports multiple workflows without creating multiple truths.
 
-- penetration testing and hands-on security assessment;
-- DevSecOps / AppSec checks embedded into CI/CD;
-- SOC / exposure-management workflows with recurring scans, change detection,
-  validation, and retesting after remediation;
-- DFIR, incident response, internal investigations, and cybercrime investigation workflows;
-- Red / Blue / Purple collaboration over one shared security state.
+The initial first-class lens set is:
+
+- penetration testing / hands-on security assessment;
+- DFIR, incident response, internal investigations, and forensic workflows;
+- DevSecOps / AppSec;
+- Purple Team collaboration over one shared security state.
+
+Additional lenses such as SOC/exposure, Blue-only, executive, compliance, or
+domain-specific views may be added later when a distinct workflow justifies them.
+They are not required as initial first-class product lenses.
 
 These users need different defaults, views, triggers, outputs, and preferred
 capabilities. They must not receive different underlying security truth.
@@ -65,18 +69,17 @@ databases or alternate domain models.
 
 A workflow profile expresses **what the operator is trying to accomplish**.
 
-Initial profile families are expected to include:
+Initial first-class workflow/lens families are:
 
 ```text
 pentest
-devsecops
-soc
 dfir
+devsecops
 purple
 ```
 
-Additional Red/Blue/AppSec-specific lenses may exist where useful, but they should
-remain presets/views over the same workspace, evidence, findings, and graph.
+Additional profiles/lenses may exist where useful, but they remain views/presets
+over the same workspace, evidence, findings, relations, and graph.
 
 A workflow profile may provide defaults for:
 
@@ -343,6 +346,24 @@ after state
 It uses the same findings and evidence as Red and Blue views rather than maintaining
 a separate exercise state.
 
+## Lens versus workflow profile
+
+A **lens** is the presentation/query focus over shared state. It may define:
+
+- preferred object and relation types;
+- default filters and queries;
+- contextual actions;
+- mappings and overlays;
+- preferred capabilities;
+- terminal/Web presentation emphasis.
+
+A **workflow profile** may additionally define execution defaults such as target
+families, impact recommendations, trigger style, and outputs.
+
+A lens and profile may ship together, but neither may fork the Security Object Model.
+The same lens contract should be consumable by TUI/Web clients and by API/SDK/MCP
+clients.
+
 ## Dimension 2: impact profile
 
 Impact answers **how aggressive execution is allowed to be**.
@@ -449,11 +470,11 @@ Conceptually:
 
         ┌─────────────┬─────────────┬─────────────┐
         ▼             ▼             ▼             ▼
-     Pentest          SOC          DFIR        DevSecOps
+     Pentest          DFIR        DevSecOps      Purple
       lens            lens          lens          lens
 
-  pivots / paths   exposure/diff  timeline /    build/deploy
-  validation       controls/retest evidence      gates/artifacts
+  surface/paths    timeline/      build/deploy   action/
+  validation       evidence       gates/artifacts detection/retest
 ```
 
 The user interface may prioritize different objects, but:
