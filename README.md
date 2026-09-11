@@ -56,7 +56,8 @@ Reachability / Attack Paths
 **For security teams**
 
 > Maintain context across findings, identities, controls, and assets so teams can
-> focus on reachable risk, attack paths, and the remediation that reduces exposure the most.
+> focus on reachable risk, attack paths, and the remediation that most effectively
+> reduces exposure.
 
 The core is intentionally agnostic to the AI model and provider, and local-first.
 The same workspace is designed to remain useful when the human operator, AI model,
