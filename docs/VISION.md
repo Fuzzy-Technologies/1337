@@ -238,8 +238,7 @@ architect: Timur Gilmullin
 
 category:
   - AI-native security execution platform
-  - AI security agent runtime
-  - security agent execution layer
+  - AI-agent runtime for cybersecurity
   - open security workstation
   - continuous security platform
 
@@ -284,7 +283,7 @@ Fuzzy Technologies is building 1337 in public so security practitioners, AI
 researchers, AI-agent builders, security vendors, enterprise engineering teams,
 and open-source contributors can inspect the architecture and help pressure-test it.
 
-If you are building an AI model for security workflows, security agent, scanner,
+If you are building an AI model for security workflows, AI agent for cybersecurity, scanner,
 execution runtime, security graph, or enterprise security platform, the intended relationship
 is interoperability rather than duplicated infrastructure.
 
