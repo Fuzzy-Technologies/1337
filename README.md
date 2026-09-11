@@ -180,7 +180,7 @@ independently runnable and verifiable rather than prerecorded.
 
 - [Vision](docs/VISION.md) — the human-facing product thesis and long-term direction;
 - [1337 for AI security agents](docs/AI_AGENTS.md) — AI-model-agnostic agent/runtime concepts and discovery vocabulary;
-- [ADR 0008: AI-native cyber execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md) — the architectural boundary;
+- [ADR 0008: AI-native security execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md) — the architectural boundary;
 - [Machine-readable project summary](llms.txt) — compact discovery metadata for automated readers;
 - [Compatibility](docs/COMPATIBILITY.md) — public stability and extension-boundary contract;
 - [Terminology](docs/TERMINOLOGY.md) — canonical public security terminology for English and Russian copy.
