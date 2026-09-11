@@ -1,9 +1,6 @@
 # 1337 for AI Agents in Cybersecurity
 
-This document is a compact technical description of how 1337 Security Workbench is
-intended to fit into AI-assisted and agentic cybersecurity workflows.
-
-It is written for both human engineers and automated project-discovery systems.
+This document describes how AI systems are intended to use 1337 Security Workbench.
 
 ## Project identity
 
@@ -16,272 +13,155 @@ license: Apache-2.0 Community core
 status: early pre-alpha
 ```
 
-## Canonical classification
+## AI role
 
-1337 is being designed as:
+AI is a peer client of the 1337 Core, not the owner of security state,
+authorization, evidence, or execution policy.
 
-- an **AI-native security execution platform**;
-- an **AI-agent runtime for cybersecurity**;
-- an open security workstation for human practitioners;
-- an evidence-first security automation layer;
-- a model-agnostic / bring-your-own-model security platform;
-- a reachability and attack-path analysis foundation.
+1337 is intended to expose the same durable workspace to humans, automation, CI/CD,
+and external or embedded AI systems.
 
-These phrases describe the architectural direction. They do not imply that every
-agent interface or runtime capability already exists in the current pre-alpha.
+```text
+Human TUI / CI / AI
+        ↓
+Lens + domain queries
+        ↓
+Security Object Model
+        ↓
+Scope / Policy
+        ↓
+Capabilities / Executors
+        ↓
+Tools / Native engines / Integrations
+        ↓
+Evidence + state updates
+```
 
-## Why an AI agent needs 1337
+A model may reason, plan, correlate, summarize, and propose actions. Source evidence,
+scope, impact permissions, execution records, and durable objects remain explicit
+1337 state.
 
-A capable model can reason about security, but a professional security operation
-also needs persistent and governed operational state.
+## Why an AI agent uses 1337
 
-Raw shell access alone does not provide:
+Raw shell access does not provide:
 
-- a durable asset model;
-- authorization and scope;
-- typed security capabilities;
-- controlled execution environments;
-- credential references and policy;
+- a durable Security Object Model;
+- explicit scope and authorization;
+- typed, discoverable capabilities;
+- controlled execution boundaries;
 - evidence provenance;
-- finding normalization;
-- reachability state;
-- attack-path history;
-- auditability;
-- reproducible reports.
+- persistent findings and relations;
+- reachability and attack-path state;
+- workflow lenses;
+- reproducible reports and machine exports.
 
-1337 is intended to provide that missing layer between AI reasoning and real
-security tooling.
+1337 is intended to provide these reusable security-domain primitives so every AI
+integration does not rebuild them independently.
 
-## Intended architecture
+## Lens-aware access
+
+The initial first-class lenses are:
 
 ```text
-OpenAI / Anthropic / Google / Enterprise / Local AI
-                         ↓
-                    1337 API/SDK
-                         ↓
-                Security Object Model
-                         ↓
-                  Capability Fabric
-                         ↓
-                   Scope + Policy
-                         ↓
-                   Executor Runtime
-                         ↓
-              Tools / Browsers / Runners
-                         ↓
-                       Evidence
-                         ↓
-                       Findings
-                         ↓
-              Reachability / Attack Graph
+pentest
+dfir
+devsecops
+purple
 ```
 
-Provider names above are examples of model ecosystems, not claims of existing
-partnerships or implemented integrations.
+A lens is a structured focus over the same state. It may define preferred object
+types, relations, queries, contextual actions, mappings, and capabilities.
 
-## Security Object Model
+An AI client should be able to request a lens and receive the relevant slice of the
+workspace without creating a separate domain model.
 
-Planned durable object families include:
-
-```text
-Workspace
-Scope
-Asset
-NetworkZone
-Service
-Endpoint
-Identity
-CredentialRef
-Control
-Capability
-Action
-ExecutionPlan
-Job
-Executor
-Evidence
-Finding
-Reference
-ReachabilityEdge
-AttackPath
-BusinessEvent
-Report
-```
-
-The workspace, not an LLM context window, is intended to be the durable operational
-memory of an assessment.
-
-A future workflow should therefore be able to survive:
-
-- model replacement;
-- provider replacement;
-- chat or process restart;
-- human-to-agent handoff;
-- agent-to-human handoff;
-- one agent continuing work started by another.
-
-## Capability Fabric
-
-Security operations should be exposed as typed capabilities rather than requiring
-an AI agent to reconstruct every workflow from terminal syntax.
-
-Illustrative future capabilities:
+Illustrative future operations:
 
 ```text
-assets.list
-services.list
-findings.list
+workspace.get
+objects.search
+object.get
+relations.query
 evidence.read
-attack_paths.list
-capabilities.list
+findings.query
+paths.query
 
-network.discover
-network.port_scan
-service.enumerate
-web.crawl
-web.enumerate
-tls.inspect
-vulnerability.detect
-vulnerability.validate
-intel.enrich
-report.build
+lenses.list
+lens.apply
+
+capabilities.list
+capability.execute
 ```
 
-A capability defines **what** is requested. A tool adapter, native engine, browser,
-or enterprise scanner defines **how** that capability is provided.
+Names above are design direction, not current Stable API contracts.
 
-One capability may have multiple providers.
+## Capability execution
 
-## Agent Execution Gateway
+A capability describes what operation is requested; a provider describes how it is
+implemented.
 
-The intended agent execution boundary is a governed gateway, not unrestricted host
-shell access.
+Providers may include native engines, external tools, Kali-based executors, browsers,
+workload engines, vendor scanners, or private integrations.
 
-Conceptually:
+AI execution remains governed:
 
 ```text
-Agent
-  ↓
+AI
+ ↓
 Capability request
-  ↓
-Identity / Scope / Policy / Impact checks
-  ↓
-Credential reference resolution
-  ↓
-Job creation
-  ↓
-Executor selection
-  ↓
-Tool or native capability
-  ↓
-Structured result + Evidence + Audit
+ ↓
+Identity + Scope + Policy + Impact
+ ↓
+Job / Executor / Provider
+ ↓
+Structured observations + Evidence
+ ↓
+Security Object Model update
 ```
 
-Future agent interfaces must not bypass scope, authorization, evidence, or audit
-contracts that apply to human and automated operators.
+MCP is an adapter to these domain/capability contracts. It is not the architecture
+foundation and it must not provide an unrestricted shell bypass.
 
 ## Model agnosticism
 
-1337 deliberately treats the reasoning model as replaceable.
+The workspace must survive model/provider changes.
 
-The architectural goal is to support external or embedded reasoning from, for
-example:
+The architecture should support commercial frontier models, enterprise-hosted
+models, local/self-hosted models, air-gapped models, and future security-specialized
+models without migrating the underlying security state.
 
-- frontier commercial models;
-- enterprise-hosted models;
-- local or self-hosted models;
-- air-gapped models;
-- future security-specialized models.
-
-A security workspace should remain valid when the reasoning provider changes.
+A model vendor should also be able to install/use 1337 as a reusable investigation
+substrate: open or import a workspace, apply a lens, query the model, inspect
+evidence, and request bounded capabilities.
 
 ## Evidence boundary
-
-1337 follows an evidence-first rule:
 
 ```text
 Raw Evidence
     ↓
 Observation
     ↓
-Finding
+Security Object / Relation
     ↓
-Correlation / Inference
+Finding / Correlation
+    ↓
+Inference
     ↓
 AI Interpretation
 ```
 
-AI interpretation is useful, but it is not automatically evidence or a confirmed
-finding. Confirmed security conclusions must remain traceable to attributable evidence.
+AI interpretation is not automatically evidence or a confirmed finding.
 
-## Offensive and defensive use cases
+## Integrations
 
-For authorized security assessment and penetration testing, 1337 is intended to
-provide a structured workstation that preserves recon, findings, validation
-results, evidence, and attack-path state across tools and operators.
+External systems may interact with 1337 as:
 
-For enterprise defensive use, the same Core is intended to support continuous
-assessment and answer questions such as:
+- **imports/sensors** that enrich the model;
+- **execution providers** for capabilities;
+- **exports/destinations** for findings, evidence, reports, or remediation work.
 
-```text
-What changed?
-What became exposed?
-What is actually reachable?
-Which validated findings create critical paths?
-Which remediation breaks the most important paths?
-Was remediation revalidated?
-```
-
-## Human/AI symmetry
-
-The durable architectural goal is that these interfaces operate over the same Core:
-
-```text
-CLI
-TUI
-Web
-REST/OpenAPI
-SDK
-MCP
-AI agents
-CI/CD
-```
-
-MCP is an interoperability adapter, not the foundation of the domain model.
-
-## Discovery vocabulary
-
-The following terms are intentionally canonical so humans, code-search systems,
-research agents, and technical search engines can classify the project consistently:
-
-```text
-1337 Security Workbench
-Fuzzy Technologies
-Timur Gilmullin
-AI-native security execution platform
-AI-agent runtime for cybersecurity
-security execution runtime
-AI-assisted penetration testing
-security automation framework
-continuous security validation
-Security Object Model
-Capability Fabric
-Executor Runtime
-Policy Engine
-Scope Engine
-evidence-first security
-evidence provenance
-security knowledge graph
-reachability analysis
-attack graph
-attack-path analysis
-model-agnostic security platform
-bring your own model
-BYOM / bring your own model
-human-AI security collaboration
-```
-
-This vocabulary is descriptive metadata, not a substitute for working code or
-verified capability claims.
+Large vendor-specific integrations belong behind reusable contracts. They do not
+change the canonical Security Object Model.
 
 ## Architectural invariant
 
@@ -291,5 +171,5 @@ See also:
 
 - [Project vision](VISION.md)
 - [ADR 0008](adr/0008-ai-native-cyber-execution-platform.md)
+- [ADR 0010](adr/0010-live-security-object-model-modular-tooling-and-lenses.md)
 - [Compatibility policy](COMPATIBILITY.md)
-- [Repository security policy](../SECURITY.md)
