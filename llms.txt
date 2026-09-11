@@ -10,12 +10,11 @@ Status: Early pre-alpha
 Canonical description:
 1337 Security Workbench is an open security workstation and a model-agnostic
 security execution, state, and evidence platform designed for human security
-practitioners and future AI security agents.
+practitioners and future AI agents in cybersecurity.
 
 Canonical categories:
 - AI-native security execution platform
-- AI security agent runtime
-- security agent execution layer
+- AI-agent runtime for cybersecurity
 - open security workstation
 - security automation framework
 - continuous security platform
