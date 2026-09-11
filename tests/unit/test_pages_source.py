@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PAGES = (ROOT / "index.md", ROOT / "ru/index.md")
+PAGES = (ROOT / "index.md", ROOT / "ru/index.md", ROOT / "zh-cn/index.md")
 CSS = ROOT / "static/style.css"
 
 BLOCK_HTML_INDENT = re.compile(r"^ {4,}</?[A-Za-z]")
@@ -67,12 +67,11 @@ def test_pages_have_balanced_html_tags() -> None:
 
 
 def test_localized_pages_keep_the_same_component_structure() -> None:
-    english = read(PAGES[0])
-    russian = read(PAGES[1])
+    pages = [read(page) for page in PAGES]
+    reference_classes = page_classes(pages[0])
 
-    assert english.count('<section class="content-section">') == 8
-    assert russian.count('<section class="content-section">') == 8
-    assert page_classes(english) == page_classes(russian)
+    assert all(page.count('<section class="content-section">') == 8 for page in pages)
+    assert all(page_classes(page) == reference_classes for page in pages[1:])
 
 
 def test_site_css_covers_all_page_classes() -> None:
@@ -86,11 +85,14 @@ def test_site_css_covers_all_page_classes() -> None:
     assert not missing, f"Page classes without CSS selectors: {', '.join(missing)}"
 
 
-def test_language_routes_are_present_on_both_pages() -> None:
-    english = read(PAGES[0])
-    russian = read(PAGES[1])
+def test_language_routes_are_present_on_all_pages() -> None:
+    routes = (
+        "{{ '/' | relative_url }}",
+        "{{ '/ru/' | relative_url }}",
+        "{{ '/zh-cn/' | relative_url }}",
+    )
 
-    assert "{{ '/ru/' | relative_url }}" in english
-    assert "{{ '/' | relative_url }}" in russian
-    assert 'class="lang-button active"' in english
-    assert 'class="lang-button active"' in russian
+    for page in PAGES:
+        content = read(page)
+        assert all(route in content for route in routes)
+        assert 'class="lang-button active"' in content
