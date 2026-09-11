@@ -2,7 +2,7 @@
 layout: default
 lang: ru
 title: 1337 Security Workbench
-description: 1337 Security Workbench от Fuzzy Technologies — открытая рабочая среда ИБ и рантайм для ИИ-агентов без привязки к конкретной модели.
+description: 1337 Security Workbench от Fuzzy Technologies — открытая рабочая среда ИБ и рантайм для ИИ-агентов в ИБ без привязки к конкретной модели.
 ---
 
 <header class="site-header">
@@ -102,7 +102,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <section class="card">
 <span class="card-label">Операционная ИБ</span>
-<h3>Команды безопасности</h3>
+<h3>Команды ИБ</h3>
 <p>Единый контекст по активам, результатам проверок, идентичностям и защитным мерам помогает фокусироваться на реально достижимых рисках, путях атаки и исправлениях с наибольшим эффектом.</p>
 </section>
 </div>
