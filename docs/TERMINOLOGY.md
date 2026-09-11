@@ -26,7 +26,7 @@ historical wording that must remain unchanged for traceability.
 | ------------------------ | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | AI-model independence    | **model-agnostic**, **AI-model-agnostic** when extra precision is useful                                        | **без привязки к конкретной ИИ-модели / поставщику модели**                                                                                            | Avoid **model-neutral** and **AI-neutral** in current public copy: they are less precise and can be misread as referring to threat models or neutrality toward AI itself |
 | Human-facing product     | **open security workstation**, **security workspace**                                                           | **открытая рабочая среда ИБ**                                                                                                                          | Workbench remains part of the product name                                                                                                                               |
-| AI execution layer       | **runtime for AI security agents**, **security execution runtime**                                              | **рантайм для ИИ-агентов**, **контур выполнения операций ИБ**                                                                                          | Avoid **cyber agent runtime** and **security harness** in marketing copy; both are ambiguous outside project context                                                     |
+| AI execution layer       | **AI-agent runtime for cybersecurity**, **security execution runtime**                                              | **рантайм для ИИ-агентов в ИБ**, **контур выполнения операций ИБ**                                                                                          | Avoid **cyber agent runtime** and **security harness** in marketing copy; both are ambiguous outside project context                                                     |
 | Penetration testing      | **penetration testing**, **penetration tester**                                                                 | **тестирование на проникновение**; **пентест / пентестер** are acceptable practitioner shorthand                                                       | Prefer the full English term in formal product copy                                                                                                                      |
 | Attack surface           | **attack surface**, **attack surface management**                                                               | **поверхность атаки**, **управление поверхностью атаки**                                                                                               | Established vendor terminology                                                                                                                                           |
 | Reachability             | **reachability**, **reachability analysis**                                                                     | **достижимость**, **анализ достижимости**                                                                                                              | In Russian, use it for technical reachability; it does not replace a threat model                                                                                        |
@@ -37,7 +37,7 @@ historical wording that must remain unchanged for traceability.
 | Software supply chain    | **software supply chain**, **software supply-chain security**                                                   | **цепочка поставки ПО**, **безопасность цепочки поставки ПО**                                                                                          | Avoid bare Supply chain in Russian public headings when a natural Russian term fits                                                                                      |
 | API security             | **API security testing**, **API security scanning**, **OpenAPI / Swagger**, **GraphQL**                         | **анализ безопасности API**, **сканирование API**                                                                                                      | Keep protocol/schema names in English                                                                                                                                    |
 | Digital forensics / DFIR | **digital forensics**, **DFIR (digital forensics and incident response)**                                       | **цифровая криминалистика**, **DFIR / расследование и реагирование на инциденты**                                                                      | Avoid invented compounds such as judicial-forensic                                                                                                                       |
-| Chain of custody         | **chain of custody**; **chain-of-custody record** when used attributively                                       | Explain on first use as **chain of custody — цепочка хранения и передачи материалов/улик** when a Russian legal/forensic audience requires it          | Do not call it a special type of chain-of-custody evidence                                                                                                               |
+| Chain of custody         | **chain of custody**; **chain-of-custody record** when used attributively                                       | Explain on first use as **chain of custody — цепочка хранения доказательств**; **цепочка обеспечения сохранности доказательств** is a more formal variant          | Do not call it a special type of chain-of-custody evidence                                                                                                               |
 | Legal / forensic use     | **law-enforcement investigation**, **judicial proceedings**, **forensic workflow supporting legal proceedings** | **расследование правоохранительных органов**, **судебное разбирательство**, **судебно-экспертный / криминалистический процесс** where context requires | Do not claim universal court admissibility                                                                                                                               |
 | Evidence layers          | **source/raw evidence → observation → finding/correlation → interpretation**                                    | **исходные данные/доказательства → наблюдение → находка/корреляция → интерпретация**                                                                   | AI output is not automatically evidence or a confirmed finding                                                                                                           |
 | Incident reconstruction  | **incident timeline**, **observed attack path**, **observed attack graph** (1337 project term)                  | **хронология инцидента**, **наблюдавшийся / подтверждённый данными путь атаки**                                                                        | Keep uncertainty/confidence explicit                                                                                                                                     |
@@ -74,17 +74,23 @@ Russian rather than word-for-word translation.
   — documented movement/handling of evidence through collection, safeguarding, and
   analysis.
 - Tenable Exposure Management, [Attack Path](https://docs.tenable.com/exposure-management/Content/attack-path/attack-path.htm)
-  — attack paths to critical assets and remediation that breaks the chain.
-- Elastic Security — public use of **model-agnostic architecture** for multiple AI
-  model providers.
-- Positive Technologies — public Russian use of **анализ защищённости**,
-  **поверхность атаки**, **достижимость**, **пути / маршруты атак**, and
-  **меры защиты**.
-- Kaspersky — public Russian use of **тестирование на проникновение**,
-  **анализ защищённости**, **поверхность атаки**, **цифровая криминалистика**, and
-  **реагирование на инциденты**.
-- BI.ZONE — public use of **DFIR (digital forensics and incident response)** and
-  **расследование инцидента**.
+  — attack paths to critical assets, security controls, remediation, and scan-based
+  verification.
+- Elastic Security, [AI for Security Operations](https://www.elastic.co/security/ai)
+  — current public use of **model-agnostic** for customer-selectable AI models.
+- Positive Technologies, [Web applications and development infrastructure threatscape](https://ptsecurity.com/research/analytics/web-applications-and-development-infrastructure-threatscape-2026-2027-trends-and-forecasts/)
+  — current Russian use of **анализ защищённости** and established offensive-security
+  vocabulary; other PT materials use **меры защиты** and **поверхность атаки**.
+- Kaspersky, [Digital Forensics](https://www.kaspersky.ru/resource-center/definitions/digital-forensics)
+  and [Incident Response](https://www.kaspersky.ru/enterprise-security/incident-response)
+  — **цифровая криминалистика**, **цифровые улики**, **реагирование на инциденты**,
+  and incident-timeline reconstruction.
+- BI.ZONE, [Pentest, AppSec and Red Team](https://bi.zone/expertise/insights/pentest-appsec-i-red-team-iznutri-proekty-uyazvimosti-rekomendatsii/)
+  — practitioner-facing Russian use of **пентест**, **тестирование на проникновение**,
+  **выявленные уязвимости**, and remediation language.
+- IAEA Russian terminology for **chain of custody** uses the formal concept
+  **цепочка мер по обеспечению сохранности доказательств**; practitioner material
+  also commonly uses **цепочка хранения доказательств**.
 
 ## Historical documents
 
