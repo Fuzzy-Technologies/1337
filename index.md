@@ -11,6 +11,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — open security wor
 <div class="language-switch" aria-label="Language">
 <a class="lang-button active" href="{{ '/' | relative_url }}" aria-current="page">EN</a>
 <a class="lang-button" href="{{ '/ru/' | relative_url }}">RU</a>
+<a class="lang-button" href="{{ '/zh-cn/' | relative_url }}">简中</a>
 </div>
 <a class="brand-button" href="https://fuzzy-technologies.github.io/" aria-label="Fuzzy Technologies">Fuzzy Technologies ↗</a>
 </nav>
@@ -95,7 +96,7 @@ Security Objects
 
 <section class="card">
 <span class="card-label">AI &amp; automation</span>
-<h3>AI security engineering</h3>
+<h3>AI-agent builders</h3>
 <p>Connect the AI model your organization trusts to the same structured security state and typed capabilities. Scope, execution policy, and evidence stay outside model discretion, so the model can change without redesigning the workflow.</p>
 <p class="card-hook">Bring your model. 1337 brings the cyber workspace</p>
 </section>
@@ -103,7 +104,7 @@ Security Objects
 <section class="card">
 <span class="card-label">Security operations</span>
 <h3>Security teams</h3>
-<p>Maintain context across findings, identities, controls, and assets so teams can focus on reachable risk, attack paths, and the remediation that removes the most exposure.</p>
+<p>Maintain context across findings, identities, controls, and assets so teams can focus on reachable risk, attack paths, and the remediation that reduces exposure the most.</p>
 </section>
 </div>
 </section>
@@ -144,11 +145,11 @@ Security Objects
 
 <section class="case-card">
 <span class="card-label">Software supply chain</span>
-<p><strong>Repository → CI Job → Runner → Registry → Deployment → Production</strong></p>
+<p><strong>Repository → CI Job → Runner → Artifact Registry → Deployment → Production</strong></p>
 </section>
 </div>
 
-<blockquote><strong>Which attack paths are actually reachable, what evidence supports them, and which control breaks the chain?</strong></blockquote>
+<blockquote><strong>Which paths to critical assets are actually reachable, what evidence supports them, and which security control breaks the chain?</strong></blockquote>
 <p class="quiet">M4 is roadmap work and is not part of v0.1.8. The goal is a reproducible Compose lab, not a prerecorded demo.</p>
 <p class="showcase-hook"><strong>Run the lab · reproduce the findings · validate the path · verify the remediation</strong></p>
 </div>

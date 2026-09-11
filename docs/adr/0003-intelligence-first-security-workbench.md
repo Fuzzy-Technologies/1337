@@ -51,5 +51,5 @@ for later review. Product work must not measure success only by the number of
 integrated scanners or reported findings.
 
 This decision does not claim that the current pre-alpha bootstrap already
-implements discovery, attack-path reasoning, or reporting. It directs the design
+implements discovery, attack-path analysis, or reporting. It directs the design
 of those future capabilities.

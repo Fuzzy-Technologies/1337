@@ -17,7 +17,7 @@ security state for reachability and attack-path analysis.
 
 Security practitioners already have excellent specialist tools. The hard part is
 turning their disconnected output into a durable picture of **what exists, what is
-reachable, what is proven, what changed, and what should be fixed first**.
+reachable, what is confirmed, what changed, and what should be fixed first**.
 
 1337 is not another all-in-one scanner and does not try to replace Nmap, Nuclei,
 browsers, commercial scanners, or AI models. It is designed to provide the state
@@ -47,7 +47,7 @@ Reachability / Attack Paths
 > meaningful attack paths do not have to be reconstructed from terminal history
 > and notes.
 
-**For AI security engineering**
+**For AI-agent builders**
 
 > Connect the AI model your organization trusts to the same structured security
 > state and typed capabilities. Scope, execution policy, and evidence stay outside
@@ -56,8 +56,8 @@ Reachability / Attack Paths
 **For security teams**
 
 > Maintain context across findings, identities, controls, and assets so teams can
-> focus on reachable risk, attack paths, and the remediation that removes the most
-> exposure.
+> focus on reachable risk, attack paths, and the remediation that most effectively
+> reduces exposure.
 
 The core is intentionally agnostic to the AI model and provider, and local-first.
 The same workspace is designed to remain useful when the human operator, AI model,
@@ -113,18 +113,18 @@ See [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-| Phase                                                             | Focus                          | Target outcome                                                                                                                                                                                 |
-| --------------------------------------------------------------    | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [**M0**](https://github.com/Fuzzy-Technologies/1337/milestone/1)  | Foundation                     | Repository baseline, engineering controls, CI, containers, synthetic test lab, durable architecture contracts                                                                                  |
-| [**M1**](https://github.com/Fuzzy-Technologies/1337/milestone/2)  | Community Core & Shell         | `1337` shell, workspace, scope, diagnostics, localization, machine-readable command/capability foundations                                                                                     |
-| [**M2**](https://github.com/Fuzzy-Technologies/1337/milestone/3)  | Scanner & Execution MVP        | Executor runtime, tool adapters, structured capability execution, impact profiles, Quick Scan                                                                                                  |
-| [**M3**](https://github.com/Fuzzy-Technologies/1337/milestone/4)  | Evidence & Intelligence        | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, graph-lite foundations, Fuzzy reports                                                                                                         |
-| [**M4**](https://github.com/Fuzzy-Technologies/1337/milestone/5)  | 1337 Scope                     | Attack surface, reachability, attack paths, native Web Scanner NG, and the full reproducible attack-path showcase ([#115](https://github.com/Fuzzy-Technologies/1337/issues/115))              |
-| [**M5**](https://github.com/Fuzzy-Technologies/1337/milestone/6)  | Security Intelligence UX       | Tables, attack graphs, business events, explainable risk, standards mapping                                                                                                                    |
-| [**M6**](https://github.com/Fuzzy-Technologies/1337/milestone/7)  | Automation & Agents            | CI/CD, integrations, distributed execution, Domain API, SDK, MCP, advanced agent workflows                                                                                                     |
-| [**M7**](https://github.com/Fuzzy-Technologies/1337/milestone/8)  | Fuzzy Striker                  | Red/Blue/Purple workflows and authorized validation                                                                                                                                            |
-| [**M8**](https://github.com/Fuzzy-Technologies/1337/milestone/9)  | 1337 Trace                     | DFIR, incident timeline, observed attack graph                                                                                                                                                 |
-| [**M9**](https://github.com/Fuzzy-Technologies/1337/milestone/10) | Cloud & Enterprise Contracts   | Verified assets, cloud-safe contracts and stable enterprise extension interfaces                                                                                                               |
+| Phase                                                             | Focus                          | Target outcome                                                                                                                                                                                                     |
+| ----------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [**M0**](https://github.com/Fuzzy-Technologies/1337/milestone/1)  | Foundation                     | Repository baseline, engineering controls, CI, containers, synthetic test lab, durable architecture contracts                                                                                                      |
+| [**M1**](https://github.com/Fuzzy-Technologies/1337/milestone/2)  | Community Core & Shell         | `1337` shell, workspace, scope, diagnostics, localization, machine-readable command/capability foundations                                                                                                         |
+| [**M2**](https://github.com/Fuzzy-Technologies/1337/milestone/3)  | Scanner & Execution MVP        | Executor runtime, tool adapters, structured capability execution, impact profiles, Quick Scan                                                                                                                      |
+| [**M3**](https://github.com/Fuzzy-Technologies/1337/milestone/4)  | Evidence & Intelligence        | Evidence, findings, CVE/CWE/KEV/EPSS enrichment, graph-lite foundations, Fuzzy reports                                                                                                                             |
+| [**M4**](https://github.com/Fuzzy-Technologies/1337/milestone/5)  | 1337 Scope                     | Attack surface, reachability, attack paths, native Web Scanner NG, and the full reproducible attack-path showcase ([#115](https://github.com/Fuzzy-Technologies/1337/issues/115))                                  |
+| [**M5**](https://github.com/Fuzzy-Technologies/1337/milestone/6)  | Security Intelligence UX       | Tables, attack graphs, business events, explainable risk, standards mapping                                                                                                                                        |
+| [**M6**](https://github.com/Fuzzy-Technologies/1337/milestone/7)  | Automation & Agents            | CI/CD, integrations, distributed execution, Domain API, SDK, MCP, advanced agent workflows                                                                                                                         |
+| [**M7**](https://github.com/Fuzzy-Technologies/1337/milestone/8)  | Fuzzy Striker                  | Red/Blue/Purple workflows and authorized validation                                                                                                                                                                |
+| [**M8**](https://github.com/Fuzzy-Technologies/1337/milestone/9)  | 1337 Trace                     | DFIR, evidence integrity and chain of custody, incident timeline, observed attack graph ([#83](https://github.com/Fuzzy-Technologies/1337/issues/83), [#84](https://github.com/Fuzzy-Technologies/1337/issues/84)) |
+| [**M9**](https://github.com/Fuzzy-Technologies/1337/milestone/10) | Cloud & Enterprise Contracts   | Verified assets, cloud-safe contracts and stable enterprise extension interfaces                                                                                                                                   |
 
 Roadmap scope and ordering may evolve as the Community platform matures. Detailed
 planning is tracked through the linked GitHub milestones and issues.
@@ -138,10 +138,11 @@ independently runnable and verifiable rather than prerecorded.
 ## Project vision and architecture
 
 - [Vision](docs/VISION.md) — the human-facing product thesis and long-term direction;
-- [1337 for AI security agents](docs/AI_AGENTS.md) — AI-model-agnostic agent/runtime concepts and discovery vocabulary;
-- [ADR 0008: AI-native cyber execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md) — the architectural boundary;
+- [1337 for AI agents in cybersecurity](docs/AI_AGENTS.md) — AI-model-agnostic agent/runtime concepts and discovery vocabulary;
+- [ADR 0008: AI-native security execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md) — the architectural boundary;
 - [Machine-readable project summary](llms.txt) — compact discovery metadata for automated readers;
-- [Compatibility](docs/COMPATIBILITY.md) — public stability and extension-boundary contract.
+- [Compatibility](docs/COMPATIBILITY.md) — public stability and extension-boundary contract;
+- [Terminology](docs/TERMINOLOGY.md) — canonical public security terminology for English and Russian copy.
 
 ## Development
 

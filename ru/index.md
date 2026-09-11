@@ -2,7 +2,7 @@
 layout: default
 lang: ru
 title: 1337 Security Workbench
-description: 1337 Security Workbench от Fuzzy Technologies — открытая рабочая среда ИБ и рантайм для ИИ-агентов без привязки к конкретной модели.
+description: 1337 Security Workbench от Fuzzy Technologies — открытая рабочая среда ИБ и рантайм для ИИ-агентов в ИБ без привязки к конкретной модели.
 ---
 
 <header class="site-header">
@@ -11,6 +11,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <div class="language-switch" aria-label="Язык">
 <a class="lang-button" href="{{ '/' | relative_url }}">EN</a>
 <a class="lang-button active" href="{{ '/ru/' | relative_url }}" aria-current="page">RU</a>
+<a class="lang-button" href="{{ '/zh-cn/' | relative_url }}">简中</a>
 </div>
 <a class="brand-button" href="https://fuzzy-technologies.github.io/ru/" aria-label="Fuzzy Technologies">Fuzzy Technologies ↗</a>
 </nav>
@@ -18,14 +19,14 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">Открытая рабочая среда ИБ · Рантайм для ИИ-агентов без привязки к конкретной модели</p>
+<p class="eyebrow">Открытая рабочая среда ИБ · Рантайм для ИИ-агентов в ИБ без привязки к конкретной модели</p>
 <p class="hero-hook">Инструменты находят факты.<br><strong>1337 сохраняет состояние защищённости</strong></p>
 <span class="status">Pre-alpha · Community core (Apache-2.0) · v0.1.8</span>
 </div>
 
 <div class="hero-secondary">
 <p>Открытая рабочая среда для пентестеров, инженеров ИБ, исследователей и команд безопасности. 1337 связывает результаты специализированных инструментов с доказательствами и контекстом, формируя устойчивое состояние защищённости для анализа достижимости и путей атаки.</p>
-<blockquote class="hero-quote"><strong>ИИ-модели рассуждают. 1337 хранит состояние, контролирует выполнение и сохраняет доказательства</strong></blockquote>
+<blockquote class="hero-quote"><strong>ИИ-модели рассуждают. 1337 хранит состояние, управляет выполнением и сохраняет доказательства</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.1.8">Пре-релиз v0.1.8</a>
@@ -52,7 +53,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <section class="card">
 <span class="card-label">Приоритизация</span>
 <h3>Критичность не показывает реальный путь атаки</h3>
-<p>Даже критичная находка сама по себе не отвечает на три вопроса: достижима ли важная цель, как уязвимости и права складываются в цепочку и какой контроль эту цепочку разорвёт.</p>
+<p>Даже проблема критического уровня сама по себе не отвечает на три вопроса: достижима ли важная цель, как уязвимости и права складываются в цепочку и какая мера защиты эту цепочку разорвёт.</p>
 </section>
 </div>
 </section>
@@ -67,7 +68,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
         ↓
      Объекты ИБ
         ↓
-      Находки
+Результаты проверки
         ↓
    Достижимость
         ↓
@@ -90,7 +91,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <section class="card">
 <span class="card-label">Практическая ИБ</span>
 <h3>Пентестеры и инженеры ИБ</h3>
-<p>1337 рассчитан на работу с привычными ИБ-инструментами так, чтобы результаты, доказательства, scope и контекст исследования не приходилось заново собирать по истории терминала и заметкам.</p>
+<p>1337 рассчитан на работу с привычными ИБ-инструментами так, чтобы результаты, доказательства, границы проверки и контекст исследования не приходилось заново собирать по истории терминала и заметкам.</p>
 </section>
 
 <section class="card">
@@ -102,8 +103,8 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <section class="card">
 <span class="card-label">Операционная ИБ</span>
-<h3>Команды безопасности</h3>
-<p>Единый контекст по активам, находкам, идентичностям и защитным мерам помогает фокусироваться на реально достижимых рисках, путях атаки и исправлениях с наибольшим эффектом.</p>
+<h3>Команды ИБ</h3>
+<p>Единый контекст по активам, результатам проверок, идентичностям и защитным мерам помогает фокусироваться на реально достижимых рисках, путях атаки и исправлениях с наибольшим эффектом.</p>
 </section>
 </div>
 </section>
@@ -111,11 +112,11 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <section class="content-section">
 <h2>Архитектурное ядро</h2>
 <div class="architecture-grid">
-<section class="architecture-card"><h3>Модель объектов ИБ</h3><p>Единая модель для активов, сервисов, конечных точек, идентичностей, защитных мер, доказательств, находок, достижимости и путей атаки.</p></section>
-<section class="architecture-card"><h3>Capability Fabric</h3><p>Типизированный слой операций ИБ без жёсткой привязки workflow к конкретному сканеру, инструменту или поставщику ИИ-модели.</p></section>
+<section class="architecture-card"><h3>Модель объектов ИБ</h3><p>Единая модель для активов, сервисов, конечных точек, идентичностей, защитных мер, доказательств, результатов проверок, достижимости и путей атаки.</p></section>
+<section class="architecture-card"><h3>Capability Fabric</h3><p>Типизированный слой операций ИБ без жёсткой привязки сценария работы к конкретному сканеру, инструменту или поставщику ИИ-модели.</p></section>
 <section class="architecture-card"><h3>Scope &amp; Policy</h3><p>Явные границы разрешённой проверки, воздействия и выполнения, которые не зависят от решения ИИ-модели.</p></section>
 <section class="architecture-card"><h3>Контролируемый рантайм</h3><p>Запуск инструментов и встроенных операций через управляемый контур вместо неограниченного shell-доступа.</p></section>
-<section class="architecture-card"><h3>Доказательства и происхождение данных</h3><p>Существенные выводы остаются привязаны к источнику, scope, времени, инструменту, исполнителю и подтверждающим артефактам.</p></section>
+<section class="architecture-card"><h3>Доказательства и происхождение данных</h3><p>Существенные выводы остаются привязаны к источнику, границам проверки, времени, инструменту, исполнителю и подтверждающим артефактам.</p></section>
 <section class="architecture-card"><h3>Достижимость и граф атак</h3><p>Уязвимости, права, идентичности и защитные меры связываются в пути к критичным активам и последствиям.</p></section>
 </div>
 <p class="invariant"><strong>ИИ-модель можно заменить. Состояние защищённости — нет</strong></p>
@@ -133,8 +134,8 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <div class="case-grid">
 <section class="case-card">
-<span class="card-label">Бизнес-критичный путь</span>
-<p><strong>Интернет → Портал клиента → Учётная запись → Billing API → Критичная операция</strong></p>
+<span class="card-label">Бизнес-критичный сценарий</span>
+<p><strong>Интернет → Портал клиента → Учётная запись → Billing API → Критичная бизнес-операция</strong></p>
 </section>
 
 <section class="case-card">
@@ -143,14 +144,14 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 </section>
 
 <section class="case-card">
-<span class="card-label">Supply chain / CI/CD</span>
-<p><strong>Репозиторий → CI job → Runner → Registry → Deploy → Production</strong></p>
+<span class="card-label">Цепочка поставки ПО / CI/CD</span>
+<p><strong>Репозиторий → CI job → Runner → Artifact Registry → Deployment → Production</strong></p>
 </section>
 </div>
 
-<blockquote><strong>Какие пути атаки реально достижимы, чем они подтверждены и какой контроль разрывает цепочку?</strong></blockquote>
+<blockquote><strong>Какие пути к критичным активам реально доступны злоумышленнику, чем это подтверждено и какая мера защиты разрывает цепочку?</strong></blockquote>
 <p class="quiet">M4 пока в роадмапе и не входит в v0.1.8. Цель — воспроизводимый Compose-стенд, а не заранее записанная демонстрация.</p>
-<p class="showcase-hook"><strong>Поднять стенд · воспроизвести находки · проверить путь атаки · подтвердить эффект исправления</strong></p>
+<p class="showcase-hook"><strong>Поднять стенд · воспроизвести результаты · проверить путь атаки · подтвердить эффект исправления</strong></p>
 </div>
 </section>
 
@@ -159,7 +160,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <div class="proof-grid">
 <section class="proof-card proof-now">
 <span class="card-label">В v0.1.8</span>
-<h3>Воспроизводимый pre-alpha фундамент</h3>
+<h3>Воспроизводимая основа pre-alpha-версии</h3>
 <ul>
 <li>Community core под Apache-2.0</li>
 <li>CLI-команды 1337 / 1337-dev</li>
@@ -177,7 +178,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <ul>
 <li>интерактивная консоль и рабочее пространство</li>
 <li>адаптеры реальных сканеров</li>
-<li>работа с находками и достижимостью</li>
+<li>анализ результатов и достижимости</li>
 <li>интерфейс графа атак</li>
 <li>интерфейсы для ИИ-агентов</li>
 <li>корпоративные возможности</li>
@@ -200,7 +201,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <section class="content-section">
 <h2>Ответственное использование</h2>
-<p>1337 предназначен для defensive security, разрешённых пентестов, обучения, исследований, CTF и лабораторных сред, а также систем, которыми вы владеете или на проверку которых у вас есть явное разрешение.</p>
+<p>1337 предназначен для защитной инженерии ИБ, разрешённых пентестов, обучения, исследований, CTF и лабораторных сред, а также систем, которыми вы владеете или на проверку которых у вас есть явное разрешение.</p>
 <p>Не используйте проект для сканирования, эксплуатации уязвимостей или нарушения работы чужих систем без разрешения.</p>
 </section>
 

@@ -8,14 +8,13 @@ License: Apache-2.0 Community core
 Status: Early pre-alpha
 
 Canonical description:
-1337 Security Workbench is an open security workstation and a model-neutral
-cybersecurity execution, state, and evidence platform designed for human security
-practitioners and future AI security agents.
+1337 Security Workbench is an open security workstation and a model-agnostic
+security execution, state, and evidence platform designed for human security
+practitioners and future AI agents in cybersecurity.
 
 Canonical categories:
-- AI-native cybersecurity execution platform
-- cyber agent runtime
-- security agent harness
+- AI-native security execution platform
+- AI-agent runtime for cybersecurity
 - open security workstation
 - security automation framework
 - continuous security platform
@@ -28,9 +27,9 @@ Core concepts:
 - evidence-first security
 - evidence provenance
 - reachability analysis
-- attack graph / attack-path reasoning
+- attack graph / attack-path analysis
 - persistent security state
-- model-neutral / bring-your-own-model integration
+- model-agnostic / bring-your-own-model (BYOM) integration
 
 Human value proposition:
 One workspace to connect specialist security tools, preserve evidence and context,
@@ -42,12 +41,12 @@ are replaceable; the 1337 workspace, security objects, evidence, capabilities, a
 attack-path state are durable.
 
 Enterprise direction:
-A governed continuous-security runtime for an organization's approved AI and
+A governed continuous security runtime for an organization's approved AI and
 private executors, focused on security-state changes, reachable critical paths,
 prioritized remediation, audit, and revalidation.
 
 Architectural invariant:
-Models reason. 1337 remembers, governs, executes and proves.
+Models reason. 1337 keeps state, governs execution, and preserves evidence.
 
 Important documents:
 - README.md

@@ -66,6 +66,7 @@ The final integration commit title should follow the project convention, for exa
 1337: add public compatibility contract (#7)
 ```
 
+
 ## Documentation and GitHub Pages publication
 
 Product releases and public documentation do not need the same publication cadence.
@@ -143,7 +144,7 @@ master
    ↓
 annotated tag vX.Y.Z
    ↓
-release notes
+GitHub Release from the existing tag
    ↓ PR/back-merge
  develop
 ```
@@ -157,10 +158,31 @@ Release procedure:
 5. Open a PR from `release/X.Y.Z` to `master`.
 6. Review the exact release diff and evidence.
 7. Merge to `master` without bypassing required checks.
-8. Create the annotated tag **`vX.Y.Z` on the resulting `master` release commit**.
-9. Publish release notes from the accepted changelog/release evidence.
-10. Propagate the released `master` state back to `develop` through a PR so release-only fixes/metadata cannot be lost.
-11. Delete the release branch after the back-merge is complete unless a specific support reason requires retaining it.
+8. In a trusted local Git checkout, create the annotated tag **`vX.Y.Z` on the
+   resulting `master` release commit**, then push that tag. Do not use the GitHub
+   Release UI to create the tag.
+
+   ```bash
+   git tag -a vX.Y.Z <master-release-sha> -m "1337 Security Workbench vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+9. Verify the tag before creating the GitHub Release:
+
+   ```bash
+   git cat-file -t vX.Y.Z
+   git rev-parse vX.Y.Z^{}
+   ```
+
+   The first command must print `tag`; the second must print the exact resulting
+   `master` release SHA. A `commit` result is a lightweight tag and fails this
+   release requirement.
+10. Create the GitHub Release from the already-pushed tag; select the existing
+    `vX.Y.Z` tag rather than creating one in the Release UI.
+11. Publish the release card from the accepted changelog/release evidence and
+    the template below.
+12. Propagate the released `master` state back to `develop` through a PR so release-only fixes/metadata cannot be lost.
+13. Delete the release branch after the back-merge is complete unless a specific support reason requires retaining it.
 
 ## Published release notes
 
@@ -174,11 +196,70 @@ The remaining detail uses this stable structure when applicable:
    Changed, Fixed, Documentation, and Security;
 2. `## Validation`, with the exact relevant gates and their actual results;
 3. `## Breaking Changes`, stating `None` explicitly when there are none;
-4. `## Notes`, covering pre-release status, security boundaries, known
+4. `## Try it from source`, with commands that check out the exact release tag;
+5. `## Notes`, covering pre-release status, security boundaries, known
    limitations, upgrade guidance, and immediate follow-up work.
 
 Release notes must distinguish implemented behavior from roadmap direction and
 avoid marketing claims that cannot be demonstrated by the released artifact.
+
+### Release-card template
+
+Use the following structure, omitting only sections that are genuinely not
+applicable. Keep the Digest to one short, human-readable paragraph.
+
+````markdown
+## Digest
+
+<What a reader gains in this version and its maturity boundary.>
+
+## What's Changed
+
+### Added
+
+- <Implemented capability with a useful public link when available.>
+
+### Changed
+
+- <Implemented change.>
+
+### Documentation
+
+- [Vision](https://github.com/Fuzzy-Technologies/1337/blob/vX.Y.Z/docs/VISION.md)
+  and other public references relevant to this release.
+
+### Security
+
+- <Implemented security boundary or hardening.>
+
+## Validation
+
+- [Exact GitHub Actions run](https://github.com/Fuzzy-Technologies/1337/actions/runs/<run-id>)
+  — <actual result and scope>.
+
+## Breaking Changes
+
+None.
+
+## Try it from source
+
+```sh
+git clone --branch vX.Y.Z --depth 1 https://github.com/Fuzzy-Technologies/1337.git
+cd 1337
+python -m pip install uv==0.11.33
+uv run --locked 1337 help
+uv run --locked --extra dev 1337-dev check
+```
+
+## Notes
+
+<Pre-release status, known limitations, and immediate follow-up work.>
+````
+
+Use readable Markdown links for a public artifact, pull request, issue, or CI
+run when the link supplies useful evidence or a meaningful next step. Links to
+release content must resolve against the released tag (`vX.Y.Z`), not a moving
+branch. Do not add decorative links or make a roadmap item look implemented.
 
 ## Version and tag invariants
 
