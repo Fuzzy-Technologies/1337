@@ -2,7 +2,7 @@
 layout: default
 lang: zh-CN
 title: 1337 Security Workbench
-description: Fuzzy Technologies 的 1337 Security Workbench —— 面向安全从业者的开放式网络安全工作台，以及面向网络安全 AI 智能体、与具体模型和提供商解耦的运行时。
+description: Fuzzy Technologies 的 1337 Security Workbench —— 面向安全从业者的开放式网络安全工作台，以及模型无关的安全执行、状态与证据平台。
 keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网络安全 AI 智能体, 渗透测试, 安全自动化, 攻击图, 攻击路径, 可达性分析, 证据来源追踪, Fuzzy Technologies
 ---
 
@@ -20,7 +20,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">开放式网络安全工作台 · 面向网络安全 AI 智能体 (AI security agents) 的模型无关运行时 (model-agnostic runtime)</p>
+<p class="eyebrow">开放式网络安全工作台 · 模型无关的安全执行、状态与证据平台 (model-agnostic security execution, state, and evidence platform)</p>
 <p class="hero-hook">工具负责发现问题。<br><strong>1337 负责保存安全状态</strong></p>
 <span class="status">早期 pre-alpha · Apache-2.0 Community core · v0.1.8</span>
 </div>
