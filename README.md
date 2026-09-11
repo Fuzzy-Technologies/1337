@@ -47,7 +47,7 @@ Reachability / Attack Paths
 > meaningful attack paths do not have to be reconstructed from terminal history
 > and notes.
 
-**For AI security engineering**
+**For AI-agent builders**
 
 > Connect the AI model your organization trusts to the same structured security
 > state and typed capabilities. Scope, execution policy, and evidence stay outside
@@ -56,7 +56,7 @@ Reachability / Attack Paths
 **For security teams**
 
 > Maintain context across findings, identities, controls, and assets so teams can
-> focus on reachable risk, attack paths, and the remediation that removes the most
+> focus on reachable risk, attack paths, and the remediation that reduces the most
 > exposure.
 
 The core is intentionally agnostic to the AI model and provider, and local-first.
@@ -104,7 +104,7 @@ graph**.
 
 The M8 **1337 Trace / DFIR** direction extends the same evidence-first security
 state into incident response, digital forensics, internal investigations, CERT/CSIRT
-work, forensic consulting, and evidence-led cybercrime investigations.
+work, forensic consulting, and cybercrime investigations.
 
 The planned evidence model is intended to preserve more than a finding or alert:
 
@@ -130,11 +130,12 @@ boundary between evidence and interpretation should remain auditable.
 
 This makes 1337 relevant not only to SOC teams, but also to IR teams, forensic
 consultants, CERT/CSIRT, internal investigations, and — where organizations choose
-to adopt it — law-enforcement or judicial-forensic workflows.
+to adopt it — law-enforcement investigations and forensic workflows supporting
+judicial proceedings.
 
 Legal and evidentiary rules vary by jurisdiction. 1337 does not claim that data is
-automatically court-admissible; the goal is to preserve factual provenance,
-integrity, chain-of-custody history, and reproducibility so local forensic and legal
+automatically admissible in court; the goal is to preserve factual provenance,
+integrity, chain of custody, and reproducibility so local forensic and legal
 procedures can be applied.
 
 See [M8 evidence ingestion #83](https://github.com/Fuzzy-Technologies/1337/issues/83)
@@ -163,7 +164,7 @@ See [SECURITY.md](SECURITY.md).
 | [**M5**](https://github.com/Fuzzy-Technologies/1337/milestone/6)  | Security Intelligence UX       | Tables, attack graphs, business events, explainable risk, standards mapping                                                                                                                    |
 | [**M6**](https://github.com/Fuzzy-Technologies/1337/milestone/7)  | Automation & Agents            | CI/CD, integrations, distributed execution, Domain API, SDK, MCP, advanced agent workflows                                                                                                     |
 | [**M7**](https://github.com/Fuzzy-Technologies/1337/milestone/8)  | Fuzzy Striker                  | Red/Blue/Purple workflows and authorized validation                                                                                                                                            |
-| [**M8**](https://github.com/Fuzzy-Technologies/1337/milestone/9)  | 1337 Trace                     | DFIR, chain-of-custody evidence, incident timeline, observed attack graph                                                                                                                      |
+| [**M8**](https://github.com/Fuzzy-Technologies/1337/milestone/9)  | 1337 Trace                     | DFIR, evidence integrity and chain of custody, incident timeline, observed attack graph                                                                                                        |
 | [**M9**](https://github.com/Fuzzy-Technologies/1337/milestone/10) | Cloud & Enterprise Contracts   | Verified assets, cloud-safe contracts and stable enterprise extension interfaces                                                                                                               |
 
 Roadmap scope and ordering may evolve as the Community platform matures. Detailed
@@ -181,7 +182,8 @@ independently runnable and verifiable rather than prerecorded.
 - [1337 for AI security agents](docs/AI_AGENTS.md) — AI-model-agnostic agent/runtime concepts and discovery vocabulary;
 - [ADR 0008: AI-native cyber execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md) — the architectural boundary;
 - [Machine-readable project summary](llms.txt) — compact discovery metadata for automated readers;
-- [Compatibility](docs/COMPATIBILITY.md) — public stability and extension-boundary contract.
+- [Compatibility](docs/COMPATIBILITY.md) — public stability and extension-boundary contract;
+- [Terminology](docs/TERMINOLOGY.md) — canonical public security terminology for English and Russian copy.
 
 ## Development
 
