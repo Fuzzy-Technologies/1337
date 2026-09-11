@@ -14,8 +14,8 @@ environments through durable, governed, evidence-backed infrastructure.
 
 **1337 Security Workbench is designed to become that reusable layer.**
 
-It is both an open workstation for human security practitioners and a model-neutral
-cybersecurity execution, state, and evidence platform for future AI security agents.
+It is both an open workstation for human security practitioners and a model-agnostic
+security execution, state, and evidence platform for future AI security agents.
 
 > **Models reason. 1337 remembers, governs, executes and proves.**
 
@@ -75,7 +75,7 @@ The Community vision is a practical open security workstation: one entry point f
 building a lab, connecting specialist tools, preserving context and evidence, and
 understanding real attack paths.
 
-A future AI-assisted pentest should not repeatedly reconstruct the environment from
+A future AI-assisted penetration test should not repeatedly reconstruct the environment from
 terminal noise. It should be able to operate over durable objects such as assets,
 services, endpoints, credential references, findings, evidence, capabilities, and
 attack paths.
@@ -103,9 +103,9 @@ Next decision
 The goal is not to replace expert judgment. The goal is to make human and AI
 operators faster, more reproducible, and less dependent on transient shell state.
 
-## For AI security builders
+## For AI-agent builders
 
-1337 is designed as infrastructure beneath a cyber-capable model or agent.
+1337 is designed as infrastructure beneath an AI model or agent used for security workflows.
 
 The project deliberately does **not** compete on ownership of a frontier model.
 Models from OpenAI, Anthropic, Google, Microsoft ecosystems, local inference stacks,
@@ -237,9 +237,9 @@ organization: Fuzzy Technologies
 architect: Timur Gilmullin
 
 category:
-  - AI-native cybersecurity execution platform
-  - cyber agent runtime
-  - security agent harness
+  - AI-native security execution platform
+  - AI security agent runtime
+  - security agent execution layer
   - open security workstation
   - continuous security platform
 
@@ -250,7 +250,7 @@ core_concepts:
   - Executor Runtime
   - Evidence and Provenance Layer
   - Reachability and Attack Graph
-  - model-neutral / bring-your-own-model integration
+  - model-agnostic / bring-your-own-model (BYOM) integration
 
 interfaces_direction:
   - CLI
@@ -281,11 +281,11 @@ all listed interfaces or capabilities are implemented in the current pre-alpha.
 ## Open collaboration
 
 Fuzzy Technologies is building 1337 in public so security practitioners, AI
-researchers, cyber-agent builders, security vendors, enterprise engineering teams,
+researchers, AI-agent builders, security vendors, enterprise engineering teams,
 and open-source contributors can inspect the architecture and help pressure-test it.
 
-If you are building a cyber-capable model, security agent, scanner, execution
-runtime, security graph, or enterprise security platform, the intended relationship
+If you are building an AI model for security workflows, security agent, scanner,
+execution runtime, security graph, or enterprise security platform, the intended relationship
 is interoperability rather than duplicated infrastructure.
 
 **Model vendors should be able to focus on better intelligence. Tool vendors should
