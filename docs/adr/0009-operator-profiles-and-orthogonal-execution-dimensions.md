@@ -619,7 +619,7 @@ cannot express common combinations cleanly.
 
 ### Separate products or databases per persona
 
-Rejected. It would duplicate evidence and findings, fragment attack-path reasoning,
+Rejected. It would duplicate evidence and findings, fragment attack-path analysis,
 and make Red/Blue/DevSecOps results disagree about the same environment.
 
 ### UI-only personas
@@ -637,7 +637,7 @@ selection, and execution policy must remain explicit and auditable platform stat
 
 This ADR extends ADR 0005 and ADR 0008.
 
-- ADR 0005 established shared scope and AI-neutral security knowledge.
+- ADR 0005 established shared scope and model-agnostic security knowledge.
 - ADR 0008 established one durable execution/state/evidence platform for human,
   automation, CI/CD, and AI clients.
 - ADR 0009 defines how different operator workflows compose over that same platform
