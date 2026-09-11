@@ -287,7 +287,7 @@ verified capability claims.
 
 ## Architectural invariant
 
-> **Models reason. 1337 remembers, governs, executes and proves.**
+> **Models reason. 1337 keeps state, governs execution, and preserves evidence.**
 
 See also:
 
