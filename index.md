@@ -11,6 +11,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — open security wor
 <div class="language-switch" aria-label="Language">
 <a class="lang-button active" href="{{ '/' | relative_url }}" aria-current="page">EN</a>
 <a class="lang-button" href="{{ '/ru/' | relative_url }}">RU</a>
+<a class="lang-button" href="{{ '/zh-cn/' | relative_url }}">简中</a>
 </div>
 <a class="brand-button" href="https://fuzzy-technologies.github.io/" aria-label="Fuzzy Technologies">Fuzzy Technologies ↗</a>
 </nav>
