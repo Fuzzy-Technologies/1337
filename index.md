@@ -95,7 +95,7 @@ Security Objects
 
 <section class="card">
 <span class="card-label">AI &amp; automation</span>
-<h3>AI security engineering</h3>
+<h3>AI agents for security</h3>
 <p>Connect the AI model your organization trusts to the same structured security state and typed capabilities. Scope, execution policy, and evidence stay outside model discretion, so the model can change without redesigning the workflow.</p>
 <p class="card-hook">Bring your model. 1337 brings the cyber workspace</p>
 </section>
@@ -103,7 +103,7 @@ Security Objects
 <section class="card">
 <span class="card-label">Security operations</span>
 <h3>Security teams</h3>
-<p>Maintain context across findings, identities, controls, and assets so teams can focus on reachable risk, attack paths, and the remediation that removes the most exposure.</p>
+<p>Maintain context across findings, identities, controls, and assets so teams can focus on reachable risk, attack paths, and the remediation that reduces the most exposure.</p>
 </section>
 </div>
 </section>
