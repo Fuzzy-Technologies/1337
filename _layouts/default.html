@@ -14,6 +14,8 @@
     <meta property="og:site_name" content="1337 Security Workbench" />
     {% if page.lang == 'ru' %}
     <meta property="og:locale" content="ru_RU" />
+    {% elsif page.lang == 'zh-CN' %}
+    <meta property="og:locale" content="zh_CN" />
     {% else %}
     <meta property="og:locale" content="en_US" />
     {% endif %}
@@ -22,6 +24,7 @@
     <link rel="canonical" href="{{ page.url | absolute_url }}" />
     <link rel="alternate" hreflang="en" href="{{ '/' | absolute_url }}" />
     <link rel="alternate" hreflang="ru" href="{{ '/ru/' | absolute_url }}" />
+    <link rel="alternate" hreflang="zh-CN" href="{{ '/zh-cn/' | absolute_url }}" />
     <link rel="alternate" hreflang="x-default" href="{{ '/' | absolute_url }}" />
     <link rel="stylesheet" href="{{ '/static/style.css' | relative_url }}" />
     <title>{{ page.title | default: site.title }}</title>
