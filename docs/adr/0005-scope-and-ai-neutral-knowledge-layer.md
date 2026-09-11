@@ -1,8 +1,11 @@
-# ADR 0005: 1337Scope and AI-neutral security knowledge layer
+# ADR 0005: 1337Scope and model-agnostic security knowledge layer
 
 - Status: Accepted
 - Date: 2026-09-08
 - Decision owners: Fuzzy Technologies
+
+> Terminology clarification — 2026-09-11: **model-agnostic** means independent
+> of a particular AI model or provider. It does not refer to threat models.
 
 ## Context
 
@@ -19,7 +22,7 @@ evidence collection; security checks; and attack-surface and attack-path graphs.
 Its purpose is to model what an attacker can see and reach, not to become only a
 web-vulnerability scanner.
 
-The shared security knowledge layer is AI-neutral. Human interfaces, automation,
+The shared security knowledge layer is model-agnostic. Human interfaces, automation,
 and future AI agents consume structured evidence, findings, asset models, attack
 paths, and remediation context through explicit contracts.
 
