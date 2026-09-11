@@ -15,8 +15,7 @@ The same Core should support, among others:
 - DevSecOps / AppSec checks embedded into CI/CD;
 - SOC / exposure-management workflows with recurring scans, change detection,
   validation, and retesting after remediation;
-- DFIR, incident response, internal investigations, and evidence-led cybercrime
-  investigation workflows;
+- DFIR, incident response, internal investigations, and cybercrime investigation workflows;
 - Red / Blue / Purple collaboration over one shared security state.
 
 These users need different defaults, views, triggers, outputs, and preferred
@@ -171,8 +170,7 @@ workflow concerns; the resulting objects and graph remain ordinary 1337 state.
 ### DFIR / investigations profile
 
 The DFIR profile is for incident response, digital forensics, internal
-investigations, CERT/CSIRT work, forensic consulting, and evidence-led cybercrime
-investigations.
+investigations, CERT/CSIRT work, forensic consulting, and cybercrime investigations.
 
 Typical defaults:
 
@@ -279,10 +277,11 @@ This creates a path for 1337 Trace to be useful not only to SOC teams, but also 
 - CERT / CSIRT teams;
 - internal corporate investigations;
 - cybercrime investigators;
-- law-enforcement or judicial-forensic workflows where organizations choose to
-  adopt 1337 and map its evidence records to their local process.
+- law-enforcement investigations and forensic workflows supporting judicial
+  proceedings where organizations choose to adopt 1337 and map its evidence
+  records to their local process.
 
-The architectural goal is **forensically defensible provenance and reproducibility**,
+The architectural goal is **forensic integrity, provenance, and reproducibility**,
 not a universal legal-admissibility guarantee.
 
 ### Pentest profile
