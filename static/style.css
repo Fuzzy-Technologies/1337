@@ -17,6 +17,26 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
+html[lang="zh-CN"] body {
+  font-family:
+    "Fira Code",
+    "PingFang SC",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    "Noto Sans SC",
+    "Source Han Sans SC",
+    system-ui,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    sans-serif;
+  line-break: strict;
+  word-break: normal;
+}
+
 body {
   margin: 0;
   background: linear-gradient(135deg, var(--bg), #1a1a1a);
@@ -249,7 +269,10 @@ blockquote {
   gap: 1rem;
 }
 
-.grid,
+.grid {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
 .case-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
