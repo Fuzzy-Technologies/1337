@@ -15,8 +15,7 @@ The same Core should support, among others:
 - DevSecOps / AppSec checks embedded into CI/CD;
 - SOC / exposure-management workflows with recurring scans, change detection,
   validation, and retesting after remediation;
-- DFIR, incident response, internal investigations, and evidence-led cybercrime
-  investigation workflows;
+- DFIR, incident response, internal investigations, and cybercrime investigation workflows;
 - Red / Blue / Purple collaboration over one shared security state.
 
 These users need different defaults, views, triggers, outputs, and preferred
@@ -171,8 +170,7 @@ workflow concerns; the resulting objects and graph remain ordinary 1337 state.
 ### DFIR / investigations profile
 
 The DFIR profile is for incident response, digital forensics, internal
-investigations, CERT/CSIRT work, forensic consulting, and evidence-led cybercrime
-investigations.
+investigations, CERT/CSIRT work, forensic consulting, and cybercrime investigations.
 
 Typical defaults:
 
@@ -279,10 +277,11 @@ This creates a path for 1337 Trace to be useful not only to SOC teams, but also 
 - CERT / CSIRT teams;
 - internal corporate investigations;
 - cybercrime investigators;
-- law-enforcement or judicial-forensic workflows where organizations choose to
-  adopt 1337 and map its evidence records to their local process.
+- law-enforcement investigations and forensic workflows supporting judicial
+  proceedings where organizations choose to adopt 1337 and map its evidence
+  records to their local process.
 
-The architectural goal is **forensically defensible provenance and reproducibility**,
+The architectural goal is **forensic integrity, provenance, and reproducibility**,
 not a universal legal-admissibility guarantee.
 
 ### Pentest profile
@@ -620,7 +619,7 @@ cannot express common combinations cleanly.
 
 ### Separate products or databases per persona
 
-Rejected. It would duplicate evidence and findings, fragment attack-path reasoning,
+Rejected. It would duplicate evidence and findings, fragment attack-path analysis,
 and make Red/Blue/DevSecOps results disagree about the same environment.
 
 ### UI-only personas
@@ -638,7 +637,7 @@ selection, and execution policy must remain explicit and auditable platform stat
 
 This ADR extends ADR 0005 and ADR 0008.
 
-- ADR 0005 established shared scope and AI-neutral security knowledge.
+- ADR 0005 established shared scope and model-agnostic security knowledge.
 - ADR 0008 established one durable execution/state/evidence platform for human,
   automation, CI/CD, and AI clients.
 - ADR 0009 defines how different operator workflows compose over that same platform

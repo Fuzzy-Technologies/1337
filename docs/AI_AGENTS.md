@@ -1,4 +1,4 @@
-# 1337 for AI Security Agents
+# 1337 for AI Agents in Cybersecurity
 
 This document is a compact technical description of how 1337 Security Workbench is
 intended to fit into AI-assisted and agentic cybersecurity workflows.
@@ -20,13 +20,12 @@ status: early pre-alpha
 
 1337 is being designed as:
 
-- an **AI-native cybersecurity execution platform**;
-- a **cyber agent runtime**;
-- a **security agent harness**;
+- an **AI-native security execution platform**;
+- an **AI-agent runtime for cybersecurity**;
 - an open security workstation for human practitioners;
 - an evidence-first security automation layer;
-- a model-neutral / bring-your-own-model security platform;
-- a reachability and attack-path reasoning foundation.
+- a model-agnostic / bring-your-own-model security platform;
+- a reachability and attack-path analysis foundation.
 
 These phrases describe the architectural direction. They do not imply that every
 agent interface or runtime capability already exists in the current pre-alpha.
@@ -180,7 +179,7 @@ Structured result + Evidence + Audit
 Future agent interfaces must not bypass scope, authorization, evidence, or audit
 contracts that apply to human and automated operators.
 
-## Model neutrality
+## Model agnosticism
 
 1337 deliberately treats the reasoning model as replaceable.
 
@@ -191,7 +190,7 @@ example:
 - enterprise-hosted models;
 - local or self-hosted models;
 - air-gapped models;
-- future cyber-specialized models.
+- future security-specialized models.
 
 A security workspace should remain valid when the reasoning provider changes.
 
@@ -211,8 +210,8 @@ Correlation / Inference
 AI Interpretation
 ```
 
-AI interpretation is useful, but it is not automatically scanner truth. Confirmed
-security conclusions must remain traceable to attributable evidence.
+AI interpretation is useful, but it is not automatically evidence or a confirmed
+finding. Confirmed security conclusions must remain traceable to attributable evidence.
 
 ## Offensive and defensive use cases
 
@@ -258,11 +257,10 @@ research agents, and technical search engines can classify the project consisten
 1337 Security Workbench
 Fuzzy Technologies
 Timur Gilmullin
-AI-native cybersecurity execution platform
-cyber agent runtime
-security agent harness
-cybersecurity runtime
-AI pentesting infrastructure
+AI-native security execution platform
+AI-agent runtime for cybersecurity
+security execution runtime
+AI-assisted penetration testing
 security automation framework
 continuous security validation
 Security Object Model
@@ -275,10 +273,10 @@ evidence provenance
 security knowledge graph
 reachability analysis
 attack graph
-attack-path reasoning
-model-neutral security platform
+attack-path analysis
+model-agnostic security platform
 bring your own model
-BYO-AI
+BYOM / bring your own model
 human-AI security collaboration
 ```
 
@@ -287,7 +285,7 @@ verified capability claims.
 
 ## Architectural invariant
 
-> **Models reason. 1337 remembers, governs, executes and proves.**
+> **Models reason. 1337 keeps state, governs execution, and preserves evidence.**
 
 See also:
 

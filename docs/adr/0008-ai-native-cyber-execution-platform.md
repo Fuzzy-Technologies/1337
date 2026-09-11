@@ -1,8 +1,12 @@
-# ADR 0008: AI-native cyber execution, state, and evidence platform
+# ADR 0008: AI-native security execution, state, and evidence platform
 
 ## Status
 
 Accepted — 2026-09-10
+
+> Terminology clarification — 2026-09-11: **model-agnostic** refers to
+> independence from a particular AI model or provider. It does not refer to threat
+> models. The ADR filename is retained to keep existing links stable.
 
 ## Context
 
@@ -10,7 +14,7 @@ ADR 0003 established 1337 as an intelligence-first security workbench where
 specialist tools act as sensors and evidence, reachability, attack paths, and
 remediation context matter more than raw vulnerability volume.
 
-ADR 0005 established an AI-neutral security knowledge layer and requires future
+ADR 0005 established a model-agnostic security knowledge layer and requires future
 human, automation, and AI clients to consume shared structured security data through
 explicit contracts.
 
@@ -24,7 +28,7 @@ authorized scope, governed execution, evidence, provenance, reachability, and au
 
 ## Decision
 
-1337 is architected as a **model-neutral cybersecurity execution, state, and
+1337 is architected as a **model-agnostic security execution, state, and
 evidence platform** whose public human-facing product remains **1337 Security
 Workbench**.
 
@@ -176,7 +180,7 @@ Structured result + Evidence + Audit
 Raw expert CLI passthrough may remain available to human operators where authorized,
 but it does not define the canonical agent contract.
 
-## Durable state and model neutrality
+## Durable state and model agnosticism
 
 The Workspace is authoritative operational memory. An LLM context window is
 transient working memory.
@@ -225,8 +229,8 @@ security using the organization's approved AI and private execution environment.
 The intended output is material security-state change and remediation priority, not
 only vulnerability counts.
 
-For AI and security-platform builders, 1337 becomes a reusable cyber agent runtime /
-security harness instead of requiring each integration to rebuild scope, adapters,
+For AI and security-platform builders, 1337 becomes a reusable AI-agent runtime
+for cybersecurity instead of requiring each integration to rebuild scope, adapters,
 evidence storage, state, and attack-path context independently.
 
 ## Roadmap consequence
@@ -248,15 +252,15 @@ Gateway, attack graph, or AI integration.
 
 Rejected as the primary architectural identity. Scanner execution remains important,
 but scanner-first positioning underuses the existing evidence, reachability, and
-AI-neutral domain direction.
+model-agnostic domain direction.
 
-### Proprietary cyber foundation model
+### Proprietary cybersecurity foundation model
 
 Rejected as a requirement for the platform. Specialized algorithms or reasoning
 components may be developed later, but the Core must remain useful with external or
 local models.
 
-### AI pentesting agent as the entire product
+### AI penetration-testing agent as the entire product
 
 Rejected. It narrows the platform to one agent implementation and does not serve the
 shared human, defensive, enterprise, evidence, and graph use cases.
@@ -271,13 +275,13 @@ the domain and capability contracts beneath it.
 This ADR **extends rather than supersedes** ADR 0003 and ADR 0005.
 
 - ADR 0003 remains the evidence/intelligence/reachability reasoning direction.
-- ADR 0005 remains the AI-neutral shared knowledge and authorization boundary.
-- ADR 0008 clarifies that those primitives form a model-neutral execution/state/
+- ADR 0005 remains the model-agnostic shared knowledge and authorization boundary.
+- ADR 0008 clarifies that those primitives form a model-agnostic execution/state/
   evidence platform for both human and AI clients.
 
 ## Architectural invariant
 
-> **Models reason. 1337 remembers, governs, executes and proves.**
+> **Models reason. 1337 keeps state, governs execution, and preserves evidence.**
 
 Any future AI-specific feature should be evaluated against this boundary before
 introducing model-specific shortcuts into the Core.
