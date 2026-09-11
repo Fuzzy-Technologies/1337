@@ -2,7 +2,7 @@
 layout: default
 lang: en
 title: 1337 Security Workbench
-description: 1337 Security Workbench by Fuzzy Technologies — open security workstation and model-agnostic runtime for AI security agents.
+description: 1337 Security Workbench by Fuzzy Technologies — open security workstation and model-agnostic security execution, state, and evidence platform.
 ---
 
 <header class="site-header">
@@ -19,7 +19,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — open security wor
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">Open security workstation · Model-agnostic runtime for AI security agents</p>
+<p class="eyebrow">Open security workstation · Model-agnostic security execution, state, and evidence platform</p>
 <p class="hero-hook">Your tools find things.<br><strong>1337 keeps the security state</strong></p>
 <span class="status">Early pre-alpha · Apache-2.0 Community core · v0.1.8</span>
 </div>
