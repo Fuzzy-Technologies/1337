@@ -2,8 +2,8 @@
 layout: default
 lang: zh-CN
 title: 1337 Security Workbench
-description: Fuzzy Technologies 的 1337 Security Workbench —— 面向安全从业者的开放式网络安全工作台，以及面向 AI 安全智能体、与具体模型和提供商解耦的运行时。
-keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, AI 安全智能体, 渗透测试, 安全自动化, 攻击图, 攻击路径, 可达性分析, 证据来源追踪, Fuzzy Technologies
+description: Fuzzy Technologies 的 1337 Security Workbench —— 面向安全从业者的开放式网络安全工作台，以及面向网络安全 AI 智能体、与具体模型和提供商解耦的运行时。
+keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网络安全 AI 智能体, 渗透测试, 安全自动化, 攻击图, 攻击路径, 可达性分析, 证据来源追踪, Fuzzy Technologies
 ---
 
 <header class="site-header">
@@ -20,7 +20,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, AI 
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">开放式网络安全工作台 · 面向 AI 安全智能体的模型无关运行时 (model-agnostic runtime)</p>
+<p class="eyebrow">开放式网络安全工作台 · 面向网络安全 AI 智能体 (AI security agents) 的模型无关运行时 (model-agnostic runtime)</p>
 <p class="hero-hook">工具负责发现问题。<br><strong>1337 负责保存安全状态</strong></p>
 <span class="status">早期 pre-alpha · Apache-2.0 Community core · v0.1.8</span>
 </div>
@@ -114,9 +114,9 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, AI 
 <h2>核心架构</h2>
 <div class="architecture-grid">
 <section class="architecture-card"><h3>安全对象模型 (Security Object Model)</h3><p>面向资产、服务、端点、身份、安全控制措施、证据、发现项、可达性和攻击路径的共享模型。</p></section>
-<section class="architecture-card"><h3>能力编排层 (Capability Fabric)</h3><p>以类型化方式调用安全能力，使工作流不必绑定到某一个扫描器、工具或 AI 提供商。</p></section>
+<section class="architecture-card"><h3>能力层 (Capability Fabric)</h3><p>以类型化方式调用安全能力，使工作流不必绑定到某一个扫描器、工具或 AI 提供商。</p></section>
 <section class="architecture-card"><h3>授权范围与策略 (Scope &amp; Policy)</h3><p>显式定义授权范围、目标、影响级别和执行约束，这些边界独立于模型自身的判断。</p></section>
-<section class="architecture-card"><h3>执行运行时 (Executor Runtime)</h3><p>在受控环境中运行工具和原生能力，而不是默认向智能体提供不受限制的 shell 访问。</p></section>
+<section class="architecture-card"><h3>受控执行运行时 (Executor Runtime)</h3><p>在受控环境中运行工具和原生能力，而不是默认向智能体提供不受限制的 shell 访问。</p></section>
 <section class="architecture-card"><h3>证据与来源可追溯性 (Evidence &amp; Provenance)</h3><p>重要结论始终可以追溯到来源、授权范围、时间、工具、执行器以及相关支撑材料。</p></section>
 <section class="architecture-card"><h3>可达性与攻击图 (Reachability &amp; Attack Graph)</h3><p>把暴露面、身份关系和安全控制措施关联为通往关键资产与关键结果的攻击路径。</p></section>
 </div>
