@@ -4,304 +4,255 @@
 **Architect:** Timur Gilmullin  
 **Project:** 1337 Security Workbench (1337-SW)
 
-## Thesis
+## Product identity
 
-Cybersecurity is moving toward a world where increasingly capable AI systems can
-reason about vulnerabilities, infrastructure, remediation, attack paths, and
-security operations. The difficult problem will not be giving every product one
-more chat window. It will be connecting changing AI intelligence to real security
-environments through durable, governed, evidence-backed infrastructure.
+1337 is a fast, local-first security workstation built around a durable
+**Security Object Model**.
 
-**1337 Security Workbench is designed to become that reusable layer.**
+The workstation studies a system through native discovery, built-in capabilities,
+external tools, browser/workload engines, imported evidence, and vendor integrations.
+All of those sources contribute observations to the same model instead of producing
+independent sources of truth.
 
-It is both an open workstation for human security practitioners and a model-agnostic
-security execution, state, and evidence platform for future AI agents in cybersecurity.
+The product is not defined by one scanner, one Linux distribution, one AI model, or
+one enterprise deployment topology.
 
-> **Models reason. 1337 keeps state, governs execution, and preserves evidence.**
-
-## The problem
-
-Security work today is fragmented across scanners, command-line tools, browsers,
-cloud consoles, APIs, spreadsheets, tickets, reports, and human memory. Powerful
-AI does not automatically remove that fragmentation. Giving an agent shell access
-may let it execute commands, but it does not create a professional security runtime.
-
-A durable environment still needs to know:
-
-- what assets and identities exist;
-- what is in scope and authorized;
-- what capabilities are available;
-- where and how a capability may execute;
-- which credentials may be referenced;
-- what evidence was actually produced;
-- which findings are confirmed versus inferred;
-- what is reachable from where;
-- which attack paths exist;
-- what changed since the previous assessment;
-- which technical condition matters to a real security or business outcome.
-
-1337 exists to make that operational context explicit and reusable.
-
-## One Core, several operators
-
-The long-term architecture treats humans, automation, CI/CD systems, and AI agents
-as peer clients over the same security domain contracts.
+## Core flow
 
 ```text
-Security Engineer / Pentester / CISO / AI Agent / CI/CD
-                         ↓
-                        1337
-                         ↓
-        Security Object Model + Capability Fabric
-                         ↓
-                Scope + Policy + Execution
-                         ↓
-          Tools / Scanners / Browsers / Runners
-                         ↓
-                       Evidence
-                         ↓
-                       Findings
-                         ↓
-               Reachability / Attack Graph
-                         ↓
-              Security & Business Decisions
+System under study
+        ↓
+Native discovery
+        ↓
+Initial Security Object Model
+        ↑
+        ├── Built-in capabilities
+        ├── External tools / executors
+        ├── Browser and workload engines
+        ├── Imported evidence
+        └── Vendor integrations
+        ↓
+Observations / Evidence / Findings / Relations
+        ↓
+Reachability / Attack Paths / Reports
 ```
 
-No AI provider owns the domain model. No specialist tool owns the workflow.
+Native discovery is important because 1337 must be useful before optional third-party
+tools are installed. External tools act as sensors and capability providers that
+enrich the same model.
 
-## For hackers and security engineers
+## One model, multiple lenses
 
-The Community vision is a practical open security workstation: one entry point for
-building a lab, connecting specialist tools, preserving context and evidence, and
-understanding real attack paths.
+The initial first-class workflow lenses are:
 
-A future AI-assisted penetration test should not repeatedly reconstruct the
-environment from terminal noise. It should be able to operate over durable objects such as assets,
-services, endpoints, credential references, findings, evidence, capabilities, and
-attack paths.
+- **Pentest** — attack surface, enumeration, findings, credentials, pivots,
+  reachability, attack paths, and bounded validation;
+- **DFIR** — evidence, provenance, timelines, entities, IOCs, and observed attack
+  paths;
+- **DevSecOps** — source, dependencies, SBOMs, images, deployments, APIs, runtime
+  relationships, and release/security gates;
+- **Purple Team** — authorized offensive actions, resulting telemetry, detections,
+  controls, state changes, and retest.
 
-This is the intended acceleration layer:
+A lens changes focus, queries, preferred commands, mappings, and presentation. It
+does not create a second database or a competing version of an Asset, Evidence item,
+Finding, relation, or path.
+
+Additional lenses may be added later when a real workflow justifies them.
+
+## Live workbench
+
+The terminal interface is intended to behave like a security workstation rather
+than a batch report generator.
+
+The primary interaction model is:
 
 ```text
-Recon
-  ↓
-Enumeration
-  ↓
-Evidence
-  ↓
-Finding
-  ↓
-Authorized validation
-  ↓
-Reachability update
-  ↓
-Attack path
-  ↓
-Next decision
+┌────────────────────────────┬────────────────────────────────────┐
+│ Actions / commands / tools │ Live model slice / current lens    │
+│ contextual operations      │ objects / relations / evidence     │
+│ command palette / raw CLI  │ findings / paths / timeline        │
+└────────────────────────────┴────────────────────────────────────┘
 ```
 
-The goal is not to replace expert judgment. The goal is to make human and AI
-operators faster, more reproducible, and less dependent on transient shell state.
+The right side does not need to render the entire model. It renders the relevant
+slice for the selected object, path, workspace, or lens.
 
-## For AI-agent builders
+Long-running work must not freeze the interface. Executors and adapters should
+stream progress, observations, evidence references, and object deltas so the model
+can update incrementally while the operator continues working.
 
-1337 is designed as infrastructure beneath an AI model or agent used for security
-workflows.
+## Powerful modular tooling
 
-The project deliberately does **not** compete on ownership of a frontier model.
-Models from OpenAI, Anthropic, Google, Microsoft ecosystems, local inference stacks,
-private enterprise providers, or future security-specialized models should be able
-to use the same 1337 security state and execution contracts when integrations exist.
+Tooling is part of the workstation, not an afterthought.
 
-The model supplies replaceable reasoning. 1337 supplies the durable operational
-layer around that reasoning:
+Capabilities may be provided by:
 
-- Security Object Model;
-- Capability Fabric;
-- Scope and Policy boundaries;
-- Executor Runtime;
-- controlled network/execution profiles;
-- credential references rather than implicit secret exposure;
-- persistent workspaces;
-- evidence and provenance;
-- normalized findings;
-- reachability and attack-path state;
-- history, audit, and reports.
+- native 1337 engines;
+- external command-line tools;
+- Kali-based or other executor packs;
+- browsers;
+- workload engines;
+- commercial/vendor products;
+- imported artifacts and APIs.
 
-The strategic objective is simple: **a better external model should make 1337 more
-useful rather than make 1337 obsolete.**
+A capability describes what operation is requested; a provider describes how it is
+performed. Providers should be replaceable where the capability contract permits.
 
-## For CISOs and enterprise security teams
+Large dependencies are optional. The Core must not require Kali, a browser runtime,
+Elasticsearch, a remote service, or a fleet of agents merely to start the
+workstation or inspect an existing workspace.
 
-Enterprise value is not another count of critical vulnerabilities. The target is a
-governed continuous security loop capable of answering operational questions such as:
+## Portable and agentless-first
+
+A useful 1337 deployment must be possible for a single engineer.
+
+Typical deployment modes include:
+
+- a lightweight local installation;
+- a local container/Compose workstation;
+- a portable field/investigation setup;
+- a larger workstation with cached optional tool packs and search indexes;
+- later private/enterprise deployments and remote executors.
+
+Persistent endpoint agents are not a prerequisite for Core value. Active discovery,
+tool execution, browser traffic, logs, artifacts, APIs, and existing vendor systems
+can all act as data sources. Persistent 1337 sensors may be added later as optional
+providers.
+
+## Security Object Model
+
+The shared model is a primary architecture and compatibility boundary.
+
+Planned object families include:
 
 ```text
-What changed since yesterday?
-What became newly exposed?
-What is actually reachable?
-Which validated findings create paths to critical assets?
-Which security or business outcomes are affected?
-Which remediation breaks the greatest number of important paths?
-Was the remediation independently revalidated?
+Workspace      Scope          Target         Asset
+NetworkZone    Host           Domain         Service
+Port           Endpoint       Technology     Identity
+CredentialRef  Control        Capability     Action
+Job            Executor       Observation    Evidence
+Finding        Reference      Relation       ReachabilityEdge
+AttackPath     BusinessEvent  Report
 ```
 
-The enterprise direction therefore connects assessment with context:
+DFIR extensions add investigation/evidence semantics without creating a separate
+truth store.
+
+## Evidence and interpretation
+
+1337 keeps facts and interpretation distinguishable:
 
 ```text
-Inventory
-   ↓
-Delta
-   ↓
-Safe assessment
-   ↓
-Validation
-   ↓
-Threat intelligence
-   ↓
-Reachability
-   ↓
-Attack paths
-   ↓
-Critical outcomes
-   ↓
-Prioritized remediation
-   ↓
-Revalidation
-   ↺
+Raw / source evidence
+        ↓
+Observation
+        ↓
+Security Object / relation update
+        ↓
+Finding / correlation
+        ↓
+Inference / hypothesis
+        ↓
+Human or AI interpretation
 ```
 
-Organizations should be able to use their own approved AI and private execution
-environment instead of being forced into one model vendor.
+AI output does not become source evidence merely because it is stored in a workspace.
 
-## Core architectural ideas
+## Scope, Policy, and execution
 
-### Security Object Model
+Scope and Policy are safety and authorization primitives, not the product identity.
 
-Security state should be represented as durable objects rather than prose hidden in
-chat history or raw command output. Planned object families include:
+They answer questions such as:
+
+- is this target in the authorized scope;
+- which impact level is permitted;
+- which capability/provider may execute;
+- whether explicit approval is required;
+- which credentials or executor may be used.
+
+Human raw-tool workflows may remain available where authorized, but AI and automated
+clients must not receive a privileged bypass around the same boundaries.
+
+## Storage and search
+
+Canonical workspace state must not depend on a search engine.
+
+Storage is accessed through explicit boundaries so a portable local backend can be
+used by default while larger deployments may add accelerated indexes or different
+persistence implementations.
+
+Search indexes are rebuildable from authoritative state and evidence. Elasticsearch
+or similar engines may be excellent optional indexes for large JSON, logs, IOC,
+forensic, and full-text workloads; they are not the source of truth.
+
+## AI and integrations
+
+AI is a peer client of the Workbench.
+
+The same Core should be consumable through:
 
 ```text
-Workspace   Scope       Asset       NetworkZone
-Service     Endpoint    Identity    CredentialRef
-Control     Capability  Action      Job
-Executor    Evidence    Finding     Reference
-ReachabilityEdge        AttackPath  BusinessEvent  Report
+CLI / TUI / Web / REST / SDK / MCP / CI
 ```
 
-### Capability Fabric
+An AI system should be able to query Security Objects, evidence, findings, relations,
+paths, capabilities, and lenses and request bounded operations through the same
+scope/policy contracts used by human automation.
 
-A capability describes **what** security operation is requested; an adapter or
-native engine describes **how** it is executed.
+Vendor integrations are treated as explicit import, execution, enrichment, or export
+boundaries. Integrations must not fork the Security Object Model.
 
-Examples of future capability identifiers include:
+## Performance
 
-```text
-network.discover
-network.port_scan
-service.enumerate
-web.crawl
-web.enumerate
-tls.inspect
-vulnerability.detect
-vulnerability.validate
-intel.enrich
-report.build
-```
+The model may become rich; the workstation must remain fast.
 
-One capability may have several providers. This keeps agents and higher-level
-workflows independent of a specific scanner implementation.
+Performance work therefore prioritizes:
 
-### Evidence first
+- fast cold start and interactive readiness;
+- immediate command/search feedback;
+- non-blocking job execution;
+- incremental model updates;
+- bounded rendering of relevant subgraphs rather than the entire graph;
+- lazy loading of large modules;
+- local caching of verified optional providers;
+- reproducible performance budgets in tests.
 
-AI output is not automatically evidence. 1337 preserves the distinction between
-raw evidence, observations, findings, correlations, and AI interpretation.
-
-Every important conclusion should remain traceable to its source, scope, time,
-tool or executor, and supporting artifacts.
-
-### Reachability before vulnerability volume
-
-A severe finding that cannot participate in a meaningful path may matter less than
-a moderate finding on a short confirmed route to a critical system. 1337 therefore
-treats reachability and attack-path context as first-class reasoning inputs rather
-than reducing security to a single score.
-
-## Project category
-
-For engineers, researchers, search systems, and automated project discovery, the
-intended category can be summarized as:
-
-```yaml
-project: 1337 Security Workbench
-organization: Fuzzy Technologies
-architect: Timur Gilmullin
-
-category:
-  - AI-native security execution platform
-  - AI-agent runtime for cybersecurity
-  - open security workstation
-  - continuous security platform
-
-core_concepts:
-  - Security Object Model
-  - Capability Fabric
-  - Scope and Policy Engine
-  - Executor Runtime
-  - Evidence and Provenance Layer
-  - Reachability and Attack Graph
-  - model-agnostic / bring-your-own-model (BYOM) integration
-
-interfaces_direction:
-  - CLI
-  - TUI
-  - Web
-  - REST/OpenAPI
-  - SDK
-  - MCP
-  - AI agents
-  - CI/CD
-```
-
-These terms describe architecture and product direction. They are not claims that
-all listed interfaces or capabilities are implemented in the current pre-alpha.
+Exact budgets belong to measured engineering tasks rather than this vision document.
 
 ## What 1337 is not
 
 1337 is not intended to be:
 
+- a mandatory SIEM, EDR, or endpoint-agent fleet;
+- a CMDB replacement;
+- a monolithic vulnerability-management server;
 - another Linux security distribution;
-- another wrapper around one scanner;
-- an LLM chatbot with security branding;
-- a proprietary foundation-model project;
+- a wrapper around one scanner;
+- an AI-agent orchestrator as the product itself;
 - an MCP-only architecture;
-- an unrestricted autonomous shell;
-- a vulnerability counter detached from evidence and reachability.
+- a mandatory Elasticsearch or microservice deployment;
+- a full GRC suite;
+- a clone of a commercial enterprise security platform.
 
-## Open collaboration
+It may integrate with systems from all of those categories.
 
-Fuzzy Technologies is building 1337 in public so security practitioners, AI
-researchers, AI-agent builders, security vendors, enterprise engineering teams,
-and open-source contributors can inspect the architecture and help pressure-test it.
+## Architectural invariant
 
-If you are building an AI model or agent for cybersecurity, a scanner, execution
-runtime, security graph, or enterprise security platform, the intended relationship
-is interoperability rather than duplicated infrastructure.
+> **Models reason. 1337 keeps state, governs execution, and preserves evidence.**
 
-**Model vendors should be able to focus on better intelligence. Tool vendors should
-be able to focus on better tools. Security teams should be able to choose both.**
+A complementary Workbench invariant is:
 
-1337 aims to connect those layers.
+> **One Security Object Model. Multiple lenses. Any suitable tool.**
 
 ## Current reality
 
 The repository is early pre-alpha. Today it is an engineering and architecture
-foundation, not a finished scanner or autonomous security agent. Public roadmap
-language is deliberately separated from implementation claims.
+foundation, not a finished scanner, DFIR suite, attack graph, or autonomous agent.
 
-That constraint is part of the vision: ambitious architecture is useful only when
-it becomes reproducible software with explicit contracts, tests, evidence, and
-honest status.
+The current implementation must continue to separate shipped behavior from roadmap
+direction and prove new capability through code, tests, evidence, and explicit
+contracts.
 
 ---
 
