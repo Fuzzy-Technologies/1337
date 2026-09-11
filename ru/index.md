@@ -18,7 +18,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">Открытая рабочая среда ИБ · Рантайм для ИИ-агентов без привязки к конкретной модели</p>
+<p class="eyebrow">Открытая рабочая среда ИБ · Рантайм для ИИ-агентов в ИБ без привязки к конкретной модели</p>
 <p class="hero-hook">Инструменты находят факты.<br><strong>1337 сохраняет состояние защищённости</strong></p>
 <span class="status">Pre-alpha · Community core (Apache-2.0) · v0.1.8</span>
 </div>
@@ -133,8 +133,8 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <div class="case-grid">
 <section class="case-card">
-<span class="card-label">Бизнес-критичный путь</span>
-<p><strong>Интернет → Портал клиента → Учётная запись → Billing API → Критичная операция</strong></p>
+<span class="card-label">Бизнес-критичный сценарий</span>
+<p><strong>Интернет → Портал клиента → Учётная запись → Billing API → Критичная бизнес-операция</strong></p>
 </section>
 
 <section class="case-card">
@@ -148,7 +148,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 </section>
 </div>
 
-<blockquote><strong>Какие пути атаки реально достижимы, чем они подтверждены и какая мера защиты разрывает цепочку?</strong></blockquote>
+<blockquote><strong>Какие пути к критичным активам реально доступны злоумышленнику, чем это подтверждено и какая мера защиты разрывает цепочку?</strong></blockquote>
 <p class="quiet">M4 пока в роадмапе и не входит в v0.1.8. Цель — воспроизводимый Compose-стенд, а не заранее записанная демонстрация.</p>
 <p class="showcase-hook"><strong>Поднять стенд · воспроизвести результаты · проверить путь атаки · подтвердить эффект исправления</strong></p>
 </div>
