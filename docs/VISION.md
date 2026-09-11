@@ -15,7 +15,7 @@ environments through durable, governed, evidence-backed infrastructure.
 **1337 Security Workbench is designed to become that reusable layer.**
 
 It is both an open workstation for human security practitioners and a model-agnostic
-security execution, state, and evidence platform for future AI security agents.
+security execution, state, and evidence platform for future AI agents in cybersecurity.
 
 > **Models reason. 1337 keeps state, governs execution, and preserves evidence.**
 
@@ -109,7 +109,7 @@ operators faster, more reproducible, and less dependent on transient shell state
 
 The project deliberately does **not** compete on ownership of a frontier model.
 Models from OpenAI, Anthropic, Google, Microsoft ecosystems, local inference stacks,
-private enterprise providers, or future specialized cyber models should be able to
+private enterprise providers, or future security-specialized models should be able to
 use the same 1337 security state and execution contracts when integrations exist.
 
 The model supplies replaceable reasoning. 1337 supplies the durable operational
@@ -133,7 +133,7 @@ useful rather than make 1337 obsolete.**
 ## For CISOs and enterprise security teams
 
 Enterprise value is not another count of critical vulnerabilities. The target is a
-governed continuous-security loop capable of answering operational questions such as:
+governed continuous security loop capable of answering operational questions such as:
 
 ```text
 What changed since yesterday?
