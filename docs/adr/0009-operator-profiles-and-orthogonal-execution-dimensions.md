@@ -15,6 +15,8 @@ The same Core should support, among others:
 - DevSecOps / AppSec checks embedded into CI/CD;
 - SOC / exposure-management workflows with recurring scans, change detection,
   validation, and retesting after remediation;
+- DFIR, incident response, internal investigations, and evidence-led cybercrime
+  investigation workflows;
 - Red / Blue / Purple collaboration over one shared security state.
 
 These users need different defaults, views, triggers, outputs, and preferred
@@ -70,6 +72,7 @@ Initial profile families are expected to include:
 pentest
 devsecops
 soc
+dfir
 purple
 ```
 
@@ -164,6 +167,123 @@ Primary questions:
 
 Recurring observation, evidence freshness, change detection, and retesting are
 workflow concerns; the resulting objects and graph remain ordinary 1337 state.
+
+### DFIR / investigations profile
+
+The DFIR profile is for incident response, digital forensics, internal
+investigations, CERT/CSIRT work, forensic consulting, and evidence-led cybercrime
+investigations.
+
+Typical defaults:
+
+```text
+trigger:
+  incident / case intake / manual acquisition / evidence import
+
+targets:
+  logs and telemetry
+  hosts and forensic artifacts
+  identities
+  network evidence
+  cloud resources
+  containers and Kubernetes
+  external files / case evidence
+
+impact:
+  PASSIVE / read-only by default
+
+focus:
+  evidence acquisition and preservation
+  integrity and provenance
+  chain of custody
+  timestamp and timezone normalization
+  IOC / entity correlation
+  incident timeline
+  observed attack paths
+  investigator-visible audit history
+
+outputs:
+  case / investigation record
+  evidence manifest
+  integrity hashes
+  acquisition and custody history
+  normalized timeline
+  observed attack graph
+  exportable evidence bundle and report
+```
+
+Primary questions:
+
+> What actually happened, in what order, and what evidence supports each step?
+
+> Can another investigator reproduce how this conclusion was reached from the
+> preserved evidence?
+
+The DFIR profile extends the same evidence-first architecture used by assessment and
+SOC workflows. It does not create a separate forensic truth store.
+
+For M8, the evidence model should be able to represent concepts such as:
+
+```text
+Case / Investigation
+        ↓
+Evidence Item / Artifact
+        ↓
+Acquisition
+        ↓
+Custody Event(s)
+        ↓
+Observation
+        ↓
+Timeline Event
+        ↓
+Observed Attack Path
+        ↓
+Report / Evidence Bundle
+```
+
+At minimum, preserved evidence should be able to carry:
+
+- stable evidence identifier;
+- original source and acquisition method;
+- acquisition timestamp and timezone;
+- collector / examiner identity;
+- cryptographic integrity hash where applicable;
+- original artifact reference and derived/normalized representations;
+- custody / transfer history;
+- parser/tool/version provenance;
+- confidence and interpretation boundary;
+- links to related security objects, timeline events, and observed attack paths.
+
+**Evidence and interpretation must remain distinct.** Analyst notes, model output,
+correlation, and hypotheses may be useful, but they must not silently replace source
+evidence or its provenance.
+
+### Jurisdiction and legal-use boundary
+
+Courts, law-enforcement procedures, evidentiary rules, and formal chain-of-custody
+requirements vary by jurisdiction.
+
+1337 must therefore avoid hard-coding one country's procedural law into the Core and
+must not claim that a stored artifact is automatically admissible in court.
+
+Instead, the platform should preserve broadly reusable factual primitives — source,
+time, collector, integrity, lineage, custody history, tool provenance, and audit
+events — so organizations, forensic experts, investigators, and future
+jurisdiction-specific integrations can apply the required local procedure.
+
+This creates a path for 1337 Trace to be useful not only to SOC teams, but also to:
+
+- incident-response teams;
+- forensic consultants and laboratories;
+- CERT / CSIRT teams;
+- internal corporate investigations;
+- cybercrime investigators;
+- law-enforcement or judicial-forensic workflows where organizations choose to
+  adopt 1337 and map its evidence records to their local process.
+
+The architectural goal is **forensically defensible provenance and reproducibility**,
+not a universal legal-admissibility guarantee.
 
 ### Pentest profile
 
@@ -328,13 +448,13 @@ Conceptually:
 ```text
                      SAME SECURITY STATE
 
-        ┌──────────────────┼──────────────────┐
-        ▼                  ▼                  ▼
-     Pentest              SOC              DevSecOps
-      lens                lens               lens
+        ┌─────────────┬─────────────┬─────────────┐
+        ▼             ▼             ▼             ▼
+     Pentest          SOC          DFIR        DevSecOps
+      lens            lens          lens          lens
 
-  pivots / paths      exposure / diff     build / deploy
-  validation          controls / retest   gates / artifacts
+  pivots / paths   exposure/diff  timeline /    build/deploy
+  validation       controls/retest evidence      gates/artifacts
 ```
 
 The user interface may prioritize different objects, but:
@@ -387,6 +507,31 @@ trigger:
 retest_after_remediation: true
 ```
 
+and:
+
+```yaml
+profile: dfir
+impact: PASSIVE
+targets:
+  - logs
+  - hosts
+  - identities
+  - container-runtime
+
+trigger:
+  type: incident
+
+evidence:
+  preserve_originals: true
+  hash: true
+  record_custody_events: true
+
+outputs:
+  - timeline
+  - evidence-bundle
+  - observed-attack-paths
+```
+
 The exact file/CLI syntax is not decided by this ADR. The architectural requirement
 is that these concerns remain separately representable and composable.
 
@@ -398,6 +543,7 @@ A future CLI may expose profiles directly, for example:
 1337 --profile pentest
 1337 --profile devsecops
 1337 --profile soc
+1337 --profile dfir
 1337 --profile purple
 ```
 
@@ -454,10 +600,16 @@ milestone ownership:
 - #143 — API security scanning;
 - #148 — container and Kubernetes runtime security;
 - #153 — synthetic user journeys and traffic generation;
-- #160 / #161 — bounded runtime privilege validation.
+- #160 / #161 — bounded runtime privilege validation;
+- #83 / #85 — DFIR evidence ingestion and canonical artifact parsing;
+- #84 / #86 — incident timelines, observed attack paths, and investigation reports.
 
 The SOC/exposure workflow is architecturally defined here even where recurring
 scheduling/change-detection implementation is still future roadmap work.
+
+The DFIR/investigation profile is anchored in M8 / 1337 Trace. M8 should extend the
+shared evidence model with investigation/case, integrity, acquisition, custody, and
+timeline semantics without forking the Core into a separate forensic database.
 
 ## Alternatives considered
 
