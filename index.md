@@ -18,7 +18,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — open security wor
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">Open security workstation · Model-agnostic runtime for AI security agents</p>
+<p class="eyebrow">Open security workstation · Model-agnostic AI-agent runtime for cybersecurity</p>
 <p class="hero-hook">Your tools find things.<br><strong>1337 keeps the security state</strong></p>
 <span class="status">Early pre-alpha · Apache-2.0 Community core · v0.1.8</span>
 </div>
@@ -103,7 +103,7 @@ Security Objects
 <section class="card">
 <span class="card-label">Security operations</span>
 <h3>Security teams</h3>
-<p>Maintain context across findings, identities, controls, and assets so teams can focus on reachable risk, attack paths, and the remediation that reduces the most exposure.</p>
+<p>Maintain context across findings, identities, controls, and assets so teams can focus on reachable risk, attack paths, and the remediation that reduces exposure the most.</p>
 </section>
 </div>
 </section>
@@ -144,11 +144,11 @@ Security Objects
 
 <section class="case-card">
 <span class="card-label">Software supply chain</span>
-<p><strong>Repository → CI Job → Runner → Registry → Deployment → Production</strong></p>
+<p><strong>Repository → CI Job → Runner → Artifact Registry → Deployment → Production</strong></p>
 </section>
 </div>
 
-<blockquote><strong>Which attack paths are actually reachable, what evidence supports them, and which control breaks the chain?</strong></blockquote>
+<blockquote><strong>Which paths to critical assets are actually reachable, what evidence supports them, and which security control breaks the chain?</strong></blockquote>
 <p class="quiet">M4 is roadmap work and is not part of v0.1.8. The goal is a reproducible Compose lab, not a prerecorded demo.</p>
 <p class="showcase-hook"><strong>Run the lab · reproduce the findings · validate the path · verify the remediation</strong></p>
 </div>
