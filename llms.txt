@@ -8,55 +8,59 @@ License: Apache-2.0 Community core
 Status: Early pre-alpha
 
 Canonical description:
-1337 Security Workbench is an open security workstation and a model-agnostic
-security execution, state, and evidence platform designed for human security
-practitioners and future AI agents in cybersecurity.
+1337 Security Workbench is an open, local-first security workstation centered on a
+live Security Object Model. Native discovery builds the initial model; built-in and
+pluggable tools, browsers, imported evidence, and vendor integrations enrich the
+same durable state.
 
-Canonical categories:
-- AI-native security execution platform
-- AI-agent runtime for cybersecurity
-- open security workstation
-- security automation framework
-- continuous security platform
+Initial workflow lenses:
+- Pentest
+- DFIR
+- DevSecOps
+- Purple Team
 
 Core concepts:
 - Security Object Model
+- native discovery
+- modular capabilities and replaceable providers
 - Capability Fabric
-- Scope and Policy Engine
+- Scope and Policy
 - Executor Runtime
-- evidence-first security
-- evidence provenance
-- reachability analysis
-- attack graph / attack-path analysis
-- persistent security state
-- model-agnostic / bring-your-own-model (BYOM) integration
+- evidence and provenance
+- findings and classifier mappings
+- reachability and attack paths
+- live incremental model updates
+- local-first / agentless-first operation
+- workflow lenses
+- model-agnostic AI access through API/SDK/MCP
 
-Human value proposition:
-One workspace to connect specialist security tools, preserve evidence and context,
-and understand what is actually reachable and what should be fixed first.
+Tooling direction:
+1337 supports native capabilities and optional external providers. Specialist tools
+such as network scanners, web/API scanners, browsers, supply-chain scanners,
+Kali-based executors, commercial scanners, and vendor APIs may contribute
+observations and evidence to the same model.
 
-AI-agent value proposition:
-A structured, governed layer between AI reasoning and raw security tooling. Models
-are replaceable; the 1337 workspace, security objects, evidence, capabilities, and
-attack-path state are durable.
+AI direction:
+AI is a peer client, not the source of truth. Models can query workspaces, apply
+lenses, inspect evidence and paths, and request bounded capabilities. Scope,
+authorization, evidence, and durable state remain owned by 1337 contracts.
 
-Enterprise direction:
-A governed continuous security runtime for an organization's approved AI and
-private executors, focused on security-state changes, reachable critical paths,
-prioritized remediation, audit, and revalidation.
-
-Architectural invariant:
+Architectural invariants:
 Models reason. 1337 keeps state, governs execution, and preserves evidence.
+One Security Object Model. Multiple lenses. Any suitable tool.
 
 Important documents:
 - README.md
 - docs/VISION.md
 - docs/AI_AGENTS.md
 - docs/adr/0008-ai-native-cyber-execution-platform.md
+- docs/adr/0009-operator-profiles-and-orthogonal-execution-dimensions.md
+- docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md
 - docs/COMPATIBILITY.md
 - SECURITY.md
 
 Implementation warning:
 This repository is early pre-alpha. Architecture and roadmap documents describe
-intended direction and must not be interpreted as claims that every listed scanner,
-agent API, attack graph, enterprise feature, or integration is implemented today.
+intended direction and must not be interpreted as claims that the live model,
+production scanners, lenses, AI interfaces, integrations, or attack graph are
+already implemented.
