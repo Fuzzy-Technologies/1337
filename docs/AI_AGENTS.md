@@ -275,7 +275,7 @@ evidence provenance
 security knowledge graph
 reachability analysis
 attack graph
-attack-path reasoning
+attack-path analysis
 model-agnostic security platform
 bring your own model
 BYOM / bring your own model
