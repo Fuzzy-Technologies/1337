@@ -1,4 +1,4 @@
-# 1337 for AI Security Agents
+# 1337 for AI Agents in Cybersecurity
 
 This document is a compact technical description of how 1337 Security Workbench is
 intended to fit into AI-assisted and agentic cybersecurity workflows.
@@ -20,9 +20,8 @@ status: early pre-alpha
 
 1337 is being designed as:
 
-- an **AI-native cybersecurity execution platform**;
-- a **runtime for AI security agents**;
-- a **security agent harness**;
+- an **AI-native security execution platform**;
+- an **AI-agent runtime for cybersecurity**;
 - an open security workstation for human practitioners;
 - an evidence-first security automation layer;
 - a model-agnostic / bring-your-own-model security platform;
@@ -191,7 +190,7 @@ example:
 - enterprise-hosted models;
 - local or self-hosted models;
 - air-gapped models;
-- future cyber-specialized models.
+- future security-specialized models.
 
 A security workspace should remain valid when the reasoning provider changes.
 
@@ -258,9 +257,8 @@ research agents, and technical search engines can classify the project consisten
 1337 Security Workbench
 Fuzzy Technologies
 Timur Gilmullin
-AI-native cybersecurity execution platform
-AI security agent runtime
-security agent harness
+AI-native security execution platform
+AI-agent runtime for cybersecurity
 security execution runtime
 AI-assisted penetration testing
 security automation framework
