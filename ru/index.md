@@ -2,7 +2,7 @@
 layout: default
 lang: ru
 title: 1337 Security Workbench
-description: 1337 Security Workbench от Fuzzy Technologies — открытая рабочая среда ИБ и платформа выполнения операций ИБ, хранения состояния и доказательств без привязки к конкретной ИИ-модели.
+description: 1337 Security Workbench от Fuzzy Technologies — локальная рабочая среда ИБ с живой моделью объектов и модульным набором security-инструментов.
 ---
 
 <header class="site-header">
@@ -19,13 +19,13 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">Открытая рабочая среда ИБ · Платформа выполнения операций ИБ, состояния и доказательств без привязки к конкретной ИИ-модели</p>
-<p class="hero-hook">Инструменты находят факты.<br><strong>1337 сохраняет состояние защищённости</strong></p>
+<p class="eyebrow">Открытая рабочая среда ИБ · Живая модель объектов · Модульный security tooling</p>
+<p class="hero-hook">Исследуй систему.<br><strong>Строй её модель прямо во время работы</strong></p>
 <span class="status">Pre-alpha · Community core (Apache-2.0) · v0.1.8</span>
 </div>
 
 <div class="hero-secondary">
-<p>Открытая рабочая среда для пентестеров, инженеров ИБ, исследователей и команд безопасности. 1337 связывает результаты специализированных инструментов с доказательствами и контекстом, формируя устойчивое состояние защищённости для анализа достижимости и путей атаки.</p>
+<p>Быстрая local-first рабочая среда для практической ИБ. Встроенное обнаружение строит исходную модель, а подключаемые инструменты обогащают её доказательствами, находками, связями, достижимостью и путями атаки.</p>
 <blockquote class="hero-quote"><strong>ИИ-модели рассуждают. 1337 хранит состояние, управляет выполнением и сохраняет доказательства</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
@@ -36,75 +36,78 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 </section>
 
 <section class="content-section">
-<h2>Сканирование — только начало</h2>
+<h2>Одна живая модель вместо россыпи отчётов</h2>
 <div class="grid problem-grid">
 <section class="card">
-<span class="card-label">Разрозненные инструменты</span>
-<h3>Результаты сканеров — ещё не картина защищённости</h3>
-<p>Nmap видит порты, Nuclei — срабатывания шаблонов, браузер — текущую сессию, отчёт — снимок на момент времени. Связать всё это в одну картину обычно приходится вручную.</p>
+<span class="card-label">Встроенное обнаружение</span>
+<h3>Полезная модель ещё до установки внешних тулов</h3>
+<p>1337 должен сам находить базовые цели, хосты, сервисы, endpoints, технологии и связи, а затем расширять эту картину по мере подключения новых сенсоров.</p>
 </section>
 
 <section class="card">
-<span class="card-label">ИИ нужен устойчивый контекст</span>
-<h3>Анализ модели — не долговременная память</h3>
-<p>ИИ может разобрать результаты проверки, но чат не заменяет реестр активов, границы разрешённой проверки, историю доказательств и граф атак.</p>
+<span class="card-label">Общее состояние</span>
+<h3>Все сенсоры обогащают одну модель</h3>
+<p>Nmap, Nuclei, браузеры, Kali tool packs, импортированные артефакты и интеграции добавляют атрибутированные наблюдения, а не создают независимые острова результатов.</p>
 </section>
 
 <section class="card">
-<span class="card-label">Приоритизация</span>
-<h3>Критичность не показывает реальный путь атаки</h3>
-<p>Даже проблема критического уровня сама по себе не отвечает на три вопроса: достижима ли важная цель, как уязвимости и права складываются в цепочку и какая мера защиты эту цепочку разорвёт.</p>
+<span class="card-label">Живой Workbench</span>
+<h3>Долгие задачи не блокируют оператора</h3>
+<p>Слева выполняются команды, справа постепенно обновляется нужный срез модели: объекты, доказательства, findings, пути или timeline текущей линзы.</p>
 </section>
 </div>
 </section>
 
 <section class="content-section">
-<h2>От результатов инструментов — к состоянию защищённости</h2>
+<h2>От обнаружения — к устойчивой Security Object Model</h2>
 <div class="workbench-grid">
 <div class="flow-panel" aria-label="Поток данных 1337">
-<pre><code>Инструмент / сканер
+<pre><code>Встроенное обнаружение
         ↓
-   Доказательства
+   Объекты ИБ
+        ↑
+ Инструменты / сенсоры
         ↓
-     Объекты ИБ
+Наблюдения + доказательства
         ↓
-Результаты проверки
+Находки + связи
         ↓
-   Достижимость
-        ↓
-    Пути атаки
-        ↓
-      Решение</code></pre>
+Достижимость / пути</code></pre>
 </div>
 
 <div class="workbench-copy">
-<p class="section-hook"><strong>1337 не заменяет ваш набор инструментов. Он добавляет единый слой состояния и доказательств</strong></p>
-<p>Сканеры, прокси, браузеры и другие специализированные инструменты остаются на своих местах. 1337 сохраняет результаты как проверяемые доказательства, связывает их с объектами ИБ и делает полученное состояние пригодным для повторного анализа людьми, автоматизацией и будущими ИИ-агентами.</p>
-<p class="workbench-note">То, что обычно теряется между терминалом, заметками и отчётом, становится общей моделью: с источником данных, контекстом, достижимостью и связью с последующими решениями.</p>
+<p class="section-hook"><strong>Встроенное обнаружение начинает модель. Ваши инструменты делают её богаче</strong></p>
+<p>Tooling — часть рабочего места: встроенные capability, привычные CLI, браузеры, workload engines, vendor scanners и будущие интеграции работают с одним workspace вместо набора разрозненных баз.</p>
+<p class="workbench-note">Core остаётся local-first и agentless-first. Тяжёлые сканеры, Kali packs, браузеры, поисковые индексы и vendor-коннекторы подключаются только когда нужны.</p>
 </div>
 </div>
 </section>
 
 <section class="content-section">
-<h2>Одно ядро — разные сценарии работы</h2>
+<h2>Одна модель — четыре начальные линзы</h2>
 <div class="grid">
 <section class="card">
-<span class="card-label">Практическая ИБ</span>
-<h3>Пентестеры и инженеры ИБ</h3>
-<p>1337 рассчитан на работу с привычными ИБ-инструментами так, чтобы результаты, доказательства, границы проверки и контекст исследования не приходилось заново собирать по истории терминала и заметкам.</p>
+<span class="card-label">Pentest</span>
+<h3>Поверхность атаки и следующий доступный шаг</h3>
+<p>Recon, findings, credentials, pivots, достижимость, пути атаки и ограниченная validation с прямым доступом к привычным инструментам.</p>
 </section>
 
 <section class="card">
-<span class="card-label">ИИ и автоматизация</span>
-<h3>ИИ-агенты для ИБ</h3>
-<p>ИИ-модель можно менять независимо от рабочего контура: 1337 хранит границы проверки, состояние, правила выполнения и доказательства вне модели. Агент получает формализованные операции и актуальный контекст вместо неограниченного доступа к shell.</p>
-<p class="card-hook">Своя ИИ-модель. Единый рабочий контур 1337</p>
+<span class="card-label">DFIR</span>
+<h3>Доказательства и наблюдавшийся путь злоумышленника</h3>
+<p>Provenance, entities, IOC, timeline, confidence и реконструкция инцидента по тем же объектам и доказательствам.</p>
 </section>
 
 <section class="card">
-<span class="card-label">Операционная ИБ</span>
-<h3>Команды ИБ</h3>
-<p>Единый контекст по активам, результатам проверок, идентичностям и защитным мерам помогает фокусироваться на реально достижимых рисках, путях атаки и исправлениях с наибольшим эффектом.</p>
+<span class="card-label">DevSecOps</span>
+<h3>От кода до артефакта и runtime</h3>
+<p>Source, dependencies, SBOM, images, deployments, API, runtime relations, findings и детерминированные security gates.</p>
+</section>
+
+<section class="card">
+<span class="card-label">Purple Team</span>
+<h3>Действие, детект, мера защиты, retest</h3>
+<p>Одна модель связывает разрешённые offensive-действия с telemetry, detections, controls и состоянием до/после проверки.</p>
 </section>
 </div>
 </section>
@@ -112,14 +115,14 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <section class="content-section">
 <h2>Архитектурное ядро</h2>
 <div class="architecture-grid">
-<section class="architecture-card"><h3>Модель объектов ИБ</h3><p>Единая модель для активов, сервисов, конечных точек, идентичностей, защитных мер, доказательств, результатов проверок, достижимости и путей атаки.</p></section>
-<section class="architecture-card"><h3>Capability Fabric</h3><p>Типизированный слой операций ИБ без жёсткой привязки сценария работы к конкретному сканеру, инструменту или поставщику ИИ-модели.</p></section>
-<section class="architecture-card"><h3>Scope &amp; Policy</h3><p>Явные границы разрешённой проверки, воздействия и выполнения, которые не зависят от решения ИИ-модели.</p></section>
-<section class="architecture-card"><h3>Контролируемый рантайм</h3><p>Запуск инструментов и встроенных операций через управляемый контур вместо неограниченного shell-доступа.</p></section>
-<section class="architecture-card"><h3>Доказательства и происхождение данных</h3><p>Существенные выводы остаются привязаны к источнику, границам проверки, времени, инструменту, исполнителю и подтверждающим артефактам.</p></section>
-<section class="architecture-card"><h3>Достижимость и граф атак</h3><p>Уязвимости, права, идентичности и защитные меры связываются в пути к критичным активам и последствиям.</p></section>
+<section class="architecture-card"><h3>Security Object Model</h3><p>Устойчивое ядро для целей, активов, сервисов, endpoints, identities, evidence, findings, связей, достижимости и путей.</p></section>
+<section class="architecture-card"><h3>Native Discovery</h3><p>Исходная black-box модель строится без обязательной установки внешних сканеров и интеграций.</p></section>
+<section class="architecture-card"><h3>Модульный tooling</h3><p>Встроенные engines и заменяемые внешние providers дают capability без обязательной привязки к одному сканеру или дистрибутиву.</p></section>
+<section class="architecture-card"><h3>Evidence &amp; Provenance</h3><p>Наблюдения и выводы остаются привязаны к источнику, scope, времени, tool, executor и supporting artifacts.</p></section>
+<section class="architecture-card"><h3>Scope &amp; Policy</h3><p>Границы разрешённой работы и impact управляют действиями, но не являются самим продуктом.</p></section>
+<section class="architecture-card"><h3>Lenses &amp; Interfaces</h3><p>TUI, Web, API, SDK, MCP, CI и AI используют одно состояние через разные рабочие срезы.</p></section>
 </div>
-<p class="invariant"><strong>ИИ-модель можно заменить. Состояние защищённости — нет</strong></p>
+<p class="invariant"><strong>Одна Security Object Model · Несколько линз · Любой подходящий инструмент</strong></p>
 </section>
 
 <section class="content-section">
@@ -176,12 +179,12 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <span class="card-label">Дальше по роадмапу</span>
 <h3>Продуктовые возможности в разработке</h3>
 <ul>
-<li>интерактивная консоль и рабочее пространство</li>
-<li>адаптеры реальных сканеров</li>
-<li>анализ результатов и достижимости</li>
-<li>интерфейс графа атак</li>
-<li>интерфейсы для ИИ-агентов</li>
-<li>корпоративные возможности</li>
+<li>живой split-pane terminal workbench</li>
+<li>native discovery и минимальная Security Object Model</li>
+<li>модульные scanner/tool providers и Quick Scan</li>
+<li>Pentest / DFIR / DevSecOps / Purple lenses</li>
+<li>evidence, reachability и attack-path workflows</li>
+<li>API/SDK/MCP и vendor integrations</li>
 </ul>
 </section>
 </div>
@@ -194,7 +197,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">Архитектурное видение</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">Архитектура ИИ-агентов</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0008-ai-native-cyber-execution-platform.md">AI-native platform</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">Архитектура Live Workbench</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/SECURITY.md">Политика безопасности</a>
 </div>
 </section>
