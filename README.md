@@ -1,6 +1,6 @@
 # 1337 Security Workbench
 
-## Open security workstation · Model-agnostic runtime for AI security agents
+## Open security workstation · Model-agnostic security execution, state, and evidence platform
 
 **1337 Security Workbench (1337-SW) by Fuzzy Technologies** is an open security
 workspace for penetration testers, security engineers, researchers, and security
