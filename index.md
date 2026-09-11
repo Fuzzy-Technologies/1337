@@ -2,7 +2,7 @@
 layout: default
 lang: en
 title: 1337 Security Workbench
-description: 1337 Security Workbench by Fuzzy Technologies — open security workstation and model-agnostic AI-agent runtime for cybersecurity.
+description: 1337 Security Workbench by Fuzzy Technologies — open security workstation and model-agnostic runtime for AI security agents.
 ---
 
 <header class="site-header">
@@ -18,7 +18,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — open security wor
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">Open security workstation · Model-agnostic AI-agent runtime for cybersecurity</p>
+<p class="eyebrow">Open security workstation · Model-agnostic runtime for AI security agents</p>
 <p class="hero-hook">Your tools find things.<br><strong>1337 keeps the security state</strong></p>
 <span class="status">Early pre-alpha · Apache-2.0 Community core · v0.1.8</span>
 </div>
@@ -95,7 +95,7 @@ Security Objects
 
 <section class="card">
 <span class="card-label">AI &amp; automation</span>
-<h3>AI agents for cybersecurity</h3>
+<h3>AI-agent builders</h3>
 <p>Connect the AI model your organization trusts to the same structured security state and typed capabilities. Scope, execution policy, and evidence stay outside model discretion, so the model can change without redesigning the workflow.</p>
 <p class="card-hook">Bring your model. 1337 brings the cyber workspace</p>
 </section>
