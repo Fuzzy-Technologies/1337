@@ -1,6 +1,6 @@
 # 1337 Security Workbench
 
-## Open security workstation · Model-agnostic runtime for AI security agents
+## Open security workstation · Model-agnostic AI-agent runtime for cybersecurity
 
 **1337 Security Workbench (1337-SW) by Fuzzy Technologies** is an open security
 workspace for penetration testers, security engineers, researchers, and security
@@ -17,7 +17,7 @@ security state for reachability and attack-path analysis.
 
 Security practitioners already have excellent specialist tools. The hard part is
 turning their disconnected output into a durable picture of **what exists, what is
-reachable, what is proven, what changed, and what should be fixed first**.
+reachable, what is confirmed, what changed, and what should be fixed first**.
 
 1337 is not another all-in-one scanner and does not try to replace Nmap, Nuclei,
 browsers, commercial scanners, or AI models. It is designed to provide the state
@@ -56,8 +56,7 @@ Reachability / Attack Paths
 **For security teams**
 
 > Maintain context across findings, identities, controls, and assets so teams can
-> focus on reachable risk, attack paths, and the remediation that reduces the most
-> exposure.
+> focus on reachable risk, attack paths, and the remediation that reduces exposure the most.
 
 The core is intentionally agnostic to the AI model and provider, and local-first.
 The same workspace is designed to remain useful when the human operator, AI model,
@@ -143,7 +142,7 @@ independently runnable and verifiable rather than prerecorded.
 ## Project vision and architecture
 
 - [Vision](docs/VISION.md) — the human-facing product thesis and long-term direction;
-- [1337 for AI security agents](docs/AI_AGENTS.md) — AI-model-agnostic agent/runtime concepts and discovery vocabulary;
+- [1337 for AI agents in cybersecurity](docs/AI_AGENTS.md) — AI-model-agnostic agent/runtime concepts and discovery vocabulary;
 - [ADR 0008: AI-native security execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md) — the architectural boundary;
 - [Machine-readable project summary](llms.txt) — compact discovery metadata for automated readers;
 - [Compatibility](docs/COMPATIBILITY.md) — public stability and extension-boundary contract;
