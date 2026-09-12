@@ -60,5 +60,6 @@ def test_registry_completes_and_searches_descriptors():
 
 
 def test_core_registry_describes_only_currently_available_commands():
-    assert [descriptor.identifier for descriptor in COMMAND_REGISTRY.commands] == ["help", "version"]
+    assert [descriptor.identifier for descriptor in COMMAND_REGISTRY.commands] == ["help", "version", "shell"]
     assert COMMAND_REGISTRY.resolve("--version") is COMMAND_REGISTRY.commands[1]
+    assert COMMAND_REGISTRY.resolve("shell") is COMMAND_REGISTRY.commands[2]
