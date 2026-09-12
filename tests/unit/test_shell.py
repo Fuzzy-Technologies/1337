@@ -16,17 +16,21 @@ def test_shell_tracks_lens_selected_object_and_updates():
     shell = InteractiveShell(stdin=StringIO(), stdout=output)
 
     shell.onecmd("lens devsecops")
+    shell.onecmd("view updates")
     shell.onecmd("select asset:demo")
     shell.publish_update(WorkbenchUpdate("progress", "discovery queued"))
     shell.onecmd("context")
     shell.onecmd("updates")
 
     assert shell.state.lens == "devsecops"
+    assert shell.state.view == "updates"
     assert shell.state.selected_object == "asset:demo"
     assert output.getvalue().splitlines() == [
         "Selected lens: devsecops",
+        "Selected view: updates",
         "Selected object: asset:demo",
         "Lens: devsecops",
+        "View: updates",
         "Selected object: asset:demo",
         "Pending updates: 1",
         "[progress] discovery queued",
@@ -58,6 +62,8 @@ def test_shell_help_and_usage_errors_remain_compact():
     shell.onecmd("lens")
     shell.onecmd("select")
     shell.onecmd("updates extra")
+    shell.onecmd("view")
+    shell.onecmd("view unknown")
 
     assert output.getvalue().splitlines() == [
         "usage: commands",
@@ -67,6 +73,8 @@ def test_shell_help_and_usage_errors_remain_compact():
         "Available lenses: pentest, dfir, devsecops, purple",
         "usage: select <object-id>",
         "usage: updates",
+        "Available views: context, updates",
+        "Unknown view: unknown. Available views: context, updates",
     ]
 
 
@@ -83,7 +91,7 @@ def test_shell_reports_commands_drains_updates_and_exits_cleanly():
     assert shell.onecmd("EOF") is True
 
     assert output.getvalue().splitlines() == [
-        "Interactive commands: commands, context, help, lens, quit, select, updates",
+        "Interactive commands: commands, context, help, lens, quit, select, updates, view",
         "CLI commands: help, version, shell",
         "[model] asset changed",
         "usage: quit",

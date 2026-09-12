@@ -12,8 +12,10 @@ from typing import TextIO
 from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
 
 DEFAULT_LENS = "pentest"
+DEFAULT_VIEW = "context"
 LENSES = ("pentest", "dfir", "devsecops", "purple")
-SHELL_COMMANDS = ("commands", "context", "help", "lens", "quit", "select", "updates")
+SHELL_COMMANDS = ("commands", "context", "help", "lens", "quit", "select", "updates", "view")
+VIEWS = ("context", "updates")
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +24,7 @@ class ShellState:
 
     lens: str = DEFAULT_LENS
     selected_object: str | None = None
+    view: str = DEFAULT_VIEW
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +127,7 @@ class InteractiveShell(cmd.Cmd):
 
         selected_object = self._state.selected_object or "none"
         self._write(f"Lens: {self._state.lens}")
+        self._write(f"View: {self._state.view}")
         self._write(f"Selected object: {selected_object}")
         self._write(f"Pending updates: {len(self._updates)}")
 
@@ -132,12 +136,13 @@ class InteractiveShell(cmd.Cmd):
 
         topic = argument.strip().lower()
         help_text = {
-            "": "commands, context, lens <name>, select <object-id>, updates, quit",
+            "": "commands, context, lens <name>, select <object-id>, updates, view <name>, quit",
             "commands": "commands: list interactive and current top-level CLI commands.",
             "context": "context: show the current lens and selected object reference.",
             "lens": "lens <name>: select pentest, dfir, devsecops, or purple.",
             "select": "select <object-id>: keep an opaque object reference in the current context.",
             "updates": "updates: render queued progress or future model updates.",
+            "view": "view <name>: select context or updates as the current model slice.",
             "quit": "quit: leave the interactive shell.",
         }
         message = help_text.get(topic)
@@ -181,6 +186,21 @@ class InteractiveShell(cmd.Cmd):
             return
 
         self._render_updates()
+
+    def do_view(self, argument: str) -> None:
+        """Select the small model-slice view used by the shell foundation."""
+
+        view = argument.strip().lower()
+        if not view:
+            self._write("Available views: " + ", ".join(VIEWS))
+            return
+
+        if view not in VIEWS:
+            self._write(f"Unknown view: {view}. Available views: " + ", ".join(VIEWS))
+            return
+
+        self._state = replace(self._state, view=view)
+        self._write(f"Selected view: {view}")
 
     def do_quit(self, argument: str) -> bool:
         """Leave the interactive shell."""
