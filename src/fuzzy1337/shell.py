@@ -14,8 +14,9 @@ from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
 DEFAULT_LENS = "pentest"
 DEFAULT_VIEW = "context"
 LENSES = ("pentest", "dfir", "devsecops", "purple")
-SHELL_COMMANDS = ("commands", "context", "help", "lens", "quit", "select", "updates", "view")
+SHELL_COMMANDS = ("commands", "context", "help", "history", "lens", "palette", "quit", "select", "updates", "view")
 VIEWS = ("context", "updates")
+HISTORY_LIMIT = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +34,14 @@ class WorkbenchUpdate:
 
     kind: str
     message: str
+
+
+@dataclass(frozen=True, slots=True)
+class ContextualAction:
+    """Describe a cached action that a selected future model object advertises."""
+
+    identifier: str
+    summary: str
 
 
 def fuzzy_matches(query: str, candidates: Iterable[str]) -> tuple[str, ...]:
@@ -85,6 +94,8 @@ class InteractiveShell(cmd.Cmd):
         self._registry = registry
         self._state = ShellState()
         self._updates: deque[WorkbenchUpdate] = deque()
+        self._history: deque[str] = deque(maxlen=HISTORY_LIMIT)
+        self._context_actions: dict[str, tuple[ContextualAction, ...]] = {}
 
     @property
     def state(self) -> ShellState:
@@ -96,6 +107,25 @@ class InteractiveShell(cmd.Cmd):
         """Queue a bounded update for a future executor or live model provider."""
 
         self._updates.append(update)
+
+    def set_context_actions(self, object_id: str, actions: Iterable[ContextualAction]) -> None:
+        """Cache local contextual actions without coupling the shell to the future SOM."""
+
+        normalized_object_id = object_id.strip()
+        if not normalized_object_id:
+            raise ValueError("Object identifiers must be non-empty")
+
+        self._context_actions[normalized_object_id] = tuple(actions)
+
+    def onecmd(self, line: str) -> bool:
+        """Run a command while retaining bounded operator history for local search."""
+
+        normalized = line.strip()
+        command = normalized.split(maxsplit=1)[0].lower() if normalized else ""
+        if normalized and command != "history":
+            self._history.append(normalized)
+
+        return super().onecmd(line)
 
     def completenames(self, text: str, *ignored: object) -> list[str]:
         """Offer fuzzy command discovery for keyboard completion."""
@@ -136,10 +166,12 @@ class InteractiveShell(cmd.Cmd):
 
         topic = argument.strip().lower()
         help_text = {
-            "": "commands, context, lens <name>, select <object-id>, updates, view <name>, quit",
+            "": "commands, context, history [query], lens <name>, palette [query], select <object-id>, updates, view <name>, quit",
             "commands": "commands: list interactive and current top-level CLI commands.",
             "context": "context: show the current lens and selected object reference.",
+            "history": "history [query]: search previous shell commands from newest to oldest.",
             "lens": "lens <name>: select pentest, dfir, devsecops, or purple.",
+            "palette": "palette [query]: instantly search local commands and selected-object actions.",
             "select": "select <object-id>: keep an opaque object reference in the current context.",
             "updates": "updates: render queued progress or future model updates.",
             "view": "view <name>: select context or updates as the current model slice.",
@@ -151,6 +183,20 @@ class InteractiveShell(cmd.Cmd):
             return
 
         self._write(message)
+
+    def do_history(self, argument: str) -> None:
+        """Search local command history in reverse chronological order."""
+
+        query = argument.strip().lower()
+        matches = tuple(
+            entry for entry in reversed(self._history) if not query or query in entry.lower()
+        )
+        if not matches:
+            self._write("No matching history entries.")
+            return
+
+        for entry in matches:
+            self._write(entry)
 
     def do_lens(self, argument: str) -> None:
         """Select one of the initial workflow lenses."""
@@ -166,6 +212,30 @@ class InteractiveShell(cmd.Cmd):
 
         self._state = replace(self._state, lens=lens)
         self._write(f"Selected lens: {lens}")
+
+    def do_palette(self, argument: str) -> None:
+        """Search immediately available commands and cached selected-object actions."""
+
+        query = argument.strip()
+        command_matches = fuzzy_matches(query, SHELL_COMMANDS)
+        registry_matches = tuple(
+            descriptor.identifier for descriptor in self._registry.search(query)
+            if descriptor.identifier not in command_matches
+        )
+        contextual_matches = self._matching_context_actions(query)
+
+        if not (command_matches or registry_matches or contextual_matches):
+            self._write("No palette matches.")
+            return
+
+        for command in command_matches:
+            self._write(f"command: {command}")
+
+        for command in registry_matches:
+            self._write(f"cli: {command}")
+
+        for action in contextual_matches:
+            self._write(f"action: {action.identifier} — {action.summary}")
 
     def do_select(self, argument: str) -> None:
         """Store an opaque selected-object reference until the SOM contract exists."""
@@ -231,6 +301,22 @@ class InteractiveShell(cmd.Cmd):
         while self._updates:
             update = self._updates.popleft()
             self._write(f"[{update.kind}] {update.message}")
+
+    def _matching_context_actions(self, query: str) -> tuple[ContextualAction, ...]:
+        """Return local actions for the selected object, preserving configured order."""
+
+        object_id = self._state.selected_object
+        if object_id is None:
+            return ()
+
+        normalized = query.lower()
+        return tuple(
+            action
+            for action in self._context_actions.get(object_id, ())
+            if not normalized
+            or normalized in action.identifier.lower()
+            or normalized in action.summary.lower()
+        )
 
     def _write(self, message: str) -> None:
         """Write one line through ``cmd.Cmd``'s configured output stream."""
