@@ -2,7 +2,7 @@
 layout: default
 lang: en
 title: 1337 Security Workbench
-description: 1337 Security Workbench by Fuzzy Technologies — an open, local-first security workbench for penetration testing, investigations, and engineering analysis, built around a live Security Object Model and modular tooling.
+description: 1337 Security Workbench by Fuzzy Technologies — an open, local-first security workbench for penetration testing, investigations, and security engineering, built around a live Security Object Model and modular tooling.
 ---
 
 <header class="site-header">
@@ -25,7 +25,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — an open, local-fi
 </div>
 
 <div class="hero-secondary">
-<p>A fast, local-first workbench for penetration testing, security investigations, and engineering analysis. Built-in discovery creates the initial model; native and external tools continuously enrich it with observations, evidence, findings, relationships, reachability, and attack paths.</p>
+<p>A fast, local-first workbench for penetration testing, security investigations, and security engineering. Built-in discovery creates the initial model; built-in and external tools continuously enrich it with observations, evidence, findings, relationships, reachability, and attack paths.</p>
 <blockquote class="hero-quote"><strong>Models reason. 1337 keeps state, governs execution, and preserves evidence</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
@@ -47,7 +47,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — an open, local-fi
 <section class="card">
 <span class="card-label">Shared state</span>
 <h3>Every tool contributes to the same model</h3>
-<p>Nmap, Nuclei, browsers, Kali toolsets, imported artifacts, and external systems add attributable observations to one model instead of leaving behind disconnected reports.</p>
+<p>Nmap, Nuclei, browsers, Kali toolsets, imported artifacts, and external systems add traceable observations to one model instead of leaving behind disconnected reports.</p>
 </section>
 
 <section class="card">
@@ -163,15 +163,15 @@ Reachability / Attack Paths</code></pre>
 <div class="proof-grid">
 <section class="proof-card proof-now">
 <span class="card-label">Available in v0.1.8</span>
-<h3>Working pre-alpha engineering foundation</h3>
+<h3>A working, reproducible pre-alpha foundation</h3>
 <ul>
-<li>open core under Apache-2.0</li>
+<li>Apache-2.0 open-source core</li>
 <li>installable 1337 and 1337-dev commands</li>
 <li>Command Registry foundations</li>
 <li>repository-owned isolated test lab</li>
-<li>pytest-native functional-test foundations</li>
+<li>pytest-based functional test framework</li>
 <li>public versioned contracts and architecture documentation</li>
-<li>deterministic multi-platform quality gates</li>
+<li>deterministic quality gates across supported platforms</li>
 </ul>
 </section>
 
