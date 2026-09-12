@@ -2,7 +2,7 @@
 layout: default
 lang: zh-CN
 title: 1337 Security Workbench
-description: Fuzzy Technologies 的 1337 Security Workbench —— 面向安全从业者的开放式网络安全工作台，以及模型无关的安全执行、状态与证据平台。
+description: Fuzzy Technologies 的 1337 Security Workbench —— 本地优先的开放式网络安全工作台，围绕实时安全对象模型与模块化安全工具构建。
 keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网络安全 AI 智能体, 渗透测试, 安全自动化, 攻击图, 攻击路径, 可达性分析, 证据来源追踪, Fuzzy Technologies
 ---
 
@@ -20,13 +20,13 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">开放式网络安全工作台 · 模型无关的安全执行、状态与证据平台 (model-agnostic security execution, state, and evidence platform)</p>
-<p class="hero-hook">工具负责发现问题。<br><strong>1337 负责保存安全状态</strong></p>
+<p class="eyebrow">开放式网络安全工作台 · 实时安全对象模型 · 模块化安全工具</p>
+<p class="hero-hook">发现系统。<br><strong>在工作过程中持续构建模型</strong></p>
 <span class="status">早期 pre-alpha · Apache-2.0 Community core · v0.1.8</span>
 </div>
 
 <div class="hero-secondary">
-<p>面向渗透测试人员、安全工程师、研究人员和安全团队的开放式安全工作台。1337 将专业工具的输出转化为来源可追溯的证据 (attributable evidence) 和可持久保存的安全状态，用于可达性分析 (reachability analysis) 与攻击路径分析 (attack-path analysis)。</p>
+<p>面向实践型安全工作的快速、本地优先工作台。原生发现先建立初始模型；内置与可插拔工具随后用证据、发现项、关系、可达性和攻击路径持续丰富同一状态。</p>
 <blockquote class="hero-quote"><strong>模型负责推理。1337 保存状态、管控执行并保存证据</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
@@ -37,75 +37,78 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 </section>
 
 <section class="content-section">
-<h2>扫描只是开始</h2>
+<h2>一个实时模型，而不是一堆孤立输出</h2>
 <div class="grid problem-grid">
 <section class="card">
-<span class="card-label">工具孤岛</span>
-<h3>扫描器输出不等于安全状态</h3>
-<p>Nmap 知道开放端口，Nuclei 知道模板命中结果，浏览器知道当前会话，报告只是某一时刻的快照。最终仍需要操作人员把这些碎片关联起来。</p>
+<span class="card-label">原生发现</span>
+<h3>无需先安装大型外部工具即可开始建模</h3>
+<p>1337 先发现基础目标、主机、服务、端点、技术与关系，再随着更多传感器接入不断扩展模型。</p>
 </section>
 
 <section class="card">
-<span class="card-label">AI 需要持久上下文</span>
-<h3>推理不是持久化记忆</h3>
-<p>AI 模型可以分析一次安全评估，但聊天会话并不是资产模型、授权边界、证据存储，也不是攻击图。</p>
+<span class="card-label">共享状态</span>
+<h3>所有传感器丰富同一个模型</h3>
+<p>Nmap、Nuclei、浏览器、Kali 工具包、导入工件与厂商集成都贡献可追溯观察，而不是形成彼此割裂的结果孤岛。</p>
 </section>
 
 <section class="card">
-<span class="card-label">风险优先级</span>
-<h3>严重性等级并不能告诉你攻击路径</h3>
-<p>一个高严重性发现项并不能说明攻击者是否能够到达关键资产、多个暴露面如何串成链路，也不能说明哪项安全控制措施能够切断这条链。</p>
+<span class="card-label">实时 Workbench</span>
+<h3>长时间任务不会阻塞操作人员</h3>
+<p>左侧执行命令，右侧按当前 lens 增量更新相关模型切片：对象、证据、发现项、路径或时间线。</p>
 </section>
 </div>
 </section>
 
 <section class="content-section">
-<h2>从工具输出到安全状态</h2>
+<h2>从发现到持久的 Security Object Model</h2>
 <div class="workbench-grid">
 <div class="flow-panel" aria-label="1337 证据流">
-<pre><code>工具 / 扫描器
+<pre><code>原生发现
       ↓
-     证据
+安全对象
+      ↑
+工具 / 传感器
       ↓
-安全对象 (Security Objects)
+观察 + 证据
       ↓
-发现项 (Findings)
+发现项 + 关系
       ↓
-    可达性
-      ↓
-   攻击路径
-      ↓
-  下一步决策</code></pre>
+可达性 / 攻击路径</code></pre>
 </div>
 
 <div class="workbench-copy">
-<p class="section-hook"><strong>1337 不替代你的工具箱，而是在其周围提供统一的状态与证据层</strong></p>
-<p>专业工具继续做它们最擅长的事情。1337 的目标是把这些结果保存为来源可追溯的证据，与持久化的安全对象关联起来，并让同一份安全状态能够被人员、自动化流程和未来的 AI 智能体重复使用。</p>
-<p class="workbench-note">1337 的价值从传统工具通常停止的地方开始：工具已经产生输出，但证据、可达性、安全上下文和下一步决策还没有被连接起来。</p>
+<p class="section-hook"><strong>原生发现建立模型，专业工具继续丰富它</strong></p>
+<p>工具能力是一等公民：原生能力、熟悉的外部 CLI、浏览器、负载引擎、厂商扫描器和未来集成都向同一个 workspace 提供数据。</p>
+<p class="workbench-note">Core 保持本地优先与 agentless-first。大型扫描器、Kali 工具包、浏览器、搜索索引和厂商连接器按需启用。</p>
 </div>
 </div>
 </section>
 
 <section class="content-section">
-<h2>一个核心，多种工作流</h2>
+<h2>一个模型，四个初始 lenses</h2>
 <div class="grid">
 <section class="card">
-<span class="card-label">安全从业者</span>
-<h3>渗透测试人员与安全工程师</h3>
-<p>把工具输出、证据、授权测试范围 (scope) 和调查上下文保存在同一个工作空间中，不必再从终端历史和零散笔记里重新拼出关键攻击路径。</p>
+<span class="card-label">Pentest</span>
+<h3>攻击面与下一步可达路径</h3>
+<p>聚焦侦察、发现项、凭据、横向移动、可达性、攻击路径与受控验证，同时保留对熟悉工具的直接访问。</p>
 </section>
 
 <section class="card">
-<span class="card-label">AI 与自动化</span>
-<h3>AI 智能体开发者</h3>
-<p>把组织信任的 AI 模型连接到同一套结构化安全状态和类型化能力。授权范围、执行策略和证据由 1337 管控，不交由模型自行决定，因此更换模型时无需重新设计整个工作流。</p>
-<p class="card-hook">使用你信任的模型。1337 提供安全工作台</p>
+<span class="card-label">DFIR</span>
+<h3>证据与实际攻击者路径</h3>
+<p>聚焦来源追踪、实体、IOC、时间线、置信度与基于证据的事件重建，不建立独立的取证真相库。</p>
 </section>
 
 <section class="card">
-<span class="card-label">安全运营</span>
-<h3>安全团队</h3>
-<p>持续关联发现项、身份、安全控制措施和资产，让团队把注意力放在真正可达的风险、攻击路径，以及最能降低暴露面的修复措施上。</p>
+<span class="card-label">DevSecOps</span>
+<h3>从代码到制品再到运行时</h3>
+<p>聚焦源码、依赖、SBOM、镜像、部署、API、运行时关系、发现项以及确定性的安全门禁。</p>
+</section>
+
+<section class="card">
+<span class="card-label">Purple Team</span>
+<h3>动作、检测、控制与复测</h3>
+<p>使用同一状态连接授权的 offensive 动作、telemetry、detections、防护控制与验证前后的变化。</p>
 </section>
 </div>
 </section>
@@ -113,14 +116,14 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <section class="content-section">
 <h2>核心架构</h2>
 <div class="architecture-grid">
-<section class="architecture-card"><h3>安全对象模型 (Security Object Model)</h3><p>面向资产、服务、端点、身份、安全控制措施、证据、发现项、可达性和攻击路径的共享模型。</p></section>
-<section class="architecture-card"><h3>能力层 (Capability Fabric)</h3><p>以类型化方式调用安全能力，使工作流不必绑定到某一个扫描器、工具或 AI 提供商。</p></section>
-<section class="architecture-card"><h3>授权范围与策略 (Scope &amp; Policy)</h3><p>显式定义授权范围、目标、影响级别和执行约束，这些边界独立于模型自身的判断。</p></section>
-<section class="architecture-card"><h3>受控执行运行时 (Executor Runtime)</h3><p>在受控环境中运行工具和原生能力，而不是默认向智能体提供不受限制的 shell 访问。</p></section>
-<section class="architecture-card"><h3>证据与来源可追溯性 (Evidence &amp; Provenance)</h3><p>重要结论始终可以追溯到来源、授权范围、时间、工具、执行器以及相关支撑材料。</p></section>
-<section class="architecture-card"><h3>可达性与攻击图 (Reachability &amp; Attack Graph)</h3><p>把暴露面、身份关系和安全控制措施关联为通往关键资产与关键结果的攻击路径。</p></section>
+<section class="architecture-card"><h3>Security Object Model</h3><p>面向目标、资产、服务、端点、身份、证据、发现项、关系、可达性与路径的持久核心。</p></section>
+<section class="architecture-card"><h3>Native Discovery</h3><p>无需强制安装外部扫描器或集成，即可先建立初始 black-box 模型。</p></section>
+<section class="architecture-card"><h3>模块化工具</h3><p>原生引擎与可替换外部 providers 提供能力，不强制绑定单一扫描器或发行版。</p></section>
+<section class="architecture-card"><h3>Evidence &amp; Provenance</h3><p>观察与结论始终可追溯到来源、scope、时间、工具、executor 与支撑工件。</p></section>
+<section class="architecture-card"><h3>Scope &amp; Policy</h3><p>授权范围与 impact 约束负责管控动作，但它们不是产品本身。</p></section>
+<section class="architecture-card"><h3>Lenses &amp; Interfaces</h3><p>TUI、Web、API、SDK、MCP、CI 与 AI 通过不同工作视图使用同一状态。</p></section>
 </div>
-<p class="invariant"><strong>模型可以替换，安全状态必须持续保留</strong></p>
+<p class="invariant"><strong>一个 Security Object Model · 多个 lenses · 任意合适工具</strong></p>
 </section>
 
 <section class="content-section">
@@ -177,12 +180,12 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <span class="card-label">v0.1.8 之后的路线图</span>
 <h3>规划中的产品能力</h3>
 <ul>
-<li>交互式 shell 与 workspace UX</li>
-<li>生产级扫描器适配器</li>
-<li>发现项与可达性工作流</li>
-<li>攻击图 UX</li>
-<li>AI 智能体接口</li>
-<li>企业级能力</li>
+<li>实时 split-pane terminal workbench</li>
+<li>native discovery 与最小 Security Object Model</li>
+<li>模块化 scanner/tool providers 与 Quick Scan</li>
+<li>Pentest / DFIR / DevSecOps / Purple lenses</li>
+<li>evidence、reachability 与 attack-path workflows</li>
+<li>API/SDK/MCP 与 vendor integrations</li>
 </ul>
 </section>
 </div>
@@ -195,7 +198,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">架构愿景</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">AI 智能体架构</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0008-ai-native-cyber-execution-platform.md">AI-native platform</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">Live Workbench architecture</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/SECURITY.md">安全策略</a>
 </div>
 </section>
