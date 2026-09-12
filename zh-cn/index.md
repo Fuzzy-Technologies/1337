@@ -26,7 +26,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 </div>
 
 <div class="hero-secondary">
-<p>1337 是一套快速、本地优先的安全工作台，面向渗透测试、安全调查和工程化安全分析。内置扫描与发现能力先建立目标系统的初始模型，随后由内置工具和外部工具持续补充观察结果、证据、发现项、关联关系、网络可达性和攻击路径。</p>
+<p>1337 是一套快速、本地优先的安全工作台，面向渗透测试、安全调查和安全工程分析。内置扫描与发现能力先建立目标系统的初始模型，随后由内置工具和外部工具持续补充观察结果、证据、发现项、关联关系、网络可达性和攻击路径。</p>
 <blockquote class="hero-quote"><strong>模型负责推理；1337 负责保存状态、约束执行并留存证据</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
@@ -172,7 +172,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <li>项目仓库自带的隔离测试环境</li>
 <li>基于 pytest 的功能测试基础</li>
 <li>公开、版本化的接口契约和架构文档</li>
-<li>跨平台的确定性质量检查</li>
+<li>可重复的跨平台质量检查</li>
 </ul>
 </section>
 
