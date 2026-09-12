@@ -9,33 +9,54 @@
 
 ## Context
 
-The differentiated value of 1337 depends on understanding attack surface and
-reachability, not only detecting isolated web vulnerabilities. The platform must
-also remain useful without a particular AI provider while allowing future agents
-to reason from reliable security data.
+The differentiated value of 1337 depends on understanding an evolving system model,
+attack surface, evidence, and reachability rather than only detecting isolated web
+vulnerabilities.
+
+The workstation also needs useful first-party discovery before optional third-party
+tools are installed.
 
 ## Decision
 
-1337Scope is the future native attack-surface intelligence engine. Its direction
-includes asset, web, and API discovery; technology and endpoint modelling;
-evidence collection; security checks; and attack-surface and attack-path graphs.
-Its purpose is to model what an attacker can see and reach, not to become only a
-web-vulnerability scanner.
+1337Scope is the native discovery and attack-surface direction of the Workbench.
 
-The shared security knowledge layer is model-agnostic. Human interfaces, automation,
-and future AI agents consume structured evidence, findings, asset models, attack
-paths, and remediation context through explicit contracts.
+A minimal native discovery baseline should appear early enough to create and update
+the first Security Objects for an authorized target. Advanced Web/API/browser and
+reachability capabilities may arrive in later milestones.
+
+Native discovery creates the initial model. Other tools do not create parallel truth
+stores; they contribute attributable observations and evidence that enrich or
+challenge existing objects and relations.
+
+The broader direction includes:
+
+- asset, host, domain, service, technology, web, and API discovery;
+- endpoint and relationship modelling;
+- evidence collection;
+- safe security checks;
+- authenticated/browser discovery;
+- attack-surface and reachability modelling;
+- attack-path graphs.
+
+The shared security knowledge layer is model-agnostic. Human interfaces,
+automation, integrations, and AI clients consume the same structured objects,
+observations, evidence, findings, relations, paths, and remediation context through
+explicit contracts.
 
 AI is not the source of truth for evidence, scope, authorization, or security
-actions. It may assist reasoning and workflow only after the deterministic data
-and policy boundaries are established.
+actions.
 
 ## Consequences
 
-Future Scope, graph, scanner, report, and agent work must preserve evidence
-provenance and use the shared domain model rather than inventing isolated data
-stores. No AI integration may receive implicit authorization to scan, validate,
-or act on a target.
+- Quick Scan must produce/update Security Objects rather than only collect scanner
+  output.
+- Tool adapters act as sensors/capability providers and preserve source provenance.
+- Scanner, graph, report, lens, and agent work reuse the shared domain model.
+- No AI integration receives implicit authorization to scan, validate, or act.
+- Native discovery remains useful without Kali, a commercial scanner, or an
+  external AI provider.
 
-This ADR records product direction only. It does not claim that 1337Scope, an
-attack graph, or an AI integration is implemented in the current release.
+This ADR records architecture direction, not a claim that 1337Scope or the live
+Security Object Model is already implemented.
+
+ADR 0010 further clarifies the Workbench-centered model and modular-tooling boundary.

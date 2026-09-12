@@ -2,7 +2,7 @@
 layout: default
 lang: en
 title: 1337 Security Workbench
-description: 1337 Security Workbench by Fuzzy Technologies — open security workstation and model-agnostic security execution, state, and evidence platform.
+description: 1337 Security Workbench by Fuzzy Technologies — open, local-first security workstation with a live Security Object Model and modular security tooling.
 ---
 
 <header class="site-header">
@@ -19,13 +19,13 @@ description: 1337 Security Workbench by Fuzzy Technologies — open security wor
 
 <section class="hero hero-grid">
 <div class="hero-primary">
-<p class="eyebrow">Open security workstation · Model-agnostic security execution, state, and evidence platform</p>
-<p class="hero-hook">Your tools find things.<br><strong>1337 keeps the security state</strong></p>
+<p class="eyebrow">Open security workstation · Live Security Object Model · Modular security tooling</p>
+<p class="hero-hook">Discover the system.<br><strong>Build the model while you work</strong></p>
 <span class="status">Early pre-alpha · Apache-2.0 Community core · v0.1.8</span>
 </div>
 
 <div class="hero-secondary">
-<p>An open security workspace for penetration testers, security engineers, researchers, and security teams. 1337 turns output from specialist tools into attributable evidence and durable security state for reachability and attack-path analysis.</p>
+<p>A fast, local-first workstation for hands-on security work. Native discovery builds the initial model; built-in and pluggable tools enrich the same state with evidence, findings, relations, reachability, and attack paths.</p>
 <blockquote class="hero-quote"><strong>Models reason. 1337 keeps state, governs execution, and preserves evidence</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
@@ -36,75 +36,78 @@ description: 1337 Security Workbench by Fuzzy Technologies — open security wor
 </section>
 
 <section class="content-section">
-<h2>Scanning is only the start</h2>
+<h2>One live model, not a pile of tool output</h2>
 <div class="grid problem-grid">
 <section class="card">
-<span class="card-label">Tool silos</span>
-<h3>Scanner output is not security state</h3>
-<p>Nmap knows ports. Nuclei knows template matches. A browser knows the current session. A report is a point-in-time snapshot. The operator still has to connect the pieces.</p>
+<span class="card-label">Native discovery</span>
+<h3>Start useful before optional tools are installed</h3>
+<p>1337 is designed to discover the first targets, hosts, services, endpoints, technologies, and relations itself, then extend that picture as more sensors become available.</p>
 </section>
 
 <section class="card">
-<span class="card-label">AI needs durable context</span>
-<h3>Reasoning is not memory</h3>
-<p>An AI model can analyze an assessment, but a chat session is not an asset model, an authorization boundary, an evidence store, or an attack graph.</p>
+<span class="card-label">Shared state</span>
+<h3>Every sensor enriches the same model</h3>
+<p>Nmap, Nuclei, browsers, Kali tool packs, imported artifacts, and vendor integrations contribute attributable observations instead of creating disconnected result silos.</p>
 </section>
 
 <section class="card">
-<span class="card-label">Prioritization</span>
-<h3>Severity does not show the path</h3>
-<p>A high-severity finding does not tell you whether an attacker can reach a critical asset, how exposures chain together, or which control breaks that chain.</p>
+<span class="card-label">Live workbench</span>
+<h3>Long jobs do not block the operator</h3>
+<p>Commands run on one side while the relevant model slice updates incrementally on the other: objects, evidence, findings, paths, or timeline according to the selected lens.</p>
 </section>
 </div>
 </section>
 
 <section class="content-section">
-<h2>From tool output to security state</h2>
+<h2>From discovery to a durable Security Object Model</h2>
 <div class="workbench-grid">
 <div class="flow-panel" aria-label="1337 evidence flow">
-<pre><code>Tool / Scanner
-      ↓
-   Evidence
+<pre><code>Native discovery
       ↓
 Security Objects
+      ↑
+ Tools / Sensors
       ↓
-   Findings
+Observations + Evidence
       ↓
- Reachability
+Findings + Relations
       ↓
- Attack Paths
-      ↓
- Next Decision</code></pre>
+Reachability / Paths</code></pre>
 </div>
 
 <div class="workbench-copy">
-<p class="section-hook"><strong>1337 does not replace your toolbox. It provides the state and evidence layer around it</strong></p>
-<p>Specialist tools keep doing what they do best. 1337 is designed to preserve their results as attributable evidence, connect them to durable security objects, and make that state reusable by people, automation, and future AI agents.</p>
-<p class="workbench-note">The value starts where a tool normally stops: after output exists, but before evidence, reachability, security context, and the next decision have been connected.</p>
+<p class="section-hook"><strong>Native discovery starts the model. Your tools make it richer</strong></p>
+<p>Tooling is first-class: native capabilities, familiar external CLIs, browsers, workload engines, vendor scanners, and future integrations all feed one durable workspace instead of competing databases.</p>
+<p class="workbench-note">Core operation stays local-first and agentless-first. Heavy scanners, Kali packs, browsers, search indexes, and vendor connectors are optional providers loaded when needed.</p>
 </div>
 </div>
 </section>
 
 <section class="content-section">
-<h2>One core, different workflows</h2>
+<h2>One model, four initial lenses</h2>
 <div class="grid">
 <section class="card">
-<span class="card-label">Security practitioners</span>
-<h3>Penetration testers &amp; security engineers</h3>
-<p>Keep tool output, evidence, scope, and investigation context together so meaningful attack paths do not have to be reconstructed from terminal history and notes.</p>
+<span class="card-label">Pentest</span>
+<h3>Attack surface and reachable next steps</h3>
+<p>Focus on discovery, findings, credentials, pivots, reachability, attack paths, and bounded validation while keeping direct access to familiar tools.</p>
 </section>
 
 <section class="card">
-<span class="card-label">AI &amp; automation</span>
-<h3>AI-agent builders</h3>
-<p>Connect the AI model your organization trusts to the same structured security state and typed capabilities. Scope, execution policy, and evidence stay outside model discretion, so the model can change without redesigning the workflow.</p>
-<p class="card-hook">Bring your model. 1337 brings the cyber workspace</p>
+<span class="card-label">DFIR</span>
+<h3>Evidence and observed attacker path</h3>
+<p>Focus on provenance, entities, IOCs, timelines, confidence, and evidence-backed reconstruction without creating a separate forensic truth store.</p>
 </section>
 
 <section class="card">
-<span class="card-label">Security operations</span>
-<h3>Security teams</h3>
-<p>Maintain context across findings, identities, controls, and assets so teams can focus on reachable risk, attack paths, and the remediation that reduces exposure the most.</p>
+<span class="card-label">DevSecOps</span>
+<h3>Code to artifact to runtime</h3>
+<p>Focus on source, dependencies, SBOMs, images, deployments, APIs, runtime relationships, findings, and deterministic security gates.</p>
+</section>
+
+<section class="card">
+<span class="card-label">Purple Team</span>
+<h3>Action, detection, control, retest</h3>
+<p>Use the same state to compare authorized offensive actions with telemetry, detections, defensive controls, and before/after validation.</p>
 </section>
 </div>
 </section>
@@ -112,14 +115,14 @@ Security Objects
 <section class="content-section">
 <h2>Core architecture</h2>
 <div class="architecture-grid">
-<section class="architecture-card"><h3>Security Object Model</h3><p>A shared model for assets, services, endpoints, identities, controls, evidence, findings, reachability, and attack paths.</p></section>
-<section class="architecture-card"><h3>Capability Fabric</h3><p>A typed layer for invoking security capabilities without binding a workflow to one scanner, tool, or AI provider.</p></section>
-<section class="architecture-card"><h3>Scope &amp; Policy</h3><p>Explicit authorization, target scope, impact, and execution constraints that stay outside model discretion.</p></section>
-<section class="architecture-card"><h3>Executor Runtime</h3><p>Controlled execution for tools and native capabilities instead of unrestricted shell access.</p></section>
-<section class="architecture-card"><h3>Evidence &amp; Provenance</h3><p>Material conclusions remain traceable to source, scope, time, tool, executor, and supporting artifacts.</p></section>
-<section class="architecture-card"><h3>Reachability &amp; Attack Graph</h3><p>Correlate exposures, identities, and controls into attack paths to critical assets and outcomes.</p></section>
+<section class="architecture-card"><h3>Security Object Model</h3><p>The durable center for targets, assets, services, endpoints, identities, evidence, findings, relations, reachability, and paths.</p></section>
+<section class="architecture-card"><h3>Native Discovery</h3><p>Build the initial black-box model before optional scanners and integrations are installed.</p></section>
+<section class="architecture-card"><h3>Modular Tooling</h3><p>Native engines and replaceable external providers expose capabilities without making one scanner or distribution mandatory.</p></section>
+<section class="architecture-card"><h3>Evidence &amp; Provenance</h3><p>Observations and conclusions stay traceable to source, scope, time, tool, executor, and supporting artifacts.</p></section>
+<section class="architecture-card"><h3>Scope &amp; Policy</h3><p>Authorization and impact constraints govern actions without becoming the product itself.</p></section>
+<section class="architecture-card"><h3>Lenses &amp; Interfaces</h3><p>TUI, Web, API, SDK, MCP, CI, and AI consume the same state through focused workflow views.</p></section>
 </div>
-<p class="invariant"><strong>The model is replaceable. The security state is not</strong></p>
+<p class="invariant"><strong>One Security Object Model · Multiple lenses · Any suitable tool</strong></p>
 </section>
 
 <section class="content-section">
@@ -176,12 +179,12 @@ Security Objects
 <span class="card-label">Roadmap after v0.1.8</span>
 <h3>Planned product capabilities</h3>
 <ul>
-<li>interactive shell and workspace UX</li>
-<li>production scanner adapters</li>
-<li>findings and reachability workflows</li>
-<li>attack graph UX</li>
-<li>AI-agent interfaces</li>
-<li>enterprise capabilities</li>
+<li>live split-pane terminal workbench</li>
+<li>native discovery and minimal Security Object Model</li>
+<li>modular scanner/tool providers and Quick Scan</li>
+<li>Pentest / DFIR / DevSecOps / Purple lenses</li>
+<li>evidence, reachability and attack-path workflows</li>
+<li>API/SDK/MCP and vendor integrations</li>
 </ul>
 </section>
 </div>
@@ -194,7 +197,7 @@ Security Objects
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">Architecture vision</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">AI-agent architecture</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0008-ai-native-cyber-execution-platform.md">AI-native platform</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">Live Workbench architecture</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/SECURITY.md">Security Policy</a>
 </div>
 </section>

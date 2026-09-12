@@ -6,38 +6,60 @@
 
 ## Context
 
-Red-team and security-engineering workflows need a fast native command-line
-experience that works well with Linux tooling, terminals, automation, and
-scripts. At the same time, blue-team and management users need readable views
-of assets, evidence, risk, remediation, and attack paths.
+Hands-on security workflows need a fast native command-line experience that works
+well with Linux tooling, terminals, automation, scripts, and direct expert use.
+At the same time, the Security Object Model, evidence, paths, and timelines need
+interactive views that are more useful than raw command output.
 
-A Web UI should not turn the product into a slow replacement for the technical
-workflow or hide the evidence needed by practitioners.
+A Web UI must not become a prerequisite for the technical workflow or hide the
+underlying evidence and commands.
 
 ## Decision
 
-The `1337` CLI and interactive shell are the primary technical interface. Future
-shell work should support command discovery, contextual help, autocomplete,
-aliases, and scriptable non-interactive commands.
+The `1337` CLI and interactive terminal workbench are the primary technical
+interface. The local Web UI is a complementary view over the same workspace and
+domain contracts.
 
-The local Web UI is a complementary view over the same workspace and evidence
-model. It does not replace the CLI.
+The terminal workbench direction is split-pane and keyboard-first:
 
-- Security practitioners use the CLI and detailed views to work with targets,
-  evidence, hypotheses, and technical findings.
-- Security teams use the UI to understand affected assets, attack paths, and
-  mitigation choices.
-- Management-facing views emphasize business context, priorities, remediation
-  progress, and decision-ready explanations.
+```text
+┌────────────────────────────┬────────────────────────────────────┐
+│ Actions / commands / tools │ Live Security Object Model slice   │
+│ contextual operations      │ selected lens / object / path      │
+│ palette / history / raw CLI│ evidence / findings / timeline     │
+└────────────────────────────┴────────────────────────────────────┘
+```
 
-Commands such as `1337 scan`, `1337 assets`, `1337 findings`, `1337 graph`, and
-`1337 report` illustrate the intended interaction model. Their syntax and
-availability remain future public contracts until the corresponding product work
-defines and tests them.
+The model pane is intentionally a focused slice rather than an attempt to render the
+entire graph in a terminal.
+
+The shell should support:
+
+- fast startup and interactive readiness;
+- fuzzy command discovery and contextual help;
+- command palette and history search;
+- raw expert CLI workflows where authorized;
+- object-aware contextual actions;
+- lens switching;
+- non-blocking job execution;
+- streaming progress, observations, evidence references, and model deltas.
+
+The local Web UI may later provide large analytical tables, larger graph views,
+semantic zoom, reports, and management-oriented presentation, but it consumes the
+same Security Object Model and evidence.
+
+Commands such as `1337 scan`, `1337 objects`, `1337 findings`, `1337 paths`,
+and `1337 report` remain illustrative until their product tasks define public
+contracts.
 
 ## Consequences
 
-CLI and Web UI features must consume compatible workspace, evidence, finding,
-and graph contracts rather than create separate interpretations of an assessment.
-No user interface may weaken authorization, scope, or impact controls; a friendly
-flow is not permission to assess an unapproved target.
+- TUI and Web views must not create competing security state.
+- Long-running work must not freeze the operator interface.
+- Performance budgets for startup, search, view changes, object lookup, and
+  incremental rendering are measured and regression-tested.
+- Friendly interfaces do not weaken scope, policy, impact, or authorization.
+- Large graph visualization remains a later analytical-UX concern; the terminal
+  only needs the relevant live slice.
+
+This ADR is clarified by ADR 0010.
