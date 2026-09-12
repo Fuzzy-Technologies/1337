@@ -99,5 +99,11 @@ COMMAND_REGISTRY = CommandRegistry(
             aliases=("--version",),
             capabilities=("core.version",),
         ),
+        CommandDescriptor(
+            identifier="shell",
+            summary="Start the interactive 1337 workbench shell.",
+            usage="1337 shell",
+            capabilities=("workbench.interactive",),
+        ),
     )
 )
