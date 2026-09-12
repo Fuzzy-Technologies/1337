@@ -1,8 +1,34 @@
 title: "1337 Security Workbench"
-description: "1337 Security Workbench by Fuzzy Technologies — open security workstation and model-agnostic runtime for AI security agents."
+description: "1337 Security Workbench by Fuzzy Technologies — open, local-first security workstation with a live Security Object Model and modular security tooling."
 url: "https://fuzzy-technologies.github.io"
 baseurl: "/1337"
 markdown: CommonMarkGhPages
 commonmark:
   options: ["UNSAFE", "SMART", "FOOTNOTES"]
   extensions: ["strikethrough", "autolink", "table", "tagfilter"]
+
+# GitHub Pages is a public presentation layer, not a mirror of the repository.
+# Keep this boundary explicit. tests/unit/test_pages_source.py verifies that every
+# tracked top-level path is either a site source or listed here.
+exclude:
+  - .dockerignore
+  - .github
+  - .gitignore
+  - AGENTS.md
+  - CHANGELOG.md
+  - CODE_OF_CONDUCT.md
+  - CONTRIBUTING.md
+  - DEVELOPMENT_PROTOCOL.md
+  - Dockerfile
+  - LICENSE
+  - README.md
+  - SECURITY.md
+  - compose.yaml
+  - contracts
+  - docs
+  - labs
+  - prompts
+  - pyproject.toml
+  - src
+  - tests
+  - uv.lock
