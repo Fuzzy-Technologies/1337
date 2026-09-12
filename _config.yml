@@ -1,5 +1,5 @@
 title: "1337 Security Workbench"
-description: "1337 Security Workbench by Fuzzy Technologies — open, local-first security workstation with a live Security Object Model and modular security tooling."
+description: "1337 Security Workbench by Fuzzy Technologies — an open, local-first security workbench for penetration testing, investigations, and engineering analysis, built around a live Security Object Model and modular tooling."
 url: "https://fuzzy-technologies.github.io"
 baseurl: "/1337"
 markdown: CommonMarkGhPages
