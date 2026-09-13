@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from io import StringIO
 
-from fuzzy1337.shell import InteractiveShell, WorkbenchUpdate, fuzzy_matches
+import pytest
+
+from fuzzy1337.shell import ContextualAction, InteractiveShell, WorkbenchUpdate, fuzzy_matches
 
 
 def test_fuzzy_matches_prioritize_compact_subsequences():
@@ -78,6 +80,63 @@ def test_shell_help_and_usage_errors_remain_compact():
     ]
 
 
+def test_shell_palette_searches_local_commands_and_cached_context_actions():
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    shell.set_context_actions(
+        "asset:demo",
+        (
+            ContextualAction("show-evidence", "Show evidence for this object."),
+            ContextualAction("show-paths", "Show paths from this object."),
+        ),
+    )
+
+    shell.onecmd("select asset:demo")
+    shell.onecmd("palette ct")
+    shell.onecmd("palette evidence")
+    shell.onecmd("palette missing")
+
+    assert output.getvalue().splitlines() == [
+        "Selected object: asset:demo",
+        "command: context",
+        "command: select",
+        "cli: shell",
+        "action: show-evidence — Show evidence for this object.",
+        "action: show-paths — Show paths from this object.",
+        "action: show-evidence — Show evidence for this object.",
+        "No palette matches.",
+    ]
+
+
+def test_shell_history_searches_in_reverse_order_without_recording_searches():
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+
+    shell.onecmd("lens purple")
+    shell.onecmd("select asset:demo")
+    shell.onecmd("context")
+    shell.onecmd("history select")
+    shell.onecmd("history missing")
+
+    assert output.getvalue().splitlines() == [
+        "Selected lens: purple",
+        "Selected object: asset:demo",
+        "Lens: purple",
+        "View: context",
+        "Selected object: asset:demo",
+        "Pending updates: 0",
+        "select asset:demo",
+        "No matching history entries.",
+    ]
+
+
+def test_context_action_cache_requires_an_object_identifier():
+    shell = InteractiveShell(stdin=StringIO(), stdout=StringIO())
+
+    with pytest.raises(ValueError, match="non-empty"):
+        shell.set_context_actions(" ", ())
+
+
 def test_shell_reports_commands_drains_updates_and_exits_cleanly():
     output = StringIO()
     shell = InteractiveShell(stdin=StringIO(), stdout=output)
@@ -91,7 +150,7 @@ def test_shell_reports_commands_drains_updates_and_exits_cleanly():
     assert shell.onecmd("EOF") is True
 
     assert output.getvalue().splitlines() == [
-        "Interactive commands: commands, context, help, lens, quit, select, updates, view",
+        "Interactive commands: commands, context, help, history, lens, palette, quit, select, updates, view",
         "CLI commands: help, version, shell",
         "[model] asset changed",
         "usage: quit",
