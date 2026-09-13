@@ -1,0 +1,49 @@
+name: Close merged tasks
+
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - closed
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  close-linked-tasks:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Close explicitly linked issues
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const body = context.payload.pull_request.body ?? "";
+            const pattern = /(?:^|\n)\s*(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gim;
+            const issueNumbers = new Set(
+              Array.from(body.matchAll(pattern), (match) => Number(match[1])),
+            );
+
+            for (const issue_number of issueNumbers) {
+              const { data: issue } = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+              });
+
+              if (issue.state !== "open" || issue.pull_request) {
+                core.info(`Skipping #${issue_number}: not an open issue.`);
+                continue;
+              }
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                state: "closed",
+                state_reason: "completed",
+              });
+              core.info(`Closed #${issue_number} after merge into develop.`);
+            }

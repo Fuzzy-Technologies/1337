@@ -100,6 +100,7 @@ Rules:
 - When work on one or more task issues actually begins, assign the project owner (`Tim55667757`) to those active task issues. If work is explicitly returned to the backlog before completion, remove the assignee.
 - Pull requests must reference the task(s) and feature(s) they implement and should use the milestone of the primary owning task/feature unless the PR is explicitly cross-milestone.
 - A pull request that fully completes a task may use `Closes #NN` or `Fixes #NN` in the PR body. Do not use closing keywords when the PR only partially advances the task.
+- After a human merge into `develop`, the `Close merged tasks` workflow closes only open repository issues named by an explicit, standalone `Closes #NN`, `Fixes #NN`, or `Resolves #NN` line in the merged PR body. `Refs #NN` and ordinary mentions never close work.
 - Ordinary intermediate commits reference their owning issue without closing it.
 - When a task implementation is ready for owner review, add a short plain-English issue comment describing what changed, what the change enables, and how it was actually verified. Keep it readable for a human; use a small Markdown table only when it improves clarity.
 - A task remains open while its completing PR is in review. Normal completion is PR merge → Task closed.
