@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from .scenarios import WEB_SAFE_HEALTH
+from .scenarios import WEB_MICRO_TARGET_CONTRACT, WEB_SAFE_HEALTH, FunctionalScenario
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,14 +34,14 @@ class ComposeLab:
         self._evidence_directory = evidence_directory
         self._command_index = 0
 
-    def start(self) -> None:
+    def start(self, scenario: FunctionalScenario) -> None:
         """Start the target and prove its health contract before exposing it to tests."""
         self._require_success(
-            self.compose("--profile", "lab", "up", "--build", "--wait", WEB_SAFE_HEALTH.target.compose_service),
+            self.compose("--profile", "lab", "up", "--build", "--wait", scenario.target.compose_service),
             "Synthetic lab startup",
         )
         health = self.execute(
-            WEB_SAFE_HEALTH.target.compose_service,
+            scenario.target.compose_service,
             "python",
             "-c",
             (
@@ -49,11 +49,12 @@ class ComposeLab:
                 "response = urlopen('http://127.0.0.1:8080/health', timeout=1); "
                 "print(json.dumps(json.load(response), sort_keys=True))"
             ),
-            timeout_seconds=WEB_SAFE_HEALTH.timeout_seconds,
+            timeout_seconds=scenario.timeout_seconds,
         )
         self._require_success(health, "Synthetic lab health check")
 
-        if json.loads(health.stdout) != {"status": "ok", "target": "web-safe"}:
+        expected_payload = {"status": "ok", "target": scenario.target.identifier}
+        if json.loads(health.stdout) != expected_payload:
             raise RuntimeError("Synthetic lab health check returned an unexpected payload")
 
     def stop(self) -> CommandResult:
@@ -121,13 +122,24 @@ class ComposeLab:
 @pytest.fixture(scope="session")
 def functional_lab() -> Iterator[ComposeLab]:
     """Provide the health-checked lab and guarantee cleanup after the test session."""
+    yield from _start_functional_lab(WEB_SAFE_HEALTH)
+
+
+@pytest.fixture(scope="session")
+def micro_target_lab() -> Iterator[ComposeLab]:
+    """Provide the health-checked known-answer target and guarantee cleanup."""
+    yield from _start_functional_lab(WEB_MICRO_TARGET_CONTRACT)
+
+
+def _start_functional_lab(scenario: FunctionalScenario) -> Iterator[ComposeLab]:
+    """Start one declared target through the shared fixture-owned lifecycle."""
     if not _docker_compose_available():
         pytest.skip("Docker Compose is required for repository functional tests")
 
     repository_root = Path(__file__).resolve().parents[2]
     lab = ComposeLab(repository_root, repository_root / "functional-evidence")
     try:
-        lab.start()
+        lab.start(scenario)
     except RuntimeError as error:
         lab.stop()
         pytest.fail(str(error))

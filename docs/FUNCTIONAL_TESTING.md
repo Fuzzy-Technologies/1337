@@ -30,9 +30,15 @@ Each scenario is declared in `tests/functional/scenarios.py`. It records:
 - expected observations and findings;
 - timeout.
 
-The first scenario, `web-safe.health`, proves the harness against the safe M0
-target. It is not a scanner-accuracy claim. Future target packs and scanner
-scenarios must extend the same contract with explicit known-answer oracles.
+`web-safe.health` proves the harness against the safe M0 target. It is not a
+scanner-accuracy claim. `web-micro.contract` is the first known-answer pack:
+its routes and simulation markers are explicit inputs for future TP/FP/FN/TN
+metrics. Its canaries never execute commands, access files, make outbound
+requests, or persist uploads.
+
+Target-backed tests own a shared Compose lifecycle and are marked `serial`.
+They execute after the independent pytest worker pool rather than competing for
+containers, ports, or generated functional evidence.
 
 ## Lifecycle and evidence
 
