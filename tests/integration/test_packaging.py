@@ -41,6 +41,8 @@ def test_sdist_wheel_and_clean_installation(tmp_path):
         members = archive.namelist()
         assert "fuzzy1337/cli.py" in members
         assert "fuzzy1337/adapters/contracts.py" in members
+        assert "fuzzy1337/executors/contracts.py" in members
+        assert "fuzzy1337/executors/local.py" in members
         assert all(name.startswith(("fuzzy1337/", "1337-")) for name in members)
         assert not any(name.endswith(".pyc") for name in members)
 
@@ -79,6 +81,16 @@ def test_sdist_wheel_and_clean_installation(tmp_path):
             "-c",
             "from fuzzy1337.adapters import ADAPTER_CONTRACT_VERSION; "
             "print(ADAPTER_CONTRACT_VERSION)",
+        ],
+        tmp_path,
+    ).strip() == "1"
+    assert invoke(
+        [
+            str(executable),
+            "-I",
+            "-c",
+            "from fuzzy1337.executors import EXECUTOR_CONTRACT_VERSION; "
+            "print(EXECUTOR_CONTRACT_VERSION)",
         ],
         tmp_path,
     ).strip() == "1"
