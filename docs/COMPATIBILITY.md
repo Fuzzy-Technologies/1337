@@ -36,6 +36,10 @@ The following areas are the intended extension boundaries as they are introduced
 
 The M0 repository does **not** freeze a Python import namespace before packaging is implemented. Future packaging work may choose the concrete import/package names, but once a symbol is declared Stable it must follow this compatibility policy.
 
+`fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
+0014 declares it Experimental at contract version `1`; other import paths remain
+internal unless this document explicitly states otherwise.
+
 ## Version compatibility rules
 
 ### Repository releases
@@ -145,8 +149,9 @@ Changes to a Stable contract require:
 
 Current versioned public contracts:
 
-| Contract family       | Schema version | Location                                           | Status |
-| --------------------- | -------------- | -------------------------------------------------- | ------ |
-| Extension manifest    | `1`            | `contracts/extension-manifest.schema.json`         | Stable |
+| Contract family       | Schema version | Location                                           | Status       |
+| --------------------- | -------------- | -------------------------------------------------- | ------------ |
+| Extension manifest    | `1`            | `contracts/extension-manifest.schema.json`         | Stable       |
+| ToolAdapter SDK       | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`      | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
