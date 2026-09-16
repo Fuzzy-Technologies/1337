@@ -1,9 +1,9 @@
 name: Apply parallel test planning metadata
 
 on:
-  push:
-    branches:
-      - chore/set-parallel-test-metadata
+  pull_request:
+    types: [opened]
+    branches: [develop]
 
 permissions:
   issues: write
