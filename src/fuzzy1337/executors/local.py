@@ -37,6 +37,12 @@ _READ_SIZE = 64 * 1024
 EventCallback = Callable[[ExecutionEvent], object]
 
 
+def _kill_process_group(process_id: int, termination_signal: int) -> None:
+    """Call the POSIX-only process-group primitive behind a platform guard."""
+    killpg = cast(Callable[[int, int], None], getattr(os, "killpg"))
+    killpg(process_id, termination_signal)
+
+
 class LocalExecutionError(RuntimeError):
     """Fail-closed validation or process-launch error from the local executor."""
 
@@ -265,7 +271,7 @@ class LocalExecutor:
             return
         try:
             if os.name == "posix":
-                os.killpg(process.pid, signal.SIGTERM)
+                _kill_process_group(process.pid, signal.SIGTERM)
             else:
                 process.terminate()
         except ProcessLookupError:
@@ -279,7 +285,10 @@ class LocalExecutor:
 
         try:
             if os.name == "posix":
-                os.killpg(process.pid, signal.SIGKILL)
+                _kill_process_group(
+                    process.pid,
+                    cast(int, getattr(signal, "SIGKILL")),
+                )
             else:
                 process.kill()
         except ProcessLookupError:
