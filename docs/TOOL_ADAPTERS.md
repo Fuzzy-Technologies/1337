@@ -16,9 +16,9 @@ execute, persist, or directly mutate security state.
 
 The SDK keeps these concerns separate:
 
-| Stage                 | Contract                                                    | Owner later in the Workbench              |
+| Stage                 | Contract                                                    | Owner later in the Workbench               |
 | --------------------- | ----------------------------------------------------------- | ------------------------------------------ |
-| Provider declaration  | `AdapterDescriptor`                                        | adapter registry and capability selection  |
+| Provider declaration  | `AdapterDescriptor`                                         | adapter registry and capability selection  |
 | Health observation    | `AdapterHealth`                                             | executor/runtime health policy             |
 | Approved request      | `AdapterRequest`                                            | Scope and Policy                           |
 | Prepared invocation   | `AdapterInvocation`                                         | governed Executor                          |
