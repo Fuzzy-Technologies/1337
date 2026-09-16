@@ -36,6 +36,7 @@ def test_no_arguments_describe_bootstrap(capsys):
     assert "1337 help" in output.out
     assert "1337 --version" in output.out
     assert "1337 shell" in output.out
+    assert "1337 doctor" in output.out
     assert not output.err
 
 
@@ -51,6 +52,17 @@ def test_explicit_shell_command_starts_the_interactive_workbench(monkeypatch):
     monkeypatch.setattr(cli, "run_interactive_shell", lambda: 0)
 
     assert main(["shell"]) == 0
+
+
+def test_doctor_command_runs_the_diagnostic_entrypoint(monkeypatch, capsys):
+    def run_doctor(output):
+        output.write("doctor output\n")
+        return 0
+
+    monkeypatch.setattr(cli, "run_doctor", run_doctor)
+
+    assert main(["doctor"]) == 0
+    assert capsys.readouterr().out == "doctor output\n"
 
 
 @pytest.mark.parametrize(

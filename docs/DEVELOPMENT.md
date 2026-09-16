@@ -10,6 +10,7 @@ Run these commands from the repository root:
 python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 --version
+uv run --locked 1337 doctor
 uv run --locked 1337-dev unit
 uv run --locked 1337-dev check
 ```
@@ -24,8 +25,9 @@ environment. It invokes `uv sync --locked --extra dev` with `shell=False` and
 fails if the pinned `uv` executable is unavailable. The initial one-time
 prerequisite is installing `uv==0.11.33` as shown above.
 
-The current `1337` entry point provides help and installed-version output. The
-interactive shell and scanner workflows belong to subsequent product work.
+The current `1337` entry point provides help, installed-version output, the
+interactive shell foundation, and local diagnostics. Scanner workflows belong
+to subsequent product work.
 
 | Command                              | Behavior                                                                   |
 |--------------------------------------|----------------------------------------------------------------------------|
@@ -33,6 +35,7 @@ interactive shell and scanner workflows belong to subsequent product work.
 | `uv run --locked 1337-dev lint`      | Non-mutating Ruff checks                                                   |
 | `uv run --locked 1337-dev typecheck` | Strict mypy checks for production Python                                   |
 | `uv run --locked 1337-dev compile`   | Compile source and tests                                                   |
+| `uv run --locked 1337 doctor`        | Inspect the local runtime, package, workspace permissions, and optional lab support |
 | `uv run --locked 1337-dev unit`      | Process-isolated unit tests plus mandatory per-module coverage validation  |
 | `uv run --locked 1337-dev test`      | All test layers in process-isolated workers plus mandatory coverage validation |
 | `uv run --locked 1337-dev build`     | Build sdist and wheel using locked build tools                             |
@@ -74,6 +77,12 @@ uv run --locked 1337-dev unit --serial
 `--timeout` sets the per-test timeout and bounds each pytest worker process. The
 terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`, `timeout`,
 and `duration`. Any failure, timeout, or process-start error produces a non-zero exit.
+
+`1337 doctor` is non-mutating. It checks the Python runtime, installed package,
+current-directory read/write access, and optional Docker Compose support. Missing
+optional Compose support is reported as `WARN`; a missing required runtime or
+package returns a non-zero exit. Workspace configuration is reported as an
+explicit future boundary until its M1 model is implemented.
 
 Tests are organized by subsystem in `tests/unit`, `tests/contract`, and
 `tests/integration`; `tests/functional` retains the future synthetic-target

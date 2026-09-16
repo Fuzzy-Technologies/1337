@@ -87,6 +87,12 @@ def _normalize_name(name: str) -> str:
 COMMAND_REGISTRY = CommandRegistry(
     (
         CommandDescriptor(
+            identifier="doctor",
+            summary="Diagnose the local 1337 runtime and optional lab prerequisites.",
+            usage="1337 doctor",
+            capabilities=("core.diagnostics",),
+        ),
+        CommandDescriptor(
             identifier="help",
             summary="Show the currently available 1337 commands.",
             usage="1337 help",

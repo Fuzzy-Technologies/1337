@@ -100,6 +100,7 @@ def test_shell_palette_searches_local_commands_and_cached_context_actions():
         "Selected object: asset:demo",
         "command: context",
         "command: select",
+        "cli: doctor",
         "cli: shell",
         "action: show-evidence — Show evidence for this object.",
         "action: show-paths — Show paths from this object.",
@@ -151,7 +152,7 @@ def test_shell_reports_commands_drains_updates_and_exits_cleanly():
 
     assert output.getvalue().splitlines() == [
         "Interactive commands: commands, context, help, history, lens, palette, quit, select, updates, view",
-        "CLI commands: help, version, shell",
+        "CLI commands: doctor, help, version, shell",
         "[model] asset changed",
         "usage: quit",
         "",

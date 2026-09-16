@@ -113,6 +113,7 @@ Use Python 3.11+ from the repository root:
 python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 --version
+uv run --locked 1337 doctor
 uv run --locked 1337-dev unit
 uv run --locked 1337-dev check
 ```
