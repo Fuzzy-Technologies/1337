@@ -53,7 +53,7 @@ jobs:
 
           SetType "I_kwDOUQhAas8AAAABRkt0Cg" "$feature_type" >/dev/null
           SetType "I_kwDOUQhAas8AAAABRkt8ow" "$task_type" >/dev/null
-          SetType "I_kwDOUQhAas8AAAABRkt83w" "$task_type" >/dev/null
+          SetType "I_kwDOUQhAas8AAAABRkt9fw" "$task_type" >/dev/null
           SetType "I_kwDOUQhAas8AAAABRkt-RA" "$task_type" >/dev/null
 
           for child_id in 5474319523 5474319743 5474319940; do
