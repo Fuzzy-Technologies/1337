@@ -2,7 +2,7 @@ name: Apply parallel test planning metadata
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     branches: [develop]
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          Api() {
+          Rest() {
             curl --fail-with-body --silent --show-error \
               --request "$1" \
               --header "Accept: application/vnd.github+json" \
@@ -31,23 +31,42 @@ jobs:
               "$2" "${@:3}"
           }
 
-          Api PATCH "https://api.github.com/repos/$GH_REPO/issues/183" --data '{"type":"Feature"}' >/dev/null
+          Graphql() {
+            curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer $GH_TOKEN" \
+              --header "Content-Type: application/json" \
+              --data "$1" \
+              https://api.github.com/graphql
+          }
 
-          for issue in 184 185 186; do
-            Api PATCH "https://api.github.com/repos/$GH_REPO/issues/$issue" --data '{"type":"Task"}' >/dev/null
-          done
+          type_query='query { organization(login: "Fuzzy-Technologies") { issueTypes(first: 20) { nodes { id name } } } }'
+          types="$(Graphql "$(jq -nc --arg query "$type_query" '{query: $query}')")"
+          feature_type="$(jq -er '.data.organization.issueTypes.nodes[] | select(.name == "Feature") | .id' <<<"$types")"
+          task_type="$(jq -er '.data.organization.issueTypes.nodes[] | select(.name == "Task") | .id' <<<"$types")"
+
+          mutation='mutation($id: ID!, $issueTypeId: ID) { updateIssue(input: {id: $id, issueTypeId: $issueTypeId}) { issue { number issueType { name } } } }'
+          SetType() {
+            Graphql "$(jq -nc --arg query "$mutation" --arg id "$1" --arg issue_type "$2" \
+              '{query: $query, variables: {id: $id, issueTypeId: $issue_type}}')" |
+              jq -e '.data.updateIssue.issue.issueType.name'
+          }
+
+          SetType "I_kwDOUQhAas8AAAABRkt0Cg" "$feature_type" >/dev/null
+          SetType "I_kwDOUQhAas8AAAABRkt8ow" "$task_type" >/dev/null
+          SetType "I_kwDOUQhAas8AAAABRkt83w" "$task_type" >/dev/null
+          SetType "I_kwDOUQhAas8AAAABRkt-RA" "$task_type" >/dev/null
 
           for child_id in 5474319523 5474319743 5474319940; do
-            Api POST "https://api.github.com/repos/$GH_REPO/issues/183/sub_issues" \
+            Rest POST "https://api.github.com/repos/$GH_REPO/issues/183/sub_issues" \
               --data "{\"sub_issue_id\":$child_id,\"replace_parent\":true}" >/dev/null
           done
 
           for issue in 183 184 185 186; do
-            Api POST "https://api.github.com/repos/$GH_REPO/issues/$issue/issue-field-values" \
+            Rest POST "https://api.github.com/repos/$GH_REPO/issues/$issue/issue-field-values" \
               --data '{"issue_field_values":[{"field_id":22639629,"value":"High"},{"field_id":22639632,"value":"Medium"}]}' >/dev/null
           done
 
           for issue in 183 184 185 186; do
-            Api GET "https://api.github.com/repos/$GH_REPO/issues/$issue" |
-              jq -e '{number, type: .type.name, milestone: .milestone.number, assignees: [.assignees[].login], labels: [.labels[].name], parent_issue_url}'
+            Rest GET "https://api.github.com/repos/$GH_REPO/issues/$issue" |
+              jq -e '{number, type: .type.name, milestone: .milestone.number, assignees: [.assignees[].login], labels: [.labels[].name], parent_issue_url, issue_field_values}'
           done
