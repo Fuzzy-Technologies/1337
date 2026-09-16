@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from unittest.mock import Mock
 
@@ -92,7 +93,7 @@ def test_local_executor_streams_and_preserves_complete_process_output(tmp_path):
     assert result.execution.state is ExecutionState.SUCCEEDED
     assert result.execution.exit_code == 0
     assert json.loads(result.stdout) == {"cwd": "job-1", "mode": "fixture"}
-    assert result.stderr == b"warning\n"
+    assert result.stderr == f"warning{os.linesep}".encode()
     assert result.termination is ExecutionTermination.PROCESS_EXIT
     assert observed == list(result.events)
     assert tuple(event.sequence for event in result.events) == tuple(range(len(result.events)))
