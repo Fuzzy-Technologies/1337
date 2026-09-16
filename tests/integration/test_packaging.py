@@ -40,6 +40,7 @@ def test_sdist_wheel_and_clean_installation(tmp_path):
     with zipfile.ZipFile(wheels[0]) as archive:
         members = archive.namelist()
         assert "fuzzy1337/cli.py" in members
+        assert "fuzzy1337/adapters/contracts.py" in members
         assert all(name.startswith(("fuzzy1337/", "1337-")) for name in members)
         assert not any(name.endswith(".pyc") for name in members)
 
@@ -71,6 +72,16 @@ def test_sdist_wheel_and_clean_installation(tmp_path):
         [str(scripts / f"1337-dev{suffix}"), "--help"],
         tmp_path,
     )
+    assert invoke(
+        [
+            str(executable),
+            "-I",
+            "-c",
+            "from fuzzy1337.adapters import ADAPTER_CONTRACT_VERSION; "
+            "print(ADAPTER_CONTRACT_VERSION)",
+        ],
+        tmp_path,
+    ).strip() == "1"
     location = invoke(
         [
             str(executable),
