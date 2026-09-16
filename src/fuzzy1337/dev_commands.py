@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from fuzzy1337.test_runner import TestOptions, run_tests
+
 Executable = Literal["python", "uv"]
 
 
@@ -48,8 +50,8 @@ COMMANDS: dict[str, tuple[CommandStep, ...]] = {
     "compile": (python_step("-m", "compileall", "-q", "src", "tests"),),
     "lint": (python_step("-m", "ruff", "check", "."),),
     "typecheck": (python_step("-m", "mypy"),),
-    "unit": (python_step("-m", "pytest", "tests/unit"), _coverage_gate),
-    "test": (python_step("-m", "pytest", "tests"), _coverage_gate),
+    "unit": (_coverage_gate,),
+    "test": (_coverage_gate,),
     "build": (python_step("-m", "build", "--no-isolation"),),
 }
 COMMANDS["check"] = (
@@ -63,10 +65,24 @@ COMMANDS["check"] = (
 
 def describe_commands() -> dict[str, str]:
     """Describe execution steps without exposing mutable registry state."""
-    return {
+    descriptions = {
         name: " then ".join(step.display() for step in steps)
         for name, steps in COMMANDS.items()
     }
+    descriptions["unit"] = (
+        "python -m pytest tests/unit -n auto --dist=loadscope then "
+        "python -m pytest tests/unit -m serial -n 0 then "
+        "python -m fuzzy1337.coverage_gate coverage/coverage.json src/fuzzy1337"
+    )
+    descriptions["test"] = (
+        "python -m pytest tests -n auto --dist=loadscope then "
+        "python -m pytest tests -m serial -n 0 then "
+        "python -m fuzzy1337.coverage_gate coverage/coverage.json src/fuzzy1337"
+    )
+    descriptions["check"] = " then ".join(
+        (descriptions["compile"], descriptions["lint"], descriptions["typecheck"], descriptions["test"], descriptions["build"])
+    )
+    return descriptions
 
 
 def _resolve_step(step: CommandStep) -> list[str] | None:
@@ -85,7 +101,7 @@ def _resolve_step(step: CommandStep) -> list[str] | None:
     return [executable, *step.arguments]
 
 
-def run(command: str) -> int:
+def run(command: str, test_options: TestOptions | None = None) -> int:
     """Run one gate from the repository root and stop at the first failure."""
     if command not in COMMANDS:
         raise ValueError(f"Unknown developer command: {command}")
@@ -94,9 +110,23 @@ def run(command: str) -> int:
         print("Run developer commands from the 1337 repository root.", file=sys.stderr)
         return 2
 
+    if command == "check":
+        for nested_command in ("compile", "lint", "typecheck", "test", "build"):
+            nested_result = run(nested_command, test_options)
+            if nested_result:
+                return nested_result
+        return 0
+
+    if command in {"unit", "test"}:
+        Path("coverage/coverage.json").unlink(missing_ok=True)
+        test_result = run_tests(
+            "tests/unit" if command == "unit" else "tests",
+            test_options or TestOptions(),
+        )
+        if test_result:
+            return 128 - test_result if test_result < 0 else test_result
+
     for step in COMMANDS[command]:
-        if step.executable == "python" and step.arguments[:2] == ("-m", "pytest"):
-            Path("coverage/coverage.json").unlink(missing_ok=True)
 
         print(f"Running: {step.display()}", flush=True)
         arguments = _resolve_step(step)
@@ -131,7 +161,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="1337 repository quality gates",
     )
     parser.add_argument("command", choices=COMMANDS)
-    return run(parser.parse_args(argv).command)
+    parser.add_argument("--jobs", default="auto", metavar="auto|N")
+    parser.add_argument("--timeout", default=120, type=int, metavar="N")
+    parser.add_argument("--serial", action="store_true")
+    parser.add_argument("--fail-fast", action="store_true")
+    arguments = parser.parse_args(argv)
+    test_options = TestOptions(
+        jobs=arguments.jobs,
+        timeout_seconds=arguments.timeout,
+        serial_only=arguments.serial,
+        fail_fast=arguments.fail_fast,
+    )
+    if arguments.command not in {"unit", "test"} and test_options != TestOptions():
+        parser.error("test execution options are only valid with 'unit' or 'test'")
+    return run(arguments.command, test_options)
 
 
 if __name__ == "__main__":
