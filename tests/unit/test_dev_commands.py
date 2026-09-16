@@ -38,13 +38,13 @@ def test_check_runs_all_quality_steps_and_removes_stale_report(repository, monke
     report.write_text("stale", encoding="utf-8")
     calls = []
 
+    test_process = Mock(return_value=0)
+    monkeypatch.setattr(dev_commands, "run_tests", test_process)
+
     def process(arguments, **kwargs):
         calls.append(arguments)
         assert arguments[0] == sys.executable
         assert kwargs == {"shell": False, "timeout": 300, "check": False}
-        if arguments[1:3] == ["-m", "pytest"]:
-            assert not report.exists()
-
         return subprocess.CompletedProcess(arguments, 0)
 
     monkeypatch.setattr(subprocess, "run", process)
@@ -53,11 +53,11 @@ def test_check_runs_all_quality_steps_and_removes_stale_report(repository, monke
         "compileall",
         "ruff",
         "mypy",
-        "pytest",
         "fuzzy1337.coverage_gate",
         "build",
     ]
-    assert calls[3][3:] == ["tests"]
+    test_process.assert_called_once()
+    assert not report.exists()
 
 
 def test_unit_runs_only_the_unit_suite_and_coverage_gate(repository, monkeypatch):
@@ -69,10 +69,11 @@ def test_unit_runs_only_the_unit_suite_and_coverage_gate(repository, monkeypatch
         return subprocess.CompletedProcess(arguments, 0)
 
     monkeypatch.setattr(subprocess, "run", process)
+    test_process = Mock(return_value=0)
+    monkeypatch.setattr(dev_commands, "run_tests", test_process)
 
     assert dev_commands.run("unit") == 0
     assert calls == [
-        [sys.executable, "-m", "pytest", "tests/unit"],
         [
             sys.executable,
             "-m",
@@ -81,6 +82,7 @@ def test_unit_runs_only_the_unit_suite_and_coverage_gate(repository, monkeypatch
             "src/fuzzy1337",
         ],
     ]
+    test_process.assert_called_once()
 
 
 def test_setup_uses_locked_uv(repository, monkeypatch):
@@ -119,26 +121,20 @@ def test_child_failure_stops_the_gate(repository, monkeypatch, returncode, expec
     assert process.call_count == 1
 
 
-@pytest.mark.parametrize(
-    "error, code",
-    [
-        (FileNotFoundError(2, "Executable missing"), 127),
-        (subprocess.TimeoutExpired("python", 300), 124),
-    ],
-)
-def test_process_start_and_timeout_fail_closed(repository, monkeypatch, error, code, capsys):
-    process = Mock(side_effect=error)
+@pytest.mark.parametrize("code", [1, 124, 127])
+def test_test_runner_failure_stops_the_gate(repository, monkeypatch, code):
+    process = Mock()
     monkeypatch.setattr(subprocess, "run", process)
+    monkeypatch.setattr(dev_commands, "run_tests", Mock(return_value=code))
     assert dev_commands.run("test") == code
-    assert capsys.readouterr().err
-    assert process.call_count == 1
+    process.assert_not_called()
 
 
 def test_developer_entrypoint_propagates_result(monkeypatch):
     process = Mock(return_value=42)
     monkeypatch.setattr(dev_commands, "run", process)
     assert dev_commands.main(["test"]) == 42
-    process.assert_called_once_with("test")
+    process.assert_called_once_with("test", dev_commands.TestOptions())
 
 
 def test_unapproved_formatter_is_not_a_command():
