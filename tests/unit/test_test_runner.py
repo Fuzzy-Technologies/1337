@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+
 import pytest
 
 from fuzzy1337 import test_runner
@@ -110,3 +112,44 @@ def test_serial_only_never_starts_the_parallel_pool(monkeypatch):
     assert test_runner.run_tests("tests/unit", test_runner.TestOptions(serial_only=True)) == 0
     assert len(calls) == 1
     assert "serial" in calls[0]
+
+
+def test_serial_collection_disables_coverage_without_disabling_its_plugin(monkeypatch):
+    calls = []
+
+    def run(arguments, **kwargs):
+        calls.append((arguments, kwargs))
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr(test_runner.subprocess, "run", run)
+
+    assert test_runner._has_serial_tests("tests")
+    arguments, kwargs = calls[0]
+    assert arguments == [
+        test_runner.sys.executable,
+        "-m",
+        "pytest",
+        "tests",
+        "-m",
+        "serial",
+        "--collect-only",
+        "-q",
+        "--no-cov",
+    ]
+    assert kwargs == {
+        "check": False,
+        "shell": False,
+        "timeout": 300,
+        "capture_output": True,
+        "text": True,
+    }
+
+
+def test_serial_collection_reports_no_tests_without_treating_it_as_an_error(monkeypatch):
+    monkeypatch.setattr(
+        test_runner.subprocess,
+        "run",
+        lambda arguments, **kwargs: subprocess.CompletedProcess(arguments, 5),
+    )
+
+    assert not test_runner._has_serial_tests("tests")
