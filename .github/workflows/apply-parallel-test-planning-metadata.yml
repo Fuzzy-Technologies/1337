@@ -1,0 +1,53 @@
+name: Apply parallel test planning metadata
+
+on:
+  push:
+    branches:
+      - chore/set-parallel-test-metadata
+
+permissions:
+  issues: write
+
+jobs:
+  apply:
+    name: Apply and verify native issue metadata
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Apply native types, fields and hierarchy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          Api() {
+            curl --fail-with-body --silent --show-error \
+              --request "$1" \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer $GH_TOKEN" \
+              --header "X-GitHub-Api-Version: 2026-03-10" \
+              --header "Content-Type: application/json" \
+              "$2" "${@:3}"
+          }
+
+          Api PATCH "https://api.github.com/repos/$GH_REPO/issues/183" --data '{"type":"Feature"}' >/dev/null
+
+          for issue in 184 185 186; do
+            Api PATCH "https://api.github.com/repos/$GH_REPO/issues/$issue" --data '{"type":"Task"}' >/dev/null
+          done
+
+          for child_id in 5474319523 5474319743 5474319940; do
+            Api POST "https://api.github.com/repos/$GH_REPO/issues/183/sub_issues" \
+              --data "{\"sub_issue_id\":$child_id,\"replace_parent\":true}" >/dev/null
+          done
+
+          for issue in 183 184 185 186; do
+            Api POST "https://api.github.com/repos/$GH_REPO/issues/$issue/issue-field-values" \
+              --data '{"issue_field_values":[{"field_id":22639629,"value":"High"},{"field_id":22639632,"value":"Medium"}]}' >/dev/null
+          done
+
+          for issue in 183 184 185 186; do
+            Api GET "https://api.github.com/repos/$GH_REPO/issues/$issue" |
+              jq -e '{number, type: .type.name, milestone: .milestone.number, assignees: [.assignees[].login], labels: [.labels[].name], parent_issue_url}'
+          done
