@@ -25,6 +25,8 @@ dev = [
     "mypy==2.3.1",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
+    "pytest-timeout==2.4.0",
+    "pytest-xdist==3.8.0",
     "ruff==0.16.6",
 ]
 
@@ -48,8 +50,11 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit"]
-addopts = "--strict-config --strict-markers --cov=fuzzy1337 --cov-branch --cov-report=term-missing --cov-report=json:coverage/coverage.json --junitxml=coverage/tests.xml"
-markers = ["integration: real package build and installation boundaries"]
+addopts = "--strict-config --strict-markers --cov=fuzzy1337 --cov-branch --cov-report=term-missing --cov-report=json:coverage/coverage.json"
+markers = [
+    "integration: real package build and installation boundaries",
+    "serial: test owns a shared resource and must run outside xdist workers",
+]
 
 [tool.ruff]
 line-length = 100
