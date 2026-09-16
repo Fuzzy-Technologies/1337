@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from . import conftest
 from .conftest import ComposeLab
 from .scenarios import WEB_SAFE_HEALTH
+
+pytestmark = pytest.mark.serial
 
 
 def test_web_safe_scenario_declares_a_complete_contract():
