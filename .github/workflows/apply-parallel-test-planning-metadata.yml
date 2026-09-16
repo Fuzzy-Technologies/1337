@@ -39,10 +39,8 @@ jobs:
               https://api.github.com/graphql
           }
 
-          type_query='query { organization(login: "Fuzzy-Technologies") { issueTypes(first: 20) { nodes { id name } } } }'
-          types="$(Graphql "$(jq -nc --arg query "$type_query" '{query: $query}')")"
-          feature_type="$(jq -er '.data.organization.issueTypes.nodes[] | select(.name == "Feature") | .id' <<<"$types")"
-          task_type="$(jq -er '.data.organization.issueTypes.nodes[] | select(.name == "Task") | .id' <<<"$types")"
+          feature_type="IT_kwDOBnf6xM4BCER_"
+          task_type="IT_kwDOBnf6xM4BCER6"
 
           mutation='mutation($id: ID!, $issueTypeId: ID) { updateIssue(input: {id: $id, issueTypeId: $issueTypeId}) { issue { number issueType { name } } } }'
           SetType() {
