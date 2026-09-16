@@ -33,8 +33,8 @@ interactive shell and scanner workflows belong to subsequent product work.
 | `uv run --locked 1337-dev lint`      | Non-mutating Ruff checks                                                   |
 | `uv run --locked 1337-dev typecheck` | Strict mypy checks for production Python                                   |
 | `uv run --locked 1337-dev compile`   | Compile source and tests                                                   |
-| `uv run --locked 1337-dev unit`      | Unit tests plus mandatory per-module branch/statement coverage validation  |
-| `uv run --locked 1337-dev test`      | All test layers plus mandatory per-module coverage validation              |
+| `uv run --locked 1337-dev unit`      | Process-isolated unit tests plus mandatory per-module coverage validation  |
+| `uv run --locked 1337-dev test`      | All test layers in process-isolated workers plus mandatory coverage validation |
 | `uv run --locked 1337-dev build`     | Build sdist and wheel using locked build tools                             |
 | `uv run --locked 1337-dev check`     | Compile, lint, typecheck, test/coverage, then build; stop on first failure |
 
@@ -56,6 +56,24 @@ and undocumented exclusions fail the gate. Every executable production module mu
 exceed 80% combined statement/branch coverage. Exactly 80% fails. There are no
 production exclusions. Source modules not imported by the tests still belong to the
 required source inventory.
+
+`1337-dev unit` and `1337-dev test` use `pytest-xdist` process workers by default.
+Automatic scheduling uses `--dist=loadscope` and caps workers at
+`min(os.cpu_count(), 12)`. Tests that own a shared resource must use the explicit
+`@pytest.mark.serial` marker; the runner executes them separately with `-n 0` after
+the parallel pool. No automatic retry is configured or permitted.
+
+The runner accepts these controlled diagnostics:
+
+```bash
+uv run --locked 1337-dev unit --jobs auto --timeout 120
+uv run --locked 1337-dev unit --jobs 4 --fail-fast
+uv run --locked 1337-dev unit --serial
+```
+
+`--timeout` sets the per-test timeout and bounds each pytest worker process. The
+terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`, `timeout`,
+and `duration`. Any failure, timeout, or process-start error produces a non-zero exit.
 
 Tests are organized by subsystem in `tests/unit`, `tests/contract`, and
 `tests/integration`; `tests/functional` retains the future synthetic-target
