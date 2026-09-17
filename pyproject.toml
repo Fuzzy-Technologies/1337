@@ -18,7 +18,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    "build==1.6.0",
+    "build==1.6.1",
     "coverage==7.16.0",
     "hatchling==1.32.0",
     "jsonschema==4.26.0",
