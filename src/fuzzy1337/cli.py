@@ -9,6 +9,7 @@ from importlib.metadata import version
 
 from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
 from fuzzy1337.dev_commands import describe_commands
+from fuzzy1337.doctor import run_doctor
 from fuzzy1337.shell import run_interactive_shell
 
 
@@ -40,11 +41,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=f"1337 {version('1337')}")
-    parser.add_argument("command", choices=("help", "shell"), nargs="?", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "command",
+        choices=("doctor", "help", "shell"),
+        nargs="?",
+        help=argparse.SUPPRESS,
+    )
     arguments = parser.parse_args(argv)
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):
         return run_interactive_shell()
+
+    if arguments.command == "doctor":
+        return run_doctor(sys.stdout)
 
     parser.print_help()
     return 0
