@@ -7,7 +7,7 @@ import json
 import pytest
 
 from .conftest import ComposeLab
-from .scenarios import WEBMICROTARGETCONTRACT
+from .scenarios import WEB_MICRO_TARGET_CONTRACT
 
 pytestmark = pytest.mark.serial
 
@@ -15,18 +15,18 @@ pytestmark = pytest.mark.serial
 def test_WebMicroScenarioDeclaresKnownAnswerContract():
     """Keep every target route and bounded simulation explicit for later metrics."""
 
-    scenario = WEBMICROTARGETCONTRACT
+    scenario = WEB_MICRO_TARGET_CONTRACT
 
     assert scenario.target.provenance == "first-party:labs/targets/web-micro", (
         "web micro scenario declares known answer contract invariant failed."
     )
-    assert scenario.requiredCapabilities == ("docker.compose", "http.get", "http.post"), (
+    assert scenario.required_capabilities == ("docker.compose", "http.get", "http.post"), (
         "web micro scenario declares known answer contract invariant failed."
     )
-    assert scenario.expectedObservations, (
+    assert scenario.expected_observations, (
         "web micro scenario declares known answer contract invariant failed."
     )
-    assert scenario.expectedFindings == (
+    assert scenario.expected_findings == (
         "simulated.command-execution",
         "simulated.file-inclusion",
         "simulated.ssrf",
@@ -34,7 +34,7 @@ def test_WebMicroScenarioDeclaresKnownAnswerContract():
     ), "web micro scenario declares known answer contract invariant failed."
 
 
-def test_WebMicroTargetExposesDeterministicSafeObservations(microTargetLab: ComposeLab):
+def test_WebMicroTargetExposesDeterministicSafeObservations(micro_target_lab: ComposeLab):
     """Exercise discovery, inputs, statuses, and simulation markers through HTTP only."""
 
     script = """
@@ -102,12 +102,12 @@ for status_code in (400, 401, 403, 404, 500):
 
 print(json.dumps(result, sort_keys=True))
 """
-    result = microTargetLab.Execute(
-        WEBMICROTARGETCONTRACT.target.composeService,
+    result = micro_target_lab.Execute(
+        WEB_MICRO_TARGET_CONTRACT.target.compose_service,
         "python",
         "-c",
         script,
-        timeoutSeconds=WEBMICROTARGETCONTRACT.timeoutSeconds,
+        timeout_seconds=WEB_MICRO_TARGET_CONTRACT.timeout_seconds,
     )
 
     assert result.returncode == 0, result.stderr
@@ -130,7 +130,7 @@ print(json.dumps(result, sort_keys=True))
         "cookie": "lab_session=deterministic; HttpOnly; SameSite=Strict",
         "status": 200,
     }, "web micro target exposes deterministic safe observations invariant failed."
-    assert "action=\"/submit\"" in observations["form"]["body"], (
+    assert 'action="/submit"' in observations["form"]["body"], (
         "web micro target exposes deterministic safe observations invariant failed."
     )
     assert observations["query"] == {"body": {"item": "demo"}, "status": 200}, (
@@ -164,6 +164,6 @@ print(json.dumps(result, sort_keys=True))
         "status": 200,
     }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["statuses"] == {
-        str(statusCode): {"body": {"status": statusCode}, "status": statusCode}
-        for statusCode in (400, 401, 403, 404, 500)
+        str(status_code): {"body": {"status": status_code}, "status": status_code}
+        for status_code in (400, 401, 403, 404, 500)
     }, "web micro target exposes deterministic safe observations invariant failed."

@@ -8,7 +8,7 @@ from collections.abc import Mapping
 import pytest
 
 from fuzzy1337.adapters import (
-    ADAPTERCONTRACTVERSION,
+    ADAPTER_CONTRACT_VERSION,
     AdapterDescriptor,
     AdapterExecution,
     AdapterHealth,
@@ -33,12 +33,12 @@ def Descriptor() -> AdapterDescriptor:
     """Provide deterministic test support for descriptor."""
 
     return AdapterDescriptor(
-        adapterId="scanner.example",
-        displayName="Example Scanner",
+        adapter_id="scanner.example",
+        display_name="Example Scanner",
         version="1.2.3",
         capabilities=("network.port_scan", "service.enumerate"),
-        maximumImpact=ImpactLevel.SAFE,
-        requiredPrivileges=("network.raw-socket",),
+        maximum_impact=ImpactLevel.SAFE,
+        required_privileges=("network.raw-socket",),
     )
 
 
@@ -47,10 +47,10 @@ def Request() -> AdapterRequest:
 
     return AdapterRequest(
         capability="network.port_scan",
-        targetReference="target:synthetic-lab",
+        target_reference="target:synthetic-lab",
         impact=ImpactLevel.SAFE,
         parameters={"ports": [443, 80], "options": {"fast": True}},
-        credentialReferences=("credential:lab-readonly",),
+        credential_references=("credential:lab-readonly",),
     )
 
 
@@ -58,11 +58,11 @@ def Invocation() -> AdapterInvocation:
     """Provide deterministic test support for invocation."""
 
     return AdapterInvocation(
-        adapterId="scanner.example",
+        adapter_id="scanner.example",
         request=Request(),
         argv=("example-scanner", "--target", "target:synthetic-lab"),
-        timeoutSeconds=30,
-        providerVersion="7.4",
+        timeout_seconds=30,
+        provider_version="7.4",
     )
 
 
@@ -73,8 +73,8 @@ def Evidence() -> EvidenceReference:
         role="stdout",
         locator="runs/0001/example.json",
         sha256="a" * 64,
-        mediaType="application/json",
-        sizeBytes=42,
+        media_type="application/json",
+        size_bytes=42,
     )
 
 
@@ -91,9 +91,9 @@ class ExampleAdapter:
         """Provide deterministic test support for check health."""
 
         return AdapterHealth(
-            adapterId="scanner.example",
+            adapter_id="scanner.example",
             state=AdapterHealthState.AVAILABLE,
-            providerVersion="7.4",
+            provider_version="7.4",
         )
 
     def PrepareInvocation(self, request: AdapterRequest) -> AdapterInvocation:
@@ -115,7 +115,7 @@ def test_ContractVersionAndProtocolSurfaceAreExplicit():
 
     adapter = ExampleAdapter()
 
-    assert ADAPTERCONTRACTVERSION == 1, (
+    assert ADAPTER_CONTRACT_VERSION == 1, (
         "contract version and protocol surface are explicit invariant failed."
     )
     assert isinstance(adapter, ToolAdapter), (
@@ -138,13 +138,13 @@ def test_RequestMetadataIsRecursivelyImmutableAndSerializedDeterministically():
     request = Request()
 
     assert isinstance(request.parameters, Mapping), (
-        "request metadata immutability invariant failed."
+        "request parameters must expose an immutable mapping."
     )
     assert request.parameters["ports"] == (443, 80), (
-        "request metadata immutability invariant failed."
+        "request port metadata must preserve immutable ordering."
     )
     assert request.parameters["options"] == {"fast": True}, (
-        "request metadata immutability invariant failed."
+        "nested request options must remain immutable."
     )
     with pytest.raises(TypeError):
         request.parameters["new"] = "value"  # type: ignore[index]
@@ -155,18 +155,16 @@ def test_RequestMetadataIsRecursivelyImmutableAndSerializedDeterministically():
     second = SerializeContract(
         AdapterRequest(
             capability="network.port_scan",
-            targetReference="target:synthetic-lab",
+            target_reference="target:synthetic-lab",
             impact=ImpactLevel.SAFE,
             parameters={"options": {"fast": True}, "ports": [443, 80]},
-            credentialReferences=("credential:lab-readonly",),
+            credential_references=("credential:lab-readonly",),
         )
     )
 
-    assert first == second, (
-        "request metadata immutability invariant failed."
-    )
+    assert first == second, "equivalent requests must serialize identically."
     assert json.loads(first)["parameters"] == {"options": {"fast": True}, "ports": [443, 80]}, (
-        "request metadata immutability invariant failed."
+        "serialized request parameters must preserve JSON values."
     )
 
 
@@ -175,38 +173,38 @@ def test_RequestMetadataIsRecursivelyImmutableAndSerializedDeterministically():
     [
         (
             lambda: AdapterDescriptor(
-                adapterId="scanner.example",
-                displayName="Example",
+                adapter_id="scanner.example",
+                display_name="Example",
                 version="1",
                 capabilities=("network.port_scan", "network.port_scan"),
-                maximumImpact=ImpactLevel.SAFE,
+                maximum_impact=ImpactLevel.SAFE,
             ),
             "unique",
         ),
         (
             lambda: AdapterDescriptor(
-                adapterId="scanner.example",
-                displayName="Example",
+                adapter_id="scanner.example",
+                display_name="Example",
                 version="1",
                 capabilities=(),
-                maximumImpact=ImpactLevel.SAFE,
+                maximum_impact=ImpactLevel.SAFE,
             ),
             "capabilities",
         ),
         (
             lambda: AdapterRequest(
                 capability="Network.Scan",
-                targetReference="target:lab",
+                target_reference="target:lab",
                 impact=ImpactLevel.SAFE,
             ),
             "identifier",
         ),
         (
             lambda: AdapterInvocation(
-                adapterId="scanner.example",
+                adapter_id="scanner.example",
                 request=Request(),
                 argv=("example-scanner",),
-                timeoutSeconds=0,
+                timeout_seconds=0,
             ),
             "timeout",
         ),
@@ -215,8 +213,8 @@ def test_RequestMetadataIsRecursivelyImmutableAndSerializedDeterministically():
                 role="stdout",
                 locator="../unsafe.json",
                 sha256="a" * 64,
-                mediaType="application/json",
-                sizeBytes=1,
+                media_type="application/json",
+                size_bytes=1,
             ),
             "relative",
         ),
@@ -230,19 +228,19 @@ def test_InvalidContractInputsFailClosed(factory, message):
 
 
 @pytest.mark.parametrize(
-    ("state", "exitCode", "message"),
+    ("state", "exit_code", "message"),
     [
         (ExecutionState.SUCCEEDED, 1, "successful"),
         (ExecutionState.FAILED, 0, "failed"),
-        (ExecutionState.TIMEDOUT, 0, "timed-out"),
+        (ExecutionState.TIMED_OUT, 0, "timed-out"),
         (ExecutionState.CANCELLED, 0, "cancelled"),
     ],
 )
-def test_ExecutionStateValidationPreservesFailureTruth(state, exitCode, message):
+def test_ExecutionStateValidationPreservesFailureTruth(state, exit_code, message):
     """Verify execution state validation preserves failure truth."""
 
     with pytest.raises(ValueError, match=message):
-        AdapterExecution(state=state, exitCode=exitCode, durationSeconds=0.1)
+        AdapterExecution(state=state, exit_code=exit_code, duration_seconds=0.1)
 
 
 def test_NormalizedResultKeepsEvidenceDistinctFromGenericEnrichment():
@@ -252,8 +250,8 @@ def test_NormalizedResultKeepsEvidenceDistinctFromGenericEnrichment():
         invocation=Invocation(),
         execution=AdapterExecution(
             state=ExecutionState.SUCCEEDED,
-            exitCode=0,
-            durationSeconds=0.125,
+            exit_code=0,
+            duration_seconds=0.125,
         ),
         evidence=(Evidence(),),
     )
@@ -262,29 +260,29 @@ def test_NormalizedResultKeepsEvidenceDistinctFromGenericEnrichment():
         observations=(
             NormalizedObservation(
                 kind="network.port",
-                subjectReference="service:443",
+                subject_reference="service:443",
                 attributes={"protocol": "tcp"},
             ),
         ),
         findings=(
             NormalizedFinding(
                 kind="service.exposed",
-                subjectReference="service:443",
+                subject_reference="service:443",
                 summary="Synthetic service is reachable.",
             ),
         ),
-        objectEnrichments=(
+        object_enrichments=(
             ObjectEnrichment(
-                objectKind="service",
-                objectReference="service:443",
+                object_kind="service",
+                object_reference="service:443",
                 attributes={"name": "https"},
             ),
         ),
-        relationEnrichments=(
+        relation_enrichments=(
             RelationEnrichment(
-                relationKind="endpoint.exposes-service",
-                sourceReference="endpoint:https://example.test",
-                targetReference="service:443",
+                relation_kind="endpoint.exposes-service",
+                source_reference="endpoint:https://example.test",
+                target_reference="service:443",
             ),
         ),
     )
@@ -300,9 +298,9 @@ def test_NormalizedResultKeepsEvidenceDistinctFromGenericEnrichment():
     assert payload["findings"][0]["kind"] == "service.exposed", (
         "normalized result keeps evidence distinct from generic enrichment invariant failed."
     )
-    assert payload["objectEnrichments"][0]["objectKind"] == "service", (
+    assert payload["object_enrichments"][0]["object_kind"] == "service", (
         "normalized result keeps evidence distinct from generic enrichment invariant failed."
     )
-    assert payload["relationEnrichments"][0]["relationKind"] == "endpoint.exposes-service", (
+    assert payload["relation_enrichments"][0]["relation_kind"] == "endpoint.exposes-service", (
         "normalized result keeps evidence distinct from generic enrichment invariant failed."
     )

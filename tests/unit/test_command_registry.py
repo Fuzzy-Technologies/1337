@@ -2,7 +2,7 @@
 
 import pytest
 
-from fuzzy1337.command_registry import COMMANDREGISTRY, CommandDescriptor, CommandRegistry
+from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandDescriptor, CommandRegistry
 
 
 def test_RegistryResolvesCanonicalNamesAndAliases():
@@ -96,13 +96,13 @@ def test_RegistryCompletesAndSearchesDescriptors():
 def test_CoreRegistryDescribesOnlyCurrentlyAvailableCommands():
     """Verify core registry describes only currently available commands."""
 
-    identifiers = [descriptor.identifier for descriptor in COMMANDREGISTRY.Commands]
+    identifiers = [descriptor.identifier for descriptor in COMMAND_REGISTRY.Commands]
     assert identifiers == ["help", "version", "shell"], (
         "core registry describes only currently available commands invariant failed."
     )
-    assert COMMANDREGISTRY.Resolve("--version") is COMMANDREGISTRY.Commands[1], (
+    assert COMMAND_REGISTRY.Resolve("--version") is COMMAND_REGISTRY.Commands[1], (
         "core registry describes only currently available commands invariant failed."
     )
-    assert COMMANDREGISTRY.Resolve("shell") is COMMANDREGISTRY.Commands[2], (
+    assert COMMAND_REGISTRY.Resolve("shell") is COMMAND_REGISTRY.Commands[2], (
         "core registry describes only currently available commands invariant failed."
     )

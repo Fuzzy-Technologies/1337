@@ -33,34 +33,34 @@ def Request(
     tmp_path,
     script: str,
     *,
-    timeoutSeconds: int = 5,
+    timeout_seconds: int = 5,
     workspace: str = ".",
     environment: dict[str, str] | None = None,
     resources: ExecutionResources | None = None,
 ) -> LocalExecutionRequest:
-    """Build an authorized local execution request for one Python script."""
+    """Provide deterministic test support for request."""
 
     invocation = AdapterInvocation(
-        adapterId="native.python-fixture",
+        adapter_id="native.python-fixture",
         request=AdapterRequest(
             capability="test.local-process",
-            targetReference="target:localhost-fixture",
+            target_reference="target:localhost-fixture",
             impact=ImpactLevel.PASSIVE,
         ),
         argv=(sys.executable, "-c", script),
-        timeoutSeconds=timeoutSeconds,
-        providerVersion=f"{sys.version_info.major}.{sys.version_info.minor}",
+        timeout_seconds=timeout_seconds,
+        provider_version=f"{sys.version_info.major}.{sys.version_info.minor}",
     )
     capability = CapabilityDescriptor(
         identifier="test.local-process",
-        adapterId="native.python-fixture",
-        maximumImpact=ImpactLevel.PASSIVE,
+        adapter_id="native.python-fixture",
+        maximum_impact=ImpactLevel.PASSIVE,
     )
     authorization = ExecutionAuthorization(
-        authorizationId="authorization:local-test",
-        scopeReference="scope:localhost-fixture",
-        policyReference="policy:test-only",
-        invocationSha256=InvocationDigest(invocation),
+        authorization_id="authorization:local-test",
+        scope_reference="scope:localhost-fixture",
+        policy_reference="policy:test-only",
+        invocation_sha256=InvocationDigest(invocation),
     )
     return LocalExecutionRequest(
         invocation=invocation,
@@ -73,7 +73,7 @@ def Request(
 
 
 def test_LocalExecutorStreamsAndPreservesCompleteProcessOutput(tmp_path):
-    """Stream events while preserving complete bounded process output."""
+    """Verify local executor streams and preserves complete process output."""
 
     workspace = tmp_path / "runs" / "job-1"
     workspace.mkdir(parents=True)
@@ -90,14 +90,12 @@ def test_LocalExecutorStreamsAndPreservesCompleteProcessOutput(tmp_path):
     )
     observed = []
 
-    result = asyncio.run(
-        LocalExecutor(tmp_path).Execute(request, onEvent=observed.append)
-    )
+    result = asyncio.run(LocalExecutor(tmp_path).Execute(request, on_event=observed.append))
 
     assert result.execution.state is ExecutionState.SUCCEEDED, (
         "local executor streams and preserves complete process output invariant failed."
     )
-    assert result.execution.exitCode == 0, (
+    assert result.execution.exit_code == 0, (
         "local executor streams and preserves complete process output invariant failed."
     )
     assert json.loads(result.stdout) == {"cwd": "job-1", "mode": "fixture"}, (
@@ -106,7 +104,7 @@ def test_LocalExecutorStreamsAndPreservesCompleteProcessOutput(tmp_path):
     assert result.stderr == f"warning{os.linesep}".encode(), (
         "local executor streams and preserves complete process output invariant failed."
     )
-    assert result.termination is ExecutionTermination.PROCESSEXIT, (
+    assert result.termination is ExecutionTermination.PROCESS_EXIT, (
         "local executor streams and preserves complete process output invariant failed."
     )
     assert observed == list(result.events), (
@@ -128,46 +126,44 @@ def test_LocalExecutorStreamsAndPreservesCompleteProcessOutput(tmp_path):
 
 
 def test_NonzeroExitIsNeverReportedAsSuccess(tmp_path):
-    """Never report a nonzero child exit as successful execution."""
+    """Verify nonzero exit is never reported as success."""
 
-    result = asyncio.run(
-        LocalExecutor(tmp_path).Execute(Request(tmp_path, "raise SystemExit(7)"))
-    )
+    result = asyncio.run(LocalExecutor(tmp_path).Execute(Request(tmp_path, "raise SystemExit(7)")))
 
     assert result.execution.state is ExecutionState.FAILED, (
         "nonzero exit is never reported as success invariant failed."
     )
-    assert result.execution.exitCode == 7, (
+    assert result.execution.exit_code == 7, (
         "nonzero exit is never reported as success invariant failed."
     )
-    assert result.termination is ExecutionTermination.PROCESSEXIT, (
+    assert result.termination is ExecutionTermination.PROCESS_EXIT, (
         "nonzero exit is never reported as success invariant failed."
     )
 
 
 def test_TimeoutTerminatesTheOwnedProcess(tmp_path):
-    """Terminate an owned child when its request timeout expires."""
+    """Verify timeout terminates the owned process."""
 
     result = asyncio.run(
         LocalExecutor(tmp_path).Execute(
-            Request(tmp_path, "import time; time.sleep(30)", timeoutSeconds=1)
+            Request(tmp_path, "import time; time.sleep(30)", timeout_seconds=1)
         )
     )
 
-    assert result.execution.state is ExecutionState.TIMEDOUT, (
+    assert result.execution.state is ExecutionState.TIMED_OUT, (
         "timeout terminates the owned process invariant failed."
     )
-    assert result.execution.exitCode != 0, "timeout terminates the owned process invariant failed."
+    assert result.execution.exit_code != 0, "timeout terminates the owned process invariant failed."
     assert result.termination is ExecutionTermination.TIMEOUT, (
         "timeout terminates the owned process invariant failed."
     )
 
 
 def test_CancellationTerminatesTheOwnedProcess(tmp_path):
-    """Terminate an owned child after explicit cancellation."""
+    """Verify cancellation terminates the owned process."""
 
     async def Run():
-        """Execute and cancel one owned child process."""
+        """Provide deterministic test support for run."""
 
         cancellation = asyncio.Event()
         task = asyncio.create_task(
@@ -185,7 +181,7 @@ def test_CancellationTerminatesTheOwnedProcess(tmp_path):
     assert result.execution.state is ExecutionState.CANCELLED, (
         "cancellation terminates the owned process invariant failed."
     )
-    assert result.execution.exitCode != 0, (
+    assert result.execution.exit_code != 0, (
         "cancellation terminates the owned process invariant failed."
     )
     assert result.termination is ExecutionTermination.CANCELLATION, (
@@ -194,10 +190,10 @@ def test_CancellationTerminatesTheOwnedProcess(tmp_path):
 
 
 def test_PreCancelledRequestNeverLaunchesAProcess(tmp_path, monkeypatch):
-    """Return cancellation without launching a pre-cancelled request."""
+    """Verify pre cancelled request never launches a process."""
 
     async def Run():
-        """Execute a request whose cancellation is already set."""
+        """Provide deterministic test support for run."""
 
         cancellation = asyncio.Event()
         cancellation.set()
@@ -213,7 +209,7 @@ def test_PreCancelledRequestNeverLaunchesAProcess(tmp_path, monkeypatch):
     assert result.execution.state is ExecutionState.CANCELLED, (
         "pre cancelled request never launches a process invariant failed."
     )
-    assert result.execution.exitCode is None, (
+    assert result.execution.exit_code is None, (
         "pre cancelled request never launches a process invariant failed."
     )
     assert result.events[-1].kind is ExecutionEventKind.COMPLETED, (
@@ -223,9 +219,9 @@ def test_PreCancelledRequestNeverLaunchesAProcess(tmp_path, monkeypatch):
 
 
 def test_OutputLimitCancelsProcessWithoutHidingPartialEvidence(tmp_path):
-    """Cancel excessive output while retaining its bounded prefix."""
+    """Verify output limit cancels process without hiding partial evidence."""
 
-    resources = ExecutionResources(maxStdoutBytes=32, maxStderrBytes=32)
+    resources = ExecutionResources(max_stdout_bytes=32, max_stderr_bytes=32)
     result = asyncio.run(
         LocalExecutor(tmp_path).Execute(
             Request(
@@ -239,7 +235,7 @@ def test_OutputLimitCancelsProcessWithoutHidingPartialEvidence(tmp_path):
     assert result.execution.state is ExecutionState.CANCELLED, (
         "output limit cancels process without hiding partial evidence invariant failed."
     )
-    assert result.termination is ExecutionTermination.OUTPUTLIMIT, (
+    assert result.termination is ExecutionTermination.OUTPUT_LIMIT, (
         "output limit cancels process without hiding partial evidence invariant failed."
     )
     assert len(result.stdout) == 32, (
@@ -249,7 +245,7 @@ def test_OutputLimitCancelsProcessWithoutHidingPartialEvidence(tmp_path):
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlink creation is not portable on Windows")
 def test_WorkspaceSymlinkEscapeFailsClosed(tmp_path):
-    """Reject a workspace symlink that escapes the configured root."""
+    """Verify workspace symlink escape fails closed."""
 
     outside = tmp_path.parent / f"{tmp_path.name}-outside"
     outside.mkdir()
@@ -261,27 +257,27 @@ def test_WorkspaceSymlinkEscapeFailsClosed(tmp_path):
 
 
 def test_MissingWorkspaceAndLaunchFailureFailClosed(tmp_path):
-    """Fail closed for missing workspaces and unavailable executables."""
+    """Verify missing workspace and launch failure fail closed."""
 
     missing = Request(tmp_path, "print('missing')", workspace="missing")
     with pytest.raises(LocalExecutionError, match="workspace"):
         asyncio.run(LocalExecutor(tmp_path).Execute(missing))
 
     invocation = missing.invocation
-    unavailableInvocation = AdapterInvocation(
-        adapterId=invocation.adapterId,
+    unavailable_invocation = AdapterInvocation(
+        adapter_id=invocation.adapter_id,
         request=invocation.request,
         argv=(str(tmp_path / "not-an-executable"),),
-        timeoutSeconds=invocation.timeoutSeconds,
+        timeout_seconds=invocation.timeout_seconds,
     )
     unavailable = LocalExecutionRequest(
-        invocation=unavailableInvocation,
+        invocation=unavailable_invocation,
         capability=missing.capability,
         authorization=ExecutionAuthorization(
-            authorizationId="authorization:missing-tool",
-            scopeReference="scope:localhost-fixture",
-            policyReference="policy:test-only",
-            invocationSha256=InvocationDigest(unavailableInvocation),
+            authorization_id="authorization:missing-tool",
+            scope_reference="scope:localhost-fixture",
+            policy_reference="policy:test-only",
+            invocation_sha256=InvocationDigest(unavailable_invocation),
         ),
     )
     with pytest.raises(LocalExecutionError, match="Could not start"):

@@ -6,16 +6,16 @@ import subprocess
 
 import pytest
 
-from fuzzy1337 import test_runner as testRunner
+from fuzzy1337 import test_runner
 
 
 def test_AutoWorkerCountIsCappedAtTwelve():
     """Verify auto worker count is capped at twelve."""
 
-    assert testRunner.AutoWorkerCount(64) == 12, (
+    assert test_runner.AutoWorkerCount(64) == 12, (
         "auto worker count is capped at twelve invariant failed."
     )
-    assert testRunner.AutoWorkerCount(3) == 3, (
+    assert test_runner.AutoWorkerCount(3) == 3, (
         "auto worker count is capped at twelve invariant failed."
     )
 
@@ -25,26 +25,26 @@ def test_OptionsRejectInvalidWorkerValues(jobs):
     """Verify options reject invalid worker values."""
 
     with pytest.raises(ValueError, match="jobs"):
-        testRunner.TestOptions(jobs=jobs)
+        test_runner.TestOptions(jobs=jobs)
 
 
 def test_OptionsRejectNonPositiveTimeouts():
     """Verify options reject non positive timeouts."""
 
     with pytest.raises(ValueError, match="timeout"):
-        testRunner.TestOptions(timeoutSeconds=0)
+        test_runner.TestOptions(timeout_seconds=0)
 
 
 def test_ParallelArgumentsUseProcessWorkersAndLoadScope(tmp_path):
     """Verify parallel arguments use process workers and load scope."""
 
-    arguments = testRunner.PytestArguments(
+    arguments = test_runner.PytestArguments(
         "tests/unit",
-        testRunner.TestOptions(jobs="auto", timeoutSeconds=42, failFast=True),
+        test_runner.TestOptions(jobs="auto", timeout_seconds=42, fail_fast=True),
         tmp_path / "parallel.xml",
         serial=False,
     )
-    assert arguments[:4] == [testRunner.sys.executable, "-m", "pytest", "tests/unit"], (
+    assert arguments[:4] == [test_runner.sys.executable, "-m", "pytest", "tests/unit"], (
         "parallel arguments use process workers and load scope invariant failed."
     )
     assert "-n" in arguments, (
@@ -70,9 +70,9 @@ def test_ParallelArgumentsUseProcessWorkersAndLoadScope(tmp_path):
 def test_SerialArgumentsNeverStartXdistWorkers(tmp_path):
     """Verify serial arguments never start xdist workers."""
 
-    arguments = testRunner.PytestArguments(
+    arguments = test_runner.PytestArguments(
         "tests/unit",
-        testRunner.TestOptions(),
+        test_runner.TestOptions(),
         tmp_path / "serial.xml",
         serial=True,
     )
@@ -100,8 +100,8 @@ def test_JunitSummaryIsDeterministicAndCountsTimeout(tmp_path):
 """,
         encoding="utf-8",
     )
-    summary = testRunner.ReadJunitSummary(report)
-    assert summary == testRunner.TestSummary(4, 2, 1, 1, 1, 1.25), (
+    summary = test_runner.ReadJunitSummary(report)
+    assert summary == test_runner.TestSummary(4, 2, 1, 1, 1, 1.25), (
         "junit summary is deterministic and counts timeout invariant failed."
     )
     assert summary.Display() == (
@@ -114,15 +114,15 @@ def test_DefaultRunExecutesParallelThenSerial(monkeypatch, capsys):
 
     calls = []
 
-    def RunPytest(arguments, reportPath, timeoutSeconds):
+    def RunPytest(arguments, report_path, timeout_seconds):
         """Provide deterministic test support for run pytest."""
 
         calls.append(arguments)
-        return 0, testRunner.TestSummary(total=2, passed=2, durationSeconds=0.5)
+        return 0, test_runner.TestSummary(total=2, passed=2, duration_seconds=0.5)
 
-    monkeypatch.setattr(testRunner, "RunPytest", RunPytest)
-    monkeypatch.setattr(testRunner, "HasSerialTests", lambda target: True)
-    assert testRunner.RunTests("tests/unit", testRunner.TestOptions()) == 0, (
+    monkeypatch.setattr(test_runner, "RunPytest", RunPytest)
+    monkeypatch.setattr(test_runner, "HasSerialTests", lambda target: True)
+    assert test_runner.RunTests("tests/unit", test_runner.TestOptions()) == 0, (
         "default run executes parallel then serial invariant failed."
     )
     assert len(calls) == 2, "default run executes parallel then serial invariant failed."
@@ -138,15 +138,15 @@ def test_FailFastStopsBeforeSerialTests(monkeypatch):
 
     calls = []
 
-    def RunPytest(arguments, reportPath, timeoutSeconds):
+    def RunPytest(arguments, report_path, timeout_seconds):
         """Provide deterministic test support for run pytest."""
 
         calls.append(arguments)
-        return 1, testRunner.TestSummary(total=1, failed=1)
+        return 1, test_runner.TestSummary(total=1, failed=1)
 
-    monkeypatch.setattr(testRunner, "RunPytest", RunPytest)
-    monkeypatch.setattr(testRunner, "HasSerialTests", lambda target: True)
-    assert testRunner.RunTests("tests/unit", testRunner.TestOptions(failFast=True)) == 1, (
+    monkeypatch.setattr(test_runner, "RunPytest", RunPytest)
+    monkeypatch.setattr(test_runner, "HasSerialTests", lambda target: True)
+    assert test_runner.RunTests("tests/unit", test_runner.TestOptions(fail_fast=True)) == 1, (
         "fail fast stops before serial tests invariant failed."
     )
     assert len(calls) == 1, "fail fast stops before serial tests invariant failed."
@@ -157,15 +157,15 @@ def test_SerialOnlyNeverStartsTheParallelPool(monkeypatch):
 
     calls = []
 
-    def RunPytest(arguments, reportPath, timeoutSeconds):
+    def RunPytest(arguments, report_path, timeout_seconds):
         """Provide deterministic test support for run pytest."""
 
         calls.append(arguments)
-        return 0, testRunner.TestSummary(total=1, passed=1)
+        return 0, test_runner.TestSummary(total=1, passed=1)
 
-    monkeypatch.setattr(testRunner, "RunPytest", RunPytest)
-    monkeypatch.setattr(testRunner, "HasSerialTests", lambda target: True)
-    assert testRunner.RunTests("tests/unit", testRunner.TestOptions(serialOnly=True)) == 0, (
+    monkeypatch.setattr(test_runner, "RunPytest", RunPytest)
+    monkeypatch.setattr(test_runner, "HasSerialTests", lambda target: True)
+    assert test_runner.RunTests("tests/unit", test_runner.TestOptions(serial_only=True)) == 0, (
         "serial only never starts the parallel pool invariant failed."
     )
     assert len(calls) == 1, "serial only never starts the parallel pool invariant failed."
@@ -183,14 +183,14 @@ def test_SerialCollectionDisablesCoverageWithoutDisablingItsPlugin(monkeypatch):
         calls.append((arguments, kwargs))
         return subprocess.CompletedProcess(arguments, 0)
 
-    monkeypatch.setattr(testRunner.subprocess, "run", Run)
+    monkeypatch.setattr(test_runner.subprocess, "run", Run)
 
-    assert testRunner.HasSerialTests("tests"), (
+    assert test_runner.HasSerialTests("tests"), (
         "serial collection disables coverage without disabling its plugin invariant failed."
     )
     arguments, kwargs = calls[0]
     assert arguments == [
-        testRunner.sys.executable,
+        test_runner.sys.executable,
         "-m",
         "pytest",
         "tests",
@@ -213,11 +213,11 @@ def test_SerialCollectionReportsNoTestsWithoutTreatingItAsAnError(monkeypatch):
     """Verify serial collection reports no tests without treating it as an error."""
 
     monkeypatch.setattr(
-        testRunner.subprocess,
+        test_runner.subprocess,
         "run",
         lambda arguments, **kwargs: subprocess.CompletedProcess(arguments, 5),
     )
 
-    assert not testRunner.HasSerialTests("tests"), (
+    assert not test_runner.HasSerialTests("tests"), (
         "serial collection reports no tests without treating it as an error invariant failed."
     )

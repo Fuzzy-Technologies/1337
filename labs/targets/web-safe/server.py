@@ -1,4 +1,4 @@
-"""Безопасная детерминированная HTTP-цель для синтетической лаборатории M0."""
+"""Safe deterministic HTTP target for the M0 synthetic security lab."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ PORT: Final = 8080
 
 
 class SafeLabRequestHandler(BaseHTTPRequestHandler):
-    """Обслуживает намеренно ограниченный контракт безопасной лабораторной цели."""
+    """Serve the intentionally small public contract of the safe lab target."""
 
-    serverVersion = "1337SyntheticLab/0.1"
-    sysVersion = ""
+    server_version = "1337SyntheticLab/0.1"
+    sys_version = ""
 
     def do_GET(self) -> None:  # noqa: N802
-        """Отвечает только на детерминированные маршруты безопасной цели."""
+        """Respond only to deterministic safe target routes."""
 
         if self.path == "/health":
             self.SendJson({"status": "ok", "target": "web-safe"})
@@ -36,10 +36,10 @@ class SafeLabRequestHandler(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND, "Synthetic route not found")
 
     def log_message(self, format: str, *arguments: object) -> None:
-        """Исключает штатные запросы к синтетической цели из журналов тестов."""
+        """Keep routine synthetic target requests out of test logs."""
 
     def SendJson(self, payload: dict[str, str]) -> None:
-        """Возвращает один детерминированный JSON-ответ."""
+        """Write one deterministic JSON response."""
 
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         self.send_response(HTTPStatus.OK)
@@ -50,10 +50,11 @@ class SafeLabRequestHandler(BaseHTTPRequestHandler):
 
 
 def Main() -> None:
-    """Запускает безопасную цель до остановки изолированного контейнера."""
+    """Run the safe target until its isolated container is stopped."""
 
     with ThreadingHTTPServer((HOST, PORT), SafeLabRequestHandler) as server:
         server.serve_forever()
+
 
 if __name__ == "__main__":
     Main()

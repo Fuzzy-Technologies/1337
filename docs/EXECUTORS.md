@@ -3,7 +3,7 @@
 ## Status
 
 The `fuzzy1337.executors` Python surface is **Experimental** and versioned by
-`EXECUTORCONTRACTVERSION`. Its architecture is defined by
+`EXECUTOR_CONTRACT_VERSION`. Its architecture is defined by
 [ADR 0015](adr/0015-governed-local-executor-boundary.md).
 
 ## Boundary
@@ -43,7 +43,7 @@ never sufficient authorization.
 - non-zero exit, timeout, cancellation, output-limit, and launch-error truth.
 
 An output-limit stop is represented as cancelled execution with the more precise
-`OUTPUTLIMIT` termination reason. It is never reported as successful merely
+`OUTPUT_LIMIT` termination reason. It is never reported as successful merely
 because a process raced to exit.
 
 ## Capability discovery
@@ -64,7 +64,7 @@ from pathlib import Path
 from fuzzy1337.executors import LocalExecutor
 
 executor = LocalExecutor(Path("workspace"))
-result = await executor.Execute(request, onEvent=publishProgress)
+result = await executor.Execute(request, on_event=publish_progress)
 ```
 
 The example assumes `request` already contains a prepared invocation and an

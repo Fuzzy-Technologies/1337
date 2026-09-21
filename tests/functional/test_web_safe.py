@@ -8,7 +8,7 @@ import pytest
 
 from . import conftest
 from .conftest import ComposeLab
-from .scenarios import WEBSAFEHEALTH
+from .scenarios import WEB_SAFE_HEALTH
 
 pytestmark = pytest.mark.serial
 
@@ -16,7 +16,7 @@ pytestmark = pytest.mark.serial
 def test_WebSafeScenarioDeclaresACompleteContract():
     """Keep the M1 scenario metadata complete before scanner scenarios are added."""
 
-    scenario = WEBSAFEHEALTH
+    scenario = WEB_SAFE_HEALTH
 
     assert scenario.identifier == "web-safe.health", (
         "web safe scenario declares a complete contract invariant failed."
@@ -27,34 +27,34 @@ def test_WebSafeScenarioDeclaresACompleteContract():
     assert scenario.target.version == "1", (
         "web safe scenario declares a complete contract invariant failed."
     )
-    assert scenario.requiredCapabilities == ("docker.compose", "http.get"), (
+    assert scenario.required_capabilities == ("docker.compose", "http.get"), (
         "web safe scenario declares a complete contract invariant failed."
     )
     assert scenario.setup, "web safe scenario declares a complete contract invariant failed."
-    assert scenario.healthCheck, "web safe scenario declares a complete contract invariant failed."
-    assert scenario.assessmentCommand == ("GET", "/health"), (
+    assert scenario.health_check, "web safe scenario declares a complete contract invariant failed."
+    assert scenario.assessment_command == ("GET", "/health"), (
         "web safe scenario declares a complete contract invariant failed."
     )
-    assert scenario.assessmentProfile == "safe", (
+    assert scenario.assessment_profile == "safe", (
         "web safe scenario declares a complete contract invariant failed."
     )
-    assert scenario.expectedObservations, (
+    assert scenario.expected_observations, (
         "web safe scenario declares a complete contract invariant failed."
     )
-    assert scenario.expectedFindings == (), (
+    assert scenario.expected_findings == (), (
         "web safe scenario declares a complete contract invariant failed."
     )
-    assert scenario.timeoutSeconds > 0, (
+    assert scenario.timeout_seconds > 0, (
         "web safe scenario declares a complete contract invariant failed."
     )
     assert scenario.cleanup, "web safe scenario declares a complete contract invariant failed."
 
 
-def test_WebSafeHealthContract(functionalLab: ComposeLab):
+def test_WebSafeHealthContract(functional_lab: ComposeLab):
     """Exercise the target through the fixture-owned isolated container lifecycle."""
 
-    result = functionalLab.Execute(
-        WEBSAFEHEALTH.target.composeService,
+    result = functional_lab.Execute(
+        WEB_SAFE_HEALTH.target.compose_service,
         "python",
         "-c",
         (
@@ -62,7 +62,7 @@ def test_WebSafeHealthContract(functionalLab: ComposeLab):
             "response = urlopen('http://127.0.0.1:8080/health', timeout=1); "
             "print(json.dumps(json.load(response), sort_keys=True))"
         ),
-        timeoutSeconds=WEBSAFEHEALTH.timeoutSeconds,
+        timeout_seconds=WEB_SAFE_HEALTH.timeout_seconds,
     )
 
     assert result.returncode == 0, result.stderr

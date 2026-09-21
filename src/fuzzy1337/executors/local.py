@@ -1,4 +1,4 @@
-"""Переносимый запуск дочерних процессов с явным владением и лимитами."""
+"""Portable local subprocess execution with explicit ownership and bounds."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from fuzzy1337.executors.contracts import (
     LocalExecutionResult,
 )
 
-INHERITEDENVIRONMENT = (
+_INHERITED_ENVIRONMENT = (
     "COMSPEC",
     "LANG",
     "LC_ALL",
@@ -32,43 +32,41 @@ INHERITEDENVIRONMENT = (
     "TMP",
     "WINDIR",
 )
-READSIZE = 64 * 1024
+_READ_SIZE = 64 * 1024
 
 EventCallback = Callable[[ExecutionEvent], object]
 
 
-def KillProcessGroup(processId: int, terminationSignal: int) -> None:
-    """Вызывает POSIX-операцию группы процессов под защитой платформы."""
+def KillProcessGroup(process_id: int, termination_signal: int) -> None:
+    """Call the POSIX-only process-group primitive behind a platform guard."""
 
     killpg = cast(Callable[[int, int], None], getattr(os, "killpg"))
-    killpg(processId, terminationSignal)
+    killpg(process_id, termination_signal)
 
 
 class LocalExecutionError(RuntimeError):
-    """Описывает закрытую ошибку проверки или запуска процесса."""
-
-    pass
+    """Fail-closed validation or process-launch error from the local executor."""
 
 
 class LocalExecutor:
-    """Выполняет одобренный вызов внутри ограниченной рабочей области."""
+    """Execute one approved adapter invocation inside a bounded workspace root."""
 
-    def __init__(self, workspaceRoot: Path) -> None:
-        """Фиксирует существующий корень рабочих областей."""
+    def __init__(self, workspace_root: Path) -> None:
+        """Bind the executor to an existing workspace root."""
 
-        root = workspaceRoot.resolve(strict=True)
+        root = workspace_root.resolve(strict=True)
         if not root.is_dir():
             raise ValueError("workspace_root must be an existing directory")
-        self.workspaceRoot = root
+        self._workspace_root = root
 
     async def Execute(
         self,
         request: LocalExecutionRequest,
         *,
-        onEvent: EventCallback | None = None,
+        on_event: EventCallback | None = None,
         cancellation: asyncio.Event | None = None,
     ) -> LocalExecutionResult:
-        """Запускает неизменяемый argv и возвращает вывод с событиями."""
+        """Run an immutable argv and return bounded output plus structured events."""
 
         workspace = self.ResolveWorkspace(request.workspace)
         events: list[ExecutionEvent] = []
@@ -79,12 +77,12 @@ class LocalExecutor:
             data: bytes = b"",
             termination: ExecutionTermination | None = None,
         ) -> None:
-            """Добавляет событие и уведомляет необязательного наблюдателя."""
+            """Record an event and notify the optional observer."""
 
             event = ExecutionEvent(len(events), kind, data, termination)
             events.append(event)
-            if onEvent is not None:
-                response = onEvent(event)
+            if on_event is not None:
+                response = on_event(event)
                 if inspect.isawaitable(response):
                     await cast(Awaitable[object], response)
 
@@ -95,8 +93,8 @@ class LocalExecutor:
             return LocalExecutionResult(
                 execution=AdapterExecution(
                     state=ExecutionState.CANCELLED,
-                    exitCode=None,
-                    durationSeconds=time.perf_counter() - started,
+                    exit_code=None,
+                    duration_seconds=time.perf_counter() - started,
                 ),
                 termination=termination,
                 stdout=b"",
@@ -105,9 +103,7 @@ class LocalExecutor:
             )
 
         environment = {
-            name: os.environ[name]
-            for name in INHERITEDENVIRONMENT
-            if name in os.environ
+            name: os.environ[name] for name in _INHERITED_ENVIRONMENT if name in os.environ
         }
         environment.update(request.environment)
         process = await self.StartProcess(request, workspace, environment)
@@ -115,8 +111,8 @@ class LocalExecutor:
 
         stdout = bytearray()
         stderr = bytearray()
-        outputLimit = asyncio.Event()
-        emitLock = asyncio.Lock()
+        output_limit = asyncio.Event()
+        emit_lock = asyncio.Lock()
 
         async def Pump(
             reader: asyncio.StreamReader,
@@ -124,111 +120,109 @@ class LocalExecutor:
             limit: int,
             kind: ExecutionEventKind,
         ) -> None:
-            """Читает поток, сохраняя только разрешённый объём данных."""
+            """Drain one process stream while enforcing its byte limit."""
 
             limited = False
-            while chunk := await reader.read(READSIZE):
+            while chunk := await reader.read(_READ_SIZE):
                 if limited:
                     continue
                 remaining = limit - len(destination)
                 retained = chunk[:remaining]
                 if retained:
                     destination.extend(retained)
-                    async with emitLock:
+                    async with emit_lock:
                         await Emit(kind, data=retained)
                 if len(chunk) > remaining:
                     limited = True
-                    outputLimit.set()
+                    output_limit.set()
 
-        assert process.stdout is not None, "subprocess stdout pipe must be available"
-        assert process.stderr is not None, "subprocess stderr pipe must be available"
-        stdoutTask = asyncio.create_task(
+        assert process.stdout is not None, "Subprocess stdout pipe must be available."
+        assert process.stderr is not None, "Subprocess stderr pipe must be available."
+        stdout_task = asyncio.create_task(
             Pump(
                 process.stdout,
                 stdout,
-                request.resources.maxStdoutBytes,
+                request.resources.max_stdout_bytes,
                 ExecutionEventKind.STDOUT,
             )
         )
-        stderrTask = asyncio.create_task(
+        stderr_task = asyncio.create_task(
             Pump(
                 process.stderr,
                 stderr,
-                request.resources.maxStderrBytes,
+                request.resources.max_stderr_bytes,
                 ExecutionEventKind.STDERR,
             )
         )
-        processTask = asyncio.create_task(process.wait())
-        outputLimitTask = asyncio.create_task(outputLimit.wait())
-        cancellationTask = (
+        process_task = asyncio.create_task(process.wait())
+        output_limit_task = asyncio.create_task(output_limit.wait())
+        cancellation_task = (
             asyncio.create_task(cancellation.wait()) if cancellation is not None else None
         )
-        waiters = {processTask, outputLimitTask}
-        if cancellationTask is not None:
-            waiters.add(cancellationTask)
+        waiters = {process_task, output_limit_task}
+        if cancellation_task is not None:
+            waiters.add(cancellation_task)
 
-        termination = ExecutionTermination.PROCESSEXIT
+        termination = ExecutionTermination.PROCESS_EXIT
         state = ExecutionState.FAILED
         try:
             done, _ = await asyncio.wait(
                 waiters,
-                timeout=request.invocation.timeoutSeconds,
+                timeout=request.invocation.timeout_seconds,
                 return_when=asyncio.FIRST_COMPLETED,
             )
             if not done:
                 termination = ExecutionTermination.TIMEOUT
-                state = ExecutionState.TIMEDOUT
-                await self.Terminate(process, request.resources.terminateGraceSeconds)
+                state = ExecutionState.TIMED_OUT
+                await self.Terminate(process, request.resources.terminate_grace_seconds)
 
-            elif outputLimitTask in done and outputLimit.is_set():
-                termination = ExecutionTermination.OUTPUTLIMIT
+            elif output_limit_task in done and output_limit.is_set():
+                termination = ExecutionTermination.OUTPUT_LIMIT
                 state = ExecutionState.CANCELLED
-                await self.Terminate(process, request.resources.terminateGraceSeconds)
+                await self.Terminate(process, request.resources.terminate_grace_seconds)
 
             elif (
-                cancellationTask is not None
-                and cancellationTask in done
+                cancellation_task is not None
+                and cancellation_task in done
                 and cancellation is not None
                 and cancellation.is_set()
-                and not processTask.done()
+                and not process_task.done()
             ):
                 termination = ExecutionTermination.CANCELLATION
                 state = ExecutionState.CANCELLED
-                await self.Terminate(process, request.resources.terminateGraceSeconds)
+                await self.Terminate(process, request.resources.terminate_grace_seconds)
 
             else:
-                naturalReturnCode = await processTask
+                natural_return_code = await process_task
                 state = (
-                    ExecutionState.SUCCEEDED
-                    if naturalReturnCode == 0
-                    else ExecutionState.FAILED
+                    ExecutionState.SUCCEEDED if natural_return_code == 0 else ExecutionState.FAILED
                 )
 
-            await processTask
-            await asyncio.gather(stdoutTask, stderrTask)
+            await process_task
+            await asyncio.gather(stdout_task, stderr_task)
 
         except BaseException:
-            await self.Terminate(process, request.resources.terminateGraceSeconds)
+            await self.Terminate(process, request.resources.terminate_grace_seconds)
             raise
 
         finally:
-            for task in (outputLimitTask, cancellationTask):
+            for task in (output_limit_task, cancellation_task):
                 if task is not None and not task.done():
                     task.cancel()
             await asyncio.gather(
-                *(task for task in (outputLimitTask, cancellationTask) if task is not None),
+                *(task for task in (output_limit_task, cancellation_task) if task is not None),
                 return_exceptions=True,
             )
 
-        finalReturnCode = process.returncode
-        if state in {ExecutionState.TIMEDOUT, ExecutionState.CANCELLED} and finalReturnCode == 0:
-            finalReturnCode = None
+        final_return_code = process.returncode
+        if state in {ExecutionState.TIMED_OUT, ExecutionState.CANCELLED} and final_return_code == 0:
+            final_return_code = None
         await Emit(ExecutionEventKind.COMPLETED, termination=termination)
         return LocalExecutionResult(
             execution=AdapterExecution(
                 state=state,
-                exitCode=finalReturnCode,
-                durationSeconds=time.perf_counter() - started,
+                exit_code=final_return_code,
+                duration_seconds=time.perf_counter() - started,
             ),
             termination=termination,
             stdout=bytes(stdout),
@@ -236,22 +230,22 @@ class LocalExecutor:
             events=tuple(events),
         )
 
-    def ResolveWorkspace(self, relativeWorkspace: str) -> Path:
-        """Разрешает рабочую область строго внутри настроенного корня."""
+    def ResolveWorkspace(self, relative_workspace: str) -> Path:
+        """Resolve a workspace path without permitting root escape."""
 
-        candidate = self.workspaceRoot.joinpath(*relativeWorkspace.split("/"))
+        candidate = self._workspace_root.joinpath(*relative_workspace.split("/"))
         try:
             resolved = candidate.resolve(strict=True)
 
         except OSError as error:
             raise LocalExecutionError(
-                f"Execution workspace is unavailable: {relativeWorkspace}"
+                f"Execution workspace is unavailable: {relative_workspace}"
             ) from error
         if not resolved.is_dir():
             raise LocalExecutionError(
-                f"Execution workspace is not a directory: {relativeWorkspace}"
+                f"Execution workspace is not a directory: {relative_workspace}"
             )
-        if not resolved.is_relative_to(self.workspaceRoot):
+        if not resolved.is_relative_to(self._workspace_root):
             raise LocalExecutionError("Execution workspace escapes the configured workspace root")
         return resolved
 
@@ -261,7 +255,7 @@ class LocalExecutor:
         workspace: Path,
         environment: dict[str, str],
     ) -> asyncio.subprocess.Process:
-        """Запускает одобренный argv без оболочки в отдельной группе."""
+        """Start an owned subprocess with isolated output streams."""
 
         arguments = request.invocation.argv
         try:
@@ -290,9 +284,9 @@ class LocalExecutor:
     async def Terminate(
         self,
         process: asyncio.subprocess.Process,
-        graceSeconds: float,
+        grace_seconds: float,
     ) -> None:
-        """Мягко завершает принадлежащий процесс и затем убивает его."""
+        """Terminate the owned process group and escalate after the grace period."""
 
         if process.returncode is not None:
             return
@@ -307,7 +301,7 @@ class LocalExecutor:
             return
 
         try:
-            await asyncio.wait_for(process.wait(), timeout=graceSeconds)
+            await asyncio.wait_for(process.wait(), timeout=grace_seconds)
             return
 
         except TimeoutError:
