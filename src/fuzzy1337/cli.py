@@ -29,8 +29,7 @@ def CommandEpilog(registry: CommandRegistry) -> str:
 
     lines = ["Currently available commands:"]
     lines.extend(
-        f"  {descriptor.usage:<18}{descriptor.summary}"
-        for descriptor in registry.Commands
+        f"  {descriptor.usage:<18}{descriptor.summary}" for descriptor in registry.Commands
     )
     lines.append("Run '1337 shell' to start the interactive workbench.")
     return "\n".join(lines)

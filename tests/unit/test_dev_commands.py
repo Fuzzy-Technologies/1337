@@ -70,6 +70,7 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(repository, monkeypatch):
     assert [call[2] for call in calls] == [
         "compileall",
         "ruff",
+        "ruff",
         "mypy",
         "fuzzy1337.coverage_gate",
         "build",

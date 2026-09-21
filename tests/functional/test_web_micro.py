@@ -130,7 +130,7 @@ print(json.dumps(result, sort_keys=True))
         "cookie": "lab_session=deterministic; HttpOnly; SameSite=Strict",
         "status": 200,
     }, "web micro target exposes deterministic safe observations invariant failed."
-    assert "action=\"/submit\"" in observations["form"]["body"], (
+    assert 'action="/submit"' in observations["form"]["body"], (
         "web micro target exposes deterministic safe observations invariant failed."
     )
     assert observations["query"] == {"body": {"item": "demo"}, "status": 200}, (

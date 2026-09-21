@@ -1,5 +1,6 @@
 """Tests for package behavior."""
 
+
 def test_PackageImports():
     """Verify package imports."""
 

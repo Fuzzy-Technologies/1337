@@ -40,11 +40,7 @@ def PythonFiles() -> tuple[Path, ...]:
     """Return every project Python source in deterministic order."""
 
     return tuple(
-        sorted(
-            path
-            for root in PYTHON_ROOTS
-            for path in (REPOSITORY_ROOT / root).rglob("*.py")
-        )
+        sorted(path for root in PYTHON_ROOTS for path in (REPOSITORY_ROOT / root).rglob("*.py"))
     )
 
 
@@ -70,8 +66,7 @@ def IsFrameworkFunction(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     )
     return (
         is_pytest_fixture
-        or
-        name in FRAMEWORK_FUNCTIONS
+        or name in FRAMEWORK_FUNCTIONS
         or name.startswith("do_")
         or (name.startswith("__") and name.endswith("__"))
     )
@@ -122,15 +117,13 @@ def test_ProjectOwnedIdentifiersFollowStyleContract():
                     valid_name = TEST_FUNCTION_PATTERN.fullmatch(node.name)
 
                 else:
-                    valid_name = IsFrameworkFunction(node) or PASCAL_PATTERN.fullmatch(
-                        node.name
-                    )
+                    valid_name = IsFrameworkFunction(node) or PASCAL_PATTERN.fullmatch(node.name)
                 if not valid_name:
                     violations.append(f"{Relative(path)}:{node.lineno}: function {node.name}")
 
                 arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
                 for argument in arguments:
-                    if argument.arg in {"self", "cls", *EXTERNAL_PARAMETERS}:
+                    if argument.arg in {"_", "self", "cls", *EXTERNAL_PARAMETERS}:
                         continue
                     if not SNAKE_PATTERN.fullmatch(argument.arg):
                         violations.append(
@@ -142,12 +135,10 @@ def test_ProjectOwnedIdentifiersFollowStyleContract():
 
         for constant in ModuleConstants(tree):
             if not UPPER_SNAKE_PATTERN.fullmatch(constant.id):
-                violations.append(
-                    f"{Relative(path)}:{constant.lineno}: constant {constant.id}"
-                )
+                violations.append(f"{Relative(path)}:{constant.lineno}: constant {constant.id}")
 
-    assert not violations, (
-        "Project-owned identifier style invariant failed:\n" + "\n".join(violations)
+    assert not violations, "Project-owned identifier style invariant failed:\n" + "\n".join(
+        violations
     )
 
 
@@ -180,9 +171,7 @@ def test_DocstringsCommentsAndAssertionsAreEnglishAndActionable():
             if isinstance(node, ast.Assert) and node.msg is None:
                 violations.append(f"{Relative(path)}:{node.lineno}: assert without message")
 
-    assert not violations, (
-        "Python documentation invariant failed:\n" + "\n".join(violations)
-    )
+    assert not violations, "Python documentation invariant failed:\n" + "\n".join(violations)
 
 
 def test_NoCyrillicTextAppearsInPythonSources():
@@ -190,9 +179,7 @@ def test_NoCyrillicTextAppearsInPythonSources():
 
     violations = []
     for path in PythonFiles():
-        for line_number, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), start=1
-        ):
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             if CYRILLIC_PATTERN.search(line):
                 violations.append(f"{Relative(path)}:{line_number}")
 

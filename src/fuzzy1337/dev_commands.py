@@ -51,7 +51,10 @@ _coverage_gate = PythonStep(
 COMMANDS: dict[str, tuple[CommandStep, ...]] = {
     "setup": (UvStep("sync", "--locked", "--extra", "dev"),),
     "compile": (PythonStep("-m", "compileall", "-q", "src", "tests"),),
-    "lint": (PythonStep("-m", "ruff", "check", "."),),
+    "lint": (
+        PythonStep("-m", "ruff", "format", "--check", "."),
+        PythonStep("-m", "ruff", "check", "."),
+    ),
     "typecheck": (PythonStep("-m", "mypy"),),
     "unit": (_coverage_gate,),
     "test": (_coverage_gate,),
@@ -70,8 +73,7 @@ def DescribeCommands() -> dict[str, str]:
     """Describe execution steps without exposing mutable registry state."""
 
     descriptions = {
-        name: " then ".join(step.Display() for step in steps)
-        for name, steps in COMMANDS.items()
+        name: " then ".join(step.Display() for step in steps) for name, steps in COMMANDS.items()
     }
     descriptions["unit"] = (
         "python -m pytest tests/unit -n auto --dist=loadscope then "
@@ -139,7 +141,6 @@ def Run(command: str, test_options: TestOptions | None = None) -> int:
             return 128 - test_result if test_result < 0 else test_result
 
     for step in COMMANDS[command]:
-
         print(f"Running: {step.Display()}", flush=True)
         arguments = ResolveStep(step)
         if arguments is None:

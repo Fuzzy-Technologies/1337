@@ -70,8 +70,8 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/form":
             self.SendHtml(
-                "<!doctype html><html><body><form action=\"/submit\" method=\"post\">"
-                "<input name=\"query\"><button>Submit</button></form></body></html>"
+                '<!doctype html><html><body><form action="/submit" method="post">'
+                '<input name="query"><button>Submit</button></form></body></html>'
             )
             return
 

@@ -253,8 +253,7 @@ def test_PagesPublishBoundaryRejectsUnclassifiedTrackedFiles() -> None:
     unapproved_site_files = sorted(
         path
         for path in tracked
-        if Path(path).parts[0] in SITE_SOURCE_ROOTS
-        and path not in SITE_SOURCE_FILES
+        if Path(path).parts[0] in SITE_SOURCE_ROOTS and path not in SITE_SOURCE_FILES
     )
     assert not unapproved_site_files, (
         "Files inside public Pages roots require explicit approval in "

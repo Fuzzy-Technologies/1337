@@ -66,8 +66,7 @@ def FuzzyMatches(query: str, candidates: Iterable[str]) -> tuple[str, ...]:
             ranked.append((score, candidate))
 
     return tuple(
-        candidate
-        for _, candidate in sorted(ranked, key=lambda match: (match[0], match[1]))
+        candidate for _, candidate in sorted(ranked, key=lambda match: (match[0], match[1]))
     )
 
 
@@ -243,7 +242,8 @@ class InteractiveShell(cmd.Cmd):
         query = argument.strip()
         command_matches = FuzzyMatches(query, SHELL_COMMANDS)
         registry_matches = tuple(
-            descriptor.identifier for descriptor in self._registry.Search(query)
+            descriptor.identifier
+            for descriptor in self._registry.Search(query)
             if descriptor.identifier not in command_matches
         )
         contextual_matches = self.MatchingContextActions(query)

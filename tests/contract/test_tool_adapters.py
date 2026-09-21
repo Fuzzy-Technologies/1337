@@ -162,9 +162,7 @@ def test_RequestMetadataIsRecursivelyImmutableAndSerializedDeterministically():
         )
     )
 
-    assert first == second, (
-        "equivalent requests must serialize identically."
-    )
+    assert first == second, "equivalent requests must serialize identically."
     assert json.loads(first)["parameters"] == {"options": {"fast": True}, "ports": [443, 80]}, (
         "serialized request parameters must preserve JSON values."
     )
