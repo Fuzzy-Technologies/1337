@@ -1,4 +1,4 @@
-"""Минимальная установленная точка входа 1337 Security Workbench."""
+"""Minimal installed entry point for 1337 Security Workbench."""
 
 from __future__ import annotations
 
@@ -7,25 +7,25 @@ import sys
 from collections.abc import Sequence
 from importlib.metadata import version
 
-from fuzzy1337.command_registry import COMMANDREGISTRY, CommandRegistry
+from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
 from fuzzy1337.dev_commands import DescribeCommands
 from fuzzy1337.shell import RunInteractiveShell
 
 
 def GetCommands() -> dict[str, str]:
-    """Возвращает описания из детерминированного реестра команд разработчика."""
+    """Return descriptions from the deterministic developer-command registry."""
 
     return DescribeCommands()
 
 
 def GetCommandRegistry() -> CommandRegistry:
-    """Возвращает централизованный реестр без раскрытия изменяемого состояния."""
+    """Return the centralized user-command registry without exposing mutable state."""
 
-    return COMMANDREGISTRY
+    return COMMAND_REGISTRY
 
 
 def CommandEpilog(registry: CommandRegistry) -> str:
-    """Формирует список доступных команд из централизованных дескрипторов."""
+    """Render currently available commands from their centralized descriptors."""
 
     lines = ["Currently available commands:"]
     lines.extend(
@@ -37,7 +37,7 @@ def CommandEpilog(registry: CommandRegistry) -> str:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Запускает оболочку либо выводит справку и установленную версию."""
+    """Start the interactive shell or show help and installed-version output."""
 
     registry = GetCommandRegistry()
     parser = argparse.ArgumentParser(

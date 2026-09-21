@@ -93,8 +93,8 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
             str(executable),
             "-I",
             "-c",
-            "from fuzzy1337.adapters import ADAPTERCONTRACTVERSION; "
-            "print(ADAPTERCONTRACTVERSION)",
+            "from fuzzy1337.adapters import ADAPTER_CONTRACT_VERSION; "
+            "print(ADAPTER_CONTRACT_VERSION)",
         ],
         tmp_path,
     ).strip() == "1", "sdist wheel and clean installation invariant failed."

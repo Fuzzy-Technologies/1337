@@ -42,7 +42,7 @@ def test_ShellTracksLensSelectedObjectAndUpdates():
     assert shell.State.view == "updates", (
         "shell tracks lens selected object and updates invariant failed."
     )
-    assert shell.State.selectedObject == "asset:demo", (
+    assert shell.State.selected_object == "asset:demo", (
         "shell tracks lens selected object and updates invariant failed."
     )
     assert output.getvalue().splitlines() == [
@@ -191,8 +191,8 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
 
     assert output.getvalue().splitlines() == [
         (
-            "Interactive commands: commands, context, help, history, lens, "
-            "palette, quit, select, updates, view"
+            "Interactive commands: commands, context, help, history, lens, palette, "
+            "quit, select, updates, view"
         ),
         "CLI commands: help, version, shell",
         "[model] asset changed",

@@ -13,7 +13,7 @@ CSS = ROOT / "static/style.css"
 CONFIG = ROOT / "_config.yml"
 SITEMAP = ROOT / "sitemap.xml"
 
-SITESOURCEFILES = {
+SITE_SOURCE_FILES = {
     "_config.yml",
     "_layouts/default.html",
     "index.md",
@@ -23,8 +23,8 @@ SITESOURCEFILES = {
     "static/style.css",
     "zh-cn/index.md",
 }
-SITESOURCEROOTS = {Path(path).parts[0] for path in SITESOURCEFILES}
-EXPECTEDEXCLUDEDROOTS = {
+SITE_SOURCE_ROOTS = {Path(path).parts[0] for path in SITE_SOURCE_FILES}
+EXPECTED_EXCLUDED_ROOTS = {
     ".dockerignore",
     ".github",
     ".gitignore",
@@ -48,10 +48,10 @@ EXPECTEDEXCLUDEDROOTS = {
     "uv.lock",
 }
 
-BLOCKHTMLINDENT = re.compile(r"^ {4,}</?[A-Za-z]")
-CLASSATTRIBUTE = re.compile(r'class="([^"]+)"')
-CONFIGEXCLUDEITEM = re.compile(r"^\s{2}-\s+(.+?)\s*$")
-PAIREDTAGS = (
+BLOCK_HTML_INDENT = re.compile(r"^ {4,}</?[A-Za-z]")
+CLASS_ATTRIBUTE = re.compile(r'class="([^"]+)"')
+CONFIG_EXCLUDE_ITEM = re.compile(r"^\s{2}-\s+(.+?)\s*$")
+PAIRED_TAGS = (
     "section",
     "div",
     "header",
@@ -82,7 +82,7 @@ def PageClasses(content: str) -> set[str]:
     """Provide deterministic test support for page classes."""
 
     classes: set[str] = set()
-    for value in CLASSATTRIBUTE.findall(content):
+    for value in CLASS_ATTRIBUTE.findall(content):
         classes.update(value.split())
     return classes
 
@@ -104,17 +104,17 @@ def ConfiguredPageExcludes() -> set[str]:
     """Provide deterministic test support for configured page excludes."""
 
     excludes: set[str] = set()
-    inExcludeBlock = False
+    in_exclude_block = False
 
     for line in Read(CONFIG).splitlines():
         if line == "exclude:":
-            inExcludeBlock = True
+            in_exclude_block = True
             continue
 
-        if not inExcludeBlock:
+        if not in_exclude_block:
             continue
 
-        match = CONFIGEXCLUDEITEM.match(line)
+        match = CONFIG_EXCLUDE_ITEM.match(line)
         if match:
             excludes.add(match.group(1).strip("'\"").rstrip("/"))
             continue
@@ -131,9 +131,9 @@ def test_PagesDoNotIndentRawHtmlAsMarkdownCode() -> None:
     violations: list[str] = []
 
     for page in PAGES:
-        for lineNumber, line in enumerate(Read(page).splitlines(), start=1):
-            if BLOCKHTMLINDENT.match(line):
-                violations.append(f"{page.relative_to(ROOT)}:{lineNumber}: {line.strip()}")
+        for line_number, line in enumerate(Read(page).splitlines(), start=1):
+            if BLOCK_HTML_INDENT.match(line):
+                violations.append(f"{page.relative_to(ROOT)}:{line_number}: {line.strip()}")
 
     assert not violations, (
         "Raw HTML indented by four or more spaces is rendered as Markdown code:\n"
@@ -147,7 +147,7 @@ def test_PagesHaveBalancedHtmlTags() -> None:
     for page in PAGES:
         content = Read(page)
 
-        for tag in PAIREDTAGS:
+        for tag in PAIRED_TAGS:
             opening = len(re.findall(rf"<{tag}(?:[ >])", content))
             closing = content.count(f"</{tag}>")
             assert opening == closing, (
@@ -160,12 +160,12 @@ def test_LocalizedPagesKeepTheSameComponentStructure() -> None:
     """Verify localized pages keep the same component structure."""
 
     pages = [Read(page) for page in PAGES]
-    referenceClasses = PageClasses(pages[0])
+    reference_classes = PageClasses(pages[0])
 
     assert all(page.count('<section class="content-section">') == 8 for page in pages), (
         "localized pages keep the same component structure invariant failed."
     )
-    assert all(PageClasses(page) == referenceClasses for page in pages[1:]), (
+    assert all(PageClasses(page) == reference_classes for page in pages[1:]), (
         "localized pages keep the same component structure invariant failed."
     )
 
@@ -224,12 +224,12 @@ def test_LanguageRoutesArePresentOnAllPages() -> None:
 def test_PagesPublishBoundaryMatchesCanonicalExcludes() -> None:
     """Verify pages publish boundary matches canonical excludes."""
 
-    excludedRoots = ConfiguredPageExcludes()
+    excluded_roots = ConfiguredPageExcludes()
 
-    assert excludedRoots == EXPECTEDEXCLUDEDROOTS, (
+    assert excluded_roots == EXPECTED_EXCLUDED_ROOTS, (
         "pages publish boundary matches canonical excludes invariant failed."
     )
-    assert not SITESOURCEROOTS & excludedRoots, (
+    assert not SITE_SOURCE_ROOTS & excluded_roots, (
         "pages publish boundary matches canonical excludes invariant failed."
     )
 
@@ -241,24 +241,24 @@ def test_PagesPublishBoundaryRejectsUnclassifiedTrackedFiles() -> None:
         pytest.skip("git is not installed in the container quality image")
 
     tracked = TrackedFiles()
-    trackedRoots = {Path(path).parts[0] for path in tracked}
-    nonSiteRoots = trackedRoots - SITESOURCEROOTS
+    tracked_roots = {Path(path).parts[0] for path in tracked}
+    non_site_roots = tracked_roots - SITE_SOURCE_ROOTS
 
-    missingExcludes = sorted(nonSiteRoots - EXPECTEDEXCLUDEDROOTS)
-    assert not missingExcludes, (
+    missing_excludes = sorted(non_site_roots - EXPECTED_EXCLUDED_ROOTS)
+    assert not missing_excludes, (
         "Tracked repository roots would be published by GitHub Pages unless "
-        f"explicitly excluded: {', '.join(missingExcludes)}"
+        f"explicitly excluded: {', '.join(missing_excludes)}"
     )
 
-    unapprovedSiteFiles = sorted(
+    unapproved_site_files = sorted(
         path
         for path in tracked
-        if Path(path).parts[0] in SITESOURCEROOTS
-        and path not in SITESOURCEFILES
+        if Path(path).parts[0] in SITE_SOURCE_ROOTS
+        and path not in SITE_SOURCE_FILES
     )
-    assert not unapprovedSiteFiles, (
+    assert not unapproved_site_files, (
         "Files inside public Pages roots require explicit approval in "
-        f"SITE_SOURCE_FILES: {', '.join(unapprovedSiteFiles)}"
+        f"SITE_SOURCE_FILES: {', '.join(unapproved_site_files)}"
     )
 
 

@@ -4,7 +4,7 @@
 
 The `fuzzy1337.adapters` Python surface is **Experimental**. It is the first
 provider-neutral contract for security-tool adapters and is versioned by
-`ADAPTERCONTRACTVERSION`.
+`ADAPTER_CONTRACT_VERSION`.
 
 The architectural boundary is defined by
 [ADR 0014](adr/0014-provider-neutral-tool-adapter-contract.md).
@@ -29,7 +29,7 @@ The SDK keeps these concerns separate:
 
 ```python
 from fuzzy1337.adapters import (
-    ADAPTERCONTRACTVERSION,
+    ADAPTER_CONTRACT_VERSION,
     AdapterDescriptor,
     AdapterRequest,
     AdapterResult,
