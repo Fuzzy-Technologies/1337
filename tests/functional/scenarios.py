@@ -12,7 +12,7 @@ class TargetReference:
     identifier: str
     provenance: str
     version: str
-    compose_service: str
+    composeService: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,53 +29,53 @@ class FunctionalScenario:
 
     identifier: str
     target: TargetReference
-    required_capabilities: tuple[str, ...]
+    requiredCapabilities: tuple[str, ...]
     setup: tuple[str, ...]
-    health_check: str
-    assessment_command: tuple[str, ...]
-    assessment_profile: str
-    expected_observations: tuple[ExpectedObservation, ...]
-    expected_findings: tuple[str, ...]
-    timeout_seconds: int
+    healthCheck: str
+    assessmentCommand: tuple[str, ...]
+    assessmentProfile: str
+    expectedObservations: tuple[ExpectedObservation, ...]
+    expectedFindings: tuple[str, ...]
+    timeoutSeconds: int
     cleanup: tuple[str, ...]
 
 
-WEB_SAFE_HEALTH = FunctionalScenario(
+WEBSAFEHEALTH = FunctionalScenario(
     identifier="web-safe.health",
     target=TargetReference(
         identifier="web-safe",
         provenance="first-party:labs/targets/web-safe",
         version="1",
-        compose_service="lab-web-safe",
+        composeService="lab-web-safe",
     ),
-    required_capabilities=("docker.compose", "http.get"),
+    requiredCapabilities=("docker.compose", "http.get"),
     setup=("docker compose --profile lab up --build --wait lab-web-safe",),
-    health_check="GET /health returns the deterministic web-safe health payload.",
-    assessment_command=("GET", "/health"),
-    assessment_profile="safe",
-    expected_observations=(
+    healthCheck="GET /health returns the deterministic web-safe health payload.",
+    assessmentCommand=("GET", "/health"),
+    assessmentProfile="safe",
+    expectedObservations=(
         ExpectedObservation(name="status", value="ok"),
         ExpectedObservation(name="target", value="web-safe"),
     ),
-    expected_findings=(),
-    timeout_seconds=60,
+    expectedFindings=(),
+    timeoutSeconds=60,
     cleanup=("docker compose --profile lab down --volumes --remove-orphans",),
 )
 
-WEB_MICRO_TARGET_CONTRACT = FunctionalScenario(
+WEBMICROTARGETCONTRACT = FunctionalScenario(
     identifier="web-micro.contract",
     target=TargetReference(
         identifier="web-micro",
         provenance="first-party:labs/targets/web-micro",
         version="1",
-        compose_service="lab-web-micro",
+        composeService="lab-web-micro",
     ),
-    required_capabilities=("docker.compose", "http.get", "http.post"),
+    requiredCapabilities=("docker.compose", "http.get", "http.post"),
     setup=("docker compose --profile lab up --build --wait lab-web-micro",),
-    health_check="GET /health returns the deterministic web-micro health payload.",
-    assessment_command=("GET", "/", "/redirect", "/form", "/canary/command-execution"),
-    assessment_profile="safe",
-    expected_observations=(
+    healthCheck="GET /health returns the deterministic web-micro health payload.",
+    assessmentCommand=("GET", "/", "/redirect", "/form", "/canary/command-execution"),
+    assessmentProfile="safe",
+    expectedObservations=(
         ExpectedObservation(name="route.discovery", value="/catalog"),
         ExpectedObservation(name="route.catalog", value="GET /catalog"),
         ExpectedObservation(name="route.redirect", value="/redirect -> /catalog"),
@@ -85,12 +85,12 @@ WEB_MICRO_TARGET_CONTRACT = FunctionalScenario(
         ExpectedObservation(name="input.upload", value="POST /upload"),
         ExpectedObservation(name="status.matrix", value="GET /status/{400,401,403,404,500}"),
     ),
-    expected_findings=(
+    expectedFindings=(
         "simulated.command-execution",
         "simulated.file-inclusion",
         "simulated.ssrf",
         "simulated.upload-validation",
     ),
-    timeout_seconds=60,
+    timeoutSeconds=60,
     cleanup=("docker compose --profile lab down --volumes --remove-orphans",),
 )

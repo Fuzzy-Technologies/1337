@@ -1,4 +1,4 @@
-"""Minimal installed entry point for 1337 Security Workbench."""
+"""Минимальная установленная точка входа 1337 Security Workbench."""
 
 from __future__ import annotations
 
@@ -7,36 +7,43 @@ import sys
 from collections.abc import Sequence
 from importlib.metadata import version
 
-from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
-from fuzzy1337.dev_commands import describe_commands
-from fuzzy1337.shell import run_interactive_shell
+from fuzzy1337.command_registry import COMMANDREGISTRY, CommandRegistry
+from fuzzy1337.dev_commands import DescribeCommands
+from fuzzy1337.shell import RunInteractiveShell
 
 
-def get_commands() -> dict[str, str]:
-    """Return descriptions from the deterministic developer-command registry."""
-    return describe_commands()
+def GetCommands() -> dict[str, str]:
+    """Возвращает описания из детерминированного реестра команд разработчика."""
+
+    return DescribeCommands()
 
 
-def get_command_registry() -> CommandRegistry:
-    """Return the centralized user-command registry without exposing mutable state."""
-    return COMMAND_REGISTRY
+def GetCommandRegistry() -> CommandRegistry:
+    """Возвращает централизованный реестр без раскрытия изменяемого состояния."""
+
+    return COMMANDREGISTRY
 
 
-def _command_epilog(registry: CommandRegistry) -> str:
-    """Render currently available commands from their centralized descriptors."""
+def CommandEpilog(registry: CommandRegistry) -> str:
+    """Формирует список доступных команд из централизованных дескрипторов."""
+
     lines = ["Currently available commands:"]
-    lines.extend(f"  {descriptor.usage:<18}{descriptor.summary}" for descriptor in registry.commands)
+    lines.extend(
+        f"  {descriptor.usage:<18}{descriptor.summary}"
+        for descriptor in registry.Commands
+    )
     lines.append("Run '1337 shell' to start the interactive workbench.")
     return "\n".join(lines)
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Start the interactive shell or show help and installed-version output."""
-    registry = get_command_registry()
+def Main(argv: Sequence[str] | None = None) -> int:
+    """Запускает оболочку либо выводит справку и установленную версию."""
+
+    registry = GetCommandRegistry()
     parser = argparse.ArgumentParser(
         prog="1337",
         description="1337 Security Workbench by Fuzzy Technologies",
-        epilog=_command_epilog(registry),
+        epilog=CommandEpilog(registry),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=f"1337 {version('1337')}")
@@ -44,7 +51,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):
-        return run_interactive_shell()
+        return RunInteractiveShell()
 
     parser.print_help()
     return 0

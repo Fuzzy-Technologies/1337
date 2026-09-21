@@ -7,28 +7,36 @@ import json
 import pytest
 
 from .conftest import ComposeLab
-from .scenarios import WEB_MICRO_TARGET_CONTRACT
+from .scenarios import WEBMICROTARGETCONTRACT
 
 pytestmark = pytest.mark.serial
 
 
-def test_web_micro_scenario_declares_known_answer_contract():
+def test_WebMicroScenarioDeclaresKnownAnswerContract():
     """Keep every target route and bounded simulation explicit for later metrics."""
-    scenario = WEB_MICRO_TARGET_CONTRACT
 
-    assert scenario.target.provenance == "first-party:labs/targets/web-micro"
-    assert scenario.required_capabilities == ("docker.compose", "http.get", "http.post")
-    assert scenario.expected_observations
-    assert scenario.expected_findings == (
+    scenario = WEBMICROTARGETCONTRACT
+
+    assert scenario.target.provenance == "first-party:labs/targets/web-micro", (
+        "web micro scenario declares known answer contract invariant failed."
+    )
+    assert scenario.requiredCapabilities == ("docker.compose", "http.get", "http.post"), (
+        "web micro scenario declares known answer contract invariant failed."
+    )
+    assert scenario.expectedObservations, (
+        "web micro scenario declares known answer contract invariant failed."
+    )
+    assert scenario.expectedFindings == (
         "simulated.command-execution",
         "simulated.file-inclusion",
         "simulated.ssrf",
         "simulated.upload-validation",
-    )
+    ), "web micro scenario declares known answer contract invariant failed."
 
 
-def test_web_micro_target_exposes_deterministic_safe_observations(micro_target_lab: ComposeLab):
+def test_WebMicroTargetExposesDeterministicSafeObservations(microTargetLab: ComposeLab):
     """Exercise discovery, inputs, statuses, and simulation markers through HTTP only."""
+
     script = """
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -50,6 +58,7 @@ def request(path, method='GET', data=None, headers=None):
     try:
         response = opener.open(request, timeout=1)
         return response.status, dict(response.headers.items()), response.read().decode('utf-8')
+
     except HTTPError as error:
         return error.code, dict(error.headers.items()), error.read().decode('utf-8')
 
@@ -61,6 +70,7 @@ result['catalog'] = {'status': status, 'body': json.loads(body)}
 try:
     response = build_opener(NoRedirect()).open('http://127.0.0.1:8080/redirect', timeout=1)
     result['redirect'] = {'status': response.status, 'location': response.headers['Location']}
+
 except HTTPError as error:
     result['redirect'] = {'status': error.code, 'location': error.headers['Location']}
 status, headers, body = request('/headers')
@@ -92,12 +102,12 @@ for status_code in (400, 401, 403, 404, 500):
 
 print(json.dumps(result, sort_keys=True))
 """
-    result = micro_target_lab.execute(
-        WEB_MICRO_TARGET_CONTRACT.target.compose_service,
+    result = microTargetLab.Execute(
+        WEBMICROTARGETCONTRACT.target.composeService,
         "python",
         "-c",
         script,
-        timeout_seconds=WEB_MICRO_TARGET_CONTRACT.timeout_seconds,
+        timeoutSeconds=WEBMICROTARGETCONTRACT.timeoutSeconds,
     )
 
     assert result.returncode == 0, result.stderr
@@ -105,45 +115,55 @@ print(json.dumps(result, sort_keys=True))
     assert observations["root"] == {
         "body": {"links": ["/catalog", "/form", "/headers", "/cookie"], "target": "web-micro"},
         "status": 200,
-    }
+    }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["catalog"] == {
         "body": {"items": ["alpha", "beta"], "target": "web-micro"},
         "status": 200,
-    }
-    assert observations["headers"] == {"lab": "web-micro", "status": 200}
-    assert observations["redirect"] == {"location": "/catalog", "status": 302}
+    }, "web micro target exposes deterministic safe observations invariant failed."
+    assert observations["headers"] == {"lab": "web-micro", "status": 200}, (
+        "web micro target exposes deterministic safe observations invariant failed."
+    )
+    assert observations["redirect"] == {"location": "/catalog", "status": 302}, (
+        "web micro target exposes deterministic safe observations invariant failed."
+    )
     assert observations["cookie"] == {
         "cookie": "lab_session=deterministic; HttpOnly; SameSite=Strict",
         "status": 200,
-    }
-    assert "action=\"/submit\"" in observations["form"]["body"]
-    assert observations["query"] == {"body": {"item": "demo"}, "status": 200}
-    assert observations["json"] == {"body": {"accepted": True, "keys": ["name"]}, "status": 200}
+    }, "web micro target exposes deterministic safe observations invariant failed."
+    assert "action=\"/submit\"" in observations["form"]["body"], (
+        "web micro target exposes deterministic safe observations invariant failed."
+    )
+    assert observations["query"] == {"body": {"item": "demo"}, "status": 200}, (
+        "web micro target exposes deterministic safe observations invariant failed."
+    )
+    assert observations["json"] == {"body": {"accepted": True, "keys": ["name"]}, "status": 200}, (
+        "web micro target exposes deterministic safe observations invariant failed."
+    )
     assert observations["submit"] == {
         "body": {"accepted": True, "simulation": "form"},
         "status": 200,
-    }
+    }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["upload"] == {
         "body": {"accepted": False, "simulation": "upload-validation"},
         "status": 200,
-    }
+    }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["canary.command-execution"] == {
         "body": {"simulation": "command-execution"},
         "status": 200,
-    }
+    }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["canary.file-inclusion"] == {
         "body": {"simulation": "file-inclusion"},
         "status": 200,
-    }
+    }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["canary.ssrf"] == {
         "body": {"outbound_requests": 0, "simulation": "ssrf"},
         "status": 200,
-    }
+    }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["canary.upload"] == {
         "body": {"simulation": "upload-validation"},
         "status": 200,
-    }
+    }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["statuses"] == {
-        str(status_code): {"body": {"status": status_code}, "status": status_code}
-        for status_code in (400, 401, 403, 404, 500)
-    }
+        str(statusCode): {"body": {"status": statusCode}, "status": statusCode}
+        for statusCode in (400, 401, 403, 404, 500)
+    }, "web micro target exposes deterministic safe observations invariant failed."

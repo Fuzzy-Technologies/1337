@@ -1,7 +1,7 @@
-"""Experimental provider-neutral ToolAdapter SDK for 1337 extensions."""
+"""Экспериментальный независимый от провайдера SDK ToolAdapter для расширений 1337."""
 
 from fuzzy1337.adapters.contracts import (
-    ADAPTER_CONTRACT_VERSION,
+    ADAPTERCONTRACTVERSION,
     AdapterDescriptor,
     AdapterExecution,
     AdapterHealth,
@@ -17,12 +17,12 @@ from fuzzy1337.adapters.contracts import (
     NormalizedObservation,
     ObjectEnrichment,
     RelationEnrichment,
+    SerializeContract,
     ToolAdapter,
-    serialize_contract,
 )
 
 __all__ = [
-    "ADAPTER_CONTRACT_VERSION",
+    "ADAPTERCONTRACTVERSION",
     "AdapterDescriptor",
     "AdapterExecution",
     "AdapterHealth",
@@ -39,5 +39,5 @@ __all__ = [
     "ObjectEnrichment",
     "RelationEnrichment",
     "ToolAdapter",
-    "serialize_contract",
+    "SerializeContract",
 ]

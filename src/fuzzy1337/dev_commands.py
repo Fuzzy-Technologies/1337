@@ -1,4 +1,4 @@
-"""Developer command helpers for the 1337 project."""
+"""Вспомогательные команды разработчика проекта 1337."""
 
 from __future__ import annotations
 
@@ -11,34 +11,37 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from fuzzy1337.test_runner import TestOptions, run_tests
+from fuzzy1337.test_runner import RunTests, TestOptions
 
 Executable = Literal["python", "uv"]
 
 
 @dataclass(frozen=True, slots=True)
 class CommandStep:
-    """One deterministic process invocation in a developer command."""
+    """Описывает один детерминированный запуск процесса."""
 
     executable: Executable
     arguments: tuple[str, ...]
 
-    def display(self) -> str:
-        """Return the human-readable command without exposing local paths."""
+    def Display(self) -> str:
+        """Возвращает читаемую команду без раскрытия локальных путей."""
+
         return " ".join((self.executable, *self.arguments))
 
 
-def python_step(*arguments: str) -> CommandStep:
-    """Create a step executed by the current Python interpreter."""
+def PythonStep(*arguments: str) -> CommandStep:
+    """Создаёт шаг для выполнения текущим интерпретатором Python."""
+
     return CommandStep("python", arguments)
 
 
-def uv_step(*arguments: str) -> CommandStep:
-    """Create a step executed by the pinned external uv installation."""
+def UvStep(*arguments: str) -> CommandStep:
+    """Создаёт шаг для выполнения закреплённой внешней установкой uv."""
+
     return CommandStep("uv", arguments)
 
 
-_coverage_gate = python_step(
+coverageGate = PythonStep(
     "-m",
     "fuzzy1337.coverage_gate",
     "coverage/coverage.json",
@@ -46,13 +49,13 @@ _coverage_gate = python_step(
 )
 
 COMMANDS: dict[str, tuple[CommandStep, ...]] = {
-    "setup": (uv_step("sync", "--locked", "--extra", "dev"),),
-    "compile": (python_step("-m", "compileall", "-q", "src", "tests"),),
-    "lint": (python_step("-m", "ruff", "check", "."),),
-    "typecheck": (python_step("-m", "mypy"),),
-    "unit": (_coverage_gate,),
-    "test": (_coverage_gate,),
-    "build": (python_step("-m", "build", "--no-isolation"),),
+    "setup": (UvStep("sync", "--locked", "--extra", "dev"),),
+    "compile": (PythonStep("-m", "compileall", "-q", "src", "tests"),),
+    "lint": (PythonStep("-m", "ruff", "check", "."),),
+    "typecheck": (PythonStep("-m", "mypy"),),
+    "unit": (coverageGate,),
+    "test": (coverageGate,),
+    "build": (PythonStep("-m", "build", "--no-isolation"),),
 }
 COMMANDS["check"] = (
     COMMANDS["compile"]
@@ -63,10 +66,11 @@ COMMANDS["check"] = (
 )
 
 
-def describe_commands() -> dict[str, str]:
-    """Describe execution steps without exposing mutable registry state."""
+def DescribeCommands() -> dict[str, str]:
+    """Описывает шаги без раскрытия изменяемого состояния реестра."""
+
     descriptions = {
-        name: " then ".join(step.display() for step in steps)
+        name: " then ".join(step.Display() for step in steps)
         for name, steps in COMMANDS.items()
     }
     descriptions["unit"] = (
@@ -80,13 +84,20 @@ def describe_commands() -> dict[str, str]:
         "python -m fuzzy1337.coverage_gate coverage/coverage.json src/fuzzy1337"
     )
     descriptions["check"] = " then ".join(
-        (descriptions["compile"], descriptions["lint"], descriptions["typecheck"], descriptions["test"], descriptions["build"])
+        (
+            descriptions["compile"],
+            descriptions["lint"],
+            descriptions["typecheck"],
+            descriptions["test"],
+            descriptions["build"],
+        )
     )
     return descriptions
 
 
-def _resolve_step(step: CommandStep) -> list[str] | None:
-    """Resolve a step to an argv list, failing closed when a tool is absent."""
+def ResolveStep(step: CommandStep) -> list[str] | None:
+    """Преобразует шаг в argv и безопасно завершается без инструмента."""
+
     if step.executable == "python":
         return [sys.executable, *step.arguments]
 
@@ -101,8 +112,9 @@ def _resolve_step(step: CommandStep) -> list[str] | None:
     return [executable, *step.arguments]
 
 
-def run(command: str, test_options: TestOptions | None = None) -> int:
-    """Run one gate from the repository root and stop at the first failure."""
+def Run(command: str, testOptions: TestOptions | None = None) -> int:
+    """Запускает проверку из корня репозитория до первой ошибки."""
+
     if command not in COMMANDS:
         raise ValueError(f"Unknown developer command: {command}")
 
@@ -111,25 +123,24 @@ def run(command: str, test_options: TestOptions | None = None) -> int:
         return 2
 
     if command == "check":
-        for nested_command in ("compile", "lint", "typecheck", "test", "build"):
-            nested_result = run(nested_command, test_options)
-            if nested_result:
-                return nested_result
+        for nestedCommand in ("compile", "lint", "typecheck", "test", "build"):
+            nestedResult = Run(nestedCommand, testOptions)
+            if nestedResult:
+                return nestedResult
         return 0
 
     if command in {"unit", "test"}:
         Path("coverage/coverage.json").unlink(missing_ok=True)
-        test_result = run_tests(
+        testResult = RunTests(
             "tests/unit" if command == "unit" else "tests",
-            test_options or TestOptions(),
+            testOptions or TestOptions(),
         )
-        if test_result:
-            return 128 - test_result if test_result < 0 else test_result
+        if testResult:
+            return 128 - testResult if testResult < 0 else testResult
 
     for step in COMMANDS[command]:
-
-        print(f"Running: {step.display()}", flush=True)
-        arguments = _resolve_step(step)
+        print(f"Running: {step.Display()}", flush=True)
+        arguments = ResolveStep(step)
         if arguments is None:
             return 127
 
@@ -140,9 +151,11 @@ def run(command: str, test_options: TestOptions | None = None) -> int:
                 timeout=300,
                 check=False,
             )
+
         except subprocess.TimeoutExpired:
             print("Developer command exceeded its 300-second limit.", file=sys.stderr)
             return 124
+
         except OSError as error:
             detail = error.strerror or str(error)
             print(f"Could not start developer command: {detail}", file=sys.stderr)
@@ -154,8 +167,9 @@ def run(command: str, test_options: TestOptions | None = None) -> int:
     return 0
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Select a developer gate without accepting arbitrary shell commands."""
+def Main(argv: Sequence[str] | None = None) -> int:
+    """Выбирает проверку без допуска произвольных команд оболочки."""
+
     parser = argparse.ArgumentParser(
         prog="1337-dev",
         description="1337 repository quality gates",
@@ -164,18 +178,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--jobs", default="auto", metavar="auto|N")
     parser.add_argument("--timeout", default=120, type=int, metavar="N")
     parser.add_argument("--serial", action="store_true")
-    parser.add_argument("--fail-fast", action="store_true")
+    parser.add_argument("--fail-fast", dest="failFast", action="store_true")
     arguments = parser.parse_args(argv)
-    test_options = TestOptions(
+    testOptions = TestOptions(
         jobs=arguments.jobs,
-        timeout_seconds=arguments.timeout,
-        serial_only=arguments.serial,
-        fail_fast=arguments.fail_fast,
+        timeoutSeconds=arguments.timeout,
+        serialOnly=arguments.serial,
+        failFast=arguments.failFast,
     )
-    if arguments.command not in {"unit", "test"} and test_options != TestOptions():
+    if arguments.command not in {"unit", "test"} and testOptions != TestOptions():
         parser.error("test execution options are only valid with 'unit' or 'test'")
-    return run(arguments.command, test_options)
-
+    return Run(arguments.command, testOptions)
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(Main())

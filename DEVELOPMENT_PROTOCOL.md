@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.3`  
+Protocol version: `0.4`
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -32,8 +32,7 @@ The repository identity is **1337 Security Workbench by Fuzzy Technologies**.
 
 Canonical repository language is English:
 
-- source code;
-- comments and docstrings;
+- source identifiers and user-facing source strings;
 - Markdown documentation;
 - commit messages;
 - prompts and agent instructions;
@@ -43,6 +42,8 @@ Canonical repository language is English:
 - machine-readable identifiers.
 
 Localization resources are the only normal exception. Canonical commands and APIs remain English.
+Production Python docstrings and comments are Russian. Python test docstrings and comments are
+English.
 
 ## 3. Branching, project tracking, and release flow
 
@@ -186,7 +187,9 @@ A commit should represent one coherent logical change. Infrastructure repair, be
 - Keep each change narrow and reviewable.
 - Architecture-impacting work requires an ADR/design decision before or together with implementation.
 - Refactoring is behavior-preserving unless the task explicitly says otherwise.
-- Style-only changes must not alter identifiers, evaluation order, expressions, conditions, call order, public contracts, or runtime behavior.
+- Style-only changes must not alter evaluation order, expressions, conditions, call order, public
+  contracts, or runtime behavior. A repository-wide migration to an owner-approved naming contract
+  may rename identifiers only with explicit owner authorization and complete consumer updates.
 - Before deleting a module, function, file, field, command, schema member, or compatibility layer, inspect references and prove that the removal is safe.
 - Do not silently remove fallbacks, guards, validation, logging, audit evidence, or tests.
 - Do not add `TODO`, `FIXME`, `TEMP`, or `HACK` to tracked source.
@@ -202,6 +205,10 @@ Python is the primary orchestration, CLI, automation, adapter, API, testing, and
 ### 6.1. General style
 
 - Use 4-space indentation.
+- Every production module, class, function, and method has a concise Russian docstring.
+- Test docstrings and comments are English.
+- Comments explain reasons, constraints, invariants, or architectural boundaries; they do not
+  narrate obvious operations.
 - Use modern Python with explicit, readable control flow.
 - Use type hints for public interfaces and important internal contracts.
 - Prefer `dataclass`, `Protocol`, `TypedDict`, enums, or validated models where a real data contract exists.
@@ -219,14 +226,19 @@ Python is the primary orchestration, CLI, automation, adapter, API, testing, and
 
 ### 6.2. Naming
 
-Default Python naming:
+Project-owned Python naming:
 
-- modules/functions/variables: `snake_case`;
-- classes/protocols/enums: `PascalCase`;
-- constants: `UPPER_CASE`;
-- private implementation details: leading `_`.
+- functions and methods: `PascalCase`, including `Main()`;
+- classes, protocols, and enums: `PascalCase`;
+- variables, parameters, and fields: `lowerCamelCase`;
+- constants: compact `UPPERCASE` without underscores;
+- test files retain `test_*.py`; test functions retain the required `test_` prefix and use
+  `PascalCase` after that prefix.
 
-Preserve externally defined naming where it is part of a contract. Do **not** mechanically rename:
+Project-owned `snake_case` identifiers are prohibited.
+
+Preserve externally imposed naming where it is part of a contract. This includes Python dunder
+names such as `__name__` and framework callbacks or fixtures. Do **not** mechanically rename:
 
 - CLI arguments and command names;
 - JSON/TOML/YAML fields;
@@ -250,6 +262,14 @@ Specific house rule retained from existing Fuzzy Technologies Python projects:
 > After a completed multi-line `for` block, insert a blank line before the next independent statement or block when that line is no longer part of the loop/control flow.
 
 Do not mechanically insert blank lines inside a logically continuous construct.
+
+- A docstring is the first statement in its module, class, function, or method.
+- Insert one blank line after a docstring before implementation.
+- Do not insert a blank line immediately after a `def`, `class`, `try`, `if`, `elif`,
+  `else`, `except`, `finally`, `for`, `while`, `with`, `match`, or `case` header.
+- Insert one blank line before `elif`, `else`, `except`, and `finally`.
+- Separate module-level functions and classes with two blank lines and class methods with one.
+- Keep one blank line before `if __name__ == "__main__":`.
 
 Prefer readable source over clever compression. A dense one-liner or nested comprehension should not replace straightforward control flow when it reduces debuggability or evidence clarity.
 
