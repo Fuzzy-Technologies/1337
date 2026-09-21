@@ -41,6 +41,8 @@ EXTERNALATTRIBUTES = {
     "BAD_REQUEST",
     "NOT_FOUND",
     "REQUEST_ENTITY_TOO_LARGE",
+    "R_OK",
+    "W_OK",
     "add_argument",
     "as_posix",
     "assert_called_once",
@@ -72,6 +74,7 @@ EXTERNALATTRIBUTES = {
     "send_response",
     "serve_forever",
     "write_text",
+    "version_info",
 }
 
 
@@ -160,7 +163,7 @@ def test_ProjectOwnedIdentifiersFollowStyleContract():
                     *node.args.kwonlyargs,
                 )
                 for argument in arguments:
-                    if argument.arg in {"self", "cls", *EXTERNALNAMES}:
+                    if argument.arg in {"_", "self", "cls", *EXTERNALNAMES}:
                         continue
                     if not LOWERCAMELPATTERN.fullmatch(argument.arg):
                         violations.append(
