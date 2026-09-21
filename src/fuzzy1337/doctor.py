@@ -1,4 +1,4 @@
-"""Детерминированная диагностика локального окружения для CLI 1337."""
+"""Deterministic local environment diagnostics for the 1337 CLI."""
 
 from __future__ import annotations
 
@@ -12,12 +12,12 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import TextIO
 
-MINIMUMPYTHONVERSION = (3, 11)
-DOCKERCOMPOSETIMEOUTSECONDS = 5
+MINIMUM_PYTHON_VERSION = (3, 11)
+DOCKER_COMPOSE_TIMEOUT_SECONDS = 5
 
 
 class DoctorStatus(StrEnum):
-    """Классифицирует проверку, разделяя обязательные и необязательные инструменты."""
+    """Classify one diagnostic without conflating optional and required tooling."""
 
     PASS = "PASS"
     INFO = "INFO"
@@ -27,7 +27,7 @@ class DoctorStatus(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class DoctorCheck:
-    """Описывает краткий детерминированный результат локальной проверки."""
+    """Describe one concise, deterministic local diagnostic result."""
 
     identifier: str
     status: DoctorStatus
@@ -36,18 +36,18 @@ class DoctorCheck:
 
 @dataclass(frozen=True, slots=True)
 class DoctorReport:
-    """Хранит полный результат диагностического запуска без изменений среды."""
+    """Collect the complete result of one non-mutating diagnostic run."""
 
     checks: tuple[DoctorCheck, ...]
 
     @property
     def ExitCode(self) -> int:
-        """Возвращает ошибку только при нарушении обязательного условия."""
+        """Fail only when a required local precondition cannot be proven."""
 
         return int(any(check.status is DoctorStatus.FAIL for check in self.checks))
 
     def Render(self) -> str:
-        """Формирует стабильный читаемый вывод для терминала и журналов."""
+        """Render stable human-readable output for terminals and captured logs."""
 
         lines = ["1337 doctor"]
         lines.extend(
@@ -57,10 +57,10 @@ class DoctorReport:
         return "\n".join(lines)
 
 
-def CollectDoctorReport(workingDirectory: Path | None = None) -> DoctorReport:
-    """Проверяет runtime без изменения конфигурации или состояния пользователя."""
+def CollectDoctorReport(working_directory: Path | None = None) -> DoctorReport:
+    """Inspect the local runtime without modifying configuration or user state."""
 
-    directory = workingDirectory or Path.cwd()
+    directory = working_directory or Path.cwd()
     return DoctorReport(
         checks=(
             CheckPythonRuntime(),
@@ -73,7 +73,7 @@ def CollectDoctorReport(workingDirectory: Path | None = None) -> DoctorReport:
 
 
 def RunDoctor(output: TextIO) -> int:
-    """Записывает отчёт и возвращает безопасный код процесса."""
+    """Write the diagnostic report and return its fail-closed process status."""
 
     report = CollectDoctorReport()
     output.write(f"{report.Render()}\n")
@@ -81,11 +81,11 @@ def RunDoctor(output: TextIO) -> int:
 
 
 def CheckPythonRuntime() -> DoctorCheck:
-    """Проверяет минимальную версию Python из контракта пакета."""
+    """Verify the minimum Python runtime required by the package contract."""
 
     detected = sys.version_info[:3]
-    if detected < MINIMUMPYTHONVERSION:
-        required = ".".join(str(value) for value in MINIMUMPYTHONVERSION)
+    if detected < MINIMUM_PYTHON_VERSION:
+        required = ".".join(str(value) for value in MINIMUM_PYTHON_VERSION)
         actual = ".".join(str(value) for value in detected)
         return DoctorCheck(
             identifier="python",
@@ -102,10 +102,10 @@ def CheckPythonRuntime() -> DoctorCheck:
 
 
 def CheckPackageInstallation() -> DoctorCheck:
-    """Проверяет запуск команды из установленного дистрибутива 1337."""
+    """Verify that the command runs from an installed 1337 distribution."""
 
     try:
-        installedVersion = version("1337")
+        installed_version = version("1337")
 
     except PackageNotFoundError:
         return DoctorCheck(
@@ -117,12 +117,12 @@ def CheckPackageInstallation() -> DoctorCheck:
     return DoctorCheck(
         identifier="package",
         status=DoctorStatus.PASS,
-        summary=f"1337 {installedVersion} is installed.",
+        summary=f"1337 {installed_version} is installed.",
     )
 
 
 def CheckWorkingDirectory(directory: Path) -> DoctorCheck:
-    """Проверяет пригодность текущего каталога для состояния workspace."""
+    """Report whether the current directory can host future workspace state."""
 
     if not directory.is_dir() or not os.access(directory, os.R_OK):
         return DoctorCheck(
@@ -146,7 +146,7 @@ def CheckWorkingDirectory(directory: Path) -> DoctorCheck:
 
 
 def CheckDockerCompose() -> DoctorCheck:
-    """Проверяет необязательный Compose без запуска контейнера или цели."""
+    """Check optional Compose support without starting a container or target."""
 
     if shutil.which("docker") is None:
         return DoctorCheck(
@@ -162,7 +162,7 @@ def CheckDockerCompose() -> DoctorCheck:
             check=False,
             shell=False,
             text=True,
-            timeout=DOCKERCOMPOSETIMEOUTSECONDS,
+            timeout=DOCKER_COMPOSE_TIMEOUT_SECONDS,
         )
 
     except (OSError, subprocess.TimeoutExpired):
@@ -187,7 +187,7 @@ def CheckDockerCompose() -> DoctorCheck:
 
 
 def CheckConfigurationBoundary() -> DoctorCheck:
-    """Описывает границу конфигурации без выдумывания её формата."""
+    """Explain the current configuration boundary without inventing a config format."""
 
     return DoctorCheck(
         identifier="configuration",

@@ -1,4 +1,4 @@
-"""Централизованные метаданные команд интерфейса 1337."""
+"""Central command metadata for the 1337 command-line experience."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class CommandDescriptor:
-    """Описывает пользовательскую команду без привязки к реализации."""
+    """Describe one user-facing command without coupling it to an implementation."""
 
     identifier: str
     summary: str
@@ -18,77 +18,78 @@ class CommandDescriptor:
 
     @property
     def Names(self) -> tuple[str, ...]:
-        """Возвращает канонический идентификатор и допустимые псевдонимы."""
+        """Return the canonical identifier followed by its accepted aliases."""
 
         return (self.identifier, *self.aliases)
 
 
 class CommandRegistry:
-    """Разрешает и находит дескрипторы команд через неизменяемый реестр."""
+    """Resolve and discover command descriptors through one immutable registry."""
 
     def __init__(self, commands: Iterable[CommandDescriptor]) -> None:
-        """Создаёт индекс команд и отклоняет неоднозначные имена."""
+        """Index command descriptors and reject ambiguous names."""
 
-        self.commandItems = tuple(commands)
-        self.descriptorsByName: dict[str, CommandDescriptor] = {}
+        self._commands = tuple(commands)
+        self._by_name: dict[str, CommandDescriptor] = {}
 
-        for descriptor in self.commandItems:
+        for descriptor in self._commands:
             for name in descriptor.Names:
                 normalized = NormalizeName(name)
-                if normalized in self.descriptorsByName:
+                if normalized in self._by_name:
                     raise ValueError(f"Duplicate command name: {name}")
 
-                self.descriptorsByName[normalized] = descriptor
+                self._by_name[normalized] = descriptor
 
     @property
     def Commands(self) -> tuple[CommandDescriptor, ...]:
-        """Возвращает дескрипторы в объявленном порядке отображения."""
+        """Return descriptors in their declared presentation order."""
 
-        return self.commandItems
+        return self._commands
 
     def Resolve(self, name: str) -> CommandDescriptor | None:
-        """Возвращает команду по имени или псевдониму без угадывания ввода."""
+        """Return a command by canonical name or alias without guessing invalid input."""
 
         try:
-            return self.descriptorsByName[NormalizeName(name)]
+            return self._by_name[NormalizeName(name)]
 
         except (KeyError, ValueError):
             return None
 
     def Complete(self, prefix: str) -> tuple[CommandDescriptor, ...]:
-        """Возвращает команды, имя или псевдоним которых начинается с ``prefix``."""
+        """Return commands whose canonical name or alias starts with ``prefix``."""
 
         normalized = prefix.strip().lower()
         return tuple(
             descriptor
-            for descriptor in self.commandItems
+            for descriptor in self._commands
             if not normalized
             or any(name.lower().startswith(normalized) for name in descriptor.Names)
         )
 
     def Search(self, query: str) -> tuple[CommandDescriptor, ...]:
-        """Выполняет детерминированный текстовый поиск для палитр и документации."""
+        """Return a deterministic text search for future palettes and documentation."""
 
         normalized = query.strip().lower()
         if not normalized:
-            return self.commandItems
+            return self._commands
 
         matches: list[tuple[int, CommandDescriptor]] = []
-        for descriptor in self.commandItems:
+        for descriptor in self._commands:
             fields = (*descriptor.Names, descriptor.summary, *descriptor.capabilities)
             haystack = " ".join(fields).lower()
             if normalized in haystack:
-                startsWithQuery = any(
-                    name.lower().startswith(normalized) for name in descriptor.Names
+                rank = (
+                    0
+                    if any(name.lower().startswith(normalized) for name in descriptor.Names)
+                    else 1
                 )
-                rank = 0 if startsWithQuery else 1
                 matches.append((rank, descriptor))
 
         return tuple(descriptor for _, descriptor in sorted(matches, key=lambda match: match[0]))
 
 
 def NormalizeName(name: str) -> str:
-    """Нормализует ключ индекса и отклоняет пустые или многословные имена."""
+    """Normalize an index key while rejecting empty or multi-token names."""
 
     normalized = name.strip().lower()
     if not normalized or any(character.isspace() for character in normalized):
@@ -97,7 +98,7 @@ def NormalizeName(name: str) -> str:
     return normalized
 
 
-COMMANDREGISTRY = CommandRegistry(
+COMMAND_REGISTRY = CommandRegistry(
     (
         CommandDescriptor(
             identifier="doctor",

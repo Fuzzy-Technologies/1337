@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.4`
+Protocol version: `0.5`
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -42,8 +42,7 @@ Canonical repository language is English:
 - machine-readable identifiers.
 
 Localization resources are the only normal exception. Canonical commands and APIs remain English.
-Production Python docstrings and comments are Russian. Python test docstrings and comments are
-English.
+Python docstrings and comments are English in both production code and tests.
 
 ## 3. Branching, project tracking, and release flow
 
@@ -205,8 +204,8 @@ Python is the primary orchestration, CLI, automation, adapter, API, testing, and
 ### 6.1. General style
 
 - Use 4-space indentation.
-- Every production module, class, function, and method has a concise Russian docstring.
-- Test docstrings and comments are English.
+- Every production and test module, class, function, and method has a concise English docstring.
+- Python comments are English-only.
 - Comments explain reasons, constraints, invariants, or architectural boundaries; they do not
   narrate obvious operations.
 - Use modern Python with explicit, readable control flow.
@@ -230,12 +229,14 @@ Project-owned Python naming:
 
 - functions and methods: `PascalCase`, including `Main()`;
 - classes, protocols, and enums: `PascalCase`;
-- variables, parameters, and fields: `lowerCamelCase`;
-- constants: compact `UPPERCASE` without underscores;
+- variables, parameters, and fields: `snake_case`; a leading underscore is allowed for internal
+  implementation details;
+- constants: `UPPER_SNAKE_CASE` with underscores between words;
 - test files retain `test_*.py`; test functions retain the required `test_` prefix and use
   `PascalCase` after that prefix.
 
-Project-owned `snake_case` identifiers are prohibited.
+Project-owned non-callable identifiers use normal Python `snake_case`. Project-owned function and
+method names remain `PascalCase` and must not be converted to `snake_case`.
 
 Preserve externally imposed naming where it is part of a contract. This includes Python dunder
 names such as `__name__` and framework callbacks or fixtures. Do **not** mechanically rename:

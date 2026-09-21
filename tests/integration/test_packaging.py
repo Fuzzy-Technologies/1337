@@ -32,9 +32,7 @@ def Invoke(arguments, cwd):
 def test_SdistWheelAndCleanInstallation(tmp_path):
     """Verify sdist wheel and clean installation."""
 
-    metadata = tomllib.loads(
-        (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    )["project"]
+    metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     output = tmp_path / "dist"
     Invoke(
         [sys.executable, "-m", "build", "--no-isolation", "--outdir", str(output)],
@@ -88,16 +86,19 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
         [str(scripts / f"1337-dev{suffix}"), "--help"],
         tmp_path,
     ), "sdist wheel and clean installation invariant failed."
-    assert Invoke(
-        [
-            str(executable),
-            "-I",
-            "-c",
-            "from fuzzy1337.adapters import ADAPTERCONTRACTVERSION; "
-            "print(ADAPTERCONTRACTVERSION)",
-        ],
-        tmp_path,
-    ).strip() == "1", "sdist wheel and clean installation invariant failed."
+    assert (
+        Invoke(
+            [
+                str(executable),
+                "-I",
+                "-c",
+                "from fuzzy1337.adapters import ADAPTER_CONTRACT_VERSION; "
+                "print(ADAPTER_CONTRACT_VERSION)",
+            ],
+            tmp_path,
+        ).strip()
+        == "1"
+    ), "sdist wheel and clean installation invariant failed."
     location = Invoke(
         [
             str(executable),

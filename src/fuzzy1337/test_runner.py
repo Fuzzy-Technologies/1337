@@ -1,4 +1,4 @@
-"""Детерминированный запуск pytest в изолированных процессах."""
+"""Deterministic process-isolated pytest execution for developer gates."""
 
 from __future__ import annotations
 
@@ -6,46 +6,46 @@ import os
 import subprocess
 import sys
 import time
-import xml.etree.ElementTree as elementTree
+import xml.etree.ElementTree as element_tree
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULTTIMEOUTSECONDS = 120
-DEFAULTMAXWORKERS = 12
+DEFAULT_TIMEOUT_SECONDS = 120
+DEFAULT_MAX_WORKERS = 12
 
 
 @dataclass(frozen=True, slots=True)
 class TestOptions:
-    """Хранит проверенные настройки выполнения слоя pytest."""
+    """Validated execution settings for a pytest layer."""
 
     jobs: str = "auto"
-    timeoutSeconds: int = DEFAULTTIMEOUTSECONDS
-    serialOnly: bool = False
-    failFast: bool = False
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
+    serial_only: bool = False
+    fail_fast: bool = False
 
     def __post_init__(self) -> None:
-        """Отклоняет небезопасные настройки до запуска pytest."""
+        """Reject unsafe or ambiguous execution settings before spawning pytest."""
 
         if self.jobs != "auto" and (not self.jobs.isdecimal() or int(self.jobs) < 1):
             raise ValueError("jobs must be 'auto' or a positive integer")
-        if self.timeoutSeconds < 1:
+        if self.timeout_seconds < 1:
             raise ValueError("timeout must be a positive integer")
 
 
 @dataclass(frozen=True, slots=True)
 class TestSummary:
-    """Хранит стабильный итог одного или нескольких процессов pytest."""
+    """Stable aggregate evidence from one or more pytest subprocesses."""
 
     total: int = 0
     passed: int = 0
     failed: int = 0
     skipped: int = 0
     timeout: int = 0
-    durationSeconds: float = 0.0
+    duration_seconds: float = 0.0
 
     def Combine(self, other: TestSummary) -> TestSummary:
-        """Возвращает сумму двух независимых отчётов pytest."""
+        """Return the deterministic sum of two independent pytest reports."""
 
         return TestSummary(
             total=self.total + other.total,
@@ -53,34 +53,34 @@ class TestSummary:
             failed=self.failed + other.failed,
             skipped=self.skipped + other.skipped,
             timeout=self.timeout + other.timeout,
-            durationSeconds=self.durationSeconds + other.durationSeconds,
+            duration_seconds=self.duration_seconds + other.duration_seconds,
         )
 
     def Display(self) -> str:
-        """Формирует стабильную машиночитаемую строку итогов."""
+        """Render one machine-readable, stable terminal-summary line."""
 
         return (
             "Test summary: "
             f"total={self.total} passed={self.passed} failed={self.failed} "
             f"skipped={self.skipped} timeout={self.timeout} "
-            f"duration={self.durationSeconds:.3f}s"
+            f"duration={self.duration_seconds:.3f}s"
         )
 
 
-def AutoWorkerCount(cpuCount: int | None = None) -> int:
-    """Возвращает ограниченное число workers для планирования xdist."""
+def AutoWorkerCount(cpu_count: int | None = None) -> int:
+    """Return the bounded worker count used by xdist automatic scheduling."""
 
-    return min(cpuCount if cpuCount is not None else (os.cpu_count() or 1), DEFAULTMAXWORKERS)
+    return min(cpu_count if cpu_count is not None else (os.cpu_count() or 1), DEFAULT_MAX_WORKERS)
 
 
 def PytestArguments(
     target: str,
     options: TestOptions,
-    reportPath: Path,
+    report_path: Path,
     *,
     serial: bool,
 ) -> list[str]:
-    """Формирует явный argv pytest без интерполяции оболочки."""
+    """Build one explicit pytest argv without shell interpolation."""
 
     arguments = [
         sys.executable,
@@ -88,13 +88,12 @@ def PytestArguments(
         "pytest",
         target,
         "--junitxml",
-        str(reportPath),
-        f"--timeout={options.timeoutSeconds}",
+        str(report_path),
+        f"--timeout={options.timeout_seconds}",
     ]
-    if options.failFast:
+    if options.fail_fast:
         arguments.append("-x")
     if serial:
-        # Общий ресурс остаётся вне пула процессов, чтобы не маскировать гонки.
         arguments.extend(("-m", "serial", "-n", "0", "--cov-append"))
 
     else:
@@ -102,12 +101,12 @@ def PytestArguments(
     return arguments
 
 
-def ReadJunitSummary(reportPath: Path) -> TestSummary:
-    """Читает JUnit XML, не считая код процесса достаточным доказательством."""
+def ReadJunitSummary(report_path: Path) -> TestSummary:
+    """Read one JUnit XML report without trusting process return codes as evidence."""
 
-    if not reportPath.is_file():
+    if not report_path.is_file():
         return TestSummary(failed=1)
-    root = elementTree.parse(reportPath).getroot()
+    root = element_tree.parse(report_path).getroot()
     suites = [root] if root.tag == "testsuite" else list(root.findall(".//testsuite"))
     total = sum(int(suite.attrib.get("tests", 0)) for suite in suites)
     failed = sum(
@@ -129,38 +128,38 @@ def ReadJunitSummary(reportPath: Path) -> TestSummary:
         failed=failed,
         skipped=skipped,
         timeout=timeout,
-        durationSeconds=duration,
+        duration_seconds=duration,
     )
 
 
 def RunPytest(
     arguments: Sequence[str],
-    reportPath: Path,
-    timeoutSeconds: int,
+    report_path: Path,
+    timeout_seconds: int,
 ) -> tuple[int, TestSummary]:
-    """Запускает pytest и возвращает код вместе с разобранным результатом."""
+    """Run one pytest process and return its exit result with parsed evidence."""
 
-    reportPath.unlink(missing_ok=True)
+    report_path.unlink(missing_ok=True)
     started = time.monotonic()
     try:
         result = subprocess.run(
             arguments,
             check=False,
             shell=False,
-            timeout=max(300, timeoutSeconds * 3),
+            timeout=max(300, timeout_seconds * 3),
         )
 
     except subprocess.TimeoutExpired:
-        return 124, TestSummary(failed=1, timeout=1, durationSeconds=time.monotonic() - started)
+        return 124, TestSummary(failed=1, timeout=1, duration_seconds=time.monotonic() - started)
 
     except OSError:
-        return 127, TestSummary(failed=1, durationSeconds=time.monotonic() - started)
-    summary = ReadJunitSummary(reportPath)
+        return 127, TestSummary(failed=1, duration_seconds=time.monotonic() - started)
+    summary = ReadJunitSummary(report_path)
     return result.returncode, summary
 
 
 def HasSerialTests(target: str) -> bool:
-    """Обнаруживает serial-тесты до отдельного последовательного запуска."""
+    """Discover serial tests before running a separate serial process."""
 
     result = subprocess.run(
         [
@@ -184,30 +183,28 @@ def HasSerialTests(target: str) -> bool:
 
 
 def RunTests(target: str, options: TestOptions) -> int:
-    """Запускает xdist, затем serial-тесты и выводит общий итог."""
+    """Run non-serial tests in xdist, then serial tests, and print aggregate evidence."""
 
     reports = Path("coverage")
     reports.mkdir(exist_ok=True)
     summary = TestSummary()
-    returnCodes: list[int] = []
-    if not options.serialOnly:
+    return_codes: list[int] = []
+    if not options.serial_only:
         code, result = RunPytest(
             PytestArguments(target, options, reports / "parallel-tests.xml", serial=False),
             reports / "parallel-tests.xml",
-            options.timeoutSeconds,
+            options.timeout_seconds,
         )
         summary = summary.Combine(result)
-        returnCodes.append(code)
-    shouldRunSerial = (
-        options.serialOnly or not options.failFast or not any(returnCodes)
-    ) and HasSerialTests(target)
-    if shouldRunSerial:
+        return_codes.append(code)
+    run_serial = options.serial_only or not options.fail_fast or not any(return_codes)
+    if run_serial and HasSerialTests(target):
         code, result = RunPytest(
             PytestArguments(target, options, reports / "serial-tests.xml", serial=True),
             reports / "serial-tests.xml",
-            options.timeoutSeconds,
+            options.timeout_seconds,
         )
         summary = summary.Combine(result)
-        returnCodes.append(code)
+        return_codes.append(code)
     print(summary.Display(), flush=True)
-    return next((code for code in returnCodes if code), 0)
+    return next((code for code in return_codes if code), 0)

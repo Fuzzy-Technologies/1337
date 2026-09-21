@@ -81,19 +81,19 @@ def test_ExplicitShellCommandStartsTheInteractiveWorkbench(monkeypatch):
 
 
 def test_DoctorCommandRunsTheDiagnosticEntrypoint(monkeypatch, capsys):
-    """Verify the doctor command delegates to the diagnostic entrypoint."""
+    """Verify the doctor command delegates to its diagnostic entry point."""
 
     def RunDoctor(output):
-        """Provide deterministic doctor output for this CLI test."""
+        """Provide deterministic doctor output for the CLI test."""
 
         output.write("doctor output\n")
         return 0
 
     monkeypatch.setattr(cli, "RunDoctor", RunDoctor)
 
-    assert Main(["doctor"]) == 0, "doctor command delegation invariant failed."
+    assert Main(["doctor"]) == 0, "doctor command must return the diagnostic exit code."
     assert capsys.readouterr().out == "doctor output\n", (
-        "doctor command output invariant failed."
+        "doctor command must preserve diagnostic output."
     )
 
 

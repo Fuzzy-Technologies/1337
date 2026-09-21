@@ -8,8 +8,8 @@ import pytest
 from fuzzy1337.coverage_gate import Main, ValidateReport
 
 
-@pytest.fixture(name="sample")
-def Sample(tmp_path):
+@pytest.fixture
+def sample(tmp_path):
     """Provide the sample test fixture."""
 
     source = tmp_path / "src"

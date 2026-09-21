@@ -1,4 +1,4 @@
-"""Вспомогательные команды разработчика проекта 1337."""
+"""Developer command helpers for the 1337 project."""
 
 from __future__ import annotations
 
@@ -18,30 +18,30 @@ Executable = Literal["python", "uv"]
 
 @dataclass(frozen=True, slots=True)
 class CommandStep:
-    """Описывает один детерминированный запуск процесса."""
+    """One deterministic process invocation in a developer command."""
 
     executable: Executable
     arguments: tuple[str, ...]
 
     def Display(self) -> str:
-        """Возвращает читаемую команду без раскрытия локальных путей."""
+        """Return the human-readable command without exposing local paths."""
 
         return " ".join((self.executable, *self.arguments))
 
 
 def PythonStep(*arguments: str) -> CommandStep:
-    """Создаёт шаг для выполнения текущим интерпретатором Python."""
+    """Create a step executed by the current Python interpreter."""
 
     return CommandStep("python", arguments)
 
 
 def UvStep(*arguments: str) -> CommandStep:
-    """Создаёт шаг для выполнения закреплённой внешней установкой uv."""
+    """Create a step executed by the pinned external uv installation."""
 
     return CommandStep("uv", arguments)
 
 
-coverageGate = PythonStep(
+_coverage_gate = PythonStep(
     "-m",
     "fuzzy1337.coverage_gate",
     "coverage/coverage.json",
@@ -51,10 +51,13 @@ coverageGate = PythonStep(
 COMMANDS: dict[str, tuple[CommandStep, ...]] = {
     "setup": (UvStep("sync", "--locked", "--extra", "dev"),),
     "compile": (PythonStep("-m", "compileall", "-q", "src", "tests"),),
-    "lint": (PythonStep("-m", "ruff", "check", "."),),
+    "lint": (
+        PythonStep("-m", "ruff", "format", "--check", "."),
+        PythonStep("-m", "ruff", "check", "."),
+    ),
     "typecheck": (PythonStep("-m", "mypy"),),
-    "unit": (coverageGate,),
-    "test": (coverageGate,),
+    "unit": (_coverage_gate,),
+    "test": (_coverage_gate,),
     "build": (PythonStep("-m", "build", "--no-isolation"),),
 }
 COMMANDS["check"] = (
@@ -67,11 +70,10 @@ COMMANDS["check"] = (
 
 
 def DescribeCommands() -> dict[str, str]:
-    """Описывает шаги без раскрытия изменяемого состояния реестра."""
+    """Describe execution steps without exposing mutable registry state."""
 
     descriptions = {
-        name: " then ".join(step.Display() for step in steps)
-        for name, steps in COMMANDS.items()
+        name: " then ".join(step.Display() for step in steps) for name, steps in COMMANDS.items()
     }
     descriptions["unit"] = (
         "python -m pytest tests/unit -n auto --dist=loadscope then "
@@ -96,7 +98,7 @@ def DescribeCommands() -> dict[str, str]:
 
 
 def ResolveStep(step: CommandStep) -> list[str] | None:
-    """Преобразует шаг в argv и безопасно завершается без инструмента."""
+    """Resolve a step to an argv list, failing closed when a tool is absent."""
 
     if step.executable == "python":
         return [sys.executable, *step.arguments]
@@ -112,8 +114,8 @@ def ResolveStep(step: CommandStep) -> list[str] | None:
     return [executable, *step.arguments]
 
 
-def Run(command: str, testOptions: TestOptions | None = None) -> int:
-    """Запускает проверку из корня репозитория до первой ошибки."""
+def Run(command: str, test_options: TestOptions | None = None) -> int:
+    """Run one gate from the repository root and stop at the first failure."""
 
     if command not in COMMANDS:
         raise ValueError(f"Unknown developer command: {command}")
@@ -123,20 +125,20 @@ def Run(command: str, testOptions: TestOptions | None = None) -> int:
         return 2
 
     if command == "check":
-        for nestedCommand in ("compile", "lint", "typecheck", "test", "build"):
-            nestedResult = Run(nestedCommand, testOptions)
-            if nestedResult:
-                return nestedResult
+        for nested_command in ("compile", "lint", "typecheck", "test", "build"):
+            nested_result = Run(nested_command, test_options)
+            if nested_result:
+                return nested_result
         return 0
 
     if command in {"unit", "test"}:
         Path("coverage/coverage.json").unlink(missing_ok=True)
-        testResult = RunTests(
+        test_result = RunTests(
             "tests/unit" if command == "unit" else "tests",
-            testOptions or TestOptions(),
+            test_options or TestOptions(),
         )
-        if testResult:
-            return 128 - testResult if testResult < 0 else testResult
+        if test_result:
+            return 128 - test_result if test_result < 0 else test_result
 
     for step in COMMANDS[command]:
         print(f"Running: {step.Display()}", flush=True)
@@ -168,7 +170,7 @@ def Run(command: str, testOptions: TestOptions | None = None) -> int:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Выбирает проверку без допуска произвольных команд оболочки."""
+    """Select a developer gate without accepting arbitrary shell commands."""
 
     parser = argparse.ArgumentParser(
         prog="1337-dev",
@@ -178,17 +180,18 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--jobs", default="auto", metavar="auto|N")
     parser.add_argument("--timeout", default=120, type=int, metavar="N")
     parser.add_argument("--serial", action="store_true")
-    parser.add_argument("--fail-fast", dest="failFast", action="store_true")
+    parser.add_argument("--fail-fast", action="store_true")
     arguments = parser.parse_args(argv)
-    testOptions = TestOptions(
+    test_options = TestOptions(
         jobs=arguments.jobs,
-        timeoutSeconds=arguments.timeout,
-        serialOnly=arguments.serial,
-        failFast=arguments.failFast,
+        timeout_seconds=arguments.timeout,
+        serial_only=arguments.serial,
+        fail_fast=arguments.fail_fast,
     )
-    if arguments.command not in {"unit", "test"} and testOptions != TestOptions():
+    if arguments.command not in {"unit", "test"} and test_options != TestOptions():
         parser.error("test execution options are only valid with 'unit' or 'test'")
-    return Run(arguments.command, testOptions)
+    return Run(arguments.command, test_options)
+
 
 if __name__ == "__main__":
     raise SystemExit(Main())

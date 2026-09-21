@@ -1,4 +1,4 @@
-"""Детерминированная HTTP-микроцель для безопасных функциональных тестов."""
+"""Deterministic first-party HTTP micro-target for safe functional scanner tests."""
 
 from __future__ import annotations
 
@@ -10,25 +10,25 @@ from urllib.parse import parse_qs, urlsplit
 
 HOST: Final = "0.0.0.0"
 PORT: Final = 8080
-MAXREQUESTBYTES: Final = 4096
-DISCOVERYLINKS: Final = ("/catalog", "/form", "/headers", "/cookie")
-CANARYSIMULATIONS: Final = {
+MAX_REQUEST_BYTES: Final = 4096
+DISCOVERY_LINKS: Final = ("/catalog", "/form", "/headers", "/cookie")
+CANARY_SIMULATIONS: Final = {
     "/canary/command-execution": "command-execution",
     "/canary/file-inclusion": "file-inclusion",
     "/canary/ssrf": "ssrf",
     "/canary/upload": "upload-validation",
 }
-STATUSROUTES: Final = frozenset((400, 401, 403, 404, 500))
+STATUS_ROUTES: Final = frozenset((400, 401, 403, 404, 500))
 
 
 class MicroTargetRequestHandler(BaseHTTPRequestHandler):
-    """Обслуживает известные маршруты без выполнения пользовательского ввода."""
+    """Serve known-answer routes without executing user-controlled behavior."""
 
-    serverVersion = "1337WebMicro/0.1"
-    sysVersion = ""
+    server_version = "1337WebMicro/0.1"
+    sys_version = ""
 
     def do_GET(self) -> None:  # noqa: N802
-        """Обслуживает контракты обнаружения, ввода, статусов и маркеров."""
+        """Serve deterministic discovery, input, status, and canary contracts."""
 
         request = urlsplit(self.path)
         path = request.path
@@ -38,7 +38,7 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/":
-            self.SendJson({"links": list(DISCOVERYLINKS), "target": "web-micro"})
+            self.SendJson({"links": list(DISCOVERY_LINKS), "target": "web-micro"})
             return
 
         if path == "/catalog":
@@ -70,8 +70,8 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/form":
             self.SendHtml(
-                "<!doctype html><html><body><form action=\"/submit\" method=\"post\">"
-                "<input name=\"query\"><button>Submit</button></form></body></html>"
+                '<!doctype html><html><body><form action="/submit" method="post">'
+                '<input name="query"><button>Submit</button></form></body></html>'
             )
             return
 
@@ -80,9 +80,8 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
             self.SendJson({"item": query.get("item", ["default"])[0]})
             return
 
-        if path in CANARYSIMULATIONS:
-            # Маркер подтверждает маршрут, но не выполняет опасное действие.
-            simulation = CANARYSIMULATIONS[path]
+        if path in CANARY_SIMULATIONS:
+            simulation = CANARY_SIMULATIONS[path]
             payload: dict[str, int | str] = {"simulation": simulation}
             if simulation == "ssrf":
                 payload["outbound_requests"] = 0
@@ -97,7 +96,7 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
         self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:  # noqa: N802
-        """Моделирует ограниченный ввод без сохранения и выполнения данных."""
+        """Model bounded input handling without persisting files or executing input."""
 
         path = urlsplit(self.path).path
         body = self.ReadRequestBody()
@@ -119,20 +118,20 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
         self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
 
     def log_message(self, format: str, *arguments: object) -> None:
-        """Исключает ожидаемые запросы из журналов функциональных тестов."""
+        """Keep expected synthetic requests out of functional-test logs."""
 
     def ReadRequestBody(self) -> bytes | None:
-        """Читает ограниченное тело фикстуры и отклоняет неверную длину."""
+        """Read only a bounded local fixture body and reject invalid lengths."""
 
-        contentLength = self.headers.get("Content-Length", "0")
+        content_length = self.headers.get("Content-Length", "0")
         try:
-            size = int(contentLength)
+            size = int(content_length)
 
         except ValueError:
             self.SendJson({"error": "invalid-content-length"}, status=HTTPStatus.BAD_REQUEST)
             return None
 
-        if size < 0 or size > MAXREQUESTBYTES:
+        if size < 0 or size > MAX_REQUEST_BYTES:
             self.SendJson(
                 {"error": "request-too-large"},
                 status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
@@ -142,7 +141,7 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
         return self.rfile.read(size)
 
     def SendJsonRequestResult(self, body: bytes) -> None:
-        """Разбирает JSON-объект только для проверки поведения маршрута."""
+        """Parse a JSON object only to expose deterministic input-route behavior."""
 
         try:
             payload = json.loads(body)
@@ -158,23 +157,23 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
         self.SendJson({"accepted": True, "keys": sorted(payload)})
 
     def SendStatusRoute(self, path: str) -> None:
-        """Обслуживает конечную матрицу ошибочных статусов для проверок."""
+        """Serve a small finite error-status matrix for deterministic assertions."""
 
         try:
-            statusCode = int(path.removeprefix("/status/"))
+            status_code = int(path.removeprefix("/status/"))
 
         except ValueError:
             self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
             return
 
-        if statusCode not in STATUSROUTES:
+        if status_code not in STATUS_ROUTES:
             self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
             return
 
-        self.SendJson({"status": statusCode}, status=HTTPStatus(statusCode))
+        self.SendJson({"status": status_code}, status=HTTPStatus(status_code))
 
     def SendHtml(self, body: str) -> None:
-        """Возвращает статический HTML-контракт для обнаружения формы."""
+        """Write a compact static HTML contract for form discovery."""
 
         encoded = body.encode("utf-8")
         self.send_response(HTTPStatus.OK)
@@ -189,7 +188,7 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
         status: HTTPStatus = HTTPStatus.OK,
         headers: tuple[tuple[str, str], ...] = (),
     ) -> None:
-        """Возвращает стабильный JSON с необязательными заголовками."""
+        """Write one stable JSON response with optional fixed response headers."""
 
         body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
         self.send_response(status)
@@ -203,10 +202,11 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
 
 
 def Main() -> None:
-    """Запускает синтетическую цель до остановки контейнера."""
+    """Run the isolated synthetic target until its container is stopped."""
 
     with ThreadingHTTPServer((HOST, PORT), MicroTargetRequestHandler) as server:
         server.serve_forever()
+
 
 if __name__ == "__main__":
     Main()

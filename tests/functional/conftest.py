@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from .scenarios import WEBMICROTARGETCONTRACT, WEBSAFEHEALTH, FunctionalScenario
+from .scenarios import WEB_MICRO_TARGET_CONTRACT, WEB_SAFE_HEALTH, FunctionalScenario
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,18 +23,18 @@ class CommandResult:
     returncode: int
     stdout: str
     stderr: str
-    timedOut: bool = False
+    timed_out: bool = False
 
 
 class ComposeLab:
     """Own the lifecycle and raw evidence for the isolated synthetic lab."""
 
-    def __init__(self, repositoryRoot: Path, evidenceDirectory: Path) -> None:
+    def __init__(self, repository_root: Path, evidence_directory: Path) -> None:
         """Provide deterministic test support for   init  ."""
 
-        self.repositoryRoot = repositoryRoot
-        self.evidenceDirectory = evidenceDirectory
-        self.commandIndex = 0
+        self._repository_root = repository_root
+        self._evidence_directory = evidence_directory
+        self._command_index = 0
 
     def Start(self, scenario: FunctionalScenario) -> None:
         """Start the target and prove its health contract before exposing it to tests."""
@@ -46,12 +46,12 @@ class ComposeLab:
                 "up",
                 "--build",
                 "--wait",
-                scenario.target.composeService,
+                scenario.target.compose_service,
             ),
             "Synthetic lab startup",
         )
         health = self.Execute(
-            scenario.target.composeService,
+            scenario.target.compose_service,
             "python",
             "-c",
             (
@@ -59,12 +59,12 @@ class ComposeLab:
                 "response = urlopen('http://127.0.0.1:8080/health', timeout=1); "
                 "print(json.dumps(json.load(response), sort_keys=True))"
             ),
-            timeoutSeconds=scenario.timeoutSeconds,
+            timeout_seconds=scenario.timeout_seconds,
         )
         self.RequireSuccess(health, "Synthetic lab health check")
 
-        expectedPayload = {"status": "ok", "target": scenario.target.identifier}
-        if json.loads(health.stdout) != expectedPayload:
+        expected_payload = {"status": "ok", "target": scenario.target.identifier}
+        if json.loads(health.stdout) != expected_payload:
             raise RuntimeError("Synthetic lab health check returned an unexpected payload")
 
     def Stop(self) -> CommandResult:
@@ -72,33 +72,33 @@ class ComposeLab:
 
         return self.Compose("--profile", "lab", "down", "--volumes", "--remove-orphans")
 
-    def Compose(self, *arguments: str, timeoutSeconds: int = 60) -> CommandResult:
+    def Compose(self, *arguments: str, timeout_seconds: int = 60) -> CommandResult:
         """Run one Compose command and preserve its raw output."""
 
-        return self.Run("docker", "compose", *arguments, timeoutSeconds=timeoutSeconds)
+        return self.Run("docker", "compose", *arguments, timeout_seconds=timeout_seconds)
 
     def Execute(
         self,
         service: str,
         *arguments: str,
-        timeoutSeconds: int,
+        timeout_seconds: int,
     ) -> CommandResult:
         """Run a bounded command inside one declared synthetic target service."""
 
-        return self.Compose("exec", "-T", service, *arguments, timeoutSeconds=timeoutSeconds)
+        return self.Compose("exec", "-T", service, *arguments, timeout_seconds=timeout_seconds)
 
-    def Run(self, *arguments: str, timeoutSeconds: int) -> CommandResult:
+    def Run(self, *arguments: str, timeout_seconds: int) -> CommandResult:
         """Execute an argv list without a shell and write its raw evidence record."""
 
         try:
             completed = subprocess.run(
                 arguments,
-                cwd=self.repositoryRoot,
+                cwd=self._repository_root,
                 capture_output=True,
                 check=False,
                 shell=False,
                 text=True,
-                timeout=timeoutSeconds,
+                timeout=timeout_seconds,
             )
             result = CommandResult(
                 argv=tuple(arguments),
@@ -113,7 +113,7 @@ class ComposeLab:
                 returncode=124,
                 stdout=DecodeOutput(error.stdout),
                 stderr=DecodeOutput(error.stderr),
-                timedOut=True,
+                timed_out=True,
             )
 
         self.WriteEvidence(result)
@@ -122,9 +122,9 @@ class ComposeLab:
     def WriteEvidence(self, result: CommandResult) -> None:
         """Write one deterministic, local-only evidence record for diagnosis."""
 
-        self.evidenceDirectory.mkdir(parents=True, exist_ok=True)
-        self.commandIndex += 1
-        record = self.evidenceDirectory / f"command-{self.commandIndex:02d}.json"
+        self._evidence_directory.mkdir(parents=True, exist_ok=True)
+        self._command_index += 1
+        record = self._evidence_directory / f"command-{self._command_index:02d}.json"
         record.write_text(json.dumps(asdict(result), indent=2, sort_keys=True), encoding="utf-8")
 
     @staticmethod
@@ -136,18 +136,18 @@ class ComposeLab:
             raise RuntimeError(f"{action} failed with exit code {result.returncode}: {detail}")
 
 
-@pytest.fixture(scope="session", name="functionalLab")
-def FunctionalLab() -> Iterator[ComposeLab]:
+@pytest.fixture(scope="session")
+def functional_lab() -> Iterator[ComposeLab]:
     """Provide the health-checked lab and guarantee cleanup after the test session."""
 
-    yield from StartFunctionalLab(WEBSAFEHEALTH)
+    yield from StartFunctionalLab(WEB_SAFE_HEALTH)
 
 
-@pytest.fixture(scope="session", name="microTargetLab")
-def MicroTargetLab() -> Iterator[ComposeLab]:
+@pytest.fixture(scope="session")
+def micro_target_lab() -> Iterator[ComposeLab]:
     """Provide the health-checked known-answer target and guarantee cleanup."""
 
-    yield from StartFunctionalLab(WEBMICROTARGETCONTRACT)
+    yield from StartFunctionalLab(WEB_MICRO_TARGET_CONTRACT)
 
 
 def StartFunctionalLab(scenario: FunctionalScenario) -> Iterator[ComposeLab]:
@@ -156,8 +156,8 @@ def StartFunctionalLab(scenario: FunctionalScenario) -> Iterator[ComposeLab]:
     if not DockerComposeAvailable():
         pytest.skip("Docker Compose is required for repository functional tests")
 
-    repositoryRoot = Path(__file__).resolve().parents[2]
-    lab = ComposeLab(repositoryRoot, repositoryRoot / "functional-evidence")
+    repository_root = Path(__file__).resolve().parents[2]
+    lab = ComposeLab(repository_root, repository_root / "functional-evidence")
     try:
         lab.Start(scenario)
 

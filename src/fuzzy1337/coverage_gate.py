@@ -1,4 +1,4 @@
-"""Проверяет совокупное покрытие ветвей и строк каждого production-модуля."""
+"""Enforce the production per-module combined branch/statement coverage contract."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 
 
 def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
-    """Возвращает нарушения и отклоняет пропущенные модули или неверные счётчики."""
+    """Return failures; missing modules and invalid counts cannot pass the gate."""
 
     meta = report.get("meta")
     if not isinstance(meta, dict) or meta.get("branch_coverage") is not True:
@@ -26,16 +26,16 @@ def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
     failures = []
     for path in modules:
         name = path.as_posix()
-        # coverage.py сохраняет платформенный разделитель в относительных путях.
-        reportKey = next(
+        # coverage.py keeps the platform separator in relative filenames.
+        report_key = next(
             (key for key in (name, str(path), name.replace("/", "\\")) if key in files),
             None,
         )
-        if reportKey is None:
+        if report_key is None:
             failures.append(f"{name}: missing coverage")
             continue
 
-        entry = files[reportKey]
+        entry = files[report_key]
         if not isinstance(entry, dict):
             raise ValueError(f"{name}: invalid coverage entry")
 
@@ -54,13 +54,13 @@ def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
         if any(type(value) is not int or value < 0 for value in counts):
             raise ValueError(f"{name}: invalid coverage counts")
 
-        coveredLines, statements, coveredBranches, branches, excluded = (
+        covered_lines, statements, covered_branches, branches, excluded = (
             int(summary[key]) for key in keys
         )
-        if coveredLines > statements or coveredBranches > branches or excluded:
+        if covered_lines > statements or covered_branches > branches or excluded:
             raise ValueError(f"{name}: inconsistent counts or undocumented exclusions")
 
-        covered = coveredLines + coveredBranches
+        covered = covered_lines + covered_branches
         total = statements + branches
         if total and covered * 5 <= total * 4:
             failures.append(
@@ -71,7 +71,7 @@ def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Сверяет свежий JSON-отчёт покрытия с исходными модулями на диске."""
+    """Validate a fresh coverage JSON report against the on-disk source inventory."""
 
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -95,6 +95,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
 
     print("Coverage gate passed: every executable production module is strictly above 80%.")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(Main())

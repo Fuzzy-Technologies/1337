@@ -7,7 +7,7 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def DenyNetwork(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+def deny_network(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Fail closed if a unit test attempts a real network connection."""
 
     def Blocked(*_args: object, **_kwargs: object) -> None:
