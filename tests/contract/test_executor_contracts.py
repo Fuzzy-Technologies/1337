@@ -11,85 +11,101 @@ from fuzzy1337.adapters import (
     ImpactLevel,
 )
 from fuzzy1337.executors import (
-    EXECUTOR_CONTRACT_VERSION,
+    EXECUTORCONTRACTVERSION,
     CapabilityDescriptor,
+    CapabilityDescriptors,
     ExecutionAuthorization,
     ExecutionResources,
+    InvocationDigest,
     LazyAdapterRegistry,
     LocalExecutionRequest,
-    capability_descriptors,
-    invocation_digest,
 )
 
 
-def _adapter_descriptor() -> AdapterDescriptor:
+def ExampleDescriptor() -> AdapterDescriptor:
+    """Build a deterministic adapter declaration for contract tests."""
+
     return AdapterDescriptor(
-        adapter_id="scanner.example",
-        display_name="Example Scanner",
+        adapterId="scanner.example",
+        displayName="Example Scanner",
         version="1.0",
         capabilities=("network.port-scan", "service.enumerate"),
-        maximum_impact=ImpactLevel.SAFE,
-        required_privileges=("network.raw-socket",),
+        maximumImpact=ImpactLevel.SAFE,
+        requiredPrivileges=("network.raw-socket",),
     )
 
 
-def _invocation() -> AdapterInvocation:
+def Invocation() -> AdapterInvocation:
+    """Build the immutable invocation shared by executor contract tests."""
+
     return AdapterInvocation(
-        adapter_id="scanner.example",
+        adapterId="scanner.example",
         request=AdapterRequest(
             capability="network.port-scan",
-            target_reference="target:synthetic-lab",
+            targetReference="target:synthetic-lab",
             impact=ImpactLevel.SAFE,
         ),
         argv=("example-scanner", "--target", "synthetic-lab"),
-        timeout_seconds=30,
-        provider_version="1.0",
+        timeoutSeconds=30,
+        providerVersion="1.0",
     )
 
 
-def _authorization(invocation: AdapterInvocation) -> ExecutionAuthorization:
+def Authorization(invocation: AdapterInvocation) -> ExecutionAuthorization:
+    """Authorize exactly one prepared test invocation."""
+
     return ExecutionAuthorization(
-        authorization_id="authorization:unit-test",
-        scope_reference="scope:synthetic-lab",
-        policy_reference="policy:unit-test",
-        invocation_sha256=invocation_digest(invocation),
-        granted_privileges=("network.raw-socket",),
+        authorizationId="authorization:unit-test",
+        scopeReference="scope:synthetic-lab",
+        policyReference="policy:unit-test",
+        invocationSha256=InvocationDigest(invocation),
+        grantedPrivileges=("network.raw-socket",),
     )
 
 
-def test_executor_contract_version_and_capabilities_are_explicit():
-    capabilities = capability_descriptors(_adapter_descriptor())
+def test_ExecutorContractVersionAndCapabilitiesAreExplicit():
+    """Keep the contract version and expanded capabilities explicit."""
 
-    assert EXECUTOR_CONTRACT_VERSION == 1
+    capabilities = CapabilityDescriptors(ExampleDescriptor())
+
+    assert EXECUTORCONTRACTVERSION == 1, (
+        "executor contract version and capabilities are explicit invariant failed."
+    )
     assert capabilities == (
         CapabilityDescriptor(
             identifier="network.port-scan",
-            adapter_id="scanner.example",
-            maximum_impact=ImpactLevel.SAFE,
-            required_privileges=("network.raw-socket",),
+            adapterId="scanner.example",
+            maximumImpact=ImpactLevel.SAFE,
+            requiredPrivileges=("network.raw-socket",),
         ),
         CapabilityDescriptor(
             identifier="service.enumerate",
-            adapter_id="scanner.example",
-            maximum_impact=ImpactLevel.SAFE,
-            required_privileges=("network.raw-socket",),
+            adapterId="scanner.example",
+            maximumImpact=ImpactLevel.SAFE,
+            requiredPrivileges=("network.raw-socket",),
         ),
-    )
+    ), "executor contract version and capabilities are explicit invariant failed."
 
 
-def test_local_request_binds_authorization_capability_and_invocation():
-    invocation = _invocation()
+def test_LocalRequestBindsAuthorizationCapabilityAndInvocation():
+    """Bind authorization, capability, and invocation immutably."""
+
+    invocation = Invocation()
     request = LocalExecutionRequest(
         invocation=invocation,
-        capability=capability_descriptors(_adapter_descriptor())[0],
-        authorization=_authorization(invocation),
+        capability=CapabilityDescriptors(ExampleDescriptor())[0],
+        authorization=Authorization(invocation),
         workspace="runs/scan-1",
         environment={"LC_ALL": "C"},
-        resources=ExecutionResources(max_stdout_bytes=1024, max_stderr_bytes=512),
+        resources=ExecutionResources(maxStdoutBytes=1024, maxStderrBytes=512),
     )
 
-    assert request.environment == {"LC_ALL": "C"}
-    assert request.workspace == "runs/scan-1"
+    assert request.environment == {"LC_ALL": "C"}, (
+        "local request binds authorization capability and invocation invariant failed."
+    )
+    assert request.workspace == "runs/scan-1", (
+        "local request binds authorization capability and invocation invariant failed."
+    )
     with pytest.raises(TypeError):
         request.environment["LC_ALL"] = "en_US.UTF-8"  # type: ignore[index]
 
@@ -102,12 +118,14 @@ def test_local_request_binds_authorization_capability_and_invocation():
         ({"environment": {"TOKEN": "bad\x00value"}}, "environment"),
     ],
 )
-def test_local_request_rejects_unsafe_workspace_and_environment(replace, message):
-    invocation = _invocation()
+def test_LocalRequestRejectsUnsafeWorkspaceAndEnvironment(replace, message):
+    """Reject unsafe paths and environment values before execution."""
+
+    invocation = Invocation()
     arguments = {
         "invocation": invocation,
-        "capability": capability_descriptors(_adapter_descriptor())[0],
-        "authorization": _authorization(invocation),
+        "capability": CapabilityDescriptors(ExampleDescriptor())[0],
+        "authorization": Authorization(invocation),
         "workspace": ".",
         "environment": {},
     }
@@ -117,35 +135,37 @@ def test_local_request_rejects_unsafe_workspace_and_environment(replace, message
         LocalExecutionRequest(**arguments)
 
 
-def test_request_rejects_mismatched_authorization_and_missing_privileges():
-    invocation = _invocation()
-    capability = capability_descriptors(_adapter_descriptor())[0]
-    wrong_authorization = ExecutionAuthorization(
-        authorization_id="authorization:wrong",
-        scope_reference="scope:synthetic-lab",
-        policy_reference="policy:unit-test",
-        invocation_sha256="0" * 64,
-        granted_privileges=("network.raw-socket",),
+def test_RequestRejectsMismatchedAuthorizationAndMissingPrivileges():
+    """Reject mismatched authorization and missing privileges."""
+
+    invocation = Invocation()
+    capability = CapabilityDescriptors(ExampleDescriptor())[0]
+    wrongAuthorization = ExecutionAuthorization(
+        authorizationId="authorization:wrong",
+        scopeReference="scope:synthetic-lab",
+        policyReference="policy:unit-test",
+        invocationSha256="0" * 64,
+        grantedPrivileges=("network.raw-socket",),
     )
 
     with pytest.raises(ValueError, match="invocation"):
         LocalExecutionRequest(
             invocation=invocation,
             capability=capability,
-            authorization=wrong_authorization,
+            authorization=wrongAuthorization,
         )
 
-    without_privilege = ExecutionAuthorization(
-        authorization_id="authorization:missing-privilege",
-        scope_reference="scope:synthetic-lab",
-        policy_reference="policy:unit-test",
-        invocation_sha256=invocation_digest(invocation),
+    withoutPrivilege = ExecutionAuthorization(
+        authorizationId="authorization:missing-privilege",
+        scopeReference="scope:synthetic-lab",
+        policyReference="policy:unit-test",
+        invocationSha256=InvocationDigest(invocation),
     )
     with pytest.raises(ValueError, match="privilege"):
         LocalExecutionRequest(
             invocation=invocation,
             capability=capability,
-            authorization=without_privilege,
+            authorization=withoutPrivilege,
         )
 
 
@@ -153,56 +173,78 @@ def test_request_rejects_mismatched_authorization_and_missing_privileges():
     "factory",
     [
         lambda: ExecutionAuthorization(
-            authorization_id="authorization:invalid-digest",
-            scope_reference="scope:synthetic-lab",
-            policy_reference="policy:unit-test",
-            invocation_sha256="not-a-digest",
+            authorizationId="authorization:invalid-digest",
+            scopeReference="scope:synthetic-lab",
+            policyReference="policy:unit-test",
+            invocationSha256="not-a-digest",
         ),
-        lambda: ExecutionResources(max_stdout_bytes=0),
-        lambda: ExecutionResources(max_stderr_bytes=True),
-        lambda: ExecutionResources(terminate_grace_seconds=float("inf")),
+        lambda: ExecutionResources(maxStdoutBytes=0),
+        lambda: ExecutionResources(maxStderrBytes=True),
+        lambda: ExecutionResources(terminateGraceSeconds=float("inf")),
     ],
 )
-def test_invalid_authorization_and_resource_bounds_fail_closed(factory):
+def test_InvalidAuthorizationAndResourceBoundsFailClosed(factory):
+    """Reject malformed authorization and resource limits."""
+
     with pytest.raises(ValueError):
         factory()
 
 
-def test_lazy_registry_does_not_load_adapters_until_resolution():
-    descriptor = _adapter_descriptor()
+def test_LazyRegistryDoesNotLoadAdaptersUntilResolution():
+    """Load registered adapters only when a capability is resolved."""
+
+    descriptor = ExampleDescriptor()
     loads: list[str] = []
 
     class Adapter:
+        """Implement the minimal adapter protocol used by registry tests."""
+
         @property
-        def descriptor(self):
+        def Descriptor(self):
+            """Expose the provider declaration required by ToolAdapter."""
+
             return descriptor
 
-        def check_health(self):
+        def CheckHealth(self):
+            """Fail if registry resolution performs a health check."""
+
             raise AssertionError("health is not part of registry resolution")
 
-        def prepare_invocation(self, request):
+        def PrepareInvocation(self, request):
+            """Fail if registry resolution prepares an invocation."""
+
             raise AssertionError("preparation is not part of registry resolution")
 
-        def normalize_report(self, report):
+        def NormalizeReport(self, report):
+            """Fail if registry resolution normalizes a report."""
+
             raise AssertionError("normalization is not part of registry resolution")
 
     registry = LazyAdapterRegistry()
-    registry.register(descriptor, lambda: loads.append("loaded") or Adapter())
+    registry.Register(descriptor, lambda: loads.append("loaded") or Adapter())
 
-    assert registry.capabilities == ("network.port-scan", "service.enumerate")
-    assert loads == []
-    assert registry.resolve("network.port-scan").descriptor == descriptor
-    assert loads == ["loaded"]
-    assert registry.resolve("service.enumerate").descriptor == descriptor
-    assert loads == ["loaded"]
+    assert registry.Capabilities == ("network.port-scan", "service.enumerate"), (
+        "registry must expose declared capabilities"
+    )
+    assert loads == [], "registration must not load an adapter"
+    assert registry.Resolve("network.port-scan").Descriptor == descriptor, (
+        "resolution must return the declared adapter"
+    )
+    assert loads == ["loaded"], "first resolution must load once"
+    assert registry.Resolve("service.enumerate").Descriptor == descriptor, (
+        "all declared capabilities must resolve to the same adapter"
+    )
+    assert loads == ["loaded"], "subsequent resolutions must reuse the adapter"
 
 
-def test_lazy_registry_fails_closed_for_unknown_or_misdeclared_provider():
-    descriptor = _adapter_descriptor()
+def test_LazyRegistryFailsClosedForUnknownOrMisdeclaredProvider():
+    """Fail closed for unknown capabilities and invalid providers."""
+
+    descriptor = ExampleDescriptor()
     registry = LazyAdapterRegistry()
-    registry.register(descriptor, lambda: object())
+    registry.Register(descriptor, lambda: object())
 
     with pytest.raises(LookupError, match="Unknown capability"):
-        registry.resolve("web.crawl")
+        registry.Resolve("web.crawl")
     with pytest.raises(TypeError, match="ToolAdapter"):
-        registry.resolve("network.port-scan")
+        registry.Resolve("network.port-scan")

@@ -1,3 +1,3 @@
-"""1337 Security Workbench open-source package."""
+"""Пакет открытого ядра 1337 Security Workbench."""
 
 __all__: list[str] = []

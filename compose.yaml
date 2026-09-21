@@ -46,6 +46,21 @@ services:
     networks:
       - synthetic-lab
 
+  lab-web-micro:
+    profiles: ["lab"]
+    build:
+      context: ./labs/targets/web-micro
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - synthetic-lab
+
 networks:
   synthetic-lab:
     internal: true

@@ -4,33 +4,57 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from . import conftest
 from .conftest import ComposeLab
-from .scenarios import WEB_SAFE_HEALTH
+from .scenarios import WEBSAFEHEALTH
+
+pytestmark = pytest.mark.serial
 
 
-def test_web_safe_scenario_declares_a_complete_contract():
+def test_WebSafeScenarioDeclaresACompleteContract():
     """Keep the M1 scenario metadata complete before scanner scenarios are added."""
-    scenario = WEB_SAFE_HEALTH
 
-    assert scenario.identifier == "web-safe.health"
-    assert scenario.target.provenance == "first-party:labs/targets/web-safe"
-    assert scenario.target.version == "1"
-    assert scenario.required_capabilities == ("docker.compose", "http.get")
-    assert scenario.setup
-    assert scenario.health_check
-    assert scenario.assessment_command == ("GET", "/health")
-    assert scenario.assessment_profile == "safe"
-    assert scenario.expected_observations
-    assert scenario.expected_findings == ()
-    assert scenario.timeout_seconds > 0
-    assert scenario.cleanup
+    scenario = WEBSAFEHEALTH
+
+    assert scenario.identifier == "web-safe.health", (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.target.provenance == "first-party:labs/targets/web-safe", (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.target.version == "1", (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.requiredCapabilities == ("docker.compose", "http.get"), (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.setup, "web safe scenario declares a complete contract invariant failed."
+    assert scenario.healthCheck, "web safe scenario declares a complete contract invariant failed."
+    assert scenario.assessmentCommand == ("GET", "/health"), (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.assessmentProfile == "safe", (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.expectedObservations, (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.expectedFindings == (), (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.timeoutSeconds > 0, (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.cleanup, "web safe scenario declares a complete contract invariant failed."
 
 
-def test_web_safe_health_contract(functional_lab: ComposeLab):
+def test_WebSafeHealthContract(functionalLab: ComposeLab):
     """Exercise the target through the fixture-owned isolated container lifecycle."""
-    result = functional_lab.execute(
-        WEB_SAFE_HEALTH.target.compose_service,
+
+    result = functionalLab.Execute(
+        WEBSAFEHEALTH.target.composeService,
         "python",
         "-c",
         (
@@ -38,15 +62,20 @@ def test_web_safe_health_contract(functional_lab: ComposeLab):
             "response = urlopen('http://127.0.0.1:8080/health', timeout=1); "
             "print(json.dumps(json.load(response), sort_keys=True))"
         ),
-        timeout_seconds=WEB_SAFE_HEALTH.timeout_seconds,
+        timeoutSeconds=WEBSAFEHEALTH.timeoutSeconds,
     )
 
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == {"status": "ok", "target": "web-safe"}
+    assert json.loads(result.stdout) == {"status": "ok", "target": "web-safe"}, (
+        "web safe health contract invariant failed."
+    )
 
 
-def test_non_linux_runner_does_not_advertise_container_test_capability(monkeypatch):
+def test_NonLinuxRunnerDoesNotAdvertiseContainerTestCapability(monkeypatch):
     """Keep the Linux-only target from running on unsupported CI runners."""
+
     monkeypatch.setattr(conftest.platform, "system", lambda: "Windows")
 
-    assert not conftest._docker_compose_available()
+    assert not conftest.DockerComposeAvailable(), (
+        "non linux runner does not advertise container test capability invariant failed."
+    )

@@ -33,7 +33,11 @@ Do not weaken scope, impact-level, authorization, or safety controls merely to m
 
 ## Language
 
-- Source code, comments, identifiers, commit messages, documentation, prompts, schemas, API names, CLI commands, and repository metadata are written in English.
+- Source identifiers, commit messages, documentation, prompts, schemas, API names, CLI
+  commands, and repository metadata are written in English.
+- Production Python modules, classes, functions, and methods use Russian docstrings;
+  production Python comments are Russian.
+- Python tests use English docstrings and comments.
 - Localization resources may contain their target language.
 - Canonical commands and machine interfaces remain English even when localized aliases are later supported.
 - User-facing interactive handoffs may follow the language requested by the user.

@@ -1,4 +1,4 @@
-"""Safe deterministic HTTP target for the M0 synthetic security lab."""
+"""Безопасная детерминированная HTTP-цель для синтетической лаборатории M0."""
 
 from __future__ import annotations
 
@@ -12,19 +12,20 @@ PORT: Final = 8080
 
 
 class SafeLabRequestHandler(BaseHTTPRequestHandler):
-    """Serve the intentionally small public contract of the safe lab target."""
+    """Обслуживает намеренно ограниченный контракт безопасной лабораторной цели."""
 
-    server_version = "1337SyntheticLab/0.1"
-    sys_version = ""
+    serverVersion = "1337SyntheticLab/0.1"
+    sysVersion = ""
 
     def do_GET(self) -> None:  # noqa: N802
-        """Respond only to deterministic safe target routes."""
+        """Отвечает только на детерминированные маршруты безопасной цели."""
+
         if self.path == "/health":
-            self._send_json({"status": "ok", "target": "web-safe"})
+            self.SendJson({"status": "ok", "target": "web-safe"})
             return
 
         if self.path == "/":
-            self._send_json(
+            self.SendJson(
                 {
                     "name": "1337 synthetic web-safe target",
                     "purpose": "local development health target",
@@ -35,10 +36,11 @@ class SafeLabRequestHandler(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND, "Synthetic route not found")
 
     def log_message(self, format: str, *arguments: object) -> None:
-        """Keep routine synthetic target requests out of test logs."""
+        """Исключает штатные запросы к синтетической цели из журналов тестов."""
 
-    def _send_json(self, payload: dict[str, str]) -> None:
-        """Write one deterministic JSON response."""
+    def SendJson(self, payload: dict[str, str]) -> None:
+        """Возвращает один детерминированный JSON-ответ."""
+
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "application/json")
@@ -47,11 +49,11 @@ class SafeLabRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def main() -> None:
-    """Run the safe target until its isolated container is stopped."""
+def Main() -> None:
+    """Запускает безопасную цель до остановки изолированного контейнера."""
+
     with ThreadingHTTPServer((HOST, PORT), SafeLabRequestHandler) as server:
         server.serve_forever()
 
-
 if __name__ == "__main__":
-    main()
+    Main()

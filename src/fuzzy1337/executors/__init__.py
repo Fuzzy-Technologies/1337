@@ -1,34 +1,34 @@
-"""Experimental governed executor SDK and local process provider."""
+"""Экспериментальный SDK управляемых исполнителей и локальный провайдер."""
 
 from fuzzy1337.executors.contracts import (
-    EXECUTOR_CONTRACT_VERSION,
+    EXECUTORCONTRACTVERSION,
     CapabilityDescriptor,
+    CapabilityDescriptors,
     ExecutionAuthorization,
     ExecutionEvent,
     ExecutionEventKind,
     ExecutionResources,
     ExecutionTermination,
+    InvocationDigest,
     LazyAdapterRegistry,
     LocalExecutionRequest,
     LocalExecutionResult,
-    capability_descriptors,
-    invocation_digest,
 )
 from fuzzy1337.executors.local import LocalExecutionError, LocalExecutor
 
 __all__ = [
-    "EXECUTOR_CONTRACT_VERSION",
+    "EXECUTORCONTRACTVERSION",
     "CapabilityDescriptor",
+    "CapabilityDescriptors",
     "ExecutionAuthorization",
     "ExecutionEvent",
     "ExecutionEventKind",
     "ExecutionResources",
     "ExecutionTermination",
+    "InvocationDigest",
     "LazyAdapterRegistry",
     "LocalExecutionError",
     "LocalExecutionRequest",
     "LocalExecutionResult",
     "LocalExecutor",
-    "capability_descriptors",
-    "invocation_digest",
 ]

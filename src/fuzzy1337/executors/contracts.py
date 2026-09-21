@@ -1,4 +1,4 @@
-"""Typed contracts for governed executor providers and local process execution."""
+"""Типизированные контракты управляемых исполнителей и локальных процессов."""
 
 from __future__ import annotations
 
@@ -16,72 +16,82 @@ from fuzzy1337.adapters import (
     AdapterExecution,
     AdapterInvocation,
     ImpactLevel,
+    SerializeContract,
     ToolAdapter,
-    serialize_contract,
 )
 
-EXECUTOR_CONTRACT_VERSION = 1
+EXECUTORCONTRACTVERSION = 1
 
-_IDENTIFIER_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
-_ENVIRONMENT_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-_IMPACT_ORDER = {impact: index for index, impact in enumerate(ImpactLevel)}
-
-
-def _require_identifier(value: str, field_name: str) -> None:
-    if not isinstance(value, str) or not _IDENTIFIER_PATTERN.fullmatch(value):
-        raise ValueError(f"{field_name} must be a lowercase machine-readable identifier")
+IDENTIFIERPATTERN = re.compile(r"^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$")
+ENVIRONMENTNAMEPATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+SHA256PATTERN = re.compile(r"^[0-9a-f]{64}$")
+IMPACTORDER = {impact: index for index, impact in enumerate(ImpactLevel)}
 
 
-def _require_reference(value: str, field_name: str) -> None:
+def RequireIdentifier(value: str, fieldName: str) -> None:
+    """Отклоняет идентификатор, непригодный для стабильного ключа."""
+
+    if not isinstance(value, str) or not IDENTIFIERPATTERN.fullmatch(value):
+        raise ValueError(f"{fieldName} must be a lowercase machine-readable identifier")
+
+
+def RequireReference(value: str, fieldName: str) -> None:
+    """Отклоняет пустую или многострочную непрозрачную ссылку."""
+
     if not isinstance(value, str) or not value or "\x00" in value or "\n" in value or "\r" in value:
-        raise ValueError(f"{field_name} must be a non-empty single-line reference")
+        raise ValueError(f"{fieldName} must be a non-empty single-line reference")
 
 
-def _unique_identifiers(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
+def UniqueIdentifiers(values: tuple[str, ...], fieldName: str) -> tuple[str, ...]:
+    """Проверяет уникальные идентификаторы, сохраняя их порядок."""
+
     normalized = tuple(values)
     for value in normalized:
-        _require_identifier(value, field_name)
+        RequireIdentifier(value, fieldName)
 
     if len(set(normalized)) != len(normalized):
-        raise ValueError(f"{field_name} must contain unique values")
+        raise ValueError(f"{fieldName} must contain unique values")
     return normalized
 
 
-def invocation_digest(invocation: AdapterInvocation) -> str:
-    """Bind an authorization record to the exact immutable adapter invocation."""
-    return hashlib.sha256(serialize_contract(invocation).encode("utf-8")).hexdigest()
+def InvocationDigest(invocation: AdapterInvocation) -> str:
+    """Связывает авторизацию с точным неизменяемым вызовом адаптера."""
+
+    return hashlib.sha256(SerializeContract(invocation).encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
 class CapabilityDescriptor:
-    """One executable capability derived from a provider declaration."""
+    """Описывает одну исполняемую возможность провайдера."""
 
     identifier: str
-    adapter_id: str
-    maximum_impact: ImpactLevel
-    required_privileges: tuple[str, ...] = ()
+    adapterId: str
+    maximumImpact: ImpactLevel
+    requiredPrivileges: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        _require_identifier(self.identifier, "identifier")
-        _require_identifier(self.adapter_id, "adapter_id")
-        if not isinstance(self.maximum_impact, ImpactLevel):
-            raise ValueError("maximum_impact must be an ImpactLevel")
+        """Проверяет возможность до регистрации провайдера."""
+
+        RequireIdentifier(self.identifier, "identifier")
+        RequireIdentifier(self.adapterId, "adapterId")
+        if not isinstance(self.maximumImpact, ImpactLevel):
+            raise ValueError("maximumImpact must be an ImpactLevel")
         object.__setattr__(
             self,
-            "required_privileges",
-            _unique_identifiers(self.required_privileges, "required_privileges"),
+            "requiredPrivileges",
+            UniqueIdentifiers(self.requiredPrivileges, "requiredPrivileges"),
         )
 
 
-def capability_descriptors(descriptor: AdapterDescriptor) -> tuple[CapabilityDescriptor, ...]:
-    """Expand one adapter declaration into deterministic capability records."""
+def CapabilityDescriptors(descriptor: AdapterDescriptor) -> tuple[CapabilityDescriptor, ...]:
+    """Разворачивает декларацию адаптера в детерминированные возможности."""
+
     return tuple(
         CapabilityDescriptor(
             identifier=capability,
-            adapter_id=descriptor.adapter_id,
-            maximum_impact=descriptor.maximum_impact,
-            required_privileges=descriptor.required_privileges,
+            adapterId=descriptor.adapterId,
+            maximumImpact=descriptor.maximumImpact,
+            requiredPrivileges=descriptor.requiredPrivileges,
         )
         for capability in descriptor.capabilities
     )
@@ -89,53 +99,59 @@ def capability_descriptors(descriptor: AdapterDescriptor) -> tuple[CapabilityDes
 
 @dataclass(frozen=True, slots=True)
 class ExecutionAuthorization:
-    """Upstream scope/policy decision bound to one exact prepared invocation."""
+    """Хранит решение scope и policy для одного подготовленного вызова."""
 
-    authorization_id: str
-    scope_reference: str
-    policy_reference: str
-    invocation_sha256: str
-    granted_privileges: tuple[str, ...] = ()
+    authorizationId: str
+    scopeReference: str
+    policyReference: str
+    invocationSha256: str
+    grantedPrivileges: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        _require_reference(self.authorization_id, "authorization_id")
-        _require_reference(self.scope_reference, "scope_reference")
-        _require_reference(self.policy_reference, "policy_reference")
-        if not _SHA256_PATTERN.fullmatch(self.invocation_sha256):
-            raise ValueError("invocation_sha256 must be a lowercase SHA-256 digest")
+        """Проверяет ссылки, digest и выданные привилегии."""
+
+        RequireReference(self.authorizationId, "authorizationId")
+        RequireReference(self.scopeReference, "scopeReference")
+        RequireReference(self.policyReference, "policyReference")
+        if not SHA256PATTERN.fullmatch(self.invocationSha256):
+            raise ValueError("invocationSha256 must be a lowercase SHA-256 digest")
         object.__setattr__(
             self,
-            "granted_privileges",
-            _unique_identifiers(self.granted_privileges, "granted_privileges"),
+            "grantedPrivileges",
+            UniqueIdentifiers(self.grantedPrivileges, "grantedPrivileges"),
         )
 
 
 @dataclass(frozen=True, slots=True)
 class ExecutionResources:
-    """Portable resource bounds enforced by the local executor."""
+    """Задаёт переносимые ресурсные ограничения локального исполнителя."""
 
-    max_stdout_bytes: int = 4 * 1024 * 1024
-    max_stderr_bytes: int = 4 * 1024 * 1024
-    terminate_grace_seconds: float = 1.0
+    maxStdoutBytes: int = 4 * 1024 * 1024
+    maxStderrBytes: int = 4 * 1024 * 1024
+    terminateGraceSeconds: float = 1.0
 
     def __post_init__(self) -> None:
-        for field_name in ("max_stdout_bytes", "max_stderr_bytes"):
-            value = getattr(self, field_name)
+        """Отклоняет неположительные и неограниченные лимиты."""
+
+        for fieldName in ("maxStdoutBytes", "maxStderrBytes"):
+            value = getattr(self, fieldName)
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-                raise ValueError(f"{field_name} must be a positive integer")
+                raise ValueError(f"{fieldName} must be a positive integer")
         if (
-            isinstance(self.terminate_grace_seconds, bool)
-            or not isinstance(self.terminate_grace_seconds, (int, float))
-            or not math.isfinite(self.terminate_grace_seconds)
-            or self.terminate_grace_seconds <= 0
+            isinstance(self.terminateGraceSeconds, bool)
+            or not isinstance(self.terminateGraceSeconds, (int, float))
+            or not math.isfinite(self.terminateGraceSeconds)
+            or self.terminateGraceSeconds <= 0
         ):
-            raise ValueError("terminate_grace_seconds must be a positive finite number")
+            raise ValueError("terminateGraceSeconds must be a positive finite number")
 
 
-def _freeze_environment(environment: Mapping[str, str]) -> Mapping[str, str]:
+def FreezeEnvironment(environment: Mapping[str, str]) -> Mapping[str, str]:
+    """Проверяет и замораживает окружение дочернего процесса."""
+
     frozen: dict[str, str] = {}
     for name, value in environment.items():
-        if not isinstance(name, str) or not _ENVIRONMENT_NAME_PATTERN.fullmatch(name):
+        if not isinstance(name, str) or not ENVIRONMENTNAMEPATTERN.fullmatch(name):
             raise ValueError("environment names must use portable variable syntax")
         if not isinstance(value, str) or "\x00" in value:
             raise ValueError("environment values must be strings without NUL bytes")
@@ -146,7 +162,7 @@ def _freeze_environment(environment: Mapping[str, str]) -> Mapping[str, str]:
 
 @dataclass(frozen=True, slots=True)
 class LocalExecutionRequest:
-    """Fully bound request accepted by the local subprocess executor."""
+    """Хранит полностью связанный запрос локального исполнителя."""
 
     invocation: AdapterInvocation
     capability: CapabilityDescriptor
@@ -156,29 +172,31 @@ class LocalExecutionRequest:
     resources: ExecutionResources = field(default_factory=ExecutionResources)
 
     def __post_init__(self) -> None:
-        if self.invocation.adapter_id != self.capability.adapter_id:
-            raise ValueError("capability adapter_id must match the invocation")
+        """Проверяет согласованность вызова, авторизации и рабочей области."""
+
+        if self.invocation.adapterId != self.capability.adapterId:
+            raise ValueError("capability adapterId must match the invocation")
         if self.invocation.request.capability != self.capability.identifier:
             raise ValueError("capability identifier must match the invocation")
-        if _IMPACT_ORDER[self.invocation.request.impact] > _IMPACT_ORDER[self.capability.maximum_impact]:
+        if IMPACTORDER[self.invocation.request.impact] > IMPACTORDER[self.capability.maximumImpact]:
             raise ValueError("invocation impact exceeds the capability maximum")
-        if self.authorization.invocation_sha256 != invocation_digest(self.invocation):
+        if self.authorization.invocationSha256 != InvocationDigest(self.invocation):
             raise ValueError("authorization does not match the invocation")
-        if not set(self.capability.required_privileges).issubset(
-            self.authorization.granted_privileges
+        if not set(self.capability.requiredPrivileges).issubset(
+            self.authorization.grantedPrivileges
         ):
             raise ValueError("authorization does not grant every required privilege")
 
-        _require_reference(self.workspace, "workspace")
+        RequireReference(self.workspace, "workspace")
         path = PurePosixPath(self.workspace)
         if "\\" in self.workspace or path.is_absolute() or ".." in path.parts:
             raise ValueError("workspace must be a relative path inside the executor root")
         object.__setattr__(self, "workspace", path.as_posix())
-        object.__setattr__(self, "environment", _freeze_environment(self.environment))
+        object.__setattr__(self, "environment", FreezeEnvironment(self.environment))
 
 
 class ExecutionEventKind(StrEnum):
-    """Structured progress events emitted by an executor."""
+    """Перечисляет структурированные события прогресса исполнителя."""
 
     STARTED = "started"
     STDOUT = "stdout"
@@ -187,17 +205,17 @@ class ExecutionEventKind(StrEnum):
 
 
 class ExecutionTermination(StrEnum):
-    """Why the local executor stopped owning the process."""
+    """Объясняет причину завершения владения дочерним процессом."""
 
-    PROCESS_EXIT = "process_exit"
+    PROCESSEXIT = "process_exit"
     TIMEOUT = "timeout"
     CANCELLATION = "cancellation"
-    OUTPUT_LIMIT = "output_limit"
+    OUTPUTLIMIT = "output_limit"
 
 
 @dataclass(frozen=True, slots=True)
 class ExecutionEvent:
-    """One monotonically sequenced executor observation."""
+    """Хранит одно последовательно пронумерованное наблюдение."""
 
     sequence: int
     kind: ExecutionEventKind
@@ -205,7 +223,13 @@ class ExecutionEvent:
     termination: ExecutionTermination | None = None
 
     def __post_init__(self) -> None:
-        if isinstance(self.sequence, bool) or not isinstance(self.sequence, int) or self.sequence < 0:
+        """Проверяет данные и причину события для его типа."""
+
+        if (
+            isinstance(self.sequence, bool)
+            or not isinstance(self.sequence, int)
+            or self.sequence < 0
+        ):
             raise ValueError("sequence must be a non-negative integer")
         if not isinstance(self.kind, ExecutionEventKind):
             raise ValueError("kind must be an ExecutionEventKind")
@@ -214,18 +238,20 @@ class ExecutionEvent:
         if self.kind in {ExecutionEventKind.STDOUT, ExecutionEventKind.STDERR}:
             if not self.data or self.termination is not None:
                 raise ValueError("stream events require data and no termination")
+
         elif self.data:
             raise ValueError("lifecycle events must not contain stream data")
         if self.kind is ExecutionEventKind.COMPLETED:
             if not isinstance(self.termination, ExecutionTermination):
                 raise ValueError("completed events require a termination reason")
+
         elif self.termination is not None:
             raise ValueError("only completed events may declare termination")
 
 
 @dataclass(frozen=True, slots=True)
 class LocalExecutionResult:
-    """Complete local process outcome plus bounded raw output and event history."""
+    """Хранит исход процесса, ограниченный вывод и историю событий."""
 
     execution: AdapterExecution
     termination: ExecutionTermination
@@ -234,6 +260,8 @@ class LocalExecutionResult:
     events: tuple[ExecutionEvent, ...]
 
     def __post_init__(self) -> None:
+        """Проверяет непрерывность и конечное событие результата."""
+
         if not isinstance(self.termination, ExecutionTermination):
             raise ValueError("termination must be an ExecutionTermination")
         if not isinstance(self.stdout, bytes) or not isinstance(self.stderr, bytes):
@@ -252,52 +280,60 @@ AdapterLoader = Callable[[], ToolAdapter]
 
 
 @dataclass(slots=True)
-class _AdapterRegistration:
+class AdapterRegistration:
+    """Хранит ленивую фабрику и необязательный экземпляр адаптера."""
+
     descriptor: AdapterDescriptor
     loader: AdapterLoader
     instance: ToolAdapter | None = None
 
 
 class LazyAdapterRegistry:
-    """Resolve declared providers only when one of their capabilities is requested."""
+    """Загружает провайдера только при запросе его возможности."""
 
     def __init__(self) -> None:
-        self._registrations: dict[str, _AdapterRegistration] = {}
-        self._providers_by_capability: dict[str, list[str]] = {}
+        """Создаёт пустой реестр деклараций и ленивых фабрик."""
+
+        self.registrations: dict[str, AdapterRegistration] = {}
+        self.providersByCapability: dict[str, list[str]] = {}
 
     @property
-    def capabilities(self) -> tuple[str, ...]:
-        """Return declared capabilities without loading provider implementations."""
-        return tuple(sorted(self._providers_by_capability))
+    def Capabilities(self) -> tuple[str, ...]:
+        """Возвращает возможности без загрузки реализаций провайдеров."""
 
-    def register(self, descriptor: AdapterDescriptor, loader: AdapterLoader) -> None:
-        """Register immutable metadata and a lazy provider factory."""
-        if descriptor.adapter_id in self._registrations:
-            raise ValueError(f"Adapter is already registered: {descriptor.adapter_id}")
+        return tuple(sorted(self.providersByCapability))
+
+    def Register(self, descriptor: AdapterDescriptor, loader: AdapterLoader) -> None:
+        """Регистрирует неизменяемые метаданные и ленивую фабрику."""
+
+        if descriptor.adapterId in self.registrations:
+            raise ValueError(f"Adapter is already registered: {descriptor.adapterId}")
         if not callable(loader):
             raise TypeError("loader must be callable")
-        self._registrations[descriptor.adapter_id] = _AdapterRegistration(descriptor, loader)
+        self.registrations[descriptor.adapterId] = AdapterRegistration(descriptor, loader)
         for capability in descriptor.capabilities:
-            self._providers_by_capability.setdefault(capability, []).append(descriptor.adapter_id)
+            self.providersByCapability.setdefault(capability, []).append(descriptor.adapterId)
 
-    def resolve(self, capability: str, adapter_id: str | None = None) -> ToolAdapter:
-        """Load one provider deterministically and validate its declared identity."""
-        providers = self._providers_by_capability.get(capability)
+    def Resolve(self, capability: str, adapterId: str | None = None) -> ToolAdapter:
+        """Детерминированно загружает и проверяет один провайдер."""
+
+        providers = self.providersByCapability.get(capability)
         if not providers:
             raise LookupError(f"Unknown capability: {capability}")
-        if adapter_id is None:
+        if adapterId is None:
             if len(providers) != 1:
-                raise LookupError(f"Capability requires an explicit adapter_id: {capability}")
-            adapter_id = providers[0]
-        elif adapter_id not in providers:
-            raise LookupError(f"Adapter {adapter_id} does not provide capability {capability}")
+                raise LookupError(f"Capability requires an explicit adapterId: {capability}")
+            adapterId = providers[0]
 
-        registration = self._registrations[adapter_id]
+        elif adapterId not in providers:
+            raise LookupError(f"Adapter {adapterId} does not provide capability {capability}")
+
+        registration = self.registrations[adapterId]
         if registration.instance is None:
             candidate = registration.loader()
             if not isinstance(candidate, ToolAdapter):
                 raise TypeError("loader must return a ToolAdapter")
-            if candidate.descriptor != registration.descriptor:
+            if candidate.Descriptor != registration.descriptor:
                 raise ValueError("loaded ToolAdapter descriptor does not match registration")
             registration.instance = candidate
         return registration.instance

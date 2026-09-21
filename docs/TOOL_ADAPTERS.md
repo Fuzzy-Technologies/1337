@@ -4,7 +4,7 @@
 
 The `fuzzy1337.adapters` Python surface is **Experimental**. It is the first
 provider-neutral contract for security-tool adapters and is versioned by
-`ADAPTER_CONTRACT_VERSION`.
+`ADAPTERCONTRACTVERSION`.
 
 The architectural boundary is defined by
 [ADR 0014](adr/0014-provider-neutral-tool-adapter-contract.md).
@@ -29,7 +29,7 @@ The SDK keeps these concerns separate:
 
 ```python
 from fuzzy1337.adapters import (
-    ADAPTER_CONTRACT_VERSION,
+    ADAPTERCONTRACTVERSION,
     AdapterDescriptor,
     AdapterRequest,
     AdapterResult,
@@ -39,10 +39,10 @@ from fuzzy1337.adapters import (
 
 `ToolAdapter` implementations provide three provider-facing operations:
 
-1. `check_health()` reports observed availability and provider version.
-2. `prepare_invocation()` converts an already-approved request into bounded,
+1. `CheckHealth()` reports observed availability and provider version.
+2. `PrepareInvocation()` converts an already-approved request into bounded,
    explicit invocation metadata.
-3. `normalize_report()` converts executor facts and raw-evidence references into
+3. `NormalizeReport()` converts executor facts and raw-evidence references into
    provider-neutral output envelopes.
 
 The SDK never starts a process. The experimental Executor SDK owns process
@@ -73,7 +73,7 @@ metadata, not new Security Object Model types.
 - A non-zero, timed-out, or cancelled executor result cannot be represented as a
   successful execution.
 - Contract metadata is recursively immutable and serializes deterministically via
-  `serialize_contract()`.
+  `SerializeContract()`.
 
 ## Compatibility
 
