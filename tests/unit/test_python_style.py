@@ -52,6 +52,8 @@ EXTERNALATTRIBUTES = {
     "check_schema",
     "col_offset",
     "cpu_count",
+    "create_subprocess_exec",
+    "create_task",
     "create_connection",
     "end_col_offset",
     "end_headers",
@@ -62,9 +64,11 @@ EXTERNALATTRIBUTES = {
     "is_dir",
     "is_file",
     "is_relative_to",
+    "is_set",
     "kwonlyargs",
     "parse_args",
     "posonlyargs",
+    "perf_counter",
     "print_help",
     "read_text",
     "relative_to",
@@ -73,8 +77,11 @@ EXTERNALATTRIBUTES = {
     "send_header",
     "send_response",
     "serve_forever",
+    "symlink_to",
     "write_text",
     "version_info",
+    "wait_for",
+    "FIRST_COMPLETED",
 }
 
 
