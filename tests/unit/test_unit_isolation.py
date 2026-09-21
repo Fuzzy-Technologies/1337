@@ -1,3 +1,5 @@
+"""Tests for unit isolation behavior."""
+
 import socket
 
 import pytest
@@ -7,7 +9,9 @@ import pytest
     "operation",
     ["create_connection", "connect", "connect_ex"],
 )
-def test_real_network_connections_are_blocked(operation):
+def test_RealNetworkConnectionsAreBlocked(operation):
+    """Verify real network connections are blocked."""
+
     with pytest.raises(RuntimeError, match="must not access the network"):
         if operation == "create_connection":
             socket.create_connection(("127.0.0.1", 9))

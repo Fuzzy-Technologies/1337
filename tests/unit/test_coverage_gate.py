@@ -1,13 +1,17 @@
+"""Tests for coverage gate behavior."""
+
 import copy
 import json
 
 import pytest
 
-from fuzzy1337.coverage_gate import main, validate_report
+from fuzzy1337.coverage_gate import Main, ValidateReport
 
 
-@pytest.fixture
-def sample(tmp_path):
+@pytest.fixture(name="sample")
+def Sample(tmp_path):
+    """Provide the sample test fixture."""
+
     source = tmp_path / "src"
     source.mkdir()
     module = source / "example.py"
@@ -33,28 +37,42 @@ def sample(tmp_path):
     "covered, total, fails",
     [(4, 5, True), (81, 100, False), (800001, 1000000, False), (0, 0, False)],
 )
-def test_strict_threshold_uses_exact_counts(sample, covered, total, fails):
+def test_StrictThresholdUsesExactCounts(sample, covered, total, fails):
+    """Verify strict threshold uses exact counts."""
+
     source, report = sample
     summary = next(iter(report["files"].values()))["summary"]
     summary.update(covered_lines=covered, num_statements=total, covered_branches=0, num_branches=0)
-    assert bool(validate_report(report, source)) is fails
+    assert bool(ValidateReport(report, source)) is fails, (
+        "strict threshold uses exact counts invariant failed."
+    )
 
 
-def test_combined_score_includes_branches(sample):
+def test_CombinedScoreIncludesBranches(sample):
+    """Verify combined score includes branches."""
+
     source, report = sample
     summary = next(iter(report["files"].values()))["summary"]
     summary["covered_branches"] = 0
-    assert "80.00%" in validate_report(report, source)[0]
+    assert "80.00%" in ValidateReport(report, source)[0], (
+        "combined score includes branches invariant failed."
+    )
 
 
-def test_windows_style_report_paths_are_accepted(sample):
+def test_WindowsStyleReportPathsAreAccepted(sample):
+    """Verify windows style report paths are accepted."""
+
     source, report = sample
     module = next(iter(report["files"]))
     report["files"][module.replace("/", "\\")] = report["files"].pop(module)
-    assert validate_report(report, source) == []
+    assert ValidateReport(report, source) == [], (
+        "windows style report paths are accepted invariant failed."
+    )
 
 
-def test_high_total_cannot_hide_low_module(sample):
+def test_HighTotalCannotHideLowModule(sample):
+    """Verify high total cannot hide low module."""
+
     source, report = sample
     weak = source / "weak.py"
     weak.write_text("value = 1\n", encoding="utf-8")
@@ -67,14 +85,20 @@ def test_high_total_cannot_hide_low_module(sample):
             "excluded_lines": 0,
         },
     }
-    failures = validate_report(report, source)
-    assert len(failures) == 1 and "weak.py" in failures[0]
+    failures = ValidateReport(report, source)
+    assert len(failures) == 1 and "weak.py" in failures[0], (
+        "high total cannot hide low module invariant failed."
+    )
 
 
-def test_unimported_or_omitted_module_cannot_disappear(sample):
+def test_UnimportedOrOmittedModuleCannotDisappear(sample):
+    """Verify unimported or omitted module cannot disappear."""
+
     source, report = sample
     (source / "unimported.py").write_text("value = 1\n", encoding="utf-8")
-    assert "unimported.py: missing coverage" in validate_report(report, source)[0]
+    assert "unimported.py: missing coverage" in ValidateReport(report, source)[0], (
+        "unimported or omitted module cannot disappear invariant failed."
+    )
 
 
 @pytest.mark.parametrize(
@@ -88,24 +112,30 @@ def test_unimported_or_omitted_module_cannot_disappear(sample):
         ("excluded_lines", 1),
     ],
 )
-def test_invalid_or_excluded_counts_fail_closed(sample, field, value):
+def test_InvalidOrExcludedCountsFailClosed(sample, field, value):
+    """Verify invalid or excluded counts fail closed."""
+
     source, report = sample
     next(iter(report["files"].values()))["summary"][field] = value
     with pytest.raises(ValueError):
-        validate_report(report, source)
+        ValidateReport(report, source)
 
 
 @pytest.mark.parametrize("replacement", [None, [], "malformed"])
-def test_invalid_module_entries_fail_closed(sample, replacement):
+def test_InvalidModuleEntriesFailClosed(sample, replacement):
+    """Verify invalid module entries fail closed."""
+
     source, report = sample
     module = next(iter(report["files"]))
     report["files"][module] = replacement
     with pytest.raises(ValueError):
-        validate_report(report, source)
+        ValidateReport(report, source)
 
 
 @pytest.mark.parametrize("change", ["no_branches", "no_files", "empty_source"])
-def test_required_inputs_cannot_be_skipped(sample, change):
+def test_RequiredInputsCannotBeSkipped(sample, change):
+    """Verify required inputs cannot be skipped."""
+
     source, report = sample
     if change == "no_branches":
         report["meta"]["branch_coverage"] = False
@@ -117,27 +147,39 @@ def test_required_inputs_cannot_be_skipped(sample, change):
         (source / "example.py").unlink()
 
     with pytest.raises(ValueError):
-        validate_report(report, source)
+        ValidateReport(report, source)
 
 
-def test_cli_success_and_module_failure(sample, tmp_path, capsys):
+def test_CliSuccessAndModuleFailure(sample, tmp_path, capsys):
+    """Verify cli success and module failure."""
+
     source, report = sample
     path = tmp_path / "coverage.json"
     path.write_text(json.dumps(report), encoding="utf-8")
-    assert main([str(path), str(source)]) == 0
-    assert "strictly above 80%" in capsys.readouterr().out
+    assert Main([str(path), str(source)]) == 0, "cli success and module failure invariant failed."
+    assert "strictly above 80%" in capsys.readouterr().out, (
+        "cli success and module failure invariant failed."
+    )
     broken = copy.deepcopy(report)
     broken["files"] = {}
     path.write_text(json.dumps(broken), encoding="utf-8")
-    assert main([str(path), str(source)]) == 1
-    assert "missing coverage" in capsys.readouterr().err
+    assert Main([str(path), str(source)]) == 1, "cli success and module failure invariant failed."
+    assert "missing coverage" in capsys.readouterr().err, (
+        "cli success and module failure invariant failed."
+    )
 
 
 @pytest.mark.parametrize("content", [None, "invalid json", "[]", '{"meta": []}'])
-def test_missing_or_malformed_report_returns_failure(sample, tmp_path, content, capsys):
+def test_MissingOrMalformedReportReturnsFailure(sample, tmp_path, content, capsys):
+    """Verify missing or malformed report returns failure."""
+
     source, _ = sample
     path = tmp_path / "coverage.json"
     if content is not None:
         path.write_text(content, encoding="utf-8")
-    assert main([str(path), str(source)]) == 1
-    assert "Coverage gate failed" in capsys.readouterr().err
+    assert Main([str(path), str(source)]) == 1, (
+        "missing or malformed report returns failure invariant failed."
+    )
+    assert "Coverage gate failed" in capsys.readouterr().err, (
+        "missing or malformed report returns failure invariant failed."
+    )

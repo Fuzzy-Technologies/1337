@@ -43,12 +43,22 @@ not be committed.
 
 ## Synthetic lab
 
-The M0 lab is an isolated safe target for container lifecycle verification. It
-does not publish a host port, does not provide an external target, and does not
-yet claim scanner coverage or detection accuracy.
+The lab contains an isolated M0 health target and the M1 `web-micro`
+known-answer target. Neither publishes a host port or contacts an external
+target. `web-micro` exposes deterministic discovery/input/status routes and
+simulation canaries that never execute commands, access files, make outbound
+requests, or persist uploads.
 
 ```bash
 docker compose --profile lab up --build --wait lab-web-safe
+docker compose ps
+docker compose down
+```
+
+Run the known-answer target on the same internal network:
+
+```bash
+docker compose --profile lab up --build --wait lab-web-micro
 docker compose ps
 docker compose down
 ```

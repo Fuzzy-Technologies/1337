@@ -1,78 +1,106 @@
+"""Tests for dev commands behavior."""
+
 import subprocess
 import sys
 from unittest.mock import Mock
 
 import pytest
 
-from fuzzy1337 import dev_commands
+from fuzzy1337 import dev_commands as devCommands
 
 
-@pytest.fixture
-def repository(monkeypatch, tmp_path):
+@pytest.fixture(name="repository")
+def Repository(monkeypatch, tmp_path):
+    """Provide the repository test fixture."""
+
     (tmp_path / "pyproject.toml").write_text("[project]\nname = '1337'\n", encoding="utf-8")
     (tmp_path / "src/fuzzy1337").mkdir(parents=True)
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
 
-def test_unknown_command_never_starts_a_process(monkeypatch):
-    process = Mock()
-    monkeypatch.setattr(subprocess, "run", process)
+def test_UnknownCommandNeverStartsAProcess(monkeypatch):
+    """Verify unknown command never starts a process."""
+
+    Process = Mock()
+    monkeypatch.setattr(subprocess, "run", Process)
     with pytest.raises(ValueError, match="Unknown developer command"):
-        dev_commands.run("arbitrary shell command")
-    process.assert_not_called()
+        devCommands.Run("arbitrary shell command")
+    Process.assert_not_called()
 
 
-def test_missing_repository_is_reported(monkeypatch, tmp_path, capsys):
+def test_MissingRepositoryIsReported(monkeypatch, tmp_path, capsys):
+    """Verify missing repository is reported."""
+
     monkeypatch.chdir(tmp_path)
-    process = Mock()
-    monkeypatch.setattr(subprocess, "run", process)
-    assert dev_commands.run("lint") == 2
-    assert "repository root" in capsys.readouterr().err
-    process.assert_not_called()
+    Process = Mock()
+    monkeypatch.setattr(subprocess, "run", Process)
+    assert devCommands.Run("lint") == 2, "missing repository is reported invariant failed."
+    assert "repository root" in capsys.readouterr().err, (
+        "missing repository is reported invariant failed."
+    )
+    Process.assert_not_called()
 
 
-def test_check_runs_all_quality_steps_and_removes_stale_report(repository, monkeypatch):
+def test_CheckRunsAllQualityStepsAndRemovesStaleReport(repository, monkeypatch):
+    """Verify check runs all quality steps and removes stale report."""
+
     report = repository / "coverage/coverage.json"
     report.parent.mkdir()
     report.write_text("stale", encoding="utf-8")
     calls = []
 
-    test_process = Mock(return_value=0)
-    monkeypatch.setattr(dev_commands, "run_tests", test_process)
+    testProcess = Mock(return_value=0)
+    monkeypatch.setattr(devCommands, "RunTests", testProcess)
 
-    def process(arguments, **kwargs):
+    def Process(arguments, **kwargs):
+        """Provide deterministic test support for process."""
+
         calls.append(arguments)
-        assert arguments[0] == sys.executable
-        assert kwargs == {"shell": False, "timeout": 300, "check": False}
+        assert arguments[0] == sys.executable, "process invariant failed."
+        assert kwargs == {"shell": False, "timeout": 300, "check": False}, (
+            "process invariant failed."
+        )
         return subprocess.CompletedProcess(arguments, 0)
 
-    monkeypatch.setattr(subprocess, "run", process)
-    assert dev_commands.run("check") == 0
+    monkeypatch.setattr(subprocess, "run", Process)
+    assert devCommands.Run("check") == 0, (
+        "check runs all quality steps and removes stale report invariant failed."
+    )
     assert [call[2] for call in calls] == [
         "compileall",
         "ruff",
         "mypy",
         "fuzzy1337.coverage_gate",
         "build",
-    ]
-    test_process.assert_called_once()
-    assert not report.exists()
+    ], "check runs all quality steps and removes stale report invariant failed."
+    testProcess.assert_called_once()
+    assert not report.exists(), (
+        "check runs all quality steps and removes stale report invariant failed."
+    )
 
 
-def test_unit_runs_only_the_unit_suite_and_coverage_gate(repository, monkeypatch):
+def test_UnitRunsOnlyTheUnitSuiteAndCoverageGate(repository, monkeypatch):
+    """Verify unit runs only the unit suite and coverage gate."""
+
     calls = []
 
-    def process(arguments, **kwargs):
+    def Process(arguments, **kwargs):
+        """Provide deterministic test support for process."""
+
         calls.append(arguments)
-        assert kwargs == {"shell": False, "timeout": 300, "check": False}
+        assert kwargs == {"shell": False, "timeout": 300, "check": False}, (
+            "process invariant failed."
+        )
         return subprocess.CompletedProcess(arguments, 0)
 
-    monkeypatch.setattr(subprocess, "run", process)
-    test_process = Mock(return_value=0)
-    monkeypatch.setattr(dev_commands, "run_tests", test_process)
+    monkeypatch.setattr(subprocess, "run", Process)
+    testProcess = Mock(return_value=0)
+    monkeypatch.setattr(devCommands, "RunTests", testProcess)
 
-    assert dev_commands.run("unit") == 0
+    assert devCommands.Run("unit") == 0, (
+        "unit runs only the unit suite and coverage gate invariant failed."
+    )
     assert calls == [
         [
             sys.executable,
@@ -81,18 +109,20 @@ def test_unit_runs_only_the_unit_suite_and_coverage_gate(repository, monkeypatch
             "coverage/coverage.json",
             "src/fuzzy1337",
         ],
-    ]
-    test_process.assert_called_once()
+    ], "unit runs only the unit suite and coverage gate invariant failed."
+    testProcess.assert_called_once()
 
 
-def test_setup_uses_locked_uv(repository, monkeypatch):
-    process = Mock(return_value=subprocess.CompletedProcess([], 0))
-    monkeypatch.setattr(subprocess, "run", process)
-    monkeypatch.setattr(dev_commands.shutil, "which", lambda command: "/tools/uv")
+def test_SetupUsesLockedUv(repository, monkeypatch):
+    """Verify setup uses locked uv."""
 
-    assert dev_commands.run("setup") == 0
+    Process = Mock(return_value=subprocess.CompletedProcess([], 0))
+    monkeypatch.setattr(subprocess, "run", Process)
+    monkeypatch.setattr(devCommands.shutil, "which", lambda command: "/tools/uv")
 
-    process.assert_called_once_with(
+    assert devCommands.Run("setup") == 0, "setup uses locked uv invariant failed."
+
+    Process.assert_called_once_with(
         ["/tools/uv", "sync", "--locked", "--extra", "dev"],
         shell=False,
         timeout=300,
@@ -100,44 +130,60 @@ def test_setup_uses_locked_uv(repository, monkeypatch):
     )
 
 
-def test_setup_fails_closed_when_uv_is_missing(repository, monkeypatch, capsys):
-    process = Mock()
-    monkeypatch.setattr(subprocess, "run", process)
-    monkeypatch.setattr(dev_commands.shutil, "which", lambda command: None)
+def test_SetupFailsClosedWhenUvIsMissing(repository, monkeypatch, capsys):
+    """Verify setup fails closed when uv is missing."""
 
-    assert dev_commands.run("setup") == 127
-    assert "uv" in capsys.readouterr().err
-    process.assert_not_called()
+    Process = Mock()
+    monkeypatch.setattr(subprocess, "run", Process)
+    monkeypatch.setattr(devCommands.shutil, "which", lambda command: None)
+
+    assert devCommands.Run("setup") == 127, (
+        "setup fails closed when uv is missing invariant failed."
+    )
+    assert "uv" in capsys.readouterr().err, (
+        "setup fails closed when uv is missing invariant failed."
+    )
+    Process.assert_not_called()
 
 
 @pytest.mark.parametrize(
     "returncode, expected",
     [(1, 1), (42, 42), (-9, 137)],
 )
-def test_child_failure_stops_the_gate(repository, monkeypatch, returncode, expected):
-    process = Mock(return_value=subprocess.CompletedProcess([], returncode))
-    monkeypatch.setattr(subprocess, "run", process)
-    assert dev_commands.run("check") == expected
-    assert process.call_count == 1
+def test_ChildFailureStopsTheGate(repository, monkeypatch, returncode, expected):
+    """Verify child failure stops the gate."""
+
+    Process = Mock(return_value=subprocess.CompletedProcess([], returncode))
+    monkeypatch.setattr(subprocess, "run", Process)
+    assert devCommands.Run("check") == expected, "child failure stops the gate invariant failed."
+    assert Process.call_count == 1, "child failure stops the gate invariant failed."
 
 
 @pytest.mark.parametrize("code", [1, 124, 127])
-def test_test_runner_failure_stops_the_gate(repository, monkeypatch, code):
-    process = Mock()
-    monkeypatch.setattr(subprocess, "run", process)
-    monkeypatch.setattr(dev_commands, "run_tests", Mock(return_value=code))
-    assert dev_commands.run("test") == code
-    process.assert_not_called()
+def test_TestRunnerFailureStopsTheGate(repository, monkeypatch, code):
+    """Verify test runner failure stops the gate."""
+
+    Process = Mock()
+    monkeypatch.setattr(subprocess, "run", Process)
+    monkeypatch.setattr(devCommands, "RunTests", Mock(return_value=code))
+    assert devCommands.Run("test") == code, "test runner failure stops the gate invariant failed."
+    Process.assert_not_called()
 
 
-def test_developer_entrypoint_propagates_result(monkeypatch):
-    process = Mock(return_value=42)
-    monkeypatch.setattr(dev_commands, "run", process)
-    assert dev_commands.main(["test"]) == 42
-    process.assert_called_once_with("test", dev_commands.TestOptions())
+def test_DeveloperEntrypointPropagatesResult(monkeypatch):
+    """Verify developer entrypoint propagates result."""
+
+    Process = Mock(return_value=42)
+    monkeypatch.setattr(devCommands, "Run", Process)
+    assert devCommands.Main(["test"]) == 42, (
+        "developer entrypoint propagates result invariant failed."
+    )
+    Process.assert_called_once_with("test", devCommands.TestOptions())
 
 
-def test_unapproved_formatter_is_not_a_command():
+def test_UnapprovedFormatterIsNotACommand():
+    """Verify unapproved formatter is not a command."""
+
     with pytest.raises(SystemExit) as caught:
-        dev_commands.main(["format"])
-    assert caught.value.code == 2
+        devCommands.Main(["format"])
+    assert caught.value.code == 2, "unapproved formatter is not a command invariant failed."

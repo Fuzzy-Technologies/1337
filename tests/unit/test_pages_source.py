@@ -1,3 +1,5 @@
+"""Tests for pages source behavior."""
+
 import re
 import shutil
 import subprocess
@@ -11,7 +13,7 @@ CSS = ROOT / "static/style.css"
 CONFIG = ROOT / "_config.yml"
 SITEMAP = ROOT / "sitemap.xml"
 
-SITE_SOURCE_FILES = {
+SITESOURCEFILES = {
     "_config.yml",
     "_layouts/default.html",
     "index.md",
@@ -21,8 +23,8 @@ SITE_SOURCE_FILES = {
     "static/style.css",
     "zh-cn/index.md",
 }
-SITE_SOURCE_ROOTS = {Path(path).parts[0] for path in SITE_SOURCE_FILES}
-EXPECTED_EXCLUDED_ROOTS = {
+SITESOURCEROOTS = {Path(path).parts[0] for path in SITESOURCEFILES}
+EXPECTEDEXCLUDEDROOTS = {
     ".dockerignore",
     ".github",
     ".gitignore",
@@ -46,10 +48,10 @@ EXPECTED_EXCLUDED_ROOTS = {
     "uv.lock",
 }
 
-BLOCK_HTML_INDENT = re.compile(r"^ {4,}</?[A-Za-z]")
-CLASS_ATTRIBUTE = re.compile(r'class="([^"]+)"')
-CONFIG_EXCLUDE_ITEM = re.compile(r"^\s{2}-\s+(.+?)\s*$")
-PAIRED_TAGS = (
+BLOCKHTMLINDENT = re.compile(r"^ {4,}</?[A-Za-z]")
+CLASSATTRIBUTE = re.compile(r'class="([^"]+)"')
+CONFIGEXCLUDEITEM = re.compile(r"^\s{2}-\s+(.+?)\s*$")
+PAIREDTAGS = (
     "section",
     "div",
     "header",
@@ -70,18 +72,24 @@ PAIRED_TAGS = (
 )
 
 
-def read(path: Path) -> str:
+def Read(path: Path) -> str:
+    """Provide deterministic test support for read."""
+
     return path.read_text(encoding="utf-8")
 
 
-def page_classes(content: str) -> set[str]:
+def PageClasses(content: str) -> set[str]:
+    """Provide deterministic test support for page classes."""
+
     classes: set[str] = set()
-    for value in CLASS_ATTRIBUTE.findall(content):
+    for value in CLASSATTRIBUTE.findall(content):
         classes.update(value.split())
     return classes
 
 
-def tracked_files() -> set[str]:
+def TrackedFiles() -> set[str]:
+    """Provide deterministic test support for tracked files."""
+
     result = subprocess.run(
         ["git", "ls-files", "-z"],
         cwd=ROOT,
@@ -92,19 +100,21 @@ def tracked_files() -> set[str]:
     return {path for path in result.stdout.split("\0") if path}
 
 
-def configured_page_excludes() -> set[str]:
+def ConfiguredPageExcludes() -> set[str]:
+    """Provide deterministic test support for configured page excludes."""
+
     excludes: set[str] = set()
-    in_exclude_block = False
+    inExcludeBlock = False
 
-    for line in read(CONFIG).splitlines():
+    for line in Read(CONFIG).splitlines():
         if line == "exclude:":
-            in_exclude_block = True
+            inExcludeBlock = True
             continue
 
-        if not in_exclude_block:
+        if not inExcludeBlock:
             continue
 
-        match = CONFIG_EXCLUDE_ITEM.match(line)
+        match = CONFIGEXCLUDEITEM.match(line)
         if match:
             excludes.add(match.group(1).strip("'\"").rstrip("/"))
             continue
@@ -115,13 +125,15 @@ def configured_page_excludes() -> set[str]:
     return excludes
 
 
-def test_pages_do_not_indent_raw_html_as_markdown_code() -> None:
+def test_PagesDoNotIndentRawHtmlAsMarkdownCode() -> None:
+    """Verify pages do not indent raw html as markdown code."""
+
     violations: list[str] = []
 
     for page in PAGES:
-        for line_number, line in enumerate(read(page).splitlines(), start=1):
-            if BLOCK_HTML_INDENT.match(line):
-                violations.append(f"{page.relative_to(ROOT)}:{line_number}: {line.strip()}")
+        for lineNumber, line in enumerate(Read(page).splitlines(), start=1):
+            if BLOCKHTMLINDENT.match(line):
+                violations.append(f"{page.relative_to(ROOT)}:{lineNumber}: {line.strip()}")
 
     assert not violations, (
         "Raw HTML indented by four or more spaces is rendered as Markdown code:\n"
@@ -129,11 +141,13 @@ def test_pages_do_not_indent_raw_html_as_markdown_code() -> None:
     )
 
 
-def test_pages_have_balanced_html_tags() -> None:
-    for page in PAGES:
-        content = read(page)
+def test_PagesHaveBalancedHtmlTags() -> None:
+    """Verify pages have balanced html tags."""
 
-        for tag in PAIRED_TAGS:
+    for page in PAGES:
+        content = Read(page)
+
+        for tag in PAIREDTAGS:
             opening = len(re.findall(rf"<{tag}(?:[ >])", content))
             closing = content.count(f"</{tag}>")
             assert opening == closing, (
@@ -142,35 +156,55 @@ def test_pages_have_balanced_html_tags() -> None:
             )
 
 
-def test_localized_pages_keep_the_same_component_structure() -> None:
-    pages = [read(page) for page in PAGES]
-    reference_classes = page_classes(pages[0])
+def test_LocalizedPagesKeepTheSameComponentStructure() -> None:
+    """Verify localized pages keep the same component structure."""
 
-    assert all(page.count('<section class="content-section">') == 8 for page in pages)
-    assert all(page_classes(page) == reference_classes for page in pages[1:])
+    pages = [Read(page) for page in PAGES]
+    referenceClasses = PageClasses(pages[0])
+
+    assert all(page.count('<section class="content-section">') == 8 for page in pages), (
+        "localized pages keep the same component structure invariant failed."
+    )
+    assert all(PageClasses(page) == referenceClasses for page in pages[1:]), (
+        "localized pages keep the same component structure invariant failed."
+    )
 
 
-def test_site_css_covers_all_page_classes() -> None:
-    css = read(CSS)
+def test_SiteCssCoversAllPageClasses() -> None:
+    """Verify site css covers all page classes."""
+
+    css = Read(CSS)
     classes = set()
 
     for page in PAGES:
-        classes.update(page_classes(read(page)))
+        classes.update(PageClasses(Read(page)))
 
     missing = sorted(name for name in classes if f".{name}" not in css)
     assert not missing, f"Page classes without CSS selectors: {', '.join(missing)}"
 
 
-def test_simplified_chinese_page_has_native_font_fallbacks() -> None:
-    css = read(CSS)
+def test_SimplifiedChinesePageHasNativeFontFallbacks() -> None:
+    """Verify simplified chinese page has native font fallbacks."""
 
-    assert 'html[lang="zh-CN"] body' in css
-    assert '"PingFang SC"' in css
-    assert '"Microsoft YaHei"' in css
-    assert '"Noto Sans SC"' in css
+    css = Read(CSS)
+
+    assert 'html[lang="zh-CN"] body' in css, (
+        "simplified chinese page has native font fallbacks invariant failed."
+    )
+    assert '"PingFang SC"' in css, (
+        "simplified chinese page has native font fallbacks invariant failed."
+    )
+    assert '"Microsoft YaHei"' in css, (
+        "simplified chinese page has native font fallbacks invariant failed."
+    )
+    assert '"Noto Sans SC"' in css, (
+        "simplified chinese page has native font fallbacks invariant failed."
+    )
 
 
-def test_language_routes_are_present_on_all_pages() -> None:
+def test_LanguageRoutesArePresentOnAllPages() -> None:
+    """Verify language routes are present on all pages."""
+
     routes = (
         "{{ '/' | relative_url }}",
         "{{ '/ru/' | relative_url }}",
@@ -178,54 +212,74 @@ def test_language_routes_are_present_on_all_pages() -> None:
     )
 
     for page in PAGES:
-        content = read(page)
-        assert all(route in content for route in routes)
-        assert 'class="lang-button active"' in content
+        content = Read(page)
+        assert all(route in content for route in routes), (
+            "language routes are present on all pages invariant failed."
+        )
+        assert 'class="lang-button active"' in content, (
+            "language routes are present on all pages invariant failed."
+        )
 
 
-def test_pages_publish_boundary_matches_canonical_excludes() -> None:
-    excluded_roots = configured_page_excludes()
+def test_PagesPublishBoundaryMatchesCanonicalExcludes() -> None:
+    """Verify pages publish boundary matches canonical excludes."""
 
-    assert excluded_roots == EXPECTED_EXCLUDED_ROOTS
-    assert not SITE_SOURCE_ROOTS & excluded_roots
+    excludedRoots = ConfiguredPageExcludes()
+
+    assert excludedRoots == EXPECTEDEXCLUDEDROOTS, (
+        "pages publish boundary matches canonical excludes invariant failed."
+    )
+    assert not SITESOURCEROOTS & excludedRoots, (
+        "pages publish boundary matches canonical excludes invariant failed."
+    )
 
 
-def test_pages_publish_boundary_rejects_unclassified_tracked_files() -> None:
+def test_PagesPublishBoundaryRejectsUnclassifiedTrackedFiles() -> None:
+    """Verify pages publish boundary rejects unclassified tracked files."""
+
     if shutil.which("git") is None:
         pytest.skip("git is not installed in the container quality image")
 
-    tracked = tracked_files()
-    tracked_roots = {Path(path).parts[0] for path in tracked}
-    non_site_roots = tracked_roots - SITE_SOURCE_ROOTS
+    tracked = TrackedFiles()
+    trackedRoots = {Path(path).parts[0] for path in tracked}
+    nonSiteRoots = trackedRoots - SITESOURCEROOTS
 
-    missing_excludes = sorted(non_site_roots - EXPECTED_EXCLUDED_ROOTS)
-    assert not missing_excludes, (
+    missingExcludes = sorted(nonSiteRoots - EXPECTEDEXCLUDEDROOTS)
+    assert not missingExcludes, (
         "Tracked repository roots would be published by GitHub Pages unless "
-        f"explicitly excluded: {', '.join(missing_excludes)}"
+        f"explicitly excluded: {', '.join(missingExcludes)}"
     )
 
-    unapproved_site_files = sorted(
+    unapprovedSiteFiles = sorted(
         path
         for path in tracked
-        if Path(path).parts[0] in SITE_SOURCE_ROOTS
-        and path not in SITE_SOURCE_FILES
+        if Path(path).parts[0] in SITESOURCEROOTS
+        and path not in SITESOURCEFILES
     )
-    assert not unapproved_site_files, (
+    assert not unapprovedSiteFiles, (
         "Files inside public Pages roots require explicit approval in "
-        f"SITE_SOURCE_FILES: {', '.join(unapproved_site_files)}"
+        f"SITE_SOURCE_FILES: {', '.join(unapprovedSiteFiles)}"
     )
 
 
-def test_sitemap_contains_only_public_localized_routes() -> None:
-    sitemap = read(SITEMAP)
+def test_SitemapContainsOnlyPublicLocalizedRoutes() -> None:
+    """Verify sitemap contains only public localized routes."""
+
+    sitemap = Read(SITEMAP)
     routes = (
         "{{ '/' | absolute_url }}",
         "{{ '/ru/' | absolute_url }}",
         "{{ '/zh-cn/' | absolute_url }}",
     )
 
-    assert sitemap.count("<url>") == len(routes)
-    assert all(f"<loc>{route}</loc>" in sitemap for route in routes)
+    assert sitemap.count("<url>") == len(routes), (
+        "sitemap contains only public localized routes invariant failed."
+    )
+    assert all(f"<loc>{route}</loc>" in sitemap for route in routes), (
+        "sitemap contains only public localized routes invariant failed."
+    )
 
     for language in ("en", "ru", "zh-CN", "x-default"):
-        assert f'hreflang="{language}"' in sitemap
+        assert f'hreflang="{language}"' in sitemap, (
+            "sitemap contains only public localized routes invariant failed."
+        )
