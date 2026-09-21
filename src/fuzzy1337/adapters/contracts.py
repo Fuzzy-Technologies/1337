@@ -177,7 +177,7 @@ class AdapterDescriptor:
         RequireText(self.displayName, "displayName")
         RequireText(self.version, "version")
         if not isinstance(self.maximumImpact, ImpactLevel):
-            raise ValueError("maximum_impact must be an ImpactLevel")
+            raise ValueError("maximumImpact must be an ImpactLevel")
         if not self.capabilities:
             raise ValueError("capabilities must not be empty")
         object.__setattr__(
