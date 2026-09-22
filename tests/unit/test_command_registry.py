@@ -104,5 +104,12 @@ def test_CoreRegistryDescribesOnlyCurrentlyAvailableCommands():
         "core registry describes only currently available commands invariant failed."
     )
     assert COMMAND_REGISTRY.Resolve("shell") is COMMAND_REGISTRY.Commands[3], (
+    assert identifiers == ["help", "version", "shell"], (
+        "core registry describes only currently available commands invariant failed."
+    )
+    assert COMMAND_REGISTRY.Resolve("--version") is COMMAND_REGISTRY.Commands[1], (
+        "core registry describes only currently available commands invariant failed."
+    )
+    assert COMMAND_REGISTRY.Resolve("shell") is COMMAND_REGISTRY.Commands[2], (
         "core registry describes only currently available commands invariant failed."
     )

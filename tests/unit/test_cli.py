@@ -97,6 +97,16 @@ def test_DoctorCommandRunsTheDiagnosticEntrypoint(monkeypatch, capsys):
     )
 
 
+def test_ExplicitShellCommandStartsTheInteractiveWorkbench(monkeypatch):
+    """Verify explicit shell command starts the interactive workbench."""
+
+    monkeypatch.setattr(cli, "RunInteractiveShell", lambda: 0)
+
+    assert Main(["shell"]) == 0, (
+        "explicit shell command starts the interactive workbench invariant failed."
+    )
+
+
 @pytest.mark.parametrize(
     "arguments, code",
     [(["--version"], 0), (["--help"], 0), (["scan"], 2)],
