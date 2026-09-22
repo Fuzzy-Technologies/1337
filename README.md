@@ -94,6 +94,25 @@ The Community repository is licensed under Apache-2.0.
 
 Detailed planning lives in the linked GitHub milestones and issues.
 
+## Try the current developer preview
+
+The current preview demonstrates the local CLI, interactive workbench foundation,
+environment diagnostics, deterministic tests, and repository-owned synthetic labs.
+It does **not** perform real discovery or scanning yet.
+
+```bash
+git clone https://github.com/Fuzzy-Technologies/1337.git
+cd 1337
+git switch develop
+python -m pip install uv==0.11.33
+uv run --locked 1337-dev setup
+uv run --locked 1337 doctor
+uv run --locked 1337 shell
+```
+
+Inside the shell, start with `help`, `commands`, `context`, `lens devsecops`,
+`select asset:demo`, `palette`, and `quit`.
+
 ## Architecture and project docs
 
 - [Vision](docs/VISION.md)
