@@ -25,6 +25,7 @@ def Invoke(arguments, cwd):
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
     return result.stdout
 
 
@@ -43,10 +44,17 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
     )
     wheels = list(output.glob("*.whl"))
     assert len(wheels) == 1, "sdist wheel and clean installation invariant failed."
+
     with zipfile.ZipFile(wheels[0]) as archive:
         members = archive.namelist()
         assert "fuzzy1337/cli.py" in members, "sdist wheel and clean installation invariant failed."
         assert "fuzzy1337/adapters/contracts.py" in members, (
+            "sdist wheel and clean installation invariant failed."
+        )
+        assert "fuzzy1337/executors/contracts.py" in members, (
+            "sdist wheel and clean installation invariant failed."
+        )
+        assert "fuzzy1337/executors/local.py" in members, (
             "sdist wheel and clean installation invariant failed."
         )
         assert all(name.startswith(("fuzzy1337/", "1337-")) for name in members), (
@@ -94,6 +102,19 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
                 "-c",
                 "from fuzzy1337.adapters import ADAPTER_CONTRACT_VERSION; "
                 "print(ADAPTER_CONTRACT_VERSION)",
+            ],
+            tmp_path,
+        ).strip()
+        == "1"
+    ), "sdist wheel and clean installation invariant failed."
+    assert (
+        Invoke(
+            [
+                str(executable),
+                "-I",
+                "-c",
+                "from fuzzy1337.executors import EXECUTOR_CONTRACT_VERSION; "
+                "print(EXECUTOR_CONTRACT_VERSION)",
             ],
             tmp_path,
         ).strip()

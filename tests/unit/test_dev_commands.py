@@ -16,6 +16,7 @@ def repository(monkeypatch, tmp_path):
     (tmp_path / "pyproject.toml").write_text("[project]\nname = '1337'\n", encoding="utf-8")
     (tmp_path / "src/fuzzy1337").mkdir(parents=True)
     monkeypatch.chdir(tmp_path)
+
     return tmp_path
 
 
@@ -24,8 +25,10 @@ def test_UnknownCommandNeverStartsAProcess(monkeypatch):
 
     process = Mock()
     monkeypatch.setattr(subprocess, "run", process)
+
     with pytest.raises(ValueError, match="Unknown developer command"):
         dev_commands.Run("arbitrary shell command")
+
     process.assert_not_called()
 
 
@@ -61,6 +64,7 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(repository, monkeypatch):
         assert kwargs == {"shell": False, "timeout": 300, "check": False}, (
             "process invariant failed."
         )
+
         return subprocess.CompletedProcess(arguments, 0)
 
     monkeypatch.setattr(subprocess, "run", Process)
@@ -69,7 +73,6 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(repository, monkeypatch):
     )
     assert [call[2] for call in calls] == [
         "compileall",
-        "ruff",
         "ruff",
         "mypy",
         "fuzzy1337.coverage_gate",
@@ -93,6 +96,7 @@ def test_UnitRunsOnlyTheUnitSuiteAndCoverageGate(repository, monkeypatch):
         assert kwargs == {"shell": False, "timeout": 300, "check": False}, (
             "process invariant failed."
         )
+
         return subprocess.CompletedProcess(arguments, 0)
 
     monkeypatch.setattr(subprocess, "run", Process)

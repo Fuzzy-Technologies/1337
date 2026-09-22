@@ -262,7 +262,19 @@ Specific house rule retained from existing Fuzzy Technologies Python projects:
 
 > After a completed multi-line `for` block, insert a blank line before the next independent statement or block when that line is no longer part of the loop/control flow.
 
-Do not mechanically insert blank lines inside a logically continuous construct.
+Use one blank line to expose each transition between logical phases inside a function or method:
+
+- before a new `if`, `for`, `while`, `try`, `with`, or `match` statement when it follows
+  completed work in the same block;
+- before an `await` statement or an assignment whose value is awaited when it starts the next
+  asynchronous operation;
+- before `return`, `raise`, or `yield` when it follows completed work in the same block;
+- after a completed nested or multi-line control-flow block before the next independent statement.
+
+Do not insert a blank line after a control-flow header. For example, an `await`, `return`, or
+`raise` that is the first statement inside an `if`, `try`, `with`, or loop remains directly below
+that header. Keep tightly related assignments and calls together; the rule separates phases, not
+every physical statement.
 
 - A docstring is the first statement in its module, class, function, or method.
 - Insert one blank line after a docstring before implementation.

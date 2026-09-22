@@ -21,8 +21,8 @@ The SDK keeps these concerns separate:
 | Provider declaration  | `AdapterDescriptor`                                         | adapter registry and capability selection  |
 | Health observation    | `AdapterHealth`                                             | executor/runtime health policy             |
 | Approved request      | `AdapterRequest`                                            | Scope and Policy                           |
-| Prepared invocation   | `AdapterInvocation`                                         | governed Executor                          |
-| Execution facts       | `AdapterExecution` and `AdapterReport`                      | Executor and Evidence                      |
+| Prepared invocation   | `AdapterInvocation`                                         | governed Executor SDK                      |
+| Execution facts       | `AdapterExecution` and `AdapterReport`                      | Executor SDK and future Evidence Core      |
 | Normalized output     | `AdapterResult`, observations, findings, and enrichments    | Security Object Model and Evidence         |
 
 ## Public import surface
@@ -45,8 +45,12 @@ from fuzzy1337.adapters import (
 3. `NormalizeReport()` converts executor facts and raw-evidence references into
    provider-neutral output envelopes.
 
-The SDK never starts a process. A future Executor owns process lifecycle,
-timeouts, cancellation, scope checks, and audit records.
+The SDK never starts a process. The experimental Executor SDK owns process
+lifecycle, timeouts, cancellation, and resource bounds. Scope/Policy remains the
+upstream authority and the future Evidence Core owns durable audit evidence.
+
+See [Executor SDK](EXECUTORS.md) and
+[ADR 0015](adr/0015-governed-local-executor-boundary.md).
 
 ## Evidence and normalization
 

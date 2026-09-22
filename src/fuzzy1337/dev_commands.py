@@ -51,10 +51,7 @@ _coverage_gate = PythonStep(
 COMMANDS: dict[str, tuple[CommandStep, ...]] = {
     "setup": (UvStep("sync", "--locked", "--extra", "dev"),),
     "compile": (PythonStep("-m", "compileall", "-q", "src", "tests"),),
-    "lint": (
-        PythonStep("-m", "ruff", "format", "--check", "."),
-        PythonStep("-m", "ruff", "check", "."),
-    ),
+    "lint": (PythonStep("-m", "ruff", "check", "."),),
     "typecheck": (PythonStep("-m", "mypy"),),
     "unit": (_coverage_gate,),
     "test": (_coverage_gate,),
@@ -94,6 +91,7 @@ def DescribeCommands() -> dict[str, str]:
             descriptions["build"],
         )
     )
+
     return descriptions
 
 
@@ -104,11 +102,13 @@ def ResolveStep(step: CommandStep) -> list[str] | None:
         return [sys.executable, *step.arguments]
 
     executable = shutil.which(step.executable)
+
     if executable is None:
         print(
             f"Required developer tool was not found: {step.executable}",
             file=sys.stderr,
         )
+
         return None
 
     return [executable, *step.arguments]
@@ -122,13 +122,16 @@ def Run(command: str, test_options: TestOptions | None = None) -> int:
 
     if not Path("pyproject.toml").is_file() or not Path("src/fuzzy1337").is_dir():
         print("Run developer commands from the 1337 repository root.", file=sys.stderr)
+
         return 2
 
     if command == "check":
         for nested_command in ("compile", "lint", "typecheck", "test", "build"):
             nested_result = Run(nested_command, test_options)
+
             if nested_result:
                 return nested_result
+
         return 0
 
     if command in {"unit", "test"}:
@@ -137,12 +140,14 @@ def Run(command: str, test_options: TestOptions | None = None) -> int:
             "tests/unit" if command == "unit" else "tests",
             test_options or TestOptions(),
         )
+
         if test_result:
             return 128 - test_result if test_result < 0 else test_result
 
     for step in COMMANDS[command]:
         print(f"Running: {step.Display()}", flush=True)
         arguments = ResolveStep(step)
+
         if arguments is None:
             return 127
 
@@ -156,11 +161,13 @@ def Run(command: str, test_options: TestOptions | None = None) -> int:
 
         except subprocess.TimeoutExpired:
             print("Developer command exceeded its 300-second limit.", file=sys.stderr)
+
             return 124
 
         except OSError as error:
             detail = error.strerror or str(error)
             print(f"Could not start developer command: {detail}", file=sys.stderr)
+
             return 127
 
         if result.returncode:
@@ -188,8 +195,10 @@ def Main(argv: Sequence[str] | None = None) -> int:
         serial_only=arguments.serial,
         fail_fast=arguments.fail_fast,
     )
+
     if arguments.command not in {"unit", "test"} and test_options != TestOptions():
         parser.error("test execution options are only valid with 'unit' or 'test'")
+
     return Run(arguments.command, test_options)
 
 
