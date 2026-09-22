@@ -52,6 +52,7 @@ def test_NoArgumentsDescribeBootstrap(capsys):
     assert "1337 help" in output.out, "no arguments describe bootstrap invariant failed."
     assert "1337 --version" in output.out, "no arguments describe bootstrap invariant failed."
     assert "1337 shell" in output.out, "no arguments describe bootstrap invariant failed."
+    assert "1337 doctor" in output.out, "no arguments describe bootstrap invariant failed."
     assert not output.err, "no arguments describe bootstrap invariant failed."
 
 
@@ -77,6 +78,21 @@ def test_ExplicitShellCommandStartsTheInteractiveWorkbench(monkeypatch):
     assert Main(["shell"]) == 0, (
         "explicit shell command starts the interactive workbench invariant failed."
     )
+
+
+def test_DoctorCommandRunsTheDiagnosticEntrypoint(monkeypatch, capsys):
+    """Verify the doctor command delegates to its diagnostic entry point."""
+
+    def RunDoctor(output):
+        """Provide deterministic doctor output without probing the host."""
+
+        output.write("doctor output\n")
+        return 0
+
+    monkeypatch.setattr(cli, "RunDoctor", RunDoctor)
+
+    assert Main(["doctor"]) == 0, "doctor command invariant failed."
+    assert capsys.readouterr().out == "doctor output\n", "doctor command invariant failed."
 
 
 @pytest.mark.parametrize(
