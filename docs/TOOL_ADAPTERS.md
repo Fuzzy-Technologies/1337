@@ -39,10 +39,10 @@ from fuzzy1337.adapters import (
 
 `ToolAdapter` implementations provide three provider-facing operations:
 
-1. `check_health()` reports observed availability and provider version.
-2. `prepare_invocation()` converts an already-approved request into bounded,
+1. `CheckHealth()` reports observed availability and provider version.
+2. `PrepareInvocation()` converts an already-approved request into bounded,
    explicit invocation metadata.
-3. `normalize_report()` converts executor facts and raw-evidence references into
+3. `NormalizeReport()` converts executor facts and raw-evidence references into
    provider-neutral output envelopes.
 
 The SDK never starts a process. A future Executor owns process lifecycle,
@@ -69,7 +69,7 @@ metadata, not new Security Object Model types.
 - A non-zero, timed-out, or cancelled executor result cannot be represented as a
   successful execution.
 - Contract metadata is recursively immutable and serializes deterministically via
-  `serialize_contract()`.
+  `SerializeContract()`.
 
 ## Compatibility
 

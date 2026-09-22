@@ -29,19 +29,20 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         """Serve deterministic discovery, input, status, and canary contracts."""
+
         request = urlsplit(self.path)
         path = request.path
 
         if path == "/health":
-            self._send_json({"status": "ok", "target": "web-micro"})
+            self.SendJson({"status": "ok", "target": "web-micro"})
             return
 
         if path == "/":
-            self._send_json({"links": list(DISCOVERY_LINKS), "target": "web-micro"})
+            self.SendJson({"links": list(DISCOVERY_LINKS), "target": "web-micro"})
             return
 
         if path == "/catalog":
-            self._send_json({"items": ["alpha", "beta"], "target": "web-micro"})
+            self.SendJson({"items": ["alpha", "beta"], "target": "web-micro"})
             return
 
         if path == "/redirect":
@@ -51,7 +52,7 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/headers":
-            self._send_json(
+            self.SendJson(
                 {"target": "web-micro"},
                 headers=(
                     ("Content-Security-Policy", "default-src 'self'"),
@@ -61,22 +62,22 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/cookie":
-            self._send_json(
+            self.SendJson(
                 {"target": "web-micro"},
                 headers=(("Set-Cookie", "lab_session=deterministic; HttpOnly; SameSite=Strict"),),
             )
             return
 
         if path == "/form":
-            self._send_html(
-                "<!doctype html><html><body><form action=\"/submit\" method=\"post\">"
-                "<input name=\"query\"><button>Submit</button></form></body></html>"
+            self.SendHtml(
+                '<!doctype html><html><body><form action="/submit" method="post">'
+                '<input name="query"><button>Submit</button></form></body></html>'
             )
             return
 
         if path == "/query":
             query = parse_qs(request.query, keep_blank_values=True)
-            self._send_json({"item": query.get("item", ["default"])[0]})
+            self.SendJson({"item": query.get("item", ["default"])[0]})
             return
 
         if path in CANARY_SIMULATIONS:
@@ -85,84 +86,95 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
             if simulation == "ssrf":
                 payload["outbound_requests"] = 0
 
-            self._send_json(payload)
+            self.SendJson(payload)
             return
 
         if path.startswith("/status/"):
-            self._send_status_route(path)
+            self.SendStatusRoute(path)
             return
 
-        self._send_json({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
+        self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:  # noqa: N802
         """Model bounded input handling without persisting files or executing input."""
+
         path = urlsplit(self.path).path
-        body = self._read_request_body()
+        body = self.ReadRequestBody()
         if body is None:
             return
 
         if path == "/submit":
-            self._send_json({"accepted": True, "simulation": "form"})
+            self.SendJson({"accepted": True, "simulation": "form"})
             return
 
         if path == "/json":
-            self._send_json_request_result(body)
+            self.SendJsonRequestResult(body)
             return
 
         if path == "/upload":
-            self._send_json({"accepted": False, "simulation": "upload-validation"})
+            self.SendJson({"accepted": False, "simulation": "upload-validation"})
             return
 
-        self._send_json({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
+        self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
 
     def log_message(self, format: str, *arguments: object) -> None:
         """Keep expected synthetic requests out of functional-test logs."""
 
-    def _read_request_body(self) -> bytes | None:
+    def ReadRequestBody(self) -> bytes | None:
         """Read only a bounded local fixture body and reject invalid lengths."""
+
         content_length = self.headers.get("Content-Length", "0")
         try:
             size = int(content_length)
+
         except ValueError:
-            self._send_json({"error": "invalid-content-length"}, status=HTTPStatus.BAD_REQUEST)
+            self.SendJson({"error": "invalid-content-length"}, status=HTTPStatus.BAD_REQUEST)
             return None
 
         if size < 0 or size > MAX_REQUEST_BYTES:
-            self._send_json({"error": "request-too-large"}, status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            self.SendJson(
+                {"error": "request-too-large"},
+                status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+            )
             return None
 
         return self.rfile.read(size)
 
-    def _send_json_request_result(self, body: bytes) -> None:
+    def SendJsonRequestResult(self, body: bytes) -> None:
         """Parse a JSON object only to expose deterministic input-route behavior."""
+
         try:
             payload = json.loads(body)
+
         except json.JSONDecodeError:
-            self._send_json({"error": "invalid-json"}, status=HTTPStatus.BAD_REQUEST)
+            self.SendJson({"error": "invalid-json"}, status=HTTPStatus.BAD_REQUEST)
             return
 
         if not isinstance(payload, dict):
-            self._send_json({"error": "json-object-required"}, status=HTTPStatus.BAD_REQUEST)
+            self.SendJson({"error": "json-object-required"}, status=HTTPStatus.BAD_REQUEST)
             return
 
-        self._send_json({"accepted": True, "keys": sorted(payload)})
+        self.SendJson({"accepted": True, "keys": sorted(payload)})
 
-    def _send_status_route(self, path: str) -> None:
+    def SendStatusRoute(self, path: str) -> None:
         """Serve a small finite error-status matrix for deterministic assertions."""
+
         try:
             status_code = int(path.removeprefix("/status/"))
+
         except ValueError:
-            self._send_json({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
+            self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
             return
 
         if status_code not in STATUS_ROUTES:
-            self._send_json({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
+            self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
             return
 
-        self._send_json({"status": status_code}, status=HTTPStatus(status_code))
+        self.SendJson({"status": status_code}, status=HTTPStatus(status_code))
 
-    def _send_html(self, body: str) -> None:
+    def SendHtml(self, body: str) -> None:
         """Write a compact static HTML contract for form discovery."""
+
         encoded = body.encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -170,13 +182,14 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
-    def _send_json(
+    def SendJson(
         self,
         payload: dict[str, object],
         status: HTTPStatus = HTTPStatus.OK,
         headers: tuple[tuple[str, str], ...] = (),
     ) -> None:
         """Write one stable JSON response with optional fixed response headers."""
+
         body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -188,11 +201,12 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def main() -> None:
+def Main() -> None:
     """Run the isolated synthetic target until its container is stopped."""
+
     with ThreadingHTTPServer((HOST, PORT), MicroTargetRequestHandler) as server:
         server.serve_forever()
 
 
 if __name__ == "__main__":
-    main()
+    Main()

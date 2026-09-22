@@ -17,8 +17,8 @@ from fuzzy1337.adapters.contracts import (
     NormalizedObservation,
     ObjectEnrichment,
     RelationEnrichment,
+    SerializeContract,
     ToolAdapter,
-    serialize_contract,
 )
 
 __all__ = [
@@ -38,6 +38,6 @@ __all__ = [
     "NormalizedObservation",
     "ObjectEnrichment",
     "RelationEnrichment",
+    "SerializeContract",
     "ToolAdapter",
-    "serialize_contract",
 ]

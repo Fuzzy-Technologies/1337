@@ -1,5 +1,5 @@
 """Run the installed workbench entry point with ``python -m fuzzy1337``."""
 
-from fuzzy1337.cli import main
+from fuzzy1337.cli import Main
 
-raise SystemExit(main())
+raise SystemExit(Main())

@@ -13,27 +13,47 @@ from .scenarios import WEB_SAFE_HEALTH
 pytestmark = pytest.mark.serial
 
 
-def test_web_safe_scenario_declares_a_complete_contract():
+def test_WebSafeScenarioDeclaresACompleteContract():
     """Keep the M1 scenario metadata complete before scanner scenarios are added."""
+
     scenario = WEB_SAFE_HEALTH
 
-    assert scenario.identifier == "web-safe.health"
-    assert scenario.target.provenance == "first-party:labs/targets/web-safe"
-    assert scenario.target.version == "1"
-    assert scenario.required_capabilities == ("docker.compose", "http.get")
-    assert scenario.setup
-    assert scenario.health_check
-    assert scenario.assessment_command == ("GET", "/health")
-    assert scenario.assessment_profile == "safe"
-    assert scenario.expected_observations
-    assert scenario.expected_findings == ()
-    assert scenario.timeout_seconds > 0
-    assert scenario.cleanup
+    assert scenario.identifier == "web-safe.health", (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.target.provenance == "first-party:labs/targets/web-safe", (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.target.version == "1", (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.required_capabilities == ("docker.compose", "http.get"), (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.setup, "web safe scenario declares a complete contract invariant failed."
+    assert scenario.health_check, "web safe scenario declares a complete contract invariant failed."
+    assert scenario.assessment_command == ("GET", "/health"), (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.assessment_profile == "safe", (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.expected_observations, (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.expected_findings == (), (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.timeout_seconds > 0, (
+        "web safe scenario declares a complete contract invariant failed."
+    )
+    assert scenario.cleanup, "web safe scenario declares a complete contract invariant failed."
 
 
-def test_web_safe_health_contract(functional_lab: ComposeLab):
+def test_WebSafeHealthContract(functional_lab: ComposeLab):
     """Exercise the target through the fixture-owned isolated container lifecycle."""
-    result = functional_lab.execute(
+
+    result = functional_lab.Execute(
         WEB_SAFE_HEALTH.target.compose_service,
         "python",
         "-c",
@@ -46,11 +66,16 @@ def test_web_safe_health_contract(functional_lab: ComposeLab):
     )
 
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == {"status": "ok", "target": "web-safe"}
+    assert json.loads(result.stdout) == {"status": "ok", "target": "web-safe"}, (
+        "web safe health contract invariant failed."
+    )
 
 
-def test_non_linux_runner_does_not_advertise_container_test_capability(monkeypatch):
+def test_NonLinuxRunnerDoesNotAdvertiseContainerTestCapability(monkeypatch):
     """Keep the Linux-only target from running on unsupported CI runners."""
+
     monkeypatch.setattr(conftest.platform, "system", lambda: "Windows")
 
-    assert not conftest._docker_compose_available()
+    assert not conftest.DockerComposeAvailable(), (
+        "non linux runner does not advertise container test capability invariant failed."
+    )

@@ -45,20 +45,23 @@ class ExecutionState(StrEnum):
     CANCELLED = "cancelled"
 
 
-def _require_identifier(value: str, field_name: str) -> None:
+def RequireIdentifier(value: str, field_name: str) -> None:
     """Reject identifiers that cannot be used as stable machine-readable keys."""
+
     if not isinstance(value, str) or not _IDENTIFIER_PATTERN.fullmatch(value):
         raise ValueError(f"{field_name} must be a lowercase machine-readable identifier")
 
 
-def _require_text(value: str, field_name: str) -> None:
+def RequireText(value: str, field_name: str) -> None:
     """Reject empty or multi-line user-visible contract text."""
+
     if not isinstance(value, str) or not value or "\x00" in value or "\n" in value or "\r" in value:
         raise ValueError(f"{field_name} must be non-empty single-line text")
 
 
-def _freeze_json(value: object) -> object:
+def FreezeJson(value: object) -> object:
     """Return a recursively immutable JSON-like value or fail closed."""
+
     if value is None or isinstance(value, (bool, int, str)):
         return value
 
@@ -72,65 +75,69 @@ def _freeze_json(value: object) -> object:
         for key, nested_value in value.items():
             if not isinstance(key, str) or not key:
                 raise ValueError("contract metadata keys must be non-empty strings")
-            frozen[key] = _freeze_json(nested_value)
+            frozen[key] = FreezeJson(nested_value)
 
         return MappingProxyType(dict(sorted(frozen.items())))
 
     if isinstance(value, (list, tuple)):
-        return tuple(_freeze_json(item) for item in value)
+        return tuple(FreezeJson(item) for item in value)
 
     raise ValueError("contract metadata must contain JSON-compatible values")
 
 
-def _freeze_mapping(value: Mapping[str, object]) -> Mapping[str, object]:
+def FreezeMapping(value: Mapping[str, object]) -> Mapping[str, object]:
     """Freeze a JSON object while retaining a read-only mapping contract."""
-    frozen = _freeze_json(value)
+
+    frozen = FreezeJson(value)
     if not isinstance(frozen, Mapping):
         raise ValueError("contract metadata must be a JSON object")
     return frozen
 
 
-def _unique_identifiers(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
+def UniqueIdentifiers(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
     """Validate a stable identifier collection without changing declaration order."""
+
     normalized = tuple(values)
     for value in normalized:
-        _require_identifier(value, field_name)
+        RequireIdentifier(value, field_name)
 
     if len(set(normalized)) != len(normalized):
         raise ValueError(f"{field_name} must contain unique values")
     return normalized
 
 
-def _unique_references(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
+def UniqueReferences(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
     """Validate opaque non-secret references without assigning their semantics."""
+
     normalized = tuple(values)
     for value in normalized:
-        _require_text(value, field_name)
+        RequireText(value, field_name)
 
     if len(set(normalized)) != len(normalized):
         raise ValueError(f"{field_name} must contain unique values")
     return normalized
 
 
-def _json_value(value: object) -> object:
+def JsonValue(value: object) -> object:
     """Render one immutable contract value as deterministic JSON-compatible data."""
+
     if isinstance(value, StrEnum):
         return value.value
 
     if is_dataclass(value) and not isinstance(value, type):
-        return {field.name: _json_value(getattr(value, field.name)) for field in fields(value)}
+        return {field.name: JsonValue(getattr(value, field.name)) for field in fields(value)}
 
     if isinstance(value, Mapping):
         rendered: dict[str, object] = {}
         for key, nested_value in value.items():
             if not isinstance(key, str):
                 raise ValueError("contract mappings must use string keys")
-            rendered[key] = _json_value(nested_value)
+            rendered[key] = JsonValue(nested_value)
 
         return dict(sorted(rendered.items()))
 
     if isinstance(value, (list, tuple)):
-        return [_json_value(item) for item in value]
+        return [JsonValue(item) for item in value]
 
     if isinstance(value, float) and not math.isfinite(value):
         raise ValueError("contract values must not contain non-finite numbers")
@@ -141,10 +148,11 @@ def _json_value(value: object) -> object:
     raise ValueError("contract values must be JSON-compatible")
 
 
-def serialize_contract(value: object) -> str:
+def SerializeContract(value: object) -> str:
     """Serialize a contract value with stable key order and no non-JSON numbers."""
+
     return json.dumps(
-        _json_value(value),
+        JsonValue(value),
         allow_nan=False,
         separators=(",", ":"),
         sort_keys=True,
@@ -164,9 +172,10 @@ class AdapterDescriptor:
 
     def __post_init__(self) -> None:
         """Validate provider declarations before an adapter can be registered."""
-        _require_identifier(self.adapter_id, "adapter_id")
-        _require_text(self.display_name, "display_name")
-        _require_text(self.version, "version")
+
+        RequireIdentifier(self.adapter_id, "adapter_id")
+        RequireText(self.display_name, "display_name")
+        RequireText(self.version, "version")
         if not isinstance(self.maximum_impact, ImpactLevel):
             raise ValueError("maximum_impact must be an ImpactLevel")
         if not self.capabilities:
@@ -174,16 +183,17 @@ class AdapterDescriptor:
         object.__setattr__(
             self,
             "capabilities",
-            _unique_identifiers(self.capabilities, "capabilities"),
+            UniqueIdentifiers(self.capabilities, "capabilities"),
         )
         object.__setattr__(
             self,
             "required_privileges",
-            _unique_identifiers(self.required_privileges, "required_privileges"),
+            UniqueIdentifiers(self.required_privileges, "required_privileges"),
         )
 
-    def supports(self, capability: str) -> bool:
+    def Supports(self, capability: str) -> bool:
         """Return whether this provider declares a capability without authorizing it."""
+
         return capability in self.capabilities
 
 
@@ -198,13 +208,14 @@ class AdapterHealth:
 
     def __post_init__(self) -> None:
         """Reject ambiguous health values before callers act on them."""
-        _require_identifier(self.adapter_id, "adapter_id")
+
+        RequireIdentifier(self.adapter_id, "adapter_id")
         if not isinstance(self.state, AdapterHealthState):
             raise ValueError("state must be an AdapterHealthState")
         if self.provider_version is not None:
-            _require_text(self.provider_version, "provider_version")
+            RequireText(self.provider_version, "provider_version")
         if self.detail is not None:
-            _require_text(self.detail, "detail")
+            RequireText(self.detail, "detail")
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,15 +230,16 @@ class AdapterRequest:
 
     def __post_init__(self) -> None:
         """Validate request metadata while keeping credentials as opaque references."""
-        _require_identifier(self.capability, "capability")
-        _require_text(self.target_reference, "target_reference")
+
+        RequireIdentifier(self.capability, "capability")
+        RequireText(self.target_reference, "target_reference")
         if not isinstance(self.impact, ImpactLevel):
             raise ValueError("impact must be an ImpactLevel")
-        object.__setattr__(self, "parameters", _freeze_mapping(self.parameters))
+        object.__setattr__(self, "parameters", FreezeMapping(self.parameters))
         object.__setattr__(
             self,
             "credential_references",
-            _unique_references(self.credential_references, "credential_references"),
+            UniqueReferences(self.credential_references, "credential_references"),
         )
 
 
@@ -243,12 +255,13 @@ class AdapterInvocation:
 
     def __post_init__(self) -> None:
         """Require a bounded explicit argv without invoking a process."""
-        _require_identifier(self.adapter_id, "adapter_id")
+
+        RequireIdentifier(self.adapter_id, "adapter_id")
         arguments = tuple(self.argv)
         if not arguments:
             raise ValueError("argv must contain an executable")
         for argument in arguments:
-            _require_text(argument, "argv entry")
+            RequireText(argument, "argv entry")
         if (
             isinstance(self.timeout_seconds, bool)
             or not isinstance(self.timeout_seconds, int)
@@ -256,7 +269,7 @@ class AdapterInvocation:
         ):
             raise ValueError("timeout_seconds must be a positive integer")
         if self.provider_version is not None:
-            _require_text(self.provider_version, "provider_version")
+            RequireText(self.provider_version, "provider_version")
         object.__setattr__(self, "argv", arguments)
 
 
@@ -272,8 +285,9 @@ class EvidenceReference:
 
     def __post_init__(self) -> None:
         """Accept only relative, hash-addressed evidence references."""
-        _require_identifier(self.role, "role")
-        _require_text(self.locator, "locator")
+
+        RequireIdentifier(self.role, "role")
+        RequireText(self.locator, "locator")
         locator = PurePosixPath(self.locator)
         if (
             not self.locator
@@ -284,7 +298,7 @@ class EvidenceReference:
             raise ValueError("locator must be a relative evidence path")
         if not _SHA256_PATTERN.fullmatch(self.sha256):
             raise ValueError("sha256 must be a lowercase SHA-256 digest")
-        _require_text(self.media_type, "media_type")
+        RequireText(self.media_type, "media_type")
         if (
             isinstance(self.size_bytes, bool)
             or not isinstance(self.size_bytes, int)
@@ -303,6 +317,7 @@ class AdapterExecution:
 
     def __post_init__(self) -> None:
         """Prevent failed, timed-out, or cancelled execution from becoming success."""
+
         if not isinstance(self.state, ExecutionState):
             raise ValueError("state must be an ExecutionState")
         if self.exit_code is not None and (
@@ -331,6 +346,7 @@ class AdapterReport:
 
     def __post_init__(self) -> None:
         """Freeze evidence ordering and reject ambiguous duplicate references."""
+
         evidence = tuple(self.evidence)
         locator_roles = tuple((item.locator, item.role) for item in evidence)
         if len(set(locator_roles)) != len(locator_roles):
@@ -348,9 +364,10 @@ class NormalizedObservation:
 
     def __post_init__(self) -> None:
         """Freeze generic observation fields without assigning core schema semantics."""
-        _require_identifier(self.kind, "kind")
-        _require_text(self.subject_reference, "subject_reference")
-        object.__setattr__(self, "attributes", _freeze_mapping(self.attributes))
+
+        RequireIdentifier(self.kind, "kind")
+        RequireText(self.subject_reference, "subject_reference")
+        object.__setattr__(self, "attributes", FreezeMapping(self.attributes))
 
 
 @dataclass(frozen=True, slots=True)
@@ -364,10 +381,11 @@ class NormalizedFinding:
 
     def __post_init__(self) -> None:
         """Freeze generic finding attributes while retaining a human-readable summary."""
-        _require_identifier(self.kind, "kind")
-        _require_text(self.subject_reference, "subject_reference")
-        _require_text(self.summary, "summary")
-        object.__setattr__(self, "attributes", _freeze_mapping(self.attributes))
+
+        RequireIdentifier(self.kind, "kind")
+        RequireText(self.subject_reference, "subject_reference")
+        RequireText(self.summary, "summary")
+        object.__setattr__(self, "attributes", FreezeMapping(self.attributes))
 
 
 @dataclass(frozen=True, slots=True)
@@ -380,9 +398,10 @@ class ObjectEnrichment:
 
     def __post_init__(self) -> None:
         """Keep object enrichment references typed and immutable."""
-        _require_identifier(self.object_kind, "object_kind")
-        _require_text(self.object_reference, "object_reference")
-        object.__setattr__(self, "attributes", _freeze_mapping(self.attributes))
+
+        RequireIdentifier(self.object_kind, "object_kind")
+        RequireText(self.object_reference, "object_reference")
+        object.__setattr__(self, "attributes", FreezeMapping(self.attributes))
 
 
 @dataclass(frozen=True, slots=True)
@@ -396,10 +415,11 @@ class RelationEnrichment:
 
     def __post_init__(self) -> None:
         """Keep relation references typed and immutable."""
-        _require_identifier(self.relation_kind, "relation_kind")
-        _require_text(self.source_reference, "source_reference")
-        _require_text(self.target_reference, "target_reference")
-        object.__setattr__(self, "attributes", _freeze_mapping(self.attributes))
+
+        RequireIdentifier(self.relation_kind, "relation_kind")
+        RequireText(self.source_reference, "source_reference")
+        RequireText(self.target_reference, "target_reference")
+        object.__setattr__(self, "attributes", FreezeMapping(self.attributes))
 
 
 @dataclass(frozen=True, slots=True)
@@ -414,6 +434,7 @@ class AdapterResult:
 
     def __post_init__(self) -> None:
         """Freeze result collections so downstream consumers receive stable evidence."""
+
         object.__setattr__(self, "observations", tuple(self.observations))
         object.__setattr__(self, "findings", tuple(self.findings))
         object.__setattr__(self, "object_enrichments", tuple(self.object_enrichments))
@@ -425,18 +446,22 @@ class ToolAdapter(Protocol):
     """Provider contract that cannot execute outside the future governed executor."""
 
     @property
-    def descriptor(self) -> AdapterDescriptor:
+    def Descriptor(self) -> AdapterDescriptor:
         """Return the immutable provider declaration."""
+
         ...
 
-    def check_health(self) -> AdapterHealth:
+    def CheckHealth(self) -> AdapterHealth:
         """Return a bounded health result without claiming authorization."""
+
         ...
 
-    def prepare_invocation(self, request: AdapterRequest) -> AdapterInvocation:
+    def PrepareInvocation(self, request: AdapterRequest) -> AdapterInvocation:
         """Prepare a bounded invocation from an already-approved request."""
+
         ...
 
-    def normalize_report(self, report: AdapterReport) -> AdapterResult:
+    def NormalizeReport(self, report: AdapterReport) -> AdapterResult:
         """Normalize an executor report without mutating shared security state."""
+
         ...
