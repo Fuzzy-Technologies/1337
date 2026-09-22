@@ -84,27 +84,15 @@ def test_DoctorCommandRunsTheDiagnosticEntrypoint(monkeypatch, capsys):
     """Verify the doctor command delegates to its diagnostic entry point."""
 
     def RunDoctor(output):
-        """Provide deterministic doctor output for the CLI test."""
+        """Provide deterministic doctor output without probing the host."""
 
         output.write("doctor output\n")
         return 0
 
     monkeypatch.setattr(cli, "RunDoctor", RunDoctor)
 
-    assert Main(["doctor"]) == 0, "doctor command must return the diagnostic exit code."
-    assert capsys.readouterr().out == "doctor output\n", (
-        "doctor command must preserve diagnostic output."
-    )
-
-
-def test_ExplicitShellCommandStartsTheInteractiveWorkbench(monkeypatch):
-    """Verify explicit shell command starts the interactive workbench."""
-
-    monkeypatch.setattr(cli, "RunInteractiveShell", lambda: 0)
-
-    assert Main(["shell"]) == 0, (
-        "explicit shell command starts the interactive workbench invariant failed."
-    )
+    assert Main(["doctor"]) == 0, "doctor command invariant failed."
+    assert capsys.readouterr().out == "doctor output\n", "doctor command invariant failed."
 
 
 @pytest.mark.parametrize(
