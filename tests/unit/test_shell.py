@@ -126,6 +126,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "Selected object: asset:demo",
         "command: context",
         "command: select",
+        "cli: doctor",
         "cli: shell",
         "action: show-evidence — Show evidence for this object.",
         "action: show-paths — Show paths from this object.",
@@ -194,7 +195,7 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
             "Interactive commands: commands, context, help, history, lens, palette, "
             "quit, select, updates, view"
         ),
-        "CLI commands: help, version, shell",
+        "CLI commands: doctor, help, version, shell",
         "[model] asset changed",
         "usage: quit",
         "",
