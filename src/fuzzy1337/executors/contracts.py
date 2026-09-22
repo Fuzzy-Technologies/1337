@@ -46,11 +46,13 @@ def UniqueIdentifiers(values: tuple[str, ...], field_name: str) -> tuple[str, ..
     """Validate and freeze a sequence of unique identifiers."""
 
     normalized = tuple(values)
+
     for value in normalized:
         RequireIdentifier(value, field_name)
 
     if len(set(normalized)) != len(normalized):
         raise ValueError(f"{field_name} must contain unique values")
+
     return normalized
 
 
@@ -74,8 +76,10 @@ class CapabilityDescriptor:
 
         RequireIdentifier(self.identifier, "identifier")
         RequireIdentifier(self.adapter_id, "adapter_id")
+
         if not isinstance(self.maximum_impact, ImpactLevel):
             raise ValueError("maximum_impact must be an ImpactLevel")
+
         object.__setattr__(
             self,
             "required_privileges",
@@ -113,8 +117,10 @@ class ExecutionAuthorization:
         RequireReference(self.authorization_id, "authorization_id")
         RequireReference(self.scope_reference, "scope_reference")
         RequireReference(self.policy_reference, "policy_reference")
+
         if not _SHA256_PATTERN.fullmatch(self.invocation_sha256):
             raise ValueError("invocation_sha256 must be a lowercase SHA-256 digest")
+
         object.__setattr__(
             self,
             "granted_privileges",
@@ -135,8 +141,10 @@ class ExecutionResources:
 
         for field_name in ("max_stdout_bytes", "max_stderr_bytes"):
             value = getattr(self, field_name)
+
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(f"{field_name} must be a positive integer")
+
         if (
             isinstance(self.terminate_grace_seconds, bool)
             or not isinstance(self.terminate_grace_seconds, (int, float))
@@ -150,11 +158,14 @@ def FreezeEnvironment(environment: Mapping[str, str]) -> Mapping[str, str]:
     """Return validated immutable environment overrides."""
 
     frozen: dict[str, str] = {}
+
     for name, value in environment.items():
         if not isinstance(name, str) or not _ENVIRONMENT_NAME_PATTERN.fullmatch(name):
             raise ValueError("environment names must use portable variable syntax")
+
         if not isinstance(value, str) or "\x00" in value:
             raise ValueError("environment values must be strings without NUL bytes")
+
         frozen[name] = value
 
     return MappingProxyType(dict(sorted(frozen.items())))
@@ -176,15 +187,19 @@ class LocalExecutionRequest:
 
         if self.invocation.adapter_id != self.capability.adapter_id:
             raise ValueError("capability adapter_id must match the invocation")
+
         if self.invocation.request.capability != self.capability.identifier:
             raise ValueError("capability identifier must match the invocation")
+
         if (
             _IMPACT_ORDER[self.invocation.request.impact]
             > _IMPACT_ORDER[self.capability.maximum_impact]
         ):
             raise ValueError("invocation impact exceeds the capability maximum")
+
         if self.authorization.invocation_sha256 != InvocationDigest(self.invocation):
             raise ValueError("authorization does not match the invocation")
+
         if not set(self.capability.required_privileges).issubset(
             self.authorization.granted_privileges
         ):
@@ -192,8 +207,10 @@ class LocalExecutionRequest:
 
         RequireReference(self.workspace, "workspace")
         path = PurePosixPath(self.workspace)
+
         if "\\" in self.workspace or path.is_absolute() or ".." in path.parts:
             raise ValueError("workspace must be a relative path inside the executor root")
+
         object.__setattr__(self, "workspace", path.as_posix())
         object.__setattr__(self, "environment", FreezeEnvironment(self.environment))
 
@@ -234,16 +251,20 @@ class ExecutionEvent:
             or self.sequence < 0
         ):
             raise ValueError("sequence must be a non-negative integer")
+
         if not isinstance(self.kind, ExecutionEventKind):
             raise ValueError("kind must be an ExecutionEventKind")
+
         if not isinstance(self.data, bytes):
             raise ValueError("data must be bytes")
+
         if self.kind in {ExecutionEventKind.STDOUT, ExecutionEventKind.STDERR}:
             if not self.data or self.termination is not None:
                 raise ValueError("stream events require data and no termination")
 
         elif self.data:
             raise ValueError("lifecycle events must not contain stream data")
+
         if self.kind is ExecutionEventKind.COMPLETED:
             if not isinstance(self.termination, ExecutionTermination):
                 raise ValueError("completed events require a termination reason")
@@ -267,15 +288,21 @@ class LocalExecutionResult:
 
         if not isinstance(self.termination, ExecutionTermination):
             raise ValueError("termination must be an ExecutionTermination")
+
         if not isinstance(self.stdout, bytes) or not isinstance(self.stderr, bytes):
             raise ValueError("stdout and stderr must be bytes")
+
         events = tuple(self.events)
+
         if not events or events[-1].kind is not ExecutionEventKind.COMPLETED:
             raise ValueError("events must end with a completed event")
+
         if tuple(event.sequence for event in events) != tuple(range(len(events))):
             raise ValueError("events must use contiguous sequence numbers")
+
         if events[-1].termination is not self.termination:
             raise ValueError("terminal event must match the result termination")
+
         object.__setattr__(self, "events", events)
 
 
@@ -311,9 +338,12 @@ class LazyAdapterRegistry:
 
         if descriptor.adapter_id in self._registrations:
             raise ValueError(f"Adapter is already registered: {descriptor.adapter_id}")
+
         if not callable(loader):
             raise TypeError("loader must be callable")
+
         self._registrations[descriptor.adapter_id] = AdapterRegistration(descriptor, loader)
+
         for capability in descriptor.capabilities:
             self._providers_by_capability.setdefault(capability, []).append(descriptor.adapter_id)
 
@@ -321,22 +351,30 @@ class LazyAdapterRegistry:
         """Load one provider deterministically and validate its declared identity."""
 
         providers = self._providers_by_capability.get(capability)
+
         if not providers:
             raise LookupError(f"Unknown capability: {capability}")
+
         if adapter_id is None:
             if len(providers) != 1:
                 raise LookupError(f"Capability requires an explicit adapter_id: {capability}")
+
             adapter_id = providers[0]
 
         elif adapter_id not in providers:
             raise LookupError(f"Adapter {adapter_id} does not provide capability {capability}")
 
         registration = self._registrations[adapter_id]
+
         if registration.instance is None:
             candidate = registration.loader()
+
             if not isinstance(candidate, ToolAdapter):
                 raise TypeError("loader must return a ToolAdapter")
+
             if candidate.Descriptor != registration.descriptor:
                 raise ValueError("loaded ToolAdapter descriptor does not match registration")
+
             registration.instance = candidate
+
         return registration.instance

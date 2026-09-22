@@ -106,6 +106,7 @@ def test_LocalRequestBindsAuthorizationCapabilityAndInvocation():
     assert request.workspace == "runs/scan-1", (
         "local request binds authorization capability and invocation invariant failed."
     )
+
     with pytest.raises(TypeError):
         request.environment["LC_ALL"] = "en_US.UTF-8"  # type: ignore[index]
 
@@ -161,6 +162,7 @@ def test_RequestRejectsMismatchedAuthorizationAndMissingPrivileges():
         policy_reference="policy:unit-test",
         invocation_sha256=InvocationDigest(invocation),
     )
+
     with pytest.raises(ValueError, match="privilege"):
         LocalExecutionRequest(
             invocation=invocation,
@@ -250,5 +252,6 @@ def test_LazyRegistryFailsClosedForUnknownOrMisdeclaredProvider():
 
     with pytest.raises(LookupError, match="Unknown capability"):
         registry.Resolve("web.crawl")
+
     with pytest.raises(TypeError, match="ToolAdapter"):
         registry.Resolve("network.port-scan")

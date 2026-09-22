@@ -62,6 +62,7 @@ def Request(
         policy_reference="policy:test-only",
         invocation_sha256=InvocationDigest(invocation),
     )
+
     return LocalExecutionRequest(
         invocation=invocation,
         capability=capability,
@@ -172,8 +173,11 @@ def test_CancellationTerminatesTheOwnedProcess(tmp_path):
                 cancellation=cancellation,
             )
         )
+
         await asyncio.sleep(0.05)
+
         cancellation.set()
+
         return await task
 
     result = asyncio.run(Run())
@@ -197,6 +201,7 @@ def test_PreCancelledRequestNeverLaunchesAProcess(tmp_path, monkeypatch):
 
         cancellation = asyncio.Event()
         cancellation.set()
+
         return await LocalExecutor(tmp_path).Execute(
             Request(tmp_path, "raise AssertionError('must not start')"),
             cancellation=cancellation,
@@ -260,6 +265,7 @@ def test_MissingWorkspaceAndLaunchFailureFailClosed(tmp_path):
     """Verify missing workspace and launch failure fail closed."""
 
     missing = Request(tmp_path, "print('missing')", workspace="missing")
+
     with pytest.raises(LocalExecutionError, match="workspace"):
         asyncio.run(LocalExecutor(tmp_path).Execute(missing))
 
@@ -280,5 +286,6 @@ def test_MissingWorkspaceAndLaunchFailureFailClosed(tmp_path):
             invocation_sha256=InvocationDigest(unavailable_invocation),
         ),
     )
+
     with pytest.raises(LocalExecutionError, match="Could not start"):
         asyncio.run(LocalExecutor(tmp_path).Execute(unavailable))

@@ -55,8 +55,10 @@ class LocalExecutor:
         """Bind the executor to an existing workspace root."""
 
         root = workspace_root.resolve(strict=True)
+
         if not root.is_dir():
             raise ValueError("workspace_root must be an existing directory")
+
         self._workspace_root = root
 
     async def Execute(
@@ -81,15 +83,20 @@ class LocalExecutor:
 
             event = ExecutionEvent(len(events), kind, data, termination)
             events.append(event)
+
             if on_event is not None:
                 response = on_event(event)
+
                 if inspect.isawaitable(response):
                     await cast(Awaitable[object], response)
 
         started = time.perf_counter()
+
         if cancellation is not None and cancellation.is_set():
             termination = ExecutionTermination.CANCELLATION
+
             await Emit(ExecutionEventKind.COMPLETED, termination=termination)
+
             return LocalExecutionResult(
                 execution=AdapterExecution(
                     state=ExecutionState.CANCELLED,
@@ -106,11 +113,14 @@ class LocalExecutor:
             name: os.environ[name] for name in _INHERITED_ENVIRONMENT if name in os.environ
         }
         environment.update(request.environment)
+
         process = await self.StartProcess(request, workspace, environment)
+
         await Emit(ExecutionEventKind.STARTED)
 
         stdout = bytearray()
         stderr = bytearray()
+
         output_limit = asyncio.Event()
         emit_lock = asyncio.Lock()
 
@@ -123,21 +133,27 @@ class LocalExecutor:
             """Drain one process stream while enforcing its byte limit."""
 
             limited = False
+
             while chunk := await reader.read(_READ_SIZE):
                 if limited:
                     continue
+
                 remaining = limit - len(destination)
                 retained = chunk[:remaining]
+
                 if retained:
                     destination.extend(retained)
+
                     async with emit_lock:
                         await Emit(kind, data=retained)
+
                 if len(chunk) > remaining:
                     limited = True
                     output_limit.set()
 
         assert process.stdout is not None, "Subprocess stdout pipe must be available."
         assert process.stderr is not None, "Subprocess stderr pipe must be available."
+
         stdout_task = asyncio.create_task(
             Pump(
                 process.stdout,
@@ -154,31 +170,38 @@ class LocalExecutor:
                 ExecutionEventKind.STDERR,
             )
         )
+
         process_task = asyncio.create_task(process.wait())
         output_limit_task = asyncio.create_task(output_limit.wait())
         cancellation_task = (
             asyncio.create_task(cancellation.wait()) if cancellation is not None else None
         )
+
         waiters = {process_task, output_limit_task}
+
         if cancellation_task is not None:
             waiters.add(cancellation_task)
 
         termination = ExecutionTermination.PROCESS_EXIT
         state = ExecutionState.FAILED
+
         try:
             done, _ = await asyncio.wait(
                 waiters,
                 timeout=request.invocation.timeout_seconds,
                 return_when=asyncio.FIRST_COMPLETED,
             )
+
             if not done:
                 termination = ExecutionTermination.TIMEOUT
                 state = ExecutionState.TIMED_OUT
+
                 await self.Terminate(process, request.resources.terminate_grace_seconds)
 
             elif output_limit_task in done and output_limit.is_set():
                 termination = ExecutionTermination.OUTPUT_LIMIT
                 state = ExecutionState.CANCELLED
+
                 await self.Terminate(process, request.resources.terminate_grace_seconds)
 
             elif (
@@ -190,6 +213,7 @@ class LocalExecutor:
             ):
                 termination = ExecutionTermination.CANCELLATION
                 state = ExecutionState.CANCELLED
+
                 await self.Terminate(process, request.resources.terminate_grace_seconds)
 
             else:
@@ -199,25 +223,31 @@ class LocalExecutor:
                 )
 
             await process_task
+
             await asyncio.gather(stdout_task, stderr_task)
 
         except BaseException:
             await self.Terminate(process, request.resources.terminate_grace_seconds)
+
             raise
 
         finally:
             for task in (output_limit_task, cancellation_task):
                 if task is not None and not task.done():
                     task.cancel()
+
             await asyncio.gather(
                 *(task for task in (output_limit_task, cancellation_task) if task is not None),
                 return_exceptions=True,
             )
 
         final_return_code = process.returncode
+
         if state in {ExecutionState.TIMED_OUT, ExecutionState.CANCELLED} and final_return_code == 0:
             final_return_code = None
+
         await Emit(ExecutionEventKind.COMPLETED, termination=termination)
+
         return LocalExecutionResult(
             execution=AdapterExecution(
                 state=state,
@@ -234,6 +264,7 @@ class LocalExecutor:
         """Resolve a workspace path without permitting root escape."""
 
         candidate = self._workspace_root.joinpath(*relative_workspace.split("/"))
+
         try:
             resolved = candidate.resolve(strict=True)
 
@@ -241,12 +272,15 @@ class LocalExecutor:
             raise LocalExecutionError(
                 f"Execution workspace is unavailable: {relative_workspace}"
             ) from error
+
         if not resolved.is_dir():
             raise LocalExecutionError(
                 f"Execution workspace is not a directory: {relative_workspace}"
             )
+
         if not resolved.is_relative_to(self._workspace_root):
             raise LocalExecutionError("Execution workspace escapes the configured workspace root")
+
         return resolved
 
     async def StartProcess(
@@ -258,6 +292,7 @@ class LocalExecutor:
         """Start an owned subprocess with isolated output streams."""
 
         arguments = request.invocation.argv
+
         try:
             if os.name == "posix":
                 return await asyncio.create_subprocess_exec(
@@ -268,6 +303,7 @@ class LocalExecutor:
                     stderr=asyncio.subprocess.PIPE,
                     start_new_session=True,
                 )
+
             return await asyncio.create_subprocess_exec(
                 *arguments,
                 cwd=workspace,
@@ -279,6 +315,7 @@ class LocalExecutor:
 
         except OSError as error:
             detail = error.strerror or str(error)
+
             raise LocalExecutionError(f"Could not start approved invocation: {detail}") from error
 
     async def Terminate(
@@ -290,6 +327,7 @@ class LocalExecutor:
 
         if process.returncode is not None:
             return
+
         try:
             if os.name == "posix":
                 KillProcessGroup(process.pid, signal.SIGTERM)
@@ -302,6 +340,7 @@ class LocalExecutor:
 
         try:
             await asyncio.wait_for(process.wait(), timeout=grace_seconds)
+
             return
 
         except TimeoutError:
@@ -319,4 +358,5 @@ class LocalExecutor:
 
         except ProcessLookupError:
             return
+
         await process.wait()

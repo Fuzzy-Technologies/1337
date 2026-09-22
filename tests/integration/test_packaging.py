@@ -25,6 +25,7 @@ def Invoke(arguments, cwd):
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
     return result.stdout
 
 
@@ -43,6 +44,7 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
     )
     wheels = list(output.glob("*.whl"))
     assert len(wheels) == 1, "sdist wheel and clean installation invariant failed."
+
     with zipfile.ZipFile(wheels[0]) as archive:
         members = archive.namelist()
         assert "fuzzy1337/cli.py" in members, "sdist wheel and clean installation invariant failed."
