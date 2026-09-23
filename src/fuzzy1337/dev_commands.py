@@ -53,6 +53,7 @@ COMMANDS: dict[str, tuple[CommandStep, ...]] = {
     "compile": (PythonStep("-m", "compileall", "-q", "src", "tests"),),
     "lint": (PythonStep("-m", "ruff", "check", "."),),
     "typecheck": (PythonStep("-m", "mypy"),),
+    "performance": (PythonStep("-m", "fuzzy1337.performance"),),
     "unit": (_coverage_gate,),
     "test": (_coverage_gate,),
     "build": (PythonStep("-m", "build", "--no-isolation"),),
@@ -61,6 +62,7 @@ COMMANDS["check"] = (
     COMMANDS["compile"]
     + COMMANDS["lint"]
     + COMMANDS["typecheck"]
+    + COMMANDS["performance"]
     + COMMANDS["test"]
     + COMMANDS["build"]
 )
@@ -87,6 +89,7 @@ def DescribeCommands() -> dict[str, str]:
             descriptions["compile"],
             descriptions["lint"],
             descriptions["typecheck"],
+            descriptions["performance"],
             descriptions["test"],
             descriptions["build"],
         )
@@ -126,7 +129,7 @@ def Run(command: str, test_options: TestOptions | None = None) -> int:
         return 2
 
     if command == "check":
-        for nested_command in ("compile", "lint", "typecheck", "test", "build"):
+        for nested_command in ("compile", "lint", "typecheck", "performance", "test", "build"):
             nested_result = Run(nested_command, test_options)
 
             if nested_result:

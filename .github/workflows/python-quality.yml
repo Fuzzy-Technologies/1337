@@ -54,6 +54,7 @@ jobs:
             coverage/
             dist/
             functional-evidence/
+            performance/
           if-no-files-found: ignore
           retention-days: 14
 

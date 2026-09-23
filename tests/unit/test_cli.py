@@ -21,6 +21,7 @@ def test_DeveloperCommandsAreRegistered():
         "test",
         "lint",
         "typecheck",
+        "performance",
         "compile",
         "build",
         "check",

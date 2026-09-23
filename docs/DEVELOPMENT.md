@@ -29,17 +29,18 @@ The current `1337` entry point provides help, installed-version output, the
 interactive shell foundation, and local diagnostics. Scanner workflows belong
 to subsequent product work.
 
-| Command                              | Behavior                                                                   |
-|--------------------------------------|----------------------------------------------------------------------------|
-| `uv run --locked 1337-dev setup`     | Synchronize the locked development environment                             |
-| `uv run --locked 1337-dev lint`      | Non-mutating Ruff checks                                                   |
-| `uv run --locked 1337-dev typecheck` | Strict mypy checks for production Python                                   |
-| `uv run --locked 1337-dev compile`   | Compile source and tests                                                   |
-| `uv run --locked 1337 doctor`        | Inspect the local runtime, package, workspace permissions, and optional lab support |
-| `uv run --locked 1337-dev unit`      | Process-isolated unit tests plus mandatory per-module coverage validation  |
-| `uv run --locked 1337-dev test`      | All test layers in process-isolated workers plus mandatory coverage validation |
-| `uv run --locked 1337-dev build`     | Build sdist and wheel using locked build tools                             |
-| `uv run --locked 1337-dev check`     | Compile, lint, typecheck, test/coverage, then build; stop on first failure |
+| Command                                  | Behavior                                                                                |
+|------------------------------------------|-----------------------------------------------------------------------------------------|
+| `uv run --locked 1337-dev setup`         | Synchronize the locked development environment                                          |
+| `uv run --locked 1337-dev lint`          | Run non-mutating Ruff checks                                                            |
+| `uv run --locked 1337-dev typecheck`     | Run strict mypy checks for production Python                                            |
+| `uv run --locked 1337-dev compile`       | Compile source and tests                                                                |
+| `uv run --locked 1337-dev performance`   | Enforce implemented shell latency budgets and write JSON evidence                       |
+| `uv run --locked 1337 doctor`            | Inspect the local runtime, workspace permissions, package, and optional lab support     |
+| `uv run --locked 1337-dev unit`          | Run process-isolated unit tests and mandatory per-module coverage validation            |
+| `uv run --locked 1337-dev test`          | Run all test layers in process-isolated workers and mandatory coverage validation       |
+| `uv run --locked 1337-dev build`         | Build the sdist and wheel using locked tools                                             |
+| `uv run --locked 1337-dev check`         | Compile, lint, typecheck, measure performance, test coverage, and build                  |
 
 Each child step has a 300-second limit. Normal child exit codes are propagated;
 timeouts return 124, process-start failures return 127, and POSIX signal exits
@@ -77,6 +78,24 @@ uv run --locked 1337-dev unit --serial
 `--timeout` sets the per-test timeout and bounds each pytest worker process. The
 terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`, `timeout`,
 and `duration`. Any failure, timeout, or process-start error produces a non-zero exit.
+
+The performance gate measures only capabilities that are implemented today. It
+starts fresh processes for CLI cold start and interactive readiness, then measures
+local command-palette search and lens/view state transitions in process. Every case
+has an explicit median latency budget:
+
+| Case                       | Median budget |
+|----------------------------|---------------|
+| CLI cold start             | 2,000 ms      |
+| Interactive readiness      | 2,000 ms      |
+| Command-palette search     | 2 ms          |
+| Lens/view state transition | 2 ms          |
+
+Raw samples, the maximum observation, environment metadata, and the pass/fail
+decision are written to
+`performance/performance.json`. This generated file is local/CI evidence and is not
+committed. Future SOM, scanner, and full TUI paths require their own budgets when
+those capabilities exist.
 
 `1337 doctor` is non-mutating. It checks the Python runtime, installed package,
 current-directory read/write access, and optional Docker Compose support. Missing
