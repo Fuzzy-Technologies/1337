@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/labs/attack-path-mini/oracle.schema.json",
+  "title": "1337 attack-path mini deterministic oracle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "scenario_id",
+    "scenario_version",
+    "canonical_path",
+    "blocked_negative_path",
+    "phase_oracle",
+    "transition_oracle",
+    "remediation_path_break",
+    "safety_oracle"
+  ],
+  "properties": {
+    "$schema": {"const": "oracle.schema.json"},
+    "schema_version": {"type": "integer", "const": 1},
+    "scenario_id": {"const": "attack-path-mini"},
+    "scenario_version": {"type": "integer", "const": 1},
+    "canonical_path": {"$ref": "#/$defs/pathOracle"},
+    "blocked_negative_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_id", "state", "blocking_control_ids", "node_ids"],
+      "properties": {
+        "path_id": {"$ref": "#/$defs/identifier"},
+        "state": {"const": "BLOCKED"},
+        "blocking_control_ids": {"$ref": "#/$defs/identifierArray"},
+        "node_ids": {"$ref": "#/$defs/identifierArray"}
+      }
+    },
+    "phase_oracle": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["phase_id", "canonical_state", "confidence"],
+        "properties": {
+          "phase_id": {"$ref": "#/$defs/identifier"},
+          "canonical_state": {"$ref": "#/$defs/state"},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    },
+    "transition_oracle": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "remediation_path_break": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase_id", "relation_id", "control_id", "path_id", "resulting_state"],
+      "properties": {
+        "phase_id": {"$ref": "#/$defs/identifier"},
+        "relation_id": {"$ref": "#/$defs/identifier"},
+        "control_id": {"$ref": "#/$defs/identifier"},
+        "path_id": {"$ref": "#/$defs/identifier"},
+        "resulting_state": {"const": "BLOCKED"}
+      }
+    },
+    "safety_oracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["data_only", "external_targets", "network_actions", "validation_scope"],
+      "properties": {
+        "data_only": {"const": true},
+        "external_targets": {"const": false},
+        "network_actions": {"const": false},
+        "validation_scope": {"const": "synthetic-fixture-only"}
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9-]+)*$"
+    },
+    "identifierArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "state": {
+      "enum": ["CONFIRMED", "LIKELY", "POTENTIAL", "BLOCKED", "UNKNOWN"]
+    },
+    "pathOracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_id", "labels", "node_ids", "relation_ids"],
+      "properties": {
+        "path_id": {"$ref": "#/$defs/identifier"},
+        "labels": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "node_ids": {"$ref": "#/$defs/identifierArray"},
+        "relation_ids": {"$ref": "#/$defs/identifierArray"}
+      }
+    }
+  }
+}

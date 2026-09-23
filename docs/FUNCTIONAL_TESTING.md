@@ -20,7 +20,7 @@ as passed. Ubuntu CI must run the same tests with Docker available.
 
 ## Scenario contract
 
-Each scenario is declared in `tests/functional/scenarios.py`. It records:
+Each container-backed scenario is declared in `tests/functional/scenarios.py`. It records:
 
 - target identifier, provenance, version, and Compose service;
 - required capabilities;
@@ -35,6 +35,13 @@ scanner-accuracy claim. `web-micro.contract` is the first known-answer pack:
 its routes and simulation markers are explicit inputs for future TP/FP/FN/TN
 metrics. Its canaries never execute commands, access files, make outbound
 requests, or persist uploads.
+
+`attack-path-mini` is a data-only graph scenario. Its versioned scenario and
+oracle documents define the exact Internet-to-business-event path, state and
+provenance transitions, a policy-blocked negative path, and a remediation-induced
+path break. It runs without Docker or network access and provides a stable contract
+for future attack-path engines and demos without claiming that the graph engine
+itself is already implemented.
 
 Target-backed tests own a shared Compose lifecycle and are marked `serial`.
 They execute after the independent pytest worker pool rather than competing for
