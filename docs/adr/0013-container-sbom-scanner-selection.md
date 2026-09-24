@@ -41,11 +41,11 @@ until a second concrete consumer justifies their maintenance cost.
 
 ## Evaluation matrix
 
-| Candidate | License | Image/SBOM scope | Machine output | M2 decision |
-|---|---|---|---|---|
-| Trivy | Apache-2.0 | Image, archive, SBOM, vulnerability, license | JSON; CycloneDX/SPDX interoperability | First optional provider |
-| Syft | Apache-2.0 | Strong SBOM generation and inventory | CycloneDX/SPDX/JSON | Deferred complementary provider |
-| Grype | Apache-2.0 | SBOM/image vulnerability matching | JSON | Deferred independent matcher |
+| Candidate | License    | Image/SBOM scope                             | Machine output                        | M2 decision                     |
+|-----------|------------|----------------------------------------------|---------------------------------------|---------------------------------|
+| Trivy     | Apache-2.0 | Image, archive, SBOM, vulnerability, license | JSON; CycloneDX/SPDX interoperability | First optional provider         |
+| Syft      | Apache-2.0 | Strong SBOM generation and inventory         | CycloneDX/SPDX/JSON                   | Deferred complementary provider |
+| Grype     | Apache-2.0 | SBOM/image vulnerability matching            | JSON                                  | Deferred independent matcher    |
 
 The selected tools are invoked as external programs. This decision grants no
 authority to scan a remote registry, target, or third-party image without an
