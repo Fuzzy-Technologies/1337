@@ -39,8 +39,8 @@ to subsequent product work.
 | `uv run --locked 1337 doctor`            | Inspect the local runtime, workspace permissions, package, and optional lab support     |
 | `uv run --locked 1337-dev unit`          | Run process-isolated unit tests and mandatory per-module coverage validation            |
 | `uv run --locked 1337-dev test`          | Run all test layers in process-isolated workers and mandatory coverage validation       |
-| `uv run --locked 1337-dev build`         | Build the sdist and wheel using locked tools                                             |
-| `uv run --locked 1337-dev check`         | Compile, lint, typecheck, measure performance, test coverage, and build                  |
+| `uv run --locked 1337-dev build`         | Build the sdist and wheel using locked tools                                            |
+| `uv run --locked 1337-dev check`         | Compile, lint, typecheck, measure performance, test coverage, and build                 |
 
 Each child step has a 300-second limit. Normal child exit codes are propagated;
 timeouts return 124, process-start failures return 127, and POSIX signal exits
