@@ -17,27 +17,27 @@ conceptual input only.
 1337 owns the provider-neutral web-security contract and orchestrates suitable
 engines behind it.
 
-| Area | 1337 owns | External provider boundary | Decision |
-|---|---|---|---|
-| Scope and authorization | Target/scope rules, impact gate, confirmation, audit trail | Provider receives only a bounded invocation | Native |
-| Request model | Endpoint, RequestTemplate, InjectionPoint, session/evidence identities | Providers may consume/export requests | Native in #58 |
-| Discovery scheduler | Deterministic queue, URL normalization, deduplication, cancellation, live object deltas | Browser/AJAX crawl can enrich seeds | Native orchestration; provider enrichment |
-| Browser interaction | Session/evidence integration and safe launch policy | Playwright/Chromium execution | Adapter-backed in #59 |
-| Passive checks | Evidence normalization, finding identity, policy and reporting | ZAP passive rules and compatible scanners | External adapter |
-| Template checks | Template provenance, selection policy, raw evidence, normalized result | Nuclei engine and reviewed template set | External adapter (#36) |
-| Active checks | Bounded request generation, impact policy, canary assertions | ZAP or future specialized providers | External adapter; no unsafe default |
-| Findings and graph inputs | Evidence, confidence, Security Objects, Relations, reachability inputs | Provider alerts/observations | Native normalization |
+| Area                      | 1337 owns                                                                               | External provider boundary                  | Decision                                  |
+|---------------------------|-----------------------------------------------------------------------------------------|---------------------------------------------|-------------------------------------------|
+| Scope and authorization   | Target/scope rules, impact gate, confirmation, audit trail                              | Provider receives only a bounded invocation | Native                                    |
+| Request model             | Endpoint, RequestTemplate, InjectionPoint, session/evidence identities                  | Providers may consume/export requests       | Native in #58                             |
+| Discovery scheduler       | Deterministic queue, URL normalization, deduplication, cancellation, live object deltas | Browser/AJAX crawl can enrich seeds         | Native orchestration; provider enrichment |
+| Browser interaction       | Session/evidence integration and safe launch policy                                     | Playwright/Chromium execution               | Adapter-backed in #59                     |
+| Passive checks            | Evidence normalization, finding identity, policy and reporting                          | ZAP passive rules and compatible scanners   | External adapter                          |
+| Template checks           | Template provenance, selection policy, raw evidence, normalized result                  | Nuclei engine and reviewed template set     | External adapter (#36)                    |
+| Active checks             | Bounded request generation, impact policy, canary assertions                            | ZAP or future specialized providers         | External adapter; no unsafe default       |
+| Findings and graph inputs | Evidence, confidence, Security Objects, Relations, reachability inputs                  | Provider alerts/observations                | Native normalization                      |
 
 ## Source inventory and disposition
 
-| Project / source | Valuable concept | Disposition | Rationale |
-|---|---|---|---|
-| OWASP ZAP | Automation, passive-vs-active separation, context-aware spidering, OpenAPI import, reporting | Optional external ToolAdapter | Mature engine; 1337 preserves scope/evidence/model semantics around it |
-| Nuclei | Declarative checks, versioned template provenance, targeted execution | Optional external ToolAdapter | Template execution is useful, but templates and engine do not become the domain model |
-| Playwright | Stateful browser automation and browser-derived traffic | Browser provider | Browser control is not a durable 1337 truth store |
-| w3af | Plugin separation, crawl/check pipeline, audit output lessons | Conceptual input only | Do not copy legacy engine or plugin code into the new async architecture |
-| Arachni | Separation of audit framework and checks | Retired as implementation source | Repository is archived; no runtime dependency or code migration |
-| OWASP WSTG | Human-readable test taxonomy and scenario vocabulary | Reference mapping only | Taxonomy informs coverage; it is not a scanner engine or evidence source |
+| Project / source | Valuable concept                                                                             | Disposition                      | Rationale                                                                             |
+|------------------|----------------------------------------------------------------------------------------------|----------------------------------|---------------------------------------------------------------------------------------|
+| OWASP ZAP        | Automation, passive-vs-active separation, context-aware spidering, OpenAPI import, reporting | Optional external ToolAdapter    | Mature engine; 1337 preserves scope/evidence/model semantics around it                |
+| Nuclei           | Declarative checks, versioned template provenance, targeted execution                        | Optional external ToolAdapter    | Template execution is useful, but templates and engine do not become the domain model |
+| Playwright       | Stateful browser automation and browser-derived traffic                                      | Browser provider                 | Browser control is not a durable 1337 truth store                                     |
+| w3af             | Plugin separation, crawl/check pipeline, audit output lessons                                | Conceptual input only            | Do not copy legacy engine or plugin code into the new async architecture              |
+| Arachni          | Separation of audit framework and checks                                                     | Retired as implementation source | Repository is archived; no runtime dependency or code migration                       |
+| OWASP WSTG       | Human-readable test taxonomy and scenario vocabulary                                         | Reference mapping only           | Taxonomy informs coverage; it is not a scanner engine or evidence source              |
 
 ## Non-negotiable migration guards
 
