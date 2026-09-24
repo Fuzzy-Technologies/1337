@@ -75,6 +75,7 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(repository, monkeypatch):
         "compileall",
         "ruff",
         "mypy",
+        "fuzzy1337.performance",
         "fuzzy1337.coverage_gate",
         "build",
     ], "check runs all quality steps and removes stale report invariant failed."

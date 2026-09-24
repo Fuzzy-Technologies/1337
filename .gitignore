@@ -54,6 +54,7 @@ evidence/
 reports/
 coverage/
 functional-evidence/
+/performance/
 
 # Downloaded tool/runtime caches
 .cache/
