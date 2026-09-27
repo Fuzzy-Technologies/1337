@@ -15,6 +15,22 @@ x-workbench: &workbench
   volumes:
     - .:/workspace:rw
 
+x-attack-path-target: &attack-path-target
+  profiles: ["attack-path"]
+  build:
+    context: ./labs/targets/attack-path-mini
+  image: fuzzy-technologies/1337-attack-path-mini:local
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=16m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  networks:
+    - synthetic-lab
+
 services:
   workbench:
     <<: *workbench
@@ -60,6 +76,68 @@ services:
       - ALL
     networks:
       - synthetic-lab
+
+  lab-attack-portal:
+    <<: *attack-path-target
+    command: ["python", "portal.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/health', timeout=1).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 4
+      start_period: 2s
+
+  lab-attack-identity:
+    <<: *attack-path-target
+    command: ["python", "identity.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/health', timeout=1).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 4
+      start_period: 2s
+
+  lab-attack-events:
+    <<: *attack-path-target
+    command: ["python", "events.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/health', timeout=1).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 4
+      start_period: 2s
+
+  lab-attack-billing:
+    <<: *attack-path-target
+    command: ["python", "billing.py"]
+    depends_on:
+      lab-attack-events:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/health', timeout=1).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 4
+      start_period: 2s
+
+  lab-attack-client:
+    <<: *attack-path-target
+    command: ["python", "client.py", "serve"]
+    depends_on:
+      lab-attack-portal:
+        condition: service_healthy
+      lab-attack-identity:
+        condition: service_healthy
+      lab-attack-billing:
+        condition: service_healthy
+      lab-attack-events:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/health', timeout=1).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 4
+      start_period: 2s
 
 networks:
   synthetic-lab:

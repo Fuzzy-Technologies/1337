@@ -36,12 +36,14 @@ its routes and simulation markers are explicit inputs for future TP/FP/FN/TN
 metrics. Its canaries never execute commands, access files, make outbound
 requests, or persist uploads.
 
-`attack-path-mini` is a data-only graph scenario. Its versioned scenario and
-oracle documents define the exact Internet-to-business-event path, state and
-provenance transitions, a policy-blocked negative path, and a remediation-induced
-path break. It runs without Docker or network access and provides a stable contract
-for future attack-path engines and demos without claiming that the graph engine
-itself is already implemented.
+`attack-path-mini` keeps a data-only graph scenario as its versioned contract and
+adds a repository-owned executable lab. Five isolated containers realize the exact
+Internet-to-business-event identifiers through controlled HTTP service hops. The
+functional suite confirms the canonical path, proves the signing-key path remains
+policy-blocked, applies identity hardening, verifies the resulting path break, and
+resets the state. No host port or external target is used. This proves the lab and
+oracle boundary without claiming that the later production graph engine is already
+implemented.
 
 Target-backed tests own a shared Compose lifecycle and are marked `serial`.
 They execute after the independent pytest worker pool rather than competing for
