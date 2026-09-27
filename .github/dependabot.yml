@@ -6,11 +6,33 @@ updates:
     target-branch: "develop"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
+    assignees:
+      - "Tim55667757"
+    milestone: 2
+    open-pull-requests-limit: 2
+    groups:
+      routine-python-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     target-branch: "develop"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
+    assignees:
+      - "Tim55667757"
+    milestone: 2
+    open-pull-requests-limit: 2
+    groups:
+      routine-actions-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
