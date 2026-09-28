@@ -40,6 +40,21 @@ class FunctionalScenario:
     cleanup: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class AttackPathLabScenario:
+    """Declare the executable topology that realizes the data-only path oracle."""
+
+    identifier: str
+    provenance: str
+    version: str
+    profile: str
+    client_service: str
+    compose_services: tuple[str, ...]
+    canonical_path_id: str
+    blocked_path_id: str
+    health_budget_seconds: int
+
+
 WEB_SAFE_HEALTH = FunctionalScenario(
     identifier="web-safe.health",
     target=TargetReference(
@@ -93,4 +108,22 @@ WEB_MICRO_TARGET_CONTRACT = FunctionalScenario(
     ),
     timeout_seconds=60,
     cleanup=("docker compose --profile lab down --volumes --remove-orphans",),
+)
+
+ATTACK_PATH_MINI_LAB = AttackPathLabScenario(
+    identifier="attack-path-mini.lab",
+    provenance="first-party:labs/targets/attack-path-mini",
+    version="1",
+    profile="attack-path",
+    client_service="lab-attack-client",
+    compose_services=(
+        "lab-attack-portal",
+        "lab-attack-identity",
+        "lab-attack-events",
+        "lab-attack-billing",
+        "lab-attack-client",
+    ),
+    canonical_path_id="path.internet-to-business-event",
+    blocked_path_id="path.internet-to-signing-key",
+    health_budget_seconds=60,
 )

@@ -12,7 +12,13 @@ from pathlib import Path
 
 import pytest
 
-from .scenarios import WEB_MICRO_TARGET_CONTRACT, WEB_SAFE_HEALTH, FunctionalScenario
+from .scenarios import (
+    ATTACK_PATH_MINI_LAB,
+    WEB_MICRO_TARGET_CONTRACT,
+    WEB_SAFE_HEALTH,
+    AttackPathLabScenario,
+    FunctionalScenario,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,10 +73,37 @@ class ComposeLab:
         if json.loads(health.stdout) != expected_payload:
             raise RuntimeError("Synthetic lab health check returned an unexpected payload")
 
-    def Stop(self) -> CommandResult:
+    def StartAttackPath(self, scenario: AttackPathLabScenario) -> None:
+        """Start and health-check the complete attack-path-mini topology."""
+
+        self.RequireSuccess(
+            self.Compose(
+                "--profile",
+                scenario.profile,
+                "up",
+                "--build",
+                "--wait",
+                *scenario.compose_services,
+                timeout_seconds=scenario.health_budget_seconds,
+            ),
+            "Attack-path mini lab startup",
+        )
+        health = self.Execute(
+            scenario.client_service,
+            "python",
+            "client.py",
+            "health",
+            timeout_seconds=scenario.health_budget_seconds,
+        )
+        self.RequireSuccess(health, "Attack-path mini health check")
+        payload = json.loads(health.stdout)
+        if payload.get("status") != "ok" or len(payload.get("targets", {})) != 4:
+            raise RuntimeError("Attack-path mini health check returned an unexpected payload")
+
+    def Stop(self, profile: str = "lab") -> CommandResult:
         """Stop and remove the lab even if a functional assertion has failed."""
 
-        return self.Compose("--profile", "lab", "down", "--volumes", "--remove-orphans")
+        return self.Compose("--profile", profile, "down", "--volumes", "--remove-orphans")
 
     def Compose(self, *arguments: str, timeout_seconds: int = 60) -> CommandResult:
         """Run one Compose command and preserve its raw output."""
@@ -148,6 +181,31 @@ def micro_target_lab() -> Iterator[ComposeLab]:
     """Provide the health-checked known-answer target and guarantee cleanup."""
 
     yield from StartFunctionalLab(WEB_MICRO_TARGET_CONTRACT)
+
+
+@pytest.fixture(scope="session")
+def attack_path_lab() -> Iterator[ComposeLab]:
+    """Provide the health-checked multi-service attack-path lab and cleanup."""
+
+    if not DockerComposeAvailable():
+        pytest.skip("Docker Compose is required for the attack-path functional lab")
+
+    repository_root = Path(__file__).resolve().parents[2]
+    lab = ComposeLab(repository_root, repository_root / "functional-evidence" / "attack-path-mini")
+    try:
+        lab.StartAttackPath(ATTACK_PATH_MINI_LAB)
+
+    except RuntimeError as error:
+        lab.Stop(ATTACK_PATH_MINI_LAB.profile)
+        pytest.fail(str(error))
+
+    try:
+        yield lab
+
+    finally:
+        teardown = lab.Stop(ATTACK_PATH_MINI_LAB.profile)
+        if teardown.returncode:
+            pytest.fail(f"Attack-path mini cleanup failed with exit code {teardown.returncode}")
 
 
 def StartFunctionalLab(scenario: FunctionalScenario) -> Iterator[ComposeLab]:

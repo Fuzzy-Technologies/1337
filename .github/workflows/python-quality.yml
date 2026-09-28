@@ -89,6 +89,18 @@ jobs:
         run: >-
           docker compose exec -T lab-web-safe python -c
           "from urllib.request import urlopen; import json; response = urlopen('http://127.0.0.1:8080/health', timeout=1); assert json.load(response) == {'status': 'ok', 'target': 'web-safe'}"
+      - name: Start attack-path mini lab
+        run: >-
+          docker compose --profile attack-path up --build --wait
+          lab-attack-portal lab-attack-identity lab-attack-events
+          lab-attack-billing lab-attack-client
+      - name: Verify attack-path mini lifecycle
+        run: |
+          docker compose exec -T lab-attack-client python client.py reset
+          docker compose exec -T lab-attack-client python client.py validate
+          docker compose exec -T lab-attack-client python client.py negative
+          docker compose exec -T lab-attack-client python client.py remediate
+          docker compose exec -T lab-attack-client python client.py reset
       - name: Stop synthetic lab
         if: always()
-        run: docker compose --profile lab down --volumes --remove-orphans
+        run: docker compose --profile lab --profile attack-path down --volumes --remove-orphans

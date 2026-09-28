@@ -1,14 +1,15 @@
 # Attack-path mini target
 
-`attack-path-mini` is a repository-owned, data-only graph fixture for deterministic
-attack-path demonstrations and functional tests. It models exactly:
+`attack-path-mini` is a repository-owned graph contract and isolated executable lab
+for deterministic attack-path demonstrations and functional tests. It models exactly:
 
 ```text
 Internet → Portal → Identity → Billing API → Business Event
 ```
 
-It does not start services, execute commands, contact a network, or authorize testing
-of any external target.
+The versioned scenario documents remain data-only and authorize no external target.
+The executable lab realizes the same identifiers using repository-owned containers on
+an internal Docker network with no host ports.
 
 ## Versioned contract
 
@@ -43,3 +44,47 @@ uv run --locked --extra dev pytest \
   tests/contract/test_attack_path_scenario.py \
   tests/functional/test_attack_path_oracle.py
 ```
+
+## Executable lab
+
+The lab uses five unprivileged, read-only containers:
+
+- a controlled client representing the untrusted entry zone;
+- Portal;
+- Identity;
+- Billing API;
+- Business Event store.
+
+Start every service and wait for deterministic health checks:
+
+```bash
+docker compose --profile attack-path up --build --wait \
+  lab-attack-portal lab-attack-identity lab-attack-events \
+  lab-attack-billing lab-attack-client
+```
+
+Exercise the canonical path and the policy-blocked negative path:
+
+```bash
+docker compose exec -T lab-attack-client python client.py reset
+docker compose exec -T lab-attack-client python client.py validate
+docker compose exec -T lab-attack-client python client.py negative
+```
+
+Apply remediation, prove the path is blocked, and reset the state:
+
+```bash
+docker compose exec -T lab-attack-client python client.py remediate
+docker compose exec -T lab-attack-client python client.py reset
+```
+
+Stop and remove the complete lab:
+
+```bash
+docker compose --profile attack-path down --volumes --remove-orphans
+```
+
+All credentials, tokens, subjects, and events are fixed synthetic values. The lab has
+no host port, privileged container, host-network mode, or dependency on an Internet
+target. Restarting the containers or running `client.py reset` restores deterministic
+state.
