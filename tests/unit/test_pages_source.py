@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for pages source behavior."""
 
 import re
@@ -45,6 +48,7 @@ EXPECTED_EXCLUDED_ROOTS = {
     "pyproject.toml",
     "src",
     "tests",
+    "tools",
     "uv.lock",
 }
 

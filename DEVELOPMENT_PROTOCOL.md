@@ -315,6 +315,13 @@ Prefer readable source over clever compression. A dense one-liner or nested comp
 - Documentation changes should be localized to the affected sections.
 - Qualifying documentation and GitHub Pages updates may be published to `master` between product releases without a version tag only under the explicit documentation/site publication rules in `docs/RELEASE_WORKFLOW.md`.
 
+Source documentation, ownership headers, canonical English API reference, localization
+provenance, and documentation validation follow
+[`docs/SOURCE_DOCUMENTATION.md`](docs/SOURCE_DOCUMENTATION.md). The composed product-site
+and API-reference architecture is defined in
+[ADR 0016](docs/adr/0016-composed-documentation-platform.md). These contracts preserve
+the Python naming/formatting rules above and do not authorize API renaming.
+
 ## 8. CHANGELOG contract
 
 `CHANGELOG.md` uses a strict Fuzzy Technologies hierarchy:

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Pytest-owned lifecycle fixtures for repository-defined functional targets."""
 
 from __future__ import annotations
