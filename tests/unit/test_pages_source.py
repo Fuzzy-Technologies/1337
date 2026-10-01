@@ -45,6 +45,7 @@ EXPECTED_EXCLUDED_ROOTS = {
     "pyproject.toml",
     "src",
     "tests",
+    "tools",
     "uv.lock",
 }
 
