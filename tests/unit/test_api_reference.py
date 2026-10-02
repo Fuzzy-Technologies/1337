@@ -89,7 +89,10 @@ def test_InvalidInventoryContractsAreRejected(
         API.ValidateInventory(root, API.ReadManifest(root))
 
 
-@pytest.mark.parametrize("relative", ("", "../outside", "/outside", "docs\\unsafe.toml"))
+@pytest.mark.parametrize("relative", (
+    "", "../outside", "/outside", "docs\\unsafe.toml", "C:/outside", "C:outside",
+    "//server/outside",
+))
 def test_LocalInputsRejectAbsoluteTraversalAndForeignSeparators(
     tmp_path: Path, relative: str
 ) -> None:

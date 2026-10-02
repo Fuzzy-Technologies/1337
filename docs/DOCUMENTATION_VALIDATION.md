@@ -43,6 +43,7 @@ action as the workflow does, or an equivalent installed GitHub Pages Jekyll stac
 
 ```bash
 jekyll build --source _build/product-source --destination _build/product-site
+mkdir -p _build/pages
 .venv/bin/python tools/compose_documentation.py \
   --product-site _build/product-site --api-root _build/api-reference \
   --output _build/pages/site --base-path /1337 --revision "$(git rev-parse HEAD)"

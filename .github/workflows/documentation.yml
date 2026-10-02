@@ -57,6 +57,7 @@ jobs:
           destination: _build/product-site
       - name: Compose and verify the single Pages artifact
         run: |
+          mkdir -p _build/pages
           .venv/bin/python tools/compose_documentation.py \
             --product-site _build/product-site --api-root _build/api-reference \
             --output _build/pages/site --base-path /1337 --revision "${GITHUB_SHA}"

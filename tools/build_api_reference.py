@@ -16,7 +16,7 @@ import sys
 import tempfile
 import tomllib
 from html.parser import HTMLParser
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,7 +38,10 @@ def LocalInput(root: Path, relative: str) -> Path:
 
     path = Path(relative)
 
-    if not relative or path.is_absolute() or ".." in path.parts or "\\" in relative:
+    if (
+        not relative or path.anchor or PureWindowsPath(relative).drive
+        or ".." in path.parts or "\\" in relative
+    ):
         raise ValueError(f"Documentation input must be project-relative: {relative}")
 
     candidate = root / path

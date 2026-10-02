@@ -651,7 +651,8 @@ def test_CanonicalNewlinesNormalizeAndSourcePathsDoNotChangeHash(tmp_path: Path)
     before = LOCALE.DiscoverCanonicalUnits(root, project)
     page = next(unit for unit in before if unit.identifier == "page:index")
     source = root / page.source_path
-    source.write_bytes(source.read_bytes().replace(b"\n", b"\r\n"))
+    normalized = source.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    source.write_bytes(normalized.replace(b"\n", b"\r\n"))
     after = LOCALE.DiscoverCanonicalUnits(root, project)
     updated = next(unit for unit in after if unit.identifier == page.identifier)
     assert LOCALE.CanonicalHash(updated) == LOCALE.CanonicalHash(page), (
