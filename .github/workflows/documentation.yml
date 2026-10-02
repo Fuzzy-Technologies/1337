@@ -1,0 +1,91 @@
+name: Documentation
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: documentation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic-documentation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install pinned tooling and the hashed documentation lock
+        run: |
+          python -m pip install uv==0.11.33
+          uv sync --locked --extra dev
+          uv pip install --python .venv/bin/python --require-hashes -r docs/requirements-api.lock
+      - name: Validate publication authority and source contracts
+        run: |
+          .venv/bin/python tools/documentation_publication_policy.py .github/workflows/documentation.yml
+          .venv/bin/python tools/source_documentation_audit.py --check
+          .venv/bin/python tools/locale_documentation.py validate --output _build/docs/locales.json
+      - name: Exercise documentation boundaries and enforce per-tool branch coverage
+        run: |
+          .venv/bin/python -m pytest -q -o addopts='' \
+            tests/unit/test_api_reference.py tests/unit/test_locale_documentation.py \
+            tests/unit/test_compose_documentation.py tests/unit/test_source_documentation_audit.py \
+            tests/unit/test_product_site_preparation.py tests/unit/test_documentation_publication_policy.py \
+            tests/unit/test_documentation_render.py \
+            --cov=tools --cov-branch --cov-config=/dev/null \
+            --cov-report=term-missing --cov-report=json:_build/docs/tool-coverage.json
+          .venv/bin/python -m fuzzy1337.coverage_gate _build/docs/tool-coverage.json tools
+      - name: Build a reproducible static reference from a clean installed wheel
+        run: .venv/bin/python tools/build_api_reference.py
+      - name: Prove real offline formula rendering
+        run: .venv/bin/python tools/verify_documentation_render.py
+      - name: Stage only reviewed product site sources
+        run: .venv/bin/python tools/prepare_product_site.py --output _build/product-source
+      - name: Build the retained Jekyll product site
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1
+        with:
+          source: _build/product-source
+          destination: _build/product-site
+      - name: Compose and verify the single Pages artifact
+        run: |
+          .venv/bin/python tools/compose_documentation.py \
+            --product-site _build/product-site --api-root _build/api-reference \
+            --output _build/pages/site --base-path /1337 --revision "${GITHUB_SHA}"
+      - name: Preserve reproducible gate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: documentation-evidence-${{ github.sha }}
+          path: |
+            _build/docs/*.json
+            _build/pages/site/documentation-provenance.json
+            .tmp/source-documentation-audit
+          if-no-files-found: warn
+      - name: Upload the validated official Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: _build/pages/site
+
+  deploy-pages:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.ref_protected
+    needs: deterministic-documentation
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

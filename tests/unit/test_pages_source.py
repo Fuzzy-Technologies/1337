@@ -49,6 +49,7 @@ EXPECTED_EXCLUDED_ROOTS = {
     "src",
     "tests",
     "tools",
+    "_build",
     "uv.lock",
 }
 
