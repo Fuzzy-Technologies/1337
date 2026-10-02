@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Experimental provider-neutral ToolAdapter SDK for 1337 extensions."""
 
 from fuzzy1337.adapters.contracts import (

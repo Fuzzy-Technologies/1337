@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Deterministic process-isolated pytest execution for developer gates."""
 
 from __future__ import annotations
@@ -45,7 +48,14 @@ class TestSummary:
     duration_seconds: float = 0.0
 
     def Combine(self, other: TestSummary) -> TestSummary:
-        """Return the deterministic sum of two independent pytest reports."""
+        """Return the deterministic sum of two independent pytest reports.
+
+        Args:
+            other: Independent summary to add without mutating either input.
+
+        Returns:
+            New summary containing summed counts and subprocess durations.
+        """
 
         return TestSummary(
             total=self.total + other.total,
@@ -57,7 +67,11 @@ class TestSummary:
         )
 
     def Display(self) -> str:
-        """Render one machine-readable, stable terminal-summary line."""
+        """Render one machine-readable, stable terminal-summary line.
+
+        Returns:
+            Stable single-line summary of counts and subprocess durations.
+        """
 
         return (
             "Test summary: "
@@ -68,7 +82,14 @@ class TestSummary:
 
 
 def AutoWorkerCount(cpu_count: int | None = None) -> int:
-    """Return the bounded worker count used by xdist automatic scheduling."""
+    """Return the bounded worker count used by xdist automatic scheduling.
+
+    Args:
+        cpu_count: Detected CPU count, or None to query the operating system.
+
+    Returns:
+        Automatic worker count capped at DEFAULT_MAX_WORKERS.
+    """
 
     return min(cpu_count if cpu_count is not None else (os.cpu_count() or 1), DEFAULT_MAX_WORKERS)
 
@@ -80,7 +101,17 @@ def PytestArguments(
     *,
     serial: bool,
 ) -> list[str]:
-    """Build one explicit pytest argv without shell interpolation."""
+    """Build one explicit pytest argv without shell interpolation.
+
+    Args:
+        target: Pytest layer or selection
+        options: Validated timeout, worker and fail-fast settings
+        report_path: JUnit destination passed as one argv entry
+        serial: Select serial tests without workers and with coverage append.
+
+    Returns:
+        Explicit pytest argv for a separate interpreter process.
+    """
 
     arguments = [
         sys.executable,
@@ -102,7 +133,20 @@ def PytestArguments(
 
 
 def ReadJunitSummary(report_path: Path) -> TestSummary:
-    """Read one JUnit XML report without trusting process return codes as evidence."""
+    """Read one JUnit XML report without trusting process return codes as evidence.
+
+    Parses persisted evidence; a successful process code alone does not prove a passing report.
+
+    Args:
+        report_path: JUnit XML produced by a pytest subprocess.
+
+    Returns:
+        Aggregated counts and durations, or one failure if the report is absent.
+
+    Raises:
+        element_tree.ParseError: The XML is malformed.
+        ValueError: Numeric report attributes cannot be parsed.
+    """
 
     if not report_path.is_file():
         return TestSummary(failed=1)
@@ -137,7 +181,19 @@ def RunPytest(
     report_path: Path,
     timeout_seconds: int,
 ) -> tuple[int, TestSummary]:
-    """Run one pytest process and return its exit result with parsed evidence."""
+    """Run one pytest process and return its exit result with parsed evidence.
+
+    Deletes stale report evidence before starting one bounded subprocess. XML parsing failures
+    propagate rather than becoming success.
+
+    Args:
+        arguments: Explicit subprocess argv without shell interpolation
+        report_path: Report to remove before launch and read on completion
+        timeout_seconds: Per-test timeout also used to derive the process timeout floor.
+
+    Returns:
+        Exit code and summary, with failed summaries for timeout or launch errors.
+    """
 
     report_path.unlink(missing_ok=True)
     started = time.monotonic()
@@ -159,7 +215,20 @@ def RunPytest(
 
 
 def HasSerialTests(target: str) -> bool:
-    """Discover serial tests before running a separate serial process."""
+    """Discover serial tests before running a separate serial process.
+
+    Starts collection with coverage disabled; it does not execute selected test bodies.
+
+    Args:
+        target: Selection whose serial-marked cases are collected.
+
+    Returns:
+        True only when serial-only collection exits successfully.
+
+    Raises:
+        subprocess.TimeoutExpired: Collection exceeds its process limit.
+        OSError: The collection subprocess cannot be started.
+    """
 
     result = subprocess.run(
         [
@@ -183,7 +252,18 @@ def HasSerialTests(target: str) -> bool:
 
 
 def RunTests(target: str, options: TestOptions) -> int:
-    """Run non-serial tests in xdist, then serial tests, and print aggregate evidence."""
+    """Run non-serial tests in xdist, then serial tests, and print aggregate evidence.
+
+    Creates local coverage reports, runs nonserial tests in worker processes, then eligible
+    serial tests, and prints aggregate evidence.
+
+    Args:
+        target: Pytest layer or selection to run
+        options: Validated worker, timeout, serial-only and fail-fast settings.
+
+    Returns:
+        First nonzero subprocess status, or zero when selected invocations succeed.
+    """
 
     reports = Path("coverage")
     reports.mkdir(exist_ok=True)

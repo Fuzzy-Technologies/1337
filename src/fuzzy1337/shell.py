@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Interactive terminal foundations for the 1337 Security Workbench."""
 
 from __future__ import annotations
@@ -56,7 +59,15 @@ class ContextualAction:
 
 
 def FuzzyMatches(query: str, candidates: Iterable[str]) -> tuple[str, ...]:
-    """Return deterministic subsequence matches ordered by compactness then name."""
+    """Return deterministic subsequence matches ordered by compactness then name.
+
+    Args:
+        query: Case-insensitive subsequence, with empty text matching all candidates
+        candidates: Candidate names whose spelling is preserved.
+
+    Returns:
+        Matches sorted by gap score, then candidate name.
+    """
 
     normalized = query.strip().lower()
     ranked: list[tuple[int, str]] = []
@@ -71,7 +82,15 @@ def FuzzyMatches(query: str, candidates: Iterable[str]) -> tuple[str, ...]:
 
 
 def FuzzyScore(query: str, candidate: str) -> int | None:
-    """Score a subsequence match, preferring adjacent and earlier characters."""
+    """Score a subsequence match, preferring adjacent and earlier characters.
+
+    Args:
+        query: Subsequence to locate, normalized by callers when needed
+        candidate: Text searched for query characters in order.
+
+    Returns:
+        Gap score, zero for empty query, or None when unmatched.
+    """
 
     if not query:
         return 0
@@ -103,7 +122,13 @@ class InteractiveShell(cmd.Cmd):
         stdin: TextIO | None = None,
         stdout: TextIO | None = None,
     ) -> None:
-        """Initialize the shell with explicit registries and streams."""
+        """Initialize the shell with explicit registries and streams.
+
+        Args:
+            registry: Top-level command metadata used for help and palette discovery
+            stdin: Optional input stream forwarded to cmd.Cmd
+            stdout: Optional output stream forwarded to cmd.Cmd.
+        """
 
         super().__init__(stdin=stdin, stdout=stdout)
         self._registry = registry
@@ -114,17 +139,38 @@ class InteractiveShell(cmd.Cmd):
 
     @property
     def State(self) -> ShellState:
-        """Return the current immutable workbench context."""
+        """Return the current immutable workbench context.
+
+        Returns:
+            Current immutable lens, selected-object reference and view state.
+        """
 
         return self._state
 
     def PublishUpdate(self, update: WorkbenchUpdate) -> None:
-        """Queue a bounded update for a future executor or live model provider."""
+        """Queue an update for a future executor or live model provider.
+
+        Appends to the in-memory queue; callers must bound producer volume between drains. No
+        executor is started and no security state is persisted.
+
+        Args:
+            update: Message to queue for the next rendering phase.
+        """
 
         self._updates.append(update)
 
     def SetContextActions(self, object_id: str, actions: Iterable[ContextualAction]) -> None:
-        """Cache local contextual actions without coupling the shell to the future SOM."""
+        """Cache local contextual actions without coupling the shell to the future SOM.
+
+        Replaces local shell metadata only; it does not authorize or execute advertised actions.
+
+        Args:
+            object_id: Nonempty opaque object identifier trimmed of surrounding whitespace
+            actions: Cached descriptors in declaration order.
+
+        Raises:
+            ValueError: The object identifier is empty.
+        """
 
         normalized_object_id = object_id.strip()
         if not normalized_object_id:
@@ -133,7 +179,16 @@ class InteractiveShell(cmd.Cmd):
         self._context_actions[normalized_object_id] = tuple(actions)
 
     def onecmd(self, line: str) -> bool:
-        """Run a command while retaining bounded operator history for local search."""
+        """Run a command while retaining bounded operator history for local search.
+
+        Records nonempty commands except history in bounded local history before dispatch.
+
+        Args:
+            line: Operator command line to dispatch through cmd.Cmd.
+
+        Returns:
+            Whether the dispatched command requests shell termination.
+        """
 
         normalized = line.strip()
         command = normalized.split(maxsplit=1)[0].lower() if normalized else ""
@@ -143,18 +198,37 @@ class InteractiveShell(cmd.Cmd):
         return super().onecmd(line)
 
     def completenames(self, text: str, *ignored: object) -> list[str]:
-        """Offer fuzzy command discovery for keyboard completion."""
+        """Offer fuzzy command discovery for keyboard completion.
+
+        Args:
+            text: Partial command name to match by subsequence
+            ignored: Unused framework completion arguments.
+
+        Returns:
+            Ranked interactive command names.
+        """
 
         return list(FuzzyMatches(text, SHELL_COMMANDS))
 
     def precmd(self, line: str) -> str:
-        """Render queued updates before accepting the next operator action."""
+        """Render queued updates before accepting the next operator action.
+
+        Args:
+            line: Operator line to return unchanged for dispatch.
+
+        Returns:
+            Original line after pending updates have been rendered.
+        """
 
         self.RenderUpdates()
         return line
 
     def do_commands(self, argument: str) -> None:
-        """Show interactive commands and available top-level CLI commands."""
+        """Show interactive commands and available top-level CLI commands.
+
+        Args:
+            argument: Empty input expected, otherwise usage is printed.
+        """
 
         if argument.strip():
             self.Write("usage: commands")
@@ -167,7 +241,11 @@ class InteractiveShell(cmd.Cmd):
         )
 
     def do_context(self, argument: str) -> None:
-        """Show the selected lens and object context."""
+        """Show the selected lens and object context.
+
+        Args:
+            argument: Empty input expected, otherwise usage is printed.
+        """
 
         if argument.strip():
             self.Write("usage: context")
@@ -180,7 +258,11 @@ class InteractiveShell(cmd.Cmd):
         self.Write(f"Pending updates: {len(self._updates)}")
 
     def do_help(self, argument: str) -> None:
-        """Show compact contextual help without opening an external manual."""
+        """Show compact contextual help without opening an external manual.
+
+        Args:
+            argument: Optional topic, with empty input listing help topics.
+        """
 
         topic = argument.strip().lower()
         help_text = {
@@ -208,7 +290,11 @@ class InteractiveShell(cmd.Cmd):
         self.Write(message)
 
     def do_history(self, argument: str) -> None:
-        """Search local command history in reverse chronological order."""
+        """Search local command history in reverse chronological order.
+
+        Args:
+            argument: Optional case-insensitive substring to filter local history.
+        """
 
         query = argument.strip().lower()
         matches = tuple(
@@ -222,7 +308,11 @@ class InteractiveShell(cmd.Cmd):
             self.Write(entry)
 
     def do_lens(self, argument: str) -> None:
-        """Select one of the initial workflow lenses."""
+        """Select one of the initial workflow lenses.
+
+        Args:
+            argument: Supported lens name, or empty input to list lenses.
+        """
 
         lens = argument.strip().lower()
         if not lens:
@@ -237,7 +327,11 @@ class InteractiveShell(cmd.Cmd):
         self.Write(f"Selected lens: {lens}")
 
     def do_palette(self, argument: str) -> None:
-        """Search immediately available commands and cached selected-object actions."""
+        """Search immediately available commands and cached selected-object actions.
+
+        Args:
+            argument: Optional query over commands and cached contextual actions.
+        """
 
         query = argument.strip()
         command_matches = FuzzyMatches(query, SHELL_COMMANDS)
@@ -262,7 +356,11 @@ class InteractiveShell(cmd.Cmd):
             self.Write(f"action: {action.identifier} — {action.summary}")
 
     def do_select(self, argument: str) -> None:
-        """Store an opaque selected-object reference until the SOM contract exists."""
+        """Store an opaque selected-object reference until the SOM contract exists.
+
+        Args:
+            argument: Nonempty opaque object identifier to retain in local shell state.
+        """
 
         object_id = argument.strip()
         if not object_id:
@@ -273,7 +371,11 @@ class InteractiveShell(cmd.Cmd):
         self.Write(f"Selected object: {object_id}")
 
     def do_updates(self, argument: str) -> None:
-        """Render currently queued updates without blocking the shell."""
+        """Render currently queued updates without blocking the shell.
+
+        Args:
+            argument: Empty input expected, otherwise usage is printed.
+        """
 
         if argument.strip():
             self.Write("usage: updates")
@@ -282,7 +384,11 @@ class InteractiveShell(cmd.Cmd):
         self.RenderUpdates()
 
     def do_view(self, argument: str) -> None:
-        """Select the small model-slice view used by the shell foundation."""
+        """Select the small model-slice view used by the shell foundation.
+
+        Args:
+            argument: Supported view name, or empty input to list views.
+        """
 
         view = argument.strip().lower()
         if not view:
@@ -297,7 +403,14 @@ class InteractiveShell(cmd.Cmd):
         self.Write(f"Selected view: {view}")
 
     def do_quit(self, argument: str) -> bool:
-        """Leave the interactive shell."""
+        """Leave the interactive shell.
+
+        Args:
+            argument: Empty input exits, otherwise usage is printed.
+
+        Returns:
+            True for empty input, or False when usage is printed.
+        """
 
         if argument.strip():
             self.Write("usage: quit")
@@ -306,13 +419,24 @@ class InteractiveShell(cmd.Cmd):
         return True
 
     def do_EOF(self, argument: str) -> bool:
-        """Treat EOF as a normal interactive-shell exit."""
+        """Treat EOF as a normal interactive-shell exit.
+
+        Args:
+            argument: Ignored framework argument when end-of-input closes the shell.
+
+        Returns:
+            True to request normal shell termination.
+        """
 
         self.Write("")
         return True
 
     def default(self, line: str) -> None:
-        """Reject unknown commands without implying that a scanner ran."""
+        """Reject unknown commands without implying that a scanner ran.
+
+        Args:
+            line: Unrecognized command line included in the diagnostic.
+        """
 
         self.Write(f"Unknown command: {line}. Type 'help' for commands.")
 
@@ -327,7 +451,14 @@ class InteractiveShell(cmd.Cmd):
             self.Write(f"[{update.kind}] {update.message}")
 
     def MatchingContextActions(self, query: str) -> tuple[ContextualAction, ...]:
-        """Return local actions for the selected object, preserving configured order."""
+        """Return local actions for the selected object, preserving configured order.
+
+        Args:
+            query: Case-insensitive substring of action identifiers or summaries.
+
+        Returns:
+            Cached matches in configured order, or empty when no object is selected.
+        """
 
         object_id = self._state.selected_object
         if object_id is None:
@@ -343,13 +474,24 @@ class InteractiveShell(cmd.Cmd):
         )
 
     def Write(self, message: str) -> None:
-        """Write one line through ``cmd.Cmd``'s configured output stream."""
+        """Write one line through ``cmd.Cmd``'s configured output stream.
+
+        Args:
+            message: Text to write followed by one newline to the output stream.
+        """
 
         self.stdout.write(f"{message}\n")
 
 
 def RunInteractiveShell() -> int:
-    """Run the standard-library shell in the current terminal."""
+    """Run the standard-library shell in the current terminal.
+
+    Reads the current terminal and writes output. Shell commands manage local context and
+    discovery.
+
+    Returns:
+        Zero after the command loop exits normally.
+    """
 
     shell = InteractiveShell(stdin=sys.stdin, stdout=sys.stdout)
     shell.cmdloop()

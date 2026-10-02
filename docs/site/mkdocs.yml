@@ -1,0 +1,36 @@
+site_name: 1337 Security Workbench API Reference
+site_description: Static Community Python API reference.
+repo_url: https://github.com/Fuzzy-Technologies/1337
+repo_name: Fuzzy-Technologies/1337
+edit_uri: edit/develop/docs/site/content/en/
+strict: true
+use_directory_urls: true
+theme:
+  name: material
+  language: en
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            allow_inspection: false
+            force_inspection: false
+            docstring_style: google
+            members_order: source
+            show_root_full_path: true
+            show_root_heading: true
+            show_signature_annotations: true
+            show_source: true
+            signature_crossrefs: false
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+extra_javascript:
+  - assets/mathjax/tex-mml-svg.js

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Black-box contracts for the executable attack-path-mini lab."""
 
 from __future__ import annotations
