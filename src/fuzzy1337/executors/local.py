@@ -92,10 +92,11 @@ class LocalExecutor:
         """Run an immutable argv and return bounded output plus structured events.
 
         Starts an owned process using explicit argv and a limited inherited environment.
-        During the process-wait phase, timeout, cancellation, output overflow and failures
-        trigger cleanup. Observer exceptions propagate. The initial STARTED notification
-        precedes that cleanup guard and timeout enforcement: callback failure or task
-        cancellation at that handoff can propagate without guaranteed process cleanup.
+        Observer errors and task cancellation propagate after the owned child and
+        background tasks are reaped, including the initial STARTED handoff.
+        Awaitable observers must remain responsive; the process-wait timeout does
+        not bound observer execution. Timeout, cancellation and output overflow
+        during the process-wait phase terminate the owned process.
         This boundary is not an OS sandbox or a replacement for upstream scope approval.
 
         Args:
@@ -108,6 +109,7 @@ class LocalExecutor:
 
         Raises:
             LocalExecutionError: Workspace validation or process launch fails.
+            asyncio.CancelledError: The caller cancels execution; cleanup completes first.
         """
 
         workspace = self.ResolveWorkspace(request.workspace)
@@ -163,8 +165,6 @@ class LocalExecutor:
         environment.update(request.environment)
 
         process = await self.StartProcess(request, workspace, environment)
-
-        await Emit(ExecutionEventKind.STARTED)
 
         stdout = bytearray()
         stderr = bytearray()
@@ -234,20 +234,37 @@ class LocalExecutor:
             asyncio.create_task(cancellation.wait()) if cancellation is not None else None
         )
 
-        waiters = {process_task, output_limit_task}
+        waiters = {process_task, output_limit_task, stdout_task, stderr_task}
 
         if cancellation_task is not None:
             waiters.add(cancellation_task)
 
         termination = ExecutionTermination.PROCESS_EXIT
         state = ExecutionState.FAILED
+        owned_tasks = (stdout_task, stderr_task, process_task, output_limit_task, cancellation_task)
 
         try:
-            done, _ = await asyncio.wait(
-                waiters,
-                timeout=request.invocation.timeout_seconds,
-                return_when=asyncio.FIRST_COMPLETED,
-            )
+            async with emit_lock:
+                await Emit(ExecutionEventKind.STARTED)
+
+            deadline = time.monotonic() + request.invocation.timeout_seconds
+
+            while True:
+                done, _ = await asyncio.wait(
+                    waiters,
+                    timeout=max(0.0, deadline - time.monotonic()),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                for stream_task in (stdout_task, stderr_task):
+                    if stream_task in done:
+                        stream_task.result()
+                        waiters.discard(stream_task)
+
+                if not done or done.intersection(
+                    {process_task, output_limit_task, cancellation_task}
+                ):
+                    break
 
             if not done:
                 termination = ExecutionTermination.TIMEOUT
@@ -284,17 +301,64 @@ class LocalExecutor:
             await asyncio.gather(stdout_task, stderr_task)
 
         except BaseException:
-            await self.Terminate(process, request.resources.terminate_grace_seconds)
+            async def Abort() -> None:
+                """Stop observers, drain bounded chunks and reap the owned child."""
+
+                for task in owned_tasks:
+                    if task is not None and not task.done():
+                        task.cancel()
+
+                await asyncio.gather(
+                    *(task for task in owned_tasks if task is not None), return_exceptions=True,
+                )
+
+                async def Drain(reader: asyncio.StreamReader) -> None:
+                    """Discard pipe bytes without invoking observers or retaining output.
+
+                    Args:
+                        reader: Owned stdout or stderr pipe after its observer task stops.
+                    """
+
+                    while await reader.read(_READ_SIZE):
+                        pass
+
+                drains = [
+                    asyncio.create_task(Drain(reader))
+                    for reader in (process.stdout, process.stderr) if reader is not None
+                ]
+
+                try:
+                    await self.Terminate(process, request.resources.terminate_grace_seconds)
+
+                    await asyncio.gather(*drains)
+
+                finally:
+                    for task in drains:
+                        if not task.done():
+                            task.cancel()
+
+                    await asyncio.gather(*drains, return_exceptions=True)
+
+            cleanup_task = asyncio.create_task(Abort())
+
+            while not cleanup_task.done():
+                try:
+                    await asyncio.shield(cleanup_task)
+
+                except asyncio.CancelledError:
+                    continue
+
+            cleanup_task.result()
 
             raise
 
         finally:
-            for task in (output_limit_task, cancellation_task):
+            for task in owned_tasks:
                 if task is not None and not task.done():
                     task.cancel()
 
             await asyncio.gather(
-                *(task for task in (output_limit_task, cancellation_task) if task is not None),
+                *(task for task in owned_tasks if task is not None),
                 return_exceptions=True,
             )
 

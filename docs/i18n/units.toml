@@ -1104,7 +1104,7 @@ state = "missing"
 id = "symbol:fuzzy1337.executors.local.LocalExecutor.Execute"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/executors/local.py"
-sourceHash = "sha256:ffb2dabdae9f93c011033d849f9012488678a1df822641cb7f238b4c6cfe75e2"
+sourceHash = "sha256:98db87846dcce40c0374b4e8f2c00452b1fe78b8f55efa2f16835f9e7a85404e"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
