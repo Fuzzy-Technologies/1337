@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Developer command helpers for the 1337 project."""
 
 from __future__ import annotations
@@ -24,19 +27,37 @@ class CommandStep:
     arguments: tuple[str, ...]
 
     def Display(self) -> str:
-        """Return the human-readable command without exposing local paths."""
+        """Return the human-readable command without exposing local paths.
+
+        Returns:
+            Executable label and arguments joined for display, not shell execution.
+        """
 
         return " ".join((self.executable, *self.arguments))
 
 
 def PythonStep(*arguments: str) -> CommandStep:
-    """Create a step executed by the current Python interpreter."""
+    """Create a step executed by the current Python interpreter.
+
+    Args:
+        arguments: Literal argv entries for the current Python interpreter.
+
+    Returns:
+        Immutable Python command step without starting a process.
+    """
 
     return CommandStep("python", arguments)
 
 
 def UvStep(*arguments: str) -> CommandStep:
-    """Create a step executed by the pinned external uv installation."""
+    """Create a step executed by the pinned external uv installation.
+
+    Args:
+        arguments: Literal argv entries for the external uv executable.
+
+    Returns:
+        Immutable uv command step without starting a process.
+    """
 
     return CommandStep("uv", arguments)
 
@@ -69,7 +90,11 @@ COMMANDS["check"] = (
 
 
 def DescribeCommands() -> dict[str, str]:
-    """Describe execution steps without exposing mutable registry state."""
+    """Describe execution steps without exposing mutable registry state.
+
+    Returns:
+        Independent descriptions of each registered developer gate.
+    """
 
     descriptions = {
         name: " then ".join(step.Display() for step in steps) for name, steps in COMMANDS.items()
@@ -99,7 +124,14 @@ def DescribeCommands() -> dict[str, str]:
 
 
 def ResolveStep(step: CommandStep) -> list[str] | None:
-    """Resolve a step to an argv list, failing closed when a tool is absent."""
+    """Resolve a step to an argv list, failing closed when a tool is absent.
+
+    Args:
+        step: Registered command step to resolve.
+
+    Returns:
+        Explicit argv, or None with a diagnostic if the executable is absent.
+    """
 
     if step.executable == "python":
         return [sys.executable, *step.arguments]
@@ -118,7 +150,21 @@ def ResolveStep(step: CommandStep) -> list[str] | None:
 
 
 def Run(command: str, test_options: TestOptions | None = None) -> int:
-    """Run one gate from the repository root and stop at the first failure."""
+    """Run one gate from the repository root and stop at the first failure.
+
+    Requires the repository root as the current directory. Starts bounded subprocesses with
+    shell=False, writes test/build evidence and stops at the first failure.
+
+    Args:
+        command: Registered gate name such as test, lint or check
+        test_options: Optional bounded pytest settings for test-containing commands.
+
+    Returns:
+        Zero on success, otherwise the first gate, root, tool or timeout error status.
+
+    Raises:
+        ValueError: The command name is not registered.
+    """
 
     if command not in COMMANDS:
         raise ValueError(f"Unknown developer command: {command}")
@@ -180,7 +226,17 @@ def Run(command: str, test_options: TestOptions | None = None) -> int:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Select a developer gate without accepting arbitrary shell commands."""
+    """Select a developer gate without accepting arbitrary shell commands.
+
+    Args:
+        argv: Registered gate and optional test settings, or None for process arguments.
+
+    Returns:
+        Selected gate exit status.
+
+    Raises:
+        SystemExit: Parsing or test-option validation rejects input or handles help.
+    """
 
     parser = argparse.ArgumentParser(
         prog="1337-dev",

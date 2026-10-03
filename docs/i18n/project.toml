@@ -1,0 +1,19 @@
+schemaVersion = 1
+projectId = "fuzzy1337"
+projectName = "1337 Security Workbench"
+sourceLocale = "en"
+locales = ["en", "ru", "zh-cn"]
+packageNames = ["fuzzy1337"]
+contentRoot = "docs/site/content"
+unitManifest = "docs/i18n/units.toml"
+buildRoot = "_build/docs"
+apiCoverageManifest = "docs/site/api-coverage.toml"
+publicationPath = "/1337"
+
+[branding]
+organization = "Fuzzy Technologies"
+assetRoot = "docs/site/content/en/assets"
+
+[glossaries]
+ru = "docs/i18n/glossaries/ru.toml"
+zh-cn = "docs/i18n/glossaries/zh-cn.toml"

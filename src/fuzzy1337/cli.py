@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Minimal installed entry point for 1337 Security Workbench."""
 
 from __future__ import annotations
@@ -14,19 +17,34 @@ from fuzzy1337.shell import RunInteractiveShell
 
 
 def GetCommands() -> dict[str, str]:
-    """Return descriptions from the deterministic developer-command registry."""
+    """Return descriptions from the deterministic developer-command registry.
+
+    Returns:
+        Developer command names mapped to human-readable execution plans.
+    """
 
     return DescribeCommands()
 
 
 def GetCommandRegistry() -> CommandRegistry:
-    """Return the centralized user-command registry without exposing mutable state."""
+    """Return the centralized user-command registry without exposing mutable state.
+
+    Returns:
+        Shared user-command registry with immutable descriptors.
+    """
 
     return COMMAND_REGISTRY
 
 
 def CommandEpilog(registry: CommandRegistry) -> str:
-    """Render currently available commands from their centralized descriptors."""
+    """Render currently available commands from their centralized descriptors.
+
+    Args:
+        registry: Command descriptors to display in presentation order.
+
+    Returns:
+        Help epilog with usages, summaries and the shell hint.
+    """
 
     lines = ["Currently available commands:"]
     lines.extend(
@@ -37,7 +55,20 @@ def CommandEpilog(registry: CommandRegistry) -> str:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Start the interactive shell or show help and installed-version output."""
+    """Start the interactive shell or show help and installed-version output.
+
+    Writes to the terminal and may enter the interactive shell. The default dispatch does not
+    start a scan.
+
+    Args:
+        argv: Arguments excluding the executable, or None for process arguments.
+
+    Returns:
+        Zero for help or shell exit, or the doctor diagnostic status.
+
+    Raises:
+        SystemExit: Argument parsing rejects input or handles help/version.
+    """
 
     registry = GetCommandRegistry()
     parser = argparse.ArgumentParser(

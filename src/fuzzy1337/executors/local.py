@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Portable local subprocess execution with explicit ownership and bounds."""
 
 from __future__ import annotations
@@ -38,7 +41,17 @@ EventCallback = Callable[[ExecutionEvent], object]
 
 
 def KillProcessGroup(process_id: int, termination_signal: int) -> None:
-    """Call the POSIX-only process-group primitive behind a platform guard."""
+    """Call the POSIX-only process-group primitive behind a platform guard.
+
+    The caller must apply a POSIX platform guard and ensure process-group ownership.
+
+    Args:
+        process_id: Owned POSIX process group leader identifier
+        termination_signal: Signal to deliver to the group.
+
+    Raises:
+        ProcessLookupError: The process group no longer exists.
+    """
 
     killpg = cast(Callable[[int, int], None], getattr(os, "killpg"))
     killpg(process_id, termination_signal)
@@ -52,7 +65,15 @@ class LocalExecutor:
     """Execute one approved adapter invocation inside a bounded workspace root."""
 
     def __init__(self, workspace_root: Path) -> None:
-        """Bind the executor to an existing workspace root."""
+        """Bind the executor to an existing workspace root.
+
+        Args:
+            workspace_root: Existing directory defining the workspace boundary.
+
+        Raises:
+            OSError: The root cannot be resolved.
+            ValueError: The resolved root is not a directory.
+        """
 
         root = workspace_root.resolve(strict=True)
 
@@ -68,7 +89,28 @@ class LocalExecutor:
         on_event: EventCallback | None = None,
         cancellation: asyncio.Event | None = None,
     ) -> LocalExecutionResult:
-        """Run an immutable argv and return bounded output plus structured events."""
+        """Run an immutable argv and return bounded output plus structured events.
+
+        Starts an owned process using explicit argv and a limited inherited environment.
+        Observer errors and task cancellation propagate after the owned child and
+        background tasks are reaped, including the initial STARTED handoff.
+        Awaitable observers must remain responsive; the process-wait timeout does
+        not bound observer execution. Timeout, cancellation and output overflow
+        during the process-wait phase terminate the owned process.
+        This boundary is not an OS sandbox or a replacement for upstream scope approval.
+
+        Args:
+            request: Validated invocation, authorization binding, workspace and limits
+            on_event: Optional synchronous or awaitable sequenced-event observer
+            cancellation: Optional cooperative signal also checked before launch.
+
+        Returns:
+            Terminal state, retained bounded streams and ordered lifecycle events.
+
+        Raises:
+            LocalExecutionError: Workspace validation or process launch fails.
+            asyncio.CancelledError: The caller cancels execution; cleanup completes first.
+        """
 
         workspace = self.ResolveWorkspace(request.workspace)
         events: list[ExecutionEvent] = []
@@ -79,7 +121,15 @@ class LocalExecutor:
             data: bytes = b"",
             termination: ExecutionTermination | None = None,
         ) -> None:
-            """Record an event and notify the optional observer."""
+            """Record an event and notify the optional observer.
+
+            Args:
+                kind: Stream or lifecycle classification for the next sequence number.
+                data: Retained output bytes; lifecycle events keep this empty.
+                termination: Terminal reason supplied only for completion.
+
+            Observer exceptions propagate to the execution owner.
+            """
 
             event = ExecutionEvent(len(events), kind, data, termination)
             events.append(event)
@@ -116,8 +166,6 @@ class LocalExecutor:
 
         process = await self.StartProcess(request, workspace, environment)
 
-        await Emit(ExecutionEventKind.STARTED)
-
         stdout = bytearray()
         stderr = bytearray()
 
@@ -130,7 +178,16 @@ class LocalExecutor:
             limit: int,
             kind: ExecutionEventKind,
         ) -> None:
-            """Drain one process stream while enforcing its byte limit."""
+            """Drain one process stream while enforcing its byte limit.
+
+            Args:
+                reader: Captured stdout or stderr pipe owned by this invocation.
+                destination: Buffer receiving retained bytes up to the configured limit.
+                limit: Maximum retained bytes for this stream.
+                kind: Stream event classification emitted for retained chunks.
+
+            Discards excess bytes while draining the pipe and signals output overflow.
+            """
 
             limited = False
 
@@ -177,20 +234,37 @@ class LocalExecutor:
             asyncio.create_task(cancellation.wait()) if cancellation is not None else None
         )
 
-        waiters = {process_task, output_limit_task}
+        waiters = {process_task, output_limit_task, stdout_task, stderr_task}
 
         if cancellation_task is not None:
             waiters.add(cancellation_task)
 
         termination = ExecutionTermination.PROCESS_EXIT
         state = ExecutionState.FAILED
+        owned_tasks = (stdout_task, stderr_task, process_task, output_limit_task, cancellation_task)
 
         try:
-            done, _ = await asyncio.wait(
-                waiters,
-                timeout=request.invocation.timeout_seconds,
-                return_when=asyncio.FIRST_COMPLETED,
-            )
+            async with emit_lock:
+                await Emit(ExecutionEventKind.STARTED)
+
+            deadline = time.monotonic() + request.invocation.timeout_seconds
+
+            while True:
+                done, _ = await asyncio.wait(
+                    waiters,
+                    timeout=max(0.0, deadline - time.monotonic()),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                for stream_task in (stdout_task, stderr_task):
+                    if stream_task in done:
+                        stream_task.result()
+                        waiters.discard(stream_task)
+
+                if not done or done.intersection(
+                    {process_task, output_limit_task, cancellation_task}
+                ):
+                    break
 
             if not done:
                 termination = ExecutionTermination.TIMEOUT
@@ -227,17 +301,64 @@ class LocalExecutor:
             await asyncio.gather(stdout_task, stderr_task)
 
         except BaseException:
-            await self.Terminate(process, request.resources.terminate_grace_seconds)
+            async def Abort() -> None:
+                """Stop observers, drain bounded chunks and reap the owned child."""
+
+                for task in owned_tasks:
+                    if task is not None and not task.done():
+                        task.cancel()
+
+                await asyncio.gather(
+                    *(task for task in owned_tasks if task is not None), return_exceptions=True,
+                )
+
+                async def Drain(reader: asyncio.StreamReader) -> None:
+                    """Discard pipe bytes without invoking observers or retaining output.
+
+                    Args:
+                        reader: Owned stdout or stderr pipe after its observer task stops.
+                    """
+
+                    while await reader.read(_READ_SIZE):
+                        pass
+
+                drains = [
+                    asyncio.create_task(Drain(reader))
+                    for reader in (process.stdout, process.stderr) if reader is not None
+                ]
+
+                try:
+                    await self.Terminate(process, request.resources.terminate_grace_seconds)
+
+                    await asyncio.gather(*drains)
+
+                finally:
+                    for task in drains:
+                        if not task.done():
+                            task.cancel()
+
+                    await asyncio.gather(*drains, return_exceptions=True)
+
+            cleanup_task = asyncio.create_task(Abort())
+
+            while not cleanup_task.done():
+                try:
+                    await asyncio.shield(cleanup_task)
+
+                except asyncio.CancelledError:
+                    continue
+
+            cleanup_task.result()
 
             raise
 
         finally:
-            for task in (output_limit_task, cancellation_task):
+            for task in owned_tasks:
                 if task is not None and not task.done():
                     task.cancel()
 
             await asyncio.gather(
-                *(task for task in (output_limit_task, cancellation_task) if task is not None),
+                *(task for task in owned_tasks if task is not None),
                 return_exceptions=True,
             )
 
@@ -261,7 +382,20 @@ class LocalExecutor:
         )
 
     def ResolveWorkspace(self, relative_workspace: str) -> Path:
-        """Resolve a workspace path without permitting root escape."""
+        """Resolve a workspace path without permitting root escape.
+
+        Resolves symlinks before checking containment; does not create directories.
+
+        Args:
+            relative_workspace: Workspace path relative to the configured executor root.
+
+        Returns:
+            Resolved existing directory contained within the executor root.
+
+        Raises:
+            LocalExecutionError: The workspace is unavailable, not a directory or escapes the
+                root.
+        """
 
         candidate = self._workspace_root.joinpath(*relative_workspace.split("/"))
 
@@ -289,7 +423,22 @@ class LocalExecutor:
         workspace: Path,
         environment: dict[str, str],
     ) -> asyncio.subprocess.Process:
-        """Start an owned subprocess with isolated output streams."""
+        """Start an owned subprocess with isolated output streams.
+
+        Uses a new POSIX session or Windows process group. Callers own subsequent termination
+        and stream draining; this helper does not perform scope authorization.
+
+        Args:
+            request: Validated request supplying explicit argv
+            workspace: Directory previously resolved within the executor root
+            environment: Complete child environment prepared by the caller.
+
+        Returns:
+            Owned child process with captured stdout and stderr pipes.
+
+        Raises:
+            LocalExecutionError: The operating system rejects process launch.
+        """
 
         arguments = request.invocation.argv
 
@@ -323,7 +472,16 @@ class LocalExecutor:
         process: asyncio.subprocess.Process,
         grace_seconds: float,
     ) -> None:
-        """Terminate the owned process group and escalate after the grace period."""
+        """Terminate the owned process group and escalate after the grace period.
+
+        Already-exited or vanished processes require no action. POSIX signals target the owned
+        group; Windows uses subprocess terminate/kill operations. Waits for exit after
+        escalation.
+
+        Args:
+            process: Child process owned by this executor
+            grace_seconds: Wait after initial termination before escalation.
+        """
 
         if process.returncode is not None:
             return
