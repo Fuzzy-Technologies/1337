@@ -29,6 +29,8 @@ jobs:
           python -m pip install uv==0.11.33
           uv sync --locked --extra dev
           uv pip install --python .venv/bin/python --require-hashes -r docs/requirements-api.lock
+      - name: Check Markdown table alignment
+        run: .venv/bin/python tools/markdown_tables.py
       - name: Validate publication authority and source contracts
         run: |
           .venv/bin/python tools/documentation_publication_policy.py .github/workflows/documentation.yml
@@ -40,7 +42,7 @@ jobs:
             tests/unit/test_api_reference.py tests/unit/test_locale_documentation.py \
             tests/unit/test_compose_documentation.py tests/unit/test_source_documentation_audit.py \
             tests/unit/test_product_site_preparation.py tests/unit/test_documentation_publication_policy.py \
-            tests/unit/test_documentation_render.py \
+            tests/unit/test_documentation_render.py tests/unit/test_markdown_tables.py \
             --cov=tools --cov-branch --cov-config=/dev/null \
             --cov-report=term-missing --cov-report=json:_build/docs/tool-coverage.json
           .venv/bin/python -m fuzzy1337.coverage_gate _build/docs/tool-coverage.json tools

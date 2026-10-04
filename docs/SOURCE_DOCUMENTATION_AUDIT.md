@@ -30,15 +30,15 @@ inventory command does **not** mean the source contract passes.
 
 ## Scope and enforcement
 
-| Area                  | Enforced structural checks                                       |
-|-----------------------|------------------------------------------------------------------|
-| `src/`, `tests/`      | Required roots; all authored scopes have nonempty docstrings     |
-| `tools/`              | Scanned when present; legitimate absence recorded explicitly     |
-| All inspected files   | Required SPDX ownership/license; executable/shebang consistency  |
-| Public source/tool API| Parameter/return annotations; Google-style Args/Returns/Yields   |
-| Private/nested/tests  | Contract section and annotation recommendations remain review    |
-| Comments/docstrings   | Cyrillic/CJK detection flags human language review               |
-| Comments              | Forbidden unresolved debt markers produce enforcement errors     |
+| Area                   | Enforced structural checks                                      |
+| ---------------------- | --------------------------------------------------------------- |
+| `src/`, `tests/`       | Required roots; all authored scopes have nonempty docstrings    |
+| `tools/`               | Scanned when present; legitimate absence recorded explicitly    |
+| All inspected files    | Required SPDX ownership/license; executable/shebang consistency |
+| Public source/tool API | Parameter/return annotations; Google-style Args/Returns/Yields  |
+| Private/nested/tests   | Contract section and annotation recommendations remain review   |
+| Comments/docstrings    | Cyrillic/CJK detection flags human language review              |
+| Comments               | Forbidden unresolved debt markers produce enforcement errors    |
 
 Public interface candidates are top-level callables or class methods whose
 qualified names have no private component, outside `tests/`. Nested callables

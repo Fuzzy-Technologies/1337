@@ -6,9 +6,9 @@ Canonical policy: [`docs/COMPATIBILITY.md`](../docs/COMPATIBILITY.md).
 
 ## Current contracts
 
-| Contract             | Schema version | File                                 |
-| -------------------- | -------------- | ------------------------------------ |
-| Extension manifest   | `1`            | `extension-manifest.schema.json`     |
+| Contract           | Schema version | File                             |
+| ------------------ | -------------- | -------------------------------- |
+| Extension manifest | `1`            | `extension-manifest.schema.json` |
 
 Examples under `examples/` demonstrate valid documents but do not add fields or semantics beyond the corresponding schema and compatibility policy.
 
