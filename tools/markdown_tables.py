@@ -237,6 +237,7 @@ def CheckMarkdownTables(project_root: Path) -> tuple[str, ...]:
         Repository-relative diagnostics; an empty tuple means alignment passes.
     """
 
+    project_root = project_root.absolute()
     diagnostics = []
 
     for path in TrackedMarkdown(project_root):

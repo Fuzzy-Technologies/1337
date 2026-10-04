@@ -3,6 +3,7 @@
 
 """Protect source content and tracked-file boundaries during table alignment."""
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,7 +25,13 @@ def InitializeRepository(tmp_path: Path, name: str = "README.md") -> Path:
 
     Returns:
         Tracked source file whose original table deliberately needs formatting.
+
+    Raises:
+        pytest.skip.Exception: Git is unavailable in a runtime-only environment.
     """
+
+    if shutil.which("git") is None:
+        pytest.skip("Git-backed formatter tests require an installed Git executable")
 
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
     page = tmp_path / name
@@ -118,6 +125,18 @@ def test_TrackedTableDriftIsReported(tmp_path: Path) -> None:
     assert page.read_bytes() == DRIFTING_TABLE.encode(), "Validation must remain read-only"
 
 
+def test_RelativeRepositoryRoot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Library callers can supply a relative root and receive relative diagnostics."""
+
+    page = InitializeRepository(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert CheckMarkdownTables(Path(".")) == (
+        "README.md: Markdown table columns need alignment",
+    ), "Relative repository roots must preserve tracked-file diagnostics"
+    assert page.read_bytes() == DRIFTING_TABLE.encode(), "Relative-root checks must be read-only"
+
+
 @pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
 @pytest.mark.parametrize("final_newline", [False, True])
 def test_WritePreservesLineEndingsAndOtherSource(
@@ -203,10 +222,18 @@ def test_UnsupportedIndexEntriesFailBeforeWriting(tmp_path: Path, mode: str, sta
         ["git", "hash-object", "README.md"], cwd=tmp_path,
         capture_output=True, text=True, check=True,
     ).stdout.strip()
-    entry = f"{mode} {blob} {stage}\tREADME.md\n"
+    entry = f"0 {'0' * 40}\tREADME.md\n{mode} {blob} {stage}\tREADME.md\n"
     subprocess.run(
-        ["git", "update-index", "--index-info"], input=entry,
-        cwd=tmp_path, text=True, check=True,
+        ["git", "update-index", "--index-info"], input=entry.encode("utf-8"),
+        cwd=tmp_path, check=True,
+    )
+    indexed = subprocess.run(
+        ["git", "ls-files", "--stage", "-z"], cwd=tmp_path,
+        capture_output=True, text=True, encoding="utf-8", check=True,
+    ).stdout
+
+    assert indexed.startswith(f"{mode} {blob} {stage}\tREADME.md\0"), (
+        "The fixture must create the intended Git entry on every platform"
     )
 
     assert Main(["--project-root", str(tmp_path), "--write"]) == 1, (
