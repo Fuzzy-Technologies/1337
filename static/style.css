@@ -1,3 +1,18 @@
+.documentation-links {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  max-width: 1160px;
+  margin: 1rem auto 0;
+  padding: 0 1.5rem;
+  font: 0.85rem monospace;
+}
+
+.documentation-links a {
+  color: #78f0a8;
+  text-decoration: none;
+}
+
 :root {
   --bg: #0d0d0d;
   --bg-soft: #151515;

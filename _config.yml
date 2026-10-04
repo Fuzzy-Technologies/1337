@@ -31,4 +31,6 @@ exclude:
   - pyproject.toml
   - src
   - tests
+  - tools
+  - _build
   - uv.lock

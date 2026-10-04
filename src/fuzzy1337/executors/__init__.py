@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Experimental governed executor SDK and local process provider."""
 
 from fuzzy1337.executors.contracts import (

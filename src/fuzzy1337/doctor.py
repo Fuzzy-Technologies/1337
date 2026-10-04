@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Deterministic local environment diagnostics for the 1337 CLI."""
 
 from __future__ import annotations
@@ -42,12 +45,20 @@ class DoctorReport:
 
     @property
     def ExitCode(self) -> int:
-        """Fail only when a required local precondition cannot be proven."""
+        """Fail only when a required local precondition cannot be proven.
+
+        Returns:
+            One for any required FAIL, or zero when only PASS, INFO and WARN occur.
+        """
 
         return int(any(check.status is DoctorStatus.FAIL for check in self.checks))
 
     def Render(self) -> str:
-        """Render stable human-readable output for terminals and captured logs."""
+        """Render stable human-readable output for terminals and captured logs.
+
+        Returns:
+            Stable multiline report including the aggregate result.
+        """
 
         lines = ["1337 doctor"]
         lines.extend(
@@ -58,7 +69,17 @@ class DoctorReport:
 
 
 def CollectDoctorReport(working_directory: Path | None = None) -> DoctorReport:
-    """Inspect the local runtime without modifying configuration or user state."""
+    """Inspect the local runtime without modifying configuration or user state.
+
+    May run a bounded docker compose version query. Does not start targets or change
+    configuration.
+
+    Args:
+        working_directory: Directory to inspect, or None for the current directory.
+
+    Returns:
+        Ordered runtime, package, directory, optional Compose and configuration checks.
+    """
 
     directory = working_directory or Path.cwd()
     return DoctorReport(
@@ -73,7 +94,14 @@ def CollectDoctorReport(working_directory: Path | None = None) -> DoctorReport:
 
 
 def RunDoctor(output: TextIO) -> int:
-    """Write the diagnostic report and return its fail-closed process status."""
+    """Write the diagnostic report and return its fail-closed process status.
+
+    Args:
+        output: Text stream receiving the rendered report.
+
+    Returns:
+        Zero when required checks pass, otherwise one.
+    """
 
     report = CollectDoctorReport()
     output.write(f"{report.Render()}\n")
@@ -81,7 +109,11 @@ def RunDoctor(output: TextIO) -> int:
 
 
 def CheckPythonRuntime() -> DoctorCheck:
-    """Verify the minimum Python runtime required by the package contract."""
+    """Verify the minimum Python runtime required by the package contract.
+
+    Returns:
+        PASS or FAIL with the detected Python runtime version.
+    """
 
     detected = sys.version_info[:3]
     if detected < MINIMUM_PYTHON_VERSION:
@@ -102,7 +134,11 @@ def CheckPythonRuntime() -> DoctorCheck:
 
 
 def CheckPackageInstallation() -> DoctorCheck:
-    """Verify that the command runs from an installed 1337 distribution."""
+    """Verify that the command runs from an installed 1337 distribution.
+
+    Returns:
+        PASS with distribution metadata, or FAIL when 1337 is not installed.
+    """
 
     try:
         installed_version = version("1337")
@@ -122,7 +158,14 @@ def CheckPackageInstallation() -> DoctorCheck:
 
 
 def CheckWorkingDirectory(directory: Path) -> DoctorCheck:
-    """Report whether the current directory can host future workspace state."""
+    """Report whether the current directory can host future workspace state.
+
+    Args:
+        directory: Directory whose readability and writability are inspected.
+
+    Returns:
+        FAIL if unreadable, WARN if read-only, otherwise PASS.
+    """
 
     if not directory.is_dir() or not os.access(directory, os.R_OK):
         return DoctorCheck(
@@ -146,7 +189,13 @@ def CheckWorkingDirectory(directory: Path) -> DoctorCheck:
 
 
 def CheckDockerCompose() -> DoctorCheck:
-    """Check optional Compose support without starting a container or target."""
+    """Check optional Compose support without starting a container or target.
+
+    Runs only a bounded version query when Docker exists; no daemon workload is started.
+
+    Returns:
+        PASS for available Compose, or WARN for absent, failing or timed-out queries.
+    """
 
     if shutil.which("docker") is None:
         return DoctorCheck(
@@ -187,7 +236,11 @@ def CheckDockerCompose() -> DoctorCheck:
 
 
 def CheckConfigurationBoundary() -> DoctorCheck:
-    """Explain the current configuration boundary without inventing a config format."""
+    """Explain the current configuration boundary without inventing a config format.
+
+    Returns:
+        INFO explaining that configuration awaits the workspace model.
+    """
 
     return DoctorCheck(
         identifier="configuration",
