@@ -40,6 +40,11 @@ The M0 repository does **not** freeze a Python import namespace before packaging
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
 
+`fuzzy1337.evidence` is an Experimental local storage API and manifest schema
+at version `1`. ADR 0020 defines immutable content/provenance identities;
+[`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
+failure semantics. Other evidence helpers remain Internal.
+
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 
@@ -156,6 +161,7 @@ Current versioned public contracts:
 | --------------------- | -------------- | -------------------------------------------------- | ------------ |
 | Extension manifest    | `1`            | `contracts/extension-manifest.schema.json`         | Stable       |
 | ToolAdapter SDK       | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`      | Experimental |
+| Local Evidence Store  | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`           | Experimental |
 | Executor SDK          | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`         | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
