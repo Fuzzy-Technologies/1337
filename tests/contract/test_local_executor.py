@@ -292,3 +292,266 @@ def test_MissingWorkspaceAndLaunchFailureFailClosed(tmp_path):
 
     with pytest.raises(LocalExecutionError, match="Could not start"):
         asyncio.run(LocalExecutor(tmp_path).Execute(unavailable))
+
+
+def CaptureExecutor(tmp_path, monkeypatch):
+    """Capture only test-owned child handles for leak assertions and fallback cleanup."""
+
+    executor = LocalExecutor(tmp_path)
+    processes = []
+    start_process = executor.StartProcess
+
+    async def Start(request, workspace, environment):
+        """Record the owned child without changing real process creation."""
+
+        process = await start_process(request, workspace, environment)
+        processes.append(process)
+
+        return process
+
+    monkeypatch.setattr(executor, "StartProcess", Start)
+
+    return executor, processes
+
+
+async def CleanupFixture(executor, processes):
+    """Reap fixture children even when the implementation under test leaks ownership."""
+
+    for process in processes:
+        drains = [
+            asyncio.create_task(reader.read())
+            for reader in (process.stdout, process.stderr) if reader is not None
+        ]
+
+        await executor.Terminate(process, 0.1)
+
+        await asyncio.gather(*drains)
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_StartedObserverFailureReapsOwnedProcess(tmp_path, monkeypatch, asynchronous):
+    """Propagate either observer form only after the launched child is reaped."""
+
+    async def Run():
+        """Exercise a real owned child and clean it even on a failing regression."""
+
+        executor, processes = CaptureExecutor(tmp_path, monkeypatch)
+        failure = RuntimeError("started observer failed")
+
+        def Observe(event):
+            """Fail synchronously at the first lifecycle handoff."""
+
+            assert event.kind is ExecutionEventKind.STARTED, "Expected the initial handoff."
+
+            raise failure
+
+        async def ObserveAsync(event):
+            """Fail after an actual asynchronous observer suspension."""
+
+            await asyncio.sleep(0)
+
+            Observe(event)
+
+        try:
+            with pytest.raises(RuntimeError) as raised:
+                await executor.Execute(
+                    Request(tmp_path, "import time; time.sleep(30)"),
+                    on_event=ObserveAsync if asynchronous else Observe,
+                )
+
+            assert raised.value is failure, "Cleanup must preserve the original observer error."
+            assert processes[0].returncode is not None, "STARTED failure leaked a live child."
+            assert asyncio.all_tasks() == {asyncio.current_task()}, (
+                "Observer failure left executor-owned background tasks pending."
+            )
+
+        finally:
+            await CleanupFixture(executor, processes)
+
+    asyncio.run(Run())
+
+
+@pytest.mark.parametrize("kind", [ExecutionEventKind.STARTED, ExecutionEventKind.STDOUT])
+def test_CancellationDuringObserverReapsProcessAndTasks(tmp_path, monkeypatch, kind):
+    """Cancel an awaitable observer and prove complete child/task ownership cleanup."""
+
+    async def Run():
+        """Cancel only after the selected observer enters its suspension point."""
+
+        executor, processes = CaptureExecutor(tmp_path, monkeypatch)
+        entered = asyncio.Event()
+        baseline = asyncio.all_tasks()
+
+        async def Observe(event):
+            """Signal the deterministic cancellation handoff and then remain suspended."""
+
+            if event.kind is kind:
+                entered.set()
+
+                await asyncio.Event().wait()
+
+        task = asyncio.create_task(executor.Execute(
+            Request(tmp_path, "import sys,time; print('ready', flush=True); time.sleep(30)"),
+            on_event=Observe,
+        ))
+
+        try:
+            await asyncio.wait_for(entered.wait(), 3)
+
+            task.cancel()
+
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, 3)
+
+            assert processes[0].returncode is not None, "Observer cancellation leaked a live child."
+            assert asyncio.all_tasks() == baseline, "Cancellation left executor tasks pending."
+
+        finally:
+            if not task.done():
+                task.cancel()
+
+                await asyncio.gather(task, return_exceptions=True)
+
+            await CleanupFixture(executor, processes)
+
+    asyncio.run(Run())
+
+
+@pytest.mark.parametrize("kind,descriptor", [
+    (ExecutionEventKind.STDOUT, 1), (ExecutionEventKind.STDERR, 2),
+])
+def test_OutputObserverFailureReapsProcessWithoutWaitingForTimeout(
+    tmp_path, monkeypatch, kind, descriptor,
+):
+    """Fail a pipe-filling producer promptly without leaking its sibling reader."""
+
+    async def Run():
+        """Use a live owned producer and preserve the exact observer exception."""
+
+        executor, processes = CaptureExecutor(tmp_path, monkeypatch)
+        failure = RuntimeError("output observer failed")
+        baseline = asyncio.all_tasks()
+
+        def Observe(event):
+            """Reject the first retained output chunk."""
+
+            if event.kind is kind:
+                raise failure
+
+        try:
+            with pytest.raises(RuntimeError) as raised:
+                await asyncio.wait_for(executor.Execute(
+                    Request(tmp_path, (
+                        f"import os,time; os.write({descriptor}, b'x'*1048576); time.sleep(30)"
+                    )),
+                    on_event=Observe,
+                ), 3)
+
+            assert raised.value is failure, "The output observer failure was replaced or hidden."
+            assert processes[0].returncode is not None, "Output failure leaked a live child."
+            assert asyncio.all_tasks() == baseline, "Output failure left executor tasks pending."
+
+        finally:
+            await CleanupFixture(executor, processes)
+
+    asyncio.run(Run())
+
+
+def test_RepeatedCancellationCannotInterruptOwnedCleanup(tmp_path, monkeypatch):
+    """Keep reaping ownership when cancellation is requested again during cleanup."""
+
+    async def Run():
+        """Hold the cleanup boundary open to make the second cancellation deterministic."""
+
+        executor, processes = CaptureExecutor(tmp_path, monkeypatch)
+        observed = asyncio.Event()
+        cleanup_entered = asyncio.Event()
+        finish_cleanup = asyncio.Event()
+        baseline = asyncio.all_tasks()
+        terminate = executor.Terminate
+
+        async def Observe(event):
+            """Remain suspended in the initial lifecycle handoff."""
+
+            observed.set()
+
+            await asyncio.Event().wait()
+
+        async def Terminate(process, grace_seconds):
+            """Pause test-owned reaping until the second cancellation is delivered."""
+
+            cleanup_entered.set()
+
+            await finish_cleanup.wait()
+
+            await terminate(process, grace_seconds)
+
+        monkeypatch.setattr(executor, "Terminate", Terminate)
+        task = asyncio.create_task(executor.Execute(
+            Request(tmp_path, "import time; time.sleep(30)"), on_event=Observe,
+        ))
+
+        try:
+            await asyncio.wait_for(observed.wait(), 3)
+
+            task.cancel()
+
+            await asyncio.wait_for(cleanup_entered.wait(), 3)
+
+            task.cancel()
+
+            await asyncio.sleep(0)
+
+            assert not task.done(), "Repeated cancellation abandoned in-progress reaping."
+            finish_cleanup.set()
+
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, 3)
+
+            assert processes[0].returncode is not None, "Repeated cancellation leaked a live child."
+            assert asyncio.all_tasks() == baseline, "Repeated cancellation left background tasks."
+
+        finally:
+            finish_cleanup.set()
+
+            if not task.done():
+                task.cancel()
+
+                await asyncio.gather(task, return_exceptions=True)
+
+            await CleanupFixture(executor, processes)
+
+    asyncio.run(Run())
+
+
+def test_AsyncObserverCallbacksRemainOrderedAndNonOverlapping(tmp_path):
+    """Serialize awaitable lifecycle/output callbacks while preserving complete output."""
+
+    async def Run():
+        """Observe both streams with an explicit scheduler suspension per callback."""
+
+        active = False
+        observed = []
+
+        async def Observe(event):
+            """Reject overlapping callback execution and retain the delivered order."""
+
+            nonlocal active
+            assert not active, "Awaitable lifecycle and stream observers must not overlap."
+            active = True
+
+            await asyncio.sleep(0)
+
+            observed.append(event)
+            active = False
+
+        result = await LocalExecutor(tmp_path).Execute(Request(
+            tmp_path, "import sys; print('out'); print('err', file=sys.stderr)",
+        ), on_event=Observe)
+
+        assert result.execution.state is ExecutionState.SUCCEEDED, "Ordinary execution regressed."
+        assert observed == list(result.events), "Awaitable callbacks changed lifecycle ordering."
+        assert result.stdout == f"out{os.linesep}".encode(), "stdout evidence was lost."
+        assert result.stderr == f"err{os.linesep}".encode(), "stderr evidence was lost."
+
+    asyncio.run(Run())

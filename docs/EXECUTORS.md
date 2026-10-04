@@ -46,6 +46,18 @@ An output-limit stop is represented as cancelled execution with the more precise
 `OUTPUT_LIMIT` termination reason. It is never reported as successful merely
 because a process raced to exit.
 
+Lifecycle observers run in event order without overlapping awaitable callbacks.
+If an observer raises or the execution coroutine is cancelled, the executor
+terminates and reaps its owned child, cancels and awaits its background tasks,
+and then propagates the original failure. This includes the initial `started`
+handoff. Cleanup drains captured pipes in bounded chunks without calling the
+failed observer or retaining additional output. Repeated cancellation does not
+abandon process reaping.
+
+Awaitable observers must remain responsive. The process-wait timeout does not
+bound observer execution; a caller may cancel the execution coroutine while an
+observer is suspended. Observer failures return no successful execution result.
+
 ## Capability discovery
 
 `LazyAdapterRegistry` accepts immutable `AdapterDescriptor` metadata and a
