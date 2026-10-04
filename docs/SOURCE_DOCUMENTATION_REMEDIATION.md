@@ -46,14 +46,14 @@ The Task #219 auditor distinguishes source interfaces from test/helper roles.
 The remediation does not suppress findings, alter that classifier, hide files,
 or convert advisory findings into a completeness claim.
 
-| Finding role                   | Disposition and rationale                                                        |
-| ------------------------------ | -------------------------------------------------------------------------------- |
-| Public `src/` callable contract | Remediated: explicit annotations and meaningful applicable Args/Returns sections. |
-| Executor nested helpers        | Remediated: typed boundaries and explicit Args for event/stream ownership.         |
-| Test fixture arguments         | Concise test intent is accepted; pytest owns fixture injection and test setup.     |
-| Test helper annotations        | Advisory: adding/changing annotations is outside documentation-only hardening.    |
-| Test helper return sections    | Advisory: concise local helper docs are accepted where the assertion/setup shows usage. |
-| Ownership and docstring absence | Mandatory for all roles; no applicability exemption is granted.                  |
+| Finding role                    | Disposition and rationale                                                               |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| Public `src/` callable contract | Remediated: explicit annotations and meaningful applicable Args/Returns sections.       |
+| Executor nested helpers         | Remediated: typed boundaries and explicit Args for event/stream ownership.              |
+| Test fixture arguments          | Concise test intent is accepted; pytest owns fixture injection and test setup.          |
+| Test helper annotations         | Advisory: adding/changing annotations is outside documentation-only hardening.          |
+| Test helper return sections     | Advisory: concise local helper docs are accepted where the assertion/setup shows usage. |
+| Ownership and docstring absence | Mandatory for all roles; no applicability exemption is granted.                         |
 
 Test-role recommendations remain visible in the generated inventory. They do not
 represent waived production API contracts. Public/important future tooling must
