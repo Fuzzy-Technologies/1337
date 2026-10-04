@@ -122,6 +122,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.functional-metrics"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.functional_metrics.md"
+sourceHash = "sha256:428fa654c3db7dce63d588e8cf19a129884695f89171632344214880ff8e5749"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.performance"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.performance.md"
@@ -1138,6 +1149,138 @@ id = "symbol:fuzzy1337.executors.local.LocalExecutor.Terminate"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/executors/local.py"
 sourceHash = "sha256:22f7d4ef65dee088cbef1fd6c3e62903d4464e4719c53da9f34330d4df4f2ce7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.BuildReport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:5abfd0a6f785fe84b0058aa9158c10c5718671f37d504cdbe3d59d6340d4c73c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.FunctionalRun"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:36e97cf3c2d0a7d90f79bf32efa4aa983a88e9107f0f884ba4c3ec909021a730"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.MatrixRows"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:6fef393ed6824298166cf3438672cac92693d9b82587c8e0243d2171f0b803f2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.OracleCheck"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:d7e201861bab55901bc2bb8920ea54ce75933b455388cd4f14ce21b16d27cb8e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.Ratio"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:79238f9567a006a4231740b696598b880eacb364598b1afbf90f861e0ecb54d9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.RawEvidence"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:4bfe6583c1afb07828a2041b165dc784ea998e63206262c9286e53a48ae3c457"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.RenderHtml"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:1261a1be6bf43bbb5949026ee6d8623a2e62c203608cb449f053b3575ffc3ad0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.RenderMarkdown"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:9b57d49829de028f26b59c154ba17d8713f3a2502ad5039ab75ba4a64d698e68"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.RunStatus"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:fd36a9a638324ceb5aa57cd6dcebabd4357194014d9d883038b1a594daf65239"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.ScenarioOracle"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:144e40b772e0f4386748eecb6e3f5cfde5baca6a5a182418b899763bdc35cd2f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.ScoreRun"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:bd0be367e6cd6118653d89071b8cf808bd55eac88b99df068c4fef86bdb2d636"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.functional_metrics.SerializeReport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/functional_metrics.py"
+sourceHash = "sha256:5140e850c485c5ac4ece1dbb09e16d77ba3c966037266d7c60dab21c425ef53a"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

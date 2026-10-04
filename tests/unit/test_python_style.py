@@ -21,6 +21,7 @@ TEST_FUNCTION_PATTERN = re.compile(r"test_[A-Z][A-Za-z0-9]*")
 FRAMEWORK_FUNCTIONS = {
     "completenames",
     "default",
+    "handle_starttag",
     "log_message",
     "onecmd",
     "precmd",
