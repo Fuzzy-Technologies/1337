@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Enforce the production per-module combined branch/statement coverage contract."""
 
 from __future__ import annotations
@@ -11,7 +14,21 @@ from typing import Any
 
 
 def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
-    """Return failures; missing modules and invalid counts cannot pass the gate."""
+    """Return failures; missing modules and invalid counts cannot pass the gate.
+
+    Reads the source inventory without importing modules. Missing coverage fails; empty
+    nonexecutable modules are accepted.
+
+    Args:
+        report: coverage.py JSON with branch coverage and unexcluded per-file counts
+        source: Production module directory to require in the report.
+
+    Returns:
+        Diagnostics for missing modules or combined coverage at or below 80%.
+
+    Raises:
+        ValueError: Metadata, source inventory or per-file counts are invalid.
+    """
 
     meta = report.get("meta")
     if not isinstance(meta, dict) or meta.get("branch_coverage") is not True:
@@ -71,7 +88,19 @@ def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Validate a fresh coverage JSON report against the on-disk source inventory."""
+    """Validate a fresh coverage JSON report against the on-disk source inventory.
+
+    Reads the JSON report and writes diagnostics. Malformed inputs cannot produce PASS.
+
+    Args:
+        argv: Coverage-report and source paths, or None for process arguments.
+
+    Returns:
+        Zero when all modules pass, otherwise one for gate failure.
+
+    Raises:
+        SystemExit: Argument parsing rejects input or handles help.
+    """
 
     parser = argparse.ArgumentParser(
         description=__doc__,

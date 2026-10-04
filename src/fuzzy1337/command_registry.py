@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Central command metadata for the 1337 command-line experience."""
 
 from __future__ import annotations
@@ -18,7 +21,11 @@ class CommandDescriptor:
 
     @property
     def Names(self) -> tuple[str, ...]:
-        """Return the canonical identifier followed by its accepted aliases."""
+        """Return the canonical identifier followed by its accepted aliases.
+
+        Returns:
+            Canonical identifier followed by aliases in declaration order.
+        """
 
         return (self.identifier, *self.aliases)
 
@@ -27,7 +34,14 @@ class CommandRegistry:
     """Resolve and discover command descriptors through one immutable registry."""
 
     def __init__(self, commands: Iterable[CommandDescriptor]) -> None:
-        """Index command descriptors and reject ambiguous names."""
+        """Index command descriptors and reject ambiguous names.
+
+        Args:
+            commands: Descriptors to index in presentation order.
+
+        Raises:
+            ValueError: A normalized name is empty, contains whitespace or is duplicated.
+        """
 
         self._commands = tuple(commands)
         self._by_name: dict[str, CommandDescriptor] = {}
@@ -42,12 +56,23 @@ class CommandRegistry:
 
     @property
     def Commands(self) -> tuple[CommandDescriptor, ...]:
-        """Return descriptors in their declared presentation order."""
+        """Return descriptors in their declared presentation order.
+
+        Returns:
+            Immutable descriptors in presentation order.
+        """
 
         return self._commands
 
     def Resolve(self, name: str) -> CommandDescriptor | None:
-        """Return a command by canonical name or alias without guessing invalid input."""
+        """Return a command by canonical name or alias without guessing invalid input.
+
+        Args:
+            name: Canonical command or alias normalized by trimming and lowercasing.
+
+        Returns:
+            Matching descriptor, or None for unknown or invalid input.
+        """
 
         try:
             return self._by_name[NormalizeName(name)]
@@ -56,7 +81,14 @@ class CommandRegistry:
             return None
 
     def Complete(self, prefix: str) -> tuple[CommandDescriptor, ...]:
-        """Return commands whose canonical name or alias starts with ``prefix``."""
+        """Return commands whose canonical name or alias starts with ``prefix``.
+
+        Args:
+            prefix: Case-insensitive prefix, with empty text selecting all commands.
+
+        Returns:
+            Matching descriptors in presentation order, each returned at most once.
+        """
 
         normalized = prefix.strip().lower()
         return tuple(
@@ -67,7 +99,14 @@ class CommandRegistry:
         )
 
     def Search(self, query: str) -> tuple[CommandDescriptor, ...]:
-        """Return a deterministic text search for future palettes and documentation."""
+        """Return a deterministic text search for future palettes and documentation.
+
+        Args:
+            query: Case-insensitive substring of names, summaries or capabilities.
+
+        Returns:
+            Name-prefix matches first, then other matches, preserving order within each group.
+        """
 
         normalized = query.strip().lower()
         if not normalized:
@@ -89,7 +128,17 @@ class CommandRegistry:
 
 
 def NormalizeName(name: str) -> str:
-    """Normalize an index key while rejecting empty or multi-token names."""
+    """Normalize an index key while rejecting empty or multi-token names.
+
+    Args:
+        name: Index key to strip and lowercase.
+
+    Returns:
+        Normalized single-token name.
+
+    Raises:
+        ValueError: The normalized name is empty or contains whitespace.
+    """
 
     normalized = name.strip().lower()
     if not normalized or any(character.isspace() for character in normalized):

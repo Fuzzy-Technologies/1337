@@ -32,4 +32,5 @@ exclude:
   - src
   - tests
   - tools
+  - _build
   - uv.lock

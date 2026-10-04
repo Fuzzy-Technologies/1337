@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Provider-neutral contracts for governed security-tool adapters."""
 
 from __future__ import annotations
@@ -46,21 +49,49 @@ class ExecutionState(StrEnum):
 
 
 def RequireIdentifier(value: str, field_name: str) -> None:
-    """Reject identifiers that cannot be used as stable machine-readable keys."""
+    """Reject identifiers that cannot be used as stable machine-readable keys.
+
+    Args:
+        value: Candidate lowercase machine identifier
+        field_name: Field label in validation errors.
+
+    Raises:
+        ValueError: The value fails the identifier grammar.
+    """
 
     if not isinstance(value, str) or not _IDENTIFIER_PATTERN.fullmatch(value):
         raise ValueError(f"{field_name} must be a lowercase machine-readable identifier")
 
 
 def RequireText(value: str, field_name: str) -> None:
-    """Reject empty or multi-line user-visible contract text."""
+    """Reject empty or multi-line user-visible contract text.
+
+    Args:
+        value: Nonempty single-line text without NUL
+        field_name: Field label in validation errors.
+
+    Raises:
+        ValueError: The value is not valid nonempty single-line text.
+    """
 
     if not isinstance(value, str) or not value or "\x00" in value or "\n" in value or "\r" in value:
         raise ValueError(f"{field_name} must be non-empty single-line text")
 
 
 def FreezeJson(value: object) -> object:
-    """Return a recursively immutable JSON-like value or fail closed."""
+    """Return a recursively immutable JSON-like value or fail closed.
+
+    No objects are persisted and no provider code is invoked.
+
+    Args:
+        value: JSON scalars, string-keyed mappings or sequences to freeze.
+
+    Returns:
+        Scalars unchanged, sorted read-only mappings, or recursively frozen tuples.
+
+    Raises:
+        ValueError: A key, number or nested value is outside the JSON contract.
+    """
 
     if value is None or isinstance(value, (bool, int, str)):
         return value
@@ -86,7 +117,17 @@ def FreezeJson(value: object) -> object:
 
 
 def FreezeMapping(value: Mapping[str, object]) -> Mapping[str, object]:
-    """Freeze a JSON object while retaining a read-only mapping contract."""
+    """Freeze a JSON object while retaining a read-only mapping contract.
+
+    Args:
+        value: JSON object to copy into immutable nested structures.
+
+    Returns:
+        Read-only mapping with deterministic key order.
+
+    Raises:
+        ValueError: The value is not a valid JSON object.
+    """
 
     frozen = FreezeJson(value)
     if not isinstance(frozen, Mapping):
@@ -95,7 +136,18 @@ def FreezeMapping(value: Mapping[str, object]) -> Mapping[str, object]:
 
 
 def UniqueIdentifiers(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
-    """Validate a stable identifier collection without changing declaration order."""
+    """Validate a stable identifier collection without changing declaration order.
+
+    Args:
+        values: Identifiers to validate in original order
+        field_name: Field label in validation errors.
+
+    Returns:
+        Validated identifiers as an ordered tuple.
+
+    Raises:
+        ValueError: An identifier is invalid or duplicated.
+    """
 
     normalized = tuple(values)
     for value in normalized:
@@ -107,7 +159,18 @@ def UniqueIdentifiers(values: tuple[str, ...], field_name: str) -> tuple[str, ..
 
 
 def UniqueReferences(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
-    """Validate opaque non-secret references without assigning their semantics."""
+    """Validate opaque non-secret references without assigning their semantics.
+
+    Args:
+        values: Opaque non-secret reference strings
+        field_name: Field label in validation errors.
+
+    Returns:
+        Validated reference tuple in declaration order.
+
+    Raises:
+        ValueError: A reference is invalid or duplicated.
+    """
 
     normalized = tuple(values)
     for value in normalized:
@@ -119,7 +182,17 @@ def UniqueReferences(values: tuple[str, ...], field_name: str) -> tuple[str, ...
 
 
 def JsonValue(value: object) -> object:
-    """Render one immutable contract value as deterministic JSON-compatible data."""
+    """Render one immutable contract value as deterministic JSON-compatible data.
+
+    Args:
+        value: Contract dataclass, enum, mapping, sequence or JSON scalar.
+
+    Returns:
+        JSON-compatible data with sorted keys and list sequences.
+
+    Raises:
+        ValueError: A key, number or value is outside the JSON contract.
+    """
 
     if isinstance(value, StrEnum):
         return value.value
@@ -149,7 +222,17 @@ def JsonValue(value: object) -> object:
 
 
 def SerializeContract(value: object) -> str:
-    """Serialize a contract value with stable key order and no non-JSON numbers."""
+    """Serialize a contract value with stable key order and no non-JSON numbers.
+
+    Args:
+        value: Supported contract value to serialize.
+
+    Returns:
+        Compact deterministic JSON text with sorted keys.
+
+    Raises:
+        ValueError: The value is outside the strict JSON contract.
+    """
 
     return json.dumps(
         JsonValue(value),
@@ -192,7 +275,14 @@ class AdapterDescriptor:
         )
 
     def Supports(self, capability: str) -> bool:
-        """Return whether this provider declares a capability without authorizing it."""
+        """Return whether this provider declares a capability without authorizing it.
+
+        Args:
+            capability: Capability identifier to look up.
+
+        Returns:
+            True if declared, without implying authorization or runtime health.
+        """
 
         return capability in self.capabilities
 
@@ -447,21 +537,50 @@ class ToolAdapter(Protocol):
 
     @property
     def Descriptor(self) -> AdapterDescriptor:
-        """Return the immutable provider declaration."""
+        """Return the immutable provider declaration.
+
+        Returns:
+            Immutable provider declaration and capability metadata.
+        """
 
         ...
 
     def CheckHealth(self) -> AdapterHealth:
-        """Return a bounded health result without claiming authorization."""
+        """Return a bounded health result without claiming authorization.
+
+        Implementations must bound the health probe and preserve unavailable/degraded states.
+
+        Returns:
+            Provider availability and version evidence, without permission to execute.
+        """
 
         ...
 
     def PrepareInvocation(self, request: AdapterRequest) -> AdapterInvocation:
-        """Prepare a bounded invocation from an already-approved request."""
+        """Prepare a bounded invocation from an already-approved request.
+
+        Preparation must not start a process or resolve credential values into persisted
+        metadata.
+
+        Args:
+            request: Capability request approved by upstream scope/policy.
+
+        Returns:
+            Explicit bounded argv and metadata for the governed executor.
+        """
 
         ...
 
     def NormalizeReport(self, report: AdapterReport) -> AdapterResult:
-        """Normalize an executor report without mutating shared security state."""
+        """Normalize an executor report without mutating shared security state.
+
+        Normalization preserves failed execution and cannot mutate shared security state.
+
+        Args:
+            report: Executor-owned terminal facts and immutable raw-evidence references.
+
+        Returns:
+            Provider-neutral observations, findings and enrichment requests.
+        """
 
         ...

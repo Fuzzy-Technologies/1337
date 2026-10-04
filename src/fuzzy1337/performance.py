@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Measure deterministic shell paths against explicit performance budgets."""
 
 from __future__ import annotations
@@ -46,24 +49,40 @@ class BenchmarkResult:
 
     @property
     def MedianMs(self) -> float:
-        """Return median per-operation latency in milliseconds."""
+        """Return median per-operation latency in milliseconds.
+
+        Returns:
+            Median per-operation latency in milliseconds.
+        """
 
         return statistics.median(self.samples_ms)
 
     @property
     def MaximumMs(self) -> float:
-        """Return the slowest observed per-operation latency in milliseconds."""
+        """Return the slowest observed per-operation latency in milliseconds.
+
+        Returns:
+            Largest measured per-operation latency in milliseconds.
+        """
 
         return max(self.samples_ms)
 
     @property
     def Passed(self) -> bool:
-        """Return whether the stable aggregate remains within its budget."""
+        """Return whether the stable aggregate remains within its budget.
+
+        Returns:
+            True when median latency is at or below the budget.
+        """
 
         return self.MedianMs <= self.budget_ms
 
     def ToDictionary(self) -> dict[str, object]:
-        """Return the machine-readable representation of this result."""
+        """Return the machine-readable representation of this result.
+
+        Returns:
+            JSON-compatible result fields with latencies rounded to three decimals.
+        """
 
         return {
             "name": self.name,
@@ -94,7 +113,20 @@ def RunProcess(
     input_text: str | None,
     expected_output: str,
 ) -> None:
-    """Run a bounded process probe and validate its observable completion."""
+    """Run a bounded process probe and validate its observable completion.
+
+    Starts one bounded local subprocess; no external target is probed.
+
+    Args:
+        arguments: Explicit argv for a local implemented CLI probe
+        input_text: Optional text sent to child standard input
+        expected_output: Required readiness marker in captured standard output.
+
+    Raises:
+        RuntimeError: The probe exits nonzero or omits its readiness marker.
+        subprocess.TimeoutExpired: The probe exceeds PROCESS_TIMEOUT_SECONDS.
+        OSError: The probe cannot be started.
+    """
 
     result = subprocess.run(
         arguments,
@@ -116,7 +148,11 @@ def RunProcess(
 
 
 def PrepareInProcessProbes() -> tuple[Callable[[], None], Callable[[], None]]:
-    """Create isolated local probes for implemented palette and view paths."""
+    """Create isolated local probes for implemented palette and view paths.
+
+    Returns:
+        Isolated palette-search and lens/view-switch callables with bounded output.
+    """
 
     output = StringIO()
     shell = InteractiveShell(stdin=StringIO(), stdout=output)
@@ -147,14 +183,22 @@ def PrepareInProcessProbes() -> tuple[Callable[[], None], Callable[[], None]]:
 
 
 def ClearOutput(output: StringIO) -> None:
-    """Discard probe output so measurement memory remains bounded."""
+    """Discard probe output so measurement memory remains bounded.
+
+    Args:
+        output: Probe buffer to rewind and truncate.
+    """
 
     output.seek(0)
     output.truncate(0)
 
 
 def PerformanceCases() -> tuple[BenchmarkCase, ...]:
-    """Return budgets only for shell capabilities implemented today."""
+    """Return budgets only for shell capabilities implemented today.
+
+    Returns:
+        Fixed implemented benchmark cases and latency budgets.
+    """
 
     palette_probe, switch_probe = PrepareInProcessProbes()
 
@@ -185,7 +229,16 @@ def PerformanceCases() -> tuple[BenchmarkCase, ...]:
 
 
 def Measure(case: BenchmarkCase) -> BenchmarkResult:
-    """Measure one case as per-operation samples after an unrecorded warm-up."""
+    """Measure one case as per-operation samples after an unrecorded warm-up.
+
+    Invokes the supplied operation; any failure propagates and cannot produce passing evidence.
+
+    Args:
+        case: Operation, sample count, iterations and budget to measure.
+
+    Returns:
+        Per-operation samples after one unrecorded warm-up.
+    """
 
     case.operation()
     samples = []
@@ -206,7 +259,14 @@ def Measure(case: BenchmarkCase) -> BenchmarkResult:
 
 
 def BuildReport(results: Sequence[BenchmarkResult]) -> dict[str, object]:
-    """Build a versioned report with deterministic field and result ordering."""
+    """Build a versioned report with deterministic field and result ordering.
+
+    Args:
+        results: Benchmark outcomes to retain in their supplied order.
+
+    Returns:
+        Versioned JSON-compatible report with pass/fail and environment fields.
+    """
 
     passed = all(result.Passed for result in results)
 
@@ -224,7 +284,18 @@ def BuildReport(results: Sequence[BenchmarkResult]) -> dict[str, object]:
 
 
 def WriteReport(report: dict[str, object], path: Path) -> None:
-    """Write standards-compliant JSON without retaining machine-local paths."""
+    """Write standards-compliant JSON without retaining machine-local paths.
+
+    Replaces the report file with sorted, indented standards-compliant JSON.
+
+    Args:
+        report: JSON-compatible report without nonfinite numbers
+        path: Destination whose missing parent directories are created.
+
+    Raises:
+        ValueError: The report contains nonfinite or invalid JSON values.
+        OSError: Directory creation or writing fails.
+    """
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -234,7 +305,17 @@ def WriteReport(report: dict[str, object], path: Path) -> None:
 
 
 def Run(report_path: Path = DEFAULT_REPORT_PATH) -> int:
-    """Run all implemented budgets, write evidence, and fail on regression."""
+    """Run all implemented budgets, write evidence, and fail on regression.
+
+    Measures fixed local probes, writes evidence and prints each result. Probe and file-write
+    failures propagate.
+
+    Args:
+        report_path: Destination for generated performance evidence.
+
+    Returns:
+        Zero when all fixed budgets pass, otherwise one.
+    """
 
     results = tuple(Measure(case) for case in PerformanceCases())
     report = BuildReport(results)
@@ -253,7 +334,17 @@ def Run(report_path: Path = DEFAULT_REPORT_PATH) -> int:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Run the fixed performance suite with an optional report destination."""
+    """Run the fixed performance suite with an optional report destination.
+
+    Args:
+        argv: Optional report-path arguments, or None for process arguments.
+
+    Returns:
+        Budget status, or two when a probe or report operation fails.
+
+    Raises:
+        SystemExit: Argument parsing rejects input or handles help.
+    """
 
     parser = argparse.ArgumentParser(
         prog="1337-performance",

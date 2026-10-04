@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Executable checks for the accepted Fuzzy Technologies Python style."""
 
 from __future__ import annotations
