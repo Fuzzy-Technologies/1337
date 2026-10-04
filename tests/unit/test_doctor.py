@@ -180,3 +180,17 @@ def test_CollectAndRunDoctorKeepTheConfigurationBoundaryExplicit(monkeypatch):
     assert output.getvalue().endswith("Result: OK\n"), (
         "collect and run doctor keep the configuration boundary explicit invariant failed."
     )
+
+
+def test_ConfigurationBoundaryDescribesExplicitLibraryWithoutAutoLoading():
+    """Report the implemented workspace foundation without implying CLI config discovery."""
+
+    check = doctor.CheckConfigurationBoundary()
+
+    assert check.status is DoctorStatus.INFO, "The explicit configuration boundary changed severity"
+    assert "workspace library supports explicit configuration" in check.summary, (
+        "Doctor still describes workspace configuration as an unimplemented foundation"
+    )
+    assert "auto-loading is not available" in check.summary, (
+        "Doctor implies implicit CLI configuration discovery that is not implemented"
+    )

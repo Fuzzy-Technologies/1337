@@ -54,6 +54,12 @@ mode = "authored"
 page = "api/fuzzy1337.dev_commands.md"
 
 [[surfaces]]
+module = "fuzzy1337.workspace"
+source = "src/fuzzy1337/workspace.py"
+mode = "authored"
+page = "api/fuzzy1337.workspace.md"
+
+[[surfaces]]
 module = "fuzzy1337.doctor"
 source = "src/fuzzy1337/doctor.py"
 mode = "authored"
