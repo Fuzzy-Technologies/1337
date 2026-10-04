@@ -204,7 +204,7 @@ state = "missing"
 id = "page:index"
 kind = "page"
 sourcePath = "docs/site/content/en/index.md"
-sourceHash = "sha256:fb54d11f2f7be9a66d0b38d97e2d36678031cc2d36550a60f2f380e5834880dd"
+sourceHash = "sha256:969927a6e4a2a02a6c431836b66a76403bc3bdaf320f4d3ebd0ca34c0abad14e"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
