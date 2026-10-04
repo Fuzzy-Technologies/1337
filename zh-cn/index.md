@@ -19,11 +19,14 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 </header>
 
 <section class="hero hero-grid">
-<div class="hero-primary">
+<figure class="hero-primary">
+<img class="hero-image" src="{{ '/api/latest/en/assets/images/1337-logo.png' | relative_url }}" alt="Maria 与 1337 安全工作台项目展示图" width="1774" height="887" decoding="async" fetchpriority="high" />
+<figcaption class="hero-caption">
 <p class="eyebrow">开放式安全工作台 · 动态安全对象模型 · 可插拔安全工具</p>
 <p class="hero-hook">分析目标系统。<br><strong>模型随工作过程持续更新</strong></p>
 <span class="status">早期 pre-alpha · Apache-2.0 · v0.1.8</span>
-</div>
+</figcaption>
+</figure>
 
 <div class="hero-secondary">
 <p>1337 是一套快速、本地优先的安全工作台，面向渗透测试、安全调查和安全工程分析。内置扫描与发现能力先建立目标系统的初始模型，随后由内置工具和外部工具持续补充观察结果、证据、发现项、关联关系、网络可达性和攻击路径。</p>
