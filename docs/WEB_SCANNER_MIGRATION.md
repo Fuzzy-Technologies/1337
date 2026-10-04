@@ -18,7 +18,7 @@ conceptual input only.
 engines behind it.
 
 | Area                      | 1337 owns                                                                               | External provider boundary                  | Decision                                  |
-|---------------------------|-----------------------------------------------------------------------------------------|---------------------------------------------|-------------------------------------------|
+| ------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------- | ----------------------------------------- |
 | Scope and authorization   | Target/scope rules, impact gate, confirmation, audit trail                              | Provider receives only a bounded invocation | Native                                    |
 | Request model             | Endpoint, RequestTemplate, InjectionPoint, session/evidence identities                  | Providers may consume/export requests       | Native in #58                             |
 | Discovery scheduler       | Deterministic queue, URL normalization, deduplication, cancellation, live object deltas | Browser/AJAX crawl can enrich seeds         | Native orchestration; provider enrichment |
@@ -31,7 +31,7 @@ engines behind it.
 ## Source inventory and disposition
 
 | Project / source | Valuable concept                                                                             | Disposition                      | Rationale                                                                             |
-|------------------|----------------------------------------------------------------------------------------------|----------------------------------|---------------------------------------------------------------------------------------|
+| ---------------- | -------------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------- |
 | OWASP ZAP        | Automation, passive-vs-active separation, context-aware spidering, OpenAPI import, reporting | Optional external ToolAdapter    | Mature engine; 1337 preserves scope/evidence/model semantics around it                |
 | Nuclei           | Declarative checks, versioned template provenance, targeted execution                        | Optional external ToolAdapter    | Template execution is useful, but templates and engine do not become the domain model |
 | Playwright       | Stateful browser automation and browser-derived traffic                                      | Browser provider                 | Browser control is not a durable 1337 truth store                                     |

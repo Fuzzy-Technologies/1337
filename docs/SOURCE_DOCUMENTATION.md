@@ -140,6 +140,31 @@ broken links/anchors, stale approvals, false fallback labels, and composition
 collisions where those boundaries are implemented. A skipped or unavailable gate
 is reported as such; it is never converted to PASS.
 
+## Markdown table alignment
+
+Keep authored Markdown tables aligned in source form, including ADRs and other
+repository contracts. The Documentation workflow checks all Git-tracked `.md`
+files and fails on drift without rewriting them. Untracked generated output is
+outside the check's scope; unresolved index entries and symbolic links fail.
+
+Run the same check locally, or explicitly apply formatting before committing:
+
+```bash
+python tools/markdown_tables.py
+python tools/markdown_tables.py --write
+```
+
+Formatting preserves cell contents, escaped pipes, column alignment markers,
+fenced and indented code examples, other text, and original line endings. Repeated
+formatting produces no further changes. Stage new Markdown files before checking
+them so that Git includes them in the formatter's scope.
+
+The standalone formatter and its initial regression tests are adapted from
+[F-Layer's formatter at `ac00576d`](https://github.com/Fuzzy-Technologies/F-Layer/blob/ac00576d31c2eb6d79bde12889fce85198d585fd/tools/markdown_tables.py).
+The 1337 adaptation adds source-contract documentation, exact file line-ending
+preservation, and regular-file validation. It uses only the Python standard
+library and adds no product runtime dependency.
+
 ## Clean installed wheel proof
 
 Build the wheel with locked tools and install it into a new environment outside

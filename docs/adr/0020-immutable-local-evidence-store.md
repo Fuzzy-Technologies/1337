@@ -32,10 +32,10 @@ duplicate keys, invalid timestamps, non-finite values, and inconsistent identiti
 
 Within an explicitly existing evidence root, the layout is:
 
-| Path                          | Meaning                                      |
-| ----------------------------- | -------------------------------------------- |
-| `blobs/sha256/<digest>`       | Exact raw bytes addressed by their SHA-256   |
-| `records/<digest>.json`       | Canonical versioned provenance manifest      |
+| Path                    | Meaning                                    |
+| ----------------------- | ------------------------------------------ |
+| `blobs/sha256/<digest>` | Exact raw bytes addressed by their SHA-256 |
+| `records/<digest>.json` | Canonical versioned provenance manifest    |
 
 Adapter locators are relative to this root. A workspace may choose its own
 `evidence/` partition as the root. Evidence storage does not open workspace state
