@@ -1068,7 +1068,7 @@ state = "missing"
 id = "symbol:fuzzy1337.workspace.SyncStorageDirectory"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/workspace.py"
-sourceHash = "sha256:4dd5715098c98f37f425e142946760a9fa4db1828c24b979d3627a60ea8c2eb1"
+sourceHash = "sha256:176ad9560ff7640d694862a7521c28e9facd2507a347f639f245b0951e2db1a6"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

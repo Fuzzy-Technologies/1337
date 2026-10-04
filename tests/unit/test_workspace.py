@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from fuzzy1337 import workspace
 from fuzzy1337.adapters import EvidenceReference
 from fuzzy1337.workspace import (
     MAX_STATE_BYTES,
@@ -526,3 +527,39 @@ def test_RootMustBeADirectoryWithoutReplacingAnExistingFile(tmp_path):
         store.Create(WorkspaceConfiguration("Synthetic"), "synthetic")
 
     assert root.read_bytes() == b"operator-owned", "Invalid root handling replaced an existing file"
+
+
+@pytest.mark.parametrize("directory_flag", [None, False, True, 0, -1, "directory"])
+def test_PosixDirectorySyncRejectsInvalidFlagsWithoutOpeningFiles(
+    tmp_path, monkeypatch, directory_flag
+):
+    """Never weaken durable directory synchronization to a plain-file open fallback."""
+
+    def RejectOpen(*args, **kwargs):
+        """Catch any attempted I/O after a required directory flag failed validation."""
+
+        raise AssertionError("Invalid POSIX directory flags must fail before opening storage")
+
+    synthetic_os = SimpleNamespace(
+        name="posix", O_DIRECTORY=directory_flag, O_RDONLY=os.O_RDONLY, open=RejectOpen
+    )
+    monkeypatch.setattr(workspace, "os", synthetic_os)
+
+    with pytest.raises(OSError, match="valid O_DIRECTORY"):
+        workspace.SyncStorageDirectory(tmp_path)
+
+
+def test_PosixDirectorySyncRejectsAnUnavailablePlatformAttribute(tmp_path, monkeypatch):
+    """Handle absent Windows type-stub attributes through explicit runtime validation."""
+
+    monkeypatch.setattr(workspace, "os", SimpleNamespace(name="posix"))
+
+    with pytest.raises(OSError, match="valid O_DIRECTORY"):
+        workspace.SyncStorageDirectory(tmp_path)
+
+
+def test_NonPosixDirectorySyncDoesNotAccessPosixFlags(tmp_path, monkeypatch):
+    """Skip only the documented directory durability step on non-POSIX platforms."""
+
+    monkeypatch.setattr(workspace, "os", SimpleNamespace(name="nt"))
+    workspace.SyncStorageDirectory(tmp_path)

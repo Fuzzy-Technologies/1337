@@ -232,13 +232,23 @@ def SyncStorageDirectory(path: Path) -> None:
         path: Owned workspace directory or its parent during initial creation.
 
     Raises:
-        OSError: Directory opening, synchronization, or descriptor cleanup fails.
+        OSError: The POSIX directory flag is unavailable, or directory opening,
+            synchronization, or descriptor cleanup fails.
     """
 
     if os.name != "posix":
         return
 
-    directory_fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    directory_flag = getattr(os, "O_DIRECTORY", None)
+
+    if (
+        isinstance(directory_flag, bool)
+        or not isinstance(directory_flag, int)
+        or directory_flag <= 0
+    ):
+        raise OSError("POSIX directory synchronization requires a valid O_DIRECTORY flag")
+
+    directory_fd = os.open(path, os.O_RDONLY | directory_flag)
 
     try:
         os.fsync(directory_fd)
