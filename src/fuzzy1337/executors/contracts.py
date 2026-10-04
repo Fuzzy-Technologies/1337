@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Typed contracts for governed executor providers and local process execution."""
 
 from __future__ import annotations
@@ -29,21 +32,48 @@ _IMPACT_ORDER = {impact: index for index, impact in enumerate(ImpactLevel)}
 
 
 def RequireIdentifier(value: str, field_name: str) -> None:
-    """Require a portable lowercase machine identifier."""
+    """Require a portable lowercase machine identifier.
+
+    Args:
+        value: Candidate portable lowercase identifier
+        field_name: Field label in validation errors.
+
+    Raises:
+        ValueError: The value fails the identifier grammar.
+    """
 
     if not isinstance(value, str) or not _IDENTIFIER_PATTERN.fullmatch(value):
         raise ValueError(f"{field_name} must be a lowercase machine-readable identifier")
 
 
 def RequireReference(value: str, field_name: str) -> None:
-    """Require a non-empty single-line reference value."""
+    """Require a non-empty single-line reference value.
+
+    Args:
+        value: Nonempty single-line text without NUL
+        field_name: Field label in validation errors.
+
+    Raises:
+        ValueError: The reference is not valid nonempty single-line text.
+    """
 
     if not isinstance(value, str) or not value or "\x00" in value or "\n" in value or "\r" in value:
         raise ValueError(f"{field_name} must be a non-empty single-line reference")
 
 
 def UniqueIdentifiers(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
-    """Validate and freeze a sequence of unique identifiers."""
+    """Validate and freeze a sequence of unique identifiers.
+
+    Args:
+        values: Identifiers to validate without reordering
+        field_name: Field label in validation errors.
+
+    Returns:
+        Validated immutable tuple in declaration order.
+
+    Raises:
+        ValueError: An identifier is invalid or duplicated.
+    """
 
     normalized = tuple(values)
 
@@ -57,7 +87,16 @@ def UniqueIdentifiers(values: tuple[str, ...], field_name: str) -> tuple[str, ..
 
 
 def InvocationDigest(invocation: AdapterInvocation) -> str:
-    """Bind an authorization record to the exact immutable adapter invocation."""
+    """Bind an authorization record to the exact immutable adapter invocation.
+
+    A digest binds metadata; it does not establish authorization by itself.
+
+    Args:
+        invocation: Exact prepared invocation to bind to authorization.
+
+    Returns:
+        Lowercase SHA-256 of the deterministic serialized invocation.
+    """
 
     return hashlib.sha256(SerializeContract(invocation).encode("utf-8")).hexdigest()
 
@@ -88,7 +127,14 @@ class CapabilityDescriptor:
 
 
 def CapabilityDescriptors(descriptor: AdapterDescriptor) -> tuple[CapabilityDescriptor, ...]:
-    """Expand one adapter declaration into deterministic capability records."""
+    """Expand one adapter declaration into deterministic capability records.
+
+    Args:
+        descriptor: Validated adapter metadata and privilege declarations.
+
+    Returns:
+        Capability records in the adapter declaration order.
+    """
 
     return tuple(
         CapabilityDescriptor(
@@ -155,7 +201,19 @@ class ExecutionResources:
 
 
 def FreezeEnvironment(environment: Mapping[str, str]) -> Mapping[str, str]:
-    """Return validated immutable environment overrides."""
+    """Return validated immutable environment overrides.
+
+    Syntax validation does not detect secrets; callers must avoid recording secret values.
+
+    Args:
+        environment: Explicit name/value overrides for the child environment.
+
+    Returns:
+        Immutable mapping in deterministic name order.
+
+    Raises:
+        ValueError: A name is not portable or a value is not text or contains NUL.
+    """
 
     frozen: dict[str, str] = {}
 
@@ -329,12 +387,27 @@ class LazyAdapterRegistry:
 
     @property
     def Capabilities(self) -> tuple[str, ...]:
-        """Return declared capabilities without loading provider implementations."""
+        """Return declared capabilities without loading provider implementations.
+
+        Returns:
+            Sorted declared capability identifiers without loading providers.
+        """
 
         return tuple(sorted(self._providers_by_capability))
 
     def Register(self, descriptor: AdapterDescriptor, loader: AdapterLoader) -> None:
-        """Register immutable metadata and a lazy provider factory."""
+        """Register immutable metadata and a lazy provider factory.
+
+        Mutates registry indexes without loading or executing the provider.
+
+        Args:
+            descriptor: Immutable declaration to index
+            loader: Deferred factory called on first resolution.
+
+        Raises:
+            ValueError: The adapter identifier is already registered.
+            TypeError: The loader is not callable.
+        """
 
         if descriptor.adapter_id in self._registrations:
             raise ValueError(f"Adapter is already registered: {descriptor.adapter_id}")
@@ -348,7 +421,23 @@ class LazyAdapterRegistry:
             self._providers_by_capability.setdefault(capability, []).append(descriptor.adapter_id)
 
     def Resolve(self, capability: str, adapter_id: str | None = None) -> ToolAdapter:
-        """Load one provider deterministically and validate its declared identity."""
+        """Load one provider deterministically and validate its declared identity.
+
+        First resolution invokes the loader and caches its result. Loader exceptions propagate.
+        Resolution grants no execution authority.
+
+        Args:
+            capability: Declared capability to resolve
+            adapter_id: Explicit provider when selection would otherwise be ambiguous.
+
+        Returns:
+            Cached or newly loaded provider with a matching descriptor.
+
+        Raises:
+            LookupError: The capability is unknown, ambiguous or absent from the adapter.
+            TypeError: The loader result does not implement ToolAdapter.
+            ValueError: The loaded descriptor differs from the registered metadata.
+        """
 
         providers = self._providers_by_capability.get(capability)
 
