@@ -472,6 +472,51 @@ def test_ExternalReadinessBudgetExpiresWithoutFalseSuccess(
         fake_lab.WaitUntilReady()
 
 
+def test_ExternalReadinessRetriesTransientTimeoutWithoutDiscardingEvidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep a cold process-launch timeout while accepting a later valid readiness response."""
+
+    lab = ExternalTargetLab(REPOSITORY_ROOT, tmp_path, LoadTarget(REPOSITORY_ROOT))
+    lab.provenance = {"verified": True}
+
+    def TransientCommand(*arguments: str, timeout_seconds: int | None = None) -> CommandResult:
+        """Preserve a deterministic parent timeout followed by the exact release response."""
+
+        del timeout_seconds
+        first_attempt = not lab.commands
+        payload = json.dumps({
+            "status": 200, "headers": [], "body": '{"version":"20.2.0"}', "error": "",
+        })
+        result = CommandResult(
+            arguments, 124 if first_attempt else 0, "" if first_attempt else payload,
+            "cold launch diagnostic" if first_attempt else "", timed_out=first_attempt,
+            duration_seconds=3.125 if first_attempt else 0.05,
+        )
+        lab.WriteEvidence(result)
+
+        return result
+
+    monkeypatch.setattr(lab, "Compose", TransientCommand)
+    monkeypatch.setattr("tests.functional.external_targets.time.sleep", lambda duration: None)
+    lab.WaitUntilReady()
+    first_command = json.loads((tmp_path / "command-01.json").read_text())
+    final_command = json.loads((tmp_path / "command-02.json").read_text())
+
+    assert len(lab.observations) == 2 and lab.observations[0].timed_out, (
+        "Readiness must retry a transient timeout without discarding the failed observation."
+    )
+    assert lab.observations[-1].status == 200 and not lab.observations[-1].error, (
+        "Readiness succeeds only after the later response satisfies the pinned release contract."
+    )
+    assert first_command["timed_out"] and first_command["stderr"] == "cold launch diagnostic", (
+        "Retry success must preserve the earlier raw subprocess timeout and diagnostic."
+    )
+    assert final_command["returncode"] == 0 and not final_command["timed_out"], (
+        "Successful readiness must correspond to its own final raw subprocess record."
+    )
+
+
 def test_ExternalReportPreservesEvidenceAndWithholdsAccuracy(fake_lab: FakeDockerLab) -> None:
     """Run the real report builder from actual harness outputs without fabricating an oracle."""
 
@@ -645,8 +690,8 @@ def test_ExternalHttpProbeUsesRealLoopbackVersionAndRawEvidence(
 
     lab = HttpLab(tmp_path, local_http_server, node_path)
     lab.WaitUntilReady()
-    observation = lab.observations[0]
-    command = json.loads((tmp_path / "command-01.json").read_text())
+    observation = lab.observations[-1]
+    command = json.loads((tmp_path / f"command-{len(lab.commands):02d}.json").read_text())
 
     assert observation.status == 200 and not observation.error, (
         "The real loopback HTTP probe must satisfy the application version contract."
