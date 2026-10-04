@@ -23,9 +23,9 @@ reference built with MkDocs, Material, and mkdocstrings/Griffe. Compose both bui
 outputs into one GitHub Pages artifact. The site base path remains `/1337`; the
 API routes below are relative to that base path:
 
-| Locale  | API route           | Content authority                       |
-| ------- | ------------------- | --------------------------------------- |
-| `en`    | `/api/latest/en/`    | Canonical English source                |
+| Locale  | API route            | Content authority                        |
+|---------|----------------------|------------------------------------------|
+| `en`    | `/api/latest/en/`    | Canonical English source                 |
 | `ru`    | `/api/latest/ru/`    | Approved translation or English fallback |
 | `zh-cn` | `/api/latest/zh-cn/` | Approved translation or English fallback |
 
