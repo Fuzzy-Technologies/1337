@@ -31,6 +31,7 @@ ALLOWED_SERVICE_FIELDS = {
     "image", "profiles", "pull_policy", "init", "user", "restart", "cpus", "mem_limit",
     "pids_limit", "cap_drop", "security_opt", "ports", "networks", "healthcheck",
 }
+NEUTRAL_COMPOSE_DEFAULTS = {"command": None, "entrypoint": None}
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,7 +108,11 @@ def IsPackEnabled(selection: str | None) -> bool:
 
 
 def ValidateCompose(configuration: dict[str, Any], target: ExternalTarget) -> None:
-    """Reject any widened target isolation or mismatch with the pinned manifest."""
+    """Reject any widened target isolation or mismatch with the pinned manifest.
+
+    Accept only observed neutral Compose defaults: null command/entrypoint and
+    an exact decimal-string memory limit. Other overrides remain fail-closed.
+    """
 
     services = configuration.get("services", {})
     networks = configuration.get("networks", {})
@@ -118,6 +123,12 @@ def ValidateCompose(configuration: dict[str, Any], target: ExternalTarget) -> No
     service = services[target.Service]
     network = networks["external-targets"]
     limits = target.manifest["resource_limits"]
+    expected_memory_bytes = limits["memory_mib"] * 1024 * 1024
+    memory_limit = service.get("mem_limit")
+    memory_limit_valid = (
+        type(memory_limit) in (int, str)
+        and memory_limit in (expected_memory_bytes, str(expected_memory_bytes))
+    )
     ports = service.get("ports", [])
     expected_port = {
         "target": target.manifest["http_port"],
@@ -135,6 +146,10 @@ def ValidateCompose(configuration: dict[str, Any], target: ExternalTarget) -> No
         "const b = await r.json(); process.exit(r.status === 200 && b.version === '"
         + target.manifest["version"] + "' ? 0 : 1); }).catch(() => process.exit(1))",
     ]
+    normalized_defaults_valid = all(
+        field in NEUTRAL_COMPOSE_DEFAULTS and service[field] is NEUTRAL_COMPOSE_DEFAULTS[field]
+        for field in set(service) - ALLOWED_SERVICE_FIELDS
+    )
     valid = (
         service.get("image") == target.ImageReference
         and service.get("profiles") == [target.manifest["compose_profile"]]
@@ -149,11 +164,12 @@ def ValidateCompose(configuration: dict[str, Any], target: ExternalTarget) -> No
         and network.get("internal") is True
         and not network.get("external", False)
         and network.get("driver") == "bridge"
+        and type(service.get("cpus")) in (int, float)
         and service.get("cpus") == limits["cpus"]
-        and service.get("mem_limit") == limits["memory_mib"] * 1024 * 1024
+        and memory_limit_valid
         and service.get("pids_limit") == limits["pids"]
         and service.get("healthcheck", {}).get("test") == expected_health_test
-        and set(service) <= ALLOWED_SERVICE_FIELDS
+        and normalized_defaults_valid
         and port_valid
     )
 

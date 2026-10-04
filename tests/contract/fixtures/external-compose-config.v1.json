@@ -1,0 +1,58 @@
+{
+  "name": "fuzzy-1337-external-37eed29e8d9b",
+  "networks": {
+    "external-targets": {
+      "name": "fuzzy-1337-external-37eed29e8d9b_external-targets",
+      "driver": "bridge",
+      "ipam": {},
+      "internal": true
+    }
+  },
+  "services": {
+    "external-juice-shop": {
+      "profiles": [
+        "external-juice-shop"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "cpus": 1,
+      "command": null,
+      "entrypoint": null,
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "/nodejs/bin/node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/rest/admin/application-version').then(async r =\u003e { const b = await r.json(); process.exit(r.status === 200 \u0026\u0026 b.version === '20.2.0' ? 0 : 1); }).catch(() =\u003e process.exit(1))"
+        ],
+        "timeout": "4s",
+        "interval": "5s",
+        "retries": 12,
+        "start_period": "10s"
+      },
+      "image": "bkimminich/juice-shop:v20.2.0@sha256:8739101ade29358abb5469ee66ae78e582c97ed0a5543a4ad102e5fa5193526b",
+      "init": true,
+      "mem_limit": "805306368",
+      "networks": {
+        "external-targets": {}
+      },
+      "pids_limit": 128,
+      "ports": [
+        {
+          "mode": "ingress",
+          "host_ip": "127.0.0.1",
+          "target": 3000,
+          "published": "0",
+          "protocol": "tcp"
+        }
+      ],
+      "pull_policy": "never",
+      "restart": "no",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "user": "65532:0"
+    }
+  }
+}

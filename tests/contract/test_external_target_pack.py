@@ -41,6 +41,14 @@ def ComposeDefinition() -> dict[str, Any]:
     return json.loads((REPOSITORY_ROOT / "labs/external/compose.yaml").read_text(encoding="utf-8"))
 
 
+def ObservedComposeDefinition() -> dict[str, Any]:
+    """Load actual Compose v2.38.2 output preserved by CI run 37198612357."""
+
+    path = Path(__file__).parent / "fixtures" / "external-compose-config.v1.json"
+
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 class FakeDockerLab(ExternalTargetLab):
     """Provide deterministic Docker outputs while retaining actual harness evidence."""
 
@@ -69,7 +77,7 @@ class FakeDockerLab(ExternalTargetLab):
             operation = arguments[arguments.index("--profile") + 2]
 
             if operation == "config":
-                stdout = json.dumps(ComposeDefinition())
+                stdout = json.dumps(ObservedComposeDefinition())
 
             elif operation == "ps":
                 stdout = self.remaining if "--all" in arguments else "a" * 64
@@ -153,6 +161,21 @@ def test_ExternalManifestAndComposeUseTheSameImmutablePin() -> None:
     assert "@sha256:" in target.ImageReference, "External pack cannot pull a mutable-only tag."
 
 
+def test_ActualNormalizedComposeOutputPreservesThePinnedBoundary() -> None:
+    """Accept producer-added null defaults and exact decimal resource representation."""
+
+    configuration = ObservedComposeDefinition()
+    service = configuration["services"]["external-juice-shop"]
+    ValidateCompose(configuration, LoadTarget(REPOSITORY_ROOT))
+
+    assert service["command"] is None and service["entrypoint"] is None, (
+        "Actual Compose normalization must preserve the image's command and entrypoint."
+    )
+    assert service["mem_limit"] == "805306368", (
+        "The observed decimal string must retain the exact configured 768 MiB memory bound."
+    )
+
+
 @pytest.mark.parametrize("selection", [None, ""])
 def test_ExternalPackIsDisabledWithoutExplicitOptIn(selection: str | None) -> None:
     """Leave ordinary test runs offline without probing Docker availability."""
@@ -227,6 +250,9 @@ def test_ExternalManifestRejectsUnsupportedOrUnattributableState(field: str, val
         ("security_opt", []), ("mem_limit", 0), ("pids_limit", 0), ("cpus", 4),
         ("pull_policy", "always"), ("environment", {"SECRET": "synthetic-value"}),
         ("cap_add", ["SYS_ADMIN"]), ("entrypoint", ["unreviewed"]),
+        ("command", ["unreviewed"]), ("command", []), ("command", ""),
+        ("command", False), ("entrypoint", []), ("entrypoint", ""), ("entrypoint", False),
+        ("cpus", True),
         ("healthcheck", {"test": ["CMD", "unreviewed"]}),
         ("ports", [{"target": 3000, "published": "3000", "host_ip": "0.0.0.0"}]),
     ],
@@ -234,10 +260,26 @@ def test_ExternalManifestRejectsUnsupportedOrUnattributableState(field: str, val
 def test_ExternalComposeRejectsWidenedIsolation(field: str, value: object) -> None:
     """Reject host exposure, mounts, capability increases, and unbounded resources."""
 
-    configuration = ComposeDefinition()
+    configuration = ObservedComposeDefinition()
     configuration["services"]["external-juice-shop"][field] = value
 
     with pytest.raises(RuntimeError, match="isolation"):
+        ValidateCompose(configuration, LoadTarget(REPOSITORY_ROOT))
+
+
+@pytest.mark.parametrize(
+    "value", [
+        True, False, 805306368.0, "768m", "805306369", "+805306368", "0805306368",
+        "805306368.0", "NaN",
+    ],
+)
+def test_NormalizedComposeMemoryRejectsDifferentOrAmbiguousRepresentations(value: object) -> None:
+    """Accept only the exact bounded integer or its observed canonical decimal string."""
+
+    configuration = ObservedComposeDefinition()
+    configuration["services"]["external-juice-shop"]["mem_limit"] = value
+
+    with pytest.raises(RuntimeError, match="resources"):
         ValidateCompose(configuration, LoadTarget(REPOSITORY_ROOT))
 
 
