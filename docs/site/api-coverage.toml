@@ -66,6 +66,12 @@ mode = "authored"
 page = "api/fuzzy1337.doctor.md"
 
 [[surfaces]]
+module = "fuzzy1337.evidence"
+source = "src/fuzzy1337/evidence.py"
+mode = "authored"
+page = "api/fuzzy1337.evidence.md"
+
+[[surfaces]]
 module = "fuzzy1337.executors"
 source = "src/fuzzy1337/executors/__init__.py"
 mode = "authored"
