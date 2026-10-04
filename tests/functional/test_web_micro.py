@@ -6,11 +6,16 @@
 from __future__ import annotations
 
 import json
+import time
+from pathlib import Path
 
 import pytest
 
+from fuzzy1337.functional_metrics import BuildReport, RenderHtml, RenderMarkdown, SerializeReport
+
 from .conftest import ComposeLab
 from .scenarios import WEB_MICRO_TARGET_CONTRACT
+from .web_micro_metrics import WEB_MICRO_ORACLE, NormalizeWebMicroRun
 
 pytestmark = pytest.mark.serial
 
@@ -102,9 +107,12 @@ result['statuses'] = {}
 for status_code in (400, 401, 403, 404, 500):
     status, headers, body = request(f'/status/{status_code}')
     result['statuses'][str(status_code)] = {'status': status, 'body': json.loads(body)}
+status, headers, body = request('/missing')
+result['unknown-route'] = {'status': status, 'body': json.loads(body)}
 
 print(json.dumps(result, sort_keys=True))
 """
+    started = time.monotonic()
     result = micro_target_lab.Execute(
         WEB_MICRO_TARGET_CONTRACT.target.compose_service,
         "python",
@@ -112,8 +120,24 @@ print(json.dumps(result, sort_keys=True))
         script,
         timeout_seconds=WEB_MICRO_TARGET_CONTRACT.timeout_seconds,
     )
+    run = NormalizeWebMicroRun(
+        result.stdout, result.stderr, result.argv, result.returncode,
+        time.monotonic() - started, result.timed_out,
+    )
+    report = BuildReport((WEB_MICRO_ORACLE,), (run,))
+    evidence = Path(__file__).resolve().parents[2] / "functional-evidence" / "web-micro-metrics"
+    evidence.mkdir(parents=True, exist_ok=True)
+    (evidence / "report.json").write_text(SerializeReport(report), encoding="utf-8")
+    (evidence / "matrix.md").write_text(RenderMarkdown(report), encoding="utf-8")
+    (evidence / "matrix.html").write_text(RenderHtml(report), encoding="utf-8")
 
     assert result.returncode == 0, result.stderr
+    assert report["runs"][0]["metrics"]["tp"] == 4, (
+        "Every declared simulation marker must flow through the same report oracle."
+    )
+    assert report["runs"][0]["metrics"]["tn"] == 1, (
+        "The finite missing-route negative control must remain a true negative."
+    )
     observations = json.loads(result.stdout)
     assert observations["root"] == {
         "body": {"links": ["/catalog", "/form", "/headers", "/cookie"], "target": "web-micro"},
