@@ -1,0 +1,44 @@
+{
+  "services": {
+    "external-juice-shop": {
+      "profiles": [
+        "external-juice-shop"
+      ],
+      "image": "bkimminich/juice-shop:v20.2.0@sha256:8739101ade29358abb5469ee66ae78e582c97ed0a5543a4ad102e5fa5193526b",
+      "pull_policy": "never",
+      "init": true,
+      "user": "65532:0",
+      "restart": "no",
+      "cpus": 1.0,
+      "mem_limit": 805306368,
+      "pids_limit": 128,
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "networks": {
+        "external-targets": {}
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "/nodejs/bin/node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/rest/admin/application-version').then(async r => { const b = await r.json(); process.exit(r.status === 200 && b.version === '20.2.0' ? 0 : 1); }).catch(() => process.exit(1))"
+        ],
+        "interval": "5s",
+        "timeout": "4s",
+        "retries": 12,
+        "start_period": "10s"
+      }
+    }
+  },
+  "networks": {
+    "external-targets": {
+      "driver": "bridge",
+      "internal": true
+    }
+  }
+}

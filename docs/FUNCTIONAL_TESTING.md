@@ -103,3 +103,14 @@ the same mapper/scorer when Docker is unavailable:
 uv run --locked --extra dev pytest tests/contract/test_functional_metrics.py \
   tests/contract/test_web_micro_metrics.py
 ```
+
+## Optional pinned external pack
+
+[The external target pack](../labs/external/README.md) provides opt-in Juice Shop
+20.2.0 regression smoke with immutable image/source provenance, a fixture-owned
+internal network, bounded container-loopback HTTP through Docker exec, and verified
+cleanup. `FUZZY1337_EXTERNAL_TARGETS=juice-shop` enables its ordinary pytest test;
+the dedicated CI job sets that value and requires actual Docker execution.
+Its incomplete oracle produces qualitative observations and matrix cells while
+withholding accuracy. WebGoat, crAPI, and the separate Benchmark oracle candidate
+were evaluated in [ADR 0021](adr/0021-pinned-optional-external-target-pack.md).
