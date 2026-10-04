@@ -236,14 +236,17 @@ def CheckDockerCompose() -> DoctorCheck:
 
 
 def CheckConfigurationBoundary() -> DoctorCheck:
-    """Explain the current configuration boundary without inventing a config format.
+    """Explain the explicit workspace library boundary without discovering configuration.
 
     Returns:
-        INFO explaining that configuration awaits the workspace model.
+        INFO describing the workspace API and the absent CLI auto-loading boundary.
     """
 
     return DoctorCheck(
         identifier="configuration",
         status=DoctorStatus.INFO,
-        summary="Workspace configuration is not available until the M1 workspace model lands.",
+        summary=(
+            "The workspace library supports explicit configuration; "
+            "CLI configuration auto-loading is not available."
+        ),
     )

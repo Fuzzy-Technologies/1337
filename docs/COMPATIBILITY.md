@@ -36,6 +36,10 @@ The following areas are the intended extension boundaries as they are introduced
 
 The M0 repository does **not** freeze a Python import namespace before packaging is implemented. Future packaging work may choose the concrete import/package names, but once a symbol is declared Stable it must follow this compatibility policy.
 
+`fuzzy1337.workspace` is an Experimental Python SDK namespace and persisted
+workspace document at schema version `1`. ADR 0019 and `docs/WORKSPACES.md`
+define its portable metadata, reference, and cooperating-writer lifecycle contract.
+
 `fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
@@ -155,6 +159,7 @@ Current versioned public contracts:
 | Contract family       | Schema version | Location                                           | Status       |
 | --------------------- | -------------- | -------------------------------------------------- | ------------ |
 | Extension manifest    | `1`            | `contracts/extension-manifest.schema.json`         | Stable       |
+| Workspace state       | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`        | Experimental |
 | ToolAdapter SDK       | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`      | Experimental |
 | Executor SDK          | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`         | Experimental |
 

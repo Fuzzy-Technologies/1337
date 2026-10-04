@@ -19,7 +19,10 @@ Introduce an Experimental `fuzzy1337.workspace` library contract with immutable,
 validated configuration and state snapshots. Configuration stores a display name,
 one initial lens, and optional non-secret view/report context references. State
 owns opaque scope, model-object, and job references plus the existing typed
-`EvidenceReference` values. It does not accept arbitrary domain payloads, secret
+`EvidenceReference` values. Separate unique `evidence_record_references` retain
+immutable acquisition IDs in `sha256:<64 lowercase hex>` format, because the same
+raw bytes can belong to distinct provenance records. The workspace does not
+interpret or certify those records. It does not accept arbitrary domain payloads, secret
 values, executable configuration, or a second provider-owned model.
 
 `WorkspaceStore` separates lifecycle consumers from the first portable
@@ -32,12 +35,15 @@ rejected rather than repaired or silently defaulted.
 | Partition        | Owner and recovery contract                                              |
 | ---------------- | ------------------------------------------------------------------------ |
 | `workspace.json` | Authoritative metadata and references; corruption prevents opening       |
+| `state/`         | Reserved authoritative domain records; validated by their future owner   |
 | `evidence/`      | Independent immutable evidence owner; locators are relative to this root |
 | `cache/`         | Disposable derived state; absence does not prevent opening               |
 | `indexes/`       | Rebuildable search state; absence does not prevent opening               |
 
 The workspace lifecycle never changes evidence artifacts and never needs a
-search service. Evidence references retain their current SDK fields; the raw
+search service. The reserved `state/` partition belongs to future typed domain
+persistence; workspace metadata does not interpret or certify those records.
+Evidence references retain their current SDK fields; the raw
 artifact and manifest implementation is independently owned by the evidence
 store. Missing optional partitions can be recreated by their owners.
 
