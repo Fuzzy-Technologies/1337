@@ -113,17 +113,17 @@ Do not regenerate dependency state during validation or publication. Run the
 same non-mutating validation entry points locally and in CI. Once implemented,
 the documentation gate must establish these properties:
 
-| Boundary          | Required evidence                                                       |
-| ----------------- | ----------------------------------------------------------------------- |
-| API coverage      | Static inventory matches source and rendered documented symbols          |
-| Strict build      | Missing references, unresolved symbols, and actionable warnings fail     |
-| Links and anchors | Internal destinations and fragments resolve, including composed routes   |
+| Boundary          | Required evidence                                                          |
+|-------------------|----------------------------------------------------------------------------|
+| API coverage      | Static inventory matches source and rendered documented symbols            |
+| Strict build      | Missing references, unresolved symbols, and actionable warnings fail       |
+| Links and anchors | Internal destinations and fragments resolve, including composed routes     |
 | Locales           | Digests, review states, fallback labels, and language links are consistent |
-| Search            | Expected pages/symbols appear in each locale's generated search index     |
-| Mathematics       | Representative formulas render; source delimiter text is not leaked      |
-| Generated output  | Fresh generation is reproducible and leaves tracked sources unchanged    |
-| Packaging         | Clean installed wheel yields the same API inventory without imports      |
-| Public artifact   | Only allowed site output is present; conflicting routes are rejected      |
+| Search            | Expected pages/symbols appear in each locale's generated search index      |
+| Mathematics       | Representative formulas render; source delimiter text is not leaked        |
+| Generated output  | Fresh generation is reproducible and leaves tracked sources unchanged      |
+| Packaging         | Clean installed wheel yields the same API inventory without imports        |
+| Public artifact   | Only allowed site output is present; conflicting routes are rejected       |
 
 Use `$...$` and `$$...$$` in Markdown mathematical source. Configure the renderer
 and delimiter handling explicitly and verify rendered output rather than treating
