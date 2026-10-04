@@ -174,5 +174,11 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 shell",
             capabilities=("workbench.interactive",),
         ),
+        CommandDescriptor(
+            identifier="update",
+            summary="Inspect local component health and manual update boundaries.",
+            usage="1337 update [--json]",
+            capabilities=("core.component-health", "core.update-inspection"),
+        ),
     )
 )

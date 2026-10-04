@@ -561,7 +561,10 @@ def test_InventoryCoversEverySourceModule() -> None:
 
     surfaces = API.ValidateInventory(ROOT, API.ReadManifest(ROOT))
 
-    assert len(surfaces) == 14, "API inventory must include 14 surfaces and exclude CLI entry point"
+    source_paths = {path.relative_to(ROOT).as_posix() for path in (ROOT / "src").rglob("*.py")}
+    assert {surface["source"] for surface in surfaces} == (
+        source_paths - {"src/fuzzy1337/__main__.py"}
+    ), "API inventory must cover all source modules and exclude only the CLI entry point"
     assert all(surface["mode"] == "authored" for surface in surfaces), (
         "Authored source owns canonical symbol documentation without duplicate package aliases"
     )

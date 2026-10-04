@@ -13,6 +13,7 @@ from dataclasses import dataclass, replace
 from typing import TextIO
 
 from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
+from fuzzy1337.component_health import RunUpdate
 
 DEFAULT_LENS = "pentest"
 DEFAULT_VIEW = "context"
@@ -26,6 +27,7 @@ SHELL_COMMANDS = (
     "palette",
     "quit",
     "select",
+    "update",
     "updates",
     "view",
 )
@@ -268,7 +270,7 @@ class InteractiveShell(cmd.Cmd):
         help_text = {
             "": (
                 "commands, context, history [query], lens <name>, palette [query], "
-                "select <object-id>, updates, view <name>, quit"
+                "select <object-id>, update [--json], updates, view <name>, quit"
             ),
             "commands": "commands: list interactive and current top-level CLI commands.",
             "context": "context: show the current lens and selected object reference.",
@@ -278,6 +280,7 @@ class InteractiveShell(cmd.Cmd):
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
+            "update": "update [--json]: inspect local component health without installing updates.",
             "updates": "updates: render queued progress or future model updates.",
             "view": "view <name>: select context or updates as the current model slice.",
             "quit": "quit: leave the interactive shell.",
@@ -382,6 +385,22 @@ class InteractiveShell(cmd.Cmd):
             return
 
         self.RenderUpdates()
+
+    def do_update(self, argument: str) -> None:
+        """Inspect component health without conflating it with queued Workbench events.
+
+        Args:
+            argument: Empty input for human output, or --json for the versioned report.
+        """
+
+        option = argument.strip()
+
+        if option not in ("", "--json"):
+            self.Write("usage: update [--json]")
+
+            return
+
+        RunUpdate(self.stdout, json_output=option == "--json")
 
     def do_view(self, argument: str) -> None:
         """Select the small model-slice view used by the shell foundation.
