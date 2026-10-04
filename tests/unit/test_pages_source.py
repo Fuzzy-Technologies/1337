@@ -18,6 +18,8 @@ SITE_SOURCE_FILES = {
     "llms.txt",
     "ru/index.md",
     "sitemap.xml",
+    "static/images/1337-logo.png",
+    "static/main.js",
     "static/style.css",
     "zh-cn/index.md",
 }
