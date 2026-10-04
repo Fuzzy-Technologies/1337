@@ -20,7 +20,8 @@ With the variable unset, the external test is skipped before any Docker command
 or network request. An enabled pack fails if Docker is unavailable or any
 lifecycle/provenance/health check fails. No public demo is contacted. The pytest
 fixture creates a unique Compose project, checks readiness, performs read-only
-HTTP contract probes, and removes its container and network even after failures.
+HTTP contract probes inside the container, and removes its container and network
+even after failures.
 
 ## Immutable provenance and cost
 
@@ -44,7 +45,8 @@ and Docker consume the same definition without a new parser dependency.
 
 One writable container layer allows upstream database initialization. It has no
 host mounts or persistent volumes. The container joins only an internal Docker
-network with no external route and publishes one ephemeral IPv4 loopback port.
+network with no external route and publishes no host port. Docker Engine does not
+apply host port mappings to internal networks, as explained in ADR 0021.
 It drops all capabilities and disallows privilege escalation. The image remains
 in the local Docker cache after teardown; containers, networks, and their
 application state are removed.
@@ -54,12 +56,21 @@ the image reference and configuration ID of the running container, and its
 OS/architecture and platform manifest against the pinned OCI index. An unrelated
 HTTP 200 response does not satisfy readiness.
 
+Each request uses `docker compose exec -T` to launch the image's fixed Node
+executable and the first-party `node:http` probe. HTTP options fix the destination
+to container loopback `127.0.0.1:3000`, without URL resolution, proxy variables, or
+redirect following. The Node deadline is 75% of the three-second parent budget,
+leaving time for process launch and output collection. Request duration includes
+Docker exec launch latency. Expiry destroys the HTTP resources and retains received
+status, raw headers, and bounded UTF-8 body text before child exit 124; the parent
+preserves the original command outcome and marks the observation as timed out.
+
 ## Evidence and interpretation
 
 Generated evidence is ignored under `functional-evidence/external-juice-shop/`:
 
 - `command-*.json`: exact argv, stdout/stderr, exit status, timeout flag, duration;
-- `request-*.json`: loopback address/path, status, headers, body, transport errors;
+- `request-*.json`: container-loopback address/path, status, headers, body, errors;
 - `provenance.json`: release/source/index/platform/running-image attribution;
 - `report.json`, `matrix.md`, `matrix.html`: one generated qualitative result.
 

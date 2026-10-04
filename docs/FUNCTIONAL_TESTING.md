@@ -108,7 +108,7 @@ uv run --locked --extra dev pytest tests/contract/test_functional_metrics.py \
 
 [The external target pack](../labs/external/README.md) provides opt-in Juice Shop
 20.2.0 regression smoke with immutable image/source provenance, a fixture-owned
-internal network, an ephemeral loopback port, bounded readiness, and verified
+internal network, bounded container-loopback HTTP through Docker exec, and verified
 cleanup. `FUZZY1337_EXTERNAL_TARGETS=juice-shop` enables its ordinary pytest test;
 the dedicated CI job sets that value and requires actual Docker execution.
 Its incomplete oracle produces qualitative observations and matrix cells while

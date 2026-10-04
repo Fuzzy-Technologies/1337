@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 import time
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
@@ -29,7 +28,7 @@ CONTAINER_METADATA_FORMAT = (
 )
 ALLOWED_SERVICE_FIELDS = {
     "image", "profiles", "pull_policy", "init", "user", "restart", "cpus", "mem_limit",
-    "pids_limit", "cap_drop", "security_opt", "ports", "networks", "healthcheck",
+    "pids_limit", "cap_drop", "security_opt", "networks", "healthcheck",
 }
 NEUTRAL_COMPOSE_DEFAULTS = {"command": None, "entrypoint": None}
 
@@ -129,17 +128,6 @@ def ValidateCompose(configuration: dict[str, Any], target: ExternalTarget) -> No
         type(memory_limit) in (int, str)
         and memory_limit in (expected_memory_bytes, str(expected_memory_bytes))
     )
-    ports = service.get("ports", [])
-    expected_port = {
-        "target": target.manifest["http_port"],
-        "published": "0",
-        "host_ip": "127.0.0.1",
-        "protocol": "tcp",
-    }
-    port_valid = (
-        len(ports) == 1
-        and all(ports[0].get(key) == value for key, value in expected_port.items())
-    )
     expected_health_test = [
         "CMD", "/nodejs/bin/node", "-e",
         "fetch('http://127.0.0.1:3000/rest/admin/application-version').then(async r => { "
@@ -170,7 +158,6 @@ def ValidateCompose(configuration: dict[str, Any], target: ExternalTarget) -> No
         and service.get("pids_limit") == limits["pids"]
         and service.get("healthcheck", {}).get("test") == expected_health_test
         and normalized_defaults_valid
-        and port_valid
     )
 
     if not valid:
@@ -193,7 +180,7 @@ class ExternalTargetLab(ComposeLab):
         self.repository_root = repository_root
         self.evidence_directory = evidence_directory
         self.project_name = f"fuzzy-1337-external-{uuid4().hex[:12]}"
-        self.port = 0
+        self.port = self.target.manifest["http_port"]
         self.commands: list[CommandResult] = []
         self.observations: list[HttpObservation] = []
         self.provenance: dict[str, Any] = {}
@@ -238,16 +225,6 @@ class ExternalTargetLab(ComposeLab):
             "External target startup",
         )
         self.CaptureProvenance()
-        published = self.Compose(
-            "port", self.target.Service, str(self.target.manifest["http_port"]),
-        )
-        self.RequireSuccess(published, "External loopback port lookup")
-        match = re.fullmatch(r"127\.0\.0\.1:([0-9]+)", published.stdout.strip())
-
-        if match is None or not 1 <= int(match.group(1)) <= 65535:
-            raise RuntimeError("External target port is not an ephemeral IPv4 loopback binding")
-
-        self.port = int(match.group(1))
         self.WaitUntilReady()
 
     def CaptureProvenance(self) -> None:
@@ -321,9 +298,17 @@ class ExternalTargetLab(ComposeLab):
         )
 
     def Request(self, path: str, timeout_seconds: float | None = None) -> HttpObservation:
-        """Read a bounded response from the verified loopback port without redirects."""
+        """Read container loopback through bounded exec without redirects or host exposure.
 
-        if not self.port or not path.startswith("/") or path.startswith("//"):
+        Duration includes Docker exec launch latency. The child's shorter
+        deadline destroys its request independently of Docker client cancellation.
+        """
+
+        if (
+            not self.provenance or self.port != self.target.manifest["http_port"]
+            or not path.startswith("/") or path.startswith("//")
+            or "\r" in path or "\n" in path
+        ):
             raise ValueError("External HTTP probes require a verified loopback port and local path")
 
         budget = float(self.target.Budget("request"))
@@ -334,28 +319,41 @@ class ExternalTargetLab(ComposeLab):
         if budget <= 0:
             raise ValueError("External HTTP probe must have a positive wall-clock budget")
 
-        result = self.Run(
-            sys.executable, str(self.repository_root / "tests/functional/external_http_probe.py"),
-            str(self.port), path, timeout_seconds=budget,
+        script = (self.repository_root / "tests/functional/external_http_probe.js").read_text(
+            encoding="utf-8",
+        )
+        child_budget_ms = max(1, int(budget * 750))
+        result = self.Compose(
+            "exec", "-T", self.target.Service, "/nodejs/bin/node", "-e", script,
+            "--", path, str(self.port), str(child_budget_ms), timeout_seconds=budget,
         )
         status = None
         headers: tuple[tuple[str, str], ...] = ()
         body = ""
         error = result.stderr if result.returncode else ""
 
-        if result.timed_out:
-            error = "HTTP request exceeded its subprocess wall-clock budget"
+        timed_out = result.timed_out or result.returncode == 124
 
-        elif result.returncode == 0:
-            payload = json.loads(result.stdout)
-            status = payload["status"]
-            headers = tuple(tuple(pair) for pair in payload["headers"])
-            body = payload["body"]
-            error = payload["error"]
+        if result.returncode in (0, 124):
+            try:
+                payload = json.loads(result.stdout)
+
+            except json.JSONDecodeError:
+                if not timed_out:
+                    raise
+
+            else:
+                status = payload["status"]
+                headers = tuple(tuple(pair) for pair in payload["headers"])
+                body = payload["body"]
+                error = payload["error"]
+
+        if timed_out:
+            error = "HTTP request exceeded its subprocess wall-clock budget"
 
         observation = HttpObservation(
             "127.0.0.1", self.port, path, status, headers, body, error,
-            result.timed_out, result.duration_seconds,
+            timed_out, result.duration_seconds,
         )
         self.observations.append(observation)
         self.evidence_directory.mkdir(parents=True, exist_ok=True)

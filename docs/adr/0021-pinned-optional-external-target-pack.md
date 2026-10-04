@@ -26,12 +26,29 @@ opt-in permits the fixture to pull and start that image. Ordinary repository
 checks do not download or start external applications. An enabled pack fails
 when Docker is unavailable; its required CI smoke must actually execute.
 
-The container has an internal network, one ephemeral port bound to
-`127.0.0.1`, no host mounts, no added capabilities, and no privilege escalation.
+The container has one internal network, no published host ports, no host mounts,
+no added capabilities, and no privilege escalation.
 Its writable container layer supports upstream SQLite initialization and is
 removed on teardown. CPU, memory, PID count, pull, startup, health requests,
-diagnostic collection, and cleanup have explicit limits. HTTP requests use the
-fixture's verified loopback port and do not follow redirects or honor proxies.
+diagnostic collection, and cleanup have explicit limits. HTTP requests run through
+bounded `docker compose exec -T` using the image's Node executable and a first-party
+`node:http` script. Its fixed destination is container loopback `127.0.0.1:3000`;
+it does not resolve an input URL, follow redirects, or honor proxies.
+
+Real Docker CI showed that an internal-only container became healthy with the
+pinned image but had no published port. [Docker Engine v28.3.3 skips port mappings
+for internal networks](https://github.com/moby/moby/blob/v28.3.3/daemon/network.go#L940-L944),
+and [Compose documents their lack of a host interface and default gateway](https://docs.docker.com/compose/how-tos/networking/#internal-networks).
+The fixture therefore probes inside the container rather than adding a network
+that would permit outbound access. The original observed Compose fixture remains
+historical evidence; the no-port fixture is explicitly derived from that output.
+
+The Node child owns an absolute deadline at 75% of the parent request budget,
+destroys its request and response on expiry, and returns exit 124 with bounded
+received headers/body preserved as JSON. The parent records that as a timed-out
+HTTP observation without rewriting the raw command outcome. Response body text
+uses explicit UTF-8 decoding. Request duration includes Docker exec launch
+latency, and the parent subprocess deadline and container teardown bound failures.
 
 Before yielding the target, verify the application version endpoint, configured
 image digest, running image configuration ID, OS/architecture, repository digest,

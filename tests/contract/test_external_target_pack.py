@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import json
+import shutil
 import subprocess
 import threading
 from collections.abc import Iterator
@@ -20,7 +21,6 @@ from jsonschema import Draft202012Validator, ValidationError
 
 from tests.functional.conftest import CommandResult, ComposeLab
 from tests.functional.conftest import external_target_lab as ExternalTargetFixture
-from tests.functional.external_http_probe import Main, ReadResponse
 from tests.functional.external_targets import (
     ExternalTarget,
     ExternalTargetLab,
@@ -45,6 +45,14 @@ def ObservedComposeDefinition() -> dict[str, Any]:
     """Load actual Compose v2.38.2 output preserved by CI run 37198612357."""
 
     path = Path(__file__).parent / "fixtures" / "external-compose-config.v1.json"
+
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def DerivedComposeDefinition() -> dict[str, Any]:
+    """Load the observed CI configuration with ineffective host ports removed."""
+
+    path = Path(__file__).parent / "fixtures" / "external-compose-config-derived-no-ports.v1.json"
 
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -77,13 +85,10 @@ class FakeDockerLab(ExternalTargetLab):
             operation = arguments[arguments.index("--profile") + 2]
 
             if operation == "config":
-                stdout = json.dumps(ObservedComposeDefinition())
+                stdout = json.dumps(DerivedComposeDefinition())
 
             elif operation == "ps":
                 stdout = self.remaining if "--all" in arguments else "a" * 64
-
-            elif operation == "port":
-                stdout = "127.0.0.1:49123"
 
         elif operation == "inspect":
             stdout = json.dumps({
@@ -161,10 +166,10 @@ def test_ExternalManifestAndComposeUseTheSameImmutablePin() -> None:
     assert "@sha256:" in target.ImageReference, "External pack cannot pull a mutable-only tag."
 
 
-def test_ActualNormalizedComposeOutputPreservesThePinnedBoundary() -> None:
-    """Accept producer-added null defaults and exact decimal resource representation."""
+def test_DerivedNormalizedComposeOutputPreservesThePinnedBoundary() -> None:
+    """Retain actual producer defaults while explicitly removing ineffective host ports."""
 
-    configuration = ObservedComposeDefinition()
+    configuration = DerivedComposeDefinition()
     service = configuration["services"]["external-juice-shop"]
     ValidateCompose(configuration, LoadTarget(REPOSITORY_ROOT))
 
@@ -174,6 +179,19 @@ def test_ActualNormalizedComposeOutputPreservesThePinnedBoundary() -> None:
     assert service["mem_limit"] == "805306368", (
         "The observed decimal string must retain the exact configured 768 MiB memory bound."
     )
+    historical = ObservedComposeDefinition()
+    del historical["services"]["external-juice-shop"]["ports"]
+
+    assert configuration == historical, (
+        "The derived fixture must differ from recorded real Compose output only by host ports."
+    )
+
+
+def test_HistoricalPublishedPortConfigurationIsNoLongerAccepted() -> None:
+    """Preserve actual CI output as evidence without accepting unusable host publication."""
+
+    with pytest.raises(RuntimeError, match="isolation"):
+        ValidateCompose(ObservedComposeDefinition(), LoadTarget(REPOSITORY_ROOT))
 
 
 @pytest.mark.parametrize("selection", [None, ""])
@@ -255,12 +273,14 @@ def test_ExternalManifestRejectsUnsupportedOrUnattributableState(field: str, val
         ("cpus", True),
         ("healthcheck", {"test": ["CMD", "unreviewed"]}),
         ("ports", [{"target": 3000, "published": "3000", "host_ip": "0.0.0.0"}]),
+        ("ports", []),
+        ("ports", [{"target": 3000, "published": "0", "host_ip": "127.0.0.1"}]),
     ],
 )
 def test_ExternalComposeRejectsWidenedIsolation(field: str, value: object) -> None:
     """Reject host exposure, mounts, capability increases, and unbounded resources."""
 
-    configuration = ObservedComposeDefinition()
+    configuration = DerivedComposeDefinition()
     configuration["services"]["external-juice-shop"][field] = value
 
     with pytest.raises(RuntimeError, match="isolation"):
@@ -276,7 +296,7 @@ def test_ExternalComposeRejectsWidenedIsolation(field: str, value: object) -> No
 def test_NormalizedComposeMemoryRejectsDifferentOrAmbiguousRepresentations(value: object) -> None:
     """Accept only the exact bounded integer or its observed canonical decimal string."""
 
-    configuration = ObservedComposeDefinition()
+    configuration = DerivedComposeDefinition()
     configuration["services"]["external-juice-shop"]["mem_limit"] = value
 
     with pytest.raises(RuntimeError, match="resources"):
@@ -303,7 +323,10 @@ def test_ExternalLifecycleAttributesTheRunningPlatformAndCleansUp(fake_lab: Fake
     """Exercise producer/consumer lifecycle and raw evidence with exact fake Docker outputs."""
 
     with contextmanager(OwnExternalTarget)(fake_lab) as lab:
-        assert lab.port == 49123, "Only the loopback published port may reach consumers."
+        assert lab.port == 3000, "Only the pinned container-loopback port may reach consumers."
+        assert not any("port" in command.argv for command in lab.commands), (
+            "Internal network probes must not depend on unsupported host port publication."
+        )
         assert lab.provenance["platform"] == "linux/amd64", (
             "Provenance must record the actual inspected running-image platform."
         )
@@ -323,7 +346,7 @@ def test_ExternalLifecycleAttributesTheRunningPlatformAndCleansUp(fake_lab: Fake
 
 
 @pytest.mark.parametrize(
-    "failure", ["config", "pull", "up", "inspect", "image", "manifest", "port"],
+    "failure", ["config", "pull", "up", "inspect", "image", "manifest"],
 )
 def test_ExternalStartupFailuresAlwaysAttemptTeardown(
     fake_lab: FakeDockerLab, failure: str,
@@ -480,7 +503,7 @@ def test_ExternalReportKeepsRecoveredStartupHistorySeparateFromAssessment(
     """Preserve prior readiness failures without misclassifying a later successful probe."""
 
     fake_lab.observations.append(HttpObservation(
-        "127.0.0.1", 49123, "/rest/admin/application-version", None, (), "",
+        "127.0.0.1", 3000, "/rest/admin/application-version", None, (), "",
         "recovered startup transport failure", True, 0.1,
     ))
     report = ProbeExternalTarget(fake_lab)
@@ -535,7 +558,7 @@ class LocalHttpHandler(BaseHTTPRequestHandler):
         if self.path == "/slow":
             self.wfile.write(body[:1])
             self.wfile.flush()
-            getattr(self.server, "stop_event").wait(2)
+            getattr(self.server, "stop_event").wait(5)
 
             return
 
@@ -572,22 +595,55 @@ def local_http_server() -> Iterator[ThreadingHTTPServer]:
         )
 
 
-def HttpLab(tmp_path: Path, server: ThreadingHTTPServer) -> ExternalTargetLab:
-    """Connect a real bounded child-process probe to the fixture-owned loopback service."""
+class LocalNodeLab(ExternalTargetLab):
+    """Execute the unchanged container probe with local Node against an owned fixture."""
 
-    manifest = copy.deepcopy(LoadTarget(REPOSITORY_ROOT).manifest)
-    lab = ExternalTargetLab(REPOSITORY_ROOT, tmp_path, ExternalTarget(manifest))
-    lab.port = server.server_address[1]
+    def __init__(
+        self, evidence_directory: Path, server: ThreadingHTTPServer, node_path: str,
+    ) -> None:
+        """Substitute only the owned HTTP fixture port and local executable launcher."""
 
-    return lab
+        manifest = copy.deepcopy(LoadTarget(REPOSITORY_ROOT).manifest)
+        manifest["http_port"] = server.server_address[1]
+        super().__init__(REPOSITORY_ROOT, evidence_directory, ExternalTarget(manifest))
+        self.node_path = node_path
+        self.provenance = {"owned_localhost_fixture": True}
+
+    def Compose(self, *arguments: str, timeout_seconds: int | None = None) -> CommandResult:
+        """Replace Docker exec with the same Node argv while retaining real process evidence."""
+
+        assert arguments[:5] == ("exec", "-T", self.target.Service, "/nodejs/bin/node", "-e"), (
+            "The real probe must use only the fixed container executable and exec contract."
+        )
+        assert timeout_seconds is not None, "Each child must have an explicit parent deadline."
+
+        return self.Run(self.node_path, "-e", *arguments[5:], timeout_seconds=timeout_seconds)
+
+
+@pytest.fixture
+def node_path() -> str:
+    """Use local Node only for optional real-JavaScript fixture contracts."""
+
+    executable = shutil.which("node")
+
+    if executable is None:
+        pytest.skip("Real JavaScript fixture contracts require local Node")
+
+    return executable
+
+
+def HttpLab(tmp_path: Path, server: ThreadingHTTPServer, node_path: str) -> ExternalTargetLab:
+    """Connect the real bounded JavaScript probe to the fixture-owned loopback service."""
+
+    return LocalNodeLab(tmp_path, server, node_path)
 
 
 def test_ExternalHttpProbeUsesRealLoopbackVersionAndRawEvidence(
-    tmp_path: Path, local_http_server: ThreadingHTTPServer,
+    tmp_path: Path, local_http_server: ThreadingHTTPServer, node_path: str,
 ) -> None:
     """Exercise the actual child process, HTTP response, readiness, and evidence writer."""
 
-    lab = HttpLab(tmp_path, local_http_server)
+    lab = HttpLab(tmp_path, local_http_server, node_path)
     lab.WaitUntilReady()
     observation = lab.observations[0]
     command = json.loads((tmp_path / "command-01.json").read_text())
@@ -603,12 +659,59 @@ def test_ExternalHttpProbeUsesRealLoopbackVersionAndRawEvidence(
     )
 
 
+def test_ExternalHttpProbeUsesFixedDockerExecWithoutHostInput(
+    fake_lab: FakeDockerLab, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exercise the real request launcher and preserve its exact bounded Docker argv."""
+
+    fake_lab.provenance = {"verified": True}
+    invocations: list[tuple[tuple[str, ...], int]] = []
+
+    def Capture(*arguments: str, timeout_seconds: int) -> CommandResult:
+        """Capture the actual subprocess contract with an independently supplied response."""
+
+        invocations.append((arguments, timeout_seconds))
+        result = CommandResult(
+            arguments, 0, json.dumps({"status": 200, "headers": [], "body": "ok", "error": ""}),
+            "", duration_seconds=0.25,
+        )
+        fake_lab.WriteEvidence(result)
+
+        return result
+
+    monkeypatch.setattr(fake_lab, "Run", Capture)
+    observation = ExternalTargetLab.Request(fake_lab, "/fixed?marker=1337")
+    argv, budget = invocations[0]
+    operation_index = argv.index("exec")
+    script = (REPOSITORY_ROOT / "tests/functional/external_http_probe.js").read_text()
+
+    assert argv[operation_index:] == (
+        "exec", "-T", "external-juice-shop", "/nodejs/bin/node", "-e", script,
+        "--", "/fixed?marker=1337", "3000", "2250",
+    ), "The launcher must preserve fixed container, executable, port, and bounded child deadline."
+    assert budget == 3 and observation.duration_seconds == 0.25, (
+        "The parent deadline and recorded duration must include Docker exec process launch."
+    )
+
+
+def test_ExternalHttpProbeTreatsBackslashAsAPathWithoutChangingHost(
+    tmp_path: Path, local_http_server: ThreadingHTTPServer, node_path: str,
+) -> None:
+    """Use HTTP path options instead of URL parsing that could reinterpret a hostname."""
+
+    observation = HttpLab(tmp_path, local_http_server, node_path).Request("/\\fixture-only")
+
+    assert observation.status == 200 and json.loads(observation.body)["version"] == "20.2.0", (
+        "A backslash in the request path must still reach only the owned loopback fixture."
+    )
+
+
 def test_ExternalHttpProbeNeverFollowsRedirects(
-    tmp_path: Path, local_http_server: ThreadingHTTPServer,
+    tmp_path: Path, local_http_server: ThreadingHTTPServer, node_path: str,
 ) -> None:
     """Preserve a redirect response without contacting its external Location destination."""
 
-    observation = HttpLab(tmp_path, local_http_server).Request("/redirect")
+    observation = HttpLab(tmp_path, local_http_server, node_path).Request("/redirect")
 
     assert observation.status == 302, (
         "Redirect responses must remain observations, never new targets."
@@ -616,11 +719,11 @@ def test_ExternalHttpProbeNeverFollowsRedirects(
 
 
 def test_ExternalHttpProbeRejectsOversizedResponse(
-    tmp_path: Path, local_http_server: ThreadingHTTPServer,
+    tmp_path: Path, local_http_server: ThreadingHTTPServer, node_path: str,
 ) -> None:
     """Retain bounded response bytes and record an explicit overflow failure."""
 
-    observation = HttpLab(tmp_path, local_http_server).Request("/overflow")
+    observation = HttpLab(tmp_path, local_http_server, node_path).Request("/overflow")
 
     assert len(observation.body) == 65537 and "body budget" in observation.error, (
         "HTTP probe must detect overflow after only one byte beyond its declared body limit."
@@ -628,37 +731,50 @@ def test_ExternalHttpProbeRejectsOversizedResponse(
 
 
 def test_ExternalHttpProbeEnforcesWallClockTimeoutAndPreservesOutcome(
-    tmp_path: Path, local_http_server: ThreadingHTTPServer,
+    tmp_path: Path, local_http_server: ThreadingHTTPServer, node_path: str,
 ) -> None:
-    """Kill a slow streamed-body probe even when individual socket reads would succeed."""
+    """Preserve partial response evidence when the child deadline precedes its parent."""
 
-    lab = HttpLab(tmp_path, local_http_server)
-    lab.target.manifest["budgets_seconds"]["request"] = 1
+    lab = HttpLab(tmp_path, local_http_server, node_path)
     observation = lab.Request("/slow")
     command = json.loads((tmp_path / "command-01.json").read_text())
 
     assert observation.timed_out and "wall-clock budget" in observation.error, (
         "An incomplete slowly streamed body must remain a timed-out HTTP observation."
     )
-    assert command["timed_out"] and command["returncode"] == 124, (
-        "Raw command evidence must preserve timeout state and its bounded-process exit code."
+    assert not command["timed_out"] and command["returncode"] == 124, (
+        "The child's exit 124 must remain distinct from a parent subprocess timeout."
     )
-    assert 0 <= command["duration_seconds"] < 2, (
-        "A one-second request budget must actually bound I/O."
+    assert observation.status == 200 and observation.body == "a" and observation.headers, (
+        "Child deadline evidence must retain actual received status, headers, and partial body."
+    )
+    assert json.loads(command["stdout"])["body"] == "a", (
+        "The raw child JSON must preserve received bytes before the deadline outcome."
+    )
+    assert "container wall-clock budget" in command["stderr"], (
+        "The raw child diagnostic must remain available without rewriting command output."
+    )
+    assert 0 <= command["duration_seconds"] < 3, (
+        "The child's absolute deadline must complete within the parent's three-second budget."
     )
 
 
 @pytest.mark.parametrize(
     "port,path", [(0, "/"), (65536, "/"), (1, "https://remote"), (1, "//remote")],
 )
-def test_ExternalHttpProbeRejectsUnverifiedDestinations(port: int, path: str) -> None:
+def test_ExternalHttpProbeRejectsUnverifiedDestinations(
+    tmp_path: Path, node_path: str, port: int, path: str,
+) -> None:
     """Reject invalid ports and nonlocal paths before opening a connection."""
 
-    with pytest.raises(ValueError, match="loopback port"):
-        ReadResponse(port, path)
+    script = (REPOSITORY_ROOT / "tests/functional/external_http_probe.js").read_text()
+    result = ComposeLab(REPOSITORY_ROOT, tmp_path).Run(
+        node_path, "-e", script, "--", path, str(port), "1000", timeout_seconds=3,
+    )
 
-    with pytest.raises(ValueError, match="exactly"):
-        Main(())
+    assert result.returncode != 0 and "requires a loopback port" in result.stderr, (
+        "The unchanged runtime script must reject invalid destinations before opening HTTP."
+    )
 
 
 def test_SharedCommandTimeoutPreservesPartialOutputAndDuration(
