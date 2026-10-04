@@ -6,9 +6,11 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import shutil
 import subprocess
+import time
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -33,6 +35,7 @@ class CommandResult:
     stdout: str
     stderr: str
     timed_out: bool = False
+    duration_seconds: float = 0.0
 
 
 class ComposeLab:
@@ -126,6 +129,8 @@ class ComposeLab:
     def Run(self, *arguments: str, timeout_seconds: int) -> CommandResult:
         """Execute an argv list without a shell and write its raw evidence record."""
 
+        started = time.monotonic()
+
         try:
             completed = subprocess.run(
                 arguments,
@@ -141,6 +146,7 @@ class ComposeLab:
                 returncode=completed.returncode,
                 stdout=completed.stdout,
                 stderr=completed.stderr,
+                duration_seconds=time.monotonic() - started,
             )
 
         except subprocess.TimeoutExpired as error:
@@ -150,6 +156,7 @@ class ComposeLab:
                 stdout=DecodeOutput(error.stdout),
                 stderr=DecodeOutput(error.stderr),
                 timed_out=True,
+                duration_seconds=time.monotonic() - started,
             )
 
         self.WriteEvidence(result)
@@ -262,3 +269,27 @@ def DecodeOutput(output: str | bytes | None) -> str:
     if isinstance(output, bytes):
         return output.decode(errors="replace")
     return output
+
+
+@pytest.fixture(scope="module")
+def external_target_lab() -> Iterator[ComposeLab]:
+    """Run the explicit external pack, failing missing Docker after opt-in."""
+
+    from .external_targets import ExternalTargetLab, IsPackEnabled, LoadTarget, OwnExternalTarget
+
+    if not IsPackEnabled(os.environ.get("FUZZY1337_EXTERNAL_TARGETS")):
+        pytest.skip("External targets require FUZZY1337_EXTERNAL_TARGETS=juice-shop")
+
+    if shutil.which("docker") is None:
+        pytest.fail("Enabled external target pack requires Docker Compose")
+
+    repository_root = Path(__file__).resolve().parents[2]
+    lab = ExternalTargetLab(
+        repository_root, repository_root / "functional-evidence" / "external-juice-shop",
+        LoadTarget(repository_root),
+    )
+    lab.RequireSuccess(
+        lab.Run("docker", "compose", "version", timeout_seconds=30), "Docker Compose availability",
+    )
+
+    yield from OwnExternalTarget(lab)

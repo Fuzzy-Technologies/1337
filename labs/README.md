@@ -3,7 +3,9 @@
 ## Purpose
 
 This directory is the repository-owned, isolated target boundary for 1337
-development. It contains only local synthetic targets. It is never a list of
+development. Its first-party target directories contain local synthetic services;
+the separate external pack contains an explicitly pinned vulnerable application.
+It is never a list of
 Internet hosts and it does not authorize assessment of a target outside this
 repository-owned lab.
 
@@ -23,6 +25,12 @@ routes for discovery, redirects, headers, cookies, forms, bounded query/body/
 JSON/upload inputs, status behavior, and explicit simulation canaries. The
 canaries never execute commands, access files, make outbound requests, or
 persist uploads.
+
+The [optional external pack](external/README.md) adds isolated Juice Shop 20.2.0
+regression smoke. Ordinary checks leave it disabled; its pytest fixture requires
+an explicit opt-in and owns the bounded pull, readiness, provenance, and cleanup.
+Realistic external targets supplement rather than replace the micro-target
+known-answer oracle.
 
 Start and wait for the target from the repository root:
 
