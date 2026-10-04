@@ -23,6 +23,7 @@ SITE_SOURCE_FILES = {
     "llms.txt",
     "ru/index.md",
     "sitemap.xml",
+    "static/main.js",
     "static/style.css",
     "zh-cn/index.md",
 }

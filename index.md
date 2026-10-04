@@ -18,11 +18,14 @@ description: 1337 Security Workbench by Fuzzy Technologies — an open, local-fi
 </header>
 
 <section class="hero hero-grid">
-<div class="hero-primary">
+<figure class="hero-primary">
+<img class="hero-image" src="{{ '/api/latest/en/assets/images/1337-logo.png' | relative_url }}" alt="1337 project artwork with Maria at a security workbench" width="1774" height="887" decoding="async" fetchpriority="high" />
+<figcaption class="hero-caption">
 <p class="eyebrow">Open security workbench · Live Security Object Model · Modular tooling</p>
 <p class="hero-hook">Explore the system.<br><strong>Build the model as you work</strong></p>
 <span class="status">Early pre-alpha · Apache-2.0 · v0.1.8</span>
-</div>
+</figcaption>
+</figure>
 
 <div class="hero-secondary">
 <p>A fast, local-first workbench for penetration testing, security investigations, and security engineering. Built-in discovery creates the initial model; built-in and external tools continuously enrich it with observations, evidence, findings, relationships, reachability, and attack paths.</p>
