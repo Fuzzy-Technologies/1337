@@ -1,5 +1,7 @@
 # 1337 API reference
 
+![1337 Security Workbench by Fuzzy Technologies](assets/images/1337-logo.png)
+
 This reference documents the current Community Python interfaces. Symbol visibility
 is not a stability promise: consult the repository compatibility policy before
 building an extension against a specific contract.

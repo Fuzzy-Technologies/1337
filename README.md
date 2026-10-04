@@ -1,5 +1,7 @@
 # 1337 Security Workbench
 
+![1337 Security Workbench by Fuzzy Technologies](docs/site/content/en/assets/images/1337-logo.png)
+
 ## Open security workbench · Live Security Object Model · Modular tooling
 
 **1337 Security Workbench (1337-SW) by Fuzzy Technologies** is a fast, local-first
