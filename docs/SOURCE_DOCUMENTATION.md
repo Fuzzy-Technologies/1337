@@ -114,7 +114,7 @@ same non-mutating validation entry points locally and in CI. Once implemented,
 the documentation gate must establish these properties:
 
 | Boundary          | Required evidence                                                          |
-|-------------------|----------------------------------------------------------------------------|
+| ----------------- | -------------------------------------------------------------------------- |
 | API coverage      | Static inventory matches source and rendered documented symbols            |
 | Strict build      | Missing references, unresolved symbols, and actionable warnings fail       |
 | Links and anchors | Internal destinations and fragments resolve, including composed routes     |
