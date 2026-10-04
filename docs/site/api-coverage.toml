@@ -36,6 +36,12 @@ mode = "authored"
 page = "api/fuzzy1337.command_registry.md"
 
 [[surfaces]]
+module = "fuzzy1337.component_health"
+source = "src/fuzzy1337/component_health.py"
+mode = "authored"
+page = "api/fuzzy1337.component_health.md"
+
+[[surfaces]]
 module = "fuzzy1337.coverage_gate"
 source = "src/fuzzy1337/coverage_gate.py"
 mode = "authored"

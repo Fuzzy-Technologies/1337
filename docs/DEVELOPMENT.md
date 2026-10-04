@@ -26,21 +26,24 @@ fails if the pinned `uv` executable is unavailable. The initial one-time
 prerequisite is installing `uv==0.11.33` as shown above.
 
 The current `1337` entry point provides help, installed-version output, the
-interactive shell foundation, and local diagnostics. Scanner workflows belong
-to subsequent product work.
+interactive shell foundation, local diagnostics, and read-only component-health
+inspection. Scanner workflows belong to subsequent product work. See
+[Component health and update inspection](COMPONENT_HEALTH.md) for the explicit
+non-mutation boundary and experimental JSON report.
 
-| Command                                  | Behavior                                                                                |
-|------------------------------------------|-----------------------------------------------------------------------------------------|
-| `uv run --locked 1337-dev setup`         | Synchronize the locked development environment                                          |
-| `uv run --locked 1337-dev lint`          | Run non-mutating Ruff checks                                                            |
-| `uv run --locked 1337-dev typecheck`     | Run strict mypy checks for production Python                                            |
-| `uv run --locked 1337-dev compile`       | Compile source and tests                                                                |
-| `uv run --locked 1337-dev performance`   | Enforce implemented shell latency budgets and write JSON evidence                       |
-| `uv run --locked 1337 doctor`            | Inspect the local runtime, workspace permissions, package, and optional lab support     |
-| `uv run --locked 1337-dev unit`          | Run process-isolated unit tests and mandatory per-module coverage validation            |
-| `uv run --locked 1337-dev test`          | Run all test layers in process-isolated workers and mandatory coverage validation       |
-| `uv run --locked 1337-dev build`         | Build the sdist and wheel using locked tools                                            |
-| `uv run --locked 1337-dev check`         | Compile, lint, typecheck, measure performance, test coverage, and build                 |
+| Command                                | Behavior                                                                            |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| `uv run --locked 1337-dev setup`       | Synchronize the locked development environment                                      |
+| `uv run --locked 1337-dev lint`        | Run non-mutating Ruff checks                                                        |
+| `uv run --locked 1337-dev typecheck`   | Run strict mypy checks for production Python                                        |
+| `uv run --locked 1337-dev compile`     | Compile source and tests                                                            |
+| `uv run --locked 1337-dev performance` | Enforce implemented shell latency budgets and write JSON evidence                   |
+| `uv run --locked 1337 doctor`          | Inspect the local runtime, workspace permissions, package, and optional lab support |
+| `uv run --locked 1337 update [--json]` | Inspect local component health and manual update boundaries without changing state  |
+| `uv run --locked 1337-dev unit`        | Run process-isolated unit tests and mandatory per-module coverage validation        |
+| `uv run --locked 1337-dev test`        | Run all test layers in process-isolated workers and mandatory coverage validation   |
+| `uv run --locked 1337-dev build`       | Build the sdist and wheel using locked tools                                        |
+| `uv run --locked 1337-dev check`       | Compile, lint, typecheck, measure performance, test coverage, and build             |
 
 Each child step has a 300-second limit. Normal child exit codes are propagated;
 timeouts return 124, process-start failures return 127, and POSIX signal exits
@@ -85,7 +88,7 @@ local command-palette search and lens/view state transitions in process. Every c
 has an explicit median latency budget:
 
 | Case                       | Median budget |
-|----------------------------|---------------|
+| -------------------------- | ------------- |
 | CLI cold start             | 2,000 ms      |
 | Interactive readiness      | 2,000 ms      |
 | Command-palette search     | 2 ms          |

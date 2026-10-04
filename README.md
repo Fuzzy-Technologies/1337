@@ -107,11 +107,16 @@ git switch develop
 python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 doctor
+uv run --locked 1337 update
 uv run --locked 1337 shell
 ```
 
 Inside the shell, start with `help`, `commands`, `context`, `lens devsecops`,
 `select asset:demo`, `palette`, and `quit`.
+
+`1337 update [--json]` inspects local core health and reports unavailable component
+inventories. It performs no updates or remote version checks. See
+[Component health and update inspection](docs/COMPONENT_HEALTH.md).
 
 ## Architecture and project docs
 

@@ -93,6 +93,20 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
     assert Invoke([str(scripts / f"1337{suffix}"), "--version"], tmp_path).strip() == expected, (
         "sdist wheel and clean installation invariant failed."
     )
+    update = json.loads(
+        Invoke([str(scripts / f"1337{suffix}"), "update", "--json"], tmp_path)
+    )
+    assert update["components"][1]["installedVersion"] == metadata["version"], (
+        "The installed wheel must report its actual distribution version through the update CLI."
+    )
+    assert (
+        update["mutationsPerformed"] is False and update["updateAvailability"] == "not_checked"
+    ), (
+        "Clean-wheel inspection must preserve the read-only update boundary."
+    )
+    assert json.loads(
+        Invoke([str(executable), "-I", "-m", "fuzzy1337", "update", "--json"], tmp_path)
+    ) == update, "Installed console and module entry points must expose the same inspection report."
     assert "1337 repository quality gates" in Invoke(
         [str(scripts / f"1337-dev{suffix}"), "--help"],
         tmp_path,
