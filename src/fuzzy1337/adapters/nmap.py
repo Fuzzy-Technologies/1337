@@ -221,7 +221,7 @@ def ReadVersion(executable: str) -> AdapterHealth:
         return AdapterHealth(_DESCRIPTOR.adapter_id, AdapterHealthState.UNAVAILABLE,
                              detail="Nmap version probe could not start")
 
-    assert process.stdout is not None
+    assert process.stdout is not None, "subprocess.PIPE did not provide its stdout capture handle"
     pipe = process.stdout
     capture_failed = threading.Event()
 
@@ -415,9 +415,9 @@ class NmapAdapter:
 
             return AdapterResult(report, observations=(observation,))
 
-        return self._NormalizeTree(report, root)
+        return self.NormalizeTree(report, root)
 
-    def _NormalizeTree(self, report: AdapterReport, root: ElementTree.Element) -> AdapterResult:
+    def NormalizeTree(self, report: AdapterReport, root: ElementTree.Element) -> AdapterResult:
         """Normalize validated host/port/service facts with opaque provider references.
 
         Args:

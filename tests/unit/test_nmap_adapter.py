@@ -474,7 +474,7 @@ def test_HealthProbePreservesVersionFailureAndResourceBudgets(
             self.returncode = exit_code
             self.first_wait = True
 
-        def wait(self, timeout=None):
+        def Wait(self, timeout=None):
             """Model the fixed bounded wait and subsequent process reaping.
 
             Args:
@@ -496,7 +496,7 @@ def test_HealthProbePreservesVersionFailureAndResourceBudgets(
 
             return self.returncode
 
-        def kill(self):
+        def Kill(self):
             """Record terminal resource cancellation or a deterministic exit race.
 
             Raises:
@@ -507,6 +507,9 @@ def test_HealthProbePreservesVersionFailureAndResourceBudgets(
 
             if failure == "kill-race":
                 raise ProcessLookupError("synthetic process exited before kill")
+
+        wait = Wait
+        kill = Kill
 
     process = OwnedProcess()
 

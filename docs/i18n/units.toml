@@ -542,6 +542,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "symbol:fuzzy1337.adapters.nmap.NmapAdapter.NormalizeTree"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:c7c682aceafdadece4f5235dcf2434ccf9d246b4f131d2a2dee7293d3bce905e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "symbol:fuzzy1337.adapters.nmap.NmapAdapter"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/nmap.py"
