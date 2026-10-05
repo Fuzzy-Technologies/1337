@@ -34,6 +34,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.adapters.nmap"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.nmap.md"
+sourceHash = "sha256:d96735e788cbe3e7d7682932c03a75a282498c7822d37cd4668805b8b03aede1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.cli"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.cli.md"
@@ -524,6 +535,105 @@ id = "symbol:fuzzy1337.adapters.contracts.UniqueReferences"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/contracts.py"
 sourceHash = "sha256:09b173caabcce2775b6c5605d794d349c1b717e4f0a5f6678e4fd8157510f6fa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.NmapAdapter"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:6b945f003013b023e13da628af0fea3d4a0e23bab35ff8d8d92de04e57a57488"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.NmapAdapter.CheckHealth"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:d586cbca737b374bf71d2896e2b7b9afb7fc638f9fe9c92e772c7bce378fa374"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.NmapAdapter.Descriptor"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:42d59857208f838e061f9e0d6796a8d9a67e98b45c6d9ea4ed07eb750f07f5c0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.NmapAdapter.NormalizeReport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:e1831d4b106888bec085f9f17fe3354e80b237aa5fd3a81b157328d7cbe362cc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.NmapAdapter.PrepareInvocation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:51ff3aa7f0006de525fdd89e6b2ec5eb29fad950386602f2624ae04d5f555286"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.NmapReportError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:5f1ee59df8c1c899a9dc13c081c63767f6b238a62d9cd2e3bce446840261bf77"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.ParseXml"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:71b54d2a240b34b04451d46723f008c530aeec75ac53bd07b9a4a7ddfa54b7f7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.ReadVersion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:935ee430081ca3674f2e2e42cdf373b98e6be66b801332e640e35f24a78b12e7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nmap.ValidateParameters"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nmap.py"
+sourceHash = "sha256:6a066c57c647f44e9d656a97d86174c2e94df5f30cedc7265f5a37fba442d888"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

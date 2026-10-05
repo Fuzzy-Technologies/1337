@@ -49,6 +49,11 @@ at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
 failure semantics. Other evidence helpers remain Internal.
 
+`fuzzy1337.adapters.nmap` is an Experimental optional adapter at version `1`.
+ADR 0024 and `docs/NMAP_ADAPTER.md` define finite invocation profiles, bounded
+health, verified XML normalization, and preservation of executor/evidence facts.
+Nmap is supplied by the operator; this adapter never grants execution authority.
+
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 
@@ -161,12 +166,13 @@ Changes to a Stable contract require:
 
 Current versioned public contracts:
 
-| Contract family      | Schema version | Location                                      | Status       |
-| -------------------- | -------------- | --------------------------------------------- | ------------ |
-| Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`    | Stable       |
-| Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
-| ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
-| Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
-| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
+| Contract family      | Schema version | Location                                          | Status       |
+| -------------------- | -------------- | ------------------------------------------------- | ------------ |
+| Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`        | Stable       |
+| Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`       | Experimental |
+| ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`     | Experimental |
+| Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`          | Experimental |
+| Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`; `docs/NMAP_ADAPTER.md` | Experimental |
+| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`        | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

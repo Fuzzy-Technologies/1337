@@ -24,6 +24,12 @@ mode = "authored"
 page = "api/fuzzy1337.adapters.contracts.md"
 
 [[surfaces]]
+module = "fuzzy1337.adapters.nmap"
+source = "src/fuzzy1337/adapters/nmap.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.nmap.md"
+
+[[surfaces]]
 module = "fuzzy1337.cli"
 source = "src/fuzzy1337/cli.py"
 mode = "authored"
