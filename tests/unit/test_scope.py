@@ -165,7 +165,9 @@ def test_AuthorizationNormalizesUtcWithoutInferringConsent():
     authorization = ScopeAuthorization(valid_from="2026-10-01T03:00:00+03:00")
 
     assert authorization.valid_from == "2026-10-01T00:00:00+00:00", "UTC normalization is incorrect"
-    assert ScopeAuthorization.FromDict(authorization.ToDict()) == authorization
+    assert ScopeAuthorization.FromDict(authorization.ToDict()) == authorization, (
+        "Canonical consent metadata did not survive its serialized round trip"
+    )
     document = authorization.ToDict()
     document["valid_from"] = "2026-10-01T00:00:00Z"
 
@@ -225,7 +227,9 @@ def test_RegistrationDoesNotGrantMembershipAndIsIdempotent():
     target = Target(TargetKind.DOMAIN, "example.test")
     snapshot = ScopeSnapshot("testing", "synthetic", GrantedAuthorization(), allow=(target,))
 
-    assert snapshot.Check(target, at=DECISION_TIME).reason == ScopeDecisionReason.UNREGISTERED
+    assert snapshot.Check(target, at=DECISION_TIME).reason == ScopeDecisionReason.UNREGISTERED, (
+        "An allow rule implicitly registered its target"
+    )
     registered = snapshot.Register(target)
 
     assert registered.Register(target) is registered, "Repeat registration duplicated identity"
@@ -300,7 +304,9 @@ def test_DeniedAddressOverlapRejectsWholeNetworkCandidates(kind, value):
     snapshot = ScopeSnapshot("testing", "synthetic", GrantedAuthorization(),
                              targets=(candidate,), allow=(candidate,), deny=(rule,))
 
-    assert snapshot.Check(candidate, at=DECISION_TIME).reason == ScopeDecisionReason.DENIED
+    assert snapshot.Check(candidate, at=DECISION_TIME).reason == ScopeDecisionReason.DENIED, (
+        "An allowed network candidate included an explicitly denied address range"
+    )
 
 
 @pytest.mark.parametrize("rule_kind,rule_value,url", [
@@ -534,7 +540,7 @@ def test_CompetingWritersCannotLoseAnUpdate(tmp_path, monkeypatch):
     store, initial = CreateStore(tmp_path)
     entered = Event()
     release = Event()
-    original_write = LocalScopeStore._Write
+    original_write = LocalScopeStore.Write
 
     def BlockedWrite(self, path, snapshot):
         """Keep the first writer inside its owned transaction until the test releases it."""
@@ -546,7 +552,7 @@ def test_CompetingWritersCannotLoseAnUpdate(tmp_path, monkeypatch):
 
         original_write(self, path, snapshot)
 
-    monkeypatch.setattr(LocalScopeStore, "_Write", BlockedWrite)
+    monkeypatch.setattr(LocalScopeStore, "Write", BlockedWrite)
 
     with ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(store.Save, initial.Register(Target(TargetKind.IP, "192.0.2.1")))

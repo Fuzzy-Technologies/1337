@@ -182,7 +182,7 @@ state = "missing"
 id = "page:api.fuzzy1337.scope"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.scope.md"
-sourceHash = "sha256:2502e108bf1b7fe1054b7c1d02f6554c549322cc6689a5e9e9c4a0a04ac8ea66"
+sourceHash = "sha256:e96a0bbc419bf6806eb45cf81d5ce45ddbfa83abfe8fb73dbc143629815a4528"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -839,6 +839,105 @@ reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
 
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.LocalScopeStore.Commit"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:944412b8380add669ca5cbeef3ff278bd1285f0a70e36628e31504eec40cb17d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.LocalScopeStore.Paths"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:edfda0b0382fd05b9703da4e1d55518b5dd0aaa226e0fa2d3774e0c732ba4021"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.LocalScopeStore.Write"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:fb894fa3a43384b38bf9341f76a6d59aa709fb7ea016a21dae2bd25d12933c06"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.Matches"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:94b97fea293d906bef0eadf58730fd3253db119a286ec34a7fe89235b015acaf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.NormalizeDomain"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:fbb11ab2238ebc8a2afacc799151da3fd3cb8b3f3862b73fd1dd98edc818e7e4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.NormalizeTarget"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:58e5ff548a5d9a6f7ae41ae1f2880c1a961b5b26d83504504efdc2cdac869a31"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.NormalizeTime"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:13a5be5ffd10188d8006031d42295739b296b5c6ecb4d082fc0b7fa90e5f4114"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.NormalizeUrl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:4d9cfa31297f84bcbae8c79fff06a9f9fedae2a25480e8a911705a7cf971e522"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scope.Targets"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scope.py"
+sourceHash = "sha256:b5b1bea54d61d6b65d6cb75dd6b6d9c164d55b1276da225995788f8171e6d859"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 

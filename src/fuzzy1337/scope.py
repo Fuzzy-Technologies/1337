@@ -76,7 +76,7 @@ class ScopeBusyError(RuntimeError):
     """Reject a live or abandoned scope writer lock without stealing ownership."""
 
 
-def _NormalizeDomain(value: str) -> str:
+def NormalizeDomain(value: str) -> str:
     """Normalize IDNA DNS spelling without looking up or expanding the domain.
 
     Args:
@@ -107,7 +107,7 @@ def _NormalizeDomain(value: str) -> str:
     return domain
 
 
-def _NormalizeUrl(value: str) -> str:
+def NormalizeUrl(value: str) -> str:
     """Normalize an exact HTTP(S) request target while rejecting ambiguous addressing.
 
     Args:
@@ -146,7 +146,7 @@ def _NormalizeUrl(value: str) -> str:
         address = ipaddress.ip_address(hostname)
 
     except ValueError:
-        host = _NormalizeDomain(hostname)
+        host = NormalizeDomain(hostname)
 
     else:
         host = f"[{address.compressed}]" if address.version == 6 else address.compressed
@@ -172,7 +172,7 @@ def _NormalizeUrl(value: str) -> str:
     return urlunsplit((parsed.scheme, host, path, query, ""))
 
 
-def _NormalizeTarget(kind: TargetKind, value: str) -> str:
+def NormalizeTarget(kind: TargetKind, value: str) -> str:
     """Validate and normalize one typed literal without any network or filesystem lookup.
 
     Args:
@@ -197,10 +197,10 @@ def _NormalizeTarget(kind: TargetKind, value: str) -> str:
         raise ValueError("target value must be bounded text without whitespace or controls")
 
     if kind == TargetKind.DOMAIN:
-        return _NormalizeDomain(value)
+        return NormalizeDomain(value)
 
     if kind == TargetKind.URL:
-        return _NormalizeUrl(value)
+        return NormalizeUrl(value)
 
     if "%" in value:
         raise ValueError("IP and network targets must not contain interface zone identifiers")
@@ -224,7 +224,7 @@ class Target:
     def __post_init__(self) -> None:
         """Normalize explicit input once without inferring another target namespace."""
 
-        object.__setattr__(self, "value", _NormalizeTarget(self.kind, self.value))
+        object.__setattr__(self, "value", NormalizeTarget(self.kind, self.value))
 
     def Reference(self) -> str:
         """Return the opaque SHA-256 identity of canonical compact JSON, without a newline.
@@ -274,7 +274,7 @@ class Target:
         return target
 
 
-def _NormalizeTime(value: str) -> str:
+def NormalizeTime(value: str) -> str:
     """Normalize an explicit timezone-aware validity bound to UTC ISO 8601 text.
 
     Args:
@@ -327,7 +327,7 @@ class ScopeAuthorization:
             value = getattr(self, field_name)
 
             if value is not None:
-                object.__setattr__(self, field_name, _NormalizeTime(value))
+                object.__setattr__(self, field_name, NormalizeTime(value))
 
         if self.valid_from is not None and self.valid_until is not None:
             if datetime.fromisoformat(self.valid_from) >= datetime.fromisoformat(self.valid_until):
@@ -379,7 +379,7 @@ class ScopeAuthorization:
         return authorization
 
 
-def _Targets(value: object, field_name: str) -> tuple[Target, ...]:
+def Targets(value: object, field_name: str) -> tuple[Target, ...]:
     """Freeze one unique declaration-ordered sequence of typed targets.
 
     Args:
@@ -404,7 +404,7 @@ def _Targets(value: object, field_name: str) -> tuple[Target, ...]:
     return targets
 
 
-def _Matches(rule: Target, target: Target, *, denying: bool = False) -> bool:
+def Matches(rule: Target, target: Target, *, denying: bool = False) -> bool:
     """Match literals/CIDRs and conservatively deny a URL's explicit known authority.
 
     Args:
@@ -431,7 +431,7 @@ def _Matches(rule: Target, target: Target, *, denying: bool = False) -> bool:
         except ValueError:
             authority = Target(TargetKind.DOMAIN, hostname)
 
-        return _Matches(rule, authority, denying=True)
+        return Matches(rule, authority, denying=True)
 
     if (
         rule.kind not in {TargetKind.IP, TargetKind.NETWORK}
@@ -515,7 +515,7 @@ class ScopeSnapshot:
             raise ValueError("authorization must be a ScopeAuthorization")
 
         for field_name in ("targets", "allow", "deny", "exclusions"):
-            object.__setattr__(self, field_name, _Targets(getattr(self, field_name), field_name))
+            object.__setattr__(self, field_name, Targets(getattr(self, field_name), field_name))
 
     def Reference(self) -> str:
         """Return the opaque workspace-local reference used by existing workspace metadata.
@@ -598,7 +598,7 @@ class ScopeSnapshot:
             (self.allow, ScopeDecisionReason.ALLOWED),
         ):
             for rule in rules:
-                if _Matches(rule, target, denying=matched_reason != ScopeDecisionReason.ALLOWED):
+                if Matches(rule, target, denying=matched_reason != ScopeDecisionReason.ALLOWED):
                     return ScopeDecision(
                         matched_reason, self.Reference(), target.Reference(), rule.Reference()
                     )
@@ -681,7 +681,7 @@ class LocalScopeStore:
 
         object.__setattr__(self, "workspace_root", LocalWorkspaceStore(self.workspace_root).root)
 
-    def _Paths(self, scope_id: str, *, initialize: bool = False) -> tuple[Path, Path, str]:
+    def Paths(self, scope_id: str, *, initialize: bool = False) -> tuple[Path, Path, str]:
         """Validate owned paths and optionally initialize the missing authoritative namespace.
 
         Args:
@@ -735,7 +735,7 @@ class LocalScopeStore:
             OSError: The record or workspace cannot be read.
         """
 
-        _, path, workspace_id = self._Paths(scope_id)
+        _, path, workspace_id = self.Paths(scope_id)
 
         with path.open("rb") as stream:
             payload = stream.read(MAX_SCOPE_BYTES + 1)
@@ -775,7 +775,7 @@ class LocalScopeStore:
             OSError: Initialization, durable write, or cleanup fails; reopen before retrying.
         """
 
-        return self._Commit(snapshot, create=True)
+        return self.Commit(snapshot, create=True)
 
     def Save(self, snapshot: ScopeSnapshot) -> ScopeSnapshot:
         """Commit a matching identity/revision under a fail-fast exclusive writer lock.
@@ -793,9 +793,9 @@ class LocalScopeStore:
             OSError: Reading, writing, synchronization, or cleanup fails; reopen before retrying.
         """
 
-        return self._Commit(snapshot, create=False)
+        return self.Commit(snapshot, create=False)
 
-    def _Commit(self, snapshot: ScopeSnapshot, *, create: bool) -> ScopeSnapshot:
+    def Commit(self, snapshot: ScopeSnapshot, *, create: bool) -> ScopeSnapshot:
         """Own publication/CAS and cleanup without touching independently owned workspace files.
 
         Args:
@@ -815,7 +815,7 @@ class LocalScopeStore:
         if not isinstance(snapshot, ScopeSnapshot):
             raise ValueError("snapshot must be a ScopeSnapshot")
 
-        namespace, path, workspace_id = self._Paths(snapshot.scope_id, initialize=create)
+        namespace, path, workspace_id = self.Paths(snapshot.scope_id, initialize=create)
 
         if snapshot.workspace_id != workspace_id or (create and snapshot.revision != 0):
             raise ScopeConflictError("scope workspace identity or initial revision differs")
@@ -843,14 +843,14 @@ class LocalScopeStore:
 
                 committed = replace(snapshot, revision=current.revision + 1)
 
-            self._Write(path, committed)
+            self.Write(path, committed)
 
             return committed
 
         finally:
             lock_path.rmdir()
 
-    def _Write(self, path: Path, snapshot: ScopeSnapshot) -> None:
+    def Write(self, path: Path, snapshot: ScopeSnapshot) -> None:
         """Durably replace one owned record through a private same-directory temporary file.
 
         Args:
