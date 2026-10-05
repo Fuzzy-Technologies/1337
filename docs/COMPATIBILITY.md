@@ -40,6 +40,11 @@ The M0 repository does **not** freeze a Python import namespace before packaging
 workspace document at schema version `1`. ADR 0019 and `docs/WORKSPACES.md`
 define its portable metadata, reference, and cooperating-writer lifecycle contract.
 
+`fuzzy1337.scope` is an Experimental Python library and persisted scope schema
+at version `1`. ADR 0022 and `docs/SCOPE.md` define typed target identity,
+explicit consent metadata, offline membership, and portable scope persistence.
+Scope membership does not issue invocation-bound execution authorization.
+
 `fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
@@ -164,6 +169,7 @@ Current versioned public contracts:
 | Contract family      | Schema version | Location                                      | Status       |
 | -------------------- | -------------- | --------------------------------------------- | ------------ |
 | Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`    | Stable       |
+| Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`            | Experimental |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |

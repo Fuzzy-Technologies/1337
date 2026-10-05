@@ -102,6 +102,12 @@ mode = "authored"
 page = "api/fuzzy1337.performance.md"
 
 [[surfaces]]
+module = "fuzzy1337.scope"
+source = "src/fuzzy1337/scope.py"
+mode = "authored"
+page = "api/fuzzy1337.scope.md"
+
+[[surfaces]]
 module = "fuzzy1337.shell"
 source = "src/fuzzy1337/shell.py"
 mode = "authored"
