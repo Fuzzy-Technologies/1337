@@ -20,11 +20,15 @@ from typing import cast
 
 from fuzzy1337.adapters.contracts import (
     AdapterExecution,
+    AdapterReport,
     AdapterResult,
     EvidenceReference,
     ExecutionState,
     FreezeMapping,
     JsonValue,
+    NormalizedObservation,
+    ObjectEnrichment,
+    RelationEnrichment,
     RequireIdentifier,
 )
 from fuzzy1337.evidence import NormalizeEvidenceTime
@@ -279,8 +283,14 @@ class ModelProvenance:
         if self.provider_version is not None:
             RequireWorkspaceText(self.provider_version, "provider_version")
 
-        if self.execution is not None and not isinstance(self.execution, AdapterExecution):
-            raise ValueError("execution must be an AdapterExecution or None")
+        if self.execution is not None:
+            if not isinstance(self.execution, AdapterExecution):
+                raise ValueError("execution must be an AdapterExecution or None")
+
+            duration = self.execution.duration_seconds
+
+            if isinstance(duration, bool) or not isinstance(duration, (int, float)):
+                raise ValueError("execution duration must be a number, excluding booleans")
 
         evidence = ModelSequence(self.evidence_references, "evidence_references")
         validated: list[EvidenceReference] = []
@@ -483,6 +493,28 @@ class ModelDelta:
     created: tuple[str, ...] = ()
     updated: tuple[str, ...] = ()
 
+    def __post_init__(self) -> None:
+        """Freeze canonical unique reference lists and validate the one-step transition."""
+
+        RequireWorkspaceInteger(self.previous_revision, "previous_revision")
+        RequireWorkspaceInteger(self.revision, "revision")
+
+        for field_name in ("created", "updated"):
+            references = tuple(RequireModelReference(value) for value in ModelSequence(
+                getattr(self, field_name), field_name,
+            ))
+
+            if len(set(references)) != len(references):
+                raise ValueError("delta references must be unique")
+
+            object.__setattr__(self, field_name, tuple(sorted(references)))
+
+        if set(self.created) & set(self.updated):
+            raise ValueError("created and updated delta references must be disjoint")
+
+        if self.revision != self.previous_revision + bool(self.created or self.updated):
+            raise ValueError("delta revision must describe exactly one transition or a no-op")
+
 
 @dataclass(frozen=True, slots=True)
 class ModelState:
@@ -665,6 +697,18 @@ class ModelState:
             raise ValueError("result and provenance must use typed contracts")
 
         report = result.report
+
+        if not isinstance(report, AdapterReport) or not isinstance(bindings, Mapping):
+            raise ValueError("report and bindings must use typed contracts")
+
+        for values, expected in (
+            (result.observations, NormalizedObservation),
+            (result.object_enrichments, ObjectEnrichment),
+            (result.relation_enrichments, RelationEnrichment),
+        ):
+            if any(not isinstance(value, expected) for value in values):
+                raise ValueError("adapter enrichment envelopes must use typed contracts")
+
         report_evidence = tuple(sorted(report.evidence, key=CanonicalModelJson))
 
         if (
@@ -876,6 +920,9 @@ class LocalModelStore:
                 else stat.S_ISREG(metadata.st_mode)
             ) is False:
                 raise ValueError("model paths have unsafe filesystem types")
+
+            if metadata is not None and not directory_expected and metadata.st_nlink != 1:
+                raise ValueError("authoritative model state must not be hard linked")
 
         return directory
 

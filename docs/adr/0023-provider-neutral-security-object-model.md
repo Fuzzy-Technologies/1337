@@ -60,7 +60,8 @@ and POSIX directory synchronization. A fail-fast directory lock and explicit
 expected revision prevent cooperating writers from losing updates. An abandoned
 lock is never stolen. A failed write can have committed before a synchronization
 failure; callers must reopen before retrying. The store rejects observed links,
-reparse points, unsafe filesystem types, and lexical traversal. The operator must
+reparse points, hard-linked authoritative records, unsafe filesystem types, and
+lexical traversal. The operator must
 own the tree; hostile concurrent filesystem replacement is outside this portable
 path-based implementation's guarantee.
 
