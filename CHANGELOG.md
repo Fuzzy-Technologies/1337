@@ -6,6 +6,61 @@
 
 Major 0 — the pre-stable 1337 Security Workbench line, establishing the Community foundation, development contracts, security boundaries, core workbench experience, and the path toward the first stable release.
 
+## Minor 0.2
+
+### Patch 0 — v0.2.0 — 2026-10-08
+
+#### Digest
+
+- Completed the M1 Community Core and Shell foundation: interactive command
+  discovery, local diagnostics, portable workspace/configuration and offline
+  target/scope contracts. This pre-alpha also includes accepted Experimental
+  execution, model, evidence and Nmap SDK foundations; M2/M3 remain in progress.
+
+#### Added
+
+- Added interactive shell entry, fuzzy completion, contextual help, command
+  palette, reverse history search and local lens/view context.
+- Added non-mutating `1337 doctor` and `1337 update [--json]` inspections.
+- Added portable workspace creation/open/save, typed target registration,
+  consent metadata and deterministic allow/deny/exclusion decisions.
+- Added Experimental ToolAdapter and local Executor SDKs, immutable raw-evidence
+  storage, Security Object Model persistence and an optional bounded Nmap adapter.
+- Added deterministic web micro-targets, the attack-path mini lab, finite-oracle
+  capability reports and an opt-in pinned Juice Shop regression pack.
+
+#### Fixed
+
+- Fixed parallel serial-test discovery and owned-process cleanup when lifecycle
+  observers fail.
+- Reconciled accepted `master` publications with `develop`, preserving the
+  published project image route in the composed documentation artifact.
+
+#### Changed
+
+- Added process-isolated parallel testing, measured shell latency budgets,
+  grouped dependency updates and completed-parent Feature reconciliation.
+- Finalized package and lockfile metadata for the v0.2.0 pre-alpha release.
+
+#### Documentation
+
+- Added reproducible CLI, shell, workspace/scope API and isolated-lab quickstart
+  examples, with explicit availability and authorization boundaries.
+- Added the composed product-site/API-reference build, clean-wheel static API
+  discovery, offline formula rendering, locale provenance, SPDX/source audits
+  and Markdown table alignment checks.
+- Published English API sources with explicitly marked English fallback content
+  for Russian and Simplified Chinese routes; no approved API translation is claimed.
+
+#### Security
+
+- Scope membership and consent metadata do not issue execution authorization.
+  Workspace/model references do not grant authority to tools or executors.
+- The Nmap provider remains operator-supplied and optional. Test-backed examples
+  use only repository-owned isolated targets or fixture-owned loopback sockets.
+- Component inspection performs no installation, self-update or remote version
+  check. Full TUI, native discovery, Quick Scan and AI/MCP workflows remain roadmap work.
+
 ## Minor 0.1
 
 ### Patch 8 — v0.1.8 — 2026-09-10

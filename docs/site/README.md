@@ -29,6 +29,12 @@ anchors, statically analyzed source blocks, local resources, cross-page anchors,
 every inventoried public symbol anchor, and formula rendering resources are
 mandatory output gates.
 
+The reference opens in the dark palette by default, regardless of the operating
+system's appearance. The header includes a light/dark toggle; the browser remembers
+the reader's explicit choice. Its language selector links English, Russian and
+Simplified Chinese routes and keeps the current page when switching languages.
+Missing translations continue to show the explicit English fallback notice.
+
 ## Extend the reference
 
 Add each source module to `api-coverage.toml` and its authored English page to
