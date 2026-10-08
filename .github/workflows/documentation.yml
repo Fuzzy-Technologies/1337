@@ -43,6 +43,7 @@ jobs:
             tests/unit/test_compose_documentation.py tests/unit/test_source_documentation_audit.py \
             tests/unit/test_product_site_preparation.py tests/unit/test_documentation_publication_policy.py \
             tests/unit/test_documentation_render.py tests/unit/test_markdown_tables.py \
+            tests/unit/test_feature_completion.py \
             --cov=tools --cov-branch --cov-config=/dev/null \
             --cov-report=term-missing --cov-report=json:_build/docs/tool-coverage.json
           .venv/bin/python -m fuzzy1337.coverage_gate _build/docs/tool-coverage.json tools
