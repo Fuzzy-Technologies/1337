@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Developer command helpers for the 1337 project."""
 
 from __future__ import annotations
@@ -11,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from fuzzy1337.test_runner import RunTests, TestOptions
+
 Executable = Literal["python", "uv"]
 
 
@@ -21,22 +26,43 @@ class CommandStep:
     executable: Executable
     arguments: tuple[str, ...]
 
-    def display(self) -> str:
-        """Return the human-readable command without exposing local paths."""
+    def Display(self) -> str:
+        """Return the human-readable command without exposing local paths.
+
+        Returns:
+            Executable label and arguments joined for display, not shell execution.
+        """
+
         return " ".join((self.executable, *self.arguments))
 
 
-def python_step(*arguments: str) -> CommandStep:
-    """Create a step executed by the current Python interpreter."""
+def PythonStep(*arguments: str) -> CommandStep:
+    """Create a step executed by the current Python interpreter.
+
+    Args:
+        arguments: Literal argv entries for the current Python interpreter.
+
+    Returns:
+        Immutable Python command step without starting a process.
+    """
+
     return CommandStep("python", arguments)
 
 
-def uv_step(*arguments: str) -> CommandStep:
-    """Create a step executed by the pinned external uv installation."""
+def UvStep(*arguments: str) -> CommandStep:
+    """Create a step executed by the pinned external uv installation.
+
+    Args:
+        arguments: Literal argv entries for the external uv executable.
+
+    Returns:
+        Immutable uv command step without starting a process.
+    """
+
     return CommandStep("uv", arguments)
 
 
-_coverage_gate = python_step(
+_coverage_gate = PythonStep(
     "-m",
     "fuzzy1337.coverage_gate",
     "coverage/coverage.json",
@@ -44,62 +70,133 @@ _coverage_gate = python_step(
 )
 
 COMMANDS: dict[str, tuple[CommandStep, ...]] = {
-    "setup": (uv_step("sync", "--locked", "--extra", "dev"),),
-    "compile": (python_step("-m", "compileall", "-q", "src", "tests"),),
-    "lint": (python_step("-m", "ruff", "check", "."),),
-    "typecheck": (python_step("-m", "mypy"),),
-    "unit": (python_step("-m", "pytest", "tests/unit"), _coverage_gate),
-    "test": (python_step("-m", "pytest", "tests"), _coverage_gate),
-    "build": (python_step("-m", "build", "--no-isolation"),),
+    "setup": (UvStep("sync", "--locked", "--extra", "dev"),),
+    "compile": (PythonStep("-m", "compileall", "-q", "src", "tests"),),
+    "lint": (PythonStep("-m", "ruff", "check", "."),),
+    "typecheck": (PythonStep("-m", "mypy"),),
+    "performance": (PythonStep("-m", "fuzzy1337.performance"),),
+    "unit": (_coverage_gate,),
+    "test": (_coverage_gate,),
+    "build": (PythonStep("-m", "build", "--no-isolation"),),
 }
 COMMANDS["check"] = (
     COMMANDS["compile"]
     + COMMANDS["lint"]
     + COMMANDS["typecheck"]
+    + COMMANDS["performance"]
     + COMMANDS["test"]
     + COMMANDS["build"]
 )
 
 
-def describe_commands() -> dict[str, str]:
-    """Describe execution steps without exposing mutable registry state."""
-    return {
-        name: " then ".join(step.display() for step in steps)
-        for name, steps in COMMANDS.items()
+def DescribeCommands() -> dict[str, str]:
+    """Describe execution steps without exposing mutable registry state.
+
+    Returns:
+        Independent descriptions of each registered developer gate.
+    """
+
+    descriptions = {
+        name: " then ".join(step.Display() for step in steps) for name, steps in COMMANDS.items()
     }
+    descriptions["unit"] = (
+        "python -m pytest tests/unit -n auto --dist=loadscope then "
+        "python -m pytest tests/unit -m serial -n 0 then "
+        "python -m fuzzy1337.coverage_gate coverage/coverage.json src/fuzzy1337"
+    )
+    descriptions["test"] = (
+        "python -m pytest tests -n auto --dist=loadscope then "
+        "python -m pytest tests -m serial -n 0 then "
+        "python -m fuzzy1337.coverage_gate coverage/coverage.json src/fuzzy1337"
+    )
+    descriptions["check"] = " then ".join(
+        (
+            descriptions["compile"],
+            descriptions["lint"],
+            descriptions["typecheck"],
+            descriptions["performance"],
+            descriptions["test"],
+            descriptions["build"],
+        )
+    )
+
+    return descriptions
 
 
-def _resolve_step(step: CommandStep) -> list[str] | None:
-    """Resolve a step to an argv list, failing closed when a tool is absent."""
+def ResolveStep(step: CommandStep) -> list[str] | None:
+    """Resolve a step to an argv list, failing closed when a tool is absent.
+
+    Args:
+        step: Registered command step to resolve.
+
+    Returns:
+        Explicit argv, or None with a diagnostic if the executable is absent.
+    """
+
     if step.executable == "python":
         return [sys.executable, *step.arguments]
 
     executable = shutil.which(step.executable)
+
     if executable is None:
         print(
             f"Required developer tool was not found: {step.executable}",
             file=sys.stderr,
         )
+
         return None
 
     return [executable, *step.arguments]
 
 
-def run(command: str) -> int:
-    """Run one gate from the repository root and stop at the first failure."""
+def Run(command: str, test_options: TestOptions | None = None) -> int:
+    """Run one gate from the repository root and stop at the first failure.
+
+    Requires the repository root as the current directory. Starts bounded subprocesses with
+    shell=False, writes test/build evidence and stops at the first failure.
+
+    Args:
+        command: Registered gate name such as test, lint or check
+        test_options: Optional bounded pytest settings for test-containing commands.
+
+    Returns:
+        Zero on success, otherwise the first gate, root, tool or timeout error status.
+
+    Raises:
+        ValueError: The command name is not registered.
+    """
+
     if command not in COMMANDS:
         raise ValueError(f"Unknown developer command: {command}")
 
     if not Path("pyproject.toml").is_file() or not Path("src/fuzzy1337").is_dir():
         print("Run developer commands from the 1337 repository root.", file=sys.stderr)
+
         return 2
 
-    for step in COMMANDS[command]:
-        if step.executable == "python" and step.arguments[:2] == ("-m", "pytest"):
-            Path("coverage/coverage.json").unlink(missing_ok=True)
+    if command == "check":
+        for nested_command in ("compile", "lint", "typecheck", "performance", "test", "build"):
+            nested_result = Run(nested_command, test_options)
 
-        print(f"Running: {step.display()}", flush=True)
-        arguments = _resolve_step(step)
+            if nested_result:
+                return nested_result
+
+        return 0
+
+    if command in {"unit", "test"}:
+        Path("coverage/coverage.json").unlink(missing_ok=True)
+        test_result = RunTests(
+            "tests/unit" if command == "unit" else "tests",
+            test_options or TestOptions(),
+        )
+
+        if test_result:
+            return 128 - test_result if test_result < 0 else test_result
+
+    for step in COMMANDS[command]:
+        print(f"Running: {step.Display()}", flush=True)
+        arguments = ResolveStep(step)
+
         if arguments is None:
             return 127
 
@@ -110,12 +207,16 @@ def run(command: str) -> int:
                 timeout=300,
                 check=False,
             )
+
         except subprocess.TimeoutExpired:
             print("Developer command exceeded its 300-second limit.", file=sys.stderr)
+
             return 124
+
         except OSError as error:
             detail = error.strerror or str(error)
             print(f"Could not start developer command: {detail}", file=sys.stderr)
+
             return 127
 
         if result.returncode:
@@ -124,15 +225,41 @@ def run(command: str) -> int:
     return 0
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Select a developer gate without accepting arbitrary shell commands."""
+def Main(argv: Sequence[str] | None = None) -> int:
+    """Select a developer gate without accepting arbitrary shell commands.
+
+    Args:
+        argv: Registered gate and optional test settings, or None for process arguments.
+
+    Returns:
+        Selected gate exit status.
+
+    Raises:
+        SystemExit: Parsing or test-option validation rejects input or handles help.
+    """
+
     parser = argparse.ArgumentParser(
         prog="1337-dev",
         description="1337 repository quality gates",
     )
     parser.add_argument("command", choices=COMMANDS)
-    return run(parser.parse_args(argv).command)
+    parser.add_argument("--jobs", default="auto", metavar="auto|N")
+    parser.add_argument("--timeout", default=120, type=int, metavar="N")
+    parser.add_argument("--serial", action="store_true")
+    parser.add_argument("--fail-fast", action="store_true")
+    arguments = parser.parse_args(argv)
+    test_options = TestOptions(
+        jobs=arguments.jobs,
+        timeout_seconds=arguments.timeout,
+        serial_only=arguments.serial,
+        fail_fast=arguments.fail_fast,
+    )
+
+    if arguments.command not in {"unit", "test"} and test_options != TestOptions():
+        parser.error("test execution options are only valid with 'unit' or 'test'")
+
+    return Run(arguments.command, test_options)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(Main())

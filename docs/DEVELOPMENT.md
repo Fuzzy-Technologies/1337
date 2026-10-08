@@ -10,6 +10,7 @@ Run these commands from the repository root:
 python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 --version
+uv run --locked 1337 doctor
 uv run --locked 1337-dev unit
 uv run --locked 1337-dev check
 ```
@@ -24,19 +25,25 @@ environment. It invokes `uv sync --locked --extra dev` with `shell=False` and
 fails if the pinned `uv` executable is unavailable. The initial one-time
 prerequisite is installing `uv==0.11.33` as shown above.
 
-The current `1337` entry point provides help and installed-version output. The
-interactive shell and scanner workflows belong to subsequent product work.
+The current `1337` entry point provides help, installed-version output, the
+interactive shell foundation, local diagnostics, and read-only component-health
+inspection. Scanner workflows belong to subsequent product work. See
+[Component health and update inspection](COMPONENT_HEALTH.md) for the explicit
+non-mutation boundary and experimental JSON report.
 
-| Command                              | Behavior                                                                   |
-|--------------------------------------|----------------------------------------------------------------------------|
-| `uv run --locked 1337-dev setup`     | Synchronize the locked development environment                             |
-| `uv run --locked 1337-dev lint`      | Non-mutating Ruff checks                                                   |
-| `uv run --locked 1337-dev typecheck` | Strict mypy checks for production Python                                   |
-| `uv run --locked 1337-dev compile`   | Compile source and tests                                                   |
-| `uv run --locked 1337-dev unit`      | Unit tests plus mandatory per-module branch/statement coverage validation  |
-| `uv run --locked 1337-dev test`      | All test layers plus mandatory per-module coverage validation              |
-| `uv run --locked 1337-dev build`     | Build sdist and wheel using locked build tools                             |
-| `uv run --locked 1337-dev check`     | Compile, lint, typecheck, test/coverage, then build; stop on first failure |
+| Command                                | Behavior                                                                            |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| `uv run --locked 1337-dev setup`       | Synchronize the locked development environment                                      |
+| `uv run --locked 1337-dev lint`        | Run non-mutating Ruff checks                                                        |
+| `uv run --locked 1337-dev typecheck`   | Run strict mypy checks for production Python                                        |
+| `uv run --locked 1337-dev compile`     | Compile source and tests                                                            |
+| `uv run --locked 1337-dev performance` | Enforce implemented shell latency budgets and write JSON evidence                   |
+| `uv run --locked 1337 doctor`          | Inspect the local runtime, workspace permissions, package, and optional lab support |
+| `uv run --locked 1337 update [--json]` | Inspect local component health and manual update boundaries without changing state  |
+| `uv run --locked 1337-dev unit`        | Run process-isolated unit tests and mandatory per-module coverage validation        |
+| `uv run --locked 1337-dev test`        | Run all test layers in process-isolated workers and mandatory coverage validation   |
+| `uv run --locked 1337-dev build`       | Build the sdist and wheel using locked tools                                        |
+| `uv run --locked 1337-dev check`       | Compile, lint, typecheck, measure performance, test coverage, and build             |
 
 Each child step has a 300-second limit. Normal child exit codes are propagated;
 timeouts return 124, process-start failures return 127, and POSIX signal exits
@@ -57,10 +64,54 @@ exceed 80% combined statement/branch coverage. Exactly 80% fails. There are no
 production exclusions. Source modules not imported by the tests still belong to the
 required source inventory.
 
+`1337-dev unit` and `1337-dev test` use `pytest-xdist` process workers by default.
+Automatic scheduling uses `--dist=loadscope` and caps workers at
+`min(os.cpu_count(), 12)`. Tests that own a shared resource must use the explicit
+`@pytest.mark.serial` marker; the runner executes them separately with `-n 0` after
+the parallel pool. No automatic retry is configured or permitted.
+
+The runner accepts these controlled diagnostics:
+
+```bash
+uv run --locked 1337-dev unit --jobs auto --timeout 120
+uv run --locked 1337-dev unit --jobs 4 --fail-fast
+uv run --locked 1337-dev unit --serial
+```
+
+`--timeout` sets the per-test timeout and bounds each pytest worker process. The
+terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`, `timeout`,
+and `duration`. Any failure, timeout, or process-start error produces a non-zero exit.
+
+The performance gate measures only capabilities that are implemented today. It
+starts fresh processes for CLI cold start and interactive readiness, then measures
+local command-palette search and lens/view state transitions in process. Every case
+has an explicit median latency budget:
+
+| Case                       | Median budget |
+| -------------------------- | ------------- |
+| CLI cold start             | 2,000 ms      |
+| Interactive readiness      | 2,000 ms      |
+| Command-palette search     | 2 ms          |
+| Lens/view state transition | 2 ms          |
+
+Raw samples, the maximum observation, environment metadata, and the pass/fail
+decision are written to
+`performance/performance.json`. This generated file is local/CI evidence and is not
+committed. Future SOM, scanner, and full TUI paths require their own budgets when
+those capabilities exist.
+
+`1337 doctor` is non-mutating. It checks the Python runtime, installed package,
+current-directory read/write access, and optional Docker Compose support. Missing
+optional Compose support is reported as `WARN`; a missing required runtime or
+package returns a non-zero exit. Workspace/configuration persistence is available
+through the Experimental library; `doctor` does not automatically load or certify
+a selected workspace. See [the quickstart](QUICKSTART.md) for the supported entry points.
+
 Tests are organized by subsystem in `tests/unit`, `tests/contract`, and
-`tests/integration`; `tests/functional` retains the future synthetic-target
-boundary. Unit tests are deterministic and carry an automatic fail-closed guard
-against real network connections, including local or Docker service sockets. The
+`tests/integration`; `tests/functional` owns isolated synthetic-target lifecycle
+and finite-oracle regression checks. Unit tests are deterministic and carry an
+automatic fail-closed guard against real network connections, including local
+or Docker service sockets. The
 packaging integration test builds an sdist, builds its wheel, installs that wheel
 into a clean virtual environment without an index or dependencies, then invokes
 both installed entry points outside the checkout. It does not contact scan targets

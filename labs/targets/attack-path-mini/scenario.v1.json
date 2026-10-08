@@ -1,0 +1,498 @@
+{
+  "$schema": "scenario.schema.json",
+  "schema_version": 1,
+  "scenario": {
+    "id": "attack-path-mini",
+    "version": 1,
+    "description": "A data-only lifecycle for the Internet to business-event attack path."
+  },
+  "safety": {
+    "data_only": true,
+    "external_targets": false,
+    "network_actions": false,
+    "impact": "passive",
+    "authorized_validation": {
+      "required": true,
+      "scope": "synthetic-fixture-only"
+    }
+  },
+  "state_requirements": {
+    "UNKNOWN": {
+      "minimum_confidence": 0.0,
+      "maximum_confidence": 0.0,
+      "minimum_evidence": 0,
+      "inference_required": false,
+      "blocking_control_required": false
+    },
+    "POTENTIAL": {
+      "minimum_confidence": 0.4,
+      "maximum_confidence": 0.69,
+      "minimum_evidence": 1,
+      "inference_required": false,
+      "blocking_control_required": false
+    },
+    "LIKELY": {
+      "minimum_confidence": 0.7,
+      "maximum_confidence": 0.89,
+      "minimum_evidence": 1,
+      "inference_required": true,
+      "blocking_control_required": false
+    },
+    "CONFIRMED": {
+      "minimum_confidence": 0.9,
+      "maximum_confidence": 1.0,
+      "minimum_evidence": 1,
+      "inference_required": false,
+      "blocking_control_required": false
+    },
+    "BLOCKED": {
+      "minimum_confidence": 0.9,
+      "maximum_confidence": 1.0,
+      "minimum_evidence": 1,
+      "inference_required": false,
+      "blocking_control_required": true
+    }
+  },
+  "zones": [
+    {
+      "id": "zone.application",
+      "type": "trust-zone",
+      "name": "Application zone",
+      "provenance": "seeded"
+    },
+    {
+      "id": "zone.data",
+      "type": "trust-zone",
+      "name": "Data zone",
+      "provenance": "seeded"
+    },
+    {
+      "id": "zone.internet",
+      "type": "untrusted-zone",
+      "name": "Internet",
+      "provenance": "seeded"
+    }
+  ],
+  "assets": [
+    {
+      "id": "asset.business-event",
+      "type": "business-event-store",
+      "name": "Business Event",
+      "zone_id": "zone.data",
+      "critical": true,
+      "provenance": "seeded"
+    },
+    {
+      "id": "asset.signing-key",
+      "type": "cryptographic-key",
+      "name": "Billing signing key",
+      "zone_id": "zone.data",
+      "critical": true,
+      "provenance": "seeded"
+    }
+  ],
+  "services": [
+    {
+      "id": "service.billing-api",
+      "type": "api-service",
+      "name": "Billing API",
+      "zone_id": "zone.application",
+      "provenance": "discovered"
+    },
+    {
+      "id": "service.portal",
+      "type": "web-application",
+      "name": "Portal",
+      "zone_id": "zone.application",
+      "provenance": "discovered"
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "endpoint.billing-events",
+      "type": "http-api",
+      "name": "Billing event endpoint",
+      "service_id": "service.billing-api",
+      "method": "POST",
+      "path": "/events",
+      "provenance": "discovered"
+    },
+    {
+      "id": "endpoint.portal-session",
+      "type": "http-route",
+      "name": "Portal session endpoint",
+      "service_id": "service.portal",
+      "method": "POST",
+      "path": "/session",
+      "provenance": "discovered"
+    }
+  ],
+  "identities": [
+    {
+      "id": "identity.portal-runtime",
+      "type": "workload-identity",
+      "name": "Portal Identity",
+      "service_id": "service.portal",
+      "provenance": "discovered"
+    }
+  ],
+  "controls": [
+    {
+      "id": "control.billing-key-policy",
+      "type": "authorization-policy",
+      "name": "Billing key access policy",
+      "status": "effective",
+      "provenance": "seeded"
+    },
+    {
+      "id": "control.portal-identity-hardening",
+      "type": "identity-boundary",
+      "name": "Portal identity hardening",
+      "status": "introduced-during-remediation",
+      "provenance": "discovered"
+    }
+  ],
+  "business_impacts": [
+    {
+      "id": "impact.billing-integrity",
+      "type": "integrity-impact",
+      "asset_id": "asset.business-event",
+      "business_process": "invoice-settlement",
+      "consequence": "Unauthorized billing event creation",
+      "severity": "high",
+      "provenance": "seeded"
+    }
+  ],
+  "findings": [
+    {
+      "id": "finding.portal-session-confusion",
+      "type": "authentication-weakness",
+      "title": "Portal session can assume the runtime identity",
+      "endpoint_id": "endpoint.portal-session",
+      "evidence_ids": [
+        "evidence.finding-confirmation"
+      ],
+      "mitre": {
+        "framework": "MITRE ATT&CK Enterprise",
+        "technique_id": "T1190",
+        "technique_name": "Exploit Public-Facing Application",
+        "source_url": "https://attack.mitre.org/techniques/T1190/"
+      },
+      "business_impact_ids": [
+        "impact.billing-integrity"
+      ],
+      "provenance": "discovered"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence.authorized-validation",
+      "type": "validation-result",
+      "provenance": "discovered",
+      "phase_id": "phase.authorized-validation",
+      "description": "Synthetic validation confirms the complete canonical path."
+    },
+    {
+      "id": "evidence.billing-key-policy",
+      "type": "control-observation",
+      "provenance": "seeded",
+      "phase_id": "phase.initial",
+      "description": "The seeded key policy denies Billing API access to the signing key."
+    },
+    {
+      "id": "evidence.discovery",
+      "type": "discovery-result",
+      "provenance": "discovered",
+      "phase_id": "phase.discovery",
+      "description": "Passive discovery links Portal, Portal Identity, and Billing API."
+    },
+    {
+      "id": "evidence.finding-confirmation",
+      "type": "finding-proof",
+      "provenance": "discovered",
+      "phase_id": "phase.finding-confirmation",
+      "description": "Bounded fixture evidence confirms the portal authentication weakness."
+    },
+    {
+      "id": "evidence.initial-topology",
+      "type": "topology-seed",
+      "provenance": "seeded",
+      "phase_id": "phase.initial",
+      "description": "The synthetic fixture seeds zones, services, and critical assets."
+    },
+    {
+      "id": "evidence.remediation",
+      "type": "remediation-result",
+      "provenance": "discovered",
+      "phase_id": "phase.remediation",
+      "description": "Identity hardening breaks Portal access to Portal Identity."
+    },
+    {
+      "id": "evidence.validation-authorization",
+      "type": "authorization-record",
+      "provenance": "seeded",
+      "phase_id": "phase.authorized-validation",
+      "description": "Validation is authorized only for the synthetic fixture."
+    }
+  ],
+  "relations": [
+    {
+      "id": "relation.billing-api-business-event",
+      "type": "creates",
+      "source_id": "service.billing-api",
+      "target_id": "asset.business-event",
+      "provenance": "discovered",
+      "evidence_ids": [
+        "evidence.authorized-validation"
+      ],
+      "reachability": true
+    },
+    {
+      "id": "relation.billing-api-signing-key",
+      "type": "accesses",
+      "source_id": "service.billing-api",
+      "target_id": "asset.signing-key",
+      "provenance": "seeded",
+      "evidence_ids": [
+        "evidence.billing-key-policy"
+      ],
+      "reachability": false,
+      "blocking_control_id": "control.billing-key-policy"
+    },
+    {
+      "id": "relation.identity-billing-api",
+      "type": "authorized-to-call",
+      "source_id": "identity.portal-runtime",
+      "target_id": "service.billing-api",
+      "provenance": "discovered",
+      "evidence_ids": [
+        "evidence.discovery"
+      ],
+      "reachability": true
+    },
+    {
+      "id": "relation.internet-portal",
+      "type": "reaches",
+      "source_id": "zone.internet",
+      "target_id": "service.portal",
+      "provenance": "seeded",
+      "evidence_ids": [
+        "evidence.initial-topology"
+      ],
+      "reachability": true
+    },
+    {
+      "id": "relation.portal-identity",
+      "type": "assumes-identity",
+      "source_id": "service.portal",
+      "target_id": "identity.portal-runtime",
+      "provenance": "inferred",
+      "evidence_ids": [
+        "evidence.discovery",
+        "evidence.finding-confirmation"
+      ],
+      "inference_rule": "rule.confirmed-finding-links-runtime-identity",
+      "reachability": true,
+      "remediated_by_control_id": "control.portal-identity-hardening"
+    }
+  ],
+  "attack_paths": [
+    {
+      "id": "path.internet-to-business-event",
+      "type": "attack-path",
+      "source_id": "zone.internet",
+      "target_id": "asset.business-event",
+      "node_ids": [
+        "zone.internet",
+        "service.portal",
+        "identity.portal-runtime",
+        "service.billing-api",
+        "asset.business-event"
+      ],
+      "relation_ids": [
+        "relation.internet-portal",
+        "relation.portal-identity",
+        "relation.identity-billing-api",
+        "relation.billing-api-business-event"
+      ],
+      "finding_ids": [
+        "finding.portal-session-confusion"
+      ],
+      "business_impact_ids": [
+        "impact.billing-integrity"
+      ],
+      "provenance": "inferred"
+    },
+    {
+      "id": "path.internet-to-signing-key",
+      "type": "attack-path",
+      "source_id": "zone.internet",
+      "target_id": "asset.signing-key",
+      "node_ids": [
+        "zone.internet",
+        "service.portal",
+        "identity.portal-runtime",
+        "service.billing-api",
+        "asset.signing-key"
+      ],
+      "relation_ids": [
+        "relation.internet-portal",
+        "relation.portal-identity",
+        "relation.identity-billing-api",
+        "relation.billing-api-signing-key"
+      ],
+      "finding_ids": [
+        "finding.portal-session-confusion"
+      ],
+      "business_impact_ids": [],
+      "provenance": "inferred"
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase.initial",
+      "type": "initial",
+      "sequence": 0,
+      "assessments": [
+        {
+          "path_id": "path.internet-to-business-event",
+          "state": "UNKNOWN",
+          "confidence": 0.0,
+          "provenance": "seeded",
+          "evidence_ids": []
+        },
+        {
+          "path_id": "path.internet-to-signing-key",
+          "state": "BLOCKED",
+          "confidence": 1.0,
+          "provenance": "seeded",
+          "evidence_ids": [
+            "evidence.billing-key-policy"
+          ],
+          "blocking_control_ids": [
+            "control.billing-key-policy"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase.discovery",
+      "type": "discovery",
+      "sequence": 1,
+      "assessments": [
+        {
+          "path_id": "path.internet-to-business-event",
+          "state": "POTENTIAL",
+          "confidence": 0.55,
+          "provenance": "discovered",
+          "evidence_ids": [
+            "evidence.discovery"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase.finding-confirmation",
+      "type": "finding-confirmation",
+      "sequence": 2,
+      "assessments": [
+        {
+          "path_id": "path.internet-to-business-event",
+          "state": "LIKELY",
+          "confidence": 0.8,
+          "provenance": "inferred",
+          "evidence_ids": [
+            "evidence.discovery",
+            "evidence.finding-confirmation"
+          ],
+          "inference_rule": "rule.confirmed-finding-implies-candidate-path"
+        }
+      ]
+    },
+    {
+      "id": "phase.authorized-validation",
+      "type": "authorized-validation",
+      "sequence": 3,
+      "assessments": [
+        {
+          "path_id": "path.internet-to-business-event",
+          "state": "CONFIRMED",
+          "confidence": 0.99,
+          "provenance": "discovered",
+          "evidence_ids": [
+            "evidence.authorized-validation",
+            "evidence.validation-authorization"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase.remediation",
+      "type": "remediation",
+      "sequence": 4,
+      "assessments": [
+        {
+          "path_id": "path.internet-to-business-event",
+          "state": "BLOCKED",
+          "confidence": 1.0,
+          "provenance": "discovered",
+          "evidence_ids": [
+            "evidence.remediation"
+          ],
+          "blocking_control_ids": [
+            "control.portal-identity-hardening"
+          ]
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "transition.initial-discovery",
+      "type": "phase-transition",
+      "from_phase_id": "phase.initial",
+      "to_phase_id": "phase.discovery",
+      "trigger": "passive-discovery-completed",
+      "evidence_ids": [
+        "evidence.discovery"
+      ],
+      "requires_authorization": false
+    },
+    {
+      "id": "transition.discovery-finding-confirmation",
+      "type": "phase-transition",
+      "from_phase_id": "phase.discovery",
+      "to_phase_id": "phase.finding-confirmation",
+      "trigger": "finding-confirmed",
+      "evidence_ids": [
+        "evidence.finding-confirmation"
+      ],
+      "inference_rule": "rule.confirmed-finding-implies-candidate-path",
+      "requires_authorization": false
+    },
+    {
+      "id": "transition.finding-confirmation-authorized-validation",
+      "type": "phase-transition",
+      "from_phase_id": "phase.finding-confirmation",
+      "to_phase_id": "phase.authorized-validation",
+      "trigger": "validation-authorized",
+      "evidence_ids": [
+        "evidence.authorized-validation",
+        "evidence.validation-authorization"
+      ],
+      "requires_authorization": true,
+      "authorization_evidence_id": "evidence.validation-authorization"
+    },
+    {
+      "id": "transition.authorized-validation-remediation",
+      "type": "phase-transition",
+      "from_phase_id": "phase.authorized-validation",
+      "to_phase_id": "phase.remediation",
+      "trigger": "remediation-verified",
+      "evidence_ids": [
+        "evidence.remediation"
+      ],
+      "requires_authorization": false
+    }
+  ]
+}

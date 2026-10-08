@@ -1,0 +1,89 @@
+{
+  "$schema": "oracle.schema.json",
+  "schema_version": 1,
+  "scenario_id": "attack-path-mini",
+  "scenario_version": 1,
+  "canonical_path": {
+    "path_id": "path.internet-to-business-event",
+    "labels": [
+      "Internet",
+      "Portal",
+      "Identity",
+      "Billing API",
+      "Business Event"
+    ],
+    "node_ids": [
+      "zone.internet",
+      "service.portal",
+      "identity.portal-runtime",
+      "service.billing-api",
+      "asset.business-event"
+    ],
+    "relation_ids": [
+      "relation.internet-portal",
+      "relation.portal-identity",
+      "relation.identity-billing-api",
+      "relation.billing-api-business-event"
+    ]
+  },
+  "blocked_negative_path": {
+    "path_id": "path.internet-to-signing-key",
+    "state": "BLOCKED",
+    "blocking_control_ids": [
+      "control.billing-key-policy"
+    ],
+    "node_ids": [
+      "zone.internet",
+      "service.portal",
+      "identity.portal-runtime",
+      "service.billing-api",
+      "asset.signing-key"
+    ]
+  },
+  "phase_oracle": [
+    {
+      "phase_id": "phase.initial",
+      "canonical_state": "UNKNOWN",
+      "confidence": 0.0
+    },
+    {
+      "phase_id": "phase.discovery",
+      "canonical_state": "POTENTIAL",
+      "confidence": 0.55
+    },
+    {
+      "phase_id": "phase.finding-confirmation",
+      "canonical_state": "LIKELY",
+      "confidence": 0.8
+    },
+    {
+      "phase_id": "phase.authorized-validation",
+      "canonical_state": "CONFIRMED",
+      "confidence": 0.99
+    },
+    {
+      "phase_id": "phase.remediation",
+      "canonical_state": "BLOCKED",
+      "confidence": 1.0
+    }
+  ],
+  "transition_oracle": [
+    "transition.initial-discovery",
+    "transition.discovery-finding-confirmation",
+    "transition.finding-confirmation-authorized-validation",
+    "transition.authorized-validation-remediation"
+  ],
+  "remediation_path_break": {
+    "phase_id": "phase.remediation",
+    "relation_id": "relation.portal-identity",
+    "control_id": "control.portal-identity-hardening",
+    "path_id": "path.internet-to-business-event",
+    "resulting_state": "BLOCKED"
+  },
+  "safety_oracle": {
+    "data_only": true,
+    "external_targets": false,
+    "network_actions": false,
+    "validation_scope": "synthetic-fixture-only"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "identifier": "juice-shop",
+  "version": "20.2.0",
+  "repository": "bkimminich/juice-shop",
+  "tag": "v20.2.0",
+  "index_digest": "sha256:8739101ade29358abb5469ee66ae78e582c97ed0a5543a4ad102e5fa5193526b",
+  "platform_digests": {
+    "linux/amd64": "sha256:7f7539921b046863f2fc48b84061f957e50b3aa4652ae0a62014a2fc25654d0b",
+    "linux/arm64": "sha256:f2b4f8284af700c0e8a31d5c2b7f0cc84a027ec410f99d26fb763fba7a7f469b"
+  },
+  "source_revision": "5658473cf8814459bf89000ce373b20ed0b4eb37",
+  "release_url": "https://github.com/juice-shop/juice-shop/releases/tag/v20.2.0",
+  "registry_url": "https://hub.docker.com/v2/repositories/bkimminich/juice-shop/tags/v20.2.0",
+  "resolved_at": "2026-10-04",
+  "compose_service": "external-juice-shop",
+  "compose_profile": "external-juice-shop",
+  "http_port": 3000,
+  "resource_limits": {"memory_mib": 768, "cpus": 1.0, "pids": 128},
+  "budgets_seconds": {
+    "pull": 180,
+    "startup": 120,
+    "health": 60,
+    "request": 3,
+    "command": 30,
+    "cleanup": 45
+  },
+  "oracle_complete": false
+}

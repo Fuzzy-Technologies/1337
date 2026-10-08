@@ -1,0 +1,485 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/labs/attack-path-mini/scenario.schema.json",
+  "title": "1337 attack-path mini lifecycle scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "scenario",
+    "safety",
+    "state_requirements",
+    "zones",
+    "assets",
+    "services",
+    "endpoints",
+    "identities",
+    "controls",
+    "business_impacts",
+    "findings",
+    "evidence",
+    "relations",
+    "attack_paths",
+    "phases",
+    "transitions"
+  ],
+  "properties": {
+    "$schema": {"const": "scenario.schema.json"},
+    "schema_version": {"type": "integer", "const": 1},
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "description"],
+      "properties": {
+        "id": {"const": "attack-path-mini"},
+        "version": {"type": "integer", "const": 1},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "safety": {"$ref": "#/$defs/safety"},
+    "state_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["CONFIRMED", "LIKELY", "POTENTIAL", "BLOCKED", "UNKNOWN"],
+      "properties": {
+        "CONFIRMED": {"$ref": "#/$defs/stateRequirement"},
+        "LIKELY": {"$ref": "#/$defs/stateRequirement"},
+        "POTENTIAL": {"$ref": "#/$defs/stateRequirement"},
+        "BLOCKED": {"$ref": "#/$defs/stateRequirement"},
+        "UNKNOWN": {"$ref": "#/$defs/stateRequirement"}
+      }
+    },
+    "zones": {"$ref": "#/$defs/zoneArray"},
+    "assets": {"$ref": "#/$defs/assetArray"},
+    "services": {"$ref": "#/$defs/serviceArray"},
+    "endpoints": {"$ref": "#/$defs/endpointArray"},
+    "identities": {"$ref": "#/$defs/identityArray"},
+    "controls": {"$ref": "#/$defs/controlArray"},
+    "business_impacts": {"$ref": "#/$defs/businessImpactArray"},
+    "findings": {"$ref": "#/$defs/findingArray"},
+    "evidence": {"$ref": "#/$defs/evidenceArray"},
+    "relations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/relation"}
+    },
+    "attack_paths": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/attackPath"}
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/phase"}
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/transition"}
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9-]+)*$"
+    },
+    "identifierArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "zoneArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "name", "provenance"],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {"enum": ["trust-zone", "untrusted-zone"]},
+          "name": {"type": "string", "minLength": 1},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "assetArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "name", "zone_id", "critical", "provenance"],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {"enum": ["business-event-store", "cryptographic-key"]},
+          "name": {"type": "string", "minLength": 1},
+          "zone_id": {"$ref": "#/$defs/identifier"},
+          "critical": {"type": "boolean"},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "serviceArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "name", "zone_id", "provenance"],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {"enum": ["api-service", "web-application"]},
+          "name": {"type": "string", "minLength": 1},
+          "zone_id": {"$ref": "#/$defs/identifier"},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "endpointArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "name",
+          "service_id",
+          "method",
+          "path",
+          "provenance"
+        ],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {"enum": ["http-api", "http-route"]},
+          "name": {"type": "string", "minLength": 1},
+          "service_id": {"$ref": "#/$defs/identifier"},
+          "method": {"enum": ["GET", "POST"]},
+          "path": {"type": "string", "pattern": "^/"},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "identityArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "name", "service_id", "provenance"],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {"const": "workload-identity"},
+          "name": {"type": "string", "minLength": 1},
+          "service_id": {"$ref": "#/$defs/identifier"},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "controlArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "name", "status", "provenance"],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {"enum": ["authorization-policy", "identity-boundary"]},
+          "name": {"type": "string", "minLength": 1},
+          "status": {"enum": ["effective", "introduced-during-remediation"]},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "businessImpactArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "asset_id",
+          "business_process",
+          "consequence",
+          "severity",
+          "provenance"
+        ],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {"const": "integrity-impact"},
+          "asset_id": {"$ref": "#/$defs/identifier"},
+          "business_process": {"$ref": "#/$defs/identifier"},
+          "consequence": {"type": "string", "minLength": 1},
+          "severity": {"enum": ["low", "medium", "high", "critical"]},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "findingArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "title",
+          "endpoint_id",
+          "evidence_ids",
+          "mitre",
+          "business_impact_ids",
+          "provenance"
+        ],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {"const": "authentication-weakness"},
+          "title": {"type": "string", "minLength": 1},
+          "endpoint_id": {"$ref": "#/$defs/identifier"},
+          "evidence_ids": {"$ref": "#/$defs/identifierArray"},
+          "mitre": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["framework", "technique_id", "technique_name", "source_url"],
+            "properties": {
+              "framework": {"const": "MITRE ATT&CK Enterprise"},
+              "technique_id": {"type": "string", "pattern": "^T[0-9]{4}(?:\\.[0-9]{3})?$"},
+              "technique_name": {"type": "string", "minLength": 1},
+              "source_url": {"type": "string", "pattern": "^https://attack\\.mitre\\.org/"}
+            }
+          },
+          "business_impact_ids": {"$ref": "#/$defs/identifierArray"},
+          "provenance": {"$ref": "#/$defs/provenance"}
+        }
+      }
+    },
+    "evidenceArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "provenance", "phase_id", "description"],
+        "properties": {
+          "id": {"$ref": "#/$defs/identifier"},
+          "type": {
+            "enum": [
+              "validation-result",
+              "control-observation",
+              "discovery-result",
+              "finding-proof",
+              "topology-seed",
+              "remediation-result",
+              "authorization-record"
+            ]
+          },
+          "provenance": {"$ref": "#/$defs/provenance"},
+          "phase_id": {"$ref": "#/$defs/identifier"},
+          "description": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "data_only",
+        "external_targets",
+        "network_actions",
+        "impact",
+        "authorized_validation"
+      ],
+      "properties": {
+        "data_only": {"const": true},
+        "external_targets": {"const": false},
+        "network_actions": {"const": false},
+        "impact": {"const": "passive"},
+        "authorized_validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "scope"],
+          "properties": {
+            "required": {"const": true},
+            "scope": {"const": "synthetic-fixture-only"}
+          }
+        }
+      }
+    },
+    "stateRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_confidence",
+        "maximum_confidence",
+        "minimum_evidence",
+        "inference_required",
+        "blocking_control_required"
+      ],
+      "properties": {
+        "minimum_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "maximum_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_evidence": {"type": "integer", "minimum": 0},
+        "inference_required": {"type": "boolean"},
+        "blocking_control_required": {"type": "boolean"}
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "source_id",
+        "target_id",
+        "provenance",
+        "evidence_ids",
+        "reachability"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "type": {
+          "enum": ["reaches", "assumes-identity", "authorized-to-call", "creates", "accesses"]
+        },
+        "source_id": {"$ref": "#/$defs/identifier"},
+        "target_id": {"$ref": "#/$defs/identifier"},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "evidence_ids": {"$ref": "#/$defs/identifierArray"},
+        "inference_rule": {"$ref": "#/$defs/identifier"},
+        "reachability": {"type": "boolean"},
+        "blocking_control_id": {"$ref": "#/$defs/identifier"},
+        "remediated_by_control_id": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "attackPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "source_id",
+        "target_id",
+        "node_ids",
+        "relation_ids",
+        "finding_ids",
+        "business_impact_ids",
+        "provenance"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "type": {"const": "attack-path"},
+        "source_id": {"$ref": "#/$defs/identifier"},
+        "target_id": {"$ref": "#/$defs/identifier"},
+        "node_ids": {
+          "allOf": [
+            {"$ref": "#/$defs/identifierArray"},
+            {"minItems": 2}
+          ]
+        },
+        "relation_ids": {
+          "allOf": [
+            {"$ref": "#/$defs/identifierArray"},
+            {"minItems": 1}
+          ]
+        },
+        "finding_ids": {"$ref": "#/$defs/identifierArray"},
+        "business_impact_ids": {"$ref": "#/$defs/identifierArray"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "sequence", "assessments"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "type": {
+          "enum": [
+            "initial",
+            "discovery",
+            "finding-confirmation",
+            "authorized-validation",
+            "remediation"
+          ]
+        },
+        "sequence": {"type": "integer", "minimum": 0, "maximum": 4},
+        "assessments": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/assessment"}
+        }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_id", "state", "confidence", "provenance", "evidence_ids"],
+      "properties": {
+        "path_id": {"$ref": "#/$defs/identifier"},
+        "state": {"$ref": "#/$defs/state"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "evidence_ids": {"$ref": "#/$defs/identifierArray"},
+        "inference_rule": {"$ref": "#/$defs/identifier"},
+        "blocking_control_ids": {"$ref": "#/$defs/identifierArray"}
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "from_phase_id",
+        "to_phase_id",
+        "trigger",
+        "evidence_ids",
+        "requires_authorization"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "type": {"const": "phase-transition"},
+        "from_phase_id": {"$ref": "#/$defs/identifier"},
+        "to_phase_id": {"$ref": "#/$defs/identifier"},
+        "trigger": {"$ref": "#/$defs/identifier"},
+        "evidence_ids": {
+          "allOf": [
+            {"$ref": "#/$defs/identifierArray"},
+            {"minItems": 1}
+          ]
+        },
+        "inference_rule": {"$ref": "#/$defs/identifier"},
+        "requires_authorization": {"type": "boolean"},
+        "authorization_evidence_id": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "provenance": {
+      "enum": ["seeded", "discovered", "inferred"]
+    },
+    "state": {
+      "enum": ["CONFIRMED", "LIKELY", "POTENTIAL", "BLOCKED", "UNKNOWN"]
+    }
+  }
+}

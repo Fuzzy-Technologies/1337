@@ -6,14 +6,14 @@ It complements `DEVELOPMENT_PROTOCOL.md`. If these documents ever conflict, stop
 
 ## Branch roles
 
-| Branch pattern        | Purpose                                              | Normal source             | Normal destination |
-| --------------------- | ---------------------------------------------------- | ------------------------- | ------------------ |
-| `master`              | Stable public state; tagged commits are releases     | release/hotfix/docs paths | tag or publication |
-| `develop`             | Integration branch for the next release              | `feature/*`, `fix/*`      | `release/*`        |
-| `feature/<name>`      | Product, subsystem, governance, or feature work      | `develop`                 | `develop`          |
-| `fix/<name>`          | Non-release defect correction                        | `develop`                 | `develop`          |
-| `release/<version>`   | Release stabilization for one version                | `develop`                 | `master`           |
-| `hotfix/<name>`       | Urgent released-state correction                     | `master`                  | `master`           |
+| Branch pattern      | Purpose                                          | Normal source             | Normal destination |
+| ------------------- | ------------------------------------------------ | ------------------------- | ------------------ |
+| `master`            | Stable public state; tagged commits are releases | release/hotfix/docs paths | tag or publication |
+| `develop`           | Integration branch for the next release          | `feature/*`, `fix/*`      | `release/*`        |
+| `feature/<name>`    | Product, subsystem, governance, or feature work  | `develop`                 | `develop`          |
+| `fix/<name>`        | Non-release defect correction                    | `develop`                 | `develop`          |
+| `release/<version>` | Release stabilization for one version            | `develop`                 | `master`           |
+| `hotfix/<name>`     | Urgent released-state correction                 | `master`                  | `master`           |
 
 Do not use roadmap IDs as long-lived architecture owners. Roadmap identifiers may appear in issue titles and planning metadata, while branch names describe the actual change.
 

@@ -23,7 +23,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <figcaption class="hero-caption">
 <p class="eyebrow">Открытая рабочая среда ИБ · Живая модель объектов · Подключаемые инструменты</p>
 <p class="hero-hook">Исследуйте систему.<br><strong>Стройте её модель по мере работы</strong></p>
-<span class="status">Pre-alpha · Apache-2.0 · v0.1.8</span>
+<span class="status">Pre-alpha · Apache-2.0 · v0.2.0</span>
 </figcaption>
 </figure>
 
@@ -32,7 +32,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <blockquote class="hero-quote"><strong>ИИ-модели рассуждают. 1337 хранит состояние, контролирует выполнение и сохраняет доказательства</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.1.8">Предварительный релиз v0.1.8</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.0">Предварительный релиз v0.2.0</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/milestones">План разработки</a>
 </div>
 </div>
@@ -156,7 +156,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 </div>
 
 <blockquote><strong>Какие пути к критичным активам действительно достижимы, какими доказательствами это подтверждается и какая мера защиты разрывает цепочку?</strong></blockquote>
-<p class="quiet">M4 пока входит только в план разработки и не является частью v0.1.8. Цель — воспроизводимый стенд на Docker Compose, а не заранее записанная демонстрация.</p>
+<p class="quiet">Полный сценарий M4 остаётся в плане после v0.2.0. В репозитории уже есть изолированный мини-стенд для проверки пути атаки.</p>
 <p class="showcase-hook"><strong>Поднять стенд · воспроизвести проблему · подтвердить путь атаки · проверить исправление</strong></p>
 </div>
 </section>
@@ -165,12 +165,15 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <h2>Что уже работает</h2>
 <div class="proof-grid">
 <section class="proof-card proof-now">
-<span class="card-label">В v0.1.8</span>
+<span class="card-label">В v0.2.0</span>
 <h3>Рабочая инженерная база pre-alpha-версии</h3>
 <ul>
 <li>открытое ядро под лицензией Apache-2.0</li>
 <li>устанавливаемые команды 1337 и 1337-dev</li>
-<li>базовый реестр команд (Command Registry)</li>
+<li>интерактивный shell, нечёткое автодополнение, палитра и история команд</li>
+<li>локальная диагностика doctor и проверка компонентов без изменений</li>
+<li>API переносимого workspace, конфигурации и офлайн-проверки scope</li>
+<li>экспериментальные API модели, доказательств, executor и необязательного Nmap</li>
 <li>изолированный тестовый стенд из репозитория</li>
 <li>базовый функциональный тестовый контур на pytest</li>
 <li>публичные версионируемые контракты и архитектурная документация</li>
@@ -183,10 +186,10 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <h3>В разработке</h3>
 <ul>
 <li>живой двухпанельный терминальный интерфейс</li>
-<li>встроенное обнаружение и минимальная модель объектов ИБ (Security Object Model)</li>
+<li>встроенное обнаружение и сквозные сценарии модели объектов ИБ (Security Object Model)</li>
 <li>подключаемые сканеры и инструменты, Quick Scan</li>
 <li>рабочие представления для Pentest, DFIR, DevSecOps и Purple Team</li>
-<li>доказательства, анализ достижимости и пути атаки</li>
+<li>сценарии работы с находками, анализ достижимости и пути атаки</li>
 <li>API/SDK/MCP и интеграции с внешними продуктами</li>
 </ul>
 </section>
@@ -198,6 +201,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <h2>Документация и материалы</h2>
 <div class="links">
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.0/docs/QUICKSTART.md">Попробовать v0.2.0</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">Архитектурное видение</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">ИИ и интеграция агентов</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">ADR 0010: архитектура рабочего места</a>

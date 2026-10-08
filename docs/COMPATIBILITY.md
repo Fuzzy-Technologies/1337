@@ -36,6 +36,37 @@ The following areas are the intended extension boundaries as they are introduced
 
 The M0 repository does **not** freeze a Python import namespace before packaging is implemented. Future packaging work may choose the concrete import/package names, but once a symbol is declared Stable it must follow this compatibility policy.
 
+`fuzzy1337.workspace` is an Experimental Python SDK namespace and persisted
+workspace document at schema version `1`. ADR 0019 and `docs/WORKSPACES.md`
+define its portable metadata, reference, and cooperating-writer lifecycle contract.
+
+`fuzzy1337.scope` is an Experimental Python library and persisted scope schema
+at version `1`. ADR 0022 and `docs/SCOPE.md` define typed target identity,
+explicit consent metadata, offline membership, and portable scope persistence.
+Scope membership does not issue invocation-bound execution authorization.
+
+`fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
+0014 declares it Experimental at contract version `1`; other import paths remain
+internal unless this document explicitly states otherwise.
+
+`fuzzy1337.model` is an Experimental Python library and persisted model schema
+at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic object
+identity, attributable updates, typed relations, observations, incremental deltas,
+and portable model persistence. Scope/target references do not grant authority.
+
+`fuzzy1337.evidence` is an Experimental local storage API and manifest schema
+at version `1`. ADR 0020 defines immutable content/provenance identities;
+[`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
+failure semantics. Other evidence helpers remain Internal.
+
+`fuzzy1337.adapters.nmap` is an Experimental optional adapter at version `1`.
+ADR 0024 and `docs/NMAP_ADAPTER.md` define finite invocation profiles, bounded
+health, verified XML normalization, and preservation of executor/evidence facts.
+Nmap is supplied by the operator; this adapter never grants execution authority.
+
+`fuzzy1337.executors` is an Experimental Python SDK namespace at executor
+contract version `1`. ADR 0015 defines its governed local execution boundary.
+
 ## Version compatibility rules
 
 ### Repository releases
@@ -145,8 +176,15 @@ Changes to a Stable contract require:
 
 Current versioned public contracts:
 
-| Contract family       | Schema version | Location                                           | Status |
-| --------------------- | -------------- | -------------------------------------------------- | ------ |
-| Extension manifest    | `1`            | `contracts/extension-manifest.schema.json`         | Stable |
+| Contract family      | Schema version | Location                                      | Status       |
+| -------------------- | -------------- | --------------------------------------------- | ------------ |
+| Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`    | Stable       |
+| Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`            | Experimental |
+| Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
+| ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
+| Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`   | Experimental |
+| Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
+| Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                     | Experimental |
+| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

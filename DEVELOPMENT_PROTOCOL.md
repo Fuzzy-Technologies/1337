@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.3`  
+Protocol version: `0.5`
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -32,8 +32,7 @@ The repository identity is **1337 Security Workbench by Fuzzy Technologies**.
 
 Canonical repository language is English:
 
-- source code;
-- comments and docstrings;
+- source identifiers and user-facing source strings;
 - Markdown documentation;
 - commit messages;
 - prompts and agent instructions;
@@ -43,6 +42,7 @@ Canonical repository language is English:
 - machine-readable identifiers.
 
 Localization resources are the only normal exception. Canonical commands and APIs remain English.
+Python docstrings and comments are English in both production code and tests.
 
 ## 3. Branching, project tracking, and release flow
 
@@ -100,6 +100,7 @@ Rules:
 - When work on one or more task issues actually begins, assign the project owner (`Tim55667757`) to those active task issues. If work is explicitly returned to the backlog before completion, remove the assignee.
 - Pull requests must reference the task(s) and feature(s) they implement and should use the milestone of the primary owning task/feature unless the PR is explicitly cross-milestone.
 - A pull request that fully completes a task may use `Closes #NN` or `Fixes #NN` in the PR body. Do not use closing keywords when the PR only partially advances the task.
+- After a human merge into `develop`, the `Close merged tasks` workflow closes only open repository issues named by an explicit, standalone `Closes #NN`, `Fixes #NN`, or `Resolves #NN` line in the merged PR body. `Refs #NN` and ordinary mentions never close work.
 - Ordinary intermediate commits reference their owning issue without closing it.
 - When a task implementation is ready for owner review, add a short plain-English issue comment describing what changed, what the change enables, and how it was actually verified. Keep it readable for a human; use a small Markdown table only when it improves clarity.
 - A task remains open while its completing PR is in review. Normal completion is PR merge → Task closed.
@@ -185,7 +186,9 @@ A commit should represent one coherent logical change. Infrastructure repair, be
 - Keep each change narrow and reviewable.
 - Architecture-impacting work requires an ADR/design decision before or together with implementation.
 - Refactoring is behavior-preserving unless the task explicitly says otherwise.
-- Style-only changes must not alter identifiers, evaluation order, expressions, conditions, call order, public contracts, or runtime behavior.
+- Style-only changes must not alter evaluation order, expressions, conditions, call order, public
+  contracts, or runtime behavior. A repository-wide migration to an owner-approved naming contract
+  may rename identifiers only with explicit owner authorization and complete consumer updates.
 - Before deleting a module, function, file, field, command, schema member, or compatibility layer, inspect references and prove that the removal is safe.
 - Do not silently remove fallbacks, guards, validation, logging, audit evidence, or tests.
 - Do not add `TODO`, `FIXME`, `TEMP`, or `HACK` to tracked source.
@@ -201,6 +204,10 @@ Python is the primary orchestration, CLI, automation, adapter, API, testing, and
 ### 6.1. General style
 
 - Use 4-space indentation.
+- Every production and test module, class, function, and method has a concise English docstring.
+- Python comments are English-only.
+- Comments explain reasons, constraints, invariants, or architectural boundaries; they do not
+  narrate obvious operations.
 - Use modern Python with explicit, readable control flow.
 - Use type hints for public interfaces and important internal contracts.
 - Prefer `dataclass`, `Protocol`, `TypedDict`, enums, or validated models where a real data contract exists.
@@ -218,14 +225,21 @@ Python is the primary orchestration, CLI, automation, adapter, API, testing, and
 
 ### 6.2. Naming
 
-Default Python naming:
+Project-owned Python naming:
 
-- modules/functions/variables: `snake_case`;
-- classes/protocols/enums: `PascalCase`;
-- constants: `UPPER_CASE`;
-- private implementation details: leading `_`.
+- functions and methods: `PascalCase`, including `Main()`;
+- classes, protocols, and enums: `PascalCase`;
+- variables, parameters, and fields: `snake_case`; a leading underscore is allowed for internal
+  implementation details;
+- constants: `UPPER_SNAKE_CASE` with underscores between words;
+- test files retain `test_*.py`; test functions retain the required `test_` prefix and use
+  `PascalCase` after that prefix.
 
-Preserve externally defined naming where it is part of a contract. Do **not** mechanically rename:
+Project-owned non-callable identifiers use normal Python `snake_case`. Project-owned function and
+method names remain `PascalCase` and must not be converted to `snake_case`.
+
+Preserve externally imposed naming where it is part of a contract. This includes Python dunder
+names such as `__name__` and framework callbacks or fixtures. Do **not** mechanically rename:
 
 - CLI arguments and command names;
 - JSON/TOML/YAML fields;
@@ -248,7 +262,27 @@ Specific house rule retained from existing Fuzzy Technologies Python projects:
 
 > After a completed multi-line `for` block, insert a blank line before the next independent statement or block when that line is no longer part of the loop/control flow.
 
-Do not mechanically insert blank lines inside a logically continuous construct.
+Use one blank line to expose each transition between logical phases inside a function or method:
+
+- before a new `if`, `for`, `while`, `try`, `with`, or `match` statement when it follows
+  completed work in the same block;
+- before an `await` statement or an assignment whose value is awaited when it starts the next
+  asynchronous operation;
+- before `return`, `raise`, or `yield` when it follows completed work in the same block;
+- after a completed nested or multi-line control-flow block before the next independent statement.
+
+Do not insert a blank line after a control-flow header. For example, an `await`, `return`, or
+`raise` that is the first statement inside an `if`, `try`, `with`, or loop remains directly below
+that header. Keep tightly related assignments and calls together; the rule separates phases, not
+every physical statement.
+
+- A docstring is the first statement in its module, class, function, or method.
+- Insert one blank line after a docstring before implementation.
+- Do not insert a blank line immediately after a `def`, `class`, `try`, `if`, `elif`,
+  `else`, `except`, `finally`, `for`, `while`, `with`, `match`, or `case` header.
+- Insert one blank line before `elif`, `else`, `except`, and `finally`.
+- Separate module-level functions and classes with two blank lines and class methods with one.
+- Keep one blank line before `if __name__ == "__main__":`.
 
 Prefer readable source over clever compression. A dense one-liner or nested comprehension should not replace straightforward control flow when it reduces debuggability or evidence clarity.
 
@@ -280,6 +314,13 @@ Prefer readable source over clever compression. A dense one-liner or nested comp
 - Do not regenerate or broadly rewrite README/CHANGELOG during an unrelated patch.
 - Documentation changes should be localized to the affected sections.
 - Qualifying documentation and GitHub Pages updates may be published to `master` between product releases without a version tag only under the explicit documentation/site publication rules in `docs/RELEASE_WORKFLOW.md`.
+
+Source documentation, ownership headers, canonical English API reference, localization
+provenance, and documentation validation follow
+[`docs/SOURCE_DOCUMENTATION.md`](docs/SOURCE_DOCUMENTATION.md). The composed product-site
+and API-reference architecture is defined in
+[ADR 0016](docs/adr/0016-composed-documentation-platform.md). These contracts preserve
+the Python naming/formatting rules above and do not authorize API renaming.
 
 ## 8. CHANGELOG contract
 

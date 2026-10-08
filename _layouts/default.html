@@ -31,6 +31,11 @@
     <title>{{ page.title | default: site.title }}</title>
   </head>
   <body>
+    <nav aria-label="API reference" class="documentation-links">
+      <a href="{{ '/api/latest/en/' | relative_url }}">API EN</a>
+      <a href="{{ '/api/latest/ru/' | relative_url }}">API RU</a>
+      <a href="{{ '/api/latest/zh-cn/' | relative_url }}">API 简中</a>
+    </nav>
     <main>
       {{ content }}
     </main>

@@ -54,6 +54,7 @@ jobs:
             coverage/
             dist/
             functional-evidence/
+            performance/
           if-no-files-found: ignore
           retention-days: 14
 
@@ -88,6 +89,50 @@ jobs:
         run: >-
           docker compose exec -T lab-web-safe python -c
           "from urllib.request import urlopen; import json; response = urlopen('http://127.0.0.1:8080/health', timeout=1); assert json.load(response) == {'status': 'ok', 'target': 'web-safe'}"
+      - name: Start attack-path mini lab
+        run: >-
+          docker compose --profile attack-path up --build --wait
+          lab-attack-portal lab-attack-identity lab-attack-events
+          lab-attack-billing lab-attack-client
+      - name: Verify attack-path mini lifecycle
+        run: |
+          docker compose exec -T lab-attack-client python client.py reset
+          docker compose exec -T lab-attack-client python client.py validate
+          docker compose exec -T lab-attack-client python client.py negative
+          docker compose exec -T lab-attack-client python client.py remediate
+          docker compose exec -T lab-attack-client python client.py reset
       - name: Stop synthetic lab
         if: always()
-        run: docker compose --profile lab down --volumes --remove-orphans
+        run: docker compose --profile lab --profile attack-path down --volumes --remove-orphans
+
+  external-targets:
+    name: Pinned external target regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      FUZZY1337_EXTERNAL_TARGETS: juice-shop
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Execute pinned target through pytest
+        run: >-
+          uv run --locked --extra dev pytest tests/functional/test_external_targets.py
+          -o addopts='' -v
+      - name: Preserve external target evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: external-juice-shop
+          path: functional-evidence/external-juice-shop/
+          if-no-files-found: error
+          retention-days: 14

@@ -19,12 +19,13 @@ class SafeLabRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         """Respond only to deterministic safe target routes."""
+
         if self.path == "/health":
-            self._send_json({"status": "ok", "target": "web-safe"})
+            self.SendJson({"status": "ok", "target": "web-safe"})
             return
 
         if self.path == "/":
-            self._send_json(
+            self.SendJson(
                 {
                     "name": "1337 synthetic web-safe target",
                     "purpose": "local development health target",
@@ -37,8 +38,9 @@ class SafeLabRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *arguments: object) -> None:
         """Keep routine synthetic target requests out of test logs."""
 
-    def _send_json(self, payload: dict[str, str]) -> None:
+    def SendJson(self, payload: dict[str, str]) -> None:
         """Write one deterministic JSON response."""
+
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "application/json")
@@ -47,11 +49,12 @@ class SafeLabRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def main() -> None:
+def Main() -> None:
     """Run the safe target until its isolated container is stopped."""
+
     with ThreadingHTTPServer((HOST, PORT), SafeLabRequestHandler) as server:
         server.serve_forever()
 
 
 if __name__ == "__main__":
-    main()
+    Main()

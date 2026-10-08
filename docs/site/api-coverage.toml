@@ -1,0 +1,132 @@
+schemaVersion = 1
+
+[[surfaces]]
+module = "fuzzy1337"
+source = "src/fuzzy1337/__init__.py"
+mode = "authored"
+page = "api/fuzzy1337.md"
+
+[[moduleExclusions]]
+module = "fuzzy1337.__main__"
+source = "src/fuzzy1337/__main__.py"
+reason = "Executable entry point delegates to the documented CLI Main function."
+
+[[surfaces]]
+module = "fuzzy1337.adapters"
+source = "src/fuzzy1337/adapters/__init__.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.contracts"
+source = "src/fuzzy1337/adapters/contracts.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.contracts.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.nmap"
+source = "src/fuzzy1337/adapters/nmap.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.nmap.md"
+
+[[surfaces]]
+module = "fuzzy1337.cli"
+source = "src/fuzzy1337/cli.py"
+mode = "authored"
+page = "api/fuzzy1337.cli.md"
+
+[[surfaces]]
+module = "fuzzy1337.command_registry"
+source = "src/fuzzy1337/command_registry.py"
+mode = "authored"
+page = "api/fuzzy1337.command_registry.md"
+
+[[surfaces]]
+module = "fuzzy1337.component_health"
+source = "src/fuzzy1337/component_health.py"
+mode = "authored"
+page = "api/fuzzy1337.component_health.md"
+
+[[surfaces]]
+module = "fuzzy1337.coverage_gate"
+source = "src/fuzzy1337/coverage_gate.py"
+mode = "authored"
+page = "api/fuzzy1337.coverage_gate.md"
+
+[[surfaces]]
+module = "fuzzy1337.dev_commands"
+source = "src/fuzzy1337/dev_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.dev_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.workspace"
+source = "src/fuzzy1337/workspace.py"
+mode = "authored"
+page = "api/fuzzy1337.workspace.md"
+
+[[surfaces]]
+module = "fuzzy1337.doctor"
+source = "src/fuzzy1337/doctor.py"
+mode = "authored"
+page = "api/fuzzy1337.doctor.md"
+
+[[surfaces]]
+module = "fuzzy1337.evidence"
+source = "src/fuzzy1337/evidence.py"
+mode = "authored"
+page = "api/fuzzy1337.evidence.md"
+
+[[surfaces]]
+module = "fuzzy1337.executors"
+source = "src/fuzzy1337/executors/__init__.py"
+mode = "authored"
+page = "api/fuzzy1337.executors.md"
+
+[[surfaces]]
+module = "fuzzy1337.executors.contracts"
+source = "src/fuzzy1337/executors/contracts.py"
+mode = "authored"
+page = "api/fuzzy1337.executors.contracts.md"
+
+[[surfaces]]
+module = "fuzzy1337.executors.local"
+source = "src/fuzzy1337/executors/local.py"
+mode = "authored"
+page = "api/fuzzy1337.executors.local.md"
+
+[[surfaces]]
+module = "fuzzy1337.functional_metrics"
+source = "src/fuzzy1337/functional_metrics.py"
+mode = "authored"
+page = "api/fuzzy1337.functional_metrics.md"
+
+[[surfaces]]
+module = "fuzzy1337.model"
+source = "src/fuzzy1337/model.py"
+mode = "authored"
+page = "api/fuzzy1337.model.md"
+
+[[surfaces]]
+module = "fuzzy1337.performance"
+source = "src/fuzzy1337/performance.py"
+mode = "authored"
+page = "api/fuzzy1337.performance.md"
+
+[[surfaces]]
+module = "fuzzy1337.scope"
+source = "src/fuzzy1337/scope.py"
+mode = "authored"
+page = "api/fuzzy1337.scope.md"
+
+[[surfaces]]
+module = "fuzzy1337.shell"
+source = "src/fuzzy1337/shell.py"
+mode = "authored"
+page = "api/fuzzy1337.shell.md"
+
+[[surfaces]]
+module = "fuzzy1337.test_runner"
+source = "src/fuzzy1337/test_runner.py"
+mode = "authored"
+page = "api/fuzzy1337.test_runner.md"

@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for packaging behavior."""
+
 import json
 import subprocess
 import sys
@@ -11,7 +16,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def invoke(arguments, cwd):
+def Invoke(arguments, cwd):
+    """Provide deterministic test support for invoke."""
+
     result = subprocess.run(
         arguments,
         cwd=cwd,
@@ -21,33 +28,50 @@ def invoke(arguments, cwd):
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
     return result.stdout
 
 
 @pytest.mark.integration
-def test_sdist_wheel_and_clean_installation(tmp_path):
-    metadata = tomllib.loads(
-        (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    )["project"]
+def test_SdistWheelAndCleanInstallation(tmp_path):
+    """Verify sdist wheel and clean installation."""
+
+    metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     output = tmp_path / "dist"
-    invoke(
+    Invoke(
         [sys.executable, "-m", "build", "--no-isolation", "--outdir", str(output)],
         ROOT,
     )
-    assert len(list(output.glob("*.tar.gz"))) == 1
+    assert len(list(output.glob("*.tar.gz"))) == 1, (
+        "sdist wheel and clean installation invariant failed."
+    )
     wheels = list(output.glob("*.whl"))
-    assert len(wheels) == 1
+    assert len(wheels) == 1, "sdist wheel and clean installation invariant failed."
+
     with zipfile.ZipFile(wheels[0]) as archive:
         members = archive.namelist()
-        assert "fuzzy1337/cli.py" in members
-        assert all(name.startswith(("fuzzy1337/", "1337-")) for name in members)
-        assert not any(name.endswith(".pyc") for name in members)
+        assert "fuzzy1337/cli.py" in members, "sdist wheel and clean installation invariant failed."
+        assert "fuzzy1337/adapters/contracts.py" in members, (
+            "sdist wheel and clean installation invariant failed."
+        )
+        assert "fuzzy1337/executors/contracts.py" in members, (
+            "sdist wheel and clean installation invariant failed."
+        )
+        assert "fuzzy1337/executors/local.py" in members, (
+            "sdist wheel and clean installation invariant failed."
+        )
+        assert all(name.startswith(("fuzzy1337/", "1337-")) for name in members), (
+            "sdist wheel and clean installation invariant failed."
+        )
+        assert not any(name.endswith(".pyc") for name in members), (
+            "sdist wheel and clean installation invariant failed."
+        )
 
     environment = tmp_path / "installed"
     venv.EnvBuilder(with_pip=True).create(environment)
     scripts = environment / ("Scripts" if sys.platform == "win32" else "bin")
     executable = scripts / ("python.exe" if sys.platform == "win32" else "python")
-    invoke(
+    Invoke(
         [
             str(executable),
             "-m",
@@ -62,16 +86,58 @@ def test_sdist_wheel_and_clean_installation(tmp_path):
     )
     expected = f"1337 {metadata['version']}"
     assert (
-        invoke([str(executable), "-I", "-m", "fuzzy1337", "--version"], tmp_path).strip()
+        Invoke([str(executable), "-I", "-m", "fuzzy1337", "--version"], tmp_path).strip()
         == expected
-    )
+    ), "sdist wheel and clean installation invariant failed."
     suffix = ".exe" if sys.platform == "win32" else ""
-    assert invoke([str(scripts / f"1337{suffix}"), "--version"], tmp_path).strip() == expected
-    assert "1337 repository quality gates" in invoke(
+    assert Invoke([str(scripts / f"1337{suffix}"), "--version"], tmp_path).strip() == expected, (
+        "sdist wheel and clean installation invariant failed."
+    )
+    update = json.loads(
+        Invoke([str(scripts / f"1337{suffix}"), "update", "--json"], tmp_path)
+    )
+    assert update["components"][1]["installedVersion"] == metadata["version"], (
+        "The installed wheel must report its actual distribution version through the update CLI."
+    )
+    assert (
+        update["mutationsPerformed"] is False and update["updateAvailability"] == "not_checked"
+    ), (
+        "Clean-wheel inspection must preserve the read-only update boundary."
+    )
+    assert json.loads(
+        Invoke([str(executable), "-I", "-m", "fuzzy1337", "update", "--json"], tmp_path)
+    ) == update, "Installed console and module entry points must expose the same inspection report."
+    assert "1337 repository quality gates" in Invoke(
         [str(scripts / f"1337-dev{suffix}"), "--help"],
         tmp_path,
-    )
-    location = invoke(
+    ), "sdist wheel and clean installation invariant failed."
+    assert (
+        Invoke(
+            [
+                str(executable),
+                "-I",
+                "-c",
+                "from fuzzy1337.adapters import ADAPTER_CONTRACT_VERSION; "
+                "print(ADAPTER_CONTRACT_VERSION)",
+            ],
+            tmp_path,
+        ).strip()
+        == "1"
+    ), "sdist wheel and clean installation invariant failed."
+    assert (
+        Invoke(
+            [
+                str(executable),
+                "-I",
+                "-c",
+                "from fuzzy1337.executors import EXECUTOR_CONTRACT_VERSION; "
+                "print(EXECUTOR_CONTRACT_VERSION)",
+            ],
+            tmp_path,
+        ).strip()
+        == "1"
+    ), "sdist wheel and clean installation invariant failed."
+    location = Invoke(
         [
             str(executable),
             "-I",
@@ -80,4 +146,6 @@ def test_sdist_wheel_and_clean_installation(tmp_path):
         ],
         tmp_path,
     )
-    assert Path(json.loads(location)).is_relative_to(environment)
+    assert Path(json.loads(location)).is_relative_to(environment), (
+        "sdist wheel and clean installation invariant failed."
+    )

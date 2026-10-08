@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
 """Enforce the production per-module combined branch/statement coverage contract."""
 
 from __future__ import annotations
@@ -10,8 +13,23 @@ from pathlib import Path
 from typing import Any
 
 
-def validate_report(report: dict[str, Any], source: Path) -> list[str]:
-    """Return failures; missing modules and invalid counts cannot pass the gate."""
+def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
+    """Return failures; missing modules and invalid counts cannot pass the gate.
+
+    Reads the source inventory without importing modules. Missing coverage fails; empty
+    nonexecutable modules are accepted.
+
+    Args:
+        report: coverage.py JSON with branch coverage and unexcluded per-file counts
+        source: Production module directory to require in the report.
+
+    Returns:
+        Diagnostics for missing modules or combined coverage at or below 80%.
+
+    Raises:
+        ValueError: Metadata, source inventory or per-file counts are invalid.
+    """
+
     meta = report.get("meta")
     if not isinstance(meta, dict) or meta.get("branch_coverage") is not True:
         raise ValueError("Branch coverage must be enabled.")
@@ -69,8 +87,21 @@ def validate_report(report: dict[str, Any], source: Path) -> list[str]:
     return failures
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Validate a fresh coverage JSON report against the on-disk source inventory."""
+def Main(argv: Sequence[str] | None = None) -> int:
+    """Validate a fresh coverage JSON report against the on-disk source inventory.
+
+    Reads the JSON report and writes diagnostics. Malformed inputs cannot produce PASS.
+
+    Args:
+        argv: Coverage-report and source paths, or None for process arguments.
+
+    Returns:
+        Zero when all modules pass, otherwise one for gate failure.
+
+    Raises:
+        SystemExit: Argument parsing rejects input or handles help.
+    """
+
     parser = argparse.ArgumentParser(
         description=__doc__,
     )
@@ -81,7 +112,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = json.loads(arguments.report.read_text(encoding="utf-8"))
         if not isinstance(report, dict):
             raise ValueError("Coverage report must be a JSON object.")
-        failures = validate_report(report, arguments.source)
+        failures = ValidateReport(report, arguments.source)
+
     except (OSError, ValueError, TypeError, AttributeError) as error:
         print(f"Coverage gate failed: {error}", file=sys.stderr)
         return 1
@@ -95,4 +127,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(Main())

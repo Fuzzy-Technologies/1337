@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling==1.32.0"]
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
 [project]
 name = "1337"
-version = "0.1.8"
+version = "0.2.0"
 description = "1337 Security Workbench open-source core"
 readme = "README.md"
 license = "Apache-2.0"
@@ -13,19 +13,21 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
-1337 = "fuzzy1337.cli:main"
-1337-dev = "fuzzy1337.dev_commands:main"
+1337 = "fuzzy1337.cli:Main"
+1337-dev = "fuzzy1337.dev_commands:Main"
 
 [project.optional-dependencies]
 dev = [
-    "build==1.6.0",
-    "coverage==7.16.0",
-    "hatchling==1.32.0",
+    "build==1.6.1",
+    "coverage==7.16.2",
+    "hatchling==1.32.4",
     "jsonschema==4.26.0",
     "mypy==2.3.1",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "ruff==0.16.6",
+    "pytest-timeout==2.4.0",
+    "pytest-xdist==3.8.0",
+    "ruff==0.16.9",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -34,7 +36,7 @@ dev-mode-dirs = ["src"]
 
 [tool.uv]
 build-constraint-dependencies = [
-    "editables==0.5", "hatchling==1.32.0", "packaging==26.3",
+    "editables==0.5", "hatchling==1.32.4", "packaging==26.3",
     "pathspec==1.1.1", "pluggy==1.6.0", "tomlkit==0.15.1",
     "trove-classifiers==2026.6.1.19",
 ]
@@ -48,15 +50,18 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit"]
-addopts = "--strict-config --strict-markers --cov=fuzzy1337 --cov-branch --cov-report=term-missing --cov-report=json:coverage/coverage.json --junitxml=coverage/tests.xml"
-markers = ["integration: real package build and installation boundaries"]
+addopts = "--strict-config --strict-markers --cov=fuzzy1337 --cov-branch --cov-report=term-missing --cov-report=json:coverage/coverage.json"
+markers = [
+    "integration: real package build and installation boundaries",
+    "serial: test owns a shared resource and must run outside xdist workers",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I"]
+select = ["E4", "E7", "E9", "E501", "F", "I"]
 
 [tool.mypy]
 python_version = "3.11"

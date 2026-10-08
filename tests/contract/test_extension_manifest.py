@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for extension manifest behavior."""
+
 import copy
 import json
 from pathlib import Path
@@ -8,10 +13,10 @@ from jsonschema import Draft202012Validator, ValidationError
 CONTRACTS = Path(__file__).resolve().parents[2] / "contracts"
 
 
-def test_published_schema_and_example():
-    schema = json.loads(
-        (CONTRACTS / "extension-manifest.schema.json").read_text(encoding="utf-8")
-    )
+def test_PublishedSchemaAndExample():
+    """Verify published schema and example."""
+
+    schema = json.loads((CONTRACTS / "extension-manifest.schema.json").read_text(encoding="utf-8"))
     example = json.loads(
         (CONTRACTS / "examples/extension-manifest.example.json").read_text(encoding="utf-8")
     )

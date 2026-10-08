@@ -139,6 +139,50 @@ AttackPath     BusinessEvent  Report
 DFIR extensions add investigation/evidence semantics without creating a separate
 truth store.
 
+## Domain profiles and cyber-physical systems
+
+The Security Object Model must remain extensible across target domains rather than
+becoming a Web/Host-only schema.
+
+Domain profiles may add typed objects and relations while reusing the same canonical
+identity, provenance, Evidence, Finding, Relation, storage, query, Scope, and Policy
+boundaries.
+
+The first explicitly tracked future domain profile is **Robotics / Cyber-Physical
+Systems (CPS)**.
+
+A robotics profile may eventually connect software supply-chain and runtime state to
+physical behavior:
+
+```text
+Repository
+→ Dependency / Package
+→ Build / CI
+→ Firmware / Container / Update Artifact
+→ Robot Compute Unit
+→ Middleware Node / Control Channel
+→ Controller
+→ Actuator
+→ Physical Effect
+```
+
+Candidate providers include ROS 2 / DDS discovery, firmware/image/SBOM analysis,
+OTA/update-chain inspection, identity/certificate inspection, robot/fleet network
+discovery, vendor integrations, and imported telemetry.
+
+Robotics is a domain profile, **not a new workflow lens**. Pentest, DFIR, DevSecOps,
+and Purple Team continue to operate over the same workspace and Security Object
+Model.
+
+Real-world actuator control is not a default validation mechanism. Development, CI,
+and public demonstrations should use bounded synthetic or simulated systems; any
+future operation against physical systems remains explicitly authorized and governed
+by Scope/Policy.
+
+The architecture decision and current roadmap boundary are documented in
+[ADR 0011](adr/0011-domain-profiles-for-robotics-and-cyber-physical-systems.md) and
+tracked in [M4 Feature #174](https://github.com/Fuzzy-Technologies/1337/issues/174).
+
 ## Evidence and interpretation
 
 1337 keeps facts and interpretation distinguishable:
