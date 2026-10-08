@@ -86,20 +86,23 @@ The Community repository is licensed under Apache-2.0.
 
 ## Roadmap
 
-| Phase                                                             | Focus                                            | Target outcome                                                                                                          |
-| ----------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| [**M0**](https://github.com/Fuzzy-Technologies/1337/milestone/1)  | Foundation                                       | Repository baseline, CI, containers, synthetic lab, engineering and architecture contracts                              |
-| [**M1**](https://github.com/Fuzzy-Technologies/1337/milestone/2)  | Community Core & Live Workbench                  | Fast shell/TUI, workspace, scope, persistence boundaries, live model-view foundations, diagnostics, performance budgets |
-| [**M2**](https://github.com/Fuzzy-Technologies/1337/milestone/3)  | Execution, Discovery & Security Object Model MVP | Executor runtime, built-in discovery, minimal live model, tool adapters, Quick Scan, initial workflow lenses            |
-| [**M3**](https://github.com/Fuzzy-Technologies/1337/milestone/4)  | Evidence, Intelligence & Mapping                 | Evidence, findings, vulnerability/attack intelligence, standards mappings, reports                                      |
-| [**M4**](https://github.com/Fuzzy-Technologies/1337/milestone/5)  | Advanced Discovery & Attack Paths                | Web/API/browser/runtime discovery, user journeys, reachability, attack paths, reproducible showcase                     |
-| [**M5**](https://github.com/Fuzzy-Technologies/1337/milestone/6)  | Analytical UX                                    | Large-scale tables, graph visualization, prioritization, advanced mapping UX                                            |
-| [**M6**](https://github.com/Fuzzy-Technologies/1337/milestone/7)  | Automation, Integrations & AI                    | Domain API/SDK, CI/CD, vendor integrations, remote executors, MCP, AI access                                            |
-| [**M7**](https://github.com/Fuzzy-Technologies/1337/milestone/8)  | Authorized Validation                            | Fuzzy Striker and mature Purple Team validation workflows                                                               |
-| [**M8**](https://github.com/Fuzzy-Technologies/1337/milestone/9)  | 1337 Trace                                       | DFIR ingestion, evidence integrity/custody, incident timeline, observed attack graph                                    |
-| [**M9**](https://github.com/Fuzzy-Technologies/1337/milestone/10) | Cloud & Enterprise Contracts                     | Verified assets, cloud-safe contracts, stable enterprise extension interfaces                                           |
+| Phase                                                               | Focus                                            | Target outcome                                                                                                      |
+| ------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| ✅ [**M0**](https://github.com/Fuzzy-Technologies/1337/milestone/1)  | Foundation                                       | Repository baseline, CI, containers, synthetic lab, engineering and architecture contracts                          |
+| ✅ [**M1**](https://github.com/Fuzzy-Technologies/1337/milestone/2)  | Community Core & Shell                           | Interactive shell, workspace/configuration, offline scope, persistence boundaries, diagnostics, performance budgets |
+| 🚧 [**M2**](https://github.com/Fuzzy-Technologies/1337/milestone/3)  | Execution, Discovery & Security Object Model MVP | Executor runtime, built-in discovery, minimal live model, tool adapters, Quick Scan, initial workflow lenses        |
+| 🚧 [**M3**](https://github.com/Fuzzy-Technologies/1337/milestone/4)  | Evidence, Intelligence & Mapping                 | Evidence, findings, vulnerability/attack intelligence, standards mappings, reports                                  |
+| 🚧 [**M4**](https://github.com/Fuzzy-Technologies/1337/milestone/5)  | Advanced Discovery & Attack Paths                | Web/API/browser/runtime discovery, user journeys, reachability, attack paths, reproducible showcase                 |
+| ⏳ [**M5**](https://github.com/Fuzzy-Technologies/1337/milestone/6)  | Analytical UX                                    | Large-scale tables, graph visualization, prioritization, advanced mapping UX                                        |
+| ⏳ [**M6**](https://github.com/Fuzzy-Technologies/1337/milestone/7)  | Automation, Integrations & AI                    | Domain API/SDK, CI/CD, vendor integrations, remote executors, MCP, AI access                                        |
+| ⏳ [**M7**](https://github.com/Fuzzy-Technologies/1337/milestone/8)  | Authorized Validation                            | Fuzzy Striker and mature Purple Team validation workflows                                                           |
+| ⏳ [**M8**](https://github.com/Fuzzy-Technologies/1337/milestone/9)  | 1337 Trace                                       | DFIR ingestion, evidence integrity/custody, incident timeline, observed attack graph                                |
+| ⏳ [**M9**](https://github.com/Fuzzy-Technologies/1337/milestone/10) | Cloud & Enterprise Contracts                     | Verified assets, cloud-safe contracts, stable enterprise extension interfaces                                       |
 
-Detailed planning lives in the linked GitHub milestones and issues.
+Status: ✅ Completed · 🚧 In progress · ⏳ Planned.
+
+In progress means partial foundations are accepted; the full target outcome has not
+yet shipped. Detailed planning lives in the linked GitHub milestones and issues.
 
 ## Try v0.2.0
 
