@@ -20,7 +20,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 
 <section class="hero hero-grid">
 <figure class="hero-primary">
-<img class="hero-image" src="{{ '/api/latest/en/assets/images/1337-logo.png' | relative_url }}" alt="Maria 与 1337 安全工作台项目展示图" width="1774" height="887" decoding="async" fetchpriority="high" />
+<img class="hero-image" src="{{ '/static/images/1337-logo.png' | relative_url }}" alt="Maria 与 1337 安全工作台项目展示图" width="1774" height="887" decoding="async" fetchpriority="high" />
 <figcaption class="hero-caption">
 <p class="eyebrow">开放式安全工作台 · 动态安全对象模型 · 可插拔安全工具</p>
 <p class="hero-hook">分析目标系统。<br><strong>模型随工作过程持续更新</strong></p>

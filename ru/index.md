@@ -19,7 +19,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 
 <section class="hero hero-grid">
 <figure class="hero-primary">
-<img class="hero-image" src="{{ '/api/latest/en/assets/images/1337-logo.png' | relative_url }}" alt="Мария за рабочим столом проекта 1337" width="1774" height="887" decoding="async" fetchpriority="high" />
+<img class="hero-image" src="{{ '/static/images/1337-logo.png' | relative_url }}" alt="Мария за рабочим столом проекта 1337" width="1774" height="887" decoding="async" fetchpriority="high" />
 <figcaption class="hero-caption">
 <p class="eyebrow">Открытая рабочая среда ИБ · Живая модель объектов · Подключаемые инструменты</p>
 <p class="hero-hook">Исследуйте систему.<br><strong>Стройте её модель по мере работы</strong></p>

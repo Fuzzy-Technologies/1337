@@ -19,7 +19,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — an open, local-fi
 
 <section class="hero hero-grid">
 <figure class="hero-primary">
-<img class="hero-image" src="{{ '/api/latest/en/assets/images/1337-logo.png' | relative_url }}" alt="1337 project artwork with Maria at a security workbench" width="1774" height="887" decoding="async" fetchpriority="high" />
+<img class="hero-image" src="{{ '/static/images/1337-logo.png' | relative_url }}" alt="1337 project artwork with Maria at a security workbench" width="1774" height="887" decoding="async" fetchpriority="high" />
 <figcaption class="hero-caption">
 <p class="eyebrow">Open security workbench · Live Security Object Model · Modular tooling</p>
 <p class="hero-hook">Explore the system.<br><strong>Build the model as you work</strong></p>
