@@ -72,7 +72,8 @@ AI does not own authorization, source evidence, or durable workspace state.
 
 1337 is in **early pre-alpha**.
 
-The **v0.2.0** pre-alpha completes the M1 Community Core and Shell foundation:
+The **v0.2.1** maintenance pre-alpha builds on the completed M1 Community Core
+and Shell foundation:
 interactive command discovery, local diagnostics, portable workspace/configuration
 and offline target/scope contracts. It also includes Experimental adapter/executor,
 Security Object Model, raw-evidence and optional Nmap Python interfaces.
@@ -104,13 +105,13 @@ Status: ✅ Completed · 🚧 In progress · ⏳ Planned.
 In progress means partial foundations are accepted; the full target outcome has not
 yet shipped. Detailed planning lives in the linked GitHub milestones and issues.
 
-## Try v0.2.0
+## Try v0.2.1
 
 Use CPython 3.11 or newer and Git. Docker and Nmap are optional for their respective
 lab/provider examples. Start with the released tag for a reproducible preview:
 
 ```bash
-git clone --branch v0.2.0 --depth 1 https://github.com/Fuzzy-Technologies/1337.git
+git clone --branch v0.2.1 --depth 1 https://github.com/Fuzzy-Technologies/1337.git
 cd 1337
 python -m pip install uv==0.11.33
 uv sync --locked

@@ -8,6 +8,30 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.2
 
+### Patch 1 — v0.2.1 — 2026-10-09
+
+#### Digest
+
+- Refined the released Community Core and Shell documentation and refreshed
+  development/publication dependencies. The API reference now starts in dark mode
+  and exposes theme and language controls; the runtime capability boundary is unchanged.
+
+#### Fixed
+
+- Made the API reference dark by default, independent of operating-system theme,
+  with a persistent light/dark choice and same-page English/Russian/Chinese navigation.
+- Synchronized the hashed API documentation lock with mkdocstrings-python 2.0.9
+  and added a regression check that rejects direct-requirement/lock drift.
+
+#### Changed
+
+- Updated development tooling to mypy 2.4.0 and Ruff 0.16.10, with locked
+  ast-serialize 0.12.1 and librt 0.16.0 transitive dependencies.
+- Updated SHA-pinned Pages upload/deploy actions to 5.0.0/5.0.1.
+- Added completed/in-progress/planned roadmap markers and aligned release examples
+  and public-site links with v0.2.1. Russian/Chinese API content retains explicit
+  English fallback notices; no new runtime feature or approved translation is claimed.
+
 ### Patch 0 — v0.2.0 — 2026-10-08
 
 #### Digest
