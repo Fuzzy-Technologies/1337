@@ -96,6 +96,12 @@ mode = "authored"
 page = "api/fuzzy1337.functional_metrics.md"
 
 [[surfaces]]
+module = "fuzzy1337.model"
+source = "src/fuzzy1337/model.py"
+mode = "authored"
+page = "api/fuzzy1337.model.md"
+
+[[surfaces]]
 module = "fuzzy1337.performance"
 source = "src/fuzzy1337/performance.py"
 mode = "authored"

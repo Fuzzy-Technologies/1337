@@ -44,6 +44,11 @@ define its portable metadata, reference, and cooperating-writer lifecycle contra
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
 
+`fuzzy1337.model` is an Experimental Python library and persisted model schema
+at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic object
+identity, attributable updates, typed relations, observations, incremental deltas,
+and portable model persistence. Scope/target references do not grant authority.
+
 `fuzzy1337.evidence` is an Experimental local storage API and manifest schema
 at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
@@ -166,6 +171,7 @@ Current versioned public contracts:
 | Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`    | Stable       |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
+| Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`   | Experimental |
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
 
