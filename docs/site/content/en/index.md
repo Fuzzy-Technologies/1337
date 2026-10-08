@@ -11,7 +11,7 @@ clean-installed wheel. The build never imports the security runtime.
 Russian and Simplified Chinese routes currently show explicit English fallback
 content. No translation has been marked approved.
 
-The v0.2.0 pre-alpha includes commands, workspace/scope, Security Object Model,
+The v0.2.1 pre-alpha includes commands, workspace/scope, Security Object Model,
 evidence, adapter and executor interfaces. Search covers every documented module.
 
 ## Try the release
@@ -19,7 +19,7 @@ evidence, adapter and executor interfaces. Search covers every documented module
 Use CPython 3.11 or newer and Git:
 
 ```bash
-git clone --branch v0.2.0 --depth 1 https://github.com/Fuzzy-Technologies/1337.git
+git clone --branch v0.2.1 --depth 1 https://github.com/Fuzzy-Technologies/1337.git
 cd 1337
 python -m pip install uv==0.11.33
 uv sync --locked
@@ -33,7 +33,7 @@ Inside the shell, try `help`, `commands`, `lens devsecops`, `select asset:demo`,
 `context`, `palette`, `history`, and `quit`. The shell maintains local context;
 it does not yet provide a `scan` command or the full split-pane model view.
 
-The [tag-pinned quickstart](https://github.com/Fuzzy-Technologies/1337/blob/v0.2.0/docs/QUICKSTART.md)
+The [tag-pinned quickstart](https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md)
 includes expected output and isolated-lab commands. For a local API example:
 
 ```python

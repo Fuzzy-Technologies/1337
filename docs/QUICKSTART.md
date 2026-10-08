@@ -1,4 +1,4 @@
-# Try 1337 v0.2.0
+# Try 1337 v0.2.1
 
 This pre-alpha provides an interactive shell and Experimental Python foundations.
 Use CPython 3.11 or newer and Git. Core runtime dependencies are empty. Docker and
@@ -7,7 +7,7 @@ Nmap are optional components; a missing optional component is not a broken insta
 ## Install and inspect
 
 ```bash
-git clone --branch v0.2.0 --depth 1 https://github.com/Fuzzy-Technologies/1337.git
+git clone --branch v0.2.1 --depth 1 https://github.com/Fuzzy-Technologies/1337.git
 cd 1337
 python -m pip install uv==0.11.33
 uv sync --locked
@@ -18,7 +18,7 @@ uv run --locked 1337 update --json
 uv run --locked 1337 shell
 ```
 
-Version output is `1337 0.2.0`. `doctor` checks local runtime/package/path health;
+Version output is `1337 0.2.1`. `doctor` checks local runtime/package/path health;
 missing optional Docker Compose is reported as a warning. `update --json` reports
 `mutationsPerformed: false` and `updateAvailability: not_checked`. It installs
 nothing and performs no remote version lookup.
@@ -118,5 +118,5 @@ validated push to protected `master`. The Russian and Simplified Chinese API rou
 currently contain explicitly marked English fallback content.
 
 The `latest` URL follows published `master`. For this exact release, use
-[the v0.2.0 README](https://github.com/Fuzzy-Technologies/1337/blob/v0.2.0/README.md)
-and [tag-pinned documentation](https://github.com/Fuzzy-Technologies/1337/tree/v0.2.0/docs).
+[the v0.2.1 README](https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/README.md)
+and [tag-pinned documentation](https://github.com/Fuzzy-Technologies/1337/tree/v0.2.1/docs).

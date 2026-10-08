@@ -6,7 +6,7 @@ Architect: Timur Gilmullin
 Repository: https://github.com/Fuzzy-Technologies/1337
 License: Apache-2.0 Community core
 Status: Early pre-alpha
-Release: v0.2.0
+Release: v0.2.1
 
 Canonical description:
 1337 Security Workbench is an open, local-first security workstation centered on a
@@ -62,7 +62,7 @@ Important documents:
 - SECURITY.md
 
 Implementation warning:
-The v0.2.0 pre-alpha completes the M1 shell, local diagnostics and workspace/scope
+The v0.2.1 pre-alpha completes the M1 shell, local diagnostics and workspace/scope
 foundations. Experimental Python APIs also cover adapters, local execution,
 Security Object Model persistence, immutable evidence and an optional Nmap provider.
 The CLI exposes help, shell, doctor and read-only update inspection; model/scope,
