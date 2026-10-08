@@ -24,7 +24,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <figcaption class="hero-caption">
 <p class="eyebrow">开放式安全工作台 · 动态安全对象模型 · 可插拔安全工具</p>
 <p class="hero-hook">分析目标系统。<br><strong>模型随工作过程持续更新</strong></p>
-<span class="status">早期 pre-alpha · Apache-2.0 · v0.2.0</span>
+<span class="status">早期 pre-alpha · Apache-2.0 · v0.2.1</span>
 </figcaption>
 </figure>
 
@@ -33,7 +33,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <blockquote class="hero-quote"><strong>模型负责推理；1337 负责保存状态、约束执行并留存证据</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.0">预发布版 v0.2.0</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.1">预发布版 v0.2.1</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/milestones">开发路线图</a>
 </div>
 </div>
@@ -157,7 +157,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 </div>
 
 <blockquote><strong>哪些通往关键资产的攻击路径确实可达？哪些证据能够证明？哪项安全控制能够切断这条链路？</strong></blockquote>
-<p class="quiet">完整的 M4 展示仍属于 v0.2.0 之后的路线图。仓库已提供隔离的攻击路径迷你实验环境。</p>
+<p class="quiet">完整的 M4 展示仍属于 v0.2.1 之后的路线图。仓库已提供隔离的攻击路径迷你实验环境。</p>
 <p class="showcase-hook"><strong>启动实验环境 · 复现问题 · 验证攻击路径 · 确认修复效果</strong></p>
 </div>
 </section>
@@ -166,7 +166,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <h2>当前已经可用的内容</h2>
 <div class="proof-grid">
 <section class="proof-card proof-now">
-<span class="card-label">v0.2.0 已提供</span>
+<span class="card-label">v0.2.1 已提供</span>
 <h3>可运行的 pre-alpha 工程基础</h3>
 <ul>
 <li>Apache-2.0 开源核心</li>
@@ -202,7 +202,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <h2>项目资源</h2>
 <div class="links">
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.0/docs/QUICKSTART.md">试用 v0.2.0</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md">试用 v0.2.1</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">架构愿景</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">AI 智能体集成</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">ADR 0010：工作台架构</a>
