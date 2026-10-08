@@ -8,6 +8,30 @@ use_directory_urls: true
 theme:
   name: material
   language: en
+  palette:
+    - scheme: slate
+      primary: black
+      accent: light green
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - scheme: default
+      primary: black
+      accent: light green
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+extra:
+  alternate:
+    - name: English
+      link: https://fuzzy-technologies.github.io/1337/api/latest/en/
+      lang: en
+    - name: Русский
+      link: https://fuzzy-technologies.github.io/1337/api/latest/ru/
+      lang: ru
+    - name: 简体中文
+      link: https://fuzzy-technologies.github.io/1337/api/latest/zh-cn/
+      lang: zh
 plugins:
   - search
   - mkdocstrings:

@@ -11,7 +11,8 @@ from pathlib import Path
 
 PRODUCT_SOURCES = (
     "_config.yml", "_layouts/default.html", "index.md", "llms.txt",
-    "ru/index.md", "sitemap.xml", "static/style.css", "static/main.js", "zh-cn/index.md",
+    "ru/index.md", "sitemap.xml", "static/style.css", "static/main.js",
+    "static/images/1337-logo.png", "zh-cn/index.md",
 )
 
 

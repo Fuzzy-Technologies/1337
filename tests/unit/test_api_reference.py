@@ -21,6 +21,25 @@ API = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(API)
 
 
+@pytest.mark.parametrize("requirement", [
+    line.strip()
+    for line in (ROOT / "docs/requirements-api.txt").read_text(encoding="utf-8").splitlines()
+    if line.strip() and not line.lstrip().startswith("#")
+])
+def test_DocumentationDirectRequirementMatchesHashedLock(requirement: str) -> None:
+    """Prevent documentation upgrades from silently using an outdated renderer lock."""
+
+    locked_requirements = {
+        line.split(" ", 1)[0]
+        for line in (ROOT / "docs/requirements-api.lock").read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith(("#", " "))
+    }
+    assert requirement in locked_requirements, (
+        f"{requirement} is absent from the documentation lock; regenerate the hashed lock "
+        "before validating or publishing upgraded documentation tooling"
+    )
+
+
 def SmallProject(parent: Path) -> tuple[Path, Path]:
     """Create a minimal static source and matching installed-wheel layout fixture."""
 

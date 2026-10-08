@@ -103,13 +103,15 @@ those capabilities exist.
 `1337 doctor` is non-mutating. It checks the Python runtime, installed package,
 current-directory read/write access, and optional Docker Compose support. Missing
 optional Compose support is reported as `WARN`; a missing required runtime or
-package returns a non-zero exit. Workspace configuration is reported as an
-explicit future boundary until its M1 model is implemented.
+package returns a non-zero exit. Workspace/configuration persistence is available
+through the Experimental library; `doctor` does not automatically load or certify
+a selected workspace. See [the quickstart](QUICKSTART.md) for the supported entry points.
 
 Tests are organized by subsystem in `tests/unit`, `tests/contract`, and
-`tests/integration`; `tests/functional` retains the future synthetic-target
-boundary. Unit tests are deterministic and carry an automatic fail-closed guard
-against real network connections, including local or Docker service sockets. The
+`tests/integration`; `tests/functional` owns isolated synthetic-target lifecycle
+and finite-oracle regression checks. Unit tests are deterministic and carry an
+automatic fail-closed guard against real network connections, including local
+or Docker service sockets. The
 packaging integration test builds an sdist, builds its wheel, installs that wheel
 into a clean virtual environment without an index or dependencies, then invokes
 both installed entry points outside the checkout. It does not contact scan targets
