@@ -6,6 +6,7 @@ Architect: Timur Gilmullin
 Repository: https://github.com/Fuzzy-Technologies/1337
 License: Apache-2.0 Community core
 Status: Early pre-alpha
+Release: v0.2.0
 
 Canonical description:
 1337 Security Workbench is an open, local-first security workstation centered on a
@@ -51,6 +52,7 @@ One Security Object Model. Multiple lenses. Any suitable tool.
 
 Important documents:
 - README.md
+- docs/QUICKSTART.md
 - docs/VISION.md
 - docs/AI_AGENTS.md
 - docs/adr/0008-ai-native-cyber-execution-platform.md
@@ -60,7 +62,10 @@ Important documents:
 - SECURITY.md
 
 Implementation warning:
-This repository is early pre-alpha. Architecture and roadmap documents describe
-intended direction and must not be interpreted as claims that the live model,
-production scanners, lenses, AI interfaces, integrations, or attack graph are
-already implemented.
+The v0.2.0 pre-alpha completes the M1 shell, local diagnostics and workspace/scope
+foundations. Experimental Python APIs also cover adapters, local execution,
+Security Object Model persistence, immutable evidence and an optional Nmap provider.
+The CLI exposes help, shell, doctor and read-only update inspection; model/scope,
+workspace and scanner operations currently use Python APIs. Full split-pane TUI,
+native discovery, Quick Scan, reachability and AI/MCP workflows remain roadmap work.
+M2/M3 are still in progress. Architecture direction is not a shipped capability claim.

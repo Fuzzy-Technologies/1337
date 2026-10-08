@@ -72,10 +72,15 @@ AI does not own authorization, source evidence, or durable workspace state.
 
 1337 is in **early pre-alpha**.
 
-Current code covers the engineering baseline and early M1 work. The live workbench,
-built-in discovery, production scanner adapters, Security Object Model workflows,
-evidence/reachability pipelines, workflow lenses, AI interfaces, and advanced
-integrations remain roadmap work unless explicitly documented otherwise.
+The **v0.2.0** pre-alpha completes the M1 Community Core and Shell foundation:
+interactive command discovery, local diagnostics, portable workspace/configuration
+and offline target/scope contracts. It also includes Experimental adapter/executor,
+Security Object Model, raw-evidence and optional Nmap Python interfaces.
+
+The shell exposes help, discovery/history, local context and component inspection.
+Workspace/scope/model/executor/Nmap operations currently use the Python APIs.
+The full split-pane workbench, native discovery, Quick Scan, reachability, complete
+workflow lenses and AI/MCP integrations remain roadmap work. M2/M3 are still in progress.
 
 The Community repository is licensed under Apache-2.0.
 
@@ -96,25 +101,31 @@ The Community repository is licensed under Apache-2.0.
 
 Detailed planning lives in the linked GitHub milestones and issues.
 
-## Try the current developer preview
+## Try v0.2.0
 
-The current preview demonstrates the local CLI, interactive workbench foundation,
-environment diagnostics, deterministic tests, and repository-owned synthetic labs.
-It does **not** perform real discovery or scanning yet.
+Use CPython 3.11 or newer and Git. Docker and Nmap are optional for their respective
+lab/provider examples. Start with the released tag for a reproducible preview:
 
 ```bash
-git clone https://github.com/Fuzzy-Technologies/1337.git
+git clone --branch v0.2.0 --depth 1 https://github.com/Fuzzy-Technologies/1337.git
 cd 1337
-git switch develop
 python -m pip install uv==0.11.33
-uv run --locked 1337-dev setup
+uv sync --locked
+uv run --locked 1337 --version
 uv run --locked 1337 doctor
 uv run --locked 1337 update
 uv run --locked 1337 shell
 ```
 
 Inside the shell, start with `help`, `commands`, `context`, `lens devsecops`,
-`select asset:demo`, `palette`, and `quit`.
+`select asset:demo`, `palette`, `history`, and `quit`. Selected object identifiers
+are local context references; these commands do not start a scan.
+
+Follow the [quickstart](docs/QUICKSTART.md) for expected output, a temporary
+workspace/scope API example and optional isolated-lab commands. The
+[generated API reference with examples](https://fuzzy-technologies.github.io/1337/api/latest/en/)
+is published by the validated `master` Pages workflow. Its `latest` route follows
+the published repository state; use tag-linked source docs for version-pinned contracts.
 
 `1337 update [--json]` inspects local core health and reports unavailable component
 inventories. It performs no updates or remote version checks. See

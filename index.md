@@ -23,7 +23,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — an open, local-fi
 <figcaption class="hero-caption">
 <p class="eyebrow">Open security workbench · Live Security Object Model · Modular tooling</p>
 <p class="hero-hook">Explore the system.<br><strong>Build the model as you work</strong></p>
-<span class="status">Early pre-alpha · Apache-2.0 · v0.1.8</span>
+<span class="status">Early pre-alpha · Apache-2.0 · v0.2.0</span>
 </figcaption>
 </figure>
 
@@ -32,7 +32,7 @@ description: 1337 Security Workbench by Fuzzy Technologies — an open, local-fi
 <blockquote class="hero-quote"><strong>Models reason. 1337 keeps state, governs execution, and preserves evidence</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.1.8">Pre-release v0.1.8</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.0">Pre-release v0.2.0</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/milestones">Roadmap</a>
 </div>
 </div>
@@ -156,7 +156,7 @@ Reachability / Attack Paths</code></pre>
 </div>
 
 <blockquote><strong>Which paths to critical assets are actually reachable, what evidence supports them, and which security control breaks the chain?</strong></blockquote>
-<p class="quiet">M4 is roadmap work and is not part of v0.1.8. The goal is a reproducible Docker Compose lab, not a prerecorded demo.</p>
+<p class="quiet">The complete M4 showcase remains roadmap work beyond v0.2.0. The repository already includes an isolated attack-path mini lab.</p>
 <p class="showcase-hook"><strong>Run the lab · reproduce the issue · validate the path · verify the fix</strong></p>
 </div>
 </section>
@@ -165,12 +165,15 @@ Reachability / Attack Paths</code></pre>
 <h2>What works today</h2>
 <div class="proof-grid">
 <section class="proof-card proof-now">
-<span class="card-label">Available in v0.1.8</span>
+<span class="card-label">Available in v0.2.0</span>
 <h3>A working, reproducible pre-alpha foundation</h3>
 <ul>
 <li>Apache-2.0 open-source core</li>
 <li>installable 1337 and 1337-dev commands</li>
-<li>Command Registry foundations</li>
+<li>interactive shell, fuzzy completion, palette and history</li>
+<li>local doctor and read-only component inspection</li>
+<li>portable workspace/configuration and offline scope APIs</li>
+<li>Experimental model, evidence, executor and optional Nmap APIs</li>
 <li>repository-owned isolated test lab</li>
 <li>pytest-based functional test framework</li>
 <li>public versioned contracts and architecture documentation</li>
@@ -183,10 +186,10 @@ Reachability / Attack Paths</code></pre>
 <h3>In development</h3>
 <ul>
 <li>live split-pane terminal workbench</li>
-<li>built-in discovery and a minimal Security Object Model</li>
+<li>built-in discovery and connected Security Object Model workflows</li>
 <li>pluggable scanners and tools, plus Quick Scan</li>
 <li>Pentest, DFIR, DevSecOps, and Purple Team workflow lenses</li>
-<li>evidence, reachability analysis, and attack paths</li>
+<li>finding workflows, reachability analysis, and attack paths</li>
 <li>API/SDK/MCP and vendor integrations</li>
 </ul>
 </section>
@@ -198,6 +201,7 @@ Reachability / Attack Paths</code></pre>
 <h2>Project resources</h2>
 <div class="links">
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.0/docs/QUICKSTART.md">Try v0.2.0</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">Architecture vision</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">AI-agent integration</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">ADR 0010: Workbench architecture</a>
