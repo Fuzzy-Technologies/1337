@@ -225,7 +225,7 @@ class PolicyDenialReason(StrEnum):
     GRANT_CHANGED = "grant_changed"
 
 
-class PolicyDeniedError(RuntimeError):
+class PolicyDeniedError(PermissionError):
     """Reject issuance or launch with a structured reason and optional scope evidence."""
 
     def __init__(

@@ -122,6 +122,9 @@ def test_DefaultPolicyAllowsNoProviderAndHasSafeCeiling():
     assert denied.value.reason == PolicyDenialReason.PROVIDER_DENIED, (
         'Policy invariant failed: denied.value.reason == PolicyDenialReason.PROVIDER_DENIED'
     )
+    assert isinstance(denied.value, PermissionError), (
+        "Policy denial must expose the standard authorization exception boundary"
+    )
 
 
 @pytest.mark.parametrize("owner", ("policy", "permission", "capability"))
