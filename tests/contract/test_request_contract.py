@@ -69,7 +69,12 @@ def test_ExampleAndProducerAgreeWithVersionedSchema():
     ("session_reference", "captured-session"), ("graphql_operation", 1),
     ("injection_points", {}), ("injection_points", ()),
     ("body_kind", "x" * MAX_REQUEST_BYTES),
-])
+], ids=(
+    "unsupported-version", "boolean-version", "text-version", "forged-reference",
+    "null-reference", "untyped-endpoint", "unknown-encoding", "numeric-encoding",
+    "captured-session", "numeric-operation", "point-object", "point-tuple",
+    "oversized-envelope",
+))
 def test_EnvelopeRejectsUnknownVersionsCoercionAndForgedReferences(field, value):
     """Persisted machine contracts reject invalid fields before downstream consumption."""
 

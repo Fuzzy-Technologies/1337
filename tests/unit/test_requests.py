@@ -73,7 +73,13 @@ def test_EndpointReusesWorkspaceBoundSOMIdentity(origin, canonical):
     ("path_template", "/{a}/{a}"), ("path_template", "/prefix{a}"),
     ("path_template", "/" + "a" * 1024), ("path_template", "/a" * 65),
     ("path_template", None), ("method", "GET\r\nX-Extra: test"), ("method", "x" * 33),
-])
+], ids=(
+    "invalid-workspace", "userinfo", "origin-path", "origin-query", "empty-query",
+    "fragment", "non-http-scheme", "newline", "non-text-origin", "relative-path",
+    "double-slash", "parent-segment", "dot-segment", "encoded-separator", "inline-query",
+    "duplicate-path-variable", "partial-path-variable", "oversized-path", "too-many-segments",
+    "non-text-path", "method-header-injection", "oversized-method",
+))
 def test_EndpointRejectsCapturedOrAmbiguousAddressing(field, value):
     """Captured credentials/query strings and ambiguous path encodings cannot become templates."""
 
@@ -163,7 +169,12 @@ def test_AllTypedLocationsRoundTripWithoutValues(location, selector, body_kind):
     (InjectionLocation.JSON, "/a", 1), (InjectionLocation.PATH, "user_id", 1),
     (InjectionLocation.BODY, "", 1), (InjectionLocation.GRAPHQL, "/query", 0),
     (InjectionLocation.GRAPHQL, "/variables/", 0),
-])
+], ids=(
+    "untyped-location", "selector-space", "oversized-name", "non-text-selector",
+    "boolean-occurrence", "negative-occurrence", "oversized-occurrence", "non-pointer",
+    "invalid-pointer-escape", "pointer-newline", "oversized-pointer", "json-occurrence",
+    "path-occurrence", "text-occurrence", "graphql-query-selector", "empty-graphql-variable",
+))
 def test_InvalidInjectionCoordinatesFailClosed(location, selector, occurrence):
     """Invalid names, pointer escapes and duplicate-field semantics are never silently coerced."""
 
@@ -259,7 +270,10 @@ def test_GraphqlOperationIsOptionalTypedStructure():
     ("endpoint", "https://example.test"), ("body_kind", "none"),
     ("injection_points", "captured body"), ("injection_points", ("invalid",)),
     ("injection_points", Template().injection_points * (MAX_INJECTION_POINTS + 1)),
-])
+], ids=(
+    "untyped-endpoint", "untyped-encoding", "untyped-point-list", "untyped-point",
+    "too-many-points",
+))
 def test_TemplateRequiresBoundedTypedInputs(field, value):
     """Direct constructors reject untyped fields before digest creation."""
 
@@ -339,7 +353,10 @@ def test_ProjectionConsumerRejectsMalformedForeignOrDuplicateTemplates():
     5, "[", "null", "[]", " " * (MAX_REQUEST_BYTES + 1),
     '{"schema_version":1,"schema_version":1}', '{"field":NaN}',
     '{"field":Infinity}', '\ud800', "[" * 2000,
-])
+], ids=(
+    "non-text", "malformed-json", "null", "array", "oversized-json", "duplicate-key",
+    "nan", "infinity", "invalid-utf8", "excessive-nesting",
+))
 def test_JsonRejectsAmbiguousOversizedAndInvalidText(value):
     """Strict bounded JSON rejects duplicate keys, constants, malformed UTF-8 and deep nesting."""
 
