@@ -40,6 +40,10 @@ The M0 repository does **not** freeze a Python import namespace before packaging
 workspace document at schema version `1`. ADR 0019 and `docs/WORKSPACES.md`
 define its portable metadata, reference, and cooperating-writer lifecycle contract.
 
+`fuzzy1337.jobs` is an Experimental Python library at contract version `1`.
+ADR 0026 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.scope` is an Experimental Python library and persisted scope schema
 at version `1`. ADR 0022 and `docs/SCOPE.md` define typed target identity,
 explicit consent metadata, offline membership, and portable scope persistence.
@@ -181,6 +185,7 @@ Current versioned public contracts:
 | Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`    | Stable       |
 | Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`            | Experimental |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
+| Scan jobs            | `1`            | `fuzzy1337.jobs`                              | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
 | Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`   | Experimental |
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
