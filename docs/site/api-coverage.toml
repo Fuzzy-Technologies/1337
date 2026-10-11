@@ -130,3 +130,9 @@ module = "fuzzy1337.test_runner"
 source = "src/fuzzy1337/test_runner.py"
 mode = "authored"
 page = "api/fuzzy1337.test_runner.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.trivy"
+source = "src/fuzzy1337/adapters/trivy.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.trivy.md"

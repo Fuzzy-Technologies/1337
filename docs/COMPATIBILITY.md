@@ -59,6 +59,11 @@ at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
 failure semantics. Other evidence helpers remain Internal.
 
+`fuzzy1337.adapters.trivy` is an Experimental optional adapter at version `1`.
+ADR 0032 and `docs/TRIVY_ADAPTER.md` define offline finite archive invocations,
+bounded version/DB observation, verified JSON and executor failure preservation.
+The external tool/cache are operator supplied; daemon/registry targets are deferred.
+
 `fuzzy1337.adapters.nmap` is an Experimental optional adapter at version `1`.
 ADR 0024 and `docs/NMAP_ADAPTER.md` define finite invocation profiles, bounded
 health, verified XML normalization, and preservation of executor/evidence facts.
