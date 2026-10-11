@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -67,7 +68,7 @@ def Report(adapter, payload=PAYLOAD, version=VERSION, state=ExecutionState.SUCCE
     return AdapterReport(adapter.PrepareInvocation(Request()), execution, references)
 
 
-def test_OfflineArgvIsFiniteAndOptional(adapter):
+def test_OfflineArgvIsFiniteAndOptional(adapter, tmp_path):
     """Preparation declares exactly archive scanning and disables implicit online sources."""
 
     assert isinstance(adapter, ToolAdapter), "Trivy must implement the accepted SDK."
@@ -80,7 +81,7 @@ def test_OfflineArgvIsFiniteAndOptional(adapter):
         "Preparation declares exactly archive scanning and disables implicit online sources."
     )
     assert (
-        args[args.index("--input") + 1].endswith("/owned.tar")
+        Path(args[args.index("--input") + 1]) == tmp_path.resolve() / "owned.tar"
     ), (
         "Preparation declares exactly archive scanning and disables implicit online sources."
     )
