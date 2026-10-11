@@ -373,10 +373,15 @@ def test_SimpleSelectorGrammarRoundTrips(selector):
     assert JourneyAssertion.FromDict(text.ToDict()) == text, "Literal assertion text changed"
 
 
-@pytest.mark.parametrize("value", [None, 42, " ", "{" * 2000 + "}" * 2000,
-                                       "[" * 2000 + "]" * 2000, '"\ud800"',
-                                       '{"schema_version":1,"schema_version":1}',
-                                       '{"schema_version":NaN}', "x" * (MAX_JOURNEY_BYTES + 1)])
+@pytest.mark.parametrize("value", [
+    None, 42, " ", "{" * 2000 + "}" * 2000, "[" * 2000 + "]" * 2000, '"\ud800"',
+    '{"schema_version":1,"schema_version":1}', '{"schema_version":NaN}',
+    "x" * (MAX_JOURNEY_BYTES + 1),
+], ids=[
+    "null-input", "integer-input", "whitespace", "malformed-object-nesting",
+    "excessive-array-nesting", "invalid-unicode-surrogate", "duplicate-schema-key",
+    "non-finite-number", "oversized-document",
+])
 def test_JsonDecodeRejectsInvalidSizeEncodingNestingDuplicatesAndConstants(value):
     """Untrusted JSON cannot use duplicate fields, non-finite constants, or pathological nesting."""
 
