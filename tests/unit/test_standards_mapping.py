@@ -182,6 +182,10 @@ def test_DeclarationOrderDoesNotChangeCanonicalPackIdentity():
     ("family", "CWE"), ("catalog_version", " "), ("external_id", "a\tb"),
     ("external_id", "a" * 4097), ("catalog_version", True), ("external_id", "x\x7f"),
     ("external_id", "x\x85"), ("external_id", "x\u202e"), ("external_id", "x\u2028"),
+], ids=[
+    "uppercase-family", "blank-version", "tab-in-identifier", "oversize-identifier",
+    "boolean-version", "del-in-identifier", "c1-in-identifier", "bidi-in-identifier",
+    "separator-in-identifier",
 ])
 def test_StandardIdentityRejectsCoercionControlCharactersAndUnboundedText(field, value):
     """Machine identities stay explicit, printable, and bounded."""

@@ -114,6 +114,9 @@ def test_MappingRejectsSemanticAndContentAddressTampering(field, value):
     b"not json", b"\xff", b'{"schema_version":1,"schema_version":1}',
     b'{"schema_version":NaN}', b'{"schema_version":Infinity}', b"[]",
     b"[" * 2000, "json text", b"x" * (MAX_MAPPING_BYTES + 1),
+], ids=[
+    "malformed-json", "invalid-utf8", "duplicate-key", "nonfinite-nan",
+    "nonfinite-infinity", "array-document", "overdeep-json", "nonbytes-text", "oversize-bytes",
 ])
 def test_ImportRejectsMalformedDuplicateNonfiniteOrUnboundedInput(payload):
     """Pack parsing is strictly local and accepts only bounded unambiguous UTF-8 JSON."""
