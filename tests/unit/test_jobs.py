@@ -6,7 +6,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+import socket
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
 
@@ -28,6 +29,41 @@ from fuzzy1337.jobs import (
     ScanJob,
 )
 from fuzzy1337.model import ModelDelta
+
+
+@pytest.fixture(scope="module")
+def owned_job_runners() -> Iterator[tuple[asyncio.Runner, asyncio.Runner]]:
+    """Initialize owned loop self-pipes before function-scoped network denial.
+
+    Windows implements asyncio self-pipes using a local socketpair fallback.
+    Preinitializing these module-owned resources leaves all test/provider
+    connections subject to the unchanged unit network guard.
+    """
+
+    with asyncio.Runner() as primary_runner, asyncio.Runner() as secondary_runner:
+        yield primary_runner, secondary_runner
+
+
+@pytest.fixture
+def job_runners(
+    owned_job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> Iterator[tuple[asyncio.Runner, asyncio.Runner]]:
+    """Reuse initialized loops while cleaning every task at each test boundary."""
+
+    yield owned_job_runners
+
+    async def Cleanup() -> None:
+        """Cancel and reap remaining test-owned tasks without reopening a loop."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    for runner in owned_job_runners:
+        runner.run(Cleanup())
 
 
 class FunctionProvider:
@@ -115,7 +151,45 @@ async def Empty(context: JobContext) -> None:
     context.CheckCancellation()
 
 
-def test_QueuedStatusIsImmediateAndProviderDoesNotBlockStart() -> None:
+def test_PreinitializedRunnersKeepProviderNetworkIsolation(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Run guarded providers without creating another Windows self-pipe under the guard."""
+
+    def ReopenLoop() -> asyncio.AbstractEventLoop:
+        """Reject accidental lazy event-loop creation inside an isolated test."""
+
+        raise AssertionError("Isolated job tests must reuse their initialized event loops")
+
+    monkeypatch.setattr(asyncio, "new_event_loop", ReopenLoop)
+
+    async def Provider(context: JobContext) -> None:
+        """Prove that preinitialized loop resources do not authorize provider connections."""
+
+        with socket.socket() as client:
+            with pytest.raises(RuntimeError, match="must not access the network"):
+                client.connect(("127.0.0.1", 9))
+
+        context.Heartbeat()
+
+    async def Scenario() -> None:
+        """Complete allowed local work while connection attempts remain denied."""
+
+        job = ScanJob(Spec(), FunctionProvider(Provider))
+        job.Start()
+
+        result = await job.Wait()
+
+        assert result.state is JobState.COMPLETED, (
+            "Loop reuse must preserve guarded provider execution."
+        )
+
+    job_runners[0].run(Scenario())
+
+
+def test_QueuedStatusIsImmediateAndProviderDoesNotBlockStart(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Expose an initial state before a blocked provider gets any execution time."""
 
     async def Scenario() -> None:
@@ -160,10 +234,12 @@ def test_QueuedStatusIsImmediateAndProviderDoesNotBlockStart() -> None:
         with pytest.raises(RuntimeError, match="once"):
             await job.Run()
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_QueuedCancellationPreventsProviderInvocationAndRejectsOtherOwner() -> None:
+def test_QueuedCancellationPreventsProviderInvocationAndRejectsOtherOwner(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Keep cancellation ownership explicit and never launch a cancelled queued job."""
 
     async def Scenario() -> None:
@@ -192,10 +268,12 @@ def test_QueuedCancellationPreventsProviderInvocationAndRejectsOtherOwner() -> N
             "Queued cancellation must emit request and terminal once."
         )
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_RunningCancellationWaitsForCleanup() -> None:
+def test_RunningCancellationWaitsForCleanup(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Expose cancellation intent immediately while retaining running cleanup ownership."""
 
     async def Scenario() -> None:
@@ -236,10 +314,12 @@ def test_RunningCancellationWaitsForCleanup() -> None:
         assert result.state is JobState.CANCELLED, "Cleanup must finish before cancellation seals."
         assert result.cancellation_requested, "Terminal snapshot must retain cancellation intent."
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_ForcedCancellationAwaitsProviderCleanup() -> None:
+def test_ForcedCancellationAwaitsProviderCleanup(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Cancel an unresponsive cooperative provider task and await its cleanup."""
 
     async def Scenario() -> None:
@@ -272,10 +352,12 @@ def test_ForcedCancellationAwaitsProviderCleanup() -> None:
         with pytest.raises(ValueError, match="grace_seconds"):
             await job.CancelAndWait("owner:test", grace_seconds=0)
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_DetachedWaitAndStreamConsumersCannotCancelTheProvider() -> None:
+def test_DetachedWaitAndStreamConsumersCannotCancelTheProvider(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Keep producer ownership independent of individual cancelled UI consumers."""
 
     async def Scenario() -> None:
@@ -321,10 +403,12 @@ def test_DetachedWaitAndStreamConsumersCannotCancelTheProvider() -> None:
 
         assert (await job.Wait()).state is JobState.COMPLETED, "The owned provider must finish."
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_EventReplayDoesNotMissUpdatesWhileConsumerIsPaused() -> None:
+def test_EventReplayDoesNotMissUpdatesWhileConsumerIsPaused(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Retain events produced between consumer yields without missing the wakeup."""
 
     async def Scenario() -> None:
@@ -365,10 +449,12 @@ def test_EventReplayDoesNotMissUpdatesWhileConsumerIsPaused() -> None:
 
         assert [event async for event in job.Events(4)] == [], "Terminal followers must return."
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_ProgressIsMonotonicAndModelAndObservationEventsAreTyped() -> None:
+def test_ProgressIsMonotonicAndModelAndObservationEventsAreTyped(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Publish live structured contracts without inventing a second model schema."""
 
     async def Provider(context: JobContext) -> None:
@@ -401,11 +487,13 @@ def test_ProgressIsMonotonicAndModelAndObservationEventsAreTyped() -> None:
             "Model events must reuse ModelDelta."
         )
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
 @pytest.mark.parametrize("code", list(JobFailureCode))
-def test_ClassifiedFailuresStayExplicitAndRetainEventOrder(code: JobFailureCode) -> None:
+def test_ClassifiedFailuresStayExplicitAndRetainEventOrder(
+    code: JobFailureCode, job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Preserve each failure code before exactly one failed terminal state."""
 
     async def Provider(context: JobContext) -> None:
@@ -429,10 +517,12 @@ def test_ClassifiedFailuresStayExplicitAndRetainEventOrder(code: JobFailureCode)
             "Failure must precede terminal state."
         )
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_UnknownExceptionTextIsNotCopiedIntoEvents() -> None:
+def test_UnknownExceptionTextIsNotCopiedIntoEvents(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Avoid accidentally publishing raw exception arguments or credential values."""
 
     async def Provider(context: JobContext) -> None:
@@ -456,10 +546,12 @@ def test_UnknownExceptionTextIsNotCopiedIntoEvents() -> None:
             "Raw exceptions must stay private."
         )
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_ProviderCannotConvertAnExpiredDeadlineToSuccessfulCompletion() -> None:
+def test_ProviderCannotConvertAnExpiredDeadlineToSuccessfulCompletion(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Retain timeout truth even when a provider mistakenly swallows task cancellation."""
 
     async def Provider(context: JobContext) -> None:
@@ -484,10 +576,12 @@ def test_ProviderCannotConvertAnExpiredDeadlineToSuccessfulCompletion() -> None:
             "Suppressed cancellation must still preserve timeout classification."
         )
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_DeadlineAndEventLimitFailAndCleanTheProvider() -> None:
+def test_DeadlineAndEventLimitFailAndCleanTheProvider(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Distinguish job deadlines and bounded history exhaustion from cancellation success."""
 
     async def Scenario() -> None:
@@ -534,10 +628,12 @@ def test_DeadlineAndEventLimitFailAndCleanTheProvider() -> None:
         )
         assert noisy.EventsSince()[-1].data is JobState.FAILED, "Limit failure must end explicitly."
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_EvidenceAttachmentsAreOwnedDeduplicatedAndRetainedOnFailure(tmp_path: Path) -> None:
+def test_EvidenceAttachmentsAreOwnedDeduplicatedAndRetainedOnFailure(
+    tmp_path: Path, job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Capture existing immutable evidence without silently losing it on later failure."""
 
     async def Provider(context: JobContext) -> None:
@@ -583,10 +679,12 @@ def test_EvidenceAttachmentsAreOwnedDeduplicatedAndRetainedOnFailure(tmp_path: P
             "Exact evidence replay must emit one attachment event."
         )
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_MissingAndFailedEvidenceStoresStayClassified(tmp_path: Path, monkeypatch) -> None:
+def test_MissingAndFailedEvidenceStoresStayClassified(
+    tmp_path: Path, monkeypatch, job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Never report a successful job when its raw evidence could not be preserved."""
 
     async def Provider(context: JobContext) -> None:
@@ -617,10 +715,12 @@ def test_MissingAndFailedEvidenceStoresStayClassified(tmp_path: Path, monkeypatc
             )
             assert result.artifacts == (), "Unpublished evidence must not become an attachment."
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
-def test_ContextCannotWriteAfterTerminalAndLoopOwnershipIsEnforced() -> None:
+def test_ContextCannotWriteAfterTerminalAndLoopOwnershipIsEnforced(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Reject stale producer writes and lifecycle access from another event loop."""
 
     contexts: list[JobContext] = []
@@ -643,7 +743,7 @@ def test_ContextCannotWriteAfterTerminalAndLoopOwnershipIsEnforced() -> None:
         with pytest.raises(RuntimeError, match="running"):
             contexts[0].Heartbeat()
 
-    asyncio.run(FirstLoop())
+    job_runners[0].run(FirstLoop())
 
     async def OtherLoop() -> None:
         """Reject mutations from an unrelated owner loop."""
@@ -654,10 +754,12 @@ def test_ContextCannotWriteAfterTerminalAndLoopOwnershipIsEnforced() -> None:
         with pytest.raises(RuntimeError, match="owning event loop"):
             job.Cancel("owner:test")
 
-    asyncio.run(OtherLoop())
+    job_runners[1].run(OtherLoop())
 
 
-def test_LifecycleBeforeStartAndInvalidTerminalTransitionFailClosed() -> None:
+def test_LifecycleBeforeStartAndInvalidTerminalTransitionFailClosed(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
     """Do not permit lifecycle methods to invent ownership before Start."""
 
     job = ScanJob(Spec(), FunctionProvider(Empty))
@@ -684,7 +786,7 @@ def test_LifecycleBeforeStartAndInvalidTerminalTransitionFailClosed() -> None:
             "Rejected transitions must not mutate."
         )
 
-    asyncio.run(Scenario())
+    job_runners[0].run(Scenario())
 
 
 def test_EventDiscriminatorsAndArtifactOwnersCannotContradict(tmp_path: Path) -> None:

@@ -104,7 +104,8 @@ def test_RealLocalExecutionPreservesEvidenceBeforeSharedModelUpdates(tmp_path: P
 
         job = ScanJob(
             Spec(), LocalExecutionJob(
-                Request("print('synthetic-host')"), LocalExecutor(tmp_path).Execute, Normalize,
+                Request("import sys; sys.stdout.buffer.write(b'synthetic-host\\n')"),
+                LocalExecutor(tmp_path).Execute, Normalize,
             ), evidence_store=store,
         )
         job.Start()
@@ -141,8 +142,15 @@ def test_RealLocalExecutionPreservesEvidenceBeforeSharedModelUpdates(tmp_path: P
 
 
 @pytest.mark.parametrize(("script", "timeout", "expected"), [
-    ("import sys; print('partial', flush=True); sys.exit(3)", 2, JobFailureCode.PROVIDER),
-    ("import time; print('partial', flush=True); time.sleep(30)", 1, JobFailureCode.TIMEOUT),
+    (
+        "import sys; sys.stdout.buffer.write(b'partial\\n'); sys.stdout.flush(); sys.exit(3)",
+        2, JobFailureCode.PROVIDER,
+    ),
+    (
+        "import sys,time; sys.stdout.buffer.write(b'partial\\n'); "
+        "sys.stdout.flush(); time.sleep(30)",
+        1, JobFailureCode.TIMEOUT,
+    ),
     ("print('x' * 4096)", 2, JobFailureCode.OUTPUT_LIMIT),
 ])
 def test_RealExecutorFailuresRetainRawEvidence(
@@ -189,7 +197,10 @@ def test_RealExecutorCancellationReapsProcessAndPreservesPartialStreams(tmp_path
         store = LocalEvidenceStore(tmp_path)
         job = ScanJob(
             Spec(), LocalExecutionJob(
-                Request("import time; print('partial', flush=True); time.sleep(30)"),
+                Request(
+                    "import sys,time; sys.stdout.buffer.write(b'partial\\n'); "
+                    "sys.stdout.flush(); time.sleep(30)"
+                ),
                 LocalExecutor(tmp_path).Execute,
             ), evidence_store=store,
         )
