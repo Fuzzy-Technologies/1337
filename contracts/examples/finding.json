@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "fingerprint": "eaeff2c4e47d84fe2eef972fbe0d73456edde88aa3626be97b6c4375a1383f6b",
+  "subject_reference": "object:e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6",
+  "check_id": "transport.test-policy",
+  "location_key": "tcp/443",
+  "summary": "Synthetic TLS policy",
+  "severity": "medium",
+  "confidence": 0.75,
+  "status": "open",
+  "status_reason": null,
+  "remediation": {
+    "summary": "Update the local test policy",
+    "steps": ["Change the fixture"],
+    "references": []
+  }
+}
