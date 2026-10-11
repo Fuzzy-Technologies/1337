@@ -18,7 +18,7 @@ snapshots; protect the workspace against concurrent replacement.
 package records and zero scanner finding exit code. It disables implicit DB,
 Java DB, checks, version and VEX updates, telemetry, plus dependency API lookups.
 Explicit
-null configuration/ignore files prevent ambient default files from changing the
+`--config=` / `--ignorefile=` flags disable ambient configuration/ignore files, preventing ambient default files from changing the
 profile. These options request offline behavior; they do not create a network
 sandbox. The trusted binary/archive decoder remains outside 1337's isolation
 promise. Registry and local daemon image references are deferred.
@@ -27,7 +27,8 @@ promise. Registry and local daemon image references are deferred.
 16 KiB capture. `ProbeHealth` additionally returns the exact bounded version JSON
 bytes so callers can store them with true collection times as `provider-version`
 evidence. Executable availability alone does not establish database availability.
-Health inherits no process environment. Trivy remains operator installed.
+Health disables config-file loading and inherits no process environment.
+Trivy remains operator installed.
 
 Execute a prepared scan only through the governed executor with exact caller-issued
 `ExecutionAuthorization`. Persist stdout/stderr through `LocalEvidenceStore`

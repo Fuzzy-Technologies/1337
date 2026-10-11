@@ -306,7 +306,7 @@ class TrivyAdapter:
 
         try:
             process = subprocess.Popen(
-                (executable, "--cache-dir", str(self._cache), "--config", os.devnull,
+                (executable, "--cache-dir", str(self._cache), "--config=",
                  "--version", "--format", "json"), stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, shell=False, bufsize=0,
                 env={},
@@ -452,11 +452,11 @@ class TrivyAdapter:
         ):
             raise ValueError("Trivy timeout_seconds must be an integer from 1 through 3600")
 
-        argv = (self._executable, "--cache-dir", str(self._cache), "--config", os.devnull,
+        argv = (self._executable, "--cache-dir", str(self._cache), "--config=",
             "image", "--input", str(archive), "--format", "json", "--scanners", "vuln",
             "--disable-telemetry", "--offline-scan", "--skip-db-update",
             "--skip-java-db-update", "--skip-check-update",
-            "--skip-version-check", "--skip-vex-repo-update", "--ignorefile", os.devnull,
+            "--skip-version-check", "--skip-vex-repo-update", "--ignorefile=",
             "--list-all-pkgs", "--exit-code", "0", "--no-progress", "--timeout", f"{timeout}s")
 
         return AdapterInvocation(_DESCRIPTOR.adapter_id, request, argv, timeout,

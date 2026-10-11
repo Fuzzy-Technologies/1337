@@ -23,7 +23,7 @@ def Main():
         flag not in args for flag in ("--input", "--disable-telemetry", "--offline-scan",
             "--skip-db-update",
             "--skip-java-db-update", "--skip-check-update", "--skip-version-check",
-            "--skip-vex-repo-update", "--ignorefile", "--no-progress", "--list-all-pkgs")
+            "--skip-vex-repo-update", "--ignorefile=", "--no-progress", "--list-all-pkgs")
     ) or args[args.index("--scanners") + 1] != "vuln":
         return 7
 

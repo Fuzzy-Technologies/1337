@@ -23,8 +23,8 @@ installed by importing or constructing the adapter.
 Preparation validates existing workspace-relative files/cache paths without
 traversal or symlinks, a 512 MiB input limit and a 1–3600 second timeout. Fixed
 shell-free argv selects JSON vulnerability scanning, disables dependency API
-lookups and database/Java/check/version/VEX updates and telemetry, and explicitly selects null
-configuration/ignore files. Registry references, daemon access, raw flags,
+lookups and database/Java/check/version/VEX updates and telemetry, and explicitly disables
+configuration/ignore files with `--config=` and `--ignorefile=`. Registry references, daemon access, raw flags,
 credentials, configuration overlays and implicit downloads are absent.
 
 The bounded local health exception runs only a version JSON command. It returns

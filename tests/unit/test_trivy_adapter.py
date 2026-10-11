@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from dataclasses import replace
 
 import pytest
@@ -106,12 +105,12 @@ def test_OfflineArgvIsFiniteAndOptional(adapter):
         "Preparation declares exactly archive scanning and disables implicit online sources."
     )
     assert (
-        args[args.index("--ignorefile") + 1] == os.devnull
+        "--ignorefile=" in args
     ), (
         "Preparation declares exactly archive scanning and disables implicit online sources."
     )
     assert (
-        args[args.index("--config") + 1] == os.devnull
+        "--config=" in args
     ), (
         "Preparation declares exactly archive scanning and disables implicit online sources."
     )
