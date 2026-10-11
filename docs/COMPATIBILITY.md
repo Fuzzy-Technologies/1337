@@ -67,6 +67,10 @@ Nmap is supplied by the operator; this adapter never grants execution authority.
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 
+`fuzzy1337.policy` is an Experimental Python library at contract version `1`.
+ADR 0025 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 ## Version compatibility rules
 
 ### Repository releases
@@ -186,5 +190,6 @@ Current versioned public contracts:
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                     | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
+| Impact policy        | `1`            | `fuzzy1337.policy`                            | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

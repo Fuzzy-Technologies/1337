@@ -8,6 +8,31 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.2
 
+### Patch 2 — v0.2.2 — 2026-10-11
+
+#### Digest
+
+- Prepared incremental Experimental Workbench foundations for the next development
+  cycle. This is a development candidate; no v0.2.2 release has been published.
+  Package installation examples continue to use the immutable v0.2.1 baseline.
+
+#### Added
+
+- Added typed, versioned subsystem contracts and documented APIs for incremental
+  Workbench development, with deterministic validation and failure-path tests.
+  The subsystem documentation describes the capabilities present in each change.
+
+#### Changed
+
+- Limited browser-based documentation rendering to the protected-master publication
+  gate. Pull requests retain static source, locale, link, package and build checks.
+
+#### Security
+
+- New foundation APIs retain explicit workspace, scope and evidence boundaries.
+  A query, model reference, job or adapter preparation does not grant authority
+  to scan a target or broaden a previously approved execution plan.
+
 ### Patch 1 — v0.2.1 — 2026-10-09
 
 #### Digest
