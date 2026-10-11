@@ -4,13 +4,14 @@
 """Published declarative lens schemas and exact decoding contracts for automation clients."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
 
-from fuzzy1337.lenses import LENS_CATALOG, LensDescriptor, LensQuery, ResolveLens
-from fuzzy1337.model import CanonicalModelJson, ModelState
+from fuzzy1337.lenses import LENS_CATALOG, LensAction, LensDescriptor, LensQuery, ResolveLens
+from fuzzy1337.model import CanonicalModelJson, ModelState, ObjectKind
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "contracts/workflow-lens.schema.json").read_text(encoding="utf-8"))
@@ -33,6 +34,53 @@ def test_AllCatalogDescriptorsAndActualViewsValidateAndRoundTrip(lens):
     assert CanonicalModelJson(decoded.ToDict()) == CanonicalModelJson(document), (
         'Lens contract failed: all catalog descriptors and actual views validate and round trip.'
     )
+
+
+@pytest.mark.parametrize("kind", tuple(ObjectKind), ids=lambda kind: kind.value)
+def test_EveryInstalledObjectKindSupportsLensMetadataAndQueryRoundTrips(kind):
+    """Additive canonical model families remain consumable without hard-importing future members."""
+
+    descriptor = replace(
+        ResolveLens("purple"), preferred_object_kinds=(kind,),
+        default_query=LensQuery(object_kinds=(kind,)),
+        contextual_actions=(
+            LensAction("inspect-object", "Inspect the canonical object.", (kind,)),
+        ),
+    )
+    document = descriptor.ToDict()
+    validator = Draft202012Validator(SCHEMA)
+    validator.validate(document)
+    validator.validate(descriptor.Project(ModelState("synthetic")))
+    decoded = LensDescriptor.FromDict(json.loads(CanonicalModelJson(document)))
+
+    assert decoded == descriptor, (
+        "An installed object kind failed descriptor schema/runtime parity."
+    )
+    assert decoded.default_query.object_kinds == (kind,), (
+        "An installed object kind changed during query decoding."
+    )
+    assert decoded.preferred_object_kinds == (kind,), (
+        "An installed object kind changed during preference decoding."
+    )
+
+
+def test_FindingSchemaSupportDoesNotUpgradeTheInstalledModel():
+    """A declared additive schema kind never invents unsupported canonical runtime objects."""
+
+    document = ResolveLens("purple").ToDict()
+    document["preferred_object_kinds"] = ["finding"]
+    document["default_query"]["object_kinds"] = ["finding"]
+    Draft202012Validator(SCHEMA).validate(document)
+
+    if "finding" in {kind.value for kind in ObjectKind}:
+        decoded = LensDescriptor.FromDict(document)
+        assert decoded.default_query.object_kinds == (ObjectKind("finding"),), (
+            "The installed Finding model kind failed the compatible lens decoder."
+        )
+
+    else:
+        with pytest.raises(ValueError):
+            LensDescriptor.FromDict(document)
 
 
 @pytest.mark.parametrize("field,value", [

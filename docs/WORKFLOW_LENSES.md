@@ -112,6 +112,12 @@ In particular, `true` differs from `1`, and a missing attribute differs from
 explicit `null`. Nested matches compare whole values rather than arbitrary paths.
 Caller mappings/lists are detached and recursively frozen.
 
+The schema also permits the additive `finding` object family. Explicit Finding
+queries require an installed canonical model that exposes that `ObjectKind`;
+schema support does not upgrade an older model or create new objects. A model
+without that kind rejects it during descriptor/query decoding. Unfiltered views
+already include every kind supported by their actual snapshot.
+
 An explicit query replaces the descriptor's default query for that call only.
 The result includes `schema_version`, `lens`, `workspace_id`, `revision`, the
 resolved `query`, and `object_references`, `relation_references`, and

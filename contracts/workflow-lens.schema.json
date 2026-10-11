@@ -24,7 +24,8 @@
         "port",
         "service",
         "endpoint",
-        "technology"
+        "technology",
+        "finding"
       ]
     },
     "relationKind": {
