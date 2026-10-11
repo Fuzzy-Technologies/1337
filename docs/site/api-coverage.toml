@@ -108,6 +108,12 @@ mode = "authored"
 page = "api/fuzzy1337.model.md"
 
 [[surfaces]]
+module = "fuzzy1337.journeys"
+source = "src/fuzzy1337/journeys.py"
+mode = "authored"
+page = "api/fuzzy1337.journeys.md"
+
+[[surfaces]]
 module = "fuzzy1337.performance"
 source = "src/fuzzy1337/performance.py"
 mode = "authored"

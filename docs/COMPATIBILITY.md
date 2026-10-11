@@ -67,6 +67,11 @@ Nmap is supplied by the operator; this adapter never grants execution authority.
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 
+`fuzzy1337.journeys` is an Experimental Python library and standalone scenario
+schema at version `1`. ADR 0034 and `docs/JOURNEYS.md` define immutable finite
+browser/API declarations and offline preparation against existing exact targets
+and scope records. Preparation issues no invocation-bound execution authorization.
+
 ## Version compatibility rules
 
 ### Repository releases
@@ -186,5 +191,6 @@ Current versioned public contracts:
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                     | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
+| Synthetic journeys   | `1`            | `contracts/journey-scenario.schema.json`      | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

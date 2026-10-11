@@ -3538,3 +3538,322 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.journeys"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.journeys.md"
+sourceHash = "sha256:aa980726fc1576b18a271db51b23f7a1e0659ffc43d311870b156e8a8d9c7732"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyArray"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:3e27626f4024c1e50d3be9bafd7354da02a94163b5a7f4c1972982361ab367d1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyAssertion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:aa49d7b7b7437ad47365b36daf7202ab99e8296d4aba78039f4d4b1c4715dd70"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyAssertion.FromDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:f8581fbf0c6e18532bcf73beac28bc71662b03a95d622e9fe504518e4023c153"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyAssertion.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:f44abc19359fe9b103757fa09a538edfc7de5cdb6294db0be213a6a75104d851"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyAssertionKind"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:221ad5644d7543d01fd84b1aec650f4bafb85058ec1bc22a8604ac308144e83d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyHttpMethod"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:4040522894617b65d64123610d873f4e4feb328f165d5ec2179a5b986ea95507"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyIdentifier"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:0ac2abfbcac59948b823e4fa8688e12df2066ce069b66e454fe21102fe7037af"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyInteger"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:48e7aec5e2da55c75352bf728f1dbc368fb0d4d1f658ca3b71a3846aea0b73ec"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyItems"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:ac0a1cf7fecb7a0645012f935b684ce6eaa95e3eb51513b47903df3283f525d8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyOperation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:4e904c48ed832eeb519c9202de27ea707f6bc7527823dc6eae0c6c2275ebb4c6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyReference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:5e030a60b4603a9686ada72cd6ebf2c0ece5222370ac654f8cd89e3cfcdb478e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyScenario"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:d8aa0f69a5cf67118ffb8525758c83560be622a2706491792987e4c6e914c943"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyScenario.Digest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:5d3e97dcfbfedfe66f3d599ed7506329fad49579415b4c7e6cf4c9f93bcc2f37"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyScenario.FromDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:8c1a575fcc33182ce5eda8751facdb5e3338f6eff1935ec507e37d66088d37dc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyScenario.FromJson"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:8bc7a3baa8dafee1cc46881f3fbb81098746b827cd733975849168217d271819"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyScenario.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:a50409f35e19778d1e4c675e2ed58744c99ffcf935e86e5f6d90f100b041f0c0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyScenario.ToJson"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:680fc561c3d1436598889efdad94dce25a69b4e4245d80f0ff0434a6b446b05f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneySelector"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:53430d0b36dbc07b8c2c150193c3ab5c6c61fe2ea20b88819fc53c0f77184859"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyStep"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:c18130fbb9379a01cfafbf8ad6348bb520ac241e544774b313b6d97c667aa1e6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyStep.FromDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:571481b34e986b3e4d24094c0b06ef0640e3589baf936c0592fd3b1cce752e76"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyStep.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:65bafac53256481cf51f870720f152d9b75f6093afa0ec0dae0b0940c98a8950"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyText"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:00829038b621098746c89dd65eb6b48526246f342435c3fac37a0c29a1305eeb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.PrepareJourney"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:3404fb2b96124ecb0bd32cfe110a1cb6a3200bd7a73a6f1e620dc22f74fc37ae"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.PreparedJourney"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:e361d2b7ec83b11ca9655979e37332bbae41184b58a2eb2298fc6c38c89ecd81"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.WorkloadLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:51ae85d92d58070280fa8c84b30e8dd38ba0628cc96cafc7e46c1ec6ff8c37da"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.WorkloadLimits.FromDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:12fe57e30e4761184d3f3c3d7251138339e08a6124d22cb4221284b00a3afdff"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.WorkloadLimits.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:133a354c2ec047a46ebb10883d584f8a526004de2809b776d5cb6e9d876f0c81"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.journeys.JourneyUrl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:1ae1d58910eb5b5bc3411a1b723dc08809a545e8e932177f74e244f3fac3764e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
