@@ -67,6 +67,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.lenses"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.lenses.md"
+sourceHash = "sha256:03de2cb70497d0100e52eb04b3db7bf926ebe485629178a11aa5f4df2bafc9a5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.component-health"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.component_health.md"
@@ -815,6 +826,204 @@ reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
 
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensAction"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:0fb3afcc284e1eebe764df248223c04b83f7649ac9380a7bc671f69417822592"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensDescriptor"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:c19b7ccac1c60b45530c7be7303e4d75c0e2e5e8a48139f91b694cd3dc2c9c55"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensDescriptor.FromDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:6c09c8142002befc48f05045ce1d32542b56c8e32e1ec0cec39d6a7416f10830"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensDescriptor.Project"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:8e900706547664c8de5d366a0f64a3356c391955a248aad97a0631f2670384a5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensDescriptor.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:42277bb582c73e78fc0aef16bbdafae417f4b53a78d9857dbc15f80ea4e05908"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensPresentation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:c09a211d97708dc3390ac417e3ecddd4cb89b1b82dbe9b827e4beef2715a407b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensQuery"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:690f697bb98e114bc026aede54114c1952aa48c3fc8d29d9df387d3a9f02a4f3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensQuery.FromDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:823dfa93bd405a0f234a1df8944352cbcb498f244f8aac8be0767de6f70ac466"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensQuery.Matches"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:f8396aa561b1cd215e9278d6a1659574f46604ece96c56ce74edb444d43d1dce"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensQuery.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:4da38a1cd2cc975edd2ffcff13101e7b571b02111a8f5dd2b3aa55a665ef1b12"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensView"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:198e4c20c8fdcc613043e64467ed9b5add6717defa91ab6c2e6e75867f6ff5a8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.ResolveLens"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:7d8673a263b20c481e15f4c458f21f057067b639394f6c0b94eab526cdf4aec3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.BindModel"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:18ee294a36cf48d174dbf7a46ceb0ea84178735ed46a54d8d151540dc7d8b3ad"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.RenderModel"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:3ca73d670309f943140194e4a8879804a6cf806c457c3f51f81ff2d6f8e5b961"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.do_model"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:418dd820a78c7ea854730692e9552b8ab24a5247d5ae81a5ded5f7493f73b53c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.DecodeLensKinds"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:7f0ed306310ce611da0bc3bfb687b0e6fb50793d7e4b4da7f18b74f28ff893d7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensKinds"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:469fe875fecedcdd19f09efabf0ae1e282254959ceed6042a5f19bd2b9c2a874"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.lenses.LensNames"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/lenses.py"
+sourceHash = "sha256:9a476120e49f834a7b2f9d1a6baebf58b27eccca9ffc1114a954f1717bd27830"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 
@@ -3158,7 +3367,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:0b86a59c2516774100e60361567029660faf48225056624ba3c1529508d5edbb"
+sourceHash = "sha256:c15cd447889514294b60a7e8db37a8d831821137bc638b83a4542cdb620fe5d9"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -3312,7 +3521,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell.do_lens"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:73c96eaa8430e86579ddfde5678ebfe1a24caaded94179687aeae63b9ab73f1e"
+sourceHash = "sha256:04fa77e2a01787bd44ea45c06a0b6292f802cb821c176f6af6b0ead54a3dc33f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -3367,7 +3576,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell.do_view"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:bdb98fee9f63b9cbcf800f8e7bbcda19034a5ca860742748ec9aa629d99a392e"
+sourceHash = "sha256:b79b16daf780705b64f723a5a86570a318d22c2e6142e4620d59d26d2900e8cb"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -3411,7 +3620,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.ShellState"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:adf211c2cea5bd8469a4afb1a06814cbfad62c955f76580ce90ec66004b3bd83"
+sourceHash = "sha256:a1d63aa266148dc57298b12b61c682303e61a00e1cc4e014d31afd733aea782e"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

@@ -49,6 +49,10 @@ Scope membership does not issue invocation-bound execution authorization.
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
 
+`fuzzy1337.lenses` is an Experimental Python library at contract version `1`.
+ADR 0029 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.model` is an Experimental Python library and persisted model schema
 at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic object
 identity, attributable updates, typed relations, observations, incremental deltas,
@@ -179,6 +183,7 @@ Current versioned public contracts:
 | Contract family      | Schema version | Location                                      | Status       |
 | -------------------- | -------------- | --------------------------------------------- | ------------ |
 | Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`    | Stable       |
+| Workflow lenses      | `1`            | `fuzzy1337.lenses`                            | Experimental |
 | Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`            | Experimental |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
