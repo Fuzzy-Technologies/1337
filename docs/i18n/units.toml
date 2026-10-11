@@ -34,6 +34,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.adapters.nuclei"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.nuclei.md"
+sourceHash = "sha256:1c8db5c660f829a036ee1b52ced8b2ccab56da1b3ad04d368c368ec6b0fa1f60"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.adapters.nmap"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.nmap.md"
@@ -557,6 +568,215 @@ id = "symbol:fuzzy1337.adapters.contracts.UniqueReferences"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/contracts.py"
 sourceHash = "sha256:09b173caabcce2775b6c5605d794d349c1b717e4f0a5f6678e4fd8157510f6fa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.CanonicalUrl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:2487604de0c1f01c7c2477f5b4dd961cf99cb80692e5332cf4fda3658509d20f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiAdapter"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:11d6c715cb83fbe16cc951e1d910d0401ace00b8cc30c54120fffbd55a56f2b7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiAdapter.BuildInvocation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:d13df8f737c4ca258545988e9b8080f33817aeeb243c2962fa084f3b7b41e57b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiAdapter.CheckHealth"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:7ac2fcc91a6c7ea4331563e9839f0735ba92afd79a8677a033ea70acfd68ca12"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiAdapter.Descriptor"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:cc55f27ef374dc5e6fab728e8b05b4aa24a6eda2f2040296232f49adf3e611a2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiAdapter.NormalizeFinding"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:ee323b12dcf0ac863fb7eff0e6eba401a27168cf020a5c330af885df202f2835"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiAdapter.NormalizeReport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:938cf0d0e79bab121b904708182930962a8d5ef0574b95777ba0f9660d197438"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiAdapter.PrepareInvocation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:1043a5b76135a56fc5894209ec09c731ea90e1fa6b2d24ca74b760c0dc5937b9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiProfile"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:be4af29a8a852db4cb0d592bdc8ee0428abff5266d99a0c73acc8969a9876a5c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiProfile.Digest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:1c324be1ff6cd6eb975f248f7b451fea9adf3fd46584e3e38d66461ff95bd5f8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiReportError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:62f7eab6e75214cacdd65421bc6c70c92e8794a5e91abc56e17483da74d0c9b2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.NucleiTemplate"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:bf27b060f630b67953f5ee849ea4ce42e60d9efc8554545557b9eb8fb8063ec0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.ParseJsonl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:201e0376d9cf37e1470afe0c84ef66a0a894d843d84df5703469ed6873ff6f2e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.ReadVersion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:24f6e0fd2bb75720c49deefb85ce377ccf7d788d5a792d584b88b88990fe061d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.RejectJsonConstant"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:eddaa14aefe59933f1135a5f7e7db5dc8dc9e89bfa0b28029d54465c1d010f05"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.RequireArtifactPath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:81e78e9f2558826972fc7185d4e4396ad1d45d3c4b81ff350a5c8e2c15d42972"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.RequireInteger"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:0561242a457708adbf5efc198e3035a04b8be5a3918ef70c1fea863167f63bf2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.UniqueJsonObject"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:5658da88fd65dc7ab104b8b44ab735317742b5d8b45e87313843d629a4a00ef2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.nuclei.VerifyArtifact"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/nuclei.py"
+sourceHash = "sha256:76431e9c56684a0898a368b22a66ca7dd7981c8bc453babef10eabd937e36775"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

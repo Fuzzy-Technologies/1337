@@ -64,6 +64,10 @@ ADR 0024 and `docs/NMAP_ADAPTER.md` define finite invocation profiles, bounded
 health, verified XML normalization, and preservation of executor/evidence facts.
 Nmap is supplied by the operator; this adapter never grants execution authority.
 
+`fuzzy1337.adapters.nuclei` is an Experimental Python library at contract version `1`.
+ADR 0030 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 
@@ -185,6 +189,7 @@ Current versioned public contracts:
 | Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`   | Experimental |
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                     | Experimental |
+| Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                   | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
