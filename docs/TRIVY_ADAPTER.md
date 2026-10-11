@@ -30,6 +30,12 @@ evidence. Executable availability alone does not establish database availability
 Health disables config-file loading and inherits no process environment.
 Trivy remains operator installed.
 
+Scan executor environment and resource overlays are trusted upstream inputs.
+The default executor environment excludes `TRIVY_*` settings; callers must not
+inject provider configuration such as `TRIVY_SERVER` or `TRIVY_CACHE_BACKEND`.
+The adapter cannot validate or sandbox arbitrary caller-supplied overlays, and
+its offline argv profile does not guarantee isolation against them.
+
 Execute a prepared scan only through the governed executor with exact caller-issued
 `ExecutionAuthorization`. Persist stdout/stderr through `LocalEvidenceStore`
 with actual invocation, execution and collection provenance. A successful

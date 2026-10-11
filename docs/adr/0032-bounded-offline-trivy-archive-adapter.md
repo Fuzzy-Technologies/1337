@@ -56,6 +56,9 @@ provider attributes. Future #141 consumers own provider-neutral identities.
 - The executor bounds time and captured output; CPU, memory, decompressed image
   size and network sandbox enforcement remain outside this adapter's guarantee.
   A malicious operator-selected binary is outside the trust model.
+- Executor environment/resources remain trusted upstream selections. Arbitrary
+  caller-injected `TRIVY_*` configuration is outside this offline profile and may
+  change provider behavior; no environment policy or network sandbox is added.
 - Current CLI flags/schema follow official Trivy documentation. Genuine installed
   binary/archive compatibility remains an explicit unexecuted acceptance boundary.
 
