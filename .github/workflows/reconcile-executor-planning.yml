@@ -1,0 +1,35 @@
+name: Reconcile executor regression planning
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize]
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+jobs:
+  reconcile:
+    if: github.event.pull_request.head.ref == 'ops/executor-regression-planning' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            const repo = {owner: context.repo.owner, repo: context.repo.repo};
+            const version = {'X-GitHub-Api-Version': '2026-03-10'};
+            const get = async number => (await github.rest.issues.get({...repo, issue_number: number})).data;
+            const child = await get(273);
+            if (child.pull_request || child.title !== 'M2 Task: Preserve executor truth during exited process-group races' || child.milestone?.number !== 3 || child.state !== 'open') throw new Error('Unexpected executor regression task');
+            const parent = await get(28);
+            if (parent.type?.name !== 'Feature' || parent.state !== 'open') throw new Error('Unexpected executor parent');
+            await github.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {...repo, issue_number: 273, type: 'Task', headers: version});
+            await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/issue-field-values', {...repo, issue_number: 273, headers: version, issue_field_values: [{field_id: 22639629, value: 'High'}, {field_id: 22639632, value: 'High'}]});
+            const updated = await get(273);
+            if (updated.type?.name !== 'Task' || !updated.issue_field_values?.some(x => x.issue_field_name === 'Priority' && x.single_select_option?.name === 'High') || !updated.issue_field_values?.some(x => x.issue_field_name === 'Effort' && x.single_select_option?.name === 'High')) throw new Error('Native planning fields readback failed');
+            await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/sub_issues', {...repo, issue_number: 28, sub_issue_id: child.id, replace_parent: true, headers: version});
+            const children = (await github.request('GET /repos/{owner}/{repo}/issues/{issue_number}/sub_issues', {...repo, issue_number: 28, headers: version})).data;
+            if (!children.some(x => x.number === 273)) throw new Error('Native parent readback failed');
+            core.info('Executor regression Task metadata verified.');
+            await github.rest.pulls.update({...repo, pull_number: context.issue.number, state: 'closed'});
+            await github.rest.git.deleteRef({...repo, ref: 'heads/ops/executor-regression-planning'});
