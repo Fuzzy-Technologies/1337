@@ -34,6 +34,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Security
 
+- Reject control characters and the IPv4 limited-broadcast address in reviewed
+  Nuclei targets, and fail closed on JSON integers exceeding decoder limits.
 - New foundation APIs retain explicit workspace, scope and evidence boundaries.
   A query, model reference, job or adapter preparation does not grant authority
   to scan a target or broaden a previously approved execution plan.
