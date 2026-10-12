@@ -62,6 +62,11 @@ def local_target() -> Iterator[tuple[str, list[str], Event]]:
 
             requests.append(self.path)
 
+            if self.path == "/disconnect":
+                self.close_connection = True
+
+                return
+
             if self.path == "/slow":
                 release.wait(timeout=2)
 
@@ -341,7 +346,7 @@ def test_ProductJobDeadlineAndNativeLaunchErrorRemainFailed(tmp_path, local_targ
 
     base, _, _ = local_target
     root = tmp_path / "workspace"
-    urls = (base + "/slow", "http://127.0.0.1:1/")
+    urls = (base + "/slow", base + "/disconnect")
     Setup(root, urls, capsys)
 
     for url, extra, failure in (
