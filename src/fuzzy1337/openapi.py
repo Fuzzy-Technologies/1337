@@ -9,7 +9,7 @@ import hashlib
 import json
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import cast
 from urllib.parse import urlsplit
@@ -143,6 +143,27 @@ def ApiImportPoint(location: InjectionLocation, selector: str) -> InjectionPoint
     digest = hashlib.sha256(CanonicalModelJson([location.value, selector])).hexdigest()[:32]
 
     return InjectionPoint(location, selector, ValueBinding("value-" + digest))
+
+
+def SwaggerCollectionFormat(record: dict[str, object], location: str) -> tuple[str, bool]:
+    """Validate and preserve legacy array serialization before any value renderer exists.
+
+    Args:
+        record: Consumed Swagger parameter declaration without copied concrete values.
+        location: Declared query/path/header/formData coordinate.
+
+    Returns:
+        Symbolic serialization identifier and whether repeated fields are declared.
+    """
+
+    serialization = ApiImportText(record.get("collectionFormat", "csv"))
+
+    if serialization not in {"csv", "ssv", "tsv", "pipes", "multi"} or (
+        serialization == "multi" and location not in {"query", "formData"}
+    ):
+        raise ValueError("unsupported Swagger parameter collection format")
+
+    return "swagger:" + serialization, serialization == "multi"
 
 
 @dataclass(frozen=True, slots=True)
@@ -359,6 +380,9 @@ class ApiImportContext:
         value_type = record.get("type", "object" if "properties" in record else "unspecified")
         nullable = ApiImportBoolean(record.get("nullable", False))
 
+        if self.legacy and "nullable" in record:
+            raise ValueError("Swagger nullable flags are unsupported in the initial profile")
+
         if self.version.startswith("3.1.") and "nullable" in record:
             raise ValueError("OpenAPI 3.1 nullable flags require an explicit null type")
 
@@ -458,19 +482,17 @@ class ApiImportContext:
         schema = record if self.legacy else record.get("schema", {})
         _, _, _, value_type, nullable, constrained = self.Schema(schema, pointer)
 
+        if self.legacy and value_type not in {"string", "number", "integer", "boolean", "array"}:
+            raise ValueError("Swagger parameters require explicit supported primitive/array types")
+
         if value_type == "file":
             raise ValueError("file parameters require a multipart body")
 
         if self.legacy:
-            serialization = ApiImportText(record.get("collectionFormat", "csv"))
-
-            if serialization not in {"csv", "ssv", "tsv", "pipes", "multi"} or (
-                serialization == "multi" and location != "query"
-            ):
-                raise ValueError("unsupported Swagger parameter collection format")
+            serialization, explode = SwaggerCollectionFormat(record, location)
 
             return ApiInput(point, pointer, value_type, required, nullable, constrained,
-                            "swagger:" + serialization, serialization == "multi")
+                            serialization, explode)
 
         default_style = "simple" if location in {"path", "header"} else "form"
         style = ApiImportText(record.get("style", default_style))
@@ -478,6 +500,10 @@ class ApiImportContext:
 
         if style != default_style or ApiImportBoolean(record.get("allowReserved", False)):
             raise ValueError("nondefault parameter styles or reserved-value expansion unsupported")
+
+        if value_type == "object":
+            schema_record, _, _ = self.Resolve(schema, pointer)
+            constrained = constrained or bool(set(schema_record) & {"properties", "required"})
 
         return ApiInput(point, pointer, value_type, required, nullable, constrained, style, explode)
 
@@ -656,13 +682,23 @@ class ApiImportContext:
                 schema_pointer = ApiImportPointer(schema_pointer, "schema")
 
             if self.legacy and form_parameters:
-                inputs = []
+                inputs: list[ApiInput] = []
 
                 for item, item_source in form_parameters:
-                    inputs.extend(self.BodyInputs(
+                    _, _, _, value_type, _, _ = self.Schema(item, item_source)
+
+                    if value_type not in {
+                        "string", "number", "integer", "boolean", "array", "file",
+                    }:
+                        raise ValueError("Swagger formData requires primitive/array/file types")
+
+                    serialization, explode = SwaggerCollectionFormat(item, "formData")
+                    declared_inputs = self.BodyInputs(
                         item, item_source, kind, ApiImportBoolean(item.get("required", False)),
                         ApiImportText(item.get("name")),
-                    ))
+                    )
+                    inputs.extend(replace(value, serialization=serialization, explode=explode)
+                                  for value in declared_inputs)
 
             else:
                 inputs = self.BodyInputs(
@@ -766,7 +802,11 @@ def ApiImportBaseUrl(value: object) -> str:
         Canonical literal HTTP(S) base without a query or server variables.
     """
 
-    url = NormalizeTarget(TargetKind.URL, ApiImportText(value, 4096))
+    try:
+        url = NormalizeTarget(TargetKind.URL, ApiImportText(value, 4096))
+
+    except ValueError:
+        raise ValueError("API server authority or URL syntax is invalid") from None
     parsed = urlsplit(url)
 
     if parsed.query or "?" in str(value) or "{" in str(value) or "}" in str(value):
@@ -799,6 +839,11 @@ def ApiImportServers(
     if legacy:
         context_parts = urlsplit(context) if context is not None else None
         host = document.get("host", context_parts.netloc if context_parts else None)
+        host = ApiImportText(host, 256)
+
+        if any(char in host for char in "/\\?#@"):
+            raise ValueError("Swagger host must be an authority without paths or credentials")
+
         schemes = ApiImportArray(operation.get("schemes", document.get(
             "schemes", [context_parts.scheme] if context_parts else [],
         )), 4)

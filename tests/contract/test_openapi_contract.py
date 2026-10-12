@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import traceback
 from pathlib import Path
 
 import jsonschema
@@ -237,3 +238,80 @@ def test_MutualTlsAndTraceAreNotSilentlyImportedFromOlderDialects():
 
     with pytest.raises(ValueError, match="trace"):
         ImportOpenApi(json.dumps(legacy), workspace_id="demo")
+
+
+@pytest.mark.parametrize("collection_format", ["csv", "ssv", "tsv", "pipes", "multi"])
+def test_LegacyFormArraysRetainDeclaredSerialization(collection_format):
+    """Multipart form arrays retain repeated-field/collection metadata for a future renderer."""
+
+    document = Fixture("swagger.v2.json")
+    document["paths"]["/upload"]["post"]["parameters"] = [{
+        "in": "formData", "name": "tags", "type": "array", "items": {"type": "string"},
+        "collectionFormat": collection_format,
+    }]
+    imported = ImportOpenApi(json.dumps(document), workspace_id="demo")
+    upload = next(item for item in imported.operations if item.operation_id == "UploadLegacy")
+    assert upload.inputs[0].serialization == "swagger:" + collection_format, (
+        "Swagger form array serialization was discarded"
+    )
+    assert upload.inputs[0].explode == (collection_format == "multi"), (
+        "Swagger repeated form field declaration was lost"
+    )
+    document["paths"]["/upload"]["post"]["parameters"][0]["collectionFormat"] = "unsupported"
+
+    with pytest.raises(ValueError, match="collection format"):
+        ImportOpenApi(json.dumps(document), workspace_id="demo")
+
+
+@pytest.mark.parametrize("url", [
+    "http://127.0.0.1:synthetic-private-source-value/",
+    "http://[synthetic-private-source-value]/",
+])
+def test_ServerValidationTracebacksCannotLeakCapturedAuthorityText(url):
+    """Ordinary traceback logging must not expose private values from urllib validation causes."""
+
+    document = Fixture("openapi.v3.json")
+    document["servers"] = [{"url": url}]
+
+    with pytest.raises(ValueError) as caught:
+        ImportOpenApi(json.dumps(document), workspace_id="demo")
+
+    formatted = "".join(traceback.format_exception(caught.value))
+    assert "synthetic-private-source-value" not in formatted, (
+        "Server validation propagated a private source value through its exception cause"
+    )
+
+
+@pytest.mark.parametrize("host", [
+    "127.0.0.1:19001/prefix", "user:synthetic@localhost", "127.0.0.1?query", "127.0.0.1#frag",
+])
+def test_SwaggerHostCannotRedefineBasePathOrCredentialAuthority(host):
+    """Host and basePath retain their distinct Swagger meaning before endpoint construction."""
+
+    document = Fixture("swagger.v2.json")
+    document["host"] = host
+
+    with pytest.raises(ValueError, match="host must"):
+        ImportOpenApi(json.dumps(document), workspace_id="demo")
+
+
+@pytest.mark.parametrize("parameter", [
+    {"in": "query", "name": "q", "type": "object"},
+    {"in": "header", "name": "X-Owned"},
+    {"in": "query", "name": "q", "type": "string", "nullable": True},
+    {"in": "formData", "name": "form", "type": "object"},
+    {"in": "formData", "name": "form"},
+])
+def test_LegacyNonbodyParametersCannotBorrowModernSchemaSemantics(parameter):
+    """Ordinary/formData Swagger parameters require supported explicit legacy types."""
+
+    document = Fixture("swagger.v2.json")
+
+    if parameter["in"] == "formData":
+        document["paths"]["/upload"]["post"]["parameters"] = [parameter]
+
+    else:
+        document["paths"]["/users/{id}"]["get"]["parameters"].append(parameter)
+
+    with pytest.raises(ValueError):
+        ImportOpenApi(json.dumps(document), workspace_id="demo")

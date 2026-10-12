@@ -300,6 +300,19 @@ def test_OptionalBodiesKeepConditionalRequiredPropertyMetadata():
     assert not optional.schema_required, "Optional property became conditionally required"
 
 
+def test_OpaqueObjectParametersMarkUnrepresentedShapeConstraints():
+    """An opaque object cannot claim its omitted property constraints were represented."""
+
+    document = Document()
+    Operation(document)["parameters"][1]["schema"] = {
+        "type": "object", "properties": {"name": {"type": "string", "enum": ["synthetic"]}},
+        "required": ["name"],
+    }
+    point = next(item for item in Import(document).operations[0].inputs
+                 if item.point.selector == "q")
+    assert point.value_type == "object" and point.constrained, "Object constraints were hidden"
+
+
 @pytest.mark.parametrize("reference", [
     "https://outside.test/schema.json", "file:///tmp/source", "other.json#/schema",
     "#anchor", "#/missing", "#/parts/01", "#/parts/9", "#/parts/0/no", "#/invalid~2",

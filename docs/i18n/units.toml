@@ -5847,3 +5847,14 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi.SwaggerCollectionFormat"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi.py"
+sourceHash = "sha256:be504730ee2be1aaacefa0b2b7c427f63d838700ef8f2971217944902ebeeaea"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
