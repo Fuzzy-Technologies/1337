@@ -1673,7 +1673,7 @@ state = "missing"
 id = "symbol:fuzzy1337.jobs.ScanJob.CancelAndWait"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/jobs.py"
-sourceHash = "sha256:82223a04c1f066dc0517751786ed8932d31fe21a066ff7525005e76fa3cd87d4"
+sourceHash = "sha256:1c19f6865723549614de276c70a13c1a447dec65aab2933bf602db3936ac9d8b"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

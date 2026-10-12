@@ -406,6 +406,106 @@ def test_DetachedWaitAndStreamConsumersCannotCancelTheProvider(
     job_runners[0].run(Scenario())
 
 
+@pytest.mark.parametrize("timeout_seconds", [300.0, 0.04])
+def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
+    timeout_seconds: float, job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
+    """Retain cleanup ownership when multiple clients request forced cancellation."""
+
+    async def Scenario() -> None:
+        """Keep awaited cleanup blocked until both cancellation clients are attached."""
+
+        entered = asyncio.Event()
+        cleanup_started = asyncio.Event()
+        release_cleanup = asyncio.Event()
+        cleaned = asyncio.Event()
+
+        async def Provider(context: JobContext) -> None:
+            """Wait for cancellation and release resources through asynchronous cleanup."""
+
+            entered.set()
+
+            try:
+                await asyncio.Event().wait()
+
+            finally:
+                cleanup_started.set()
+
+                await release_cleanup.wait()
+
+                cleaned.set()
+
+        job = ScanJob(replace(Spec(), timeout_seconds=timeout_seconds), FunctionProvider(Provider))
+        job.Start()
+
+        await entered.wait()
+
+        first = asyncio.create_task(job.CancelAndWait("owner:test", grace_seconds=0.01))
+
+        await cleanup_started.wait()
+
+        second = asyncio.create_task(job.CancelAndWait("owner:test", grace_seconds=0.01))
+
+        try:
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(second), timeout=0.05)
+
+            assert job.Snapshot().state is JobState.RUNNING, (
+                "Repeated cancellation must not seal a job before provider cleanup."
+            )
+
+        finally:
+            release_cleanup.set()
+
+            results = await asyncio.gather(first, second)
+
+        assert cleaned.is_set(), "Every cancellation client must await the same completed cleanup."
+        assert all(result.state is JobState.CANCELLED for result in results), (
+            "Both clients must receive the single truthful terminal state."
+        )
+
+    job_runners[0].run(Scenario())
+
+
+@pytest.mark.parametrize("cancel_after_limit", [False, True])
+def test_ProviderCannotConvertExhaustedHistoryToSuccessfulCompletion(
+    cancel_after_limit: bool, job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
+    """Keep resource-limit failure terminal even when provider code catches its exception."""
+
+    async def Provider(context: JobContext) -> None:
+        """Represent a provider treating a rejected liveness notification as best effort."""
+
+        try:
+            context.Heartbeat()
+
+        except JobError:
+            if cancel_after_limit:
+                raise asyncio.CancelledError
+
+            return
+
+    async def Scenario() -> None:
+        """Exhaust the provider budget while leaving reserved failure and terminal slots."""
+
+        job = ScanJob(Spec(), FunctionProvider(Provider), max_events=5)
+        job.Start()
+
+        result = await job.Wait()
+
+        assert result.state is JobState.FAILED, (
+            "Caught history exhaustion must never claim success."
+        )
+        assert result.failure is not None and result.failure.code is JobFailureCode.OUTPUT_LIMIT, (
+            "The runner must retain the original resource-limit classification."
+        )
+        assert job.EventsSince()[-1].data is JobState.FAILED, (
+            "The live stream must agree with the retained failure snapshot."
+        )
+
+    job_runners[0].run(Scenario())
+
+
 def test_EventReplayDoesNotMissUpdatesWhileConsumerIsPaused(
     job_runners: tuple[asyncio.Runner, asyncio.Runner],
 ) -> None:

@@ -438,7 +438,9 @@ class ScanJob:
         self._artifacts: list[JobArtifact] = []
         self._progress: JobProgress | None = None
         self._failure: JobFailure | None = None
+        self._limit_failure: JobFailure | None = None
         self._task: asyncio.Task[None] | None = None
+        self._deadline: asyncio.Timeout | None = None
         self._cancellation = asyncio.Event()
         self._changed = asyncio.Event()
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -519,7 +521,12 @@ class ScanJob:
         self.RequireRunning()
 
         if len(self._events) >= self._max_events - 3:
-            raise JobError(JobFailure(JobFailureCode.OUTPUT_LIMIT, "Job event budget exhausted"))
+            if self._limit_failure is None:
+                self._limit_failure = JobFailure(
+                    JobFailureCode.OUTPUT_LIMIT, "Job event budget exhausted",
+                )
+
+            raise JobError(self._limit_failure)
 
         self.Append(kind, data)
 
@@ -623,7 +630,9 @@ class ScanJob:
     ) -> JobSnapshot:
         """Signal, then cancel the owned task after the cooperative grace period.
 
-        Task cancellation awaits provider cleanup; trusted providers must honor it.
+        Forced cancellation is issued once. It disarms the remaining job deadline
+        so a later timer or another client cannot interrupt awaited cleanup.
+        Trusted providers must honor cancellation and finish owned cleanup.
 
         Args:
             requested_by: Resolved owning principal reference.
@@ -644,7 +653,12 @@ class ScanJob:
             await asyncio.wait_for(asyncio.shield(task), timeout=grace_seconds)
 
         except TimeoutError:
-            task.cancel()
+            if not task.cancelling():
+                # A second signal can interrupt the provider's awaited cleanup.
+                if self._deadline is not None and not self._deadline.expired():
+                    self._deadline.reschedule(None)
+
+                task.cancel()
 
             await asyncio.shield(task)
 
@@ -692,6 +706,10 @@ class ScanJob:
         ):
             raise ValueError("terminal state must match its failure classification")
 
+        if self._limit_failure is not None:
+            state = JobState.FAILED
+            failure = self._limit_failure
+
         self._failure = failure
 
         if failure is not None:
@@ -717,6 +735,8 @@ class ScanJob:
 
         try:
             async with asyncio.timeout(self.Spec.timeout_seconds) as deadline:
+                self._deadline = deadline
+
                 await self._provider.Run(context)
 
             if deadline.expired():

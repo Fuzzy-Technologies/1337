@@ -42,16 +42,20 @@ does not invent heartbeat or a percentage for silent tools.
 scope approval are upstream responsibilities. Running cancellation emits an
 immediate request event and sets `context.Cancellation`; the job remains running
 until the provider reaps its resources. `CancelAndWait()` adds a finite grace
-period before cancelling the owned task, then awaits cleanup. Trusted providers
-must honor asyncio cancellation; arbitrary hostile Python cannot be contained by
-this library. `Wait()` returns a terminal snapshot, including partial artifacts
-and a failure classification when applicable.
+period before cancelling the owned task, then awaits cleanup. Forced cancellation
+is sent once and disarms the remaining job deadline; concurrent cancellation
+clients await the same cleanup without sending another interrupt. Trusted
+providers must honor asyncio cancellation; arbitrary hostile Python cannot be
+contained by this library. `Wait()` returns a terminal snapshot, including partial
+artifacts and a failure classification when applicable.
 
 Failed jobs distinguish authorization, provider, normalization, storage, timeout,
 output-limit and internal failures. Providers use `JobError(JobFailure(...))` for
 deliberate non-secret errors. Unexpected exception text is replaced by a generic
 internal failure. Job deadlines and event history are bounded; history exhaustion
 retains the event prefix plus failure/terminal notifications, never success.
+The owning runner retains history exhaustion even if provider code catches its
+notification exception and returns normally or raises cancellation.
 
 ## Reuse the governed executor and evidence/model contracts
 

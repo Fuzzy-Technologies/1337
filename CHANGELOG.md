@@ -22,6 +22,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Workbench development, with deterministic validation and failure-path tests.
   The subsystem documentation describes the capabilities present in each change.
 
+#### Fixed
+
+- Preserved awaited scan-job cleanup under concurrent forced cancellation and
+  retained event-budget failure when a provider catches its notification error.
+
 #### Changed
 
 - Limited browser-based documentation rendering to the protected-master publication
