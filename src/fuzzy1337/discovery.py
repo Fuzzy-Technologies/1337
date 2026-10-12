@@ -79,7 +79,7 @@ class DiscoveryLimits:
             value = getattr(self, name)
 
             if isinstance(value, bool) or not isinstance(value, (int, float)) or (
-                not math.isfinite(value) or not lower <= value <= upper
+                not lower <= value <= upper or not math.isfinite(value)
             ):
                 raise ValueError(f"{name} is outside the finite discovery bounds")
 

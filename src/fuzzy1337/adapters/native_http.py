@@ -68,23 +68,36 @@ def Endpoint(value: object) -> tuple[Target, str, int, str]:
         ValueError: URL/address shape or resource bounds are unsupported.
     """
 
-    if not isinstance(value, str) or len(value.encode("utf-8")) > NATIVE_HTTP_MAX_URL_BYTES:
+    if not isinstance(value, str):
         raise ValueError("native HTTP URL must be bounded text")
 
-    target = Target(TargetKind.URL, value)
-    parsed = urlsplit(target.value)
+    try:
+        if len(value.encode("utf-8")) > NATIVE_HTTP_MAX_URL_BYTES:
+            raise ValueError("endpoint input exceeds its bound")
 
-    if parsed.query:
-        raise ValueError("native HTTP does not accept query-bearing URLs")
+        target = Target(TargetKind.URL, value)
+        parsed = urlsplit(target.value)
+        address = ipaddress.ip_address(parsed.hostname or "")
+        port = parsed.port or {"http": 80, "https": 443}[parsed.scheme]
 
-    address = ipaddress.ip_address(parsed.hostname or "")
+        if len(target.value.encode("ascii")) > NATIVE_HTTP_MAX_URL_BYTES or parsed.query:
+            raise ValueError("canonical endpoint is oversized or query-bearing")
 
-    if address.is_unspecified or address.is_multicast:
-        raise ValueError("native HTTP requires a unicast non-unspecified literal IP")
+        if address.is_unspecified or address.is_multicast or (
+            address == ipaddress.IPv4Address("255.255.255.255")
+        ) or (isinstance(address, ipaddress.IPv6Address) and (
+            address.scope_id is not None or address.ipv4_mapped is not None
+        )):
+            raise ValueError("endpoint address is unsupported")
 
-    return target, str(address), parsed.port or {"http": 80, "https": 443}[parsed.scheme], (
-        parsed.scheme
-    )
+    except ValueError:
+        # URL/IP parser errors can echo target tokens; do not surface their text.
+        pass
+
+    else:
+        return target, str(address), port, parsed.scheme
+
+    raise ValueError("native HTTP requires a bounded unscoped unicast literal-IP URL")
 
 
 def RequestTimeout(value: object) -> float:
@@ -101,7 +114,7 @@ def RequestTimeout(value: object) -> float:
     """
 
     if isinstance(value, bool) or not isinstance(value, (int, float)) or (
-        not math.isfinite(value) or not 0.05 <= value <= NATIVE_HTTP_MAX_REQUEST_SECONDS
+        not 0.05 <= value <= NATIVE_HTTP_MAX_REQUEST_SECONDS or not math.isfinite(value)
     ):
         raise ValueError("native HTTP timeout_seconds must be from 0.05 through 10")
 
@@ -147,8 +160,11 @@ def ParseRecord(raw: bytes, url: str) -> dict[str, object]:
         record = json.loads(raw.decode("utf-8"), object_pairs_hook=Object,
                             parse_constant=Constant)
 
-    except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
-        raise NativeHttpRecordError("native HTTP record must be strict UTF-8 JSON") from error
+    except (ValueError, RecursionError):
+        record = None
+
+    if record is None:
+        raise NativeHttpRecordError("native HTTP record must be strict UTF-8 JSON")
 
     if not isinstance(record, dict) or type(record.get("schema_version")) is not int or (
         record["schema_version"] != 1

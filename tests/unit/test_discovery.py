@@ -200,6 +200,14 @@ def test_FirstUsefulUpdateBudgetIncludesStartupAllowance():
     ), 'First Useful Update Budget Includes Startup Allowance boundary invariant failed'
 
 
+def test_LimitHugeIntegersAreRejectedWithoutOverflow():
+    """Plan interval and total deadline validation checks hard bounds before float conversion."""
+
+    for name in ("interval_seconds", "timeout_seconds"):
+        with pytest.raises(ValueError):
+            DiscoveryLimits(**{name: 10 ** 10000})
+
+
 @pytest.mark.parametrize("case", ["limits", "policy", "empty", "list", "kind", "duplicate"])
 def test_ProducerRejectsInvalidTypedPlan(tmp_path, case):
     """Construction validates the plan without reading files or starting workers."""

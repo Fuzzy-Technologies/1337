@@ -159,9 +159,11 @@ def Main(argv: Sequence[str] | None = None) -> int:
 
     else:
         sys.stdout.write(json.dumps(result, sort_keys=True, allow_nan=False) + "\n")
+
         return 0
 
     sys.stdout.write(json.dumps({"schema_version": 1, "error": error_code}, sort_keys=True) + "\n")
+
     return exit_code
 
 

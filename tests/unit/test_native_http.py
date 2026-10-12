@@ -9,6 +9,8 @@ import hashlib
 import json
 import socket
 import ssl
+import sys
+import traceback
 from dataclasses import replace
 
 import pytest
@@ -84,6 +86,8 @@ def test_EndpointIsCanonicalLiteral(url):
     None, 1, "a" * 2049, "http://localhost/", "http://0.0.0.0/", "http://224.0.0.1/",
     "http://user:password@127.0.0.1/", "http://127.0.0.1/#fragment",
     "http://127.0.0.1/?token=secret", "ftp://127.0.0.1/", "http://[::%2]/",
+    "http://255.255.255.255/", "http://[fe80::1%25eth0]/", "http://[::ffff:127.0.0.1]/",
+    "http://127.0.0.1/" + "\u00e9" * 500,
 ])
 def test_EndpointRejectsAmbiguousOrSensitiveInput(value):
     """No alias, query token or unsupported addressing can enter preparation."""
@@ -92,12 +96,49 @@ def test_EndpointRejectsAmbiguousOrSensitiveInput(value):
         Endpoint(value)
 
 
+@pytest.mark.parametrize("url", [
+    "http://private-target-token/", "http://127.0.0.1:private-target-token/",
+    "http://[private-target-token]/", "http://127.0.0.1/\ud800",
+])
+def test_EndpointErrorsContainNoUntrustedTargetToken(url):
+    """Invalid URL/address/port diagnostics suppress parser text that could expose target tokens."""
+
+    with pytest.raises(ValueError) as captured:
+        Endpoint(url)
+
+    diagnostic = "".join(traceback.format_exception_only(captured.type, captured.value))
+    assert "private-target-token" not in diagnostic, "Endpoint errors must redact caller tokens"
+    assert captured.value.__context__ is None, "Untrusted parser context must not be retained"
+
+
 @pytest.mark.parametrize("value", [True, None, "1", 0, 0.01, 11, float("nan"), float("inf")])
 def test_TimeoutRequiresFiniteHardBounds(value):
     """Invalid deadlines cannot weaken the finite worker request budget."""
 
     with pytest.raises(ValueError):
         RequestTimeout(value)
+
+
+def test_TimeoutHugeIntegerIsRejectedWithoutOverflow():
+    """Arbitrary-size integers fail finite validation before floating-point conversion."""
+
+    with pytest.raises(ValueError, match="timeout_seconds"):
+        RequestTimeout(10 ** 10000)
+
+
+def test_RecordIntegerDecoderLimitIsTypedAndRedacted():
+    """A finite record rejected by Python's numeric decoder remains a typed parser failure."""
+
+    previous = sys.get_int_max_str_digits()
+
+    try:
+        sys.set_int_max_str_digits(640)
+
+        with pytest.raises(NativeHttpRecordError):
+            ParseRecord(b'{"schema_version":' + b"1" * 700 + b"}", URL)
+
+    finally:
+        sys.set_int_max_str_digits(previous)
 
 
 @pytest.mark.parametrize("payload", [

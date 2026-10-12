@@ -14,6 +14,7 @@ Missing, expired, excluded, revoked or changed scope denies execution. Consent,
 authorization and policy limits are shared by human, agent and CI consumers.
 
 Only a finite tuple of exact HTTP(S) URLs with unicast literal IP hosts is accepted.
+Broadcast, IPv6 zones and IPv4-mapped IPv6 aliases are unsupported.
 Hostnames, queries, credentials, fragments and implicit target expansion are
 rejected. One GET observes each supplied endpoint. Redirects are recorded by status
 without following them. HTTPS requires a valid ordinary certificate for the literal

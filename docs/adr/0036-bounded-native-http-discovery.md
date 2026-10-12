@@ -11,6 +11,8 @@ registration/membership and approved literal-IP destination membership. A truste
 first-party worker runs through the existing policy and governed local executor;
 scope is reread at the executor's final launch boundary. No separate model,
 evidence, authorization or job store is introduced.
+Broadcast, scoped IPv6 and IPv4-mapped IPv6 aliases are unsupported, preserving
+literal destination semantics without weakening existing exclusion rules.
 
 The initial probe sends one GET to the exact supplied endpoint. It performs no
 DNS resolution, follows no redirects, sends no credentials or cookies, and
