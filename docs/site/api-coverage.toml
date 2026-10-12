@@ -120,6 +120,12 @@ mode = "authored"
 page = "api/fuzzy1337.functional_metrics.md"
 
 [[surfaces]]
+module = "fuzzy1337.intel_references"
+source = "src/fuzzy1337/intel_references.py"
+mode = "authored"
+page = "api/fuzzy1337.intel_references.md"
+
+[[surfaces]]
 module = "fuzzy1337.findings"
 source = "src/fuzzy1337/findings.py"
 mode = "authored"
