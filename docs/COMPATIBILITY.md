@@ -62,6 +62,10 @@ at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic objec
 identity, attributable updates, typed relations, observations, incremental deltas,
 and portable model persistence. Scope/target references do not grant authority.
 
+`fuzzy1337.findings` is an Experimental Python library at contract version `1`.
+ADR 0027 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.evidence` is an Experimental local storage API and manifest schema
 at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
@@ -201,6 +205,7 @@ Current versioned public contracts:
 | Scan jobs            | `1`            | `fuzzy1337.jobs`                              | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
 | Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`   | Experimental |
+| Finding core         | `1`            | `fuzzy1337.findings`                          | Experimental |
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                     | Experimental |
 | Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                   | Experimental |

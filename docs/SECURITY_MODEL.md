@@ -26,6 +26,7 @@ Moving the workspace or changing the workflow lens does not change an object ID.
 | Service     | Explicit first-party key identifying the service attachment                     |
 | Endpoint    | Explicit first-party key identifying the service, method, and endpoint          |
 | Technology  | Explicit first-party key identifying its subject and technology name            |
+| Finding     | Canonical subject/check/location fingerprint defined by the finding owner       |
 
 No DNS lookup occurs during identity normalization. Port, Service, Endpoint,
 Technology, and Asset keys remain opaque to this foundation: their ingestion owner
@@ -154,8 +155,10 @@ can retain explicitly reported partial observations with its actual failed outco
 normalization does not convert it into success. Unsupported kinds, mismatched
 bindings, missing subjects, malformed envelopes, and inconsistent attribution fail
 without changing the original model. Scope authorization remains upstream.
-`NormalizedFinding` values remain in the original SDK result for their future
-owning subsystem; this foundation does not interpret or persist them.
+`NormalizedFinding` values remain in the original SDK result until explicitly
+bound by the [finding owner](FINDINGS.md). That owner normalizes evidence-linked
+findings into the same canonical model; this generic SDK boundary does not infer
+check equivalence or finding identity.
 
 ## Focused verification
 
