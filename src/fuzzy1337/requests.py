@@ -143,10 +143,14 @@ class ValueBinding:
         """
 
         record = WorkspaceFields(value, {"name", "source"}, "value binding")
+        source = RequireWorkspaceText(record["source"], "binding source")
+
+        if source not in tuple(item.value for item in BindingSource):
+            raise ValueError("binding source must be input or session")
 
         return cls(
             RequireWorkspaceText(record["name"], "binding name"),
-            BindingSource(RequireWorkspaceText(record["source"], "binding source")),
+            BindingSource(source),
         )
 
 
@@ -423,8 +427,13 @@ class InjectionPoint:
         if not isinstance(record["selector"], str):
             raise ValueError("selector must be a string")
 
+        location = RequireWorkspaceText(record["location"], "location")
+
+        if location not in tuple(item.value for item in InjectionLocation):
+            raise ValueError("location must select a supported injection coordinate")
+
         point = cls(
-            InjectionLocation(RequireWorkspaceText(record["location"], "location")),
+            InjectionLocation(location),
             record["selector"], ValueBinding.FromDict(record["binding"]),
             RequireWorkspaceInteger(record["occurrence"], "occurrence"),
         )
@@ -593,10 +602,15 @@ class RequestTemplate:
         if operation is not None and not isinstance(operation, str):
             raise ValueError("graphql_operation must be a name or null")
 
+        body_kind = RequireWorkspaceText(record["body_kind"], "body_kind")
+
+        if body_kind not in tuple(item.value for item in BodyKind):
+            raise ValueError("body_kind must select a supported encoding")
+
         template = cls(
             Endpoint.FromDict(record["endpoint"]),
             tuple(InjectionPoint.FromDict(point) for point in record["injection_points"]),
-            BodyKind(RequireWorkspaceText(record["body_kind"], "body_kind")),
+            BodyKind(body_kind),
             None if record["session_reference"] is None else SessionReference.FromDict(
                 record["session_reference"],
             ),

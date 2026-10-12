@@ -116,6 +116,30 @@ def test_UnknownCapturedFieldsAreRejectedWithoutEchoingValues(boundary, field):
     assert marker not in str(caught.value), "Validation leaked an untrusted captured value"
 
 
+@pytest.mark.parametrize("boundary,field", [
+    ("root", "body_kind"), ("injection", "location"), ("binding", "source"),
+])
+def test_InvalidEnumFieldsNeverEchoCapturedInput(boundary, field):
+    """Malformed captures cannot expose private values through enum validation errors."""
+
+    document = Document()
+    record = document
+
+    if boundary in {"injection", "binding"}:
+        record = document["injection_points"][0]
+
+        if boundary == "binding":
+            record = record["binding"]
+
+    marker = "synthetic-private-value-not-for-output"
+    record[field] = marker
+
+    with pytest.raises(ValueError) as caught:
+        RequestTemplate.FromDict(document)
+
+    assert marker not in str(caught.value), "Enum validation leaked captured input"
+
+
 @pytest.mark.parametrize("boundary,field,value", [
     ("endpoint", "method", "post"),
     ("endpoint", "origin", "https://EXAMPLE.TEST"),
