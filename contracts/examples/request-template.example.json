@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "endpoint": {
+    "workspace_id": "demo",
+    "origin": "https://example.test",
+    "path_template": "/users/{user_id}",
+    "method": "POST",
+    "object_reference": "object:fbb7d0168fae25d7964ee14c8d51e596c789727edfad59eb93592fb8ea9ec790"
+  },
+  "body_kind": "form",
+  "session_reference": {
+    "workspace_id": "demo",
+    "session_id": "operator"
+  },
+  "graphql_operation": null,
+  "injection_points": [
+    {
+      "location": "body",
+      "selector": "display_name",
+      "binding": {
+        "name": "display-name",
+        "source": "input"
+      },
+      "occurrence": 0
+    },
+    {
+      "location": "cookie",
+      "selector": "sid",
+      "binding": {
+        "name": "cookie",
+        "source": "session"
+      },
+      "occurrence": 0
+    },
+    {
+      "location": "header",
+      "selector": "x-csrf-token",
+      "binding": {
+        "name": "csrf",
+        "source": "session"
+      },
+      "occurrence": 0
+    },
+    {
+      "location": "path",
+      "selector": "user_id",
+      "binding": {
+        "name": "user-id",
+        "source": "input"
+      },
+      "occurrence": 0
+    },
+    {
+      "location": "query",
+      "selector": "next",
+      "binding": {
+        "name": "next",
+        "source": "input"
+      },
+      "occurrence": 0
+    }
+  ],
+  "request_reference": "request:055028d6257da7b3725ede5a46c2e853dd33e86823d68ce377fe39c1325a1c96"
+}
