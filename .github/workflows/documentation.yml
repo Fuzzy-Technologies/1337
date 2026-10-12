@@ -50,6 +50,8 @@ jobs:
       - name: Build a reproducible static reference from a clean installed wheel
         run: .venv/bin/python tools/build_api_reference.py
       - name: Prove real offline formula rendering
+        # Browser proof is publication-only; development gates are deterministic code/tests.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: .venv/bin/python tools/verify_documentation_render.py
       - name: Stage only reviewed product site sources
         run: .venv/bin/python tools/prepare_product_site.py --output _build/product-source

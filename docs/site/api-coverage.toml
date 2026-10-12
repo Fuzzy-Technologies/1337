@@ -108,6 +108,12 @@ mode = "authored"
 page = "api/fuzzy1337.model.md"
 
 [[surfaces]]
+module = "fuzzy1337.policy"
+source = "src/fuzzy1337/policy.py"
+mode = "authored"
+page = "api/fuzzy1337.policy.md"
+
+[[surfaces]]
 module = "fuzzy1337.performance"
 source = "src/fuzzy1337/performance.py"
 mode = "authored"
