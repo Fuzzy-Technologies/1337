@@ -17,19 +17,32 @@ from fuzzy1337.intelligence import (
     IntelligenceSnapshot,
     ParseIntelligenceSnapshot,
 )
+from fuzzy1337.model import CanonicalModelJson
 
 
-def Snapshot():
-    """Construct an explicitly synthetic portable daily score source."""
+def Snapshot(feed=IntelligenceFeed.EPSS):
+    """Construct an explicitly synthetic portable daily score or KEV source."""
 
     raw = (
         b'#model_version:synthetic-1,score_date:2026-10-12T00:00:00Z\n'
         b'cve,epss,percentile\nCVE-1900-9999,0.2,0.9\n'
     )
+
+    if feed is IntelligenceFeed.KEV:
+        raw = json.dumps({
+            "catalogVersion": "synthetic-1", "dateReleased": "2026-10-12T10:00:00Z", "count": 1,
+            "vulnerabilities": [{
+                "cveID": "CVE-1900-9999", "dateAdded": "2026-10-12", "dueDate": "2026-10-31",
+                "vendorProject": "Synthetic", "product": "Synthetic", "vulnerabilityName": "Test",
+                "requiredAction": "Review synthetic evidence",
+                "knownRansomwareCampaignUse": "Unknown",
+            }],
+        }).encode()
+
     digest = hashlib.sha256(raw).hexdigest()
 
     return ParseIntelligenceSnapshot(
-        raw, IntelligenceFeed.EPSS, "synthetic-1", ReferenceSource(
+        raw, feed, "synthetic-1", ReferenceSource(
             SourceOrigin.SYNTHETIC, "1337 synthetic fixture", "https://example.invalid/source",
             digest, "Apache-2.0 (synthetic fixture only)", "https://example.invalid/LICENSE",
             "2026-10-12T12:00:00Z", "synthetic-importer", "1",
@@ -101,3 +114,23 @@ def test_EquivalentWhitespaceAndUtf8TransportDoNotChangeSourceOrRecordMeaning():
     assert IntelligenceSnapshot.Deserialize(payload).Serialize() == snapshot.Serialize(), (
         "Interchange whitespace changed canonical source/license/version facts"
     )
+
+
+@pytest.mark.parametrize("feed,changes,message", [
+    (IntelligenceFeed.EPSS, {"model_version": "different-model"}, "model version"),
+    (IntelligenceFeed.KEV, {"date_added": "2027-01-01", "due_date": "2027-01-02"}, "addition"),
+])
+def test_ContradictoryNormalizedJoinsFailEvenWithARecomputedSnapshotReference(
+    feed, changes, message,
+):
+    """A public content hash cannot legitimize conflicting model versions or source chronology."""
+
+    document = json.loads(Snapshot(feed).Serialize())
+    document["records"][0]["data"].update(changes)
+    content = {key: value for key, value in document.items() if key != "reference"}
+    document["reference"] = "intel-snapshot:" + hashlib.sha256(CanonicalModelJson({
+        "domain": "fuzzy1337.intelligence.snapshot.v1", "content": content,
+    })).hexdigest()
+
+    with pytest.raises(ValueError, match=message):
+        IntelligenceSnapshot.Deserialize(CanonicalModelJson(document))

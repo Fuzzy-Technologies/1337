@@ -57,7 +57,13 @@ _CVE_FORMAT_VERSIONS = frozenset({"5.0", "5.0.0", "5.1", "5.1.0", "5.1.1", "5.2"
 _CVE_PATTERN = re.compile(r"CVE-[0-9]{4}-[0-9]{4,19}\Z")
 _CWE_PATTERN = re.compile(r"CWE-[1-9][0-9]{0,9}\Z")
 _DATE_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\Z")
-_TIME_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T.+\Z")
+_CALENDAR_CLOCK = (
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
+    r"(?:\.[0-9]+)?"
+)
+_TIME_ZONE = r"(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])"
+_TIME_PATTERN = re.compile(_CALENDAR_CLOCK + _TIME_ZONE + r"\Z")
+_CVE_TIME_PATTERN = re.compile(_CALENDAR_CLOCK + "(?:" + _TIME_ZONE + r")?\Z")
 _DECIMAL_PATTERN = re.compile(r"(?:0(?:\.[0-9]+)?|1(?:\.0+)?)\Z")
 _CWE_NAMESPACE = "http://cwe.mitre.org/cwe-7"
 _CVSS3_METRICS = {
@@ -125,7 +131,7 @@ def IntelligenceIdentifier(value: object) -> str:
 
 
 def IntelligenceTime(value: object) -> str:
-    """Normalize explicitly offset-aware calendar timestamps with a strict date prefix.
+    """Normalize full calendar/clock timestamps requiring Z or an explicit HH:MM offset.
 
     Args:
         value: Calendar timestamp with an explicit timezone offset.
@@ -137,9 +143,30 @@ def IntelligenceTime(value: object) -> str:
     text = IntelligenceText(value, "timestamp", 128)
 
     if not _TIME_PATTERN.fullmatch(text):
-        raise ValueError("timestamp must use an explicit calendar date and UTC offset")
+        raise ValueError("timestamp must use a full calendar clock and explicit UTC offset")
 
     return NormalizeReferenceTime(text)
+
+
+def CveUpdateTime(value: object) -> str:
+    """Normalize the CVE publisher's full timestamp with its documented optional GMT zone.
+
+    Args:
+        value: Explicit CVE metadata update timestamp; absent dates are invalid.
+
+    Returns:
+        Canonical UTC timestamp; only a missing CVE zone defaults to GMT.
+    """
+
+    text = IntelligenceText(value, "CVE update timestamp", 128)
+
+    if not _CVE_TIME_PATTERN.fullmatch(text):
+        raise ValueError("CVE timestamp must use a full calendar clock and optional UTC offset")
+
+    if datetime.fromisoformat(text).tzinfo is None:
+        text += "Z"
+
+    return IntelligenceTime(text)
 
 
 def IntelligenceDate(value: object) -> str:
@@ -418,7 +445,18 @@ class IntelligenceRecord:
 
         IntelligenceText(self.catalog_version, "catalog_version", 256)
         object.__setattr__(self, "effective_at", IntelligenceTime(self.effective_at))
-        object.__setattr__(self, "data", RecordData(self.feed, self.data))
+        data = RecordData(self.feed, self.data)
+
+        if self.feed is IntelligenceFeed.EPSS and data["model_version"] != self.catalog_version:
+            raise ValueError("EPSS model version must match the record catalog version")
+
+        if (
+            self.feed is IntelligenceFeed.KEV
+            and cast(str, data["date_added"]) > self.effective_at[:10]
+        ):
+            raise ValueError("KEV addition must not follow its catalog release")
+
+        object.__setattr__(self, "data", data)
 
     def ToDict(self) -> dict[str, object]:
         """Return detached normalized assertions with version-bound identity fields.
@@ -601,7 +639,7 @@ class IntelligenceSnapshot:
 
 
 def ParseCve(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, ...]:
-    """Parse supported CVE Record 5.x CNA/ADP assertions and rejected/unsupported states.
+    """Parse CVE Record 5.x assertions with the publisher's GMT timestamp default.
 
     Args:
         payload: Bounded explicitly supplied CVE Record JSON bytes.
@@ -622,7 +660,7 @@ def ParseCve(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
     metadata = IntelligenceObject(document.get("cveMetadata"))
     identifier = IntelligenceIdentifier(metadata.get("cveId"))
     state = metadata.get("state")
-    effective = IntelligenceTime(metadata.get("dateUpdated"))
+    effective = CveUpdateTime(metadata.get("dateUpdated"))
     containers = IntelligenceObject(document.get("containers"))
     cna = IntelligenceObject(containers.get("cna"))
     records = [cna, *(IntelligenceObject(value) for value in IntelligenceArray(
@@ -785,9 +823,6 @@ def ParseKev(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
         }
         record = IntelligenceRecord(IntelligenceFeed.KEV, IntelligenceIdentifier(item.get("cveID")),
                                     catalog_version, effective, data)
-
-        if cast(str, record.data["date_added"]) > effective[:10]:
-            raise ValueError("KEV addition must not follow its catalog release")
 
         records.append(record)
 

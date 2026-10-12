@@ -172,6 +172,82 @@ def test_CveAssessorRejectedStateUnsupportedMetricsAndProseRemainHonest():
     ] is None, "A missing source description must stay missing"
 
 
+@pytest.mark.parametrize("timestamp,expected", [
+    ("2026-10-12T10:00:00", "2026-10-12T10:00:00.000000+00:00"),
+    ("2026-10-12T10:00:00.125", "2026-10-12T10:00:00.125000+00:00"),
+    ("2026-10-12T12:00:00+02:00", "2026-10-12T10:00:00.000000+00:00"),
+])
+def test_CveUpdateTimestampUsesThePublishersExplicitGmtDefault(timestamp, expected):
+    """CVE timestamps without a zone retain the documented GMT meaning rather than local time."""
+
+    document = CveDocument()
+    document["cveMetadata"]["dateUpdated"] = timestamp
+    snapshot = Snapshot(IntelligenceFeed.CVE, json.dumps(document).encode())
+
+    assert snapshot.records[0].effective_at == expected, "CVE publisher timestamp meaning drifted"
+    assert IntelligenceSnapshot.Deserialize(snapshot.Serialize()) == snapshot, (
+        "The normalized publisher timestamp changed across portable interchange"
+    )
+
+
+@pytest.mark.parametrize("timestamp", [
+    "2026-10-12T10", "2026-10-12T10:00", "2026-10-12 10:00:00",
+    "2026-10-12T24:00:00", "2026-10-12T10:00:60", "2026-02-30T10:00:00",
+    "2026-10-12T10:00:00Ztrailing", "2026-10-12T10:00:00+02:99", None,
+])
+def test_CveGmtDefaultDoesNotGuessMissingOrMalformedCalendarTimes(timestamp):
+    """Only the publisher-defined optional zone is normalized; missing or malformed dates fail."""
+
+    document = CveDocument()
+    document["cveMetadata"]["dateUpdated"] = timestamp
+
+    with pytest.raises(ValueError):
+        Snapshot(IntelligenceFeed.CVE, json.dumps(document).encode())
+
+
+def test_EpssNormalizedRecordRequiresOneConsistentModelVersion():
+    """Public construction and record decoding cannot carry contradictory score-model identities."""
+
+    record = Snapshot(IntelligenceFeed.EPSS).records[0]
+    changed = {**record.data, "model_version": "different-model"}
+
+    with pytest.raises(ValueError, match="model version"):
+        replace(record, data=changed)
+
+    with pytest.raises(ValueError, match="model version"):
+        replace(record, catalog_version="different-model")
+
+    with pytest.raises(ValueError, match="model version"):
+        record.FromDict({**record.ToDict(), "data": changed})
+
+
+def test_KevNormalizedRecordCannotAddAnEntryAfterItsCatalogRelease():
+    """Public construction and decoding enforce the parser's catalog/addition chronology."""
+
+    record = Snapshot(IntelligenceFeed.KEV).records[0]
+    changed = {**record.data, "date_added": "2027-01-01", "due_date": "2027-01-02"}
+
+    with pytest.raises(ValueError, match="addition"):
+        replace(record, data=changed)
+
+    with pytest.raises(ValueError, match="addition"):
+        record.FromDict({**record.ToDict(), "data": changed})
+
+
+def test_CvePublisherZoneDefaultCannotLeakIntoOtherSourceOrCallerTimes():
+    """Other feed dates and generic interpretation timestamps still require explicit offsets."""
+
+    with pytest.raises(ValueError):
+        IntelligenceTime("2026-10-12T10:00:00")
+
+    for feed in (IntelligenceFeed.KEV, IntelligenceFeed.EPSS):
+        raw = Payload(feed).replace(b"2026-10-12T10:00:00Z", b"2026-10-12T10:00:00")
+        raw = raw.replace(b"2026-10-12T00:00:00Z", b"2026-10-12T00:00:00")
+
+        with pytest.raises(ValueError):
+            Snapshot(feed, raw)
+
+
 @pytest.mark.parametrize("value", ["cve-1900-9999", "CVE-1900-12", "CWE-089", "CWE-0", "CWE-89 ",
                                   "CWE-89\u202e", True, None, "CVE-1900-" + "9" * 20])
 def test_IdentifierMatchingRejectsAmbiguousCaseWhitespaceAndNonIdentifiers(value):
@@ -189,8 +265,12 @@ def test_CalendarDatesRejectReducedWeekAndInvalidDates(value):
         IntelligenceDate(value)
 
 
-@pytest.mark.parametrize("value", ["2026-10-12", "2026-W42-1T12:00:00Z", "2026-10-12T12:00:00",
-                                  "0001-01-01T00:00:00+01:00"])
+@pytest.mark.parametrize("value", [
+    "2026-10-12", "2026-W42-1T12:00:00Z", "2026-10-12T12:00:00",
+    "0001-01-01T00:00:00+01:00", "2026-10-12T10Z", "2026-10-12T10.9Z",
+    "2026-10-12T103001Z", "2026-10-12T10:30:01+02", "2026-10-12T10:30:01+02:00:01",
+    "2026-10-12T10:30:01+02:99",
+])
 def test_TimestampsRequireAnOffsetAndRepresentableUtcCalendarTime(value):
     """Naive or UTC-overflow dates cannot become accepted historical provenance."""
 

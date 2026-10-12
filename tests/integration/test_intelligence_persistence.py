@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from dataclasses import replace
 
@@ -99,6 +100,51 @@ def Enrich(base_state, base_reference, base_snapshot, base_provenance, base_root
                "as_of": AS_OF, "max_age_seconds": 3600, **changes}
 
     return ApplyVerifiedEnrichment(**options)
+
+
+def test_CvePublisherGmtTimestampSurvivesVerifiedReparseAndCanonicalPersistence(tmp_path):
+    """Stored CVE bytes without a zone retain publisher GMT semantics without upgrading triage."""
+
+    store, state, reference, _, provenance = Context(tmp_path)
+    raw = json.dumps({
+        "dataType": "CVE_RECORD", "dataVersion": "5.2",
+        "cveMetadata": {"cveId": CVE, "state": "PUBLISHED", "dateUpdated": "2026-10-12T10:00:00"},
+        "containers": {"cna": {"providerMetadata": {"orgId": "synthetic-cna"}}},
+    }).encode()
+    evidence = LocalEvidenceStore(store.root / "evidence").Put(
+        raw, "intelligence-source", "application/json", EvidenceProvenance(
+            state.workspace_id, "scope:local", "synthetic-intel", "1", None,
+            "2026-10-12T12:00:00Z", "2026-10-12T12:00:00Z",
+        ),
+    )
+    source = ReferenceSource(
+        SourceOrigin.SYNTHETIC, "1337 synthetic fixture", "https://example.invalid/source.json",
+        evidence.reference.sha256, "Apache-2.0 (synthetic fixture only)",
+        "https://example.invalid/LICENSE", "2026-10-12T12:00:00Z", "synthetic-importer", "1",
+    )
+    snapshot = ParseIntelligenceSnapshot(
+        raw, IntelligenceFeed.CVE, "synthetic-record-list-1", source, evidence.reference,
+    )
+    enriched, delta = Enrich(state, reference, snapshot, provenance, store.root, identifiers=(CVE,))
+    observation = [item for item in enriched.observations if item.kind == "finding-intelligence"][0]
+    assertion = observation.attributes["source_assertions"][0]
+
+    assert assertion["record"]["effective_at"] == "2026-10-12T10:00:00.000000+00:00", (
+        "CVE publisher GMT semantics changed during verified reparse"
+    )
+    assert enriched.Objects(ObjectKind.FINDING) == state.Objects(ObjectKind.FINDING), (
+        "A source timestamp created a vulnerability claim or changed operator disposition"
+    )
+    assert assertion["association_state"] == "candidate" and assertion["review"] is None, (
+        "Byte verification upgraded the explicit identifier association"
+    )
+    assert store.Open() == state, "Verification wrote a source proposal before caller publication"
+    store.Save(enriched, expected_revision=delta.previous_revision)
+
+    assert store.Open() == enriched, "Canonical persistence changed the source timestamp semantics"
+    assert LocalEvidenceStore(store.root / "evidence").Read(snapshot.evidence) == raw, (
+        "Timestamp normalization changed retained raw CVE bytes"
+    )
 
 
 def test_VerifiedIntelligenceKeepsDispositionAndEvidenceAcrossRelocationAndOldReplay(tmp_path):

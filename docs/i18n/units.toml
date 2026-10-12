@@ -7147,7 +7147,7 @@ state = "missing"
 id = "symbol:fuzzy1337.intelligence.IntelligenceTime"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence.py"
-sourceHash = "sha256:b017b8522dc7f0dd9c758b6632b34d96b8537c9e3696b302c72655ec23e31d9b"
+sourceHash = "sha256:9c3a54813dacbb2c58a1d939e59e5ffdf6b60f6a60e4b17f6e38b812802ade43"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -7159,7 +7159,7 @@ state = "missing"
 id = "symbol:fuzzy1337.intelligence.ParseCve"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence.py"
-sourceHash = "sha256:fd0dd334f1b2546771e6e0adb6beee429903bbd60cefd55ab6abdbffa3e9869c"
+sourceHash = "sha256:241397388c4ecb11af19fcebc6a9a95d505e8cafeae90b7de5537a431687a381"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -7220,6 +7220,17 @@ id = "symbol:fuzzy1337.intelligence.RecordData"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence.py"
 sourceHash = "sha256:cdb6e6dc49da42c7aa4734a7b5ca19f4c9e04f1174214061e60f7608b2a83286"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence.CveUpdateTime"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence.py"
+sourceHash = "sha256:0c94ec3f5b1afa86de18b936c81c85a71a0cafd5d7cfa5d2514dbcfd25b4e1aa"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

@@ -28,7 +28,10 @@ official redistribution license is bundled.
 
 Recognized CVE format revisions are `5.0`, `5.0.0`, `5.1`, `5.1.0`, `5.1.1`, `5.2`,
 and `5.2.0`. CNA and ADP assessments remain separate. Source records must contain
-an explicit offset-aware metadata update timestamp; no missing date is invented.
+an explicit full metadata update timestamp. CVE defines an omitted timezone as
+GMT; only this publisher-defined default is applied, and no missing date is
+invented. Other source and interpretation timestamps require full calendar/clock
+syntax with `Z` or an explicit `HH:MM` offset.
 
 Records preserve exact uppercase CVE/CWE identifiers and effective source times.
 `intel-record:<sha256>` identifies exact normalized version-bound assertions;
@@ -44,6 +47,9 @@ nonfinite numbers and inconsistent references. XML rejects DTD/entity declaratio
 unknown root namespaces and misplaced weakness records. CSV requires exact
 columns and explicit model/date metadata. Unknown consumed formats fail; unconsumed
 upstream fields remain in the verified raw artifact.
+Normalized EPSS records require the same model version in their assertion data
+and catalog identity. KEV entries cannot be added after their catalog release.
+These joins apply to direct construction and portable decoding as well as parsers.
 
 ## Meaning of the source assertions
 
