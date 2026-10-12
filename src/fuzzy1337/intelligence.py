@@ -650,10 +650,11 @@ def ParseCve(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
     """
 
     document = IntelligenceObject(BoundedJson(payload))
+    format_version = IntelligenceText(document.get("dataVersion"), "CVE format version", 16)
 
     if (
         document.get("dataType") != "CVE_RECORD"
-        or document.get("dataVersion") not in _CVE_FORMAT_VERSIONS
+        or format_version not in _CVE_FORMAT_VERSIONS
     ):
         raise ValueError("unsupported CVE Record format")
 

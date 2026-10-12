@@ -348,6 +348,17 @@ def test_CveRejectsUnrecognizedFormatsAndStates(change):
         Snapshot(IntelligenceFeed.CVE, json.dumps({**CveDocument(), **change}).encode())
 
 
+@pytest.mark.parametrize("version", [[], {}, True, False, None, 5, 5.1, ""])
+def test_CveRejectsUntypedFormatRevisionsThroughItsDocumentedValidationError(version):
+    """Unsupported JSON format types fail validation before they can enter hashed membership."""
+
+    document = CveDocument()
+    document["dataVersion"] = version
+
+    with pytest.raises(ValueError):
+        Snapshot(IntelligenceFeed.CVE, json.dumps(document).encode())
+
+
 @pytest.mark.parametrize("version", ["5.0", "5.0.0", "5.1", "5.1.0", "5.1.1", "5.2", "5.2.0"])
 def test_CveRecognizedFormatRevisionsRetainTheSameExplicitIdentifierAndAssessor(version):
     """Supported historical and current format labels preserve the consumed upstream boundaries."""
