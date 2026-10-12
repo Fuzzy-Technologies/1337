@@ -46,8 +46,15 @@ _CONSTRAINTS = frozenset((
 ))
 
 
-def _Object(value: object) -> dict[str, object]:
-    """Require a decoded object without interpreting ignored description fields."""
+def ApiImportObject(value: object) -> dict[str, object]:
+    """Require a decoded object without interpreting ignored description fields.
+
+    Args:
+        value: Candidate structural JSON value; no I/O or execution occurs.
+
+    Returns:
+        The decoded JSON object unchanged.
+    """
 
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise ValueError("API document fields must be JSON objects")
@@ -55,8 +62,16 @@ def _Object(value: object) -> dict[str, object]:
     return cast(dict[str, object], value)
 
 
-def _Array(value: object, maximum: int = 128) -> list[object]:
-    """Require a finite JSON array before constructing children."""
+def ApiImportArray(value: object, maximum: int = 128) -> list[object]:
+    """Require a finite JSON array before constructing children.
+
+    Args:
+        value: Candidate structural JSON value; no I/O or execution occurs.
+        maximum: Inclusive text or array size ceiling.
+
+    Returns:
+        The bounded decoded JSON array unchanged.
+    """
 
     if not isinstance(value, list) or len(value) > maximum:
         raise ValueError("API document array exceeds its structural bound")
@@ -64,8 +79,16 @@ def _Array(value: object, maximum: int = 128) -> list[object]:
     return value
 
 
-def _Text(value: object, maximum: int = 128) -> str:
-    """Require bounded single-line metadata without echoing an invalid input."""
+def ApiImportText(value: object, maximum: int = 128) -> str:
+    """Require bounded single-line metadata without echoing an invalid input.
+
+    Args:
+        value: Candidate structural JSON value; no I/O or execution occurs.
+        maximum: Inclusive text or array size ceiling.
+
+    Returns:
+        Validated nonempty single-line metadata.
+    """
 
     if not isinstance(value, str) or not value or len(value) > maximum or any(
         ord(char) < 32 or ord(char) == 127 for char in value
@@ -75,8 +98,15 @@ def _Text(value: object, maximum: int = 128) -> str:
     return value
 
 
-def _Boolean(value: object) -> bool:
-    """Reject coercion in required, nullable, explode and read-only flags."""
+def ApiImportBoolean(value: object) -> bool:
+    """Reject coercion in required, nullable, explode and read-only flags.
+
+    Args:
+        value: Candidate structural JSON value; no I/O or execution occurs.
+
+    Returns:
+        The explicitly typed boolean flag unchanged.
+    """
 
     if not isinstance(value, bool):
         raise ValueError("API declaration flags must be booleans")
@@ -84,15 +114,32 @@ def _Boolean(value: object) -> bool:
     return value
 
 
-def _Pointer(parent: str, token: str | int) -> str:
-    """Append one correctly escaped JSON Pointer token for source provenance."""
+def ApiImportPointer(parent: str, token: str | int) -> str:
+    """Append one correctly escaped JSON Pointer token for source provenance.
+
+    Args:
+        parent: Parent pointer or inherited parameter array for the current parsing phase.
+        token: One key/index appended with RFC 6901 escaping.
+
+    Returns:
+        Source pointer with one correctly escaped child token.
+    """
 
     return parent + "/" + str(token).replace("~", "~0").replace("/", "~1")
 
 
-def _Point(location: InjectionLocation, selector: str) -> InjectionPoint:
-    """Create a deterministic symbolic binding without reading any source example value."""
+def ApiImportPoint(location: InjectionLocation, selector: str) -> InjectionPoint:
+    """Create a deterministic symbolic binding without reading any source example value.
 
+    Args:
+        location: Typed existing injection location; not an injection payload.
+        selector: Non-secret structural coordinate for the symbolic binding.
+
+    Returns:
+        Existing injection descriptor with a deterministic symbolic value binding.
+    """
+
+    selector = selector.lower() if location is InjectionLocation.HEADER else selector
     digest = hashlib.sha256(CanonicalModelJson([location.value, selector])).hexdigest()[:32]
 
     return InjectionPoint(location, selector, ValueBinding("value-" + digest))
@@ -110,6 +157,7 @@ class ApiInput:
     constrained: bool
     serialization: str
     explode: bool
+    schema_required: bool | None = None
 
     def ToDict(self) -> dict[str, object]:
         """Render summary fields without source values, examples or schema expressions.
@@ -122,7 +170,7 @@ class ApiInput:
             "point": self.point.ToDict(), "source_pointer": self.source_pointer,
             "value_type": self.value_type, "required": self.required, "nullable": self.nullable,
             "constrained": self.constrained, "serialization": self.serialization,
-            "explode": self.explode,
+            "explode": self.explode, "schema_required": self.schema_required,
         }
 
 
@@ -160,6 +208,7 @@ class ApiOperation:
     template: RequestTemplate
     inputs: tuple[ApiInput, ...]
     security: tuple[tuple[ApiSecurityRequirement, ...], ...]
+    body_required: bool = False
 
     def Reference(self) -> str:
         """Bind operation identity to immutable source bytes, media and structural request.
@@ -184,6 +233,7 @@ class ApiOperation:
             "operation_reference": self.Reference(), "operation_id": self.operation_id,
             "source_pointer": self.source_pointer, "source_digest": self.source_digest,
             "media_type": self.media_type, "request_reference": self.template.Reference(),
+            "body_required": self.body_required,
             "inputs": [item.ToDict() for item in self.inputs],
             "security": [[item.ToDict() for item in alternative] for alternative in self.security],
         }
@@ -216,7 +266,7 @@ class OpenApiImport:
         }
 
 
-class _ImportContext:
+class ApiImportContext:
     """Own bounded temporary parsing state without retaining source data in result records."""
 
     def __init__(self, document: dict[str, object], version: str) -> None:
@@ -230,14 +280,23 @@ class _ImportContext:
     def Resolve(
         self, value: object, pointer: str, trail: tuple[str, ...] = (),
     ) -> tuple[dict[str, object], str, tuple[str, ...]]:
-        """Resolve finite local JSON Pointers while rejecting cycles and semantic siblings."""
+        """Resolve finite local JSON Pointers while rejecting cycles and semantic siblings.
+
+        Args:
+            value: Candidate structural JSON value; no I/O or execution occurs.
+            pointer: JSON Pointer identifying the original source record.
+            trail: Active local references used to detect recursive expansion.
+
+        Returns:
+            Resolved object, original source pointer and active local reference trail.
+        """
 
         self.work += 1
 
         if self.work > 4096 or len(trail) > 16:
             raise ValueError("API reference/schema work exceeds its bound")
 
-        record = _Object(value)
+        record = ApiImportObject(value)
 
         if "$ref" not in record:
             return record, pointer, trail
@@ -245,7 +304,7 @@ class _ImportContext:
         if set(record) - {"$ref", "description", "summary"}:
             raise ValueError("API reference semantic siblings are unsupported")
 
-        reference = _Text(record["$ref"], 256)
+        reference = ApiImportText(record["$ref"], 256)
 
         if not reference.startswith("#/") or "%" in reference:
             raise ValueError("only local canonical JSON Pointer references are supported")
@@ -279,7 +338,16 @@ class _ImportContext:
     def Schema(
         self, value: object, pointer: str, trail: tuple[str, ...] = (),
     ) -> tuple[dict[str, object], str, tuple[str, ...], str, bool, bool]:
-        """Read structural type flags without evaluating or retaining literal constraints."""
+        """Read structural type flags without evaluating or retaining literal constraints.
+
+        Args:
+            value: Candidate structural JSON value; no I/O or execution occurs.
+            pointer: JSON Pointer identifying the original source record.
+            trail: Active local references used to detect recursive expansion.
+
+        Returns:
+            Structural schema/type flags and source/reference metadata.
+        """
 
         record, pointer, trail = self.Resolve(value, pointer, trail)
 
@@ -289,7 +357,7 @@ class _ImportContext:
             raise ValueError("API schema composition or dynamic identities are unsupported")
 
         value_type = record.get("type", "object" if "properties" in record else "unspecified")
-        nullable = _Boolean(record.get("nullable", False))
+        nullable = ApiImportBoolean(record.get("nullable", False))
 
         if self.version.startswith("3.1.") and "nullable" in record:
             raise ValueError("OpenAPI 3.1 nullable flags require an explicit null type")
@@ -309,6 +377,12 @@ class _ImportContext:
         if value_type == "file" and not self.legacy:
             raise ValueError("file schema type is supported only for Swagger multipart inputs")
 
+        if value_type == "null" and not self.version.startswith("3.1."):
+            raise ValueError("null schema types require OpenAPI 3.1")
+
+        if value_type == "null":
+            nullable = True
+
         constrained = bool(set(record) & (_CONSTRAINTS | {"items"}))
 
         return record, pointer, trail, value_type, nullable, constrained
@@ -316,17 +390,27 @@ class _ImportContext:
     def Parameters(
         self, parent: object, operation: object, parent_pointer: str, operation_pointer: str,
     ) -> list[tuple[dict[str, object], str]]:
-        """Apply operation overrides to validated unique location/name parameter declarations."""
+        """Apply operation overrides to validated unique location/name parameter declarations.
+
+        Args:
+            parent: Parent pointer or inherited parameter array for the current parsing phase.
+            operation: Decoded operation metadata, without any execution authority.
+            parent_pointer: JSON Pointer identifying inherited path parameters.
+            operation_pointer: JSON Pointer identifying the operation parameter list.
+
+        Returns:
+            Deterministically merged parameter objects and source pointers.
+        """
 
         merged: dict[tuple[str, str], tuple[dict[str, object], str]] = {}
 
         for values, pointer in ((parent, parent_pointer), (operation, operation_pointer)):
             seen: set[tuple[str, str]] = set()
 
-            for index, value in enumerate(_Array(values)):
-                record, source, _ = self.Resolve(value, _Pointer(pointer, index))
-                location = _Text(record.get("in"))
-                name = _Text(record.get("name"))
+            for index, value in enumerate(ApiImportArray(values)):
+                record, source, _ = self.Resolve(value, ApiImportPointer(pointer, index))
+                location = ApiImportText(record.get("in"))
+                name = ApiImportText(record.get("name"))
                 coordinate = location, name.lower() if location == "header" else name
 
                 if coordinate in seen:
@@ -338,7 +422,15 @@ class _ImportContext:
         return [merged[key] for key in sorted(merged)]
 
     def Input(self, record: dict[str, object], pointer: str) -> ApiInput:
-        """Decode a parameter into one symbolic slot and explicit serialization metadata."""
+        """Decode a parameter into one symbolic slot and explicit serialization metadata.
+
+        Args:
+            record: Consumed decoded parameter fields without copied literal values.
+            pointer: JSON Pointer identifying the original source record.
+
+        Returns:
+            One symbolic input with type and serialization annotations.
+        """
 
         location = record.get("in")
 
@@ -351,14 +443,14 @@ class _ImportContext:
         if "content" in record:
             raise ValueError("API parameter content encoding is unsupported")
 
-        point = _Point(InjectionLocation(location), _Text(record.get("name")))
+        point = ApiImportPoint(InjectionLocation(location), ApiImportText(record.get("name")))
 
         if point.location is InjectionLocation.HEADER and point.selector in {
             "authorization", "content-type", "accept",
         }:
             raise ValueError("reserved API header parameters require a separate runtime owner")
 
-        required = _Boolean(record.get("required", False))
+        required = ApiImportBoolean(record.get("required", False))
 
         if point.location is InjectionLocation.PATH and not required:
             raise ValueError("API path parameters must be required")
@@ -370,7 +462,7 @@ class _ImportContext:
             raise ValueError("file parameters require a multipart body")
 
         if self.legacy:
-            serialization = _Text(record.get("collectionFormat", "csv"))
+            serialization = ApiImportText(record.get("collectionFormat", "csv"))
 
             if serialization not in {"csv", "ssv", "tsv", "pipes", "multi"} or (
                 serialization == "multi" and location != "query"
@@ -381,10 +473,10 @@ class _ImportContext:
                             "swagger:" + serialization, serialization == "multi")
 
         default_style = "simple" if location in {"path", "header"} else "form"
-        style = _Text(record.get("style", default_style))
-        explode = _Boolean(record.get("explode", style == "form"))
+        style = ApiImportText(record.get("style", default_style))
+        explode = ApiImportBoolean(record.get("explode", style == "form"))
 
-        if style != default_style or _Boolean(record.get("allowReserved", False)):
+        if style != default_style or ApiImportBoolean(record.get("allowReserved", False)):
             raise ValueError("nondefault parameter styles or reserved-value expansion unsupported")
 
         return ApiInput(point, pointer, value_type, required, nullable, constrained, style, explode)
@@ -393,8 +485,24 @@ class _ImportContext:
         self, value: object, pointer: str, kind: BodyKind, required: bool,
         selector: str = "", trail: tuple[str, ...] = (), depth: int = 0,
         inherited_constraints: bool = False,
+        schema_required: bool | None = None,
     ) -> list[ApiInput]:
-        """Project fixed JSON properties or form parts without inventing concrete request values."""
+        """Project fixed JSON properties or form parts without inventing concrete request values.
+
+        Args:
+            value: Candidate structural JSON value; no I/O or execution occurs.
+            pointer: JSON Pointer identifying the original source record.
+            kind: Existing structural request body encoding.
+            required: Whether the input is required by its declared enclosing body.
+            selector: Non-secret structural coordinate for the symbolic binding.
+            trail: Active local references used to detect recursive expansion.
+            depth: Current bounded body-property expansion depth.
+            inherited_constraints: Whether ancestors contain unrepresented schema constraints.
+            schema_required: Immediate parent requires this property when that parent is present.
+
+        Returns:
+            Finite symbolic body inputs with actual source provenance.
+        """
 
         if depth > 16:
             raise ValueError("API body schema nesting exceeds its bound")
@@ -404,13 +512,13 @@ class _ImportContext:
         )
         constrained = constrained or inherited_constraints
 
-        if _Boolean(record.get("readOnly", False)):
+        if ApiImportBoolean(record.get("readOnly", False)):
             return []
 
-        properties = _Object(record.get("properties", {}))
+        properties = ApiImportObject(record.get("properties", {}))
 
         if value_type == "object" and properties:
-            names = _Array(record.get("required", []))
+            names = ApiImportArray(record.get("required", []))
 
             if not all(isinstance(name, str) and name in properties for name in names) or (
                 len(set(names)) != len(names)
@@ -420,14 +528,16 @@ class _ImportContext:
             inputs = []
 
             for name in sorted(properties):
-                child_selector = _Pointer(selector, name) if kind is BodyKind.JSON else name
+                child_selector = ApiImportPointer(selector, name) if kind is BodyKind.JSON else name
 
                 if kind is not BodyKind.JSON and selector:
                     raise ValueError("nested form/multipart property expansion is unsupported")
 
                 inputs.extend(self.BodyInputs(
-                    properties[name], _Pointer(_Pointer(pointer, "properties"), name), kind,
+                    properties[name],
+                    ApiImportPointer(ApiImportPointer(pointer, "properties"), name), kind,
                     required and name in names, child_selector, trail, depth + 1, constrained,
+                    name in names,
                 ))
 
             return inputs
@@ -443,24 +553,35 @@ class _ImportContext:
             BodyKind.MULTIPART: InjectionLocation.MULTIPART, BodyKind.TEXT: InjectionLocation.BODY,
         }[kind]
 
-        return [ApiInput(_Point(location, selector), pointer, value_type, required, nullable,
-                         constrained, "body", False)]
+        return [ApiInput(
+            ApiImportPoint(location, selector), pointer, value_type, required, nullable,
+            constrained, "body", False, schema_required,
+        )]
 
     def Bodies(
         self, operation: dict[str, object], parameters: list[tuple[dict[str, object], str]],
         pointer: str,
-    ) -> list[tuple[str | None, BodyKind, list[ApiInput]]]:
-        """Decode bounded supported media alternatives and legacy body/form declarations."""
+    ) -> list[tuple[str | None, BodyKind, list[ApiInput], bool]]:
+        """Decode bounded supported media alternatives and legacy body/form declarations.
+
+        Args:
+            operation: Decoded operation metadata, without any execution authority.
+            parameters: Resolved parameter declarations and original source pointers.
+            pointer: JSON Pointer identifying the original source record.
+
+        Returns:
+            Ordered supported media, body-kind and input alternatives.
+        """
 
         if not self.legacy:
             if "requestBody" not in operation:
-                return [(None, BodyKind.NONE, [])]
+                return [(None, BodyKind.NONE, [], False)]
 
             body, source, _ = self.Resolve(
-                operation["requestBody"], _Pointer(pointer, "requestBody"),
+                operation["requestBody"], ApiImportPointer(pointer, "requestBody"),
             )
-            required = _Boolean(body.get("required", False))
-            content = _Object(body.get("content"))
+            required = ApiImportBoolean(body.get("required", False))
+            content = ApiImportObject(body.get("content"))
 
         else:
             body_parameters = [
@@ -474,26 +595,26 @@ class _ImportContext:
                 raise ValueError("Swagger permits one body or form parameters, not both")
 
             if not body_parameters and not form_parameters:
-                return [(None, BodyKind.NONE, [])]
+                return [(None, BodyKind.NONE, [], False)]
 
-            media = _Array(operation.get("consumes", self.document.get("consumes", [])), 8)
+            media = ApiImportArray(operation.get("consumes", self.document.get("consumes", [])), 8)
 
             if not media or not all(isinstance(item, str) for item in media):
                 raise ValueError("Swagger request bodies require explicit supported consumes types")
 
-            media_names = [_Text(item) for item in media]
+            media_names = [ApiImportText(item) for item in media]
 
             if body_parameters:
                 body, source = body_parameters[0]
-                required = _Boolean(body.get("required", False))
+                required = ApiImportBoolean(body.get("required", False))
                 content = {item: {"schema": body.get("schema", {})} for item in media_names}
 
             else:
-                properties = {_Text(item.get("name")): item for item, _ in form_parameters}
+                properties = {ApiImportText(item.get("name")): item for item, _ in form_parameters}
                 required_names = [name for name, item in properties.items()
-                                  if _Boolean(item.get("required", False))]
-                source = _Pointer(pointer, "parameters")
-                required = True
+                                  if ApiImportBoolean(item.get("required", False))]
+                source = ApiImportPointer(pointer, "parameters")
+                required = bool(required_names)
                 content = {item: {"schema": {
                     "type": "object", "properties": properties, "required": required_names,
                 }} for item in media_names}
@@ -501,10 +622,10 @@ class _ImportContext:
         if not 1 <= len(content) <= 8:
             raise ValueError("API body content must have between one and eight media variants")
 
-        variants: list[tuple[str | None, BodyKind, list[ApiInput]]] = []
+        variants: list[tuple[str | None, BodyKind, list[ApiInput], bool]] = []
 
         for media_type in sorted(content):
-            _Text(media_type)
+            ApiImportText(media_type)
             kind = {
                 "application/json": BodyKind.JSON,
                 "application/x-www-form-urlencoded": BodyKind.FORM,
@@ -519,7 +640,7 @@ class _ImportContext:
             if kind is None:
                 raise ValueError("unsupported API request body media type")
 
-            media_record = _Object(content[media_type])
+            media_record = ApiImportObject(content[media_type])
 
             if media_record.get("encoding"):
                 raise ValueError("custom form/multipart encodings are unsupported")
@@ -527,20 +648,20 @@ class _ImportContext:
             if self.legacy and form_parameters and kind not in {BodyKind.FORM, BodyKind.MULTIPART}:
                 raise ValueError("Swagger formData requires a form or multipart media type")
 
-            schema_pointer = source if self.legacy else _Pointer(
-                _Pointer(source, "content"), media_type,
+            schema_pointer = source if self.legacy else ApiImportPointer(
+                ApiImportPointer(source, "content"), media_type,
             )
 
             if "schema" in media_record:
-                schema_pointer = _Pointer(schema_pointer, "schema")
+                schema_pointer = ApiImportPointer(schema_pointer, "schema")
 
             if self.legacy and form_parameters:
                 inputs = []
 
                 for item, item_source in form_parameters:
                     inputs.extend(self.BodyInputs(
-                        item, item_source, kind, _Boolean(item.get("required", False)),
-                        _Text(item.get("name")),
+                        item, item_source, kind, ApiImportBoolean(item.get("required", False)),
+                        ApiImportText(item.get("name")),
                     ))
 
             else:
@@ -548,23 +669,30 @@ class _ImportContext:
                     media_record.get("schema", {}), schema_pointer, kind, required,
                 )
 
-            variants.append((media_type, kind, inputs))
+            variants.append((media_type, kind, inputs, required))
 
         return variants
 
     def Security(
         self, operation: dict[str, object],
     ) -> tuple[tuple[ApiSecurityRequirement, ...], ...]:
-        """Preserve authentication OR/AND alternatives without selecting a session or auth flow."""
+        """Preserve authentication OR/AND alternatives without selecting a session or auth flow.
 
-        security = _Array(operation.get("security", self.document.get("security", [])), 8)
-        components = _Object(self.document.get("components", {}))
-        definitions = _Object(self.document.get("securityDefinitions", {}) if self.legacy
+        Args:
+            operation: Decoded operation metadata, without any execution authority.
+
+        Returns:
+            Ordered authentication OR alternatives containing AND scheme annotations.
+        """
+
+        security = ApiImportArray(operation.get("security", self.document.get("security", [])), 8)
+        components = ApiImportObject(self.document.get("components", {}))
+        definitions = ApiImportObject(self.document.get("securityDefinitions", {}) if self.legacy
                               else components.get("securitySchemes", {}))
         alternatives = []
 
         for alternative in security:
-            requirement = _Object(alternative)
+            requirement = ApiImportObject(alternative)
 
             if len(requirement) > 8:
                 raise ValueError("API authentication alternative exceeds its bound")
@@ -572,31 +700,33 @@ class _ImportContext:
             entries = []
 
             for name in sorted(requirement):
-                _Text(name)
-                scopes = tuple(sorted(_Text(item) for item in _Array(requirement[name], 32)))
+                ApiImportText(name)
+                scopes = tuple(sorted(
+                    ApiImportText(item) for item in ApiImportArray(requirement[name], 32)
+                ))
 
                 if len(set(scopes)) != len(scopes) or name not in definitions:
                     raise ValueError("API authentication scopes/scheme references are invalid")
 
                 scheme, _, _ = self.Resolve(definitions[name], "#/securitySchemes")
-                scheme_type = _Text(scheme.get("type"))
+                scheme_type = ApiImportText(scheme.get("type"))
                 location: str | None = None
                 selector: str | None = None
 
                 if scheme_type == "apiKey":
-                    location = _Text(scheme.get("in"))
+                    location = ApiImportText(scheme.get("in"))
 
                     if location not in {"header", "query", "cookie"} or (
                         self.legacy and location == "cookie"
                     ):
                         raise ValueError("unsupported API key location")
 
-                    selector = _Point(
-                        InjectionLocation(location), _Text(scheme.get("name")),
+                    selector = ApiImportPoint(
+                        InjectionLocation(location), ApiImportText(scheme.get("name")),
                     ).selector
 
                 elif scheme_type == "http" and not self.legacy:
-                    http_scheme = _Text(scheme.get("scheme")).lower()
+                    http_scheme = ApiImportText(scheme.get("scheme")).lower()
 
                     if http_scheme not in {"basic", "bearer"}:
                         raise ValueError("unsupported HTTP authentication scheme")
@@ -611,6 +741,9 @@ class _ImportContext:
                 ):
                     raise ValueError("unsupported API authentication scheme type")
 
+                if scheme_type == "mutualTLS" and not self.version.startswith("3.1."):
+                    raise ValueError("mutual TLS annotations require OpenAPI 3.1")
+
                 if scopes and scheme_type not in {"oauth2", "openIdConnect"}:
                     raise ValueError("non-OAuth authentication cannot declare scopes")
 
@@ -623,10 +756,17 @@ class _ImportContext:
         return tuple(alternatives)
 
 
-def _BaseUrl(value: object) -> str:
-    """Normalize an HTTP(S) base with a literal path and without captured query/fragment data."""
+def ApiImportBaseUrl(value: object) -> str:
+    """Normalize an HTTP(S) base with a literal path and without captured query/fragment data.
 
-    url = NormalizeTarget(TargetKind.URL, _Text(value, 4096))
+    Args:
+        value: Candidate structural JSON value; no I/O or execution occurs.
+
+    Returns:
+        Canonical literal HTTP(S) base without a query or server variables.
+    """
+
+    url = NormalizeTarget(TargetKind.URL, ApiImportText(value, 4096))
     parsed = urlsplit(url)
 
     if parsed.query or "?" in str(value) or "{" in str(value) or "}" in str(value):
@@ -637,18 +777,29 @@ def _BaseUrl(value: object) -> str:
     return url.rstrip("/")
 
 
-def _Servers(
+def ApiImportServers(
     document: dict[str, object], path: dict[str, object], operation: dict[str, object],
     legacy: bool, base_url: str | None,
 ) -> tuple[str, ...]:
-    """Apply declared server precedence with explicit context for document-relative locations."""
+    """Apply declared server precedence with explicit context for document-relative locations.
 
-    context = _BaseUrl(base_url) if base_url is not None else None
+    Args:
+        document: Already byte/depth-bounded API entry document.
+        path: Decoded path-item metadata used only for server precedence.
+        operation: Decoded operation metadata, without any execution authority.
+        legacy: True for Swagger 2.0; false for OpenAPI 3.
+        base_url: Explicit HTTP(S) context for document-relative server URLs.
+
+    Returns:
+        Ordered deduplicated canonical bases after server precedence.
+    """
+
+    context = ApiImportBaseUrl(base_url) if base_url is not None else None
 
     if legacy:
         context_parts = urlsplit(context) if context is not None else None
         host = document.get("host", context_parts.netloc if context_parts else None)
-        schemes = _Array(operation.get("schemes", document.get(
+        schemes = ApiImportArray(operation.get("schemes", document.get(
             "schemes", [context_parts.scheme] if context_parts else [],
         )), 4)
 
@@ -657,15 +808,17 @@ def _Servers(
         ):
             raise ValueError("Swagger requires explicit supported schemes or a base URL context")
 
-        base_path = _Text(document.get("basePath", "/"), 1024)
+        base_path = ApiImportText(document.get("basePath", "/"), 1024)
 
         if not base_path.startswith("/") or "{" in base_path or "}" in base_path:
             raise ValueError("Swagger basePath must be a literal absolute path")
 
-        return tuple(sorted({_BaseUrl(f"{scheme}://{_Text(host, 256)}{base_path}")
+        return tuple(sorted({ApiImportBaseUrl(f"{scheme}://{ApiImportText(host, 256)}{base_path}")
                              for scheme in schemes}))
 
-    servers = _Array(operation.get("servers", path.get("servers", document.get("servers", []))), 4)
+    servers = ApiImportArray(
+        operation.get("servers", path.get("servers", document.get("servers", []))), 4,
+    )
 
     if not servers:
         if context is None:
@@ -678,7 +831,7 @@ def _Servers(
     result = set()
 
     for server in servers:
-        url = _Text(_Object(server).get("url"), 4096)
+        url = ApiImportText(ApiImportObject(server).get("url"), 4096)
 
         if not url.lower().startswith(("http://", "https://")):
             if context is None or not url.startswith("/") or url.startswith("//"):
@@ -687,13 +840,20 @@ def _Servers(
             parsed = urlsplit(context)
             url = f"{parsed.scheme}://{parsed.netloc}{url}"
 
-        result.add(_BaseUrl(url))
+        result.add(ApiImportBaseUrl(url))
 
     return tuple(sorted(result))
 
 
-def _Document(value: str) -> tuple[dict[str, object], str, bool, str]:
-    """Decode bounded strict JSON and validate every node before schema/reference traversal."""
+def DecodeApiDocument(value: str) -> tuple[dict[str, object], str, bool, str]:
+    """Decode bounded strict JSON and validate every node before schema/reference traversal.
+
+    Args:
+        value: Candidate structural JSON value; no I/O or execution occurs.
+
+    Returns:
+        Document, supported version, legacy flag and exact input-byte digest.
+    """
 
     if not isinstance(value, str):
         raise ValueError("API import requires JSON text")
@@ -713,7 +873,7 @@ def _Document(value: str) -> tuple[dict[str, object], str, bool, str]:
         except ValueError:
             raise ValueError("API JSON syntax, keys or numeric constants are invalid") from None
 
-        document = _Object(parsed_document)
+        document = ApiImportObject(parsed_document)
         pending: list[tuple[object, int]] = [(document, 0)]
         count = 0
 
@@ -775,9 +935,9 @@ def ImportOpenApi(
     """
 
     Endpoint(workspace_id, "http://127.0.0.1", "/")
-    document, version, legacy, digest = _Document(value)
-    context = _ImportContext(document, version)
-    paths = _Object(document.get("paths"))
+    document, version, legacy, digest = DecodeApiDocument(value)
+    context = ApiImportContext(document, version)
+    paths = ApiImportObject(document.get("paths"))
     operations = []
     operation_ids: set[str] = set()
 
@@ -786,16 +946,19 @@ def ImportOpenApi(
             continue
 
         Endpoint(workspace_id, "http://127.0.0.1", route)
-        path, path_pointer, _ = context.Resolve(paths[route], _Pointer("#/paths", route))
+        path, path_pointer, _ = context.Resolve(paths[route], ApiImportPointer("#/paths", route))
 
         for method in sorted(set(path) & _METHODS):
-            operation = _Object(path[method])
-            pointer = _Pointer(path_pointer, method)
+            if legacy and method == "trace":
+                raise ValueError("Swagger 2.0 does not define trace operations")
+
+            operation = ApiImportObject(path[method])
+            pointer = ApiImportPointer(path_pointer, method)
             raw_operation_id = operation.get("operationId")
             operation_id: str | None = None
 
             if raw_operation_id is not None:
-                operation_id = _Text(raw_operation_id)
+                operation_id = ApiImportText(raw_operation_id)
 
                 if operation_id in operation_ids:
                     raise ValueError("API operationId values must be unique")
@@ -804,7 +967,8 @@ def ImportOpenApi(
 
             parameters = context.Parameters(
                 path.get("parameters", []), operation.get("parameters", []),
-                _Pointer(path_pointer, "parameters"), _Pointer(pointer, "parameters"),
+                ApiImportPointer(path_pointer, "parameters"),
+                ApiImportPointer(pointer, "parameters"),
             )
             ordinary = [context.Input(record, source) for record, source in parameters
                         if record.get("in") not in {"body", "formData"}]
@@ -815,7 +979,7 @@ def ImportOpenApi(
             security = context.Security(operation)
             bodies = context.Bodies(operation, parameters, pointer)
 
-            for server in _Servers(document, path, operation, legacy, base_url):
+            for server in ApiImportServers(document, path, operation, legacy, base_url):
                 parsed = urlsplit(server)
                 origin = f"{parsed.scheme}://{parsed.netloc}"
                 endpoint = Endpoint(workspace_id, origin, parsed.path.rstrip("/") + route, method)
@@ -825,14 +989,14 @@ def ImportOpenApi(
                 if path_names != set(endpoint.PathVariables()):
                     raise ValueError("API path parameters must match every declared path variable")
 
-                for media_type, body_kind, body_inputs in bodies:
+                for media_type, body_kind, body_inputs, body_required in bodies:
                     inputs = tuple(sorted(
                         (*ordinary, *body_inputs), key=lambda item: item.point.Coordinate(),
                     ))
                     template = RequestTemplate(endpoint, tuple(item.point for item in inputs),
                                                body_kind, session_reference)
                     operations.append(ApiOperation(operation_id, pointer, digest, media_type,
-                                                   template, inputs, security))
+                                                   template, inputs, security, body_required))
 
                     if len(operations) > MAX_OPENAPI_OPERATIONS:
                         raise ValueError("API operation variants exceed their count bound")

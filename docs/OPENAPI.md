@@ -83,7 +83,11 @@ nested form expansion and custom encoding are unsupported. Swagger body and
 formData declarations use their original source pointers; they cannot be mixed.
 
 Every input retains type, required/nullable flags, serialization metadata and a
-source pointer. `constrained` reports unrepresented schema constraint keywords;
+source pointer. `required` means unconditionally required for the declared
+request, and `schema_required` records immediate-parent property requirements
+when that parent is present. An operation separately retains `body_required`;
+an optional body can still contain required properties. These flags do not
+replace conditional schema validation. `constrained` reports unrepresented schema constraint keywords;
 their values are not retained or evaluated. A false flag does not certify a
 complete schema validator. No default/example/enum is selected as a test value.
 The runtime must generate, validate and bound actual values separately.

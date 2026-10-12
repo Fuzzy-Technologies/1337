@@ -62,13 +62,32 @@ def test_SupportedVersionsGenerateSymbolicImmutableRequests(version):
     document["openapi"] = version
     imported = Import(document, session_reference=SessionReference("demo", "operator"))
     operation = imported.operations[0]
-    assert operation.template.endpoint.path_template == "/base/items/{item_id}"
-    assert operation.template.endpoint.method == "GET"
-    assert operation.template.session_reference == SessionReference("demo", "operator")
+    assert operation.template.endpoint.path_template == "/base/items/{item_id}", (
+        "OpenAPI expectation failed: "
+        "operation.template.endpoint.path_template == "
+        "'/base/items/{item_id}' "
+    )
+    assert operation.template.endpoint.method == "GET", (
+        "OpenAPI expectation failed: operation.template.endpoint.method "
+        "== 'GET' "
+    )
+    assert operation.template.session_reference == SessionReference("demo", "operator"), (
+        "OpenAPI expectation failed: "
+        "operation.template.session_reference == "
+        "SessionReference('demo', 'operator') "
+    )
     assert {item.point.location for item in operation.inputs} == {
         InjectionLocation.PATH, InjectionLocation.QUERY,
-    }
-    assert all(item.point.binding.name.startswith("value-") for item in operation.inputs)
+    }, (
+        "OpenAPI expectation failed: {item.point.location for item in "
+        "operation.inputs} == {InjectionLocation.PATH, "
+        "InjectionLocation.QUERY} "
+    )
+    assert all(item.point.binding.name.startswith("value-") for item in operation.inputs), (
+        "OpenAPI expectation failed: "
+        "all((item.point.binding.name.startswith('value-') for item in "
+        "operation.inputs)) "
+    )
     original = imported.ToDict()
     document["paths"].clear()
     derived = imported.ToDict()
@@ -127,13 +146,24 @@ def test_ServerPrecedenceRelativeContextAndAliasesAreExplicit():
     document = Document()
     path = document["paths"]["/items/{item_id}"]
     path["servers"] = [{"url": "http://127.0.0.1:19001/path"}]
-    assert Import(document).operations[0].template.endpoint.path_template.startswith("/path/")
+    assert Import(document).operations[0].template.endpoint.path_template.startswith("/path/"), (
+        "OpenAPI expectation failed: "
+        "Import(document).operations[0].template.endpoint.path_template.startswith('/path/') "
+    )
     Operation(document)["servers"] = [{"url": "/op"}]
     imported = Import(document, base_url="http://127.0.0.1:19001/context")
-    assert imported.operations[0].template.endpoint.path_template == "/op/items/{item_id}"
+    assert imported.operations[0].template.endpoint.path_template == "/op/items/{item_id}", (
+        "OpenAPI expectation failed: "
+        "imported.operations[0].template.endpoint.path_template == "
+        "'/op/items/{item_id}' "
+    )
     Operation(document)["servers"] = []
     contextual = Import(document, base_url="http://127.0.0.1:19001/context")
-    assert contextual.operations[0].template.endpoint.path_template == "/items/{item_id}"
+    assert contextual.operations[0].template.endpoint.path_template == "/items/{item_id}", (
+        "OpenAPI expectation failed: "
+        "contextual.operations[0].template.endpoint.path_template == "
+        "'/items/{item_id}' "
+    )
     document["servers"] = [{"url": "HTTP://localhost:80"}, {"url": "http://localhost/"}]
     del path["servers"]
     del Operation(document)["servers"]
@@ -200,11 +230,74 @@ def test_PathBindingDuplicatesOperationIdentityAndNullableDialectValidation():
     document["openapi"] = "3.0.4"
     Operation(document)["parameters"][1]["schema"]["nullable"] = True
     assert next(item for item in Import(document).operations[0].inputs
-                if item.point.selector == "q").nullable
+                if item.point.selector == "q").nullable, (
+        "OpenAPI expectation failed: next((item for item in "
+        "Import(document).operations[0].inputs if item.point.selector "
+        "== 'q')).nullable "
+    )
     Operation(document)["parameters"][1]["schema"]["type"] = ["string", "null"]
 
     with pytest.raises(ValueError):
         Import(document)
+
+
+@pytest.mark.parametrize("dialect", ["3.0.4", "2.0"])
+def test_DialectSpecificNullTypesCannotBeImportedAsSupportedSchemas(dialect):
+    """Pre-3.1 dialects cannot silently inherit a newer structural null type."""
+
+    document = Document()
+    document["openapi"] = dialect
+    Operation(document)["parameters"][1]["schema"] = {"type": "null"}
+
+    if dialect == "2.0":
+        document["swagger"] = document.pop("openapi")
+        document["host"] = "127.0.0.1:19001"
+        document["schemes"] = ["http"]
+        Operation(document)["parameters"] = [
+            {"in": "path", "name": "item_id", "required": True, "type": "integer"},
+            {"in": "query", "name": "q", "type": "null"},
+        ]
+
+    with pytest.raises(ValueError, match="null schema"):
+        Import(document)
+
+
+def test_HeaderAliasesConvergeBeforeSymbolicBindingIdentity():
+    """Canonical header coordinates determine binding identity regardless of source case."""
+
+    document = Document()
+    Operation(document)["parameters"].append({"in": "header", "name": "X-Owned"})
+    upper = Import(document).operations[0].template
+    Operation(document)["parameters"][-1]["name"] = "x-owned"
+    lower = Import(document).operations[0].template
+    assert upper.Reference() == lower.Reference(), "Header alias changed canonical request identity"
+
+
+def test_StandaloneOpenApi31NullSchemaRetainsNullableMeaning():
+    """A schema permitting only null cannot advertise that null itself is forbidden."""
+
+    document = Document()
+    Operation(document)["parameters"][1]["schema"] = {"type": "null"}
+    point = next(item for item in Import(document).operations[0].inputs
+                 if item.point.selector == "q")
+    assert point.value_type == "null" and point.nullable, "Standalone null lost its schema meaning"
+
+
+def test_OptionalBodiesKeepConditionalRequiredPropertyMetadata():
+    """An optional body does not erase required properties when the body is actually present."""
+
+    document = Document()
+    Operation(document)["requestBody"] = {"required": False, "content": {"application/json": {
+        "schema": {"type": "object", "required": ["name"], "properties": {
+            "name": {"type": "string"}, "optional": {"type": "string"},
+        }},
+    }}}
+    operation = Import(document).operations[0]
+    name = next(item for item in operation.inputs if item.point.selector == "/name")
+    optional = next(item for item in operation.inputs if item.point.selector == "/optional")
+    assert not operation.body_required, "Optional body became globally mandatory"
+    assert not name.required and name.schema_required, "Conditional body requirement was lost"
+    assert not optional.schema_required, "Optional property became conditionally required"
 
 
 @pytest.mark.parametrize("reference", [
@@ -228,7 +321,10 @@ def test_LocalPointersCyclesSiblingSemanticsAndReferenceWorkBounds():
     document = Document()
     document["parts"] = [{"type": "string"}]
     Operation(document)["parameters"][1]["schema"] = {"$ref": "#/parts/0"}
-    assert Import(document).operations[0].inputs
+    assert Import(document).operations[0].inputs, (
+        "OpenAPI expectation failed: "
+        "Import(document).operations[0].inputs "
+    )
     document["parts"][0] = {"$ref": "#/parts/0"}
 
     with pytest.raises(ValueError, match="cycle"):
@@ -301,8 +397,14 @@ def test_NestedJsonEscapedPropertiesAndOpaqueArrayBindingsRetainConstraintFlags(
     Operation(document)["requestBody"] = {"content": {"application/json": {"schema": schema}}}
     inputs = [item for item in Import(document).operations[0].inputs
               if item.point.location is InjectionLocation.JSON]
-    assert {item.point.selector for item in inputs} == {"/a~1b~0c/child", "/items"}
-    assert all(item.constrained for item in inputs)
+    assert {item.point.selector for item in inputs} == {"/a~1b~0c/child", "/items"}, (
+        "OpenAPI expectation failed: {item.point.selector for item in "
+        "inputs} == {'/a~1b~0c/child', '/items'} "
+    )
+    assert all(item.constrained for item in inputs), (
+        "OpenAPI expectation failed: all((item.constrained for item in "
+        "inputs)) "
+    )
 
 
 @pytest.mark.parametrize("media", [
@@ -318,8 +420,13 @@ def test_BodyVariantsProduceCorrectLocationsWithoutExamples(media):
     }
     Operation(document)["requestBody"] = {"content": {media: {"schema": schema}}}
     operation = Import(document).operations[0]
-    assert operation.media_type == media
-    assert operation.template.body_kind is not BodyKind.NONE
+    assert operation.media_type == media, (
+        "OpenAPI expectation failed: operation.media_type == media "
+    )
+    assert operation.template.body_kind is not BodyKind.NONE, (
+        "OpenAPI expectation failed: operation.template.body_kind is "
+        "not BodyKind.NONE "
+    )
     assert "marker" not in json.dumps(operation.ToDict()), "A literal example was copied"
 
 
@@ -384,7 +491,10 @@ def test_ConcreteTargetPreflightChecksCurrentScopeAndNeverUsesPathWildcards():
     scope = ScopeSnapshot("api", "demo", ScopeAuthorization(
         AuthorizationState.GRANTED, "operator:synthetic", "consent:synthetic",
     ), targets=(target,), allow=(target,))
-    assert CheckOpenApiTarget(operation, target, scope, at=AT).Allowed()
+    assert CheckOpenApiTarget(operation, target, scope, at=AT).Allowed(), (
+        "OpenAPI expectation failed: CheckOpenApiTarget(operation, "
+        "target, scope, at=AT).Allowed() "
+    )
 
     for change in ({"targets": ()}, {"allow": ()}, {"deny": (target,)}, {
         "authorization": ScopeAuthorization(AuthorizationState.UNKNOWN),

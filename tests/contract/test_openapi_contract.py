@@ -46,19 +46,48 @@ def test_IndependentFixturesGenerateRealRequestsAndSafeMetadata(name, version, c
     source = json.loads(text)
     imported = ImportOpenApi(text, workspace_id="demo")
     request_schema = json.loads((ROOT / "contracts/request-template.schema.json").read_text())
-    assert imported.source_digest == "sha256:" + hashlib.sha256(text.encode()).hexdigest()
-    assert imported.specification_version == version and len(imported.operations) == count
-    assert imported.ToDict() == ImportOpenApi(text, workspace_id="demo").ToDict()
-    assert "synthetic-private-source-value" not in json.dumps(imported.ToDict())
+    assert imported.source_digest == "sha256:" + hashlib.sha256(text.encode()).hexdigest(), (
+        "OpenAPI expectation failed: imported.source_digest == "
+        "'sha256:' + hashlib.sha256(text.encode()).hexdigest() "
+    )
+    assert imported.specification_version == version and len(imported.operations) == count, (
+        "OpenAPI expectation failed: imported.specification_version == "
+        "version and len(imported.operations) == count "
+    )
+    assert imported.ToDict() == ImportOpenApi(text, workspace_id="demo").ToDict(), (
+        "OpenAPI expectation failed: imported.ToDict() == "
+        "ImportOpenApi(text, workspace_id='demo').ToDict() "
+    )
+    assert "synthetic-private-source-value" not in json.dumps(imported.ToDict()), (
+        "OpenAPI expectation failed: 'synthetic-private-source-value' "
+        "not in json.dumps(imported.ToDict()) "
+    )
     assert {operation.template.body_kind for operation in imported.operations} == {
         BodyKind.NONE, BodyKind.JSON, BodyKind.MULTIPART,
-    }
+    }, (
+        "OpenAPI expectation failed: {operation.template.body_kind for "
+        "operation in imported.operations} == {BodyKind.NONE, "
+        "BodyKind.JSON, BodyKind.MULTIPART} "
+    )
 
     for operation in imported.operations:
         jsonschema.validate(operation.template.ToDict(), request_schema)
-        assert RequestTemplate.FromJson(operation.template.ToJson()) == operation.template
-        assert SourceAt(source, operation.source_pointer)["operationId"] == operation.operation_id
-        assert all(item.point.binding.source is BindingSource.INPUT for item in operation.inputs)
+        assert RequestTemplate.FromJson(operation.template.ToJson()) == operation.template, (
+            "OpenAPI expectation failed: "
+            "RequestTemplate.FromJson(operation.template.ToJson()) == "
+            "operation.template "
+        )
+        assert SourceAt(source, operation.source_pointer)["operationId"] == (
+            operation.operation_id
+        ), (
+            "OpenAPI expectation failed: SourceAt(source, "
+            "operation.source_pointer)['operationId'] == "
+            "operation.operation_id "
+        )
+        assert all(item.point.binding.source is BindingSource.INPUT for item in operation.inputs), (
+            "OpenAPI expectation failed: all((item.point.binding.source is "
+            "BindingSource.INPUT for item in operation.inputs)) "
+        )
 
         for item in operation.inputs:
             assert isinstance(SourceAt(source, item.source_pointer), dict), (
@@ -74,10 +103,19 @@ def test_PathOverridesReadonlySchemaFlagsAuthAlternativesAndMediaIdentityArePres
     query = next(item for item in get.inputs if item.point.selector == "limit")
     assert query.value_type == "string" and query.required, "Operation override was lost"
     assert len(get.security) == 2 and get.security[1] == (), "Anonymous OR branch was lost"
-    assert get.security[0][0].location == "header"
-    assert get.security[0][0].selector == "x-api-key"
+    assert get.security[0][0].location == "header", (
+        "OpenAPI expectation failed: get.security[0][0].location == "
+        "'header' "
+    )
+    assert get.security[0][0].selector == "x-api-key", (
+        "OpenAPI expectation failed: get.security[0][0].selector == "
+        "'x-api-key' "
+    )
     post = [item for item in imported.operations if item.operation_id == "SaveUser"]
-    assert len(post) == 2 and post[0].Reference() != post[1].Reference()
+    assert len(post) == 2 and post[0].Reference() != post[1].Reference(), (
+        "OpenAPI expectation failed: len(post) == 2 and "
+        "post[0].Reference() != post[1].Reference() "
+    )
     assert post[0].template.Reference() == post[1].template.Reference(), (
         "Same structural template invented a different identity for a media annotation"
     )
@@ -86,7 +124,10 @@ def test_PathOverridesReadonlySchemaFlagsAuthAlternativesAndMediaIdentityArePres
     }, "Read-only fields were emitted as request inputs"
     name = next(item for item in post[0].inputs if item.point.selector == "/name")
     nickname = next(item for item in post[0].inputs if item.point.selector == "/nickname")
-    assert name.required and name.constrained and nickname.nullable and not nickname.required
+    assert name.required and name.constrained and nickname.nullable and not nickname.required, (
+        "OpenAPI expectation failed: name.required and name.constrained "
+        "and nickname.nullable and (not nickname.required) "
+    )
     upload = next(item for item in imported.operations if item.operation_id == "Upload")
     assert upload.security == (), "Operation-level empty security failed to override root auth"
 
@@ -109,9 +150,19 @@ def test_AuthenticationAnnotationsRemainSeparateFromSessionMaterial(scheme, scop
     document["security"] = [{"apiKey": scopes}]
     imported = ImportOpenApi(json.dumps(document), workspace_id="demo")
     protected = next(item for item in imported.operations if item.operation_id == "GetUser")
-    assert protected.security[0][0].scheme_type == expected
-    assert protected.security[0][0].scopes == tuple(scopes)
-    assert all(item.template.session_reference is None for item in imported.operations)
+    assert protected.security[0][0].scheme_type == expected, (
+        "OpenAPI expectation failed: "
+        "protected.security[0][0].scheme_type == expected "
+    )
+    assert protected.security[0][0].scopes == tuple(scopes), (
+        "OpenAPI expectation failed: protected.security[0][0].scopes == "
+        "tuple(scopes) "
+    )
+    assert all(item.template.session_reference is None for item in imported.operations), (
+        "OpenAPI expectation failed: "
+        "all((item.template.session_reference is None for item in "
+        "imported.operations)) "
+    )
     assert "well-known" not in json.dumps(imported.ToDict()), "Issuer endpoint became retained data"
 
 
@@ -143,10 +194,19 @@ def test_SwaggerContextSchemesCollectionFormatAndFormSourceLocations():
                              base_url="http://127.0.0.1:19001/spec.json")
     get = next(item for item in imported.operations if item.operation_id == "GetLegacyUser")
     tags = next(item for item in get.inputs if item.point.selector == "tags")
-    assert tags.serialization == "swagger:multi" and tags.explode
+    assert tags.serialization == "swagger:multi" and tags.explode, (
+        "OpenAPI expectation failed: tags.serialization == "
+        "'swagger:multi' and tags.explode "
+    )
     upload = next(item for item in imported.operations if item.operation_id == "UploadLegacy")
-    assert upload.template.endpoint.origin == "https://127.0.0.1:19001"
-    assert upload.inputs[0].source_pointer == "#/paths/~1upload/post/parameters/0"
+    assert upload.template.endpoint.origin == "https://127.0.0.1:19001", (
+        "OpenAPI expectation failed: upload.template.endpoint.origin == "
+        "'https://127.0.0.1:19001' "
+    )
+    assert upload.inputs[0].source_pointer == "#/paths/~1upload/post/parameters/0", (
+        "OpenAPI expectation failed: upload.inputs[0].source_pointer == "
+        "'#/paths/~1upload/post/parameters/0' "
+    )
 
 
 def test_DuplicateUntrustedKeysCannotLeakSourceValuesInErrors():
@@ -157,4 +217,23 @@ def test_DuplicateUntrustedKeysCannotLeakSourceValuesInErrors():
     with pytest.raises(ValueError) as caught:
         ImportOpenApi('{"' + marker + '":1,"' + marker + '":2}', workspace_id="demo")
 
-    assert marker not in str(caught.value)
+    assert marker not in str(caught.value), (
+        "OpenAPI expectation failed: marker not in str(caught.value) "
+    )
+
+
+def test_MutualTlsAndTraceAreNotSilentlyImportedFromOlderDialects():
+    """Scheme and HTTP operation support must remain specific to the declared feature line."""
+
+    document = Fixture("openapi.v3.json")
+    document["openapi"] = "3.0.4"
+    document["components"]["securitySchemes"]["apiKey"] = {"type": "mutualTLS"}
+
+    with pytest.raises(ValueError, match="mutual TLS"):
+        ImportOpenApi(json.dumps(document), workspace_id="demo")
+
+    legacy = Fixture("swagger.v2.json")
+    legacy["paths"]["/upload"]["trace"] = {"responses": {"200": {"description": "Synthetic"}}}
+
+    with pytest.raises(ValueError, match="trace"):
+        ImportOpenApi(json.dumps(legacy), workspace_id="demo")
