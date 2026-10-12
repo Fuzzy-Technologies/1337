@@ -41,10 +41,11 @@ Execute a prepared scan only through the governed executor with exact caller-iss
 with actual invocation, execution and collection provenance. A successful
 `NormalizeReport` needs exactly one `stdout` and one `provider-version` reference;
 length and SHA-256 are independently checked. Replay reconstructs invocation
-metadata without requiring the original archive/cache to still exist. Tool
+metadata on an already bound adapter without requiring the original archive/cache
+to still exist. Constructing a new adapter still requires its workspace/cache. Tool
 version must match the version bound in the invocation. Any optional native
 `Trivy.Version` must match independently captured version evidence. Vulnerability DB metadata must include a positive integer
-`Version` and provider-observed `UpdatedAt`. Java DB metadata is optional. These
+`Version` and a valid timezone-aware provider-observed `UpdatedAt`. Java DB metadata is optional. These
 records preserve provider observations, not database-file attestation; callers
 must keep the same cache revision for probing and scanning.
 
@@ -57,6 +58,10 @@ Normalization emits `trivy.run`, `image.package` observations and
 `image.package-vulnerability` generic SDK findings. Package/vulnerability
 attributes retain provider fields for later provider-neutral correlation; this
 adapter does not construct shared Security Object identities or persist state.
+Provider text remains untrusted data; renderers must escape HTML and terminal
+control sequences. The caller must verify the evidence-store manifests attribute
+scan streams to this invocation, workspace, scope and terminal execution, and
+version bytes to the matching probe/cache. Byte hashes do not attest those links.
 Failed, cancelled or timed-out reports preserve the original report and emit only
 an incomplete diagnostic, even if their captured JSON looks complete.
 

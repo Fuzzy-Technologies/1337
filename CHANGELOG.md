@@ -29,6 +29,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Security
 
+- Require a valid timezone-aware Trivy database update time and reject JSON
+  integers exceeding decoder limits before accepting scan provenance.
 - New foundation APIs retain explicit workspace, scope and evidence boundaries.
   A query, model reference, job or adapter preparation does not grant authority
   to scan a target or broaden a previously approved execution plan.

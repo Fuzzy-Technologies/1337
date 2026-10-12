@@ -199,6 +199,7 @@ def test_ConstructorValidatesOperatorSelection(tmp_path):
 
 @pytest.mark.parametrize("raw", [b"", b"[]", b"{", b"\xff", b'{"a":1,"a":2}',
     b'{"x":NaN}', b'{"x":Infinity}', b'{"x":1e999}', b'{"x":-Infinity}',
+    b'{"x":' + b'9' * 5000 + b'}',
     b'{"x":' + b'[' * 1200 + b'0' + b']' * 1200 + b'}'])
 def test_JsonParserRejectsAmbiguityAndMalformedEvidence(raw):
     """Provider JSON fails explicitly on encoding, duplicate keys, nonfinite and deep trees."""
@@ -303,7 +304,13 @@ def test_SuccessfulMalformedReportsFail(adapter, mutation):
 
 @pytest.mark.parametrize("version", [{}, {"Version": "different"},
     {**VERSION, "VulnerabilityDB": {}}, {**VERSION, "VulnerabilityDB": None},
-    {**VERSION, "VulnerabilityDB": {"Version": True, "UpdatedAt": "x"}}])
+    {**VERSION, "VulnerabilityDB": {"Version": True, "UpdatedAt": "x"}},
+    {**VERSION, "VulnerabilityDB": {"Version": 2, "UpdatedAt": ""}},
+    {**VERSION, "VulnerabilityDB": {"Version": 2, "UpdatedAt": "not-a-timestamp"}},
+    {**VERSION, "VulnerabilityDB": {"Version": 2, "UpdatedAt": "2026-10-01T00:00:00"}},
+    {**VERSION, "VulnerabilityDB": {"Version": 2, "UpdatedAt": "2026-13-01T00:00:00Z"}},
+    {**VERSION, "VulnerabilityDB": {"Version": 2, "UpdatedAt": 1}},
+])
 def test_VersionAndDatabaseProvenanceFailures(adapter, version):
     """Success requires verified provider version and database metadata evidence."""
 

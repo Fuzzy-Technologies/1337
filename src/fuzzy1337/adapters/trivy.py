@@ -14,6 +14,7 @@ import subprocess
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import cast
 
@@ -110,7 +111,10 @@ def ParseJson(raw: bytes, max_bytes: int = TRIVY_JSON_MAX_BYTES) -> dict[str, ob
         value = json.loads(raw.decode("utf-8-sig"), object_pairs_hook=Object,
                            parse_constant=Constant)
 
-    except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
+    except TrivyReportError:
+        raise
+
+    except (ValueError, RecursionError) as error:
         raise TrivyReportError("Trivy JSON is malformed, incomplete or not UTF-8") from error
 
     if not isinstance(value, dict):
@@ -508,6 +512,19 @@ class TrivyAdapter:
             database["Version"] < 1 or not isinstance(database.get("UpdatedAt"), str)
         ):
             raise TrivyReportError("successful Trivy output requires observed DB metadata")
+
+        try:
+            updated_at = cast(str, database["UpdatedAt"])
+            RequireText(updated_at, "Trivy DB update time")
+            database_time = datetime.fromisoformat(updated_at)
+
+            if database_time.tzinfo is None or database_time.utcoffset() is None:
+                raise ValueError("Trivy DB update time requires an explicit UTC offset")
+
+        except ValueError as error:
+            raise TrivyReportError(
+                "Trivy DB update time must be a timezone-aware timestamp"
+            ) from error
 
         payload = ParseJson(raw)
 
