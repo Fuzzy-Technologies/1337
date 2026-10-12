@@ -31,15 +31,15 @@ defaults, enums, constraint expressions, responses and vendor-extension values
 are not copied. Consumed unsupported features fail without returning a partial
 import; unconsumed schema/response sections are not independently validated.
 
-| Boundary                  | Limit                  |
-| ------------------------- | ---------------------- |
-| Input JSON                | 1 MiB UTF-8 bytes      |
-| JSON nodes / depth        | 20000 / 32             |
-| Reference/schema work     | 4096 resolution visits |
-| Reference/body nesting    | 16                     |
-| Generated operation rows  | 128                    |
-| Servers / media variants  | 4 / 8 per operation    |
-| Canonical import output   | 512 KiB UTF-8 bytes    |
+| Boundary                 | Limit                  |
+| ------------------------ | ---------------------- |
+| Input JSON               | 1 MiB UTF-8 bytes      |
+| JSON nodes / depth       | 20000 / 32             |
+| Reference/schema work    | 4096 resolution visits |
+| Reference/body nesting   | 16                     |
+| Generated operation rows | 128                    |
+| Servers / media variants | 4 / 8 per operation    |
+| Canonical import output  | 512 KiB UTF-8 bytes    |
 
 The existing request contract additionally limits a template to 128 injection
 points and 64 KiB; the existing model limits each attribute projection to 64 KiB.
