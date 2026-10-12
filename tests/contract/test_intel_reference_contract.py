@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -15,6 +16,7 @@ from fuzzy1337.intel_references import (
     ReferenceKind,
     ReferenceNamespace,
     ReferenceRecord,
+    ReferenceReview,
     ReferenceSource,
     SourceOrigin,
 )
@@ -135,3 +137,37 @@ def test_SchemaRejectsDuplicateRecordsAndChangedSourceProvenance():
 
     with pytest.raises(ValueError, match="canonical content"):
         ReferenceCatalog.FromDict(document)
+
+
+@pytest.mark.parametrize("source_changes", [
+    {"origin": SourceOrigin.EXTERNAL}, {"publisher": "Different synthetic publisher"},
+    {"source_url": "https://example.invalid/replaced-catalog"},
+    {"artifact_sha256": "c" * 64}, {"license_name": "Changed synthetic fixture license"},
+    {"license_url": "https://example.invalid/replaced-license"},
+    {"acquired_at": "2026-10-11T12:01:00Z"},
+    {"importer_id": "different-synthetic-importer"}, {"importer_version": "2"},
+])
+def test_RehashedSourceCannotReuseReviewFromAnEarlierAttribution(source_changes):
+    """Recomputing public hashes after changing provenance cannot transfer an existing review."""
+
+    record = Catalog().records[0]
+    review = ReferenceReview(
+        "synthetic-reviewer-not-a-person", "2026-10-11T12:05:00Z", record.ContentDigest(),
+    )
+    changed = replace(record, source=replace(record.source, **source_changes))
+    document = ReferenceCatalog((changed,)).ToDict()
+    document["records"][0]["review"] = review.ToDict()
+
+    with pytest.raises(ValueError, match="exact reference content"):
+        ReferenceCatalog.Deserialize(json.dumps(document).encode("utf-8"))
+
+    document["records"][0]["review"] = None
+    parsed = ReferenceCatalog.Deserialize(json.dumps(document).encode("utf-8"))
+
+    assert parsed.records[0].review is None, "Removing a stale review must not create approval"
+    assert parsed.records[0].identity.Reference() == record.identity.Reference(), (
+        "Attribution updates must preserve the version-bound external identity"
+    )
+    assert parsed.records[0].ContentDigest() != record.ContentDigest(), (
+        "Every source fact must remain bound to the interpreted content"
+    )
