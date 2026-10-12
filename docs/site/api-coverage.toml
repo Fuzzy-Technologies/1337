@@ -156,6 +156,18 @@ mode = "authored"
 page = "api/fuzzy1337.model.md"
 
 [[surfaces]]
+module = "fuzzy1337.journeys"
+source = "src/fuzzy1337/journeys.py"
+mode = "authored"
+page = "api/fuzzy1337.journeys.md"
+
+[[surfaces]]
+module = "fuzzy1337.standards_mapping"
+source = "src/fuzzy1337/standards_mapping.py"
+mode = "authored"
+page = "api/fuzzy1337.standards_mapping.md"
+
+[[surfaces]]
 module = "fuzzy1337.policy"
 source = "src/fuzzy1337/policy.py"
 mode = "authored"
