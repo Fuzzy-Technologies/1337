@@ -6,38 +6,46 @@
 from __future__ import annotations
 
 import cmd
+import shlex
 import sys
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
-from typing import TextIO
+from pathlib import Path
+from typing import TextIO, cast
 
 from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
 from fuzzy1337.component_health import RunUpdate
+from fuzzy1337.lenses import LENS_CATALOG, ResolveLens
+from fuzzy1337.model import CanonicalModelJson, LocalModelStore, ModelState
 
 DEFAULT_LENS = "pentest"
 DEFAULT_VIEW = "context"
-LENSES = ("pentest", "dfir", "devsecops", "purple")
+LENSES = tuple(descriptor.identifier for descriptor in LENS_CATALOG)
 SHELL_COMMANDS = (
     "commands",
     "context",
     "help",
     "history",
     "lens",
+    "model",
     "palette",
     "quit",
+    "scan",
+    "scope",
     "select",
     "update",
     "updates",
     "view",
+    "workspace",
 )
-VIEWS = ("context", "updates")
+VIEWS = ("context", "updates", "model")
 HISTORY_LIMIT = 100
 
 
 @dataclass(frozen=True, slots=True)
 class ShellState:
-    """Keep the minimum live-workbench context before the Security Object Model exists."""
+    """Keep lens selection and presentation separate from canonical security state."""
 
     lens: str = DEFAULT_LENS
     selected_object: str | None = None
@@ -113,7 +121,7 @@ def FuzzyScore(query: str, candidate: str) -> int | None:
 
 
 class InteractiveShell(cmd.Cmd):
-    """Provide a keyboard-first shell without claiming a Security Object Model exists."""
+    """Provide a keyboard-first shell with explicit read-only model snapshot views."""
 
     intro = "1337 interactive workbench. Type 'help' for commands."
     prompt = "1337> "
@@ -138,6 +146,22 @@ class InteractiveShell(cmd.Cmd):
         self._updates: deque[WorkbenchUpdate] = deque()
         self._history: deque[str] = deque(maxlen=HISTORY_LIMIT)
         self._context_actions: dict[str, tuple[ContextualAction, ...]] = {}
+        self._model: ModelState | None = None
+
+    def BindModel(self, state: ModelState) -> None:
+        """Bind an immutable shared snapshot without authorizing, executing, or persisting work.
+
+        Args:
+            state: Validated canonical model snapshot supplied by a workspace owner.
+
+        Raises:
+            ValueError: The snapshot is not a ModelState.
+        """
+
+        if not isinstance(state, ModelState):
+            raise ValueError("state must be a ModelState")
+
+        self._model = state
 
     @property
     def State(self) -> ShellState:
@@ -183,7 +207,8 @@ class InteractiveShell(cmd.Cmd):
     def onecmd(self, line: str) -> bool:
         """Run a command while retaining bounded operator history for local search.
 
-        Records nonempty commands except history in bounded local history before dispatch.
+        Records ordinary nonempty commands except history in bounded local history.
+        Workspace/scope/scan retain only their namespace, avoiding rejected secret arguments.
 
         Args:
             line: Operator command line to dispatch through cmd.Cmd.
@@ -195,7 +220,19 @@ class InteractiveShell(cmd.Cmd):
         normalized = line.strip()
         command = normalized.split(maxsplit=1)[0].lower() if normalized else ""
         if normalized and command != "history":
-            self._history.append(normalized)
+            self._history.append(
+                command if command in {"workspace", "scope", "scan"} else normalized
+            )
+
+        if command in {"workspace", "scope", "scan"}:
+            remainder = normalized.split(maxsplit=1)[1:] or [""]
+
+            try:
+                return super().onecmd(command + " " + remainder[0])
+
+            finally:
+                # cmd.Cmd retains raw input for empty-line replay unless explicitly cleared.
+                self.lastcmd = command
 
         return super().onecmd(line)
 
@@ -269,20 +306,29 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         help_text = {
             "": (
-                "commands, context, history [query], lens <name>, palette [query], "
-                "select <object-id>, update [--json], updates, view <name>, quit"
+                "commands, context, history [query], lens [<name>] [--json], "
+                "model <workspace-path>, palette [query], select <object-id>, "
+                "scan quick, scope create, workspace <create|open>, "
+                "update [--json], updates, view <name> [--json], quit"
             ),
             "commands": "commands: list interactive and current top-level CLI commands.",
             "context": "context: show the current lens and selected object reference.",
             "history": "history [query]: search previous shell commands from newest to oldest.",
-            "lens": "lens <name>: select pentest, dfir, devsecops, or purple.",
+            "lens": (
+                "lens [<name>] [--json]: select pentest, dfir, devsecops, or purple; "
+                "--json describes the selected lens."
+            ),
+            "model": "model <workspace-path>: open an existing read-only workspace model snapshot.",
             "palette": (
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
+            "scan": "scan quick <workspace>: run approved SAFE discovery with live events.",
+            "scope": "scope create <workspace>: record explicit targets, rules and consent.",
+            "workspace": "workspace <create|open>: initialize or verify durable shared state.",
             "update": "update [--json]: inspect local component health without installing updates.",
             "updates": "updates: render queued progress or future model updates.",
-            "view": "view <name>: select context or updates as the current model slice.",
+            "view": "view <name> [--json]: select context, updates, or model; JSON requires model.",
             "quit": "quit: leave the interactive shell.",
         }
         message = help_text.get(topic)
@@ -291,6 +337,60 @@ class InteractiveShell(cmd.Cmd):
             return
 
         self.Write(message)
+
+    def RunLocalCommand(self, command: str, argument: str) -> None:
+        """Dispatch the same explicit foreground workspace/scope/scan path as the CLI.
+
+        Args:
+            command: Product namespace; shell context never supplies implicit authority.
+            argument: Quoted operator argument line, parsed without a subprocess shell.
+        """
+
+        from fuzzy1337.scan_commands import RunCommands
+
+        try:
+            arguments = shlex.split(argument)
+            json_output = "--json" in arguments
+            arguments = [item for item in arguments if item != "--json"]
+            status = RunCommands(command, arguments, cast(TextIO, self.stdout),
+                                 json_output=json_output)
+
+            if status:
+                self.Write(f"Command exit status: {status}")
+
+        except ValueError:
+            self.Write("Invalid quoted command arguments.")
+
+        except SystemExit as error:
+            if error.code:
+                self.Write(f"usage: {command} --help")
+
+    def do_workspace(self, argument: str) -> None:
+        """Create or reopen a workspace through the explicit product command.
+
+        Args:
+            argument: Workspace action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("workspace", argument)
+
+    def do_scope(self, argument: str) -> None:
+        """Record target rules and consent through the explicit product command.
+
+        Args:
+            argument: Scope action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("scope", argument)
+
+    def do_scan(self, argument: str) -> None:
+        """Run foreground discovery with live events and explicit scan authorization.
+
+        Args:
+            argument: Scan action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("scan", argument)
 
     def do_history(self, argument: str) -> None:
         """Search local command history in reverse chronological order.
@@ -314,10 +414,27 @@ class InteractiveShell(cmd.Cmd):
         """Select one of the initial workflow lenses.
 
         Args:
-            argument: Supported lens name, or empty input to list lenses.
+            argument: Supported lens name or --json; empty input lists lenses.
         """
 
-        lens = argument.strip().lower()
+        parts = argument.strip().lower().split()
+        json_output = bool(parts and parts[-1] == "--json")
+
+        if json_output:
+            parts.pop()
+
+        if len(parts) > 1:
+            self.Write("usage: lens [<name>] [--json]")
+
+            return
+
+        lens = parts[0] if parts else ""
+
+        if not lens and json_output:
+            self.Write(CanonicalModelJson(ResolveLens(self._state.lens).ToDict()).decode("utf-8"))
+
+            return
+
         if not lens:
             self.Write("Available lenses: " + ", ".join(LENSES))
             return
@@ -327,7 +444,41 @@ class InteractiveShell(cmd.Cmd):
             return
 
         self._state = replace(self._state, lens=lens)
+
+        if json_output:
+            self.Write(CanonicalModelJson(ResolveLens(lens).ToDict()).decode("utf-8"))
+
+            return
+
         self.Write(f"Selected lens: {lens}")
+
+        if self._state.view == "model":
+            self.RenderModel()
+
+    def do_model(self, argument: str) -> None:
+        """Open an explicitly named existing workspace without creating or saving model state.
+
+        Args:
+            argument: Workspace directory path; whitespace inside paths is retained.
+        """
+
+        path = argument.strip()
+
+        if not path:
+            self.Write("usage: model <workspace-path>")
+
+            return
+
+        try:
+            state = LocalModelStore(Path(path)).Open()
+
+        except (OSError, ValueError) as error:
+            self.Write(f"Could not open model: {error}")
+
+            return
+
+        self.BindModel(state)
+        self.Write(f"Loaded model: {state.workspace_id} at revision {state.revision}")
 
     def do_palette(self, argument: str) -> None:
         """Search immediately available commands and cached selected-object actions.
@@ -403,13 +554,24 @@ class InteractiveShell(cmd.Cmd):
         RunUpdate(self.stdout, json_output=option == "--json")
 
     def do_view(self, argument: str) -> None:
-        """Select the small model-slice view used by the shell foundation.
+        """Select a presentation view and render an explicitly bound model snapshot.
 
         Args:
-            argument: Supported view name, or empty input to list views.
+            argument: Supported view name with optional --json for model output.
         """
 
-        view = argument.strip().lower()
+        parts = argument.strip().lower().split()
+        json_output = bool(parts and parts[-1] == "--json")
+
+        if json_output:
+            parts.pop()
+
+        if len(parts) > 1 or (json_output and parts != ["model"]):
+            self.Write("usage: view <name> [--json]")
+
+            return
+
+        view = parts[0] if parts else ""
         if not view:
             self.Write("Available views: " + ", ".join(VIEWS))
             return
@@ -418,8 +580,57 @@ class InteractiveShell(cmd.Cmd):
             self.Write(f"Unknown view: {view}. Available views: " + ", ".join(VIEWS))
             return
 
+        if view == "model" and self._model is None:
+            self.Write("No model loaded. Use model <workspace-path>.")
+
+            return
+
         self._state = replace(self._state, view=view)
+
+        if view == "model":
+            self.RenderModel(json_output=json_output)
+
+            return
+
         self.Write(f"Selected view: {view}")
+
+    def RenderModel(self, *, json_output: bool = False) -> None:
+        """Render a read-only reference view; model records remain with the shared snapshot.
+
+        Args:
+            json_output: Emit the versioned reference document instead of compact terminal rows.
+        """
+
+        if self._model is None:
+            self.Write("No model loaded. Use model <workspace-path>.")
+
+            return
+
+        descriptor = ResolveLens(self._state.lens)
+        projected = descriptor.Project(self._model)
+
+        if json_output:
+            self.Write(CanonicalModelJson(projected).decode("utf-8"))
+
+            return
+
+        self.Write(
+            f"{descriptor.title}: {self._model.workspace_id} at revision {self._model.revision}"
+        )
+        references = set(projected["object_references"])
+
+        for item in self._model.objects:
+            if item.Reference() in references:
+                key = "".join(
+                    character if character.isprintable() else f"\\u{ord(character):04x}"
+                    for character in item.identity.key
+                )
+                self.Write(f"{item.identity.kind.value}: {key} [{item.Reference()}]")
+
+        self.Write(
+            f"Relations: {len(projected['relation_references'])}; "
+            f"observations: {len(projected['observation_references'])}"
+        )
 
     def do_quit(self, argument: str) -> bool:
         """Leave the interactive shell.
