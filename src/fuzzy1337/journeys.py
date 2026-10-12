@@ -247,6 +247,27 @@ def JourneyUrl(value: object) -> Target:
     return value
 
 
+def DecodeJourneyTarget(value: object) -> Target:
+    """Decode only the scenario-owned URL namespace without echoing unknown kinds.
+
+    Args:
+        value: Exact existing target fields from an untrusted scenario document.
+
+    Returns:
+        A bounded canonical URL target with the existing scope identity.
+
+    Raises:
+        ValueError: Fields, target namespace, URL spelling, or bounds are invalid.
+    """
+
+    record = WorkspaceFields(value, {"kind", "value"}, "journey target")
+
+    if record["kind"] != TargetKind.URL.value:
+        raise ValueError("journey target kind must be url")
+
+    return JourneyUrl(Target.FromDict(record))
+
+
 @dataclass(frozen=True, slots=True)
 class JourneyAssertion:
     """One finite expected status, literal response text, or simple DOM element."""
@@ -298,7 +319,12 @@ class JourneyAssertion:
         if not isinstance(expected, (int, str)):
             raise ValueError("expected assertion must be an integer or string")
 
-        return cls(JourneyAssertionKind(JourneyText(record["kind"], "kind")), expected)
+        kind = JourneyText(record["kind"], "kind")
+
+        if kind not in tuple(item.value for item in JourneyAssertionKind):
+            raise ValueError("assertion kind must select a supported finite assertion")
+
+        return cls(JourneyAssertionKind(kind), expected)
 
 
 @dataclass(frozen=True, slots=True)
@@ -451,15 +477,25 @@ class JourneyStep:
         method = record["method"]
         selector = record["selector"]
         data_key = record["test_data_key"]
+        operation = JourneyText(record["operation"], "operation")
+
+        if operation not in tuple(item.value for item in JourneyOperation):
+            raise ValueError("operation must select a supported finite journey action")
+
+        if method is not None:
+            method = JourneyText(method, "method")
+
+            if method not in tuple(item.value for item in JourneyHttpMethod):
+                raise ValueError("method must select a supported HTTP method")
 
         return cls(
             JourneyIdentifier(record["step_id"], "step_id"),
-            JourneyOperation(JourneyText(record["operation"], "operation")),
-            Target.FromDict(record["target"]),
+            JourneyOperation(operation),
+            DecodeJourneyTarget(record["target"]),
             tuple(JourneyAssertion.FromDict(item) for item in assertions),
             JourneyInteger(record["think_time_ms"], "think_time_ms", 0, 60000),
             None if selector is None else JourneySelector(selector),
-            None if method is None else JourneyHttpMethod(JourneyText(method, "method")),
+            None if method is None else JourneyHttpMethod(method),
             None if data_key is None else JourneyIdentifier(data_key, "test_data_key"),
         )
 
@@ -584,7 +620,7 @@ class JourneyScenario:
             JourneyIdentifier(record["scenario_id"], "scenario_id"),
             JourneyIdentifier(record["workspace_id"], "workspace_id"),
             JourneyIdentifier(record["scope_id"], "scope_id"),
-            tuple(Target.FromDict(target) for target in targets),
+            tuple(DecodeJourneyTarget(target) for target in targets),
             tuple(JourneyStep.FromDict(step) for step in steps),
             WorkloadLimits.FromDict(record["workload"]),
             JourneyReference(record["test_data_reference"], "test-data"),

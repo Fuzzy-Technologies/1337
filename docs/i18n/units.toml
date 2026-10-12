@@ -3551,6 +3551,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "symbol:fuzzy1337.journeys.DecodeJourneyTarget"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/journeys.py"
+sourceHash = "sha256:e5149dcec9d2d58addc8cf9d866e5b8450fece42cbe3639a1f768bcd32e360d6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "symbol:fuzzy1337.journeys.JourneyArray"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/journeys.py"

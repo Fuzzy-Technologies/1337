@@ -86,6 +86,36 @@ def test_ExactFieldsRejectSecretScriptAndMissingMetadata(owner, mutation):
         JourneyScenario.FromDict(document)
 
 
+@pytest.mark.parametrize("boundary", [
+    "operation", "method", "assertion", "declared-target", "step-target",
+])
+def test_InvalidEnumFieldsNeverEchoCapturedInput(boundary):
+    """Invalid untrusted scenario fields cannot disclose private values in diagnostics."""
+
+    document = Fixture()
+    marker = "synthetic-private-value-not-for-output"
+
+    if boundary == "operation":
+        document["steps"][0]["operation"] = marker
+
+    elif boundary == "method":
+        document["steps"][-1]["method"] = marker
+
+    elif boundary == "assertion":
+        document["steps"][0]["assertions"][0]["kind"] = marker
+
+    elif boundary == "declared-target":
+        document["allowed_targets"][0]["kind"] = marker
+
+    else:
+        document["steps"][0]["target"]["kind"] = marker
+
+    with pytest.raises(ValueError) as caught:
+        JourneyScenario.FromDict(document)
+
+    assert marker not in str(caught.value), "Scenario validation leaked captured input"
+
+
 @pytest.mark.parametrize("change", [
     {"operation": "evaluate"}, {"operation": "navigate", "selector": "#unexpected"},
     {"operation": "click", "selector": "button", "method": "GET"},
