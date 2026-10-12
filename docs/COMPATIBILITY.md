@@ -45,6 +45,10 @@ at version `1`. ADR 0022 and `docs/SCOPE.md` define typed target identity,
 explicit consent metadata, offline membership, and portable scope persistence.
 Scope membership does not issue invocation-bound execution authorization.
 
+`fuzzy1337.requests` is an Experimental Python library at contract version `1`.
+ADR 0028 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
@@ -72,6 +76,10 @@ mapping-pack schema at version `1`. Proposed ADR 0035 and `docs/STANDARDS_MAPPIN
 define exact upstream identities, source provenance, review-bound content
 references, and explicit finding associations. Candidate mappings never establish
 control fulfillment, certification, or Evidence integrity.
+
+`fuzzy1337.policy` is an Experimental Python library at contract version `1`.
+ADR 0025 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
 
 ## Version compatibility rules
 
@@ -193,5 +201,7 @@ Current versioned public contracts:
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`                   | Experimental |
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                                  | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`                 | Experimental |
+| Web request model    | `1`            | `fuzzy1337.requests`                                       | Experimental |
+| Impact policy        | `1`            | `fuzzy1337.policy`                                         | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
