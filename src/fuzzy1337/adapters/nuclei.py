@@ -211,8 +211,11 @@ def CanonicalUrl(value: object) -> str:
         ValueError: The URL has unsupported authority, credentials, or expansion.
     """
 
-    if not isinstance(value, str) or any(character.isspace() for character in value) or (
-        any(character in value for character in ("\\", "\x00", ","))
+    if not isinstance(value, str) or any(
+        character.isspace() or ord(character) < 32 or ord(character) == 127
+        for character in value
+    ) or (
+        any(character in value for character in ("\\", ","))
     ):
         raise ValueError("Nuclei requires one explicit HTTP(S) URL")
 
@@ -230,6 +233,7 @@ def CanonicalUrl(value: object) -> str:
     if parsed.scheme not in {"http", "https"} or parsed.username is not None or (
         parsed.password is not None or parsed.fragment or parsed.query
         or "%" in str(address) or address.is_multicast or address.is_unspecified
+        or address == ipaddress.IPv4Address("255.255.255.255")
         or not 1 <= port <= 65535
     ):
         raise ValueError("Nuclei URL must be unicast HTTP(S) without credentials/query/fragment")
@@ -430,7 +434,7 @@ def ParseJsonl(raw: bytes) -> tuple[Mapping[str, object], ...]:
             value: object = json.loads(line.decode("utf-8"), object_pairs_hook=UniqueJsonObject,
                                        parse_constant=RejectJsonConstant)
 
-        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as error:
+        except (ValueError, RecursionError) as error:
             raise NucleiReportError("Nuclei JSONL is invalid or truncated UTF-8 JSON") from error
 
         if not isinstance(value, dict):

@@ -26,7 +26,8 @@ a review. Use owned immutable files with an actual reviewed declaration.
 An `AdapterRequest` must contain exactly `url`, `profile_sha256` (the profile's
 `Digest`), `timeout_seconds` (1–300) and `rate_limit` (1–10 requests/second). The
 URL is one literal unicast IP over HTTP(S), without credentials, query, fragment,
-DNS resolution or comma/list expansion. Its exact path and port are retained.
+control characters, IPv4 limited broadcast, DNS resolution or comma/list
+expansion. Its exact path and port are retained.
 There is no arbitrary provider option passthrough. The profile hash binds all
 selected source/revision/review data into existing invocation authorization.
 

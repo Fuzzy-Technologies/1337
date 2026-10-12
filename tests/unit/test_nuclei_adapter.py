@@ -135,6 +135,8 @@ def test_FinitePreparationKeepsSdkAndReviewedProvenance(tmp_path, monkeypatch):
     "http://user:password@127.0.0.1/", "http://127.0.0.1/?secret=x", "http://127.0.0.1/#fragment",
     "http://0.0.0.0/", "http://224.0.0.1/", "http://[fe80::1%eth0]/", "http://127.0.0.1:0/",
     "http://127.0.0.1:65536/", "http://127.0.0.1/\n", "http://127.0.0.1/\\path", None,
+    "http://255.255.255.255/", "\x01http://127.0.0.1/", "http://127.0.0.1/\x01",
+    "http://127.0.0.1/\x7f",
 ])
 def test_RejectUrlExpansionAndCredentials(url):
     """Only one exact literal URL can enter the finite CLI profile."""
@@ -356,6 +358,7 @@ def test_EvidenceDigestSizeRoleAndInvocationBinding(tmp_path):
 @pytest.mark.parametrize("raw", [
     b"[]", b'{"same":1,"same":2}', b'{"number":NaN}', b'{"number":1e999}', b"\xff",
     b"\n", b'[{"nested":true}]', b'{"unclosed":',
+    b'{"number":' + b'9' * 5000 + b'}',
 ])
 def test_RejectMalformedJsonl(raw):
     """Strict JSON rejects ambiguous/non-finite data and invalid UTF-8 objects."""
