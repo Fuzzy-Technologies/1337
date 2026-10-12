@@ -43,6 +43,16 @@ IMAGE_IMPORT_MAX_ITEMS = 4096
 _DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _TYPE = re.compile(r"[a-z][a-z0-9.+-]*\Z")
 _BAD_PERCENT = re.compile(r"%(?![0-9a-fA-F]{2})")
+_NATIVE_PURL_TYPES = {
+    "python-pkg": "pypi", "pip": "pypi", "pipenv": "pypi", "poetry": "pypi",
+    "uv": "pypi", "pylock": "pypi", "node-pkg": "npm", "yarn": "npm",
+    "pnpm": "npm", "bun": "npm", "jar": "maven", "pom": "maven", "gradle": "maven",
+    "sbt": "maven", "gobinary": "golang", "gomod": "golang", "bundler": "gem",
+    "gemspec": "gem", "rustbinary": "cargo", "alpine": "apk", "chainguard": "apk",
+    "wolfi": "apk", "debian": "deb", "ubuntu": "deb", "redhat": "rpm", "centos": "rpm",
+    "rocky": "rpm", "alma": "rpm", "amazon": "rpm", "fedora": "rpm", "oracle": "rpm",
+    "suse": "rpm", "sles": "rpm", "photon": "rpm", "cbl-mariner": "rpm",
+}
 
 __all__ = [
     "IMAGE_CONTRACT_VERSION", "IMAGE_IMPORT_MAX_BYTES", "IMAGE_IMPORT_MAX_ITEMS",
@@ -317,14 +327,16 @@ def VerifyRecords(state: ModelState, provenance: ModelProvenance,
         ):
             raise ValueError("image evidence workspace/scope/source/version binding differs")
 
+        if record.reference.role in {"stdout", "sbom"} and source.finished_at != (
+            provenance.observed_at
+        ):
+            raise ValueError("image observation time differs from evidence collection")
+
         if report is not None and record.reference.role != "provider-version":
             if source.invocation_sha256 != InvocationDigest(report.invocation) or (
                 source.execution != report.execution
             ):
                 raise ValueError("image stream provenance differs from exact invocation/execution")
-
-            if record.reference.role == "stdout" and source.finished_at != provenance.observed_at:
-                raise ValueError("image observation time differs from scan evidence collection")
 
         elif source.execution is not None or source.invocation_sha256 is not None:
             raise ValueError("offline document/version evidence cannot invent scan execution")
@@ -425,7 +437,7 @@ def PackageRecord(record: dict[str, object], ecosystem: str,
 
     Args:
         record: Parsed native package with name/version and optional epoch/release/PURL.
-        ecosystem: Native result type used only for package identities without a PURL.
+        ecosystem: Native result type whose supported alias must agree with a supplied PURL.
         os_fields: Observed image OS family/version retained in fallback qualifier context.
 
     Returns:
@@ -451,9 +463,17 @@ def PackageRecord(record: dict[str, object], ecosystem: str,
 
     if purl is not None:
         identity = PackageIdentity.FromPurl(purl)
+        architecture = record.get("Arch")
 
-        if not PackageNameMatches(identity, name) or identity.version != version:
-            raise ValueError("package PURL disagrees with installed name/version")
+        if not PackageNameMatches(identity, name) or identity.version != version or (
+            identity.ecosystem != _NATIVE_PURL_TYPES.get(ecosystem, ecosystem)
+        ):
+            raise ValueError("package PURL disagrees with installed name/version/ecosystem")
+
+        if architecture not in (None, "") and dict(identity.qualifiers).get("arch") != (
+            Text(architecture)
+        ):
+            raise ValueError("package PURL disagrees with observed native architecture")
 
         return identity
 
@@ -543,7 +563,14 @@ def ApplyVerifiedTrivyImages(state: ModelState, report: AdapterReport,
     ):
         raise ValueError("Trivy image import requires matching observed provider/database metadata")
 
-    NormalizeEvidenceTime(Text(database.get("UpdatedAt")))
+    try:
+        NormalizeEvidenceTime(Text(database.get("UpdatedAt")))
+
+    except (ValueError, OverflowError):
+        raise ValueError(
+            "Trivy database update time requires a valid offset-aware datetime"
+        ) from None
+
     payload = ParseJson(raw["stdout"], IMAGE_IMPORT_MAX_BYTES)
 
     if type(payload.get("SchemaVersion")) is not int or payload["SchemaVersion"] != 2 or (
@@ -640,7 +667,12 @@ def ApplyVerifiedTrivyImages(state: ModelState, report: AdapterReport,
 
             subject = matches[0].Reference()
             vulnerability_id = Text(vulnerability.get("VulnerabilityID"))
-            severity = FindingSeverity(Text(vulnerability.get("Severity")).lower())
+            severity_text = Text(vulnerability.get("Severity")).lower()
+
+            if severity_text not in {item.value for item in FindingSeverity}:
+                raise ValueError("image vulnerability severity is unsupported")
+
+            severity = FindingSeverity(severity_text)
             fixed = vulnerability.get("FixedVersion")
             remediation = Remediation(summary=f"Upgrade to {Text(fixed)}" if fixed else None)
             findings.append(Finding(subject, "supply-chain.vulnerability", vulnerability_id,

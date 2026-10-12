@@ -5676,7 +5676,7 @@ state = "missing"
 id = "symbol:fuzzy1337.images.PackageRecord"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/images.py"
-sourceHash = "sha256:f0c1303784d4cc55e435f87f705a4ff115891882915854a1382517fc929633e1"
+sourceHash = "sha256:9546c1cdd979c78426547c997ea2691b9d35ffdd0e18aeec833cf571f3a03202"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

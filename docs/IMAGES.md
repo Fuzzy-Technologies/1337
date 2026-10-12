@@ -25,6 +25,28 @@ normalization; other ecosystems require canonical source names. This profile is
 not a complete PURL specification implementation. Native fallback identities
 include OS version and architecture; they do not infer equivalence with a PURL.
 Native epoch and release participate in installed-version correlation.
+Native package names, versions and source ecosystems must agree with their
+PURLs. The result-type aliases below map to the listed PURL types; other native
+types require literal PURL type equality. When native `Arch` is supplied, its
+exact value must also be present in the PURL `arch` qualifier. A contradictory or
+missing qualifier fails instead of collapsing architecture-specific identities.
+
+| Native result types                                 | PURL type |
+| --------------------------------------------------- | --------- |
+| python-pkg, pip, pipenv, poetry, uv, pylock         | pypi      |
+| node-pkg, npm, yarn, pnpm, bun                      | npm       |
+| jar, pom, gradle, sbt                               | maven     |
+| gobinary, gomod                                     | golang    |
+| bundler, gemspec                                    | gem       |
+| rustbinary, cargo                                   | cargo     |
+| alpine, chainguard, wolfi                           | apk       |
+| debian, ubuntu                                      | deb       |
+| redhat, centos, rocky, alma, amazon, fedora, oracle | rpm       |
+| suse, sles, photon, cbl-mariner                     | rpm       |
+
+This is a bounded source-classification profile, not complete Trivy/PURL type
+equivalence. Unsupported native aliases must be added explicitly before they
+can be paired with a different PURL type.
 
 Existing CONTAINS/RELATED_TO relations connect images, package versions, OS,
 declared licenses and layer DiffIDs. Layer order remains an evidence-attributed
@@ -57,8 +79,9 @@ operation; inventory import does not make that decision.
 
 `ApplyVerifiedCycloneDx(state, record, provenance, image_identity, workspace_root)`
 supports flat CycloneDX 1.6 JSON package/license inventory. The source must have
-role `sbom`, matching immutable attribution and no invented scan outcome. Its
-container root needs exactly one SHA-256 hash matching the supplied ImageIdentity.
+role `sbom`, matching immutable attribution and no invented scan outcome. Model
+observation time must match verified document collection completion. The container
+root needs exactly one SHA-256 hash matching the supplied ImageIdentity.
 The caller declares whether that root hash denotes a config or manifest; the
 reader cannot infer OCI hash semantics from a generic SBOM component hash.
 

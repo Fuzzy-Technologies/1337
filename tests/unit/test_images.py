@@ -8,6 +8,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import replace
 from shutil import copytree
+from traceback import format_exception
 
 import pytest
 
@@ -472,15 +473,16 @@ def test_PurlCanonicalizationAndQualifierOrdering():
         PackageIdentity("pypi", "name\ud800", "1")
 
 
-@pytest.mark.parametrize(("name", "purl"), [
-    ("@owned/lib", "pkg:npm/%40owned/lib@1.0"),
-    ("org.owned:lib", "pkg:maven/org.owned/lib@1.0"),
-    ("owned.invalid/lib", "pkg:golang/owned.invalid/lib@1.0"),
+@pytest.mark.parametrize(("result_type", "name", "purl"), [
+    ("node-pkg", "@owned/lib", "pkg:npm/%40owned/lib@1.0"),
+    ("jar", "org.owned:lib", "pkg:maven/org.owned/lib@1.0"),
+    ("gobinary", "owned.invalid/lib", "pkg:golang/owned.invalid/lib@1.0"),
 ])
-def test_NamespacedPackagesRetainExactNativeCorrelation(context, name, purl):
+def test_NamespacedPackagesRetainExactNativeCorrelation(context, result_type, name, purl):
     """Native npm/Maven/Go names bind their PURL namespace rather than losing package identity."""
 
     payload = deepcopy(NATIVE)
+    payload["Results"][0]["Type"] = result_type
     payload["Results"][0]["Packages"][0].update(Name=name, Identifier={"PURL": purl})
     payload["Results"][0]["Vulnerabilities"][0].update(PkgName=name)
     state, _ = Import(context, payload)
@@ -488,6 +490,95 @@ def test_NamespacedPackagesRetainExactNativeCorrelation(context, name, purl):
     assert Findings(state)[0].subject_reference == PackageIdentity.FromPurl(purl).Object(
         state.workspace_id
     ).Reference(), "Qualified names must retain their namespaced installed-version key."
+
+
+@pytest.mark.parametrize("observed_at", [
+    "2026-10-12T23:59:59Z", "2030-01-01T00:00:00Z",
+])
+def test_SbomObservationTimeMustMatchVerifiedCollection(context, observed_at):
+    """The public document ingestion boundary cannot invent earlier or later acquisition facts."""
+
+    root, state, store = context
+    record, provenance = Sbom(context)
+    raw = store.Read(record.reference)
+
+    with pytest.raises(ValueError, match="observation time"):
+        ApplyVerifiedCycloneDx(state, record, replace(provenance, observed_at=observed_at),
+                              ImageIdentity(IMAGE), root)
+
+    assert LocalModelStore(root).Open() == state, "Rejected attribution wrote canonical state."
+    assert store.Read(record.reference) == raw, "Rejected attribution altered immutable evidence."
+
+
+@pytest.mark.parametrize(("architecture", "purl"), [
+    (None, "pkg:npm/owned-lib@1.0"),
+    ("x86_64", "pkg:pypi/owned-lib@1.0?arch=arm64"),
+    ("x86_64", "pkg:pypi/owned-lib@1.0"),
+    (True, "pkg:pypi/owned-lib@1.0?arch=x86_64"),
+])
+def test_ContradictoryNativePurlClassificationCannotCorrelateFindings(context, architecture, purl):
+    """A catalog cannot relabel Python packages or collapse observed incompatible architectures."""
+
+    root, initial, store = context
+    payload = deepcopy(NATIVE)
+    payload["Results"][0]["Packages"][0].update(Name="owned-lib", Arch=architecture,
+                                               Identifier={"PURL": purl})
+    payload["Results"][0]["Vulnerabilities"][0]["PkgName"] = "owned-lib"
+    report, provenance, records = Native(context, payload)
+
+    with pytest.raises(ValueError):
+        ApplyVerifiedTrivyImages(initial, report, provenance, records, root)
+
+    assert LocalModelStore(root).Open() == initial, "Contradictory package fields changed state."
+    assert store.Read(records[0].reference) == CanonicalModelJson(payload), (
+        "Contradictory raw package evidence must remain available for inspection."
+    )
+
+
+def test_MatchingNativeArchitectureKeepsPackageVersionsDistinct(context):
+    """Different observed architectures retain separate installed-package identities."""
+
+    root, state, _ = context
+
+    for architecture in ("x86_64", "arm64"):
+        payload = deepcopy(NATIVE)
+        payload["Results"][0]["Packages"][0].update(Arch=architecture,
+            Identifier={"PURL": PURL + "?arch=" + architecture})
+        report, provenance, records = Native(context, payload)
+        state, _ = ApplyVerifiedTrivyImages(state, report, provenance, records, root)
+
+    expected = {PackageIdentity.FromPurl(PURL + "?arch=" + architecture).Object(
+        state.workspace_id
+    ).Reference() for architecture in ("x86_64", "arm64")}
+    assert {finding.subject_reference for finding in Findings(state)} == expected, (
+        "Architecture-specific package findings collapsed into one package version."
+    )
+
+
+@pytest.mark.parametrize("field", ["severity", "database_updated_at"])
+def test_UntrustedNativeDiagnosticFieldsDoNotLeakThroughTracebacks(context, field):
+    """Malformed provider fields remain confined to raw evidence when validation fails."""
+
+    root, state, _ = context
+    marker = "synthetic-private-source-value"
+    payload = deepcopy(NATIVE)
+    version_fields = None
+
+    if field == "severity":
+        payload["Results"][0]["Vulnerabilities"][0]["Severity"] = marker
+
+    else:
+        version_fields = {"VulnerabilityDB": {"Version": 2, "UpdatedAt": marker}}
+
+    report, provenance, records = Native(context, payload, version_fields=version_fields)
+
+    with pytest.raises(ValueError) as caught:
+        ApplyVerifiedTrivyImages(state, report, provenance, records, root)
+
+    assert marker not in str(caught.value), "Validation diagnostic exposed private source data."
+    assert marker not in "".join(format_exception(caught.value)), (
+        "Validation exception chaining exposed private source data."
+    )
 
 
 def test_VerifiedInventoryReplaySurvivesWorkspaceRelocation(context):

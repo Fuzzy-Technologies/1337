@@ -222,6 +222,6 @@ Current versioned public contracts:
 | Scan jobs            | `1`            | `fuzzy1337.jobs`                                         | Experimental |
 | Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                              | Experimental |
 | Finding core         | `1`            | `fuzzy1337.findings`                                     | Experimental |
-| Image/package model | `1` | `fuzzy1337.images`; `docs/IMAGES.md` | Experimental |
+| Image/package model  | `1`            | `fuzzy1337.images`; `docs/IMAGES.md`                     | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
