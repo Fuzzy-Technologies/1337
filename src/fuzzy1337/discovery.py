@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 from fuzzy1337.adapters import (
     AdapterDescriptor,
@@ -102,6 +104,7 @@ class NativeDiscoveryProvider:
         self, workspace_root: Path, targets: tuple[Target, ...], scope_id: str,
         policy: ImpactPolicy,
         *, limits: DiscoveryLimits = DiscoveryLimits(), clock: Callable[[], datetime] = UtcNow,
+        context_validator: Callable[[PolicyContext], None] | None = None,
     ) -> None:
         """Validate a finite sensor plan without I/O or starting any worker.
 
@@ -112,6 +115,8 @@ class NativeDiscoveryProvider:
             policy: Explicit operator capability/impact permission; default policy grants nothing.
             limits: Finite sequential request and total runtime budgets.
             clock: Aware UTC authority clock shared with the governed executor.
+            context_validator: Optional trusted synchronous consumer guard over fresh immutable
+                context; must return None or raise to deny. It cannot replace core policy checks.
 
         Raises:
             ValueError: Targets, policy, root, scope identifier or limits are unsupported.
@@ -119,6 +124,9 @@ class NativeDiscoveryProvider:
 
         if not isinstance(limits, DiscoveryLimits) or not isinstance(policy, ImpactPolicy):
             raise ValueError("native discovery requires typed limits and impact policy")
+
+        if context_validator is not None and not callable(context_validator):
+            raise ValueError("context_validator must be callable when supplied")
 
         if not isinstance(targets, tuple) or not 1 <= len(targets) <= limits.max_endpoints:
             raise ValueError("native discovery requires a nonempty bounded target tuple")
@@ -142,6 +150,7 @@ class NativeDiscoveryProvider:
         self._scope_id = scope_id
         self._policy = policy
         self._clock = clock
+        self._context_validator = context_validator
         self.limits = limits
 
     @property
@@ -227,8 +236,19 @@ class NativeDiscoveryProvider:
         def CurrentContext() -> PolicyContext:
             """Reread current persisted scope immediately at authorization and launch."""
 
-            return PolicyContext(self._scope.Open(self._scope_id), self._policy, target,
-                                 (Target(TargetKind.IP, address), target))
+            current = PolicyContext(self._scope.Open(self._scope_id), self._policy, target,
+                                    (Target(TargetKind.IP, address), target))
+
+            if self._context_validator is not None:
+                response = cast(Callable[[PolicyContext], object], self._context_validator)(current)
+
+                if response is not None:
+                    if inspect.iscoroutine(response):
+                        response.close()
+
+                    raise PermissionError("context_validator must synchronously return None")
+
+            return current
 
         started = self._clock().isoformat()
 

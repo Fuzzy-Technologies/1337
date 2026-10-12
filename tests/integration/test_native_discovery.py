@@ -292,3 +292,89 @@ def test_ActualCancellationReapsWorkerBeforeTerminalState(tmp_path, owned_http):
     assert (
         not LocalModelStore(root).Open().objects
     ), 'Actual Cancellation Reaps Worker Before Terminal State boundary invariant failed'
+
+
+def test_ConsumerActorGuardDeniesFreshActorBetweenProbes(tmp_path, owned_http):
+    """A consumer-specific expected actor is checked anew before each real endpoint launch."""
+
+    base, calls = owned_http
+    root, targets, scope, policy = Fixture(tmp_path, (base + "/first", base + "/second"))
+    store = LocalScopeStore(root)
+
+    def ValidateActor(context):
+        """Further deny a changed consumer actor without replacing standard scope policy."""
+
+        if context.scope.authorization.authority_reference != "owner:test":
+            raise PermissionError("consumer actor changed")
+
+    producer = NativeDiscoveryProvider(root, targets, "local", policy, clock=lambda: NOW,
+                                       context_validator=ValidateActor)
+    job = ScanJob(JobSpec("job:actor", "synthetic", "scope:local", "owner:test",
+                          NATIVE_HTTP_PROVIDER_ID), producer,
+                   evidence_store=LocalEvidenceStore(root / "evidence"))
+
+    async def ObserveAndChange():
+        """Change still-granted actor after the first actual saved discovery update."""
+
+        job.Start()
+        changed = False
+
+        async for event in job.Events():
+            if event.kind is JobEventKind.MODEL_DELTA and not changed:
+                store.Save(replace(scope, authorization=replace(
+                    scope.authorization, authority_reference="owner:replacement",
+                    record_reference="consent:replacement",
+                )))
+                changed = True
+
+        return await job.Wait()
+
+    result = asyncio.run(ObserveAndChange())
+    assert result.failure.code is JobFailureCode.AUTHORIZATION and calls == ["/first"], (
+        "Changed consent actor must prevent the second real probe"
+    )
+    assert len(LocalModelStore(root).Open().Objects(ObjectKind.ENDPOINT)) == 1, (
+        "Earlier verified discovery must survive later consumer-actor denial"
+    )
+
+
+def test_ConsumerGuardReadsActorAtActualPrelaunch(tmp_path, owned_http, monkeypatch):
+    """A final guarded launch sees changed current consent instead of the issuance snapshot."""
+
+    base, calls = owned_http
+    root, targets, scope, policy = Fixture(tmp_path, (base + "/first",))
+    store = LocalScopeStore(root)
+    original = PolicyEngine.Authorize
+    observed = []
+
+    def ValidateActor(context):
+        """Observe the current actor at both issuance and actual final launch."""
+
+        actor = context.scope.authorization.authority_reference
+        observed.append(actor)
+
+        if actor != "owner:test":
+            raise PermissionError("consumer actor changed")
+
+    def Change(self, *args, **kwargs):
+        """Record a fresh different attester strictly after issuing the original grant."""
+
+        grant = original(self, *args, **kwargs)
+        store.Save(replace(scope, authorization=replace(
+            scope.authorization, authority_reference="owner:replacement",
+        )))
+        return grant
+
+    monkeypatch.setattr(PolicyEngine, "Authorize", Change)
+    producer = NativeDiscoveryProvider(root, targets, "local", policy, clock=lambda: NOW,
+                                       context_validator=ValidateActor)
+    job = ScanJob(JobSpec("job:actor", "synthetic", "scope:local", "owner:test",
+                          NATIVE_HTTP_PROVIDER_ID), producer,
+                   evidence_store=LocalEvidenceStore(root / "evidence"))
+    result = Run(job)
+    assert result.failure.code is JobFailureCode.AUTHORIZATION and not calls, (
+        "Changed prelaunch actor must prevent actual worker execution"
+    )
+    assert observed == ["owner:test", "owner:replacement"], (
+        "Trusted consumer guard must see current issuance and launch context"
+    )

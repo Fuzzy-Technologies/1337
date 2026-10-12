@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -423,3 +424,138 @@ def test_TotalDeadlineCancelsOwnedExecution(tmp_path, fake_executor):
     assert (
         snapshot.failure.code is JobFailureCode.TIMEOUT and fake_executor.cleaned
     ), 'Total Deadline Cancels Owned Execution boundary invariant failed'
+
+
+def test_ContextGuardMustBeCallableBeforeAnyStateAccess(tmp_path):
+    """A malformed trusted consumer hook is rejected during side-effect-free construction."""
+
+    with pytest.raises(ValueError, match="callable"):
+        NativeDiscoveryProvider(tmp_path / "absent", (Target(TargetKind.URL, URL),), "local",
+                                ImpactPolicy("local"), context_validator=1)
+
+
+def test_ContextGuardIsAdditionalAtIssuanceAndFinalLaunch(tmp_path, fake_executor):
+    """A successful consumer guard sees fresh context twice without replacing core policy."""
+
+    root, target, _, policy = Fixture(tmp_path)
+    observed = []
+
+    def Validate(context):
+        """Record immutable current decision inputs without altering or granting authority."""
+
+        observed.append(context.scope.revision)
+
+    provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
+                                       context_validator=Validate)
+    assert Run(Job(root, target, policy, provider=provider)).state is JobState.COMPLETED, (
+        "Valid additional context guard must permit ordinarily authorized execution"
+    )
+    assert observed == [0, 0] and fake_executor.calls == 1, (
+        "Context guard must run at issuance and governed final launch"
+    )
+    denied = NativeDiscoveryProvider(root, (target,), "local", ImpactPolicy("denied"),
+                                     clock=lambda: NOW, context_validator=Validate)
+    result = Run(Job(root, target, policy, provider=denied))
+    assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 1, (
+        "A passing consumer hook must never bypass ordinary missing-capability denial"
+    )
+
+
+@pytest.mark.parametrize("fail_at", [1, 2])
+def test_ContextGuardDenialCannotLaunchWorker(tmp_path, fake_executor, fail_at):
+    """Additional consumer denial is enforced before issuance and at actual final launch."""
+
+    root, target, _, policy = Fixture(tmp_path)
+    observed = []
+
+    def Validate(context):
+        """Deny at the configured boundary without changing current authoritative scope."""
+
+        observed.append(context)
+
+        if len(observed) == fail_at:
+            raise PermissionError("consumer condition denied")
+
+    provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
+                                       context_validator=Validate)
+    result = Run(Job(root, target, policy, provider=provider))
+    assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0, (
+        "Denied trusted context guard must prevent every probe"
+    )
+
+
+@pytest.mark.parametrize("response", [False, True, "approved", 1])
+def test_ContextGuardMustSynchronouslyReturnNone(tmp_path, fake_executor, response):
+    """No accidental truthy/falsey consumer return can become an authorization decision."""
+
+    root, target, _, policy = Fixture(tmp_path)
+    provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
+                                       context_validator=lambda context: response)
+    result = Run(Job(root, target, policy, provider=provider))
+    assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0, (
+        "Non-None context-validator return must fail closed before any execution"
+    )
+
+
+def test_AsyncContextGuardIsClosedAndCannotSilentlySkipValidation(tmp_path, fake_executor):
+    """An accidentally async guard is rejected and its unawaited bare coroutine is closed."""
+
+    root, target, _, policy = Fixture(tmp_path)
+    coroutines = []
+
+    async def AsyncValidate(context):
+        """Never run because trusted guards must validate synchronously at the launch boundary."""
+
+        raise AssertionError("async context guard must not run")
+
+    def Validate(context):
+        """Expose the mistaken coroutine for explicit cleanup verification."""
+
+        response = AsyncValidate(context)
+        coroutines.append(response)
+        return response
+
+    provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
+                                       context_validator=Validate)
+    result = Run(Job(root, target, policy, provider=provider))
+    assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0, (
+        "Async context guard must never be treated as completed authorization"
+    )
+    assert inspect.getcoroutinestate(coroutines[0]) == inspect.CORO_CLOSED, (
+        "Rejected bare coroutine must be closed rather than leak pending validation"
+    )
+
+
+def test_GenericSdkDoesNotEquateAttesterWithJobOwner(tmp_path, fake_executor):
+    """Optional consumer binding does not impose authentication semantics on all SDK operators."""
+
+    root, target, scope, policy = Fixture(tmp_path)
+    LocalScopeStore(root).Save(replace(scope, authorization=replace(
+        scope.authorization, authority_reference="attester:different",
+    )))
+    result = Run(Job(root, target, policy))
+    assert result.state is JobState.COMPLETED and fake_executor.calls == 1, (
+        "Ordinary generic SDK must retain distinct attester and executing owner semantics"
+    )
+
+
+def test_CustomAwaitableGuardIsRejectedWithoutEvaluatingIt(tmp_path, fake_executor):
+    """Non-coroutine awaitables cannot defer or silently skip synchronous consumer checks."""
+
+    root, target, _, policy = Fixture(tmp_path)
+
+    class DeferredValidation:
+        """Synthetic awaitable whose evaluation would violate the synchronous guard contract."""
+
+        def __await__(self):
+            """Fail if an invalid trusted hook is accidentally scheduled or awaited."""
+
+            raise AssertionError("deferred context guard must not run")
+            yield
+
+    provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
+                                       context_validator=lambda context: DeferredValidation())
+    result = Run(Job(root, target, policy, provider=provider))
+    assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0, (
+        "Deferred non-coroutine context validator must fail closed synchronously"
+    )

@@ -35,7 +35,7 @@ successful service facts. Earlier verified updates survive later failure.
 ## Experimental producer API
 
 `NativeDiscoveryProvider(workspace_root, targets, scope_id, policy, *, limits,
-clock)` implements `JobProvider.Run(context)`. The consumer owns workspace,
+clock, context_validator)` implements `JobProvider.Run(context)`. The consumer owns workspace,
 approved scope and initial model creation. `DiscoveryLimits` caps endpoints,
 per-probe timeout, interval and total runtime. Defaults are eight endpoints,
 three seconds per request, 0.2 seconds between requests and thirty seconds total.
@@ -48,6 +48,15 @@ Preparation and health inspection do not issue authorization. The nominal first
 observed-update budget is the request timeout plus one second of worker startup,
 bounded by total timeout; operating-system scheduling is not a real-time promise.
 The actual elapsed measurement belongs to the consuming Quick Scan result.
+
+An optional trusted synchronous `context_validator` sees the fresh immutable
+`PolicyContext` before grant issuance and again at the governed final launch.
+It may further deny a consumer-specific condition; successful validation must
+return None. Non-None/awaitable returns fail closed and bare coroutines are closed.
+The ordinary `PolicyEngine` checks remain unconditional after a successful guard.
+For example, Quick Scan binds its explicitly selected consent actor at both
+boundaries. The generic SDK does not equate an attester with the executing job
+owner, and this hook does not introduce an authenticated-principal system.
 
 Host identities use canonical literal IPs. TCP port and service keys reuse the
 model's established `host:<address>/tcp/<port>` binding convention; endpoint keys

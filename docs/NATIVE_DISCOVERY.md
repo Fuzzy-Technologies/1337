@@ -23,13 +23,22 @@ crawling, arbitrary port scanning and vulnerability detection are separate work.
 
 ## Producer API
 
-`NativeDiscoveryProvider(workspace_root, targets, scope_id, policy, *, limits, clock)`
+`NativeDiscoveryProvider(workspace_root, targets, scope_id, policy, *, limits, clock,
+context_validator)`
 implements `JobProvider.Run(context)`. The caller binds a `ScanJob` whose provider ID
 is `NATIVE_HTTP_PROVIDER_ID`, scope reference matches `scope:<scope_id>` and workspace
 identity matches the persisted workspace. The job's evidence store must use the
 same workspace's `evidence` partition. The injected authority clock must be aware;
 the default uses UTC. The provider validates current scope immediately before each
 governed worker launch and stops after the first failed endpoint.
+
+`context_validator` is an optional trusted synchronous consumer guard. It receives
+the current immutable `PolicyContext` before grant issuance and again immediately
+before governed launch, and must return None or raise to deny. Non-None/awaitable
+returns fail closed; bare coroutines are closed. The guard cannot replace the
+ordinary scope/impact/invocation `PolicyEngine` checks. Consumers may impose their
+own expected consent-actor binding without making the generic SDK equate an
+attester with the executing job owner or claim identity-provider authentication.
 
 `DiscoveryLimits` defaults to eight endpoints, three seconds per request, 0.2 seconds
 between requests and thirty seconds total. Hard maxima are sixteen endpoints, ten

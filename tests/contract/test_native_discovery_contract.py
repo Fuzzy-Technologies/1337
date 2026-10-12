@@ -43,7 +43,7 @@ def test_PublicProducerContractRemainsTypedAndNonexecuting():
     ), 'Public Producer Contract Remains Typed And Nonexecuting boundary invariant failed'
     signature = inspect.signature(NativeDiscoveryProvider)
     assert tuple(signature.parameters) == (
-        "workspace_root", "targets", "scope_id", "policy", "limits", "clock",
+        "workspace_root", "targets", "scope_id", "policy", "limits", "clock", "context_validator",
     ), 'Public Producer Contract Remains Typed And Nonexecuting boundary invariant failed'
     assert (
         inspect.iscoroutinefunction(NativeDiscoveryProvider.Run)
