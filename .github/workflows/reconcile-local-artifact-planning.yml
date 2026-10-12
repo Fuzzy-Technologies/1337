@@ -1,0 +1,34 @@
+name: Reconcile local artifact planning
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize]
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+jobs:
+  reconcile:
+    if: github.event.pull_request.head.ref == 'ops/local-artifact-planning' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            const repo = {owner: context.repo.owner, repo: context.repo.repo};
+            const version = {'X-GitHub-Api-Version': '2026-03-10'};
+            const get = async number => (await github.rest.issues.get({...repo, issue_number: number})).data;
+            const child = await get(278);
+            if (child.pull_request || child.title !== 'M2 Task: Define governed local-artifact identity and offline launch authorization' || child.milestone?.number !== 3) throw new Error('Unexpected local artifact task');
+            await github.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {...repo, issue_number: 278, type: 'Task', headers: version});
+            if ((await get(278)).type?.name !== 'Task') throw new Error('Artifact Task readback failed');
+            await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/issue-field-values', {...repo, issue_number: 278, headers: version, issue_field_values: [{field_id: 22639629, value: 'High'}, {field_id: 22639632, value: 'High'}]});
+            const fields = (await get(278)).issue_field_values;
+            if (!fields?.some(x => x.issue_field_name === 'Priority' && x.single_select_option?.name === 'High') || !fields?.some(x => x.issue_field_name === 'Effort' && x.single_select_option?.name === 'High')) throw new Error('Planning fields readback failed');
+            await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/sub_issues', {...repo, issue_number: 138, sub_issue_id: child.id, replace_parent: true, headers: version});
+            const children = (await github.request('GET /repos/{owner}/{repo}/issues/{issue_number}/sub_issues', {...repo, issue_number: 138, headers: version})).data;
+            if (!children.some(x => x.number === 278)) throw new Error('Artifact parent readback failed');
+            core.info('Local artifact Task and graph ownership verified.');
+            await github.rest.pulls.update({...repo, pull_number: context.issue.number, state: 'closed'});
+            await github.rest.git.deleteRef({...repo, ref: 'heads/ops/local-artifact-planning'});
