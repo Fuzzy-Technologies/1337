@@ -92,6 +92,11 @@ contract version `1`. ADR 0015 defines its governed local execution boundary.
 ADR 0025 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
+`fuzzy1337.images` is an Experimental offline interpretation library at contract
+version `1`. ADR 0040 and `docs/IMAGES.md` define ASSET-based image/package identities,
+verified native/SBOM imports and canonical Finding correlation without changing
+the existing model schema or granting execution authority.
+
 ## Version compatibility rules
 
 ### Repository releases
@@ -217,5 +222,6 @@ Current versioned public contracts:
 | Scan jobs            | `1`            | `fuzzy1337.jobs`                                         | Experimental |
 | Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                              | Experimental |
 | Finding core         | `1`            | `fuzzy1337.findings`                                     | Experimental |
+| Image/package model | `1` | `fuzzy1337.images`; `docs/IMAGES.md` | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
