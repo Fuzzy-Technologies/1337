@@ -39,6 +39,9 @@ must reopen before another disposition. A reason accompanies every explicit
 transition. Generic model updates enforce these same transitions. Initial
 creation is open; persisted dispositions remain readable. Rediscovery never
 automatically reopens a triaged finding or resolves an absent finding.
+Explicit dispositions also retain a content-addressed decision observation
+independent of detector fields; retrying a recorded decision does not overwrite
+later triage or metadata. A deliberate new decision needs fresh attribution.
 
 Deduplication uses existing SOM identity/attribute/provenance merging, revision
 deltas, observation history, locking, and persistence. Exact replay is a no-op;

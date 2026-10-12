@@ -89,7 +89,12 @@ Providers cannot choose canonical workspace identities or create a separate stor
 `TransitionFinding(state, reference, status, provenance, reason)` applies one
 explicit attributed operator decision. It keeps previous acquisition/evidence
 history and records only the supplied decision attribution for its incoming
-patch. The explanation is required; provenance does not grant authority.
+patch. The explanation is required; provenance does not grant authority. A
+`finding-disposition` observation identifies the decision by subject, requested
+status, reason, and provenance, independently of mutable detector metadata. Exact
+decision replay preserves newer triage and metadata without another revision.
+A deliberate repeated decision requires fresh attribution, such as a new
+`run_reference` or observation time.
 
 - New findings start `open`.
 - Open and confirmed findings may become open/confirmed, dismissed, or resolved.

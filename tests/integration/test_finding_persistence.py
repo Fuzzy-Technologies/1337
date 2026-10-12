@@ -199,6 +199,48 @@ def test_VerifiedIngestionChecksWorkspaceOwnership(tmp_path):
     assert store.Open() == initial, "Foreign evidence ownership changed the original workspace"
 
 
+def test_DispositionReplayIsPortableAndPreservesLaterCanonicalState(tmp_path):
+    """Reopened decision history prevents an old retry from overriding a newer disposition."""
+
+    store, initial, subject = Context(tmp_path)
+    finding, _, _ = Detection(store, subject)
+    state, delta = ApplyVerifiedFindings(initial, (finding,), store.root)
+    store.Save(state, expected_revision=delta.previous_revision)
+    reference = state.Objects(ObjectKind.FINDING)[0].Reference()
+    first = ModelProvenance(
+        "operator", "decision:one", "2026-10-11T10:01:00Z", "scope:local", "target:local",
+    )
+    second = replace(first, run_reference="decision:two", observed_at="2026-10-11T10:02:00Z")
+
+    for status, provenance, reason in (
+        (FindingStatus.CONFIRMED, first, "First review"),
+        (FindingStatus.OPEN, second, "Reopened for a later review"),
+    ):
+        state, delta = TransitionFinding(store.Open(), reference, status, provenance, reason)
+        store.Save(state, expected_revision=delta.previous_revision)
+
+    snapshot_bytes = (store.root / "state" / "model" / "model.json").read_bytes()
+    moved_root = tmp_path / "moved-workspace"
+    shutil.move(str(store.root), moved_root)
+    moved_store = LocalModelStore(moved_root)
+    reopened = moved_store.Open()
+    replayed, delta = TransitionFinding(
+        reopened, reference, FindingStatus.CONFIRMED, first, "First review",
+    )
+    moved_store.Save(replayed, expected_revision=delta.previous_revision)
+
+    assert replayed == reopened and delta.created == delta.updated == (), (
+        "Persisted decision replay changed a newer disposition after workspace relocation"
+    )
+    assert (moved_root / "state" / "model" / "model.json").read_bytes() == snapshot_bytes, (
+        "Old decision retry rewrote the persisted snapshot"
+    )
+    decisions = [item for item in reopened.observations if item.kind == "finding-disposition"]
+    assert len(decisions) == 2 and {item.provenance for item in decisions} == {first, second}, (
+        "Canonical disposition history lost operator attribution or retained duplicate decisions"
+    )
+
+
 def test_VerifiedIngestionReadsSharedArtifactOnce(tmp_path, monkeypatch):
     """Dedupe reuses a verified raw artifact without weakening integrity or provenance checks."""
 

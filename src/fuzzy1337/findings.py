@@ -156,7 +156,7 @@ class Finding:
 
         if (
             isinstance(self.confidence, bool) or not isinstance(self.confidence, (int, float))
-            or not math.isfinite(self.confidence) or not 0 <= self.confidence <= 1
+            or not 0 <= self.confidence <= 1 or not math.isfinite(self.confidence)
         ):
             raise ValueError("confidence must be a finite number between zero and one")
 
@@ -471,6 +471,7 @@ def TransitionFinding(
 
     Returns:
         Canonical model transition preserving prior evidence/acquisition history.
+        Exact decision replay is a no-op even after later triage or detector updates.
 
     Raises:
         ValueError: Subject, status, reason, attribution, or lifecycle is invalid.
@@ -488,7 +489,16 @@ def TransitionFinding(
     if not entities:
         raise ValueError("finding must exist in the current model")
 
+    decision = Observation(
+        "finding-disposition", reference, {"status": status.value, "reason": reason}, provenance,
+    )
+
+    if any(item.Reference() == decision.Reference() for item in state.observations):
+        return state, ModelDelta(state.revision, state.revision)
+
     current = Finding.FromObject(entities[0])
     updated = replace(current, status=status, status_reason=reason, provenance=(provenance,))
 
-    return state.Apply(objects=(updated.ToObject(state.workspace_id),))
+    return state.Apply(
+        objects=(updated.ToObject(state.workspace_id),), observations=(decision,),
+    )

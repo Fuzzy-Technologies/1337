@@ -2729,7 +2729,7 @@ state = "missing"
 id = "symbol:fuzzy1337.findings.TransitionFinding"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/findings.py"
-sourceHash = "sha256:159075a55c5f242689e5a59c6d4c091e62b6fc5d116c543fcf3c55211898a2e3"
+sourceHash = "sha256:697949f9e043d43511a090d745d7e223ec58826a8ac3057c29c8c14381ae1c42"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

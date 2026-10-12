@@ -22,6 +22,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Workbench development, with deterministic validation and failure-path tests.
   The subsystem documentation describes the capabilities present in each change.
 
+#### Fixed
+
+- Preserved newer finding triage and detector metadata when an earlier attributed
+  operator decision is retried; decision history survives workspace relocation.
+- Rejected oversized integer finding confidence through the documented validation
+  error boundary without numeric conversion overflow.
+
 #### Changed
 
 - Limited browser-based documentation rendering to the protected-master publication

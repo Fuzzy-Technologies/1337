@@ -124,6 +124,7 @@ def test_RemediationAndFindingAreImmutableAndCanonical():
     {"severity": "medium"}, {"status": "open"}, {"status": FindingStatus.CONFIRMED},
     {"confidence": True}, {"confidence": "0.5"}, {"confidence": -0.1},
     {"confidence": 1.1}, {"confidence": float("nan")}, {"confidence": float("inf")},
+    {"confidence": 10 ** 1000}, {"confidence": -(10 ** 1000)},
     {"remediation": {}}, {"status_reason": ""}, {"provenance": ()},
     {"provenance": "all"}, {"provenance": ({},)}, {"summary": "a" * 65536},
 ])
@@ -219,6 +220,54 @@ def test_DetectorRediscoveryPreservesOperatorDisposition(status):
     )
     assert Findings(updated, status) == (finding,), "Typed status query missed its canonical object"
     assert Findings(updated, FindingStatus.OPEN) == (), "Status filter ignored triage"
+
+
+@pytest.mark.parametrize("following", [FindingStatus.OPEN, FindingStatus.DISMISSED,
+                                       FindingStatus.RESOLVED])
+def test_OperatorDecisionReplayPreservesNewerDispositionAndMetadata(following):
+    """Retrying an old decision cannot overwrite a later operator or detector interpretation."""
+
+    state, _ = ApplyFindings(State(), (Detection(),))
+    reference = state.Objects(ObjectKind.FINDING)[0].Reference()
+    first = Provenance("operator", "decision:one", evidence=False)
+    second = Provenance("operator", "decision:two", evidence=False)
+    state, _ = TransitionFinding(
+        state, reference, FindingStatus.CONFIRMED, first, "Initial review",
+    )
+    state, _ = TransitionFinding(state, reference, following, second, "Later review")
+    acquisition = Detection(
+        summary="Later detector interpretation", provenance=(Provenance("native", "run:two"),),
+    )
+    state, _ = ApplyFindings(state, (acquisition,))
+    replayed, delta = TransitionFinding(
+        state, reference, FindingStatus.CONFIRMED, first, "Initial review",
+    )
+
+    assert replayed == state and delta.created == delta.updated == (), (
+        "An exact old operator decision replay overwrote newer canonical state"
+    )
+    assert Findings(replayed)[0].summary == acquisition.summary, (
+        "Decision retry restored detector metadata captured by the earlier decision"
+    )
+
+
+def test_DeliberateRepeatedDispositionRequiresNewDecisionAttribution():
+    """A fresh decision can return to a prior status without being mistaken for a retry."""
+
+    state, _ = ApplyFindings(State(), (Detection(),))
+    reference = state.Objects(ObjectKind.FINDING)[0].Reference()
+
+    for decision, status in (("decision:one", FindingStatus.CONFIRMED),
+                             ("decision:two", FindingStatus.OPEN),
+                             ("decision:three", FindingStatus.CONFIRMED)):
+        state, delta = TransitionFinding(
+            state, reference, status, Provenance("operator", decision, evidence=False), "Reviewed",
+        )
+        assert delta.revision == delta.previous_revision + 1, "A fresh decision was discarded"
+
+    assert Findings(state)[0].status is FindingStatus.CONFIRMED, (
+        "A deliberate repeated disposition was treated as an old decision retry"
+    )
 
 
 @pytest.mark.parametrize("previous,following,allowed", [
