@@ -1,0 +1,1 @@
+{"template-id":"owned-http-marker","info":{"name":"Owned synthetic HTTP marker","severity":"info","tags":["synthetic"],"classification":{"cwe-id":["CWE-200"]}},"type":"http","host":"http://127.0.0.1:8080/","matched-at":"http://127.0.0.1:8080/","ip":"127.0.0.1","timestamp":"2026-10-11T00:00:00Z","matcher-status":true}
