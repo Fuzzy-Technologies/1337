@@ -40,6 +40,10 @@ The M0 repository does **not** freeze a Python import namespace before packaging
 workspace document at schema version `1`. ADR 0019 and `docs/WORKSPACES.md`
 define its portable metadata, reference, and cooperating-writer lifecycle contract.
 
+`fuzzy1337.jobs` is an Experimental Python library at contract version `1`.
+ADR 0026 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.scope` is an Experimental Python library and persisted scope schema
 at version `1`. ADR 0022 and `docs/SCOPE.md` define typed target identity,
 explicit consent metadata, offline membership, and portable scope persistence.
@@ -71,6 +75,10 @@ failure semantics. Other evidence helpers remain Internal.
 ADR 0024 and `docs/NMAP_ADAPTER.md` define finite invocation profiles, bounded
 health, verified XML normalization, and preservation of executor/evidence facts.
 Nmap is supplied by the operator; this adapter never grants execution authority.
+
+`fuzzy1337.adapters.nuclei` is an Experimental Python library at contract version `1`.
+ADR 0030 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
 
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
@@ -195,10 +203,12 @@ Current versioned public contracts:
 | Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`            | Experimental |
 | Web request model    | `1`            | `fuzzy1337.requests`                          | Experimental |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
+| Scan jobs            | `1`            | `fuzzy1337.jobs`                              | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
 | Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`   | Experimental |
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                     | Experimental |
+| Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                   | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
 | Impact policy        | `1`            | `fuzzy1337.policy`                            | Experimental |
 

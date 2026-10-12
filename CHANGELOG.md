@@ -26,6 +26,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Rejected malformed UTF-8 lens metadata and query text at construction/decoding,
   before clients attempt to emit machine-readable views.
+- Preserved awaited scan-job cleanup under concurrent forced cancellation and
+  retained event-budget failure when a provider catches its notification error.
 
 #### Changed
 
@@ -34,6 +36,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Security
 
+- Reject control characters and the IPv4 limited-broadcast address in reviewed
+  Nuclei targets, and fail closed on JSON integers exceeding decoder limits.
 - New foundation APIs retain explicit workspace, scope and evidence boundaries.
   A query, model reference, job or adapter preparation does not grant authority
   to scan a target or broaden a previously approved execution plan.
