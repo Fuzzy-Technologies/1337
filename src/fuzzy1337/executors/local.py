@@ -88,6 +88,7 @@ class LocalExecutor:
         *,
         on_event: EventCallback | None = None,
         cancellation: asyncio.Event | None = None,
+        pre_launch: Callable[[LocalExecutionRequest], None] | None = None,
     ) -> LocalExecutionResult:
         """Run an immutable argv and return bounded output plus structured events.
 
@@ -103,6 +104,8 @@ class LocalExecutor:
             request: Validated invocation, authorization binding, workspace and limits
             on_event: Optional synchronous or awaitable sequenced-event observer
             cancellation: Optional cooperative signal also checked before launch.
+            pre_launch: Optional synchronous upstream policy check immediately before launch;
+                must return None. Exceptions propagate without starting a process.
 
         Returns:
             Terminal state, retained bounded streams and ordered lifecycle events.
@@ -163,6 +166,15 @@ class LocalExecutor:
             name: os.environ[name] for name in _INHERITED_ENVIRONMENT if name in os.environ
         }
         environment.update(request.environment)
+
+        if pre_launch is not None:
+            response = cast(Callable[[LocalExecutionRequest], object], pre_launch)(request)
+
+            if response is not None:
+                if inspect.iscoroutine(response):
+                    response.close()
+
+                raise LocalExecutionError("pre_launch must be synchronous and return None")
 
         process = await self.StartProcess(request, workspace, environment)
 
