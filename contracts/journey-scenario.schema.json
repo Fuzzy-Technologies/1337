@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/journey-scenario.schema.json",
+  "title": "Experimental 1337 synthetic journey scenario v1",
+  "description": "Offline scenario declaration. Scope membership, canonical targets, aggregate work and byte size require the runtime validator. This schema issues no execution authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "scenario_id", "workspace_id", "scope_id", "allowed_targets", "steps", "workload", "test_data_reference", "session_reference"],
+  "properties": {
+    "schema_version": {"const": 1, "type": "integer"},
+    "scenario_id": {"$ref": "#/$defs/identifier"},
+    "workspace_id": {"$ref": "#/$defs/identifier"},
+    "scope_id": {"$ref": "#/$defs/identifier"},
+    "allowed_targets": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/target"}},
+    "steps": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/step"}},
+    "workload": {"$ref": "#/$defs/workload"},
+    "test_data_reference": {"oneOf": [{"type": "null"}, {"type": "string", "maxLength": 138, "pattern": "^test-data:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*(?![\\s\\S])"}]},
+    "session_reference": {"oneOf": [{"type": "null"}, {"type": "string", "maxLength": 136, "pattern": "^session:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*(?![\\s\\S])"}]}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*(?![\\s\\S])"},
+    "literal": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f{}<>]+(?![\\s\\S])"},
+    "selector": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?:[a-z][a-z0-9-]*|[.#][A-Za-z][A-Za-z0-9_-]*|\\[data-test=\"[a-z][a-z0-9_-]*\"\\])(?![\\s\\S])"},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": {"const": "url"},
+        "value": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^https?://[^\\s]+(?![\\s\\S])"}
+      }
+    },
+    "assertion": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["kind", "expected"], "properties": {"kind": {"const": "http_status"}, "expected": {"type": "integer", "minimum": 100, "maximum": 599}}},
+        {"type": "object", "additionalProperties": false, "required": ["kind", "expected"], "properties": {"kind": {"const": "text_contains"}, "expected": {"$ref": "#/$defs/literal"}}},
+        {"type": "object", "additionalProperties": false, "required": ["kind", "expected"], "properties": {"kind": {"const": "element_present"}, "expected": {"$ref": "#/$defs/selector"}}}
+      ]
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["iterations", "concurrency", "requests_per_second", "max_requests", "max_duration_seconds"],
+      "properties": {
+        "iterations": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "concurrency": {"type": "integer", "minimum": 1, "maximum": 16},
+        "requests_per_second": {"type": "integer", "minimum": 1, "maximum": 100},
+        "max_requests": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "max_duration_seconds": {"type": "integer", "minimum": 1, "maximum": 3600}
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "operation", "target", "assertions", "think_time_ms", "selector", "method", "test_data_key"],
+      "properties": {
+        "step_id": {"$ref": "#/$defs/identifier"},
+        "operation": {"enum": ["navigate", "click", "fill", "api_request"]},
+        "target": {"$ref": "#/$defs/target"},
+        "assertions": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/assertion"}},
+        "think_time_ms": {"type": "integer", "minimum": 0, "maximum": 60000},
+        "selector": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/selector"}]},
+        "method": {"enum": [null, "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]},
+        "test_data_key": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/identifier"}]}
+      },
+      "allOf": [
+        {"if": {"properties": {"operation": {"const": "navigate"}}}, "then": {"properties": {"selector": {"type": "null"}, "method": {"type": "null"}, "test_data_key": {"type": "null"}}}},
+        {"if": {"properties": {"operation": {"const": "click"}}}, "then": {"properties": {"selector": {"$ref": "#/$defs/selector"}, "method": {"type": "null"}, "test_data_key": {"type": "null"}}}},
+        {"if": {"properties": {"operation": {"const": "fill"}}}, "then": {"properties": {"selector": {"$ref": "#/$defs/selector"}, "method": {"type": "null"}, "test_data_key": {"$ref": "#/$defs/identifier"}}}},
+        {"if": {"properties": {"operation": {"const": "api_request"}}}, "then": {"properties": {"selector": {"type": "null"}, "method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]}, "assertions": {"items": {"properties": {"kind": {"enum": ["http_status", "text_contains"]}}}}}}}
+      ]
+    }
+  }
+}
