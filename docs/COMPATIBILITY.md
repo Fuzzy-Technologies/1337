@@ -62,10 +62,19 @@ at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic objec
 identity, attributable updates, typed relations, observations, incremental deltas,
 and portable model persistence. Scope/target references do not grant authority.
 
+`fuzzy1337.findings` is an Experimental Python library at contract version `1`.
+ADR 0027 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.evidence` is an Experimental local storage API and manifest schema
 at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
 failure semantics. Other evidence helpers remain Internal.
+
+`fuzzy1337.adapters.trivy` is an Experimental optional adapter at version `1`.
+ADR 0032 and `docs/TRIVY_ADAPTER.md` define offline finite archive invocations,
+bounded version/DB observation, verified JSON and executor failure preservation.
+The external tool/cache are operator supplied; daemon/registry targets are deferred.
 
 `fuzzy1337.adapters.nmap` is an Experimental optional adapter at version `1`.
 ADR 0024 and `docs/NMAP_ADAPTER.md` define finite invocation profiles, bounded
@@ -207,5 +216,6 @@ Current versioned public contracts:
 | Impact policy        | `1`            | `fuzzy1337.policy`                                       | Experimental |
 | Scan jobs            | `1`            | `fuzzy1337.jobs`                                         | Experimental |
 | Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                              | Experimental |
+| Finding core         | `1`            | `fuzzy1337.findings`                                     | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

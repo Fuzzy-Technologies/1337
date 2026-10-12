@@ -120,6 +120,12 @@ mode = "authored"
 page = "api/fuzzy1337.intel_references.md"
 
 [[surfaces]]
+module = "fuzzy1337.findings"
+source = "src/fuzzy1337/findings.py"
+mode = "authored"
+page = "api/fuzzy1337.findings.md"
+
+[[surfaces]]
 module = "fuzzy1337.model"
 source = "src/fuzzy1337/model.py"
 mode = "authored"
@@ -160,3 +166,9 @@ module = "fuzzy1337.test_runner"
 source = "src/fuzzy1337/test_runner.py"
 mode = "authored"
 page = "api/fuzzy1337.test_runner.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.trivy"
+source = "src/fuzzy1337/adapters/trivy.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.trivy.md"
