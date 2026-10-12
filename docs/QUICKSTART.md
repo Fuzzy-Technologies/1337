@@ -1,5 +1,9 @@
 # Try 1337 v0.2.1
 
+For the current development candidate's explicit workspace/scope commands and
+bounded native SAFE discovery, see [Quick Scan](QUICK_SCAN.md). Those commands
+are separate from the immutable v0.2.1 demonstration below.
+
 This pre-alpha provides an interactive shell and Experimental Python foundations.
 Use CPython 3.11 or newer and Git. Core runtime dependencies are empty. Docker and
 Nmap are optional components; a missing optional component is not a broken installation.

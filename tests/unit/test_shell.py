@@ -73,11 +73,11 @@ def test_ShellCompletionAndUnknownCommandsAreDeterministic():
         "shell completion and unknown commands are deterministic invariant failed."
     )
     shell.onecmd("lens unknown")
-    shell.onecmd("scan authorized.example")
+    shell.onecmd("exploit authorized.example")
 
     assert output.getvalue().splitlines() == [
         "Unknown lens: unknown. Available lenses: pentest, dfir, devsecops, purple",
-        "Unknown command: scan authorized.example. Type 'help' for commands.",
+        "Unknown command: exploit authorized.example. Type 'help' for commands.",
     ], "shell completion and unknown commands are deterministic invariant failed."
 
 
@@ -138,6 +138,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: update",
         "action: show-evidence — Show evidence for this object.",
         "action: show-paths — Show paths from this object.",
+        "cli: workspace",
         "action: show-evidence — Show evidence for this object.",
         "No palette matches.",
     ], "shell palette searches local commands and cached context actions invariant failed."
@@ -201,9 +202,9 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
     assert output.getvalue().splitlines() == [
         (
             "Interactive commands: commands, context, help, history, lens, model, palette, "
-            "quit, select, update, updates, view"
+            "quit, scan, scope, select, update, updates, view, workspace"
         ),
-        "CLI commands: doctor, help, version, shell, update",
+        "CLI commands: doctor, help, version, shell, update, workspace, scope, scan",
         "[model] asset changed",
         "usage: quit",
         "",
@@ -328,4 +329,94 @@ def test_ModelViewEscapesUntrustedControlCharactersWithoutChangingCanonicalKeys(
     )
     assert state.objects[0].identity.key == key, (
         "Presentation escaping must not rewrite canonical object identity."
+    )
+
+
+def test_ShellProductCommandsUseExplicitSharedDispatcher(monkeypatch):
+    """The selected object/lens never becomes implicit scan scope or operator approval."""
+
+    from fuzzy1337 import scan_commands
+
+    calls = []
+
+    def Dispatch(command, arguments, output, *, json_output=False):
+        """Record the exact operator command without executing a provider."""
+
+        calls.append((command, arguments, json_output))
+        return 3 if command == "scan" else 0
+
+    monkeypatch.setattr(scan_commands, "RunCommands", Dispatch)
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    shell.onecmd('workspace open "path with spaces" --json')
+    shell.onecmd("scope create fixture --id local")
+    shell.onecmd("scan quick fixture --scope local --owner operator:x --target http://127.0.0.1/")
+    shell.onecmd('workspace open "unterminated')
+    assert calls == [
+        ("workspace", ["open", "path with spaces"], True),
+        ("scope", ["create", "fixture", "--id", "local"], False),
+        ("scan", ["quick", "fixture", "--scope", "local", "--owner", "operator:x",
+                  "--target", "http://127.0.0.1/"], False),
+    ], (
+        'The selected object/lens never becomes implicit scan scope or operator approval '
+        'invariant failed.'
+    )
+    assert "Command exit status: 3" in output.getvalue(), (
+        'The selected object/lens never becomes implicit scan scope or operator approval '
+        'invariant failed.'
+    )
+    assert "Invalid quoted command arguments." in output.getvalue(), (
+        'The selected object/lens never becomes implicit scan scope or operator approval '
+        'invariant failed.'
+    )
+
+
+def test_ShellIncompleteProductCommandCannotTerminateWorkbench():
+    """Parser help/errors remain bounded foreground results rather than exiting the shell."""
+
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    assert not shell.onecmd("scan"), (
+        'Parser help/errors remain bounded foreground results rather than exiting the shell '
+        'invariant failed.'
+    )
+    assert "usage: scan --help" in output.getvalue(), (
+        'Parser help/errors remain bounded foreground results rather than exiting the shell '
+        'invariant failed.'
+    )
+    assert not shell.onecmd("workspace --help"), (
+        'Parser help/errors remain bounded foreground results rather than exiting the shell '
+        'invariant failed.'
+    )
+
+
+def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys):
+    """New product namespaces must keep rejected sensitive text out of all local history."""
+
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    target = "http://user:synthetic-password@127.0.0.1/?token=synthetic-query-token"
+    commands = (
+        f"scan quick absent --scope local --owner operator:fixture --target {target}",
+        f"SCOPE create absent --id local --allow-url {target}",
+        'scan quick "synthetic-password malformed',
+        f"scan synthetic-password {target}",
+    )
+
+    for command in commands:
+        shell.onecmd(command)
+        assert "synthetic-password" not in shell.lastcmd, (
+            "The framework's empty-line replay state must not retain rejected passwords."
+        )
+        assert "synthetic-query-token" not in shell.lastcmd, (
+            "The framework's empty-line replay state must not retain rejected tokens."
+        )
+
+    shell.onecmd("history")
+    diagnostics = capsys.readouterr()
+    retained = output.getvalue() + diagnostics.out + diagnostics.err
+    assert "synthetic-password" not in retained, "Rejected product passwords must not be retained."
+    assert "synthetic-query-token" not in retained, "Rejected product tokens must not be retained."
+    assert output.getvalue().splitlines()[-4:] == ["scan", "scan", "scope", "scan"], (
+        "Product history must retain only bounded canonical namespaces, including malformed input."
     )

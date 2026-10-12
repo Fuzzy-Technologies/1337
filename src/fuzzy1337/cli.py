@@ -83,7 +83,7 @@ def CommandEpilog(registry: CommandRegistry) -> str:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Dispatch help, shell, diagnostics, or read-only component inspection.
+    """Dispatch local workspace/scope commands, bounded scans, shell and diagnostics.
 
     Writes to the terminal and may enter the interactive shell. The default dispatch does not
     start a scan.
@@ -92,7 +92,8 @@ def Main(argv: Sequence[str] | None = None) -> int:
         argv: Arguments excluding the executable, or None for process arguments.
 
     Returns:
-        Zero for help or shell exit, or the doctor/update required-check status.
+        Zero for completed commands; two for invalid setup, three for scan denial,
+        four for scan execution/storage failure, 130 for cancellation, or inspection status.
 
     Raises:
         SystemExit: Argument parsing rejects input or handles help/version.
@@ -105,7 +106,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
         description="1337 Security Workbench by Fuzzy Technologies",
         epilog=CommandEpilog(registry),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,
     )
+    parser.add_argument("-h", "--help", action="store_true", help="Show command help and exit.")
     parser.add_argument(
         "--version",
         action=InstalledVersionAction,
@@ -114,19 +117,34 @@ def Main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "command",
-        choices=("doctor", "help", "shell", "update"),
+        choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--json",
         action="store_true",
-        help="Write the experimental JSON inspection report for 'update'.",
+        help="Write experimental JSON for update, workspace, scope or scan.",
     )
-    arguments = parser.parse_args(argv)
+    arguments, remaining = parser.parse_known_args(argv)
+
+    if arguments.command in {"workspace", "scope", "scan"}:
+        from fuzzy1337.scan_commands import RunCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunCommands(arguments.command, remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.help:
+        parser.print_help()
+        parser.exit()
+
+    if remaining:
+        parser.error("unrecognized arguments: " + " ".join(remaining))
 
     if arguments.json and arguments.command != "update":
-        parser.error("--json is only available for update")
+        parser.error("--json is only available for update, workspace, scope and scan")
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):
         return RunInteractiveShell()
