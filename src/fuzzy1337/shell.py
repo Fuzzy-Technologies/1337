@@ -6,12 +6,13 @@
 from __future__ import annotations
 
 import cmd
+import shlex
 import sys
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TextIO
+from typing import TextIO, cast
 
 from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
 from fuzzy1337.component_health import RunUpdate
@@ -30,10 +31,13 @@ SHELL_COMMANDS = (
     "model",
     "palette",
     "quit",
+    "scan",
+    "scope",
     "select",
     "update",
     "updates",
     "view",
+    "workspace",
 )
 VIEWS = ("context", "updates", "model")
 HISTORY_LIMIT = 100
@@ -291,6 +295,7 @@ class InteractiveShell(cmd.Cmd):
             "": (
                 "commands, context, history [query], lens [<name>] [--json], "
                 "model <workspace-path>, palette [query], select <object-id>, "
+                "scan quick, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
             "commands": "commands: list interactive and current top-level CLI commands.",
@@ -305,6 +310,9 @@ class InteractiveShell(cmd.Cmd):
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
+            "scan": "scan quick <workspace>: run approved SAFE discovery with live events.",
+            "scope": "scope create <workspace>: record explicit targets, rules and consent.",
+            "workspace": "workspace <create|open>: initialize or verify durable shared state.",
             "update": "update [--json]: inspect local component health without installing updates.",
             "updates": "updates: render queued progress or future model updates.",
             "view": "view <name> [--json]: select context, updates, or model; JSON requires model.",
@@ -316,6 +324,60 @@ class InteractiveShell(cmd.Cmd):
             return
 
         self.Write(message)
+
+    def RunLocalCommand(self, command: str, argument: str) -> None:
+        """Dispatch the same explicit foreground workspace/scope/scan path as the CLI.
+
+        Args:
+            command: Product namespace; shell context never supplies implicit authority.
+            argument: Quoted operator argument line, parsed without a subprocess shell.
+        """
+
+        from fuzzy1337.scan_commands import RunCommands
+
+        try:
+            arguments = shlex.split(argument)
+            json_output = "--json" in arguments
+            arguments = [item for item in arguments if item != "--json"]
+            status = RunCommands(command, arguments, cast(TextIO, self.stdout),
+                                 json_output=json_output)
+
+            if status:
+                self.Write(f"Command exit status: {status}")
+
+        except ValueError:
+            self.Write("Invalid quoted command arguments.")
+
+        except SystemExit as error:
+            if error.code:
+                self.Write(f"usage: {command} --help")
+
+    def do_workspace(self, argument: str) -> None:
+        """Create or reopen a workspace through the explicit product command.
+
+        Args:
+            argument: Workspace action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("workspace", argument)
+
+    def do_scope(self, argument: str) -> None:
+        """Record target rules and consent through the explicit product command.
+
+        Args:
+            argument: Scope action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("scope", argument)
+
+    def do_scan(self, argument: str) -> None:
+        """Run foreground discovery with live events and explicit scan authorization.
+
+        Args:
+            argument: Scan action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("scan", argument)
 
     def do_history(self, argument: str) -> None:
         """Search local command history in reverse chronological order.
