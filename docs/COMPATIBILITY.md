@@ -57,6 +57,10 @@ The interface grants no authority beyond an explicitly approved scope/policy.
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
 
+`fuzzy1337.lenses` is an Experimental Python library at contract version `1`.
+ADR 0029 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.model` is an Experimental Python library and persisted model schema
 at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic object
 identity, attributable updates, typed relations, observations, incremental deltas,
@@ -224,5 +228,6 @@ Current versioned public contracts:
 | Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                                | Experimental |
 | Finding core         | `1`            | `fuzzy1337.findings`                                       | Experimental |
 | Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md`   | Experimental |
+| Workflow lenses      | `1`            | `fuzzy1337.lenses`                                         | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

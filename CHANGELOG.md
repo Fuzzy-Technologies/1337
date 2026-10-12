@@ -24,6 +24,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Rejected malformed UTF-8 lens metadata and query text at construction/decoding,
+  before clients attempt to emit machine-readable views.
 - Preserved newer finding triage and detector metadata when an earlier attributed
   operator decision is retried; decision history survives workspace relocation.
 - Rejected oversized integer finding confidence through the documented validation
