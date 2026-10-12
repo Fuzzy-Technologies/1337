@@ -1,6 +1,24 @@
 schemaVersion = 1
 
 [[surfaces]]
+module = "fuzzy1337.discovery"
+source = "src/fuzzy1337/discovery.py"
+mode = "authored"
+page = "api/fuzzy1337.discovery.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.native_http"
+source = "src/fuzzy1337/adapters/native_http.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.native_http.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_http_worker"
+source = "src/fuzzy1337/native_http_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_http_worker.md"
+
+[[surfaces]]
 module = "fuzzy1337"
 source = "src/fuzzy1337/__init__.py"
 mode = "authored"

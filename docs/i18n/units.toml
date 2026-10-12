@@ -5155,3 +5155,245 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.adapters.native-http"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.native_http.md"
+sourceHash = "sha256:59e2ed8955b97224986246e1d3d6cbdcd836ed68fb78f263d05b69f17505000c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.discovery"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.discovery.md"
+sourceHash = "sha256:496b48be0dc15d73b99967337f65eacb8bce0eabb7bfcef1e89072e14348131d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.native-http-worker"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.native_http_worker.md"
+sourceHash = "sha256:6ca148c8c1db8bf7f516a1e08fe8dd308793c74e8787f39e9cc7971917a501ab"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.Endpoint"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:b7746a75b2f8d23ca5c89e81d258f7a65d4a64de523b87e5bf06d9a8709a856f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.NativeHttpAdapter"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:8f068e19ae536bd9d6dd4094dd51afcc41200098d6f4a7b453fc5be89dfc9bac"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.NativeHttpAdapter.CheckHealth"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:15564d2e97a46c9299f189423ae29632883afd0b58a8abaddf9e4b7d920a9998"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.NativeHttpAdapter.Descriptor"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:00ec3c9454f5d97b2610eb6435221dd8204276b3e88daa154ca3de26a227ff29"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.NativeHttpAdapter.NormalizeReport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:e24669286957ebbb08ca744fb85a9250c31dda0a7a062abad47bdba46e46295c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.NativeHttpAdapter.PrepareInvocation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:88ec0254cd43627bc504c86f76530b05d42abdc146773cc97069ffa41bb1158f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.NativeHttpRecordError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:dd772783502f2d1455e2bc64e4adbf07d2570b05c49427265e6de22fac052818"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.ParseRecord"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:f1dee7a294b4cce1947a47c18c97166c84429c54be13b2ee21db6698276c80de"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_http.RequestTimeout"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_http.py"
+sourceHash = "sha256:10bade60e5f95fd35599e7725b77279a3c352a90e27553ca239ef3efbc5781c4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.discovery.DiscoveryLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/discovery.py"
+sourceHash = "sha256:10a833ecfe6073237a2214efdbe75f24da855dc911a66ffeccc9ef8eaf7bd6e5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.discovery.DiscoveryLimits.FirstUpdateBudgetSeconds"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/discovery.py"
+sourceHash = "sha256:6413d5fe174881518052048338cfec59ac8ab3529388cdc0361488ea7bc16caa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.discovery.NativeDiscoveryProvider"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/discovery.py"
+sourceHash = "sha256:f2208de0d8eaace52b840b047d62327b017431f35836134e3f0b341438c22b02"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.discovery.NativeDiscoveryProvider.Acquire"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/discovery.py"
+sourceHash = "sha256:c7033cc776945829ef16f6fea1c5e32b9a877420b16f5c1c08b390cdd6a9862f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.discovery.NativeDiscoveryProvider.Descriptor"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/discovery.py"
+sourceHash = "sha256:436f444f0ee82c40dfbead8da629437fddb1f6e79889bbce4a16227fddfe897e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.discovery.NativeDiscoveryProvider.Run"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/discovery.py"
+sourceHash = "sha256:ece03b9e1aebcdbbda942c510484dc895c0e887583b0c37ab3cc6d278fadf954"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.native_http_worker.HttpProtocolError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/native_http_worker.py"
+sourceHash = "sha256:f3f930a52a61e9beb541f8f28e5f8ab74e5eddcf512079cf70f2e48634108f71"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.native_http_worker.Main"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/native_http_worker.py"
+sourceHash = "sha256:48d206b70865e5b4d348bd4aa39a4bba876b760884636f8f881bcf3493650615"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.native_http_worker.Probe"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/native_http_worker.py"
+sourceHash = "sha256:a1e5d18832eddcf08af0faf158d178e17a6d53ded6e1db724798d47c4a904c1a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.native_http_worker.Remaining"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/native_http_worker.py"
+sourceHash = "sha256:64c18a0a7fa6dd93bf24fa151c209ff65da19d1a9c968096782353b1c151cc21"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"

@@ -92,6 +92,14 @@ contract version `1`. ADR 0015 defines its governed local execution boundary.
 ADR 0025 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
+`fuzzy1337.discovery` and `fuzzy1337.adapters.native_http` are Experimental
+Python producer/sensor APIs at contract version `1`. ADR 0036 and
+`docs/NATIVE_DISCOVERY.md` define finite SAFE literal-IP endpoint acquisition,
+status-only evidence and canonical observed-model updates. The wire record is
+published as `contracts/native-http-record.schema.json`; destination binding is
+additionally enforced by the authoritative parser. `fuzzy1337.native_http_worker`
+is Internal and must not be used as an independent authorization/execution API.
+
 ## Version compatibility rules
 
 ### Repository releases
