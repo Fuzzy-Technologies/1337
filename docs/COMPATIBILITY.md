@@ -57,6 +57,10 @@ The interface grants no authority beyond an explicitly approved scope/policy.
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
 
+`fuzzy1337.lenses` is an Experimental Python library at contract version `1`.
+ADR 0029 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.model` is an Experimental Python library and persisted model schema
 at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic object
 identity, attributable updates, typed relations, observations, incremental deltas,
@@ -210,19 +214,21 @@ Current versioned public contracts:
 | Contract family      | Schema version | Location                                                 | Status       |
 | -------------------- | -------------- | -------------------------------------------------------- | ------------ |
 | Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`               | Stable       |
+| Workflow lenses      | `1`            | `fuzzy1337.lenses`                                       | Experimental |
 | Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`                       | Experimental |
+| Web request model    | `1`            | `fuzzy1337.requests`                                     | Experimental |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`              | Experimental |
+| Scan jobs            | `1`            | `fuzzy1337.jobs`                                         | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`            | Experimental |
 | Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`              | Experimental |
-| Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md` | Experimental |
+| Finding core         | `1`            | `fuzzy1337.findings`                                     | Experimental |
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`                 | Experimental |
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                                | Experimental |
-| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`               | Experimental |
-| Web request model    | `1`            | `fuzzy1337.requests`                                     | Experimental |
-| Impact policy        | `1`            | `fuzzy1337.policy`                                       | Experimental |
-| Scan jobs            | `1`            | `fuzzy1337.jobs`                                         | Experimental |
 | Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                              | Experimental |
 | Finding core         | `1`            | `fuzzy1337.findings`                                     | Experimental |
 | Report projection    | `1`            | `fuzzy1337.reporting`; `report_formats`                  | Experimental |
+| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`               | Experimental |
+| Impact policy        | `1`            | `fuzzy1337.policy`                                       | Experimental |
+| Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md` | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
