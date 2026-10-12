@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/workflow-lens.schema.json",
+  "title": "1337 Experimental Workflow Lens v1",
+  "description": "Read-only workflow metadata or a reference projection over one canonical model snapshot. Capability metadata does not authorize execution.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/descriptor"
+    },
+    {
+      "$ref": "#/$defs/view"
+    }
+  ],
+  "$defs": {
+    "objectKind": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "scope",
+        "target",
+        "domain",
+        "host",
+        "asset",
+        "port",
+        "service",
+        "endpoint",
+        "technology",
+        "finding"
+      ]
+    },
+    "relationKind": {
+      "type": "string",
+      "enum": [
+        "contains",
+        "resolves-to",
+        "has-port",
+        "hosts-service",
+        "exposes",
+        "uses-technology",
+        "related-to"
+      ]
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_kinds",
+        "relation_kinds",
+        "attributes_match",
+        "key_contains",
+        "require_provenance",
+        "include_observations"
+      ],
+      "properties": {
+        "object_kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/objectKind"
+          },
+          "uniqueItems": true
+        },
+        "relation_kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relationKind"
+          },
+          "uniqueItems": true
+        },
+        "attributes_match": {
+          "type": "object",
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        "key_contains": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "require_provenance": {
+          "type": "boolean"
+        },
+        "include_observations": {
+          "type": "boolean"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identifier",
+        "summary",
+        "object_kinds"
+      ],
+      "properties": {
+        "identifier": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000\\r\\n]+$"
+        },
+        "object_kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/objectKind"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "columns",
+        "group_by",
+        "observation_order"
+      ],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "group_by": {
+          "enum": [
+            "kind",
+            "source",
+            "none"
+          ]
+        },
+        "observation_order": {
+          "enum": [
+            "reference",
+            "observed-at"
+          ]
+        }
+      }
+    },
+    "descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "identifier",
+        "title",
+        "summary",
+        "preferred_object_kinds",
+        "preferred_relation_kinds",
+        "default_query",
+        "contextual_actions",
+        "preferred_capabilities",
+        "overlays",
+        "attribute_mappings",
+        "presentation"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "identifier": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000\\r\\n]+$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000\\r\\n]+$"
+        },
+        "preferred_object_kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/objectKind"
+          },
+          "uniqueItems": true
+        },
+        "preferred_relation_kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relationKind"
+          },
+          "uniqueItems": true
+        },
+        "default_query": {
+          "$ref": "#/$defs/query"
+        },
+        "contextual_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          },
+          "uniqueItems": true
+        },
+        "preferred_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "overlays": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "evidence-references",
+              "source-provenance",
+              "observation-history"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "attribute_mappings": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+          }
+        },
+        "presentation": {
+          "$ref": "#/$defs/presentation"
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "lens",
+        "workspace_id",
+        "revision",
+        "query",
+        "object_references",
+        "relation_references",
+        "observation_references"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "lens": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+        },
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "query": {
+          "$ref": "#/$defs/query"
+        },
+        "object_references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^object:[0-9a-f]{64}$"
+          },
+          "uniqueItems": true
+        },
+        "relation_references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^relation:[0-9a-f]{64}$"
+          },
+          "uniqueItems": true
+        },
+        "observation_references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^observation:[0-9a-f]{64}$"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "jsonValue": {
+      "anyOf": [
+        {
+          "type": [
+            "null",
+            "boolean",
+            "number",
+            "string"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    }
+  }
+}
