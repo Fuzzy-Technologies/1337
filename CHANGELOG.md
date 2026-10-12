@@ -28,6 +28,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   operator decision is retried; decision history survives workspace relocation.
 - Rejected oversized integer finding confidence through the documented validation
   error boundary without numeric conversion overflow.
+- Preserved awaited scan-job cleanup under concurrent forced cancellation and
+  retained event-budget failure when a provider catches its notification error.
 
 #### Changed
 

@@ -80,6 +80,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.jobs"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.jobs.md"
+sourceHash = "sha256:bb54ba39dd2f38ee257621abf009b345bf839e711378c5136a210c720a84060a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.coverage-gate"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.coverage_gate.md"
@@ -1732,6 +1743,446 @@ reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
 
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobArtifact"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:cae4278156d5e2b53833ef4331c540f3ef46b022aeec63c874554770ef573d86"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:9c956d2d409a450a7a476be71679be9f31b0a6e4ff2354b6cf393fc49567ea8d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext.Cancellation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:ee193038334033cf1d7c0e7637117f7446220ccd7497db0b6e5959f6ae387bc3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext.CaptureEvidence"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:899f1939e2ae05b2adc82b9d564facfa9d82d682f774ce4247f2ffc3351a8303"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext.CheckCancellation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:f3eb9e53b11d81e8bf9c5e25b890d532615c8d043e0114f87971fe2c36a01c89"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext.Heartbeat"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:f66e3a9381eb760df051b6d22ce2c687c077f2ee16b3bdda4ba3408901b2cb9f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext.ModelChanged"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:d6c475df0ef694b1fbc66982e988f3f4baa04b19dcb119ea69f74798b71b8149"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext.Observe"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:ae236261b83d6824299ce91144692d066eb94bf275616b760beef86f49584daf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext.Progress"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:ab6de3180497165b1089344a100f127da7824178eaa4e7db176baecf95800006"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobContext.Spec"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:65704c34c6f94574d2a0ba118e60c6bdd4e99f443668e177da12b39d125d0ca9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:15f494d28d5c6df48098aed7066b63983647dbc49617112665e6f79e4e05b86a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobEvent"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:f7ef980ed51b028054fb3111877d20b73dee3cf69188ae7e27d02e2a7883ddcf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobEventKind"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:1ad1fd9957e5a16fc0fdf218a36126db41fe494355fcca8bd22bb7fa4a1d21c4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobFailure"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:36b3ca112ee31b65a3be69b110b6a11382d969b5bc39b1c187c4b59d4cb988b1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobFailureCode"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:3a1325f1827e978270bf285da6b7c9feeeeed1783c6516eb3e8a9b851e631646"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobProgress"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:c66b4fa5f867b25424d2bd5f6d34ff3b56bf30faba0e974a8a0f1f84dca61ba3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobProvider"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:191ebaeb5ed62b1dad9e373f71635820a890dbf30547d9a20d41f651c9daebf9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobProvider.Run"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:cb4ac87b84aa38e9ca2e4b2995dbfc41a620560c03d7fd9ed1fc63a394143ed3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobSnapshot"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:0814b4386afc03e15d68f665fa4d6d59c3f3bff5a32cb236267f2e561710749c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobSpec"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:c83c0e8db95e8d914b00a97baeb113b79c5421b9cbdd6c7ec0c37de2bf71040a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.JobState"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:6cff012dd77524acbaf794a08d5739ae30e9048b385429ada9c1168af74f7ec7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.LocalExecutionCallable"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:531906e5a28b77e3a288ce7740c1bf3c63a7322d23338f55b2f6c3690305f72e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.LocalExecutionJob"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:7d051e0e7f24c8235f7d5de310eb599abf3a6c07e264a63226f562f34133df50"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.LocalExecutionJob.Run"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:2b2f9ff6767aa28fbda6c0e034f2f110985b95573e80f355e1bbc69953d21b30"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.RequirePositiveSeconds"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:50a9d8961b9000b879751e7ad8d7366ada1ee745193290208fe90b837865b0db"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:bc93fb6a88ea432463f31c77191ccc79d81e301ae617f2bc071a6b666fe4337f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Append"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:ef9f6810c529a2f417234bfc84103eab481511f1b23a8650ae33ce3f8d1b8388"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Cancel"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:de910c04508331b53d1d4d0a0b459b983c3a1e2936d7cb68591c3cd856ba21e7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.CancelAndWait"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:1c19f6865723549614de276c70a13c1a447dec65aab2933bf602db3936ac9d8b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Events"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:02addb20820bc0b1745ed44a60191fdddf5270d5414f3b72b130034b59c97fc8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.EventsSince"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:ada5bbd19624d01b9feeab96d14c63e29021049d2a86d3012586806d087e89ac"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Finish"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:9c2cd09da64d39f2b3ba4bc7eb7098b96f4a02889cd28979e2aba926f258eb98"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Publish"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:ebed785dfefc079f14a46bc77b8af34aaa2da536e20d302d958f975fa770c6b4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.RequireLoop"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:730e9496d6b7c786ebd6ab2dc93edf36cefdac3f3ef2a80de960920a793a6c5e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.RequireRunning"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:e25827fe559b1e35b017c6c984866eafb3df1d874822f263ce99b49db3cd4b76"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Run"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:8eb1f9a20962cf618eb32fabebaa75f7397faa53ccb6d6e00e082e4f8cf058ce"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Snapshot"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:269878b3e15d3e0770ba879c16ad632fc3759b217932b22bc83f28c63b4b2c65"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Start"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:bca6ec8c11c0238430ba82de523cce0b493783101a0166a576c07e6c7515b507"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Wait"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:939927b70b98aec0858223228103f8dfbdc7993c718c973f8c2e1291de91e35f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.jobs.ScanJob.Spec"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/jobs.py"
+sourceHash = "sha256:b55a62924299eed007e54e3f302c2363a9b8b0f9701fbe123a967723b57cbc57"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 
