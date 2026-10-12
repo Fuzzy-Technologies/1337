@@ -5,6 +5,7 @@
 
 from dataclasses import replace
 
+from fuzzy1337.adapters.contracts import AdapterExecution, EvidenceReference, ExecutionState
 from fuzzy1337.findings import (
     ApplyFindings,
     Finding,
@@ -13,8 +14,6 @@ from fuzzy1337.findings import (
     Remediation,
     TransitionFinding,
 )
-
-from fuzzy1337.adapters.contracts import AdapterExecution, EvidenceReference, ExecutionState
 from fuzzy1337.model import (
     ModelProvenance,
     ModelState,
