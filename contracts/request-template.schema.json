@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/request-template.schema.json",
+  "title": "1337 structural request template version 1",
+  "description": "Structural references only; runtime decoding also checks canonical identities and relationships.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "request_reference", "endpoint", "body_kind",
+    "session_reference", "graphql_operation", "injection_points"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "request_reference": {"type": "string", "pattern": "^request:[0-9a-f]{64}$"},
+    "endpoint": {"$ref": "#/$defs/endpoint"},
+    "body_kind": {"enum": ["none", "form", "text", "json", "graphql", "multipart"]},
+    "session_reference": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/session"}]},
+    "graphql_operation": {
+      "oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[_A-Za-z][_0-9A-Za-z]{0,63}$"}]
+    },
+    "injection_points": {
+      "type": "array", "maxItems": 128, "items": {"$ref": "#/$defs/injection"}
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+    },
+    "binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "source"],
+      "properties": {
+        "name": {"$ref": "#/$defs/identifier", "maxLength": 64},
+        "source": {"enum": ["input", "session"]}
+      }
+    },
+    "session": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workspace_id", "session_id"],
+      "properties": {
+        "workspace_id": {"$ref": "#/$defs/identifier", "maxLength": 64},
+        "session_id": {"$ref": "#/$defs/identifier", "maxLength": 64}
+      }
+    },
+    "endpoint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workspace_id", "origin", "path_template", "method", "object_reference"],
+      "properties": {
+        "workspace_id": {"$ref": "#/$defs/identifier"},
+        "origin": {"type": "string", "maxLength": 4096, "pattern": "^https?://[^/?#@\\\\]+$"},
+        "path_template": {"type": "string", "maxLength": 1024, "pattern": "^/"},
+        "method": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{0,31}$"},
+        "object_reference": {"type": "string", "pattern": "^object:[0-9a-f]{64}$"}
+      }
+    },
+    "injection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["location", "selector", "binding", "occurrence"],
+      "properties": {
+        "location": {"enum": ["query", "body", "json", "cookie", "header", "path", "graphql", "multipart"]},
+        "selector": {"type": "string", "maxLength": 256},
+        "binding": {"$ref": "#/$defs/binding"},
+        "occurrence": {"type": "integer", "minimum": 0, "maximum": 1023}
+      }
+    }
+  }
+}
