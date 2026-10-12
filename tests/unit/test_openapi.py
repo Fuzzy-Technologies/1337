@@ -102,6 +102,10 @@ def test_SupportedVersionsGenerateSymbolicImmutableRequests(version):
     None, 42, "null", "[]", "{", '{"openapi":"3.1.0","openapi":"3.1.0"}',
     '{"value":NaN}', '{"value":Infinity}', '{"value":1e999}', '\ud800',
     '{"value":"\\ud800"}', " " * (MAX_OPENAPI_BYTES + 1), "[" * 2000,
+], ids=[
+    "nontext-null", "nontext-integer", "json-null", "json-array", "truncated-json",
+    "duplicate-key", "nan", "infinity", "overflow-number", "raw-surrogate",
+    "escaped-surrogate", "oversized-json", "deep-json",
 ])
 def test_StrictJsonRejectsDuplicatesConstantsUnicodeAndOversizedInputs(value):
     """Untrusted input fails as a validation error before producing any operation metadata."""
