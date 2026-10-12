@@ -64,6 +64,9 @@ _CALENDAR_CLOCK = (
 _TIME_ZONE = r"(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])"
 _TIME_PATTERN = re.compile(_CALENDAR_CLOCK + _TIME_ZONE + r"\Z")
 _CVE_TIME_PATTERN = re.compile(_CALENDAR_CLOCK + "(?:" + _TIME_ZONE + r")?\Z")
+_EPSS_TIME_PATTERN = re.compile(
+    _CALENDAR_CLOCK + r"(?:Z|[+-](?:[01][0-9]|2[0-3]):?[0-5][0-9])\Z",
+)
 _DECIMAL_PATTERN = re.compile(r"(?:0(?:\.[0-9]+)?|1(?:\.0+)?)\Z")
 _CWE_NAMESPACE = "http://cwe.mitre.org/cwe-7"
 _CVSS3_METRICS = {
@@ -165,6 +168,27 @@ def CveUpdateTime(value: object) -> str:
 
     if datetime.fromisoformat(text).tzinfo is None:
         text += "Z"
+
+    return IntelligenceTime(text)
+
+
+def EpssScoreTime(value: object) -> str:
+    """Normalize the EPSS publisher's full score clock and explicit numeric timezone.
+
+    Args:
+        value: Explicit CSV score_date with Z, HH:MM, or historical HHMM offset.
+
+    Returns:
+        Canonical UTC timestamp without inventing an absent date, clock, or zone.
+    """
+
+    text = IntelligenceText(value, "EPSS score timestamp", 128)
+
+    if not _EPSS_TIME_PATTERN.fullmatch(text):
+        raise ValueError("EPSS timestamp must use a full calendar clock and explicit numeric zone")
+
+    if text[-5] in ("+", "-"):
+        text = text[:-2] + ":" + text[-2:]
 
     return IntelligenceTime(text)
 
@@ -867,7 +891,7 @@ def ParseEpss(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord,
         ):
             raise ValueError("EPSS catalog version must match its model metadata")
 
-        effective = IntelligenceTime(metadata["score_date"])
+        effective = EpssScoreTime(metadata["score_date"])
         reader = csv.reader(stream, strict=True)
 
         if next(reader, None) != ["cve", "epss", "percentile"]:

@@ -248,6 +248,53 @@ def test_CvePublisherZoneDefaultCannotLeakIntoOtherSourceOrCallerTimes():
             Snapshot(feed, raw)
 
 
+@pytest.mark.parametrize("timestamp,expected", [
+    ("2026-10-12T00:00:00+0000", "2026-10-12T00:00:00.000000+00:00"),
+    ("2026-10-12T12:00:00+0230", "2026-10-12T09:30:00.000000+00:00"),
+    ("2026-10-12T07:30:00-0230", "2026-10-12T10:00:00.000000+00:00"),
+    ("2026-10-12T00:00:00+00:00", "2026-10-12T00:00:00.000000+00:00"),
+])
+def test_EpssPublisherNumericZoneSyntaxRetainsItsExactUtcMeaning(timestamp, expected):
+    """FIRST metadata-era CSV supports explicit historical HHMM and current HH:MM/Z zones."""
+
+    raw = Payload(IntelligenceFeed.EPSS).replace(b"2026-10-12T00:00:00Z", timestamp.encode())
+    snapshot = Snapshot(IntelligenceFeed.EPSS, raw)
+
+    assert snapshot.records[0].effective_at == expected, "EPSS explicit numeric zone was misread"
+    assert IntelligenceSnapshot.Deserialize(snapshot.Serialize()) == snapshot, (
+        "Publisher zone normalization changed portable score meaning"
+    )
+
+
+@pytest.mark.parametrize("timestamp", [
+    "2026-10-12T10+0000", "2026-10-12T10.9+0000", "2026-10-12T103001+0000",
+    "2026-10-12T10:30:01+00", "2026-10-12T10:30:01+00:00:01",
+    "2026-10-12T10:30:01+0299", "2026-10-12T10:30:01+2400", "2026-10-12T10:30:01",
+])
+def test_EpssNumericZoneSupportDoesNotGuessReducedOrMalformedScoreTimes(timestamp):
+    """Publisher numeric zones do not permit missing zones, reduced clocks, or offset seconds."""
+
+    raw = Payload(IntelligenceFeed.EPSS).replace(b"2026-10-12T00:00:00Z", timestamp.encode())
+
+    with pytest.raises(ValueError):
+        Snapshot(IntelligenceFeed.EPSS, raw)
+
+
+def test_EpssPublisherNumericZoneSupportDoesNotLoosenCveOrCallerTimestamps():
+    """The numeric basic offset compatibility belongs only to the explicit EPSS CSV boundary."""
+
+    timestamp = "2026-10-12T10:00:00+0000"
+
+    with pytest.raises(ValueError):
+        IntelligenceTime(timestamp)
+
+    document = CveDocument()
+    document["cveMetadata"]["dateUpdated"] = timestamp
+
+    with pytest.raises(ValueError):
+        Snapshot(IntelligenceFeed.CVE, json.dumps(document).encode())
+
+
 @pytest.mark.parametrize("value", ["cve-1900-9999", "CVE-1900-12", "CWE-089", "CWE-0", "CWE-89 ",
                                   "CWE-89\u202e", True, None, "CVE-1900-" + "9" * 20])
 def test_IdentifierMatchingRejectsAmbiguousCaseWhitespaceAndNonIdentifiers(value):

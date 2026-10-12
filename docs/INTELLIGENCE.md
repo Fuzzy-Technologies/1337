@@ -31,7 +31,9 @@ and `5.2.0`. CNA and ADP assessments remain separate. Source records must contai
 an explicit full metadata update timestamp. CVE defines an omitted timezone as
 GMT; only this publisher-defined default is applied, and no missing date is
 invented. Other source and interpretation timestamps require full calendar/clock
-syntax with `Z` or an explicit `HH:MM` offset.
+syntax with `Z` or an explicit `HH:MM` offset. EPSS CSV additionally accepts its
+publisher's historical explicit `HHMM` offsets, such as `+0000`; reduced clocks,
+missing zones, and offset seconds remain invalid.
 
 Records preserve exact uppercase CVE/CWE identifiers and effective source times.
 `intel-record:<sha256>` identifies exact normalized version-bound assertions;
@@ -115,7 +117,8 @@ own persistence; there is no provider-specific or second authoritative findings 
 - [CVE Record format](https://github.com/CVEProject/cve-schema).
 - [CWE XML schemas](https://cwe.mitre.org/data/schema.html).
 - [CISA KEV schema and source mirror](https://github.com/cisagov/kev-data).
-- [FIRST EPSS data](https://www.first.org/epss/data).
+- [FIRST EPSS data](https://www.first.org/epss/data) and its linked
+  [official historical archive](https://github.com/empiricalsec/epss_scores).
 - [FIRST CVSS 3.1 specification](https://www.first.org/cvss/v3.1/specification-document).
 - [FIRST CVSS 4.0 specification](https://www.first.org/cvss/v4.0/specification-document).
 

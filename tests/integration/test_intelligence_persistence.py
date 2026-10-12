@@ -67,11 +67,13 @@ def Context(tmp_path, name="synthetic"):
     return store, state, state.Objects(ObjectKind.FINDING)[0].Reference(), detector, provenance
 
 
-def Source(store, score="0.125", role="intelligence-source"):
+def Source(
+    store, score="0.125", role="intelligence-source", score_date="2026-10-12T00:00:00Z",
+):
     """Persist a small synthetic FIRST-shaped artifact and bind the pure parser to real bytes."""
 
     raw = (
-        "#model_version:synthetic-model-1,score_date:2026-10-12T00:00:00Z\n"
+        f"#model_version:synthetic-model-1,score_date:{score_date}\n"
         f"cve,epss,percentile\n{CVE},{score},0.8\n"
     ).encode()
     evidence = LocalEvidenceStore(store.root / "evidence").Put(
@@ -145,6 +147,32 @@ def test_CvePublisherGmtTimestampSurvivesVerifiedReparseAndCanonicalPersistence(
     assert LocalEvidenceStore(store.root / "evidence").Read(snapshot.evidence) == raw, (
         "Timestamp normalization changed retained raw CVE bytes"
     )
+
+
+def test_HistoricalEpssNumericZoneSurvivesVerifiedReparseWithScoreBasedStaleness(tmp_path):
+    """Stored metadata-era score bytes keep numeric zone semantics and do not appear fresh."""
+
+    store, state, reference, _, provenance = Context(tmp_path)
+    snapshot = Source(store, score_date="2026-10-12T00:00:00+0000")
+    enriched, delta = Enrich(state, reference, snapshot, provenance, store.root)
+    observation = [item for item in enriched.observations if item.kind == "finding-intelligence"][0]
+    assertion = observation.attributes["source_assertions"][0]
+
+    assert assertion["record"]["effective_at"] == "2026-10-12T00:00:00.000000+00:00", (
+        "A historical publisher numeric zone changed score date meaning"
+    )
+    assert assertion["age_seconds"] == 13 * 3600 and assertion["stale"] is True, (
+        "Recent acquisition replaced the historical score clock"
+    )
+    assert enriched.Objects(ObjectKind.FINDING) == state.Objects(ObjectKind.FINDING), (
+        "Publisher timestamp normalization changed a retained finding"
+    )
+    store.Save(enriched, expected_revision=delta.previous_revision)
+
+    assert store.Open() == enriched, "Canonical persistence changed a historical score assertion"
+    assert b"score_date:2026-10-12T00:00:00+0000" in LocalEvidenceStore(
+        store.root / "evidence",
+    ).Read(snapshot.evidence), "Normalization changed the immutable raw publisher-style metadata"
 
 
 def test_VerifiedIntelligenceKeepsDispositionAndEvidenceAcrossRelocationAndOldReplay(tmp_path):

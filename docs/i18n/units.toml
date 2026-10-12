@@ -7236,3 +7236,14 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence.EpssScoreTime"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence.py"
+sourceHash = "sha256:4f3f2c5f7105591b964d010419ee4855b1213d62ed70421eea7756b76f452ec5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
