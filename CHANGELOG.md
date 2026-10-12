@@ -38,6 +38,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Security
 
+- Require a valid timezone-aware Trivy database update time and reject JSON
+  integers exceeding decoder limits before accepting scan provenance.
 - Reject control characters and the IPv4 limited-broadcast address in reviewed
   Nuclei targets, and fail closed on JSON integers exceeding decoder limits.
 - New foundation APIs retain explicit workspace, scope and evidence boundaries.

@@ -5001,3 +5001,157 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.adapters.trivy"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.trivy.md"
+sourceHash = "sha256:d7e6a607cb7dba979278b68e9a67b8ffa71e13381f912bf172abc46e1e850d36"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.ParseJson"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:5663acaff89c38b9c90c5c4ee8e43dc066d68023bd67f5347fe2a01d1a31d044"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.ReadEvidence"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:61fa36a6dc9b34f14ae1c6027bdb3c7a5735ff010020e1601e0289c8a546accb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyAdapter"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:c8d99dc1998197698b8d6b7d07c3deee2836b60e08ca844bde117a047e11672c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyAdapter.CheckHealth"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:9371d74089df7b22eadd7edbb3eb6383e185f7e2c51ae161ceccd6d33ec2a230"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyAdapter.Descriptor"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:71a26289df78be5bd87f40cab6aace4aae9a29268857ac62af615eda30644cbe"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyAdapter.NormalizeReport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:9cd22435cbbd93a4ce18822f4e9bc0cce8cfababffd803b1edf22cd7df2e33cb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyAdapter.PrepareInvocation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:386f49aa51a5fb79ea98aaa142de159b79cecb0a0d2564787dbf4501fca721ed"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyAdapter.ProbeHealth"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:21591a50ec8c914cc0d304f60f959060bc9ba730e71373787647b98cf49c1e4c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyHealthProbe"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:c4b59b4e926932f5c2d808c2e26cc6bbf90cfb311a76253112d7729b54fa24d2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyReportError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:60c4b83de92cc233148482a0c3eb198db4751a87a6e6d1f0c2af73c080e3b069"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.WorkspacePath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:a78e4243051725f163dbbfd709b3d0b9a7017f30ebe9c0d0c3235392b912306a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.RelativePath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:9c0d4e257a71774deb72b0fc1887e897f6ac585fbdb9bec88eacaa0e705c74ef"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.trivy.TrivyAdapter.BuildInvocation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/trivy.py"
+sourceHash = "sha256:0b7bfc2f6e7180d0a45e7bdfd8236a3ecc2517501ab245ba0b32079fbdfc6848"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
