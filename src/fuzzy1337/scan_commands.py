@@ -11,7 +11,7 @@ import ipaddress
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TextIO
+from typing import NoReturn, TextIO
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters import SerializeContract
@@ -19,7 +19,7 @@ from fuzzy1337.discovery import DiscoveryLimits
 from fuzzy1337.evidence import EvidenceError, LocalEvidenceStore
 from fuzzy1337.jobs import JobEvent, JobEventKind
 from fuzzy1337.model import LocalModelStore, ObjectKind
-from fuzzy1337.quickscan import RunQuickScan
+from fuzzy1337.quickscan import RunQuickScan, VerifyWorkspaceEvidence
 from fuzzy1337.scope import (
     AuthorizationState,
     LocalScopeStore,
@@ -34,6 +34,28 @@ from fuzzy1337.workspace import (
     WorkspaceConfiguration,
     WorkspaceConflictError,
 )
+
+
+class ProductArgumentParser(argparse.ArgumentParser):
+    """Keep rejected product arguments out of diagnostic output as well as shell history."""
+
+    def Error(self, message: str) -> NoReturn:
+        """Reject malformed arguments without reflecting unknown credential-bearing values.
+
+        Args:
+            message: Untrusted argparse diagnostic, deliberately excluded from output.
+
+        Returns:
+            This callback never returns; invalid arguments terminate command parsing.
+
+        Raises:
+            SystemExit: Usage and a generic actionable diagnostic exit with status two.
+        """
+
+        super().error("Invalid command arguments; use --help for explicit required inputs.")
+
+    # argparse owns this callback name; implementation keeps project method naming.
+    error = Error
 
 
 def Endpoint(value: str) -> Target:
@@ -112,16 +134,7 @@ def OpenWorkspace(path: Path) -> dict[str, object]:
     model = LocalModelStore(store.root).Open()
     evidence = LocalEvidenceStore(store.root / "evidence")
 
-    for reference in workspace.evidence_references:
-        evidence.Read(reference)
-
-    for record_id in workspace.evidence_record_references:
-        record = evidence.Get(record_id)
-
-        if record.provenance.workspace_id != workspace.workspace_id:
-            raise ValueError("retained evidence belongs to another workspace")
-
-        evidence.Read(record.reference)
+    VerifyWorkspaceEvidence(workspace, evidence)
 
     return {
         "schema_version": 1,
@@ -160,10 +173,12 @@ def CreateScope(path: Path, arguments: argparse.Namespace) -> dict[str, object]:
         AuthorizationState.GRANTED if arguments.grant_consent else AuthorizationState.UNKNOWN,
         arguments.owner, arguments.consent_reference, arguments.valid_from, arguments.valid_until,
     )
+
     snapshot = ScopeSnapshot(
         arguments.id, workspace.workspace_id, authorization, targets=targets, allow=targets,
         exclusions=exclusions,
     )
+
     snapshot = LocalScopeStore(workspace_store.root).Create(snapshot)
 
     return snapshot.ToDict()
@@ -179,7 +194,7 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         Finite parser which never dispatches a scanner by itself.
     """
 
-    parser = argparse.ArgumentParser(prog=f"1337 {command}")
+    parser = ProductArgumentParser(prog=f"1337 {command}")
     actions = parser.add_subparsers(dest="action", required=True)
 
     if command == "workspace":
@@ -290,6 +305,7 @@ def RunCommands(
                 ),
                 on_event=OnEvent,
             ))
+
             document = summary.ToDict()
 
             if arguments.events_json:
@@ -302,6 +318,7 @@ def RunCommands(
                 output.write(f"Quick Scan {summary.snapshot.state.value}; "
                              f"model revision {summary.model_revision}; "
                              f"evidence records {len(summary.snapshot.artifacts)}\n")
+
                 output.flush()
 
             return summary.ExitCode()

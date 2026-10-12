@@ -285,3 +285,37 @@ def test_QuickScanMachineExitCodesSeparateExecutionFromFindingThresholds(state, 
         'Freeze terminal status semantics independently from any vulnerability finding '
         'count invariant failed.'
     )
+
+
+def test_FreshScopeReadFailureRetainsStorageClassificationBeforeProviderRun(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, runner: asyncio.Runner,
+) -> None:
+    """Lost current authority data must fail closed with its actual storage failure category."""
+
+    root = tmp_path / "workspace"
+    targets = Workspace(root)
+    monkeypatch.setattr(quickscan, "NativeDiscoveryProvider", EvidenceProvider)
+    original = LocalScopeStore.Open
+    reads = 0
+
+    def CurrentScope(self, scope_id):
+        """Permit initial plan attribution and fail the fresh provider-owner scope read."""
+
+        nonlocal reads
+        reads += 1
+
+        if reads == 2:
+            raise OSError("synthetic-private-authority-storage-detail")
+
+        return original(self, scope_id)
+
+    monkeypatch.setattr(LocalScopeStore, "Open", CurrentScope)
+    result = runner.run(RunQuickScan(root, "local", targets, "operator:fixture",
+                                    approve_safe_http=True))
+    assert result.snapshot.state is JobState.FAILED, "Unavailable scope must block execution."
+    assert result.snapshot.failure is not None, "A failed authority read must stay classified."
+    assert result.snapshot.failure.code is JobFailureCode.STORAGE, (
+        "Current scope I/O failure must remain a storage failure rather than an internal exception."
+    )
+    assert not result.snapshot.artifacts, "No evidence may be acquired without current scope."
+    assert "private" not in json.dumps(result.ToDict()), "Private details must remain absent."

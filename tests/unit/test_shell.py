@@ -388,3 +388,35 @@ def test_ShellIncompleteProductCommandCannotTerminateWorkbench():
         'Parser help/errors remain bounded foreground results rather than exiting the shell '
         'invariant failed.'
     )
+
+
+def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys):
+    """New product namespaces must keep rejected sensitive text out of all local history."""
+
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    target = "http://user:synthetic-password@127.0.0.1/?token=synthetic-query-token"
+    commands = (
+        f"scan quick absent --scope local --owner operator:fixture --target {target}",
+        f"SCOPE create absent --id local --allow-url {target}",
+        'scan quick "synthetic-password malformed',
+        f"scan synthetic-password {target}",
+    )
+
+    for command in commands:
+        shell.onecmd(command)
+        assert "synthetic-password" not in shell.lastcmd, (
+            "The framework's empty-line replay state must not retain rejected passwords."
+        )
+        assert "synthetic-query-token" not in shell.lastcmd, (
+            "The framework's empty-line replay state must not retain rejected tokens."
+        )
+
+    shell.onecmd("history")
+    diagnostics = capsys.readouterr()
+    retained = output.getvalue() + diagnostics.out + diagnostics.err
+    assert "synthetic-password" not in retained, "Rejected product passwords must not be retained."
+    assert "synthetic-query-token" not in retained, "Rejected product tokens must not be retained."
+    assert output.getvalue().splitlines()[-4:] == ["scan", "scan", "scope", "scan"], (
+        "Product history must retain only bounded canonical namespaces, including malformed input."
+    )

@@ -106,7 +106,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
         description="1337 Security Workbench by Fuzzy Technologies",
         epilog=CommandEpilog(registry),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,
     )
+    parser.add_argument("-h", "--help", action="store_true", help="Show command help and exit.")
     parser.add_argument(
         "--version",
         action=InstalledVersionAction,
@@ -129,7 +131,14 @@ def Main(argv: Sequence[str] | None = None) -> int:
     if arguments.command in {"workspace", "scope", "scan"}:
         from fuzzy1337.scan_commands import RunCommands
 
+        if arguments.help:
+            remaining.append("--help")
+
         return RunCommands(arguments.command, remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.help:
+        parser.print_help()
+        parser.exit()
 
     if remaining:
         parser.error("unrecognized arguments: " + " ".join(remaining))

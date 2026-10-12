@@ -35,11 +35,40 @@ from fuzzy1337.jobs import (
     ScanJob,
 )
 from fuzzy1337.model import LocalModelStore, ObjectKind
-from fuzzy1337.policy import CapabilityPermission, ImpactPolicy, UtcNow
+from fuzzy1337.policy import CapabilityPermission, ImpactPolicy, PolicyContext, UtcNow
 from fuzzy1337.scope import LocalScopeStore, Target
-from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceBusyError, WorkspaceConflictError
+from fuzzy1337.workspace import (
+    LocalWorkspaceStore,
+    WorkspaceBusyError,
+    WorkspaceConflictError,
+    WorkspaceState,
+)
 
 QUICK_SCAN_SCHEMA_VERSION = 1
+
+
+def VerifyWorkspaceEvidence(workspace: WorkspaceState, evidence: LocalEvidenceStore) -> None:
+    """Verify every retained raw reference and acquisition without inferring collection authority.
+
+    Args:
+        workspace: Existing authoritative references and owning workspace identity.
+        evidence: Existing immutable store under the workspace's evidence partition.
+
+    Raises:
+        ValueError: An acquisition belongs to another workspace.
+        EvidenceError: A raw reference or acquisition fails actual byte/manifest verification.
+    """
+
+    for reference in workspace.evidence_references:
+        evidence.Read(reference)
+
+    for record_id in workspace.evidence_record_references:
+        record = evidence.Get(record_id)
+
+        if record.provenance.workspace_id != workspace.workspace_id:
+            raise ValueError("retained evidence belongs to another workspace")
+
+        evidence.Read(record.reference)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,7 +150,13 @@ class QuickScanWorkflow:
         """
 
         try:
-            scope = LocalScopeStore(self.workspace_root).Open(self.scope_id)
+            try:
+                scope = LocalScopeStore(self.workspace_root).Open(self.scope_id)
+
+            except (OSError, ValueError) as error:
+                raise JobError(JobFailure(
+                    JobFailureCode.STORAGE, "Could not read current Quick Scan scope",
+                )) from error
 
             if scope.authorization.authority_reference != self.owner_reference:
                 raise JobError(JobFailure(
@@ -147,6 +182,7 @@ class QuickScanWorkflow:
             workspace = store.Open()
             model = LocalModelStore(self.workspace_root).Open()
             evidence = LocalEvidenceStore(self.workspace_root / "evidence")
+            VerifyWorkspaceEvidence(workspace, evidence)
             references = {
                 (item.locator, item.role): item for item in workspace.evidence_references
             }
@@ -161,6 +197,7 @@ class QuickScanWorkflow:
                 evidence.Read(record.reference)
                 references.setdefault((record.reference.locator, record.reference.role),
                                       record.reference)
+
                 record_ids.add(record.evidence_id)
 
             store.Save(replace(
@@ -211,6 +248,7 @@ async def RunQuickScan(
     Raises:
         ValueError: Inputs, paths or authoritative state are invalid before a job starts.
         OSError: The initial authoritative workspace, scope or model cannot be opened.
+        EvidenceError: A previously retained acquisition fails preflight integrity verification.
         Exception: A presentation consumer fails, after the owned job has cleaned up.
     """
 
@@ -219,6 +257,8 @@ async def RunQuickScan(
 
     workspace_store = LocalWorkspaceStore(workspace_root)
     workspace = workspace_store.Open()
+    evidence_store = LocalEvidenceStore(workspace_store.root / "evidence")
+    VerifyWorkspaceEvidence(workspace, evidence_store)
     model_store = LocalModelStore(workspace_store.root)
     model_store.Open()
     scope = LocalScopeStore(workspace_store.root).Open(scope_id)
@@ -228,9 +268,18 @@ async def RunQuickScan(
             NATIVE_HTTP_CAPABILITY, NATIVE_HTTP_PROVIDER_ID, ImpactLevel.SAFE,
         ),) if approve_safe_http else (),
     )
+
+    def ValidateOwner(context: PolicyContext) -> None:
+        """Bind this product workflow's operator to the current actor at every exact launch."""
+
+        if context.scope.authorization.authority_reference != owner_reference:
+            raise PermissionError("Operator does not match current scope authority")
+
     native = NativeDiscoveryProvider(
         workspace_store.root, targets, scope_id, policy, limits=limits, clock=clock,
+        context_validator=ValidateOwner,
     )
+
     spec = JobSpec(
         "job:quick-" + uuid4().hex, workspace.workspace_id, scope.Reference(), owner_reference,
         NATIVE_HTTP_PROVIDER_ID, timeout_seconds=limits.timeout_seconds,
@@ -243,8 +292,9 @@ async def RunQuickScan(
 
     workflow = QuickScanWorkflow(native, workspace_store.root, scope_id, owner_reference, Snapshot)
     job = ScanJob(
-        spec, workflow, evidence_store=LocalEvidenceStore(workspace_store.root / "evidence"),
+        spec, workflow, evidence_store=evidence_store,
     )
+
     started_at = datetime.now(UTC).isoformat()
     started = time.monotonic()
     first_update: float | None = None

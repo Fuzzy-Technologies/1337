@@ -4863,7 +4863,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell.onecmd"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:67df7d90aa7aa2b915ed764439866cd73a3b3bf07bfe937a469dd63f32f7d7cf"
+sourceHash = "sha256:70d63da689ff7938c110673cc0f40345b049b528fa6062047818d604ad5d9483"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -6730,7 +6730,7 @@ state = "missing"
 id = "symbol:fuzzy1337.quickscan.RunQuickScan"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/quickscan.py"
-sourceHash = "sha256:5fba4dd445f72f4ccf6d39b375735fb546c32f8cf0b8174ec26e229a87d575ae"
+sourceHash = "sha256:7089337a6db35e67b1cf8dbb1c6e2936d0e7a9a8b8d6e8e63490b4aa320e3bc9"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -6852,6 +6852,39 @@ id = "symbol:fuzzy1337.shell.InteractiveShell.do_workspace"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
 sourceHash = "sha256:d99b1965858b136e23a7dbe5039fc84554cea167696f69ca5b498d018d2ef905"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.quickscan.VerifyWorkspaceEvidence"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/quickscan.py"
+sourceHash = "sha256:3af7c1803754f5df99a4c9a5040fca769ef21f4716af0af45546d5d42c07312f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scan_commands.ProductArgumentParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scan_commands.py"
+sourceHash = "sha256:d02d23d50f5a0962acbcd2f141249236bbb70f285f7e0eaf6cb9483e8453279b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.scan_commands.ProductArgumentParser.Error"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scan_commands.py"
+sourceHash = "sha256:8e8c17a195054741387338dc4c8193fcf99a692e00369e0be6459242d089bd43"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

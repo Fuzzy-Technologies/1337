@@ -42,6 +42,9 @@ def ValidateSummary(summary: dict) -> None:
     assert summary["job"]["last_sequence"] == len(summary["events"]) - 1, (
         "The terminal snapshot cursor must cover the exact retained event stream."
     )
+    assert summary["object_counts"]["finding"] == 0, (
+        "SAFE discovery must preserve the accepted Finding kind without inventing findings."
+    )
 
 
 @pytest.fixture
@@ -443,4 +446,118 @@ def test_InstalledModuleCommandRunsRealQuickScanWithStructuredSummary(
     assert requests == ["/"], (
         'Exercise actual process CLI dispatch through the installed module entry point '
         'invariant failed.'
+    )
+
+
+def ReplaceAuthority(root: Path) -> None:
+    """Record an explicit replacement consent actor in the owned synthetic workspace."""
+
+    from dataclasses import replace
+
+    from fuzzy1337.scope import LocalScopeStore
+
+    store = LocalScopeStore(root)
+    current = store.Open("local")
+    store.Save(replace(current, authorization=replace(
+        current.authorization, authority_reference="operator:replacement",
+        record_reference="consent:replacement",
+    )))
+
+
+def test_ProductCannotContinueAfterConsentAuthorityChangesBetweenEndpoints(
+    tmp_path: Path, local_target, capsys,
+) -> None:
+    """The previous actor cannot acquire another endpoint under replacement consent."""
+
+    base, requests, _ = local_target
+    root = tmp_path / "workspace"
+    urls = (base + "/first", base + "/second")
+    Setup(root, urls, capsys)
+
+    def OnEvent(event) -> None:
+        """Replace actor after the first actually persisted model delta, before the next grant."""
+
+        if event.kind.value == "model_delta":
+            ReplaceAuthority(root)
+
+    summary = asyncio.run(RunQuickScan(
+        root, "local", tuple(Target(TargetKind.URL, url) for url in urls), "operator:fixture",
+        approve_safe_http=True, limits=DiscoveryLimits(interval_seconds=0.05), on_event=OnEvent,
+    ))
+    assert summary.ExitCode() == 3, "Replacement consent must deny the previous owning operator."
+    assert summary.snapshot.failure is not None, "Actor drift must remain an explicit failure."
+    assert summary.snapshot.failure.code.value == "authorization", (
+        "Changing consent actor must preserve authority denial rather than provider failure."
+    )
+    assert requests == ["/first"], "A changed actor must prevent the second target contact."
+    assert summary.model_revision == 1, "The first approved saved model delta must remain durable."
+    ValidateSummary(summary.ToDict())
+
+
+def test_ProductRechecksConsentActorAtFinalGovernedLaunch(
+    tmp_path: Path, local_target, capsys, monkeypatch,
+) -> None:
+    """A replacement actor between grant and process launch must prevent even the first contact."""
+
+    from fuzzy1337.policy import PolicyEngine
+
+    base, requests, _ = local_target
+    root = tmp_path / "workspace"
+    url = base + "/"
+    Setup(root, (url,), capsys)
+    original = PolicyEngine.Authorize
+
+    def Authorize(self, *args, **kwargs):
+        """Obtain the exact original grant, then replace its current authoritative consent actor."""
+
+        grant = original(self, *args, **kwargs)
+        ReplaceAuthority(root)
+
+        return grant
+
+    monkeypatch.setattr(PolicyEngine, "Authorize", Authorize)
+    output = StringIO()
+    assert RunCommands("scan", ScanArguments(root, (url,)), output, json_output=True) == 3, (
+        "Changed consent at the final governed launch must remain a dedicated denial."
+    )
+    summary = json.loads(output.getvalue())
+    ValidateSummary(summary)
+    assert not requests, "Final launch revalidation must prevent all target contact."
+    assert not summary["job"]["artifacts"], "Denied process launch must not fabricate acquisition."
+
+
+@pytest.mark.parametrize("mutation", ["missing", "tampered"])
+def test_ProductCannotReportNewSuccessWithBrokenRetainedEvidence(
+    tmp_path: Path, local_target, capsys, mutation: str,
+) -> None:
+    """A second scan must fail before contact when an earlier retained raw acquisition is broken."""
+
+    base, requests, _ = local_target
+    root = tmp_path / "workspace"
+    urls = (base + "/first", base + "/second")
+    Setup(root, urls, capsys)
+    assert RunCommands("scan", ScanArguments(root, urls[:1]), StringIO(), json_output=True) == 0, (
+        "The first owned acquisition must be real and complete before evidence mutation."
+    )
+    workspace = LocalWorkspaceStore(root).Open()
+    blob = root / "evidence" / workspace.evidence_references[0].locator
+
+    if mutation == "missing":
+        blob.unlink()
+
+    else:
+        blob.write_bytes(b"tampered-safe-acquisition")
+
+    output = StringIO()
+    assert RunCommands("scan", ScanArguments(root, urls[1:]), output, json_output=True) == 4, (
+        "Broken retained evidence must block whole-workspace scan success."
+    )
+    failure = json.loads(output.getvalue())
+    assert failure["state"] == "failed" and failure["failure"]["code"] == "storage", (
+        "Missing or corrupted prior bytes must remain a truthful storage/integrity failure."
+    )
+    assert requests == ["/first"], "Invalid retained state must prevent the next contact."
+    assert LocalModelStore(root).Open().revision == 1, "Failed runs must not fabricate model data."
+    assert Main(["workspace", "open", str(root), "--json"]) == 4, (
+        "Reopen must independently detect the same retained integrity failure."
     )

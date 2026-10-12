@@ -18,6 +18,10 @@ consent-record reference and validity interval. A Quick Scan additionally requir
 No CLI path issues implicit STANDARD or higher-impact confirmation. Native
 discovery reopens current scope and revalidates policy immediately before every
 exact governed process launch; the coordinator does not implement another probe.
+This product workflow additionally binds its declared owner to the current consent
+actor through the native provider's explicit fresh-context restriction hook, both
+before every new grant and at final launch. The generic SDK does not equate every
+job owner with its scope's consent attester automatically.
 
 Starting the owned job immediately publishes queued status. Versioned ordered
 job events stream while discovery proceeds. The command measures the time to the
@@ -30,6 +34,8 @@ before the job seals its terminal state. Reopen reads the existing authoritative
 model and independently verifies retained evidence, without contacting targets.
 Repeated runs retain one logical object identity while adding actual provenance.
 JSON summary and optional JSON-line event output reuse the owned job contracts.
+Prior retained acquisitions are verified before new work and again before saving
+terminal metadata, so a new run cannot claim durable success with broken old evidence.
 
 ## Boundaries
 

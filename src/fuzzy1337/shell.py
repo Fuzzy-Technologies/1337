@@ -207,7 +207,8 @@ class InteractiveShell(cmd.Cmd):
     def onecmd(self, line: str) -> bool:
         """Run a command while retaining bounded operator history for local search.
 
-        Records nonempty commands except history in bounded local history before dispatch.
+        Records ordinary nonempty commands except history in bounded local history.
+        Workspace/scope/scan retain only their namespace, avoiding rejected secret arguments.
 
         Args:
             line: Operator command line to dispatch through cmd.Cmd.
@@ -219,7 +220,19 @@ class InteractiveShell(cmd.Cmd):
         normalized = line.strip()
         command = normalized.split(maxsplit=1)[0].lower() if normalized else ""
         if normalized and command != "history":
-            self._history.append(normalized)
+            self._history.append(
+                command if command in {"workspace", "scope", "scan"} else normalized
+            )
+
+        if command in {"workspace", "scope", "scan"}:
+            remainder = normalized.split(maxsplit=1)[1:] or [""]
+
+            try:
+                return super().onecmd(command + " " + remainder[0])
+
+            finally:
+                # cmd.Cmd retains raw input for empty-line replay unless explicitly cleared.
+                self.lastcmd = command
 
         return super().onecmd(line)
 

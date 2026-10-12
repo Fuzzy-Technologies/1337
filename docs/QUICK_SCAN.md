@@ -45,6 +45,9 @@ only native SAFE endpoint discovery; it never approves STANDARD or higher-impact
 work. A different operator, expired consent, exclusions, missing destination rules
 or missing capability approval prevents process launch. Consent references are
 operator-recorded metadata; the local CLI is not an identity-provider login flow.
+The declared operator must still match the current consent actor at each new grant
+and at the final governed launch. Replacing the actor between endpoints prevents
+the previous operator's job from continuing, while preserving earlier acquired state.
 
 Use repeatable `--allow-url`/`--allow-ip` and `--exclude-url`/`--exclude-ip` rules
 when creating scope. Select each endpoint explicitly with repeatable `--target`.
@@ -96,6 +99,9 @@ split-pane TUI remains a separate work item.
 A later endpoint failure retains earlier committed model/evidence data and reports
 whole-job failure. Workspace references are verified and saved before terminal
 success. Storage failure remains explicit even if the native provider completed.
+Every earlier retained acquisition is verified before new work and again before
+terminal persistence. Missing, corrupted or foreign prior evidence blocks success
+and is independently detected by reopen.
 Lost process state never implies job success; job/event history is in memory,
 while the authoritative model and raw acquisitions remain independently reopenable.
 

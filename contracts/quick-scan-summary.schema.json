@@ -19,13 +19,14 @@
     "object_counts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["workspace", "scope", "target", "domain", "host", "asset", "port", "service", "endpoint", "technology"],
+      "required": ["workspace", "scope", "target", "domain", "host", "asset", "port", "service", "endpoint", "technology", "finding"],
       "properties": {
         "workspace": {"$ref": "#/$defs/count"}, "scope": {"$ref": "#/$defs/count"},
         "target": {"$ref": "#/$defs/count"}, "domain": {"$ref": "#/$defs/count"},
         "host": {"$ref": "#/$defs/count"}, "asset": {"$ref": "#/$defs/count"},
         "port": {"$ref": "#/$defs/count"}, "service": {"$ref": "#/$defs/count"},
-        "endpoint": {"$ref": "#/$defs/count"}, "technology": {"$ref": "#/$defs/count"}
+        "endpoint": {"$ref": "#/$defs/count"}, "technology": {"$ref": "#/$defs/count"},
+        "finding": {"$ref": "#/$defs/count"}
       }
     },
     "job": {

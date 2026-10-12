@@ -315,3 +315,18 @@ def test_ProductReopenRejectsTamperedOrForeignAcquisition(tmp_path, capsys, fore
     assert '"state": "failed"' in capsys.readouterr().out, (
         "Integrity failure must remain an explicit machine-readable failure."
     )
+
+
+@pytest.mark.parametrize("arguments, expected", [
+    (["scan", "quick", "--help"], "--approve-safe-http"),
+    (["scope", "create", "--help"], "--grant-consent"),
+    (["workspace", "create", "--help"], "--name"),
+])
+def test_ProductHelpDescribesSelectedActionWithoutReadingWorkspace(arguments, expected, capsys):
+    """Nested help must expose actual bounded command arguments before local setup or execution."""
+
+    with pytest.raises(SystemExit) as caught:
+        Main(arguments)
+
+    assert caught.value.code == 0, "Command help must exit normally before any local state read."
+    assert expected in capsys.readouterr().out, "Help must describe the selected product action."
