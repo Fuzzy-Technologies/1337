@@ -58,12 +58,12 @@ are repeated at each exact governed launch.
 
 ## Bounds and live updates
 
-| Option | Default | Supported bound |
-| --- | --- | --- |
-| `--max-endpoints` | 8 | 1–16 explicit endpoints |
-| `--request-timeout` | 3 seconds | Native provider's finite 0.05–10 second request range |
-| `--interval` | 0.2 seconds | 0.05–10 seconds between sequential endpoints |
-| `--timeout` | 30 seconds | 0.05–60 second total job/provider deadline |
+| Option              | Default     | Supported bound                                       |
+| ------------------- | ----------- | ----------------------------------------------------- |
+| `--max-endpoints`   | 8           | 1–16 explicit endpoints                               |
+| `--request-timeout` | 3 seconds   | Native provider's finite 0.05–10 second request range |
+| `--interval`        | 0.2 seconds | 0.05–10 seconds between sequential endpoints          |
+| `--timeout`         | 30 seconds  | 0.05–60 second total job/provider deadline            |
 
 Starting a job publishes `queued` immediately, before target contact. Real
 heartbeat, progress and already-saved model deltas follow while discovery runs.
@@ -91,13 +91,13 @@ The shell's `model <workspace-path>` explicitly opens a read-only snapshot;
 reopen it after scanning to inspect the saved revision with `view model --json`
 and the selected lens. Lens selection and inspection never start discovery.
 
-| Exit status | Meaning |
-| --- | --- |
-| `0` | The declared discovery workflow completed; no vulnerability or security-posture claim |
-| `2` | Invalid command arguments or authoritative local configuration |
-| `3` | Authorization/scope/capability denial |
-| `4` | Provider, timeout, normalization, evidence or storage failure |
-| `130` | Owned cancellation after cleanup |
+| Exit status | Meaning                                                                               |
+| ----------- | ------------------------------------------------------------------------------------- |
+| `0`         | The declared discovery workflow completed; no vulnerability or security-posture claim |
+| `2`         | Invalid command arguments or authoritative local configuration                        |
+| `3`         | Authorization/scope/capability denial                                                 |
+| `4`         | Provider, timeout, normalization, evidence or storage failure                         |
+| `130`       | Owned cancellation after cleanup                                                      |
 
 A later endpoint failure retains earlier committed model/evidence data and reports
 whole-job failure. Workspace references are verified and saved before terminal

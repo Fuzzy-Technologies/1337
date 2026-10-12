@@ -237,7 +237,7 @@ Current versioned public contracts:
 | Web request model    | `1`            | `fuzzy1337.requests`                                       | Experimental |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`                | Experimental |
 | Scan jobs            | `1`            | `fuzzy1337.jobs`                                           | Experimental |
-| Quick Scan summary   | `1`            | `contracts/quick-scan-summary.schema.json`                   | Experimental |
+| Quick Scan summary   | `1`            | `contracts/quick-scan-summary.schema.json`                 | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`              | Experimental |
 | Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`                | Experimental |
 | Finding core         | `1`            | `fuzzy1337.findings`                                       | Experimental |
