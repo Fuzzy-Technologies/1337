@@ -22,6 +22,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Workbench development, with deterministic validation and failure-path tests.
   The subsystem documentation describes the capabilities present in each change.
 
+#### Fixed
+
+- Preserved awaited scan-job cleanup under concurrent forced cancellation and
+  retained event-budget failure when a provider catches its notification error.
+
 #### Changed
 
 - Limited browser-based documentation rendering to the protected-master publication
@@ -31,6 +36,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Require a valid timezone-aware Trivy database update time and reject JSON
   integers exceeding decoder limits before accepting scan provenance.
+- Reject control characters and the IPv4 limited-broadcast address in reviewed
+  Nuclei targets, and fail closed on JSON integers exceeding decoder limits.
 - New foundation APIs retain explicit workspace, scope and evidence boundaries.
   A query, model reference, job or adapter preparation does not grant authority
   to scan a target or broaden a previously approved execution plan.
