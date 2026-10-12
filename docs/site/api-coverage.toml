@@ -114,10 +114,22 @@ mode = "authored"
 page = "api/fuzzy1337.journeys.md"
 
 [[surfaces]]
+module = "fuzzy1337.policy"
+source = "src/fuzzy1337/policy.py"
+mode = "authored"
+page = "api/fuzzy1337.policy.md"
+
+[[surfaces]]
 module = "fuzzy1337.performance"
 source = "src/fuzzy1337/performance.py"
 mode = "authored"
 page = "api/fuzzy1337.performance.md"
+
+[[surfaces]]
+module = "fuzzy1337.requests"
+source = "src/fuzzy1337/requests.py"
+mode = "authored"
+page = "api/fuzzy1337.requests.md"
 
 [[surfaces]]
 module = "fuzzy1337.scope"

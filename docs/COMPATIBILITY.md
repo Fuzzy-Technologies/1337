@@ -45,6 +45,10 @@ at version `1`. ADR 0022 and `docs/SCOPE.md` define typed target identity,
 explicit consent metadata, offline membership, and portable scope persistence.
 Scope membership does not issue invocation-bound execution authorization.
 
+`fuzzy1337.requests` is an Experimental Python library at contract version `1`.
+ADR 0028 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
+
 `fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
@@ -71,6 +75,10 @@ contract version `1`. ADR 0015 defines its governed local execution boundary.
 schema at version `1`. ADR 0034 and `docs/JOURNEYS.md` define immutable finite
 browser/API declarations and offline preparation against existing exact targets
 and scope records. Preparation issues no invocation-bound execution authorization.
+
+`fuzzy1337.policy` is an Experimental Python library at contract version `1`.
+ADR 0025 defines its typed, bounded subsystem contract.
+The interface grants no authority beyond an explicitly approved scope/policy.
 
 ## Version compatibility rules
 
@@ -185,6 +193,7 @@ Current versioned public contracts:
 | -------------------- | -------------- | --------------------------------------------- | ------------ |
 | Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`    | Stable       |
 | Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`            | Experimental |
+| Web request model    | `1`            | `fuzzy1337.requests`                          | Experimental |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
 | Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`   | Experimental |
@@ -192,5 +201,6 @@ Current versioned public contracts:
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                     | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
 | Synthetic journeys   | `1`            | `contracts/journey-scenario.schema.json`      | Experimental |
+| Impact policy        | `1`            | `fuzzy1337.policy`                            | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
