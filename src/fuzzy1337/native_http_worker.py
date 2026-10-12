@@ -79,7 +79,9 @@ def Probe(url: str, timeout_seconds: float) -> dict[str, object]:
 
         if scheme == "https":
             connection.settimeout(Remaining(deadline))
-            connection = ssl.create_default_context().wrap_socket(
+            context = ssl.create_default_context()
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            connection = context.wrap_socket(
                 connection, server_hostname=address,
             )
 

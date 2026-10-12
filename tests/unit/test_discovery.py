@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -85,8 +86,8 @@ def Job(root, target, policy, *, limits=DiscoveryLimits(), provider=None, **chan
                    evidence_store=LocalEvidenceStore(root / "evidence"))
 
 
-def Run(job):
-    """Run the async job lifecycle on a fresh deterministic event loop."""
+def Run(job, discovery_runner):
+    """Run the async job lifecycle on the owned deterministic event loop."""
 
     async def StartAndWait():
         """Start and await the job without bypassing its failure-state boundary."""
@@ -94,7 +95,35 @@ def Run(job):
         job.Start()
         return await job.Wait()
 
-    return asyncio.run(StartAndWait())
+    return discovery_runner.run(StartAndWait())
+
+
+@pytest.fixture(scope="module")
+def owned_discovery_runner() -> Iterator[asyncio.Runner]:
+    """Initialize Windows loop self-pipes before the unchanged unit network guard."""
+
+    with asyncio.Runner() as runner:
+        runner.get_loop()
+        yield runner
+
+
+@pytest.fixture
+def discovery_runner(owned_discovery_runner: asyncio.Runner) -> Iterator[asyncio.Runner]:
+    """Reuse the owned loop and reap pending tasks at every test boundary."""
+
+    yield owned_discovery_runner
+
+    async def Cleanup() -> None:
+        """Cancel and await every unfinished task without opening another loop."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    owned_discovery_runner.run(Cleanup())
 
 
 @pytest.fixture
@@ -145,12 +174,12 @@ def fake_executor(monkeypatch):
     return Executor
 
 
-def test_DiscoveryPersistsVerifiedModelAndStreamsDelta(tmp_path, fake_executor):
+def test_DiscoveryPersistsVerifiedModelAndStreamsDelta(tmp_path, fake_executor, discovery_runner):
     """Sensor facts and verified raw output enter existing storage before the update event."""
 
     root, target, _, policy = Fixture(tmp_path)
     job = Job(root, target, policy)
-    snapshot = Run(job)
+    snapshot = Run(job, discovery_runner)
     assert (
         snapshot.state is JobState.COMPLETED and fake_executor.calls == 1
     ), 'Discovery Persists Verified Model And Streams Delta boundary invariant failed'
@@ -168,7 +197,7 @@ def test_DiscoveryPersistsVerifiedModelAndStreamsDelta(tmp_path, fake_executor):
         LocalEvidenceStore(root / "evidence").Read(snapshot.artifacts[0].evidence.reference)
     ), 'Discovery Persists Verified Model And Streams Delta boundary invariant failed'
     references = tuple(item.Reference() for item in state.objects)
-    repeated = Run(Job(root, target, policy))
+    repeated = Run(Job(root, target, policy), discovery_runner)
     assert (
         repeated.state is JobState.COMPLETED
     ), 'Discovery Persists Verified Model And Streams Delta boundary invariant failed'
@@ -242,18 +271,18 @@ def test_ProducerRejectsInvalidTypedPlan(tmp_path, case):
     {"workspace_id": "foreign"}, {"provider_id": "foreign.provider"},
     {"scope_reference": "scope:foreign"},
 ])
-def test_JobOwnershipMismatchCannotProbe(tmp_path, fake_executor, changes):
+def test_JobOwnershipMismatchCannotProbe(tmp_path, fake_executor, changes, discovery_runner):
     """A discovery provider cannot consume an unrelated job's authority or storage."""
 
     root, target, _, policy = Fixture(tmp_path)
-    snapshot = Run(Job(root, target, policy, **changes))
+    snapshot = Run(Job(root, target, policy, **changes), discovery_runner)
     assert (
         snapshot.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0
     ), 'Job Ownership Mismatch Cannot Probe boundary invariant failed'
 
 
 @pytest.mark.parametrize("case", ["unknown", "expired", "excluded", "policy", "changed"])
-def test_CurrentAuthorityDeniedBeforeProbe(tmp_path, fake_executor, case):
+def test_CurrentAuthorityDeniedBeforeProbe(tmp_path, fake_executor, case, discovery_runner):
     """Fresh policy checks block unconsented, expired, excluded and changed scope."""
 
     root, target, scope, policy = Fixture(tmp_path)
@@ -280,7 +309,7 @@ def test_CurrentAuthorityDeniedBeforeProbe(tmp_path, fake_executor, case):
 
         fake_executor.before = staticmethod(Change)
 
-    snapshot = Run(Job(root, target, policy))
+    snapshot = Run(Job(root, target, policy), discovery_runner)
     assert (
         snapshot.state is JobState.FAILED
     ), 'Current Authority Denied Before Probe boundary invariant failed'
@@ -297,7 +326,7 @@ def test_CurrentAuthorityDeniedBeforeProbe(tmp_path, fake_executor, case):
     ("worker-timeout", JobFailureCode.TIMEOUT), ("malformed", JobFailureCode.NORMALIZATION),
     ("worker-failure", JobFailureCode.PROVIDER),
 ])
-def test_WorkerOutcomesRemainTruthful(tmp_path, fake_executor, case, code):
+def test_WorkerOutcomesRemainTruthful(tmp_path, fake_executor, case, code, discovery_runner):
     """Partial, failed and malformed worker results cannot create successful model facts."""
 
     root, target, _, policy = Fixture(tmp_path)
@@ -319,7 +348,7 @@ def test_WorkerOutcomesRemainTruthful(tmp_path, fake_executor, case, code):
                           state=ExecutionState.FAILED, exit_code=124 if name == "timeout" else 1)
 
     fake_executor.outcome = result
-    snapshot = Run(Job(root, target, policy))
+    snapshot = Run(Job(root, target, policy), discovery_runner)
     assert (
         snapshot.state is JobState.FAILED and snapshot.failure.code is code
     ), 'Worker Outcomes Remain Truthful boundary invariant failed'
@@ -336,18 +365,20 @@ def test_WorkerOutcomesRemainTruthful(tmp_path, fake_executor, case, code):
     (PermissionError("fixture"), JobFailureCode.AUTHORIZATION),
     (OSError("fixture"), JobFailureCode.STORAGE),
 ])
-def test_LaunchErrorsAreClassified(tmp_path, fake_executor, error, code):
+def test_LaunchErrorsAreClassified(tmp_path, fake_executor, error, code, discovery_runner):
     """Execution and storage faults retain their cause without claiming discovery success."""
 
     root, target, _, policy = Fixture(tmp_path)
     fake_executor.error = error
-    snapshot = Run(Job(root, target, policy))
+    snapshot = Run(Job(root, target, policy), discovery_runner)
     assert (
         snapshot.failure.code is code and not snapshot.artifacts
     ), 'Launch Errors Are Classified boundary invariant failed'
 
 
-def test_ModelStorageFailureRetainsVerifiedEvidence(tmp_path, monkeypatch, fake_executor):
+def test_ModelStorageFailureRetainsVerifiedEvidence(
+    tmp_path, monkeypatch, fake_executor, discovery_runner,
+):
     """A failed model commit leaves actual verified sensor evidence available for diagnostics."""
 
     root, target, _, policy = Fixture(tmp_path)
@@ -358,7 +389,7 @@ def test_ModelStorageFailureRetainsVerifiedEvidence(tmp_path, monkeypatch, fake_
         raise OSError("fixture storage failure")
 
     monkeypatch.setattr(LocalModelStore, "Save", Fail)
-    snapshot = Run(Job(root, target, policy))
+    snapshot = Run(Job(root, target, policy), discovery_runner)
     assert (
         snapshot.failure.code is JobFailureCode.STORAGE and len(snapshot.artifacts) == 1
     ), 'Model Storage Failure Retains Verified Evidence boundary invariant failed'
@@ -367,29 +398,31 @@ def test_ModelStorageFailureRetainsVerifiedEvidence(tmp_path, monkeypatch, fake_
     ), 'Model Storage Failure Retains Verified Evidence boundary invariant failed'
 
 
-def test_MissingInitialStateIsStorageFailure(tmp_path, fake_executor):
+def test_MissingInitialStateIsStorageFailure(tmp_path, fake_executor, discovery_runner):
     """The producer never invents an unrelated workspace or rebuilds missing authoritative state."""
 
     target = Target(TargetKind.URL, URL)
-    snapshot = Run(Job(tmp_path / "absent", target, ImpactPolicy("local")))
+    snapshot = Run(Job(tmp_path / "absent", target, ImpactPolicy("local")), discovery_runner)
     assert (
         snapshot.failure.code is JobFailureCode.STORAGE and fake_executor.calls == 0
     ), 'Missing Initial State Is Storage Failure boundary invariant failed'
 
 
-def test_EvidenceVerificationFailureCannotPersistModel(tmp_path, monkeypatch, fake_executor):
+def test_EvidenceVerificationFailureCannotPersistModel(
+    tmp_path, monkeypatch, fake_executor, discovery_runner,
+):
     """Corrupt owned evidence is rejected before canonical model persistence."""
 
     root, target, _, policy = Fixture(tmp_path)
     monkeypatch.setattr(discovery.NativeHttpAdapter, "NormalizeReport",
                         lambda *args: (_ for _ in ()).throw(ValueError("fixture")))
-    snapshot = Run(Job(root, target, policy))
+    snapshot = Run(Job(root, target, policy), discovery_runner)
     assert (
         snapshot.failure.code is JobFailureCode.NORMALIZATION and len(snapshot.artifacts) == 1
     ), 'Evidence Verification Failure Cannot Persist Model boundary invariant failed'
 
 
-def test_CancellationWaitsForOwnedExecutionCleanup(tmp_path, fake_executor):
+def test_CancellationWaitsForOwnedExecutionCleanup(tmp_path, fake_executor, discovery_runner):
     """Cancellation cannot publish success while the worker still owns resources."""
 
     root, target, _, policy = Fixture(tmp_path)
@@ -406,7 +439,7 @@ def test_CancellationWaitsForOwnedExecutionCleanup(tmp_path, fake_executor):
 
         return await job.CancelAndWait("owner:test")
 
-    snapshot = asyncio.run(Cancel())
+    snapshot = discovery_runner.run(Cancel())
     assert (
         snapshot.state is JobState.CANCELLED and fake_executor.cleaned
     ), 'Cancellation Waits For Owned Execution Cleanup boundary invariant failed'
@@ -415,12 +448,15 @@ def test_CancellationWaitsForOwnedExecutionCleanup(tmp_path, fake_executor):
     ), 'Cancellation Waits For Owned Execution Cleanup boundary invariant failed'
 
 
-def test_TotalDeadlineCancelsOwnedExecution(tmp_path, fake_executor):
+def test_TotalDeadlineCancelsOwnedExecution(tmp_path, fake_executor, discovery_runner):
     """The total provider deadline terminates blocked acquisition truthfully."""
 
     root, target, _, policy = Fixture(tmp_path)
     fake_executor.block = True
-    snapshot = Run(Job(root, target, policy, limits=DiscoveryLimits(timeout_seconds=0.05)))
+    snapshot = Run(
+        Job(root, target, policy, limits=DiscoveryLimits(timeout_seconds=0.05)),
+        discovery_runner,
+    )
     assert (
         snapshot.failure.code is JobFailureCode.TIMEOUT and fake_executor.cleaned
     ), 'Total Deadline Cancels Owned Execution boundary invariant failed'
@@ -434,7 +470,9 @@ def test_ContextGuardMustBeCallableBeforeAnyStateAccess(tmp_path):
                                 ImpactPolicy("local"), context_validator=1)
 
 
-def test_ContextGuardIsAdditionalAtIssuanceAndFinalLaunch(tmp_path, fake_executor):
+def test_ContextGuardIsAdditionalAtIssuanceAndFinalLaunch(
+    tmp_path, fake_executor, discovery_runner,
+):
     """A successful consumer guard sees fresh context twice without replacing core policy."""
 
     root, target, _, policy = Fixture(tmp_path)
@@ -447,7 +485,8 @@ def test_ContextGuardIsAdditionalAtIssuanceAndFinalLaunch(tmp_path, fake_executo
 
     provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
                                        context_validator=Validate)
-    assert Run(Job(root, target, policy, provider=provider)).state is JobState.COMPLETED, (
+    result = Run(Job(root, target, policy, provider=provider), discovery_runner)
+    assert result.state is JobState.COMPLETED, (
         "Valid additional context guard must permit ordinarily authorized execution"
     )
     assert observed == [0, 0] and fake_executor.calls == 1, (
@@ -455,14 +494,14 @@ def test_ContextGuardIsAdditionalAtIssuanceAndFinalLaunch(tmp_path, fake_executo
     )
     denied = NativeDiscoveryProvider(root, (target,), "local", ImpactPolicy("denied"),
                                      clock=lambda: NOW, context_validator=Validate)
-    result = Run(Job(root, target, policy, provider=denied))
+    result = Run(Job(root, target, policy, provider=denied), discovery_runner)
     assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 1, (
         "A passing consumer hook must never bypass ordinary missing-capability denial"
     )
 
 
 @pytest.mark.parametrize("fail_at", [1, 2])
-def test_ContextGuardDenialCannotLaunchWorker(tmp_path, fake_executor, fail_at):
+def test_ContextGuardDenialCannotLaunchWorker(tmp_path, fake_executor, fail_at, discovery_runner):
     """Additional consumer denial is enforced before issuance and at actual final launch."""
 
     root, target, _, policy = Fixture(tmp_path)
@@ -478,26 +517,30 @@ def test_ContextGuardDenialCannotLaunchWorker(tmp_path, fake_executor, fail_at):
 
     provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
                                        context_validator=Validate)
-    result = Run(Job(root, target, policy, provider=provider))
+    result = Run(Job(root, target, policy, provider=provider), discovery_runner)
     assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0, (
         "Denied trusted context guard must prevent every probe"
     )
 
 
 @pytest.mark.parametrize("response", [False, True, "approved", 1])
-def test_ContextGuardMustSynchronouslyReturnNone(tmp_path, fake_executor, response):
+def test_ContextGuardMustSynchronouslyReturnNone(
+    tmp_path, fake_executor, response, discovery_runner,
+):
     """No accidental truthy/falsey consumer return can become an authorization decision."""
 
     root, target, _, policy = Fixture(tmp_path)
     provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
                                        context_validator=lambda context: response)
-    result = Run(Job(root, target, policy, provider=provider))
+    result = Run(Job(root, target, policy, provider=provider), discovery_runner)
     assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0, (
         "Non-None context-validator return must fail closed before any execution"
     )
 
 
-def test_AsyncContextGuardIsClosedAndCannotSilentlySkipValidation(tmp_path, fake_executor):
+def test_AsyncContextGuardIsClosedAndCannotSilentlySkipValidation(
+    tmp_path, fake_executor, discovery_runner,
+):
     """An accidentally async guard is rejected and its unawaited bare coroutine is closed."""
 
     root, target, _, policy = Fixture(tmp_path)
@@ -517,7 +560,7 @@ def test_AsyncContextGuardIsClosedAndCannotSilentlySkipValidation(tmp_path, fake
 
     provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
                                        context_validator=Validate)
-    result = Run(Job(root, target, policy, provider=provider))
+    result = Run(Job(root, target, policy, provider=provider), discovery_runner)
     assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0, (
         "Async context guard must never be treated as completed authorization"
     )
@@ -526,20 +569,22 @@ def test_AsyncContextGuardIsClosedAndCannotSilentlySkipValidation(tmp_path, fake
     )
 
 
-def test_GenericSdkDoesNotEquateAttesterWithJobOwner(tmp_path, fake_executor):
+def test_GenericSdkDoesNotEquateAttesterWithJobOwner(tmp_path, fake_executor, discovery_runner):
     """Optional consumer binding does not impose authentication semantics on all SDK operators."""
 
     root, target, scope, policy = Fixture(tmp_path)
     LocalScopeStore(root).Save(replace(scope, authorization=replace(
         scope.authorization, authority_reference="attester:different",
     )))
-    result = Run(Job(root, target, policy))
+    result = Run(Job(root, target, policy), discovery_runner)
     assert result.state is JobState.COMPLETED and fake_executor.calls == 1, (
         "Ordinary generic SDK must retain distinct attester and executing owner semantics"
     )
 
 
-def test_CustomAwaitableGuardIsRejectedWithoutEvaluatingIt(tmp_path, fake_executor):
+def test_CustomAwaitableGuardIsRejectedWithoutEvaluatingIt(
+    tmp_path, fake_executor, discovery_runner,
+):
     """Non-coroutine awaitables cannot defer or silently skip synchronous consumer checks."""
 
     root, target, _, policy = Fixture(tmp_path)
@@ -555,7 +600,7 @@ def test_CustomAwaitableGuardIsRejectedWithoutEvaluatingIt(tmp_path, fake_execut
 
     provider = NativeDiscoveryProvider(root, (target,), "local", policy, clock=lambda: NOW,
                                        context_validator=lambda context: DeferredValidation())
-    result = Run(Job(root, target, policy, provider=provider))
+    result = Run(Job(root, target, policy, provider=provider), discovery_runner)
     assert result.failure.code is JobFailureCode.AUTHORIZATION and fake_executor.calls == 0, (
         "Deferred non-coroutine context validator must fail closed synchronously"
     )

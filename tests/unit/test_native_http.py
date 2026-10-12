@@ -378,6 +378,9 @@ def test_WorkerIpv6AndVerifiedTlsBoundary(monkeypatch):
             assert (
                 selected is connection and server_hostname == "::1"
             ), 'wrap_socket boundary invariant failed'
+            assert (
+                self.minimum_version is ssl.TLSVersion.TLSv1_2
+            ), 'Native HTTPS must exclude TLS 1.0 and 1.1 before wrapping the socket'
             return selected
 
         wrap_socket = WrapSocket
