@@ -97,6 +97,12 @@ schema at version `1`. ADR 0034 and `docs/JOURNEYS.md` define immutable finite
 browser/API declarations and offline preparation against existing exact targets
 and scope records. Preparation issues no invocation-bound execution authorization.
 
+`fuzzy1337.standards_mapping` is an Experimental Python library and offline
+mapping-pack schema at version `1`. Proposed ADR 0035 and `docs/STANDARDS_MAPPING.md`
+define exact upstream identities, source provenance, review-bound content
+references, and explicit finding associations. Candidate mappings never establish
+control fulfillment, certification, or Evidence integrity.
+
 `fuzzy1337.policy` is an Experimental Python library at contract version `1`.
 ADR 0025 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
@@ -210,23 +216,24 @@ Changes to a Stable contract require:
 
 Current versioned public contracts:
 
-| Contract family      | Schema version | Location                                                 | Status       |
-| -------------------- | -------------- | -------------------------------------------------------- | ------------ |
-| Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`               | Stable       |
-| Workflow lenses      | `1`            | `fuzzy1337.lenses`                                       | Experimental |
-| Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`                       | Experimental |
-| Web request model    | `1`            | `fuzzy1337.requests`                                     | Experimental |
-| Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`              | Experimental |
-| Scan jobs            | `1`            | `fuzzy1337.jobs`                                         | Experimental |
-| ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`            | Experimental |
-| Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`              | Experimental |
-| Finding core         | `1`            | `fuzzy1337.findings`                                     | Experimental |
-| Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`                 | Experimental |
-| Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                                | Experimental |
-| Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                              | Experimental |
-| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`               | Experimental |
-| Synthetic journeys   | `1`            | `contracts/journey-scenario.schema.json`                 | Experimental |
-| Impact policy        | `1`            | `fuzzy1337.policy`                                       | Experimental |
-| Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md` | Experimental |
+| Contract family      | Schema version | Location                                                   | Status       |
+| -------------------- | -------------- | ---------------------------------------------------------- | ------------ |
+| Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`                 | Stable       |
+| Workflow lenses      | `1`            | `fuzzy1337.lenses`                                         | Experimental |
+| Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`                         | Experimental |
+| Web request model    | `1`            | `fuzzy1337.requests`                                       | Experimental |
+| Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`                | Experimental |
+| Scan jobs            | `1`            | `fuzzy1337.jobs`                                           | Experimental |
+| ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`              | Experimental |
+| Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`                | Experimental |
+| Finding core         | `1`            | `fuzzy1337.findings`                                       | Experimental |
+| Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`                   | Experimental |
+| Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                                  | Experimental |
+| Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                                | Experimental |
+| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`                 | Experimental |
+| Synthetic journeys   | `1`            | `contracts/journey-scenario.schema.json`                   | Experimental |
+| Impact policy        | `1`            | `fuzzy1337.policy`                                         | Experimental |
+| Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md`   | Experimental |
+| Standards Mappings   | `1`            | `fuzzy1337.standards_mapping`; `docs/STANDARDS_MAPPING.md` | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
