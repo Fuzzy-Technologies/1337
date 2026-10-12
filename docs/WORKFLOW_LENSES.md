@@ -111,6 +111,9 @@ Attribute matching requires key presence and exact canonical JSON equality.
 In particular, `true` differs from `1`, and a missing attribute differs from
 explicit `null`. Nested matches compare whole values rather than arbitrary paths.
 Caller mappings/lists are detached and recursively frozen.
+Query text, descriptor titles/summaries, and action summaries must encode as valid
+UTF-8. Escaped lone surrogates fail at construction/decoding before a view or
+descriptor is published to a machine client.
 
 The schema also permits the additive `finding` object family. Explicit Finding
 queries require an installed canonical model that exposes that `ObjectKind`;

@@ -150,6 +150,27 @@ def test_MissingFieldsAreRejectedRatherThanAssumed():
         LensQuery.FromDict(document)
 
 
+@pytest.mark.parametrize("field", ["title", "summary", "key_contains", "action-summary"])
+def test_DescriptorsRejectInvalidUtf8AtTheDecoderBoundary(field):
+    """Escaped lone surrogates must fail before metadata reaches a JSON-producing client."""
+
+    document = ResolveLens("pentest").ToDict()
+
+    if field == "key_contains":
+        document["default_query"][field] = "\ud800"
+
+    elif field == "action-summary":
+        document["contextual_actions"][0]["summary"] = "\ud800"
+
+    else:
+        document[field] = "\ud800"
+
+    decoded = json.loads(json.dumps(document))
+
+    with pytest.raises(ValueError, match="UTF-8"):
+        LensDescriptor.FromDict(decoded)
+
+
 def test_ReferenceViewIsNotWritableCanonicalModelFormat():
     """Automation cannot import a persona projection as another authoritative model state."""
 

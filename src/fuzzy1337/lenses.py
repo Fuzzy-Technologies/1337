@@ -124,6 +124,8 @@ class LensQuery:
         if not isinstance(self.key_contains, str) or len(self.key_contains) > 4096:
             raise ValueError("key_contains must be bounded text")
 
+        CanonicalModelJson(self.key_contains)
+
         if type(self.require_provenance) is not bool or type(self.include_observations) is not bool:
             raise ValueError("query flags must be booleans")
 
@@ -206,6 +208,7 @@ class LensAction:
 
         RequireIdentifier(self.identifier, "action identifier")
         RequireText(self.summary, "action summary")
+        CanonicalModelJson(self.summary)
         object.__setattr__(self, "object_kinds", LensKinds(
             self.object_kinds, ObjectKind, "action object_kinds",
         ))
@@ -268,6 +271,7 @@ class LensDescriptor:
         RequireIdentifier(self.identifier, "lens identifier")
         RequireText(self.title, "lens title")
         RequireText(self.summary, "lens summary")
+        CanonicalModelJson((self.title, self.summary))
         object.__setattr__(self, "preferred_object_kinds", LensKinds(
             self.preferred_object_kinds, ObjectKind, "preferred_object_kinds",
         ))

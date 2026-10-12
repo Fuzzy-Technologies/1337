@@ -205,7 +205,7 @@ def test_UnknownLensesFailWithoutChoosingMorePermissiveDefaults(identifier):
     {"object_kinds": "host"}, {"object_kinds": ("host",)},
     {"object_kinds": (ObjectKind.HOST,) * 2}, {"relation_kinds": ("related-to",)},
     {"attributes_match": {"value": float("nan")}}, {"attributes_match": []},
-    {"key_contains": None}, {"key_contains": "x" * 4097},
+    {"key_contains": None}, {"key_contains": "x" * 4097}, {"key_contains": "\ud800"},
     {"require_provenance": 1}, {"include_observations": "yes"},
 ])
 def test_MalformedQueriesFailBeforeModelAccess(arguments):
@@ -217,6 +217,7 @@ def test_MalformedQueriesFailBeforeModelAccess(arguments):
 
 @pytest.mark.parametrize("arguments", [
     {"identifier": "INVALID"}, {"title": ""}, {"summary": "bad\ntext"},
+    {"title": "\ud800"}, {"summary": "\ud800"},
     {"preferred_object_kinds": ("host",)}, {"preferred_relation_kinds": "contains"},
     {"default_query": {}}, {"presentation": {}},
     {"contextual_actions": ("not-an-action",)},
@@ -231,6 +232,13 @@ def test_MalformedDescriptorsCannotSmuggleExecutionMetadata(arguments):
 
     with pytest.raises(ValueError):
         replace(ResolveLens("pentest"), **arguments)
+
+
+def test_ActionRejectsInvalidUtf8BeforePublishingMetadata():
+    """An action suggestion cannot retain a lone surrogate that fails later JSON emission."""
+
+    with pytest.raises(ValueError, match="UTF-8"):
+        LensAction("inspect", "\ud800")
 
 
 @pytest.mark.parametrize("arguments", [

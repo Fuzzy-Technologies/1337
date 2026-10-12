@@ -22,6 +22,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Workbench development, with deterministic validation and failure-path tests.
   The subsystem documentation describes the capabilities present in each change.
 
+#### Fixed
+
+- Rejected malformed UTF-8 lens metadata and query text at construction/decoding,
+  before clients attempt to emit machine-readable views.
+
 #### Changed
 
 - Limited browser-based documentation rendering to the protected-master publication
