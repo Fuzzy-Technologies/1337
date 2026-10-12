@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/finding.schema.json",
+  "title": "1337 Experimental Finding Attributes",
+  "description": "Version 1 attributes of a canonical SOM finding object. The model owns workspace identity, typed provenance and evidence references; this is not an independent store or an authorization record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "fingerprint", "subject_reference", "check_id", "location_key",
+    "summary", "severity", "confidence", "status", "status_reason", "remediation"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$", "maxLength": 64},
+    "subject_reference": {
+      "type": "string", "pattern": "^object:[0-9a-f]{64}$", "maxLength": 71
+    },
+    "check_id": {"$ref": "#/$defs/text", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"},
+    "location_key": {"$ref": "#/$defs/text"},
+    "summary": {"$ref": "#/$defs/text"},
+    "severity": {"enum": ["unknown", "informational", "low", "medium", "high", "critical"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "status": {"enum": ["open", "confirmed", "dismissed", "resolved"]},
+    "status_reason": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/text"}]},
+    "remediation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "steps", "references"],
+      "properties": {
+        "summary": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/text"}]},
+        "steps": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "references": {
+          "type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/text"}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"enum": ["confirmed", "dismissed", "resolved"]}}},
+      "then": {"properties": {"status_reason": {"$ref": "#/$defs/text"}}}
+    }
+  ],
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "not": {"pattern": "[\\u0000\\r\\n]"}}
+  }
+}

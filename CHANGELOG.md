@@ -26,6 +26,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Rejected malformed UTF-8 lens metadata and query text at construction/decoding,
   before clients attempt to emit machine-readable views.
+- Preserved newer finding triage and detector metadata when an earlier attributed
+  operator decision is retried; decision history survives workspace relocation.
+- Rejected oversized integer finding confidence through the documented validation
+  error boundary without numeric conversion overflow.
 - Preserved awaited scan-job cleanup under concurrent forced cancellation and
   retained event-budget failure when a provider catches its notification error.
 
@@ -36,6 +40,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Security
 
+- Require a valid timezone-aware Trivy database update time and reject JSON
+  integers exceeding decoder limits before accepting scan provenance.
 - Reject control characters and the IPv4 limited-broadcast address in reviewed
   Nuclei targets, and fail closed on JSON integers exceeding decoder limits.
 - New foundation APIs retain explicit workspace, scope and evidence boundaries.
