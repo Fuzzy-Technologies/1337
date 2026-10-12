@@ -122,6 +122,12 @@ is Internal and must not be used as an independent authorization/execution API.
 
 ## Version compatibility rules
 
+`fuzzy1337.intelligence` is an Experimental Python library and snapshot schema
+at version `1`. ADR 0041 and `docs/INTELLIGENCE.md` define the documented source,
+record, parser, and verified finding-observation boundaries. Validation helpers
+remain Internal. Catalog metadata does not establish vulnerability applicability,
+authenticated source identity, approval, or execution authority.
+
 ### Repository releases
 
 Before `1.0.0`:
@@ -249,5 +255,6 @@ Current versioned public contracts:
 | Impact policy        | `1`            | `fuzzy1337.policy`                                         | Experimental |
 | Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md`   | Experimental |
 | Standards Mappings   | `1`            | `fuzzy1337.standards_mapping`; `docs/STANDARDS_MAPPING.md` | Experimental |
+| Vulnerability Intel  | `1`            | `fuzzy1337.intelligence`; `docs/INTELLIGENCE.md`           | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
