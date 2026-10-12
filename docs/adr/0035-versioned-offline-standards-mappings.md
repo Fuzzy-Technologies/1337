@@ -29,7 +29,8 @@ validation is not a secret detector. No URL is fetched at runtime.
 Content-addressed mapping references cover endpoints, relation, rationale, and
 all citation metadata. A supplied `MappingReview` records an accountable reviewer,
 time, external decision reference, and exact mapping reference. Without a review,
-the mapping is `candidate`. Changed content invalidates the supplied review.
+the mapping is `candidate`. Changed content invalidates the supplied review, and
+a decision cannot precede acquisition of any cited source.
 The contract validates structure and freshness, not reviewer identity or signatures.
 Agents must never manufacture owner approval. Pack references additionally cover
 review decisions; changing any decision creates another auditable pack revision.

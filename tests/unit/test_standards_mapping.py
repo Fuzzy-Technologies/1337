@@ -29,7 +29,7 @@ def Reviewed(state: MappingReviewState = MappingReviewState.APPROVED):
     """Build a clearly synthetic review for contract tests, never production approval."""
 
     mapping = CandidateBaseline().mappings[0]
-    review = MappingReview(state, "synthetic-reviewer", "2026-10-11T12:00:00+00:00",
+    review = MappingReview(state, "synthetic-reviewer", "2026-10-11T12:50:00+00:00",
                            mapping.Reference(), "synthetic-decision:one")
 
     return replace(mapping, review=review)
@@ -235,6 +235,44 @@ def test_SourceAndReviewTimesNormalizeToUtc():
     assert review.reviewed_at == source.retrieved_at, (
         'Equivalent explicit time offsets serialize as one UTC provenance timestamp.'
     )
+
+
+@pytest.mark.parametrize("state", [MappingReviewState.APPROVED, MappingReviewState.REJECTED])
+def test_ReviewCannotPrecedeAcquisitionOfAnyCitedSource(state):
+    """A claimed decision cannot cover source material retrieved after the decision time."""
+
+    mapping = CandidateBaseline().mappings[0]
+    later_source = replace(mapping.provenance[0], retrieved_at="2026-10-11T16:00:00+03:00")
+    mapping = replace(mapping, provenance=(later_source, *mapping.provenance[1:]))
+    review = MappingReview(
+        state, "synthetic-reviewer", "2026-10-11T12:59:59Z",
+        mapping.Reference(), "synthetic-decision:too-early",
+    )
+
+    with pytest.raises(ValueError, match="precede source acquisition"):
+        replace(mapping, review=review)
+
+    valid = replace(mapping, review=replace(review, reviewed_at="2026-10-11T13:00:00Z"))
+
+    assert valid.ReviewState() is state, "A decision at the latest acquisition must stay explicit"
+
+
+@pytest.mark.parametrize("timestamp", [
+    "0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00",
+])
+def test_SourceAndReviewUtcOverflowRaiseDocumentedValidationError(timestamp):
+    """UTC range overflow remains a validation failure at both public metadata boundaries."""
+
+    source = CandidateBaseline().mappings[0].provenance[0]
+
+    with pytest.raises(ValueError, match="UTC datetime range"):
+        replace(source, retrieved_at=timestamp)
+
+    with pytest.raises(ValueError, match="UTC datetime range"):
+        MappingReview(
+            MappingReviewState.APPROVED, "synthetic-reviewer", timestamp,
+            CandidateBaseline().mappings[0].Reference(), "synthetic-decision:overflow",
+        )
 
 
 @pytest.mark.parametrize("change", [

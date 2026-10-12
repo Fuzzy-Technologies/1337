@@ -28,7 +28,9 @@ relation kind grants authority, control fulfillment, or observed exploitation.
 
 Unreviewed relations have state `candidate`. `MappingReview` records a supplied
 `approved` or `rejected` decision with reviewer, time, external decision reference,
-and exact content reference. Changed content invalidates that review. Validation
+and exact content reference. Review cannot precede acquisition of any cited source.
+Changed content invalidates that review. Invalid UTC range conversions are rejected
+as validation errors. Validation
 proves structural freshness, not authenticated reviewer identity; the caller owns
 review authorization and decision verification. Automation must not synthesize
 human approval.

@@ -27,14 +27,14 @@ def test_ExactSchemaRoundTripPreservesSourcesVersionsAndReview():
     pack = CandidateBaseline()
     mapping = pack.mappings[0]
     approved = replace(mapping, review=MappingReview(
-        MappingReviewState.APPROVED, "synthetic-reviewer", "2026-10-11T12:00:00+00:00",
+        MappingReviewState.APPROVED, "synthetic-reviewer", "2026-10-11T12:50:00+00:00",
         mapping.Reference(), "synthetic-decision:one",
     ))
     approved = replace(approved, review=None,
                        provenance=tuple(replace(source, artifact_sha256="c" * 64)
                                         for source in approved.provenance))
     approved = replace(approved, review=MappingReview(
-        MappingReviewState.APPROVED, "synthetic-reviewer", "2026-10-11T12:00:00+00:00",
+        MappingReviewState.APPROVED, "synthetic-reviewer", "2026-10-11T12:50:00+00:00",
         approved.Reference(), "synthetic-decision:two",
     ))
     pack = replace(pack, mappings=(approved, *pack.mappings[1:]))
@@ -76,7 +76,7 @@ def test_EveryObjectBoundaryRejectsUnknownAndMissingFields(boundary, mutation):
     pack = CandidateBaseline()
     mapping = pack.mappings[0]
     mapping = replace(mapping, review=MappingReview(
-        MappingReviewState.APPROVED, "synthetic-reviewer", "2026-10-11T12:00:00+00:00",
+        MappingReviewState.APPROVED, "synthetic-reviewer", "2026-10-11T12:50:00+00:00",
         mapping.Reference(), "synthetic-decision:one",
     ))
     document = replace(pack, mappings=(mapping,)).ToDict()
@@ -156,3 +156,29 @@ def test_NewPackFamiliesDoNotChangeSecurityObjectIdentityOrPretendToValidateCata
     assert json.loads(pack.ToBytes())["mappings"][0]["target"]["external_id"] == "Control-1", (
         'External national/vendor families remain versioned descriptive context.'
     )
+
+
+@pytest.mark.parametrize("boundary,timestamp", [
+    ("review", "2026-10-11T12:48:29Z"),
+    ("review", "0001-01-01T00:00:00+01:00"),
+    ("source", "9999-12-31T23:59:59-01:00"),
+])
+def test_ByteImportRejectsImpossibleReviewChronologyAndUtcRange(boundary, timestamp):
+    """Invalid nested timestamp claims cannot reach an approved consumer through JSON import."""
+
+    pack = CandidateBaseline()
+    mapping = pack.mappings[0]
+    review = MappingReview(
+        MappingReviewState.APPROVED, "synthetic-reviewer", "2026-10-11T12:50:00Z",
+        mapping.Reference(), "synthetic-decision:one",
+    )
+    document = replace(pack, mappings=(replace(mapping, review=review),)).ToDict()
+
+    if boundary == "review":
+        document["mappings"][0]["review"]["reviewed_at"] = timestamp
+
+    else:
+        document["mappings"][0]["provenance"][0]["retrieved_at"] = timestamp
+
+    with pytest.raises(ValueError):
+        MappingPack.FromBytes(json.dumps(document).encode("utf-8"))

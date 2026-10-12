@@ -182,9 +182,13 @@ class MappingSource:
         ):
             raise ValueError("source_url must be an absolute HTTPS URL without credentials")
 
-        object.__setattr__(self, "retrieved_at", NormalizeEvidenceTime(
-            MappingText(self.retrieved_at, "retrieved_at"),
-        ))
+        try:
+            object.__setattr__(self, "retrieved_at", NormalizeEvidenceTime(
+                MappingText(self.retrieved_at, "retrieved_at"),
+            ))
+
+        except OverflowError as error:
+            raise ValueError("retrieved_at exceeds the UTC datetime range") from error
 
         if self.artifact_sha256 is not None:
             MappingDigest(self.artifact_sha256)
@@ -257,9 +261,13 @@ class MappingReview:
         ):
             raise ValueError("review must identify exact mapping content")
 
-        object.__setattr__(self, "reviewed_at", NormalizeEvidenceTime(
-            MappingText(self.reviewed_at, "reviewed_at"),
-        ))
+        try:
+            object.__setattr__(self, "reviewed_at", NormalizeEvidenceTime(
+                MappingText(self.reviewed_at, "reviewed_at"),
+            ))
+
+        except OverflowError as error:
+            raise ValueError("reviewed_at exceeds the UTC datetime range") from error
 
     def ToDict(self) -> dict[str, object]:
         """Preserve the external decision attribution without creating a new decision.
@@ -338,6 +346,11 @@ class StandardsMapping:
             or self.review.mapping_reference != self.Reference()
         ):
             raise ValueError("review is stale or does not match exact mapping content")
+
+        if self.review is not None and any(
+            self.review.reviewed_at < item.retrieved_at for item in self.provenance
+        ):
+            raise ValueError("review must not precede source acquisition")
 
     def Content(self) -> dict[str, object]:
         """Return reviewed content; review decisions themselves do not change its reference.
