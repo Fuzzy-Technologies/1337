@@ -66,6 +66,12 @@ and portable model persistence. Scope/target references do not grant authority.
 ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
+`fuzzy1337.reporting` and `fuzzy1337.report_formats` are Experimental libraries.
+ADR 0039 and `docs/REPORTING.md` define report projection schema `1`, SARIF `2.1.0`,
+and a version-1 JUnit adapter. Reports preserve canonical state and do not imply
+scanner completeness, authorization, verified bytes, or compliance. Pure reports
+remain byte-unverified; verification requires the explicit owned evidence boundary.
+
 `fuzzy1337.evidence` is an Experimental local storage API and manifest schema
 at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
@@ -217,5 +223,6 @@ Current versioned public contracts:
 | Scan jobs            | `1`            | `fuzzy1337.jobs`                                         | Experimental |
 | Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                              | Experimental |
 | Finding core         | `1`            | `fuzzy1337.findings`                                     | Experimental |
+| Report projection    | `1`            | `fuzzy1337.reporting`; `report_formats`                  | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

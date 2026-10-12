@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/report.schema.json",
+  "title": "1337 Experimental Report Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workspace_id", "model_revision", "snapshot_sha256", "scan_completeness", "model", "summary", "findings", "execution_outcomes", "reference_bindings", "evidence_integrity"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "workspace_id": {"type": "string", "minLength": 1},
+    "model_revision": {"type": "integer", "minimum": 0},
+    "snapshot_sha256": {"$ref": "#/$defs/digest"},
+    "scan_completeness": {"const": "not-assessed"},
+    "model": {"$ref": "#/$defs/model"},
+    "summary": {"$ref": "#/$defs/summary"},
+    "findings": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false, "required": ["reference", "normalized"],
+        "properties": {
+          "reference": {"$ref": "#/$defs/objectReference"},
+          "normalized": {"$ref": "https://fuzzy-technologies.github.io/1337/contracts/finding.schema.json"}
+        }
+      }
+    },
+    "execution_outcomes": {"type": "array", "items": {"$ref": "#/$defs/provenance"}},
+    "reference_bindings": {"type": "array", "maxItems": 1024, "items": {"$ref": "#/$defs/binding"}},
+    "evidence_integrity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["linked_references", "checked_references", "unverified_count"],
+      "properties": {
+        "linked_references": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence"}},
+        "checked_references": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence"}},
+        "unverified_count": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$", "maxLength": 64},
+    "objectReference": {"type": "string", "pattern": "^object:[0-9a-f]{64}$", "maxLength": 71},
+    "model": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "workspace_id", "revision", "objects", "relations", "observations"],
+      "properties": {
+        "schema_version": {"type": "integer", "const": 1},
+        "workspace_id": {"type": "string", "minLength": 1},
+        "revision": {"type": "integer", "minimum": 0},
+        "objects": {"type": "array", "items": {"type": "object"}},
+        "relations": {"type": "array", "items": {"type": "object"}},
+        "observations": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["objects", "relations", "observations", "findings", "active_findings", "finding_statuses", "finding_severities", "failed_acquisitions"],
+      "properties": {
+        "objects": {"type": "integer", "minimum": 0}, "relations": {"type": "integer", "minimum": 0},
+        "observations": {"type": "integer", "minimum": 0}, "findings": {"type": "integer", "minimum": 0},
+        "active_findings": {"type": "integer", "minimum": 0}, "failed_acquisitions": {"type": "integer", "minimum": 0},
+        "finding_statuses": {
+          "type": "object", "additionalProperties": false, "required": ["open", "confirmed", "dismissed", "resolved"],
+          "properties": {"open": {"type": "integer", "minimum": 0}, "confirmed": {"type": "integer", "minimum": 0}, "dismissed": {"type": "integer", "minimum": 0}, "resolved": {"type": "integer", "minimum": 0}}
+        },
+        "finding_severities": {
+          "type": "object", "additionalProperties": false, "required": ["unknown", "informational", "low", "medium", "high", "critical"],
+          "properties": {"unknown": {"type": "integer", "minimum": 0}, "informational": {"type": "integer", "minimum": 0}, "low": {"type": "integer", "minimum": 0}, "medium": {"type": "integer", "minimum": 0}, "high": {"type": "integer", "minimum": 0}, "critical": {"type": "integer", "minimum": 0}}
+        }
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "locator", "sha256", "media_type", "size_bytes"],
+      "properties": {
+        "role": {"type": "string", "minLength": 1},
+        "locator": {"type": "string", "pattern": "^blobs/sha256/[0-9a-f]{64}$", "maxLength": 77},
+        "sha256": {"$ref": "#/$defs/digest"}, "media_type": {"type": "string", "minLength": 1},
+        "size_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_id", "run_reference", "observed_at", "scope_reference", "target_reference", "provider_version", "evidence_references", "execution"],
+      "properties": {
+        "source_id": {"type": "string"}, "run_reference": {"type": "string"}, "observed_at": {"type": "string"},
+        "scope_reference": {"type": "string"}, "target_reference": {"type": "string"},
+        "provider_version": {"type": ["string", "null"]},
+        "evidence_references": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+        "execution": {
+          "oneOf": [{"type": "null"}, {
+            "type": "object", "additionalProperties": false, "required": ["state", "exit_code", "duration_seconds"],
+            "properties": {"state": {"enum": ["succeeded", "failed", "timed_out", "cancelled"]}, "exit_code": {"type": ["integer", "null"]}, "duration_seconds": {"type": "number", "minimum": 0}}
+          }]
+        }
+      }
+    },
+    "reference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["family", "external_id", "catalog_version", "url", "link_revision"],
+      "properties": {
+        "family": {"enum": ["cve", "cwe", "capec", "attack", "atlas", "owasp-top10"]},
+        "external_id": {"type": "string", "minLength": 1},
+        "catalog_version": {"type": "string", "minLength": 1},
+        "url": {"type": "string", "not": {"pattern": "[\\u0000-\\u0020\\u007f]"}},
+        "link_revision": {"enum": ["publisher-current", "2021"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"family": {"const": "cve"}}}, "then": {"properties": {"url": {"pattern": "^https://www\\.cve\\.org/CVERecord\\?id=CVE-[0-9]{4}-[0-9]{4,}$"}}}},
+        {"if": {"properties": {"family": {"const": "cwe"}}}, "then": {"properties": {"url": {"pattern": "^https://cwe\\.mitre\\.org/data/definitions/[1-9][0-9]*\\.html$"}}}},
+        {"if": {"properties": {"family": {"const": "capec"}}}, "then": {"properties": {"url": {"pattern": "^https://capec\\.mitre\\.org/data/definitions/[1-9][0-9]*\\.html$"}}}},
+        {"if": {"properties": {"family": {"const": "attack"}}}, "then": {"properties": {"url": {"pattern": "^https://attack\\.mitre\\.org/techniques/T[0-9]{4}/(?:[0-9]{3}/)?$"}}}},
+        {"if": {"properties": {"family": {"const": "atlas"}}}, "then": {"properties": {"url": {"pattern": "^https://atlas\\.mitre\\.org/techniques/AML\\.T[0-9]{4}(?:\\.[0-9]{3})?$"}}}},
+        {"if": {"properties": {"family": {"const": "owasp-top10"}}}, "then": {"properties": {"catalog_version": {"const": "2021"}, "url": {"pattern": "^https://top10\\.owasp\\.org/2021/A(?:0[1-9]|10)_2021-[A-Za-z_()-]+/$"}}}}
+      ]
+    },
+    "binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["finding_reference", "references", "rationale", "provenance", "interpretation"],
+      "properties": {
+        "finding_reference": {"$ref": "#/$defs/objectReference"},
+        "references": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/reference"}},
+        "rationale": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"}, "interpretation": {"const": "attributed-context"}
+      }
+    }
+  }
+}
