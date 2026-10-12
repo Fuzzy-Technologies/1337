@@ -201,20 +201,21 @@ Changes to a Stable contract require:
 
 Current versioned public contracts:
 
-| Contract family      | Schema version | Location                                      | Status       |
-| -------------------- | -------------- | --------------------------------------------- | ------------ |
-| Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`    | Stable       |
-| Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`            | Experimental |
-| Web request model    | `1`            | `fuzzy1337.requests`                          | Experimental |
-| Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`   | Experimental |
-| Scan jobs            | `1`            | `fuzzy1337.jobs`                              | Experimental |
-| ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md` | Experimental |
-| Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`   | Experimental |
-| Finding core         | `1`            | `fuzzy1337.findings`                          | Experimental |
-| Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`      | Experimental |
-| Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                     | Experimental |
-| Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                   | Experimental |
-| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`    | Experimental |
-| Impact policy        | `1`            | `fuzzy1337.policy`                            | Experimental |
+| Contract family      | Schema version | Location                                                 | Status       |
+| -------------------- | -------------- | -------------------------------------------------------- | ------------ |
+| Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`               | Stable       |
+| Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`                       | Experimental |
+| Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`              | Experimental |
+| ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`            | Experimental |
+| Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`              | Experimental |
+| Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md` | Experimental |
+| Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`                 | Experimental |
+| Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                                | Experimental |
+| Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`               | Experimental |
+| Web request model    | `1`            | `fuzzy1337.requests`                                     | Experimental |
+| Impact policy        | `1`            | `fuzzy1337.policy`                                       | Experimental |
+| Scan jobs            | `1`            | `fuzzy1337.jobs`                                         | Experimental |
+| Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                              | Experimental |
+| Finding core         | `1`            | `fuzzy1337.findings`                                     | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
