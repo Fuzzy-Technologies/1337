@@ -299,7 +299,7 @@ class ReportSnapshot:
                 "observations": len(self.state.observations), "findings": len(findings),
                 "active_findings": statuses["open"] + statuses["confirmed"],
                 "finding_statuses": statuses, "finding_severities": severities,
-                "failed_acquisitions": failed,
+                "failed_execution_records": failed,
             },
             "findings": findings, "execution_outcomes": outcomes,
             "reference_bindings": [item.ToDict() for item in self.reference_bindings],

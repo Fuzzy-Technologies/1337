@@ -13,6 +13,10 @@ the exact model content digest, canonical object/relation/observation references
 normalized findings, attributable executions, and explicit reference context.
 No current clock, local installation path, raw artifact bytes, or inferred
 reachability/attack edge enters an export.
+The failed-execution summary counts distinct complete attributed provenance
+records, not distinct acquisitions or jobs. Different target attribution and
+conflicting outcomes remain separate; reports do not infer a run identity to
+deduplicate source assertions.
 
 Pure reports identify artifact integrity as unverified. An explicit verification
 boundary checks workspace ownership and every linked artifact through the existing

@@ -204,7 +204,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
 
     for label, key in (
         ("Active interpretations", "active_findings"), ("Retained findings", "findings"),
-        ("Failed acquisitions", "failed_acquisitions"),
+        ("Failed execution records", "failed_execution_records"),
     ):
         lines.append(f'<div class="card"><span class="count">{Html(summary[key])}</span>'
                      f"<p>{label}</p></div>")

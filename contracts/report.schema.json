@@ -51,11 +51,11 @@
     },
     "summary": {
       "type": "object", "additionalProperties": false,
-      "required": ["objects", "relations", "observations", "findings", "active_findings", "finding_statuses", "finding_severities", "failed_acquisitions"],
+      "required": ["objects", "relations", "observations", "findings", "active_findings", "finding_statuses", "finding_severities", "failed_execution_records"],
       "properties": {
         "objects": {"type": "integer", "minimum": 0}, "relations": {"type": "integer", "minimum": 0},
         "observations": {"type": "integer", "minimum": 0}, "findings": {"type": "integer", "minimum": 0},
-        "active_findings": {"type": "integer", "minimum": 0}, "failed_acquisitions": {"type": "integer", "minimum": 0},
+        "active_findings": {"type": "integer", "minimum": 0}, "failed_execution_records": {"type": "integer", "minimum": 0},
         "finding_statuses": {
           "type": "object", "additionalProperties": false, "required": ["open", "confirmed", "dismissed", "resolved"],
           "properties": {"open": {"type": "integer", "minimum": 0}, "confirmed": {"type": "integer", "minimum": 0}, "dismissed": {"type": "integer", "minimum": 0}, "resolved": {"type": "integer", "minimum": 0}}

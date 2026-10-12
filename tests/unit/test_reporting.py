@@ -11,7 +11,14 @@ from xml.etree import ElementTree
 import pytest
 
 from fuzzy1337 import report_formats, reporting
-from fuzzy1337.model import CanonicalModelJson, ModelState, ObjectKind
+from fuzzy1337.adapters.contracts import ExecutionState
+from fuzzy1337.model import (
+    CanonicalModelJson,
+    ModelState,
+    ObjectIdentity,
+    ObjectKind,
+    SecurityObject,
+)
 from fuzzy1337.report_formats import RenderHtml, SerializeJson, SerializeJunit, SerializeSarif
 from fuzzy1337.reporting import ReportReference, ReportSnapshot
 from tests.contract.reporting_fixture import Fixture
@@ -66,7 +73,7 @@ def test_ProjectionRetainsExactCanonicalStateAndHonestInterpretations():
         "open": 1, "confirmed": 1, "dismissed": 1, "resolved": 1,
     }, "Finding dispositions were lost during projection"
     assert document["summary"]["active_findings"] == 2, "Closed dispositions counted as active"
-    assert document["summary"]["failed_acquisitions"] == 1, "Failed acquisition became success"
+    assert document["summary"]["failed_execution_records"] == 1, "Failure records were lost"
     assert document["evidence_integrity"]["checked_references"] == [], (
         "Pure report invented raw artifact integrity verification"
     )
@@ -77,6 +84,31 @@ def test_ProjectionRetainsExactCanonicalStateAndHonestInterpretations():
         "Report added attack/reachability relations absent from the canonical model"
     )
     assert CanonicalModelJson(report.state.ToDict()) == original, "Export mutated source state"
+
+
+def test_FailedExecutionCountRetainsDistinctTargetAttributionWithoutInferringJobs():
+    """The summary counts exact outcome provenance, not guessed acquisition or run identities."""
+
+    provenance = Fixture().state.Objects(ObjectKind.HOST)[0].provenance[0]
+    succeeded = replace(
+        provenance,
+        execution=replace(provenance.execution, state=ExecutionState.SUCCEEDED, exit_code=0),
+    )
+    first = SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.ASSET, "first"), {}, (provenance,),
+    )
+    second = SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.ASSET, "second"), {},
+        (provenance, replace(provenance, target_reference="target:other"), succeeded),
+    )
+    state, _ = ModelState("synthetic").Apply(objects=(first, second))
+    document = ReportSnapshot(state).ToDict()
+
+    assert document["summary"]["failed_execution_records"] == 2, (
+        "Distinct target attribution was merged or shared exact provenance counted twice"
+    )
+    assert len(document["execution_outcomes"]) == 3, "Projection lost conflicting source outcomes"
+    assert "failed_acquisitions" not in document["summary"], "Count claimed inferred acquisitions"
 
 
 @pytest.mark.parametrize("exporter", EXPORTERS, ids=lambda function: function.__name__)

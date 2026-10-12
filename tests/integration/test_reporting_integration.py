@@ -93,7 +93,7 @@ def test_RealEvidenceVerificationFeedsAllFormatsWithoutWritingOrEmbeddingRawByte
     assert document["evidence_integrity"]["checked_references"] == [
         json.loads(SerializeJson(report))["evidence_integrity"]["linked_references"][0],
     ], "Verifier substituted another artifact identity"
-    assert document["summary"]["failed_acquisitions"] == 1, "Execution failure became success"
+    assert document["summary"]["failed_execution_records"] == 1, "Execution failure became success"
     assert b"verified bytes" in RenderHtml(checked), "HTML lost checked byte integrity"
     assert b"not verified" in RenderHtml(report), "Pure report inherited a byte check"
 
@@ -121,6 +121,38 @@ def test_VerifiedReportsStayByteIdenticalAfterWorkspaceRelocation(tmp_path):
 
     assert [exporter(relocated) for exporter in EXPORTERS] == before, (
         "Moving an owned workspace changed a deterministic report"
+    )
+
+
+@pytest.mark.parametrize("replacement", ["projection", "state", "bindings"])
+def test_ReplacingCheckedProjectionResetsIntegrityUntilExplicitReverification(
+    tmp_path, replacement,
+):
+    """Rebound projections reset checked markers even if the owned bytes later become corrupt."""
+
+    root, report, evidence, _ = Context(tmp_path)
+    checked = VerifyReportEvidence(report, root)
+    arguments = {}
+
+    if replacement == "state":
+        arguments["state"] = LocalModelStore(root).Open()
+
+    elif replacement == "bindings":
+        arguments["reference_bindings"] = ()
+
+    rebound = replace(checked, **arguments)
+    integrity = rebound.ToDict()["evidence_integrity"]
+
+    assert integrity["checked_references"] == [], "Replacement retained stale artifact checks"
+    assert integrity["unverified_count"] == 1, "Replacement no longer disclosed unchecked bytes"
+    artifact = root / "evidence" / evidence.reference.locator
+    artifact.write_bytes(b"x" * evidence.reference.size_bytes)
+
+    with pytest.raises(EvidenceError):
+        VerifyReportEvidence(rebound, root)
+
+    assert rebound.ToDict()["evidence_integrity"]["checked_references"] == [], (
+        "Failed re-verification changed replacement integrity"
     )
 
 

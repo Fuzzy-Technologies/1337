@@ -17,6 +17,11 @@ SHA-256, workspace ID, revision, normalized findings, actual stored relations,
 observation history, and original execution outcomes remain attached to the view.
 Counts describe retained interpretations, not scanner coverage or proved
 vulnerabilities. `scan_completeness` is always `not-assessed`.
+`failed_execution_records` counts distinct complete provenance records whose
+execution outcome is not `succeeded`. The same run attributed to different targets
+can yield multiple records; this is not a count of distinct acquisitions or jobs.
+Conflicting source outcome records remain visible rather than being resolved by
+an inferred run identity.
 
 Pure reports retain all linked artifact references as unverified.
 `VerifyReportEvidence(report, workspace_root)` checks actual workspace ownership
@@ -27,6 +32,8 @@ Verification describes exact byte integrity at projection creation. It does not
 authenticate source claims or upgrade failed execution into a successful scan.
 Re-verification is explicit; a previously checked projection is not a live health
 monitor of files that might later disappear.
+Replacing a projection, its model, or its reference context resets its checked
+markers; callers must explicitly verify the resulting projection again.
 
 No acquired raw bytes, local workspace path, or wall-clock generation time is
 embedded. Exported model/context metadata must already be authorized and non-secret
