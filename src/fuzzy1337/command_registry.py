@@ -180,5 +180,23 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 update [--json]",
             capabilities=("core.component-health", "core.update-inspection"),
         ),
+        CommandDescriptor(
+            identifier="workspace",
+            summary="Create or reopen a durable workspace and verify retained evidence.",
+            usage="1337 workspace <create|open>",
+            capabilities=("workbench.workspace",),
+        ),
+        CommandDescriptor(
+            identifier="scope",
+            summary="Record explicit target rules and operator consent.",
+            usage="1337 scope create <workspace>",
+            capabilities=("workbench.scope",),
+        ),
+        CommandDescriptor(
+            identifier="scan",
+            summary="Run bounded explicitly approved SAFE endpoint discovery.",
+            usage="1337 scan quick <workspace>",
+            capabilities=("http.endpoint-discovery",),
+        ),
     )
 )

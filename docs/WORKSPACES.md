@@ -20,8 +20,9 @@ metadata.
 
 Scope references establish context only. They do not establish authorization or
 replace the governed executor's scope/impact checks. Object references do not
-claim that a Security Object Model has been implemented. This foundation does not
-add workspace commands or automatic configuration loading to the CLI or shell.
+certify an object or its evidence. The current development CLI and foreground shell
+expose explicit [workspace, scope and Quick Scan commands](QUICK_SCAN.md) over
+these same stores. The metadata SDK does not infer scan configuration or approval.
 
 ## Use the lifecycle boundary
 
