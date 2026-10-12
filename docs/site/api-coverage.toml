@@ -24,6 +24,12 @@ mode = "authored"
 page = "api/fuzzy1337.adapters.contracts.md"
 
 [[surfaces]]
+module = "fuzzy1337.adapters.nuclei"
+source = "src/fuzzy1337/adapters/nuclei.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.nuclei.md"
+
+[[surfaces]]
 module = "fuzzy1337.adapters.nmap"
 source = "src/fuzzy1337/adapters/nmap.py"
 mode = "authored"
@@ -46,6 +52,12 @@ module = "fuzzy1337.component_health"
 source = "src/fuzzy1337/component_health.py"
 mode = "authored"
 page = "api/fuzzy1337.component_health.md"
+
+[[surfaces]]
+module = "fuzzy1337.jobs"
+source = "src/fuzzy1337/jobs.py"
+mode = "authored"
+page = "api/fuzzy1337.jobs.md"
 
 [[surfaces]]
 module = "fuzzy1337.coverage_gate"
