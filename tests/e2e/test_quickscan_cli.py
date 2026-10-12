@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shlex
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -23,10 +24,12 @@ from fuzzy1337.cli import Main
 from fuzzy1337.discovery import DiscoveryLimits
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.jobs import JobState
+from fuzzy1337.lenses import LENS_CATALOG
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.quickscan import RunQuickScan
 from fuzzy1337.scan_commands import RunCommands
 from fuzzy1337.scope import Target, TargetKind
+from fuzzy1337.shell import InteractiveShell
 from fuzzy1337.workspace import LocalWorkspaceStore
 
 
@@ -140,6 +143,111 @@ def ScanArguments(root: Path, urls: tuple[str, ...], *, approval: bool = True) -
         arguments.append("--approve-safe-http")
 
     return arguments
+
+
+def test_ForegroundShellQuickScanPreservesExplicitModelAndLensReopening(
+    tmp_path: Path, local_target,
+) -> None:
+    """Compose real shell commands without replacing explicit snapshot or inspection contracts."""
+
+    base, requests, _ = local_target
+    root = tmp_path / "workspace with spaces"
+    url = base + "/"
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+
+    def Execute(command: str) -> str:
+        """Run one actual foreground command and capture only its synchronous presentation."""
+
+        output.seek(0)
+        output.truncate()
+        assert not shell.onecmd(command), "Product and inspection commands must keep shell alive."
+
+        return output.getvalue()
+
+    Execute(shlex.join([
+        "workspace", "create", str(root), "--id", "synthetic", "--name", "Synthetic",
+    ]))
+    now = datetime.now(UTC)
+    Execute(shlex.join([
+        "scope", "create", str(root), "--id", "local", "--allow-ip", "127.0.0.1",
+        "--allow-url", url, "--grant-consent", "--owner", "operator:fixture",
+        "--consent-reference", "consent:owned",
+        "--valid-from", (now - timedelta(minutes=2)).isoformat(),
+        "--valid-until", (now + timedelta(minutes=2)).isoformat(),
+    ]))
+    Execute(f"model {root}")
+    empty_projection = json.loads(Execute("view model --json"))
+    Execute("lens dfir --json")
+    Execute("select selected:opaque")
+    original_context = shell.State
+
+    denied = Execute(shlex.join(["scan", *ScanArguments(root, (url,), approval=False), "--json"]))
+    ValidateSummary(json.loads(denied.splitlines()[0]))
+    assert denied.splitlines()[-1] == "Command exit status: 3", (
+        "A selected lens or object must never supply missing SAFE capability approval."
+    )
+    assert not requests, "Missing explicit capability opt-in must prevent target contact."
+    approved = Execute(shlex.join(["scan", *ScanArguments(root, (url,)), "--json"]))
+    summary = json.loads(approved)
+    ValidateSummary(summary)
+    assert summary["state"] == "completed", "The explicit real shell scan must complete."
+    assert shell.State == original_context, (
+        "Scanning must preserve explicit lens/object/view state."
+    )
+    assert shell.lastcmd == "scan", "Foreground history replay must retain only its namespace."
+    assert requests == ["/"], "Only the explicitly approved owned endpoint may be contacted."
+
+    model_store = LocalModelStore(root)
+    current = model_store.Open()
+    old_view = json.loads(Execute("view model --json"))
+    assert old_view["revision"] == empty_projection["revision"] == 0, (
+        "A bound read-only snapshot must remain explicit until the operator reopens the model."
+    )
+    assert current.revision == summary["model_revision"] == 1, (
+        "Quick Scan must persist the newer canonical revision independently of shell presentation."
+    )
+    model_path = model_store.ValidatePaths() / "model.json"
+    model_bytes = model_path.read_bytes()
+    workspace_bytes = (root / "workspace.json").read_bytes()
+    workspace = LocalWorkspaceStore(root).Open()
+    evidence = LocalEvidenceStore(root / "evidence")
+    records = tuple(evidence.Get(record_id) for record_id in workspace.evidence_record_references)
+    raw_evidence = tuple(evidence.Read(record.reference) for record in records)
+    Execute(f"model {root}")
+
+    for descriptor in LENS_CATALOG:
+        actual_descriptor = json.loads(Execute(f"lens {descriptor.identifier} --json"))
+        actual_projection = json.loads(Execute("view model --json"))
+        assert actual_descriptor == descriptor.ToDict(), "Shell lens JSON must retain its catalog."
+        assert actual_projection == descriptor.Project(current), (
+            "Each lens must project the reopened canonical snapshot through its actual contract."
+        )
+
+    reopened = json.loads(Execute(shlex.join(["workspace", "open", str(root), "--json"])))
+    assert reopened["verified_evidence_records"] == 1, "Reopen must verify the real acquisition."
+    assert reopened["object_counts"] == summary["object_counts"], (
+        "Workspace reopening and scan completion must describe the same authoritative model."
+    )
+    assert model_path.read_bytes() == model_bytes, "Inspection must preserve canonical model bytes."
+    assert (root / "workspace.json").read_bytes() == workspace_bytes, (
+        "Lens projection and reopening must preserve durable workspace metadata bytes."
+    )
+    assert tuple(evidence.Get(record.evidence_id) for record in records) == records, (
+        "Read-only model/lens inspection must preserve immutable acquisition provenance."
+    )
+    assert tuple(evidence.Read(record.reference) for record in records) == raw_evidence, (
+        "Read-only model/lens inspection must preserve the actual retained raw evidence."
+    )
+    assert requests == ["/"], "Lens selection, model view and reopen must never contact targets."
+    history = Execute("history").splitlines()
+    expected_history = {"scan", "scope", "workspace", f"model {root}", "select selected:opaque"}
+    assert expected_history <= set(history), (
+        "New namespaces retain safe names while ordinary inspection history is preserved."
+    )
+    assert not any(line.startswith(("scan ", "scope ", "workspace ")) for line in history), (
+        "Foreground product argument lists must remain absent from searchable shell history."
+    )
 
 
 def test_ProductQuickScanStreamsBeforeContactAndReopensVerifiedDurableState(

@@ -87,6 +87,9 @@ summary. SDK callers can cancel the `RunQuickScan` presentation coroutine with t
 same behavior. The foreground interactive shell exposes `workspace`, `scope` and
 `scan` with the same explicit arguments and live output. A complete concurrent
 split-pane TUI remains a separate work item.
+The shell's `model <workspace-path>` explicitly opens a read-only snapshot;
+reopen it after scanning to inspect the saved revision with `view model --json`
+and the selected lens. Lens selection and inspection never start discovery.
 
 | Exit status | Meaning |
 | --- | --- |
