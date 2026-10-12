@@ -66,6 +66,7 @@ class ObjectKind(StrEnum):
     SERVICE = "service"
     ENDPOINT = "endpoint"
     TECHNOLOGY = "technology"
+    FINDING = "finding"
 
 
 class RelationKind(StrEnum):
@@ -408,6 +409,11 @@ class SecurityObject:
         object.__setattr__(self, "attributes", ModelAttributes(self.attributes))
         object.__setattr__(self, "provenance", ProvenanceCollection(self.provenance))
 
+        if self.identity.kind is ObjectKind.FINDING:
+            from fuzzy1337.findings import ValidateFindingObject
+
+            ValidateFindingObject(self)
+
     def Reference(self) -> str:
         """Expose the identity reference used by relations, queries, and delta consumers.
 
@@ -555,6 +561,19 @@ class ModelState:
         if any(item.identity.workspace_id != self.workspace_id for item in self.objects):
             raise ValueError("objects must belong to the enclosing workspace")
 
+        finding_references = {
+            item.Reference() for item in self.objects if item.identity.kind is ObjectKind.FINDING
+        }
+        finding_subjects = object_references - finding_references
+
+        for item in self.objects:
+            if item.identity.kind is ObjectKind.FINDING:
+                if item.attributes["subject_reference"] not in finding_subjects:
+                    raise ValueError("finding subject must be a non-finding object in this model")
+
+                if not any(record.evidence_references for record in item.provenance):
+                    raise ValueError("stored finding requires evidence references")
+
         for relation in self.relations:
             if {relation.source_reference, relation.target_reference} - object_references:
                 raise ValueError("relation endpoints must exist in the same model")
@@ -619,6 +638,19 @@ class ModelState:
                 reference = item.Reference()
                 current = entity_map.get(reference)
                 merged = item
+
+                if isinstance(item, SecurityObject) and item.identity.kind is ObjectKind.FINDING:
+                    from fuzzy1337.findings import ValidateFindingTransition
+
+                    if current is not None and (
+                        not isinstance(current, SecurityObject) or current.identity != item.identity
+                    ):
+                        raise ValueError("object reference collision")
+
+                    ValidateFindingTransition(
+                        current.attributes["status"] if current is not None else None,
+                        item.attributes["status"],
+                    )
 
                 if current is not None:
                     if isinstance(item, SecurityObject):
