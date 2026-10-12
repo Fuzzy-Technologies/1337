@@ -80,12 +80,12 @@ relations by parsing finding summaries or traversing a mapping pack.
 
 ## Format semantics
 
-| Output | Contract |
-| ------ | -------- |
-| HTML | Self-contained dark Fuzzy Technologies palette; executive counts, technical details, native disclosure, canonical object/evidence fragments, stored relations, and escaped provenance/history. No scripts, remote assets, raw artifact links, or browser requirement. |
-| JSON | Exact schema-v1 projection at `contracts/report.schema.json`, including original model content and integrity/context metadata. |
-| SARIF | Version `2.1.0`; only open/confirmed findings become results. Dismissed/resolved findings remain in run properties. Snapshot, context, outcomes, and byte-integrity metadata stay attached. No passed checks, physical source coordinates, successful invocation, or fixed baseline is inferred. |
-| JUnit | One case per retained finding; open/confirmed dispositions fail, dismissed/resolved dispositions skip. Zero findings mean zero cases, not a completed clean scan. Snapshot, context, outcomes, and integrity properties accompany the XML. |
+| Output | Contract                                                                                                                                                                                                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| HTML   | Self-contained dark Fuzzy Technologies palette; executive counts, technical details, native disclosure, canonical object/evidence fragments, stored relations, and escaped provenance/history. No scripts, remote assets, raw artifact links, or browser requirement.                            |
+| JSON   | Exact schema-v1 projection at `contracts/report.schema.json`, including original model content and integrity/context metadata.                                                                                                                                                                   |
+| SARIF  | Version `2.1.0`; only open/confirmed findings become results. Dismissed/resolved findings remain in run properties. Snapshot, context, outcomes, and byte-integrity metadata stay attached. No passed checks, physical source coordinates, successful invocation, or fixed baseline is inferred. |
+| JUnit  | One case per retained finding; open/confirmed dispositions fail, dismissed/resolved dispositions skip. Zero findings mean zero cases, not a completed clean scan. Snapshot, context, outcomes, and integrity properties accompany the XML.                                                       |
 
 SARIF severity adapts unknown/medium to `warning`, informational/low to `note`, and
 high/critical to `error`; original normalized severity/confidence remains in result
