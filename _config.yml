@@ -12,6 +12,7 @@ commonmark:
 # tracked top-level path is either a site source or listed here.
 exclude:
   - .dockerignore
+  - .gitattributes
   - .github
   - .gitignore
   - AGENTS.md

@@ -31,6 +31,7 @@ SITE_SOURCE_FILES = {
 SITE_SOURCE_ROOTS = {Path(path).parts[0] for path in SITE_SOURCE_FILES}
 EXPECTED_EXCLUDED_ROOTS = {
     ".dockerignore",
+    ".gitattributes",
     ".github",
     ".gitignore",
     "AGENTS.md",
