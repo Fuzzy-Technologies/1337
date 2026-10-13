@@ -61,6 +61,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   original selected-material and six-role evidence, canonical interpretation,
   durable model/workspace saves and separate JSON/SARIF export. Genuine Trivy
   acceptance remains separate work.
+- Added explicit `1337 scan image --profile synthetic` and canonical manifest
+  scope rules, reusing governed image execution, durable state, live events and
+  separate JSON/SARIF exports. Read consent and SAFE approval remain explicit;
+  genuine native Trivy acceptance remains separate.
 - Added a bounded standalone Dockerfile/Kubernetes synthetic producer for five
   pinned source fixtures, retaining the independently authored result oracle.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
