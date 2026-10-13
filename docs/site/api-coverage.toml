@@ -204,6 +204,18 @@ mode = "authored"
 page = "api/fuzzy1337.requests.md"
 
 [[surfaces]]
+module = "fuzzy1337.reporting"
+source = "src/fuzzy1337/reporting.py"
+mode = "authored"
+page = "api/fuzzy1337.reporting.md"
+
+[[surfaces]]
+module = "fuzzy1337.report_formats"
+source = "src/fuzzy1337/report_formats.py"
+mode = "authored"
+page = "api/fuzzy1337.report_formats.md"
+
+[[surfaces]]
 module = "fuzzy1337.scope"
 source = "src/fuzzy1337/scope.py"
 mode = "authored"
