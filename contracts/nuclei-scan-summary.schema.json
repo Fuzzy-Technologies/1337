@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/nuclei-scan-summary.schema.json",
+  "title": "1337 Experimental Nuclei Scan summary v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "workflow",
+    "state",
+    "capabilities",
+    "started_at",
+    "finished_at",
+    "duration_seconds",
+    "model_revision",
+    "object_counts",
+    "job",
+    "events"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "workflow": {
+      "const": "nuclei"
+    },
+    "state": {
+      "enum": [
+        "completed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "capabilities": {
+      "const": [
+        "web.http-template-check"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "model_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "object_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace",
+        "scope",
+        "target",
+        "domain",
+        "host",
+        "asset",
+        "port",
+        "service",
+        "endpoint",
+        "technology",
+        "finding"
+      ],
+      "properties": {
+        "workspace": {
+          "$ref": "#/$defs/count"
+        },
+        "scope": {
+          "$ref": "#/$defs/count"
+        },
+        "target": {
+          "$ref": "#/$defs/count"
+        },
+        "domain": {
+          "$ref": "#/$defs/count"
+        },
+        "host": {
+          "$ref": "#/$defs/count"
+        },
+        "asset": {
+          "$ref": "#/$defs/count"
+        },
+        "port": {
+          "$ref": "#/$defs/count"
+        },
+        "service": {
+          "$ref": "#/$defs/count"
+        },
+        "endpoint": {
+          "$ref": "#/$defs/count"
+        },
+        "technology": {
+          "$ref": "#/$defs/count"
+        },
+        "finding": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spec",
+        "state",
+        "last_sequence",
+        "progress",
+        "failure",
+        "artifacts",
+        "cancellation_requested",
+        "schema_version"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "spec": {
+          "type": "object"
+        },
+        "state": {
+          "enum": [
+            "completed",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "last_sequence": {
+          "$ref": "#/$defs/count"
+        },
+        "progress": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "failure": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "cancellation_requested": {
+          "type": "boolean"
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    }
+  },
+  "$defs": {
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "job_id",
+        "sequence",
+        "kind",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "job_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sequence": {
+          "$ref": "#/$defs/count"
+        },
+        "kind": {
+          "enum": [
+            "state",
+            "progress",
+            "heartbeat",
+            "cancellation_requested",
+            "observation",
+            "artifact",
+            "model_delta",
+            "failure"
+          ]
+        },
+        "data": {}
+      }
+    }
+  }
+}

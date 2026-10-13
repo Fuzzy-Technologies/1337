@@ -828,6 +828,246 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.nucleiscan"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.nucleiscan.md"
+sourceHash = "sha256:e36a959a4ce963d410cccf4bdd846bc54d5bc522c9a8be53540d2981b42f3919"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.CurrentContext"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:b2fb80a5ac0b30fb46e571b32e9f71f25f7fe850a122dbf1a30399c65f75c286"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiAuthorityDeniedError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:e4607003e3f3312e15ca148a95f5aeaceedce5923dadaeb956cb5da5babda0dc"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiScanLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:0692702da8255f5b9525fe3ec18fad760320093c3ac3c48284264923c4bfd6eb"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiScanPlan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:0a0ca275160f9eb75c3bbea8e70a9e251b9931e875f2fd9c530979f1e89f314b"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiScanPlan.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:461f7e8a13d31f19d7a69f0d440b049f232f7bd29f44949e6c4ad6720193436a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiScanSummary"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:99850844727b609f913b6b6769f67d1916be3efb714fbbc1d5a68bd068151eb5"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiScanSummary.ExitCode"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:4e337d73d214c4d38e1c1eb947166b7fabace04e0bec38d7e34489310c7a06bf"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiScanSummary.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:0c3dc055771e7753231801765d2a827f23c46d16bd2fb1cd24a459bb11cada73"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiUnavailableError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:9fe4b963dc4b9857a5e9e668bd249ab9816b32276dd80bd487aa91cf2f2b7b2d"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiWorkflow"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:93692fbbdacc3f5201158d87311f799759a70931b088c4c38319d9eb1292e929"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiWorkflow.Context"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:fce032bd271075e9e15603bf30c83f9cbf320dbf4531170b0dd4de8ef513380a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiWorkflow.Ingest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:36c790efc8f1a24a0e7e1a80bafd5cec989c683d3fc033912b5def9da43bedc6"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiWorkflow.PersistReferences"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:58839dcdefeffebf57828a02a60978756e3e177c8ed16f75ff6a382aa5f7bfb9"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.NucleiWorkflow.Run"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:a58e0bbefe492fb64293ae4dd5c1f72b75e9d39e2084d879f46b5f3dd61c132a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.PlanNucleiScan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:17418da0229fe7cb13055f91928f760c6cf2e41999a22ff10c3d928c06dc53bf"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.ReadConfiguration"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:f722f5eff762d1a614a45282e9cb9ac42e7084df0ef5d2dea6b0f02395f1244d"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.ReadNucleiPolicy"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:f4f544c8b179a611232c2b370c9536bbb9653bcf9785e6d8d73405dba8805088"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.ReadNucleiProfile"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:44711eccf98a183029567d8573b51b6cb97d8f756a6b64e0c841d902894c8a0d"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.nucleiscan.RunNucleiScan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/nucleiscan.py"
+sourceHash = "sha256:bc9bf50e9fe2e1316adb8b0f9862e52a9b03bc2145fcf7668bbab7e4b405c623"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
 id = "symbol:fuzzy1337.adapters.nmap.NmapAdapter.NormalizeTree"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/nmap.py"
@@ -2716,7 +2956,7 @@ state = "missing"
 id = "symbol:fuzzy1337.jobs.ScanJob.CancelAndWait"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/jobs.py"
-sourceHash = "sha256:1c19f6865723549614de276c70a13c1a447dec65aab2933bf602db3936ac9d8b"
+sourceHash = "sha256:4026266024bc7d8ff9a60d83491d4bde8d691c5c1c8d8b6bc0dbf43ed77a7eab"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -7156,7 +7396,7 @@ state = "missing"
 id = "page:api.fuzzy1337.scan-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.scan_commands.md"
-sourceHash = "sha256:3fffd2ff14ce4d89dde43b4a4e0fd7043bfdf662f5b8c2e2ad49b305a50786eb"
+sourceHash = "sha256:429e4679d55788232772ad289221e49c00555d1dc7dc885385109fff640984da"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

@@ -6,6 +6,10 @@ store. It prepares finite familiar Nuclei CLI arguments and interprets verified
 JSONL. It neither installs tools nor authorizes, launches, persists or orchestrates
 target scans. See [ADR 0030](adr/0030-reviewed-optional-nuclei-adapter.md).
 
+The development candidate's separate [explicit Workbench workflow](NUCLEI_WORKFLOW.md)
+composes these existing boundaries into `1337 scan nuclei`; the adapter itself
+retains the same preparation/normalization responsibilities.
+
 ## Reviewed profile
 
 The supported capability is `web.http-template-check` with `STANDARD` impact.
@@ -45,8 +49,8 @@ result are not permissions. Keep artifacts immutable until execution finishes:
 hash checking is not protection against hostile concurrent replacement or a
 network sandbox.
 
-Prepared flags explicitly select HTTP and local templates, override ambient
-configuration, emit JSONL, omit raw request/response/template bodies, disable
+Prepared flags explicitly select HTTP and local templates, override the ambient
+main CLI configuration, emit JSONL, omit raw request/response/template bodies, disable
 updates/OAST/redirects/stdin/httpx, bound response size/rate/time, use concurrency
 one and retries zero. Other protocols, workflows, template downloads, code,
 headless browsers, fuzzing, cloud upload and unrestricted CLI passthrough require

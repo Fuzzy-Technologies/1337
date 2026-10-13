@@ -78,6 +78,12 @@ mode = "authored"
 page = "api/fuzzy1337.adapters.nuclei.md"
 
 [[surfaces]]
+module = "fuzzy1337.nucleiscan"
+source = "src/fuzzy1337/nucleiscan.py"
+mode = "authored"
+page = "api/fuzzy1337.nucleiscan.md"
+
+[[surfaces]]
 module = "fuzzy1337.adapters.nmap"
 source = "src/fuzzy1337/adapters/nmap.py"
 mode = "authored"

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/nuclei-scan-plan.schema.json",
+  "title": "1337 Experimental read-only Nuclei Scan plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "workflow",
+    "state",
+    "impact",
+    "confirmation_required",
+    "intent_sha256",
+    "invocation",
+    "policy_plan",
+    "profile"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "workflow": {
+      "const": "nuclei"
+    },
+    "state": {
+      "const": "planned"
+    },
+    "impact": {
+      "const": "STANDARD"
+    },
+    "confirmation_required": {
+      "const": true
+    },
+    "intent_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "invocation": {
+      "type": "object"
+    },
+    "policy_plan": {
+      "type": "object"
+    },
+    "profile": {
+      "type": "object"
+    }
+  }
+}

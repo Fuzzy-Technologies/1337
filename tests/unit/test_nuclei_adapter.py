@@ -100,6 +100,69 @@ def Report(tmp_path, raw=JSONL, state=ExecutionState.SUCCEEDED):
     return adapter, report
 
 
+def test_NativeAuthorityShapeRetainsExactTargetBinding(tmp_path):
+    """Synthetic normalized native-3.x fields bind authority plus exact URL/scheme/port."""
+
+    record = json.loads(JSONL)
+    record.update({"host": "127.0.0.1:8080", "url": "http://127.0.0.1:8080/",
+                   "scheme": "http", "port": "8080", "path": "/"})
+    adapter, report = Report(tmp_path, raw=json.dumps(record).encode("utf-8"))
+    normalized = adapter.NormalizeReport(report)
+    assert len(normalized.findings) == 1, "Exact native authority fields must preserve the match."
+    assert normalized.findings[0].attributes["matched_at"] == "http://127.0.0.1:8080/", (
+        "Native authority-form hosts cannot truncate or substitute the exact approved path."
+    )
+
+
+@pytest.mark.parametrize("field,value", [
+    ("host", "127.0.0.2:8080"), ("host", "127.0.0.1:08080"), ("host", "127.0.0.1"),
+    ("url", "http://127.0.0.2:8080/"), ("url", "http://127.0.0.1:8080/other"),
+    ("url", "http://127.0.0.1:8080"), ("scheme", "https"), ("scheme", True),
+    ("port", "08080"), ("port", 8080), ("port", "8081"), ("path", "/other"),
+    ("url", None), ("scheme", None), ("port", None), ("ip", "127.0.0.2"),
+])
+def test_NativeAuthorityRejectsContradictoryOrAmbiguousComponents(tmp_path, field, value):
+    """A native output shape cannot widen URL, scheme, path, address or canonical port binding."""
+
+    record = json.loads(JSONL)
+    record.update({"host": "127.0.0.1:8080", "url": "http://127.0.0.1:8080/",
+                   "scheme": "http", "port": "8080", "path": "/"})
+    record[field] = value
+    adapter, report = Report(tmp_path, raw=json.dumps(record).encode("utf-8"))
+
+    with pytest.raises(NucleiReportError):
+        adapter.NormalizeReport(report)
+
+
+@pytest.mark.parametrize("field", ["url", "scheme", "port"])
+def test_NativeAuthorityRequiresAllExactComponents(tmp_path, field):
+    """An authority-only host is accepted only with every exact native destination component."""
+
+    record = json.loads(JSONL)
+    record.update({"host": "127.0.0.1:8080", "url": "http://127.0.0.1:8080/",
+                   "scheme": "http", "port": "8080"})
+    del record[field]
+    adapter, report = Report(tmp_path, raw=json.dumps(record).encode("utf-8"))
+
+    with pytest.raises(NucleiReportError):
+        adapter.NormalizeReport(report)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("url", "http://127.0.0.1:8080/other"), ("scheme", "https"), ("port", "8081"),
+    ("path", "/different"),
+])
+def test_LegacyFullUrlShapeRejectsContradictoryNativeMetadata(tmp_path, field, value):
+    """The full-URL fixture retains exact binding when native metadata is also supplied."""
+
+    record = json.loads(JSONL)
+    record[field] = value
+    adapter, report = Report(tmp_path, raw=json.dumps(record).encode("utf-8"))
+
+    with pytest.raises(NucleiReportError):
+        adapter.NormalizeReport(report)
+
+
 def test_FinitePreparationKeepsSdkAndReviewedProvenance(tmp_path, monkeypatch):
     """Preparation reads only explicit artifacts and never invokes the provider process."""
 
