@@ -1,6 +1,6 @@
 # ADR 0052: Owned loopback HTML acquisition
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-13
 - Decision owners: Fuzzy Technologies
 - Related work: #59, #53, #58
@@ -20,7 +20,7 @@ bytes have a hash. This slice must therefore admit only a closed reviewed
 non-secret synthetic HTML fixture with an exact predeclared size and SHA-256.
 Unexpected response bodies and arbitrary header values are never persisted.
 
-## Proposed decision
+## Decision
 
 Add a separate Experimental version-1 `native.loopback-page` adapter and job
 provider, with SAFE capability `http.synthetic-page-capture`. One plan sends one

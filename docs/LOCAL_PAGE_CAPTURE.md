@@ -1,6 +1,6 @@
 # Owned loopback page capture
 
-This Proposed ADR-0052 profile is an exact bounded next slice of #59/#53. It
+This Accepted ADR-0052 profile is an exact bounded next slice of #59/#53. It
 preserves NativeHTTP version 1. Behavior implementation begins only after design
 review; the reviewed ADR-0050 captured-web consumer is an integration dependency.
 
