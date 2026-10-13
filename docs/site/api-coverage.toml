@@ -77,10 +77,11 @@ module = "fuzzy1337.__main__"
 source = "src/fuzzy1337/__main__.py"
 reason = "Executable entry point delegates to the documented CLI Main function."
 
-[[moduleExclusions]]
+[[surfaces]]
 module = "fuzzy1337.openapi_yaml"
 source = "src/fuzzy1337/openapi_yaml.py"
-reason = "Internal optional YAML event decoder is reached through the documented offline API import and generation interfaces."
+mode = "authored"
+page = "api/fuzzy1337.openapi_yaml.md"
 
 [[surfaces]]
 module = "fuzzy1337.adapters"

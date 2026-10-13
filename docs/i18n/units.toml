@@ -8210,10 +8210,65 @@ state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 [[units]]
+id = "page:api.fuzzy1337.openapi-yaml"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.openapi_yaml.md"
+sourceHash = "sha256:dd88047603b8f627a55d9f0e9c27b83499ba7800026bd708ea6c9b7214136477"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.openapi"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.openapi.md"
 sourceHash = "sha256:dced5705b92371c5cb4ca2dcf95bdd4f5874fa90313166ef878090e59e4b9c57"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_yaml.DecodeOpenApiYaml"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_yaml.py"
+sourceHash = "sha256:80728049fb87c54165bdb1d2dcfa7c4ccb7e20c10416dbda158b2aa7a24c8111"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_yaml.YamlCollection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_yaml.py"
+sourceHash = "sha256:e28586ce01415a55401322dbf5101d9677bf500f1d2042b80beda4a1ff469a7b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_yaml.YamlCollection.Add"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_yaml.py"
+sourceHash = "sha256:aa29b0920465a073325b4bac7d1ed8d92d80bab5176855ff2dc8351d40992734"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_yaml.YamlScalar"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_yaml.py"
+sourceHash = "sha256:7e390134e5c8a69334699e24c9076a9abe4e5710f5a9b582b2e86a93f2761133"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
