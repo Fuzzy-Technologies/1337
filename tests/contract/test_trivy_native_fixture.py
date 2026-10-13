@@ -72,9 +72,11 @@ def test_AdvisoryOracleKeepsSpecificBoundaryWithoutCleanScanClaim():
 
 
 @pytest.mark.parametrize("raw,expected", [
-    ("", True), ("Iface\tDestination\tGateway\tFlags\n", True),
+    ("", True), ("Iface Destination Gateway Flags RefCnt Use Metric Mask MTU Window IRTT\n", True),
     ("Iface\tDestination\tGateway\neth0\t00000000\t0100007F\n", False),
     ("eth0\t00000000\t0100007F\n", False), ("Unrecognized kernel route output\n", False),
+    ("Iface Destination Gateway garbage\n", False),
+    ("Iface Destination Gateway eth0 00000000 0100007F\n", False),
 ])
 def test_IsolatedIpv4RouteTableAcceptsBothEmptyKernelForms(raw, expected):
     """Actual CI's headerless empty table remains no-routes while every route stays refused."""
@@ -84,3 +86,26 @@ def test_IsolatedIpv4RouteTableAcceptsBothEmptyKernelForms(raw, expected):
     assert NoIpv4Routes(raw) is expected, (
         "Route validation must accept genuine empty/header-only tables and reject route content"
     )
+
+
+def test_OwnedNativeEvidenceRootExistsBeforeAnyProviderWork(tmp_path, monkeypatch):
+    """Initialize canonical storage before any owned provider output can be captured."""
+
+    from fuzzy1337.adapters.trivy import TrivyAdapter
+    from tests.integration.test_trivy_native import RunNative
+
+    (tmp_path / "trivy-cache").mkdir()
+
+    def StopBeforeProviderWork(adapter):
+        """Inspect only owned initialization and stop before any native process can run."""
+
+        assert (tmp_path / "evidence").is_dir(), (
+            "Actual evidence root must exist before version probing or scan execution"
+        )
+
+        raise RuntimeError("owned provider checkpoint")
+
+    monkeypatch.setattr(TrivyAdapter, "ProbeHealth", StopBeforeProviderWork)
+
+    with pytest.raises(RuntimeError, match="owned provider checkpoint"):
+        RunNative(tmp_path, tmp_path / "unused-executable", "2.30.0")

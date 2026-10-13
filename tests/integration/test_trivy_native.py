@@ -52,8 +52,9 @@ def NoIpv4Routes(raw: str) -> bool:
 
     lines = raw.splitlines()
 
-    return not lines or (len(lines) == 1 and lines[0].split()[:3] == [
-        "Iface", "Destination", "Gateway",
+    return not lines or (len(lines) == 1 and lines[0].split() == [
+        "Iface", "Destination", "Gateway", "Flags", "RefCnt", "Use", "Metric",
+        "Mask", "MTU", "Window", "IRTT",
     ])
 
 
@@ -118,6 +119,7 @@ def native_runtime():
 def RunNative(root: Path, executable: Path, package_version: str):
     """Use the unchanged adapter and accepted low-level executor for an owned test invocation."""
 
+    (root / "evidence").mkdir()
     store = LocalEvidenceStore(root / "evidence")
     probe_adapter = TrivyAdapter(store.Read, root, str(executable))
     version_started = datetime.now(UTC).isoformat()
