@@ -8622,7 +8622,7 @@ state = "missing"
 id = "symbol:fuzzy1337.artifact_policy.ArtifactAcceptance"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_policy.py"
-sourceHash = "sha256:0cc0a9b35bb89d11589054e54c5fa2506994e06f74d456e3fae79ff468cb0ab0"
+sourceHash = "sha256:ccd43e0fb281cd3aebf169189fd1e7f34945cb281f32c81c984c1e9c79b8dab4"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -8964,6 +8964,50 @@ id = "symbol:fuzzy1337.artifact_fixture_worker.RejectFixtureConstant"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_fixture_worker.py"
 sourceHash = "sha256:db686b9eef7967abd2139e0b9d3167335ad5937d05bb92542db2ad029fbdc290"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_inputs.FreezePhysicalIdentity"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_inputs.py"
+sourceHash = "sha256:945b29209ef9b3403ad83dd1a00942010114167edbae0d5f02e87a27c441b3cf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_policy.ArtifactPolicyEngine.ValidateCurrent"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_policy.py"
+sourceHash = "sha256:fbc097c1c958174c0144fe8556de401e3ea78627f10d26a56c5856f2285215b0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_policy.ArtifactPolicyEngine.ValidateTime"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_policy.py"
+sourceHash = "sha256:f42631703cbed72e359d8f24df27d7fd83b49b92fd6da56a30347ba93713093a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_policy.VerifyExecutionMarker"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_policy.py"
+sourceHash = "sha256:bda2cb94f3a7aa1fd25a59e2ef7d7c94e6f39dd2843c08a317aba24c7a61a22e"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

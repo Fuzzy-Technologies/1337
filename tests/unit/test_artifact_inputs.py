@@ -376,9 +376,12 @@ def test_ScratchAggregateOverflowRejectedBeforeReadingScratchBytes(selected, mon
     executable = root / "owned-executable"
     executable.write_bytes(b"xxxx")
     stage = ArtifactStage.Create(
-        root / "small-stage", ArtifactProfile.IMAGE, consent,
+        root / "small-stage",
+        ArtifactProfile.IMAGE,
+        consent,
         (ArtifactSelection("image.tar", source),),
-        ArtifactSelection("executable", executable), "0.75.0",
+        ArtifactSelection("executable", executable),
+        "0.75.0",
     )
     (stage.root / "scratch/a").write_bytes(b"x" * 10)
     (stage.root / "scratch/b").write_bytes(b"x" * 10)
@@ -400,3 +403,42 @@ def test_ScratchAggregateOverflowRejectedBeforeReadingScratchBytes(selected, mon
         stage.Verify(after_run=True)
 
     assert not scratch_reads, "Oversized scratch was fully read before aggregate denial"
+
+
+def test_UnboundedIteratorsAreRejectedWithoutConsumption(selected):
+    """A typed finite-list boundary does not consume arbitrary caller generators."""
+
+    root, source, consent = selected
+
+    def Unsupported():
+        """Fail if a bounded constructor tries to expand an untrusted iterator."""
+
+        raise AssertionError("Unbounded iterable must never be consumed")
+        yield ArtifactSelection("image.tar", source)
+
+    with pytest.raises(ValueError):
+        ArtifactSnapshot.Capture(
+            root / "invalid", ArtifactProfile.IMAGE, ArtifactRole.INPUT, Unsupported(), consent
+        )
+
+    with pytest.raises(ValueError):
+        ArtifactManifest(ArtifactProfile.IMAGE, ArtifactRole.INPUT, Unsupported())
+
+    assert not (root / "invalid").exists(), "Invalid sequence triggered filesystem capture"
+
+
+def test_CapturedObservationRecordsFreezeCallerCollections(selected):
+    """Frozen snapshot/stage records never retain mutable caller identity-list aliases."""
+
+    stage = Stage(selected)
+    observations = [[name, list(identity)] for name, identity in stage.input.identities]
+    directory = list(stage.input.directory_identity)
+    snapshot = replace(stage.input, identities=observations, directory_identity=directory)
+    observations[0][1][0] = -1
+    directory[0] = -1
+
+    assert snapshot.identities == stage.input.identities, "Caller changed snapshot observations"
+    assert snapshot.directory_identity == stage.input.directory_identity, (
+        "Caller changed partition ID"
+    )
+    snapshot.Verify()

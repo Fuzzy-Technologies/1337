@@ -138,6 +138,27 @@ def PhysicalIdentity(info: os.stat_result) -> tuple[int, int, int, int, int]:
     return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
 
 
+def FreezePhysicalIdentity(value: object, length: int) -> tuple[int, ...]:
+    """Freeze finite observed integer identity metadata without reading any filesystem path.
+
+    Args:
+        value: Explicit physical identity tuple/list from an owned observation.
+        length: Exactly two directory or five file identity components.
+
+    Returns:
+        Immutable validated integers; invalid types/length raise ValueError.
+    """
+
+    if (
+        not isinstance(value, (list, tuple))
+        or len(value) != length
+        or any(type(item) is not int for item in value)
+    ):
+        raise ValueError("artifact physical identity fields must be finite observed integers")
+
+    return tuple(value)
+
+
 def ArtifactPathInfo(path: Path, *, directory: bool = False) -> os.stat_result:
     """Reject observed linked ancestors and require the selected owned physical type.
 
@@ -240,6 +261,9 @@ class ArtifactManifest:
 
     def __post_init__(self) -> None:
         """Freeze canonical finite files and reject aggregate/collision ambiguity."""
+
+        if not isinstance(self.files, (list, tuple)) or len(self.files) > MAX_ARTIFACT_FILES:
+            raise ValueError("artifact manifest requires a finite file sequence")
 
         files = tuple(self.files)
 
@@ -464,6 +488,39 @@ class ArtifactSnapshot:
     identities: tuple[tuple[str, tuple[int, int, int, int, int]], ...]
     directory_identity: tuple[int, int]
 
+    def __post_init__(self) -> None:
+        """Freeze typed finite observation fields without reading or following selected paths."""
+
+        if (
+            not isinstance(self.manifest, ArtifactManifest)
+            or not isinstance(self.consent, ArtifactReadConsent)
+            or not isinstance(self.directory, Path)
+            or not self.directory.is_absolute()
+            or not isinstance(self.identities, (list, tuple))
+            or len(self.identities) != len(self.manifest.files)
+        ):
+            raise ValueError("artifact snapshot requires typed immutable capture observations")
+
+        observations = []
+
+        for record in self.identities:
+            if not isinstance(record, (list, tuple)) or len(record) != 2:
+                raise ValueError("artifact snapshot file observation is malformed")
+
+            name, identity = record
+            ArtifactName(name)
+            observations.append((name, FreezePhysicalIdentity(identity, 5)))
+
+        if tuple(name for name, _ in observations) != tuple(
+            item.name for item in self.manifest.files
+        ):
+            raise ValueError("artifact snapshot observations must match canonical manifest files")
+
+        object.__setattr__(self, "identities", tuple(observations))
+        object.__setattr__(
+            self, "directory_identity", FreezePhysicalIdentity(self.directory_identity, 2)
+        )
+
     @classmethod
     def Capture(
         cls,
@@ -503,6 +560,10 @@ class ArtifactSnapshot:
             raise ValueError("snapshot remaining byte budget must be non-negative")
 
         max_total_bytes = min(max_total_bytes, MAX_ARTIFACT_TOTAL_BYTES)
+
+        if not isinstance(selections, (list, tuple)):
+            raise ValueError("snapshot selections must be a finite file sequence")
+
         selections = tuple(selections)
 
         if len(selections) > MAX_ARTIFACT_FILES or any(
@@ -596,6 +657,31 @@ class ArtifactStage:
     version: str
     root_identity: tuple[int, int]
 
+    def __post_init__(self) -> None:
+        """Freeze typed stage observations without path reads or implicit selections."""
+
+        if any(
+            not isinstance(item, ArtifactSnapshot)
+            for item in (self.input, self.scanner, self.material)
+        ):
+            raise ValueError("artifact stage requires typed snapshot partitions")
+
+        if (
+            not isinstance(self.root, Path)
+            or not self.root.is_absolute()
+            or not isinstance(self.executable, Path)
+            or not self.executable.is_absolute()
+        ):
+            raise ValueError("artifact stage requires explicit absolute physical path declarations")
+
+        if not isinstance(self.lease_id, str) or not re.fullmatch(r"[0-9a-f]{32}", self.lease_id):
+            raise ValueError("artifact stage requires a canonical fresh lease identifier")
+
+        object.__setattr__(self, "root_identity", FreezePhysicalIdentity(self.root_identity, 2))
+        object.__setattr__(
+            self, "executable_identity", FreezePhysicalIdentity(self.executable_identity, 5)
+        )
+
     @classmethod
     def Create(
         cls,
@@ -646,6 +732,9 @@ class ArtifactStage:
             or not re.fullmatch(r"0\.75\.\d+(?:-synthetic)?", version)
         ):
             raise ValueError("artifact profile requires a declared bounded Trivy 0.75 version")
+
+        if not isinstance(inputs, (list, tuple)) or not isinstance(material, (list, tuple)):
+            raise ValueError("artifact stage selections must be finite file sequences")
 
         inputs = tuple(inputs)
         material = tuple(material)

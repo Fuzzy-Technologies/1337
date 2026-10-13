@@ -28,7 +28,15 @@ from fuzzy1337.adapters import (
     SerializeContract,
 )
 from fuzzy1337.artifact_fixture_worker import ParseFixturePolicy
-from fuzzy1337.artifact_inputs import ArtifactManifest, ArtifactProfile, ArtifactRole, ArtifactStage
+from fuzzy1337.artifact_inputs import (
+    ArtifactManifest,
+    ArtifactPathInfo,
+    ArtifactProfile,
+    ArtifactRole,
+    ArtifactStage,
+    PhysicalIdentity,
+    ReadArtifactFile,
+)
 from fuzzy1337.executors import (
     CapabilityDescriptor,
     ExecutionAuthorization,
@@ -264,6 +272,22 @@ class PreparedArtifact:
     environment: Mapping[str, str]
     resources: ExecutionResources
 
+    def __post_init__(self) -> None:
+        """Freeze controlled environment values and require typed request observations."""
+
+        if (
+            not isinstance(self.workspace_root, Path)
+            or not self.workspace_root.is_absolute()
+            or not isinstance(self.invocation, AdapterInvocation)
+            or not isinstance(self.capability, CapabilityDescriptor)
+            or not isinstance(self.resources, ExecutionResources)
+            or not isinstance(self.environment, Mapping)
+        ):
+            raise ValueError("prepared artifact requires typed immutable request fields")
+
+        RequireReference(self.stage_lease, "prepared artifact lease")
+        object.__setattr__(self, "environment", FreezeEnvironment(self.environment))
+
     def Payload(self) -> dict[str, object]:
         """Render all immutable process-affecting request fields.
 
@@ -348,6 +372,7 @@ def BuildPreparedArtifact(
 
     try:
         stage.Verify(after_run=after_run)
+
         with (stage.material.directory / "policy.json").open("rb") as policy_stream:
             ParseFixturePolicy(policy_stream.read(4097))
 
@@ -465,7 +490,11 @@ def PrepareArtifact(
     """
 
     return BuildPreparedArtifact(
-        stage, workspace_root, timeout_seconds, resources or ExecutionResources(), after_run=False
+        stage,
+        workspace_root,
+        timeout_seconds,
+        ExecutionResources() if resources is None else resources,
+        after_run=False,
     )
 
 
@@ -809,6 +838,113 @@ class ArtifactPolicyEngine:
         ):
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
+    def ValidateTime(
+        self,
+        grant: ArtifactGrant,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+    ) -> None:
+        """Check time and bound consent cheaply after expensive material verification.
+
+        Args:
+            grant: Original typed artifact grant with issuance/exclusive expiry.
+            stage: Bound input manifest; this check does not rehash physical files.
+            context: Same current context already fully validated against persistent scope.
+            at: Fresh aware clock read immediately before launch-hook return.
+
+        Raises:
+            ArtifactDeniedError: The grant or recorded consent expired during validation/setup.
+            ValueError: The typed context/grant/time contract is malformed.
+        """
+
+        RequireTime(at)
+
+        if not isinstance(grant, ArtifactGrant) or not isinstance(context, ArtifactPolicyContext):
+            raise ValueError("artifact time validation requires typed grant and context")
+
+        if (
+            not datetime.fromisoformat(grant.issued_at)
+            <= at
+            < datetime.fromisoformat(grant.valid_until)
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.GRANT_EXPIRED)
+
+        if not context.scope.Check(stage.input.manifest.Target(), at=at).Allowed():
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+    def ValidateCurrent(
+        self,
+        grant: ArtifactGrant,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+    ) -> None:
+        """Refresh complete authority/request metadata after hashing without rehashing files.
+
+        Args:
+            grant: Original artifact grant already fully validated against physical material.
+            prepared: Original exact factory request including capability/environment/resources.
+            stage: Original immutable role manifests and physical lease metadata.
+            context: Newly read current owner/scope/policy after expensive work or scratch setup.
+            at: Fresh aware time for current consent and grant validity.
+
+        Raises:
+            ArtifactDeniedError: Current content/revision/owner/permission/impact differs or denies.
+            OSError: Fresh authoritative workspace/scope metadata cannot be read.
+        """
+
+        self.ValidateTime(grant, stage, context, at=at)
+        scope = LocalScopeStore(prepared.workspace_root).Open(context.scope.scope_id)
+        workspace = LocalWorkspaceStore(prepared.workspace_root).Open()
+
+        if scope != context.scope or workspace.workspace_id != grant.plan.workspace_id:
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        permission = next(
+            (
+                item
+                for item in context.policy.permissions
+                if (
+                    item.capability_id == prepared.capability.identifier
+                    and item.adapter_id == prepared.capability.adapter_id
+                )
+            ),
+            None,
+        )
+
+        if permission is None or not set(prepared.capability.required_privileges).issubset(
+            permission.granted_privileges
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        if any(
+            _IMPACT_ORDER[prepared.invocation.request.impact] > _IMPACT_ORDER[ceiling]
+            for ceiling in (
+                context.policy.maximum_impact,
+                permission.maximum_impact,
+                prepared.capability.maximum_impact,
+            )
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.IMPACT_DENIED)
+
+        if (
+            context.owner_ref != grant.plan.owner_ref
+            or context.scope.Reference() != grant.plan.scope_reference
+            or context.scope.revision != grant.plan.scope_revision
+            or Digest(context.scope.ToDict()) != grant.plan.scope_sha256
+            or context.policy.Reference() != grant.plan.policy_reference
+            or context.policy.revision != grant.plan.policy_revision
+            or Digest(context.policy) != grant.plan.policy_sha256
+            or permission.granted_privileges != grant.plan.granted_privileges
+            or Digest(prepared.Payload()) != grant.plan.request_sha256
+            or Digest(ArtifactStagePayload(stage)) != grant.plan.stage_sha256
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
 
 def RawResultFacts(result: LocalExecutionResult) -> dict[str, object]:
     """Render bounded metadata binding actual process facts and retained stream/event bytes.
@@ -866,6 +1002,7 @@ class ArtifactAcceptance:
     raw_sha256: str
     checked_at: str
     refusal: ArtifactDenialReason | None
+    marker_identity: tuple[int, int, int, int, int] | None
 
     def __post_init__(self) -> None:
         """Reject malformed receipt identities without interpreting raw content."""
@@ -878,6 +1015,17 @@ class ArtifactAcceptance:
 
         if self.refusal is not None and not isinstance(self.refusal, ArtifactDenialReason):
             raise ValueError("artifact refusal must be a typed sanitized reason")
+
+        if self.marker_identity is not None:
+            identity = tuple(self.marker_identity)
+
+            if len(identity) != 5 or any(type(value) is not int for value in identity):
+                raise ValueError("artifact marker requires observed physical integer metadata")
+
+            object.__setattr__(self, "marker_identity", identity)
+
+        if self.refusal is None and self.marker_identity is None:
+            raise ValueError("accepted artifact receipt requires an actual launch marker")
 
 
 @dataclass(frozen=True, slots=True)
@@ -912,6 +1060,21 @@ class ArtifactExecutionOutcome:
         if self.acceptance.stage_lease != self.grant.plan.stage_lease:
             raise ValueError("artifact receipt does not belong to the granted stage")
 
+        if self.acceptance.refusal is None and not (
+            datetime.fromisoformat(self.grant.issued_at)
+            <= datetime.fromisoformat(self.acceptance.checked_at)
+            < datetime.fromisoformat(self.grant.valid_until)
+        ):
+            raise ValueError("accepted artifact receipt time contradicts its original grant")
+
+        if (
+            not isinstance(self.manifests, (list, tuple))
+            or len(self.manifests) != 3
+            or any(not isinstance(item, ArtifactManifest) for item in self.manifests)
+        ):
+            raise ValueError("artifact outcome requires three finite typed manifests")
+
+        object.__setattr__(self, "manifests", tuple(self.manifests))
         expected = (
             self.grant.plan.input_manifest_sha256,
             self.grant.plan.scanner_manifest_sha256,
@@ -1112,6 +1275,43 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
     return receipt
 
 
+def VerifyExecutionMarker(
+    stage: ArtifactStage,
+    run_id: str,
+    identity: tuple[int, int, int, int, int] | None,
+) -> None:
+    """Bind fresh acceptance to the physical marker created by this actual single launch.
+
+    Args:
+        stage: Original owned stage; historical replay never calls this physical check.
+        run_id: Original run identity written at the final validated launch boundary.
+        identity: Original observed marker device/inode/length/modification/change identity.
+
+    Raises:
+        ArtifactDeniedError: Missing, replaced, relinked, changed or unrelated marker.
+        OSError: The owned marker cannot be inspected.
+    """
+
+    if identity is None:
+        raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+    path = stage.root / "scratch/run-lease.json"
+
+    try:
+        if PhysicalIdentity(ArtifactPathInfo(path)) != identity:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        record = ReadArtifactFile(path, "run-lease.json", max_bytes=128)
+
+    except ValueError as error:
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED) from error
+
+    expected = run_id.encode("utf-8")
+
+    if record.size_bytes != len(expected) or record.sha256 != hashlib.sha256(expected).hexdigest():
+        raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+
 class GovernedArtifactExecutor:
     """Run only closed reviewed synthetic profiles and preserve raw post-run refusal evidence."""
 
@@ -1192,23 +1392,34 @@ class GovernedArtifactExecutor:
         )
         request = prepared.Request(grant)
         run_id = "artifact-run:" + uuid.uuid4().hex
+        marker_identity: tuple[int, int, int, int, int] | None = None
 
         def BeforeLaunch(actual: LocalExecutionRequest) -> None:
             """Recheck exact authority immediately before owned scratch initialization/launch."""
 
-            if actual != request:
+            nonlocal marker_identity
+
+            if actual != prepared.Request(grant):
                 raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
-            self._engine.Validate(
-                grant, prepared, stage, self.CurrentContext(context_provider), at=self._clock()
-            )
+            launch_context = self.CurrentContext(context_provider)
+            self._engine.Validate(grant, prepared, stage, launch_context, at=self._clock())
+            launch_context = self.CurrentContext(context_provider)
+            self._engine.ValidateCurrent(grant, prepared, stage, launch_context, at=self._clock())
+            self._engine.ValidateTime(grant, stage, launch_context, at=self._clock())
             scratch = stage.root / "scratch"
 
             with (scratch / "run-lease.json").open("x", encoding="utf-8") as marker:
                 marker.write(run_id)
 
+            marker_identity = PhysicalIdentity(ArtifactPathInfo(scratch / "run-lease.json"))
+
             for name in ("home", "temp", "config", "cache"):
                 (scratch / name).mkdir(mode=0o700)
+
+            launch_context = self.CurrentContext(context_provider)
+            self._engine.ValidateCurrent(grant, prepared, stage, launch_context, at=self._clock())
+            self._engine.ValidateTime(grant, stage, launch_context, at=self._clock())
 
         raw = await self._executor.Execute(
             request, on_event=on_event, cancellation=cancellation, pre_launch=BeforeLaunch
@@ -1227,6 +1438,9 @@ class GovernedArtifactExecutor:
                 at=checked_at,
                 after_run=True,
             )
+
+            if marker_identity is not None:
+                VerifyExecutionMarker(stage, run_id, marker_identity)
 
         except ArtifactDeniedError as error:
             refusal = error.reason
@@ -1248,6 +1462,9 @@ class GovernedArtifactExecutor:
         ):
             refusal = ArtifactDenialReason.EXECUTION_FAILED
 
+        if refusal is None and marker_identity is None:
+            refusal = ArtifactDenialReason.PLAN_CHANGED
+
         receipt = ArtifactAcceptance(
             run_id,
             grant.authorization.authorization_id,
@@ -1255,6 +1472,7 @@ class GovernedArtifactExecutor:
             RawResultDigest(raw),
             checked_at.isoformat(),
             refusal,
+            marker_identity,
         )
 
         return ArtifactExecutionOutcome(
@@ -1291,6 +1509,7 @@ class GovernedArtifactExecutor:
         if not isinstance(outcome, ArtifactExecutionOutcome):
             raise ValueError("artifact acceptance requires an immutable per-run outcome")
 
+        RequireTime(at)
         receipt = outcome.acceptance
 
         if (
@@ -1302,6 +1521,16 @@ class GovernedArtifactExecutor:
 
         if receipt.refusal is not None:
             raise ArtifactDeniedError(receipt.refusal)
+
+        if not (
+            datetime.fromisoformat(outcome.grant.issued_at)
+            <= datetime.fromisoformat(receipt.checked_at)
+            < datetime.fromisoformat(outcome.grant.valid_until)
+            and datetime.fromisoformat(receipt.checked_at) <= at
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        VerifyExecutionMarker(stage, outcome.run_id, receipt.marker_identity)
 
         if not (
             outcome.raw_result.execution.state == ExecutionState.SUCCEEDED

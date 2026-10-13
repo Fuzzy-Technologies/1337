@@ -24,17 +24,17 @@ new physical stage and fresh grant. Original input changes after capture do not
 change captured bytes. The selected executable itself is pinned and rehashed
 before launch and result acceptance.
 
-| Boundary               | Initial delivered behavior                                      |
-| ---------------------- | --------------------------------------------------------------- |
-| Native profile catalog | Metadata only; no native plan, grant or launch can be issued     |
-| Synthetic profile      | Current trusted CPython and closed reviewed producer SHA only    |
-| Source selection       | `image.tar`, exactly `Dockerfile`, or finite rendered YAML files |
+| Boundary               | Initial delivered behavior                                        |
+| ---------------------- | ----------------------------------------------------------------- |
+| Native profile catalog | Metadata only; no native plan, grant or launch can be issued      |
+| Synthetic profile      | Current trusted CPython and closed reviewed producer SHA only     |
+| Source selection       | `image.tar`, exactly `Dockerfile`, or finite rendered YAML files  |
 | Fixed command          | `-I -S`, explicit pinned policy, memory cache and fixed flags     |
 | Policy                 | Explicit provider/capability permission and current scope consent |
-| Request binding        | Exact argv, cwd, environment, output/time/cleanup limits         |
-| Launch                 | Fresh persisted scope/policy/owner/material validation twice     |
-| Acceptance             | Fresh original grant/authority/material check, including expiry |
-| Raw result             | Actual exit/timeout/cancellation/output-limit facts preserved    |
+| Request binding        | Exact argv, cwd, environment, output/time/cleanup limits          |
+| Launch                 | Fresh persisted scope/policy/owner/material validation twice      |
+| Acceptance             | Fresh original grant/authority/material check, including expiry   |
+| Raw result             | Actual exit/timeout/cancellation/output-limit facts preserved     |
 
 `PrepareArtifact(stage, workspace_root)` generates the only accepted request.
 It rejects caller commands, flags, capability declarations and environment
@@ -56,13 +56,21 @@ principals; a consumer can add its own caller/consent-actor binding. Complete
 scope/policy content and revision, consent, owner, all manifests, physical lease
 and every process-affecting request field enter the grant. A same-revision change
 does not bypass freshness. SAFE requires an explicit capability permission.
+After full hashing and scratch setup, the final launch hook re-reads complete
+authority and the clock without a new expensive hash cycle. Any owner, scope,
+policy or expiry change in either window denies before process start. Prepared
+environment values are frozen once and the actual request must equal the rebuilt
+canonical request.
 
 `GovernedArtifactExecutor.Execute(prepared, stage, grant, context_provider)`
 requires a synchronous fresh typed context provider and returns immutable
 `ArtifactExecutionOutcome`. Its `raw_result` is the unchanged accepted executor
 result. Its separate `acceptance` receipt binds the exact original run, stage,
-grant, process state, stream hashes and event identity. Post-run revocation,
-expiry, material mutation or lookup failure records refusal without discarding
+grant, process state, stream hashes and event identity.
+The accepted receipt also binds the actual single-run marker's physical identity
+and contents; its checked time is within the original grant and no later than a
+fresh acceptance decision. Missing/changed/relinked markers cannot relabel a run.
+Post-run revocation, expiry, material mutation or lookup failure records refusal without discarding
 raw stdout/stderr or relabeling actual exit facts. Cooperative cancellation
 returns a raw cancelled result. Caller coroutine cancellation preserves the
 executor's existing raise-after-cleanup contract.

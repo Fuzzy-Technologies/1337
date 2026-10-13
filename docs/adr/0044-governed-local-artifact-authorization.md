@@ -63,14 +63,14 @@ libraries or establish OS immutability, isolation or publisher authenticity.
 
 Experimental `fuzzy1337.artifact_policy` exposes only these profile identifiers:
 
-| Profile                                 | Input                                 | Capability                         |
-| --------------------------------------- | ------------------------------------- | ---------------------------------- |
-| `trivy.image-archive-offline.v1`          | Exactly `image.tar`                   | `image.archive-vulnerabilities`     |
-| `trivy.dockerfile-offline.v1`             | Exactly `Dockerfile`                  | `config.dockerfile-misconfigurations` |
-| `trivy.kubernetes-offline.v1`             | Finite selected `.yaml`/`.yml` files   | `config.kubernetes-misconfigurations` |
-| `synthetic.image-archive-offline.v1`      | Exactly `image.tar`                   | `image.archive-vulnerabilities`     |
-| `synthetic.dockerfile-offline.v1`         | Exactly `Dockerfile`                  | `config.dockerfile-misconfigurations` |
-| `synthetic.kubernetes-offline.v1`         | Finite selected `.yaml`/`.yml` files   | `config.kubernetes-misconfigurations` |
+| Profile                              | Input                                | Capability                            |
+| ------------------------------------ | ------------------------------------ | ------------------------------------- |
+| `trivy.image-archive-offline.v1`     | Exactly `image.tar`                  | `image.archive-vulnerabilities`       |
+| `trivy.dockerfile-offline.v1`        | Exactly `Dockerfile`                 | `config.dockerfile-misconfigurations` |
+| `trivy.kubernetes-offline.v1`        | Finite selected `.yaml`/`.yml` files | `config.kubernetes-misconfigurations` |
+| `synthetic.image-archive-offline.v1` | Exactly `image.tar`                  | `image.archive-vulnerabilities`       |
+| `synthetic.dockerfile-offline.v1`    | Exactly `Dockerfile`                 | `config.dockerfile-misconfigurations` |
+| `synthetic.kubernetes-offline.v1`    | Finite selected `.yaml`/`.yml` files | `config.kubernetes-misconfigurations` |
 
 The factory supplies a SAFE capability and exact argv, environment, workspace and
 resource bounds. The three native IDs are metadata-only in this initial SDK:
@@ -139,12 +139,19 @@ synchronous context provider is evaluated before issuance and immediately before
 the accepted `LocalExecutor` starts a process. Same-revision content changes,
 exclusion, revocation, expiry, changed owner, executable, material or request deny.
 Grant expiry also applies at result acceptance, including expiry during execution.
+After full material hashing and again after scratch setup, a cheap final guard
+reads the context provider and clock anew. It compares complete current authority
+and request bindings, rather than only revisions, without restarting an expensive
+hash cycle. Authority or expiry changes in either window prevent process launch.
 
 `GovernedArtifactExecutor.Execute` returns a per-run immutable
 `ArtifactExecutionOutcome` containing the actual `LocalExecutionResult` and a
 separate `ArtifactAcceptance` receipt. Each receipt binds its exact run, stage,
 grant and raw execution/termination/stream hashes/event identity. Replacing raw
-bytes or swapping receipts cannot preserve acceptance. Post-run authority/material refusal is
+bytes or swapping receipts cannot preserve acceptance. An accepted receipt binds
+the original physical single-run marker and has a checked time within its grant
+and no later than fresh acceptance. Missing, replaced or relinked markers deny.
+Post-run authority/material refusal is
 recorded in that receipt; it never raises after discarding captured stdout/stderr,
 uses a mutable last-result property, invents success, or changes the actual
 process termination. Pre-launch denial starts no process and remains an

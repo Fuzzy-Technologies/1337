@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from dataclasses import replace
 from datetime import timedelta
 
@@ -24,7 +25,7 @@ from fuzzy1337.artifact_policy import (
     PrepareArtifact,
     VerifyArtifactReplay,
 )
-from fuzzy1337.executors import ExecutionResources, ExecutionTermination
+from fuzzy1337.executors import ExecutionEventKind, ExecutionResources, ExecutionTermination
 from fuzzy1337.scope import AuthorizationState, LocalScopeStore
 
 
@@ -148,15 +149,12 @@ def test_ChangedAuthorityAfterLaunchNeverLosesRawEvidence(tmp_path, change):
     """Fresh post-run refusal is per run and preserves original process/provenance facts."""
 
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
-    calls = 0
+    completed = False
 
     def Current():
-        """Switch authority only after both real pre-launch checks have completed."""
+        """Switch authority only after the actual owned child completed."""
 
-        nonlocal calls
-        calls += 1
-
-        if calls < 3:
+        if not completed:
             return context
 
         if change == "revoke":
@@ -183,15 +181,18 @@ def test_ChangedAuthorityAfterLaunchNeverLosesRawEvidence(tmp_path, change):
 
         return context
 
-    clock_calls = 0
-
     def Clock():
         """Expire the issued grant only at the actual post-run check."""
 
-        nonlocal clock_calls
-        clock_calls += 1
+        return AT + timedelta(hours=1) if change == "expire" and completed else AT
 
-        return AT + timedelta(hours=1) if change == "expire" and clock_calls >= 3 else AT
+    def OnEvent(event):
+        """Use the actual owned executor terminal event to change later authority."""
+
+        nonlocal completed
+
+        if event.kind == ExecutionEventKind.COMPLETED:
+            completed = True
 
     outcome = asyncio.run(
         GovernedArtifactExecutor(root, clock=Clock).Execute(
@@ -199,6 +200,7 @@ def test_ChangedAuthorityAfterLaunchNeverLosesRawEvidence(tmp_path, change):
             stage,
             grant,
             Current,
+            on_event=OnEvent,
         )
     )
 
@@ -371,3 +373,112 @@ def test_ReadOnlyReplayVerifiesOriginalBindingsAndRejectsTamper(tmp_path, mutati
 
     with pytest.raises(ValueError):
         VerifyArtifactReplay(metadata, stdout, stderr)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "bytes", "replacement", "hardlink", "run"])
+def test_FreshAcceptanceRequiresActualPhysicalRunMarker(tmp_path, mutation):
+    """A coherent forged receipt or same-byte marker replacement cannot relabel the actual run."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+    executor = GovernedArtifactExecutor(root, clock=lambda: AT)
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+    marker = stage.root / "scratch/run-lease.json"
+
+    if mutation == "missing":
+        marker.unlink()
+
+    elif mutation == "bytes":
+        marker.write_text("artifact-run:owned-replacement")
+
+    elif mutation == "replacement":
+        actual = marker.read_bytes()
+        marker.unlink()
+        marker.write_bytes(actual)
+
+    elif mutation == "hardlink":
+        os.link(marker, stage.root / "scratch/relinked-marker")
+
+    else:
+        fake = "artifact-run:" + "0" * 32
+        outcome = replace(outcome, run_id=fake, acceptance=replace(outcome.acceptance, run_id=fake))
+
+    with pytest.raises(ArtifactDeniedError):
+        executor.ValidateAcceptance(outcome, prepared, stage, context, at=AT)
+
+
+@pytest.mark.parametrize("checked_at", ["1900-01-01T00:00:00+00:00", "2099-01-01T00:00:00+00:00"])
+def test_AcceptedReceiptClockCannotContradictOriginalGrant(tmp_path, checked_at):
+    """Original receipt chronology is validated independently of the current fresh grant check."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+    executor = GovernedArtifactExecutor(root, clock=lambda: AT)
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+
+    with pytest.raises(ValueError):
+        replace(outcome, acceptance=replace(outcome.acceptance, checked_at=checked_at))
+
+    metadata = outcome.Metadata()
+    metadata["acceptance"]["checked_at"] = checked_at
+
+    with pytest.raises(ValueError):
+        VerifyArtifactReplay(metadata, outcome.raw_result.stdout, outcome.raw_result.stderr)
+
+
+def test_ReceiptCannotClaimAcceptanceAfterSuppliedCurrentTime(tmp_path):
+    """A still-valid grant cannot make a future receipt chronology acceptable now."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+    executor = GovernedArtifactExecutor(root, clock=lambda: AT)
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+    future = replace(
+        outcome,
+        acceptance=replace(outcome.acceptance, checked_at=(AT + timedelta(seconds=1)).isoformat()),
+    )
+
+    with pytest.raises(ArtifactDeniedError):
+        executor.ValidateAcceptance(future, prepared, stage, context, at=AT)
+
+
+def test_PrelaunchCooperativeCancellationHasNoMarkerAndNoSuccessClaim(tmp_path):
+    """Cancellation before a process exists preserves raw facts without marker invention."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+
+    async def Run():
+        """Cancel only this owned operation before entering the accepted executor launch phase."""
+
+        cancellation = asyncio.Event()
+        cancellation.set()
+
+        return await GovernedArtifactExecutor(root, clock=lambda: AT).Execute(
+            prepared,
+            stage,
+            grant,
+            lambda: context,
+            cancellation=cancellation,
+        )
+
+    outcome = asyncio.run(Run())
+
+    assert outcome.acceptance.marker_identity is None, "A cancelled pre-launch process was invented"
+    assert outcome.acceptance.refusal == ArtifactDenialReason.EXECUTION_FAILED, (
+        "Cancellation accepted"
+    )
+    assert outcome.raw_result.termination == ExecutionTermination.CANCELLATION, "Raw reason changed"
+    assert not tuple((stage.root / "scratch").iterdir()), "Pre-launch cancellation touched a marker"
+
+
+def test_OutcomeFreezesCallerManifestListBeforeRetainingProvenance(tmp_path):
+    """Mutable caller aliases cannot change original manifest metadata after receipt validation."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+    executor = GovernedArtifactExecutor(root, clock=lambda: AT)
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+    caller_list = list(outcome.manifests)
+    frozen = replace(outcome, manifests=caller_list)
+    before = frozen.Metadata()
+    caller_list[0] = replace(caller_list[0], profile=ArtifactProfile.SYNTHETIC_DOCKERFILE)
+
+    assert isinstance(frozen.manifests, tuple), "Frozen outcome retained a caller's mutable list"
+    assert frozen.Metadata() == before, "Caller alias changed accepted original provenance"
+    executor.ValidateAcceptance(frozen, prepared, stage, context, at=AT)
