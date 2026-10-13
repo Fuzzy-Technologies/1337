@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import jsonschema
 import pytest
 
 from fuzzy1337.captured_web import CapturedWebLimits
@@ -190,6 +191,8 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
     assert len(snapshot.artifacts) == ORACLE["manifest_count"], "Original acquisition count differs"
     store = LocalEvidenceStore(fixture.root / "evidence")
     body_bytes = 0
+    schema = json.loads((Path(__file__).parents[2] / "contracts" /
+                         "page-capture-record.schema.json").read_bytes())
 
     for artifact in snapshot.artifacts:
         record = store.Get(artifact.evidence.evidence_id)
@@ -201,6 +204,9 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
 
         if record.reference.role == "response-body":
             body_bytes += len(raw)
+
+        else:
+            jsonschema.validate(json.loads(raw), schema)
 
     assert body_bytes == ORACLE["body_bytes"], "Measured admitted body bytes differ from oracle"
     assert snapshot.progress.completed == snapshot.progress.total == 4, (

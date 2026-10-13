@@ -21,7 +21,9 @@ at most sixteen distinct anonymous, query-free, same-origin literal-loopback HTT
 GET templates paired with reviewed body IDs. Extend the existing closed body
 catalog with four handwritten non-secret page bodies: index, alpha, beta and a
 shared leaf. The original body's ID, bytes, digest, worker record grammar,
-capability ID and provider version remain unchanged. Callers cannot register
+capability ID and provider version remain unchanged. Extend the Experimental
+record schema with exact paired catalog ID/size/SHA/base64-shape cases; existing
+records remain valid and arbitrary pairings refuse. Callers cannot register
 arbitrary hashes, files, returned bytes or additional catalog entries. A catalog
 selection is a content admission boundary, never execution permission.
 
