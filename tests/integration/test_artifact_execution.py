@@ -14,16 +14,17 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from artifact_helpers import AT, OwnedArtifact
+from artifact_helpers import AT, OwnedArtifact, OwnedImageArtifact
 
 from fuzzy1337 import artifact_fixture_worker, artifact_policy
 from fuzzy1337.adapters import ExecutionState
-from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactStage
+from fuzzy1337.artifact_inputs import ArtifactOperation, ArtifactProfile, ArtifactStage
 from fuzzy1337.artifact_policy import (
     ArtifactDenialReason,
     ArtifactDeniedError,
     ArtifactPolicyContext,
     ArtifactPolicyEngine,
+    ArtifactVersionProof,
     GovernedArtifactExecutor,
     PrepareArtifact,
     VerifyArtifactReplay,
@@ -715,3 +716,336 @@ def test_AuthorityChangedDuringPostRunHashingRefusesReceiptAndKeepsRaw(
     assert outcome.acceptance.refusal is not None, (
         "Stale post-hash authority became accepted receipt"
     )
+
+
+def ImageVersion(tmp_path, *, scenario="success"):
+    """Collect and freshly accept actual VERSION before preparing any richer image SCAN."""
+
+    root, stage, prepared, context, grant = OwnedImageArtifact(tmp_path, scenario=scenario)
+    executor = GovernedArtifactExecutor(root, clock=lambda: AT)
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+    executor.ValidateAcceptanceFresh(outcome, prepared, stage, lambda: context)
+    proof = ArtifactVersionProof(outcome, prepared, stage)
+
+    return root, context, executor, proof
+
+
+def ImageScan(tmp_path, root, context, executor, proof, *, scenario="success"):
+    """Use a separate fresh stage and exact original VERSION prerequisite for SCAN."""
+
+    _, stage, prepared, scan_context, grant = OwnedImageArtifact(
+        tmp_path, scenario=scenario, workspace=root, stage_name="scan-stage",
+        operation=ArtifactOperation.SCAN, version_proof=proof,
+    )
+    assert scan_context == context, "Pair must retain complete current original authority"
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+
+    return outcome, prepared, stage
+
+
+@pytest.mark.parametrize("scenario", ["success", "no_findings"])
+def test_RealImageVersionScanPairHasSeparateRunsAndBoundOriginalPrerequisite(tmp_path, scenario):
+    """Actual richer operations retain independent raw results and one exact original pairing."""
+
+    root, context, executor, proof = ImageVersion(tmp_path, scenario=scenario)
+    scan = ImageScan(tmp_path, root, context, executor, proof, scenario=scenario)
+    executor.ValidatePairAcceptanceFresh(
+        (proof.outcome, proof.prepared, proof.stage), scan, lambda: context
+    )
+    outcome, prepared, stage = scan
+    assert proof.stage.root != stage.root and proof.stage.lease_id != stage.lease_id
+    assert proof.outcome.run_id != outcome.run_id, "SCAN borrowed VERSION's actual run"
+    assert proof.outcome.grant.authorization != outcome.grant.authorization
+    assert proof.outcome.manifests == outcome.manifests, "Selected content pair changed"
+    assert outcome.grant.plan.version_run_id == proof.outcome.run_id
+    assert outcome.grant.plan.version_grant_id == proof.outcome.grant.authorization.authorization_id
+    assert outcome.grant.plan.version_prerequisite_sha256 == proof.Digest()
+    assert prepared.VersionBindings()["version_prerequisite_sha256"] == proof.Digest()
+    assert outcome.Metadata()["schema_version"] == proof.outcome.Metadata()["schema_version"] == 2
+    assert json.loads(proof.outcome.raw_result.stdout)["Version"] == "0.75.0-synthetic"
+    assert json.loads(outcome.raw_result.stdout)["Results"][0]["Vulnerabilities"] == (
+        [] if scenario == "no_findings" else [{
+            "VulnerabilityID": "CVE-2099-0001", "PkgID": "owned-1", "PkgName": "Owned_Lib",
+            "InstalledVersion": "1.0", "FixedVersion": "2.0", "Severity": "HIGH",
+        }]
+    ), "Exact owned raw wire changed before interpretation"
+    assert prepared.invocation.timeout_seconds == 30, "Richer SCAN default changed"
+    assert prepared.resources.max_stdout_bytes == 4 * 1024 * 1024
+    assert prepared.resources.max_stderr_bytes == 1024 * 1024
+    assert prepared.invocation.argv[9:] == (
+        "image", "--cache-backend", "memory", "--input", str(stage.root / "input/image.tar"),
+        "--format", "json", "--scanners", "vuln", "--disable-telemetry", "--offline-scan",
+        "--skip-db-update", "--skip-java-db-update", "--skip-check-update",
+        "--skip-version-check", "--skip-vex-repo-update", "--ignorefile=", "--list-all-pkgs",
+        "--exit-code", "0", "--no-progress", "--timeout", "30s",
+    ), "Reviewed richer SCAN flag ordering drifted"
+
+
+def test_RicherScanCannotPrepareWithoutActualVersionPrerequisite(tmp_path):
+    """A stage version string or policy bytes never substitute for a collected VERSION."""
+
+    with pytest.raises(ValueError):
+        OwnedImageArtifact(tmp_path, operation=ArtifactOperation.SCAN)
+
+    scratch = tmp_path.resolve() / "workspace/image-stage/scratch"
+    assert not tuple(scratch.iterdir()), "Missing VERSION began a SCAN physical run"
+
+
+@pytest.mark.parametrize("failed", ["output-limit", "cancelled"])
+def test_RealRejectedVersionKeepsRawTruthAndCannotBecomeScanProof(tmp_path, failed):
+    """Failed/cancelled actual VERSION has no original accepted proof or subsequent SCAN grant."""
+
+    root, stage, prepared, context, _ = OwnedImageArtifact(tmp_path)
+    cancellation = None
+
+    if failed == "output-limit":
+        prepared = PrepareArtifact(
+            stage, root, operation=ArtifactOperation.VERSION,
+            resources=ExecutionResources(max_stdout_bytes=1, max_stderr_bytes=16 * 1024),
+        )
+
+    else:
+        cancellation = asyncio.Event()
+        cancellation.set()
+
+    grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=AT)
+    outcome = asyncio.run(GovernedArtifactExecutor(root, clock=lambda: AT).Execute(
+        prepared, stage, grant, lambda: context, cancellation=cancellation,
+    ))
+    assert outcome.acceptance.refusal is not None, "Rejected VERSION became accepted metadata"
+    assert outcome.raw_result.termination == (
+        ExecutionTermination.OUTPUT_LIMIT if failed == "output-limit"
+        else ExecutionTermination.CANCELLATION
+    ), "Actual VERSION termination was rewritten"
+
+    with pytest.raises(ArtifactDeniedError):
+        ArtifactVersionProof(outcome, prepared, stage)
+
+    assert VerifyArtifactReplay(outcome.Metadata(), outcome.raw_result.stdout,
+                                outcome.raw_result.stderr) == outcome.acceptance
+
+
+@pytest.mark.parametrize("scenario,termination", [
+    ("provider_error", ExecutionTermination.PROCESS_EXIT),
+    ("output_limit", ExecutionTermination.OUTPUT_LIMIT),
+    ("hold", ExecutionTermination.TIMEOUT),
+])
+def test_RealRicherScanFailuresRetainOriginalVersionAndBothRawOutcomes(
+    tmp_path, scenario, termination
+):
+    """Provider/output/time failures keep process truth and never yield accepted normalization."""
+
+    root, context, executor, proof = ImageVersion(tmp_path, scenario=scenario)
+    _, stage, prepared, _, _ = OwnedImageArtifact(
+        tmp_path, scenario=scenario, workspace=root, stage_name="scan-stage",
+        operation=ArtifactOperation.SCAN, version_proof=proof,
+    )
+    prepared = PrepareArtifact(stage, root, timeout_seconds=1, version_proof=proof)
+    grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=AT)
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+    assert outcome.raw_result.termination == termination, "SCAN termination was hidden"
+    assert outcome.acceptance.refusal == ArtifactDenialReason.EXECUTION_FAILED
+    assert outcome.raw_result.stdout, "SCAN failure discarded bounded original bytes"
+    assert proof.outcome.raw_result.execution.state == ExecutionState.SUCCEEDED
+
+    with pytest.raises(ArtifactDeniedError):
+        executor.ValidatePairAcceptanceFresh(
+            (proof.outcome, proof.prepared, proof.stage), (outcome, prepared, stage),
+            lambda: context,
+        )
+
+    assert VerifyArtifactReplay(outcome.Metadata(), outcome.raw_result.stdout,
+                                outcome.raw_result.stderr) == outcome.acceptance
+
+
+def test_SameMaterialAlternateVersionCannotReplaceIssuedScanPrerequisite(tmp_path):
+    """A second valid same-content VERSION cannot be swapped into an already issued SCAN."""
+
+    root, context, executor, proof = ImageVersion(tmp_path)
+    scan = ImageScan(tmp_path, root, context, executor, proof)
+    _, version_stage, version_prepared, _, version_grant = OwnedImageArtifact(
+        tmp_path, workspace=root, stage_name="alternate-version"
+    )
+    alternate_outcome = asyncio.run(executor.Execute(
+        version_prepared, version_stage, version_grant, lambda: context
+    ))
+    alternate = ArtifactVersionProof(alternate_outcome, version_prepared, version_stage)
+    assert alternate.outcome.manifests == proof.outcome.manifests, "Test changed selected content"
+
+    with pytest.raises(ArtifactDeniedError):
+        executor.ValidatePairAcceptanceFresh(
+            (alternate.outcome, alternate.prepared, alternate.stage), scan, lambda: context
+        )
+
+    outcome, prepared, stage = scan
+    substituted = replace(prepared, version_proof=alternate)
+
+    with pytest.raises(ArtifactDeniedError):
+        substituted.Request(outcome.grant)
+
+    with pytest.raises(ArtifactDeniedError):
+        ArtifactPolicyEngine().Validate(
+            outcome.grant, substituted, stage, context, at=AT, after_run=True
+        )
+
+
+@pytest.mark.parametrize("change", ["expiry", "owner", "marker", "material"])
+def test_VersionPrerequisiteIsFreshAtScanIssuanceAndLaunch(tmp_path, change):
+    """An accepted earlier VERSION cannot grant SCAN after its affected boundary changes."""
+
+    root, context, executor, proof = ImageVersion(tmp_path)
+    _, stage, prepared, _, grant = OwnedImageArtifact(
+        tmp_path, workspace=root, stage_name="scan-stage", operation=ArtifactOperation.SCAN,
+        version_proof=proof,
+    )
+    now = AT
+    current = context
+
+    if change == "expiry":
+        now = AT + timedelta(seconds=301)
+
+    elif change == "owner":
+        current = replace(context, owner_ref="owner:changed")
+
+    else:
+        path = proof.stage.root / (
+            "scratch/run-lease.json" if change == "marker" else "material/policy.json"
+        )
+        path.chmod(0o600)
+        path.write_bytes(b"owned-changed-original-version")
+
+    with pytest.raises(ArtifactDeniedError):
+        ArtifactPolicyEngine().Authorize(prepared, stage, current, at=now)
+
+    events = []
+
+    with pytest.raises(ArtifactDeniedError):
+        asyncio.run(GovernedArtifactExecutor(root, clock=lambda: now).Execute(
+            prepared, stage, grant, lambda: current, on_event=events.append
+        ))
+
+    assert not any(event.kind == ExecutionEventKind.STARTED for event in events)
+    assert not tuple((stage.root / "scratch").iterdir()), "Stale VERSION began SCAN"
+    assert proof.outcome.raw_result.stdout, "Refusal erased original VERSION capture"
+
+
+@pytest.mark.parametrize("mutation", ["expiry", "owner", "policy"])
+def test_FinalPairBarrierRefreshesVersionAfterAllScanHashing(tmp_path, monkeypatch, mutation):
+    """The pair's final guard covers VERSION when authority changes during expensive SCAN work."""
+
+    root, context, executor, proof = ImageVersion(tmp_path)
+    scan = ImageScan(tmp_path, root, context, executor, proof)
+    outcome, prepared, stage = scan
+    current = context
+    now = AT
+    original_verify = ArtifactStage.Verify
+
+    def Verify(selected, **options):
+        """Change only the owned current authority after original scan physical hashing."""
+
+        nonlocal current, now
+        original_verify(selected, **options)
+
+        if selected is not stage or not options.get("after_run"):
+            return
+
+        if mutation == "expiry":
+            now = AT + timedelta(seconds=301)
+
+        elif mutation == "owner":
+            current = replace(context, owner_ref="owner:changed")
+
+        else:
+            current = replace(context, policy=replace(context.policy, permissions=()))
+
+    monkeypatch.setattr(ArtifactStage, "Verify", Verify)
+
+    with pytest.raises(ArtifactDeniedError):
+        GovernedArtifactExecutor(root, clock=lambda: now).ValidatePairAcceptanceFresh(
+            (proof.outcome, proof.prepared, proof.stage), scan, lambda: current
+        )
+
+    assert outcome.raw_result.stdout and proof.outcome.raw_result.stdout
+    assert prepared.version_proof == proof, "Refusal swapped the actual prerequisite"
+
+
+def test_RicherScanPostRunVersionExpiryKeepsBothActualResults(tmp_path):
+    """Expiry only after successful SCAN returns raw truth while refusing new acceptance."""
+
+    root, context, _, proof = ImageVersion(tmp_path)
+    _, stage, prepared, _, _ = OwnedImageArtifact(
+        tmp_path, workspace=root, stage_name="scan-stage", operation=ArtifactOperation.SCAN,
+        version_proof=proof,
+    )
+    issued = AT + timedelta(seconds=120)
+    grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=issued)
+    finished = False
+
+    def OnEvent(event):
+        """Move the controlled clock only after actual child completion."""
+
+        nonlocal finished
+
+        if event.kind == ExecutionEventKind.COMPLETED:
+            finished = True
+
+    executor = GovernedArtifactExecutor(
+        root, clock=lambda: AT + timedelta(seconds=301) if finished else issued
+    )
+    outcome = asyncio.run(executor.Execute(
+        prepared, stage, grant, lambda: context, on_event=OnEvent
+    ))
+    assert outcome.raw_result.execution.state == ExecutionState.SUCCEEDED
+    assert outcome.acceptance.refusal == ArtifactDenialReason.GRANT_EXPIRED
+    assert outcome.raw_result.stdout and proof.outcome.raw_result.stdout
+    assert outcome.grant.valid_until > proof.outcome.grant.valid_until, (
+        "The test must expire VERSION while SCAN's own grant still remains current"
+    )
+
+
+def test_OperationAwareReplayDoesNotInspectCurrentPhysicalStages(tmp_path, monkeypatch):
+    """Saved schema2 VERSION and SCAN retain original facts without regranting relocated files."""
+
+    root, context, executor, proof = ImageVersion(tmp_path)
+    scan = ImageScan(tmp_path, root, context, executor, proof)
+
+    def ForbiddenVerify(*args, **kwargs):
+        """Reject a physical lookup if historical verification attempts live authority."""
+
+        raise AssertionError("Historical replay inspected current physical material")
+
+    monkeypatch.setattr(ArtifactStage, "Verify", ForbiddenVerify)
+
+    for outcome in (proof.outcome, scan[0]):
+        assert VerifyArtifactReplay(
+            outcome.Metadata(), outcome.raw_result.stdout, outcome.raw_result.stderr
+        ) == outcome.acceptance, "Historical operation facts were upgraded or relabeled"
+
+    with pytest.raises(ValueError):
+        PrepareArtifact(scan[2], root, version_proof=proof.outcome.acceptance)
+
+
+def test_VersionGrantNeverLaunchesScanAndVersionNeverTakesAnotherPrerequisite(tmp_path):
+    """Actual separate operation requests cannot borrow each other's original approval."""
+
+    root, context, executor, proof = ImageVersion(tmp_path)
+    _, stage, prepared, _, grant = OwnedImageArtifact(
+        tmp_path, workspace=root, stage_name="scan-stage", operation=ArtifactOperation.SCAN,
+        version_proof=proof,
+    )
+    events = []
+
+    with pytest.raises(ArtifactDeniedError):
+        asyncio.run(executor.Execute(
+            prepared, stage, proof.outcome.grant, lambda: context, on_event=events.append
+        ))
+
+    assert not any(event.kind == ExecutionEventKind.STARTED for event in events)
+    assert not tuple((stage.root / "scratch").iterdir()), "VERSION grant initialized SCAN"
+
+    with pytest.raises(ValueError):
+        PrepareArtifact(proof.stage, root, operation=ArtifactOperation.VERSION, version_proof=proof)
+
+    for field in ("version_run_id", "version_grant_id", "version_prerequisite_sha256"):
+        with pytest.raises(ValueError):
+            replace(grant.plan, **{field: None})

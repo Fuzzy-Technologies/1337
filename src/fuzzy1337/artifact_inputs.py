@@ -36,6 +36,7 @@ __all__ = [
     "MAX_ARTIFACT_FILE_BYTES",
     "MAX_ARTIFACT_TOTAL_BYTES",
     "ArtifactProfile",
+    "ArtifactOperation",
     "ArtifactRole",
     "ArtifactReadConsent",
     "ArtifactSelection",
@@ -63,6 +64,13 @@ class ArtifactRole(StrEnum):
     INPUT = "input"
     SCANNER = "scanner"
     MATERIAL = "material"
+
+
+class ArtifactOperation(StrEnum):
+    """Explicit process operation; VERSION never borrows a SCAN stage or grant."""
+
+    VERSION = "version"
+    SCAN = "scan"
 
 
 def ArtifactName(value: str) -> str:

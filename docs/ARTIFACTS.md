@@ -1,7 +1,8 @@
 # Governed local artifacts
 
 `fuzzy1337.artifact_inputs` and `fuzzy1337.artifact_policy` are Experimental
-contract-version-1 foundations for explicitly selected local inputs. They reuse
+foundations for explicitly selected local inputs. Selected-byte manifests remain
+contract/schema version 1; new execution metadata is schema 2. They reuse
 the existing workspace, `LocalScopeStore`, recorded consent, `ImpactPolicy`,
 `LocalExecutor`, jobs and evidence. No artifact scope or authoritative grant store
 is added. See [ADR 0044](adr/0044-governed-local-artifact-authorization.md).
@@ -51,8 +52,10 @@ overlays. Native Trivy IDs cannot be enabled by attested version or compatibilit
 text. Synthetic preparation accepts only the running trusted CPython canonical
 executable and a source-owned producer hash allowlist. The bundled Internal
 `artifact_fixture_worker` is a finite lifecycle oracle; it is not a detector and
-does not issue a clean finding verdict. Reviewed richer fixture identities require
-separate source and policy-schema changes. The initial fixed policy is bounded
+does not issue a clean finding verdict. The independently reviewed richer image
+worker now has its own closed family/policy/operation dispatcher; merely sharing
+the lifecycle profile does not select its policy or argv. Configuration wire
+registration remains separate. The initial fixed policy is bounded
 strict UTF-8 JSON: duplicate/nonfinite values and version/type aliases fail before
 grant issuance and in the worker itself. Real compatible scanner/material acceptance remains
 work in #140, #142 and #158; no tool or database is downloaded here.
@@ -105,10 +108,45 @@ never accepted as a successful scan. A per-job wrapper can return `raw_result` t
 the existing `LocalExecutionJob`, retaining its immutable outcome for that job's
 result handler. There is no mutable shared last-result property.
 
+The richer image family adds explicit `ArtifactOperation.VERSION` and `SCAN`.
+VERSION has a fixed three-second deadline and 16 KiB per-stream ceilings; richer
+SCAN defaults to 30 seconds, admits integer deadlines from 1 through 60 seconds
+and captures at most 4 MiB stdout/1 MiB stderr. Lifecycle SCAN retains its existing
+120-second default and exact argv ordering. Every operation has a separate fresh
+stage/root/scratch/lease/grant/run/marker/receipt; no native profile is enabled.
+
+After collecting and freshly accepting an actual richer VERSION, construct
+`ArtifactVersionProof(outcome, prepared, stage)`. Its construction checks original
+successful raw/receipt/request/stage facts and strict observed version JSON, but
+does not create current authority. Pass it to richer SCAN preparation as
+`PrepareArtifact(scan_stage, workspace_root, version_proof=proof)`. Missing or
+failed VERSION cannot grant SCAN; VERSION and lifecycle SCAN require no proof.
+The request and schema-2 plan contain explicit `operation`, `producer_family`,
+`version_run_id`, `version_grant_id` and `version_prerequisite_sha256`; the last
+three are null only for VERSION and lifecycle SCAN. The original prerequisite
+digest commits original VERSION metadata and complete prepared/stage payloads.
+SCAN planning/issuance/launch freshly verify it, so another valid same-content
+VERSION cannot replace the originally bound proof.
+
+The facade's `ValidateAcceptanceFresh` reads canonical current context and time
+after full original-run validation. `ValidatePairAcceptanceFresh(version_tuple,
+scan_tuple, context_provider)` requires each tuple to be the actual original
+outcome/request/stage, checks the bound VERSION prerequisite and cross-stage
+content/executable/workspace/owner agreement, validates both originals, then
+refreshes both at a final shared authority/time barrier. A VERSION expiry during
+SCAN hashing refuses acceptance. Post-run VERSION expiry preserves successful
+SCAN process facts and both raw results while recording a separate refusal.
+Consumer capture-window chronology, evidence persistence and atomic model save
+remain separate responsibilities in [the operation contract](SYNTHETIC_IMAGE_OPERATIONS_DESIGN.md).
+
 `outcome.Metadata()` records original grant, receipt, manifests and bounded raw
 fact metadata for existing evidence storage. `VerifyArtifactReplay(metadata,
 stdout, stderr)` verifies original bindings and returns the historical receipt
-read-only. Obtain metadata and streams through the existing evidence-integrity
+read-only. Schema 1 retains its original exact field shape, intent and envelope
+hashing and denotes only legacy lifecycle SCAN. It cannot be upgraded into a new
+operation, family, VERSION proof or live grant. Schema 2 requires all operation
+and prerequisite fields, including explicit nulls. Unknown schemas or extra and
+missing fields reject. Obtain metadata and streams through the existing evidence-integrity
 checks first. Replay issues no grant, reads no current scope, reauthorizes no
 launch and never relabels old bytes with today's owner or consent.
 

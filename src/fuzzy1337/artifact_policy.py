@@ -27,9 +27,14 @@ from fuzzy1337.adapters import (
     ImpactLevel,
     SerializeContract,
 )
-from fuzzy1337.artifact_fixture_worker import ParseFixturePolicy
+from fuzzy1337.artifact_fixture_worker import (
+    FixtureFields,
+    ParseFixturePolicy,
+    RejectFixtureConstant,
+)
 from fuzzy1337.artifact_inputs import (
     ArtifactManifest,
+    ArtifactOperation,
     ArtifactPathInfo,
     ArtifactProfile,
     ArtifactRole,
@@ -65,6 +70,29 @@ _REVIEWED_PRODUCERS = frozenset(
         "2a07b2d817b1294305bedae203b8ae7f968c2eb27838d873becd0d29071ac91d",
     }
 )
+_LIFECYCLE_FAMILY = "owned-artifact-lifecycle-v1"
+_IMAGE_FAMILY = "owned-synthetic-image-wire-v1"
+_IMAGE_PRODUCER_SHA256 = "afb5b935f151fb9780feee28eda0fbf13ddc6d721e6f7cc55e753aa32e4cfa53"
+_LEGACY_PRODUCERS = _REVIEWED_PRODUCERS | {
+    "6cec015e044f290f2f5f48d04156fe1430ba679ee629505100e192459d10ec7a",
+    "48626d65b8e4d092859ed948507b8162a5e276b70599469e65fe8abc179a6bb1",
+}
+_LEGACY_PLAN_FIELDS = frozenset(
+    {
+        "owner_ref", "profile", "provider_version", "input_manifest_sha256",
+        "scanner_manifest_sha256", "material_manifest_sha256", "workspace_id",
+        "scope_reference", "scope_revision", "scope_sha256", "policy_reference",
+        "policy_revision", "policy_sha256", "target_reference", "stage_sha256",
+        "stage_lease", "request_sha256", "invocation_sha256", "granted_privileges",
+        "intent_sha256",
+    }
+)
+_IMAGE_DATABASE_METADATA = {
+    "Version": 2,
+    "UpdatedAt": "2026-10-01T00:00:00Z",
+    "NextUpdate": "2026-10-02T00:00:00Z",
+    "DownloadedAt": "2026-10-01T01:00:00Z",
+}
 _SYNTHETIC_PROFILES = frozenset(
     {
         ArtifactProfile.SYNTHETIC_IMAGE,
@@ -84,6 +112,7 @@ _CAPABILITIES = {
 
 __all__ = [
     "ArtifactDenialReason",
+    "ArtifactOperation",
     "ArtifactDeniedError",
     "ArtifactPolicyContext",
     "PreparedArtifact",
@@ -91,9 +120,11 @@ __all__ = [
     "ArtifactGrant",
     "ArtifactAcceptance",
     "ArtifactExecutionOutcome",
+    "ArtifactVersionProof",
     "ArtifactPolicyEngine",
     "GovernedArtifactExecutor",
     "PrepareArtifact",
+    "ArtifactStagePayload",
     "ProfileCapability",
     "VerifyArtifactReplay",
 ]
@@ -170,11 +201,14 @@ def ProfileCapability(profile: ArtifactProfile) -> CapabilityDescriptor:
     return CapabilityDescriptor(_CAPABILITIES[profile], provider, ImpactLevel.SAFE)
 
 
-def ValidateArtifactProfile(stage: ArtifactStage) -> None:
-    """Reject unaccepted native execution and both legs of synthetic command substitution.
+def ValidateArtifactProfile(stage: ArtifactStage) -> str:
+    """Derive one reviewed family without generic caller command or hash registration.
 
     Args:
         stage: Explicit selected-byte stage, independently verified by the request factory.
+
+    Returns:
+        Source-owned family; its profile, policy and operation dispatcher remain closed.
     """
 
     profile = stage.input.manifest.profile
@@ -187,10 +221,18 @@ def ValidateArtifactProfile(stage: ArtifactStage) -> None:
 
     scanner = {item.name: item for item in stage.scanner.manifest.files}
 
-    if (
-        set(scanner) != {"executable", "producer.py"}
-        or scanner["producer.py"].sha256 not in _REVIEWED_PRODUCERS
-    ):
+    if set(scanner) != {"executable", "producer.py"}:
+        raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_PRODUCER)
+
+    producer_sha256 = scanner["producer.py"].sha256
+
+    if producer_sha256 in _REVIEWED_PRODUCERS:
+        family = _LIFECYCLE_FAMILY
+
+    elif producer_sha256 == _IMAGE_PRODUCER_SHA256 and profile == ArtifactProfile.SYNTHETIC_IMAGE:
+        family = _IMAGE_FAMILY
+
+    else:
         raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_PRODUCER)
 
     if stage.version != "0.75.0-synthetic":
@@ -199,6 +241,9 @@ def ValidateArtifactProfile(stage: ArtifactStage) -> None:
     names = tuple(item.name for item in stage.input.manifest.files)
 
     if profile == ArtifactProfile.SYNTHETIC_IMAGE and names != ("image.tar",):
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+    if family == _IMAGE_FAMILY and stage.input.manifest.files[0].size_bytes > 128 * 1024:
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
 
     if profile == ArtifactProfile.SYNTHETIC_DOCKERFILE and names != ("Dockerfile",):
@@ -226,8 +271,50 @@ def ValidateArtifactProfile(stage: ArtifactStage) -> None:
     if tuple(item.name for item in stage.material.manifest.files) != ("policy.json",):
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
 
-    if stage.material.manifest.files[0].size_bytes > 4096:
+    policy_limit = 512 if family == _IMAGE_FAMILY else 4096
+
+    if stage.material.manifest.files[0].size_bytes > policy_limit:
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+    return family
+
+
+def ParseImageFixturePolicy(payload: bytes) -> None:
+    """Verify exact reviewed image material without importing or executing the staged worker.
+
+    Args:
+        payload: Explicit selected policy bytes bounded to 512 bytes.
+
+    Raises:
+        ValueError: Strict fields/types/UTF-8/database fixture facts do not match.
+    """
+
+    if not isinstance(payload, bytes) or len(payload) > 512:
+        raise ValueError("image fixture policy exceeds its closed byte bound")
+
+    try:
+        policy = json.loads(
+            payload.decode("utf-8"), object_pairs_hook=FixtureFields,
+            parse_constant=RejectFixtureConstant,
+        )
+
+    except (UnicodeError, ValueError, RecursionError):
+        raise ValueError("image fixture policy requires strict finite UTF-8 JSON") from None
+
+    expected = {
+        "schema_version": 1,
+        "fixture_id": _IMAGE_FAMILY,
+        "provider_version": "0.75.0-synthetic",
+        "database_metadata": _IMAGE_DATABASE_METADATA,
+    }
+
+    if (
+        not isinstance(policy, dict)
+        or policy != expected
+        or type(policy["schema_version"]) is not int
+        or type(policy["database_metadata"]["Version"]) is not int
+    ):
+        raise ValueError("image fixture policy does not match the closed reviewed family")
 
 
 def ControlledArtifactEnvironment(stage: ArtifactStage) -> Mapping[str, str]:
@@ -261,6 +348,63 @@ def ControlledArtifactEnvironment(stage: ArtifactStage) -> Mapping[str, str]:
     return FreezeEnvironment(environment)
 
 
+def ParseObservedImageVersion(payload: bytes) -> None:
+    """Require actual strict successful VERSION wire before richer SCAN authority.
+
+    Args:
+        payload: Original actual VERSION stdout bytes, at most 16 KiB.
+
+    Raises:
+        ArtifactDeniedError: Unsupported/ambiguous/malformed observed fixture version.
+    """
+
+    if not isinstance(payload, bytes) or len(payload) > 16 * 1024:
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+    try:
+        version = json.loads(
+            payload.decode("utf-8"), object_pairs_hook=FixtureFields,
+            parse_constant=RejectFixtureConstant,
+        )
+
+    except (UnicodeError, ValueError, RecursionError):
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED) from None
+
+    expected = {
+        "Version": "0.75.0-synthetic", "VulnerabilityDB": _IMAGE_DATABASE_METADATA,
+        "Fixture": "synthetic; no Trivy binary or vulnerability database",
+    }
+
+    if (
+        not isinstance(version, dict) or version != expected
+        or type(version["VulnerabilityDB"]["Version"]) is not int
+    ):
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+
+def ValidatePrerequisiteType(
+    operation: ArtifactOperation, family: str, proof: ArtifactVersionProof | None
+) -> None:
+    """Require an original typed proof only for richer SCAN before any material read.
+
+    Args:
+        operation: Explicit previously validated SCAN or VERSION operation.
+        family: Source-owned derived producer family.
+        proof: Original typed VERSION prerequisite or absent lifecycle/VERSION value.
+
+    Raises:
+        ValueError: Missing, wrong-type or extraneous prerequisite.
+    """
+
+    needs_version = family == _IMAGE_FAMILY and operation == ArtifactOperation.SCAN
+
+    if needs_version != (type(proof) is ArtifactVersionProof):
+        raise ValueError("richer image SCAN requires its original typed VERSION prerequisite")
+
+    if not needs_version and proof is not None:
+        raise ValueError("VERSION and lifecycle SCAN do not accept a VERSION prerequisite")
+
+
 @dataclass(frozen=True, slots=True)
 class PreparedArtifact:
     """Exact fixed factory request including fields omitted by legacy InvocationDigest."""
@@ -272,6 +416,9 @@ class PreparedArtifact:
     workspace: str
     environment: Mapping[str, str]
     resources: ExecutionResources
+    operation: ArtifactOperation = ArtifactOperation.SCAN
+    producer_family: str = _LIFECYCLE_FAMILY
+    version_proof: ArtifactVersionProof | None = None
 
     def __post_init__(self) -> None:
         """Freeze controlled environment values and require typed request observations."""
@@ -283,8 +430,17 @@ class PreparedArtifact:
             or not isinstance(self.capability, CapabilityDescriptor)
             or not isinstance(self.resources, ExecutionResources)
             or not isinstance(self.environment, Mapping)
+            or not isinstance(self.operation, ArtifactOperation)
+            or not isinstance(self.producer_family, str)
+            or self.producer_family not in {_LIFECYCLE_FAMILY, _IMAGE_FAMILY}
+            or (
+                self.operation == ArtifactOperation.VERSION
+                and self.producer_family != _IMAGE_FAMILY
+            )
         ):
             raise ValueError("prepared artifact requires typed immutable request fields")
+
+        ValidatePrerequisiteType(self.operation, self.producer_family, self.version_proof)
 
         RequireReference(self.stage_lease, "prepared artifact lease")
         object.__setattr__(self, "environment", FreezeEnvironment(self.environment))
@@ -304,6 +460,26 @@ class PreparedArtifact:
             "workspace": self.workspace,
             "environment": dict(self.environment),
             "resources": self.resources,
+            "operation": self.operation,
+            "producer_family": self.producer_family,
+            **self.VersionBindings(),
+        }
+
+    def VersionBindings(self) -> dict[str, object]:
+        """Bind the original richer VERSION prerequisite without copying raw streams.
+
+        Returns:
+            Three exact nullable fields; only richer SCAN contains original VERSION identities.
+        """
+
+        proof = self.version_proof
+
+        return {
+            "version_run_id": None if proof is None else proof.outcome.run_id,
+            "version_grant_id": None if proof is None else (
+                proof.outcome.grant.authorization.authorization_id
+            ),
+            "version_prerequisite_sha256": None if proof is None else proof.Digest(),
         }
 
     def Request(self, grant: ArtifactGrant) -> LocalExecutionRequest:
@@ -343,15 +519,19 @@ def BuildPreparedArtifact(
     resources: ExecutionResources,
     *,
     after_run: bool,
+    operation: ArtifactOperation = ArtifactOperation.SCAN,
+    version_proof: ArtifactVersionProof | None = None,
 ) -> PreparedArtifact:
     """Rebuild the only accepted command/environment/resource contract without launching.
 
     Args:
         stage: Closed reviewed synthetic stage; native profiles remain unavailable.
         workspace_root: Existing physical owned workspace enclosing the stage.
-        timeout_seconds: Explicit integer process bound from 1 through 300 seconds.
+        timeout_seconds: Exact VERSION or finite family-specific SCAN process bound.
         resources: Finite output and cleanup budgets, independently limited by this factory.
         after_run: Verify bounded observed scratch outputs instead of requiring empty scratch.
+        operation: Explicit SCAN default or independently staged reviewed image VERSION.
+        version_proof: Actual original VERSION prerequisite for richer image SCAN only.
 
     Returns:
         Exact rebuilt fixed request; unavailable or changed material raises ArtifactDeniedError.
@@ -360,13 +540,30 @@ def BuildPreparedArtifact(
     if not isinstance(stage, ArtifactStage) or not isinstance(workspace_root, Path):
         raise ValueError("artifact preparation requires a stage and owned workspace Path")
 
-    ValidateArtifactProfile(stage)
+    family = ValidateArtifactProfile(stage)
+
+    if not isinstance(operation, ArtifactOperation):
+        raise ValueError("artifact preparation requires an explicit typed operation")
+
+    if operation == ArtifactOperation.VERSION and family != _IMAGE_FAMILY:
+        raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_PRODUCER)
+
+    ValidatePrerequisiteType(operation, family, version_proof)
+
+    timeout_max = 60 if family == _IMAGE_FAMILY else 300
+    stdout_max = 4 * 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
+    stderr_max = 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
+
+    if operation == ArtifactOperation.VERSION:
+        stdout_max = stderr_max = 16 * 1024
 
     if (
         type(timeout_seconds) is not int
-        or not 1 <= timeout_seconds <= 300
+        or not 1 <= timeout_seconds <= timeout_max
+        or (operation == ArtifactOperation.VERSION and timeout_seconds != 3)
         or not isinstance(resources, ExecutionResources)
-        or max(resources.max_stdout_bytes, resources.max_stderr_bytes) > 16 * 1024 * 1024
+        or resources.max_stdout_bytes > stdout_max
+        or resources.max_stderr_bytes > stderr_max
         or resources.terminate_grace_seconds > 5
     ):
         raise ValueError("artifact timeout/output/cleanup resources exceed fixed profile bounds")
@@ -375,13 +572,19 @@ def BuildPreparedArtifact(
         stage.Verify(after_run=after_run)
 
         with (stage.material.directory / "policy.json").open("rb") as policy_stream:
-            ParseFixturePolicy(policy_stream.read(4097))
+            policy = policy_stream.read(4097)
+
+        if family == _IMAGE_FAMILY:
+            ParseImageFixturePolicy(policy)
+
+        else:
+            ParseFixturePolicy(policy)
 
         stage.root.relative_to(workspace_root)
         LocalWorkspaceStore(workspace_root).Open()
 
-    except ValueError as error:
-        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED) from error
+    except ValueError:
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED) from None
 
     profile = stage.input.manifest.profile
     capability = ProfileCapability(profile)
@@ -414,7 +617,19 @@ def BuildPreparedArtifact(
 
     argv: tuple[str, ...]
 
-    if profile == ArtifactProfile.SYNTHETIC_IMAGE:
+    if operation == ArtifactOperation.VERSION:
+        argv = prefix + ("--version", "--format", "json")
+
+    elif family == _IMAGE_FAMILY:
+        argv = prefix + (
+            "image", "--cache-backend", "memory", "--input", str(stage.root / "input/image.tar"),
+            "--format", "json", "--scanners", "vuln", "--disable-telemetry", "--offline-scan",
+            "--skip-db-update", "--skip-java-db-update", "--skip-check-update",
+            "--skip-version-check", "--skip-vex-repo-update", "--ignorefile=", "--list-all-pkgs",
+            "--exit-code", "0", "--no-progress", "--timeout", f"{timeout_seconds}s",
+        )
+
+    elif profile == ArtifactProfile.SYNTHETIC_IMAGE:
         argv = (
             prefix
             + (
@@ -448,7 +663,12 @@ def BuildPreparedArtifact(
             capability.identifier,
             stage.input.manifest.Target().Reference(),
             ImpactLevel.SAFE,
-            {"profile": profile.value, "input_manifest_sha256": stage.input.manifest.Digest()},
+            {
+                "profile": profile.value,
+                "input_manifest_sha256": stage.input.manifest.Digest(),
+                "operation": operation.value,
+                "producer_family": family,
+            },
         ),
         argv,
         timeout_seconds,
@@ -463,6 +683,9 @@ def BuildPreparedArtifact(
         (stage.root / "scratch").relative_to(workspace_root).as_posix(),
         ControlledArtifactEnvironment(stage),
         resources,
+        operation,
+        family,
+        version_proof,
     )
 
 
@@ -470,16 +693,20 @@ def PrepareArtifact(
     stage: ArtifactStage,
     workspace_root: Path,
     *,
-    timeout_seconds: int = 120,
+    timeout_seconds: int | None = None,
     resources: ExecutionResources | None = None,
+    operation: ArtifactOperation = ArtifactOperation.SCAN,
+    version_proof: ArtifactVersionProof | None = None,
 ) -> PreparedArtifact:
     """Prepare one closed reviewed synthetic offline request with no process side effect.
 
     Args:
         stage: Fresh explicit-read-authorized stage with trusted runtime and producer bytes.
         workspace_root: Existing physical workspace enclosing the owned stage.
-        timeout_seconds: Integer process-wait bound from 1 through 300 seconds.
-        resources: Output limits at most 16 MiB each, cleanup grace at most five seconds.
+        timeout_seconds: Lifecycle SCAN defaults to 120; image SCAN to 30; VERSION to 3.
+        resources: Family/operation capture ceilings; cleanup grace at most five seconds.
+        operation: SCAN default, or reviewed richer image VERSION in a separate fresh stage.
+        version_proof: Immutable accepted original VERSION, mandatory for richer image SCAN.
 
     Returns:
         Exact immutable request metadata; scope/policy approval remains necessary.
@@ -490,12 +717,34 @@ def PrepareArtifact(
         OSError: Selected material/workspace cannot be inspected.
     """
 
+    if not isinstance(stage, ArtifactStage):
+        raise ValueError("artifact preparation requires a typed stage")
+
+    family = ValidateArtifactProfile(stage)
+
+    if timeout_seconds is None:
+        timeout_seconds = 3 if operation == ArtifactOperation.VERSION else (
+            30 if family == _IMAGE_FAMILY else 120
+        )
+
+    if resources is None:
+        if operation == ArtifactOperation.VERSION:
+            resources = ExecutionResources(max_stdout_bytes=16 * 1024, max_stderr_bytes=16 * 1024)
+
+        elif family == _IMAGE_FAMILY:
+            resources = ExecutionResources(max_stderr_bytes=1024 * 1024)
+
+        else:
+            resources = ExecutionResources()
+
     return BuildPreparedArtifact(
         stage,
         workspace_root,
         timeout_seconds,
-        ExecutionResources() if resources is None else resources,
+        resources,
         after_run=False,
+        operation=operation,
+        version_proof=version_proof,
     )
 
 
@@ -551,6 +800,11 @@ class ArtifactPlan:
     request_sha256: str
     invocation_sha256: str
     granted_privileges: tuple[str, ...]
+    operation: ArtifactOperation
+    producer_family: str
+    version_run_id: str | None
+    version_grant_id: str | None
+    version_prerequisite_sha256: str | None
     intent_sha256: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -560,8 +814,36 @@ class ArtifactPlan:
             not isinstance(self.profile, ArtifactProfile)
             or self.profile not in _SYNTHETIC_PROFILES
             or self.provider_version != "0.75.0-synthetic"
+            or not isinstance(self.operation, ArtifactOperation)
+            or not isinstance(self.producer_family, str)
+            or self.producer_family not in {_LIFECYCLE_FAMILY, _IMAGE_FAMILY}
+            or (
+                self.producer_family == _IMAGE_FAMILY
+                and self.profile != ArtifactProfile.SYNTHETIC_IMAGE
+            )
+            or (
+                self.operation == ArtifactOperation.VERSION
+                and self.producer_family != _IMAGE_FAMILY
+            )
         ):
             raise ValueError("artifact execution plan requires a reviewed synthetic profile")
+
+        needs_version = (
+            self.producer_family == _IMAGE_FAMILY and self.operation == ArtifactOperation.SCAN
+        )
+        prerequisite = (
+            self.version_run_id, self.version_grant_id, self.version_prerequisite_sha256,
+        )
+
+        if needs_version:
+            RequireReference(cast(str, self.version_run_id), "artifact VERSION prerequisite run")
+            RequireReference(
+                cast(str, self.version_grant_id), "artifact VERSION prerequisite grant"
+            )
+            RequireDigest(cast(str, self.version_prerequisite_sha256))
+
+        elif any(value is not None for value in prerequisite):
+            raise ValueError("VERSION and lifecycle SCAN prerequisite bindings must be null")
 
         RequireIdentifier(self.workspace_id, "artifact workspace")
 
@@ -676,6 +958,8 @@ class ArtifactPolicyEngine:
             prepared.invocation.timeout_seconds,
             prepared.resources,
             after_run=after_run,
+            operation=prepared.operation,
+            version_proof=prepared.version_proof,
         )
 
         if Digest(prepared.Payload()) != Digest(rebuilt.Payload()):
@@ -719,6 +1003,9 @@ class ArtifactPolicyEngine:
         ):
             raise ArtifactDeniedError(ArtifactDenialReason.IMPACT_DENIED)
 
+        self.ValidateVersionPrerequisite(prepared, stage, context, at=at)
+        version_bindings = prepared.VersionBindings()
+
         return ArtifactPlan(
             context.owner_ref,
             stage.input.manifest.profile,
@@ -739,7 +1026,56 @@ class ArtifactPolicyEngine:
             Digest(prepared.Payload()),
             InvocationDigest(prepared.invocation),
             permission.granted_privileges,
+            prepared.operation,
+            prepared.producer_family,
+            cast(str | None, version_bindings["version_run_id"]),
+            cast(str | None, version_bindings["version_grant_id"]),
+            cast(str | None, version_bindings["version_prerequisite_sha256"]),
         )
+
+    def ValidateVersionPrerequisite(
+        self,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+    ) -> None:
+        """Require a fresh matching original VERSION before richer SCAN gets live authority.
+
+        Args:
+            prepared: Exact richer SCAN request holding its immutable original prerequisite.
+            stage: Separate physical SCAN stage with identical selected content/executable.
+            context: Current canonical scope/policy/owner for both operations.
+            at: Actual aware SCAN issuance/validation time, including VERSION expiry.
+
+        Raises:
+            ArtifactDeniedError: Missing/failed/changed/stale VERSION or cross-stage mismatch.
+        """
+
+        proof = prepared.version_proof
+
+        if proof is None:
+            return
+
+        if (
+            stage.root == proof.stage.root or stage.root_identity == proof.stage.root_identity
+            or stage.lease_id == proof.stage.lease_id
+            or stage.executable != proof.stage.executable
+            or stage.executable_identity != proof.stage.executable_identity
+            or stage.version != proof.stage.version
+            or proof.prepared.workspace_root != prepared.workspace_root
+            or proof.outcome.manifests != (
+                stage.input.manifest, stage.scanner.manifest, stage.material.manifest,
+            )
+            or proof.outcome.grant.plan.owner_ref != context.owner_ref
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        GovernedArtifactExecutor(prepared.workspace_root).ValidateAcceptance(
+            proof.outcome, proof.prepared, proof.stage, context, at=at
+        )
+        ParseObservedImageVersion(proof.outcome.raw_result.stdout)
 
     def Authorize(
         self,
@@ -963,6 +1299,15 @@ class ArtifactPolicyEngine:
         ):
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
+        proof = prepared.version_proof
+
+        if proof is not None:
+            VerifyExecutionMarker(
+                proof.stage, proof.outcome.run_id, proof.outcome.acceptance.grant_id,
+                proof.outcome.acceptance.marker_identity,
+            )
+            self.ValidateCurrent(proof.outcome.grant, proof.prepared, proof.stage, context, at=at)
+
 
 def RawResultFacts(result: LocalExecutionResult) -> dict[str, object]:
     """Render bounded metadata binding actual process facts and retained stream/event bytes.
@@ -1111,7 +1456,7 @@ class ArtifactExecutionOutcome:
             json.loads(
                 SerializeContract(
                     {
-                        "schema_version": 1,
+                        "schema_version": 2,
                         "grant": self.grant,
                         "acceptance": self.acceptance,
                         "manifests": [item.ToDict() for item in self.manifests],
@@ -1120,6 +1465,70 @@ class ArtifactExecutionOutcome:
                 )
             ),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactVersionProof:
+    """Immutable original VERSION prerequisite; possession alone grants no current authority."""
+
+    outcome: ArtifactExecutionOutcome
+    prepared: PreparedArtifact
+    stage: ArtifactStage
+
+    def __post_init__(self) -> None:
+        """Keep original successful raw/receipt/request/stage bindings without filesystem reads."""
+
+        if (
+            not isinstance(self.outcome, ArtifactExecutionOutcome)
+            or not isinstance(self.prepared, PreparedArtifact)
+            or not isinstance(self.stage, ArtifactStage)
+        ):
+            raise ValueError("VERSION proof requires original typed outcome, request and stage")
+
+        plan = self.outcome.grant.plan
+
+        if (
+            plan.operation != ArtifactOperation.VERSION
+            or self.prepared.operation != ArtifactOperation.VERSION
+            or plan.producer_family != _IMAGE_FAMILY
+            or self.prepared.producer_family != _IMAGE_FAMILY
+            or plan.profile != ArtifactProfile.SYNTHETIC_IMAGE
+            or plan.request_sha256 != Digest(self.prepared.Payload())
+            or plan.stage_sha256 != Digest(ArtifactStagePayload(self.stage))
+            or self.outcome.manifests != (
+                self.stage.input.manifest, self.stage.scanner.manifest,
+                self.stage.material.manifest,
+            )
+            or self.outcome.acceptance.refusal is not None
+            or self.outcome.raw_result.execution.state != ExecutionState.SUCCEEDED
+            or self.outcome.raw_result.execution.exit_code != 0
+            or self.outcome.raw_result.termination != ExecutionTermination.PROCESS_EXIT
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        ParseObservedImageVersion(self.outcome.raw_result.stdout)
+
+    def Payload(self) -> dict[str, object]:
+        """Capture only exact original detached VERSION metadata and complete payload bindings.
+
+        Returns:
+            Canonical original VERSION facts, without raw stream contents or refreshed authority.
+        """
+
+        return cast(dict[str, object], json.loads(SerializeContract({
+            "artifact_metadata": self.outcome.Metadata(),
+            "prepared_payload": self.prepared.Payload(),
+            "stage_payload": ArtifactStagePayload(self.stage),
+        })))
+
+    def Digest(self) -> str:
+        """Hash the original prerequisite facts bound by a richer SCAN request and grant.
+
+        Returns:
+            Canonical SHA-256; neither this digest nor saved bytes can reauthorize a VERSION.
+        """
+
+        return Digest(self.Payload())
 
 
 def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> ArtifactAcceptance:
@@ -1143,7 +1552,9 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
         "artifact replay",
     )
 
-    if type(record["schema_version"]) is not int or record["schema_version"] != 1:
+    schema_version = record["schema_version"]
+
+    if type(schema_version) is not int or schema_version not in {1, 2}:
         raise ValueError("artifact replay version is unsupported")
 
     if (
@@ -1156,16 +1567,9 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
     grant_record = WorkspaceFields(
         record["grant"], {"plan", "authorization", "issued_at", "valid_until"}, "artifact grant"
     )
-    plan_record = WorkspaceFields(
-        grant_record["plan"], {item.name for item in fields(ArtifactPlan)}, "artifact plan"
-    )
-    plan_values: dict[str, Any] = {
-        key: value for key, value in plan_record.items() if key != "intent_sha256"
-    }
+    plan_record = VerifyReplayPlan(grant_record["plan"], schema_version)
 
     try:
-        plan_values["profile"] = ArtifactProfile(plan_values["profile"])
-        plan = ArtifactPlan(**plan_values)
         authorization_record = cast(
             dict[str, Any],
             WorkspaceFields(
@@ -1175,10 +1579,16 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
             ),
         )
         authorization = ExecutionAuthorization(**authorization_record)
-        grant_values = cast(dict[str, Any], grant_record)
-        grant = ArtifactGrant(
-            plan, authorization, grant_values["issued_at"], grant_values["valid_until"]
-        )
+        issued_at = NormalizeTime(cast(str, grant_record["issued_at"]))
+        valid_until = NormalizeTime(cast(str, grant_record["valid_until"]))
+
+        if (
+            issued_at != grant_record["issued_at"]
+            or valid_until != grant_record["valid_until"]
+            or datetime.fromisoformat(issued_at) >= datetime.fromisoformat(valid_until)
+        ):
+            raise ValueError("artifact replay grant times are inconsistent")
+
         receipt_record = WorkspaceFields(
             record["acceptance"],
             {item.name for item in fields(ArtifactAcceptance)},
@@ -1192,12 +1602,18 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
         )
         receipt = ArtifactAcceptance(**receipt_values)
 
-    except (TypeError, ValueError) as error:
-        raise ValueError("artifact replay metadata is malformed") from error
+    except (TypeError, ValueError):
+        raise ValueError("artifact replay metadata is malformed") from None
 
-    if plan.intent_sha256 != plan_record[
-        "intent_sha256"
-    ] or authorization != ArtifactPolicyEngine().Envelope(plan, grant.issued_at, grant.valid_until):
+    expected_envelope = ExecutionAuthorization(
+        "artifact-authorization:" + Digest((plan_record, issued_at, valid_until)),
+        cast(str, plan_record["scope_reference"]),
+        cast(str, plan_record["policy_reference"]),
+        cast(str, plan_record["invocation_sha256"]),
+        cast(tuple[str, ...], plan_record["granted_privileges"]),
+    )
+
+    if authorization != expected_envelope:
         raise ValueError("artifact replay plan or original envelope is inconsistent")
 
     manifest_records = record["manifests"]
@@ -1205,17 +1621,34 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
     if not isinstance(manifest_records, list) or len(manifest_records) != 3:
         raise ValueError("artifact replay requires three role-separated manifests")
 
-    manifests = tuple(ArtifactManifest.FromDict(item) for item in manifest_records)
+    try:
+        manifests = tuple(ArtifactManifest.FromDict(item) for item in manifest_records)
+
+    except (TypeError, ValueError):
+        raise ValueError("artifact replay manifest metadata is malformed") from None
 
     if (
         tuple(item.role for item in manifests)
         != (ArtifactRole.INPUT, ArtifactRole.SCANNER, ArtifactRole.MATERIAL)
-        or any(item.profile != plan.profile for item in manifests)
+        or any(item.profile.value != plan_record["profile"] for item in manifests)
         or tuple(item.Digest() for item in manifests)
-        != (plan.input_manifest_sha256, plan.scanner_manifest_sha256, plan.material_manifest_sha256)
-        or manifests[0].Target().Reference() != plan.target_reference
+        != (
+            plan_record["input_manifest_sha256"], plan_record["scanner_manifest_sha256"],
+            plan_record["material_manifest_sha256"],
+        )
+        or manifests[0].Target().Reference() != plan_record["target_reference"]
     ):
         raise ValueError("artifact replay manifests do not match original input authority")
+
+    scanner_files = {item.name: item for item in manifests[1].files}
+    family = _LIFECYCLE_FAMILY if schema_version == 1 else plan_record["producer_family"]
+
+    if set(scanner_files) != {"executable", "producer.py"} or (
+        scanner_files["producer.py"].sha256 not in (
+            _LEGACY_PRODUCERS if family == _LIFECYCLE_FAMILY else {_IMAGE_PRODUCER_SHA256}
+        )
+    ):
+        raise ValueError("artifact replay producer does not match its original schema family")
 
     facts = cast(
         dict[str, Any],
@@ -1255,8 +1688,8 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
         ExecutionTermination(facts["termination"])
         RequireDigest(facts["events_sha256"])
 
-    except (TypeError, ValueError, OverflowError) as error:
-        raise ValueError("artifact replay execution facts are malformed") from error
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("artifact replay execution facts are malformed") from None
 
     if type(facts["events_count"]) is not int or facts["events_count"] < 0:
         raise ValueError("artifact replay event count is malformed")
@@ -1268,16 +1701,16 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
         execution_record["state"] == ExecutionState.SUCCEEDED.value
         and execution_record["exit_code"] == 0
         and facts["termination"] == ExecutionTermination.PROCESS_EXIT.value
-        and datetime.fromisoformat(grant.issued_at)
+        and datetime.fromisoformat(issued_at)
         <= datetime.fromisoformat(receipt.checked_at)
-        < datetime.fromisoformat(grant.valid_until)
+        < datetime.fromisoformat(valid_until)
     ):
         raise ValueError("artifact replay falsely claims successful original acceptance")
 
     if (
         receipt.grant_id != authorization.authorization_id
         or receipt.raw_sha256 != Digest(facts)
-        or receipt.stage_lease != plan.stage_lease
+        or receipt.stage_lease != plan_record["stage_lease"]
         or type(facts["stdout_bytes"]) is not int
         or type(facts["stderr_bytes"]) is not int
         or facts["stdout_bytes"] != len(stdout)
@@ -1288,6 +1721,72 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
         raise ValueError("artifact replay raw bytes do not match their original receipt")
 
     return receipt
+
+
+def VerifyReplayPlan(value: object, schema_version: int) -> dict[str, object]:
+    """Hash the saved schema's original field shape without creating legacy live authority.
+
+    Args:
+        value: Exact saved plan; schema one contains only original lifecycle SCAN fields.
+        schema_version: Previously validated integer execution metadata version one or two.
+
+    Returns:
+        Verified original canonical plan dictionary, never a live plan/grant upgrade.
+    """
+
+    required = _LEGACY_PLAN_FIELDS if schema_version == 1 else {
+        item.name for item in fields(ArtifactPlan)
+    }
+    record = WorkspaceFields(value, set(required), "artifact replay plan")
+
+    try:
+        profile = ArtifactProfile(cast(str, record["profile"]))
+
+        if profile not in _SYNTHETIC_PROFILES or record["provider_version"] != "0.75.0-synthetic":
+            raise ValueError("artifact replay plan profile is unsupported")
+
+        RequireIdentifier(cast(str, record["workspace_id"]), "artifact replay workspace")
+
+        for name in (
+            "owner_ref", "scope_reference", "policy_reference", "target_reference", "stage_lease",
+        ):
+            RequireReference(cast(str, record[name]), "artifact replay plan")
+
+        for name in (
+            "input_manifest_sha256", "scanner_manifest_sha256", "material_manifest_sha256",
+            "scope_sha256", "policy_sha256", "stage_sha256", "request_sha256",
+            "invocation_sha256", "intent_sha256",
+        ):
+            RequireDigest(cast(str, record[name]))
+
+        for name in ("scope_revision", "policy_revision"):
+            revision = record[name]
+
+            if type(revision) is not int or revision < 0:
+                raise ValueError("artifact replay revisions must be non-negative integers")
+
+        privileges = UniqueIdentifiers(
+            cast(tuple[str, ...], record["granted_privileges"]), "artifact replay privileges"
+        )
+
+        if list(privileges) != record["granted_privileges"]:
+            raise ValueError("artifact replay privileges are not canonical")
+
+        if schema_version == 2:
+            values = {key: item for key, item in record.items() if key != "intent_sha256"}
+            values["profile"] = profile
+            values["operation"] = ArtifactOperation(cast(str, values["operation"]))
+            ArtifactPlan(**cast(dict[str, Any], values))
+
+        expected = Digest({key: item for key, item in record.items() if key != "intent_sha256"})
+
+        if expected != record["intent_sha256"]:
+            raise ValueError("artifact replay intent does not match original fields")
+
+    except (TypeError, ValueError):
+        raise ValueError("artifact replay plan is malformed") from None
+
+    return record
 
 
 def ExecutionMarkerBytes(run_id: str, grant_id: str) -> bytes:
@@ -1564,6 +2063,9 @@ class GovernedArtifactExecutor:
         if not isinstance(outcome, ArtifactExecutionOutcome):
             raise ValueError("artifact acceptance requires an immutable per-run outcome")
 
+        if prepared.workspace_root != self._root:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
         RequireTime(at)
         receipt = outcome.acceptance
 
@@ -1595,3 +2097,129 @@ class GovernedArtifactExecutor:
             raise ArtifactDeniedError(ArtifactDenialReason.EXECUTION_FAILED)
 
         self._engine.Validate(outcome.grant, prepared, stage, context, at=at, after_run=True)
+
+    def ValidateAcceptanceFresh(
+        self,
+        outcome: ArtifactExecutionOutcome,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        context_provider: Callable[[], ArtifactPolicyContext],
+    ) -> None:
+        """Revalidate an original run and refresh authority/time after all expensive checks.
+
+        Args:
+            outcome: Original immutable raw result and acceptance receipt.
+            prepared: Original exact operation-aware request.
+            stage: Original single-run physical stage, never a relocated snapshot.
+            context_provider: Synchronous canonical fresh current authority lookup.
+
+        Raises:
+            ArtifactDeniedError: Original result, material, authority or fresh expiry rejects.
+        """
+
+        self.ValidateAcceptancesFresh(((outcome, prepared, stage),), context_provider)
+
+    def ValidatePairAcceptanceFresh(
+        self,
+        version: tuple[ArtifactExecutionOutcome, PreparedArtifact, ArtifactStage],
+        scan: tuple[ArtifactExecutionOutcome, PreparedArtifact, ArtifactStage],
+        context_provider: Callable[[], ArtifactPolicyContext],
+    ) -> None:
+        """Validate separate matching image VERSION/SCAN originals at one final fresh barrier.
+
+        Args:
+            version: Original VERSION outcome, exact request and physical stage.
+            scan: Original SCAN outcome, exact request and distinct physical stage.
+            context_provider: Fresh current same-store owner/scope/policy lookup.
+
+        Raises:
+            ArtifactDeniedError: Pairing, any original acceptance or final authority fails.
+            ValueError: Pair members are structurally invalid.
+        """
+
+        for member in (version, scan):
+            if (
+                not isinstance(member, tuple) or len(member) != 3
+                or not isinstance(member[0], ArtifactExecutionOutcome)
+                or not isinstance(member[1], PreparedArtifact)
+                or not isinstance(member[2], ArtifactStage)
+            ):
+                raise ValueError("artifact pair requires original typed run/request/stage tuples")
+
+        version_outcome, version_prepared, version_stage = version
+        scan_outcome, scan_prepared, scan_stage = scan
+        version_plan = version_outcome.grant.plan
+        scan_plan = scan_outcome.grant.plan
+        prerequisite = scan_prepared.version_proof
+
+        if (
+            version_prepared.operation != ArtifactOperation.VERSION
+            or scan_prepared.operation != ArtifactOperation.SCAN
+            or version_plan.operation != ArtifactOperation.VERSION
+            or scan_plan.operation != ArtifactOperation.SCAN
+            or any(
+                plan.producer_family != _IMAGE_FAMILY
+                or plan.profile != ArtifactProfile.SYNTHETIC_IMAGE
+                for plan in (version_plan, scan_plan)
+            )
+            or version_stage.root == scan_stage.root
+            or version_stage.root_identity == scan_stage.root_identity
+            or version_stage.lease_id == scan_stage.lease_id
+            or version_outcome.run_id == scan_outcome.run_id
+            or version_outcome.grant.authorization.authorization_id
+            == scan_outcome.grant.authorization.authorization_id
+            or version_outcome.manifests != scan_outcome.manifests
+            or version_stage.executable != scan_stage.executable
+            or version_stage.executable_identity != scan_stage.executable_identity
+            or version_prepared.workspace_root != scan_prepared.workspace_root
+            or version_plan.workspace_id != scan_plan.workspace_id
+            or version_plan.owner_ref != scan_plan.owner_ref
+            or version_plan.provider_version != scan_plan.provider_version
+            or prerequisite is None
+            or prerequisite.outcome != version_outcome
+            or prerequisite.prepared != version_prepared
+            or prerequisite.stage != version_stage
+            or scan_plan.version_run_id != version_outcome.run_id
+            or scan_plan.version_grant_id != version_outcome.grant.authorization.authorization_id
+            or scan_plan.version_prerequisite_sha256 != prerequisite.Digest()
+            or datetime.fromisoformat(version_outcome.acceptance.checked_at)
+            > datetime.fromisoformat(scan_outcome.grant.issued_at)
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        self.ValidateAcceptancesFresh((version, scan), context_provider)
+
+    def ValidateAcceptancesFresh(
+        self,
+        originals: tuple[tuple[ArtifactExecutionOutcome, PreparedArtifact, ArtifactStage], ...],
+        context_provider: Callable[[], ArtifactPolicyContext],
+    ) -> None:
+        """Keep all original runs fresh after physical hashing before any consumer model write.
+
+        Args:
+            originals: Internally supplied one-run or accepted two-operation image tuples.
+            context_provider: Canonical synchronous current authority provider, never a verdict.
+
+        Raises:
+            ArtifactDeniedError: Any original physical/material/authority binding changed.
+        """
+
+        for outcome, prepared, stage in originals:
+            self.ValidateAcceptance(
+                outcome, prepared, stage, self.CurrentContext(context_provider), at=self._clock()
+            )
+
+        for outcome, _, stage in originals:
+            VerifyExecutionMarker(
+                stage, outcome.run_id, outcome.acceptance.grant_id,
+                outcome.acceptance.marker_identity,
+            )
+
+        for _ in range(2):
+            current = self.CurrentContext(context_provider)
+
+            for outcome, prepared, stage in originals:
+                self._engine.ValidateCurrent(
+                    outcome.grant, prepared, stage, current, at=self._clock()
+                )
+                self._engine.ValidateTime(outcome.grant, stage, current, at=self._clock())

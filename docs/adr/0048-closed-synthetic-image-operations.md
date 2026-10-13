@@ -2,11 +2,12 @@
 
 ## Status
 
-Accepted design — 2026-10-13. Task #142; related work #138, #140, #141 and #278.
-This approval accepts the future contract, not its runtime implementation.
-Task #278 must first be accepted with its original-run/grant marker consistency
-fix; its initial schema-1 factory has no VERSION operation. No SDK, producer,
-importer, registration, native capability or executable command is added here.
+Accepted — 2026-10-13. Task #142; related work #138, #140, #141 and #278.
+The accepted Task #278 foundation now has a closed operation-aware SDK extension
+for the reviewed synthetic image family, with schema-2 execution metadata and
+strict original schema-1 replay. Its initial lifecycle producer remains SCAN-only.
+Importer/workflow acceptance and genuine native scanner capability remain
+separate; this SDK change authorizes no native execution.
 
 ## Context
 
@@ -58,6 +59,15 @@ scratch, request, grant or receipt.
 Operation and derived producer family become mandatory request/plan bindings,
 included in the canonical intent and grant envelope digests. Operation-aware
 execution metadata uses schema 2. Selected-byte manifest schema remains 1.
+The immutable `ArtifactVersionProof` retains the actual original VERSION
+outcome/request/stage and its exact observed successful JSON. Richer SCAN requires
+this original prerequisite before planning or issuance. Its request and plan also
+bind `version_run_id`, `version_grant_id` and `version_prerequisite_sha256`, with
+explicit null values only for VERSION and lifecycle SCAN. The prerequisite digest
+commits original VERSION metadata and detached prepared/stage payloads; another
+valid same-material VERSION cannot be substituted into an existing SCAN grant.
+This implements the stronger prerequisite decision from the proposed import
+design alongside this SDK slice rather than implying earlier runtime support.
 The original schema-1 field shape and hashing remain explicit for read-only
 legacy SCAN replay. Adding fields to a current dataclass must not change the
 canonical digest used to verify saved schema-1 intent or authorization.
@@ -106,8 +116,12 @@ a relocated stage as current authority, or launches either operation.
 4. Assemble the two operations, durable model/workspace saves and existing report
    exporters under the image workflow owner; publish a delta only after save.
 
-The present checkpoint establishes none of those runtime steps. Native profile
-IDs remain metadata-only and cannot receive VERSION or SCAN grants. Genuine
+The current SDK slice delivers step 2 and preserves the unchanged reviewed worker
+and independent oracle. Actual owned VERSION/SCAN process tests exercise exact
+wire/resource limits, original prerequisite binding, fresh pair acceptance, raw
+failure/refusal retention and strict schema-specific replay. Steps 3 and 4 remain
+separate consumer/workflow acceptance. Native profile IDs remain metadata-only
+and cannot receive VERSION or SCAN grants. Genuine
 Trivy compatibility, database freshness, detection accuracy, publisher or
 principal authentication and OS CPU/memory/network/write isolation are not proved.
 Task #142 remains open. No installation, download or PyPI work is included.
