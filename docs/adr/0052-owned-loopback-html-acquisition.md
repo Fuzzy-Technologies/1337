@@ -72,8 +72,9 @@ persisted without a delivered delta; report actual known/ambiguous state and do
 not claim rollback or cross-store atomicity. Actual worker success remains distinct
 from the later owning job outcome. Post-capture interpretation must use the same
 exact current scope as the launch plan. After all evidence/model I/O and composition,
-recheck that scope and fresh consent/expiry immediately before owner Save; a changed,
-revoked or expired scope fails at that boundary. This is bounded
+recheck the full launch scope hash/revision, exact source-URL/literal-IP membership
+and fresh consent/expiry immediately before owner Save; a changed, revoked or
+expired scope fails at that boundary. This is bounded
 snapshot checking, not continuous revocation or a cross-store atomic transaction.
 
 The exact API, HTTP grammar, quotas, privacy/failure rules, model attribution and

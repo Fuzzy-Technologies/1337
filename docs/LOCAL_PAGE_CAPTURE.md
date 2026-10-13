@@ -138,9 +138,12 @@ content type is `text/html`, declared charset is null or `utf-8`. Header size/co
 are measured within the bounds and contain at least the two required fields.
 For this 541-byte catalog entry, require `2 <= header_count <= 64` and
 `61 + (14 if declared_charset is not null else 0) + 4 * (header_count - 2)
-<= header_size_bytes <= min(16384, 4096 * (header_count + 1) + 2)`.
++ max(0, header_count - 53) <= header_size_bytes <= min(16384, 4096 * (header_count + 1) + 2)`.
 The lower bound includes the shortest valid status, required fields, final CRLF
-and minimum extra token-field lines; the upper bound applies every line budget.
+and minimum extra token-field lines. Only 51 one-byte field names remain distinct
+after case folding, so any extras above 51 require at least one additional byte
+each; the two required names have multiple bytes. The upper bound applies every
+line budget.
 These checks reject logically impossible reports. They do not reconstruct or
 authenticate discarded header values. URL,
 address and port equal the exact approved canonical destination. Base64 is strict
@@ -202,8 +205,10 @@ Call ReadCapturedWebFrontier through its existing owners/current scope after
 capture. Require its complete scope SHA/revision to equal the launch plan, and
 reread/check that same current consented scope after all evidence reads, model
 open/composition and other expensive validation, immediately before owner Save.
-Evaluate current consent/expiry with a fresh clock reading at that final boundary;
-no stored earlier check time or launch grant substitutes for it. A changed,
+Require the full scope hash/revision to still equal the launch plan and recheck
+exact source-URL/literal-IP membership and current consent/expiry with a fresh
+clock reading at that final boundary. No stored earlier check time or launch grant
+substitutes for it. A changed,
 revoked or expired scope fails; the already admitted artifacts remain inspectable.
 No worker already in flight is magically revoked. There is no cross-scope/model
 transaction or guarantee against changes after the final snapshot check.
