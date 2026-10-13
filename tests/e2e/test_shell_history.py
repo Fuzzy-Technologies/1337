@@ -143,7 +143,9 @@ if sys.argv[3] == "interrupt":
     os.close(release_fd)
     termios.tcflush(0, termios.TCIFLUSH)
 if sys.argv[2] != "queued":
-    assert input("probe> ") == "owned-after-loop", "The owned native probe must receive exact input."
+    assert input("probe> ") == "owned-after-loop", (
+        "The owned native probe must receive exact input."
+    )
 print("NATIVE-RESULT:" + json.dumps({"before": before, "after": after,
     "final": NativeItems(), "restored": restored, "interrupted": interrupted,
     "refused": refused, "before_indices": before_indices,
