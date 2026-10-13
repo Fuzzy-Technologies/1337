@@ -86,7 +86,10 @@ uv run --locked 1337-dev unit --serial
 `--timeout` sets the per-test pytest deadline (default 120 seconds).
 `--suite-timeout` independently bounds each complete parallel or serial pytest
 invocation (default 600 seconds); it is not derived from the number of per-test
-deadlines. Both accept only positive integers. The default suite budget leaves
+deadlines. Both accept only integers in the supported 1–3600-second range, enforced
+by `MAX_TIMEOUT_SECONDS` before dispatch, report deletion or child startup. This
+keeps operating-system wait/timer conversion bounded and rejects oversized values
+through fixed configuration diagnostics. The default suite budget leaves
 time for later gates and evidence upload within the existing 15-minute quality
 job limit. It is a per-invocation budget rather than a deadline for all quality-gate
 phases together. A separate collection probe remains bounded at 300 seconds.

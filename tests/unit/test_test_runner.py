@@ -39,12 +39,30 @@ def test_OptionsRejectNonPositiveTimeouts():
 
 
 @pytest.mark.parametrize("field", ["timeout_seconds", "suite_timeout_seconds"])
-@pytest.mark.parametrize("value", [False, True, None, "600", 0, -1, 1.5, float("inf")])
-def test_OptionsRejectNonIntegerOrNonPositiveTimeoutBudgets(field, value):
-    """Both timeout domains require explicit positive integers before process startup."""
+@pytest.mark.parametrize("value", [False, True, None, "600", 0, -1, 1.5, float("inf"), 3601,
+                                  pytest.param(10**500, id="overflow-integer")])
+def test_OptionsRejectUnsupportedTimeoutBudgets(field, value):
+    """Both timeout domains reject unsupported values through a fixed diagnostic boundary."""
 
-    with pytest.raises(ValueError, match="timeout"):
+    with pytest.raises(ValueError, match="timeout") as caught:
         test_runner.TestOptions(**{field: value})
+
+    prefix = "suite timeout" if field == "suite_timeout_seconds" else "timeout"
+    assert str(caught.value) == prefix + " must be an integer between 1 and 3600 seconds", (
+        "Timeout rejection must not reflect an unsupported caller-supplied value."
+    )
+
+
+def test_OptionsAcceptBothSupportedMaximumBudgets():
+    """The exact documented upper bound remains supported for each independent timeout domain."""
+
+    options = test_runner.TestOptions(timeout_seconds=3600, suite_timeout_seconds=3600)
+    assert test_runner.MAX_TIMEOUT_SECONDS == 3600, (
+        "The shared machine-compatible timeout ceiling must remain explicitly named."
+    )
+    assert options.timeout_seconds == options.suite_timeout_seconds == 3600, (
+        "The exact supported upper bound must remain valid in both timeout domains."
+    )
 
 
 def test_SuiteBudgetAdditionPreservesExistingPositionalOptions():
@@ -316,7 +334,8 @@ def test_RunPytestLaunchFailureRetainsFailureWithoutRetry(tmp_path, monkeypatch)
     assert len(calls) == 1, "Launch failure must not introduce an automatic retry."
 
 
-@pytest.mark.parametrize("value", [False, True, None, "600", 0, -1, 1.5, float("inf")])
+@pytest.mark.parametrize("value", [False, True, None, "600", 0, -1, 1.5, float("inf"), 3601,
+                                  pytest.param(10**500, id="overflow-integer")])
 def test_RunPytestRejectsInvalidSuiteBudgetBeforeMutatingEvidence(tmp_path, monkeypatch, value):
     """Direct callers share the validated timeout boundary without deleting prior evidence."""
 
@@ -325,13 +344,41 @@ def test_RunPytestRejectsInvalidSuiteBudgetBeforeMutatingEvidence(tmp_path, monk
     calls = []
     monkeypatch.setattr(test_runner.subprocess, "run", lambda *args, **kwargs: calls.append(args))
 
-    with pytest.raises(ValueError, match="suite timeout"):
+    with pytest.raises(ValueError, match="suite timeout") as caught:
         test_runner.RunPytest(["synthetic-pytest"], report, value)
 
+    assert str(caught.value) == "suite timeout must be an integer between 1 and 3600 seconds", (
+        "Direct timeout rejection must use a fixed diagnostic without the rejected value."
+    )
     assert not calls, "Invalid direct suite budgets must reject before subprocess startup."
     assert report.read_bytes() == b"prior-evidence", (
         "Rejected suite configuration must preserve another invocation's existing evidence."
     )
+
+
+def test_RunPytestSupportedMaximumReachesSubprocessWithoutExpansion(tmp_path, monkeypatch):
+    """A valid maximum suite budget reaches subprocess ownership exactly once without waiting."""
+
+    report = tmp_path / "report.xml"
+    calls = []
+
+    def Process(arguments, **kwargs):
+        """Publish a tiny successful report while capturing the exact valid timeout ceiling."""
+
+        calls.append((arguments, kwargs))
+        report.write_text('<testsuite tests="1" failures="0" errors="0" skipped="0" time="1" />',
+                          encoding="utf-8")
+
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr(test_runner.subprocess, "run", Process)
+    code, summary = test_runner.RunPytest(["synthetic-pytest"], report, 3600)
+    assert code == 0 and summary.passed == 1, (
+        "A valid maximum suite budget must preserve actual fresh successful evidence."
+    )
+    assert calls == [(["synthetic-pytest"], {
+        "check": False, "shell": False, "timeout": 3600,
+    })], "The exact maximum supported suite budget must not be multiplied or retried."
 
 
 def test_FailFastStopsBeforeSerialTests(monkeypatch):

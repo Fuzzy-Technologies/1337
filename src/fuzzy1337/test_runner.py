@@ -17,6 +17,7 @@ from pathlib import Path
 DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_SUITE_TIMEOUT_SECONDS = 600
 DEFAULT_MAX_WORKERS = 12
+MAX_TIMEOUT_SECONDS = 3600
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,14 +26,15 @@ class TestOptions:
 
     Args:
         jobs: Automatic workers or an explicit positive decimal worker count.
-        timeout_seconds: Positive integer per-test pytest deadline, default 120 seconds.
+        timeout_seconds: Integer per-test pytest deadline in 1..3600 seconds, default 120.
         serial_only: Select only the separate serial invocation.
         fail_fast: Stop after the first failure without automatic retries.
-        suite_timeout_seconds: Positive integer budget for each complete pytest invocation,
-            default 600 seconds. It is independent of the per-test deadline.
+        suite_timeout_seconds: Integer budget for each complete pytest invocation in
+            1..3600 seconds, default 600. It is independent of the per-test deadline.
 
     Raises:
-        ValueError: Worker selection or either explicit integer timeout is invalid.
+        ValueError: Worker selection is invalid or either timeout is outside the explicit
+            integer range bounded by MAX_TIMEOUT_SECONDS.
     """
 
     jobs: str = "auto"
@@ -47,11 +49,17 @@ class TestOptions:
         if self.jobs != "auto" and (not self.jobs.isdecimal() or int(self.jobs) < 1):
             raise ValueError("jobs must be 'auto' or a positive integer")
 
-        if type(self.timeout_seconds) is not int or self.timeout_seconds < 1:
-            raise ValueError("timeout must be a positive integer")
+        if (
+            type(self.timeout_seconds) is not int
+            or not 1 <= self.timeout_seconds <= MAX_TIMEOUT_SECONDS
+        ):
+            raise ValueError("timeout must be an integer between 1 and 3600 seconds")
 
-        if type(self.suite_timeout_seconds) is not int or self.suite_timeout_seconds < 1:
-            raise ValueError("suite timeout must be a positive integer")
+        if (
+            type(self.suite_timeout_seconds) is not int
+            or not 1 <= self.suite_timeout_seconds <= MAX_TIMEOUT_SECONDS
+        ):
+            raise ValueError("suite timeout must be an integer between 1 and 3600 seconds")
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,19 +215,19 @@ def RunPytest(
     Args:
         arguments: Explicit subprocess argv without shell interpolation
         report_path: Report to remove before launch and read on completion
-        timeout_seconds: Positive integer budget for the complete pytest invocation,
-            independent of its per-test timeout argument.
+        timeout_seconds: Integer budget in 1..3600 seconds for the complete pytest invocation,
+            independent of its per-test timeout argument and bounded by MAX_TIMEOUT_SECONDS.
 
     Returns:
         Exit code and summary, with failed summaries for timeout, launch errors or absent
         fresh JUnit evidence. A zero process exit with failed evidence returns status one.
 
     Raises:
-        ValueError: The whole-suite budget is not an explicit positive integer.
+        ValueError: The whole-suite budget is not an integer in the supported 1..3600 range.
     """
 
-    if type(timeout_seconds) is not int or timeout_seconds < 1:
-        raise ValueError("suite timeout must be a positive integer")
+    if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= MAX_TIMEOUT_SECONDS:
+        raise ValueError("suite timeout must be an integer between 1 and 3600 seconds")
 
     report_path.unlink(missing_ok=True)
     started = time.monotonic()

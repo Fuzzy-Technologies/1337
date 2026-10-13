@@ -217,8 +217,12 @@ def test_NontestDeveloperCommandRejectsSuiteTimeoutBeforeDispatch(monkeypatch):
 
 
 @pytest.mark.parametrize("option", ["--timeout", "--suite-timeout"])
-@pytest.mark.parametrize("value", ["0", "-1", "true", "1.5", "Infinity"])
-def test_DeveloperTimeoutCliRejectsInvalidBudgetsBeforeDispatch(monkeypatch, option, value):
+@pytest.mark.parametrize("value", ["0", "-1", "true", "1.5", "Infinity", "3601",
+                                  pytest.param(str(10**500), id="overflow-integer"),
+                                  pytest.param("1" + "0" * 5000, id="conversion-limit-integer")])
+def test_DeveloperTimeoutCliRejectsInvalidBudgetsBeforeDispatch(
+    monkeypatch, capsys, option, value,
+):
     """Invalid timeout values remain ordinary parse failures without starting a gate."""
 
     process = Mock()
@@ -229,6 +233,53 @@ def test_DeveloperTimeoutCliRejectsInvalidBudgetsBeforeDispatch(monkeypatch, opt
 
     assert caught.value.code == 2, "Invalid timeout inputs must retain CLI configuration status."
     process.assert_not_called()
+    diagnostic = capsys.readouterr().err
+    assert "must be an integer between 1 and 3600 seconds" in diagnostic, (
+        "Unsupported CLI budgets must retain their fixed supported-range diagnostic."
+    )
+
+    if len(value) > 32:
+        assert value not in diagnostic, (
+            "An oversized rejected numeric budget must not enter diagnostics."
+        )
+
+
+def test_DeveloperTimeoutCliAcceptsExactSupportedMaximum(monkeypatch):
+    """Both explicit CLI timeout domains accept the exact documented maximum before dispatch."""
+
+    process = Mock(return_value=0)
+    monkeypatch.setattr(dev_commands, "Run", process)
+    assert dev_commands.Main([
+        "test", "--timeout", "3600", "--suite-timeout", "3600",
+    ]) == 0, "The exact maximum budget must remain supported for both CLI timeout domains."
+    process.assert_called_once_with("test", dev_commands.TestOptions(
+        timeout_seconds=3600, suite_timeout_seconds=3600,
+    ))
+
+
+def test_DeveloperTimeoutCliPreservesOrdinaryIntegerSpelling(monkeypatch):
+    """Sanitized conversion preserves existing whitespace, sign and leading-zero integer inputs."""
+
+    process = Mock(return_value=0)
+    monkeypatch.setattr(dev_commands, "Run", process)
+    assert dev_commands.Main([
+        "test", "--timeout", "+0120", "--suite-timeout", " 0600 ",
+    ]) == 0, "Supported ordinary integer spelling must retain its previous CLI meaning."
+    process.assert_called_once_with("test", dev_commands.TestOptions())
+
+
+def test_DeveloperTimeoutCliHelpDocumentsSupportedRange(capsys):
+    """CLI help presents the finite supported range together with unchanged domain defaults."""
+
+    with pytest.raises(SystemExit) as caught:
+        dev_commands.Main(["--help"])
+
+    assert caught.value.code == 0, "Timeout range help must remain ordinary non-mutating help."
+    output = capsys.readouterr().out
+    assert output.count("1-3600") == 2, "Both timeout options must declare the supported range."
+    assert "default: 120" in output and "default: 600" in output, (
+        "Timeout range documentation must retain the independent unchanged defaults."
+    )
 
 
 def test_UnapprovedFormatterIsNotACommand():

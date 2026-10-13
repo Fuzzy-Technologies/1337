@@ -17,6 +17,7 @@ from typing import Literal
 from fuzzy1337.test_runner import (
     DEFAULT_SUITE_TIMEOUT_SECONDS,
     DEFAULT_TIMEOUT_SECONDS,
+    MAX_TIMEOUT_SECONDS,
     RunTests,
     TestOptions,
 )
@@ -230,6 +231,33 @@ def Run(command: str, test_options: TestOptions | None = None) -> int:
     return 0
 
 
+def ParseTimeoutSeconds(value: str) -> int:
+    """Parse a supported CLI budget without reflecting rejected values in diagnostics.
+
+    Args:
+        value: Operator-supplied integer spelling; unsupported and oversized text rejects.
+
+    Returns:
+        Integer seconds in 1..MAX_TIMEOUT_SECONDS for either timeout domain.
+
+    Raises:
+        argparse.ArgumentTypeError: Integer conversion or the supported range rejects input.
+    """
+
+    try:
+        seconds = int(value)
+
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "timeout must be an integer between 1 and 3600 seconds"
+        ) from None
+
+    if not 1 <= seconds <= MAX_TIMEOUT_SECONDS:
+        raise argparse.ArgumentTypeError("timeout must be an integer between 1 and 3600 seconds")
+
+    return seconds
+
+
 def Main(argv: Sequence[str] | None = None) -> int:
     """Select a developer gate without accepting arbitrary shell commands.
 
@@ -249,11 +277,13 @@ def Main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("command", choices=COMMANDS)
     parser.add_argument("--jobs", default="auto", metavar="auto|N")
-    parser.add_argument("--timeout", default=DEFAULT_TIMEOUT_SECONDS, type=int, metavar="N",
-                        help="Per-test pytest timeout in seconds (default: 120).")
-    parser.add_argument("--suite-timeout", default=DEFAULT_SUITE_TIMEOUT_SECONDS, type=int,
+    parser.add_argument("--timeout", default=DEFAULT_TIMEOUT_SECONDS, type=ParseTimeoutSeconds,
                         metavar="N",
-                        help="Each pytest invocation budget in seconds (default: 600).")
+                        help=f"Per-test pytest timeout: 1-{MAX_TIMEOUT_SECONDS}s (default: 120).")
+    parser.add_argument("--suite-timeout", default=DEFAULT_SUITE_TIMEOUT_SECONDS,
+                        type=ParseTimeoutSeconds,
+                        metavar="N",
+                        help=f"Each pytest invocation: 1-{MAX_TIMEOUT_SECONDS}s (default: 600).")
     parser.add_argument("--serial", action="store_true")
     parser.add_argument("--fail-fast", action="store_true")
     arguments = parser.parse_args(argv)

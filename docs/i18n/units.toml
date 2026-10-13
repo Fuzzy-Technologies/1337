@@ -281,7 +281,7 @@ state = "missing"
 id = "page:api.fuzzy1337.test-runner"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.test_runner.md"
-sourceHash = "sha256:2ec3fbf6ae9713a888f3ed6fc006c8396fd2aa0edbd629952654c5aa98821eae"
+sourceHash = "sha256:b4f76b28c8f832596a69bd8ec4751fcfdbf03ccb9b7882b6b8d967476990184c"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -2911,6 +2911,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "symbol:fuzzy1337.dev_commands.ParseTimeoutSeconds"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/dev_commands.py"
+sourceHash = "sha256:a3118ae37ab11a1f27ab13add5a1e99000cb4f4be7bba0eafbf511087c285911"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "symbol:fuzzy1337.dev_commands.PythonStep"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/dev_commands.py"
@@ -5202,7 +5213,7 @@ state = "missing"
 id = "symbol:fuzzy1337.test_runner.RunPytest"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/test_runner.py"
-sourceHash = "sha256:dea79a8fc0751c886c1c036332f424889ab53bed93606006a125e902f9a10420"
+sourceHash = "sha256:3e2dc729bd45302cc69bdf4cbee718e1f7826b4d7e048f8e58fa7da3469bdce9"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -5224,7 +5235,7 @@ state = "missing"
 id = "symbol:fuzzy1337.test_runner.TestOptions"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/test_runner.py"
-sourceHash = "sha256:6e0cc02bb52d6a987b008bd062cc329ba31b264db8019d9c77724d9fee83cb84"
+sourceHash = "sha256:3ddaeb9ffbe0723aeeb8433feb0b5382964666a696bf3172c7469af2c1517777"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
