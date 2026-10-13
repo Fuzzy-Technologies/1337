@@ -271,8 +271,15 @@ def test_TypedLiveImportAndHistoricalRelocationPreserveTriageWithoutAuthority(
     provenance = VerifySyntheticTrivyImageReplay(records, owned.root).provenance
     assert provenance == finding.provenance[0], "Replay must return the exact original attribution"
     assert delta.revision == saved.revision, "Live import proposes the actual atomic transition"
-    rmtree(proof.stage.root)
-    rmtree(scan.stage.root)
+    for stage_root in (proof.stage.root, scan.stage.root):
+        stage_root.chmod(0o700)
+
+        for path in stage_root.rglob("*"):
+            path.chmod(0o700 if path.is_dir() else 0o600)
+
+        rmtree(stage_root)
+        assert not stage_root.exists(), "Original test-owned stage must be physically removed"
+
     relocated = tmp_path / "relocated image workspace"
     copytree(owned.root, relocated)
 
