@@ -7,7 +7,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import selectors
 import shlex
+import signal
+import subprocess
+import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -180,3 +186,79 @@ def test_ForegroundShellUsesSameExplicitSyntheticImageCli(tmp_path):
     assert not shell.onecmd(shlex.join(ImageCliArguments(owned))), "Foreground shell stays alive"
     assert "Synthetic Image Scan completed" in output.getvalue(), "Human output names synthetic run"
     assert LocalModelStore(owned.root).Open().revision > 0, "Shell commits through same model owner"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX console SIGINT delivery contract")
+def test_ActualConsoleSigintCancelsOwnedScanAndRetainsTerminalFacts(tmp_path):
+    """Interrupt actual image execution through its console and await governed owned cleanup."""
+
+    owned = CreateOwnedImage(tmp_path, "hold")
+    child = subprocess.Popen([sys.executable, "-m", "fuzzy1337", *ImageCliArguments(owned),
+        "--events-json", "--timeout", "5"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert child.stdout is not None, "The owned console must expose its event stream"
+    captured = bytearray()
+    pending = b""
+    acquisitions = 0
+    interrupted = False
+
+    try:
+        with selectors.DefaultSelector() as selector:
+            selector.register(child.stdout, selectors.EVENT_READ)
+            deadline = time.monotonic() + 15
+
+            while time.monotonic() < deadline and child.poll() is None:
+                if not selector.select(timeout=0.1):
+                    continue
+
+                chunk = os.read(child.stdout.fileno(), 65536)
+
+                if not chunk:
+                    break
+
+                captured.extend(chunk)
+                pending += chunk
+
+                while b"\n" in pending:
+                    line, pending = pending.split(b"\n", 1)
+                    document = json.loads(line)
+                    event = document.get("event", {})
+
+                    if event.get("kind") == "artifact" and (
+                        event["data"]["evidence"]["reference"]["role"] == "artifact-input-manifest"
+                    ):
+                        acquisitions += 1
+
+                if acquisitions == 2:
+                    time.sleep(0.15)
+                    child.send_signal(signal.SIGINT)
+                    interrupted = True
+
+                    break
+
+        assert interrupted, "The console must reach independent SCAN staging before interruption"
+        remaining, diagnostics = child.communicate(timeout=15)
+        captured.extend(remaining)
+        summary = json.loads(captured.splitlines()[-1])["summary"]
+        assert child.returncode == 130 and diagnostics == b"", (
+            "SIGINT must await owned cleanup and terminate without a traceback"
+        )
+        assert summary["state"] == "cancelled" and summary["model_revision"] == 0, (
+            "Cancelled scan preserves the previous committed model"
+        )
+        assert [item["operation"] for item in summary["operations"]] == ["version", "scan"], (
+            "Terminal summary retains both actual independent execution outcomes"
+        )
+        assert len(summary["job"]["artifacts"]) == 12, (
+            "Cancellation retains original acquired records"
+        )
+
+    finally:
+        if child.poll() is None:
+            child.send_signal(signal.SIGINT)
+
+            try:
+                child.communicate(timeout=10)
+
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.communicate(timeout=5)
