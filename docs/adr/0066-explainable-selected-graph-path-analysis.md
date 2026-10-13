@@ -61,9 +61,12 @@ Handwritten alias-based counts and cuts precede implementation. Exercise actual
 workspace/model/evidence producers and reopen the stored basis before analysis;
 verify both admitted source attestations and bare UNKNOWN selected transitions.
 Compare small directed graphs against an independent reachability/removal oracle.
-Test cycles, parallel directed relations, isolated nodes, all-BLOCKED paths,
+Test cycles, isolated nodes, all-BLOCKED paths, parallel presentation bundles,
 truncated samples, depth-independent cuts, exact work bounds, grouping substitution,
 equal-revision model substitution and pure-interface I/O tripwires.
+Canonical RELATED_TO relations with the same original endpoints share one model
+identity. Parallel-token Internal algorithm tests assert removal robustness;
+they do not establish a producer of parallel original model relations.
 
 This bounded slice advances #56. Large-environment partitioning, sensor-validated
 attack semantics, automatic semantic clustering, multielement remediation planning,

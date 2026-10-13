@@ -12,6 +12,7 @@ from dataclasses import replace
 
 import pytest
 
+from fuzzy1337 import path_analysis
 from fuzzy1337.path_analysis import (
     AnalyzeReachabilityPaths,
     PathAnalysisLimits,
@@ -267,3 +268,56 @@ def test_ChangedCopiedProjectionAndSameRevisionModelCannotSubstituteTheBasis(tmp
     with pytest.raises(ValueError, match="pinned"):
         AnalyzeReachabilityPaths(projection, substituted, fixture.objects["source"].Reference(),
                                  fixture.objects["event"].Reference())
+
+
+@pytest.mark.parametrize("case", ["cut-negative", "cut-overflow", "search-negative",
+                                 "duplicate-members", "invalid-key"])
+def test_SubclassValidationOverridesCannotBypassBoundsOrMembershipBeforeSearch(
+    tmp_path, monkeypatch, case,
+):
+    """The public consumer invokes owning validators before search rather than caller overrides."""
+
+    class BypassCutLimits(PathAnalysisLimits):
+        """Simulate a caller subclass that omits constructor resource validation."""
+
+        def __post_init__(self):
+            """Leave hostile constructor counts unchanged for the public-boundary probe."""
+
+            return None
+
+    class BypassSearchLimits(ReachabilityLimits):
+        """Simulate a caller subclass that omits constructor search validation."""
+
+        def __post_init__(self):
+            """Leave hostile search bounds unchanged for the public-boundary probe."""
+
+            return None
+
+    class BypassGroup(PathSemanticGroup):
+        """Simulate a caller subclass that omits constructor membership validation."""
+
+        def __post_init__(self):
+            """Leave hostile keys or duplicate members intact for the public-boundary probe."""
+
+            return None
+
+    fixture = Fixture.Create(tmp_path / "workspace")
+    projection = Projection(fixture, fixture.Phase("confirmed"))
+    portal = fixture.objects["portal"].Reference()
+    options = {
+        "cut-negative": {"cut_limits": BypassCutLimits(-1)},
+        "cut-overflow": {"cut_limits": BypassCutLimits(2000001)},
+        "search-negative": {"search_limits": BypassSearchLimits(max_work=-1)},
+        "duplicate-members": {"semantic_groups": (BypassGroup("entry", (portal, portal)),)},
+        "invalid-key": {"semantic_groups": (BypassGroup("invalid\nkey", (portal,)),)},
+    }
+
+    def Refuse(*args, **kwargs):
+        """Require rejection before any candidate search or derived graph allocation."""
+
+        raise AssertionError("invalid path analysis inputs reached candidate search")
+
+    monkeypatch.setattr(path_analysis, "SearchReachabilityPaths", Refuse)
+
+    with pytest.raises(ValueError):
+        Analyze(fixture, projection, **options[case])

@@ -26,8 +26,9 @@ Removal leverage is the exact count/list of returned non-BLOCKED candidates that
 contain an element, with the remaining returned non-BLOCKED denominator. Paths
 are simple, so removing that original node or relation deletes each such returned
 candidate once. Source and destination nodes are excluded from node-removal
-recommendations. Relations retain their independent identity, including parallel
-directed relations. Results are ordered by descending affected count, then kind
+recommendations. Relations retain their original canonical identity; RELATED_TO
+relations with identical original endpoints share one model identity. Results are
+ordered by descending affected count, then kind
 and canonical reference; this deterministic presentation is not cost/risk ranking.
 
 The leverage scope is `complete-returned-candidates` when enumeration is complete
@@ -53,11 +54,13 @@ reachability check. A verified choke point disconnects source from destination;
 `alternatives_exist` records checked elements with another candidate route.
 Endpoints are excluded from node checks. An absent original nonblocked route
 produces no choke-point recommendation. Cycles and self-loops are bounded visited
-graph work, and parallel original relations remain distinct.
+graph work. Distinct original relations are checked by their own reference.
 
 `PathAnalysisLimits.max_cut_work` bounds all successor examinations across the
 initial witness and every removal check together. Default: 100000; exact inclusive
-range: 1..2000000, excluding boolean/string/float coercion. Every examined edge,
+range: 1..2000000, excluding boolean/string/float coercion. Owning-class validation
+is repeated before search, including when a caller subclass overrides its
+constructor's validation. Every examined edge,
 including a removed edge or previously visited destination, consumes work. Existing
 projection ceilings remain 512 eligible nodes and 2048 selected transitions;
 there is no unbounded frontier or all-simple-path enumeration in these graph walks.

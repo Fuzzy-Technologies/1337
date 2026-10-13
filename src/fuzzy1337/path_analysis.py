@@ -368,7 +368,7 @@ def Presentation(
         if not isinstance(declaration, PathSemanticGroup):
             raise ValueError("path analysis declarations require typed explicit semantic groups")
 
-        declaration.__post_init__()
+        PathSemanticGroup.__post_init__(declaration)
 
         if declaration.group_key in keys or any(
             member not in eligible or member in membership
@@ -435,8 +435,18 @@ def AnalyzeReachabilityPaths(
     ):
         raise ValueError("path analysis requires exact typed search and cut limits")
 
-    cut_limits.__post_init__()
-    search_limits.__post_init__()
+    PathAnalysisLimits.__post_init__(cut_limits)
+    ReachabilityLimits.__post_init__(search_limits)
+
+    if type(semantic_groups) is not tuple or len(semantic_groups) > 512:
+        raise ValueError("path analysis declarations require a bounded exact tuple")
+
+    for declaration in semantic_groups:
+        if not isinstance(declaration, PathSemanticGroup):
+            raise ValueError("path analysis declarations require typed explicit semantic groups")
+
+        PathSemanticGroup.__post_init__(declaration)
+
     search = SearchReachabilityPaths(projection, model, source_reference, target_reference,
                                      limits=search_limits)
     groups, bundles = Presentation(projection, semantic_groups)
