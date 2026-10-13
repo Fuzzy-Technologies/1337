@@ -40,12 +40,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   upstream material, owned inert image metadata, specific advisory boundary tests,
   original raw evidence and a Linux scan namespace without external routes.
   Native artifact product authorization remains separate and metadata-only.
-- Added verified offline vulnerability intelligence and standards-mapping
-  metadata, preserving source versions, evidence and uncertainty.
 - Added bounded intelligence snapshot import and pinned CISA KEV mirror
   acquisition, observed receiver times, immutable original/partial evidence and
   terminal receipts, honest batch outcomes and verified portable replay.
   Owned HTTPS receiver deadlines and cancellation terminate and join the child.
+- Added verified offline vulnerability intelligence and standards-mapping
+  metadata, preserving source versions, evidence and uncertainty.
 - Added offline OpenAPI request import, bounded synthetic API request generation
   and browser/API journey contracts without granting execution authority.
 - Added attributed offline reachability states and deterministic bounded path
