@@ -392,7 +392,9 @@ def ParseRecord(raw: bytes, url: str, expected_body: KnownSyntheticHtmlBody,
         Integer(record["status"], 200, 200)
         Integer(record["content_length"], expected.size_bytes, expected.size_bytes)
         count = Integer(record["header_count"], 2, MAX_HEADER_FIELDS)
-        minimum = 61 + (14 if record["declared_charset"] is not None else 0) + (
+        minimum = 58 + len(str(expected.size_bytes)) + (
+            14 if record["declared_charset"] is not None else 0
+        ) + (
             4 * (count - 2) + max(0, count - 53)
         )
         Integer(record["header_size_bytes"], minimum,

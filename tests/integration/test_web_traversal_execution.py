@@ -28,6 +28,7 @@ from fuzzy1337.scope import AuthorizationState, LocalScopeStore
 from fuzzy1337.web_traversal import LocalWebTraversalProvider, WebTraversalLimits
 from fuzzy1337.workspace import WorkspaceConflictError
 from tests.contract.web_traversal_fixture import NOW, Body, Fixture, Run
+from tests.integration.test_page_capture_execution import OwnedWireServer
 
 ORACLE = json.loads((Path(__file__).parents[1] / "contract" / "fixtures" /
                      "web-traversal.oracle.v1.json").read_text())
@@ -48,6 +49,7 @@ class OwnedPages:
         self.active = 0
         self.maximum_active = 0
         self.received = threading.Event()
+        self.wave_received = threading.Event()
         self.stop = threading.Event()
         owner = self
 
@@ -66,6 +68,9 @@ class OwnedPages:
                     owner.active += 1
                     owner.maximum_active = max(owner.maximum_active, owner.active)
                     owner.received.set()
+
+                    if {"/alpha", "/beta"}.issubset(owner.requests):
+                        owner.wave_received.set()
 
                 try:
                     if self.path in owner.holds:
@@ -150,6 +155,7 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
     """Inverted worker completion cannot alter deterministic frontier, CAS or source attribution."""
 
     beta_captured = threading.Event()
+    dispatch_starts = []
     server = owned_pages(holds={"/alpha": beta_captured})
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
     provider = fixture.Provider(page_limits=PageCaptureLimits(request_timeout_seconds=5))
@@ -157,6 +163,8 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
 
     async def ReleaseAfterBetaCapture(self, context, *, before_commit=None, publish_progress=True):
         """Release alpha's actual response only after beta is fully captured and interpreted."""
+
+        dispatch_starts.append(time.monotonic())
 
         async def Gate():
             """Signal actual inverted completion, then wait at the unchanged ordered commit gate."""
@@ -175,6 +183,10 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
     assert snapshot.state is JobState.COMPLETED, snapshot.failure
     assert sorted(server.requests) == ORACLE["request_paths"], "Traversal acquired wrong routes"
     assert server.maximum_active == 2, "Actual page acquisition failed to overlap asynchronously"
+    assert min(later - earlier for earlier, later in
+               zip(dispatch_starts, dispatch_starts[1:], strict=False)) >= 0.049, (
+        "Controller page dispatch ignored its configured monotonic start interval"
+    )
     assert [urlsplit(url).path for url in provider.CompletedUrls] == ORACLE["commit_paths"], (
         "Worker completion order leaked into canonical model commit order"
     )
@@ -351,15 +363,44 @@ def test_ActualCancellationDrainsConcurrentWorkersAndCommitWaiter(
     )
 
 
-def test_GlobalDeadlineDrainsWorkersAndRetainsPriorCommit(tmp_path, owned_pages):
-    """Whole traversal deadline cancels children instead of renewing its budget per page."""
+def test_GlobalDeadlineDrainsWorkersAndRetainsPriorCommit(tmp_path, owned_pages, monkeypatch):
+    """Expire the observed real global timer after both owned second-wave requests reach target."""
 
-    server = owned_pages(delays={"/alpha": 2, "/beta": 2})
+    server = owned_pages(delays={"/alpha": 10, "/beta": 10})
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
-    provider = fixture.Provider(limits=WebTraversalLimits(timeout_seconds=1))
-    snapshot = Run(fixture.Job(provider))
+    provider = fixture.Provider()
+    job = fixture.Job(provider)
+    original = asyncio.timeout
+    global_deadline = []
+
+    def ObserveDeadline(delay):
+        """Retain the actual global timeout owner without replacing expiry/cancellation behavior."""
+
+        deadline = original(delay)
+
+        if delay == 30:
+            global_deadline.append(deadline)
+
+        return deadline
+
+    monkeypatch.setattr(asyncio, "timeout", ObserveDeadline)
+
+    async def ExpireAfterActualWave():
+        """Move the observed real timer only after live children and the prior seed commit exist."""
+
+        job.Start()
+        seen = await asyncio.to_thread(server.wave_received.wait, 5)
+        assert seen, "Both actual owned wave requests must precede the deadline test"
+        assert len(global_deadline) == 1, "The real traversal deadline was not uniquely observed"
+        global_deadline[0].reschedule(asyncio.get_running_loop().time())
+
+        return await asyncio.wait_for(job.Wait(), 3)
+
+    snapshot = asyncio.run(ExpireAfterActualWave())
+    assert global_deadline[0].expired(), "Test did not expire the actual global timer"
     assert snapshot.state is JobState.FAILED, "Expired traversal falsely completed"
     assert snapshot.failure.code is JobFailureCode.TIMEOUT, "Whole-operation deadline was hidden"
+    assert "Web traversal deadline" in snapshot.failure.message, "A different timeout was tested"
     assert LocalModelStore(fixture.root).Open().revision == 1, "Deadline erased prior seed commit"
     assert "/shared" not in server.requests, "Deadline allowed another frontier wave"
 
@@ -470,3 +511,28 @@ def test_ExistingSinglePageDefaultBehaviorStillPublishesOnePageProgress(tmp_path
         "Additive traversal support changed one-page default progress"
     )
     assert server.requests == ["/index"], "Ordinary one-page provider began implicit traversal"
+
+
+def test_ActualMinimalTwoDigitBodyReplyUsesSameGovernedTraversalPath(tmp_path):
+    """An actual minimal60-byte HTTP header must not reject a reviewed55-byte page body."""
+
+    body = Body("/beta")
+    wire = b"HTTP/1.0 200 \r\ncontent-length:55\r\ncontent-type:text/html\r\n\r\n" + body
+    server = OwnedWireServer(wire)
+
+    try:
+        fixture = Fixture.Create(tmp_path / "workspace", server.origin)
+        page = fixture.pages[2]
+        provider = LocalWebTraversalProvider(fixture.root, page.source, (page,),
+            "local", fixture.policy, clock=lambda: NOW)
+        snapshot = Run(fixture.Job(provider))
+        assert snapshot.state is JobState.COMPLETED, snapshot.failure
+        assert server.accepted == 1, "Minimal body acceptance fetched an unselected candidate"
+        observation = SourceObservations(fixture.root)[0]
+        assert observation.attributes["header_size_bytes"] == 60, (
+            "Actual minimal wire metadata was replaced by an assumed larger header"
+        )
+        assert len(snapshot.artifacts) == 2, "Original minimal reply acquisition was not retained"
+
+    finally:
+        server.Close()

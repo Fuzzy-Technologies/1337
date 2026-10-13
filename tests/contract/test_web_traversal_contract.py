@@ -20,6 +20,8 @@ from fuzzy1337.adapters.page_capture import (
     PageCaptureRecordError,
     ParseRecord,
 )
+from fuzzy1337.page_capture_worker import ParseHeaders
+from tests.contract.page_capture_fixture import Body as OriginalBody
 from tests.contract.web_traversal_fixture import PATHS, Body
 
 SCHEMA = json.loads((Path(__file__).parents[2] / "contracts" /
@@ -69,3 +71,31 @@ def test_UnknownOrMixedCatalogFieldsNeverBecomeApprovedRecords(field, value):
     with pytest.raises(PageCaptureRecordError):
         ParseRecord(CanonicalRecord(record), record["url"],
                     KnownSyntheticHtmlBody("owned-traversal-index.v1"), 16384)
+
+
+@pytest.mark.parametrize("path", ("/original", *PATHS))
+@pytest.mark.parametrize("charset", (False, True))
+def test_MinimalWireHeaderAdmissionFollowsExactCatalogBodySize(path, charset):
+    """The real worker, parser and schema agree at exact two/three-digit body header floors."""
+
+    body = OriginalBody() if path == "/original" else Body(path)
+    record = Record("/index" if path == "/original" else path)
+    record.update({"fixture_id": "owned-loopback-html.v1" if path == "/original"
+        else record["fixture_id"], "body_sha256": hashlib.sha256(body).hexdigest(),
+        "body_base64": base64.b64encode(body).decode("ascii")})
+    media = "text/html;charset=utf-8" if charset else "text/html"
+    header = ("HTTP/1.0 200 \r\ncontent-length:" + str(len(body)) + "\r\ncontent-type:" + media +
+              "\r\n\r\n").encode("ascii")
+    record.update(ParseHeaders(header, len(body), 16384))
+    selected = KnownSyntheticHtmlBody(record["fixture_id"])
+    jsonschema.validate(record, SCHEMA)
+    assert ParseRecord(CanonicalRecord(record), record["url"], selected, 16384) == record, (
+        "Worker-admitted minimal header was refused by the owning record consumer"
+    )
+    record["header_size_bytes"] -= 1
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(record, SCHEMA)
+
+    with pytest.raises(PageCaptureRecordError):
+        ParseRecord(CanonicalRecord(record), record["url"], selected, 16384)

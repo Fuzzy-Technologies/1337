@@ -29,7 +29,7 @@
         "content_type": {"type": "string", "const": "text/html"},
         "declared_charset": {"enum": [null, "utf-8"]},
         "content_length": {"type": "integer", "minimum": 1, "maximum": 65536},
-        "header_size_bytes": {"type": "integer", "minimum": 61, "maximum": 16384},
+        "header_size_bytes": {"type": "integer", "minimum": 60, "maximum": 16384},
         "header_count": {"type": "integer", "minimum": 2, "maximum": 64},
         "body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "body_base64": {"type": "string"}
@@ -37,39 +37,59 @@
       "allOf": [
         {
           "if": {"properties": {"declared_charset": {"const": "utf-8"}}},
-          "then": {"properties": {"header_size_bytes": {"minimum": 75}}}
+          "then": {"properties": {"header_size_bytes": {"minimum": 74}}}
         },
         {"oneOf": [
           {"properties": {
             "fixture_id": {"const": "owned-loopback-html.v1"},
             "content_length": {"const": 541},
+            "header_size_bytes": {"minimum": 61},
             "body_sha256": {"const": "c0b909f728bdcc098193c1fd268f056eea33c27b6537cd504fa77c3a25afe817"},
             "body_base64": {"minLength": 724, "maxLength": 724, "pattern": "^[A-Za-z0-9+/]{722}==$"}
-          }},
+          }, "allOf": [{
+            "if": {"properties": {"declared_charset": {"const": "utf-8"}}},
+            "then": {"properties": {"header_size_bytes": {"minimum": 75}}}
+          }]},
           {"properties": {
             "fixture_id": {"const": "owned-traversal-index.v1"},
             "content_length": {"const": 220},
+            "header_size_bytes": {"minimum": 61},
             "body_sha256": {"const": "f3058581088204e59828513b2c97b2e5d78f8551b66847ad461694f846039847"},
             "body_base64": {"minLength": 296, "maxLength": 296, "pattern": "^[A-Za-z0-9+/]{294}==$"}
-          }},
+          }, "allOf": [{
+            "if": {"properties": {"declared_charset": {"const": "utf-8"}}},
+            "then": {"properties": {"header_size_bytes": {"minimum": 75}}}
+          }]},
           {"properties": {
             "fixture_id": {"const": "owned-traversal-alpha.v1"},
             "content_length": {"const": 81},
+            "header_size_bytes": {"minimum": 60},
             "body_sha256": {"const": "b4c02acd68dcb9e0b7876129211a0973a4ddfa3bb1497fe9866b19bdcf930778"},
             "body_base64": {"minLength": 108, "maxLength": 108, "pattern": "^[A-Za-z0-9+/]{108}$"}
-          }},
+          }, "allOf": [{
+            "if": {"properties": {"declared_charset": {"const": "utf-8"}}},
+            "then": {"properties": {"header_size_bytes": {"minimum": 74}}}
+          }]},
           {"properties": {
             "fixture_id": {"const": "owned-traversal-beta.v1"},
             "content_length": {"const": 55},
+            "header_size_bytes": {"minimum": 60},
             "body_sha256": {"const": "6280766abcb3598cc72f439892490485a2cf1bf7f1b0db2944a138794ec1f68f"},
             "body_base64": {"minLength": 76, "maxLength": 76, "pattern": "^[A-Za-z0-9+/]{74}==$"}
-          }},
+          }, "allOf": [{
+            "if": {"properties": {"declared_charset": {"const": "utf-8"}}},
+            "then": {"properties": {"header_size_bytes": {"minimum": 74}}}
+          }]},
           {"properties": {
             "fixture_id": {"const": "owned-traversal-shared.v1"},
             "content_length": {"const": 65},
+            "header_size_bytes": {"minimum": 60},
             "body_sha256": {"const": "5f33a7d34dfa15c0170b83ccdbaf7abdf8be1fb7fdbfd74b79cfb64a2033ada4"},
             "body_base64": {"minLength": 88, "maxLength": 88, "pattern": "^[A-Za-z0-9+/]{87}=$"}
-          }}
+          }, "allOf": [{
+            "if": {"properties": {"declared_charset": {"const": "utf-8"}}},
+            "then": {"properties": {"header_size_bytes": {"minimum": 74}}}
+          }]}
         ]}
       ]
     }
