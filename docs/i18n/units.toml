@@ -6485,7 +6485,29 @@ state = "missing"
 id = "page:api.fuzzy1337.standards-mapping"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.standards_mapping.md"
-sourceHash = "sha256:c55a82066d8efefb6def5a5be3f01691f902ee60b00824e49fc055512268ef5f"
+sourceHash = "sha256:660e3ab9df306f6b485caf2966121c9abd5e99268bca3bfed9873b452c018afb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.standards_mapping.BindFindingObjectMappings"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/standards_mapping.py"
+sourceHash = "sha256:b75f05760a7415ef6d7b70ea7aecba5ae18a551df77be4481d1e41eb4eb413c7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.standards_mapping.ReviewedBaseline"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/standards_mapping.py"
+sourceHash = "sha256:fd6df613f39e30e33af6a81a39269b1b45c34d9939d3bf941ee752ca7d1503db"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

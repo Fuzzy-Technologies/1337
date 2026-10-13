@@ -162,6 +162,13 @@ define exact upstream identities, source provenance, review-bound content
 references, and explicit finding associations. Candidate mappings never establish
 control fulfillment, certification, or Evidence integrity.
 
+Reviewed baseline pack revision `0.2.0` adds six approved exact-content relations
+and seven pinned primary-source artifacts within unchanged schema `1`. ADR 0063
+and `docs/STANDARDS_MAPPING_BASELINE.md` define the recorded content decisions,
+selected historical versions, and advisory contextual relations. Typed finding
+bindings validate the existing Finding projection without changing model identity
+or triage; the original candidate baseline remains compatible.
+
 `fuzzy1337.policy` is an Experimental Python library at contract version `1`.
 ADR 0025 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
