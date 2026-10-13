@@ -50,6 +50,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   and resource excess are refused.
 - Added attributed offline reachability states and deterministic bounded path
   search over selected model relations, with explicit conflicts and truncation.
+- Added explainable path participation, sample removal leverage, independently
+  bounded structural choke-point checks and lossless explicit presentation groups.
+  Conclusions retain selected-graph and truncation limits.
 - Added independent inert image-archive and Dockerfile/Kubernetes fixtures and
   future producer/consumer contracts. These fixtures do not claim native scanner
   acceptance or implemented image/configuration product workflows.

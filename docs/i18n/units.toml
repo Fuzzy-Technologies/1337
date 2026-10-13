@@ -9958,6 +9958,17 @@ state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 [[units]]
+id = "page:api.fuzzy1337.path-analysis"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.path_analysis.md"
+sourceHash = "sha256:4c5c133500d3605a096fd49fe79bf25d87870e948e8509389c481ec499d391ff"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.reachability"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.reachability.md"
@@ -9967,6 +9978,182 @@ reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
 
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.AnalyzeReachabilityPaths"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:09bba55a7e890b1896274ddf926275af22ba7e6ef105c5aff0c7e4e4553a8dab"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.ChokePoints"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:a9aca4fc5f0f48a20e45b47036fda1e4741f1edc5f1f1b6697610a132dd69fd6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.Identity"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:df54ea0398de305f3c50730f8356e5fcc39a88f26d9e46860a5d52c27fbc9e84"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.Participation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:59f52dc4a2056fbdf76219ef45d1e010aab3e5cd8a1145b1863bc80ccfef7c8b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathAnalysis"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:cc7438b2ae5b90e503f760ce2876adb87fe8e524daeda2f7c30b1e3b81fcf208"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathAnalysisLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:e26e255a66f9569b0a3dba3f4761ed201e54675dd63cd7de0dbc0bf3de718731"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathChokePoints"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:bd0535a0459e78c0b4048f1252c8a0cfbdcec1991d404858e4e5bfd3ea48d91e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathElement"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:669701f5a515de7634eb291a8bf9a751f07437e90a2d54b3b8c8edecf957fa69"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathParticipation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:60726bf1bcbf095c0bc89c54f798173968c279201f1c7c6e8ee5a5901cf27290"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathPresentationGroup"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:f4c8e36a3c1d26561609363c6bf972204d967c2d8a724ce38a989dae68742a61"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathRemovalLeverage"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:2c64fd06fdf53626da751e0eb5d6ed25f544023a2c79d65e06deab9cf3f7b4a7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathSemanticGroup"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:a761f086793a97dc5728451e53f6bad0ec839426fe4958623644214db3990747"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathTransitionBundle"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:8c267a2b270b3c33215cd30ddd619d27ed1c66f61adae3b4646dce65e2d9b298"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.PathWitness"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:003ad46e204c1b0b0eed3b6573aed7ece82dfe5c663e88b20df005ac86e32755"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.Presentation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:fe864e5448690ff06b642dc8968e0f0adf79a34fc917119c32cf134796765ed3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.path_analysis.Walk"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_analysis.py"
+sourceHash = "sha256:2bcf64362b1ef6bc10566a3d38b6829fe650faf4874cb509df9b234df6a0ce4f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 

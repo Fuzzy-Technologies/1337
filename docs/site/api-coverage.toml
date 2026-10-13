@@ -336,6 +336,12 @@ mode = "authored"
 page = "api/fuzzy1337.reachability.md"
 
 [[surfaces]]
+module = "fuzzy1337.path_analysis"
+source = "src/fuzzy1337/path_analysis.py"
+mode = "authored"
+page = "api/fuzzy1337.path_analysis.md"
+
+[[surfaces]]
 module = "fuzzy1337.captured_web"
 source = "src/fuzzy1337/captured_web.py"
 mode = "authored"

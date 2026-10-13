@@ -110,6 +110,13 @@ verification, explicit existing transition projection and bounded deterministic
 candidate search. Hop/path labels preserve source estimates; they grant no
 execution authority or independent end-to-end network/exploit confirmation.
 
+`fuzzy1337.path_analysis` adds an Experimental offline Python profile `1` without
+changing the reachability or model contracts. ADR 0066 and `docs/PATH_ANALYSIS.md`
+define returned-candidate participation/removal counts, separate bounded selected
+graph cut verification, and explicit lossless presentation groups. Unknown or
+truncated results remain explicit; structural leverage grants no execution or
+remediation-efficacy claim.
+
 `fuzzy1337.findings` is an Experimental Python library at contract version `1`.
 ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
