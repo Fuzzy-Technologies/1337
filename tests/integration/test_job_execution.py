@@ -6,7 +6,11 @@
 from __future__ import annotations
 
 import asyncio
+import errno
+import os
+import signal
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -28,6 +32,7 @@ from fuzzy1337.executors import (
     InvocationDigest,
     LocalExecutionRequest,
     LocalExecutor,
+    local,
 )
 from fuzzy1337.jobs import (
     JobContext,
@@ -69,6 +74,219 @@ def Spec() -> JobSpec:
     return JobSpec(
         "job:integration", "workspace-test", "scope:local", "owner:test", "test.provider",
     )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="owned POSIX process-group race contract")
+@pytest.mark.parametrize("outcome", ["output_limit", "timeout", "cancellation"])
+def test_ExitSignalRaceRetainsActualJobReasonAndRawEvidence(
+    tmp_path: Path, monkeypatch, outcome: str,
+) -> None:
+    """Reap a real child after injected EPERM without inventing authorization failure or success."""
+
+    async def Scenario() -> None:
+        """Release only the owned child at the signal boundary and inspect durable job truth."""
+
+        marker = tmp_path / "owned-child-release"
+        evidence_root = tmp_path / "evidence"
+        evidence_root.mkdir()
+        store = LocalEvidenceStore(evidence_root)
+        executor = LocalExecutor(tmp_path)
+        processes = []
+        signals = []
+        start = executor.StartProcess
+        original_signal = local.KillProcessGroup
+
+        async def Start(request, workspace, environment):
+            """Capture the actual owned process without changing launch or policy parameters."""
+
+            process = await start(request, workspace, environment)
+            processes.append(process)
+
+            return process
+
+        def Signal(process_id: int, selected: int) -> None:
+            """Force a kernel-exit handoff before its event-loop returncode callback runs."""
+
+            assert processes and process_id == processes[0].pid, (
+                "Fault injection must address only this fixture's actual owned child."
+            )
+            signals.append(selected)
+
+            if selected == signal.SIGTERM:
+                assert processes[0].returncode is None, "The regression requires a late-exit race."
+                marker.touch()
+                time.sleep(0.05)
+
+                raise PermissionError(errno.EPERM, "synthetic exited-group race")
+
+            assert selected == 0 and processes[0].returncode is not None, (
+                "The only further group operation must be non-mutating proof after observed exit."
+            )
+            original_signal(process_id, selected)
+
+        monkeypatch.setattr(executor, "StartProcess", Start)
+        monkeypatch.setattr(local, "KillProcessGroup", Signal)
+        output = "x" * 4096 if outcome == "output_limit" else "partial"
+        script = (
+            f"import pathlib,time; print({output!r}, flush=True); "
+            "marker=pathlib.Path('owned-child-release'); "
+            "exec('while not marker.exists(): time.sleep(0.001)')"
+        )
+        job = ScanJob(
+            Spec(), LocalExecutionJob(Request(script, timeout_seconds=1), executor.Execute),
+            evidence_store=store,
+        )
+
+        try:
+            job.Start()
+
+            if outcome == "cancellation":
+                heartbeats = 0
+
+                async for event in job.Events():
+                    if event.kind is JobEventKind.HEARTBEAT:
+                        heartbeats += 1
+
+                        if heartbeats == 2:
+                            job.Cancel("owner:test")
+
+            result = await asyncio.wait_for(job.Wait(), 3)
+            expected_state = JobState.CANCELLED if outcome == "cancellation" else JobState.FAILED
+            assert result.state is expected_state, (
+                "An exit race must preserve actual terminal truth."
+            )
+
+            if outcome != "cancellation":
+                expected = JobFailureCode.OUTPUT_LIMIT if outcome == "output_limit" else (
+                    JobFailureCode.TIMEOUT
+                )
+                assert result.failure is not None and result.failure.code is expected, (
+                    "A post-launch exit race cannot become a false authorization denial."
+                )
+
+            assert len(result.artifacts) == 2, "Both actually captured raw streams must remain."
+            stdout = next(item.evidence for item in result.artifacts if (
+                item.evidence.reference.role == "stdout"
+            ))
+            expected_output = b"x" * 1024 if outcome == "output_limit" else b"partial\n"
+            assert store.Read(stdout.reference) == expected_output, (
+                "Recovered cleanup must preserve exact bounded or partial stdout evidence."
+            )
+            assert stdout.provenance.execution is not None and (
+                stdout.provenance.execution.state is not ExecutionState.SUCCEEDED
+            ), "A raced zero exit cannot turn stopped execution evidence into success."
+            assert signals == [signal.SIGTERM, 0], (
+                "Reaped child identifiers must not be re-signaled."
+            )
+            assert processes[0].returncode == 0, (
+                "The real owned child must be independently reaped."
+            )
+            assert asyncio.all_tasks() == {asyncio.current_task()}, (
+                "Executor waiters must be reaped."
+            )
+
+        finally:
+            marker.touch()
+            monkeypatch.setattr(local, "KillProcessGroup", original_signal)
+
+            for process in processes:
+                drains = [asyncio.create_task(reader.read()) for reader in (
+                    process.stdout, process.stderr,
+                ) if reader is not None]
+                await executor.Terminate(process, 0.1)
+                await asyncio.wait_for(asyncio.gather(*drains), 1)
+
+    asyncio.run(Scenario())
+
+
+@pytest.mark.skipif(os.name != "posix", reason="owned POSIX signal-denial fault injection")
+@pytest.mark.parametrize("before_launch", [False, True])
+def test_JobSeparatesLaunchAuthorityFromLiveChildCleanupDenial(
+    tmp_path: Path, monkeypatch, before_launch: bool,
+) -> None:
+    """Keep real pre-launch denial separate from unrecovered live-child provider failure."""
+
+    async def Scenario() -> None:
+        """Never suppress live signaling denial and restore ownership before fixture teardown."""
+
+        executor = LocalExecutor(tmp_path)
+        processes = []
+        start = executor.StartProcess
+        original_signal = local.KillProcessGroup
+
+        async def Start(request, workspace, environment):
+            """Capture only the actual child launched by this isolated fixture."""
+
+            child = await start(request, workspace, environment)
+            processes.append(child)
+
+            return child
+
+        def Signal(process_id: int, selected: int) -> None:
+            """Deny cleanup without exiting or signaling the real live owned child."""
+
+            assert processes and process_id == processes[0].pid, "Only the owned child may be used."
+            assert selected == signal.SIGTERM, "A live denied child must not get false exit proof."
+
+            raise PermissionError(errno.EPERM, "synthetic genuine live-child denial")
+
+        def Deny(request) -> None:
+            """Reject authority before any subprocess can be started."""
+
+            raise PermissionError("synthetic pre-launch authority denial")
+
+        async def Execute(request, **kwargs):
+            """Bind the existing pre-launch boundary only for the authorization case."""
+
+            return await executor.Execute(
+                request, **kwargs, pre_launch=Deny if before_launch else None,
+            )
+
+        monkeypatch.setattr(executor, "StartProcess", Start)
+        monkeypatch.setattr(local, "KillProcessGroup", Signal)
+        job = ScanJob(Spec(), LocalExecutionJob(
+            Request("import time; print('x'*4096, flush=True); time.sleep(30)"), Execute,
+        ), evidence_store=LocalEvidenceStore(tmp_path))
+
+        try:
+            job.Start()
+            result = await asyncio.wait_for(job.Wait(), 3)
+            expected = JobFailureCode.AUTHORIZATION if before_launch else JobFailureCode.PROVIDER
+            assert result.state is JobState.FAILED and result.failure is not None, (
+                "Unresolved authorization or owned cleanup must remain explicit failure."
+            )
+            assert result.failure.code is expected, "Post-launch denial cannot be a policy denial."
+            assert not result.artifacts, "Unconfirmed terminal cleanup must not fabricate evidence."
+
+            if before_launch:
+                assert not processes, "True policy denial must prevent process launch."
+
+            else:
+                assert result.failure.message == (
+                    "The approved local execution could not complete"
+                ), (
+                    "The provider message must accurately cover both launch and cleanup failure."
+                )
+                assert processes[0].returncode is None, (
+                    "The live-denial fixture must not pretend the child was cleaned successfully."
+                )
+
+            assert asyncio.all_tasks() == {asyncio.current_task()}, "No owned waiter may remain."
+
+        finally:
+            monkeypatch.setattr(local, "KillProcessGroup", original_signal)
+
+            for process in processes:
+                drains = [asyncio.create_task(reader.read()) for reader in (
+                    process.stdout, process.stderr,
+                ) if reader is not None]
+                await executor.Terminate(process, 0.1)
+                await asyncio.wait_for(asyncio.gather(*drains), 1)
+                assert process.returncode is not None, (
+                    "The fixture must finally reap its own child."
+                )
+
+    asyncio.run(Scenario())
 
 
 def test_RealLocalExecutionPreservesEvidenceBeforeSharedModelUpdates(tmp_path: Path) -> None:
