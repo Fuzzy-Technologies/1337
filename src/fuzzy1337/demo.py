@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import StringIO
 from pathlib import Path
 from socket import SHUT_RDWR, socket
+from socketserver import TCPServer
 from threading import Event, Lock, Thread
 from typing import TextIO, cast
 
@@ -131,6 +132,15 @@ class OwnedDemoTarget:
 
         class Server(HTTPServer):
             """Bound accepted socket reads so teardown cannot wait for an idle local client."""
+
+            def ServerBind(self) -> None:
+                """Bind the fixed numeric identity without HTTPServer's reverse DNS lookup."""
+
+                TCPServer.server_bind(self)
+                self.server_name = "127.0.0.1"
+                self.server_port = self.server_address[1]
+
+            server_bind = ServerBind
 
             def GetRequest(self) -> tuple[socket, tuple[str, int]]:
                 """Bound each accepted socket without outbound readiness probes."""

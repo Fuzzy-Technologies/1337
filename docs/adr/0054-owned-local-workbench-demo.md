@@ -28,7 +28,8 @@ parent. Existing roots, symlinks/reparse points, traversal and control-bearing
 paths reject before target startup. The command owns a service bound exclusively
 to `127.0.0.1` on an operating-system-selected ephemeral port. It supplies three
 exact HTTP URLs: `/`, `/health` and `/redirect`. Redirect targets and unselected
-routes are never followed. Startup, listening identity and teardown belong to
+routes are never followed. Startup retains the numeric bind identity without
+consulting reverse DNS. Startup, listening identity and teardown belong to
 the command. Teardown is attempted after every success, failure and interruption;
 a failed teardown can never be reported as success.
 

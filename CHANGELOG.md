@@ -114,6 +114,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Bound report export reads and serialization by consumer quotas, rechecked
   saved input snapshots before publication and protected against physical-path
   aliases, foreign output files and interrupted publication acknowledgements.
+- Keep owned localhost demo binding numeric, without an implicit host-dependent
+  reverse DNS lookup before the explicitly approved discovery workflow starts.
 
 ### Patch 1 — v0.2.1 — 2026-10-09
 

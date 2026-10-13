@@ -421,6 +421,33 @@ def test_FailedExportCannotClobberAConcurrentForeignOutput(tmp_path, monkeypatch
     AssertStopped(root)
 
 
+def test_TargetStartupRetainsNumericIdentityWithoutReverseDns(monkeypatch) -> None:
+    """An owned loopback service must never consult a host-dependent DNS resolver."""
+
+    def Unexpected(*args, **kwargs) -> None:
+        """Reject the implicit resolver inherited by an ordinary HTTPServer binding."""
+
+        pytest.fail("Owned numeric loopback startup must not perform reverse DNS")
+
+    monkeypatch.setattr(socket, "getfqdn", Unexpected)
+    target = demo.OwnedDemoTarget()
+
+    try:
+        target.Start()
+        assert target.server is not None, "Startup must retain the actual owned HTTP server."
+        assert target.server.server_name == "127.0.0.1", (
+            "The owned service must retain its exact numeric loopback identity."
+        )
+        assert target.port == target.server.server_port and target.port > 0, (
+            "The target must retain the actual ephemeral port selected by its socket."
+        )
+
+    finally:
+        target.Close()
+
+    assert target.stopped, "Resolver-free startup must retain ordinary successful cleanup."
+
+
 def test_TargetTeardownClosesAContinuingPartialHeaderBeforeShutdown() -> None:
     """An idle-deadline-renewing local client cannot hold the owning service thread indefinitely."""
 

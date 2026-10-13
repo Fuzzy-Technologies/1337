@@ -19,7 +19,8 @@ uv run --locked python -m fuzzy1337 demo local artifacts/local-demo
 
 The plan-only invocation returns status 3. It starts no target, sends no request
 and creates no demo output root. The plan owns a synthetic service bound only to
-`127.0.0.1` on an ephemeral port; native discovery issues exactly three anonymous
+`127.0.0.1` on an ephemeral port, retaining that numeric service identity without
+a reverse DNS lookup; native discovery issues exactly three anonymous
 GETs to `/`, `/health` and `/redirect`. Request timeout is two seconds, the total
 scan deadline is fifteen seconds and consent is valid for two minutes. Nothing
 follows the redirect or reads response bodies/cookies.
