@@ -45,6 +45,9 @@ canonical model pin and performs no I/O. Queries take that projection, the exact
 ModelState, distinct source/target refs and explicit limits. Query time and scope
 are those of the projection; a later time or model requires rereading/reprojection.
 Queries recheck the exact model pin before using graph data.
+Derived output digests also detect changes on copied claim/projection records.
+They are consistency guards, not signatures, source authentication or an isolation
+boundary against code already executing inside the same Python process.
 
 ## Model and context binding
 
@@ -252,6 +255,9 @@ separately from search completeness.
 Check supplied/expected reference sizes before owned-store reads. Memoize verified
 support manifests only within this call; there is no durable cache. Diagnostics
 and tracebacks omit untrusted field values and raw bodies, even on owner failures.
+Context, scope and workspace metadata are bounded to 256 UTF-8 characters and must
+be nonempty single-line text. Manifest metadata retains the existing owner's
+1 MiB ceiling, independently of the smaller raw assessment/support blob ceilings.
 
 ## Acceptance and remaining boundaries
 
