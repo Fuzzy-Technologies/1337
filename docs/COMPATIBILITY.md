@@ -58,6 +58,10 @@ Scope membership does not issue invocation-bound execution authorization.
 ADR 0028 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
+`fuzzy1337.openapi` is an Experimental offline Python importer at contract version
+`1`. ADR 0038 defines bounded structural OpenAPI/Swagger JSON import and projection
+into existing request/model contracts. It generates no concrete values or traffic.
+
 `fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
@@ -254,6 +258,7 @@ Current versioned public contracts:
 | Report projection    | `1`            | `fuzzy1337.reporting`; `report_formats`                    | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`                 | Experimental |
 | Web request model    | `1`            | `fuzzy1337.requests`                                       | Experimental |
+| Offline API import   | `1`            | `fuzzy1337.openapi`; `docs/OPENAPI.md`                     | Experimental |
 | Impact policy        | `1`            | `fuzzy1337.policy`                                         | Experimental |
 | Scan jobs            | `1`            | `fuzzy1337.jobs`                                           | Experimental |
 | Finding core         | `1`            | `fuzzy1337.findings`                                       | Experimental |

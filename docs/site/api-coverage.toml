@@ -180,6 +180,12 @@ mode = "authored"
 page = "api/fuzzy1337.policy.md"
 
 [[surfaces]]
+module = "fuzzy1337.openapi"
+source = "src/fuzzy1337/openapi.py"
+mode = "authored"
+page = "api/fuzzy1337.openapi.md"
+
+[[surfaces]]
 module = "fuzzy1337.quickscan"
 source = "src/fuzzy1337/quickscan.py"
 mode = "authored"
