@@ -632,6 +632,8 @@ class ScanJob:
 
         Forced cancellation is issued once. It disarms the remaining job deadline
         so a later timer or another client cannot interrupt awaited cleanup.
+        If the provider already finished when the grace timer fires, reap its
+        terminal result without rescheduling the finished job deadline.
         Trusted providers must honor cancellation and finish owned cleanup.
 
         Args:
@@ -653,7 +655,7 @@ class ScanJob:
             await asyncio.wait_for(asyncio.shield(task), timeout=grace_seconds)
 
         except TimeoutError:
-            if not task.cancelling():
+            if not task.done() and not task.cancelling():
                 # A second signal can interrupt the provider's awaited cleanup.
                 if self._deadline is not None and not self._deadline.expired():
                     self._deadline.reschedule(None)

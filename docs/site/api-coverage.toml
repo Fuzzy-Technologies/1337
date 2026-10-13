@@ -78,6 +78,12 @@ mode = "authored"
 page = "api/fuzzy1337.adapters.nuclei.md"
 
 [[surfaces]]
+module = "fuzzy1337.nucleiscan"
+source = "src/fuzzy1337/nucleiscan.py"
+mode = "authored"
+page = "api/fuzzy1337.nucleiscan.md"
+
+[[surfaces]]
 module = "fuzzy1337.adapters.nmap"
 source = "src/fuzzy1337/adapters/nmap.py"
 mode = "authored"
@@ -88,6 +94,18 @@ module = "fuzzy1337.cli"
 source = "src/fuzzy1337/cli.py"
 mode = "authored"
 page = "api/fuzzy1337.cli.md"
+
+[[surfaces]]
+module = "fuzzy1337.demo"
+source = "src/fuzzy1337/demo.py"
+mode = "authored"
+page = "api/fuzzy1337.demo.md"
+
+[[surfaces]]
+module = "fuzzy1337.demo_commands"
+source = "src/fuzzy1337/demo_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.demo_commands.md"
 
 [[surfaces]]
 module = "fuzzy1337.command_registry"
@@ -298,3 +316,21 @@ module = "fuzzy1337.captured_web"
 source = "src/fuzzy1337/captured_web.py"
 mode = "authored"
 page = "api/fuzzy1337.captured_web.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.page_capture"
+source = "src/fuzzy1337/adapters/page_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.page_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.page_capture"
+source = "src/fuzzy1337/page_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.page_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.page_capture_worker"
+source = "src/fuzzy1337/page_capture_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.page_capture_worker.md"

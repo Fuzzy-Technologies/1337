@@ -19,7 +19,18 @@ from fuzzy1337.discovery import DiscoveryLimits
 from fuzzy1337.evidence import EvidenceError, LocalEvidenceStore
 from fuzzy1337.jobs import JobEvent, JobEventKind
 from fuzzy1337.model import LocalModelStore, ObjectKind
-from fuzzy1337.quickscan import RunQuickScan, VerifyWorkspaceEvidence
+from fuzzy1337.nucleiscan import (
+    NucleiAuthorityDeniedError,
+    NucleiScanLimits,
+    NucleiScanSummary,
+    NucleiUnavailableError,
+    PlanNucleiScan,
+    ReadNucleiPolicy,
+    ReadNucleiProfile,
+    RunNucleiScan,
+)
+from fuzzy1337.policy import ImpactPolicy, PolicyConfirmation, PolicyDeniedError
+from fuzzy1337.quickscan import QuickScanSummary, RunQuickScan, VerifyWorkspaceEvidence
 from fuzzy1337.scope import (
     AuthorizationState,
     LocalScopeStore,
@@ -232,6 +243,20 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         quick.add_argument("--interval", type=float, default=0.2)
         quick.add_argument("--timeout", type=float, default=30.0)
         quick.add_argument("--events-json", action="store_true")
+        nuclei = actions.add_parser("nuclei", help="Plan/run one reviewed STANDARD Nuclei profile.")
+        nuclei.add_argument("path", type=Path)
+        nuclei.add_argument("--scope", required=True)
+        nuclei.add_argument("--owner", required=True)
+        nuclei.add_argument("--target", required=True)
+        nuclei.add_argument("--profile", type=Path, required=True)
+        nuclei.add_argument("--policy", type=Path, required=True)
+        nuclei.add_argument("--executable", required=True)
+        nuclei.add_argument("--timeout", type=int, default=30)
+        nuclei.add_argument("--rate-limit", type=int, default=2)
+        nuclei.add_argument("--plan", action="store_true")
+        nuclei.add_argument("--confirm-plan")
+        nuclei.add_argument("--confirmation-reference")
+        nuclei.add_argument("--events-json", action="store_true")
 
     else:
         raise ValueError("unsupported local command namespace")
@@ -269,6 +294,13 @@ def RunCommands(
     if command == "scan" and arguments.events_json and json_output:
         parser.error("choose --json or --events-json")
 
+    if command == "scan" and arguments.action == "nuclei":
+        if bool(arguments.confirm_plan) != bool(arguments.confirmation_reference):
+            parser.error("supply both exact plan digest and confirmation record reference")
+
+        if arguments.plan and (arguments.confirm_plan or arguments.events_json):
+            parser.error("planning is read-only and emits one exact plan document")
+
     try:
         if command == "workspace":
             document = (CreateWorkspace(arguments.path, arguments.id, arguments.name)
@@ -278,6 +310,24 @@ def RunCommands(
             document = CreateScope(arguments.path, arguments)
 
         else:
+            if arguments.action == "nuclei":
+                profile = ReadNucleiProfile(arguments.profile)
+                nuclei_limits = NucleiScanLimits(arguments.timeout, arguments.rate_limit)
+                target = Endpoint(arguments.target)
+
+                def ReadPolicy() -> ImpactPolicy:
+                    """Reread the selected strict local policy at every authority boundary."""
+
+                    return ReadNucleiPolicy(arguments.policy)
+
+                if arguments.plan:
+                    plan = PlanNucleiScan(arguments.path, arguments.scope, target, arguments.owner,
+                                         profile, arguments.executable, ReadPolicy,
+                                         limits=nuclei_limits)
+                    WriteJson(output, plan.ToDict())
+
+                    return 0
+
             def OnEvent(event: JobEvent) -> None:
                 """Stream actual ordered status or structured events without raw process output."""
 
@@ -294,17 +344,27 @@ def RunCommands(
 
                     output.flush()
 
-            summary = asyncio.run(RunQuickScan(
-                arguments.path, arguments.scope,
-                tuple(Endpoint(value) for value in arguments.target), arguments.owner,
-                approve_safe_http=arguments.approve_safe_http,
-                limits=DiscoveryLimits(
-                    max_endpoints=arguments.max_endpoints,
-                    request_timeout_seconds=arguments.request_timeout,
-                    interval_seconds=arguments.interval, timeout_seconds=arguments.timeout,
-                ),
-                on_event=OnEvent,
-            ))
+            if arguments.action == "nuclei":
+                summary: NucleiScanSummary | QuickScanSummary = asyncio.run(RunNucleiScan(
+                    arguments.path, arguments.scope, target, arguments.owner, profile,
+                    arguments.executable, ReadPolicy,
+                    confirmation=PolicyConfirmation(arguments.confirm_plan,
+                        arguments.confirmation_reference) if arguments.confirm_plan else None,
+                    limits=nuclei_limits, on_event=OnEvent,
+                ))
+
+            else:
+                summary = asyncio.run(RunQuickScan(
+                    arguments.path, arguments.scope,
+                    tuple(Endpoint(value) for value in arguments.target), arguments.owner,
+                    approve_safe_http=arguments.approve_safe_http,
+                    limits=DiscoveryLimits(
+                        max_endpoints=arguments.max_endpoints,
+                        request_timeout_seconds=arguments.request_timeout,
+                        interval_seconds=arguments.interval, timeout_seconds=arguments.timeout,
+                    ),
+                    on_event=OnEvent,
+                ))
 
             document = summary.ToDict()
 
@@ -315,13 +375,28 @@ def RunCommands(
                 WriteJson(output, document)
 
             else:
-                output.write(f"Quick Scan {summary.snapshot.state.value}; "
+                label = "Nuclei Scan" if arguments.action == "nuclei" else "Quick Scan"
+                output.write(f"{label} {summary.snapshot.state.value}; "
                              f"model revision {summary.model_revision}; "
                              f"evidence records {len(summary.snapshot.artifacts)}\n")
 
                 output.flush()
 
             return summary.ExitCode()
+
+    except (NucleiAuthorityDeniedError, PolicyDeniedError):
+        WriteJson(output, {"schema_version": 1, "state": "failed",
+                           "failure": {"code": "authorization",
+                                       "message": "Current scan authority denied execution"}})
+
+        return 3
+
+    except NucleiUnavailableError:
+        WriteJson(output, {"schema_version": 1, "state": "failed",
+                           "failure": {"code": "provider",
+                                       "message": "Selected Nuclei provider is unavailable"}})
+
+        return 4
 
     except ValueError:
         WriteJson(output, {"schema_version": 1, "state": "failed",

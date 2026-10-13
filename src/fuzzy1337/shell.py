@@ -26,6 +26,7 @@ LENSES = tuple(descriptor.identifier for descriptor in LENS_CATALOG)
 SHELL_COMMANDS = (
     "commands",
     "context",
+    "demo",
     "help",
     "history",
     "lens",
@@ -225,7 +226,7 @@ class NativeInputHistory:
             parsed, _, _ = shell.parseline(value)
             command = parsed.lower() if parsed else ""
 
-            if command in {"workspace", "scope", "scan", "report"}:
+            if command in {"workspace", "scope", "scan", "report", "demo"}:
                 position = index - first_index
 
                 if not 0 <= position < count:
@@ -377,7 +378,7 @@ class InteractiveShell(cmd.Cmd):
         """Run a command while retaining bounded operator history for local search.
 
         Records ordinary nonempty commands except history in bounded local history.
-        Workspace/scope/scan/report retain only their namespace, avoiding rejected secret arguments.
+        Workspace/scope/scan/report/demo retain only their namespace, excluding rejected arguments.
         Classification uses the dispatch parser before either history or replay state is retained.
 
         Args:
@@ -393,12 +394,13 @@ class InteractiveShell(cmd.Cmd):
 
         if normalized and command != "history":
             self._history.append(
-                command if command in {"workspace", "scope", "scan", "report"} else normalized
+                command if command in {"workspace", "scope", "scan", "report", "demo"}
+                else normalized
             )
 
-        if command in {"workspace", "scope", "scan", "report"}:
+        if command in {"workspace", "scope", "scan", "report", "demo"}:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
-                        "scan": self.do_scan, "report": self.do_report}
+                        "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo}
             self.lastcmd = command
 
             try:
@@ -493,13 +495,17 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         help_text = {
             "": (
-                "commands, context, history [query], lens [<name>] [--json], "
+                "commands, context, demo local, history [query], lens [<name>] [--json], "
                 "model <workspace-path>, palette [query], report export, select <object-id>, "
                 "scan quick, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
             "commands": "commands: list interactive and current top-level CLI commands.",
             "context": "context: show the current lens and selected object reference.",
+            "demo": (
+                "demo local <new-output-root> [--approve-safe-http]: "
+                "run only the explicitly approved command-owned localhost demo."
+            ),
             "history": "history [query]: search previous shell commands from newest to oldest.",
             "lens": (
                 "lens [<name>] [--json]: select pentest, dfir, devsecops, or purple; "
@@ -527,7 +533,7 @@ class InteractiveShell(cmd.Cmd):
         self.Write(message)
 
     def RunLocalCommand(self, command: str, argument: str) -> None:
-        """Dispatch the same explicit foreground workspace/scope/scan/report path as the CLI.
+        """Dispatch the same explicit foreground workspace/scope/scan/report/demo path as the CLI.
 
         Args:
             command: Product namespace; shell context never supplies implicit authority.
@@ -544,6 +550,12 @@ class InteractiveShell(cmd.Cmd):
 
                 status = RunReportCommands(arguments, cast(TextIO, self.stdout),
                                            json_output=json_output)
+
+            elif command == "demo":
+                from fuzzy1337.demo_commands import RunDemoCommands
+
+                status = RunDemoCommands(arguments, cast(TextIO, self.stdout),
+                                         json_output=json_output)
 
             else:
                 from fuzzy1337.scan_commands import RunCommands
@@ -596,6 +608,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("report", argument)
+
+    def do_demo(self, argument: str) -> None:
+        """Run the explicit local demo without deriving approval from selected shell context.
+
+        Args:
+            argument: Demo action, new output root and the separate explicit SAFE approval.
+        """
+
+        self.RunLocalCommand("demo", argument)
 
     def do_history(self, argument: str) -> None:
         """Search local command history in reverse chronological order.

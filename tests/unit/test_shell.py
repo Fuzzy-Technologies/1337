@@ -209,10 +209,10 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
 
     assert output.getvalue().splitlines() == [
         (
-            "Interactive commands: commands, context, help, history, lens, model, palette, "
+            "Interactive commands: commands, context, demo, help, history, lens, model, palette, "
             "quit, report, scan, scope, select, update, updates, view, workspace"
         ),
-        "CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report",
+        "CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report, demo",
         "[model] asset changed",
         "usage: quit",
         "",
@@ -379,6 +379,44 @@ def test_ShellProductCommandsUseExplicitSharedDispatcher(monkeypatch):
     )
 
 
+def test_ShellDemoUsesItsExplicitLazyDispatcherAndPreservesContext(monkeypatch):
+    """Selected context cannot provide demo inputs or its separate SAFE capability opt-in."""
+
+    from fuzzy1337 import demo_commands
+
+    calls = []
+
+    def Dispatch(arguments, output, *, json_output=False):
+        """Record the exact foreground inputs without acquiring any synthetic target resource."""
+
+        calls.append((arguments, json_output))
+
+        return 3
+
+    monkeypatch.setattr(demo_commands, "RunDemoCommands", Dispatch)
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    shell.onecmd("lens dfir")
+    shell.onecmd("select object:explicit")
+    before = shell.State
+    assert not shell.onecmd('demo local "path with spaces" --json'), (
+        "Foreground demo dispatch must keep the Workbench shell running."
+    )
+    assert calls == [(["local", "path with spaces"], True)], (
+        "The shell must forward only the explicitly supplied demo arguments."
+    )
+    assert shell.State == before, "Demo dispatch must preserve the chosen presentation context."
+    assert shell.lastcmd == "demo", "Replay must retain only the protected demo namespace."
+    assert "Command exit status: 3" in output.getvalue(), (
+        "The shell must preserve the actual demo command denial status."
+    )
+    assert shell.completenames("dem") == ["demo"], (
+        "Shell completion must expose the implemented demo namespace."
+    )
+    shell.onecmd("help demo")
+    assert "--approve-safe-http" in output.getvalue(), "Help must name the separate approval."
+
+
 def test_ShellIncompleteProductCommandCannotTerminateWorkbench():
     """Parser help/errors remain bounded foreground results rather than exiting the shell."""
 
@@ -409,6 +447,8 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
         f"SCOPE create absent --id local --allow-url {target}",
         'scan quick "synthetic-password malformed',
         f"scan synthetic-password {target}",
+        f"demo local absent --token=synthetic-password --target {target}",
+        'demo local "synthetic-password malformed',
     )
 
     for command in commands:
@@ -425,12 +465,14 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
     retained = output.getvalue() + diagnostics.out + diagnostics.err
     assert "synthetic-password" not in retained, "Rejected product passwords must not be retained."
     assert "synthetic-query-token" not in retained, "Rejected product tokens must not be retained."
-    assert output.getvalue().splitlines()[-4:] == ["scan", "scan", "scope", "scan"], (
+    assert output.getvalue().splitlines()[-6:] == [
+        "demo", "demo", "scan", "scan", "scope", "scan",
+    ], (
         "Product history must retain only bounded canonical namespaces, including malformed input."
     )
 
 
-@pytest.mark.parametrize("namespace", ["workspace", "scope", "scan", "report"])
+@pytest.mark.parametrize("namespace", ["workspace", "scope", "scan", "report", "demo"])
 @pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
 def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
     """Punctuation/missing-space forms dispatch a protected namespace without retaining its argv."""
@@ -511,19 +553,20 @@ def NativeEditor(entries):
     return editor, settings
 
 
-def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput():
+@pytest.mark.parametrize("namespace", ["report", "demo"])
+def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput(namespace):
     """A native cap advances absolute base; matching prior/command-time entries remain unowned."""
 
-    original = "report; synthetic-prior-private-value"
+    original = namespace + "; synthetic-prior-private-value"
     entries = [(5, original)]
     editor, _ = NativeEditor(entries)
     cursor = NativeInputHistory.Open(editor)
     shell = InteractiveShell(stdout=StringIO())
     cursor.Reconcile(shell, original)
     assert entries == [(5, original)], "A disabled-auto-history prior entry must remain untouched."
-    entries[:] = [(6, "report; synthetic-current-private-value")]
+    entries[:] = [(6, namespace + "; synthetic-current-private-value")]
     cursor.Reconcile(shell, entries[0][1])
-    assert entries == [(6, "report")], "New input remains owned at a constant capped vector length."
+    assert entries == [(6, namespace)], "Current input remains owned under a native cap."
     entries.append((7, "scope; synthetic-command-time-value"))
     cursor.Reconcile(shell, "")
     cursor.Reconcile(shell, None)
@@ -533,7 +576,7 @@ def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput():
     entries.append((8, "scan; synthetic-interrupted-input-value"))
     cursor.Reconcile(shell, None)
     assert entries[-1] == (8, "scan"), "An interrupted input boundary must remain protected."
-    assert entries[0] == (6, "report"), "Keep already sanitized native input intact."
+    assert entries[0] == (6, namespace), "Keep already sanitized native input intact."
 
 
 def test_CappedRetirementGapKeepsHandlerAdditionsAndProtectsNextActualInput():
@@ -683,7 +726,9 @@ def test_NativeOwnershipRefusesUnidentifiableHistoryWithoutMutatingIt():
     )
 
 
-@pytest.mark.parametrize("line", ["report; synthetic-current-input", "context"])
+@pytest.mark.parametrize("line", [
+    "report; synthetic-current-input", "demo; synthetic-current-input", "context",
+])
 def test_CommandExceptionCannotClaimCallerNativeAdditionsDuringLoopCleanup(monkeypatch, line):
     """Handler-created entries remain unowned even when it exits before framework postcmd."""
 
@@ -712,19 +757,21 @@ def test_CommandExceptionCannotClaimCallerNativeAdditionsDuringLoopCleanup(monke
     )
 
 
-def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch):
+@pytest.mark.parametrize("namespace", ["report", "demo"])
+def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, namespace):
     """Stream/queued inputs have no native auto-history ownership and preserve preexisting state."""
 
-    entries = [(1, "report; synthetic-prior-private-value")]
+    original = namespace + "; synthetic-prior-private-value"
+    entries = [(1, original)]
     editor, settings = NativeEditor(entries)
     monkeypatch.setitem(sys.modules, "readline", editor)
     output = StringIO()
-    shell = InteractiveShell(stdin=StringIO("report; synthetic-current-private-value\n"),
+    shell = InteractiveShell(stdin=StringIO(namespace + "; synthetic-current-private-value\n"),
                              stdout=output)
     shell.use_rawinput = False
     shell.cmdloop()
-    shell.onecmd("report; synthetic-direct-private-value")
-    assert entries == [(1, "report; synthetic-prior-private-value")], (
+    shell.onecmd(namespace + "; synthetic-direct-private-value")
+    assert entries == [(1, original)], (
         "Nonraw/direct calls must not sanitize an unrelated native entry."
     )
     assert shell._native_history is None and settings["bindings"] == [], (
@@ -735,10 +782,11 @@ def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch):
     )
 
 
-def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch):
+@pytest.mark.parametrize("namespace", ["report", "demo"])
+def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch, namespace):
     """Even a matching queued string cannot claim an unchanged preexisting native history item."""
 
-    line = "report; synthetic-prior-private-value"
+    line = namespace + "; synthetic-prior-private-value"
     entries = [(1, line)]
     editor, settings = NativeEditor(entries)
     marker = object()

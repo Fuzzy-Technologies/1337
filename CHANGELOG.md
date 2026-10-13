@@ -24,11 +24,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Added `1337 scan quick` for explicitly approved SAFE HTTP(S) endpoint discovery,
   live job/model updates, immutable raw evidence and durable workspace reopen.
+- Added an explicitly approved one-command owned localhost Workbench demo through
+  ordinary workspace, scope, SAFE discovery and saved-workspace report commands.
+  It retains actual live events, raw acquisitions, reopen checks and JSON/SARIF
+  exports, with no-clobber output, interruption handling and target teardown.
 - Added evidence-linked Finding lifecycle and report projections, strict JSON and
   SARIF serializers, read-only model lenses and attributed attack references.
 - Added reviewed optional Nuclei HTTP-template and Trivy offline-image preparation
   and parsing, image/package normalization and verified flat SPDX inventory.
   Compatible native tools remain operator-supplied and optional.
+- Added an explicitly confirmed STANDARD Nuclei workflow through governed jobs,
+  retained raw evidence and durable canonical Findings, with current authority
+  checks at launch and model Save and pinned genuine-provider loopback CI.
 - Added verified offline vulnerability intelligence and standards-mapping
   metadata, preserving source versions, evidence and uncertainty.
 - Added offline OpenAPI request import, bounded synthetic API request generation
@@ -48,12 +55,24 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   pinned source fixtures, retaining the independently authored result oracle.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
   checks and model projection that preserves existing Endpoint requests.
+- Added governed acquisition of one owned loopback HTML page from the closed
+  non-secret fixture catalog, with bounded transport parsing, retained evidence,
+  existing lexical frontier projection and one durable model Save.
 
 - Added explicit saved-workspace `report export` for bounded JSON and SARIF,
   owner-verifying every retained raw evidence reference and preserving failed
   execution, uncertainty and actual no-clobber publication outcomes.
 
 #### Fixed
+
+- Reject test and suite budgets outside the supported 1–3600-second integer
+  range before child startup or stale-report deletion, using fixed diagnostics
+  rather than overflowing operating-system timer conversion.
+
+- Separated the bounded whole-pytest invocation budget from individual test
+  deadlines, keeping the 120-second per-test default and allowing a healthy
+  expanded suite up to 600 seconds per invocation. Missing fresh JUnit evidence
+  fails even when the child process exits zero; automatic retries remain disabled.
 
 - Rejected malformed UTF-8 lens metadata and query text at construction/decoding,
   before clients attempt to emit machine-readable views.
@@ -63,6 +82,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   error boundary without numeric conversion overflow.
 - Preserved awaited scan-job cleanup under concurrent forced cancellation and
   retained event-budget failure when a provider catches its notification error.
+- Preserved terminal cancellation when cooperative provider cleanup finishes
+  as the grace timer fires, without rescheduling an already finished job deadline.
 
 - Preserved owned-process cleanup when an exited process group is already absent
   on macOS, while retaining denial for an inaccessible live group.
@@ -116,6 +137,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Bound report export reads and serialization by consumer quotas, rechecked
   saved input snapshots before publication and protected against physical-path
   aliases, foreign output files and interrupted publication acknowledgements.
+- Keep owned localhost demo binding numeric, without an implicit host-dependent
+  reverse DNS lookup before the explicitly approved discovery workflow starts.
 
 ### Patch 1 — v0.2.1 — 2026-10-09
 
