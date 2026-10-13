@@ -173,6 +173,12 @@ signatures and execution authority are outside this contract.
 
 ## Version compatibility rules
 
+`fuzzy1337.demo` and `fuzzy1337.demo_commands` are Experimental schema-version-1
+local-demo interfaces. ADR 0054 and `docs/DEMO.md` define explicit SAFE approval,
+command-owned loopback service lifecycle, ordinary workspace/scan/report dispatch,
+no-clobber output and actual partial-publication outcomes. They never substitute
+demo data for findings or grant authority over an operator-selected external target.
+
 `fuzzy1337.intelligence` is an Experimental Python library and snapshot schema
 at version `1`. ADR 0041 and `docs/INTELLIGENCE.md` define the documented source,
 record, parser, and verified finding-observation boundaries. Validation helpers

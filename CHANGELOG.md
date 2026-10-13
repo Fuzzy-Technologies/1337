@@ -24,6 +24,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Added `1337 scan quick` for explicitly approved SAFE HTTP(S) endpoint discovery,
   live job/model updates, immutable raw evidence and durable workspace reopen.
+- Added an explicitly approved one-command owned localhost Workbench demo through
+  ordinary workspace, scope, SAFE discovery and saved-workspace report commands.
+  It retains actual live events, raw acquisitions, reopen checks and JSON/SARIF
+  exports, with no-clobber output, interruption handling and target teardown.
 - Added evidence-linked Finding lifecycle and report projections, strict JSON and
   SARIF serializers, read-only model lenses and attributed attack references.
 - Added reviewed optional Nuclei HTTP-template and Trivy offline-image preparation

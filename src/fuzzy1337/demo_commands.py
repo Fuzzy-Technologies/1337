@@ -20,7 +20,14 @@ class DemoArgumentParser(argparse.ArgumentParser):
     """Keep untrusted rejected argument values outside terminal and saved demo artifacts."""
 
     def Error(self, message: str) -> NoReturn:
-        """Raise a fixed configuration category without reflecting argparse's raw diagnostic."""
+        """Raise a fixed configuration category without reflecting argparse's raw diagnostic.
+
+        Args:
+            message: Untrusted parser diagnostic, deliberately excluded from output.
+
+        Returns:
+            This callback never returns; it raises the fixed configuration failure.
+        """
 
         raise DemoFailure("configuration", 2)
 

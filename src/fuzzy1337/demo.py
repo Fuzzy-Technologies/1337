@@ -302,7 +302,14 @@ class DemoEventOutput(StringIO):
         self.pending = ""
 
     def write(self, text: str) -> int:
-        """Tee the exact product text into its owned journal without altering its grammar."""
+        """Tee the exact product text into its owned journal without altering its grammar.
+
+        Args:
+            text: Actual product output chunk to retain unchanged.
+
+        Returns:
+            Number of characters accepted by the owning text stream.
+        """
 
         self.journal.write(text)
         self.pending += text
