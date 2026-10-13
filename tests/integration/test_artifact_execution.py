@@ -6,14 +6,17 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 from dataclasses import replace
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from artifact_helpers import AT, OwnedArtifact
 
+from fuzzy1337 import artifact_fixture_worker, artifact_policy
 from fuzzy1337.adapters import ExecutionState
 from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactStage
 from fuzzy1337.artifact_policy import (
@@ -55,6 +58,56 @@ def test_ReviewedOwnedProfileReturnsRawAndFreshReceipt(tmp_path, profile):
 
     with pytest.raises(ArtifactDeniedError):
         asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+
+
+def test_RetiredExactWorkerCannotLaunchButOriginalEvidenceStillReplays(tmp_path, monkeypatch):
+    """An actual historical reviewed producer keeps provenance after its live catalog retires."""
+
+    retired_hash = "6cec015e044f290f2f5f48d04156fe1430ba679ee629505100e192459d10ec7a"
+    current_source = Path(artifact_fixture_worker.__file__).read_bytes()
+    retired_source = current_source.replace(
+        b"argparse.ArgumentParser(allow_abbrev=False)", b"argparse.ArgumentParser()"
+    ).replace(b"parser.parse_intermixed_args()", b"parser.parse_args()")
+
+    assert hashlib.sha256(retired_source).hexdigest() == retired_hash, (
+        "The historical fixture no longer equals the exact source-reviewed retired producer"
+    )
+
+    historical_producer = tmp_path.resolve() / "historical-producer.py"
+    historical_producer.write_bytes(retired_source)
+
+    with monkeypatch.context() as historical_catalog:
+        historical_catalog.setattr(
+            artifact_policy, "_REVIEWED_PRODUCERS", frozenset({retired_hash})
+        )
+        historical_catalog.setattr(artifact_fixture_worker, "__file__", str(historical_producer))
+        root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+        executor = GovernedArtifactExecutor(root, clock=lambda: AT)
+        outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+        executor.ValidateAcceptance(outcome, prepared, stage, context, at=AT)
+
+    assert retired_hash not in artifact_policy._REVIEWED_PRODUCERS, (
+        "Retired producer remained in the live launch catalog"
+    )
+    assert outcome.raw_result.execution.state == ExecutionState.SUCCEEDED, (
+        "Historical execution evidence was fabricated without running the reviewed source"
+    )
+    assert outcome.acceptance.refusal is None, "The original historical run was not accepted"
+
+    with pytest.raises(ArtifactDeniedError):
+        PrepareArtifact(stage, root)
+
+    with pytest.raises(ArtifactDeniedError):
+        executor.ValidateAcceptance(outcome, prepared, stage, context, at=AT)
+
+    replayed = VerifyArtifactReplay(
+        outcome.Metadata(), outcome.raw_result.stdout, outcome.raw_result.stderr
+    )
+
+    assert replayed == outcome.acceptance, "Retired-source evidence lost its original receipt"
+    assert stage.scanner.manifest.files[1].sha256 == retired_hash, (
+        "Historical scanner identity was relabeled as the current producer"
+    )
 
 
 @pytest.mark.parametrize(

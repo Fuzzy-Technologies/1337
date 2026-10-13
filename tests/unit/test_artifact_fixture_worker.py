@@ -104,6 +104,32 @@ def test_StandaloneEntryPointAndConfigDirectoryRemainPortable(tmp_path, monkeypa
 
 
 @pytest.mark.parametrize(
+    "extra",
+    [["--unknown"], ["--cache-b", "memory"], ["another-directory"]],
+    ids=["unknown-option", "abbreviation", "extra-target"],
+)
+def test_IntermixedConfigurationWireStillRejectsUnapprovedArguments(tmp_path, monkeypatch, extra):
+    """Intermixed parsing accepts the fixed directory position without ignoring arbitrary flags."""
+
+    arguments = Arguments(
+        tmp_path,
+        {"schema_version": 1, "fixture_id": "owned-artifact-lifecycle-v1", "mode": "success"},
+    )
+    arguments[arguments.index("image")] = "config"
+    index = arguments.index("--input")
+    del arguments[index : index + 2]
+    source = tmp_path / "selected"
+    source.mkdir()
+    arguments.extend([str(source), *extra])
+    monkeypatch.setattr(sys, "argv", arguments)
+
+    with pytest.raises(SystemExit) as rejected:
+        worker.Main()
+
+    assert rejected.value.code == 2, "Unapproved direct worker arguments became accepted wire"
+
+
+@pytest.mark.parametrize(
     "payload",
     [
         b'{"schema_version":true,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',

@@ -95,7 +95,7 @@ def Main() -> int:
         Zero for synthetic lifecycle completion, seven for the owned failure mode.
     """
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--fixture-policy", required=True)
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--config", required=True)
@@ -123,7 +123,7 @@ def Main() -> int:
         parser.add_argument("--" + flag, action="store_true")
 
     parser.add_argument("target", nargs="?")
-    arguments = parser.parse_args()
+    arguments = parser.parse_intermixed_args()
     try:
         with Path(arguments.fixture_policy).open("rb") as stream:
             mode = ParseFixturePolicy(stream.read(4097))
