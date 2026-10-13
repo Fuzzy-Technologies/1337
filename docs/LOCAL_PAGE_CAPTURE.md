@@ -299,3 +299,45 @@ checkout rules and additive API/locale/compatibility inventories. NativeHTTP v1,
 captured_web, SDK/job/policy/model/scope/evidence owners, CLI/registry/shell, protected
 files and CHANGELOG remain unchanged. Canonical full gates and independent final
 source review are required; #59/#53 stay open for the explicitly absent larger work.
+
+## Implemented producer boundary
+
+`LocalPageCaptureProvider` supplies this version-1 profile through ordinary
+`ScanJob` ownership. Create the workspace/model and explicit consented scope with
+their existing owners, then supply the exact anonymous `RequestTemplate`, closed
+`KnownSyntheticHtmlBody("owned-loopback-html.v1")` selection and explicit distinct
+`ImpactPolicy` permission. Creating or inspecting the provider performs no fetch.
+There is no automatic CLI, registry or shell registration for this slice.
+
+The provider uses actual launch policy and worker outcomes, bounded owner
+Get/Read verification, the accepted captured-web consumer, complete source and
+candidate request union and one optimistic model Save. Its source observation
+retains `launch_policy_scope_sha256` and `frontier_scope_sha256` as distinct
+serializer roles; Unicode consent does not require those two strings to match.
+The original grant lifetime is checked at governed launch. The final persistence
+boundary checks the full pinned snapshot, original plan, current exact URL/IP
+memberships and newly read consent validity after every evidence/model read and
+composition step. A stored earlier decision time does not substitute for it.
+
+`contracts/page-capture-record.schema.json` declares the closed flat worker record.
+The parent parser additionally enforces canonical JSON bytes, exact prepared
+destination, reviewed body/base64/hash and count-dependent header feasibility.
+The record is an observed worker artifact, not a raw HTTP transcript or a
+cryptographically authenticated transport report.
+
+Subsystem acceptance is reproducible through ordinary pytest selections:
+
+```bash
+python -m pytest tests/unit/test_page_capture.py \
+  tests/contract/test_page_capture_contract.py \
+  tests/integration/test_page_capture_execution.py
+```
+
+The integration fixture owns literal localhost listeners, readiness without a
+probe request, finite waits and teardown. It exercises the packaged worker and
+actual policy/job/evidence/model boundaries using the independent wire/body/oracle.
+Other cases cover exact lexical counts, template/history preservation and replay,
+Unicode digests, fresh final authority, privacy, framing/EOF/slow responses,
+actual evidence integrity, cancellation and explicit committed/uncertain Save
+acknowledgement outcomes. Installed-wheel and canonical repository/CI gates remain
+separate required checks; this subsystem selection alone does not establish them.
