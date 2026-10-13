@@ -65,6 +65,15 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Reject test and suite budgets outside the supported 1–3600-second integer
+  range before child startup or stale-report deletion, using fixed diagnostics
+  rather than overflowing operating-system timer conversion.
+
+- Separated the bounded whole-pytest invocation budget from individual test
+  deadlines, keeping the 120-second per-test default and allowing a healthy
+  expanded suite up to 600 seconds per invocation. Missing fresh JUnit evidence
+  fails even when the child process exits zero; automatic retries remain disabled.
+
 - Rejected malformed UTF-8 lens metadata and query text at construction/decoding,
   before clients attempt to emit machine-readable views.
 - Preserved newer finding triage and detector metadata when an earlier attributed
