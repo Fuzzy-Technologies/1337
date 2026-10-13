@@ -1,0 +1,142 @@
+name: Genuine Trivy acceptance
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trivy-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  owned-offline:
+    name: Trivy 0.75.0 / owned offline archive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Provision checksum-pinned Trivy and digest-pinned official database
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          import tarfile
+          from pathlib import Path
+          from urllib.request import urlopen
+
+          oracle = json.loads(Path("tests/fixtures/trivy/native_oracle.json").read_bytes())
+          root = Path(os.environ["RUNNER_TEMP"]) / "trivy-native-0.75.0"
+          root.mkdir(mode=0o700)
+          archive_path = root / "release.tar.gz"
+          digest = hashlib.sha256()
+          received = 0
+          maximum = 128 * 1024 * 1024
+
+          with urlopen(oracle["release_asset"], timeout=30) as source, archive_path.open("xb") as output:
+              while chunk := source.read(1024 * 1024):
+                  received += len(chunk)
+
+                  if received > maximum:
+                      raise ValueError("Trivy release exceeds its finite download budget")
+
+                  digest.update(chunk)
+                  output.write(chunk)
+
+          if digest.hexdigest() != oracle["release_asset_sha256"]:
+              raise ValueError("Trivy release differs from the independently pinned asset checksum")
+
+          with tarfile.open(archive_path) as archive:
+              members = archive.getmembers()
+              selected = [member for member in members if member.name == "trivy"]
+
+              if len(members) > 64 or len(selected) != 1:
+                  raise ValueError("Trivy release has an unexpected bounded member inventory")
+
+              member = selected[0]
+
+              if not member.isfile() or not 1 <= member.size <= 256 * 1024 * 1024:
+                  raise ValueError("Selected Trivy executable is not a bounded regular member")
+
+              executable = root / "trivy"
+
+              with archive.extractfile(member) as source, executable.open("xb") as output:
+                  written = 0
+
+                  while chunk := source.read(1024 * 1024):
+                      written += len(chunk)
+
+                      if written > member.size:
+                          raise ValueError("Trivy executable exceeds its verified member size")
+
+                      output.write(chunk)
+
+              if written != member.size:
+                  raise ValueError("Trivy executable differs from its verified member size")
+
+          executable.chmod(0o700)
+          cache = root / "cache"
+          cache.mkdir(mode=0o700)
+          subprocess.run([str(executable), "--cache-dir", str(cache), "--config=", "image",
+              "--download-db-only", "--db-repository", oracle["database_repository"],
+              "--skip-java-db-update", "--skip-check-update", "--skip-version-check",
+              "--skip-vex-repo-update", "--disable-telemetry", "--no-progress", "--timeout", "120s"],
+              env={"PATH": "/usr/bin:/bin", "HOME": str(root)}, check=True, timeout=180)
+          database_files = {}
+
+          for name in ("metadata.json", "trivy.db"):
+              path = cache / "db" / name
+
+              if path.is_symlink() or not path.is_file() or path.stat().st_size > 2 * 1024**3:
+                  raise ValueError("Provisioned database is not an explicit bounded regular file")
+
+              with path.open("rb") as source:
+                  database_files[name] = hashlib.file_digest(source, "sha256").hexdigest()
+
+          with executable.open("rb") as source:
+              executable_sha256 = hashlib.file_digest(source, "sha256").hexdigest()
+
+          receipt = {"schema_version": 1, "release_asset": oracle["release_asset"],
+              "release_asset_sha256": oracle["release_asset_sha256"],
+              "executable_sha256": executable_sha256,
+              "database_repository": oracle["database_repository"], "database_files": database_files}
+          (root / "provisioning.json").write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
+          PY
+      - name: Run genuine adapter acceptance with no external network interface or route
+        shell: bash
+        run: |
+          host_netns="$(readlink /proc/self/ns/net)"
+          sudo unshare --net -- setpriv \
+            --reuid="$(id -u)" --regid="$(id -g)" --clear-groups \
+            env -i PATH=/usr/bin:/bin \
+            FUZZY1337_TRIVY_HOST_NETNS="$host_netns" \
+            FUZZY1337_TRIVY_BINARY="$RUNNER_TEMP/trivy-native-0.75.0/trivy" \
+            FUZZY1337_TRIVY_CACHE="$RUNNER_TEMP/trivy-native-0.75.0/cache" \
+            FUZZY1337_TRIVY_PROVISIONING="$RUNNER_TEMP/trivy-native-0.75.0/provisioning.json" \
+            .venv/bin/python -m pytest tests/integration/test_trivy_native.py -o addopts='' -q
+      - name: Preserve actual native provider evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: genuine-trivy-0.75.0-owned-offline
+          path: functional-evidence/trivy-native/
+          if-no-files-found: warn
+          retention-days: 14
