@@ -467,6 +467,7 @@ def NativeEditor(entries):
     """Build an independent native index/relative-position oracle without global editor state."""
 
     editor = ModuleType("owned-native-history-oracle")
+    editor.backend = "readline"
     settings = {"completer": None, "bindings": []}
 
     def Count():
