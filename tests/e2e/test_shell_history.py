@@ -50,19 +50,53 @@ def NativeItems():
     return [value for index in range(1, 201)
             if (value := readline.get_history_item(index)) is not None]
 
+def NativeIndices():
+    """Observe this owned process's finite absolute positions for the independent gap oracle."""
+    return [[index, value] for index in range(1, 201)
+            if (value := readline.get_history_item(index)) is not None]
+
 readline.set_completer(Completer)
 readline.set_completer_delims(" ")
 readline.set_history_length(17)
 enabled = sys.argv[2] != "disabled"
 readline.set_auto_history(enabled)
-if sys.argv[2] == "capped":
+if sys.argv[2] in {"capped", "capped-additions", "capped-budget", "capped-over-budget"}:
     readline.parse_and_bind("set history-size 1")
 for value in ("owned-prior-one", "owned-prior-two", "owned-prior-three"):
     readline.add_history(value)
+if sys.argv[2] in {"capped-additions", "capped-budget", "capped-over-budget"}:
+    for index in range(4, 7):
+        readline.add_history("owned-prior-" + str(index))
 if sys.argv[2] in {"disabled", "queued"}:
     readline.add_history("report; export synthetic-private-terminal-argument")
 before = NativeItems()
+before_indices = NativeIndices()
 shell = InteractiveShell()
+during = []
+seed_snapshot = []
+after_seed = []
+original_report = shell.do_report
+def ObserveReport(argument):
+    """Capture actual native history before the real protected consumer dispatches."""
+    during.append(NativeIndices())
+    original_report(argument)
+shell.do_report = ObserveReport
+if sys.argv[2] in {"capped-additions", "capped-budget", "capped-over-budget"}:
+    amount = {"capped-additions": 2, "capped-budget": 100, "capped-over-budget": 101}[sys.argv[2]]
+    original_post = shell.postcmd
+    def Seed(argument):
+        """Add only a fixed finite number of owned ordinary command-time entries."""
+        for index in range(1, amount + 1):
+            readline.add_history("owned-command-time-" + str(index))
+        seed_snapshot.extend(NativeIndices())
+    def ObserveAfter(stop, line):
+        """Confirm native observation left unowned additions unchanged after the handler returns."""
+        result = original_post(stop, line)
+        if line == "seed":
+            after_seed.extend(NativeIndices())
+        return result
+    shell.do_seed = Seed
+    shell.postcmd = ObserveAfter
 if sys.argv[2] == "capped-during":
     original_context = shell.do_context
     def CapDuringCommand(argument):
@@ -76,8 +110,13 @@ try:
     shell.cmdloop()
 except KeyboardInterrupt:
     interrupted = True
+    refused = False
+except RuntimeError:
+    interrupted = False
+    refused = True
 else:
     interrupted = False
+    refused = False
 after = NativeItems()
 restored = (readline.get_completer() is Completer
             and readline.get_completer_delims() == " "
@@ -87,6 +126,8 @@ if sys.argv[2] != "queued":
     input("probe> ")
 print("NATIVE-RESULT:" + json.dumps({"before": before, "after": after,
     "final": NativeItems(), "restored": restored, "interrupted": interrupted,
+    "refused": refused, "before_indices": before_indices,
+    "during": during, "seed_snapshot": seed_snapshot, "after_seed": after_seed,
     "local": list(shell._history), "lastcmd": shell.lastcmd}), flush=True)
 '''
 
@@ -157,15 +198,17 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
             for line in lines:
                 transcript.clear()
                 os.write(master, line + b"\n")
-                ReadUntil(master, b"1337> ", process, transcript)
+                ReadUntil(master, b"probe> " if mode == "capped-over-budget" else b"1337> ",
+                          process, transcript)
 
-            transcript.clear()
+            if mode != "capped-over-budget":
+                transcript.clear()
 
-            os.write(master, b"quit\n" if ending == "quit" else (
-                b"\x04" if ending == "eof" else b"EOF\n" if ending == "eof-command"
-                else b"report; export " + MARKER.encode() + b"\x03"
-            ))
-            ReadUntil(master, b"probe> ", process, transcript)
+                os.write(master, b"quit\n" if ending == "quit" else (
+                    b"\x04" if ending == "eof" else b"EOF\n" if ending == "eof-command"
+                    else b"report; export " + MARKER.encode() + b"\x03"
+                ))
+                ReadUntil(master, b"probe> ", process, transcript)
             os.write(master, b"owned-after-loop\n")
             ReadUntil(master, b"NATIVE-RESULT:", process, transcript)
 
@@ -274,4 +317,46 @@ def test_ActualInstalledGnuTerminalEofRestoresCallerState(tmp_path):
                          executable=InstalledGnu(tmp_path))
     assert result["restored"] and MARKER not in json.dumps(result), (
         "Actual native EOF must restore caller completer/settings and protect recorded input."
+    )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Native terminal regression requires a POSIX PTY.")
+@pytest.mark.parametrize("mode, additions", [("capped-additions", 2), ("capped-budget", 100)])
+def test_ActualGnuRetirementGapProtectsInputBeforeConsumerDispatch(tmp_path, mode, additions):
+    """Real GNU tip6/input7/additions/input protects the later raw input before do_report runs."""
+
+    result = RunTerminal(tmp_path, (b"seed", b"report; export " + MARKER.encode()), mode=mode,
+                         executable=InstalledGnu(tmp_path))
+    assert result["before_indices"] == [[6, "owned-prior-6"]], "Start at exact capped native tip6."
+    assert result["seed_snapshot"] == [[7 + additions, "owned-command-time-" + str(additions)]], (
+        "The actual handler's final unowned addition must remain unchanged before the next input."
+    )
+    assert result["after_seed"] == result["seed_snapshot"], (
+        "Cursor recovery must preserve unowned caller additions after the real handler returns."
+    )
+    assert result["during"] == [[[8 + additions, "report"]]], (
+        "Retired native indices cannot leave raw argv present while the real consumer executes."
+    )
+    assert not result["refused"] and result["restored"] and MARKER not in json.dumps(result), (
+        "Within-budget native gaps preserve caller state and all actual protected input privacy."
+    )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Native terminal regression requires a POSIX PTY.")
+def test_ActualGnuExcessRetirementRefusesBeforeFurtherInput(tmp_path):
+    """A real 101-addition cap gap refuses further input while preserving caller history."""
+
+    result = RunTerminal(tmp_path, (b"seed",), mode="capped-over-budget",
+                         executable=InstalledGnu(tmp_path))
+    assert result["refused"] and result["restored"], (
+        "Excess gaps must refuse and release loop state."
+    )
+    assert result["seed_snapshot"] == [[108, "owned-command-time-101"]], (
+        "Boundary refusal cannot change or discard the latest unowned caller addition."
+    )
+    assert result["after"] == ["owned-command-time-101"], (
+        "The complete failure cleanup must preserve the caller's remaining history byte-for-byte."
+    )
+    assert result["during"] == [] and result["local"] == ["seed"], (
+        "An unidentified native boundary must never dispatch or accept a later protected command."
     )

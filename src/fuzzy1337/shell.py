@@ -170,8 +170,13 @@ class NativeInputHistory:
             line: Actual input for exact matching, empty for observation, or None for exit cleanup.
 
         Raises:
-            RuntimeError: Native indexing/growth exceeds the bounded ownership contract.
+            RuntimeError: Native indexing, retirement or growth cannot be identified safely.
         """
+
+        count = int(self.editor.get_current_history_length())
+
+        if not count and not self.last_index:
+            return
 
         entries: list[tuple[int, str]] = []
 
@@ -179,19 +184,39 @@ class NativeInputHistory:
             value = self.editor.get_history_item(index)
 
             if value is None:
-                break
+                if entries:
+                    break
 
-            if not isinstance(value, str) or len(entries) == HISTORY_LIMIT:
+                continue
+
+            if not isinstance(value, str) or index - self.last_index > HISTORY_LIMIT:
                 raise RuntimeError("Native terminal history changed outside its owned boundary.")
 
             entries.append((index, value))
 
-        if not entries:
-            return
+        last_index = entries[-1][0] if entries else self.last_index
 
-        last_index = entries[-1][0]
-        count = int(self.editor.get_current_history_length())
+        if (
+            not entries and line == "" and self.last_index
+            and self.editor.get_history_item(self.last_index) is None
+        ):
+            for previous_index in range(
+                self.last_index - 1, max(0, self.last_index - HISTORY_LIMIT - 1), -1
+            ):
+                if self.editor.get_history_item(previous_index) is not None:
+                    last_index = previous_index
+                    break
+
         first_index = last_index - count + 1
+
+        if (
+            count <= 0 or first_index <= 0
+            or self.editor.get_history_item(first_index) is None
+            or self.editor.get_history_item(last_index) is None
+            or self.editor.get_history_item(last_index + 1) is not None
+            or int(self.editor.get_current_history_length()) != count
+        ):
+            raise RuntimeError("Native terminal history cannot be identified safely.")
 
         for index, value in entries:
             if line is not None and value != line:

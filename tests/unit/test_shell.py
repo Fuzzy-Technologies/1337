@@ -535,6 +535,139 @@ def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput():
     assert entries[0] == (6, "report"), "Keep already sanitized native input intact."
 
 
+def test_CappedRetirementGapKeepsHandlerAdditionsAndProtectsNextActualInput():
+    """Tip 6/input 7/handler 8+9/input 10 retire the missing gap without losing ownership."""
+
+    entries = [(6, "owned-prior-tip")]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    shell = InteractiveShell(stdout=StringIO())
+    entries[:] = [(7, "seed")]
+    cursor.Reconcile(shell, "seed")
+    entries[:] = [(9, "owned-command-time-two")]
+    cursor.Reconcile(shell, "")
+    assert cursor.last_index == 9 and entries == [(9, "owned-command-time-two")], (
+        "Retired index8 cannot stall the cursor or rewrite the handler's unowned addition."
+    )
+    entries[:] = [(10, "report; synthetic-current-private-value")]
+    cursor.Reconcile(shell, entries[0][1])
+    assert entries == [(10, "report")], "Protect the next actual product input before dispatch."
+
+
+@pytest.mark.parametrize("additions", [100, 101, 102])
+def test_CappedRetirementGapUsesFiniteLookupAndRefusesUnidentifiedTip(additions):
+    """Exactly 100 advances remain identifiable; excess or wholly missing tips fail closed."""
+
+    entries = [(7, "seed")]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    shell = InteractiveShell(stdout=StringIO())
+    queried = []
+    original_item = editor.get_history_item
+
+    def Observe(index):
+        """Count only the independent oracle's public lookup calls and absolute positions."""
+
+        queried.append(index)
+
+        return original_item(index)
+
+    editor.get_history_item = Observe
+    entries[:] = [(7 + additions, "scope; synthetic-unowned-command-addition")]
+
+    if additions == 100:
+        cursor.Reconcile(shell, "")
+        assert cursor.last_index == 107, "The exact lookup budget includes its final live tip."
+
+    else:
+        with pytest.raises(RuntimeError, match="owned boundary|identified safely"):
+            cursor.Reconcile(shell, "")
+
+        assert cursor.last_index == 7, "An unidentified boundary cannot be silently acknowledged."
+
+    assert entries == [(7 + additions, "scope; synthetic-unowned-command-addition")], (
+        "Boundary refusal and observation preserve the unowned handler addition exactly."
+    )
+    assert max(queried) <= 108 and len(queried) <= 208, (
+        "Forward/previous lookups remain bounded to 100 positions plus fixed end/identity checks."
+    )
+
+
+@pytest.mark.parametrize("retired", [99, 100, 101])
+def test_ObservationOnlyBackwardCapReshapingUsesBoundedKnownPositions(retired):
+    """GNU cap introduction can renumber a known tip without transferring entry ownership."""
+
+    entries = [(index, "owned-prior-" + str(index)) for index in range(100, 201)]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    shell = InteractiveShell(stdout=StringIO())
+    entries[:] = [(201, "owned-ordinary-input")]
+    cursor.Reconcile(shell, "owned-ordinary-input")
+    entries[:] = [(201 - retired, "scope; synthetic-unowned-command-addition")]
+
+    if retired <= 100:
+        cursor.Reconcile(shell, "")
+        assert cursor.last_index == 201 - retired, "Pin only the identified observation tip."
+
+    else:
+        with pytest.raises(RuntimeError, match="identified safely"):
+            cursor.Reconcile(shell, "")
+
+        assert cursor.last_index == 201, "Excess backward changes cannot transfer ownership."
+
+    assert entries == [(201 - retired, "scope; synthetic-unowned-command-addition")], (
+        "Observation-time re-identification must not sanitize or alter an unowned caller entry."
+    )
+
+
+def test_ActualInputCannotClaimAnEarlierUnownedNativeTip():
+    """Actual input cannot acquire a prior caller entry through backward recovery."""
+
+    entries = [(6, "owned-prior-tip")]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    line = "report; synthetic-identical-prior-value"
+    entries[:] = [(5, line)]
+
+    with pytest.raises(RuntimeError, match="identified safely"):
+        cursor.Reconcile(InteractiveShell(stdout=StringIO()), line)
+
+    assert entries == [(5, line)], "An identical earlier entry never becomes newly owned input."
+
+
+def test_DisappearedNativeHistoryCannotSilentlyContinueAfterOwnedInput():
+    """A live cursor whose tip disappears has no authority to accept further native input."""
+
+    entries = [(7, "owned-ordinary-input")]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    entries.clear()
+
+    with pytest.raises(RuntimeError, match="identified safely"):
+        cursor.Reconcile(InteractiveShell(stdout=StringIO()), "")
+
+    assert not entries and cursor.last_index == 7, "Refusal never clears or invents native history."
+
+
+@pytest.mark.parametrize("first_index", [100, 101])
+def test_StartingNativeIdentificationHonorsExactLookupBoundary(first_index):
+    """Starting index 100 is supported; index 101 is refused before input without any rewrite."""
+
+    entries = [(first_index, "owned-prior-tip")]
+    editor, _ = NativeEditor(entries)
+
+    if first_index == 100:
+        assert NativeInputHistory.Open(editor).last_index == 100, (
+            "The final documented starting position must identify a legitimate capped history."
+        )
+
+    else:
+        with pytest.raises(RuntimeError, match="identified safely"):
+            NativeInputHistory.Open(editor)
+
+    assert entries == [(first_index, "owned-prior-tip")], "Starting lookup preserves caller data."
+
+
 def test_NativeOwnershipRefusesUnidentifiableHistoryWithoutMutatingIt():
     """Bounded identification never clears or guesses unrelated preexisting native history."""
 

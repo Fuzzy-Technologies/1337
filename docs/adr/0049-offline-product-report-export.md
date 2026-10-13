@@ -26,6 +26,14 @@ appended protected input with its namespace before dispatch. Preserve caller
 entries/settings, disabled auto history and unrelated command-time additions;
 queued, stream and direct inputs do not claim native entries. Native lookup is
 bounded to 100 starting indices and refuses unidentifiable history before input.
+At subsequent boundaries, identify up to 100 new absolute positions with one
+termination probe and fixed live-range checks. Skip only retired prefix gaps in
+capped buffers, preserving handler additions. Refuse an excess or unidentifiable
+tip before accepting further input; a missing next index never silently stalls
+the cursor or permits a later protected command to retain raw arguments.
+Only command-time observation can identify a backward cap reshaping, within 100
+previous positions and the same live-range checks. This moves the cursor without
+claiming or rewriting caller entries; actual input cannot claim an earlier tip.
 EOF/interruption restores the loop cursor and framework completer, without
 clearing global history, changing auto-history configuration or accessing files.
 

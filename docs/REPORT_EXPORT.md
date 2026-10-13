@@ -23,6 +23,13 @@ caller completion/settings and restores its cursor on EOF or interruption;
 it neither clears history nor reads/writes history files. Native absolute-index
 identification uses at most 100 starting positions; an unidentifiable backend
 fails before accepting input instead of guessing or rewriting prior entries.
+Later boundaries identify at most 100 new absolute positions, with one end probe
+and fixed live-range checks. Retired prefix gaps in a capped GNU buffer advance
+the cursor without changing handler-owned additions. Excess or unidentifiable
+retirement stops the loop before another input can be accepted.
+Observation after a command can also re-identify at most 100 previous positions
+when GNU cap introduction renumbers the tip backward. This changes only the
+cursor, never caller entries; actual input cannot claim an earlier native tip.
 An opened shell model or selected object supplies no implicit workspace.
 `1337 report --help` describes the command without opening a workspace.
 
@@ -103,3 +110,5 @@ and empty replay, disabled/preexisting/queued history, interruption and GNU EOF.
 Optional unavailable native backends skip explicitly; stream EOF and command
 ownership remain covered independently. The GNU oracle also preserves a cap
 established before or during the loop, using its advancing absolute history base.
+Actual cap1 handler additions exercise retired gaps, privacy before consumer
+dispatch, exact 100-position recovery and 101-position refusal.
