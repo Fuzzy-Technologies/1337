@@ -26,7 +26,7 @@ from fuzzy1337.model import (
     ModelProvenance,
     ObjectKind,
 )
-from fuzzy1337.page_capture import PageCaptureLimits
+from fuzzy1337.page_capture import BoundedPageEvidenceStore, PageCaptureLimits
 from fuzzy1337.policy import Digest, ImpactPolicy, PolicyEngine
 from fuzzy1337.requests import (
     InjectionLocation,
@@ -966,4 +966,60 @@ def test_ActualIpv6LiteralLoopbackAcquisitionWhenRunnerOwnsIt(tmp_path, owned_wi
         LocalModelStore(fixture.root).Open().revision == 1
     ), (
         'Expected invariant: LocalModelStore(fixture.root).Open().revision == 1'
+    )
+
+
+@pytest.mark.parametrize("role,media,size", [
+    ("stdout", "application/json", 98305), ("response-body", "text/html", 65537),
+])
+def test_ActualParsedManifestGetRefusesOversizeBeforeEagerOwnerRead(tmp_path, owned_wire,
+                                                                 monkeypatch, role, media, size):
+    """Role ceilings intercept an actual parsed reference before Get's eager blob allocation."""
+
+    server = owned_wire()
+    fixture = Fixture.Create(tmp_path / "workspace", server.origin)
+    snapshot = Run(fixture.Job())
+    assert snapshot.state is JobState.COMPLETED, snapshot.failure
+    provenance = snapshot.artifacts[0].evidence.provenance
+    store = LocalEvidenceStore(fixture.root / "evidence")
+    oversized = store.Put(b"x" * size, role, media, provenance)
+
+    def RefuseUnboundedRead(self, reference):
+        """Tripwire the exact owning raw-byte allocator for every oversized actual manifest."""
+
+        raise AssertionError("Oversized actual reference reached unbounded owner Read")
+
+    monkeypatch.setattr(LocalEvidenceStore, "Read", RefuseUnboundedRead)
+
+    with pytest.raises(ValueError):
+        BoundedPageEvidenceStore(fixture.root / "evidence").Get(oversized.evidence_id)
+
+
+@pytest.mark.parametrize("budget,delta_count", [(9, 0), (10, 1)])
+def test_RealEventBudgetAfterSaveRequiresActualModelReopen(tmp_path, owned_wire,
+                                                        budget, delta_count):
+    """Owning job budget messages stay generic while committed model/worker success remain real."""
+
+    server = owned_wire()
+    fixture = Fixture.Create(tmp_path / "workspace", server.origin)
+    job = fixture.Job(max_events=budget)
+    snapshot = Run(job)
+    assert snapshot.state is JobState.FAILED, "Exhausted owning event budget falsely completed"
+    assert snapshot.failure.code is JobFailureCode.OUTPUT_LIMIT, "Actual event limit was hidden"
+    assert snapshot.failure.message == "Job event budget exhausted", (
+        "Test no longer exercises the owning terminal failure override"
+    )
+    assert snapshot.progress is None and len(snapshot.artifacts) == 2, (
+        "Exhausted post-Save delivery lost artifacts or fabricated complete progress"
+    )
+    state = LocalModelStore(fixture.root).Open()
+    assert state.revision == 1, "Actual committed model was lost after event publication failure"
+    source = next(item for item in state.observations if item.kind == "http.synthetic-page")
+    assert source.provenance.execution.state.value == "succeeded", (
+        "Later owning event failure replaced the actual successful worker outcome"
+    )
+    assert sum(event.kind is JobEventKind.MODEL_DELTA for event in job.EventsSince()) == (
+        delta_count
+    ), (
+        "Actual delivered-delta count disagrees with the owning event budget"
     )

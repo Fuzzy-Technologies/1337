@@ -141,7 +141,7 @@ def test_EveryExactMinimumHeaderSizeHasAValidIndependentWireAndParentRecord(char
 
     # One-byte names are case-insensitively distinct across the token alphabet.
     names = "abcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~"
-    extras = [names[index].encode() if index < len(names) else f"X{index}".encode()
+    extras = [names[index].encode() if index < len(names) else f"X{index - len(names):x}".encode()
               for index in range(count - 2)]
     raw = (b"HTTP/1.1 200 \r\nContent-Length:541\r\nContent-Type:text/html" +
            (b";charset=utf-8" if charset else b"") + b"\r\n" +
@@ -164,6 +164,8 @@ def test_EveryExactMinimumHeaderSizeHasAValidIndependentWireAndParentRecord(char
     ), (
         'Expected invariant: metadata["header_count"] == count'
     )
+    minimum = 61 + (14 if charset else 0) + 4 * (count - 2) + max(0, count - 53)
+    assert len(raw) == minimum, "Independent field names do not meet exact minimum header length"
 
 
 @pytest.mark.parametrize("error", ERROR_EXITS)

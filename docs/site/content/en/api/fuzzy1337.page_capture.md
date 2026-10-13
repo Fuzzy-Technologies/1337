@@ -28,4 +28,8 @@ Cancellation/event failure after commit retains the persisted model and actual
 worker success even when no model delta is delivered. Cross-store atomicity and
 continuous revocation are not claimed.
 
+When the actual owning job event quota is exhausted, its terminal budget failure
+message remains generic. Reopen the saved model and inspect the retained source
+observation/evidence; that message alone does not prove the model stayed unchanged.
+
 ::: fuzzy1337.page_capture

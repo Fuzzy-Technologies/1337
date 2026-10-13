@@ -242,13 +242,15 @@ def WorkerInputs(arguments: Sequence[str]) -> tuple[str, float, str, int]:
     """Bound canonical argv tokens before any numeric conversion or network operation.
 
     Args:
-        arguments: Exactly four text tokens in the accepted URL/timeout/fixture/body-limit order.
+        arguments: Exact tuple/list of four text URL/timeout/fixture/body-limit tokens.
 
     Returns:
         Independently validated canonical destination, timeout, fixture selection and quota.
     """
 
-    if len(arguments) != 4 or any(type(argument) is not str for argument in arguments):
+    if type(arguments) not in (tuple, list) or len(arguments) != 4 or (
+        any(type(argument) is not str for argument in arguments)
+    ):
         raise ValueError("page capture worker requires four text arguments")
 
     url, timeout_text, fixture_id, maximum_text = arguments
@@ -277,7 +279,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     No raw header, reason, unexpected body, exception text or stderr is emitted.
 
     Args:
-        argv: Exact prepared tokens, or process arguments when omitted.
+        argv: Exact tuple/list of prepared tokens, or process arguments when omitted.
 
     Returns:
         Zero for admitted page, 64 for input, 124 for timeout, one for other fixed failures.
@@ -286,7 +288,15 @@ def Main(argv: Sequence[str] | None = None) -> int:
     error_code = "input"
 
     try:
-        arguments = tuple(sys.argv[1:] if argv is None else argv)
+        if argv is None:
+            if len(sys.argv) != 5:
+                raise ValueError("page capture worker requires exactly four process arguments")
+
+            arguments: Sequence[str] = (sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+
+        else:
+            arguments = argv
+
         result = Probe(*WorkerInputs(arguments))
 
     except (TimeoutError, socket.timeout):

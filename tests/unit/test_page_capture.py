@@ -1138,3 +1138,64 @@ def test_ProviderOwnershipAndMissingInitialModelDenyBeforeExecution(tmp_path, mo
         'Expected invariant: Run(fixture.Job(provider=provider)).failure.code is '
         'JobFailureCode.STORAGE'
     )
+
+
+def test_ExactHeaderByteAndLineQuotasPrecedeBodyAllocation(monkeypatch):
+    """A maximal complete header proves chunked body reads and rejects one-byte overflow."""
+
+    shortest = b"HTTP/1.1 200 \r\nContent-Length:541\r\nContent-Type:text/html\r\n"
+    extras = b"".join(name + b":" + b"x" * 4092 + b"\r\n" for name in (b"X", b"Y", b"Z"))
+    final = b"W:" + b"x" * (16384 - len(shortest) - len(extras) - 6) + b"\r\n"
+    headers = shortest + extras + final + b"\r\n"
+    assert len(headers) == 16384, "Independent exact header-byte-bound fixture is not maximal"
+    connection, _ = Socket(monkeypatch, headers + Body())
+    record = Probe(URL, 2, FIXTURE_ID, 541)
+    assert record["header_size_bytes"] == 16384, "Actual maximal header size was not measured"
+    assert connection.read_sizes[-2:] == [541, 1], "Exact body and EOF were not read separately"
+    ParseRecord(CanonicalRecord(record), URL, KnownSyntheticHtmlBody(FIXTURE_ID), 541)
+
+    with pytest.raises(PageProtocolError):
+        ParseHeaders(headers[:-2] + b"x\r\n", 541, 541)
+
+    Socket(monkeypatch, headers + Body() + b"!")
+
+    with pytest.raises(PageProtocolError):
+        Probe(URL, 2, FIXTURE_ID, 541)
+
+
+def test_UnexpectedBodyUtf8AndBomNeverReachWorkerOutput(monkeypatch, capsys):
+    """Invalid UTF-8/BOM variants fail the closed body policy with no decoded exception content."""
+
+    for prefix in (b"\xff", b"\xef\xbb\xbf"):
+        body = prefix + Body()[len(prefix):]
+        Socket(monkeypatch, Wire()[:-541] + body)
+        assert Main((URL, "2.0", FIXTURE_ID, "541")) == 1, "Unreviewed invalid body was admitted"
+        captured = capsys.readouterr()
+        assert captured.out == '{"error":"body-policy","schema_version":1}\n', (
+            "Invalid body bytes entered an output field"
+        )
+        assert captured.err == "", "Unexpected body produced a stderr traceback"
+
+
+def test_WorkerMainBoundsArgumentCountBeforeAnyConsumerCopy(capsys):
+    """An arbitrary sequence is not copied or iterated before exact four-token admission."""
+
+    class UnboundedSequence:
+        """Tripwire any copied iteration or prevalidation length work on an unsupported wrapper."""
+
+        def __iter__(self):
+            """Fail if the worker first copies untrusted argv instead of validating its shape."""
+
+            raise AssertionError("Untrusted argv was copied before hard argument-count admission")
+
+        def __len__(self):
+            """Fail if validation calls methods on an unsupported copied sequence type."""
+
+            raise AssertionError("Untrusted argv wrapper was inspected before exact type admission")
+
+    assert Main(UnboundedSequence()) == 64, "Unsupported argv wrapper did not fail closed"
+    captured = capsys.readouterr()
+    assert captured.out == '{"error":"input","schema_version":1}\n', (
+        "Invalid argv wrapper leaked a dynamic exception"
+    )
+    assert captured.err == "", "Untrusted argument wrapper reached a stderr traceback"

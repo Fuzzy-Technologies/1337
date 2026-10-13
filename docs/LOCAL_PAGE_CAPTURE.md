@@ -341,3 +341,10 @@ Unicode digests, fresh final authority, privacy, framing/EOF/slow responses,
 actual evidence integrity, cancellation and explicit committed/uncertain Save
 acknowledgement outcomes. Installed-wheel and canonical repository/CI gates remain
 separate required checks; this subsystem selection alone does not establish them.
+
+The existing owning job retains its fixed `Job event budget exhausted` terminal
+failure when its publication quota is reached, including after a successful model
+Save. That generic terminal message does not establish rollback or an unchanged
+model. Reopen the model through `LocalModelStore` and inspect the retained source
+observation/evidence to establish the persisted state and actual worker outcome.
+The provider does not override or bypass the job owner's terminal-budget rules.
