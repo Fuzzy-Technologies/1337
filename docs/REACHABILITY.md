@@ -1,7 +1,7 @@
 # Offline reachability projection
 
-ADR 0047 proposes an Experimental version-1 projection and candidate-path profile
-for #55. Implementation awaits explicit independent contract agreement.
+ADR 0047 defines an Experimental version-1 projection and candidate-path profile
+for the partial #55 implementation.
 
 ## Ownership and interfaces
 
@@ -9,7 +9,7 @@ The canonical ModelState owns objects, relations and immutable observations.
 Projection creates no model records, registers no targets and grants no execution
 permission. Neither graph labels nor scope/context strings authorize an action.
 
-| Proposed interface       | Responsibility                                                                       |
+| Interface                | Responsibility                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------ |
 | ReachabilityModelVersion | Workspace ID, model schema version, revision and full canonical snapshot SHA-256     |
 | ReadReachabilityClaims   | Read-only owning workspace/model/evidence verification and assessment interpretation |
@@ -29,6 +29,10 @@ Both must match the supplied workspace/schema/revision/full snapshot digest. It
 reads no historical basis and writes nothing. LocalEvidenceStore.Get and Read
 verify each manifest and original blob; a reference/hash alone does not verify
 stored evidence. A forged caller record must match the canonical stored manifest.
+An Internal bounded LocalEvidenceStore facade checks the actual parsed reference
+size in Read before delegating to the owning blob verifier. Get still owns manifest
+parsing/identity and calls that bounded Read. Assessment and support ceilings apply
+even to stored manifests whose reference differs from the caller's expected one.
 Current persisted basis means the exact snapshot returned by that owner read.
 The loader claims no continuously fresh filesystem state or transactional lock
 across model and evidence reads. Its output pins that immutable read, verified
@@ -156,7 +160,10 @@ is absent. Do not use another declaration to conceal the unusable supplied one.
 
 These bands adopt the data-only attack-path-mini vocabulary; no source score
 causes an automatic state change. Booleans, nonfinite values and scores outside
-the declared state's band refuse. Scores are attributed estimates, never calibrated
+the declared state's band refuse. Every displayed endpoint is inclusive; there is
+no rounding, coercion or admission between bands. Validate integer bounds before
+any float conversion or finite-number check, so huge integers refuse with a
+sanitized ValueError rather than OverflowError. Scores are attributed estimates, never calibrated
 probabilities or endorsements by this engine.
 
 Different current states for one transition conflict and yield UNKNOWN. Multiple

@@ -1,6 +1,6 @@
 # ADR 0047: Attributed offline reachability projections
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-13
 - Decision owners: Fuzzy Technologies
 - Related work: #55, #52, #54
@@ -18,7 +18,7 @@ barriers. The current model has neither a reachability relation enum nor control
 identity or zone object enums. Adding them without their owning domain decisions
 would change unrelated persisted contracts.
 
-## Proposed decision
+## Decision
 
 Add Experimental `fuzzy1337.reachability`, profile version 1. Preserve existing
 model/runtime/provider schemas. Select explicit existing RELATED_TO relation
