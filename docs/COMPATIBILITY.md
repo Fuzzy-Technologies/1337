@@ -152,6 +152,9 @@ The interface grants no authority beyond an explicitly approved scope/policy.
 version `1`. ADR 0040 and `docs/IMAGES.md` define ASSET-based image/package identities,
 verified native/SBOM imports and canonical Finding correlation without changing
 the existing model schema or granting execution authority.
+`TrivyCandidates` and `SyntheticTrivyCandidates` remain Internal pure helpers.
+The synthetic helper has a fixed fixture namespace and does not admit evidence,
+apply a model transition, grant execution or change native import behavior.
 
 `fuzzy1337.discovery` and `fuzzy1337.adapters.native_http` are Experimental
 Python producer/sensor APIs at contract version `1`. ADR 0036 and

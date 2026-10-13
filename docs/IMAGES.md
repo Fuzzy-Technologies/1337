@@ -16,6 +16,13 @@ unchanged. A separate future synthetic importer is described in the
 boundaries require the independently accepted richer operation SDK and are not
 implemented by this factoring.
 
+The Internal `SyntheticTrivyCandidates` helper prepares a detached batch in the
+fixed `synthetic.trivy:owned-synthetic-image-wire-v1:` asset namespace. It rewrites
+all relations, observation subjects and image references, and uses the distinct
+`synthetic.supply-chain.vulnerability` Finding check. It neither admits evidence
+nor applies or saves model state. Native import behavior is unchanged; live
+six-role synthetic ingestion still requires the reviewed producer/consumer path.
+
 ## Identity and correlation
 
 `ImageIdentity(digest, digest_kind)` requires lowercase `sha256:<64 hex>` and an
