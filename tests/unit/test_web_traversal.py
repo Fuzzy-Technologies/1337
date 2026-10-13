@@ -5,14 +5,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import hashlib
+import socket
+from collections.abc import Iterator
 from dataclasses import replace
 
 import pytest
 
 from fuzzy1337.adapters.page_capture import KnownBody, KnownSyntheticHtmlBody
-from fuzzy1337.jobs import JobFailureCode, JobSpec, JobState, ScanJob
+from fuzzy1337.jobs import JobFailureCode, JobSnapshot, JobSpec, JobState, ScanJob
 from fuzzy1337.policy import ImpactPolicy
 from fuzzy1337.requests import Endpoint, RequestTemplate
 from fuzzy1337.web_traversal import (
@@ -20,7 +23,69 @@ from fuzzy1337.web_traversal import (
     OwnedTraversalPage,
     WebTraversalLimits,
 )
-from tests.contract.web_traversal_fixture import PATHS, Body, Fixture, Run
+from tests.contract.web_traversal_fixture import PATHS, Body, Fixture
+
+
+@pytest.fixture(scope="module")
+def owned_traversal_runner() -> Iterator[asyncio.Runner]:
+    """Initialize the owned Windows self-pipe before the function-scoped network guard."""
+
+    with asyncio.Runner() as runner:
+        runner.get_loop()
+        yield runner
+
+
+@pytest.fixture
+def traversal_runner(owned_traversal_runner: asyncio.Runner) -> Iterator[asyncio.Runner]:
+    """Reuse the initialized loop and drain remaining tasks at every isolated test boundary."""
+
+    yield owned_traversal_runner
+
+    async def Cleanup() -> None:
+        """Cancel and await every remaining test-owned task without reopening an event loop."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    owned_traversal_runner.run(Cleanup())
+
+
+def RunJob(job: ScanJob, runner: asyncio.Runner) -> JobSnapshot:
+    """Exercise the actual owning job lifecycle on the preinitialized guarded loop."""
+
+    async def StartAndWait() -> JobSnapshot:
+        """Start and await the actual terminal job without constructing another loop."""
+
+        job.Start()
+
+        return await job.Wait()
+
+    return runner.run(StartAndWait())
+
+
+def test_TraversalRunnerPreservesNetworkDenial(traversal_runner, monkeypatch):
+    """Preinitialized loop reuse never permits provider connections or guarded loop recreation."""
+
+    def ReopenLoop():
+        """Reject accidental lazy self-pipe construction inside the guarded test phase."""
+
+        raise AssertionError("Guarded traversal tests must reuse their initialized event loop")
+
+    monkeypatch.setattr(asyncio.events, "new_event_loop", ReopenLoop)
+
+    async def CheckConnections():
+        """Prove that every unchanged unit connection tripwire remains active on the owned loop."""
+
+        with socket.socket() as connection:
+            for callback in (connection.connect, connection.connect_ex, socket.create_connection):
+                with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                    callback(("127.0.0.1", 9))
+
+    traversal_runner.run(CheckConnections())
 
 
 @pytest.mark.parametrize("path", PATHS)
@@ -121,27 +186,27 @@ def test_CopiedPageCatalogCannotApproveOtherBodyBytes(tmp_path, field, value):
 @pytest.mark.parametrize("field,value", [("workspace_id", "foreign"),
                                          ("scope_reference", "scope:foreign"),
                                          ("provider_id", "native.http")])
-def test_JobOwnershipMismatchNeverStartsAcquisition(tmp_path, field, value):
+def test_JobOwnershipMismatchNeverStartsAcquisition(tmp_path, field, value, traversal_runner):
     """Controller context attribution cannot reuse a different workspace, scope or provider."""
 
     fixture = Fixture.Create(tmp_path / "workspace")
     provider = fixture.Provider()
     spec = replace(JobSpec("job:foreign", "synthetic", "scope:local", "owner:test",
                            "native.loopback-page"), **{field: value})
-    snapshot = Run(ScanJob(spec, provider))
+    snapshot = RunJob(ScanJob(spec, provider), traversal_runner)
     assert snapshot.state is JobState.FAILED, "Mismatched context was accepted"
     assert snapshot.failure.code is JobFailureCode.AUTHORIZATION, "Ownership denial was hidden"
     assert not provider.CompletedUrls, "Mismatched job fabricated completed pages"
     assert provider.UnselectedCandidates == 0, "Preparation fabricated lexical discovery"
 
 
-def test_NoImplicitPolicyPermissionFromCatalogOrLoopback(tmp_path):
+def test_NoImplicitPolicyPermissionFromCatalogOrLoopback(tmp_path, traversal_runner):
     """Known safe body bytes and local URLs never create capability execution authority."""
 
     fixture = Fixture.Create(tmp_path / "workspace")
     provider = LocalWebTraversalProvider(fixture.root, fixture.pages[0].source, fixture.pages,
                                          "local", ImpactPolicy("deny"))
-    snapshot = Run(fixture.Job(provider))
+    snapshot = RunJob(fixture.Job(provider), traversal_runner)
     assert snapshot.state is JobState.FAILED, "Catalog selection bypassed current policy"
     assert snapshot.failure.code is JobFailureCode.AUTHORIZATION, "Policy failure was hidden"
     assert not snapshot.artifacts, "Denied policy retained invented acquisition artifacts"
