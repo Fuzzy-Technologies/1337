@@ -166,6 +166,13 @@ control fulfillment, certification, or Evidence integrity.
 ADR 0025 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
+`fuzzy1337.native_image_capture` is an Internal bounded original VERSION/SCAN
+custody producer under ADR 0058. Exact caller-issued execution authorization,
+explicit selected reads, unchanged material facts and original receipt provenance
+remain required. Observed provider version is separate from the original
+unobserved VERSION invocation. The legacy importer is unchanged; native IMAGE
+product authorization and durable model integration remain separate.
+
 `fuzzy1337.images` is an Experimental offline interpretation library at contract
 version `1`. ADR 0040 and `docs/IMAGES.md` define ASSET-based image/package identities,
 verified native/SBOM imports and canonical Finding correlation without changing

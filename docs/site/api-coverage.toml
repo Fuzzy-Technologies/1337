@@ -49,6 +49,12 @@ mode = "authored"
 page = "api/fuzzy1337.image_workflow.md"
 
 [[surfaces]]
+module = "fuzzy1337.native_image_capture"
+source = "src/fuzzy1337/native_image_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_capture.md"
+
+[[surfaces]]
 module = "fuzzy1337.discovery"
 source = "src/fuzzy1337/discovery.py"
 mode = "authored"
