@@ -124,3 +124,27 @@ def test_ForegroundShellExportsExplicitWorkspaceAndRetainsNoArguments(tmp_path, 
     assert output.getvalue().splitlines()[-2:] == ["report", "report"], (
         "Product history must retain only its explicit namespace."
     )
+
+
+@pytest.mark.parametrize("prefix", ["report;", "report--format=", "report/", "REPORT:",
+                                    "report; '"])
+def test_ActualRejectedReportDispatchCannotLeakMalformedArgumentsOrReplayThem(
+    monkeypatch, capsys, prefix,
+):
+    """The real report command keeps punctuation, missing-space and quoting failures unretained."""
+
+    DenyExecution(monkeypatch)
+    marker = "synthetic-private-argument"
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    assert not shell.onecmd(prefix + " " + marker), "Rejected report input cannot exit the shell."
+    assert shell.lastcmd == "report", "The parsed namespace alone must become replay state."
+    shell.onecmd("")
+    shell.onecmd("history")
+    terminal = capsys.readouterr()
+    assert marker not in output.getvalue() + terminal.out + terminal.err, (
+        "Neither actual command diagnostics nor history/replay may expose rejected report values."
+    )
+    assert output.getvalue().splitlines()[-2:] == ["report", "report"], (
+        "Empty-line replay must not redispatch original report arguments."
+    )

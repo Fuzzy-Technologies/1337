@@ -18,6 +18,8 @@ command, registry and argument rules. An optional `--json` emits a small command
 outcome, not report bytes. Shell history/empty-line replay retains only the
 `report` namespace, following the workspace/scope/scan convention. There is no
 scan, job, subprocess, network call, source synchronization or implicit workspace.
+History/replay classification uses the actual shell dispatch grammar, including
+punctuation or missing-space forms, before any product argument is retained.
 
 Open the explicitly selected workspace and model through `LocalWorkspaceStore`
 and `LocalModelStore`. Open every scope named by workspace references, model

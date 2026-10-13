@@ -420,3 +420,36 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
     assert output.getvalue().splitlines()[-4:] == ["scan", "scan", "scope", "scan"], (
         "Product history must retain only bounded canonical namespaces, including malformed input."
     )
+
+
+@pytest.mark.parametrize("namespace", ["workspace", "scope", "scan", "report"])
+@pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
+def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
+    """Punctuation/missing-space forms dispatch a protected namespace without retaining its argv."""
+
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    marker = "synthetic-private-argument"
+    arguments = []
+
+    def ObserveDispatcher(self, command, argument):
+        """Observe protected replay/history during dispatch without executing a local action."""
+
+        assert self.lastcmd == namespace and marker not in str(self._history), (
+            "Replay/history must already be sanitized while the foreground consumer runs."
+        )
+        assert command == namespace, "The parsed namespace must preserve the shared dispatcher."
+        arguments.append(argument)
+
+    monkeypatch.setattr(InteractiveShell, "RunLocalCommand", ObserveDispatcher)
+    line = namespace + separator + " " + marker
+    _, expected_argument, _ = shell.parseline(line)
+    assert not shell.onecmd(line), "Product dispatch cannot terminate the workbench."
+    assert arguments == [expected_argument], "Sanitization must preserve actual dispatch grammar."
+    assert shell.lastcmd == namespace, "No malformed argument can enter the framework replay state."
+    shell.onecmd("")
+    assert arguments == [expected_argument, ""], "Empty-line repeat may replay only the namespace."
+    shell.onecmd("history")
+    assert output.getvalue().splitlines() == [namespace, namespace], (
+        "History must retain the parsed protected namespace, regardless of raw prefix punctuation."
+    )

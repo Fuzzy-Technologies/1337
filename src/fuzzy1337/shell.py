@@ -210,6 +210,7 @@ class InteractiveShell(cmd.Cmd):
 
         Records ordinary nonempty commands except history in bounded local history.
         Workspace/scope/scan/report retain only their namespace, avoiding rejected secret arguments.
+        Classification uses the dispatch parser before either history or replay state is retained.
 
         Args:
             line: Operator command line to dispatch through cmd.Cmd.
@@ -219,20 +220,26 @@ class InteractiveShell(cmd.Cmd):
         """
 
         normalized = line.strip()
-        command = normalized.split(maxsplit=1)[0].lower() if normalized else ""
+        parsed_command, argument, _ = self.parseline(normalized)
+        command = parsed_command.lower() if parsed_command else ""
+
         if normalized and command != "history":
             self._history.append(
                 command if command in {"workspace", "scope", "scan", "report"} else normalized
             )
 
         if command in {"workspace", "scope", "scan", "report"}:
-            remainder = normalized.split(maxsplit=1)[1:] or [""]
+            handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
+                        "scan": self.do_scan, "report": self.do_report}
+            self.lastcmd = command
 
             try:
-                return super().onecmd(command + " " + remainder[0])
+                handlers[command](argument or "")
+
+                return False
 
             finally:
-                # cmd.Cmd retains raw input for empty-line replay unless explicitly cleared.
+                # The framework must never retain raw product arguments for empty-line replay.
                 self.lastcmd = command
 
         return super().onecmd(line)

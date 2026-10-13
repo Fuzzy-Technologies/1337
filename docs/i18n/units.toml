@@ -4863,7 +4863,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell.onecmd"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:8acd68ce0d3dc5648a4c52213a9d7af669b5a5934a33c971f587094e84e72f8b"
+sourceHash = "sha256:2a38751d5189c9adef64fb29b897e71a20bd5f20f2bb927655d3a179163e631d"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

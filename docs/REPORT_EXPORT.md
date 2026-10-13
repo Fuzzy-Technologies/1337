@@ -13,6 +13,8 @@ The output parent must already exist and the selected file must be absent, outsi
 the source workspace. `--format` and `--output` are required. Use `report export
 <workspace> --format <json|sarif> --output <new-file>` inside the shell; the shell
 uses the same foreground consumer and retains only `report` in history/replay.
+That protection also covers malformed punctuation, missing spaces and quoting;
+the namespace is sanitized before dispatch, including during empty-line replay.
 An opened shell model or selected object supplies no implicit workspace.
 `1337 report --help` describes the command without opening a workspace.
 
