@@ -2,3 +2,9 @@
 tests/contract/fixtures/reporting/sarif-schema-2.1.0.json -text whitespace=cr-at-eol
 tests/contract/fixtures/reporting/snapshot.* -text
 tests/fixtures/image_scan/producer.py text eol=lf
+tests/contract/fixtures/configuration_profiles/dockerfile/safe/Dockerfile text eol=lf
+tests/contract/fixtures/configuration_profiles/dockerfile/unsafe/Dockerfile text eol=lf
+tests/contract/fixtures/configuration_profiles/kubernetes/safe.yaml text eol=lf
+tests/contract/fixtures/configuration_profiles/kubernetes/unsafe.yaml text eol=lf
+tests/contract/fixtures/configuration_profiles/kubernetes/multi.yaml text eol=lf
+tests/fixtures/configuration_scan/producer.py text eol=lf

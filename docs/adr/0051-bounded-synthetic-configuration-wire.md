@@ -2,8 +2,8 @@
 
 ## Status
 
-Proposed — 2026-10-13. Task #158; related work #138 and #278.
-Implementation requires acceptance of this decision. This independent fixture
+Accepted producer decision — 2026-10-13. Task #158; related work #138 and #278.
+This approval covers only the independent bounded producer slice. This fixture
 producer is not an artifact SDK registration, native Trivy adapter, configuration
 model importer or assembled governed workflow. The accepted artifact SDK remains
 a prerequisite for any later governed launch and model acceptance.
@@ -101,6 +101,11 @@ the declared scratch partition. The future SDK owns executable/stage authority
 and its complete physical checks; no general command registration is introduced.
 Pre/post checks assume exclusive owner control and do not prove OS immutability
 against an adversarial concurrent writer.
+Path-to-open-handle binding retains common nonzero device/inode/type/size/mtime
+facts. Full before/after identities are compared within each metadata method.
+Only Windows path/fstat ctime differences are excluded from the cross-method
+comparison; neither common identity nor same-method change checks are removed.
+Narrow LF checkout rules preserve every source-hashed corpus file and producer.
 
 ### Exact offline result wire
 
