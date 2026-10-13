@@ -206,6 +206,24 @@ def test_MalformedOrUnscopedPackageClaimsFailClosed(context, change):
         Import(context, source)
 
 
+@pytest.mark.parametrize("field", ["licenseDeclared", "licenseConcluded"])
+@pytest.mark.parametrize("expression", [
+    "licenseref-owned", "MIT OR licenseref-owned", "LiCeNsErEf-Owned",
+    "documentref-other:licenseref-owned", "MIT AND DoCuMeNtReF-Other:LiCeNsErEf-Owned",
+])
+def test_CaseVariantScopedLicenseReferencesCannotBecomeGlobalAssets(context, field, expression):
+    """Scoped license references retain their guard independently of expression prefix case."""
+
+    root, initial, _ = context
+    source = Document()
+    source["packages"][1][field] = expression
+
+    with pytest.raises(ValueError, match="scoped license"):
+        Import(context, source)
+
+    assert LocalModelStore(root).Open() == initial, "Scoped license failure wrote partial state"
+
+
 @pytest.mark.parametrize("kind,source,target", [
     ("DEPENDS_ON", "SPDXRef-Image", "SPDXRef-Owned-Lib"),
     ("CONTAINS", "SPDXRef-Owned-Lib", "SPDXRef-Image"),

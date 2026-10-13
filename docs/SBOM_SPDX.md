@@ -54,7 +54,8 @@ Declared/concluded license fields remain separate attributed facts. Missing,
 NONE and NOASSERTION license values create no license entity. Bounded other
 declared expressions reuse existing declaration assets; no expression validity,
 license-list membership or compliance is claimed. LicenseRef/DocumentRef meanings
-need a separate scoped identity decision and are rejected in this profile.
+need a separate scoped identity decision and are rejected in this profile,
+including case variants inside compound expressions.
 
 ## Bounds and interpretation
 

@@ -321,7 +321,7 @@ def SpdxLicense(value: object, *, present: bool) -> dict[str, object]:
 
     text = Text(value)
 
-    if "LicenseRef-" in text or "DocumentRef-" in text:
+    if "licenseref-" in text.casefold() or "documentref-" in text.casefold():
         raise ValueError("SPDX scoped license references require a separate identity profile")
 
     if text in {"NONE", "NOASSERTION"}:

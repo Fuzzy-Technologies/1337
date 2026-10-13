@@ -48,7 +48,8 @@ Keep declared and concluded licenses separate. NONE, NOASSERTION and omitted
 values express information states; they are not license entities. Other bounded
 declared expressions reuse existing attributed declarations without evaluating
 license compliance. Reject LicenseRef and DocumentRef expressions because their
-meaning requires a scoped license identity absent from the accepted model.
+meaning requires a scoped license identity absent from the accepted model. This
+guard also rejects case variants within compound expressions.
 
 ## Consequences
 
