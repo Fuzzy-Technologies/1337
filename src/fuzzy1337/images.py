@@ -40,6 +40,7 @@ from fuzzy1337.workspace import LocalWorkspaceStore
 IMAGE_CONTRACT_VERSION = 1
 IMAGE_IMPORT_MAX_BYTES = 4 * 1024 * 1024
 IMAGE_IMPORT_MAX_ITEMS = 4096
+_SYNTHETIC_IMAGE_PREFIX = "synthetic.trivy:owned-synthetic-image-wire-v1:"
 _DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _TYPE = re.compile(r"[a-z][a-z0-9.+-]*\Z")
 _BAD_PERCENT = re.compile(r"%(?![0-9a-fA-F]{2})")
@@ -648,6 +649,69 @@ def TrivyCandidates(workspace_id: str, payload: dict[str, object],
                 provenance))
 
     return objects, relations, observations, findings
+
+
+def SyntheticTrivyCandidates(workspace_id: str, payload: dict[str, object],
+                             version: dict[str, object], database: dict[str, object],
+                             provenance: ModelProvenance) -> tuple[
+                                 list[SecurityObject], list[Relation],
+                                 list[Observation], list[Finding],
+                             ]:
+    """Isolate every reviewed synthetic asset and reference after pure wire interpretation.
+
+    Args:
+        workspace_id: Existing owning workspace identifier.
+        payload: Strictly decoded closed synthetic image wire.
+        version: Independently observed synthetic VERSION stdout.
+        database: Verified fixed synthetic database interpretation.
+        provenance: Original synthetic execution and six-role evidence attribution.
+
+    Returns:
+        Detached candidates in the fixed fixture namespace, without evidence I/O or model writes.
+
+    Raises:
+        ValueError: Attribution or package/wire fields do not match the supported family.
+    """
+
+    if provenance.source_id != "synthetic.trivy" or provenance.provider_version != (
+        "0.75.0-synthetic"
+    ):
+        raise ValueError("synthetic image candidates require the closed synthetic attribution")
+
+    objects, relations, observations, findings = TrivyCandidates(
+        workspace_id, payload, version, database, provenance
+    )
+
+    if any(item.identity.kind is not ObjectKind.ASSET or not item.identity.key.startswith((
+        "image-config:", "image-manifest:", "package-version:", "operating-system:",
+        "image-layer-diffid:", "license-declaration:",
+    )) for item in objects) or any(
+        item.check_id != "supply-chain.vulnerability" for item in findings
+    ):
+        raise ValueError("synthetic image candidates require the closed asset and check families")
+
+    isolated = [replace(item, identity=replace(item.identity,
+        key=_SYNTHETIC_IMAGE_PREFIX + item.identity.key)) for item in objects]
+    references = {old.Reference(): new.Reference()
+                  for old, new in zip(objects, isolated, strict=True)}
+    isolated_relations = [replace(item,
+        source_reference=references[item.source_reference],
+        target_reference=references[item.target_reference]) for item in relations]
+    isolated_observations = []
+
+    for item in observations:
+        attributes = dict(item.attributes)
+
+        if "image_reference" in attributes:
+            attributes["image_reference"] = references[cast(str, attributes["image_reference"])]
+
+        isolated_observations.append(replace(item,
+            subject_reference=references[item.subject_reference], attributes=attributes))
+
+    isolated_findings = [replace(item, subject_reference=references[item.subject_reference],
+        check_id="synthetic.supply-chain.vulnerability") for item in findings]
+
+    return isolated, isolated_relations, isolated_observations, isolated_findings
 
 
 def ApplyVerifiedTrivyImages(state: ModelState, report: AdapterReport,
