@@ -89,7 +89,7 @@ def ParseFixturePolicy(payload: bytes) -> str:
 
 
 def Main() -> int:
-    """Exercise bounded synthetic lifecycle modes through the fixed profile wire.
+    """Exercise bounded synthetic lifecycle modes with exact LF byte streams.
 
     Returns:
         Zero for synthetic lifecycle completion, seven for the owned failure mode.
@@ -139,11 +139,13 @@ def Main() -> int:
     files = [path for path in selected if path.is_file()]
 
     if mode == "wait":
-        print("owned-ready", flush=True)
+        sys.stdout.buffer.write(b"owned-ready\n")
+        sys.stdout.buffer.flush()
         time.sleep(60)
 
     if mode == "overflow":
-        print("x" * 65536, flush=True)
+        sys.stdout.buffer.write(b"x" * 65536 + b"\n")
+        sys.stdout.buffer.flush()
 
     if mode == "mutate":
         files[0].chmod(stat.S_IRUSR | stat.S_IWUSR)
@@ -153,8 +155,10 @@ def Main() -> int:
         Path("scratch-output.txt").write_bytes(b"owned-scratch")
 
     if mode == "failure":
-        print("owned-partial-output", flush=True)
-        print("owned-failure", file=sys.stderr, flush=True)
+        sys.stdout.buffer.write(b"owned-partial-output\n")
+        sys.stdout.buffer.flush()
+        sys.stderr.buffer.write(b"owned-failure\n")
+        sys.stderr.buffer.flush()
 
         return 7
 
@@ -167,7 +171,8 @@ def Main() -> int:
             for path in files
         ],
     }
-    print(json.dumps(payload, sort_keys=True), flush=True)
+    sys.stdout.buffer.write(json.dumps(payload, sort_keys=True).encode("utf-8") + b"\n")
+    sys.stdout.buffer.flush()
 
     return 0
 

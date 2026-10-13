@@ -62,7 +62,7 @@ from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceFields
 # Source updates and matching LF byte identities require independent source review.
 _REVIEWED_PRODUCERS = frozenset(
     {
-        "48626d65b8e4d092859ed948507b8162a5e276b70599469e65fe8abc179a6bb1",
+        "2a07b2d817b1294305bedae203b8ae7f968c2eb27838d873becd0d29071ac91d",
     }
 )
 _SYNTHETIC_PROFILES = frozenset(

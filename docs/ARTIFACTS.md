@@ -57,6 +57,11 @@ strict UTF-8 JSON: duplicate/nonfinite values and version/type aliases fail befo
 grant issuance and in the worker itself. Real compatible scanner/material acceptance remains
 work in #140, #142 and #158; no tool or database is downloaded here.
 
+The closed lifecycle worker emits exact LF-delimited stdout/stderr bytes on every
+platform. The executor retains those original bytes; it applies no newline
+normalization. Readiness consumers accumulate bounded stream prefixes because
+executor events are chunks rather than line records.
+
 Build `ArtifactPolicyContext(current_scope, current_policy, owner_ref)` and call
 `ArtifactPolicyEngine.Authorize(prepared, stage, context, at=aware_time)`.
 The engine independently reopens the workspace and same scope document. Scope

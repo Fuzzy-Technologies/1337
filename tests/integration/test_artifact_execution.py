@@ -60,14 +60,55 @@ def test_ReviewedOwnedProfileReturnsRawAndFreshReceipt(tmp_path, profile):
         asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
 
 
-def test_RetiredExactWorkerCannotLaunchButOriginalEvidenceStillReplays(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "retired_hash",
+    [
+        "6cec015e044f290f2f5f48d04156fe1430ba679ee629505100e192459d10ec7a",
+        "48626d65b8e4d092859ed948507b8162a5e276b70599469e65fe8abc179a6bb1",
+    ],
+    ids=["retired-parser", "retired-text-wire"],
+)
+def test_RetiredExactWorkerCannotLaunchButOriginalEvidenceStillReplays(
+    tmp_path, monkeypatch, retired_hash
+):
     """An actual historical reviewed producer keeps provenance after its live catalog retires."""
 
-    retired_hash = "6cec015e044f290f2f5f48d04156fe1430ba679ee629505100e192459d10ec7a"
     current_source = Path(artifact_fixture_worker.__file__).read_bytes()
     retired_source = current_source.replace(
-        b"argparse.ArgumentParser(allow_abbrev=False)", b"argparse.ArgumentParser()"
-    ).replace(b"parser.parse_intermixed_args()", b"parser.parse_args()")
+        b"Exercise bounded synthetic lifecycle modes with exact LF byte streams.",
+        b"Exercise bounded synthetic lifecycle modes through the fixed profile wire.",
+    )
+
+    for byte_wire, text_wire in (
+        (
+            b'sys.stdout.buffer.write(b"owned-ready\\n")\n        sys.stdout.buffer.flush()',
+            b'print("owned-ready", flush=True)',
+        ),
+        (
+            b'sys.stdout.buffer.write(b"x" * 65536 + b"\\n")\n        sys.stdout.buffer.flush()',
+            b'print("x" * 65536, flush=True)',
+        ),
+        (
+            b'sys.stdout.buffer.write(b"owned-partial-output\\n")'
+            b'\n        sys.stdout.buffer.flush()',
+            b'print("owned-partial-output", flush=True)',
+        ),
+        (
+            b'sys.stderr.buffer.write(b"owned-failure\\n")\n        sys.stderr.buffer.flush()',
+            b'print("owned-failure", file=sys.stderr, flush=True)',
+        ),
+        (
+            b'sys.stdout.buffer.write(json.dumps(payload, sort_keys=True).encode("utf-8") + b"\\n")'
+            b'\n    sys.stdout.buffer.flush()',
+            b'print(json.dumps(payload, sort_keys=True), flush=True)',
+        ),
+    ):
+        retired_source = retired_source.replace(byte_wire, text_wire)
+
+    if retired_hash.startswith("6cec"):
+        retired_source = retired_source.replace(
+            b"argparse.ArgumentParser(allow_abbrev=False)", b"argparse.ArgumentParser()"
+        ).replace(b"parser.parse_intermixed_args()", b"parser.parse_args()")
 
     assert hashlib.sha256(retired_source).hexdigest() == retired_hash, (
         "The historical fixture no longer equals the exact source-reviewed retired producer"
@@ -148,7 +189,8 @@ def test_RealFailureKeepsExactRawFactsBeforeRefusal(tmp_path, mode, termination)
         assert outcome.raw_result.stderr == b"owned-failure\n", "Raw stderr was discarded"
 
 
-def test_CooperativeCancellationReturnsRawBeforeAcceptanceDenial(tmp_path):
+@pytest.mark.parametrize("fragmented", [False, True], ids=["native-chunks", "fragmented-readiness"])
+def test_CooperativeCancellationReturnsRawBeforeAcceptanceDenial(tmp_path, fragmented):
     """Cancellation after owned readiness returns actual partial bytes and cancelled facts."""
 
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path, mode="wait")
@@ -157,19 +199,36 @@ def test_CooperativeCancellationReturnsRawBeforeAcceptanceDenial(tmp_path):
         """Cancel only the actual owned worker after its explicit readiness bytes."""
 
         cancelled = asyncio.Event()
+        readiness = bytearray()
+        ready_marker = b"owned-ready\n"
 
         def OnEvent(event):
             """Use only this owned worker's stdout event as deterministic cancellation readiness."""
 
-            if event.data == b"owned-ready\n":
+            if event.kind != ExecutionEventKind.STDOUT:
+                return
+
+            readiness.extend(event.data[: len(ready_marker) - len(readiness)])
+
+            if readiness == ready_marker:
                 cancelled.set()
+
+        def ObservedEvent(event):
+            """Exercise fragmented readiness without rewriting retained raw events or bytes."""
+
+            if fragmented and event.kind == ExecutionEventKind.STDOUT:
+                for byte in event.data:
+                    OnEvent(replace(event, data=bytes([byte])))
+
+            else:
+                OnEvent(event)
 
         return await GovernedArtifactExecutor(root, clock=lambda: AT).Execute(
             prepared,
             stage,
             grant,
             lambda: context,
-            on_event=OnEvent,
+            on_event=ObservedEvent,
             cancellation=cancelled,
         )
 

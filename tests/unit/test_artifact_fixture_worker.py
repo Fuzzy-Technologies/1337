@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import runpy
 import sys
@@ -13,6 +14,41 @@ from pathlib import Path
 import pytest
 
 from fuzzy1337 import artifact_fixture_worker as worker
+
+
+@pytest.mark.parametrize("mode", ["success", "failure", "wait", "overflow"])
+def test_LifecycleWireBypassesPlatformTextNewlineTranslation(tmp_path, monkeypatch, mode):
+    """A CRLF-translating text wrapper cannot change this source-owned byte protocol."""
+
+    policy = {"schema_version": 1, "fixture_id": "owned-artifact-lifecycle-v1", "mode": mode}
+    monkeypatch.setattr(sys, "argv", Arguments(tmp_path, policy))
+    stdout = io.BytesIO()
+    stderr = io.BytesIO()
+    stdout_text = io.TextIOWrapper(stdout, encoding="utf-8", newline="\r\n")
+    stderr_text = io.TextIOWrapper(stderr, encoding="utf-8", newline="\r\n")
+    monkeypatch.setattr(sys, "stdout", stdout_text)
+    monkeypatch.setattr(sys, "stderr", stderr_text)
+    monkeypatch.setattr(worker.time, "sleep", lambda _seconds: None)
+    code = worker.Main()
+    stdout_text.flush()
+    stderr_text.flush()
+    raw_stdout = stdout.getvalue()
+    raw_stderr = stderr.getvalue()
+
+    assert b"\r" not in raw_stdout + raw_stderr, (
+        "Text newline translation changed raw protocol bytes"
+    )
+    assert raw_stdout.endswith(b"\n"), "The portable byte protocol lost its exact LF delimiter"
+
+    if mode == "failure":
+        assert code == 7 and raw_stdout == b"owned-partial-output\n", "Failure stdout changed"
+        assert raw_stderr == b"owned-failure\n", "Failure stderr changed"
+
+    elif mode == "wait":
+        assert raw_stdout.startswith(b"owned-ready\n"), "Cancellation readiness delimiter changed"
+
+    elif mode == "overflow":
+        assert raw_stdout.startswith(b"x" * 65536 + b"\n"), "Overflow byte fixture changed"
 
 
 def Arguments(tmp_path, policy):

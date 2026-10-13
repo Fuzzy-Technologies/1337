@@ -8369,7 +8369,7 @@ state = "missing"
 id = "symbol:fuzzy1337.artifact_fixture_worker.Main"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_fixture_worker.py"
-sourceHash = "sha256:15b0748c08faf049d3c80294f55aa2542442532d317fc4fd0c512c2e408ddebd"
+sourceHash = "sha256:9376c0d6842e69e27f8a2bc630c54483521ee0ed51d4a4cba19b1ae9d2ff2e8c"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
