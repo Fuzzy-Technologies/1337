@@ -8058,6 +8058,116 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.sbom-spdx"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.sbom_spdx.md"
+sourceHash = "sha256:32309f8154d2ef0e78b8fd390106b951fb0932678211d8ec9c617fe647eefd03"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.ApplyVerifiedSpdx"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:eb953eead5ffc7794ce424e2566d6f93110237a734c43e17303ac6a83a80c039"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.SpdxCatalog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:2c9014d19ea6564d7e0c91b92aa0e778e99cde55634ca81e56a813936a1bcc41"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.SpdxGraph"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:2d77e3b47fa47b3b4262e2c2098ab0f82bac4c6e10d8f8ff9de75187180c6d93"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.SpdxHeader"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:89264d3f08539363927e472a6f9ee3f2797dbc842c5053211462fe9bed762837"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.SpdxIdentifier"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:4917808d1338bd08e1d6a279cdf6063809827b02e2e48fc201864141b193f7fd"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.SpdxJson"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:9bfc5504766bfc49578a0f84cc3e5fec53db43fa1ed9a4715af7c59e0343606a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.SpdxLicense"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:c38dab838568880fd98817c0cf453ee6ef11fb7efd26529f7d03100fcbd147b9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.SpdxPurl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:56859091d53b68d037f5982a21199e11b435f978780dd3a7e7f6bdc2efdd6b50"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_spdx.SpdxUnsupported"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_spdx.py"
+sourceHash = "sha256:756c522415dbc6b891dc8eb4d164ea02d5fa5742eb76c9d76181c36989d674db"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
 [[units]]
 id = "page:api.fuzzy1337.api-request-generation"
 kind = "page"

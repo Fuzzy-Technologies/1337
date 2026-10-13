@@ -141,6 +141,13 @@ published as `contracts/native-http-record.schema.json`; destination binding is
 additionally enforced by the authoritative parser. `fuzzy1337.native_http_worker`
 is Internal and must not be used as an independent authorization/execution API.
 
+`fuzzy1337.sbom_spdx` is an Experimental offline package-inventory interpretation
+library at contract version `1`. ADR 0043 and `docs/SBOM_SPDX.md` define a bounded
+SPDX 2.3 JSON profile over existing image/package assets, verified evidence and
+document-scoped aliases. `ApplyVerifiedSpdx` and `SPDX_IMPORT_VERSION` are its
+supported surface; other helpers remain Internal. General SPDX graphs, VEX,
+signatures and execution authority are outside this contract.
+
 ## Version compatibility rules
 
 `fuzzy1337.intelligence` is an Experimental Python library and snapshot schema
@@ -256,30 +263,31 @@ Changes to a Stable contract require:
 
 Current versioned public contracts:
 
-| Contract family       | Schema version | Location                                                             | Status       |
-| --------------------- | -------------- | -------------------------------------------------------------------- | ------------ |
-| Extension manifest    | `1`            | `contracts/extension-manifest.schema.json`                           | Stable       |
-| Targets and Scope     | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`                                   | Experimental |
-| Workspace state       | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`                          | Experimental |
-| ToolAdapter SDK       | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`                        | Experimental |
-| Security Model        | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`                          | Experimental |
-| Intel references      | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md`             | Experimental |
-| Local Evidence Store  | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`                             | Experimental |
-| Nmap adapter          | `1`            | `fuzzy1337.adapters.nmap`                                            | Experimental |
-| Nuclei adapter        | `1`            | `fuzzy1337.adapters.nuclei`                                          | Experimental |
-| Report projection     | `1`            | `fuzzy1337.reporting`; `report_formats`                              | Experimental |
-| Executor SDK          | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`                           | Experimental |
-| Web request model     | `1`            | `fuzzy1337.requests`                                                 | Experimental |
-| Offline API import    | `1`            | `fuzzy1337.openapi`; `docs/OPENAPI.md`                               | Experimental |
-| Impact policy         | `1`            | `fuzzy1337.policy`                                                   | Experimental |
-| Scan jobs             | `1`            | `fuzzy1337.jobs`                                                     | Experimental |
-| Finding core          | `1`            | `fuzzy1337.findings`                                                 | Experimental |
-| Image/package model   | `1`            | `fuzzy1337.images`; `docs/IMAGES.md`                                 | Experimental |
-| Workflow lenses       | `1`            | `fuzzy1337.lenses`                                                   | Experimental |
-| Quick Scan summary    | `1`            | `contracts/quick-scan-summary.schema.json`                           | Experimental |
-| Synthetic journeys    | `1`            | `contracts/journey-scenario.schema.json`                             | Experimental |
-| Standards Mappings    | `1`            | `fuzzy1337.standards_mapping`; `docs/STANDARDS_MAPPING.md`           | Experimental |
-| Vulnerability Intel   | `1`            | `fuzzy1337.intelligence`; `docs/INTELLIGENCE.md`                     | Experimental |
-| Synthetic API request | `1`            | `fuzzy1337.api_request_generation`; `docs/API_REQUEST_GENERATION.md` | Experimental |
+| Contract family        | Schema version | Location                                                             | Status       |
+| ---------------------- | -------------- | -------------------------------------------------------------------- | ------------ |
+| Extension manifest     | `1`            | `contracts/extension-manifest.schema.json`                           | Stable       |
+| Targets and Scope      | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`                                   | Experimental |
+| Workspace state        | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`                          | Experimental |
+| ToolAdapter SDK        | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`                        | Experimental |
+| Security Model         | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`                          | Experimental |
+| Intel references       | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md`             | Experimental |
+| Local Evidence Store   | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`                             | Experimental |
+| Nmap adapter           | `1`            | `fuzzy1337.adapters.nmap`                                            | Experimental |
+| Nuclei adapter         | `1`            | `fuzzy1337.adapters.nuclei`                                          | Experimental |
+| Report projection      | `1`            | `fuzzy1337.reporting`; `report_formats`                              | Experimental |
+| Executor SDK           | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`                           | Experimental |
+| Web request model      | `1`            | `fuzzy1337.requests`                                                 | Experimental |
+| Offline API import     | `1`            | `fuzzy1337.openapi`; `docs/OPENAPI.md`                               | Experimental |
+| Impact policy          | `1`            | `fuzzy1337.policy`                                                   | Experimental |
+| Scan jobs              | `1`            | `fuzzy1337.jobs`                                                     | Experimental |
+| Finding core           | `1`            | `fuzzy1337.findings`                                                 | Experimental |
+| Image/package model    | `1`            | `fuzzy1337.images`; `docs/IMAGES.md`                                 | Experimental |
+| Workflow lenses        | `1`            | `fuzzy1337.lenses`                                                   | Experimental |
+| Quick Scan summary     | `1`            | `contracts/quick-scan-summary.schema.json`                           | Experimental |
+| Synthetic journeys     | `1`            | `contracts/journey-scenario.schema.json`                             | Experimental |
+| Standards Mappings     | `1`            | `fuzzy1337.standards_mapping`; `docs/STANDARDS_MAPPING.md`           | Experimental |
+| Vulnerability Intel    | `1`            | `fuzzy1337.intelligence`; `docs/INTELLIGENCE.md`                     | Experimental |
+| SPDX package inventory | `1`            | `fuzzy1337.sbom_spdx`; `docs/SBOM_SPDX.md`                           | Experimental |
+| Synthetic API request  | `1`            | `fuzzy1337.api_request_generation`; `docs/API_REQUEST_GENERATION.md` | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
