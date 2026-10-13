@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Explicit local workspace, consent and bounded Quick Scan product commands."""
+"""Explicit workspace, consent and bounded endpoint/synthetic-image product commands."""
 
 from __future__ import annotations
 
@@ -15,8 +15,10 @@ from typing import NoReturn, TextIO
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters import SerializeContract
+from fuzzy1337.artifact_inputs import ArtifactReadConsent
 from fuzzy1337.discovery import DiscoveryLimits
 from fuzzy1337.evidence import EvidenceError, LocalEvidenceStore
+from fuzzy1337.image_workflow import ImageScanSelection, ImageScanSummary, RunSyntheticImageScan
 from fuzzy1337.jobs import JobEvent, JobEventKind
 from fuzzy1337.model import LocalModelStore, ObjectKind
 from fuzzy1337.nucleiscan import (
@@ -172,9 +174,13 @@ def CreateScope(path: Path, arguments: argparse.Namespace) -> dict[str, object]:
     workspace = workspace_store.Open()
     targets = tuple(Endpoint(value) for value in arguments.allow_url) + tuple(
         Target(TargetKind.IP, value) for value in arguments.allow_ip
+    ) + tuple(
+        Target(TargetKind.ARTIFACT, value) for value in arguments.allow_artifact
     )
     exclusions = tuple(Endpoint(value) for value in arguments.exclude_url) + tuple(
         Target(TargetKind.IP, value) for value in arguments.exclude_ip
+    ) + tuple(
+        Target(TargetKind.ARTIFACT, value) for value in arguments.exclude_artifact
     )
 
     if not targets or len(targets) + len(exclusions) > 64:
@@ -223,8 +229,11 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         create.add_argument("--id", required=True)
         create.add_argument("--allow-url", action="append", default=[])
         create.add_argument("--allow-ip", action="append", default=[])
+        create.add_argument("--allow-artifact", action="append", default=[],
+                            help="Explicit manifest-sha256:<lowercase-sha256> artifact target.")
         create.add_argument("--exclude-url", action="append", default=[])
         create.add_argument("--exclude-ip", action="append", default=[])
+        create.add_argument("--exclude-artifact", action="append", default=[])
         create.add_argument("--grant-consent", action="store_true")
         create.add_argument("--owner")
         create.add_argument("--consent-reference")
@@ -257,6 +266,25 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         nuclei.add_argument("--confirm-plan")
         nuclei.add_argument("--confirmation-reference")
         nuclei.add_argument("--events-json", action="store_true")
+        image = actions.add_parser("image", help="Run the closed synthetic image workflow.")
+        image.add_argument("path", type=Path)
+        image.add_argument("--profile", choices=("synthetic",), required=True,
+                           help="Explicitly select synthetic fixture interpretation.")
+        image.add_argument("--scope", required=True)
+        image.add_argument("--owner", required=True)
+        image.add_argument("--archive", type=Path, required=True)
+        image.add_argument("--executable", type=Path, required=True,
+                           help="Absolute selected current trusted CPython executable.")
+        image.add_argument("--producer", type=Path, required=True,
+                           help="Absolute selected reviewed first-party image worker.")
+        image.add_argument("--material", type=Path, required=True,
+                           help="Absolute selected synthetic material policy.")
+        image.add_argument("--read-consent-reference", required=True)
+        image.add_argument("--approve-safe-image", action="store_true")
+        image.add_argument("--timeout", type=int, default=30)
+        image.add_argument("--report-format", choices=("json", "sarif"))
+        image.add_argument("--report-output", type=Path)
+        image.add_argument("--events-json", action="store_true")
 
     else:
         raise ValueError("unsupported local command namespace")
@@ -293,6 +321,11 @@ def RunCommands(
 
     if command == "scan" and arguments.events_json and json_output:
         parser.error("choose --json or --events-json")
+
+    if command == "scan" and arguments.action == "image" and (
+        (arguments.report_format is None) != (arguments.report_output is None)
+    ):
+        parser.error("supply both report format and new output destination")
 
     if command == "scan" and arguments.action == "nuclei":
         if bool(arguments.confirm_plan) != bool(arguments.confirmation_reference):
@@ -345,12 +378,25 @@ def RunCommands(
                     output.flush()
 
             if arguments.action == "nuclei":
-                summary: NucleiScanSummary | QuickScanSummary = asyncio.run(RunNucleiScan(
-                    arguments.path, arguments.scope, target, arguments.owner, profile,
-                    arguments.executable, ReadPolicy,
-                    confirmation=PolicyConfirmation(arguments.confirm_plan,
-                        arguments.confirmation_reference) if arguments.confirm_plan else None,
-                    limits=nuclei_limits, on_event=OnEvent,
+                summary: NucleiScanSummary | QuickScanSummary | ImageScanSummary = asyncio.run(
+                    RunNucleiScan(
+                        arguments.path, arguments.scope, target, arguments.owner, profile,
+                        arguments.executable, ReadPolicy,
+                        confirmation=PolicyConfirmation(arguments.confirm_plan,
+                            arguments.confirmation_reference) if arguments.confirm_plan else None,
+                        limits=nuclei_limits, on_event=OnEvent,
+                    )
+                )
+
+            elif arguments.action == "image":
+                selection = ImageScanSelection(arguments.archive, arguments.executable,
+                    arguments.producer, arguments.material,
+                    ArtifactReadConsent(arguments.owner, arguments.read_consent_reference))
+                summary = asyncio.run(RunSyntheticImageScan(
+                    arguments.path, arguments.scope, arguments.owner, selection,
+                    approve_safe_image=arguments.approve_safe_image,
+                    timeout_seconds=arguments.timeout, on_event=OnEvent,
+                    report_format=arguments.report_format, report_output=arguments.report_output,
                 ))
 
             else:
@@ -375,7 +421,8 @@ def RunCommands(
                 WriteJson(output, document)
 
             else:
-                label = "Nuclei Scan" if arguments.action == "nuclei" else "Quick Scan"
+                label = {"nuclei": "Nuclei Scan", "image": "Synthetic Image Scan",
+                         "quick": "Quick Scan"}[arguments.action]
                 output.write(f"{label} {summary.snapshot.state.value}; "
                              f"model revision {summary.model_revision}; "
                              f"evidence records {len(summary.snapshot.artifacts)}\n")

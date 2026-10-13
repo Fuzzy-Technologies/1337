@@ -194,9 +194,9 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="scan",
-            summary="Run bounded explicitly approved SAFE endpoint discovery.",
-            usage="1337 scan quick <workspace>",
-            capabilities=("http.endpoint-discovery",),
+            summary="Run explicitly governed endpoint or closed synthetic image workflows.",
+            usage="1337 scan <quick|nuclei|image> <workspace>",
+            capabilities=("http.endpoint-discovery", "image.archive-vulnerabilities"),
         ),
         CommandDescriptor(
             identifier="report",
