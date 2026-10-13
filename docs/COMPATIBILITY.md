@@ -68,6 +68,13 @@ the exact anonymous synthetic schema/serialization subset, original-source
 validation, bounded ephemeral previews and existing actual-target scope handoff.
 It grants no scope, method, authentication or execution permission.
 
+`fuzzy1337.captured_web` is an Experimental offline Python consumer at frontier
+profile version `1`. ADR 0050 and `docs/CAPTURED_WEB.md` define owner-verified
+explicit HTML artifacts, caller-associated sources, bounded lexical anchor
+interpretation, exact per-URL scope preparation, deterministic partial frontiers
+and pure existing request/model projection. Source hashes authenticate neither
+transport nor collector; the consumer grants no browser/network execution authority.
+
 `fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.
@@ -307,5 +314,6 @@ Current versioned public contracts:
 | Synthetic API request  | `1`            | `fuzzy1337.api_request_generation`; `docs/API_REQUEST_GENERATION.md` | Experimental |
 | Local artifacts        | `1`            | `contracts/artifact-manifest.schema.json`; `docs/ARTIFACTS.md`       | Experimental |
 | Offline Reachability   | `1`            | `fuzzy1337.reachability`; `docs/REACHABILITY.md`                     | Experimental |
+| Captured web frontier  | `1`            | `fuzzy1337.captured_web`; `docs/CAPTURED_WEB.md`                     | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
