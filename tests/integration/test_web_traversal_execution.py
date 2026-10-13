@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import socket
 import threading
 import time
 from dataclasses import replace
@@ -34,15 +35,23 @@ ORACLE = json.loads((Path(__file__).parents[1] / "contract" / "fixtures" /
                      "web-traversal.oracle.v1.json").read_text())
 
 
+class JoinedOwnedHTTPServer(ThreadingHTTPServer):
+    """Keep request workers non-daemon so native server_close joins every owned response."""
+
+    daemon_threads = False
+    block_on_close = True
+
+
 class OwnedPages:
     """Own an actual finite loopback HTTP service and measure requests/concurrent transport."""
 
-    def __init__(self, *, delays=None, failures=None, holds=None):
+    def __init__(self, *, delays=None, failures=None, holds=None, barriers=None):
         """Start only a literal ephemeral loopback listener with fixed non-secret page responses."""
 
         self.delays = {} if delays is None else delays
         self.failures = {} if failures is None else failures
         self.holds = {} if holds is None else holds
+        self.barriers = {} if barriers is None else barriers
         self.requests = []
         self.starts = []
         self.lock = threading.Lock()
@@ -73,8 +82,11 @@ class OwnedPages:
                         owner.wave_received.set()
 
                 try:
-                    if self.path in owner.holds:
-                        owner.holds[self.path].wait(5)
+                    if self.path in owner.barriers:
+                        owner.barriers[self.path].wait(5)
+
+                    if self.path in owner.holds and not owner.holds[self.path].wait(5):
+                        return
 
                     owner.stop.wait(owner.delays.get(self.path, 0))
                     failure = owner.failures.get(self.path)
@@ -96,14 +108,14 @@ class OwnedPages:
                     self.wfile.write(body)
                     self.close_connection = True
 
-                except (BrokenPipeError, ConnectionResetError):
+                except (BrokenPipeError, ConnectionResetError, threading.BrokenBarrierError):
                     pass
 
                 finally:
                     with owner.lock:
                         owner.active -= 1
 
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server = JoinedOwnedHTTPServer(("127.0.0.1", 0), Handler)
         self.origin = "http://127.0.0.1:" + str(self.server.server_address[1])
         self.thread = threading.Thread(target=self.server.serve_forever,
                                        kwargs={"poll_interval": 0.02}, daemon=True)
@@ -113,6 +125,13 @@ class OwnedPages:
         """Stop responses and join every owned listener/response thread even after cancellation."""
 
         self.stop.set()
+
+        for hold in self.holds.values():
+            hold.set()
+
+        for barrier in self.barriers.values():
+            barrier.abort()
+
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(2)
@@ -156,7 +175,9 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
 
     beta_captured = threading.Event()
     dispatch_starts = []
-    server = owned_pages(holds={"/alpha": beta_captured})
+    response_barrier = threading.Barrier(2)
+    server = owned_pages(holds={"/alpha": beta_captured},
+        barriers={"/alpha": response_barrier, "/beta": response_barrier})
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
     provider = fixture.Provider(page_limits=PageCaptureLimits(request_timeout_seconds=5))
     original = LocalPageCaptureProvider.Acquire
@@ -536,3 +557,89 @@ def test_ActualMinimalTwoDigitBodyReplyUsesSameGovernedTraversalPath(tmp_path):
 
     finally:
         server.Close()
+
+
+def test_OwnedTargetCloseJoinsActualResponseFinalizerBeforeReturning(monkeypatch):
+    """Teardown must join an owned response thread even after its HTTP handler has returned."""
+
+    server = OwnedPages()
+    response_finish = threading.Event()
+    finish_entered = threading.Event()
+    join_entered = threading.Event()
+    response_threads = []
+    failures = []
+    original_finish = server.server.RequestHandlerClass.finish
+
+    def HoldActualFinalizer(self):
+        """Pause the actual request worker after normal buffered response cleanup."""
+
+        original_finish(self)
+        response_threads.append(threading.current_thread())
+        finish_entered.set()
+        response_finish.wait(5)
+
+    monkeypatch.setattr(server.server.RequestHandlerClass, "finish", HoldActualFinalizer)
+
+    def CloseOwnedTarget():
+        """Preserve exceptions from the fixture-close thread for assertions in the test owner."""
+
+        try:
+            server.Close()
+
+        except BaseException as error:
+            failures.append(error)
+
+    closer = threading.Thread(target=CloseOwnedTarget)
+
+    try:
+        with socket.create_connection(server.server.server_address, timeout=2) as connection:
+            connection.sendall(b"GET /index HTTP/1.0\r\n\r\n")
+            assert finish_entered.wait(2), "Actual request never reached its finalizer gate"
+            original_join = response_threads[0].join
+
+            def ObserveActualJoin(timeout=None):
+                """Observe native server ownership joining the exact held response worker."""
+
+                join_entered.set()
+                original_join(timeout)
+
+            monkeypatch.setattr(response_threads[0], "join", ObserveActualJoin)
+            closer.start()
+            assert join_entered.wait(2), "Fixture Close omitted its live response worker join"
+            assert closer.is_alive(), "Fixture Close returned before the response finalizer drained"
+            response_finish.set()
+            closer.join(2)
+            assert not closer.is_alive(), "Fixture Close did not finish after owned worker release"
+            assert not failures, "Owned response finalizer drain raised a teardown failure"
+            assert not response_threads[0].is_alive(), "Actual response worker survived Close"
+
+    finally:
+        response_finish.set()
+
+        if closer.ident is not None:
+            closer.join(2)
+
+        server.Close()
+
+
+def test_MissingOwnedResponseHoldSignalRefusesInsteadOfReleasingBody(
+    tmp_path, owned_pages, monkeypatch,
+):
+    """An exhausted fixture hold cannot silently admit an uninverted successful response."""
+
+    hold = threading.Event()
+    monkeypatch.setattr(hold, "wait", lambda timeout: False)
+    server = owned_pages(holds={"/index": hold})
+    fixture = Fixture.Create(tmp_path / "workspace", server.origin)
+    provider = fixture.Provider()
+    snapshot = Run(fixture.Job(provider))
+    assert snapshot.state is JobState.FAILED, "Missing capture gate silently released page bytes"
+    assert snapshot.failure.code is JobFailureCode.PROVIDER, "Actual incomplete reply was hidden"
+    assert server.requests == ["/index"], "Missing response gate advanced the frontier"
+    assert not provider.CompletedUrls, "Unacknowledged fixture response became a completed page"
+    assert LocalModelStore(fixture.root).Open().revision == 0, "Unreleased page entered model state"
+    record = snapshot.artifacts[0].evidence
+    raw = LocalEvidenceStore(fixture.root / "evidence").Read(record.reference)
+    assert json.loads(raw) == {"schema_version": 1, "error": "protocol"}, (
+        "Missing fixture gate lost the original truthful worker refusal"
+    )
