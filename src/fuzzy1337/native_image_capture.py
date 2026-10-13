@@ -403,6 +403,9 @@ async def CaptureNativeTrivyOperation(
     ) or store.root != selection.workspace_root / "evidence":
         raise ValueError("native capture requires the exact owning selection and evidence root")
 
+    if invocation.request.parameters.get("archive") != selection.archive:
+        raise ValueError("native invocation archive differs from the exact selected material")
+
     ArtifactPathInfo(store.root, directory=True)
     material = selection.Material()
     prerequisite = None

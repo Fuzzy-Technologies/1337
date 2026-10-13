@@ -475,3 +475,20 @@ def test_ScanKeepsActualFailureWithoutForgingSuccessfulInterpretation(
     assert scan.refusal == "execution-not-successful", "Failed SCAN retains explicit refusal"
     assert scan.version_prerequisite_sha256 == version.Digest(), "Original association stays exact"
     assert owned[1].Read(scan.records[0].reference) == b"original failed scan", "Raw stays exact"
+
+
+def test_AnotherFactoryValidArchiveCannotBorrowSelectedMaterialFacts(
+    capture_runner, owned, executor
+):
+    """Factory-valid argv must also select the archive named by original material custody."""
+
+    selection, store = owned
+    (selection.workspace_root / "other.tar").write_bytes(b"different explicit archive")
+    invocation = Invocation(selection, store)
+    request = replace(invocation.request, parameters={"archive": "other.tar", "timeout_seconds": 3})
+    invocation = selection.Adapter(store).PrepareVersionInvocation(request)
+
+    with pytest.raises(ValueError, match="archive differs"):
+        Capture(capture_runner, owned, executor, invocation=invocation)
+
+    assert not executor[0], "Unselected archive cannot borrow another material's custody"
