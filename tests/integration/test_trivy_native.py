@@ -26,6 +26,7 @@ from fuzzy1337.adapters import (
     SerializeContract,
 )
 from fuzzy1337.adapters.trivy import TrivyAdapter
+from fuzzy1337.artifact_inputs import ArtifactReadConsent
 from fuzzy1337.evidence import EvidenceProvenance, LocalEvidenceStore
 from fuzzy1337.executors import (
     CapabilityDescriptors,
@@ -34,6 +35,11 @@ from fuzzy1337.executors import (
     InvocationDigest,
     LocalExecutionRequest,
     LocalExecutor,
+)
+from fuzzy1337.native_image_capture import (
+    CaptureNativeTrivyOperation,
+    NativeTrivyOperation,
+    NativeTrivySelection,
 )
 from tests.fixtures.trivy.native_archive import ArchiveBytes
 
@@ -166,6 +172,67 @@ def RunNative(root: Path, executable: Path, package_version: str):
     return adapter, report, captured, probe, execution_request
 
 
+def PreservePair(root: Path, label: str, version, scan, provisioning: dict, network: dict) -> Path:
+    """Retain original executed VERSION/SCAN streams and production custody before assertions."""
+
+    output = Path("functional-evidence/trivy-native") / label
+    output.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(root / "evidence", output / "evidence", dirs_exist_ok=True)
+    summary = {"schema_version": 2, "fixture_id": ORACLE["fixture_id"],
+        "version": version.Envelope(), "scan": None if scan is None else scan.Envelope(),
+        "provisioning": provisioning, "network_namespace": network,
+        "archive_sha256": FileDigest(root / "owned.tar"),
+        "scan_completeness": "not-assessed", "native_artifact_profile": "metadata-only"}
+    (output / "run.json").write_text(json.dumps(summary, sort_keys=True, indent=2) + "\n")
+
+    return output
+
+
+def RunNativePair(root: Path, executable: Path, package_version: str,
+                  provisioning: dict, network: dict):
+    """Exercise actual production custody with independent explicit test VERSION/SCAN decisions."""
+
+    (root / "evidence").mkdir()
+    (root / "owned.tar").write_bytes(ArchiveBytes(package_version))
+    store = LocalEvidenceStore(root / "evidence")
+    owner = "owner:pytest-owned-native-image"
+    selection = NativeTrivySelection(root, executable, "owned.tar", "trivy-cache",
+        ArtifactReadConsent(owner, "read:pytest-owned-pinned-native-material"))
+    adapter = selection.Adapter(store)
+    version_request = AdapterRequest("image.archive-vulnerabilities",
+        "target:pytest-owned-native-image", ImpactLevel.SAFE,
+        {"archive": "owned.tar", "timeout_seconds": 3})
+    invocation = adapter.PrepareVersionInvocation(version_request)
+    authority = ExecutionAuthorization("authorization:pytest-native-version",
+        "scope:pytest-owned-native-image", "policy:pytest-native-acceptance",
+        InvocationDigest(invocation))
+    version = asyncio.run(CaptureNativeTrivyOperation(NativeTrivyOperation.VERSION, selection,
+        invocation, authority, store, "workspace:owned-native-acceptance", owner))
+    PreservePair(root, package_version, version, None, provisioning, network)
+    assert version.refusal is None, "Actual executed VERSION must establish original custody"
+    assert version.observed_version == ORACLE["provider_version"], "Pinned VERSION is required"
+    adapter = selection.Adapter(store, version.observed_version)
+    request = AdapterRequest("image.archive-vulnerabilities", "target:pytest-owned-native-image",
+        ImpactLevel.SAFE, {"archive": "owned.tar", "timeout_seconds": 60})
+    invocation = adapter.PrepareInvocation(request)
+    authority = ExecutionAuthorization("authorization:pytest-native-scan",
+        "scope:pytest-owned-native-image", "policy:pytest-native-acceptance",
+        InvocationDigest(invocation))
+    scan = asyncio.run(CaptureNativeTrivyOperation(NativeTrivyOperation.SCAN, selection,
+        invocation, authority, store, "workspace:owned-native-acceptance", owner,
+        version_prerequisite=version))
+    output = PreservePair(root, package_version, version, scan, provisioning, network)
+    assert scan.refusal is None, "Actual SCAN requires unchanged original VERSION/material custody"
+    assert scan.version_prerequisite_sha256 == version.Digest(), "SCAN binds exact original VERSION"
+    assert all(record.provenance.execution == capture.outcome.execution for capture in
+        (version, scan) for record in capture.records), "Each operation retains its own execution"
+    assert not tuple(root.glob("native-image-*")), "Original production scratch is cleaned"
+    report = AdapterReport(invocation, scan.outcome.execution,
+        (scan.records[0].reference, scan.records[1].reference, version.records[0].reference))
+
+    return adapter, report, scan.outcome, version, output
+
+
 def PreserveRun(root: Path, label: str, report, captured, probe, request,
                 provisioning: dict, network: dict) -> Path:
     """Retain raw acquisitions and exact run facts before applying an acceptance assertion."""
@@ -207,9 +274,8 @@ def test_GenuinePinnedTrivyInventoryAndAdvisoryBoundaryOffline(tmp_path, native_
     assert before == provisioning["database_files"], (
         "Fresh test cache bytes must match the original selected database receipt"
     )
-    adapter, report, captured, probe, request = RunNative(root, executable, case["version"])
-    output = PreserveRun(root, case["version"], report, captured, probe, request,
-                         provisioning, network)
+    adapter, report, captured, version, output = RunNativePair(
+        root, executable, case["version"], provisioning, network)
     assert captured.execution.state is ExecutionState.SUCCEEDED, (
         "Native flags or scan failure must fail acceptance; inspect the original raw artifacts"
     )
@@ -220,7 +286,7 @@ def test_GenuinePinnedTrivyInventoryAndAdvisoryBoundaryOffline(tmp_path, native_
         "Actual native execution must preserve the selected pinned executable bytes"
     )
     selected_metadata = json.loads((cache / "metadata.json").read_bytes())
-    observed_metadata = json.loads(probe.stdout)["VulnerabilityDB"]
+    observed_metadata = json.loads(version.outcome.stdout)["VulnerabilityDB"]
     assert selected_metadata.get("Version") == 2 and isinstance(
         selected_metadata.get("UpdatedAt"), str
     ), "Selected native database must explicitly declare schema 2 and its update timestamp"
@@ -267,4 +333,45 @@ def test_GenuinePinnedTrivyMissingOfflineDatabaseIsActualFailure(tmp_path, nativ
     result = adapter.NormalizeReport(report)
     assert not result.findings and result.observations[0].attributes["complete"] is False, (
         "Missing offline DB retains original failure rather than successful interpretations"
+    )
+
+
+@pytest.mark.integration
+def test_GenuineExecutedVersionWithoutDatabaseCannotAssociateScan(tmp_path, native_runtime):
+    """A genuine version process retains original failure/refusal and never starts a paired SCAN."""
+
+    executable, _, provisioning, network = native_runtime
+    root = tmp_path.resolve()
+    (root / "trivy-cache").mkdir()
+    (root / "evidence").mkdir()
+    (root / "owned.tar").write_bytes(ArchiveBytes("2.30.0"))
+    store = LocalEvidenceStore(root / "evidence")
+    owner = "owner:pytest-owned-native-image"
+    selection = NativeTrivySelection(root, executable, "owned.tar", "trivy-cache",
+        ArtifactReadConsent(owner, "read:pytest-owned-pinned-native-material"))
+    request = AdapterRequest("image.archive-vulnerabilities", "target:pytest-owned-native-image",
+        ImpactLevel.SAFE, {"archive": "owned.tar", "timeout_seconds": 3})
+    invocation = selection.Adapter(store).PrepareVersionInvocation(request)
+    authority = ExecutionAuthorization("authorization:pytest-native-version",
+        "scope:pytest-owned-native-image", "policy:pytest-native-acceptance",
+        InvocationDigest(invocation))
+    version = asyncio.run(CaptureNativeTrivyOperation(NativeTrivyOperation.VERSION, selection,
+        invocation, authority, store, "workspace:owned-native-acceptance", owner))
+    PreservePair(root, "missing-db-version", version, None, provisioning, network)
+    assert version.refusal is not None, "Absent offline DB cannot establish original paired custody"
+    assert len(version.records) == 3, "Original VERSION stdout/stderr/receipt remain independently"
+    scan = selection.Adapter(store, ORACLE["provider_version"]).PrepareInvocation(
+        AdapterRequest("image.archive-vulnerabilities", "target:pytest-owned-native-image",
+            ImpactLevel.SAFE, {"archive": "owned.tar", "timeout_seconds": 60}))
+    authority = ExecutionAuthorization("authorization:pytest-native-scan",
+        "scope:pytest-owned-native-image", "policy:pytest-native-acceptance",
+        InvocationDigest(scan))
+
+    with pytest.raises(ValueError, match="original accepted"):
+        asyncio.run(CaptureNativeTrivyOperation(NativeTrivyOperation.SCAN, selection, scan,
+            authority, store, "workspace:owned-native-acceptance", owner,
+            version_prerequisite=version))
+
+    assert len(tuple((store.root / "records").glob("*.json"))) == 3, (
+        "Refused SCAN cannot publish fabricated execution evidence"
     )
