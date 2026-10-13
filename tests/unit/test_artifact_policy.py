@@ -6,23 +6,31 @@
 from __future__ import annotations
 
 import inspect
+import json
 import stat
+import traceback
 from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from artifact_helpers import AT, OwnedArtifact
+from artifact_helpers import AT, OwnedArtifact, OwnedImageArtifact
 
 from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ImpactLevel
-from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactSelection, ArtifactStage
+from fuzzy1337.artifact_inputs import (
+    ArtifactOperation,
+    ArtifactProfile,
+    ArtifactSelection,
+    ArtifactStage,
+)
 from fuzzy1337.artifact_policy import (
     ArtifactAcceptance,
     ArtifactDenialReason,
     ArtifactDeniedError,
     ArtifactPolicyEngine,
     GovernedArtifactExecutor,
+    ParseObservedImageVersion,
     PrepareArtifact,
     PreparedArtifact,
     ProfileCapability,
@@ -719,3 +727,128 @@ def test_ExpiryArithmeticOverflowAtIssuanceIsTypedDenial(tmp_path):
 
     assert denied.value.reason == ArtifactDenialReason.PLAN_CHANGED, "Overflow escaped typed denial"
     assert not tuple((stage.root / "scratch").iterdir()), "Impossible expiry initialized launch"
+
+
+def test_ClosedRicherVersionBindsOperationFamilyEnvironmentAndExactWire(tmp_path, monkeypatch):
+    """Reviewed VERSION has its own exact factory wire without parent provider overlays."""
+
+    monkeypatch.setenv("TRIVY_SERVER", "owned-private-server")
+    monkeypatch.setenv("PYTHONPATH", "owned-private-python-overlay")
+    root, stage, prepared, _, grant = OwnedImageArtifact(tmp_path)
+    assert prepared.operation == ArtifactOperation.VERSION, "VERSION became implicit SCAN"
+    assert prepared.producer_family == "owned-synthetic-image-wire-v1", "Family was relabeled"
+    assert prepared.invocation.argv == (
+        str(stage.executable), "-I", "-S", str(stage.root / "scanner/producer.py"),
+        "--fixture-policy", str(stage.root / "material/policy.json"), "--cache-dir",
+        str(stage.root / "scratch/cache"), "--config=", "--version", "--format", "json",
+    ), "VERSION received SCAN flags or caller-selected argv"
+    assert prepared.invocation.timeout_seconds == 3, "VERSION exact deadline drifted"
+    assert (
+        prepared.resources.max_stdout_bytes == prepared.resources.max_stderr_bytes == 16 * 1024
+    ), (
+        "VERSION must retain its exact 16 KiB capture ceiling for both raw streams"
+    )
+    assert prepared.VersionBindings() == {
+        "version_run_id": None, "version_grant_id": None, "version_prerequisite_sha256": None,
+    }, "VERSION invented an earlier prerequisite"
+    assert (
+        "TRIVY_SERVER" not in prepared.environment and "PYTHONPATH" not in prepared.environment
+    ), (
+        "Prepared VERSION must exclude ambient provider and Python environment overlays"
+    )
+    assert prepared.environment["PATH"] == "" and prepared.environment["PATHEXT"] == "", (
+        "Prepared VERSION must disable inherited executable and extension search paths"
+    )
+    assert grant.plan.operation == prepared.operation, "Plan omitted its operation"
+    assert grant.plan.producer_family == prepared.producer_family, "Plan omitted its family"
+    assert prepared.workspace_root == root, "Physical workspace changed"
+
+
+@pytest.mark.parametrize("timeout", [True, 1.0, "3", 2, 4, 0, 61],
+                         ids=["bool", "float", "text", "short", "long", "zero", "oversized"])
+def test_RicherVersionHasExactIntegerDeadline(tmp_path, timeout):
+    """No bool/float/string/default override can weaken the reviewed VERSION deadline."""
+
+    root, stage, _, _, _ = OwnedImageArtifact(tmp_path)
+
+    with pytest.raises(ValueError):
+        PrepareArtifact(stage, root, operation=ArtifactOperation.VERSION, timeout_seconds=timeout)
+
+
+@pytest.mark.parametrize("stream", ["stdout", "stderr"])
+def test_RicherVersionCaptureHasFixedStreamCeilings(tmp_path, stream):
+    """Caller resource declarations cannot expand either 16 KiB VERSION stream ceiling."""
+
+    root, stage, _, _, _ = OwnedImageArtifact(tmp_path)
+    resources = ExecutionResources(**{"max_" + stream + "_bytes": 16 * 1024 + 1})
+
+    with pytest.raises(ValueError):
+        PrepareArtifact(stage, root, operation=ArtifactOperation.VERSION, resources=resources)
+
+
+@pytest.mark.parametrize("profile", [
+    ArtifactProfile.SYNTHETIC_IMAGE, ArtifactProfile.SYNTHETIC_DOCKERFILE,
+    ArtifactProfile.SYNTHETIC_KUBERNETES,
+])
+def test_LifecycleProducerNeverReceivesRicherVersionRoute(tmp_path, profile):
+    """The old lifecycle family remains SCAN-only regardless of its shared profile identity."""
+
+    root, stage, prepared, _, _ = OwnedArtifact(tmp_path, profile=profile)
+    assert prepared.invocation.timeout_seconds == 120, "Legacy default deadline changed"
+
+    with pytest.raises(ArtifactDeniedError):
+        PrepareArtifact(stage, root, operation=ArtifactOperation.VERSION)
+
+
+@pytest.mark.parametrize("payload", [
+    b'{"schema_version":true}', b'{"schema_version":1,"schema_version":1}',
+    b'{"schema_version":NaN}', b"\xff", b'{"private":"OWNED_PRIVATE_POLICY_MARKER"}',
+    b"x" * 513,
+], ids=["bool", "duplicate", "nonfinite", "utf8", "private", "oversized"])
+def test_RicherPolicyRefusesAmbiguityWithSanitizedTraceback(tmp_path, payload):
+    """Pinned policy bytes cannot widen their family or expose private source text on refusal."""
+
+    with pytest.raises(ArtifactDeniedError) as refused:
+        OwnedImageArtifact(tmp_path, policy_payload=payload)
+
+    rendered = "".join(traceback.format_exception(refused.value))
+    assert "OWNED_PRIVATE_POLICY_MARKER" not in rendered, "Private policy escaped diagnostics"
+    assert refused.value.reason == ArtifactDenialReason.MATERIAL_CHANGED, (
+        "Malformed immutable image policy must receive the typed material refusal"
+    )
+
+
+@pytest.mark.parametrize("mutation", ["database-bool", "extra", "fixture", "duplicate", "deep"])
+def test_ObservedVersionParserRejectsUnsupportedRawWire(mutation):
+    """No self-claim, nested type alias or ambiguous result can manufacture a VERSION proof."""
+
+    version = {
+        "Version": "0.75.0-synthetic", "VulnerabilityDB": {
+            "Version": 2, "UpdatedAt": "2026-10-01T00:00:00Z",
+            "NextUpdate": "2026-10-02T00:00:00Z", "DownloadedAt": "2026-10-01T01:00:00Z",
+        }, "Fixture": "synthetic; no Trivy binary or vulnerability database",
+    }
+
+    if mutation == "database-bool":
+        version["VulnerabilityDB"]["Version"] = True
+
+    elif mutation == "extra":
+        version["extra"] = "OWNED_PRIVATE_VERSION_MARKER"
+
+    elif mutation == "fixture":
+        version["Fixture"] = "native"
+
+    payload = json.dumps(version).encode()
+
+    if mutation == "duplicate":
+        payload = b'{"Version":"0.75.0-synthetic","Version":"0.75.0-synthetic"}'
+
+    elif mutation == "deep":
+        payload = b"[" * 1100 + b"0" + b"]" * 1100
+
+    with pytest.raises(ArtifactDeniedError) as refused:
+        ParseObservedImageVersion(payload)
+
+    assert "OWNED_PRIVATE_VERSION_MARKER" not in "".join(
+        traceback.format_exception(refused.value)
+    ), "Observed VERSION refusal must not expose private raw values in its traceback"

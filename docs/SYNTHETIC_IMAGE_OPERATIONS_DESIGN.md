@@ -1,10 +1,11 @@
 # Synthetic image VERSION and SCAN operation contract
 
 [ADR 0048](adr/0048-closed-synthetic-image-operations.md) defines the accepted
-future contract for Task #142. These are producer/consumer requirements, not an
-implemented SDK API, importer or product command. The initial Task #278 foundation
-must first be accepted with original-run/grant marker consistency; its initial
-operation and execution metadata remain schema-1 SCAN.
+contract for Task #142. The artifact SDK now supplies the closed operation/family
+dispatcher, schema-2 live bindings, immutable VERSION prerequisite and fresh pair
+validation described below. An importer, assembled product workflow and native
+scanner acceptance remain separate work. The accepted Task #278 foundation's
+schema-1 lifecycle captures retain their original read-only verification path.
 The accepted reviewed worker and independent oracle are the unchanged files under
 `tests/fixtures/image_scan`.
 
@@ -138,17 +139,49 @@ staged-copy identities differ; the selected original executable identity agrees.
 VERSION and SCAN invocation digests are not compared for equality because their
 operations and root-dependent paths differ.
 
-Require successful, freshly accepted VERSION and valid observed version JSON
-before issuing the SCAN grant. Re-read actual authority for SCAN issuance/launch,
+`ArtifactVersionProof(outcome, prepared, stage)` retains the actual immutable
+VERSION originals. Its construction checks exact successful process/receipt and
+observed version JSON without granting current authority or reading a stage.
+`PrepareArtifact(stage, workspace_root, operation=ArtifactOperation.SCAN,
+version_proof=proof)` requires that original typed prerequisite for richer SCAN.
+VERSION and lifecycle SCAN accept no prerequisite. Preparation selects only the
+closed worker/family and exact wire; it does not issue a grant or launch a process.
+
+The prerequisite digest commits the original canonical object with exactly
+`artifact_metadata`, `prepared_payload` and `stage_payload`. It contains the
+original schema-2 VERSION metadata and detached complete payloads, never raw
+stream contents or refreshed facts. Richer SCAN's request and plan bind its exact
+`version_run_id`, `version_grant_id` and `version_prerequisite_sha256`. These three
+fields are explicitly null for VERSION and lifecycle SCAN. Another valid
+same-content VERSION cannot replace a prerequisite after a SCAN grant is issued.
+
+The canonical policy engine requires successful, freshly accepted VERSION and
+valid observed version JSON before issuing the SCAN grant. It verifies matching
+content/executable/workspace/owner and distinct physical stages. It rechecks the
+original VERSION marker, material, receipt and grant at SCAN issuance and launch.
+Re-read actual authority for SCAN issuance/launch,
 then require both original outcomes to remain freshly acceptable before model
 acceptance. Consent, policy, owner or grant validity is never extended implicitly
 to make the second phase succeed. Expired VERSION after a successful SCAN denies
 new normalization while retaining both actual process results.
 
+`GovernedArtifactExecutor.ValidateAcceptanceFresh(outcome, prepared, stage,
+context_provider)` checks an original run's physical/material/receipt bindings,
+then refreshes current authority and time after the expensive verification.
+`ValidatePairAcceptanceFresh((version_outcome, version_prepared, version_stage),
+(scan_outcome, scan_prepared, scan_stage), context_provider)` additionally requires
+SCAN's exact bound prerequisite and complete cross-stage agreement. It validates
+both originals before a shared final fresh authority/time barrier, so VERSION
+expiry or owner/policy changes during SCAN hashing cannot pass. The first-party
+consumer calls these canonical methods with factual synchronous context lookup,
+not a supplied approval boolean or substitute verifier. Independent capture-window
+chronology remains the consumer's evidence responsibility.
+
 ## Operation-aware versioning and legacy verification
 
-The new `PreparedArtifact.Payload` and `ArtifactPlan` include mandatory operation
-and the derived closed producer family. Those fields participate in the intent,
+The new `PreparedArtifact.Payload` and `ArtifactPlan` include mandatory operation,
+derived closed producer family and the three explicit nullable prerequisite
+bindings above. Those fields participate in the intent,
 request and authorization-envelope binding, preventing cross-operation grants.
 Operation-aware execution metadata uses schema 2; manifest schema remains 1.
 Existing lifecycle SCAN defaults and fixed wire remain supported.
@@ -209,7 +242,7 @@ Saved metadata is operator-attributed provenance, not publisher authentication.
 
 ## Live interpretation and read-only historical verification
 
-A separate future `ApplyVerifiedSyntheticTrivyImages` requires both original
+A separate `ApplyVerifiedSyntheticTrivyImages` consumer requires both original
 typed outcomes, prepared requests and physical stages, the six verified records,
 and canonical fresh authority validation. It checks explicit operation/family,
 profile, worker SHA/policy, manifests/executable, actual raw stream/result hashes,
@@ -268,7 +301,11 @@ stages, grants and live acceptance.
 
 The accepted independent image oracle's success/no_findings/provider_error/
 malformed/version_mismatch/package_mismatch/output_limit/hold specimens remain
-unchanged. These requirements await SDK, importer and assembled workflow tests;
-this checkpoint does not claim they were executed. Scan completeness remains
+unchanged. SDK-owned tests exercise actual separate VERSION/SCAN processes,
+strict policy/deadline/capture bounds, missing/failed/stale/replaced prerequisites,
+fresh pair validation, post-run VERSION expiry with both raw outcomes retained,
+and read-only schema-specific replay. Importer and assembled workflow acceptance
+remain independent; SDK execution acceptance does not interpret scan JSON as
+valid findings. Scan completeness remains
 `not-assessed`, including no_findings. Native VERSION/SCAN capabilities, real
 scanner/database compatibility and full Task #142 acceptance remain open.

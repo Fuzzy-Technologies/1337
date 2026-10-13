@@ -41,6 +41,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added selected-read-consent artifact capture, canonical input/scanner/material
   manifests, guarded staging and governed execution of closed synthetic workers.
   Native scanner profiles remain metadata-only until actual tool acceptance.
+- Added independent closed synthetic image VERSION/SCAN operations, an immutable
+  original VERSION prerequisite bound into SCAN authorization, fresh paired-run
+  acceptance and strict original-shape read-only schema-1 receipt verification.
 - Added a bounded standalone Dockerfile/Kubernetes synthetic producer for five
   pinned source fixtures, retaining the independently authored result oracle.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope

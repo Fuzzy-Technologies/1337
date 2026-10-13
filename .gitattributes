@@ -9,3 +9,4 @@ tests/contract/fixtures/configuration_profiles/kubernetes/safe.yaml text eol=lf
 tests/contract/fixtures/configuration_profiles/kubernetes/unsafe.yaml text eol=lf
 tests/contract/fixtures/configuration_profiles/kubernetes/multi.yaml text eol=lf
 tests/fixtures/configuration_scan/producer.py text eol=lf
+tests/contract/fixtures/artifact_replay/schema1-* -text
