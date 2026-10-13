@@ -2,8 +2,8 @@
 
 ## Status
 
-Proposed — 2026-10-13. Related acceptance: #40; report SDK: ADR 0039.
-Root review of this design precedes consumer behavior changes.
+Accepted — 2026-10-13. Related acceptance: #40; report SDK: ADR 0039.
+Root approved the exact design before consumer behavior changes.
 
 ## Decision
 
@@ -30,13 +30,16 @@ Verify all retained workspace raw references and acquisition manifests through
 `LocalEvidenceStore`, including unused older acquisitions and their workspace
 binding. A private consumer reader applies quotas before the owner's `Get`/`Read`
 loads raw bytes; schema, hashing and path checks remain in the existing owner.
-It introduces no new storage format or authoritative store.
+It introduces no new storage format or authoritative store. Quotas cover actual
+stored blob sizes before owning raw reads, including subsequent report verification.
 
 Create `ReportSnapshot` from the exact saved model, verify its linked bytes using
 `VerifyReportEvidence`, and call only `SerializeJson` or `SerializeSarif`.
 Before publication reopen workspace/model and reject a changed revision/content;
 the selected snapshot digest and revision remain explicit. No source/model/scope,
 artifact, reference context, finding disposition or execution outcome is changed.
+Checks pin this owner-read snapshot; they do not assert continuous filesystem
+freshness or substitute current scope revisions for historical provenance.
 
 ## Bounds and publication
 
