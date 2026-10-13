@@ -1,0 +1,62 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Owned synthetic image inventory",
+  "documentNamespace": "https://owned.invalid/spdx/image-fixture",
+  "creationInfo": {
+    "created": "2026-10-01T00:00:00Z",
+    "creators": [
+      "Tool: repository-synthetic-fixture"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-Image"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Image",
+      "name": "owned-image",
+      "primaryPackagePurpose": "CONTAINER",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Owned-Lib",
+      "name": "Owned_Lib",
+      "versionInfo": "1.0",
+      "primaryPackagePurpose": "LIBRARY",
+      "filesAnalyzed": false,
+      "downloadLocation": "https://owned.invalid/?token=SYNTHETIC_PRIVATE_MARKER",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/owned-lib@1.0"
+        }
+      ],
+      "licenseDeclared": "MIT",
+      "licenseConcluded": "Apache-2.0",
+      "licenseComments": "SYNTHETIC_PRIVATE_MARKER",
+      "sourceInfo": "SYNTHETIC_PRIVATE_MARKER"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Image"
+    },
+    {
+      "spdxElementId": "SPDXRef-Image",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Owned-Lib"
+    }
+  ]
+}

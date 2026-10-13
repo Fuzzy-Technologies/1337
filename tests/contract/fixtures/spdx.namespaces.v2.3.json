@@ -1,0 +1,95 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Owned synthetic image inventory",
+  "documentNamespace": "urn:owned:spdx:namespaced-fixture",
+  "creationInfo": {
+    "created": "2026-10-01T00:00:00Z",
+    "creators": [
+      "Tool: repository-synthetic-fixture"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-Image"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Image",
+      "name": "owned-image",
+      "primaryPackagePurpose": "CONTAINER",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-0",
+      "name": "@owned/lib",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40owned/lib@1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-1",
+      "name": "org.owned:lib",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/org.owned/lib@1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-2",
+      "name": "owned.invalid/lib",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:golang/owned.invalid/lib@1.0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Image"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-Image"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-Image"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-2",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-Image"
+    }
+  ]
+}
