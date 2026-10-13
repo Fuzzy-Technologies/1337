@@ -95,6 +95,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   owner-verifying every retained raw evidence reference and preserving failed
   execution, uncertainty and actual no-clobber publication outcomes.
 
+- Added bounded intelligence snapshot import and pinned CISA KEV mirror
+  acquisition, observed receiver times, immutable original/partial evidence and
+  terminal receipts, honest batch outcomes and verified portable replay.
+  Owned HTTPS receiver deadlines and cancellation terminate and join the child.
+
 #### Fixed
 
 - Reject historical synthetic-image pairs that reuse one physical marker,

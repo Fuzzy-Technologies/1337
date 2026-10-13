@@ -236,6 +236,14 @@ record, parser, and verified finding-observation boundaries. Validation helpers
 remain Internal. Catalog metadata does not establish vulnerability applicability,
 authenticated source identity, approval, or execution authority.
 
+`fuzzy1337.intelligence_acquisition` is an Experimental schema-v1 acquisition and
+receipt library under ADR 0060. Explicit local source bytes or an immutable
+official CISA mirror selection produce bounded immutable evidence and truthful
+complete/partial outcomes; replay requires the original owning raw record and
+receiver provenance. `fuzzy1337.intelligence_transport` and acquisition helpers
+remain Internal. No publisher-signature authentication, automatic refresh,
+applicability conclusion or scan authority is provided.
+
 ### Repository releases
 
 Before `1.0.0`:
