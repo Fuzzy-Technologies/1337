@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import asyncio
+import socket
+from collections.abc import Iterator
 from copy import copy
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -21,6 +23,35 @@ from fuzzy1337.evidence import (
 )
 from fuzzy1337.image_evidence import ImageEvidenceStore
 from fuzzy1337.image_workflow import ImageReportOutcome, ImageScanSelection, RunSyntheticImageScan
+from fuzzy1337.workspace import LocalWorkspaceStore
+
+
+@pytest.fixture(scope="module")
+def owned_image_runner() -> Iterator[asyncio.Runner]:
+    """Initialize owned Windows loop resources before the unchanged unit network guard."""
+
+    with asyncio.Runner() as runner:
+        runner.get_loop()
+        yield runner
+
+
+@pytest.fixture
+def image_runner(owned_image_runner: asyncio.Runner) -> Iterator[asyncio.Runner]:
+    """Reuse the initialized loop and reap every pending task at each test boundary."""
+
+    yield owned_image_runner
+
+    async def Cleanup() -> None:
+        """Cancel and await unfinished owned tasks without creating a new event loop."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    owned_image_runner.run(Cleanup())
 
 
 @pytest.mark.parametrize("value", [Path("relative.tar"), "absolute-path-text", None])
@@ -37,15 +68,47 @@ def test_SelectionRequiresTypedExplicitAbsolutePaths(tmp_path, value):
     {"timeout_seconds": 1.5}, {"timeout_seconds": "1"}, {"approve_safe_image": 1},
     {"report_format": "json"}, {"report_output": Path("report.json")},
 ])
-def test_RunConfigurationDeniesUnsupportedInputsBeforeAnyWorkspaceRead(tmp_path, configuration):
+def test_RunConfigurationDeniesUnsupportedInputsBeforeAnyWorkspaceRead(
+    tmp_path, monkeypatch, image_runner, configuration
+):
     """Caller coercion cannot weaken deadlines, explicit opt-in or paired report selection."""
 
     selection = ImageScanSelection(tmp_path, tmp_path, tmp_path, tmp_path,
         ArtifactReadConsent("owner:test", "read:explicit"))
 
+    def ForbiddenOpen(*arguments, **options):
+        """Reject any workspace read before the invalid caller configuration is denied."""
+
+        raise AssertionError("Invalid image configuration reached workspace storage")
+
+    monkeypatch.setattr(LocalWorkspaceStore, "Open", ForbiddenOpen)
+
     with pytest.raises(ValueError, match="configuration"):
-        asyncio.run(RunSyntheticImageScan(tmp_path, "scope", "owner:test", selection,
+        image_runner.run(RunSyntheticImageScan(tmp_path, "scope", "owner:test", selection,
             **configuration))
+
+
+def test_OwnedImageLoopRetainsUnchangedUnitNetworkGuard(image_runner):
+    """Preinitialized loop resources never exempt test execution from network denial."""
+
+    async def Check() -> None:
+        """Exercise all guarded connection entry points inside the actual reused loop."""
+
+        with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+            socket.create_connection(("127.0.0.1", 1))
+
+        with socket.socket() as client:
+            with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                client.connect(("127.0.0.1", 1))
+
+            with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                client.connect_ex(("127.0.0.1", 1))
+
+        assert asyncio.all_tasks() == {asyncio.current_task()}, (
+            "Configuration refusal must not retain tasks on the reused owned loop"
+        )
+
+    image_runner.run(Check())
 
 
 @pytest.mark.parametrize("role,media,bound", [
