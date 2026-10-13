@@ -57,6 +57,7 @@ def test_NoArgumentsDescribeBootstrap(capsys):
     assert "1337 --version" in output.out, "no arguments describe bootstrap invariant failed."
     assert "1337 shell" in output.out, "no arguments describe bootstrap invariant failed."
     assert "1337 doctor" in output.out, "no arguments describe bootstrap invariant failed."
+    assert "1337 demo local" in output.out, "Help must expose the actual local demo command."
     assert not output.err, "no arguments describe bootstrap invariant failed."
 
 
@@ -330,3 +331,14 @@ def test_ProductHelpDescribesSelectedActionWithoutReadingWorkspace(arguments, ex
 
     assert caught.value.code == 0, "Command help must exit normally before any local state read."
     assert expected in capsys.readouterr().out, "Help must describe the selected product action."
+
+
+def test_LocalDemoTopLevelDispatchHasExplicitApprovalAndSelectedHelp(tmp_path, capsys):
+    """CLI help and a denied plan must remain useful without starting or creating resources."""
+
+    assert Main(["demo", "local", "--help"]) == 0, "Demo help must be available before setup."
+    assert "--approve-safe-http" in capsys.readouterr().out, "Help must name the separate approval."
+    root = tmp_path / "demo"
+    assert Main(["demo", "local", str(root), "--json"]) == 3, "Default demo must fail closed."
+    assert '"state": "denied"' in capsys.readouterr().out, "JSON must describe the actual denial."
+    assert not root.exists(), "A displayed plan must not create a filesystem root."
