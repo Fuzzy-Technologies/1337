@@ -261,9 +261,16 @@ class SyntheticImageWorkflow:
 
         Returns:
             Fresh typed factual scope/operator-policy/owner context; this is not a grant.
+
+        Raises:
+            ArtifactDeniedError: Current scope storage is unreadable or recorded owner differs.
         """
 
-        scope = LocalScopeStore(self.workspace_root).Open(self.scope_id)
+        try:
+            scope = LocalScopeStore(self.workspace_root).Open(self.scope_id)
+
+        except OSError:
+            raise ArtifactDeniedError(ArtifactDenialReason.STORAGE) from None
 
         if scope.authorization.authority_reference != self.owner_reference:
             raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
@@ -395,11 +402,19 @@ class SyntheticImageWorkflow:
             self.saved_model = LocalModelStore(self.workspace_root).Save(proposal,
                 expected_revision=original.revision)
 
-        except ArtifactDeniedError:
+        except ArtifactDeniedError as error:
+            if error.reason is ArtifactDenialReason.STORAGE:
+                raise JobError(JobFailure(JobFailureCode.STORAGE,
+                    "Synthetic image local storage could not be read or written")) from None
+
             raise JobError(JobFailure(JobFailureCode.AUTHORIZATION,
                 "Synthetic image authority or selected material was refused")) from None
 
-        except (EvidenceError, OSError, ValueError, TypeError,
+        except OSError:
+            raise JobError(JobFailure(JobFailureCode.STORAGE,
+                "Synthetic image local storage could not be read or written")) from None
+
+        except (EvidenceError, ValueError, TypeError,
                 WorkspaceBusyError, WorkspaceConflictError):
             raise JobError(JobFailure(phase,
                 "Synthetic image workflow could not complete")) from None

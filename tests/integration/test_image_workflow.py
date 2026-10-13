@@ -14,8 +14,10 @@ from shutil import copytree, rmtree
 import pytest
 
 from fuzzy1337 import image_workflow
+from fuzzy1337.adapters import ExecutionState
 from fuzzy1337.artifact_policy import ArtifactPolicyEngine, GovernedArtifactExecutor
 from fuzzy1337.evidence import EvidenceProvenance, LocalEvidenceStore
+from fuzzy1337.executors import LocalExecutor
 from fuzzy1337.findings import (
     Finding,
     Findings,
@@ -316,6 +318,139 @@ def test_RevokedVersionAcceptancePreventsAnyScanGrantAndRetainsRawVersion(tmp_pa
     assert summary.operations[0]["operation"] == "version", "The only actual run remains VERSION"
     assert LocalModelStore(owned.root).Open().revision == 0, (
         "Refused version cannot enter the model"
+    )
+
+
+@pytest.mark.parametrize("storage_error", [PermissionError, OSError])
+@pytest.mark.parametrize("failure_at", [
+    "initial", "launch", "post-run", "final-import", "final-save",
+])
+def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth(
+    tmp_path, monkeypatch, storage_error, failure_at
+):
+    """Fail one actual scope read without replacing canonical processes, grants or acceptance."""
+
+    owned = CreateOwnedImage(tmp_path)
+    initial = LocalModelStore(owned.root).Open()
+    original_open = LocalScopeStore.Open
+    original_execute = LocalExecutor.Execute
+    original_pair = GovernedArtifactExecutor.ValidatePairAcceptanceFresh
+    private_detail = "Owned private scope path must not reach diagnostics"
+    scope_error = storage_error(13 if storage_error is PermissionError else 5, private_detail)
+    assert type(scope_error) is storage_error, "Both parameter rows must exercise distinct OS types"
+    armed = False
+    fired = False
+    scope_reads = 0
+    pair_calls = 0
+
+    def Open(self, scope_id):
+        """Fail one selected physical read while permitting preflight and durable references."""
+
+        nonlocal armed, fired, scope_reads
+        scope_reads += 1
+
+        if failure_at == "initial" and scope_reads == 2:
+            armed = True
+
+        if armed and not fired:
+            armed = False
+            fired = True
+
+            raise scope_error
+
+        return original_open(self, scope_id)
+
+    async def Execute(self, request, *, on_event=None, cancellation=None, pre_launch=None):
+        """Arm storage failure around the actual canonical launch or completed raw result."""
+
+        nonlocal armed
+
+        def BeforeLaunch(actual):
+            """Fail the real SDK context lookup immediately before process launch."""
+
+            nonlocal armed
+            assert pre_launch is not None, "Governed image launches must retain the SDK callback"
+
+            if failure_at == "launch" and not fired:
+                armed = True
+
+            return pre_launch(actual)
+
+        result = await original_execute(self, request, on_event=on_event,
+            cancellation=cancellation, pre_launch=BeforeLaunch)
+
+        if failure_at == "post-run" and not fired:
+            armed = True
+
+        return result
+
+    def ValidatePair(self, version, scan, context_provider):
+        """Fail the final context refresh only after both canonical physical validations."""
+
+        nonlocal pair_calls
+        pair_calls += 1
+        current_reads = 0
+        selected_pair = 1 if failure_at == "final-import" else 2
+
+        def CurrentContext():
+            """Read actual scope and fail the after-hashing refresh for the selected pair."""
+
+            nonlocal armed, current_reads
+            current_reads += 1
+
+            if failure_at in {"final-import", "final-save"} and (
+                pair_calls == selected_pair and current_reads == 3
+            ):
+                armed = True
+
+            return context_provider()
+
+        return original_pair(self, version, scan, CurrentContext)
+
+    monkeypatch.setattr(LocalScopeStore, "Open", Open)
+    monkeypatch.setattr(LocalExecutor, "Execute", Execute)
+    monkeypatch.setattr(GovernedArtifactExecutor, "ValidatePairAcceptanceFresh", ValidatePair)
+    summary = asyncio.run(RunSyntheticImageScan(owned.root, "image-scope", "owner:image-test",
+        owned.selection, approve_safe_image=True))
+    workspace = LocalWorkspaceStore(owned.root).Open()
+    expected_operations = 2 if failure_at.startswith("final-") else int(failure_at == "post-run")
+    expected_acquisitions = 12 if failure_at.startswith("final-") else {
+        "initial": 0, "launch": 3, "post-run": 6,
+    }[failure_at]
+    assert fired, "Every parameter must exercise its actual one-shot scope-reader failure"
+    assert summary.snapshot.state is JobState.FAILED and (
+        summary.snapshot.failure.code is JobFailureCode.STORAGE and summary.ExitCode() == 4
+    ), "Physical scope storage failures must remain separate from policy and owner denial"
+    assert summary.model_revision == 0 and LocalModelStore(owned.root).Open() == initial, (
+        "A failed current-context read cannot commit a proposed model transition"
+    )
+    assert summary.first_model_update_seconds is None and not any(
+        item.kind is JobEventKind.MODEL_DELTA for item in summary.events
+    ), "Neither acceptance barrier may publish an uncommitted model delta"
+    assert len(summary.operations) == expected_operations, (
+        "A storage refusal cannot fabricate a launch or erase an already completed operation"
+    )
+    assert len(summary.snapshot.artifacts) == len(workspace.evidence_record_references) == (
+        expected_acquisitions
+    ), "A later storage refusal must retain every actual selected-byte and process acquisition"
+    assert summary.snapshot.spec.job_id in workspace.job_references, (
+        "Recovered storage must persist the owning job reference even after a failed current read"
+    )
+    store = LocalEvidenceStore(owned.root / "evidence")
+    assert all(store.Get(item.evidence.evidence_id) == item.evidence
+        for item in summary.snapshot.artifacts), (
+        "Retained workspace acquisitions must resolve to the original immutable owner records"
+    )
+    assert all(item["execution"].state is ExecutionState.SUCCEEDED and (
+        item["execution"].exit_code == 0 and item["termination"] == "process_exit"
+    ) for item in summary.operations), "Scope storage errors cannot rewrite successful raw exits"
+    assert all(item["acceptance_refusal"] == (
+        "storage" if failure_at == "post-run" else None
+    ) for item in summary.operations), (
+        "Preserve the original SDK receipt refusal without changing earlier successful receipts"
+    )
+    assert private_detail not in json.dumps(summary.ToDict(), sort_keys=True), (
+        "Machine diagnostics must not reflect the failing physical scope path or OS exception"
     )
 
 
