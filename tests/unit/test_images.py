@@ -12,6 +12,7 @@ from traceback import format_exception
 
 import pytest
 
+from fuzzy1337 import images
 from fuzzy1337.adapters import (
     AdapterExecution,
     AdapterInvocation,
@@ -28,6 +29,8 @@ from fuzzy1337.images import (
     ApplyVerifiedTrivyImages,
     ImageIdentity,
     PackageIdentity,
+    SyntheticTrivyCandidates,
+    TrivyCandidates,
 )
 from fuzzy1337.model import CanonicalModelJson, LocalModelStore, ModelProvenance
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
@@ -117,6 +120,92 @@ def Sbom(context, payload=SBOM):
         source.scope_reference, "target:owned", evidence_references=(record.reference,))
 
     return record, provenance
+
+
+def test_SyntheticCandidatesIsolateAllAssetFamiliesAndEveryGraphReference(context):
+    """Pure candidate transformation never overlays matching native identities or provenance."""
+
+    _, native_provenance, _ = Native(context)
+    provenance = replace(native_provenance, source_id="synthetic.trivy")
+    version = {"Version": "0.75.0-synthetic"}
+    database = {"UpdatedAt": "2026-10-01T00:00:00Z"}
+    original = TrivyCandidates("image-test", NATIVE, version, database, provenance)
+    original_bytes = CanonicalModelJson(original)
+    objects, relations, observations, findings = SyntheticTrivyCandidates(
+        "image-test", NATIVE, version, database, provenance
+    )
+    prefix = "synthetic.trivy:owned-synthetic-image-wire-v1:"
+    assert len(objects) == 6, (
+        "Every colliding image/package/OS/layer/license family needs isolation"
+    )
+    assert {item.identity.key for item in objects} == {
+        prefix + item.identity.key for item in original[0]
+    }, "Synthetic identity must use the fixed family for every candidate asset"
+    synthetic_refs = {item.Reference() for item in objects}
+    native_refs = {item.Reference() for item in original[0]}
+    assert synthetic_refs.isdisjoint(native_refs), "Fixture hints cannot reuse native identities"
+    assert all({item.source_reference, item.target_reference} <= synthetic_refs
+               for item in relations), "Every relation endpoint must stay synthetic"
+    assert all(item.subject_reference in synthetic_refs for item in observations), (
+        "Observation subjects cannot link into the native graph"
+    )
+    assert all(item.attributes.get("image_reference") in synthetic_refs
+               for item in observations if "image_reference" in item.attributes), (
+        "Reference-bearing interpretation attributes must be rewritten consistently"
+    )
+    assert all(item.subject_reference in synthetic_refs and
+               item.check_id == "synthetic.supply-chain.vulnerability" for item in findings), (
+        "Finding fingerprints must separate both subjects and check identity"
+    )
+    assert all(item.provenance == (provenance,) for item in objects), (
+        "Original execution-bearing synthetic provenance cannot be erased or relabelled"
+    )
+    assert CanonicalModelJson(original) == original_bytes, (
+        "Transformation mutated native candidates"
+    )
+
+
+@pytest.mark.parametrize("changes", [{"source_id": "native.trivy"},
+                                     {"provider_version": "0.75.1-synthetic"}])
+def test_SyntheticCandidateFamilyCannotBeSelectedByCallerAttribution(context, changes):
+    """The pure family transform also refuses unsupported source/version declarations."""
+
+    _, provenance, _ = Native(context)
+    provenance = replace(provenance, **{"source_id": "synthetic.trivy", **changes})
+
+    with pytest.raises(ValueError, match="closed synthetic attribution"):
+        SyntheticTrivyCandidates("image-test", NATIVE,
+            {"Version": "0.75.0-synthetic"}, {"UpdatedAt": "2026-10-01T00:00:00Z"}, provenance)
+
+
+@pytest.mark.parametrize("mutation", ["asset", "check"])
+def test_SyntheticCandidateIsolationFailsClosedOnNewUnreviewedFamilies(context, monkeypatch,
+                                                                     mutation):
+    """Changes to shared pure parsing cannot silently add identities to the reviewed family."""
+
+    _, provenance, _ = Native(context)
+    provenance = replace(provenance, source_id="synthetic.trivy")
+    version = {"Version": "0.75.0-synthetic"}
+    database = {"UpdatedAt": "2026-10-01T00:00:00Z"}
+    objects, relations, observations, findings = TrivyCandidates(
+        "image-test", NATIVE, version, database, provenance
+    )
+
+    if mutation == "asset":
+        objects[0] = replace(objects[0], identity=replace(objects[0].identity, key="unknown:asset"))
+
+    else:
+        findings[0] = replace(findings[0], check_id="unknown.check")
+
+    def Candidates(*arguments):
+        """Model an unexpected future pure candidate family without claiming producer acceptance."""
+
+        return objects, relations, observations, findings
+
+    monkeypatch.setattr(images, "TrivyCandidates", Candidates)
+
+    with pytest.raises(ValueError, match="closed asset and check families"):
+        SyntheticTrivyCandidates("image-test", NATIVE, version, database, provenance)
 
 
 def Import(context, payload=NATIVE):
