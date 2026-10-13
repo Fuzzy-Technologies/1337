@@ -63,6 +63,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   error boundary without numeric conversion overflow.
 - Preserved awaited scan-job cleanup under concurrent forced cancellation and
   retained event-budget failure when a provider catches its notification error.
+- Preserved terminal cancellation when cooperative provider cleanup finishes
+  as the grace timer fires, without rescheduling an already finished job deadline.
 
 - Preserved owned-process cleanup when an exited process group is already absent
   on macOS, while retaining denial for an inaccessible live group.

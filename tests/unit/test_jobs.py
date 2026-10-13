@@ -355,6 +355,48 @@ def test_ForcedCancellationAwaitsProviderCleanup(
     job_runners[0].run(Scenario())
 
 
+def test_GraceTimeoutReapsProviderAlreadyFinishedDuringCancellation(
+    job_runners: tuple[asyncio.Runner, asyncio.Runner],
+) -> None:
+    """Retain terminal truth when the grace timer and cooperative cleanup finish together."""
+
+    async def Scenario() -> None:
+        """Make the grace timer due while an already-ready provider finishes without suspension."""
+
+        entered = asyncio.Event()
+        cleaned = asyncio.Event()
+
+        async def Provider(context: JobContext) -> None:
+            """Finish actual owned cleanup as soon as cooperative cancellation is delivered."""
+
+            entered.set()
+
+            await context.Cancellation.wait()
+
+            cleaned.set()
+
+        job = ScanJob(Spec(), FunctionProvider(Provider))
+        job.Start()
+
+        await entered.wait()
+
+        result = await job.CancelAndWait("owner:test", grace_seconds=1e-9)
+
+        assert cleaned.is_set(), "A grace-timeout race must reap actual provider cleanup."
+        assert result.state is JobState.CANCELLED, (
+            "Completed cooperative cancellation must retain its terminal state."
+        )
+        assert result.failure is None, "A finished job deadline must not become internal failure."
+        events = job.EventsSince()
+
+        assert await job.CancelAndWait("owner:test") == result, (
+            "Repeated cancellation must return the already-owned terminal snapshot."
+        )
+        assert job.EventsSince() == events, "Reaping a finished job must not duplicate events."
+
+    job_runners[0].run(Scenario())
+
+
 def test_DetachedWaitAndStreamConsumersCannotCancelTheProvider(
     job_runners: tuple[asyncio.Runner, asyncio.Runner],
 ) -> None:
