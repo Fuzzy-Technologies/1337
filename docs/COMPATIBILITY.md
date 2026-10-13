@@ -130,6 +130,15 @@ Nmap is supplied by the operator; this adapter never grants execution authority.
 ADR 0030 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
+`fuzzy1337.nucleiscan` and `1337 scan nuclei` are Experimental at workflow schema
+version `1`. ADR 0055 and `docs/NUCLEI_WORKFLOW.md` define operator-supplied reviewed
+material, explicit STANDARD permission, exact-plan confirmation, fresh governed
+launch and final acceptance, canonical Finding ingestion and durable reopening.
+`NucleiAuthorityDeniedError` distinguishes operator denial from filesystem access
+failures. Native authority-only host records require exact URL/scheme/port agreement;
+existing full-URL records remain supported. Genuine pinned Nuclei 3.4.10 acceptance
+uses a pytest-owned loopback target; the provider remains optional.
+
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 
