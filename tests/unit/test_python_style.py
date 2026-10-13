@@ -21,6 +21,8 @@ TEST_FUNCTION_PATTERN = re.compile(r"test_[A-Z][A-Za-z0-9]*")
 FRAMEWORK_FUNCTIONS = {
     "completenames",
     "default",
+    # StringIO/TextIO owns these callbacks; DemoEventOutput implements their exact interface.
+    "flush",
     "handle_starttag",
     "log_message",
     "onecmd",
@@ -29,6 +31,7 @@ FRAMEWORK_FUNCTIONS = {
     "pytest_configure",
     "pytest_sessionfinish",
     "pytest_xdist_auto_num_workers",
+    "write",
 }
 EXTERNAL_PARAMETERS = {
     "server_version",
@@ -73,6 +76,29 @@ def IsFrameworkFunction(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
         or name in FRAMEWORK_FUNCTIONS
         or name.startswith("do_")
         or (name.startswith("__") and name.endswith("__"))
+    )
+
+
+def test_TextIoOverridesRetainFrameworkNamesWithoutExemptingOwnedHelpers():
+    """Recognize real StringIO callbacks while ordinary project-owned helpers retain PascalCase."""
+
+    tree = ast.parse((REPOSITORY_ROOT / "src/fuzzy1337/demo.py").read_text(encoding="utf-8"))
+    recorder = next(node for node in tree.body
+                    if isinstance(node, ast.ClassDef) and node.name == "DemoEventOutput")
+    assert any(isinstance(base, ast.Name) and base.id == "StringIO" for base in recorder.bases), (
+        "The demo recorder must implement its actual standard-library StringIO boundary."
+    )
+    callbacks = [node for node in recorder.body
+                 if isinstance(node, ast.FunctionDef) and node.name in {"write", "flush"}]
+    assert {node.name for node in callbacks} == {"write", "flush"}, (
+        "The recorder must preserve both framework-owned TextIO callback names."
+    )
+    assert all(IsFrameworkFunction(node) for node in callbacks), (
+        "The style checker must recognize the recorder's genuine StringIO overrides."
+    )
+    helper = ast.parse("def retain_events():\n    pass\n").body[0]
+    assert isinstance(helper, ast.FunctionDef) and not IsFrameworkFunction(helper), (
+        "Adding TextIO callbacks must not exempt unrelated lowercase project-owned helpers."
     )
 
 

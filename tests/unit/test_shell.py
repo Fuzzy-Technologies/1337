@@ -399,12 +399,20 @@ def test_ShellDemoUsesItsExplicitLazyDispatcherAndPreservesContext(monkeypatch):
     shell.onecmd("lens dfir")
     shell.onecmd("select object:explicit")
     before = shell.State
-    assert not shell.onecmd('demo local "path with spaces" --json')
-    assert calls == [(["local", "path with spaces"], True)]
+    assert not shell.onecmd('demo local "path with spaces" --json'), (
+        "Foreground demo dispatch must keep the Workbench shell running."
+    )
+    assert calls == [(["local", "path with spaces"], True)], (
+        "The shell must forward only the explicitly supplied demo arguments."
+    )
     assert shell.State == before, "Demo dispatch must preserve the chosen presentation context."
     assert shell.lastcmd == "demo", "Replay must retain only the protected demo namespace."
-    assert "Command exit status: 3" in output.getvalue()
-    assert shell.completenames("dem") == ["demo"]
+    assert "Command exit status: 3" in output.getvalue(), (
+        "The shell must preserve the actual demo command denial status."
+    )
+    assert shell.completenames("dem") == ["demo"], (
+        "Shell completion must expose the implemented demo namespace."
+    )
     shell.onecmd("help demo")
     assert "--approve-safe-http" in output.getvalue(), "Help must name the separate approval."
 

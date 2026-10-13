@@ -53,51 +53,95 @@ def AssertStopped(root: Path) -> None:
 def ValidateSuccess(root: Path, outcome: dict) -> None:
     """Verify actual acquisitions, ordered events and reports from the same saved model."""
 
-    assert outcome["state"] == "completed" and outcome["exit_status"] == 0
-    assert outcome["target_teardown_completed"] is True
-    assert json.loads((root / "demo-summary.json").read_bytes()) == outcome
+    assert outcome["state"] == "completed" and outcome["exit_status"] == 0, (
+        "A successful assembled demo must report completion and status zero."
+    )
+    assert outcome["target_teardown_completed"] is True, (
+        "Successful completion requires confirmed owned target cleanup."
+    )
+    assert json.loads((root / "demo-summary.json").read_bytes()) == outcome, (
+        "Retained final summary must match the terminal demo outcome."
+    )
     workspace_root = root / "workspace"
     workspace = LocalWorkspaceStore(workspace_root).Open()
     model = LocalModelStore(workspace_root).Open()
     scan = json.loads((root / "scan-summary.json").read_bytes())
-    assert scan["state"] == "completed" and scan["model_revision"] == model.revision == 3
-    assert len(model.Objects(ObjectKind.HOST)) == 1 and len(model.Objects(ObjectKind.PORT)) == 1
-    assert len(model.Objects(ObjectKind.SERVICE)) == 1
-    assert len(model.Objects(ObjectKind.ENDPOINT)) == 3
+    assert scan["state"] == "completed" and scan["model_revision"] == model.revision == 3, (
+        "The completed scan must reopen the exact persisted third revision."
+    )
+    assert len(model.Objects(ObjectKind.HOST)) == 1 and len(model.Objects(ObjectKind.PORT)) == 1, (
+        "Actual discovery must retain one host and one listening port."
+    )
+    assert len(model.Objects(ObjectKind.SERVICE)) == 1, (
+        "The three endpoint requests must share one actual service."
+    )
+    assert len(model.Objects(ObjectKind.ENDPOINT)) == 3, (
+        "Each explicitly selected route must produce an actual endpoint."
+    )
     assert not model.Objects(ObjectKind.FINDING), "Endpoint discovery must not invent findings."
-    assert len(workspace.job_references) == 1 and len(workspace.evidence_record_references) == 3
+    assert len(workspace.job_references) == 1 and len(workspace.evidence_record_references) == 3, (
+        "The saved workspace must retain one real job and three acquisitions."
+    )
     stream = [json.loads(line) for line in (root / "events.jsonl").read_text().splitlines()]
     events = [line["event"] for line in stream if line["type"] == "event"]
-    assert events == scan["events"] and stream[-1]["summary"] == scan
-    assert [event["sequence"] for event in events] == list(range(len(events)))
-    assert any(event["kind"] == "model_delta" for event in events)
-    assert scan["first_model_update_seconds"] is not None
+    assert events == scan["events"] and stream[-1]["summary"] == scan, (
+        "The exact journal events and terminal summary must remain unchanged."
+    )
+    assert [event["sequence"] for event in events] == list(range(len(events))), (
+        "Actual job events must retain a contiguous ordered sequence."
+    )
+    assert any(event["kind"] == "model_delta" for event in events), (
+        "The workflow must publish at least one real saved model delta."
+    )
+    assert scan["first_model_update_seconds"] is not None, (
+        "Useful discovery must record an actual first-update measurement."
+    )
     index = json.loads((root / "evidence-index.json").read_bytes())
-    assert index["verified_acquisitions"] == 3
+    assert index["verified_acquisitions"] == 3, (
+        "The evidence index must independently verify all three acquisitions."
+    )
     assert {record["evidence_id"] for record in index["records"]} == set(
         workspace.evidence_record_references
+    ), (
+        "Index identities must match the actual saved acquisition references."
     )
 
     for item in index["records"]:
         reference = item["record"]["reference"]
         raw = (root / item["material_path"]).read_bytes()
-        assert len(raw) == reference["size_bytes"]
-        assert hashlib.sha256(raw).hexdigest() == reference["sha256"]
+        assert len(raw) == reference["size_bytes"], (
+            "Indexed material must have its exact acquired byte length."
+        )
+        assert hashlib.sha256(raw).hexdigest() == reference["sha256"], (
+            "Indexed material must independently match its acquired digest."
+        )
         actual = json.loads(raw)
         assert actual["status"] in {200, 204, 302}, "The index must point at real response status."
 
     report = json.loads((root / "reports" / "model.json").read_bytes())
     assert report["model"] == model.ToDict(), "Report export must preserve the exact saved model."
-    assert report["summary"]["findings"] == 0 and report["scan_completeness"] == "not-assessed"
+    assert report["summary"]["findings"] == 0 and report["scan_completeness"] == "not-assessed", (
+        "Status-only export cannot invent findings or a complete-scan claim."
+    )
     sarif = json.loads((root / "reports" / "model.sarif").read_bytes())
-    assert sarif["version"] == "2.1.0" and sarif["runs"][0]["results"] == []
+    assert sarif["version"] == "2.1.0" and sarif["runs"][0]["results"] == [], (
+        "SARIF must retain its actual version and empty discovery findings."
+    )
     receipts = [command["outcome"] for command in outcome["commands"]
                 if command["command"] == "report.export"]
-    assert len(receipts) == 2 and all(receipt["output_published"] for receipt in receipts)
-    assert receipts[0]["snapshot_sha256"] == receipts[1]["snapshot_sha256"]
+    assert len(receipts) == 2 and all(receipt["output_published"] for receipt in receipts), (
+        "Both actual export receipts must confirm their complete publication."
+    )
+    assert receipts[0]["snapshot_sha256"] == receipts[1]["snapshot_sha256"], (
+        "JSON and SARIF must project the same exact saved-model snapshot."
+    )
     target = json.loads((root / "target.json").read_bytes())
-    assert [request["path"] for request in target["requests"]] == list(demo.DEMO_ROUTES)
-    assert [request["status"] for request in target["requests"]] == [200, 204, 302]
+    assert [request["path"] for request in target["requests"]] == list(demo.DEMO_ROUTES), (
+        "The owned target must receive only the three explicit selected routes."
+    )
+    assert [request["status"] for request in target["requests"]] == [200, 204, 302], (
+        "Actual synthetic responses must retain the expected status sequence."
+    )
     AssertStopped(root)
 
 
@@ -106,14 +150,22 @@ def test_SdkDemoUsesRealSafeWorkflowAndSavedWorkspaceExports(tmp_path, capsys) -
 
     root = tmp_path / "owned demo"
     output = StringIO()
-    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 0
+    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 0, (
+        "The real approved SDK demo must complete its full product workflow."
+    )
     outcome = json.loads(output.getvalue())
     ValidateSuccess(root, outcome)
     before = Files(root)
-    assert Main(["workspace", "open", str(root / "workspace"), "--json"]) == 0
+    assert Main(["workspace", "open", str(root / "workspace"), "--json"]) == 0, (
+        "Independent workspace reopening must succeed after target teardown."
+    )
     reopened = json.loads(capsys.readouterr().out)
-    assert reopened["verified_evidence_records"] == 3
-    assert reopened["model_revision"] == 3
+    assert reopened["verified_evidence_records"] == 3, (
+        "Offline reopening must verify all three retained acquisitions."
+    )
+    assert reopened["model_revision"] == 3, (
+        "Offline reopening must preserve the actual saved third revision."
+    )
     assert Files(root) == before, "Offline reopen must preserve every saved material byte."
 
 
@@ -122,9 +174,15 @@ def test_HumanDemoDisplaysActualLiveUpdatesAndRetainedOutput(tmp_path) -> None:
 
     root = tmp_path / "human-demo"
     output = StringIO()
-    assert demo.RunLocalDemo(root, output, approve_safe_http=True) == 0
-    assert "model_delta" in output.getvalue() and "Local demo completed" in output.getvalue()
-    assert str(root) in output.getvalue()
+    assert demo.RunLocalDemo(root, output, approve_safe_http=True) == 0, (
+        "The actual human-output demo must complete successfully."
+    )
+    assert "model_delta" in output.getvalue() and "Local demo completed" in output.getvalue(), (
+        "Human output must show real saved deltas and terminal completion."
+    )
+    assert str(root) in output.getvalue(), (
+        "Human output must identify the actual retained output root."
+    )
     AssertStopped(root)
 
 
@@ -149,8 +207,12 @@ def test_ForegroundShellDemoPreservesContextHistoryAndReopensActualSavedModel(tm
         return output.getvalue()
 
     denied = Execute(["demo", "local", str(root), "--json"])
-    assert json.loads(denied.splitlines()[0])["state"] == "denied"
-    assert denied.splitlines()[-1] == "Command exit status: 3"
+    assert json.loads(denied.splitlines()[0])["state"] == "denied", (
+        "Missing foreground approval must produce an explicit denied outcome."
+    )
+    assert denied.splitlines()[-1] == "Command exit status: 3", (
+        "The shell must retain the actual approval-denial exit status."
+    )
     assert not root.exists(), "Shell context never supplies missing explicit SAFE approval."
     approved = Execute(["demo", "local", str(root), "--approve-safe-http", "--json"])
     ValidateSuccess(root, json.loads(approved))
@@ -161,14 +223,24 @@ def test_ForegroundShellDemoPreservesContextHistoryAndReopensActualSavedModel(tm
     output.seek(0)
     output.truncate()
     assert not shell.onecmd(""), "Empty-line repeat must keep the Workbench running."
-    assert "Command exit status: 2" in output.getvalue()
-    assert shell.lastcmd == "demo" and Files(root) == before
+    assert "Command exit status: 2" in output.getvalue(), (
+        "Sanitized empty-line replay must reject missing demo arguments."
+    )
+    assert shell.lastcmd == "demo" and Files(root) == before, (
+        "Replay must preserve the protected namespace and all retained bytes."
+    )
     Execute(["history", "demo"])
-    assert output.getvalue().splitlines() == ["demo", "demo", "demo"]
-    assert not shell.onecmd("model " + str(root / "workspace"))
+    assert output.getvalue().splitlines() == ["demo", "demo", "demo"], (
+        "History must retain only demo namespaces for the three dispatches."
+    )
+    assert not shell.onecmd("model " + str(root / "workspace")), (
+        "Explicit model inspection must keep the foreground shell running."
+    )
     view = json.loads(Execute(["view", "model", "--json"]))
     assert view["revision"] == 3, "Explicit model reopen must show the actual saved demo revision."
-    assert shell.State.lens == "dfir" and shell.State.selected_object == "object:retained"
+    assert shell.State.lens == "dfir" and shell.State.selected_object == "object:retained", (
+        "Explicit inspection must preserve the selected lens and object."
+    )
     assert Files(root) == before, "Inspection must preserve saved model/evidence/report bytes."
 
 
@@ -184,7 +256,9 @@ def test_ModuleSubprocessExposesRealDemoAndRejectsExistingOutput(tmp_path) -> No
     before = Files(root)
     repeated = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=10)
     assert repeated.returncode == 2, "Existing output must fail before acquiring a new target."
-    assert json.loads(repeated.stdout)["phase"] == "configuration"
+    assert json.loads(repeated.stdout)["phase"] == "configuration", (
+        "Existing-root replay must fail before resource acquisition."
+    )
     assert Files(root) == before, "Replaying the demo command must not overwrite prior results."
 
 
@@ -208,15 +282,29 @@ def test_ActualPolicyDenialStopsTheOwnedTargetWithoutAcquisition(tmp_path, monke
     monkeypatch.setattr(demo, "RunCommands", Revoke)
     root = tmp_path / "denied-demo"
     output = StringIO()
-    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 3
+    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 3, (
+        "Revoked current consent must preserve actual denial status three."
+    )
     outcome = json.loads(output.getvalue())
-    assert outcome["state"] == "denied" and outcome["phase"] == "scan"
+    assert outcome["state"] == "denied" and outcome["phase"] == "scan", (
+        "The demo must attribute revoked consent denial to the scan phase."
+    )
     scan = json.loads((root / "scan-summary.json").read_bytes())
-    assert scan["state"] == "failed" and scan["job"]["failure"]["code"] == "authorization"
-    assert not LocalWorkspaceStore(root / "workspace").Open().evidence_record_references
-    assert LocalModelStore(root / "workspace").Open().revision == 0
-    assert json.loads((root / "target.json").read_bytes())["requests"] == []
-    assert not list((root / "reports").iterdir())
+    assert scan["state"] == "failed" and scan["job"]["failure"]["code"] == "authorization", (
+        "The actual owning job must preserve its authorization failure."
+    )
+    assert not LocalWorkspaceStore(root / "workspace").Open().evidence_record_references, (
+        "Denied execution cannot retain fabricated acquisition references."
+    )
+    assert LocalModelStore(root / "workspace").Open().revision == 0, (
+        "Denied execution must leave the authoritative model empty."
+    )
+    assert json.loads((root / "target.json").read_bytes())["requests"] == [], (
+        "Revoked scope must prevent every target HTTP request."
+    )
+    assert not list((root / "reports").iterdir()), (
+        "A denied scan must not publish derived reports."
+    )
     AssertStopped(root)
 
 
@@ -236,13 +324,23 @@ def test_ActualPreflightStorageFailureKeepsItsEnvelopeAndStopsTarget(tmp_path, m
     monkeypatch.setattr(demo, "RunCommands", RemoveScope)
     root = tmp_path / "scan-preflight-failure"
     output = StringIO()
-    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 4
+    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 4, (
+        "Actual scope-read failure must preserve storage failure status four."
+    )
     outcome = json.loads(output.getvalue())
-    assert outcome["state"] == "failed" and outcome["phase"] == "scan"
+    assert outcome["state"] == "failed" and outcome["phase"] == "scan", (
+        "A missing scope must remain a failed scan phase."
+    )
     failure = json.loads((root / "scan-failure.json").read_bytes())
-    assert failure["failure"]["code"] == "storage" and "job" not in failure
-    assert not (root / "scan-summary.json").exists()
-    assert not list((root / "reports").iterdir())
+    assert failure["failure"]["code"] == "storage" and "job" not in failure, (
+        "Preflight storage failure must not fabricate an owning job summary."
+    )
+    assert not (root / "scan-summary.json").exists(), (
+        "Preflight failure cannot publish an invented terminal scan summary."
+    )
+    assert not list((root / "reports").iterdir()), (
+        "Preflight storage failure must prevent every report export."
+    )
     AssertStopped(root)
 
 
@@ -263,15 +361,29 @@ def test_ExportFailurePreservesActualPublishedFileAndFailureReceipt(tmp_path, mo
     monkeypatch.setattr(report_commands, "PublishReport", PublishThenFail)
     root = tmp_path / "export-failure"
     output = StringIO()
-    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 4
+    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 4, (
+        "Post-publication export failure must prevent whole-demo success."
+    )
     outcome = json.loads(output.getvalue())
-    assert outcome["state"] == "failed" and outcome["phase"] == "export"
-    assert "reports/model.json" in outcome["artifacts"]
+    assert outcome["state"] == "failed" and outcome["phase"] == "export", (
+        "A lost report acknowledgement must remain an export failure."
+    )
+    assert "reports/model.json" in outcome["artifacts"], (
+        "Confirmed report publication must retain its material reference."
+    )
     receipt = json.loads((root / "reports" / "json-export.json").read_bytes())
-    assert receipt["status"] == "failed" and receipt["output_published"] is True
-    assert json.loads((root / "reports" / "model.json").read_bytes())["model_revision"] == 3
-    assert not (root / "reports" / "model.sarif").exists()
-    assert LocalModelStore(root / "workspace").Open().revision == 3
+    assert receipt["status"] == "failed" and receipt["output_published"] is True, (
+        "The report receipt must preserve failed but published truth."
+    )
+    assert json.loads((root / "reports" / "model.json").read_bytes())["model_revision"] == 3, (
+        "The already-published report must retain the actual saved revision."
+    )
+    assert not (root / "reports" / "model.sarif").exists(), (
+        "A failed first export must not start the next format export."
+    )
+    assert LocalModelStore(root / "workspace").Open().revision == 3, (
+        "An export failure must preserve the acquired authoritative model."
+    )
     AssertStopped(root)
 
 
@@ -290,12 +402,22 @@ def test_FailedExportCannotClobberAConcurrentForeignOutput(tmp_path, monkeypatch
     monkeypatch.setattr(demo, "RunReportCommands", ForeignOutput)
     root = tmp_path / "report-race"
     output = StringIO()
-    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 2
+    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 2, (
+        "A competing report output must retain configuration status two."
+    )
     outcome = json.loads(output.getvalue())
-    assert outcome["state"] == "failed" and outcome["phase"] == "export"
-    assert (root / "reports" / "model.json").read_bytes() == b"foreign-report-bytes"
-    assert "reports/model.json" not in outcome["artifacts"]
-    assert LocalModelStore(root / "workspace").Open().revision == 3
+    assert outcome["state"] == "failed" and outcome["phase"] == "export", (
+        "A competing output must remain an explicit export failure."
+    )
+    assert (root / "reports" / "model.json").read_bytes() == b"foreign-report-bytes", (
+        "Report publication must never overwrite the other writer bytes."
+    )
+    assert "reports/model.json" not in outcome["artifacts"], (
+        "Foreign output must not be claimed as a demo-owned artifact."
+    )
+    assert LocalModelStore(root / "workspace").Open().revision == 3, (
+        "No-clobber export failure must preserve the actual saved model."
+    )
     AssertStopped(root)
 
 
@@ -345,8 +467,12 @@ def test_TargetTeardownClosesAContinuingPartialHeaderBeforeShutdown() -> None:
         writer.start()
         closer.start()
         assert finished.wait(timeout=1), "Teardown must close an active partial-header client."
-        assert not errors and target.stopped
-        assert target.thread is not None and not target.thread.is_alive()
+        assert not errors and target.stopped, (
+            "Continuing partial framing must still permit successful cleanup."
+        )
+        assert target.thread is not None and not target.thread.is_alive(), (
+            "The target service thread must be completely reaped after cleanup."
+        )
 
     finally:
         stop.set()
@@ -376,12 +502,22 @@ def test_LateTeardownFailureCannotBecomeDemoSuccess(tmp_path, monkeypatch) -> No
     monkeypatch.setattr(demo.OwnedDemoTarget, "Close", CloseThenFail)
     root = tmp_path / "teardown-failure"
     output = StringIO()
-    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 4
+    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 4, (
+        "Late target cleanup failure must prevent demo success."
+    )
     outcome = json.loads(output.getvalue())
-    assert outcome["state"] == "failed" and outcome["phase"] == "teardown"
-    assert outcome["target_teardown_completed"] is False
-    assert "reports/model.json" in outcome["artifacts"]
-    assert "synthetic-cleanup-failure" not in output.getvalue()
+    assert outcome["state"] == "failed" and outcome["phase"] == "teardown", (
+        "Late cleanup failure must retain its actual teardown phase."
+    )
+    assert outcome["target_teardown_completed"] is False, (
+        "Lost cleanup acknowledgement cannot confirm completed teardown."
+    )
+    assert "reports/model.json" in outcome["artifacts"], (
+        "Late cleanup failure must preserve already-published reports."
+    )
+    assert "synthetic-cleanup-failure" not in output.getvalue(), (
+        "Raw cleanup exception text must remain outside terminal output."
+    )
     AssertStopped(root)
 
 
@@ -418,11 +554,21 @@ def test_InterruptAfterActualFirstModelDeltaRetainsPartialStateAndStopsTarget(tm
         stdout, stderr = process.communicate(timeout=10)
         assert process.returncode == 130, stderr + stdout
         outcome = json.loads(stdout)
-        assert outcome["state"] == "cancelled" and outcome["phase"] == "scan"
-        assert outcome["target_teardown_completed"] is True
-        assert LocalModelStore(root / "workspace").Open().revision >= 1
-        assert LocalWorkspaceStore(root / "workspace").Open().evidence_record_references
-        assert not (root / "reports" / "model.json").exists()
+        assert outcome["state"] == "cancelled" and outcome["phase"] == "scan", (
+            "Actual SIGINT must preserve a cancelled scan-phase outcome."
+        )
+        assert outcome["target_teardown_completed"] is True, (
+            "Interrupted execution must still confirm owned target teardown."
+        )
+        assert LocalModelStore(root / "workspace").Open().revision >= 1, (
+            "SIGINT must preserve at least the first actually saved model delta."
+        )
+        assert LocalWorkspaceStore(root / "workspace").Open().evidence_record_references, (
+            "SIGINT must retain the acquisitions supporting saved model state."
+        )
+        assert not (root / "reports" / "model.json").exists(), (
+            "Cancelled discovery must not publish a fabricated successful report."
+        )
         AssertStopped(root)
 
     finally:

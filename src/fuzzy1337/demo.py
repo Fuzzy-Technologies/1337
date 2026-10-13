@@ -201,7 +201,9 @@ class OwnedDemoTarget:
             """Signal owned thread readiness and enter the finite-polling service loop."""
 
             self.ready.set()
-            assert self.server is not None
+            assert self.server is not None, (
+                "The owned target must exist before its service thread starts."
+            )
             self.server.serve_forever(poll_interval=0.05)
 
         self.thread = Thread(target=Serve, name="1337-demo-target", daemon=True)
@@ -425,7 +427,9 @@ def RunLocalDemo(
     def Invoke(namespace: str, arguments: list[str], filename: str) -> dict[str, object]:
         """Run and retain an actual product receipt, failing on its original exit status."""
 
-        assert root is not None
+        assert root is not None, (
+            "Product commands must run only after acquiring the new demo root."
+        )
         captured = StringIO()
         status = RunCommands(namespace, arguments, captured, json_output=True)
         document = json.loads(captured.getvalue())
