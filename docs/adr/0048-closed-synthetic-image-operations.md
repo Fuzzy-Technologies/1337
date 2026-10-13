@@ -2,10 +2,11 @@
 
 ## Status
 
-Proposed — 2026-10-13. Task #142; related work #138, #140, #141 and #278.
-This checkpoint contains design only. Task #278 must first be accepted; its
-initial schema-1 factory has no VERSION operation. No SDK, producer, importer,
-registration, native capability or executable command is added here.
+Accepted design — 2026-10-13. Task #142; related work #138, #140, #141 and #278.
+This approval accepts the future contract, not its runtime implementation.
+Task #278 must first be accepted with its original-run/grant marker consistency
+fix; its initial schema-1 factory has no VERSION operation. No SDK, producer,
+importer, registration, native capability or executable command is added here.
 
 ## Context
 
@@ -46,6 +47,8 @@ and temporary paths belong to that operation's fresh scratch partition.
 
 VERSION and SCAN require separate fresh physical stages, stage leases, grants,
 run identifiers, launch markers, actual raw results and acceptance receipts.
+The physical marker and receipt bind the same original run and grant; a different
+grant identifier or chronology cannot reuse a previous physical execution.
 Their input/scanner/material content manifests, provider/profile/family,
 selected executable identity, workspace and owner agree exactly. Stage roots,
 physical staged-copy identities, cwd/cache paths and invocation digests differ

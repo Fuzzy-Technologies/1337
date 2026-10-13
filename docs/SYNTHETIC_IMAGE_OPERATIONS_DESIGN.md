@@ -1,9 +1,10 @@
 # Synthetic image VERSION and SCAN operation contract
 
-[ADR 0048](adr/0048-closed-synthetic-image-operations.md) proposes this contract
-for Task #142. These are future producer/consumer requirements, not an implemented
-SDK API, importer or product command. The initial Task #278 foundation must first
-be accepted; its initial operation and execution metadata remain schema-1 SCAN.
+[ADR 0048](adr/0048-closed-synthetic-image-operations.md) defines the accepted
+future contract for Task #142. These are producer/consumer requirements, not an
+implemented SDK API, importer or product command. The initial Task #278 foundation
+must first be accepted with original-run/grant marker consistency; its initial
+operation and execution metadata remain schema-1 SCAN.
 The accepted reviewed worker and independent oracle are the unchanged files under
 `tests/fixtures/image_scan`.
 
@@ -94,8 +95,10 @@ SCAN appends exactly the reviewed richer worker's ordered wire:
  "--exit-code", "0", "--no-progress", "--timeout", "<deadline>s")
 ```
 
-Its deadline is an integer from 1 through 60 seconds; the consumer default is
-30 seconds. Stdout is bounded to 4 MiB and stderr to 1 MiB. The accepted executor
+Its deadline is an actual integer from 1 through 60 seconds, excluding booleans,
+floats, numeric strings and rounding; the consumer default is 30 seconds. VERSION
+likewise requires its exact integer deadline and rejects conflicting overrides.
+Stdout is bounded to 4 MiB and stderr to 1 MiB. The accepted executor
 owns timeout, cancellation, output-limit detection and cleanup. These are
 execution/capture bounds, not OS CPU, memory, network or write quotas.
 The initial lifecycle image argv has a different ordering and remains unchanged;
@@ -109,6 +112,8 @@ physical root, scratch/cache, lease, request, grant, run identifier or launch
 marker with the other. Input/scanner/material partitions are separate immutable
 copies, and the accepted factory owns cwd, home, temp, XDG and environment values.
 The original current CPython selection remains independently pinned for each.
+Each physical marker and receipt bind that same original run and grant identifier;
+swapping a grant or changing its chronology cannot reuse an earlier execution.
 
 Compare the following original facts before accepting the pair:
 
