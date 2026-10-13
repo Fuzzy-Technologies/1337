@@ -104,6 +104,16 @@ if sys.argv[2] == "capped-during":
         readline.parse_and_bind("set history-size 1")
         original_context(argument)
     shell.do_context = CapDuringCommand
+original_completion = shell.postcmd
+completed_commands = 0
+def CompletedCommand(stop, line):
+    """Acknowledge actual callback completion before the parent accepts a new input prompt."""
+    global completed_commands
+    result = original_completion(stop, line)
+    completed_commands += 1
+    print("NATIVE-COMMAND-DONE:" + str(completed_commands) + ":", flush=True)
+    return result
+shell.postcmd = CompletedCommand
 if sys.argv[2] == "queued":
     shell.cmdqueue = ["report; export synthetic-private-terminal-argument", "quit"]
 try:
@@ -129,16 +139,20 @@ print("NATIVE-RESULT:" + json.dumps({"before": before, "after": after,
     "refused": refused, "before_indices": before_indices,
     "during": during, "seed_snapshot": seed_snapshot, "after_seed": after_seed,
     "local": list(shell._history), "lastcmd": shell.lastcmd}), flush=True)
+print("NATIVE-END", flush=True)
 '''
 
 
 def ReadUntil(master: int, expected: bytes, process: subprocess.Popen,
-              transcript: bytearray) -> None:
+              transcript: bytearray, *, after: bytes = b"") -> None:
     """Read only one owned PTY until its expected lifecycle marker, with a finite deadline."""
 
     deadline = time.monotonic() + 10
 
-    while expected not in transcript:
+    while (
+        (position := transcript.find(after)) < 0
+        or expected not in transcript[position + len(after):]
+    ):
         if time.monotonic() >= deadline:
             raise AssertionError("Owned terminal did not reach its expected lifecycle marker.")
 
@@ -159,7 +173,10 @@ def ReadUntil(master: int, expected: bytes, process: subprocess.Popen,
         elif process.poll() is not None:
             break
 
-    assert expected in transcript or b"NATIVE-UNAVAILABLE" in transcript, (
+    position = transcript.find(after)
+    assert (
+        position >= 0 and expected in transcript[position + len(after):]
+    ) or b"NATIVE-UNAVAILABLE" in transcript, (
         "Only a missing optional editor may skip a native terminal oracle."
     )
 
@@ -187,7 +204,7 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
 
     try:
         if mode == "queued":
-            ReadUntil(master, b"NATIVE-RESULT:", process, transcript)
+            ReadUntil(master, b"NATIVE-END", process, transcript)
 
         else:
             ReadUntil(master, b"1337> ", process, transcript)
@@ -195,11 +212,13 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
             if b"NATIVE-UNAVAILABLE" in transcript:
                 pytest.skip("This interpreter has no optional native line editor.")
 
-            for line in lines:
+            for command_index, line in enumerate(lines, 1):
                 transcript.clear()
                 os.write(master, line + b"\n")
+                completed = b"NATIVE-COMMAND-DONE:" + str(command_index).encode() + b":"
                 ReadUntil(master, b"probe> " if mode == "capped-over-budget" else b"1337> ",
-                          process, transcript)
+                          process, transcript,
+                          after=b"" if mode == "capped-over-budget" else completed)
 
             if mode != "capped-over-budget":
                 transcript.clear()
@@ -210,7 +229,7 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
                 ))
                 ReadUntil(master, b"probe> ", process, transcript)
             os.write(master, b"owned-after-loop\n")
-            ReadUntil(master, b"NATIVE-RESULT:", process, transcript)
+            ReadUntil(master, b"NATIVE-END", process, transcript)
 
         if b"NATIVE-UNAVAILABLE" in transcript:
             pytest.skip("This interpreter has no optional native line editor.")
