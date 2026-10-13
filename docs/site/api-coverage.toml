@@ -90,6 +90,18 @@ mode = "authored"
 page = "api/fuzzy1337.cli.md"
 
 [[surfaces]]
+module = "fuzzy1337.demo"
+source = "src/fuzzy1337/demo.py"
+mode = "authored"
+page = "api/fuzzy1337.demo.md"
+
+[[surfaces]]
+module = "fuzzy1337.demo_commands"
+source = "src/fuzzy1337/demo_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.demo_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.command_registry"
 source = "src/fuzzy1337/command_registry.py"
 mode = "authored"

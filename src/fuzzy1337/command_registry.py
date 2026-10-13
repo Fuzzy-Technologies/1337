@@ -204,5 +204,11 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 report export <workspace> --format <json|sarif> --output <new-file>",
             capabilities=("workbench.report-export",),
         ),
+        CommandDescriptor(
+            identifier="demo",
+            summary="Run an explicitly approved command-owned local SAFE discovery demo.",
+            usage="1337 demo local <new-output-root> [--approve-safe-http]",
+            capabilities=("workbench.local-demo",),
+        ),
     )
 )
