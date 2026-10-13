@@ -37,6 +37,16 @@ def Files(root: Path) -> dict[str, bytes]:
             for path in root.rglob("*") if path.is_file()}
 
 
+def ProcessProgress(root: Path) -> str:
+    """Describe only known retained phase markers when an owned CLI process times out."""
+
+    paths = ("workspace-create.json", "scope-create.json", "events.jsonl", "scan-summary.json",
+             "workspace-open.json", "reports/model.json", "reports/model.sarif",
+             "target.json", "demo-summary.json")
+
+    return json.dumps({path: (root / path).exists() for path in paths}, sort_keys=True)
+
+
 def AssertStopped(root: Path) -> None:
     """Independently reject a new connection to the previously bound command-owned port."""
 
@@ -169,6 +179,30 @@ def test_SdkDemoUsesRealSafeWorkflowAndSavedWorkspaceExports(tmp_path, capsys) -
     assert Files(root) == before, "Offline reopen must preserve every saved material byte."
 
 
+def test_CommandOwnedTargetStartupNeverDependsOnHostnameResolution(tmp_path, monkeypatch) -> None:
+    """A literal loopback service must start even when every hostname resolver is unavailable."""
+
+    lookups = []
+
+    def RejectLookup(*arguments, **keywords) -> None:
+        """Reject hostname resolution without contacting any external resolver or service."""
+
+        lookups.append(arguments)
+
+        raise RuntimeError("Synthetic resolver is unavailable")
+
+    for name in ("getfqdn", "gethostbyaddr", "getaddrinfo"):
+        monkeypatch.setattr(socket, name, RejectLookup)
+
+    root = tmp_path / "resolver-independent-demo"
+    output = StringIO()
+    assert demo.RunLocalDemo(root, output, approve_safe_http=True, json_output=True) == 0, (
+        "Owned literal-IP target startup must not depend on hostname resolution."
+    )
+    assert lookups == [], "The actual demo parent must never invoke a hostname resolver."
+    ValidateSuccess(root, json.loads(output.getvalue()))
+
+
 def test_HumanDemoDisplaysActualLiveUpdatesAndRetainedOutput(tmp_path) -> None:
     """Default presentation exposes real saved-model updates followed by the retained root."""
 
@@ -250,7 +284,12 @@ def test_ModuleSubprocessExposesRealDemoAndRejectsExistingOutput(tmp_path) -> No
     root = tmp_path / "process-demo"
     argv = [sys.executable, "-m", "fuzzy1337", "demo", "local", str(root),
             "--approve-safe-http", "--json"]
-    completed = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=20)
+    try:
+        completed = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=20)
+
+    except subprocess.TimeoutExpired:
+        pytest.fail("Owned CLI did not finish within 20 seconds; retained phases: "
+                    + ProcessProgress(root))
     assert completed.returncode == 0, completed.stderr + completed.stdout
     ValidateSuccess(root, json.loads(completed.stdout))
     before = Files(root)
@@ -576,7 +615,8 @@ def test_InterruptAfterActualFirstModelDeltaRetainsPartialStateAndStopsTarget(tm
 
             time.sleep(0.01)
 
-        assert observed, "The real worker must save its first model delta before interruption."
+        assert observed, ("No first saved model delta before interruption; retained phases: "
+                          + ProcessProgress(root))
         process.send_signal(signal.SIGINT)
         stdout, stderr = process.communicate(timeout=10)
         assert process.returncode == 130, stderr + stdout
