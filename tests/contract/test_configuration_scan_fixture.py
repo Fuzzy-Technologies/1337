@@ -414,6 +414,41 @@ def test_JsonExceptionTracebacksDoNotReflectRejectedPrivateValues():
         pytest.fail("Duplicate private fields must be refused by the bounded decoder.")
 
 
+def test_EveryAdmittedSourceAndProducerRetainsPinnedHashesAndLfWithoutGit():
+    """Require six independently pinned byte/LF/attribute contracts on every runtime runner."""
+
+    pinned = {
+        "dockerfile/unsafe/Dockerfile":
+            "3f0114052cfa7d826abf315fededac339851d4c1991b5c2447bfdf01882323b7",
+        "dockerfile/safe/Dockerfile":
+            "1712d2480103b5881b6df078d5471d12a2c9e0d1d7f6cb96270aa7751943231c",
+        "kubernetes/unsafe.yaml":
+            "63b77e1703ab126b9f5283daa5091f750af8ddab3e3b8e24eed63ea36888dd1d",
+        "kubernetes/safe.yaml":
+            "52e45b63f8aec99934dcfddd90d1f3b417111ccabe4514c262e3e8cf443f729f",
+        "kubernetes/multi.yaml":
+            "8cd7163a754dc1a0c29ce1e54fc29cb68a5a0a2b71c79d03a3c54d9caf363b1f",
+    }
+    selected = [(CORPUS / path, digest) for path, digest in pinned.items()]
+    selected.append((PRODUCER,
+        "af34b374fa49ce3048d3a7821df5ad8370849240a786dabc7311e14322476eb6"))
+    attributes = (REPOSITORY_ROOT / ".gitattributes").read_text().splitlines()
+
+    assert set(pinned) == {case["inputs"][0]["fixture"] for case in CASES.values()}, (
+        "Independent byte pins must cover exactly every admitted input fixture."
+    )
+
+    for path, digest in selected:
+        raw = path.read_bytes()
+
+        assert hashlib.sha256(raw).hexdigest() == digest and b"\r" not in raw, (
+            "Each admitted corpus/worker source must retain its exact reviewed LF byte hash."
+        )
+        assert path.relative_to(REPOSITORY_ROOT).as_posix() + " text eol=lf" in attributes, (
+            "Every source-hashed corpus/worker file must keep its exact narrow LF attribute."
+        )
+
+
 def test_WindowsCheckoutPreservesEveryAdmittedSourceAndProducerByte(tmp_path):
     """Simulate CRLF checkout configuration using only the six explicit owned index paths."""
 
@@ -422,8 +457,12 @@ def test_WindowsCheckoutPreservesEveryAdmittedSourceAndProducerByte(tmp_path):
     paths.append(str(PRODUCER.relative_to(REPOSITORY_ROOT)))
     destination = tmp_path / "simulated windows checkout"
     destination.mkdir()
-    assert shutil.which("git") is not None, "The repository checkout contract requires Git."
-    subprocess.run(["git", "-c", "core.autocrlf=true", "-c", "core.eol=crlf", "checkout-index",
+    git = shutil.which("git")
+
+    if git is None:
+        pytest.skip("Git checkout simulation requires Git; byte/hash/LF checks run separately.")
+
+    subprocess.run([git, "-c", "core.autocrlf=true", "-c", "core.eol=crlf", "checkout-index",
                     "--prefix=" + destination.as_posix() + "/", "--", *paths],
                    cwd=REPOSITORY_ROOT, capture_output=True, check=True)
 
