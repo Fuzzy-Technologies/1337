@@ -107,6 +107,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   expensive verification and preserve actual raw execution/acceptance outcomes.
 - Bind synthetic receipts to their original physical run and authorization
   window. Historical replay verifies evidence without issuing a new grant.
+- Recheck synthetic SCAN and its original VERSION prerequisite at the same
+  refreshed clock after authority lookup, denying launch or acceptance when only
+  VERSION expires during that final lookup.
 - Supplied HTML captures retain explicit owner verification and caller-attributed
   source association. Frontier interpretation grants no transport, browser or
   request execution authority and claims completeness only for its input profile.

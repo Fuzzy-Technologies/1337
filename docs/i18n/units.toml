@@ -9205,7 +9205,7 @@ state = "missing"
 id = "symbol:fuzzy1337.artifact_policy.ArtifactPolicyEngine.ValidateTime"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_policy.py"
-sourceHash = "sha256:3f7c529e37e310667ba0ea29045b4a885a53212ff822dab864e0146e2ff52318"
+sourceHash = "sha256:4c5de44c01f0a65d719533d26d88f5373f24a7f2832ed4d102996437e350369a"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
