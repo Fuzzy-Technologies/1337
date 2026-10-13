@@ -56,6 +56,12 @@ The digest covers CanonicalModelJson(ModelState.ToDict()), including every curre
 attribute, provenance and retained observation. Reusing a revision with different
 contents cannot substitute another basis. Query/graph identities also bind profile,
 model pin, scope/context, assessment time, freshness limit and selected transitions.
+Before calling the full owning serializer, an iterator preflight charges the exact
+schema fields, punctuation, UTF-8/JSON scalar sizes and fixed persisted-reference
+lengths. It stops beyond 8 MiB without ToDict, JsonValue or Reference calls. An
+admitted snapshot still hashes only through the existing canonical owner, and the
+predicted/encoded lengths must match. This bounds this consumer's work/copies,
+not memory already allocated by the caller.
 
 Selected edges must exist and use RelationKind.RELATED_TO. Their ordered endpoints
 define direction; no reverse edge is inferred. Eligible nodes are existing Domain,

@@ -8968,3 +8968,29 @@ state = "missing"
 
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.JsonScalarSize"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:3b83fc626e39f0d21ec34fb667595ae8441ece84964ff0f750b66800b77d8746"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ModelSnapshotSize"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:e7efd81a594f0295c26bd34a2d48936d06c0dac75c3a02dbb844f72eb4f3775f"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"

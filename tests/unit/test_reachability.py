@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 import traceback
 from dataclasses import FrozenInstanceError, replace
 
@@ -18,6 +20,8 @@ from fuzzy1337.evidence import (
     LocalEvidenceStore,
 )
 from fuzzy1337.model import (
+    MAX_MODEL_BYTES,
+    CanonicalModelJson,
     LocalModelStore,
     ObjectIdentity,
     ObjectKind,
@@ -28,6 +32,8 @@ from fuzzy1337.model import (
 )
 from fuzzy1337.reachability import (
     Confidence,
+    JsonScalarSize,
+    ModelSnapshotSize,
     ProjectReachability,
     ReachabilityLimits,
     ReachabilityModelVersion,
@@ -884,3 +890,127 @@ def test_MalformedCopiedProjectionFieldsCannotEnterThePureSearch(fixture, case):
     with pytest.raises(ValueError):
         SearchReachabilityPaths(copied, fixture.model, fixture.objects["source"].Reference(),
                                 fixture.objects["portal"].Reference())
+
+
+@pytest.mark.parametrize("value", [None, True, False, 0, 123, -123, 1.25, -0.0, 1e-30,
+    "", "ascii", "\\", '"', "\b\f\n\r\t", "\x00\x01\x1f", "\x7f", "é", "中", "😀",
+    "\u2028\u2029", "all:\\\"\x00\n é中😀"], ids=["null", "true", "false", "zero",
+    "integer", "negative-integer", "float", "negative-zero", "scientific", "empty", "ascii",
+    "backslash", "quote", "short-escapes", "hex-escapes", "del", "two-byte", "three-byte",
+    "four-byte", "line-separators", "mixed"])
+def test_IndependentCanonicalScalarByteOracle(value):
+    """UTF-8 and JSON escaping costs match the standard owning encoder at exact boundaries."""
+
+    actual = json.dumps(value, ensure_ascii=False, allow_nan=False,
+                        separators=(",", ":")).encode("utf-8")
+    assert JsonScalarSize(value, len(actual)) == len(actual), "Canonical scalar byte count changed"
+    with pytest.raises(ValueError):
+        JsonScalarSize(value, len(actual) - 1)
+
+
+@pytest.mark.parametrize("case", ["unicode", "nested", "rich-attribution", "empty-model"])
+def test_IndependentOwningModelBytesAndHashMatchThePreflight(fixture, case):
+    """Model size prediction never replaces the existing owner's exact canonical hash semantics."""
+
+    if case == "empty-model":
+        model = type(fixture.model)(fixture.model.workspace_id)
+    else:
+        original = fixture.model.objects[0]
+        attributes = {"unicode": "é中😀\u2028", "escaped\nkey": 'quote" slash\\ null\x00'}
+        if case == "nested":
+            attributes = {"nested": [None, True, -4, 2.5, {"emoji": ["😀", {}, []]}]}
+        provenance = original.provenance
+        if case == "rich-attribution":
+            provenance = (replace(provenance[0],
+                evidence_references=(fixture.records["source-portal"].reference,),
+                execution=AdapterExecution(ExecutionState.SUCCEEDED, 0, 0.125)),)
+        changed = replace(original, attributes=attributes, provenance=provenance)
+        model = replace(fixture.model, objects=(changed, *fixture.model.objects[1:]))
+    expected = CanonicalModelJson(model.ToDict())
+    assert ModelSnapshotSize(model) == len(expected), "Preflight differs from owning model bytes"
+    version = ReachabilityModelVersion.FromModel(model)
+    assert version.snapshot_sha256 == hashlib.sha256(expected).hexdigest(), "Canonical hash changed"
+
+
+def BoundaryModel(fixture, delta):
+    """Build valid typed caller models using independent owning-byte costs, not preflight outputs.
+
+    Args:
+        fixture: Existing typed independent model producer.
+        delta: Desired byte offset from the owning 8 MiB limit.
+
+    Returns:
+        Valid caller-built immutable model at exactly the desired canonical length.
+    """
+
+    original = fixture.model
+    provenance = original.objects[0].provenance
+    empty = SecurityObject(ObjectIdentity(original.workspace_id, ObjectKind.ASSET, "budget:0000"),
+                           {"padding": ""}, provenance)
+    base_size = len(CanonicalModelJson(original.ToDict()))
+    unit_size = len(CanonicalModelJson(replace(original, objects=(
+        *original.objects, empty,
+    )).ToDict())) - base_size
+    block = 60000
+    count = (MAX_MODEL_BYTES - base_size - unit_size) // (block + unit_size)
+    padding = "x" * block
+    full = tuple(SecurityObject(ObjectIdentity(original.workspace_id, ObjectKind.ASSET,
+        f"budget:{index:04d}"), {"padding": padding}, provenance) for index in range(count))
+    blank = SecurityObject(ObjectIdentity(original.workspace_id, ObjectKind.ASSET,
+        f"budget:{count:04d}"), {"padding": ""}, provenance)
+    model = replace(original, objects=(*original.objects, *full, blank))
+    remainder = MAX_MODEL_BYTES + delta - len(CanonicalModelJson(model.ToDict()))
+    assert 0 <= remainder < 64000, "Independent boundary fixture cannot fit one bounded attribute"
+    last = replace(blank, attributes={"padding": "y" * remainder})
+    result = replace(original, objects=(*original.objects, *full, last))
+    assert len(CanonicalModelJson(result.ToDict())) == MAX_MODEL_BYTES + delta, "Boundary mismatch"
+
+    return result
+
+
+@pytest.mark.parametrize("delta", [-1, 0, 1], ids=["one-byte-below", "exact", "one-byte-above"])
+def test_ExactEightMiBBoundariesUseIndependentCanonicalBytes(fixture, delta):
+    """The complete owning size fence is inclusive and its accepted hash remains unchanged."""
+
+    model = BoundaryModel(fixture, delta)
+    if delta > 0:
+        with pytest.raises(ValueError):
+            ReachabilityModelVersion.FromModel(model)
+        return
+    expected = CanonicalModelJson(model.ToDict())
+    assert ModelSnapshotSize(model) == len(expected), "Exact boundary byte count changed"
+    assert ReachabilityModelVersion.FromModel(model).snapshot_sha256 == hashlib.sha256(
+        expected,
+    ).hexdigest(), "Exact boundary canonical digest changed"
+
+
+def test_OversizedCallerModelRefusesBeforeFullMaterialization(fixture, monkeypatch):
+    """Reject a valid oversized basis before calling ToDict, JsonValue or Reference."""
+
+    import fuzzy1337.reachability as module
+
+    model = BoundaryModel(fixture, 1)
+    attempted = []
+
+    def Refuse(*args, **kwargs):
+        """Record and refuse an allocating owner serialization or identity call.
+
+        Args:
+            args: Unused attempted positional materialization arguments.
+            kwargs: Unused attempted keyword materialization arguments.
+
+        Raises:
+            AssertionError: Oversized caller data reached full materialization.
+        """
+
+        attempted.append(True)
+        raise AssertionError("oversized model reached full canonical materialization")
+
+    with monkeypatch.context() as guard:
+        guard.setattr(type(model), "ToDict", Refuse)
+        guard.setattr(module, "CanonicalModelJson", Refuse)
+        for record_type in (ObjectIdentity, SecurityObject, Relation, Observation):
+            guard.setattr(record_type, "Reference", Refuse)
+        with pytest.raises(ValueError):
+            ReachabilityModelVersion.FromModel(model)
+    assert not attempted, "Size admission delegated oversized caller data to an allocating owner"

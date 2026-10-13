@@ -10,13 +10,14 @@ import json
 import math
 import re
 from collections import deque
-from dataclasses import dataclass, field, replace
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass, field, fields, replace
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum, StrEnum
 from pathlib import Path
 from typing import cast
 
-from fuzzy1337.adapters import EvidenceReference, ExecutionState
+from fuzzy1337.adapters import AdapterExecution, EvidenceReference, ExecutionState
 from fuzzy1337.evidence import (
     EvidenceError,
     EvidenceProvenance,
@@ -31,9 +32,12 @@ from fuzzy1337.model import (
     LocalModelStore,
     ModelProvenance,
     ModelState,
+    ObjectIdentity,
     ObjectKind,
     Observation,
+    Relation,
     RelationKind,
+    SecurityObject,
 )
 
 REACHABILITY_PROFILE_VERSION = 1
@@ -190,6 +194,219 @@ def Digest(value: object) -> str:
     return "sha256:" + hashlib.sha256(CanonicalModelJson(value)).hexdigest()
 
 
+def JsonScalarSize(value: object, maximum: int) -> int:
+    """Internal preflight: count canonical scalar bytes before allocating their JSON encoding.
+
+    Args:
+        value: Existing validated model scalar, with enum values already unwrapped.
+        maximum: Remaining canonical snapshot byte allowance.
+
+    Returns:
+        Exact canonical UTF-8 byte size with ensure_ascii=False escaping semantics.
+
+    Raises:
+        ValueError: Scalar type, Unicode, finiteness or remaining size is unsupported.
+    """
+
+    if isinstance(value, str):
+        size = 2
+
+        if len(value) + size > maximum:
+            raise ValueError("reachability basis exceeds the owning model size limit")
+
+        for char in value:
+            point = ord(char)
+
+            if char in '\\"\b\f\n\r\t':
+                size += 2
+
+            elif point < 32:
+                size += 6
+
+            elif point <= 127:
+                size += 1
+
+            elif point <= 2047:
+                size += 2
+
+            elif 0xD800 <= point <= 0xDFFF:
+                raise ValueError("reachability model strings must be valid UTF-8")
+
+            elif point <= 65535:
+                size += 3
+
+            else:
+                size += 4
+
+            if size > maximum:
+                raise ValueError("reachability basis exceeds the owning model size limit")
+
+        return size
+
+    if value is None:
+        size = 4
+
+    elif type(value) is bool:
+        size = 4 if value else 5
+
+    elif isinstance(value, (int, float)):
+        if isinstance(value, int):
+            digits = maximum - int(value < 0)
+            magnitude = abs(value)
+            bits = magnitude.bit_length()
+            # These rational bounds enclose log10(2); ambiguity is at most one digit here.
+            lower = ((bits - 1) * 301029995663981195) // 10 ** 18 + 1 if bits else 1
+            upper = (bits * 301029995663981196) // 10 ** 18 + 1 if bits else 1
+
+            if lower > digits or digits < 1 or (
+                upper > digits and magnitude >= 10 ** digits
+            ):
+                raise ValueError("reachability model number exceeds the remaining byte limit")
+
+        size = len(json.dumps(value, allow_nan=False, separators=(",", ":")))
+
+    else:
+        raise ValueError("reachability model contains an unsupported canonical scalar")
+
+    if size > maximum:
+        raise ValueError("reachability basis exceeds the owning model size limit")
+
+    return size
+
+
+def ModelSnapshotSize(model: ModelState) -> int:
+    """Internal bounded preflight of the exact persisted schema without materializing model JSON.
+
+    Args:
+        model: Existing immutable first-party model, whose caller-owned memory is not bounded here.
+
+    Returns:
+        Exact CanonicalModelJson(model.ToDict()) byte length, admitted at no more than 8 MiB.
+
+    Raises:
+        ValueError: Supported schema fields would exceed the owning size or scalar contract.
+    """
+
+    size = 0
+
+    def Add(count: int) -> None:
+        """Charge canonical punctuation or scalar bytes before any model materialization.
+
+        Args:
+            count: Exact additional byte count.
+
+        Raises:
+            ValueError: Cumulative serialized size exceeds the owning bound.
+        """
+
+        nonlocal size
+        size += count
+
+        if size > MAX_MODEL_BYTES:
+            raise ValueError("reachability basis exceeds the owning model size limit")
+
+    def Children(value: Mapping[str, object]) -> Iterator[tuple[object, str | None]]:
+        """Iterate mapping keys and values without creating a second complete JSON tree.
+
+        Args:
+            value: Existing frozen model attribute mapping.
+
+        Yields:
+            One existing key or child value at a time.
+        """
+
+        for key, child in value.items():
+            yield key, None
+            yield child, None
+
+    def Members(
+        value: SecurityObject | Relation | Observation | ObjectIdentity | ModelProvenance
+        | EvidenceReference | AdapterExecution,
+    ) -> Iterator[tuple[object, str | None]]:
+        """Bind one record while descendant iterators advance through other values.
+
+        Args:
+            value: Existing first-party model record.
+
+        Yields:
+            One original dataclass field value at a time.
+        """
+
+        for member in fields(value):
+            yield getattr(value, member.name), None
+
+    def Sequence(
+        value: tuple[object, ...] | list[object], namespace: str | None,
+    ) -> Iterator[tuple[object, str | None]]:
+        """Bind list context without capturing subsequently processed descendant variables.
+
+        Args:
+            value: Existing model record or attribute sequence.
+            namespace: Optional persisted-record namespace for this exact sequence.
+
+        Yields:
+            One original child and its correct fixed context at a time.
+        """
+
+        for child in value:
+            yield child, namespace
+
+    envelope = (("schema_version", MODEL_SCHEMA_VERSION, None),
+        ("workspace_id", model.workspace_id, None), ("revision", model.revision, None),
+        ("objects", model.objects, "object"), ("relations", model.relations, "relation"),
+        ("observations", model.observations, "observation"))
+    Add(2 + len(envelope) - 1 + len(envelope))
+
+    for name, _, _ in envelope:
+        Add(JsonScalarSize(name, MAX_MODEL_BYTES - size))
+
+    pending: list[Iterator[tuple[object, str | None]]] = [iter(
+        (value, namespace) for _, value, namespace in envelope
+    )]
+    record_types = (SecurityObject, Relation, Observation, ObjectIdentity, ModelProvenance,
+                    EvidenceReference, AdapterExecution)
+
+    while pending:
+        try:
+            value, namespace = next(pending[-1])
+
+        except StopIteration:
+            pending.pop()
+            continue
+
+        if isinstance(value, Enum):
+            value = value.value
+
+        if isinstance(value, record_types):
+            members = fields(value)
+            persisted = namespace is not None and namespace.startswith("persisted:")
+            count = len(members) + int(persisted)
+            Add(2 + count - 1 + count)
+
+            if persisted:
+                Add(JsonScalarSize("reference", MAX_MODEL_BYTES - size))
+                Add(2 + len(cast(str, namespace).removeprefix("persisted:")) + 1 + 64)
+
+            for member in members:
+                Add(JsonScalarSize(member.name, MAX_MODEL_BYTES - size))
+
+            pending.append(Members(value))
+
+        elif isinstance(value, Mapping):
+            Add(2 + max(0, len(value) - 1) + len(value))
+            pending.append(Children(value))
+
+        elif isinstance(value, (tuple, list)):
+            Add(2 + max(0, len(value) - 1))
+            child_namespace = "persisted:" + namespace if namespace is not None else None
+            pending.append(Sequence(value, child_namespace))
+
+        else:
+            Add(JsonScalarSize(value, MAX_MODEL_BYTES - size))
+
+    return size
+
+
 @dataclass(frozen=True, slots=True)
 class ReachabilityModelVersion:
     """Pin complete model contents independently of relation identity or revision alone."""
@@ -229,13 +446,14 @@ class ReachabilityModelVersion:
             raise ValueError("reachability requires a first-party ModelState")
 
         try:
+            size = ModelSnapshotSize(model)
             payload = CanonicalModelJson(model.ToDict())
 
         except (ValueError, UnicodeError, RecursionError, OverflowError):
             raise ValueError("reachability basis must use its bounded canonical contract") from None
 
-        if len(payload) > MAX_MODEL_BYTES:
-            raise ValueError("reachability basis exceeds the owning model size limit")
+        if len(payload) != size:
+            raise ValueError("reachability preflight differs from the owning canonical schema")
 
         return cls(MODEL_SCHEMA_VERSION, model.workspace_id, model.revision,
                    hashlib.sha256(payload).hexdigest())
