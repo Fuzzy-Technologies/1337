@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import json
 import os
 import sys
@@ -29,6 +30,7 @@ from fuzzy1337.executors import (
     LocalExecutionError,
     LocalExecutionRequest,
     LocalExecutor,
+    local,
 )
 
 
@@ -524,6 +526,69 @@ def test_RepeatedCancellationCannotInterruptOwnedCleanup(tmp_path, monkeypatch):
     asyncio.run(Run())
 
 
+@pytest.mark.skipif(os.name != "posix", reason="owned POSIX live-child signaling denial")
+def test_RepeatedCancellationCannotHideBoundedCleanupDenial(tmp_path, monkeypatch):
+    """A second cancellation cannot hide genuine signaling failure or abandon executor waiters."""
+
+    async def Run() -> None:
+        """Deny only fixture-owned signals and restore the real primitive before final reaping."""
+
+        executor, processes = CaptureExecutor(tmp_path, monkeypatch)
+        observed = asyncio.Event()
+        denied = asyncio.Event()
+        baseline = asyncio.all_tasks()
+        original_signal = local.KillProcessGroup
+
+        async def Observe(event) -> None:
+            """Suspend at the initial handoff until cancellation requests owned cleanup."""
+
+            observed.set()
+
+            await asyncio.Event().wait()
+
+        def Signal(process_id: int, selected: int) -> None:
+            """Reject termination of only the live child owned by this fixture."""
+
+            assert processes and process_id == processes[0].pid, "Only the fixture child is owned."
+            denied.set()
+
+            raise PermissionError(errno.EPERM, "synthetic live cleanup denial")
+
+        monkeypatch.setattr(local, "KillProcessGroup", Signal)
+        task = asyncio.create_task(executor.Execute(Request(
+            tmp_path, "import time; time.sleep(30)",
+            resources=ExecutionResources(terminate_grace_seconds=0.05),
+        ), on_event=Observe))
+
+        try:
+            await asyncio.wait_for(observed.wait(), 3)
+            task.cancel()
+            await asyncio.wait_for(denied.wait(), 3)
+            task.cancel()
+
+            with pytest.raises(LocalExecutionError):
+                await asyncio.wait_for(task, 1)
+
+            assert processes[0].returncode is None, (
+                "Genuine denial cannot claim successful cleanup."
+            )
+            assert asyncio.all_tasks() == baseline, "Denied cleanup must still reap owned waiters."
+
+        finally:
+            monkeypatch.setattr(local, "KillProcessGroup", original_signal)
+
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+            await CleanupFixture(executor, processes)
+            assert processes[0].returncode is not None, (
+                "The fixture must reap its real owned child."
+            )
+
+    asyncio.run(Run())
+
+
 def test_AsyncObserverCallbacksRemainOrderedAndNonOverlapping(tmp_path):
     """Serialize awaitable lifecycle/output callbacks while preserving complete output."""
 
@@ -553,5 +618,31 @@ def test_AsyncObserverCallbacksRemainOrderedAndNonOverlapping(tmp_path):
         assert observed == list(result.events), "Awaitable callbacks changed lifecycle ordering."
         assert result.stdout == f"out{os.linesep}".encode(), "stdout evidence was lost."
         assert result.stderr == f"err{os.linesep}".encode(), "stderr evidence was lost."
+
+    asyncio.run(Run())
+
+
+def test_NaturalExitDoesNotApplyCleanupGraceToResponsiveObserver(tmp_path):
+    """Preserve normal async observers whose finite work exceeds termination grace."""
+
+    async def Run() -> None:
+        """Observe actual stdout for fifty milliseconds without triggering unrelated cleanup."""
+
+        async def Observe(event) -> None:
+            """Finish a responsive output callback after the much shorter cleanup grace."""
+
+            if event.kind is ExecutionEventKind.STDOUT:
+                await asyncio.sleep(0.05)
+
+        result = await LocalExecutor(tmp_path).Execute(Request(
+            tmp_path, "print('synthetic')", timeout_seconds=2,
+            resources=ExecutionResources(terminate_grace_seconds=0.005),
+        ), on_event=Observe)
+        assert result.execution.state is ExecutionState.SUCCEEDED, (
+            "Natural exit must preserve valid responsive output observers."
+        )
+        assert result.stdout == f"synthetic{os.linesep}".encode(), (
+            "Termination grace must not truncate ordinary observed output."
+        )
 
     asyncio.run(Run())
