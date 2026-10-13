@@ -56,6 +56,9 @@ principals; a consumer can add its own caller/consent-actor binding. Complete
 scope/policy content and revision, consent, owner, all manifests, physical lease
 and every process-affecting request field enter the grant. A same-revision change
 does not bypass freshness. SAFE requires an explicit capability permission.
+Live validation recomputes the exact exclusive expiry from original issuance and
+the fully bound policy and consent. Issuance itself must be within recorded
+consent; rebuilding an envelope cannot change that canonical lifetime.
 After full hashing and scratch setup, the final launch hook re-reads complete
 authority and the clock without a new expensive hash cycle. Any owner, scope,
 policy or expiry change in either window denies before process start. Prepared
@@ -68,11 +71,16 @@ requires a synchronous fresh typed context provider and returns immutable
 result. Its separate `acceptance` receipt binds the exact original run, stage,
 grant, process state, stream hashes and event identity.
 The accepted receipt also binds the actual single-run marker's physical identity
-and contents; its checked time is within the original grant and no later than a
+and fixed bounded contents containing the original run and authorization IDs.
+Its checked time is within the original grant and no later than a
 fresh acceptance decision. Missing/changed/relinked markers cannot relabel a run.
+Copying raw output into another policy-valid grant window cannot relabel the
+physical launch's original authorization.
 Post-run revocation, expiry, material mutation or lookup failure records refusal without discarding
-raw stdout/stderr or relabeling actual exit facts. Cooperative cancellation
-returns a raw cancelled result. Caller coroutine cancellation preserves the
+raw stdout/stderr or relabeling actual exit facts.
+The internal receipt decision also re-reads context and time after full after-run
+hashing and marker verification; changes during that work refuse the receipt.
+Cooperative cancellation returns a raw cancelled result. Caller coroutine cancellation preserves the
 executor's existing raise-after-cleanup contract.
 
 Consumers attach raw stdout/stderr to the existing evidence store with original

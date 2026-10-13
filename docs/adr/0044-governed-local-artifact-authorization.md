@@ -139,6 +139,8 @@ synchronous context provider is evaluated before issuance and immediately before
 the accepted `LocalExecutor` starts a process. Same-revision content changes,
 exclusion, revocation, expiry, changed owner, executable, material or request deny.
 Grant expiry also applies at result acceptance, including expiry during execution.
+Live validation recomputes the same exact expiry from original issuance and the
+bound policy/consent and checks that issuance was within recorded consent.
 After full material hashing and again after scratch setup, a cheap final guard
 reads the context provider and clock anew. It compares complete current authority
 and request bindings, rather than only revisions, without restarting an expensive
@@ -149,8 +151,11 @@ hash cycle. Authority or expiry changes in either window prevent process launch.
 separate `ArtifactAcceptance` receipt. Each receipt binds its exact run, stage,
 grant and raw execution/termination/stream hashes/event identity. Replacing raw
 bytes or swapping receipts cannot preserve acceptance. An accepted receipt binds
-the original physical single-run marker and has a checked time within its grant
-and no later than fresh acceptance. Missing, replaced or relinked markers deny.
+the original physical single-run marker containing both run and authorization
+IDs and has a checked time within its grant and no later than fresh acceptance.
+Missing, replaced or relinked markers deny. After full after-run hashing and marker
+verification, the receipt decision also refreshes current context and time through
+the same cheap final guards.
 Post-run authority/material refusal is
 recorded in that receipt; it never raises after discarding captured stdout/stderr,
 uses a mutable last-result property, invents success, or changes the actual

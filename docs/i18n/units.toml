@@ -8721,7 +8721,7 @@ state = "missing"
 id = "symbol:fuzzy1337.artifact_policy.ArtifactPolicyEngine.Authorize"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_policy.py"
-sourceHash = "sha256:8555d5b1e402cab2203783f4fe51776a09a87f61e413da469bcb313b95dca2fb"
+sourceHash = "sha256:08c76d10ef3374e786b886c7cb2d631d4763474f6a90c56dd2ef3988ba81cd80"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -8996,7 +8996,7 @@ state = "missing"
 id = "symbol:fuzzy1337.artifact_policy.ArtifactPolicyEngine.ValidateTime"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_policy.py"
-sourceHash = "sha256:f42631703cbed72e359d8f24df27d7fd83b49b92fd6da56a30347ba93713093a"
+sourceHash = "sha256:3f7c529e37e310667ba0ea29045b4a885a53212ff822dab864e0146e2ff52318"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9007,7 +9007,18 @@ state = "missing"
 id = "symbol:fuzzy1337.artifact_policy.VerifyExecutionMarker"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_policy.py"
-sourceHash = "sha256:bda2cb94f3a7aa1fd25a59e2ef7d7c94e6f39dd2843c08a317aba24c7a61a22e"
+sourceHash = "sha256:333abba566365c03853d42d5d90db7d2d59b19a506b8097977375f1b50db1c1b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_policy.ExecutionMarkerBytes"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_policy.py"
+sourceHash = "sha256:1a8e57bcee978948c3e296e11d82ae77d45a1332d51074a8d93a1cde387b5a4a"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

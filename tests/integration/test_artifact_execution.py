@@ -15,7 +15,7 @@ import pytest
 from artifact_helpers import AT, OwnedArtifact
 
 from fuzzy1337.adapters import ExecutionState
-from fuzzy1337.artifact_inputs import ArtifactProfile
+from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactStage
 from fuzzy1337.artifact_policy import (
     ArtifactDenialReason,
     ArtifactDeniedError,
@@ -482,3 +482,124 @@ def test_OutcomeFreezesCallerManifestListBeforeRetainingProvenance(tmp_path):
     assert isinstance(frozen.manifests, tuple), "Frozen outcome retained a caller's mutable list"
     assert frozen.Metadata() == before, "Caller alias changed accepted original provenance"
     executor.ValidateAcceptance(frozen, prepared, stage, context, at=AT)
+
+
+def test_RebuiltExpiredOutcomeEnvelopeCannotExtendOriginalPolicyLifetime(tmp_path):
+    """A coherent changed grant/receipt still cannot normalize beyond the bound policy limit."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+    executor = GovernedArtifactExecutor(root, clock=lambda: AT)
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+    later = AT + timedelta(seconds=301)
+
+    with pytest.raises(ArtifactDeniedError):
+        executor.ValidateAcceptance(outcome, prepared, stage, context, at=later)
+
+    valid_until = (AT + timedelta(hours=1)).isoformat()
+    changed_grant = replace(
+        grant,
+        valid_until=valid_until,
+        authorization=ArtifactPolicyEngine().Envelope(grant.plan, grant.issued_at, valid_until),
+    )
+    changed = replace(
+        outcome,
+        grant=changed_grant,
+        acceptance=replace(
+            outcome.acceptance, grant_id=changed_grant.authorization.authorization_id
+        ),
+    )
+
+    with pytest.raises(ArtifactDeniedError):
+        executor.ValidateAcceptance(changed, prepared, stage, context, at=later)
+
+    assert changed.raw_result == outcome.raw_result, "Lifetime denial rewrote actual raw evidence"
+
+
+def test_CompletedRunCannotBeRelabeledWithAnotherCanonicalGrantWindow(tmp_path):
+    """The physical marker witnesses original authorization as well as original run identity."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+    executor = GovernedArtifactExecutor(root, clock=lambda: AT)
+    outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
+    later = AT + timedelta(seconds=301)
+    issued_at = later.isoformat()
+    valid_until = (later + timedelta(seconds=context.policy.max_authorization_seconds)).isoformat()
+    changed_grant = replace(
+        grant,
+        issued_at=issued_at,
+        valid_until=valid_until,
+        authorization=ArtifactPolicyEngine().Envelope(grant.plan, issued_at, valid_until),
+    )
+    changed = replace(
+        outcome,
+        grant=changed_grant,
+        acceptance=replace(
+            outcome.acceptance,
+            grant_id=changed_grant.authorization.authorization_id,
+            checked_at=issued_at,
+        ),
+    )
+    marker = json.loads((stage.root / "scratch/run-lease.json").read_bytes())
+
+    assert marker == {
+        "schema_version": 1,
+        "run_id": outcome.run_id,
+        "grant_id": grant.authorization.authorization_id,
+    }, "Launch marker failed to preserve the original run and grant"
+
+    with pytest.raises(ArtifactDeniedError):
+        executor.ValidateAcceptance(changed, prepared, stage, context, at=later)
+
+    executor.ValidateAcceptance(outcome, prepared, stage, context, at=AT)
+    replayed = VerifyArtifactReplay(
+        outcome.Metadata(), outcome.raw_result.stdout, outcome.raw_result.stderr
+    )
+
+    assert replayed.grant_id == grant.authorization.authorization_id, (
+        "Read-only original replay lost its actual recorded authorization"
+    )
+
+
+@pytest.mark.parametrize("mutation", ["owner", "permission", "expiry"])
+def test_AuthorityChangedDuringPostRunHashingRefusesReceiptAndKeepsRaw(
+    tmp_path, monkeypatch, mutation
+):
+    """The final result decision refreshes owner/policy/time after expensive after-run hashing."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+    actual_verify = ArtifactStage.Verify
+    current = context
+    now = AT
+
+    def Verify(selected, **options):
+        """Change only owned operator state after actual final immutable material checking."""
+
+        nonlocal current, now
+        actual_verify(selected, **options)
+
+        if not options.get("after_run"):
+            return
+
+        if mutation == "owner":
+            current = replace(context, owner_ref="owner:changed")
+
+        elif mutation == "permission":
+            current = replace(context, policy=replace(context.policy, permissions=()))
+
+        else:
+            now = AT + timedelta(seconds=301)
+
+    monkeypatch.setattr(ArtifactStage, "Verify", Verify)
+    outcome = asyncio.run(
+        GovernedArtifactExecutor(root, clock=lambda: now).Execute(
+            prepared, stage, grant, lambda: current
+        )
+    )
+
+    assert outcome.raw_result.execution.state == ExecutionState.SUCCEEDED, (
+        "Actual child did not run"
+    )
+    assert outcome.raw_result.stdout, "Fresh post-run refusal discarded actual raw output"
+    assert outcome.acceptance.refusal is not None, (
+        "Stale post-hash authority became accepted receipt"
+    )

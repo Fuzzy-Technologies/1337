@@ -9,7 +9,7 @@ import inspect
 import stat
 from collections.abc import Mapping
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -19,6 +19,7 @@ from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ImpactLevel
 from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactSelection, ArtifactStage
 from fuzzy1337.artifact_policy import (
     ArtifactAcceptance,
+    ArtifactDenialReason,
     ArtifactDeniedError,
     ArtifactPolicyEngine,
     GovernedArtifactExecutor,
@@ -641,3 +642,80 @@ def test_ReceiptMarkerMetadataIsFiniteAndFreezesCallerAlias(tmp_path):
 
     with pytest.raises(ValueError):
         replace(receipt, marker_identity=MarkerIterator())
+
+
+@pytest.mark.parametrize(
+    "mutation", ["policy-limit", "consent-limit", "shorter", "outside-consent"]
+)
+def test_CoherentEnvelopeCannotChangeCanonicalOriginalLifetime(tmp_path, mutation):
+    """Unsigned envelope self-consistency cannot extend policy or bypass issuance consent."""
+
+    root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
+    engine = ArtifactPolicyEngine()
+    issued_at = grant.issued_at
+    valid_until = (AT + timedelta(hours=1)).isoformat()
+
+    if mutation == "consent-limit":
+        scope = replace(
+            context.scope,
+            authorization=replace(
+                context.scope.authorization, valid_until=(AT + timedelta(seconds=60)).isoformat()
+            ),
+        )
+        scope = LocalScopeStore(root).Save(scope)
+        context = replace(context, scope=scope)
+        grant = engine.Authorize(prepared, stage, context, at=AT)
+        valid_until = (AT + timedelta(seconds=300)).isoformat()
+
+    elif mutation == "shorter":
+        valid_until = (AT + timedelta(seconds=1)).isoformat()
+
+    elif mutation == "outside-consent":
+        issued_at = (AT - timedelta(seconds=1)).isoformat()
+        valid_until = (AT + timedelta(seconds=299)).isoformat()
+
+    changed = replace(
+        grant,
+        issued_at=issued_at,
+        valid_until=valid_until,
+        authorization=engine.Envelope(grant.plan, issued_at, valid_until),
+    )
+
+    with pytest.raises(ArtifactDeniedError):
+        engine.Validate(changed, prepared, stage, context, at=AT)
+
+    with pytest.raises(ArtifactDeniedError):
+        engine.ValidateCurrent(changed, prepared, stage, context, at=AT)
+
+    events = []
+    operation = GovernedArtifactExecutor(root, clock=lambda: AT).Execute(
+        prepared, stage, changed, lambda: context, on_event=events.append
+    )
+
+    with pytest.raises(ArtifactDeniedError):
+        operation.send(None)
+
+    assert not any(event.kind == ExecutionEventKind.STARTED for event in events), (
+        "Noncanonical lifetime reached a child"
+    )
+    assert not tuple((stage.root / "scratch").iterdir()), "Noncanonical lifetime initialized launch"
+
+
+def test_ExpiryArithmeticOverflowAtIssuanceIsTypedDenial(tmp_path):
+    """An aware upper datetime boundary cannot escape as an unclassified arithmetic failure."""
+
+    root, stage, prepared, context, _ = OwnedArtifact(tmp_path)
+    scope = replace(
+        context.scope,
+        authorization=replace(context.scope.authorization, valid_from=None, valid_until=None),
+    )
+    scope = LocalScopeStore(root).Save(scope)
+    context = replace(context, scope=scope)
+
+    with pytest.raises(ArtifactDeniedError) as denied:
+        ArtifactPolicyEngine().Authorize(
+            prepared, stage, context, at=datetime.max.replace(tzinfo=timezone.utc)
+        )
+
+    assert denied.value.reason == ArtifactDenialReason.PLAN_CHANGED, "Overflow escaped typed denial"
+    assert not tuple((stage.root / "scratch").iterdir()), "Impossible expiry initialized launch"

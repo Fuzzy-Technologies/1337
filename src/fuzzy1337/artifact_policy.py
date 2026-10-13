@@ -759,11 +759,19 @@ class ArtifactPolicyEngine:
 
         Returns:
             Immutable grant requiring fresh launch and acceptance validation.
+
+        Raises:
+            ArtifactDeniedError: Authority/material fails or a bounded expiry cannot be represented.
         """
 
         plan = self.Plan(prepared, stage, context, at=at)
         issued_at = at.astimezone(timezone.utc).isoformat()
-        expiry = at + timedelta(seconds=context.policy.max_authorization_seconds)
+
+        try:
+            expiry = at + timedelta(seconds=context.policy.max_authorization_seconds)
+
+        except OverflowError as error:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED) from error
 
         if context.scope.authorization.valid_until is not None:
             expiry = min(expiry, datetime.fromisoformat(context.scope.authorization.valid_until))
@@ -820,18 +828,10 @@ class ArtifactPolicyEngine:
             ValueError: A network grant or malformed clock/type is supplied.
         """
 
-        RequireTime(at)
-
         if not isinstance(grant, ArtifactGrant):
             raise ValueError("artifact policy requires an ArtifactGrant")
 
-        if (
-            not datetime.fromisoformat(grant.issued_at)
-            <= at
-            < datetime.fromisoformat(grant.valid_until)
-        ):
-            raise ArtifactDeniedError(ArtifactDenialReason.GRANT_EXPIRED)
-
+        self.ValidateTime(grant, stage, context, at=at)
         plan = self.Plan(prepared, stage, context, at=at, after_run=after_run)
 
         if plan != grant.plan or grant.authorization != self.Envelope(
@@ -847,7 +847,7 @@ class ArtifactPolicyEngine:
         *,
         at: datetime,
     ) -> None:
-        """Check time and bound consent cheaply after expensive material verification.
+        """Check canonical issued lifetime and consent after expensive material verification.
 
         Args:
             grant: Original typed artifact grant with issuance/exclusive expiry.
@@ -856,7 +856,7 @@ class ArtifactPolicyEngine:
             at: Fresh aware clock read immediately before launch-hook return.
 
         Raises:
-            ArtifactDeniedError: The grant or recorded consent expired during validation/setup.
+            ArtifactDeniedError: Canonical policy/consent lifetime differs or authority expired.
             ValueError: The typed context/grant/time contract is malformed.
         """
 
@@ -871,6 +871,23 @@ class ArtifactPolicyEngine:
             < datetime.fromisoformat(grant.valid_until)
         ):
             raise ArtifactDeniedError(ArtifactDenialReason.GRANT_EXPIRED)
+
+        issued_at = datetime.fromisoformat(grant.issued_at)
+
+        try:
+            expiry = issued_at + timedelta(seconds=context.policy.max_authorization_seconds)
+
+        except OverflowError as error:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED) from error
+
+        if context.scope.authorization.valid_until is not None:
+            expiry = min(expiry, datetime.fromisoformat(context.scope.authorization.valid_until))
+
+        if datetime.fromisoformat(grant.valid_until) != expiry:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        if not context.scope.Check(stage.input.manifest.Target(), at=issued_at).Allowed():
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
 
         if not context.scope.Check(stage.input.manifest.Target(), at=at).Allowed():
             raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
@@ -1273,9 +1290,38 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
     return receipt
 
 
+def ExecutionMarkerBytes(run_id: str, grant_id: str) -> bytes:
+    """Encode the fixed bounded original-run/original-authorization witness without I/O.
+
+    Args:
+        run_id: Original run reference chosen before the final launch hook.
+        grant_id: Original artifact authorization identity validated for this exact launch.
+
+    Returns:
+        Canonical private schema-1 JSON bytes with exactly three fields, at most 512 bytes.
+
+    Raises:
+        ValueError: References are malformed or exceed the fixed marker byte limit.
+    """
+
+    RequireReference(run_id, "artifact marker run")
+    RequireReference(grant_id, "artifact marker grant")
+    payload = json.dumps(
+        {"schema_version": 1, "run_id": run_id, "grant_id": grant_id},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    if len(payload) > 512:
+        raise ValueError("artifact execution marker exceeds its fixed byte limit")
+
+    return payload
+
+
 def VerifyExecutionMarker(
     stage: ArtifactStage,
     run_id: str,
+    grant_id: str,
     identity: tuple[int, int, int, int, int] | None,
 ) -> None:
     """Bind fresh acceptance to the physical marker created by this actual single launch.
@@ -1283,6 +1329,7 @@ def VerifyExecutionMarker(
     Args:
         stage: Original owned stage; historical replay never calls this physical check.
         run_id: Original run identity written at the final validated launch boundary.
+        grant_id: Original authorization identity written alongside that actual run.
         identity: Original observed marker device/inode/length/modification/change identity.
 
     Raises:
@@ -1299,12 +1346,12 @@ def VerifyExecutionMarker(
         if PhysicalIdentity(ArtifactPathInfo(path)) != identity:
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
-        record = ReadArtifactFile(path, "run-lease.json", max_bytes=128)
+        record = ReadArtifactFile(path, "run-lease.json", max_bytes=512)
 
     except ValueError as error:
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED) from error
 
-    expected = run_id.encode("utf-8")
+    expected = ExecutionMarkerBytes(run_id, grant_id)
 
     if record.size_bytes != len(expected) or record.sha256 != hashlib.sha256(expected).hexdigest():
         raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
@@ -1407,8 +1454,8 @@ class GovernedArtifactExecutor:
             self._engine.ValidateTime(grant, stage, launch_context, at=self._clock())
             scratch = stage.root / "scratch"
 
-            with (scratch / "run-lease.json").open("x", encoding="utf-8") as marker:
-                marker.write(run_id)
+            with (scratch / "run-lease.json").open("xb") as marker:
+                marker.write(ExecutionMarkerBytes(run_id, grant.authorization.authorization_id))
 
             marker_identity = PhysicalIdentity(ArtifactPathInfo(scratch / "run-lease.json"))
 
@@ -1438,7 +1485,17 @@ class GovernedArtifactExecutor:
             )
 
             if marker_identity is not None:
-                VerifyExecutionMarker(stage, run_id, marker_identity)
+                VerifyExecutionMarker(
+                    stage, run_id, grant.authorization.authorization_id, marker_identity
+                )
+
+            acceptance_context = self.CurrentContext(context_provider)
+            checked_at = self._clock()
+            self._engine.ValidateCurrent(
+                grant, prepared, stage, acceptance_context, at=checked_at
+            )
+            checked_at = self._clock()
+            self._engine.ValidateTime(grant, stage, acceptance_context, at=checked_at)
 
         except ArtifactDeniedError as error:
             refusal = error.reason
@@ -1528,7 +1585,7 @@ class GovernedArtifactExecutor:
         ):
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
-        VerifyExecutionMarker(stage, outcome.run_id, receipt.marker_identity)
+        VerifyExecutionMarker(stage, outcome.run_id, receipt.grant_id, receipt.marker_identity)
 
         if not (
             outcome.raw_result.execution.state == ExecutionState.SUCCEEDED
