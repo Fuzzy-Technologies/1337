@@ -2,6 +2,7 @@
   "fixture_kind": "handwritten-reachability-oracle",
   "fixture_version": 1,
   "path_order": "Compare this independently enumerated set by hop count, then resolved canonical relation-reference tuples.",
+  "phase_vector_order": "Each event_states/key_states entry pairs positionally with the corresponding symbolic event_paths/key_paths entry before canonical sorting. Sort each route together with its paired state; the remediation portal-identity route alone stays BLOCKED.",
   "event_paths": [
     ["source-portal", "portal-identity", "identity-billing", "billing-event"],
     ["source-detour", "detour-identity", "identity-billing", "billing-event"],

@@ -21,12 +21,19 @@ assessment manifests and workspace_root, plus the expected model version,
 context_reference, scope_reference, aware at and max_age_seconds. Its result is a
 frozen ephemeral claim collection. Direct result constructors and parsing helpers
 are Internal; a Python type alone is not proof or authenticated source authority.
+at is an explicit ISO 8601 timestamp string with a UTC offset, normalized through
+the evidence owner; the loader reads no system clock.
 
 The loader opens the existing workspace and persisted model through their owners.
 Both must match the supplied workspace/schema/revision/full snapshot digest. It
 reads no historical basis and writes nothing. LocalEvidenceStore.Get and Read
 verify each manifest and original blob; a reference/hash alone does not verify
 stored evidence. A forged caller record must match the canonical stored manifest.
+Current persisted basis means the exact snapshot returned by that owner read.
+The loader claims no continuously fresh filesystem state or transactional lock
+across model and evidence reads. Its output pins that immutable read, verified
+artifacts and the explicit assessment time. A caller requiring a later basis or
+time must reopen through the owners and repeat verification.
 
 ProjectReachability takes the exact ModelState, explicit selected relation refs,
 the loaded claim collection and expected_model_version. It rechecks the full
@@ -70,15 +77,31 @@ An assessment is strict UTF-8 JSON in an existing immutable evidence record:
 Each claim has exactly relation_reference, state, confidence, inference_rule,
 basis and blocking_controls. inference_rule is an explicit non-secret identifier
 for LIKELY and null otherwise; the engine never evaluates a named rule. A basis
-entry has observation_reference and evidence_manifest_ids. The observation must
-be retained in the pinned model, address that exact relation and have kind
+entry has exactly observation_reference and evidence_manifest_ids. basis contains
+at most 16 entries, each with at most 16 distinct manifest IDs. Observation refs
+are unique within basis. The observation must be retained in the pinned model,
+address that exact relation and have kind
 reachability-support. Its evidence references must be nonempty for known states.
 The listed manifests cover its evidence references exactly, without omissions,
 duplicates or substituted roles/content. They are verified through the owner.
 
-Supporting provenance must match the retained observation's source ID, provider
-version/tool version, scope, observed time/finished acquisition time and execution
-outcome, including explicit None. Manifest workspace equals the model workspace.
+Supporting provenance matches these fields exactly for each listed manifest:
+
+| EvidenceProvenance field | Required retained ModelProvenance value |
+| ------------------------ | --------------------------------------- |
+| workspace_id             | The pinned ModelState workspace_id      |
+| source_id                | source_id                               |
+| tool_version             | provider_version, including None        |
+| scope_reference          | scope_reference and query scope         |
+| finished_at              | observed_at, canonical UTC              |
+| execution                | execution, including None               |
+
+source_version is a separate evidence-format version, not provider_version or
+tool_version. Its exact supplied value is retained and pinned by the immutable
+manifest ID; ModelProvenance has no source_version field to compare. The same
+manifest pin retains started_at and invocation_sha256 without inferring a run or
+target identity from them. Retain the original observation's run_reference and
+target_reference independently; evidence provenance has no corresponding fields.
 Failed/cancelled/timed-out support acquisitions are unusable, not successful proof.
 An execution outcome of None remains a supplied/imported assessment, never success.
 
@@ -88,15 +111,19 @@ version and collection times. Manifest scope equals envelope/query scope. The
 assessment is a verified source attestation; this boundary authenticates neither
 the source actor nor the correctness of a measurement or inference.
 
-BLOCKED additionally requires nonempty blocking_controls. Each entry identifies
-an existing ASSET with asset_type reachability-control, an exact retained
-reachability-support observation on that control and the complete supporting
-manifest IDs. Controls have distinct references. Non-BLOCKED declarations have
-an empty control list. The source explicitly asserts that those controls block
+BLOCKED additionally requires 1..16 blocking_controls entries. Each entry has
+exactly control_reference, observation_reference and evidence_manifest_ids.
+control_reference identifies an existing ASSET with asset_type
+reachability-control; observation_reference identifies one exact retained
+reachability-support observation on that control. evidence_manifest_ids lists
+1..16 distinct IDs covering its supporting evidence completely. Controls have
+distinct references, and every control proof uses the same provenance/time
+admission rules as transition basis. Non-BLOCKED declarations have an empty
+control list. The source explicitly asserts that those controls block
 this transition; the engine does not execute or reconstruct their policy.
 
-Unknown fields, wrong types/bands, duplicate declaration identity, malformed
-references, unsupported versions, invalid Unicode/constants and byte/node/depth
+Unknown fields, wrong types/bands, duplicate declaration identity within one
+artifact, malformed references, unsupported versions, invalid Unicode/constants and byte/node/depth
 violations refuse the entire input. Unsupported relation kinds refuse. Foreign
 workspace/context/scope substitution refuses. Corrupt/missing/unsafe stored
 manifests or bytes raise the existing evidence failure with sanitized diagnostics.
@@ -135,7 +162,17 @@ probabilities or endorsements by this engine.
 Different current states for one transition conflict and yield UNKNOWN. Multiple
 admitted declarations of the same state retain all estimates/provenance/control
 proofs; the engine chooses no winner and invents no combined estimate. Exact source
-replay is deduplicated by canonical artifact/claim identity.
+replay is deduplicated by canonical artifact/claim identity. Canonical declaration
+content retains every field, sorts basis by observation_reference, controls by
+control_reference and each manifest-ID list lexically. A declaration identity is
+sha256: prefixed digest of CanonicalModelJson with exactly assessment_manifest_id,
+envelope and declaration keys. Their values are the immutable assessment ID, the
+complete envelope excluding claims, and that canonical declaration. Repeated identical
+assessment manifest IDs in the input are verified once and deduplicated. Two
+equal declaration identities within an artifact refuse that artifact. Separate
+manifests retain separate identities even when their raw payloads match, because
+their source/version/times/provenance are distinct. Multiple declarations for the
+same transition with different contents remain visible; they are not duplicates.
 
 ## Candidate path semantics
 
@@ -170,7 +207,10 @@ proof that another route exists. Exclude a successor only when it repeats a node
 in the current prefix; an edge participating in a cycle may be valid in another
 simple candidate path. Do not prioritize a state or confidence score.
 
-Limits are explicit per query. Stop without dropping undisclosed work when the
+Limits require exact integers, excluding booleans, strings and numeric coercion:
+max_depth is 1..32 (default 16), max_paths is 1..256 (default 64), max_work is
+1..20000 (default 4096) and max_frontier is 1..4096 (default 1024). Zero and values
+outside those ranges refuse before search. Stop without dropping undisclosed work when the
 successor-work, frontier or path budget is reached; expose corresponding reasons.
 A depth limit that leaves an unvisited successor is also incomplete. Hitting an
 exact limit after the final successor with no unexamined successor or queued
@@ -184,21 +224,23 @@ candidate graph does not prove infrastructure unreachability, global absence of
 attack paths, or exhaustive discovery. Proof admission coverage is reported
 separately from search completeness.
 
-| Resource                        | Hard bound                      |
-| ------------------------------- | ------------------------------- |
-| Full basis model                | Existing 8 MiB                  |
-| Eligible projected nodes        | 512                             |
-| Explicit selected transitions   | 2048                            |
-| Assessment artifacts            | 32                              |
-| Each assessment JSON            | 256 KiB / 8000 nodes / 16 depth |
-| Total declarations              | 2048                            |
-| Basis entries per claim/control | 16                              |
-| Unique supporting manifests     | 256                             |
-| Each supporting raw artifact    | 64 KiB                          |
-| Query depth                     | Default 16 / maximum 32         |
-| Returned candidate paths        | Default 64 / maximum 256        |
-| Examined successors             | Default 4096 / maximum 20000    |
-| Pending simple prefixes         | Default 1024 / maximum 4096     |
+| Resource                      | Hard bound                      |
+| ----------------------------- | ------------------------------- |
+| Full basis model              | Existing 8 MiB                  |
+| Eligible projected nodes      | 512                             |
+| Explicit selected transitions | 2048                            |
+| Assessment artifacts          | 32                              |
+| Each assessment JSON          | 256 KiB / 8000 nodes / 16 depth |
+| Total declarations            | 2048                            |
+| Transition basis entries      | 16 per declaration              |
+| Blocking controls             | 16 per BLOCKED declaration      |
+| Manifests per basis/control   | 16                              |
+| Unique supporting manifests   | 256                             |
+| Each supporting raw artifact  | 64 KiB                          |
+| Query depth                   | Default 16 / maximum 32         |
+| Returned candidate paths      | Default 64 / maximum 256        |
+| Examined successors           | Default 4096 / maximum 20000    |
+| Pending simple prefixes       | Default 1024 / maximum 4096     |
 
 Check supplied/expected reference sizes before owned-store reads. Memoize verified
 support manifests only within this call; there is no durable cache. Diagnostics

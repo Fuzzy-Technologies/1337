@@ -34,6 +34,9 @@ Externally supplied assessment artifacts pin the complete canonical basis model,
 scope/context, retained observations and supporting manifests. Assessment artifacts
 are acquired separately and are never added to the basis snapshot, avoiding a
 circular hash. Only the current persisted basis is admitted by this first loader.
+Current means the immutable snapshot returned by that owner read, not continuous
+filesystem freshness or a transaction across model and evidence. Later basis or
+assessment time requires new owning reads and proof verification.
 
 The five labels summarize source-supplied transition attestations. CONFIRMED means
 an admitted source declared a confirmed hop; it is not an independently validated
