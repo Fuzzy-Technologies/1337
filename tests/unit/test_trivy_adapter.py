@@ -420,3 +420,32 @@ def test_NativeReportVersionMustMatchEvidence(adapter, metadata):
 
     with pytest.raises(TrivyReportError):
         adapter.NormalizeReport(Report(adapter, {**PAYLOAD, "Trivy": metadata}))
+
+
+def test_OriginalVersionInvocationHasNoBorrowedProviderVersion(adapter, tmp_path):
+    """Independent VERSION uses fixed bounded JSON argv without borrowing scan provenance."""
+
+    invocation = adapter.PrepareVersionInvocation(Request(timeout_seconds=3))
+    assert invocation.argv == ("trivy", "--cache-dir", str(tmp_path.resolve() / "trivy-cache"),
+        "--config=", "--version", "--format", "json"), "VERSION uses exact selected argv"
+    assert invocation.provider_version is None, "Unknown VERSION provenance remains original"
+    assert invocation.timeout_seconds == 3, "VERSION has a fixed independent deadline"
+
+    with pytest.raises(TrivyReportError):
+        adapter.NormalizeReport(replace(Report(adapter), invocation=invocation))
+
+
+@pytest.mark.parametrize("version_request", [
+    Request(timeout_seconds=True), Request(timeout_seconds=4), Request(flags="--arbitrary"),
+    AdapterRequest("image.registry", "target:owned", ImpactLevel.SAFE,
+                   {"archive": "owned.tar", "timeout_seconds": 3}),
+    AdapterRequest("image.archive-vulnerabilities", "target:owned", ImpactLevel.STANDARD,
+                   {"archive": "owned.tar", "timeout_seconds": 3}),
+    AdapterRequest("image.archive-vulnerabilities", "target:owned", ImpactLevel.SAFE,
+                   {"archive": "owned.tar", "timeout_seconds": 3}, ("credential:opaque",)),
+])
+def test_OriginalVersionPreparationRejectsProfileExpansion(adapter, version_request):
+    """VERSION refuses expanded deadlines, flags, registry, credentials and stronger impact."""
+
+    with pytest.raises(ValueError):
+        adapter.PrepareVersionInvocation(version_request)

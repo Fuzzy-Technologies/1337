@@ -400,6 +400,39 @@ class TrivyAdapter:
 
         return self.ProbeHealth().health
 
+    def PrepareVersionInvocation(self, request: AdapterRequest) -> AdapterInvocation:
+        """Prepare an independently authorized bounded VERSION operation with both raw streams.
+
+        Args:
+            request: Explicit SAFE archive request with the fixed three-second version deadline.
+
+        Returns:
+            Original version invocation whose provider version is unknown until actual execution.
+
+        Raises:
+            ValueError: Capability, impact, credentials, paths or deadline differ from this profile.
+            OSError: Selected archive or cache is unavailable.
+        """
+
+        if request.capability != "image.archive-vulnerabilities" or (
+            request.impact is not ImpactLevel.SAFE or request.credential_references
+            or set(request.parameters) != {"archive", "timeout_seconds"}
+            or type(request.parameters["timeout_seconds"]) is not int
+            or request.parameters["timeout_seconds"] != TRIVY_HEALTH_TIMEOUT_SECONDS
+        ):
+            raise ValueError("Trivy VERSION requires the explicit fixed SAFE archive profile")
+
+        archive = WorkspacePath(self._root, request.parameters["archive"])
+
+        if archive.stat().st_size > TRIVY_MAX_ARCHIVE_BYTES:
+            raise ValueError("Trivy archive exceeds the input byte budget")
+
+        WorkspacePath(self._root, self._cache_relative, directory=True)
+
+        return AdapterInvocation(_DESCRIPTOR.adapter_id, request,
+            (self._executable, "--cache-dir", str(self._cache), "--config=",
+             "--version", "--format", "json"), TRIVY_HEALTH_TIMEOUT_SECONDS, None)
+
     def PrepareInvocation(self, request: AdapterRequest) -> AdapterInvocation:
         """Prepare a deterministic offline scan of one approved existing image archive.
 
