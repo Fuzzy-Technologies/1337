@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -210,7 +210,7 @@ class LocalPageCaptureProvider:
         Args:
             workspace_root: Existing physical consumer-owned workspace/model/scope/evidence.
             source: Exact anonymous concrete structural GET, with non-secret caller metadata.
-            expected_body: Explicit sole reviewed non-secret closed catalog selection.
+            expected_body: Explicit reviewed non-secret closed catalog selection.
             scope_id: Existing scope ID; exact URL and literal IP must have current consent.
             policy: Explicit distinct capability permission, independently checked at launch.
             limits: Selected body/request/provider budgets following ADR 0052.
@@ -337,11 +337,21 @@ class LocalPageCaptureProvider:
                 "Page acquisition deadline exceeded; inspect retained artifacts and model")) \
                 from None
 
-    async def Acquire(self, context: JobContext) -> None:
+    async def Acquire(
+        self, context: JobContext, *,
+        before_commit: Callable[[], Awaitable[None]] | None = None,
+        publish_progress: bool = True,
+    ) -> CapturedWebFrontier:
         """Execute the pinned one-request plan and validate terminal output before persistence.
 
         Args:
             context: Current validated owning job, including cancellation and evidence boundaries.
+            before_commit: Optional traversal-owned ordered admission after raw interpretation;
+                model composition and fresh final authority checks follow this await.
+            publish_progress: Preserve one-page progress by default; traversal owns its counters.
+
+        Returns:
+            The retained verified frontier after the owning model Save and event publication.
         """
 
         invocation = self._adapter.PrepareInvocation(AdapterRequest(PAGE_CAPTURE_CAPABILITY,
@@ -477,6 +487,11 @@ class LocalPageCaptureProvider:
             raise JobError(JobFailure(JobFailureCode.NORMALIZATION,
                 "Could not verify captured page artifacts and lexical frontier")) from None
 
+        if before_commit is not None:
+            await before_commit()
+
+        context.CheckCancellation()
+
         try:
             state = self._model.Open()
             provenance_model = ModelProvenance(PAGE_CAPTURE_PROVIDER_ID, context.Spec.job_id,
@@ -571,12 +586,17 @@ class LocalPageCaptureProvider:
 
         context.CheckCancellation()
 
+        if not publish_progress:
+            return frontier
+
         try:
             context.Progress(1, 1)
 
         except (JobError, ValueError, RuntimeError):
             raise JobError(JobFailure(JobFailureCode.OUTPUT_LIMIT,
                 "Page model committed; progress event was not delivered")) from None
+
+        return frontier
 
     def VerifyEvidence(self, record: EvidenceRecord, expected: bytes,
                        provenance: EvidenceProvenance, role: str) -> None:

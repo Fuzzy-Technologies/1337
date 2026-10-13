@@ -119,3 +119,12 @@ separate decisions and actual evidence.
 - [Structural requests](../REQUESTS.md)
 - [Policy](../POLICY.md)
 - [Captured HTML decision](0050-verified-captured-html-frontiers.md)
+
+## Subsequent bounded traversal decision
+
+[ADR 0062](0062-bounded-owned-page-traversal.md) explicitly extends the finite
+reviewed body catalog by four repository-owned pages and composes this same
+governed acquisition boundary with bounded async traversal. The original ID,
+bytes, invocation grammar and one-page defaults remain supported. It does not
+introduce arbitrary body registration, redirect following, browser authority,
+remote transport or implicit permission from a discovered link.

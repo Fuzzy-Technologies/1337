@@ -1,0 +1,462 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+"""Production import/sync API, immutable storage replay, and actual verified finding enrichment."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+from dataclasses import replace
+
+import pytest
+
+from fuzzy1337 import intelligence_acquisition as acquisition
+from fuzzy1337.evidence import EvidenceError, EvidenceProvenance, LocalEvidenceStore
+from fuzzy1337.findings import ApplyVerifiedFindings, Finding, FindingSeverity
+from fuzzy1337.intel_references import SourceOrigin
+from fuzzy1337.intelligence import ApplyVerifiedEnrichment, IntelligenceFeed
+from fuzzy1337.intelligence_acquisition import (
+    AcquireIntelligenceSnapshot,
+    AcquisitionState,
+    CisaKevSource,
+    LoadAcquiredSnapshot,
+    SnapshotRequest,
+    SnapshotSource,
+    SyncIntelligenceSnapshots,
+    SyncState,
+)
+from fuzzy1337.model import (
+    LocalModelStore,
+    ModelProvenance,
+    ObjectIdentity,
+    ObjectKind,
+    SecurityObject,
+)
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
+
+CVE = "CVE-1900-9999"
+RAW = (b"#model_version:synthetic-1,score_date:2026-10-12T00:00:00Z\n"
+       b"cve,epss,percentile\nCVE-1900-9999,0.2,0.8\n")
+
+
+def Source():
+    """Select owned synthetic EPSS-shaped bytes with explicit fixture-only licensing."""
+
+    return SnapshotSource(
+        IntelligenceFeed.EPSS, "synthetic-1", SourceOrigin.SYNTHETIC, "1337 synthetic fixture",
+        "https://example.invalid/scores.csv", "Apache-2.0 (synthetic fixture only)",
+        "https://example.invalid/LICENSE",
+    )
+
+
+def Context(tmp_path, name="owned"):
+    """Persist an owned real finding and original detector artifact before source acquisition."""
+
+    root = tmp_path / name
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Acquisition integration"), name)
+    model = LocalModelStore(root)
+    state = model.Create()
+    provenance = ModelProvenance("synthetic", "run:detector", "2026-10-12T10:00:00Z",
+                                 "scope:owned", "target:owned")
+    subject = SecurityObject(ObjectIdentity(name, ObjectKind.HOST, "127.0.0.1"), {}, (provenance,))
+    state, delta = state.Apply(objects=(subject,))
+    model.Save(state, expected_revision=delta.previous_revision)
+    detector = LocalEvidenceStore(root / "evidence").Put(
+        b"Owned synthetic detector bytes", "stdout", "text/plain",
+        EvidenceProvenance(name, "scope:owned", "synthetic-detector", "1", None,
+                           "2026-10-12T10:00:00Z", "2026-10-12T10:00:01Z"),
+    )
+    finding = Finding(
+        subject.Reference(), "synthetic.check", "tcp/443", "Owned synthetic finding",
+        (replace(provenance, evidence_references=(detector.reference,)),), FindingSeverity.LOW, 0.2,
+    )
+    state, delta = ApplyVerifiedFindings(state, (finding,), root)
+    model.Save(state, expected_revision=delta.previous_revision)
+
+    return model, state.Objects(ObjectKind.FINDING)[0].Reference()
+
+
+def FeedBody(feed):
+    """Return tiny owned documents in each supported publisher-shaped format."""
+
+    if feed is IntelligenceFeed.CVE:
+        return json.dumps({
+            "dataType": "CVE_RECORD", "dataVersion": "5.2",
+            "cveMetadata": {"cveId": CVE, "state": "PUBLISHED",
+                            "dateUpdated": "2026-10-12T10:00:00Z"},
+            "containers": {"cna": {"providerMetadata": {"orgId": "synthetic-cna"}}},
+        }).encode()
+
+    if feed is IntelligenceFeed.CWE:
+        return (b'<Weakness_Catalog xmlns="http://cwe.mitre.org/cwe-7" Version="synthetic-1" '
+                b'Date="2026-10-12"><Weaknesses><Weakness ID="89" Name="Synthetic weakness" '
+                b'Status="Stable"/></Weaknesses></Weakness_Catalog>')
+
+    if feed is IntelligenceFeed.KEV:
+        return json.dumps({
+            "catalogVersion": "synthetic-1", "dateReleased": "2026-10-12T10:00:00Z", "count": 1,
+            "vulnerabilities": [{"cveID": CVE, "dateAdded": "2026-10-12",
+                                 "dueDate": "2026-10-31", "vendorProject": "Synthetic",
+                                 "product": "Owned fixture", "vulnerabilityName": "Synthetic",
+                                 "requiredAction": "Review owned evidence",
+                                 "knownRansomwareCampaignUse": "Unknown"}],
+        }).encode()
+
+    return RAW
+
+
+@pytest.mark.parametrize("feed,media_type", [
+    (IntelligenceFeed.CVE, "application/json"), (IntelligenceFeed.CWE, "application/xml"),
+    (IntelligenceFeed.KEV, "application/json"), (IntelligenceFeed.EPSS, "text/csv"),
+])
+def test_AllSupportedLocalFormatsUseTheActualImportStorageAndReplayBoundary(
+    tmp_path, feed, media_type,
+):
+    """Every claimed offline acquisition format publishes and replays its original exact source."""
+
+    model, _ = Context(tmp_path)
+    raw = FeedBody(feed)
+    source = replace(Source(), feed=feed,
+                     source_url=f"https://example.invalid/{feed.value}.data")
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(source, raw), scope_reference="scope:owned",
+    )
+
+    assert outcome.state is AcquisitionState.SUCCEEDED and outcome.snapshot_record is not None, (
+        "A claimed local source format did not pass its actual production acquisition path"
+    )
+    replayed = LoadAcquiredSnapshot(model.root, outcome.snapshot_record.evidence_id)
+
+    assert replayed.feed is feed and replayed.source.origin is SourceOrigin.SYNTHETIC, (
+        "Replay changed source family or attributed a synthetic fixture to an official corpus"
+    )
+    assert replayed.evidence.media_type == media_type and LocalEvidenceStore(
+        model.root / "evidence",
+    ).Read(replayed.evidence) == raw, "Format dispatch changed original source bytes or media type"
+
+
+def test_OwnedActualReceiverSuccessPublishesRawSnapshotReceiptAndReplaysThroughProductionApi(
+    tmp_path, monkeypatch,
+):
+    """Compose the actual parent process API with owned receiver bytes and no network request."""
+
+    model, _ = Context(tmp_path)
+    raw = FeedBody(IntelligenceFeed.KEV)
+    source = CisaKevSource(
+        "a" * 40, "synthetic-1", expected_sha256=hashlib.sha256(raw).hexdigest(),
+    )
+    worker = tmp_path / "intelligence_transport.py"
+    worker.write_text(
+        '# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies\n'
+        '# SPDX-License-Identifier: Apache-2.0\n\n'
+        '"""Owned synthetic receiver fixture; no network or official-feed acceptance claim."""\n'
+        'import sys\n'
+        'sys.stdout.buffer.write(b\'{"status":200}\\n\' + ' + repr(raw) + ')\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(acquisition, "__file__", str(tmp_path / "intelligence_acquisition.py"))
+    original = acquisition.subprocess.Popen
+    processes = []
+
+    def Popen(*args, **kwargs):
+        """Observe the actual isolated child and exact request while preserving real execution."""
+
+        assert args[0][1:3] == ["-I", "-S"] and args[0][4] == source.source_url, (
+            "Production acquisition failed to pass the isolated selected receiver request"
+        )
+        assert kwargs["env"] == {}, "Owned receiver inherited ambient credentials or proxy settings"
+        process = original(*args, **kwargs)
+        processes.append(process)
+
+        return process
+
+    monkeypatch.setattr(acquisition.subprocess, "Popen", Popen)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(source, max_bytes=len(raw) + 1, timeout_seconds=3),
+        scope_reference="scope:owned",
+    )
+
+    assert outcome.state is AcquisitionState.SUCCEEDED and outcome.body_complete, (
+        "Actual parent receiver composition failed to produce a complete accepted source"
+    )
+    assert len(processes) == 1 and processes[0].poll() == 0, (
+        "Successful acquisition retried, leaked its receiver, or ignored its terminal exit status"
+    )
+    assert outcome.raw is not None and outcome.snapshot_record is not None and (
+        outcome.receipt is not None
+    ), "Successful production acquisition did not publish all three immutable records"
+    store = LocalEvidenceStore(model.root / "evidence")
+    receipt = json.loads(store.Read(outcome.receipt.reference))
+    replayed = LoadAcquiredSnapshot(model.root, outcome.snapshot_record.evidence_id)
+
+    assert store.Get(outcome.raw.evidence_id) == outcome.raw and store.Read(
+        outcome.raw.reference,
+    ) == raw, "Receiver composition changed original bytes or lost original acquisition attribution"
+    assert replayed == outcome.snapshot and replayed.source.acquired_at == outcome.finished_at, (
+        "Verified production replay changed the parsed source or observed receiver chronology"
+    )
+    assert receipt["transport"] == "https" and receipt["http_status"] == 200 and receipt[
+        "publisher_authentication"
+    ] == "not-assessed", "Owned receiver success fabricated live publisher or signature acceptance"
+
+
+def test_ProductionImportReplayAndVerifiedConsumerPreserveOriginalSourceAndFinding(
+    tmp_path, monkeypatch,
+):
+    """The implemented API feeds the actual canonical consumer without changing owner triage."""
+
+    model, finding_reference = Context(tmp_path)
+    original_model = (model.root / "state/model/model.json").read_bytes()
+    times = iter(("2026-10-13T10:00:00.000000+00:00", "2026-10-13T10:00:01.000000+00:00"))
+    monkeypatch.setattr(acquisition, "AcquisitionTime", lambda: next(times))
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+
+    assert outcome.state is AcquisitionState.SUCCEEDED and outcome.snapshot_record is not None, (
+        "Actual production import did not publish a replayable parsed source"
+    )
+    assert (model.root / "state/model/model.json").read_bytes() == original_model, (
+        "Acquisition silently mutated the canonical finding/model state"
+    )
+    moved = tmp_path / "moved"
+    shutil.move(str(model.root), moved)
+    replayed = LoadAcquiredSnapshot(moved, outcome.snapshot_record.evidence_id)
+    model = LocalModelStore(moved)
+    state = model.Open()
+    provenance = ModelProvenance("intel", "run:enrichment", "2026-10-13T11:00:00Z",
+                                 "scope:owned", "target:owned")
+    proposal, delta = ApplyVerifiedEnrichment(
+        state, finding_reference, (CVE,), (replayed,), provenance, moved,
+        as_of="2026-10-13T11:00:00Z", max_age_seconds=86400,
+    )
+    model.Save(proposal, expected_revision=delta.previous_revision)
+    assertion = next(item for item in proposal.observations if item.kind == "finding-intelligence")
+
+    assert replayed == outcome.snapshot and replayed.source.acquired_at == outcome.finished_at, (
+        "Portable replay changed the receiver-observed acquisition or interpretation"
+    )
+    assert proposal.Objects(ObjectKind.FINDING) == state.Objects(ObjectKind.FINDING), (
+        "Acquired reference metadata changed operator finding triage"
+    )
+    assert assertion.attributes["source_assertions"][0]["association_state"] == "candidate", (
+        "Acquisition or byte integrity fabricated a reviewed source applicability claim"
+    )
+    assert LocalEvidenceStore(moved / "evidence").Read(replayed.evidence) == RAW, (
+        "Stored source bytes changed during import, relocation, or consumer interpretation"
+    )
+
+
+@pytest.mark.parametrize("raw", [RAW + b"CVE-1900-9998,0.3,0.9\n", b"invalid CSV"])
+def test_FreshAcquisitionsNeverOverwriteEarlierSnapshotOrEvidence(tmp_path, raw):
+    """New revisions and refused bodies retain the earlier immutable accepted snapshot."""
+
+    model, _ = Context(tmp_path)
+    accepted = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+    store = LocalEvidenceStore(model.root / "evidence")
+    first = accepted.snapshot_record
+
+    assert first is not None, "Baseline import did not publish the prior snapshot"
+    before = store.Read(first.reference)
+    following = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), raw), scope_reference="scope:owned",
+    )
+
+    assert store.Read(first.reference) == before, "Later acquisition overwrote the prior revision"
+    assert LoadAcquiredSnapshot(model.root, first.evidence_id) == accepted.snapshot, (
+        "Later import replaced a prior source interpretation"
+    )
+    assert following.raw is not None and store.Read(following.raw.reference) == raw, (
+        "New or refused acquisition lost its original attributable source bytes"
+    )
+
+
+@pytest.mark.parametrize("failure", ["missing-raw", "corrupt-raw", "foreign-owner", "partial"])
+def test_ReplayRejectsBrokenForeignOrIncompleteArtifactsBeforeReturningASnapshot(tmp_path, failure):
+    """Stored snapshot loading cannot silently promote partial or unverifiable source evidence."""
+
+    model, _ = Context(tmp_path)
+    request = SnapshotRequest(Source(), RAW, max_bytes=10) if failure == "partial" else (
+        SnapshotRequest(Source(), RAW)
+    )
+    outcome = AcquireIntelligenceSnapshot(model.root, request, scope_reference="scope:owned")
+    root = model.root
+    record = outcome.raw if failure == "partial" else outcome.snapshot_record
+
+    assert record is not None, "Controlled acquisition did not publish its expected test artifact"
+
+    if failure == "foreign-owner":
+        other, _ = Context(tmp_path, "foreign")
+        shutil.copytree(model.root / "evidence", other.root / "evidence", dirs_exist_ok=True)
+        root = other.root
+
+    elif failure in ("missing-raw", "corrupt-raw"):
+        path = root / "evidence" / outcome.raw.reference.locator
+
+        if failure == "missing-raw":
+            path.unlink()
+
+        else:
+            path.write_bytes(b"x" * len(RAW))
+
+    with pytest.raises((EvidenceError, ValueError)):
+        LoadAcquiredSnapshot(root, record.evidence_id)
+
+
+@pytest.mark.parametrize("failure", ["partial-role", "forged-score"])
+def test_ReplayRejectsRehashedNormalizedOrPartialSourceClaims(tmp_path, failure):
+    """Public hashes cannot legitimize invented interpretations or incomplete source roles."""
+
+    model, _ = Context(tmp_path)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+    snapshot = outcome.snapshot
+
+    assert snapshot is not None and outcome.snapshot_record is not None, (
+        "Owned baseline import did not produce a complete source interpretation"
+    )
+
+    if failure == "partial-role":
+        forged = replace(snapshot, evidence=replace(snapshot.evidence, role="intelligence-partial"))
+
+    else:
+        forged = replace(snapshot, records=(replace(
+            snapshot.records[0], data={**snapshot.records[0].data, "probability": 0.99},
+        ),))
+
+    artifact = LocalEvidenceStore(model.root / "evidence").Put(
+        forged.Serialize(), "intelligence-snapshot", "application/json",
+        outcome.snapshot_record.provenance,
+    )
+
+    with pytest.raises(ValueError):
+        LoadAcquiredSnapshot(model.root, artifact.evidence_id)
+
+
+@pytest.mark.parametrize("changes", [
+    {"acquired_at": "2026-10-12T00:00:01Z"}, {"importer_id": "different-importer"},
+    {"importer_version": "999"},
+])
+def test_RehashedSourceCannotReplaceReceiverObservedAcquisitionFacts(tmp_path, changes):
+    """Normalized source metadata must match its original immutable receiver provenance."""
+
+    model, _ = Context(tmp_path)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+
+    assert outcome.snapshot is not None and outcome.snapshot_record is not None, (
+        "Owned baseline import did not publish replayable acquisition facts"
+    )
+    forged = replace(outcome.snapshot, source=replace(outcome.snapshot.source, **changes))
+    artifact = LocalEvidenceStore(model.root / "evidence").Put(
+        forged.Serialize(), "intelligence-snapshot", "application/json",
+        outcome.snapshot_record.provenance,
+    )
+
+    with pytest.raises(ValueError, match="attribution"):
+        LoadAcquiredSnapshot(model.root, artifact.evidence_id)
+
+
+def test_ReplayRequiresOriginalAcquisitionManifestEvenWhenItsRawBlobStillExists(tmp_path):
+    """A surviving byte hash cannot replace lost original collection attribution."""
+
+    model, _ = Context(tmp_path)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+
+    assert outcome.raw is not None and outcome.snapshot_record is not None, (
+        "Owned baseline import did not retain original raw and snapshot manifests"
+    )
+    manifest = model.root / "evidence/records" / (outcome.raw.evidence_id[7:] + ".json")
+    manifest.unlink()
+
+    assert (model.root / "evidence" / outcome.raw.reference.locator).read_bytes() == RAW, (
+        "Counterexample unexpectedly removed the original blob instead of its attribution manifest"
+    )
+
+    with pytest.raises(EvidenceError):
+        LoadAcquiredSnapshot(model.root, outcome.snapshot_record.evidence_id)
+
+
+@pytest.mark.parametrize("changes", [
+    {"source_id": "different-importer"}, {"source_version": "999"},
+    {"finished_at": "2099-01-01T00:00:00Z"}, {"scope_reference": "scope:forged"},
+])
+def test_RehashedSnapshotManifestCannotReplaceOriginalReceiverAttribution(tmp_path, changes):
+    """Changed collection context cannot silently reuse a prior source blob's acquisition."""
+
+    model, _ = Context(tmp_path)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+
+    assert outcome.snapshot is not None and outcome.snapshot_record is not None, (
+        "Owned baseline acquisition did not publish an immutable source interpretation"
+    )
+    artifact = LocalEvidenceStore(model.root / "evidence").Put(
+        outcome.snapshot.Serialize(), "intelligence-snapshot", "application/json",
+        replace(outcome.snapshot_record.provenance, **changes),
+    )
+
+    with pytest.raises((ValueError, EvidenceError)):
+        LoadAcquiredSnapshot(model.root, artifact.evidence_id)
+
+
+@pytest.mark.parametrize("state,body,status", [
+    (AcquisitionState.TIMED_OUT, b"partial original bytes", 200),
+    (AcquisitionState.REDIRECT_REJECTED, b"", 302),
+    (AcquisitionState.TRANSPORT_FAILED, b"", None),
+])
+def test_ActualSyncApiRetainsOwnedTransportFailuresAlongsideSuccessfulImports(
+    tmp_path, monkeypatch, state, body, status,
+):
+    """The public sync path reports partial success and retains captured incomplete evidence."""
+
+    model, _ = Context(tmp_path)
+    calls = []
+
+    def Fetch(request):
+        """Supply one deterministic owned remote transport result at the actual API boundary."""
+
+        calls.append(request)
+
+        return body, state, status
+
+    monkeypatch.setattr(acquisition, "FetchRemoteBytes", Fetch)
+    before = (model.root / "state/model/model.json").read_bytes()
+    result = SyncIntelligenceSnapshots(
+        model.root, (SnapshotRequest(Source(), RAW), SnapshotRequest(CisaKevSource("a" * 40, "x"))),
+        scope_reference="scope:owned",
+    )
+    remote = result.outcomes[1]
+
+    assert result.state is SyncState.PARTIAL and remote.state is state and len(calls) == 1, (
+        "Actual sync hid a transport failure, retried implicitly, or reordered requested work"
+    )
+    assert not remote.body_complete and remote.snapshot is None and remote.receipt is not None, (
+        "A refused or incomplete response received usable parsed snapshot semantics"
+    )
+    store = LocalEvidenceStore(model.root / "evidence")
+    receipt = json.loads(store.Read(remote.receipt.reference))
+
+    assert receipt["state"] == state.value and receipt["http_status"] == status, (
+        "Persisted sync receipt lost its observed transport outcome"
+    )
+    assert receipt["transport"] == "https" and receipt["limits"] == {
+        "max_bytes": 16 * 1024 * 1024, "receiver_timeout_seconds": 30.0,
+    }, "Remote failure receipt lost the selected transport or actual acquisition limits"
+    assert (model.root / "state/model/model.json").read_bytes() == before, (
+        "A failed sync partially modified canonical model state"
+    )
+
+    if body:
+        assert remote.raw is not None and store.Read(remote.raw.reference) == body, (
+            "Incomplete transport bytes were discarded, normalized, or replaced"
+        )

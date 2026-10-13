@@ -40,8 +40,14 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   upstream material, owned inert image metadata, specific advisory boundary tests,
   original raw evidence and a Linux scan namespace without external routes.
   Native artifact product authorization remains separate and metadata-only.
+- Added original bounded native Trivy VERSION/SCAN custody with independent
+  caller authorization, raw stderr/exit/provenance and unchanged selected
+  binary/database/archive association. Native image profiles remain metadata-only.
 - Added verified offline vulnerability intelligence and standards-mapping
   metadata, preserving source versions, evidence and uncertainty.
+- Added a reviewed offline standards baseline with seven pinned primary-source
+  artifacts, accountable exact-content decisions, the requested framework families,
+  and typed finding bindings. Contextual relations remain advisory.
 - Added offline OpenAPI request import, bounded synthetic API request generation
   and browser/API journey contracts without granting execution authority.
 - Added opt-in bounded OpenAPI/Swagger YAML import and source-bound synthetic
@@ -87,10 +93,19 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added governed acquisition of one owned loopback HTML page from the closed
   non-secret fixture catalog, with bounded transport parsing, retained evidence,
   existing lexical frontier projection and one durable model Save.
+- Added bounded asynchronous traversal of four reviewed owned loopback pages,
+  concurrent governed acquisition, deterministic canonical commits and incremental
+  evidence. Cancellation drains workers and commit waiters; budgets and failures
+  preserve actual partial state and original response facts.
 
 - Added explicit saved-workspace `report export` for bounded JSON and SARIF,
   owner-verifying every retained raw evidence reference and preserving failed
   execution, uncertainty and actual no-clobber publication outcomes.
+
+- Added bounded intelligence snapshot import and pinned CISA KEV mirror
+  acquisition, observed receiver times, immutable original/partial evidence and
+  terminal receipts, honest batch outcomes and verified portable replay.
+  Owned HTTPS receiver deadlines and cancellation terminate and join the child.
 
 #### Fixed
 

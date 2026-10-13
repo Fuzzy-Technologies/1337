@@ -87,6 +87,15 @@ at page-capture profile version `1`. ADR 0052 and `docs/LOCAL_PAGE_CAPTURE.md`
 define one governed anonymous GET to an explicitly owned canonical loopback URL,
 admitting only the exact closed non-secret HTML fixture. Actual owner-verified
 evidence feeds the existing captured-web frontier and one durable model Save.
+
+`fuzzy1337.web_traversal` is an additive Experimental controller under ADR 0062.
+It traverses only four explicitly selected reviewed owned pages, with bounded
+concurrent acquisitions and deterministic commit order through the existing
+page-capture governor. Per-launch and pre-Save consent/scope remain current;
+discovered links grant no authority and redirects are refused. The closed record
+schema adds exact catalog cases while preserving the original page's grammar.
+Its internal ordering hook and retained-frontier result do not enable arbitrary
+HTTP crawling, browser execution or native security checks.
 NativeHTTP version 1 remains a separate capability. The packaged
 `fuzzy1337.page_capture_worker` is Internal; its schema-1 flat record is verified
 by the parent and does not grant caller-selected crawling or browser execution.
@@ -176,9 +185,23 @@ define exact upstream identities, source provenance, review-bound content
 references, and explicit finding associations. Candidate mappings never establish
 control fulfillment, certification, or Evidence integrity.
 
+Reviewed baseline pack revision `0.2.0` adds six approved exact-content relations
+and seven pinned primary-source artifacts within unchanged schema `1`. ADR 0063
+and `docs/STANDARDS_MAPPING_BASELINE.md` define the recorded content decisions,
+selected historical versions, and advisory contextual relations. Typed finding
+bindings validate the existing Finding projection without changing model identity
+or triage; the original candidate baseline remains compatible.
+
 `fuzzy1337.policy` is an Experimental Python library at contract version `1`.
 ADR 0025 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
+
+`fuzzy1337.native_image_capture` is an Internal bounded original VERSION/SCAN
+custody producer under ADR 0058. Exact caller-issued execution authorization,
+explicit selected reads, unchanged material facts and original receipt provenance
+remain required. Observed provider version is separate from the original
+unobserved VERSION invocation. The legacy importer is unchanged; native IMAGE
+product authorization and durable model integration remain separate.
 
 `fuzzy1337.images` is an Experimental offline interpretation library at contract
 version `1`. ADR 0040 and `docs/IMAGES.md` define ASSET-based image/package identities,
@@ -228,6 +251,14 @@ at version `1`. ADR 0041 and `docs/INTELLIGENCE.md` define the documented source
 record, parser, and verified finding-observation boundaries. Validation helpers
 remain Internal. Catalog metadata does not establish vulnerability applicability,
 authenticated source identity, approval, or execution authority.
+
+`fuzzy1337.intelligence_acquisition` is an Experimental schema-v1 acquisition and
+receipt library under ADR 0060. Explicit local source bytes or an immutable
+official CISA mirror selection produce bounded immutable evidence and truthful
+complete/partial outcomes; replay requires the original owning raw record and
+receiver provenance. `fuzzy1337.intelligence_transport` and acquisition helpers
+remain Internal. No publisher-signature authentication, automatic refresh,
+applicability conclusion or scan authority is provided.
 
 ### Repository releases
 

@@ -1,7 +1,8 @@
 # Genuine pinned Trivy adapter acceptance
 
 The `Genuine Trivy acceptance` workflow validates the existing optional
-`TrivyAdapter -> LocalExecutor -> LocalEvidenceStore -> NormalizeReport`
+`TrivyAdapter -> CaptureNativeTrivyOperation -> LocalExecutor -> LocalEvidenceStore`
+and detached `NormalizeReport`
 boundary. It uses a genuine upstream binary and official offline vulnerability
 database with repository-owned inert image archives. Native artifact profiles
 remain metadata-only; this acceptance lane does not expose native product scan
@@ -73,12 +74,41 @@ exact invocation/terminal run document, material and network context, and unchan
 normalized SDK proposals for successful cases. A missing-DB case retains actual
 provider failure rather than an empty successful scan.
 
-Version stdout uses the existing bounded health API with true observed collection
-times. That API discards version stderr and exposes no full execution receipt;
-native product VERSION/SCAN acceptance remains future work. Scan stdout/stderr
-retain their actual terminal execution and exact invocation digest. Database
-metadata is provider-observed; byte receipts do not establish feed completeness
-or freshness. `scan_completeness` remains `not-assessed` throughout.
+Positive cases now execute original VERSION through the same bounded low-level
+executor as the independent SCAN. VERSION retains its own 3-second deadline,
+16-KiB stdout/stderr budgets, actual exit/termination/events, original invocation
+with unknown provider version, selected material facts and collection timestamps.
+SCAN has a separate caller-issued exact invocation authorization and references
+that immutable accepted VERSION receipt digest. Fresh owned cwd/home/config/temp
+and an explicit clean environment apply to each operation. All six original raw
+roles remain in canonical custody; VERSION stdout/stderr/execution is never
+reconstructed from health state or rewritten into SCAN provenance.
+
+Association requires unchanged selected archive, binary, database and metadata
+byte/physical facts, owner/workspace, target, scope and policy. A failed, timed out,
+cancelled, truncated, altered or unverified VERSION cannot launch an associated
+SCAN. Post-run refusal preserves actual process success/failure rather than
+rewriting it. A second missing-DB case retains original executed VERSION and
+proves SCAN association refusal. The earlier native missing-DB SCAN compatibility
+case keeps its unchanged health-based path and must still genuinely fail.
+
+These are low-level caller-authorized acquisitions and descriptive custody,
+without product artifact grants. Receipt bytes, checksums and supplied
+`ExecutionAuthorization` values cannot issue SDK native image permission. The
+legacy `ApplyVerifiedTrivyImages` import retains its original health-only version
+shape and intentionally refuses execution-bearing VERSION provenance; no field
+is stripped to force these captures through it. Detached adapter normalization
+in this lane writes no model state. Native product paired acceptance remains
+future work. Database metadata is provider-observed; byte receipts establish
+neither feed completeness nor freshness. `scan_completeness` stays `not-assessed`.
+
+A trusted selected workspace/executable and independently enforced isolation are
+caller prerequisites. The collector checks observed physical identities and
+bounded bytes around launch; it does not sandbox an untrusted binary or attest
+against a hostile concurrent writer. Direct task cancellation propagates after
+owned executor cleanup; cooperative cancellation retains original raw custody.
+Filesystem publication failure follows the unchanged evidence-store orphan-blob
+contract and does not create accepted model state.
 
 ## Primary sources
 
@@ -91,6 +121,7 @@ or freshness. `scan_completeness` remains `not-assessed` throughout.
 - [Trivy license](https://github.com/aquasecurity/trivy/blob/v0.75.0/LICENSE)
 - [trivy-db tooling license](https://github.com/aquasecurity/trivy-db/blob/main/LICENSE)
 
-[ADR 0057](adr/0057-pinned-native-trivy-acceptance.md) defines this acceptance
-prerequisite. Supplied native product authorization and the remaining #140/#142
+[ADR 0057](adr/0057-pinned-native-trivy-acceptance.md) defines the initial acceptance
+prerequisite; [ADR 0058](adr/0058-original-native-image-capture.md) defines original
+independent VERSION/SCAN custody. Supplied native product authorization and the remaining #140/#142
 criteria remain separate work. No PyPI operation is performed.

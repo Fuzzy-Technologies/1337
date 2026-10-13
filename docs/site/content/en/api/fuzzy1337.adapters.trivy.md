@@ -14,4 +14,10 @@ immutable evidence. Success requires matching tool version and provider-observed
 DB metadata; failed execution never produces successful findings. The adapter
 does not persist state or provide process/filesystem/network sandboxing.
 
+`PrepareVersionInvocation` prepares a fixed bounded JSON VERSION invocation for
+independent executor capture without requiring a previously observed version.
+It retains the original invocation's unobserved provider version; the separate
+Internal native capture producer preserves actual stderr, terminal execution and
+observed version facts. Separate caller authorization is required for each run.
+
 ::: fuzzy1337.adapters.trivy

@@ -127,3 +127,12 @@ integration. Current-schema expansion, live acquisition/synchronization, publish
 signature authentication, license decisions, applicability/version/CPE matching,
 risk calculations and CVSS 2 conversion are separate capabilities. No current
 official-corpus completeness or production feed acquisition is claimed.
+
+The separately versioned Experimental
+[snapshot acquisition boundary](INTELLIGENCE_ACQUISITION.md) now imports explicitly
+supplied bytes or one pinned official CISA KEV mirror revision into the owning
+immutable evidence store. It
+retains independent terminal receipts and observed receiver times, supports
+verified portable replay, and never changes this pure parser or finding consumer.
+Automatic live refresh, broader source providers, and live official-feed
+acceptance remain separate scope.

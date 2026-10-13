@@ -36,9 +36,12 @@ hashes, planning, localhost and body equality do not authenticate an owner.
 
 `KnownSyntheticHtmlBody(fixture_id)` selects one closed reviewed non-secret fixture
 catalog entry and exposes its immutable derived `sha256` and `size_bytes`.
-Version 1 admits only `owned-loopback-html.v1`, exactly 541 bytes with SHA-256
+The original ADR-0052 catalog entry is `owned-loopback-html.v1`, exactly 541 bytes
+with SHA-256
 `c0b909f728bdcc098193c1fd268f056eea33c27b6537cd504fa77c3a25afe817`.
-The source is the independently authored HTML fixture below. No arbitrary caller
+ADR 0062 adds four exact reviewed entries without changing the record grammar;
+see [the bounded traversal catalog](WEB_TRAVERSAL.md). The original source is the
+independently authored HTML fixture below. No arbitrary caller
 digest/size, unknown fixture ID, boolean/coercion, default/example body selection
 or approval shortcut qualifies. Copied records must match all derived catalog
 fields exactly. Selection is not permission to acquire a service. The size must
@@ -348,3 +351,14 @@ Save. That generic terminal message does not establish rollback or an unchanged
 model. Reopen the model through `LocalModelStore` and inspect the retained source
 observation/evidence to establish the persisted state and actual worker outcome.
 The provider does not override or bypass the job owner's terminal-budget rules.
+
+## Bounded traversal extension
+
+[ADR 0062](adr/0062-bounded-owned-page-traversal.md) adds four explicitly reviewed
+repository-owned body IDs while retaining the original one-page ID/bytes and
+worker grammar. [Owned traversal](WEB_TRAVERSAL.md) composes this same governed
+provider for selected discovered pages, with bounded concurrent acquisition and
+ordered canonical commits. A body ID still grants no execution permission.
+Ordinary one-page callers retain their default one-request/progress contract.
+Redirect refusal, anonymous literal-loopback transport, strict body admission,
+current scope/policy and truthful evidence/Save failure semantics remain unchanged.
