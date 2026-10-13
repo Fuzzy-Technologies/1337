@@ -302,6 +302,15 @@ SCAN; lifecycle SCAN remains compatible and native profiles remain unavailable.
 See [Governed local artifacts](ARTIFACTS.md) and
 [ADR 0044](adr/0044-governed-local-artifact-authorization.md).
 
+`fuzzy1337.synthetic_images` is a separate Experimental version-1 consumer of the
+closed schema-2 synthetic image operations. Its live import requires actual
+original typed runs and six original source records, then uses the canonical SDK
+fresh pair barrier before one pure in-memory transition. Read-only historical
+verification returns immutable original attribution/refusal facts without live
+stage lookup or new authority. Native `fuzzy1337.images` interfaces and evidence
+roles remain unchanged. Durable saves, product workflow and native scanner
+acceptance remain separate. See [the synthetic image consumer](SYNTHETIC_IMAGE_IMPORT_DESIGN.md).
+
 External consumers should:
 
 1. depend only on explicitly Stable public contracts;
