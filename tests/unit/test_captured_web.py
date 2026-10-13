@@ -508,3 +508,58 @@ def test_OtherEvidenceFormatsCannotBeReinterpretedAsCapturedHtml(tmp_path, role,
 
     with pytest.raises(ValueError):
         Read(fixture, capture=record)
+
+
+@pytest.mark.parametrize("href", ["/alpha\u0080", "#\u0080", "/alpha#\u0080",
+                                  "/alpha\u009f", "#\u009f", "/alpha#\u009f"],
+                         ids=["c1-path", "c1-fragment-only", "c1-link-fragment",
+                              "c1-upper-path", "c1-upper-fragment-only", "c1-upper-link-fragment"])
+def test_LiteralUnicodeControlsRefuseBeforeAnyFragmentHandling(tmp_path, href):
+    """Unicode Cc controls cannot become a later URI category or disappear with a fragment."""
+
+    fixture = Fixture.Create(tmp_path / "workspace", raw=f'<a href="{href}">'.encode())
+    frontier = Read(fixture)
+    assert not frontier.entries and dict(frontier.exclusion_counts) == {"invalid-url": 1}, (
+        "A literal Unicode control escaped the exact priority-two refusal"
+    )
+
+
+@pytest.mark.parametrize("field", ["source_version", "tool_version"])
+@pytest.mark.parametrize("control", ["\u0080", "\u009f"], ids=["c1-lower", "c1-upper"])
+def test_ActualStoredUnicodeControlMetadataRefusesTheSameTextBoundary(tmp_path, field, control):
+    """Owning manifest integrity does not weaken the consumer's control-free metadata profile."""
+
+    fixture = Fixture.Create(tmp_path / "workspace")
+    store = LocalEvidenceStore(fixture.root / "evidence")
+    provenance = replace(fixture.capture.provenance, **{field: "synthetic" + control})
+    record = store.Put(store.Read(fixture.capture.reference), "response-body", "text/html",
+                       provenance)
+
+    with pytest.raises(ValueError):
+        Read(fixture, capture=record)
+
+
+@pytest.mark.parametrize("href,reason", [
+    ("/alpha&#128;", "unsupported-path"), ("#&#128;", "fragment-only"),
+    ("/alpha#&#128;", None), ("/alpha&#129;", "invalid-url"),
+    ("#&#129;", "invalid-url"), ("/alpha#&#129;", "invalid-url"),
+    ("/alpha#&amp;#129;", None),
+], ids=["mapped-printable-path", "mapped-printable-fragment", "mapped-printable-link-fragment",
+        "unmapped-control-path", "unmapped-control-fragment", "unmapped-control-link-fragment",
+        "single-conversion-only"])
+def test_HtmlFiveNumericReferencesKeepExactlyOneNormativeConversion(tmp_path, href, reason):
+    """Mapped HTML5 references become printable; unmapped controls remain refused."""
+
+    fixture = Fixture.Create(tmp_path / "workspace", raw=f'<a href="{href}">'.encode())
+    frontier = Read(fixture)
+
+    if reason is None:
+        assert frontier.entries[0].template.endpoint.path_template == "/alpha", (
+            "A printable or once-decoded fragment changed the supported target"
+        )
+        assert not frontier.exclusion_counts, "Printable HTML5 conversion became a literal control"
+
+    else:
+        assert not frontier.entries and dict(frontier.exclusion_counts) == {reason: 1}, (
+            "HTML5 character-reference conversion or refusal precedence changed"
+        )

@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -123,7 +124,7 @@ def WebText(value: object, maximum: int = MAX_METADATA_BYTES) -> str:
     except UnicodeError:
         valid = False
 
-    if not valid or any(ord(character) < 32 or ord(character) == 127 for character in value):
+    if not valid or any(unicodedata.category(character) == "Cc" for character in value):
         raise ValueError("captured web text must be bounded valid single-line UTF-8")
 
     return value
