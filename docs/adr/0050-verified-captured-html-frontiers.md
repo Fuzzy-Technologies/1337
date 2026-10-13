@@ -24,8 +24,11 @@ declaration: the manifest has no transport URL field and a digest authenticates
 neither the collector nor the asserted acquisition. No HTTP-response completeness,
 browser visibility, physical endpoint reachability or sensor success is inferred.
 
-Extract only lexical `<a href>` start tags. Standard-library HTML callbacks are
-an attribute interpretation mechanism, not a rendered DOM. Script/style content
+Extract only lexical `<a href>` start tags. An owned bounded scanner controls
+token admission and script/style raw text; a fresh/reset standard-library parser
+interprets one admitted markup token's attributes at a time. Standard-library
+HTML callbacks are an attribute interpretation mechanism, not a rendered DOM.
+Script/style content
 and comments do not contribute anchors; an anchor in an inactive template can
 still be a lexical candidate. Reject any parsed `base` tag, duplicate attributes,
 unsupported declarations, unclosed markup token or resource overflow. This

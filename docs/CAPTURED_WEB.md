@@ -101,8 +101,14 @@ limit, and embedded tag-like strings are neither tokens nor anchor callbacks.
 The opening/closing tags still consume token work. This rule prevents a lexical
 preflight from mistaking JavaScript string contents for actual tags.
 
-Use Python HTMLParser with character-reference conversion and its ordinary
-script/style handling. Decode attribute character references exactly once.
+Use Python HTMLParser with character-reference conversion for one admitted markup
+token at a time, resetting its document state between tokens. The owned scanner
+alone retains the declared script/style raw-text state and skips those contents
+through their complete closing tags. Other parser raw/RCDATA modes must not affect
+this lexical profile across Python security patch versions: anchors inside title,
+textarea, xmp, iframe, noembed, noframes and plaintext text still count as lexical
+markup tokens, without any rendered-DOM or request-visibility claim. Decode
+attribute character references exactly once.
 Every start/start-end tag has at most 64 attributes and unique case-normalized
 attribute names; duplicates refuse, including duplicate href spellings.
 Any parsed `base` tag refuses even without an href. A base-like string inside
