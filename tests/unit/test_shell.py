@@ -6,13 +6,21 @@
 from __future__ import annotations
 
 import json
+import sys
 from io import StringIO
+from types import ModuleType
 
 import pytest
 
 from fuzzy1337.lenses import ResolveLens
 from fuzzy1337.model import ModelProvenance, ModelState, ObjectIdentity, ObjectKind, SecurityObject
-from fuzzy1337.shell import ContextualAction, FuzzyMatches, InteractiveShell, WorkbenchUpdate
+from fuzzy1337.shell import (
+    ContextualAction,
+    FuzzyMatches,
+    InteractiveShell,
+    NativeInputHistory,
+    WorkbenchUpdate,
+)
 
 
 def test_FuzzyMatchesPrioritizeCompactSubsequences():
@@ -202,9 +210,9 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
     assert output.getvalue().splitlines() == [
         (
             "Interactive commands: commands, context, help, history, lens, model, palette, "
-            "quit, scan, scope, select, update, updates, view, workspace"
+            "quit, report, scan, scope, select, update, updates, view, workspace"
         ),
-        "CLI commands: doctor, help, version, shell, update, workspace, scope, scan",
+        "CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report",
         "[model] asset changed",
         "usage: quit",
         "",
@@ -419,4 +427,329 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
     assert "synthetic-query-token" not in retained, "Rejected product tokens must not be retained."
     assert output.getvalue().splitlines()[-4:] == ["scan", "scan", "scope", "scan"], (
         "Product history must retain only bounded canonical namespaces, including malformed input."
+    )
+
+
+@pytest.mark.parametrize("namespace", ["workspace", "scope", "scan", "report"])
+@pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
+def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
+    """Punctuation/missing-space forms dispatch a protected namespace without retaining its argv."""
+
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    marker = "synthetic-private-argument"
+    arguments = []
+
+    def ObserveDispatcher(self, command, argument):
+        """Observe protected replay/history during dispatch without executing a local action."""
+
+        assert self.lastcmd == namespace and marker not in str(self._history), (
+            "Replay/history must already be sanitized while the foreground consumer runs."
+        )
+        assert command == namespace, "The parsed namespace must preserve the shared dispatcher."
+        arguments.append(argument)
+
+    monkeypatch.setattr(InteractiveShell, "RunLocalCommand", ObserveDispatcher)
+    line = namespace + separator + " " + marker
+    _, expected_argument, _ = shell.parseline(line)
+    assert not shell.onecmd(line), "Product dispatch cannot terminate the workbench."
+    assert arguments == [expected_argument], "Sanitization must preserve actual dispatch grammar."
+    assert shell.lastcmd == namespace, "No malformed argument can enter the framework replay state."
+    shell.onecmd("")
+    assert arguments == [expected_argument, ""], "Empty-line repeat may replay only the namespace."
+    shell.onecmd("history")
+    assert output.getvalue().splitlines() == [namespace, namespace], (
+        "History must retain the parsed protected namespace, regardless of raw prefix punctuation."
+    )
+
+
+def NativeEditor(entries):
+    """Build an independent native index/relative-position oracle without global editor state."""
+
+    editor = ModuleType("owned-native-history-oracle")
+    editor.backend = "readline"
+    settings = {"completer": None, "bindings": []}
+
+    def Count():
+        """Observe the live native vector's size rather than its possibly advanced absolute base."""
+
+        return len(entries)
+
+    def Item(index):
+        """Read by absolute native index, as GNU history_get does after a buffer cap."""
+
+        return next((value for key, value in entries if key == index), None)
+
+    def Replace(position, value):
+        """Replace by zero-based relative native position, preserving all other entries."""
+
+        key, _ = entries[position]
+        entries[position] = (key, value)
+
+    def GetCompleter():
+        """Return only the test-owned caller completer."""
+
+        return settings["completer"]
+
+    def SetCompleter(value):
+        """Observe the framework's temporary completer without accessing user configuration."""
+
+        settings["completer"] = value
+
+    def Bind(value):
+        """Record only the framework binding callback in this isolated synthetic backend."""
+
+        settings["bindings"].append(value)
+
+    editor.get_current_history_length = Count
+    editor.get_history_item = Item
+    editor.replace_history_item = Replace
+    editor.get_completer = GetCompleter
+    editor.set_completer = SetCompleter
+    editor.parse_and_bind = Bind
+
+    return editor, settings
+
+
+def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput():
+    """A native cap advances absolute base; matching prior/command-time entries remain unowned."""
+
+    original = "report; synthetic-prior-private-value"
+    entries = [(5, original)]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    shell = InteractiveShell(stdout=StringIO())
+    cursor.Reconcile(shell, original)
+    assert entries == [(5, original)], "A disabled-auto-history prior entry must remain untouched."
+    entries[:] = [(6, "report; synthetic-current-private-value")]
+    cursor.Reconcile(shell, entries[0][1])
+    assert entries == [(6, "report")], "New input remains owned at a constant capped vector length."
+    entries.append((7, "scope; synthetic-command-time-value"))
+    cursor.Reconcile(shell, "")
+    cursor.Reconcile(shell, None)
+    assert entries[-1] == (7, "scope; synthetic-command-time-value"), (
+        "Observing command-time additions must not claim them during exit cleanup."
+    )
+    entries.append((8, "scan; synthetic-interrupted-input-value"))
+    cursor.Reconcile(shell, None)
+    assert entries[-1] == (8, "scan"), "An interrupted input boundary must remain protected."
+    assert entries[0] == (6, "report"), "Keep already sanitized native input intact."
+
+
+def test_CappedRetirementGapKeepsHandlerAdditionsAndProtectsNextActualInput():
+    """Tip 6/input 7/handler 8+9/input 10 retire the missing gap without losing ownership."""
+
+    entries = [(6, "owned-prior-tip")]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    shell = InteractiveShell(stdout=StringIO())
+    entries[:] = [(7, "seed")]
+    cursor.Reconcile(shell, "seed")
+    entries[:] = [(9, "owned-command-time-two")]
+    cursor.Reconcile(shell, "")
+    assert cursor.last_index == 9 and entries == [(9, "owned-command-time-two")], (
+        "Retired index8 cannot stall the cursor or rewrite the handler's unowned addition."
+    )
+    entries[:] = [(10, "report; synthetic-current-private-value")]
+    cursor.Reconcile(shell, entries[0][1])
+    assert entries == [(10, "report")], "Protect the next actual product input before dispatch."
+
+
+@pytest.mark.parametrize("additions", [100, 101, 102])
+def test_CappedRetirementGapUsesFiniteLookupAndRefusesUnidentifiedTip(additions):
+    """Exactly 100 advances remain identifiable; excess or wholly missing tips fail closed."""
+
+    entries = [(7, "seed")]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    shell = InteractiveShell(stdout=StringIO())
+    queried = []
+    original_item = editor.get_history_item
+
+    def Observe(index):
+        """Count only the independent oracle's public lookup calls and absolute positions."""
+
+        queried.append(index)
+
+        return original_item(index)
+
+    editor.get_history_item = Observe
+    entries[:] = [(7 + additions, "scope; synthetic-unowned-command-addition")]
+
+    if additions == 100:
+        cursor.Reconcile(shell, "")
+        assert cursor.last_index == 107, "The exact lookup budget includes its final live tip."
+
+    else:
+        with pytest.raises(RuntimeError, match="owned boundary|identified safely"):
+            cursor.Reconcile(shell, "")
+
+        assert cursor.last_index == 7, "An unidentified boundary cannot be silently acknowledged."
+
+    assert entries == [(7 + additions, "scope; synthetic-unowned-command-addition")], (
+        "Boundary refusal and observation preserve the unowned handler addition exactly."
+    )
+    assert max(queried) <= 108 and len(queried) <= 208, (
+        "Forward/previous lookups remain bounded to 100 positions plus fixed end/identity checks."
+    )
+
+
+@pytest.mark.parametrize("retired", [99, 100, 101])
+def test_ObservationOnlyBackwardCapReshapingUsesBoundedKnownPositions(retired):
+    """GNU cap introduction can renumber a known tip without transferring entry ownership."""
+
+    entries = [(index, "owned-prior-" + str(index)) for index in range(100, 201)]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    shell = InteractiveShell(stdout=StringIO())
+    entries[:] = [(201, "owned-ordinary-input")]
+    cursor.Reconcile(shell, "owned-ordinary-input")
+    entries[:] = [(201 - retired, "scope; synthetic-unowned-command-addition")]
+
+    if retired <= 100:
+        cursor.Reconcile(shell, "")
+        assert cursor.last_index == 201 - retired, "Pin only the identified observation tip."
+
+    else:
+        with pytest.raises(RuntimeError, match="identified safely"):
+            cursor.Reconcile(shell, "")
+
+        assert cursor.last_index == 201, "Excess backward changes cannot transfer ownership."
+
+    assert entries == [(201 - retired, "scope; synthetic-unowned-command-addition")], (
+        "Observation-time re-identification must not sanitize or alter an unowned caller entry."
+    )
+
+
+def test_ActualInputCannotClaimAnEarlierUnownedNativeTip():
+    """Actual input cannot acquire a prior caller entry through backward recovery."""
+
+    entries = [(6, "owned-prior-tip")]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    line = "report; synthetic-identical-prior-value"
+    entries[:] = [(5, line)]
+
+    with pytest.raises(RuntimeError, match="identified safely"):
+        cursor.Reconcile(InteractiveShell(stdout=StringIO()), line)
+
+    assert entries == [(5, line)], "An identical earlier entry never becomes newly owned input."
+
+
+def test_DisappearedNativeHistoryCannotSilentlyContinueAfterOwnedInput():
+    """A live cursor whose tip disappears has no authority to accept further native input."""
+
+    entries = [(7, "owned-ordinary-input")]
+    editor, _ = NativeEditor(entries)
+    cursor = NativeInputHistory.Open(editor)
+    entries.clear()
+
+    with pytest.raises(RuntimeError, match="identified safely"):
+        cursor.Reconcile(InteractiveShell(stdout=StringIO()), "")
+
+    assert not entries and cursor.last_index == 7, "Refusal never clears or invents native history."
+
+
+@pytest.mark.parametrize("first_index", [100, 101])
+def test_StartingNativeIdentificationHonorsExactLookupBoundary(first_index):
+    """Starting index 100 is supported; index 101 is refused before input without any rewrite."""
+
+    entries = [(first_index, "owned-prior-tip")]
+    editor, _ = NativeEditor(entries)
+
+    if first_index == 100:
+        assert NativeInputHistory.Open(editor).last_index == 100, (
+            "The final documented starting position must identify a legitimate capped history."
+        )
+
+    else:
+        with pytest.raises(RuntimeError, match="identified safely"):
+            NativeInputHistory.Open(editor)
+
+    assert entries == [(first_index, "owned-prior-tip")], "Starting lookup preserves caller data."
+
+
+def test_NativeOwnershipRefusesUnidentifiableHistoryWithoutMutatingIt():
+    """Bounded identification never clears or guesses unrelated preexisting native history."""
+
+    entries = [(1000, "owned-unidentifiable-prior-entry")]
+    editor, _ = NativeEditor(entries)
+
+    with pytest.raises(RuntimeError, match="identified safely"):
+        NativeInputHistory.Open(editor)
+
+    assert entries == [(1000, "owned-unidentifiable-prior-entry")], (
+        "Unsupported native indexing must fail before input without rewriting caller history."
+    )
+
+
+@pytest.mark.parametrize("line", ["report; synthetic-current-input", "context"])
+def test_CommandExceptionCannotClaimCallerNativeAdditionsDuringLoopCleanup(monkeypatch, line):
+    """Handler-created entries remain unowned even when it exits before framework postcmd."""
+
+    entries = []
+    editor, _ = NativeEditor(entries)
+    shell = InteractiveShell(stdout=StringIO())
+    shell._native_history = NativeInputHistory.Open(editor)
+    entries.append((1, line))
+    shell.precmd(line)
+
+    def Interrupt(*arguments):
+        """Add one unrelated test-owned entry, then interrupt before framework postcmd."""
+
+        entries.append((2, "scope; synthetic-unowned-command-addition"))
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(shell, "RunLocalCommand", Interrupt)
+    monkeypatch.setattr(shell, "do_context", Interrupt)
+
+    with pytest.raises(KeyboardInterrupt):
+        shell.onecmd(line)
+
+    shell._native_history.Reconcile(shell, None)
+    assert entries[1] == (2, "scope; synthetic-unowned-command-addition"), (
+        "Exit cleanup cannot claim a command-time native entry after handler interruption."
+    )
+
+
+def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch):
+    """Stream/queued inputs have no native auto-history ownership and preserve preexisting state."""
+
+    entries = [(1, "report; synthetic-prior-private-value")]
+    editor, settings = NativeEditor(entries)
+    monkeypatch.setitem(sys.modules, "readline", editor)
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO("report; synthetic-current-private-value\n"),
+                             stdout=output)
+    shell.use_rawinput = False
+    shell.cmdloop()
+    shell.onecmd("report; synthetic-direct-private-value")
+    assert entries == [(1, "report; synthetic-prior-private-value")], (
+        "Nonraw/direct calls must not sanitize an unrelated native entry."
+    )
+    assert shell._native_history is None and settings["bindings"] == [], (
+        "The nonraw lifecycle must not take a native editor or completion setting."
+    )
+    assert "synthetic-current-private-value" not in output.getvalue(), (
+        "Stream input receives the same actual grammar/privacy protections."
+    )
+
+
+def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch):
+    """Even a matching queued string cannot claim an unchanged preexisting native history item."""
+
+    line = "report; synthetic-prior-private-value"
+    entries = [(1, line)]
+    editor, settings = NativeEditor(entries)
+    marker = object()
+    settings["completer"] = marker
+    monkeypatch.setitem(sys.modules, "readline", editor)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    shell = InteractiveShell(stdout=StringIO())
+    shell.cmdqueue = [line, "quit"]
+    shell.cmdloop()
+    assert entries == [(1, line)], "Queued commands cannot own prior native history, even if equal."
+    assert settings["completer"] is marker and shell._native_history is None, (
+        "The standard completion lifecycle and scoped cursor must restore exactly."
     )

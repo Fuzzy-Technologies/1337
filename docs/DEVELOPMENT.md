@@ -30,6 +30,10 @@ interactive shell foundation, local diagnostics, and read-only component-health
 inspection. Scanner workflows belong to subsequent product work. See
 [Component health and update inspection](COMPONENT_HEALTH.md) for the explicit
 non-mutation boundary and experimental JSON report.
+Current development workflows additionally expose
+[bounded Quick Scan](QUICK_SCAN.md) and [Offline report export](REPORT_EXPORT.md).
+The latter reads an explicitly selected existing workspace and publishes new
+JSON/SARIF output without a job, provider process or target contact.
 
 | Command                                | Behavior                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |

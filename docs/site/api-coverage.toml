@@ -252,6 +252,12 @@ mode = "authored"
 page = "api/fuzzy1337.report_formats.md"
 
 [[surfaces]]
+module = "fuzzy1337.report_commands"
+source = "src/fuzzy1337/report_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.report_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.scope"
 source = "src/fuzzy1337/scope.py"
 mode = "authored"
@@ -286,3 +292,9 @@ module = "fuzzy1337.reachability"
 source = "src/fuzzy1337/reachability.py"
 mode = "authored"
 page = "api/fuzzy1337.reachability.md"
+
+[[surfaces]]
+module = "fuzzy1337.captured_web"
+source = "src/fuzzy1337/captured_web.py"
+mode = "authored"
+page = "api/fuzzy1337.captured_web.md"
