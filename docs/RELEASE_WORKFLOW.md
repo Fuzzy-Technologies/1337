@@ -52,7 +52,7 @@ Rules:
 5. Add/update tests and evidence appropriate to the change.
 6. Move the PR to Ready for review only after the task acceptance criteria are satisfied.
 7. Use `Closes #NN`/`Fixes #NN` in the PR body only for work the PR actually completes.
-8. Merge only after the human owner accepts the change.
+8. Merge after the applicable review and required CI. Ordinary implementation PRs into `develop` follow the standing owner-approved autonomous integration cycle in `DEVELOPMENT_PROTOCOL.md`; release and `master` decisions retain their separate owner requirements.
 
 ### Merge method
 

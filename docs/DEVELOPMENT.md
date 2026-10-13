@@ -11,9 +11,14 @@ python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 --version
 uv run --locked 1337 doctor
-uv run --locked 1337-dev unit
-uv run --locked 1337-dev check
 ```
+
+The owner-approved development cycle is autonomous: implement, verify the actual
+feature, review, record `Reviewed` and/or `Approved`, merge verified work into
+`develop`, and continue. Separate permission for each ordinary merge is not
+required. PyPI publication tasks remain paused. The complete authorization and
+its boundaries are in [the development protocol](../DEVELOPMENT_PROTOCOL.md).
+Use the focused pre-commit commands below; the full gate belongs to PR checkpoints.
 
 `uv.lock` records exact dependency versions and artifact hashes. `--locked`
 rejects stale dependency metadata instead of rewriting the lock. Build backend

@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.6`
+Protocol version: `0.7`
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -100,7 +100,7 @@ Rules:
 - When work on one or more task issues actually begins, assign the project owner (`Tim55667757`) to those active task issues. If work is explicitly returned to the backlog before completion, remove the assignee.
 - Pull requests must reference the task(s) and feature(s) they implement and should use the milestone of the primary owning task/feature unless the PR is explicitly cross-milestone.
 - A pull request that fully completes a task may use `Closes #NN` or `Fixes #NN` in the PR body. Do not use closing keywords when the PR only partially advances the task.
-- After a human merge into `develop`, the `Close merged tasks` workflow closes only open repository issues named by an explicit, standalone `Closes #NN`, `Fixes #NN`, or `Resolves #NN` line in the merged PR body. `Refs #NN` and ordinary mentions never close work.
+- After an authorized merge into `develop`, the `Close merged tasks` workflow closes only open repository issues named by an explicit, standalone `Closes #NN`, `Fixes #NN`, or `Resolves #NN` line in the merged PR body. `Refs #NN` and ordinary mentions never close work.
 - Ordinary intermediate commits reference their owning issue without closing it.
 - When a task implementation is ready for owner review, add a short plain-English issue comment describing what changed, what the change enables, and how it was actually verified. Keep it readable for a human; use a small Markdown table only when it improves clarity.
 - A task remains open while its completing PR is in review. Normal completion is PR merge → Task closed.
@@ -128,10 +128,31 @@ Multiple existing labels may be used when each is materially true. Do not create
 - Open work PRs against `develop` unless a release/hotfix workflow or the documentation/site publication exception in `docs/RELEASE_WORKFLOW.md` explicitly requires another base.
 - Draft PRs are the normal place for work still being implemented or validated.
 - CI and relevant tests must pass before merge once those checks exist.
-- Human owner review is the normal merge gate.
-- Automated agents must not self-merge unless explicitly instructed for that specific PR.
+- Review is required before merge. The standing owner authorization below permits autonomous integration of ordinary implementation PRs into `develop`; work outside that authorization still requires the applicable owner decision.
 - Force-push and history rewriting on protected branches are prohibited.
 - Default merge method for ordinary work PRs is Squash and merge; exceptions are defined in `docs/RELEASE_WORKFLOW.md`.
+
+### Owner-approved autonomous integration cycle
+
+On 2026-10-13 the owner confirmed standing authorization for AIna and delegated development agents to continue the planned 1337 development cycle:
+
+```text
+implement in a branch
+→ verify the actual feature through its product interfaces
+→ review the exact proposed revision
+→ record Reviewed and/or Approved through the connected owner account
+→ merge the verified PR into develop
+→ continue the next planned task
+```
+
+- Do not stop for another per-PR merge confirmation when this standing authorization applies.
+- Functional verification must exercise the relevant implemented interface and its important failure paths. Fixtures or parser-only tests do not establish a working scanner or product workflow. Documentation-only changes require the applicable documentation checks.
+- Keep the focused pre-commit and full PR-checkpoint cadence in section 10. Required CI must be green for the proposed revision; never turn a missing, failed or unexecuted check into approval.
+- Coordinate an independent implementation review when agents work in parallel. The integration coordinator verifies review findings, functional evidence, CI and the final diff before merging.
+- Use the short review text `Reviewed`, `Approved`, or `Reviewed/Approved`, matching the completed review. When GitHub prohibits formal approval of a PR authored by the connected account, use an ordinary review comment; do not invent a second reviewer identity.
+- Verify merge state, linked-task lifecycle and branch cleanup after integration. Close a task or feature only when its actual acceptance criteria are complete.
+- PyPI publication tasks remain paused, including publisher setup, publishing workflows, authentication and uploads, and acceptance that requires a published PyPI package. Normal dependency installation and non-publication package tests remain part of development.
+- This permission covers ordinary planned development and integration into `develop`. Existing repository scope, security-testing, protected-policy, destructive-operation and release rules still apply. A later owner instruction may narrow or revoke the permission.
 
 ## 4. Commit messages
 
