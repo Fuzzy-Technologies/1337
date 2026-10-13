@@ -1,8 +1,24 @@
 # Verified SPDX package inventory
 
 [ADR 0043](adr/0043-verified-spdx-package-inventory.md) defines an Experimental
-offline SPDX 2.3 JSON package-inventory profile. The initial profile/fixture commit
-precedes the importer implementation. It changes no accepted image/model schema.
+offline SPDX 2.3 JSON package-inventory profile implemented by
+`fuzzy1337.sbom_spdx`. It changes no accepted image/model schema.
+
+## Supported interface
+
+`SPDX_IMPORT_VERSION = 1` and `ApplyVerifiedSpdx(state, record, provenance,
+image_identity, workspace_root)` form the supported surface. Other module
+helpers remain Internal. Supply an existing `ModelState`, independently acquired
+immutable `EvidenceRecord` with role `sbom`, matching `ModelProvenance`, an explicit
+`ImageIdentity` and the owning workspace root. The producer verifies the manifest
+and original bytes through the existing evidence store before interpretation.
+Offline source attribution cannot contain a fabricated invocation or execution.
+
+The return value is one `(ModelState, ModelDelta)` in-memory transition. Persist it
+with the existing `LocalModelStore.Save` boundary when the caller chooses to save.
+Parsing/profile/graph/provenance errors raise sanitized `ValueError`; existing
+evidence integrity/storage failures retain their `EvidenceError` contracts.
+The importer grants no target, artifact-execution or retrieval authority.
 
 ## Exact profile
 
@@ -46,11 +62,21 @@ Use existing limits: 4 MiB JSON bytes, 65536 nodes, depth 32, 4096 collection
 items, 2048-character identity text and 64 KiB model attributes. Scope local SPDX
 aliases to the verified document digest. Cross-source package identities remain
 versioned PURL identities, while the caller's config/manifest kind stays explicit.
+An SPDX SHA256 checksum cannot determine whether a caller means an OCI config or
+manifest. Equal checksum bytes with different declared kinds retain distinct
+image keys; this profile verifies checksum equality, not that semantic claim.
 No package/file checksum proves archive contents, signatures or completeness.
 
-The producer will return one immutable model update for LocalModelStore.Save;
-exact replay is a no-op. Original evidence remains unchanged. Inventory creates
-no Finding, changes no existing disposition and grants no execution authority.
+`spdx-source-alias` observations bind each original local ID to its canonical asset
+through document SHA256 and image reference. `spdx-package-license` observations
+carry separate declared/concluded `state` and optional `expression` fields with
+the same scoped coordinate. Supplier/download/source text and creator identities
+are retained only in raw evidence. Repeated aliases for one PURL correlate to one
+package asset; aliases across different documents remain distinct source facts.
+
+Exact replay is a no-op. Original evidence remains unchanged. Inventory creates
+no Finding and changes no existing disposition. Existing license assets describe
+declared expressions only; concluded expressions remain source observations.
 
 ## Independent fixtures and acceptance
 
