@@ -69,3 +69,12 @@ provider attributes. Future #141 consumers own provider-neutral identities.
 - [JSON reports](https://trivy.dev/docs/latest/guide/configuration/reporting/)
 - [Offline operation](https://trivy.dev/docs/v0.55/guide/advanced/air-gap/)
 - [Provider version fields](https://pkg.go.dev/github.com/aquasecurity/trivy/pkg/types#VersionInfo)
+
+## Pinned native acceptance extension
+
+[ADR 0057](0057-pinned-native-trivy-acceptance.md) adds an opt-in genuine pinned
+binary/database compatibility lane over owned inert image metadata, with actual
+offline execution, original evidence and a specific independent advisory oracle.
+Acceptance requires its retained exact-head CI result. The native artifact
+profile remains metadata-only; this test lane does not enable native product
+authorization, persist fixture interpretations or close Tasks #140/#142.

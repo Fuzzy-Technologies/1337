@@ -36,6 +36,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added an explicitly confirmed STANDARD Nuclei workflow through governed jobs,
   retained raw evidence and durable canonical Findings, with current authority
   checks at launch and model Save and pinned genuine-provider loopback CI.
+- Added opt-in genuine Trivy adapter acceptance with checksum/digest-pinned
+  upstream material, owned inert image metadata, specific advisory boundary tests,
+  original raw evidence and a Linux scan namespace without external routes.
+  Native artifact product authorization remains separate and metadata-only.
 - Added verified offline vulnerability intelligence and standards-mapping
   metadata, preserving source versions, evidence and uncertainty.
 - Added offline OpenAPI request import, bounded synthetic API request generation
