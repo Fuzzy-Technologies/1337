@@ -97,6 +97,9 @@ terminal summary. Raw streams stay in immutable evidence. `--plan` always emits
 one complete JSON plan and rejects execution confirmation/event-stream flags.
 Exit codes: 0 completed operation, 2 invalid inputs/configuration, 3 authority denial,
 4 provider/evidence/normalization/storage failure, 130 owned cancellation.
+Operator mismatch uses `NucleiAuthorityDeniedError`; core policy decisions retain
+`PolicyDeniedError`. Filesystem `PermissionError` remains storage/exit 4, including
+preflight reads and a failed model Save acknowledgement; it is not consent denial.
 
 ## Durable canonical results
 

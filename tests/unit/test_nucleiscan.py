@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
 import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -31,7 +32,7 @@ from fuzzy1337.executors import (
     LocalExecutionResult,
 )
 from fuzzy1337.findings import Findings
-from fuzzy1337.jobs import JobEventKind
+from fuzzy1337.jobs import JobEventKind, JobFailureCode
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.nucleiscan import (
     NucleiScanLimits,
@@ -43,7 +44,7 @@ from fuzzy1337.nucleiscan import (
     RunNucleiScan,
 )
 from fuzzy1337.policy import CapabilityPermission, ImpactPolicy, PolicyConfirmation, PolicyEngine
-from fuzzy1337.scan_commands import CreateWorkspace
+from fuzzy1337.scan_commands import CreateWorkspace, RunCommands
 from fuzzy1337.scope import (
     AuthorizationState,
     LocalScopeStore,
@@ -385,7 +386,10 @@ def test_PortableFreshAuthorityAndMaterialBeforeLaunchAndSave(
 
 
 @pytest.mark.parametrize("owner", ["model", "workspace"])
-def test_PortableStorageOwnerFailureRemainsExplicit(portable_workflow, monkeypatch, owner):
+@pytest.mark.parametrize("error_type", [OSError, PermissionError])
+def test_PortableStorageOwnerFailureRemainsExplicit(
+    portable_workflow, monkeypatch, owner, error_type,
+):
     """Portable Save failures retain actual acquired bytes and never report completion."""
 
     root, target, profile, executable, approval, _ = portable_workflow
@@ -393,7 +397,7 @@ def test_PortableStorageOwnerFailureRemainsExplicit(portable_workflow, monkeypat
     def FailSave(*args, **kwargs):
         """Inject a source-independent model or workspace Save failure."""
 
-        raise OSError("synthetic-private-path")
+        raise error_type(13, "synthetic-private-path")
 
     monkeypatch.setattr(LocalModelStore if owner == "model" else LocalWorkspaceStore,
                         "Save", FailSave)
@@ -488,8 +492,9 @@ def test_PortableGrantExpiryAfterEvidenceReadBlocksCanonicalSave(
     )
 
 
+@pytest.mark.parametrize("error_type", [OSError, PermissionError])
 def test_PortableSaveAcknowledgementFailureReopensActualPublishedState(
-    portable_workflow, monkeypatch: pytest.MonkeyPatch,
+    portable_workflow, monkeypatch: pytest.MonkeyPatch, error_type,
 ) -> None:
     """Atomic publication followed by an owner acknowledgement failure is truthful failed state."""
 
@@ -501,7 +506,7 @@ def test_PortableSaveAcknowledgementFailureReopensActualPublishedState(
 
         original(self, *args, **kwargs)
 
-        raise OSError("synthetic-acknowledgement-failure")
+        raise error_type(13, "synthetic-acknowledgement-failure")
 
     monkeypatch.setattr(LocalModelStore, "Save", SaveAndFail)
     summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
@@ -517,4 +522,97 @@ def test_PortableSaveAcknowledgementFailureReopensActualPublishedState(
     )
     assert len(LocalWorkspaceStore(root).Open().evidence_record_references) == 2, (
         "Actual captured raw acquisitions remain retained despite failed acknowledgement."
+    )
+
+
+@pytest.mark.parametrize("stage", ["authorize", "launch", "save"])
+@pytest.mark.parametrize("reader", ["policy", "material"])
+def test_PortableFilesystemPermissionFailuresNeverBecomeAuthorityDenial(
+    portable_workflow, monkeypatch: pytest.MonkeyPatch, stage: str, reader: str,
+) -> None:
+    """OS access failure at fresh readers remains storage, distinct from typed policy denial."""
+
+    root, target, profile, executable, approval, probe = portable_workflow
+    calls = [0]
+    selected_call = {"authorize": 2, "launch": 3, "save": 4}[stage]
+
+    def ReadPolicy():
+        """Read the actual selected policy or model an OS file-permission failure."""
+
+        if reader == "policy":
+            calls[0] += 1
+
+            if calls[0] == selected_call:
+                raise PermissionError(13, "synthetic-private-policy-path")
+
+        return Policy()
+
+    if reader == "material":
+        original = NucleiAdapter.PrepareInvocation
+
+        def Prepare(self, request):
+            """Fail material I/O after a previous genuine finite adapter preparation."""
+
+            calls[0] += 1
+
+            if calls[0] == selected_call:
+                raise PermissionError(13, "synthetic-private-material-path")
+
+            return original(self, request)
+
+        monkeypatch.setattr(NucleiAdapter, "PrepareInvocation", Prepare)
+
+    summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+                                       executable, ReadPolicy, confirmation=approval))
+    assert summary.ExitCode() == 4, (
+        "Filesystem access failures must retain the storage exit status."
+    )
+    assert summary.snapshot.failure.code is JobFailureCode.STORAGE, (
+        "Actual authority was not denied."
+    )
+    assert summary.model_revision == 0, "Unreadable acceptance state cannot add canonical Findings."
+    assert probe["executed"] is (stage == "save"), (
+        "Launch access failure must prevent target execution."
+    )
+    assert "synthetic-private" not in json.dumps(summary.ToDict()), (
+        "Material details remain private."
+    )
+
+
+@pytest.mark.parametrize("kind", ["configuration", "scope", "owner"])
+def test_CliPreflightDistinguishesFilesystemPermissionFromOperatorDenial(
+    portable_workflow, monkeypatch: pytest.MonkeyPatch, kind: str,
+) -> None:
+    """Sanitized CLI preflight separates OS storage failure from its typed current-owner denial."""
+
+    root, target, profile, executable, _, probe = portable_workflow
+    profile_file = root / "profile.json"
+    policy_file = root / "policy.json"
+    profile_file.write_text(SerializeContract(profile), encoding="utf-8")
+    policy_file.write_text(SerializeContract(Policy()), encoding="utf-8")
+
+    def Denied(*args, **kwargs):
+        """Represent an actual metadata-file OS access failure without reflecting its path."""
+
+        raise PermissionError(13, "synthetic-private-preflight-path")
+
+    if kind == "configuration":
+        monkeypatch.setattr(nucleiscan, "ReadConfiguration", Denied)
+
+    elif kind == "scope":
+        monkeypatch.setattr(LocalScopeStore, "Open", Denied)
+
+    output = io.StringIO()
+    code = RunCommands("scan", ["nuclei", str(root), "--scope", "local", "--owner",
+        "operator:other" if kind == "owner" else "operator:owned", "--target", target.value,
+        "--profile", str(profile_file), "--policy", str(policy_file), "--executable", executable,
+        "--plan"], output)
+    failure = json.loads(output.getvalue())["failure"]
+    assert code == (3 if kind == "owner" else 4), "Only genuine typed operator denial exits three."
+    assert failure["code"] == ("authorization" if kind == "owner" else "storage"), (
+        "Filesystem PermissionError cannot be conflated with policy/owner authority denial."
+    )
+    assert "synthetic-private" not in output.getvalue(), "Actual diagnostic paths remain sanitized."
+    assert not probe["executed"], (
+        "Preflight denial or storage failure never starts a target operation."
     )

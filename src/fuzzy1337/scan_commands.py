@@ -20,6 +20,7 @@ from fuzzy1337.evidence import EvidenceError, LocalEvidenceStore
 from fuzzy1337.jobs import JobEvent, JobEventKind
 from fuzzy1337.model import LocalModelStore, ObjectKind
 from fuzzy1337.nucleiscan import (
+    NucleiAuthorityDeniedError,
     NucleiScanLimits,
     NucleiScanSummary,
     NucleiUnavailableError,
@@ -28,7 +29,7 @@ from fuzzy1337.nucleiscan import (
     ReadNucleiProfile,
     RunNucleiScan,
 )
-from fuzzy1337.policy import ImpactPolicy, PolicyConfirmation
+from fuzzy1337.policy import ImpactPolicy, PolicyConfirmation, PolicyDeniedError
 from fuzzy1337.quickscan import QuickScanSummary, RunQuickScan, VerifyWorkspaceEvidence
 from fuzzy1337.scope import (
     AuthorizationState,
@@ -383,7 +384,7 @@ def RunCommands(
 
             return summary.ExitCode()
 
-    except PermissionError:
+    except (NucleiAuthorityDeniedError, PolicyDeniedError):
         WriteJson(output, {"schema_version": 1, "state": "failed",
                            "failure": {"code": "authorization",
                                        "message": "Current scan authority denied execution"}})

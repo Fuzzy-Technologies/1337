@@ -388,8 +388,10 @@ def test_OptionalProviderAbsenceIsAnActualFailure(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("owner", ["model", "workspace"])
+@pytest.mark.parametrize("error_type", [OSError, PermissionError])
+@pytest.mark.parametrize("published", [False, True])
 def test_DurableStorageFailureBlocksTerminalSuccess(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, owner: str,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, owner: str, error_type, published: bool,
 ) -> None:
     """A provider match cannot become completed when canonical Save or references fail."""
 
@@ -397,13 +399,18 @@ def test_DurableStorageFailureBlocksTerminalSuccess(
     target, profile, executable = Setup(root)
     confirmation = Confirm(root, target, profile, executable)
 
+    storage_owner = LocalModelStore if owner == "model" else LocalWorkspaceStore
+    original = storage_owner.Save
+
     def FailSave(*args, **kwargs):
-        """Inject bounded owner storage failure after actual provider evidence acquisition."""
+        """Inject actual producer storage/acknowledgement failure at the selected owner."""
 
-        raise OSError("private-storage-path")
+        if published:
+            original(*args, **kwargs)
 
-    monkeypatch.setattr(LocalModelStore if owner == "model" else LocalWorkspaceStore,
-                        "Save", FailSave)
+        raise error_type(13, "private-storage-path")
+
+    monkeypatch.setattr(storage_owner, "Save", FailSave)
     summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                        executable, Policy, confirmation=confirmation))
     assert summary.ExitCode() == 4, "Actual storage failure must prevent terminal completion."
@@ -415,6 +422,9 @@ def test_DurableStorageFailureBlocksTerminalSuccess(
     )
     assert "private-storage-path" not in json.dumps(summary.ToDict()), (
         "Material paths stay private."
+    )
+    assert summary.model_revision == (0 if owner == "model" and not published else 1), (
+        "Failed Save acknowledgement must reopen published state without claiming completion."
     )
 
 

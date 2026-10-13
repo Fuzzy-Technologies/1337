@@ -70,6 +70,7 @@ from fuzzy1337.policy import (
     ImpactPolicy,
     PolicyConfirmation,
     PolicyContext,
+    PolicyDeniedError,
     PolicyEngine,
     PolicyGrant,
     PolicyPlan,
@@ -90,13 +91,22 @@ NUCLEI_CONFIGURATION_MAX_BYTES = 256 * 1024
 
 __all__ = [
     "NUCLEI_SCAN_SCHEMA_VERSION", "NUCLEI_CONFIGURATION_MAX_BYTES", "NucleiScanLimits",
-    "NucleiScanPlan", "NucleiScanSummary", "NucleiUnavailableError", "ReadNucleiProfile",
+    "NucleiScanPlan", "NucleiScanSummary", "NucleiUnavailableError", "NucleiAuthorityDeniedError",
+    "ReadNucleiProfile",
     "ReadNucleiPolicy", "PlanNucleiScan", "RunNucleiScan",
 ]
 
 
 class NucleiUnavailableError(RuntimeError):
     """The explicitly selected optional provider failed its bounded local version probe."""
+
+
+class NucleiAuthorityDeniedError(PermissionError):
+    """The workflow's selected operator differs from the current recorded consent actor.
+
+    This typed workflow denial remains distinct from filesystem PermissionError.
+    Core scope, impact and exact-plan decisions retain PolicyDeniedError.
+    """
 
 
 def ReadConfiguration(path: Path) -> object:
@@ -302,7 +312,7 @@ def CurrentContext(
         Existing policy-engine context with both exact URL and its explicit actual address.
 
     Raises:
-        PermissionError: The actor changed or differs from the selected owner.
+        NucleiAuthorityDeniedError: The actor changed or differs from the selected owner.
         ValueError: A reader returns an untyped policy or invalid local state.
         OSError: Current authority cannot be read.
     """
@@ -310,7 +320,7 @@ def CurrentContext(
     scope = LocalScopeStore(workspace_root).Open(scope_id)
 
     if scope.authorization.authority_reference != owner_reference:
-        raise PermissionError("Nuclei operator does not match current scope authority")
+        raise NucleiAuthorityDeniedError("Nuclei operator does not match current scope authority")
 
     return PolicyContext(scope, policy_provider(), target, (
         target, Target(TargetKind.IP, urlsplit(target.value).hostname or ""),
@@ -475,7 +485,7 @@ class NucleiWorkflow:
                 grant = PolicyEngine().Authorize(self.invocation, capability, self.Context(),
                     at=self.clock(), confirmation=self.confirmation)
 
-            except PermissionError as error:
+            except (NucleiAuthorityDeniedError, PolicyDeniedError) as error:
                 raise JobError(JobFailure(JobFailureCode.AUTHORIZATION,
                                           "Nuclei exact-plan execution was denied")) from error
 
@@ -503,7 +513,7 @@ class NucleiWorkflow:
                         cancellation=cancellation,
                     )
 
-                except PermissionError:
+                except (NucleiAuthorityDeniedError, PolicyDeniedError):
                     raise
 
                 except (OSError, ValueError) as error:
@@ -572,12 +582,19 @@ class NucleiWorkflow:
             context.CheckCancellation()
             PolicyEngine().Validate(grant, self.invocation,
                 CapabilityDescriptors(self.adapter.Descriptor)[0], self.Context(), at=self.clock())
-            store.Save(updated, expected_revision=state.revision)
 
-        except PermissionError as error:
+        except (NucleiAuthorityDeniedError, PolicyDeniedError) as error:
             raise JobError(JobFailure(JobFailureCode.AUTHORIZATION,
                                       "Nuclei authority changed before model persistence")) \
                 from error
+
+        except (OSError, ValueError) as error:
+            raise JobError(JobFailure(JobFailureCode.STORAGE,
+                                      "Could not verify Nuclei model persistence authority")) \
+                from error
+
+        try:
+            store.Save(updated, expected_revision=state.revision)
 
         except (OSError, ValueError, WorkspaceBusyError, WorkspaceConflictError) as error:
             raise JobError(JobFailure(JobFailureCode.STORAGE,
