@@ -6,11 +6,13 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 import stat
 import sys
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -465,3 +467,233 @@ def test_CapturedObservationRecordsFreezeCallerCollections(selected):
         "Caller changed partition ID"
     )
     snapshot.Verify()
+
+
+def ObservedInfo(info, **changes):
+    """Copy only actual observed metadata fields into a finite owned test observation."""
+
+    fields = {
+        name: getattr(info, name)
+        for name in (
+            "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns", "st_mode", "st_nlink"
+        )
+    }
+    fields.update(changes)
+
+    return SimpleNamespace(**fields)
+
+
+@pytest.mark.parametrize("windows", [False, True], ids=["posix", "windows"])
+def test_CtimeViewDifferenceIsLimitedToWindowsAndStillHashesExactBytes(
+    selected, monkeypatch, windows
+):
+    """Creation versus change-time semantics do not remove original-path or same-method checks."""
+
+    _, source, _ = selected
+    actual_handle = inputs.ArtifactHandleInfo
+
+    def Handle(descriptor):
+        """Expose only the documented creation/change-time API discrepancy."""
+
+        info = actual_handle(descriptor)
+
+        return ObservedInfo(info, st_ctime_ns=info.st_ctime_ns + 1)
+
+    monkeypatch.setattr(inputs, "_WINDOWS_STAT_VIEWS", windows)
+    monkeypatch.setattr(inputs, "ArtifactHandleInfo", Handle)
+
+    if windows:
+        record = inputs.ReadArtifactFile(source, "image.tar")
+
+        assert record.sha256 == hashlib.sha256(source.read_bytes()).hexdigest(), (
+            "Wrong bytes accepted"
+        )
+
+    else:
+        with pytest.raises(ValueError):
+            inputs.ReadArtifactFile(source, "image.tar")
+
+
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns"])
+def test_CommonOriginalPathIdentityCannotBeNormalizedAway(selected, monkeypatch, field):
+    """Different device/inode/content observations refuse even in the Windows ctime branch."""
+
+    _, source, _ = selected
+    actual_handle = inputs.ArtifactHandleInfo
+
+    def Handle(descriptor):
+        """Alter exactly one otherwise valid opened-file observation."""
+
+        info = actual_handle(descriptor)
+
+        return ObservedInfo(info, **{field: getattr(info, field) + 1})
+
+    monkeypatch.setattr(inputs, "_WINDOWS_STAT_VIEWS", True)
+    monkeypatch.setattr(inputs, "ArtifactHandleInfo", Handle)
+    destination = io.BytesIO()
+
+    with pytest.raises(ValueError):
+        inputs.ReadArtifactFile(source, "image.tar", destination)
+
+    assert not destination.getvalue(), "Unbound original file bytes were copied"
+
+
+@pytest.mark.parametrize("which", ["both", "witness"])
+def test_WrongHandlesCannotRelabelOriginalPathAndAllDescriptorsClose(selected, monkeypatch, which):
+    """A path observing A cannot accept handles for B, even when both handles agree on B."""
+
+    root, source, _ = selected
+    other = root / "other"
+    other.write_bytes(b"b" * len(source.read_bytes()))
+    source_info = source.stat()
+    os.utime(other, ns=(source_info.st_atime_ns, source_info.st_mtime_ns))
+    actual_open = os.open
+    opened = []
+
+    def Open(path, *args, **options):
+        """Expose owned B during selected opens while all guarded path observations remain A."""
+
+        selected_path = path
+
+        if path == source:
+            if which == "both" or opened:
+                selected_path = other
+
+            descriptor = actual_open(selected_path, *args, **options)
+            opened.append(descriptor)
+
+            return descriptor
+
+        return actual_open(path, *args, **options)
+
+    monkeypatch.setattr(inputs.os, "open", Open)
+    monkeypatch.setattr(inputs, "_WINDOWS_STAT_VIEWS", True)
+    destination = io.BytesIO()
+
+    with pytest.raises(ValueError):
+        inputs.ReadArtifactFile(source, "image.tar", destination)
+
+    assert not destination.getvalue(), "Agreeing wrong handles replaced the original selected file"
+    assert source.read_bytes() == b"owned-selected-archive", "The original owned path changed"
+
+    for descriptor in opened:
+        with pytest.raises(OSError):
+            os.fstat(descriptor)
+
+
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"])
+def test_FullHandleMutationChecksRemainActiveAcrossWindowsViews(selected, monkeypatch, field):
+    """Every handle identity field remains checked after actual bounded bytes are read."""
+
+    _, source, _ = selected
+    actual_handle = inputs.ArtifactHandleInfo
+    changed = False
+
+    def Handle(descriptor):
+        """Expose a handle-only change after the owned copy callback."""
+
+        info = actual_handle(descriptor)
+
+        return ObservedInfo(info, **({field: getattr(info, field) + 1} if changed else {}))
+
+    class Destination:
+        """Advance only owned simulated metadata after one bounded copied chunk."""
+
+        def Write(self, chunk):
+            """Retain read progress without mutating any unrelated path."""
+
+            nonlocal changed
+            changed = True
+
+        write = Write
+
+    monkeypatch.setattr(inputs, "_WINDOWS_STAT_VIEWS", True)
+    monkeypatch.setattr(inputs, "ArtifactHandleInfo", Handle)
+
+    with pytest.raises(ValueError):
+        inputs.ReadArtifactFile(source, "image.tar", Destination())
+
+    assert changed, "The handle after-read boundary was not exercised"
+
+
+@pytest.mark.parametrize("phase", [2, 3, 4], ids=["first-open", "witness-open", "after-read"])
+def test_FullPathMetadataRemainsCheckedAtEveryReadBoundary(selected, monkeypatch, phase):
+    """Original path change-time stays checked within its own API at all three boundaries."""
+
+    _, source, _ = selected
+    actual_path = inputs.ArtifactPathInfo
+    calls = 0
+
+    def Info(path, **options):
+        """Change only this selected path's own metadata at one deterministic boundary."""
+
+        nonlocal calls
+        info = actual_path(path, **options)
+
+        if path == source:
+            calls += 1
+
+            if calls == phase:
+                return ObservedInfo(info, st_ctime_ns=info.st_ctime_ns + 1)
+
+        return info
+
+    monkeypatch.setattr(inputs, "_WINDOWS_STAT_VIEWS", True)
+    monkeypatch.setattr(inputs, "ArtifactPathInfo", Info)
+
+    with pytest.raises(ValueError):
+        inputs.ReadArtifactFile(source, "image.tar")
+
+    assert calls == phase, "The selected path's requested boundary was not reached"
+
+
+@pytest.mark.parametrize("mutation", ["type", "links", "zero-id", "reparse", "reparse-tag"])
+def test_OpenedHandleMustRetainRegularUniqueNonReparseIdentity(selected, monkeypatch, mutation):
+    """A path's earlier validation cannot validate unsafe or unavailable opened-handle metadata."""
+
+    _, source, _ = selected
+    actual_fstat = os.fstat
+
+    with source.open("rb") as stream:
+        descriptor = stream.fileno()
+        info = actual_fstat(descriptor)
+        changes = {
+            "type": {"st_mode": stat.S_IFIFO},
+            "links": {"st_nlink": 2},
+            "zero-id": {"st_ino": 0},
+            "reparse": {"st_file_attributes": 0x400},
+            "reparse-tag": {"st_reparse_tag": 1},
+        }[mutation]
+
+        def Fstat(selected_descriptor):
+            """Expose an unsafe observation for only this explicit owned handle."""
+
+            if selected_descriptor == descriptor:
+                return ObservedInfo(info, **changes)
+
+            return actual_fstat(selected_descriptor)
+
+        monkeypatch.setattr(inputs.os, "fstat", Fstat)
+
+        with pytest.raises(ValueError):
+            inputs.ArtifactHandleInfo(descriptor)
+
+
+def test_ActualOpenedFileBoundIsCheckedBeforeAnyCopy(selected, monkeypatch):
+    """A stale smaller path observation cannot defer an excessive actual-handle bound to reading."""
+
+    _, source, _ = selected
+    actual_handle = inputs.ArtifactHandleInfo
+
+    def Handle(descriptor):
+        """Expose only a larger actual opened-file length."""
+
+        return ObservedInfo(actual_handle(descriptor), st_size=inputs.MAX_ARTIFACT_FILE_BYTES + 1)
+
+    monkeypatch.setattr(inputs, "ArtifactHandleInfo", Handle)
+    destination = io.BytesIO()
+
+    with pytest.raises(ValueError):
+        inputs.ReadArtifactFile(source, "image.tar", destination)
+
+    assert not destination.getvalue(), "An oversized opened file reached the snapshot stream"

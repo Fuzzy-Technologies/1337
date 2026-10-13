@@ -15,6 +15,15 @@ fresh separate scratch partition. Names, selected counts, streaming reads and
 aggregate bytes are bounded. Observed links/reparse points, hardlinks, special
 files, portable collisions, missing or extra material are rejected.
 
+Each selected path is bound to its opened regular file by nonzero file identity,
+device, size and modification time. Complete path observations remain stable
+within the path API; complete handle observations remain stable within `fstat`.
+On Windows only, cross-API change time is compared separately because CPython
+can expose creation time through path `stat` and change time through `fstat`.
+Different device/inode IDs or unavailable stable identity refuse capture rather
+than normalize metadata. A second read-only handle witnesses the guarded path
+without replacing its original identity anchor. Both handles close on refusal.
+
 Register and allow `stage.input.manifest.Target()` in the existing scope store,
 with explicitly granted current consent. Its `manifest-sha256:` digest binds the
 profile, input role and sorted file names/lengths/hashes. It is distinct from an

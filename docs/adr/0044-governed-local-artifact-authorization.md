@@ -47,6 +47,16 @@ reparse points, non-regular files and multiply linked files, including ancestor
 links. Streaming copies check identities, lengths and hashes before and after
 reading. Unexpected files or directories in immutable stage partitions fail closed.
 
+Opened files retain the original selected path's nonzero inode, device, regular
+type, length and modification-time anchor. Complete five-field identities are
+stable separately within path and handle metadata APIs. Windows permits only
+the cross-API change-time difference: CPython can expose creation time through
+path `stat` while `fstat` exposes change time. POSIX retains the complete cross-API
+comparison. Different or unavailable IDs deny as unsupported physical metadata;
+no masking or ID normalization is applied. A second read-only guarded-path
+handle supplements the original anchor and remains open during the bounded
+stream. See the [CPython metadata discussion](https://github.com/python/cpython/issues/157671).
+
 A fresh stage contains exactly `input`, `scanner`, `material` and `scratch`.
 Input, scanner and material partitions are copied, read-only snapshots verified
 before launch and before acceptance. The explicitly selected absolute executable

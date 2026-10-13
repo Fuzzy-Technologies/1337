@@ -8611,7 +8611,29 @@ state = "missing"
 id = "symbol:fuzzy1337.artifact_inputs.ReadArtifactFile"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_inputs.py"
-sourceHash = "sha256:455d6ae03dd5566e3d75f212cd4375777dc71d9907a40bb26b1acfaee0b5f2ac"
+sourceHash = "sha256:73d33310bedd551ac6ce317cafe62b8874f0f8431494224e46f30dc0bdb8ab75"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_inputs.ArtifactHandleInfo"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_inputs.py"
+sourceHash = "sha256:17618a6f535b9fab25c678246d3fef0b9099d50725fb6eb4fc28b7e15c6093de"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_inputs.MatchesArtifactReadIdentity"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_inputs.py"
+sourceHash = "sha256:17c2453becbdc94989a3060af9bcbf9634aa04241b399c50e8c3d1b703fb75c1"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

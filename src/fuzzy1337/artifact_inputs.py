@@ -26,6 +26,7 @@ MAX_ARTIFACT_FILES = 1024
 MAX_ARTIFACT_FILE_BYTES = 512 * 1024 * 1024
 MAX_ARTIFACT_TOTAL_BYTES = 2 * 1024 * 1024 * 1024
 _CHUNK_BYTES = 64 * 1024
+_WINDOWS_STAT_VIEWS = os.name == "nt"
 _SEGMENT = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*")
 _DEVICE = re.compile(r"(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?", re.IGNORECASE)
 
@@ -384,7 +385,7 @@ def ReadArtifactFile(
     *,
     max_bytes: int = MAX_ARTIFACT_FILE_BYTES,
 ) -> ArtifactFile:
-    """Bound and hash selected bytes while checking observed physical read stability.
+    """Bound selected bytes with original-path binding and independent path/handle stability.
 
     Args:
         path: Explicit read-authorized singly linked physical file.
@@ -400,6 +401,9 @@ def ReadArtifactFile(
 
     limit = min(MAX_ARTIFACT_FILE_BYTES, max_bytes)
 
+    if before.st_ino == 0:
+        raise ValueError("selected artifact requires an observable physical file identity")
+
     if before.st_size > limit:
         raise ValueError("selected artifact file is oversized")
 
@@ -408,22 +412,37 @@ def ReadArtifactFile(
     size = 0
 
     with os.fdopen(os.open(path, flags), "rb") as stream:
-        if PhysicalIdentity(os.fstat(stream.fileno())) != PhysicalIdentity(before):
+        opened = ArtifactHandleInfo(stream.fileno())
+
+        if opened.st_size > limit:
+            raise ValueError("opened artifact file is oversized")
+
+        if not MatchesArtifactReadIdentity(before, opened):
             raise ValueError("selected artifact identity changed before reading")
 
-        while chunk := stream.read(_CHUNK_BYTES):
-            size += len(chunk)
+        if PhysicalIdentity(ArtifactPathInfo(path)) != PhysicalIdentity(before):
+            raise ValueError("selected artifact path changed before reading")
 
-            if size > limit:
-                raise ValueError("selected artifact grew beyond its bound")
+        with os.fdopen(os.open(path, flags), "rb") as witness:
+            if (
+                PhysicalIdentity(ArtifactHandleInfo(witness.fileno())) != PhysicalIdentity(opened)
+                or PhysicalIdentity(ArtifactPathInfo(path)) != PhysicalIdentity(before)
+            ):
+                raise ValueError("selected artifact handle does not bind the guarded path")
 
-            digest.update(chunk)
+            while chunk := stream.read(_CHUNK_BYTES):
+                size += len(chunk)
 
-            if destination is not None:
-                destination.write(chunk)
+                if size > limit:
+                    raise ValueError("selected artifact grew beyond its bound")
 
-        if PhysicalIdentity(os.fstat(stream.fileno())) != PhysicalIdentity(before):
-            raise ValueError("selected artifact changed while reading")
+                digest.update(chunk)
+
+                if destination is not None:
+                    destination.write(chunk)
+
+            if PhysicalIdentity(ArtifactHandleInfo(stream.fileno())) != PhysicalIdentity(opened):
+                raise ValueError("selected artifact changed while reading")
 
     if (
         PhysicalIdentity(ArtifactPathInfo(path)) != PhysicalIdentity(before)
@@ -432,6 +451,50 @@ def ReadArtifactFile(
         raise ValueError("selected artifact changed after reading")
 
     return ArtifactFile(name, size, digest.hexdigest())
+
+
+def ArtifactHandleInfo(descriptor: int) -> os.stat_result:
+    """Validate opened file metadata before accepting bytes or another handle's identity.
+
+    Args:
+        descriptor: Owned read-only descriptor returned by opening the guarded selected path.
+
+    Returns:
+        Full native handle metadata; unsupported identity/type/link/reparse raises ValueError.
+    """
+
+    info = os.fstat(descriptor)
+
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or info.st_nlink != 1
+        or info.st_ino == 0
+        or getattr(info, "st_file_attributes", 0) & 0x400
+        or getattr(info, "st_reparse_tag", 0)
+    ):
+        raise ValueError("opened artifact requires a physical singly linked regular file identity")
+
+    return info
+
+
+def MatchesArtifactReadIdentity(path_info: os.stat_result, handle_info: os.stat_result) -> bool:
+    """Bind an opened file to the original guarded path without lossy platform ID conversion.
+
+    Args:
+        path_info: Original non-following path observation with nonzero file identity.
+        handle_info: Original regular singly linked owned-handle observation.
+
+    Returns:
+        Equal device, inode, size and mtime; non-Windows also requires equal ctime.
+        Windows ctime differs across APIs, so each API's full five fields is checked separately.
+    """
+
+    path_identity = PhysicalIdentity(path_info)
+    handle_identity = PhysicalIdentity(handle_info)
+
+    return path_identity[:4] == handle_identity[:4] and (
+        _WINDOWS_STAT_VIEWS or path_identity[4] == handle_identity[4]
+    )
 
 
 def ArtifactInventory(directory: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
