@@ -202,9 +202,9 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
     assert output.getvalue().splitlines() == [
         (
             "Interactive commands: commands, context, help, history, lens, model, palette, "
-            "quit, scan, scope, select, update, updates, view, workspace"
+            "quit, report, scan, scope, select, update, updates, view, workspace"
         ),
-        "CLI commands: doctor, help, version, shell, update, workspace, scope, scan",
+        "CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report",
         "[model] asset changed",
         "usage: quit",
         "",

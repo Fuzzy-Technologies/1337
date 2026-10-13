@@ -59,6 +59,9 @@ junit_bytes = SerializeJunit(checked)
 The caller owns file publication and downstream transport. A report JSON document
 is a projection, not a second model snapshot format; only its embedded `model`
 member can pass through the existing canonical model decoder.
+For the current development candidate's explicit bounded JSON/SARIF CLI/shell
+consumer, see [Offline report export](REPORT_EXPORT.md). It reads existing saved
+state through these owners and never starts a scan.
 
 ## Reference context
 
@@ -118,5 +121,7 @@ uv run --locked --extra dev pytest -q -o addopts='' \
 The tests include hostile serialization, dispositions, failure attribution, byte
 bounds, strict schema checks, four golden artifacts, real artifact reads,
 corruption/ownership failures, workspace relocation, and unchanged stored files.
-CLI integration, live jobs, mature graph analysis, source catalog synchronization,
-and automatic standards conclusions remain separate capabilities.
+The bounded JSON/SARIF product command has its own
+[consumer verification](REPORT_EXPORT.md#verification). Live jobs, HTML/JUnit
+commands, mature graph analysis, source catalog synchronization and automatic
+standards conclusions remain separate capabilities.

@@ -79,6 +79,8 @@ binds format, saved model revision/digest, serialized size/hash and explicit
 `scan_completeness: not-assessed`; it contains no local workspace path or raw bytes.
 Zero findings never means a clean scan. SARIF keeps the accepted active/closed
 disposition and original provenance semantics. No finding threshold is introduced.
+An interrupted command returns `130` and still owns temporary cleanup; confirmed
+publication remains visible when interruption occurs after the atomic link.
 
 Tests use real owned stores and product CLI/shell interfaces. Cover malformed,
 missing, corrupt and foreign scope/evidence, older unused acquisitions, triage,

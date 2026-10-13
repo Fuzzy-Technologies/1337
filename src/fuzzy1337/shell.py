@@ -31,6 +31,7 @@ SHELL_COMMANDS = (
     "model",
     "palette",
     "quit",
+    "report",
     "scan",
     "scope",
     "select",
@@ -208,7 +209,7 @@ class InteractiveShell(cmd.Cmd):
         """Run a command while retaining bounded operator history for local search.
 
         Records ordinary nonempty commands except history in bounded local history.
-        Workspace/scope/scan retain only their namespace, avoiding rejected secret arguments.
+        Workspace/scope/scan/report retain only their namespace, avoiding rejected secret arguments.
 
         Args:
             line: Operator command line to dispatch through cmd.Cmd.
@@ -221,10 +222,10 @@ class InteractiveShell(cmd.Cmd):
         command = normalized.split(maxsplit=1)[0].lower() if normalized else ""
         if normalized and command != "history":
             self._history.append(
-                command if command in {"workspace", "scope", "scan"} else normalized
+                command if command in {"workspace", "scope", "scan", "report"} else normalized
             )
 
-        if command in {"workspace", "scope", "scan"}:
+        if command in {"workspace", "scope", "scan", "report"}:
             remainder = normalized.split(maxsplit=1)[1:] or [""]
 
             try:
@@ -307,7 +308,7 @@ class InteractiveShell(cmd.Cmd):
         help_text = {
             "": (
                 "commands, context, history [query], lens [<name>] [--json], "
-                "model <workspace-path>, palette [query], select <object-id>, "
+                "model <workspace-path>, palette [query], report export, select <object-id>, "
                 "scan quick, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
@@ -323,6 +324,7 @@ class InteractiveShell(cmd.Cmd):
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
+            "report": "report export <workspace>: verify and export saved JSON or SARIF.",
             "scan": "scan quick <workspace>: run approved SAFE discovery with live events.",
             "scope": "scope create <workspace>: record explicit targets, rules and consent.",
             "workspace": "workspace <create|open>: initialize or verify durable shared state.",
@@ -339,21 +341,29 @@ class InteractiveShell(cmd.Cmd):
         self.Write(message)
 
     def RunLocalCommand(self, command: str, argument: str) -> None:
-        """Dispatch the same explicit foreground workspace/scope/scan path as the CLI.
+        """Dispatch the same explicit foreground workspace/scope/scan/report path as the CLI.
 
         Args:
             command: Product namespace; shell context never supplies implicit authority.
             argument: Quoted operator argument line, parsed without a subprocess shell.
         """
 
-        from fuzzy1337.scan_commands import RunCommands
-
         try:
             arguments = shlex.split(argument)
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
-            status = RunCommands(command, arguments, cast(TextIO, self.stdout),
-                                 json_output=json_output)
+
+            if command == "report":
+                from fuzzy1337.report_commands import RunReportCommands
+
+                status = RunReportCommands(arguments, cast(TextIO, self.stdout),
+                                           json_output=json_output)
+
+            else:
+                from fuzzy1337.scan_commands import RunCommands
+
+                status = RunCommands(command, arguments, cast(TextIO, self.stdout),
+                                     json_output=json_output)
 
             if status:
                 self.Write(f"Command exit status: {status}")
@@ -391,6 +401,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("scan", argument)
+
+    def do_report(self, argument: str) -> None:
+        """Export an explicitly selected saved workspace; shell context is never implicit input.
+
+        Args:
+            argument: Report action, workspace, selected format and new output path.
+        """
+
+        self.RunLocalCommand("report", argument)
 
     def do_history(self, argument: str) -> None:
         """Search local command history in reverse chronological order.

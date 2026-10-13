@@ -198,5 +198,11 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 scan quick <workspace>",
             capabilities=("http.endpoint-discovery",),
         ),
+        CommandDescriptor(
+            identifier="report",
+            summary="Export a verified saved model to bounded offline JSON or SARIF.",
+            usage="1337 report export <workspace> --format <json|sarif> --output <new-file>",
+            capabilities=("workbench.report-export",),
+        ),
     )
 )
