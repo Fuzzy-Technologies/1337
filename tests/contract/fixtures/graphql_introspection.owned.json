@@ -1,0 +1,74 @@
+{
+  "data": {
+    "__schema": {
+      "queryType": {"name": "Query"},
+      "mutationType": {"name": "Mutation"},
+      "subscriptionType": {"name": "Subscription"},
+      "types": [
+        {"kind": "SCALAR", "name": "Int"},
+        {"kind": "SCALAR", "name": "Float"},
+        {"kind": "SCALAR", "name": "Boolean"},
+        {"kind": "SCALAR", "name": "String"},
+        {"kind": "SCALAR", "name": "ID"},
+        {"kind": "SCALAR", "name": "Timestamp", "specifiedByURL": "https://invalid.example/scalar"},
+        {"kind": "ENUM", "name": "Sort", "enumValues": [{"name": "DESC"}, {"name": "ASC"}]},
+        {
+          "kind": "INPUT_OBJECT", "name": "Window", "inputFields": [
+            {"name": "offset", "type": {"kind": "NON_NULL", "name": null,
+              "ofType": {"kind": "SCALAR", "name": "Int"}}, "defaultValue": null}
+          ]
+        },
+        {
+          "kind": "INPUT_OBJECT", "name": "Filter", "description": "synthetic-private-default",
+          "inputFields": [
+            {"name": "tag", "type": {"kind": "NON_NULL", "name": null,
+              "ofType": {"kind": "SCALAR", "name": "String"}},
+              "defaultValue": "\"synthetic-private-default\""},
+            {"name": "enabled", "type": {"kind": "SCALAR", "name": "Boolean"},
+              "defaultValue": "true"},
+            {"name": "window", "type": {"kind": "INPUT_OBJECT", "name": "Window"}},
+            {"name": "sort", "type": {"kind": "ENUM", "name": "Sort"}},
+            {"name": "weight", "type": {"kind": "SCALAR", "name": "Float"}}
+          ]
+        },
+        {
+          "kind": "OBJECT", "name": "User", "fields": [
+            {"name": "friend", "args": [], "type": {"kind": "OBJECT", "name": "User"}}
+          ]
+        },
+        {
+          "kind": "OBJECT", "name": "Query", "fields": [
+            {
+              "name": "lookup", "args": [
+                {"name": "ids", "type": {"kind": "NON_NULL", "name": null,
+                  "ofType": {"kind": "LIST", "name": null,
+                    "ofType": {"kind": "NON_NULL", "name": null,
+                      "ofType": {"kind": "SCALAR", "name": "ID"}}}}, "defaultValue": null},
+                {"name": "filter", "type": {"kind": "INPUT_OBJECT", "name": "Filter"}}
+              ],
+              "type": {"kind": "OBJECT", "name": "User"}
+            },
+            {"name": "ping", "args": [], "type": {"kind": "SCALAR", "name": "Int"}},
+            {"name": "opaque", "args": [
+              {"name": "at", "type": {"kind": "SCALAR", "name": "Timestamp"}}
+            ], "type": {"kind": "SCALAR", "name": "String"}}
+          ]
+        },
+        {
+          "kind": "OBJECT", "name": "Mutation", "fields": [
+            {"name": "updateOwned", "args": [
+              {"name": "input", "type": {"kind": "NON_NULL", "name": null,
+                "ofType": {"kind": "INPUT_OBJECT", "name": "Filter"}}}
+            ], "type": {"kind": "SCALAR", "name": "Boolean"}}
+          ]
+        },
+        {
+          "kind": "OBJECT", "name": "Subscription", "fields": [
+            {"name": "ticks", "args": [], "type": {"kind": "SCALAR", "name": "Int"}}
+          ]
+        }
+      ],
+      "directives": []
+    }
+  }
+}

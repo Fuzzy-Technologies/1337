@@ -75,6 +75,13 @@ It grants no scope, method, authentication or execution permission.
 Generation accepts the same explicit JSON/YAML selection as its original import;
 the source, operation and resolution context must still agree exactly.
 
+`fuzzy1337.graphql_import` is an Experimental offline Python profile at version
+`1`. ADR 0065 and `docs/GRAPHQL_IMPORT.md` define explicit owned introspection
+import, source-bound typed operation metadata and bounded query/mutation previews
+using unchanged request/model/scope contracts. Subscriptions remain descriptive;
+unsupported synthesis is refused. Import or preparation grants no execution,
+authentication or permission to send introspection or mutation requests.
+
 `fuzzy1337.captured_web` is an Experimental offline Python consumer at frontier
 profile version `1`. ADR 0050 and `docs/CAPTURED_WEB.md` define owner-verified
 explicit HTML artifacts, caller-associated sources, bounded lexical anchor

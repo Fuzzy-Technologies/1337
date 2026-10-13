@@ -8957,10 +8957,384 @@ state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 [[units]]
+id = "page:api.fuzzy1337.graphql-import"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.graphql_import.md"
+sourceHash = "sha256:72e76e1455ed2b7152d9ac70bf852166903c9f9aaa60ca8ea9bf3f1c80cdb4ef"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.api-request-generation"
 kind = "page"
 sourceHash = "sha256:7d37c46123fc30b7278f07611022cb36b5f64b38dfc93f6c331f80e82c42f8c3"
 sourcePath = "docs/site/content/en/api/fuzzy1337.api_request_generation.md"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.RequireGraphQlArguments"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:d51f2bdf7269ca4b4d7e2e8d0fb11c2e45eecd51f81f4c7442e75c35115d586b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.RequireGraphQlImport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:0367120fde87436a634dd4b26a563afab8736bad3c25c7ccb088c8b84ac858ac"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.RequireGraphQlOperation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:08167206c33c6b4c75b91cb31aad00649832e548dd6fddb405dbb043f5f15975"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.RequireGraphQlType"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:5afc8f73421a98e97dc948e2753e4b804fb02347e4feb5267aea3d266a27f166"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.CheckGraphQlTarget"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:3b276b0d88e4ce7f41021174f5fd4589c0d8164b31f3d9536bc43f55af535301"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.DecodeGraphQl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:85f3f8477203584c650c0ed7a663193a2802c91539e3e95c9836e22694761ec3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GenerateGraphQlRequest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:7a5fc3325813d8f9d138bf610c8d089b1817c94fca464407089153aede96d20d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GeneratedGraphQlRequest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:453ec633582a1d78d3b79d48ae0148b6f323db34a7876ae7d6ab91e433ba424a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GeneratedGraphQlRequest.Metadata"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:28fdbb4d26d9d04762d7b4ebffeec0e365bda2c250399a68b02bbd4fdb65f17d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GeneratedGraphQlRequest.Reference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:6b9d3d36bdf850a9cf6820452cf3077f67bc9e6b987e5792b199ed344337283e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlArgument"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:bdcf411f45d6db9ac3e263862d2366ae4034d3d0707444c3a96fe3387f81623d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlArgument.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:53654b1e08a9f4781d925799e0125fc6c5080443e095e3a6cd637d22b0e2d824"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:aea4921fcebf64bc046dd4251b7c3672344ca5fdeb775aac7c066c60323b4490"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlGenerationContext"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:5ace807cfed434a58fc8c781099c53281e658afe47353a21b767cf4a330e620a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlGenerationContext.Value"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:2dfcd836f4b626fdecb50990cb91dde415b20d33e999eb9086f41b9baf074c6f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlImport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:a0f4fd29cc6bfe1d1d202d3e8e9a8b42990bcf8cf7dcdd7c128b4c4637add6f1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlImport.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:6e47a41833ac9863920e19518e678672f6a3417f9931076b37552b8592666fcb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlImportContext"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:d70c5a3858c8ea60e3eb581cdafc590cd3e0f9edc059055b52e2ec7bbd08089d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlImportContext.Arguments"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:e7d813577e68df87e4a7d49ca49d273feb424f854ca98f9cf00ff12931242db4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlImportContext.CheckRequiredInputCycles"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:f71078ba55720ede609ecf79744891bb4e4fefed566f29c841a08401ae98d8e9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlImportContext.Definitions"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:364d0d68ec34afeb21fdd284da0e82b43fe296b9c28cae0c144f7de501beb190"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlImportContext.Type"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:b96b81edd4654b40c9b39ef3e34ba2a8c753fed104b01c316077709ca8a92be7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlName"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:641fa7a3b39169be5deba07752ca8af0a0368d9382c042056aa9f5160b19e93a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlOperation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:12ce2f37f76ce993d01d29ef98b3a6af3d9ad9fafe6d481804c9dac2aea41ed5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlOperation.Reference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:7e6e35a368a5bd37eaf0ab4ef3652c768b80807a006f91f9b3944f6d8ad79a6a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlOperation.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:549f46b474f1f4c6c42e5247bb8388c4ded2048da9ffb357894b311cfafa25ad"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlTypeDefinition"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:5107b49837e83d429c65a8563a751eb85fb4fef10a79f4c7f89a5297fe3186c8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlTypeDefinition.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:1b474a39350cde3cab81fcd6cbd386db6a6afaefdc2f11211f6a982aa823058f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlTypeReference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:13bab4bcda482c4b855f681505949528643edb501e8df27296c0216e60a5b522"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlTypeReference.Expression"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:c1c33b987346673a7d89be53b933c5a367afad397ec7656b011bab65b7c0bc97"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.GraphQlTypeReference.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:13cca14015d31395850818de4960e4ddff557a27d8130de2ec82a828b70efa37"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.ImportGraphQl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:c1ee722f07ae43a219b93a380661a5e4dfdc7c377b95f3879d86fc02826f3477"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.ProjectGraphQl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:9e43536545cfbd776f4473281dfcc6b3d1193c7629b427361f11d3fd3be1cc95"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

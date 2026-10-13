@@ -54,6 +54,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   request previews with an optional pinned event parser. JSON defaults and
   identities remain compatible; aliases, unsafe tags, duplicate/non-string keys
   and resource excess are refused.
+- Added bounded owned GraphQL introspection import, typed root operations and
+  source-bound query/mutation previews using existing model and exact scope
+  contracts. Subscription metadata grants no execution permission.
 - Added attributed offline reachability states and deterministic bounded path
   search over selected model relations, with explicit conflicts and truncation.
 - Added explainable path participation, sample removal leverage, independently
