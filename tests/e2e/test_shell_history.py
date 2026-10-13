@@ -22,6 +22,8 @@ CHILD = '''# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 """Run one isolated test-owned input loop, with only synthetic prior native history."""
 import fcntl
 import json
+import os
+import select
 import sys
 import termios
 fcntl.ioctl(0, termios.TIOCSCTTY, 0)
@@ -132,8 +134,16 @@ restored = (readline.get_completer() is Completer
             and readline.get_completer_delims() == " "
             and readline.get_history_length() == 17
             and shell._native_history is None)
+if sys.argv[3] == "interrupt":
+    print("NATIVE-LOOP-EXIT", flush=True)
+    release_fd = int(sys.argv[4])
+    ready, _, _ = select.select([release_fd], [], [], 10)
+    if not ready or os.read(release_fd, 1) != b"1":
+        raise AssertionError("Owned terminal interruption release was not acknowledged.")
+    os.close(release_fd)
+    termios.tcflush(0, termios.TCIFLUSH)
 if sys.argv[2] != "queued":
-    input("probe> ")
+    assert input("probe> ") == "owned-after-loop", "The owned native probe must receive exact input."
 print("NATIVE-RESULT:" + json.dumps({"before": before, "after": after,
     "final": NativeItems(), "restored": restored, "interrupted": interrupted,
     "refused": refused, "before_indices": before_indices,
@@ -192,14 +202,36 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
     configuration.write_text("")
     master, slave = pty.openpty()
     attributes = termios.tcgetattr(slave)
+    assert attributes[3] & termios.ISIG and attributes[6][termios.VINTR] == b"\x03", (
+        "The owned terminal must deliver the actual configured interrupt character."
+    )
     attributes[3] &= ~termios.ECHO
     termios.tcsetattr(slave, termios.TCSANOW, attributes)
     transcript = bytearray()
     environment = {"PATH": os.defpath, "TERM": "xterm", "INPUTRC": str(configuration),
                    "EDITRC": str(configuration)}
-    process = subprocess.Popen([executable, "-I", "-c", CHILD, str(ROOT / "src"), mode, ending],
-        cwd=ROOT, env=environment,
-        stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
+    release_read, release_write = os.pipe() if ending == "interrupt" else (-1, -1)
+
+    try:
+        process = subprocess.Popen(
+            [executable, "-I", "-c", CHILD, str(ROOT / "src"), mode, ending, str(release_read)],
+            cwd=ROOT, env=environment, stdin=slave, stdout=slave, stderr=slave,
+            start_new_session=True, pass_fds=(release_read,) if release_read >= 0 else (),
+        )
+
+    except BaseException:
+        os.close(master)
+        os.close(slave)
+
+        if release_write >= 0:
+            os.close(release_write)
+
+        raise
+
+    finally:
+        if release_read >= 0:
+            os.close(release_read)
+
     os.close(slave)
 
     try:
@@ -223,10 +255,19 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
             if mode != "capped-over-budget":
                 transcript.clear()
 
+                if ending == "interrupt":
+                    assert os.tcgetpgrp(master) == process.pid, (
+                        "The real interrupt must target only the owned foreground process group."
+                    )
+
                 os.write(master, b"quit\n" if ending == "quit" else (
                     b"\x04" if ending == "eof" else b"EOF\n" if ending == "eof-command"
-                    else b"report; export " + MARKER.encode() + b"\x03"
+                    else b"report; export " + MARKER.encode() + b"\x03\n"
                 ))
+                if ending == "interrupt":
+                    ReadUntil(master, b"NATIVE-LOOP-EXIT", process, transcript)
+                    os.write(release_write, b"1")
+
                 ReadUntil(master, b"probe> ", process, transcript)
             os.write(master, b"owned-after-loop\n")
             ReadUntil(master, b"NATIVE-END", process, transcript)
@@ -246,6 +287,9 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
             process.wait(timeout=10)
 
         os.close(master)
+
+        if release_write >= 0:
+            os.close(release_write)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Native terminal regression requires a POSIX PTY.")
