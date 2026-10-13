@@ -44,6 +44,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   metadata, preserving source versions, evidence and uncertainty.
 - Added offline OpenAPI request import, bounded synthetic API request generation
   and browser/API journey contracts without granting execution authority.
+- Added opt-in bounded OpenAPI/Swagger YAML import and source-bound synthetic
+  request previews with an optional pinned event parser. JSON defaults and
+  identities remain compatible; aliases, unsafe tags, duplicate/non-string keys
+  and resource excess are refused.
 - Added attributed offline reachability states and deterministic bounded path
   search over selected model relations, with explicit conflicts and truncation.
 - Added independent inert image-archive and Dockerfile/Kubernetes fixtures and
