@@ -38,6 +38,27 @@ def test_OptionsRejectNonPositiveTimeouts():
         test_runner.TestOptions(timeout_seconds=0)
 
 
+@pytest.mark.parametrize("field", ["timeout_seconds", "suite_timeout_seconds"])
+@pytest.mark.parametrize("value", [False, True, None, "600", 0, -1, 1.5, float("inf")])
+def test_OptionsRejectNonIntegerOrNonPositiveTimeoutBudgets(field, value):
+    """Both timeout domains require explicit positive integers before process startup."""
+
+    with pytest.raises(ValueError, match="timeout"):
+        test_runner.TestOptions(**{field: value})
+
+
+def test_SuiteBudgetAdditionPreservesExistingPositionalOptions():
+    """Existing positional test settings retain their meaning when suite budgeting is added."""
+
+    options = test_runner.TestOptions("4", 42, True, True)
+    assert (options.jobs, options.timeout_seconds, options.serial_only, options.fail_fast) == (
+        "4", 42, True, True,
+    ), "The additive suite budget must preserve all existing positional option meanings."
+    assert options.suite_timeout_seconds == 600, (
+        "Existing callers must receive the independent finite default suite budget."
+    )
+
+
 def test_ParallelArgumentsUseProcessWorkersAndLoadScope(tmp_path):
     """Verify parallel arguments use process workers and load scope."""
 
@@ -133,6 +154,183 @@ def test_DefaultRunExecutesParallelThenSerial(monkeypatch, capsys):
     assert "serial" in calls[1], "default run executes parallel then serial invariant failed."
     assert "total=4" in capsys.readouterr().out, (
         "default run executes parallel then serial invariant failed."
+    )
+
+
+def test_DefaultSuiteBudgetAllowsCompletionBeyondThreePerTestTimeouts(
+    tmp_path, monkeypatch, capsys,
+):
+    """A healthy expanded suite may exceed 360 seconds while each test retains its deadline."""
+
+    monkeypatch.chdir(tmp_path)
+    calls = []
+
+    def Process(arguments, **kwargs):
+        """Simulate a complete 420-second suite without delaying deterministic regression tests."""
+
+        if "--collect-only" in arguments:
+            return subprocess.CompletedProcess(arguments, 5)
+
+        calls.append((arguments, kwargs))
+
+        if kwargs["timeout"] <= 420:
+            raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+
+        report = tmp_path / arguments[arguments.index("--junitxml") + 1]
+        report.write_text('<testsuite tests="4000" failures="0" errors="0" skipped="0" '
+                          'time="420" />', encoding="utf-8")
+
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr(test_runner.subprocess, "run", Process)
+    assert test_runner.RunTests("tests", test_runner.TestOptions()) == 0, (
+        "A complete 420-second suite must not inherit three per-test deadlines as its budget."
+    )
+    assert len(calls) == 1 and calls[0][1]["timeout"] == 600, (
+        "The runner must supply one independent 600-second subprocess budget without retries."
+    )
+    assert "--timeout=120" in calls[0][0], "Every test must retain its 120-second deadline."
+    assert "total=4000 passed=4000 failed=0 skipped=0 timeout=0" in capsys.readouterr().out, (
+        "The retained terminal summary must describe the actual complete JUnit evidence."
+    )
+
+
+def test_RunTestsForwardsSuiteBudgetToBothInvocationsWithoutChangingPerTestDeadline(
+    tmp_path, monkeypatch,
+):
+    """Parallel and serial invocations receive the selected suite bound independently."""
+
+    monkeypatch.chdir(tmp_path)
+    calls = []
+
+    def RunPytest(arguments, report_path, timeout_seconds):
+        """Capture both selected budgets at the actual runner dispatch boundary."""
+
+        calls.append((arguments, timeout_seconds))
+
+        return 0, test_runner.TestSummary(total=1, passed=1)
+
+    monkeypatch.setattr(test_runner, "RunPytest", RunPytest)
+    monkeypatch.setattr(test_runner, "HasSerialTests", lambda target: True)
+    assert test_runner.RunTests("tests", test_runner.TestOptions(
+        timeout_seconds=12, suite_timeout_seconds=37,
+    )) == 0, "Both selected invocations must use the explicit valid timeout budgets."
+    assert len(calls) == 2 and all(budget == 37 for _, budget in calls), (
+        "The whole-suite timeout must be forwarded unchanged to both subprocesses."
+    )
+    assert all("--timeout=12" in arguments for arguments, _ in calls), (
+        "The per-test timeout must remain independently supplied through pytest arguments."
+    )
+
+
+def test_RunPytestTimeoutDiscardsStaleSuccessAndPreservesExactBudget(tmp_path, monkeypatch):
+    """A suite timeout remains failure without retrying or reading an earlier successful report."""
+
+    report = tmp_path / "report.xml"
+    report.write_text('<testsuite tests="1" failures="0" errors="0" skipped="0" time="1" />',
+                      encoding="utf-8")
+    calls = []
+
+    def Process(arguments, **kwargs):
+        """Observe exclusive evidence ownership and raise the actual suite deadline failure."""
+
+        calls.append((arguments, kwargs))
+        assert not report.exists(), "A prior invocation's JUnit report must be removed first."
+
+        raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+
+    ticks = iter((10.0, 47.0))
+    monkeypatch.setattr(test_runner.subprocess, "run", Process)
+    monkeypatch.setattr(test_runner.time, "monotonic", lambda: next(ticks))
+    code, summary = test_runner.RunPytest(["synthetic-pytest"], report, 37)
+    assert calls == [(["synthetic-pytest"], {
+        "check": False, "shell": False, "timeout": 37,
+    })], "The subprocess must receive the exact suite budget once, without hidden floors."
+    assert code == 124 and summary == test_runner.TestSummary(
+        failed=1, timeout=1, duration_seconds=37.0,
+    ), "Suite expiration must preserve timeout status and measured failed evidence."
+    assert not report.exists(), "A suite timeout must never restore stale success evidence."
+
+
+def test_RunPytestZeroExitWithoutNewJunitCannotReportSuccess(tmp_path, monkeypatch):
+    """An exit-zero child without fresh evidence must still fail the developer gate."""
+
+    report = tmp_path / "report.xml"
+    report.write_text('<testsuite tests="1" failures="0" errors="0" skipped="0" time="1" />',
+                      encoding="utf-8")
+    monkeypatch.setattr(test_runner.subprocess, "run", lambda arguments, **kwargs: (
+        subprocess.CompletedProcess(arguments, 0)
+    ))
+    code, summary = test_runner.RunPytest(["synthetic-pytest"], report, 600)
+    assert code == 1 and summary == test_runner.TestSummary(failed=1), (
+        "Missing fresh JUnit evidence must prevent success even when the child exits zero."
+    )
+    assert not report.exists(), "The earlier successful report must not mask missing evidence."
+
+
+@pytest.mark.parametrize("returncode", [0, 7])
+def test_RunPytestFailedFreshReportCannotMaskFailureOrReplaceNonzeroStatus(
+    tmp_path, monkeypatch, returncode,
+):
+    """Failed fresh JUnit evidence forces failure while an actual child failure remains exact."""
+
+    report = tmp_path / "report.xml"
+
+    def Process(arguments, **kwargs):
+        """Publish current failure evidence independently of the selected process exit status."""
+
+        report.write_text('<testsuite tests="1" failures="1" errors="0" skipped="0" time="1" />',
+                          encoding="utf-8")
+
+        return subprocess.CompletedProcess(arguments, returncode)
+
+    monkeypatch.setattr(test_runner.subprocess, "run", Process)
+    code, summary = test_runner.RunPytest(["synthetic-pytest"], report, 600)
+    assert code == (returncode or 1), (
+        "Failed fresh evidence cannot become success or replace an actual nonzero child status."
+    )
+    assert summary == test_runner.TestSummary(total=1, failed=1, duration_seconds=1.0), (
+        "The terminal summary must preserve the freshly produced failed JUnit counts."
+    )
+
+
+def test_RunPytestLaunchFailureRetainsFailureWithoutRetry(tmp_path, monkeypatch):
+    """An unstartable pytest process retains its launch-failure status and measured duration."""
+
+    calls = []
+
+    def Process(arguments, **kwargs):
+        """Raise a deterministic launch failure without creating a child process or report."""
+
+        calls.append((arguments, kwargs))
+
+        raise OSError("synthetic-launch-failure")
+
+    ticks = iter((10.0, 10.25))
+    monkeypatch.setattr(test_runner.subprocess, "run", Process)
+    monkeypatch.setattr(test_runner.time, "monotonic", lambda: next(ticks))
+    code, summary = test_runner.RunPytest(["synthetic-pytest"], tmp_path / "report.xml", 600)
+    assert code == 127 and summary == test_runner.TestSummary(
+        failed=1, duration_seconds=0.25,
+    ), "An unstartable suite must remain a measured launch failure rather than success."
+    assert len(calls) == 1, "Launch failure must not introduce an automatic retry."
+
+
+@pytest.mark.parametrize("value", [False, True, None, "600", 0, -1, 1.5, float("inf")])
+def test_RunPytestRejectsInvalidSuiteBudgetBeforeMutatingEvidence(tmp_path, monkeypatch, value):
+    """Direct callers share the validated timeout boundary without deleting prior evidence."""
+
+    report = tmp_path / "report.xml"
+    report.write_bytes(b"prior-evidence")
+    calls = []
+    monkeypatch.setattr(test_runner.subprocess, "run", lambda *args, **kwargs: calls.append(args))
+
+    with pytest.raises(ValueError, match="suite timeout"):
+        test_runner.RunPytest(["synthetic-pytest"], report, value)
+
+    assert not calls, "Invalid direct suite budgets must reject before subprocess startup."
+    assert report.read_bytes() == b"prior-evidence", (
+        "Rejected suite configuration must preserve another invocation's existing evidence."
     )
 
 

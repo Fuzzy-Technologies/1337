@@ -14,7 +14,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from fuzzy1337.test_runner import RunTests, TestOptions
+from fuzzy1337.test_runner import (
+    DEFAULT_SUITE_TIMEOUT_SECONDS,
+    DEFAULT_TIMEOUT_SECONDS,
+    RunTests,
+    TestOptions,
+)
 
 Executable = Literal["python", "uv"]
 
@@ -244,16 +249,25 @@ def Main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("command", choices=COMMANDS)
     parser.add_argument("--jobs", default="auto", metavar="auto|N")
-    parser.add_argument("--timeout", default=120, type=int, metavar="N")
+    parser.add_argument("--timeout", default=DEFAULT_TIMEOUT_SECONDS, type=int, metavar="N",
+                        help="Per-test pytest timeout in seconds (default: 120).")
+    parser.add_argument("--suite-timeout", default=DEFAULT_SUITE_TIMEOUT_SECONDS, type=int,
+                        metavar="N",
+                        help="Each pytest invocation budget in seconds (default: 600).")
     parser.add_argument("--serial", action="store_true")
     parser.add_argument("--fail-fast", action="store_true")
     arguments = parser.parse_args(argv)
-    test_options = TestOptions(
-        jobs=arguments.jobs,
-        timeout_seconds=arguments.timeout,
-        serial_only=arguments.serial,
-        fail_fast=arguments.fail_fast,
-    )
+    try:
+        test_options = TestOptions(
+            jobs=arguments.jobs,
+            timeout_seconds=arguments.timeout,
+            serial_only=arguments.serial,
+            fail_fast=arguments.fail_fast,
+            suite_timeout_seconds=arguments.suite_timeout,
+        )
+
+    except ValueError as error:
+        parser.error(str(error))
 
     if arguments.command not in {"unit", "test"} and test_options != TestOptions():
         parser.error("test execution options are only valid with 'unit' or 'test'")

@@ -78,13 +78,24 @@ The runner accepts these controlled diagnostics:
 
 ```bash
 uv run --locked 1337-dev unit --jobs auto --timeout 120
+uv run --locked 1337-dev test --timeout 120 --suite-timeout 600
 uv run --locked 1337-dev unit --jobs 4 --fail-fast
 uv run --locked 1337-dev unit --serial
 ```
 
-`--timeout` sets the per-test timeout and bounds each pytest worker process. The
-terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`, `timeout`,
-and `duration`. Any failure, timeout, or process-start error produces a non-zero exit.
+`--timeout` sets the per-test pytest deadline (default 120 seconds).
+`--suite-timeout` independently bounds each complete parallel or serial pytest
+invocation (default 600 seconds); it is not derived from the number of per-test
+deadlines. Both accept only positive integers. The default suite budget leaves
+time for later gates and evidence upload within the existing 15-minute quality
+job limit. It is a per-invocation budget rather than a deadline for all quality-gate
+phases together. A separate collection probe remains bounded at 300 seconds.
+
+The terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`,
+`timeout`, and `duration`. Any failure, timeout, or process-start error produces
+a non-zero exit. Each invocation discards its stale JUnit report before starting;
+an exit-zero child without fresh JUnit evidence still fails. Suite timeouts are
+reported as failure with status 124 and are never retried automatically.
 
 The performance gate measures only capabilities that are implemented today. It
 starts fresh processes for CLI cold start and interactive readiness, then measures

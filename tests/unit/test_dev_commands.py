@@ -190,6 +190,47 @@ def test_DeveloperEntrypointPropagatesResult(monkeypatch):
     process.assert_called_once_with("test", dev_commands.TestOptions())
 
 
+def test_DeveloperEntrypointKeepsSuiteAndPerTestTimeoutsIndependent(monkeypatch):
+    """The developer CLI forwards separate finite budgets without modifying other controls."""
+
+    process = Mock(return_value=0)
+    monkeypatch.setattr(dev_commands, "Run", process)
+    assert dev_commands.Main(["test", "--timeout", "12", "--suite-timeout", "37"]) == 0, (
+        "Explicit independent test budgets must remain valid developer CLI inputs."
+    )
+    process.assert_called_once_with("test", dev_commands.TestOptions(
+        timeout_seconds=12, suite_timeout_seconds=37,
+    ))
+
+
+def test_NontestDeveloperCommandRejectsSuiteTimeoutBeforeDispatch(monkeypatch):
+    """Suite budgeting cannot silently alter a developer command that does not run pytest."""
+
+    process = Mock()
+    monkeypatch.setattr(dev_commands, "Run", process)
+
+    with pytest.raises(SystemExit) as caught:
+        dev_commands.Main(["lint", "--suite-timeout", "37"])
+
+    assert caught.value.code == 2, "Nontest commands must reject the pytest suite budget."
+    process.assert_not_called()
+
+
+@pytest.mark.parametrize("option", ["--timeout", "--suite-timeout"])
+@pytest.mark.parametrize("value", ["0", "-1", "true", "1.5", "Infinity"])
+def test_DeveloperTimeoutCliRejectsInvalidBudgetsBeforeDispatch(monkeypatch, option, value):
+    """Invalid timeout values remain ordinary parse failures without starting a gate."""
+
+    process = Mock()
+    monkeypatch.setattr(dev_commands, "Run", process)
+
+    with pytest.raises(SystemExit) as caught:
+        dev_commands.Main(["test", option, value])
+
+    assert caught.value.code == 2, "Invalid timeout inputs must retain CLI configuration status."
+    process.assert_not_called()
+
+
 def test_UnapprovedFormatterIsNotACommand():
     """Verify unapproved formatter is not a command."""
 

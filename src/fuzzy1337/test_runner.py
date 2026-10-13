@@ -15,25 +15,43 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_TIMEOUT_SECONDS = 120
+DEFAULT_SUITE_TIMEOUT_SECONDS = 600
 DEFAULT_MAX_WORKERS = 12
 
 
 @dataclass(frozen=True, slots=True)
 class TestOptions:
-    """Validated execution settings for a pytest layer."""
+    """Validated process settings with independent per-test and invocation budgets.
+
+    Args:
+        jobs: Automatic workers or an explicit positive decimal worker count.
+        timeout_seconds: Positive integer per-test pytest deadline, default 120 seconds.
+        serial_only: Select only the separate serial invocation.
+        fail_fast: Stop after the first failure without automatic retries.
+        suite_timeout_seconds: Positive integer budget for each complete pytest invocation,
+            default 600 seconds. It is independent of the per-test deadline.
+
+    Raises:
+        ValueError: Worker selection or either explicit integer timeout is invalid.
+    """
 
     jobs: str = "auto"
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
     serial_only: bool = False
     fail_fast: bool = False
+    suite_timeout_seconds: int = DEFAULT_SUITE_TIMEOUT_SECONDS
 
     def __post_init__(self) -> None:
         """Reject unsafe or ambiguous execution settings before spawning pytest."""
 
         if self.jobs != "auto" and (not self.jobs.isdecimal() or int(self.jobs) < 1):
             raise ValueError("jobs must be 'auto' or a positive integer")
-        if self.timeout_seconds < 1:
+
+        if type(self.timeout_seconds) is not int or self.timeout_seconds < 1:
             raise ValueError("timeout must be a positive integer")
+
+        if type(self.suite_timeout_seconds) is not int or self.suite_timeout_seconds < 1:
+            raise ValueError("suite timeout must be a positive integer")
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +123,7 @@ def PytestArguments(
 
     Args:
         target: Pytest layer or selection
-        options: Validated timeout, worker and fail-fast settings
+        options: Validated per-test timeout, worker and fail-fast settings.
         report_path: JUnit destination passed as one argv entry
         serial: Select serial tests without workers and with coverage append.
 
@@ -189,11 +207,19 @@ def RunPytest(
     Args:
         arguments: Explicit subprocess argv without shell interpolation
         report_path: Report to remove before launch and read on completion
-        timeout_seconds: Per-test timeout also used to derive the process timeout floor.
+        timeout_seconds: Positive integer budget for the complete pytest invocation,
+            independent of its per-test timeout argument.
 
     Returns:
-        Exit code and summary, with failed summaries for timeout or launch errors.
+        Exit code and summary, with failed summaries for timeout, launch errors or absent
+        fresh JUnit evidence. A zero process exit with failed evidence returns status one.
+
+    Raises:
+        ValueError: The whole-suite budget is not an explicit positive integer.
     """
+
+    if type(timeout_seconds) is not int or timeout_seconds < 1:
+        raise ValueError("suite timeout must be a positive integer")
 
     report_path.unlink(missing_ok=True)
     started = time.monotonic()
@@ -202,7 +228,7 @@ def RunPytest(
             arguments,
             check=False,
             shell=False,
-            timeout=max(300, timeout_seconds * 3),
+            timeout=timeout_seconds,
         )
 
     except subprocess.TimeoutExpired:
@@ -211,7 +237,8 @@ def RunPytest(
     except OSError:
         return 127, TestSummary(failed=1, duration_seconds=time.monotonic() - started)
     summary = ReadJunitSummary(report_path)
-    return result.returncode, summary
+
+    return result.returncode or (1 if summary.failed else 0), summary
 
 
 def HasSerialTests(target: str) -> bool:
@@ -259,7 +286,8 @@ def RunTests(target: str, options: TestOptions) -> int:
 
     Args:
         target: Pytest layer or selection to run
-        options: Validated worker, timeout, serial-only and fail-fast settings.
+        options: Validated worker, independent per-test/suite timeout, serial-only and
+            fail-fast settings. Each selected pytest invocation receives its own suite budget.
 
     Returns:
         First nonzero subprocess status, or zero when selected invocations succeed.
@@ -273,7 +301,7 @@ def RunTests(target: str, options: TestOptions) -> int:
         code, result = RunPytest(
             PytestArguments(target, options, reports / "parallel-tests.xml", serial=False),
             reports / "parallel-tests.xml",
-            options.timeout_seconds,
+            options.suite_timeout_seconds,
         )
         summary = summary.Combine(result)
         return_codes.append(code)
@@ -282,7 +310,7 @@ def RunTests(target: str, options: TestOptions) -> int:
         code, result = RunPytest(
             PytestArguments(target, options, reports / "serial-tests.xml", serial=True),
             reports / "serial-tests.xml",
-            options.timeout_seconds,
+            options.suite_timeout_seconds,
         )
         summary = summary.Combine(result)
         return_codes.append(code)
