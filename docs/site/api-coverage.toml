@@ -37,6 +37,18 @@ mode = "authored"
 page = "api/fuzzy1337.images.md"
 
 [[surfaces]]
+module = "fuzzy1337.image_evidence"
+source = "src/fuzzy1337/image_evidence.py"
+mode = "authored"
+page = "api/fuzzy1337.image_evidence.md"
+
+[[surfaces]]
+module = "fuzzy1337.image_workflow"
+source = "src/fuzzy1337/image_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.image_workflow.md"
+
+[[surfaces]]
 module = "fuzzy1337.discovery"
 source = "src/fuzzy1337/discovery.py"
 mode = "authored"

@@ -57,6 +57,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added separate six-role synthetic image interpretation and read-only original
   capture verification, preserving native asset namespaces and operator triage.
   Interpretation returns an in-memory proposal; product workflows remain separate.
+- Added a closed synthetic image workflow composing independent VERSION/SCAN runs,
+  original selected-material and six-role evidence, canonical interpretation,
+  durable model/workspace saves and separate JSON/SARIF export. Genuine Trivy
+  acceptance remains separate work.
 - Added a bounded standalone Dockerfile/Kubernetes synthetic producer for five
   pinned source fixtures, retaining the independently authored result oracle.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
