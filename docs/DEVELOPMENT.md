@@ -49,15 +49,37 @@ JSON/SARIF output without a job, provider process or target contact.
 | `uv run --locked 1337-dev build`       | Build the sdist and wheel using locked tools                                        |
 | `uv run --locked 1337-dev check`       | Compile, lint, typecheck, measure performance, test coverage, and build             |
 
-Each child step has a 300-second limit. Normal child exit codes are propagated;
+Non-test child steps have a 300-second limit. Complete pytest invocations use the
+independent 600-second default suite budget described below. Normal child exit codes are propagated;
 timeouts return 124, process-start failures return 127, and POSIX signal exits
 are mapped to 128 plus the signal number. Run gates from the repository root.
 
-For the canonical fast feedback run:
+For fast feedback before a routine commit, select the changed feature's tests and
+its regression paths explicitly. For example, a developer-runner change uses:
 
 ```bash
-uv run --locked 1337-dev unit
+uv run --locked --extra dev pytest tests/unit/test_dev_commands.py tests/unit/test_test_runner.py --no-cov -m 'not serial' -n auto --dist=loadscope --timeout=120 -q
 ```
+
+If the selected files contain shared-resource tests, run their serial cases in a
+separate invocation:
+
+```bash
+uv run --locked --extra dev pytest tests/unit/test_dev_commands.py tests/unit/test_test_runner.py --no-cov -m serial -n 0 --timeout=120 -q
+```
+
+Replace those file paths with the feature's actual unit, contract and boundary
+tests. Include relevant failure/regression paths. `--no-cov` disables the full
+source-inventory coverage threshold for this partial run; mandatory branch and
+per-module coverage still applies in the full PR gate. Pytest exit code 5 means
+no selected tests were collected; it is not a passing test run.
+
+Do not run `1337-dev unit`, `1337-dev test` or `1337-dev check` before every
+implementation commit. Run the full gate when opening a PR and after fixing a bug
+or review/CI defect in the same PR, preferably once through shared PR CI. Routine
+tracked-file edits require relevant focused validation rather than a duplicate
+local full gate. Full-gate evidence belongs to its tested revision; required CI
+must validate the proposed PR revision before review readiness or merge.
 
 Plain `pytest` also defaults to `tests/unit`. The `1337-dev unit` command additionally
 enforces the per-module contract; `1337-dev test` runs all test layers, and
@@ -73,6 +95,11 @@ Automatic scheduling uses `--dist=loadscope` and caps workers at
 `min(os.cpu_count(), 12)`. Tests that own a shared resource must use the explicit
 `@pytest.mark.serial` marker; the runner executes them separately with `-n 0` after
 the parallel pool. No automatic retry is configured or permitted.
+
+The same automatic worker cap applies to focused pytest commands that use
+`-n auto`. Plain `pytest` without `-n` runs sequentially. When several development
+agents run tests on one host, use an explicit smaller `-n` budget for each agent
+to avoid multiplying the automatic CPU allocation.
 
 The runner accepts these controlled diagnostics:
 

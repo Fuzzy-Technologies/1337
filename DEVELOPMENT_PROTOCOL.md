@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.5`
+Protocol version: `0.6`
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -176,6 +176,7 @@ A commit should represent one coherent logical change. Infrastructure repair, be
 ### Work slicing and commit cadence
 
 - Commit after a coherent logical implementation slice has been completed and the applicable targeted tests/evidence for that slice have been checked.
+- Do not run the full repository gate before routine implementation commits. Validate the changed feature and its relevant regression paths; reserve full-gate execution for the PR checkpoints in section 10.
 - A non-trivial task should normally contain multiple small logical commits when that improves reviewability, diagnosis, or rollback.
 - Avoid both one giant catch-all commit and mechanical commit spam for every touched file or trivial edit.
 - Related tiny edits may be combined into one coherent commit; unrelated work must remain separate.
@@ -468,20 +469,30 @@ Test coverage is a release/merge contract, not an informational metric.
 
 ## 10. Test gates and evidence
 
-During implementation:
+During implementation and before each routine commit:
 
-- run the smallest relevant pytest layer/subsystem for fast feedback;
-- run functional/integration/E2E suites when the change crosses those boundaries;
-- after the final tracked change, run the canonical full repository gate;
-- any later tracked-file edit invalidates the full gate and requires it again before commit/release.
+- run only tests for the changed feature and its relevant regression paths;
+- include selected contract/functional/integration/E2E tests when the change crosses those boundaries;
+- use process-isolated xdist workers for independent tests and run explicitly marked shared-resource tests separately with `-n 0`;
+- use `--no-cov` for partial test selections so repository-wide coverage thresholds do not force unrelated tests into the development loop;
+- run applicable static checks on the changed code, inspect the exact diff, and record actual commands/results;
+- do not run `1337-dev unit`, `1337-dev test`, or `1337-dev check` as a routine pre-commit requirement: these commands validate complete suites.
 
-Expected baseline gates once bootstrap tooling exists:
+Full repository validation belongs at the PR boundary:
 
-```text
-python -m pytest -q
-python -m compileall -q src tests tools
-python -m ruff check .
+- trigger the canonical full gate when opening the implementation PR;
+- rerun the full gate after fixing a bug or a review/CI defect in that same PR;
+- prefer the existing shared PR CI instead of repeating the same full gate locally and in CI;
+- a later edit requires the relevant targeted checks before its commit, not another local full gate merely because a tracked file changed;
+- full-gate evidence applies only to its tested revision. Required CI must cover the proposed PR revision before review readiness or merge; earlier green evidence is not proof for a changed revision.
+
+The canonical full repository command is:
+
+```bash
+uv run --locked --extra dev 1337-dev check
 ```
+
+Existing integration/release CI remains the shared verification surface. Do not duplicate its full-suite execution in the local development loop. See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for focused commands and bounded worker settings.
 
 The canonical pytest/coverage gate must additionally collect branch coverage and enforce the per-module `>80%` contract defined above once coverage tooling is configured.
 
