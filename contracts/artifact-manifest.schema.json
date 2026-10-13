@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1337.fuzzy.ru/contracts/artifact-manifest.schema.json",
+  "title": "Experimental role-separated local artifact manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile", "role", "files"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "profile": {"enum": [
+      "trivy.image-archive-offline.v1", "trivy.dockerfile-offline.v1",
+      "trivy.kubernetes-offline.v1", "synthetic.image-archive-offline.v1",
+      "synthetic.dockerfile-offline.v1", "synthetic.kubernetes-offline.v1"
+    ]},
+    "role": {"enum": ["input", "scanner", "material"]},
+    "files": {
+      "type": "array", "maxItems": 1024, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "size_bytes", "sha256"],
+        "properties": {
+          "name": {
+            "type": "string", "minLength": 1, "maxLength": 240,
+            "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9_.-]|/[A-Za-z0-9_])*$"
+          },
+          "size_bytes": {"type": "integer", "minimum": 0, "maximum": 536870912},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  },
+  "if": {"properties": {"role": {"enum": ["input", "scanner"]}}},
+  "then": {"properties": {"files": {"minItems": 1}}}
+}
