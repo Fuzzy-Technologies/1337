@@ -46,6 +46,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
   checks and model projection that preserves existing Endpoint requests.
 
+- Added explicit saved-workspace `report export` for bounded JSON and SARIF,
+  owner-verifying every retained raw evidence reference and preserving failed
+  execution, uncertainty and actual no-clobber publication outcomes.
+
 #### Fixed
 
 - Rejected malformed UTF-8 lens metadata and query text at construction/decoding,
@@ -67,6 +71,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   emitted synthetic worker results as exact LF bytes on Windows.
 - Rejected literal Unicode controls before captured URL fragment handling while
   retaining exactly-once HTML5 character-reference interpretation.
+
+- Kept report material paths out of interactive and native input history,
+  preserving caller-owned entries and refusing unrecoverable native history gaps.
 
 #### Changed
 
@@ -100,6 +107,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Supplied HTML captures retain explicit owner verification and caller-attributed
   source association. Frontier interpretation grants no transport, browser or
   request execution authority and claims completeness only for its input profile.
+- Bound report export reads and serialization by consumer quotas, rechecked
+  saved input snapshots before publication and protected against physical-path
+  aliases, foreign output files and interrupted publication acknowledgements.
 
 ### Patch 1 — v0.2.1 — 2026-10-09
 
