@@ -598,3 +598,121 @@ def test_VerifiedInventoryReplaySurvivesWorkspaceRelocation(context):
     assert replay == imported and not delta.created and not delta.updated, (
         "Relocation must preserve immutable attribution, package identities and exact replay."
     )
+
+
+@pytest.mark.parametrize("adapter_id", ["synthetic.trivy", "native.other"])
+def test_NativeSourceGuardRejectsOtherwiseMatchingEvidence(context, adapter_id):
+    """A fully matching attributed report cannot cross the exact native source boundary."""
+
+    root, initial, store = context
+    report, provenance, records = Native(context)
+    invocation = replace(report.invocation, adapter_id=adapter_id)
+    replaced = []
+
+    for record in records:
+        source = replace(record.provenance, source_id=adapter_id)
+
+        if record.reference.role != "provider-version":
+            source = replace(source, invocation_sha256=InvocationDigest(invocation))
+
+        replaced.append(store.Put(store.Read(record.reference), record.reference.role,
+                                  record.reference.media_type, source))
+
+    incoming = tuple(replaced)
+    references = tuple(record.reference for record in incoming)
+    report = replace(report, invocation=invocation, evidence=references)
+    provenance = replace(provenance, source_id=adapter_id, evidence_references=references)
+
+    with pytest.raises(ValueError, match="successful attributed Trivy archive report"):
+        ApplyVerifiedTrivyImages(initial, report, provenance, incoming, root)
+
+    assert LocalModelStore(root).Open() == initial, (
+        "An otherwise matching non-native report must preserve the complete saved snapshot."
+    )
+
+
+@pytest.mark.parametrize("role", ["provider-version-stderr", "artifact-scan-receipt"])
+def test_NativeRoleContractRejectsSyntheticBundleExpansion(context, role):
+    """The native three-role contract cannot absorb a synthetic acquisition/receipt record."""
+
+    root, initial, store = context
+    report, provenance, records = Native(context)
+    extra = store.Put(b"{}", role, "application/json", records[0].provenance)
+    incoming = (*records, extra)
+    references = tuple(record.reference for record in incoming)
+    report = replace(report, evidence=references)
+    provenance = replace(provenance, evidence_references=references)
+
+    with pytest.raises(ValueError, match="exact source roles"):
+        ApplyVerifiedTrivyImages(initial, report, provenance, incoming, root)
+
+    assert LocalModelStore(root).Open() == initial, (
+        "An expanded native role set must preserve the complete saved snapshot."
+    )
+
+
+@pytest.mark.parametrize("fact", ["execution", "invocation"])
+def test_NativeVersionRecordStillRequiresNoExecutionFacts(context, fact):
+    """Legacy native provider-version provenance cannot acquire synthetic execution facts."""
+
+    root, initial, store = context
+    report, provenance, records = Native(context)
+    original = next(record for record in records if record.reference.role == "provider-version")
+    source = replace(original.provenance, **(
+        {"execution": report.execution} if fact == "execution"
+        else {"invocation_sha256": InvocationDigest(report.invocation)}
+    ))
+    replacement = store.Put(store.Read(original.reference), "provider-version",
+                            original.reference.media_type, source)
+    incoming = tuple(replacement if record == original else record for record in records)
+    references = tuple(record.reference for record in incoming)
+    report = replace(report, evidence=references)
+    provenance = replace(provenance, evidence_references=references)
+
+    with pytest.raises(ValueError, match="cannot invent scan execution"):
+        ApplyVerifiedTrivyImages(initial, report, provenance, incoming, root)
+
+    assert LocalModelStore(root).Open() == initial, (
+        "Rejected native version facts must preserve the complete saved snapshot."
+    )
+
+
+@pytest.mark.parametrize("status", [FindingStatus.RESOLVED, FindingStatus.DISMISSED])
+def test_NativeWholeAssetGraphAndOperatorTriageSurviveExactReplay(context, status):
+    """All six native asset families, operator notes and closed triage retain exact bytes."""
+
+    root, initial, _ = context
+    report, provenance, records = Native(context)
+    imported, _ = ApplyVerifiedTrivyImages(initial, report, provenance, records, root)
+    model = LocalModelStore(root)
+    model.Save(imported, expected_revision=initial.revision)
+    assets = tuple(item for item in imported.objects if "asset_type" in item.attributes)
+
+    assert {item.identity.key.split(":", 1)[0] for item in assets} == {
+        "image-config", "image-manifest", "package-version", "operating-system",
+        "image-layer-diffid", "license-declaration",
+    }, "The native baseline must contain every asset family with its existing natural key."
+    operator = ModelProvenance("operator", "decision:baseline", "2026-10-13T01:00:00Z",
+                               "scope:owned", "target:owned")
+    annotated, _ = imported.Apply(objects=tuple(replace(item,
+        attributes={**item.attributes, "operator_note": "Owned native baseline"},
+        provenance=(*item.provenance, operator)) for item in assets))
+    model.Save(annotated, expected_revision=imported.revision)
+    finding = Findings(annotated)[0]
+    triaged, _ = TransitionFinding(annotated, finding.ToObject(initial.workspace_id).Reference(),
+        status, operator, "Owned native disposition")
+    model.Save(triaged, expected_revision=annotated.revision)
+    before = CanonicalModelJson(triaged.ToDict())
+    replay, delta = ApplyVerifiedTrivyImages(triaged, report, provenance, records, root)
+
+    assert CanonicalModelJson(replay.ToDict()) == before, (
+        "Exact native replay must preserve entire object, relation, observation and triage bytes."
+    )
+    assert not delta.created and not delta.updated and delta.revision == triaged.revision, (
+        "Exact native replay must not publish an invented revision or model delta."
+    )
+    model.Save(replay, expected_revision=triaged.revision)
+
+    assert CanonicalModelJson(LocalModelStore(root).Open().ToDict()) == before, (
+        "All six native assets and triage must retain exact bytes after durable reopening."
+    )

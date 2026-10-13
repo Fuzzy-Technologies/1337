@@ -22,6 +22,30 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Workbench development, with deterministic validation and failure-path tests.
   The subsystem documentation describes the capabilities present in each change.
 
+- Added `1337 scan quick` for explicitly approved SAFE HTTP(S) endpoint discovery,
+  live job/model updates, immutable raw evidence and durable workspace reopen.
+- Added evidence-linked Finding lifecycle and report projections, strict JSON and
+  SARIF serializers, read-only model lenses and attributed attack references.
+- Added reviewed optional Nuclei HTTP-template and Trivy offline-image preparation
+  and parsing, image/package normalization and verified flat SPDX inventory.
+  Compatible native tools remain operator-supplied and optional.
+- Added verified offline vulnerability intelligence and standards-mapping
+  metadata, preserving source versions, evidence and uncertainty.
+- Added offline OpenAPI request import, bounded synthetic API request generation
+  and browser/API journey contracts without granting execution authority.
+- Added attributed offline reachability states and deterministic bounded path
+  search over selected model relations, with explicit conflicts and truncation.
+- Added independent inert image-archive and Dockerfile/Kubernetes fixtures and
+  future producer/consumer contracts. These fixtures do not claim native scanner
+  acceptance or implemented image/configuration product workflows.
+- Added selected-read-consent artifact capture, canonical input/scanner/material
+  manifests, guarded staging and governed execution of closed synthetic workers.
+  Native scanner profiles remain metadata-only until actual tool acceptance.
+- Added a bounded standalone Dockerfile/Kubernetes synthetic producer for five
+  pinned source fixtures, retaining the independently authored result oracle.
+- Added owner-verified supplied HTML capture frontiers, exact current URL scope
+  checks and model projection that preserves existing Endpoint requests.
+
 #### Fixed
 
 - Rejected malformed UTF-8 lens metadata and query text at construction/decoding,
@@ -33,10 +57,24 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Preserved awaited scan-job cleanup under concurrent forced cancellation and
   retained event-budget failure when a provider catches its notification error.
 
+- Preserved owned-process cleanup when an exited process group is already absent
+  on macOS, while retaining denial for an inaccessible live group.
+- Kept large boundary-test identifiers within Windows process-environment limits
+  without weakening the tested payload sizes.
+- Preserved canonical reachability model digests at exact size boundaries and
+  rejected oversized projections before full model materialization.
+- Preserved artifact path and handle identity across supported platforms and
+  emitted synthetic worker results as exact LF bytes on Windows.
+- Rejected literal Unicode controls before captured URL fragment handling while
+  retaining exactly-once HTML5 character-reference interpretation.
+
 #### Changed
 
 - Limited browser-based documentation rendering to the protected-master publication
   gate. Pull requests retain static source, locale, link, package and build checks.
+
+- Factored pure native image candidate construction with equivalent owner-verified
+  graph/delta bytes, validation ordering and triage/replay behavior.
 
 #### Security
 
@@ -47,6 +85,21 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - New foundation APIs retain explicit workspace, scope and evidence boundaries.
   A query, model reference, job or adapter preparation does not grant authority
   to scan a target or broaden a previously approved execution plan.
+- Verify full scope/policy/owner, exact destinations, impact and invocation at
+  governed launch; preserve raw failure, cancellation and timeout outcomes.
+- Reject forged or changed evidence/reference snapshots and stale/conflicting
+  reachability proofs. Integrity checks do not authenticate an attestation author
+  or prove physical reachability, exploitability or scanner accuracy.
+- Native discovery uses explicit literal-IP endpoints, TLS 1.2 or later and finite
+  request limits; it does not follow redirects or collect cookies or bodies.
+- Bind artifact grants to full current scope, policy, consent, owner, selected
+  content, executable and physical staging identities. Recheck authority after
+  expensive verification and preserve actual raw execution/acceptance outcomes.
+- Bind synthetic receipts to their original physical run and authorization
+  window. Historical replay verifies evidence without issuing a new grant.
+- Supplied HTML captures retain explicit owner verification and caller-attributed
+  source association. Frontier interpretation grants no transport, browser or
+  request execution authority and claims completeness only for its input profile.
 
 ### Patch 1 — v0.2.1 — 2026-10-09
 
