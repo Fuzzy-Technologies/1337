@@ -241,6 +241,37 @@ def test_ReplayRejectsBrokenForeignOrIncompleteArtifactsBeforeReturningASnapshot
         LoadAcquiredSnapshot(root, record.evidence_id)
 
 
+@pytest.mark.parametrize("failure", ["partial-role", "forged-score"])
+def test_ReplayRejectsRehashedNormalizedOrPartialSourceClaims(tmp_path, failure):
+    """Public hashes cannot legitimize invented interpretations or incomplete source roles."""
+
+    model, _ = Context(tmp_path)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+    snapshot = outcome.snapshot
+
+    assert snapshot is not None and outcome.snapshot_record is not None, (
+        "Owned baseline import did not produce a complete source interpretation"
+    )
+
+    if failure == "partial-role":
+        forged = replace(snapshot, evidence=replace(snapshot.evidence, role="intelligence-partial"))
+
+    else:
+        forged = replace(snapshot, records=(replace(
+            snapshot.records[0], data={**snapshot.records[0].data, "probability": 0.99},
+        ),))
+
+    artifact = LocalEvidenceStore(model.root / "evidence").Put(
+        forged.Serialize(), "intelligence-snapshot", "application/json",
+        outcome.snapshot_record.provenance,
+    )
+
+    with pytest.raises(ValueError):
+        LoadAcquiredSnapshot(model.root, artifact.evidence_id)
+
+
 @pytest.mark.parametrize("state,body,status", [
     (AcquisitionState.TIMED_OUT, b"partial original bytes", 200),
     (AcquisitionState.REDIRECT_REJECTED, b"", 302),

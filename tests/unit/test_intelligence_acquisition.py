@@ -103,6 +103,7 @@ def test_HttpsAllowlistDoesNotFollowArbitrarySourcesOrMislabelAttribution(change
 
 @pytest.mark.parametrize("raw,state,complete", [
     (RAW, AcquisitionState.SUCCEEDED, True), (b"invalid CSV", AcquisitionState.PARSE_FAILED, True),
+    (b"", AcquisitionState.PARSE_FAILED, True),
     (RAW * 2, AcquisitionState.SIZE_EXCEEDED, False),
 ])
 def test_LocalImportPublishesExactCompleteOrPartialRawAndTerminalReceipt(
@@ -463,4 +464,55 @@ def test_ReceiverStartFailureAndInvalidDirectWorkerInvocationStayControlled(monk
 
     assert transport.Main() == transport.FORMAT_EXIT, (
         "Malformed internal worker invocation acquired successful process semantics"
+    )
+
+
+def test_ProcessCreationTimeIsChargedAgainstTheSameTotalDeadline(monkeypatch):
+    """A slow receiver launch cannot restart the full acquisition timeout after process creation."""
+
+    clocks = iter((100.0, 100.1))
+    monkeypatch.setattr(acquisition.time, "monotonic", lambda: next(clocks))
+
+    class Process:
+        """Model an owned receiver whose launch already consumed the selected deadline."""
+
+        returncode = -9
+
+        def __init__(self):
+            """Track timeout and cleanup calls without launching another process."""
+
+            self.calls = []
+            self.killed = False
+
+        def Communicate(self, timeout=None):
+            """Require an exhausted initial budget and complete the later owned cleanup."""
+
+            self.calls.append(timeout)
+
+            if len(self.calls) == 1:
+                assert timeout == 0, "Process launch restarted the full acquisition deadline"
+
+                raise subprocess.TimeoutExpired("owned receiver", timeout)
+
+            return b'{"status":200}\npartial', None
+
+        def Kill(self):
+            """Observe receiver termination before cleanup communication."""
+
+            self.killed = True
+
+    process = Process()
+    worker = SimpleNamespace(
+        communicate=process.Communicate, kill=process.Kill, returncode=process.returncode,
+    )
+    monkeypatch.setattr(acquisition.subprocess, "Popen", lambda *a, **k: worker)
+    payload, state, status = acquisition.FetchRemoteBytes(
+        SnapshotRequest(CisaKevSource(COMMIT, "x"), timeout_seconds=0.05),
+    )
+
+    assert (payload, state, status) == (b"partial", AcquisitionState.TIMED_OUT, 200), (
+        "An exhausted process-launch budget fabricated complete source acquisition"
+    )
+    assert process.killed and process.calls == [0, None], (
+        "Parent failed to terminate and join the receiver after its launch exhausted the deadline"
     )
