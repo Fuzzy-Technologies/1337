@@ -52,7 +52,8 @@ receiver, not caller-owned file reads, parsing, evidence publication, or sync's
 whole batch. Batch size is one to sixteen explicitly ordered requests.
 
 The HTTPS receiver uses a fresh stdlib-only Python process in isolated mode with
-an empty environment. The parent's total deadline starts before process creation
+an empty environment and disabled site initialization (`-I -S`). The parent's
+total deadline starts before process creation
 and covers receiver startup, DNS, connection, TLS, headers, and body reads.
 Timeout and caller interruption kill and join the receiver; socket timeouts are
 an additional inactivity bound. This is resource cleanup ownership rather than
@@ -82,7 +83,8 @@ publication. Digest or parser failure retains original complete bytes and a
 failed receipt. Redirect, HTTP, framing, size, transport, and timeout states stay
 distinct. Available incomplete bytes use `intelligence-partial`; they provide no
 snapshot. A receipt records `body_complete` separately from interpretation
-success and declares `publisher_authentication="not-assessed"`.
+success, the actual local/HTTPS transport selection, selected byte/deadline
+bounds, and `publisher_authentication="not-assessed"`.
 
 These publications are individually atomic, rather than one filesystem
 transaction. Storage failure returns `storage-failed`, `snapshot=None`, and the
@@ -127,8 +129,13 @@ if outcome.state is AcquisitionState.SUCCEEDED and outcome.snapshot_record is no
 ```
 
 This example imports owned synthetic data and contacts no URL. Use an existing
-owned workspace in a real application. Replay verifies the owning snapshot
-manifest, complete-source role, original byte digest/length, and exact reparse.
+owned workspace in a real application. Replay verifies both the owning snapshot
+and original raw acquisition manifests, complete-source role, original byte
+digest/length, and exact reparse. Source importer/version and acquisition time
+must match the original receiver provenance; rehashed source metadata cannot
+replace those observed facts. Snapshot and raw manifests must retain the exact
+same owning collection context. A surviving blob without its original acquisition
+manifest is insufficient.
 It remains portable across workspace relocation. Missing/corrupt artifacts,
 foreign workspace attribution, wrong roles, and forged normalized interpretations
 fail rather than yield a partial usable snapshot.

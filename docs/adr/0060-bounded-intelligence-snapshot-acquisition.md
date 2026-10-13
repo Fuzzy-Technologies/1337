@@ -29,8 +29,9 @@ framing, non-200 responses, and compressed content are refused. There is no
 automatic retry, provider discovery, crawling, cache fallback, or latest-version
 selection.
 
-A stdlib-only receiver process has an empty environment and Python isolated
-mode. The parent deadline starts before process creation and includes receiver
+A stdlib-only receiver process has an empty environment, Python isolated mode,
+and disabled site initialization (`-I -S`). The parent deadline starts before process creation
+and includes receiver
 startup, DNS, connection, TLS, headers, and body reads. Timeout or caller
 interruption kills and joins this owned process. Socket inactivity bounds are
 additional safeguards. The receiver emits at most the configured body bound
@@ -55,14 +56,19 @@ is `storage-failed`, with the records whose publication returned successfully;
 no cleanup deletes historical evidence and no success is fabricated. A receipt
 cannot self-reference its own content identity. It records the selected source,
 observed clocks/status, body completeness, original evidence, snapshot record,
-and the explicit unassessed publisher-authentication boundary.
+the actual local/HTTPS transport selection and receiver limits, and the explicit
+unassessed publisher-authentication boundary.
 
 Explicit sync processes one to sixteen requests in caller order, retaining every
 terminal outcome and a succeeded/partial/failed summary. It never rolls back a
 successful independent source or overwrites an earlier revision. Invalid batch
 selection is rejected before acquisition. Loading a snapshot checks owning
-manifest attribution, original byte integrity, the complete-source role, and an
-exact reparse before handing it to the existing verified consumer. Canonical
+and original raw manifest attribution, original byte integrity, the complete-source
+role, and an exact reparse before handing it to the existing verified consumer.
+The source importer/version and acquired_at must match receiver provenance, and
+the raw record must have the exact same owning collection context as its snapshot
+record. Recomputed public hashes or a surviving blob cannot replace lost or
+changed acquisition attribution. Canonical
 model persistence remains an explicit caller decision using the existing CAS.
 
 ## Validation and remaining scope

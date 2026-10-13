@@ -272,6 +272,77 @@ def test_ReplayRejectsRehashedNormalizedOrPartialSourceClaims(tmp_path, failure)
         LoadAcquiredSnapshot(model.root, artifact.evidence_id)
 
 
+@pytest.mark.parametrize("changes", [
+    {"acquired_at": "2026-10-12T00:00:01Z"}, {"importer_id": "different-importer"},
+    {"importer_version": "999"},
+])
+def test_RehashedSourceCannotReplaceReceiverObservedAcquisitionFacts(tmp_path, changes):
+    """Normalized source metadata must match its original immutable receiver provenance."""
+
+    model, _ = Context(tmp_path)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+
+    assert outcome.snapshot is not None and outcome.snapshot_record is not None, (
+        "Owned baseline import did not publish replayable acquisition facts"
+    )
+    forged = replace(outcome.snapshot, source=replace(outcome.snapshot.source, **changes))
+    artifact = LocalEvidenceStore(model.root / "evidence").Put(
+        forged.Serialize(), "intelligence-snapshot", "application/json",
+        outcome.snapshot_record.provenance,
+    )
+
+    with pytest.raises(ValueError, match="attribution"):
+        LoadAcquiredSnapshot(model.root, artifact.evidence_id)
+
+
+def test_ReplayRequiresOriginalAcquisitionManifestEvenWhenItsRawBlobStillExists(tmp_path):
+    """A surviving byte hash cannot replace lost original collection attribution."""
+
+    model, _ = Context(tmp_path)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+
+    assert outcome.raw is not None and outcome.snapshot_record is not None, (
+        "Owned baseline import did not retain original raw and snapshot manifests"
+    )
+    manifest = model.root / "evidence/records" / (outcome.raw.evidence_id[7:] + ".json")
+    manifest.unlink()
+
+    assert (model.root / "evidence" / outcome.raw.reference.locator).read_bytes() == RAW, (
+        "Counterexample unexpectedly removed the original blob instead of its attribution manifest"
+    )
+
+    with pytest.raises(EvidenceError):
+        LoadAcquiredSnapshot(model.root, outcome.snapshot_record.evidence_id)
+
+
+@pytest.mark.parametrize("changes", [
+    {"source_id": "different-importer"}, {"source_version": "999"},
+    {"finished_at": "2099-01-01T00:00:00Z"}, {"scope_reference": "scope:forged"},
+])
+def test_RehashedSnapshotManifestCannotReplaceOriginalReceiverAttribution(tmp_path, changes):
+    """Changed collection context cannot silently reuse a prior source blob's acquisition."""
+
+    model, _ = Context(tmp_path)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(Source(), RAW), scope_reference="scope:owned",
+    )
+
+    assert outcome.snapshot is not None and outcome.snapshot_record is not None, (
+        "Owned baseline acquisition did not publish an immutable source interpretation"
+    )
+    artifact = LocalEvidenceStore(model.root / "evidence").Put(
+        outcome.snapshot.Serialize(), "intelligence-snapshot", "application/json",
+        replace(outcome.snapshot_record.provenance, **changes),
+    )
+
+    with pytest.raises((ValueError, EvidenceError)):
+        LoadAcquiredSnapshot(model.root, artifact.evidence_id)
+
+
 @pytest.mark.parametrize("state,body,status", [
     (AcquisitionState.TIMED_OUT, b"partial original bytes", 200),
     (AcquisitionState.REDIRECT_REJECTED, b"", 302),
@@ -312,6 +383,9 @@ def test_ActualSyncApiRetainsOwnedTransportFailuresAlongsideSuccessfulImports(
     assert receipt["state"] == state.value and receipt["http_status"] == status, (
         "Persisted sync receipt lost its observed transport outcome"
     )
+    assert receipt["transport"] == "https" and receipt["limits"] == {
+        "max_bytes": 16 * 1024 * 1024, "receiver_timeout_seconds": 30.0,
+    }, "Remote failure receipt lost the selected transport or actual acquisition limits"
     assert (model.root / "state/model/model.json").read_bytes() == before, (
         "A failed sync partially modified canonical model state"
     )

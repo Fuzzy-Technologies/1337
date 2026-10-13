@@ -208,6 +208,9 @@ class AcquisitionOutcome:
     received_bytes: int
     body_complete: bool
     http_status: int | None
+    transport: str
+    max_bytes: int
+    timeout_seconds: float
     raw: EvidenceRecord | None = None
     snapshot: IntelligenceSnapshot | None = None
     snapshot_record: EvidenceRecord | None = None
@@ -225,6 +228,9 @@ class AcquisitionOutcome:
             "source": self.source.ToDict(), "started_at": self.started_at,
             "finished_at": self.finished_at, "received_bytes": self.received_bytes,
             "body_complete": self.body_complete, "http_status": self.http_status,
+            "transport": self.transport,
+            "limits": {"max_bytes": self.max_bytes,
+                       "receiver_timeout_seconds": self.timeout_seconds},
             "raw": JsonValue(self.raw) if self.raw is not None else None,
             "snapshot_reference": self.snapshot.Reference() if self.snapshot is not None else None,
             "snapshot_record": (
@@ -267,7 +273,7 @@ def FetchRemoteBytes(request: SnapshotRequest) -> tuple[bytes, AcquisitionState,
 
     try:
         process = subprocess.Popen(
-            [sys.executable, "-I", str(worker), request.source.source_url,
+            [sys.executable, "-I", "-S", str(worker), request.source.source_url,
              str(request.max_bytes), str(request.timeout_seconds)],
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env={},
         )
@@ -367,6 +373,8 @@ def AcquireIntelligenceSnapshot(
     outcome = AcquisitionOutcome(
         state, request.source, started_at, finished_at, len(payload),
         state is AcquisitionState.SUCCEEDED, status,
+        "https" if request.payload is None else "local-bytes",
+        request.max_bytes, request.timeout_seconds,
     )
     provenance = EvidenceProvenance(
         owner.workspace_id, scope_reference, IMPORTER_ID, IMPORTER_VERSION, None,
@@ -476,6 +484,8 @@ def LoadAcquiredSnapshot(workspace_root: Path, evidence_id: str) -> Intelligence
     if record.provenance.workspace_id != owner.workspace_id or (
         record.reference.role != "intelligence-snapshot"
         or record.reference.media_type != "application/json"
+        or record.provenance.source_id != IMPORTER_ID
+        or record.provenance.source_version != IMPORTER_VERSION
     ):
         raise ValueError("snapshot must be an intelligence artifact in the owning workspace")
 
@@ -483,6 +493,19 @@ def LoadAcquiredSnapshot(workspace_root: Path, evidence_id: str) -> Intelligence
 
     if snapshot.evidence.role != "intelligence-source":
         raise ValueError("acquired snapshot must reference a complete original source artifact")
+
+    if (
+        snapshot.source.importer_id != record.provenance.source_id
+        or snapshot.source.importer_version != record.provenance.source_version
+        or snapshot.source.acquired_at != record.provenance.finished_at
+        or snapshot.evidence.media_type != _MEDIA_TYPES[snapshot.feed]
+    ):
+        raise ValueError("snapshot acquisition attribution must match original receiver provenance")
+
+    raw_record = EvidenceRecord(snapshot.evidence, record.provenance)
+
+    if store.Get(raw_record.evidence_id) != raw_record:
+        raise ValueError("snapshot must retain the exact owning original acquisition manifest")
 
     reparsed = ParseIntelligenceSnapshot(
         store.Read(snapshot.evidence), snapshot.feed, snapshot.catalog_version,

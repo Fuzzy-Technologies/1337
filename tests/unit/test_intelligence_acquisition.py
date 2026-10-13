@@ -130,6 +130,9 @@ def test_LocalImportPublishesExactCompleteOrPartialRawAndTerminalReceipt(
     assert receipt["publisher_authentication"] == "not-assessed", (
         "Byte acquisition fabricated publisher authentication"
     )
+    assert receipt["transport"] == "local-bytes" and receipt["limits"] == {
+        "max_bytes": len(RAW), "receiver_timeout_seconds": 30.0,
+    }, "Receipt lost actual transport selection or the explicitly narrowed receiver bounds"
     assert (outcome.snapshot is not None) is (state is AcquisitionState.SUCCEEDED), (
         "Failed or partial import supplied a usable parsed snapshot"
     )
@@ -367,6 +370,9 @@ def test_TotalDeadlineRetainsDeliveredPartialBytesAndKillsAndJoinsTheRealWorker(
         """Retain the actual owned process for cleanup and clean-environment assertions."""
 
         assert kwargs["env"] == {}, "Worker inherited ambient proxy or credential environment"
+        assert args[0][1:3] == ["-I", "-S"], (
+            "Receiver inherited user/site imports instead of using isolated stdlib-only startup"
+        )
         process = original(*args, **kwargs)
         processes.append(process)
 
