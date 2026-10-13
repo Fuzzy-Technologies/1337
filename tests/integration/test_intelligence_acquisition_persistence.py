@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 from dataclasses import replace
@@ -134,6 +135,71 @@ def test_AllSupportedLocalFormatsUseTheActualImportStorageAndReplayBoundary(
     assert replayed.evidence.media_type == media_type and LocalEvidenceStore(
         model.root / "evidence",
     ).Read(replayed.evidence) == raw, "Format dispatch changed original source bytes or media type"
+
+
+def test_OwnedActualReceiverSuccessPublishesRawSnapshotReceiptAndReplaysThroughProductionApi(
+    tmp_path, monkeypatch,
+):
+    """Compose the actual parent process API with owned receiver bytes and no network request."""
+
+    model, _ = Context(tmp_path)
+    raw = FeedBody(IntelligenceFeed.KEV)
+    source = CisaKevSource(
+        "a" * 40, "synthetic-1", expected_sha256=hashlib.sha256(raw).hexdigest(),
+    )
+    worker = tmp_path / "intelligence_transport.py"
+    worker.write_text(
+        '# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies\n'
+        '# SPDX-License-Identifier: Apache-2.0\n\n'
+        '"""Owned synthetic receiver fixture; no network or official-feed acceptance claim."""\n'
+        'import sys\n'
+        'sys.stdout.buffer.write(b\'{"status":200}\\n\' + ' + repr(raw) + ')\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(acquisition, "__file__", str(tmp_path / "intelligence_acquisition.py"))
+    original = acquisition.subprocess.Popen
+    processes = []
+
+    def Popen(*args, **kwargs):
+        """Observe the actual isolated child and exact request while preserving real execution."""
+
+        assert args[0][1:3] == ["-I", "-S"] and args[0][4] == source.source_url, (
+            "Production acquisition failed to pass the isolated selected receiver request"
+        )
+        assert kwargs["env"] == {}, "Owned receiver inherited ambient credentials or proxy settings"
+        process = original(*args, **kwargs)
+        processes.append(process)
+
+        return process
+
+    monkeypatch.setattr(acquisition.subprocess, "Popen", Popen)
+    outcome = AcquireIntelligenceSnapshot(
+        model.root, SnapshotRequest(source, max_bytes=len(raw) + 1, timeout_seconds=3),
+        scope_reference="scope:owned",
+    )
+
+    assert outcome.state is AcquisitionState.SUCCEEDED and outcome.body_complete, (
+        "Actual parent receiver composition failed to produce a complete accepted source"
+    )
+    assert len(processes) == 1 and processes[0].poll() == 0, (
+        "Successful acquisition retried, leaked its receiver, or ignored its terminal exit status"
+    )
+    assert outcome.raw is not None and outcome.snapshot_record is not None and (
+        outcome.receipt is not None
+    ), "Successful production acquisition did not publish all three immutable records"
+    store = LocalEvidenceStore(model.root / "evidence")
+    receipt = json.loads(store.Read(outcome.receipt.reference))
+    replayed = LoadAcquiredSnapshot(model.root, outcome.snapshot_record.evidence_id)
+
+    assert store.Get(outcome.raw.evidence_id) == outcome.raw and store.Read(
+        outcome.raw.reference,
+    ) == raw, "Receiver composition changed original bytes or lost original acquisition attribution"
+    assert replayed == outcome.snapshot and replayed.source.acquired_at == outcome.finished_at, (
+        "Verified production replay changed the parsed source or observed receiver chronology"
+    )
+    assert receipt["transport"] == "https" and receipt["http_status"] == 200 and receipt[
+        "publisher_authentication"
+    ] == "not-assessed", "Owned receiver success fabricated live publisher or signature acceptance"
 
 
 def test_ProductionImportReplayAndVerifiedConsumerPreserveOriginalSourceAndFinding(
