@@ -35,6 +35,10 @@ Rich SCAN issuance requires the immutable typed VERSION prerequisite. Its exact
 original run/grant/receipt/request/stage identities and prerequisite digest must
 participate in SCAN's schema-2 plan, intent and authorization binding; a later
 version proof cannot be swapped into an already issued grant.
+The SDK's agreed plan fields are `operation`, `producer_family`, `version_run_id`,
+`version_grant_id` and `version_prerequisite_sha256`. The final three are absent
+only as explicit null values for VERSION and lifecycle SCAN. The prerequisite
+digest commits original VERSION metadata and exact prepared/stage payloads.
 
 `context_provider` follows the first-party SDK's synchronous factual authority
 contract. It supplies the current trusted owner and operator policy plus current
@@ -59,14 +63,14 @@ record per role. Each manifest must equal `LocalEvidenceStore.Get(evidence_id)`
 in the owning workspace, and its bytes are read and verified through that store.
 Content-only references or metadata copied from another acquisition are refused.
 
-| Role                       | Operation | Maximum bytes | Media type       |
-| -------------------------- | --------- | ------------- | ---------------- |
-| provider-version           | VERSION   | 16 KiB        | application/json |
-| provider-version-stderr    | VERSION   | 16 KiB        | text/plain       |
-| stdout                     | SCAN      | 4 MiB         | application/json |
-| stderr                     | SCAN      | 1 MiB         | text/plain       |
-| artifact-version-receipt   | VERSION   | 1 MiB         | application/json |
-| artifact-scan-receipt      | SCAN      | 1 MiB         | application/json |
+| Role                     | Operation | Maximum bytes | Media type       |
+| ------------------------ | --------- | ------------- | ---------------- |
+| provider-version         | VERSION   | 16 KiB        | application/json |
+| provider-version-stderr  | VERSION   | 16 KiB        | text/plain       |
+| stdout                   | SCAN      | 4 MiB         | application/json |
+| stderr                   | SCAN      | 1 MiB         | text/plain       |
+| artifact-version-receipt | VERSION   | 1 MiB         | application/json |
+| artifact-scan-receipt    | SCAN      | 1 MiB         | application/json |
 
 Every role binds the same owning workspace, exact granted scope, source,
 acquisition contract version `1` and observed tool version. Both VERSION streams
