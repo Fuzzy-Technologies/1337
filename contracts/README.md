@@ -9,6 +9,12 @@ Canonical policy: [`docs/COMPATIBILITY.md`](../docs/COMPATIBILITY.md).
 | Contract           | Schema version | File                             |
 | ------------------ | -------------- | -------------------------------- |
 | Extension manifest | `1`            | `extension-manifest.schema.json` |
+| Local artifacts    | `1`            | `artifact-manifest.schema.json`  |
+
+Artifact schema fields are bounded and exact; its SDK additionally enforces
+sorted names, portable collision/device-name rules, role-separated aggregate
+byte limits and physical selected-file integrity. This Experimental manifest is
+not an OCI digest or an execution grant. Native profiles remain metadata-only.
 
 Examples under `examples/` demonstrate valid documents but do not add fields or semantics beyond the corresponding schema and compatibility policy.
 

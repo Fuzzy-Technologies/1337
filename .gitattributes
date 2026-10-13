@@ -2,3 +2,4 @@
 tests/contract/fixtures/reporting/sarif-schema-2.1.0.json -text whitespace=cr-at-eol
 tests/contract/fixtures/reporting/snapshot.* -text
 tests/fixtures/image_scan/producer.py text eol=lf
+src/fuzzy1337/artifact_fixture_worker.py text eol=lf
