@@ -1182,14 +1182,16 @@ class ArtifactPolicyEngine:
         context: ArtifactPolicyContext,
         *,
         at: datetime,
+        version_proof: ArtifactVersionProof | None = None,
     ) -> None:
-        """Check canonical issued lifetime and consent after expensive material verification.
+        """Check operation and original prerequisite lifetimes at one fresh decision time.
 
         Args:
             grant: Original typed artifact grant with issuance/exclusive expiry.
             stage: Bound input manifest; this check does not rehash physical files.
             context: Same current context already fully validated against persistent scope.
             at: Fresh aware clock read immediately before launch-hook return.
+            version_proof: Bound original VERSION for SCAN; checked at the same refreshed time.
 
         Raises:
             ArtifactDeniedError: Canonical policy/consent lifetime differs or authority expired.
@@ -1200,6 +1202,9 @@ class ArtifactPolicyEngine:
 
         if not isinstance(grant, ArtifactGrant) or not isinstance(context, ArtifactPolicyContext):
             raise ValueError("artifact time validation requires typed grant and context")
+
+        if version_proof is not None and type(version_proof) is not ArtifactVersionProof:
+            raise ValueError("artifact time validation requires its original typed VERSION proof")
 
         if (
             not datetime.fromisoformat(grant.issued_at)
@@ -1227,6 +1232,9 @@ class ArtifactPolicyEngine:
 
         if not context.scope.Check(stage.input.manifest.Target(), at=at).Allowed():
             raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        if version_proof is not None:
+            self.ValidateTime(version_proof.outcome.grant, version_proof.stage, context, at=at)
 
     def ValidateCurrent(
         self,
@@ -1950,7 +1958,10 @@ class GovernedArtifactExecutor:
             self._engine.Validate(grant, prepared, stage, launch_context, at=self._clock())
             launch_context = self.CurrentContext(context_provider)
             self._engine.ValidateCurrent(grant, prepared, stage, launch_context, at=self._clock())
-            self._engine.ValidateTime(grant, stage, launch_context, at=self._clock())
+            self._engine.ValidateTime(
+                grant, stage, launch_context, at=self._clock(),
+                version_proof=prepared.version_proof,
+            )
             scratch = stage.root / "scratch"
 
             with (scratch / "run-lease.json").open("xb") as marker:
@@ -1963,7 +1974,10 @@ class GovernedArtifactExecutor:
 
             launch_context = self.CurrentContext(context_provider)
             self._engine.ValidateCurrent(grant, prepared, stage, launch_context, at=self._clock())
-            self._engine.ValidateTime(grant, stage, launch_context, at=self._clock())
+            self._engine.ValidateTime(
+                grant, stage, launch_context, at=self._clock(),
+                version_proof=prepared.version_proof,
+            )
 
         raw = await self._executor.Execute(
             request, on_event=on_event, cancellation=cancellation, pre_launch=BeforeLaunch
@@ -1994,7 +2008,10 @@ class GovernedArtifactExecutor:
                 grant, prepared, stage, acceptance_context, at=checked_at
             )
             checked_at = self._clock()
-            self._engine.ValidateTime(grant, stage, acceptance_context, at=checked_at)
+            self._engine.ValidateTime(
+                grant, stage, acceptance_context, at=checked_at,
+                version_proof=prepared.version_proof,
+            )
 
         except ArtifactDeniedError as error:
             refusal = error.reason
@@ -2222,4 +2239,7 @@ class GovernedArtifactExecutor:
                 self._engine.ValidateCurrent(
                     outcome.grant, prepared, stage, current, at=self._clock()
                 )
-                self._engine.ValidateTime(outcome.grant, stage, current, at=self._clock())
+                self._engine.ValidateTime(
+                    outcome.grant, stage, current, at=self._clock(),
+                    version_proof=prepared.version_proof,
+                )

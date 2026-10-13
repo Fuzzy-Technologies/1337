@@ -10,7 +10,7 @@ import hashlib
 import json
 import os
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -1042,6 +1042,109 @@ def test_RicherScanPostRunVersionExpiryKeepsBothActualResults(tmp_path):
     )
     assert outcome.grant.valid_until > proof.outcome.grant.valid_until, (
         "The test must expire VERSION while SCAN's own grant still remains current"
+    )
+
+
+@pytest.mark.parametrize("boundary", ["launch", "post-run", "pair"])
+def test_VersionExpiryDuringFinalAuthorityLookupRefusesAffectedBoundary(
+    tmp_path, monkeypatch, boundary
+):
+    """A final clock refresh checks VERSION even when SCAN's own grant remains valid."""
+
+    root, context, _, proof = ImageVersion(tmp_path)
+    _, stage, prepared, _, _ = OwnedImageArtifact(
+        tmp_path, workspace=root, stage_name="scan-stage", operation=ArtifactOperation.SCAN,
+        version_proof=proof,
+    )
+    issued = AT + timedelta(seconds=120)
+    grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=issued)
+    now = issued
+    completed = False
+    pair_check = False
+    pair_scan_checks = 0
+    original_current = ArtifactPolicyEngine.ValidateCurrent
+
+    def ValidateCurrent(engine, actual_grant, actual_prepared, actual_stage, actual_context, *, at):
+        """Advance time only after the relevant complete original SCAN authority lookup."""
+
+        nonlocal now, pair_scan_checks
+        original_current(
+            engine, actual_grant, actual_prepared, actual_stage, actual_context, at=at
+        )
+
+        if actual_stage is not stage:
+            return
+
+        expires = boundary == "launch" and not completed and (
+            stage.root / "scratch/cache"
+        ).is_dir()
+        expires = expires or (boundary == "post-run" and completed)
+
+        if pair_check:
+            pair_scan_checks += 1
+            expires = pair_scan_checks == 2
+
+        if expires:
+            now = AT + timedelta(seconds=301)
+
+    def OnEvent(event):
+        """Observe actual child completion without rewriting the raw process outcome."""
+
+        nonlocal completed
+
+        if event.kind == ExecutionEventKind.COMPLETED:
+            completed = True
+
+    monkeypatch.setattr(ArtifactPolicyEngine, "ValidateCurrent", ValidateCurrent)
+    executor = GovernedArtifactExecutor(root, clock=lambda: now)
+    events = []
+
+    def Observe(event):
+        """Retain the exact process event stream and completion boundary for this regression."""
+
+        events.append(event)
+        OnEvent(event)
+
+    if boundary == "launch":
+        with pytest.raises(ArtifactDeniedError) as denied:
+            asyncio.run(executor.Execute(prepared, stage, grant, lambda: context, on_event=Observe))
+
+        assert denied.value.reason == ArtifactDenialReason.GRANT_EXPIRED, (
+            "Expired VERSION must deny SCAN at the final refreshed launch clock"
+        )
+        assert not any(event.kind == ExecutionEventKind.STARTED for event in events), (
+            "SCAN started after VERSION expired during its last authority lookup"
+        )
+
+        return
+
+    outcome = asyncio.run(executor.Execute(
+        prepared, stage, grant, lambda: context, on_event=Observe
+    ))
+    assert outcome.raw_result.execution.state == ExecutionState.SUCCEEDED, (
+        "The expiry regression requires actual successful SCAN process facts"
+    )
+    assert datetime.fromisoformat(grant.valid_until) > now, (
+        "SCAN's own grant must remain valid while its prerequisite expires"
+    )
+
+    if boundary == "post-run":
+        assert outcome.acceptance.refusal == ArtifactDenialReason.GRANT_EXPIRED, (
+            "Final post-run clock refresh accepted SCAN with an expired VERSION prerequisite"
+        )
+
+        return
+
+    pair_check = True
+
+    with pytest.raises(ArtifactDeniedError) as denied:
+        executor.ValidatePairAcceptanceFresh(
+            (proof.outcome, proof.prepared, proof.stage), (outcome, prepared, stage),
+            lambda: context,
+        )
+
+    assert denied.value.reason == ArtifactDenialReason.GRANT_EXPIRED, (
+        "Final pair barrier must check VERSION at the refreshed clock after SCAN authority work"
     )
 
 
