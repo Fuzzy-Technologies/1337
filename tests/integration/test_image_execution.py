@@ -561,9 +561,10 @@ def ResignedScanRecords(pair, envelope):
 
 @pytest.mark.parametrize("alias", [
     "partition", "selected-copy", "rotated-directory", "cross-role-file", "root-to-directory",
+    "run-marker",
 ])
 def test_RecordedPairRefusesSelfConsistentReusedPhysicalCopies(pair, alias):
-    """Rehashed old facts cannot claim distinct physical runs while reusing copied inputs."""
+    """Rehashed captures cannot claim distinct runs while reusing stage material or run markers."""
 
     store = LocalEvidenceStore(pair.root / "evidence")
     envelopes = {record.reference.role: json.loads(store.Read(record.reference))
@@ -592,9 +593,20 @@ def test_RecordedPairRefusesSelfConsistentReusedPhysicalCopies(pair, alias):
             version_stage["partitions"][1]["identities"][0][1][:2]
         )
 
-    else:
+    elif alias == "root-to-directory":
         scan["stage_payload"]["partitions"][0]["directory_identity"] = (
             version_stage["root_identity"]
+        )
+
+    else:
+        version_marker = envelopes["artifact-version-receipt"]["artifact_metadata"][
+            "acceptance"
+        ]["marker_identity"]
+        scan_marker = scan["artifact_metadata"]["acceptance"]["marker_identity"]
+        scan_marker[:2] = version_marker[:2]
+        scan_marker[4] = version_marker[4] + 1
+        assert scan_marker != version_marker, (
+            "The marker alias probe must retain distinct snapshots of one physical device/inode"
         )
 
     records = ResignedScanRecords(pair, scan)

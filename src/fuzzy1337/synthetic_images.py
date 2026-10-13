@@ -281,7 +281,8 @@ def VerifyPair(version: Capture, scan: Capture) -> str:
         or version.plan["request_sha256"] == scan.plan["request_sha256"]
         or version.plan["invocation_sha256"] == scan.plan["invocation_sha256"]
         or (scan.acceptance.marker_identity is not None and
-            version.acceptance.marker_identity == scan.acceptance.marker_identity)
+            version.acceptance.marker_identity is not None and
+            version.acceptance.marker_identity[:2] == scan.acceptance.marker_identity[:2])
         or scan.plan["version_run_id"] != version.acceptance.run_id
         or scan.plan["version_grant_id"] != version.acceptance.grant_id
         or scan.plan["version_prerequisite_sha256"] != prerequisite
