@@ -85,6 +85,7 @@ def owned_page_runner() -> Iterator[asyncio.Runner]:
     """Initialize the owned Windows loop self-pipe before the unit network guard."""
 
     with asyncio.Runner() as runner:
+        runner.get_loop()
         yield runner
 
 
@@ -1210,6 +1211,32 @@ def test_ProviderOwnershipAndMissingInitialModelDenyBeforeExecution(tmp_path, pa
         'Expected invariant: RunJob(fixture.Job(provider=provider), page_runner).failure.code is '
         'JobFailureCode.STORAGE'
     )
+
+
+def test_UnitProviderReusesInitializedLoopAndRetainsRealNetworkDenial(tmp_path, monkeypatch,
+                                                                  page_runner):
+    """Loop reuse never disables the active unit guard or opens lazy Windows socketpair loops."""
+
+    from fuzzy1337.policy import ImpactPolicy
+
+    def RefuseNewLoop():
+        """Tripwire lazy loop creation while the isolated unit network guard is active."""
+
+        raise AssertionError("Page provider unit probe attempted to open a new event loop")
+
+    monkeypatch.setattr(asyncio, "new_event_loop", RefuseNewLoop)
+    monkeypatch.setattr(asyncio.events, "new_event_loop", RefuseNewLoop)
+    fixture = Fixture.Create(tmp_path / "workspace")
+    fixture = replace(fixture, policy=ImpactPolicy("deny"))
+    snapshot = RunJob(fixture.Job(), page_runner)
+    assert snapshot.state is JobState.FAILED, "Denied unit provider operation falsely completed"
+    assert snapshot.failure.code is JobFailureCode.AUTHORIZATION, (
+        "Preinitialized unit loop bypassed capability permission"
+    )
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
+        with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+            connection.connect(("127.0.0.1", 1))
 
 
 def test_ExactHeaderByteAndLineQuotasPrecedeBodyAllocation(monkeypatch):
