@@ -10,6 +10,8 @@ job events, original operation captures, durable saves and separate exports.
 It accepts only source `synthetic.trivy`, provider version `0.75.0-synthetic`
 and the pinned first-party worker. Native profiles remain metadata-only.
 Task #142 remains open for genuine supplied Trivy/runtime/material acceptance.
+The Experimental CLI entry is `1337 scan image --profile synthetic`; it directly
+reuses this workflow and cannot select a native provider.
 
 ## Explicit selection and authority
 
@@ -111,7 +113,7 @@ genuine vulnerability detection or database freshness.
 ## SDK call
 
 All path and authority variables below are explicit caller-owned selections.
-No CLI spelling or source/runtime installation is introduced by this SDK slice.
+No source/runtime installation is performed by the workflow or its CLI consumer.
 
 ```python
 summary = await RunSyntheticImageScan(
@@ -126,6 +128,76 @@ summary = await RunSyntheticImageScan(
     report_output=new_output_file,
 )
 ```
+
+## Explicit CLI and foreground shell
+
+Select an initialized workspace and approved ARTIFACT scope. `scope create`
+accepts `--allow-artifact` and `--exclude-artifact` with exactly
+`manifest-sha256:<64 lowercase hex>` values. These are canonical artifact
+manifest targets; an archive byte hash, OCI digest, pathname or URL is not a
+substitute. Registration alone retains unknown consent. Existing
+`--grant-consent`, `--owner`, `--consent-reference`, `--valid-from` and
+`--valid-until` provide explicit scope authority metadata; selected-file read
+consent and SAFE execution approval remain separate.
+
+The approved manifest identity is produced by the existing canonical input
+manifest API from explicitly selected archive bytes. For example, after the
+operator has authorized reading their selected fixture archive:
+
+```python
+import hashlib
+from fuzzy1337.artifact_inputs import ArtifactFile, ArtifactManifest, ArtifactProfile, ArtifactRole
+
+payload = archive.read_bytes()
+target = ArtifactManifest(
+    ArtifactProfile.SYNTHETIC_IMAGE,
+    ArtifactRole.INPUT,
+    (ArtifactFile("image.tar", len(payload), hashlib.sha256(payload).hexdigest()),),
+).Target()
+print(target.value)
+```
+
+The manifest calculation grants no execution authority. Use that exact target
+when registering the approved scope. An explicit command is:
+
+```bash
+1337 scan image /absolute/owned-workspace \
+  --profile synthetic --scope image-scope --owner owner:operator \
+  --archive /absolute/selected/input/image.tar \
+  --executable /absolute/current-trusted-cpython \
+  --producer /absolute/1337/tests/fixtures/image_scan/producer.py \
+  --material /absolute/selected/material/policy.json \
+  --read-consent-reference consent:explicit-selected-files \
+  --approve-safe-image --timeout 30 \
+  --report-format sarif --report-output /absolute/new-image-report.sarif \
+  --json
+```
+
+Every selected source path must be absolute. The reviewed first-party
+`tests/fixtures/image_scan/fixture_image.py` builder provides the bounded inert
+archive/material fixture; genuine images and arbitrary producer scripts are not
+admitted by this closed profile. The executable is the explicit current trusted
+CPython, not an optional Trivy executable. No binary, database or fixture is
+installed or discovered by the command.
+
+`--profile synthetic` is required. Omitting `--approve-safe-image` denies process
+authorization; the flag never bypasses current owner/scope/material or fresh
+VERSION/SCAN pair acceptance. `--timeout` is an integer from 1 through 60 seconds,
+default 30, and does not replace VERSION's fixed bounds. Report format/output must
+be supplied together; existing destinations remain untouched.
+
+`--json` prints one versioned synthetic workflow summary with actual operation,
+model and separate report outcomes. Use `--events-json` for ordered canonical job
+events followed by one terminal summary; these presentation modes cannot be
+combined. Human output labels the workflow `Synthetic Image Scan`. The same
+`scan image` command runs in the foreground interactive shell with identical
+inputs and checks. Exit status is 0 for completed scan/export, 2 for invalid setup,
+3 for authority denial, 4 for scan/storage/export failure and 130 for cancellation.
+A failed requested export leaves completed scan/model facts visible.
+
+See [ADR 0056](adr/0056-explicit-synthetic-image-cli.md) for the CLI boundary.
+Synthetic inventory and fixture findings remain explicit, with
+`scan_completeness: not-assessed`; genuine native Trivy acceptance remains open.
 
 Targeted unit, contract, integration and SDK E2E tests use the unchanged reviewed
 archive/worker/handwritten oracle. They exercise all eight original scenarios,

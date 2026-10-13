@@ -1,7 +1,8 @@
 # fuzzy1337.scan_commands
 
-Explicit local workspace, scope, foreground Quick Scan and exact-confirmed Nuclei commands share the
-existing authoritative stores. Commands never infer consent from registration,
-model state or a selected shell object. See ADR 0037 and the Quick Scan guide.
+Explicit workspace, scope, foreground Quick Scan, exact-confirmed Nuclei and closed
+synthetic image commands share the existing authoritative stores. Commands never
+infer consent from registration, model state or a selected shell object. See
+ADR 0037, ADR 0056 and the Quick Scan and image workflow guides.
 
 ::: fuzzy1337.scan_commands

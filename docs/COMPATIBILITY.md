@@ -180,8 +180,11 @@ envelopes and acquisition provenance; `fuzzy1337.synthetic_images` remains the
 single interpretation owner. One governed job composes independent VERSION/SCAN runs,
 selected-material and six-role evidence, final current paired acceptance, durable
 model/workspace CAS saves and separate JSON/SARIF publication, as described in
-`docs/IMAGE_WORKFLOW.md`. Genuine supplied Trivy acceptance and a CLI image entry
-remain separate; native import and reviewed worker/builder/oracle bytes are unchanged.
+`docs/IMAGE_WORKFLOW.md`. The Experimental `1337 scan image --profile synthetic`
+consumer calls that same workflow with explicit selected-file read consent,
+ARTIFACT scope and SAFE capability approval (ADR 0056). Genuine supplied Trivy
+acceptance remains separate; native import and reviewed worker/builder/oracle
+bytes are unchanged.
 
 `fuzzy1337.discovery` and `fuzzy1337.adapters.native_http` are Experimental
 Python producer/sensor APIs at contract version `1`. ADR 0036 and
