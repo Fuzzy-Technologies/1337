@@ -9,6 +9,8 @@ import asyncio
 import hashlib
 import io
 import json
+import socket
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -56,12 +58,52 @@ from fuzzy1337.scope import (
 from fuzzy1337.workspace import LocalWorkspaceStore
 
 
+@pytest.fixture(scope="module")
+def owned_runner() -> Iterator[asyncio.Runner]:
+    """Initialize owned Windows loop self-pipes before function-scoped network denial."""
+
+    with asyncio.Runner() as runner:
+        yield runner
+
+
+@pytest.fixture
+def runner(owned_runner: asyncio.Runner) -> Iterator[asyncio.Runner]:
+    """Reuse the initialized loop and reap every test-owned task after each scenario."""
+
+    yield owned_runner
+
+    async def Cleanup() -> None:
+        """Cancel and await residual tasks while preserving the unchanged network guard."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    owned_runner.run(Cleanup())
+
+
 def Policy() -> ImpactPolicy:
     """Declare only the finite provider capability; no invocation is approved here."""
 
     return ImpactPolicy("owned-nuclei", maximum_impact=ImpactLevel.STANDARD,
         permissions=(CapabilityPermission("web.http-template-check", "native.nuclei",
                                           ImpactLevel.STANDARD),))
+
+
+def test_OwnedLoopKeepsTargetConnectionsDenied(runner: asyncio.Runner) -> None:
+    """Preinitialized runtime self-pipes do not exempt scanner work from unit network denial."""
+
+    async def Connect() -> None:
+        """Attempt a target connection under the unchanged function-scoped guard."""
+
+        with socket.socket() as client:
+            with pytest.raises(RuntimeError, match="must not access the network"):
+                client.connect(("127.0.0.1", 9))
+
+    runner.run(Connect())
 
 
 def test_ExactExistingPolicySerializationRoundTrips(tmp_path: Path) -> None:
@@ -76,7 +118,8 @@ def test_ExactExistingPolicySerializationRoundTrips(tmp_path: Path) -> None:
     b'{"key":1,"key":2}', b'{"key":NaN}', b'{"key":Infinity}', b'{"key":1e999}', b'\xff',
     b'null null', b'[' * 19 + b'0' + b']' * 19, b'[' + b'0,' * 4100 + b'0]',
     b' ' * (256 * 1024 + 1), b'1.2',
-])
+], ids=["duplicate-key", "nan", "infinity", "overflow", "invalid-utf8", "trailing-value",
+        "depth-budget", "node-budget", "byte-budget", "unsupported-float"])
 def test_StrictBoundedJsonRejectsAmbiguity(tmp_path: Path, raw: bytes) -> None:
     """Duplicate, nonfinite, oversized, deep and unsupported values fail closed."""
 
@@ -300,12 +343,14 @@ def portable_workflow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 @pytest.mark.parametrize("mode,expected", [
     ("match", 0), ("empty", 0), ("invalid", 4), ("fail", 4), ("timeout", 4), ("output-limit", 4),
 ])
-def test_PortableWorkflowComposesTruthfulOwnedBoundaries(portable_workflow, mode, expected):
+def test_PortableWorkflowComposesTruthfulOwnedBoundaries(
+    portable_workflow, mode, expected, runner: asyncio.Runner,
+):
     """Portable synthetic transport exercises actual job/evidence/core/model outcomes."""
 
     root, target, profile, executable, approval, probe = portable_workflow
     probe["mode"] = mode
-    summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+    summary = runner.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                        executable, Policy, confirmation=approval))
     assert summary.ExitCode() == expected, "Synthetic transport must preserve its actual outcome."
     assert len(summary.snapshot.artifacts) == 2, "Every returned terminal stream is retained."
@@ -315,11 +360,11 @@ def test_PortableWorkflowComposesTruthfulOwnedBoundaries(portable_workflow, mode
 
 
 @pytest.mark.parametrize("approval", [None, PolicyConfirmation("0" * 64, "approval:wrong")])
-def test_PortableMissingAndStalePlanDenial(portable_workflow, approval):
+def test_PortableMissingAndStalePlanDenial(portable_workflow, approval, runner: asyncio.Runner):
     """Portable policy tests preserve the actual unchanged exact-confirmation boundary."""
 
     root, target, profile, executable, _, probe = portable_workflow
-    summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+    summary = runner.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                        executable, Policy, confirmation=approval))
     assert summary.ExitCode() == 3, "STANDARD cannot execute without an exact-plan confirmation."
     assert not probe["executed"], "The denied transport boundary must never be invoked."
@@ -329,6 +374,7 @@ def test_PortableMissingAndStalePlanDenial(portable_workflow, approval):
 @pytest.mark.parametrize("mutation", ["owner", "policy", "material"])
 def test_PortableFreshAuthorityAndMaterialBeforeLaunchAndSave(
     portable_workflow, monkeypatch: pytest.MonkeyPatch, stage: str, mutation: str,
+    runner: asyncio.Runner,
 ) -> None:
     """Every portable critical policy/material seam rejects changes without target execution."""
 
@@ -379,7 +425,7 @@ def test_PortableFreshAuthorityAndMaterialBeforeLaunchAndSave(
 
         monkeypatch.setattr(nucleiscan, "ApplyVerifiedFindings", Apply)
 
-    summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+    summary = runner.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                        executable, CurrentPolicy, confirmation=approval))
     assert summary.ExitCode() in (3, 4), "Changed exact scope/policy/material cannot claim success."
     assert summary.model_revision == 0, "New canonical Findings require final current authority."
@@ -388,7 +434,7 @@ def test_PortableFreshAuthorityAndMaterialBeforeLaunchAndSave(
 @pytest.mark.parametrize("owner", ["model", "workspace"])
 @pytest.mark.parametrize("error_type", [OSError, PermissionError])
 def test_PortableStorageOwnerFailureRemainsExplicit(
-    portable_workflow, monkeypatch, owner, error_type,
+    portable_workflow, monkeypatch, owner, error_type, runner: asyncio.Runner,
 ):
     """Portable Save failures retain actual acquired bytes and never report completion."""
 
@@ -401,13 +447,13 @@ def test_PortableStorageOwnerFailureRemainsExplicit(
 
     monkeypatch.setattr(LocalModelStore if owner == "model" else LocalWorkspaceStore,
                         "Save", FailSave)
-    summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+    summary = runner.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                        executable, Policy, confirmation=approval))
     assert summary.ExitCode() == 4, "Durable owner failure must prevent completed state."
     assert len(summary.snapshot.artifacts) == 2, "Synthetic transport raw streams remain acquired."
 
 
-def test_PortablePresentationCancellationAndFailure(portable_workflow):
+def test_PortablePresentationCancellationAndFailure(portable_workflow, runner: asyncio.Runner):
     """Portable owner cleanup handles consumer cancellation and failure without orphaned work."""
 
     root, target, profile, executable, approval, probe = portable_workflow
@@ -433,7 +479,7 @@ def test_PortablePresentationCancellationAndFailure(portable_workflow):
 
         return await task
 
-    summary = asyncio.run(Scenario())
+    summary = runner.run(Scenario())
     assert summary.ExitCode() == 130, "Cancellation must await owned terminal cleanup."
 
     def Fail(event):
@@ -442,7 +488,7 @@ def test_PortablePresentationCancellationAndFailure(portable_workflow):
         raise RuntimeError("synthetic-presentation-failure")
 
     with pytest.raises(RuntimeError, match="presentation"):
-        asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+        runner.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                  executable, Policy, confirmation=approval, on_event=Fail))
 
 
@@ -465,7 +511,7 @@ def test_PortableUnavailableProviderFailsBeforeJob(portable_workflow, monkeypatc
 
 
 def test_PortableGrantExpiryAfterEvidenceReadBlocksCanonicalSave(
-    portable_workflow, monkeypatch: pytest.MonkeyPatch,
+    portable_workflow, monkeypatch: pytest.MonkeyPatch, runner: asyncio.Runner,
 ) -> None:
     """Fresh time after expensive evidence/projection work denies an expired launch grant."""
 
@@ -482,7 +528,7 @@ def test_PortableGrantExpiryAfterEvidenceReadBlocksCanonicalSave(
         return projected
 
     monkeypatch.setattr(nucleiscan, "ApplyVerifiedFindings", Apply)
-    summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+    summary = runner.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
         executable, Policy, confirmation=approval, clock=lambda: clock[0]))
     assert summary.ExitCode() == 3, "Final clock/scope/grant checks must deny expired authority."
     assert probe["executed"], "This probe expires authority after the approved synthetic transport."
@@ -494,7 +540,7 @@ def test_PortableGrantExpiryAfterEvidenceReadBlocksCanonicalSave(
 
 @pytest.mark.parametrize("error_type", [OSError, PermissionError])
 def test_PortableSaveAcknowledgementFailureReopensActualPublishedState(
-    portable_workflow, monkeypatch: pytest.MonkeyPatch, error_type,
+    portable_workflow, monkeypatch: pytest.MonkeyPatch, error_type, runner: asyncio.Runner,
 ) -> None:
     """Atomic publication followed by an owner acknowledgement failure is truthful failed state."""
 
@@ -509,7 +555,7 @@ def test_PortableSaveAcknowledgementFailureReopensActualPublishedState(
         raise error_type(13, "synthetic-acknowledgement-failure")
 
     monkeypatch.setattr(LocalModelStore, "Save", SaveAndFail)
-    summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+    summary = runner.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                        executable, Policy, confirmation=approval))
     assert summary.ExitCode() == 4, (
         "Publication uncertainty cannot become terminal completed state."
@@ -529,6 +575,7 @@ def test_PortableSaveAcknowledgementFailureReopensActualPublishedState(
 @pytest.mark.parametrize("reader", ["policy", "material"])
 def test_PortableFilesystemPermissionFailuresNeverBecomeAuthorityDenial(
     portable_workflow, monkeypatch: pytest.MonkeyPatch, stage: str, reader: str,
+    runner: asyncio.Runner,
 ) -> None:
     """OS access failure at fresh readers remains storage, distinct from typed policy denial."""
 
@@ -562,7 +609,7 @@ def test_PortableFilesystemPermissionFailuresNeverBecomeAuthorityDenial(
 
         monkeypatch.setattr(NucleiAdapter, "PrepareInvocation", Prepare)
 
-    summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
+    summary = runner.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                        executable, ReadPolicy, confirmation=approval))
     assert summary.ExitCode() == 4, (
         "Filesystem access failures must retain the storage exit status."

@@ -18,8 +18,6 @@ jobs:
     name: Nuclei 3.4.10 / owned loopback
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    env:
-      FUZZY1337_NUCLEI_BINARY: ${{ runner.temp }}/nuclei-3.4.10/nuclei
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -102,6 +100,8 @@ jobs:
           executable.chmod(0o700)
           PY
       - name: Execute genuine provider against pytest-owned loopback only
+        env:
+          FUZZY1337_NUCLEI_BINARY: ${{ runner.temp }}/nuclei-3.4.10/nuclei
         run: >-
           uv run --locked --extra dev pytest tests/integration/test_nuclei_native.py
           -o addopts='' -q
