@@ -743,12 +743,22 @@ def test_ClosedRicherVersionBindsOperationFamilyEnvironmentAndExactWire(tmp_path
         str(stage.root / "scratch/cache"), "--config=", "--version", "--format", "json",
     ), "VERSION received SCAN flags or caller-selected argv"
     assert prepared.invocation.timeout_seconds == 3, "VERSION exact deadline drifted"
-    assert prepared.resources.max_stdout_bytes == prepared.resources.max_stderr_bytes == 16 * 1024
+    assert (
+        prepared.resources.max_stdout_bytes == prepared.resources.max_stderr_bytes == 16 * 1024
+    ), (
+        "VERSION must retain its exact 16 KiB capture ceiling for both raw streams"
+    )
     assert prepared.VersionBindings() == {
         "version_run_id": None, "version_grant_id": None, "version_prerequisite_sha256": None,
     }, "VERSION invented an earlier prerequisite"
-    assert "TRIVY_SERVER" not in prepared.environment and "PYTHONPATH" not in prepared.environment
-    assert prepared.environment["PATH"] == "" and prepared.environment["PATHEXT"] == ""
+    assert (
+        "TRIVY_SERVER" not in prepared.environment and "PYTHONPATH" not in prepared.environment
+    ), (
+        "Prepared VERSION must exclude ambient provider and Python environment overlays"
+    )
+    assert prepared.environment["PATH"] == "" and prepared.environment["PATHEXT"] == "", (
+        "Prepared VERSION must disable inherited executable and extension search paths"
+    )
     assert grant.plan.operation == prepared.operation, "Plan omitted its operation"
     assert grant.plan.producer_family == prepared.producer_family, "Plan omitted its family"
     assert prepared.workspace_root == root, "Physical workspace changed"
@@ -803,7 +813,9 @@ def test_RicherPolicyRefusesAmbiguityWithSanitizedTraceback(tmp_path, payload):
 
     rendered = "".join(traceback.format_exception(refused.value))
     assert "OWNED_PRIVATE_POLICY_MARKER" not in rendered, "Private policy escaped diagnostics"
-    assert refused.value.reason == ArtifactDenialReason.MATERIAL_CHANGED
+    assert refused.value.reason == ArtifactDenialReason.MATERIAL_CHANGED, (
+        "Malformed immutable image policy must receive the typed material refusal"
+    )
 
 
 @pytest.mark.parametrize("mutation", ["database-bool", "extra", "fixture", "duplicate", "deep"])
@@ -837,4 +849,6 @@ def test_ObservedVersionParserRejectsUnsupportedRawWire(mutation):
     with pytest.raises(ArtifactDeniedError) as refused:
         ParseObservedImageVersion(payload)
 
-    assert "OWNED_PRIVATE_VERSION_MARKER" not in "".join(traceback.format_exception(refused.value))
+    assert "OWNED_PRIVATE_VERSION_MARKER" not in "".join(
+        traceback.format_exception(refused.value)
+    ), "Observed VERSION refusal must not expose private raw values in its traceback"

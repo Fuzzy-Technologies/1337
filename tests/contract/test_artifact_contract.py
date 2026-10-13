@@ -218,7 +218,9 @@ def test_FrozenActualSchemaOneReplayRetainsOriginalIntentEnvelopeAndReceipt(monk
     assert receipt.grant_id == (
         "artifact-authorization:0bba640c5ae94c199965befa14321f03b5fb5851bb29a855e54af479385a7044"
     ), "Historical grant envelope was upgraded or replaced"
-    assert receipt.run_id == metadata["acceptance"]["run_id"] and receipt.refusal is None
+    assert receipt.run_id == metadata["acceptance"]["run_id"] and receipt.refusal is None, (
+        "Historical replay must retain the original accepted run identity"
+    )
     assert set(metadata["grant"]["plan"]) == {
         "owner_ref", "profile", "provider_version", "input_manifest_sha256",
         "scanner_manifest_sha256", "material_manifest_sha256", "workspace_id",
@@ -253,4 +255,6 @@ def test_ReplayManifestFailuresNeverEchoPrivateUntrustedEnumText(field):
     with pytest.raises(ValueError) as refused:
         VerifyArtifactReplay(metadata, stdout, stderr)
 
-    assert "OWNED_PRIVATE_REPLAY_MARKER" not in "".join(traceback.format_exception(refused.value))
+    assert "OWNED_PRIVATE_REPLAY_MARKER" not in "".join(
+        traceback.format_exception(refused.value)
+    ), "Replay refusal must not expose private raw manifest values in its traceback"

@@ -753,16 +753,36 @@ def test_RealImageVersionScanPairHasSeparateRunsAndBoundOriginalPrerequisite(tmp
         (proof.outcome, proof.prepared, proof.stage), scan, lambda: context
     )
     outcome, prepared, stage = scan
-    assert proof.stage.root != stage.root and proof.stage.lease_id != stage.lease_id
+    assert proof.stage.root != stage.root and proof.stage.lease_id != stage.lease_id, (
+        "VERSION and SCAN must retain separate original physical stages and single-run leases"
+    )
     assert proof.outcome.run_id != outcome.run_id, "SCAN borrowed VERSION's actual run"
-    assert proof.outcome.grant.authorization != outcome.grant.authorization
+    assert proof.outcome.grant.authorization != outcome.grant.authorization, (
+        "SCAN must receive its own operation-bound authorization instead of borrowing VERSION"
+    )
     assert proof.outcome.manifests == outcome.manifests, "Selected content pair changed"
-    assert outcome.grant.plan.version_run_id == proof.outcome.run_id
-    assert outcome.grant.plan.version_grant_id == proof.outcome.grant.authorization.authorization_id
-    assert outcome.grant.plan.version_prerequisite_sha256 == proof.Digest()
-    assert prepared.VersionBindings()["version_prerequisite_sha256"] == proof.Digest()
-    assert outcome.Metadata()["schema_version"] == proof.outcome.Metadata()["schema_version"] == 2
-    assert json.loads(proof.outcome.raw_result.stdout)["Version"] == "0.75.0-synthetic"
+    assert outcome.grant.plan.version_run_id == proof.outcome.run_id, (
+        "SCAN intent must bind the actual original VERSION run"
+    )
+    assert (
+        outcome.grant.plan.version_grant_id == proof.outcome.grant.authorization.authorization_id
+    ), (
+        "SCAN intent must bind the actual original VERSION authorization"
+    )
+    assert outcome.grant.plan.version_prerequisite_sha256 == proof.Digest(), (
+        "SCAN intent must bind the complete original VERSION prerequisite digest"
+    )
+    assert prepared.VersionBindings()["version_prerequisite_sha256"] == proof.Digest(), (
+        "The prepared SCAN request must retain the same original prerequisite as its grant"
+    )
+    assert (
+        outcome.Metadata()["schema_version"] == proof.outcome.Metadata()["schema_version"] == 2
+    ), (
+        "Both actual operation outcomes must preserve schema-2 provenance"
+    )
+    assert json.loads(proof.outcome.raw_result.stdout)["Version"] == "0.75.0-synthetic", (
+        "Actual VERSION stdout must retain the reviewed synthetic provider version"
+    )
     assert json.loads(outcome.raw_result.stdout)["Results"][0]["Vulnerabilities"] == (
         [] if scenario == "no_findings" else [{
             "VulnerabilityID": "CVE-2099-0001", "PkgID": "owned-1", "PkgName": "Owned_Lib",
@@ -770,8 +790,12 @@ def test_RealImageVersionScanPairHasSeparateRunsAndBoundOriginalPrerequisite(tmp
         }]
     ), "Exact owned raw wire changed before interpretation"
     assert prepared.invocation.timeout_seconds == 30, "Richer SCAN default changed"
-    assert prepared.resources.max_stdout_bytes == 4 * 1024 * 1024
-    assert prepared.resources.max_stderr_bytes == 1024 * 1024
+    assert prepared.resources.max_stdout_bytes == 4 * 1024 * 1024, (
+        "Richer SCAN must retain its reviewed 4 MiB stdout capture ceiling"
+    )
+    assert prepared.resources.max_stderr_bytes == 1024 * 1024, (
+        "Richer SCAN must retain its reviewed 1 MiB stderr capture ceiling"
+    )
     assert prepared.invocation.argv[9:] == (
         "image", "--cache-backend", "memory", "--input", str(stage.root / "input/image.tar"),
         "--format", "json", "--scanners", "vuln", "--disable-telemetry", "--offline-scan",
@@ -822,7 +846,9 @@ def test_RealRejectedVersionKeepsRawTruthAndCannotBecomeScanProof(tmp_path, fail
         ArtifactVersionProof(outcome, prepared, stage)
 
     assert VerifyArtifactReplay(outcome.Metadata(), outcome.raw_result.stdout,
-                                outcome.raw_result.stderr) == outcome.acceptance
+                                outcome.raw_result.stderr) == outcome.acceptance, (
+        "Rejected VERSION replay must retain the actual original refusal receipt"
+    )
 
 
 @pytest.mark.parametrize("scenario,termination", [
@@ -844,9 +870,13 @@ def test_RealRicherScanFailuresRetainOriginalVersionAndBothRawOutcomes(
     grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=AT)
     outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
     assert outcome.raw_result.termination == termination, "SCAN termination was hidden"
-    assert outcome.acceptance.refusal == ArtifactDenialReason.EXECUTION_FAILED
+    assert outcome.acceptance.refusal == ArtifactDenialReason.EXECUTION_FAILED, (
+        "Actual SCAN provider or capture failure must refuse successful acceptance"
+    )
     assert outcome.raw_result.stdout, "SCAN failure discarded bounded original bytes"
-    assert proof.outcome.raw_result.execution.state == ExecutionState.SUCCEEDED
+    assert proof.outcome.raw_result.execution.state == ExecutionState.SUCCEEDED, (
+        "A failed SCAN must preserve the independently successful original VERSION result"
+    )
 
     with pytest.raises(ArtifactDeniedError):
         executor.ValidatePairAcceptanceFresh(
@@ -855,7 +885,9 @@ def test_RealRicherScanFailuresRetainOriginalVersionAndBothRawOutcomes(
         )
 
     assert VerifyArtifactReplay(outcome.Metadata(), outcome.raw_result.stdout,
-                                outcome.raw_result.stderr) == outcome.acceptance
+                                outcome.raw_result.stderr) == outcome.acceptance, (
+        "Failed SCAN replay must retain the actual original refusal receipt"
+    )
 
 
 def test_SameMaterialAlternateVersionCannotReplaceIssuedScanPrerequisite(tmp_path):
@@ -924,7 +956,9 @@ def test_VersionPrerequisiteIsFreshAtScanIssuanceAndLaunch(tmp_path, change):
             prepared, stage, grant, lambda: current, on_event=events.append
         ))
 
-    assert not any(event.kind == ExecutionEventKind.STARTED for event in events)
+    assert not any(event.kind == ExecutionEventKind.STARTED for event in events), (
+        "A stale VERSION prerequisite must prevent the SCAN process from starting"
+    )
     assert not tuple((stage.root / "scratch").iterdir()), "Stale VERSION began SCAN"
     assert proof.outcome.raw_result.stdout, "Refusal erased original VERSION capture"
 
@@ -965,7 +999,9 @@ def test_FinalPairBarrierRefreshesVersionAfterAllScanHashing(tmp_path, monkeypat
             (proof.outcome, proof.prepared, proof.stage), scan, lambda: current
         )
 
-    assert outcome.raw_result.stdout and proof.outcome.raw_result.stdout
+    assert outcome.raw_result.stdout and proof.outcome.raw_result.stdout, (
+        "Fresh pair refusal must preserve both actual original stdout captures"
+    )
     assert prepared.version_proof == proof, "Refusal swapped the actual prerequisite"
 
 
@@ -995,9 +1031,15 @@ def test_RicherScanPostRunVersionExpiryKeepsBothActualResults(tmp_path):
     outcome = asyncio.run(executor.Execute(
         prepared, stage, grant, lambda: context, on_event=OnEvent
     ))
-    assert outcome.raw_result.execution.state == ExecutionState.SUCCEEDED
-    assert outcome.acceptance.refusal == ArtifactDenialReason.GRANT_EXPIRED
-    assert outcome.raw_result.stdout and proof.outcome.raw_result.stdout
+    assert outcome.raw_result.execution.state == ExecutionState.SUCCEEDED, (
+        "Post-run VERSION expiry must preserve the actual successful SCAN process state"
+    )
+    assert outcome.acceptance.refusal == ArtifactDenialReason.GRANT_EXPIRED, (
+        "Expired original VERSION must refuse new SCAN acceptance through the grant boundary"
+    )
+    assert outcome.raw_result.stdout and proof.outcome.raw_result.stdout, (
+        "Post-run VERSION expiry must retain both original operation stdout captures"
+    )
     assert outcome.grant.valid_until > proof.outcome.grant.valid_until, (
         "The test must expire VERSION while SCAN's own grant still remains current"
     )
@@ -1040,7 +1082,9 @@ def test_VersionGrantNeverLaunchesScanAndVersionNeverTakesAnotherPrerequisite(tm
             prepared, stage, proof.outcome.grant, lambda: context, on_event=events.append
         ))
 
-    assert not any(event.kind == ExecutionEventKind.STARTED for event in events)
+    assert not any(event.kind == ExecutionEventKind.STARTED for event in events), (
+        "A VERSION authorization must never start the distinct SCAN process"
+    )
     assert not tuple((stage.root / "scratch").iterdir()), "VERSION grant initialized SCAN"
 
     with pytest.raises(ValueError):
