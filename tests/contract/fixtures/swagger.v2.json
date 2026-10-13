@@ -1,0 +1,36 @@
+{
+  "swagger": "2.0",
+  "info": {"title": "Synthetic legacy API", "version": "1"},
+  "host": "127.0.0.1:19001",
+  "basePath": "/v2",
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "securityDefinitions": {"basic": {"type": "basic"}},
+  "security": [{"basic": []}],
+  "definitions": {"User": {
+    "type": "object", "properties": {"name": {"type": "string", "example": "synthetic-private-source-value"}}
+  }},
+  "paths": {
+    "/users/{id}": {
+      "parameters": [{"in": "path", "name": "id", "required": true, "type": "integer"}],
+      "get": {
+        "operationId": "GetLegacyUser",
+        "parameters": [{"in": "query", "name": "tags", "type": "array", "items": {"type": "string"}, "collectionFormat": "multi"}],
+        "responses": {"200": {"description": "Synthetic success"}}
+      },
+      "post": {
+        "operationId": "SaveLegacyUser",
+        "parameters": [{"in": "body", "name": "user", "schema": {"$ref": "#/definitions/User"}}],
+        "responses": {"200": {"description": "Synthetic success"}}
+      }
+    },
+    "/upload": {
+      "post": {
+        "operationId": "UploadLegacy",
+        "consumes": ["multipart/form-data"],
+        "parameters": [{"in": "formData", "name": "file", "required": true, "type": "file"}],
+        "responses": {"200": {"description": "Synthetic success"}}
+      }
+    }
+  }
+}
