@@ -1,5 +1,31 @@
 # Separate verified synthetic image interpretation
 
+## Current consumer slice
+
+The Experimental version-1 `fuzzy1337.synthetic_images` module supplies
+`ApplyVerifiedSyntheticTrivyImages(state, version_proof, scan_outcome,
+scan_prepared, scan_stage, records, workspace_root, *, context_provider)` and
+`VerifySyntheticTrivyImageReplay(records, workspace_root)`. The former derives
+original provenance, verifies exact source records/payloads and builds isolated
+candidates before calling the canonical SDK's `ValidatePairAcceptanceFresh`.
+The final transition uses only pure `ModelState.Apply` and `ApplyFindings` after
+that fresh barrier; the native `ApplyBatch` path performs evidence I/O and is not
+used there. The result remains an in-memory proposal for a separate workflow save.
+
+Replay returns frozen `SyntheticImageReplay` original attribution and receipts,
+including actual SCAN refusals. It verifies the six owning manifests and raw
+bytes, original schema-specific SDK facts, exact detached factory grammar and
+complete cross-stage identity/prerequisite/time relationships. It never inspects
+current physical stages or current scope, calls live acceptance or applies/saves
+a model. Owning record reads are role-bounded before `Get` verifies actual blobs;
+private source decoder chains are sanitized without turning failures into success.
+
+The original proposed consumer plan below records the accepted design rationale.
+Its historical `ValidatePair` placeholder is implemented by the canonical
+`ValidatePairAcceptanceFresh`; all native APIs and evidence roles stay unchanged.
+This slice does not assemble jobs, durable model/workspace commits, product CLI,
+reports or supplied native scanner acceptance. Tasks #142 and #138 remain open.
+
 This is the concrete consumer plan for the accepted [ADR 0048](adr/0048-closed-synthetic-image-operations.md)
 and [operation contract](SYNTHETIC_IMAGE_OPERATIONS_DESIGN.md). It does not add an
 importer, register a producer, authorize a process or complete Task #142. The

@@ -54,6 +54,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added bounded read-only verification of original synthetic image factory
   payloads, sharing live command grammar and preserving recorded path and privilege
   semantics without consulting current authority or granting execution.
+- Added separate six-role synthetic image interpretation and read-only original
+  capture verification, preserving native asset namespaces and operator triage.
+  Interpretation returns an in-memory proposal; product workflows remain separate.
 - Added a bounded standalone Dockerfile/Kubernetes synthetic producer for five
   pinned source fixtures, retaining the independently authored result oracle.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
@@ -134,6 +137,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Recheck synthetic SCAN and its original VERSION prerequisite at the same
   refreshed clock after authority lookup, denying launch or acceptance when only
   VERSION expires during that final lookup.
+- Bound actual owning synthetic image record reads by their role before raw
+  allocation, reject reused physical stage copies and refresh canonical paired
+  authority after evidence/candidate checks before pure model application.
 - Supplied HTML captures retain explicit owner verification and caller-attributed
   source association. Frontier interpretation grants no transport, browser or
   request execution authority and claims completeness only for its input profile.

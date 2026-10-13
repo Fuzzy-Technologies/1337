@@ -11,17 +11,20 @@ Internal `TrivyCandidates` helper constructs the existing object, relation,
 observation and Finding batch. This helper performs no evidence reads or model
 application and does not expose a namespace or authority override. The supported
 native signature, three roles and version record without execution facts remain
-unchanged. A separate future synthetic importer is described in the
-[consumer design](SYNTHETIC_IMAGE_IMPORT_DESIGN.md); its live and historical
-boundaries require the independently accepted richer operation SDK and are not
-implemented by this factoring.
+unchanged. The separate synthetic importer is described in the
+[consumer design](SYNTHETIC_IMAGE_IMPORT_DESIGN.md). Its live and historical
+boundaries use the independently accepted richer operation SDK rather than the
+native report verifier.
 
 The Internal `SyntheticTrivyCandidates` helper prepares a detached batch in the
 fixed `synthetic.trivy:owned-synthetic-image-wire-v1:` asset namespace. It rewrites
 all relations, observation subjects and image references, and uses the distinct
 `synthetic.supply-chain.vulnerability` Finding check. It neither admits evidence
 nor applies or saves model state. Native import behavior is unchanged; live
-six-role synthetic ingestion still requires the reviewed producer/consumer path.
+six-role synthetic ingestion belongs to `fuzzy1337.synthetic_images` and requires
+actual original VERSION/SCAN runs, owning immutable records and canonical fresh
+paired acceptance. It returns an in-memory proposal; persistence and an assembled
+product workflow remain separate work.
 
 ## Identity and correlation
 

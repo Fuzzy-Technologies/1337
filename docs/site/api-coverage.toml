@@ -1,6 +1,12 @@
 schemaVersion = 1
 
 [[surfaces]]
+module = "fuzzy1337.synthetic_images"
+source = "src/fuzzy1337/synthetic_images.py"
+mode = "authored"
+page = "api/fuzzy1337.synthetic_images.md"
+
+[[surfaces]]
 module = "fuzzy1337.sbom_spdx"
 source = "src/fuzzy1337/sbom_spdx.py"
 mode = "authored"
