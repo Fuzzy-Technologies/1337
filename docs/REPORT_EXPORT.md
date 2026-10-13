@@ -15,6 +15,14 @@ the source workspace. `--format` and `--output` are required. Use `report export
 uses the same foreground consumer and retains only `report` in history/replay.
 That protection also covers malformed punctuation, missing spaces and quoting;
 the namespace is sanitized before dispatch, including during empty-line replay.
+Owned terminal input loops apply the same rule to newly appended native
+readline/libedit entries before dispatch, so arrow recall cannot recover the
+arguments. Prior caller entries, disabled automatic history, queued/stream input
+and direct command calls retain their existing ownership. The loop preserves
+caller completion/settings and restores its cursor on EOF or interruption;
+it neither clears history nor reads/writes history files. Native absolute-index
+identification uses at most 100 starting positions; an unidentifiable backend
+fails before accepting input instead of guessing or rewriting prior entries.
 An opened shell model or selected object supplies no implicit workspace.
 `1337 report --help` describes the command without opening a workspace.
 
@@ -82,10 +90,16 @@ helpers, is Internal CLI implementation; this adds no authoritative storage API.
 
 ```bash
 uv run --locked python -m pytest -q --no-cov \
-  tests/unit/test_report_commands.py tests/integration/test_report_export.py
+  tests/unit/test_report_commands.py tests/integration/test_report_export.py \
+  tests/unit/test_shell.py tests/e2e/test_shell_history.py
 ```
 
 Tests use real owned stores and deny process/network operations on product paths.
 They cover triage/failed acquisitions, corrupt/foreign/missing input, quotas before
 both raw-read paths, relocation, changed snapshots, links, output races, safe
 diagnostics, interrupted cleanup and complete post-publication failure truth.
+Fresh owned POSIX PTYs exercise the available libedit/GNU backends, native arrow
+and empty replay, disabled/preexisting/queued history, interruption and GNU EOF.
+Optional unavailable native backends skip explicitly; stream EOF and command
+ownership remain covered independently. The GNU oracle also preserves a cap
+established before or during the loop, using its advancing absolute history base.

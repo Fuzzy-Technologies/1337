@@ -4643,7 +4643,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:c15cd447889514294b60a7e8db37a8d831821137bc638b83a4542cdb620fe5d9"
+sourceHash = "sha256:38a7f46e387265ae33b67490eeb510cd3327639b31a6610ceb0ac5d07cd0108f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -4874,7 +4874,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell.precmd"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:515c4fb7d98e24c5829c425d18eeba053048363dbfd2cb688a32942de9e7b0c5"
+sourceHash = "sha256:c2c769e39361ac2cd0fb7e6f72383865dc503627c1f8768c8e64cd3007963f5a"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9179,5 +9179,60 @@ reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
 
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.AfterCommand"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:bca8b44cdbda55f6e996ae5d50e391c7643298130c948ecd1a7f997257193c4f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.CommandLoop"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:1dfd9b07232421145601a9d0a2932940b172cf80d64db9a4ee5a48e4579db835"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.NativeInputHistory"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:f0887fd4d79cfef6816a38b05d7a5ac725a660fe734a1a6be7d926b1bf0159ed"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.NativeInputHistory.Open"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:85d02abe9323e8c1ffa9ec28a0ac2f889cc918d5aa37226684093b805f63b1be"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.NativeInputHistory.Reconcile"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:d8b9ab4c314c7eb027752f1f399fc0c551634288c2e1ab5fa60433d1c7516cca"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
 [units.translations.zh-cn]
 state = "missing"

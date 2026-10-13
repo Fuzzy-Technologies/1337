@@ -20,6 +20,14 @@ outcome, not report bytes. Shell history/empty-line replay retains only the
 scan, job, subprocess, network call, source synchronization or implicit workspace.
 History/replay classification uses the actual shell dispatch grammar, including
 punctuation or missing-space forms, before any product argument is retained.
+For owned raw terminal loops this includes native readline/libedit auto-history:
+pin the existing absolute-index boundary before input and replace only newly
+appended protected input with its namespace before dispatch. Preserve caller
+entries/settings, disabled auto history and unrelated command-time additions;
+queued, stream and direct inputs do not claim native entries. Native lookup is
+bounded to 100 starting indices and refuses unidentifiable history before input.
+EOF/interruption restores the loop cursor and framework completer, without
+clearing global history, changing auto-history configuration or accessing files.
 
 Open the explicitly selected workspace and model through `LocalWorkspaceStore`
 and `LocalModelStore`. Open every scope named by workspace references, model
@@ -94,6 +102,9 @@ missing, corrupt and foreign scope/evidence, older unused acquisitions, triage,
 empty/failed-source reports, relocation, exact schemas/digests, quotas, changed
 inputs, atomic failures/concurrent creation and unchanged source bytes. Deny any
 process/network operation in consumer tests; no browser or external target is used.
+Fresh owned PTY tests exercise real supported native backends, arrow/empty replay,
+disabled/queued/preexisting history, advanced capped GNU indices, interruption
+and actual GNU EOF; optional backend absence is explicit rather than a PASS.
 Static documentation/locales and the canonical locked full gate remain required.
 
 This slice advances #40's machine-output path. Concurrent TUI, scanner enrichment,
