@@ -9,6 +9,9 @@ parallel store and performs no target execution or network access.
 `ApplyVerifiedCycloneDx` and exported version/resource constants form the supported
 surface. Other helpers remain Internal. Image config/manifest digests are distinct;
 package identities include exact installed version and qualifier context.
+The Internal `TrivyCandidates` helper constructs a pure candidate batch only after
+the native wrapper's unchanged evidence/version checks; it grants no acceptance
+and exposes no caller-selected namespace. No synthetic importer is implemented.
 Manifests/bytes and their source/workspace/scope/execution attribution are verified
 before returning one in-memory transition. Scanner accuracy, signature/cache
 attestation, complete PURL support, SPDX and nested component profiles are outside
