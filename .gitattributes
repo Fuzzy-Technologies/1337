@@ -1,3 +1,4 @@
 # Preserve exact upstream/golden bytes across platform checkout settings.
 tests/contract/fixtures/reporting/sarif-schema-2.1.0.json -text whitespace=cr-at-eol
 tests/contract/fixtures/reporting/snapshot.* -text
+tests/fixtures/image_scan/producer.py text eol=lf
