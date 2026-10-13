@@ -20,4 +20,10 @@ namespace. Native image APIs, raw evidence and operator triage remain unchanged.
 Neither valid byte attribution nor zero Findings proves genuine Trivy acceptance,
 scanner completeness, publisher authentication or physical isolation.
 
+The supported surface is the unchanged `__all__` declaration: the contract
+constant, `SyntheticImageReplay` and the two live/replay boundaries. `Capture`,
+`ImageEvidenceStore`, `Fields`, `Detached`, `VerifyOperation`, `VerifyPair`,
+`StageCopies` and `VerifyRecords` remain Internal implementation helpers; their
+PascalCase names follow the repository naming contract without expanding the API.
+
 ::: fuzzy1337.synthetic_images

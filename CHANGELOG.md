@@ -71,6 +71,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Preserved complementary page-provider loop-isolation and local-demo startup
+  regressions, with active unit-network denial and subprocess phase diagnostics
+  (Refs #40, #59).
+
 - Reject test and suite budgets outside the supported 1–3600-second integer
   range before child startup or stale-report deletion, using fixed diagnostics
   rather than overflowing operating-system timer conversion.

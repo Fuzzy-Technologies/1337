@@ -80,7 +80,7 @@ class SyntheticImageReplay:
 
 
 @dataclass(frozen=True, slots=True)
-class _Capture:
+class Capture:
     """Internal detached original facts and bounded stream bytes after record verification."""
 
     envelope: dict[str, Any]
@@ -91,7 +91,7 @@ class _Capture:
     execution: AdapterExecution
 
 
-class _ImageEvidenceStore(LocalEvidenceStore):
+class ImageEvidenceStore(LocalEvidenceStore):
     """Bound actual owning-manifest references before Get's eager raw verification."""
 
     def Read(self, reference: EvidenceReference) -> bytes:
@@ -121,7 +121,7 @@ class _ImageEvidenceStore(LocalEvidenceStore):
         return super().Read(reference)
 
 
-def _Fields(value: object, expected: set[str]) -> dict[str, Any]:
+def Fields(value: object, expected: set[str]) -> dict[str, Any]:
     """Require exact consumer-owned fields using the existing workspace schema validator.
 
     Args:
@@ -135,7 +135,7 @@ def _Fields(value: object, expected: set[str]) -> dict[str, Any]:
     return cast(dict[str, Any], WorkspaceFields(value, expected, "synthetic image capture"))
 
 
-def _Detached(value: object) -> dict[str, Any]:
+def Detached(value: object) -> dict[str, Any]:
     """Render an original typed SDK payload with its owning canonical serializer.
 
     Args:
@@ -148,9 +148,9 @@ def _Detached(value: object) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(SerializeContract(value)))
 
 
-def _VerifyOperation(
+def VerifyOperation(
     records: dict[str, EvidenceRecord], raw: dict[str, bytes], operation: str,
-) -> _Capture:
+) -> Capture:
     """Verify one original operation envelope, terminal facts and three exact acquisitions.
 
     Args:
@@ -172,7 +172,7 @@ def _VerifyOperation(
     if raw[roles[2]].startswith(b"\xef\xbb\xbf"):
         raise ValueError("synthetic image capture requires UTF-8 without a byte-order marker")
 
-    envelope = _Fields(ParseJson(raw[roles[2]], 1024 * 1024), {
+    envelope = Fields(ParseJson(raw[roles[2]], 1024 * 1024), {
         "schema_version", "artifact_metadata", "prepared_payload", "stage_payload",
         "collection_started_at", "collection_finished_at",
     })
@@ -232,10 +232,10 @@ def _VerifyOperation(
         ):
             raise ValueError("synthetic image evidence differs from original operation attribution")
 
-    return _Capture(envelope, plan, receipt, raw[roles[0]], raw[roles[1]], execution)
+    return Capture(envelope, plan, receipt, raw[roles[0]], raw[roles[1]], execution)
 
 
-def _VerifyPair(version: _Capture, scan: _Capture) -> str:
+def VerifyPair(version: Capture, scan: Capture) -> str:
     """Verify original two-operation relationships without performing current authorization.
 
     Args:
@@ -294,13 +294,13 @@ def _VerifyPair(version: _Capture, scan: _Capture) -> str:
 
     ParseObservedImageVersion(version.stdout)
 
-    if _StageCopies(version_stage) & _StageCopies(scan_stage):
+    if StageCopies(version_stage) & StageCopies(scan_stage):
         raise ValueError("synthetic image pair reuses original physical staging material")
 
     return prerequisite
 
 
-def _StageCopies(stage_payload: dict[str, Any]) -> set[tuple[int, ...]]:
+def StageCopies(stage_payload: dict[str, Any]) -> set[tuple[int, ...]]:
     """Collect every original physical staged copy independently of its partition or file name.
 
     Args:
@@ -321,9 +321,9 @@ def _StageCopies(stage_payload: dict[str, Any]) -> set[tuple[int, ...]]:
     return identities
 
 
-def _VerifyRecords(
+def VerifyRecords(
     records: tuple[EvidenceRecord, ...], workspace_root: Path,
-) -> tuple[SyntheticImageReplay, _Capture, _Capture]:
+) -> tuple[SyntheticImageReplay, Capture, Capture]:
     """Verify six bounded original store-owned records before admitting any interpretation.
 
     Args:
@@ -353,7 +353,7 @@ def _VerifyRecords(
     try:
         workspace = LocalWorkspaceStore(workspace_root)
         workspace_id = workspace.Open().workspace_id
-        store = _ImageEvidenceStore(workspace.root / "evidence")
+        store = ImageEvidenceStore(workspace.root / "evidence")
 
     except (ValueError, TypeError, OverflowError, RecursionError):
         raise ValueError("synthetic image owning workspace cannot be verified") from None
@@ -381,9 +381,9 @@ def _VerifyRecords(
             raise type(error)("synthetic image source evidence cannot be verified") from None
 
     try:
-        version = _VerifyOperation(by_role, raw, "version")
-        scan = _VerifyOperation(by_role, raw, "scan")
-        prerequisite = _VerifyPair(version, scan)
+        version = VerifyOperation(by_role, raw, "version")
+        scan = VerifyOperation(by_role, raw, "scan")
+        prerequisite = VerifyPair(version, scan)
         provenance = ModelProvenance(
             "synthetic.trivy", scan.acceptance.run_id, scan.envelope["collection_finished_at"],
             scan.plan["scope_reference"], scan.plan["target_reference"], _VERSION,
@@ -422,7 +422,7 @@ def VerifySyntheticTrivyImageReplay(
         OSError: Owning workspace metadata cannot be read.
     """
 
-    return _VerifyRecords(records, workspace_root)[0]
+    return VerifyRecords(records, workspace_root)[0]
 
 
 def ApplyVerifiedSyntheticTrivyImages(
@@ -460,7 +460,7 @@ def ApplyVerifiedSyntheticTrivyImages(
     ):
         raise ValueError("synthetic image application requires the original typed runs and model")
 
-    facts, version, scan = _VerifyRecords(records, workspace_root)
+    facts, version, scan = VerifyRecords(records, workspace_root)
 
     if state.workspace_id != facts.workspace_id or scan.acceptance.refusal is not None:
         raise ValueError("synthetic image application requires a successful original owned SCAN")
@@ -471,8 +471,8 @@ def ApplyVerifiedSyntheticTrivyImages(
     ):
         if (
             capture.envelope["artifact_metadata"] != outcome.Metadata()
-            or capture.envelope["prepared_payload"] != _Detached(prepared.Payload())
-            or capture.envelope["stage_payload"] != _Detached(ArtifactStagePayload(stage))
+            or capture.envelope["prepared_payload"] != Detached(prepared.Payload())
+            or capture.envelope["stage_payload"] != Detached(ArtifactStagePayload(stage))
             or capture.stdout != outcome.raw_result.stdout
             or capture.stderr != outcome.raw_result.stderr
         ):

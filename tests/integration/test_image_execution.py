@@ -73,7 +73,7 @@ class DecisionDateTime(datetime):
     current_time = AT + timedelta(seconds=60)
 
     @classmethod
-    def now(cls, tz=None):
+    def Now(cls, tz=None):
         """Return the current aware test decision time without replacing any verifier."""
 
         return cls.current_time
@@ -84,6 +84,8 @@ def decision_clock(monkeypatch):
     """Keep the canonical SDK's own clock within the original owned fixture consent window."""
 
     monkeypatch.setattr(DecisionDateTime, "current_time", AT + timedelta(seconds=60))
+    # datetime owns the external callback name; keep its bound PascalCase implementation.
+    monkeypatch.setattr(DecisionDateTime, "now", DecisionDateTime.Now)
     monkeypatch.setattr(artifact_policy, "datetime", DecisionDateTime)
 
 
@@ -862,7 +864,9 @@ def test_CurrentMaterialLossRetainsDenialWithoutPrivatePhysicalPath(tmp_path, mo
         """Remove only owned VERSION fixture material after original candidate construction."""
 
         candidates = original_candidates(*arguments)
-        (selected.proof.stage.root / "material/policy.json").unlink()
+        policy_path = selected.proof.stage.root / "material/policy.json"
+        policy_path.chmod(0o600)
+        policy_path.unlink()
 
         return candidates
 
