@@ -1,0 +1,67 @@
+{
+  "fixture_kind": "handwritten-reachability-oracle",
+  "fixture_version": 1,
+  "path_order": "Compare this independently enumerated set by hop count, then resolved canonical relation-reference tuples.",
+  "phase_vector_order": "Each event_states/key_states entry pairs positionally with the corresponding symbolic event_paths/key_paths entry before canonical sorting. Sort each route together with its paired state; the remediation portal-identity route alone stays BLOCKED.",
+  "event_paths": [
+    ["source-portal", "portal-identity", "identity-billing", "billing-event"],
+    ["source-detour", "detour-identity", "identity-billing", "billing-event"],
+    ["source-portal", "portal-detour", "detour-identity", "identity-billing", "billing-event"]
+  ],
+  "key_paths": [
+    ["source-portal", "portal-identity", "identity-billing", "billing-key"],
+    ["source-detour", "detour-identity", "identity-billing", "billing-key"],
+    ["source-portal", "portal-detour", "detour-identity", "identity-billing", "billing-key"]
+  ],
+  "phase_expectations": [
+    {"phase": "initial", "event_states": ["UNKNOWN", "UNKNOWN", "UNKNOWN"], "key_states": ["BLOCKED", "BLOCKED", "BLOCKED"], "decisive_key_confidence": [1.0]},
+    {"phase": "potential", "event_states": ["POTENTIAL", "POTENTIAL", "POTENTIAL"], "key_states": ["BLOCKED", "BLOCKED", "BLOCKED"]},
+    {"phase": "likely", "event_states": ["LIKELY", "LIKELY", "LIKELY"], "key_states": ["BLOCKED", "BLOCKED", "BLOCKED"]},
+    {"phase": "confirmed", "event_states": ["CONFIRMED", "CONFIRMED", "CONFIRMED"], "key_states": ["BLOCKED", "BLOCKED", "BLOCKED"]},
+    {"phase": "remediation", "event_states": ["BLOCKED", "CONFIRMED", "CONFIRMED"], "key_states": ["BLOCKED", "BLOCKED", "BLOCKED"]},
+    {"phase": "conflicting-barrier", "event_states": ["UNKNOWN", "UNKNOWN", "UNKNOWN"], "key_states": ["UNKNOWN", "UNKNOWN", "UNKNOWN"], "billing_key_reason": "conflicting-states"}
+  ],
+  "cycle_oracle": {
+    "for_targets": ["event", "key"],
+    "forbidden_path_edges": ["identity-portal-cycle", "detour-self-cycle"],
+    "repeated_nodes": false,
+    "complete_without_query_limits": true
+  },
+  "search_cases": [
+    {"id": "complete-event", "phase": "confirmed", "source": "source", "target": "event", "path_count": 3, "complete": true, "no_candidate_path": false},
+    {"id": "complete-isolated", "phase": "confirmed", "source": "source", "target": "isolated", "path_count": 0, "complete": true, "no_candidate_path": true, "claim_scope": "selected-transition-subgraph-only"},
+    {"id": "cycle-edge-valid-other-query", "phase": "confirmed", "source": "detour", "target": "portal", "expected_paths": [["detour-identity", "identity-portal-cycle"]], "path_count": 1, "complete": true, "no_candidate_path": false},
+    {"id": "exact-limit-complete", "phase": "confirmed", "source": "source", "target": "portal", "selected_transitions": ["source-portal"], "limits": {"max_depth": 1, "max_paths": 1, "max_work": 1, "max_frontier": 1}, "expected_paths": [["source-portal"]], "path_count": 1, "complete": true, "no_candidate_path": false, "reasons": []},
+    {"id": "depth-truncation", "phase": "confirmed", "source": "source", "target": "event", "limits": {"max_depth": 2}, "path_count": 0, "complete": false, "no_candidate_path": false, "reasons": ["depth-limit"]},
+    {"id": "work-truncation", "phase": "confirmed", "source": "source", "target": "event", "limits": {"max_work": 1}, "path_count": 0, "complete": false, "no_candidate_path": false, "reasons": ["work-limit"]},
+    {"id": "frontier-truncation", "phase": "confirmed", "source": "source", "target": "event", "limits": {"max_frontier": 1}, "path_count": 0, "complete": false, "no_candidate_path": false, "reasons": ["frontier-limit"]},
+    {"id": "path-truncation", "phase": "confirmed", "source": "source", "target": "event", "limits": {"max_paths": 1}, "path_count": 1, "first_path": "minimum canonical path from event_paths", "complete": false, "no_candidate_path": false, "reasons": ["path-limit"]},
+    {"id": "zero-hop", "phase": "confirmed", "source": "source", "target": "source", "refusal": "distinct endpoints required"}
+  ],
+  "proof_cases": [
+    {"id": "bare-related-to", "effect": "UNKNOWN", "automatic_confirmation": false},
+    {"id": "native-open-port", "effect": "no inferred transitions", "automatic_confirmation": false},
+    {"id": "confirmed-finding", "effect": "no inferred transitions", "automatic_confirmation": false},
+    {"id": "attack-catalog-membership", "effect": "no inferred transitions", "automatic_confirmation": false},
+    {"id": "equal-revision-changed-model", "effect": "current model version refusal"},
+    {"id": "old-snapshot-assessment", "effect": "UNKNOWN", "reason": "stale-model"},
+    {"id": "missing-retained-basis", "effect": "UNKNOWN", "reason": "missing-basis"},
+    {"id": "expired-support", "effect": "UNKNOWN", "reason": "stale-support"},
+    {"id": "future-support", "effect": "UNKNOWN", "reason": "future-support"},
+    {"id": "support-after-assessment-start", "effect": "UNKNOWN", "reason": "time-order"},
+    {"id": "unknown-hop-before-valid-block", "effect": "BLOCKED", "decisive_confidence": [1.0]},
+    {"id": "blocked-confirmed-conflict-on-same-hop", "effect": "UNKNOWN"},
+    {"id": "stale-and-current-source-on-same-hop", "effect": "UNKNOWN"},
+    {"id": "corrupted-manifest-or-bytes", "effect": "evidence refusal, no partial projection"},
+    {"id": "foreign-workspace-or-scope", "effect": "binding refusal"}
+  ],
+  "authority_oracle": {
+    "state_semantics": "supplied-attestation",
+    "path_semantics": "attested-hop-summary",
+    "aggregate_numeric_confidence": null,
+    "model_writes": false,
+    "scope_registration": false,
+    "execution_authority": false,
+    "network_actions": false
+  }
+}

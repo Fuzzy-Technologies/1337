@@ -280,3 +280,9 @@ module = "fuzzy1337.intelligence"
 source = "src/fuzzy1337/intelligence.py"
 mode = "authored"
 page = "api/fuzzy1337.intelligence.md"
+
+[[surfaces]]
+module = "fuzzy1337.reachability"
+source = "src/fuzzy1337/reachability.py"
+mode = "authored"
+page = "api/fuzzy1337.reachability.md"
