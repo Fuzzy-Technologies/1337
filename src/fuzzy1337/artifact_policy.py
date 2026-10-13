@@ -27,6 +27,7 @@ from fuzzy1337.adapters import (
     ImpactLevel,
     SerializeContract,
 )
+from fuzzy1337.artifact_fixture_worker import ParseFixturePolicy
 from fuzzy1337.artifact_inputs import ArtifactManifest, ArtifactProfile, ArtifactRole, ArtifactStage
 from fuzzy1337.executors import (
     CapabilityDescriptor,
@@ -52,7 +53,7 @@ from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceFields
 # Source updates and matching LF byte identities require independent source review.
 _REVIEWED_PRODUCERS = frozenset(
     {
-        "1030cb0e624adfa627c2d1e95a58dc02b839ce5664b4ea117ddeef3929fc719d",
+        "6cec015e044f290f2f5f48d04156fe1430ba679ee629505100e192459d10ec7a",
     }
 )
 _SYNTHETIC_PROFILES = frozenset(
@@ -347,6 +348,9 @@ def BuildPreparedArtifact(
 
     try:
         stage.Verify(after_run=after_run)
+        with (stage.material.directory / "policy.json").open("rb") as policy_stream:
+            ParseFixturePolicy(policy_stream.read(4097))
+
         stage.root.relative_to(workspace_root)
         LocalWorkspaceStore(workspace_root).Open()
 

@@ -43,7 +43,9 @@ text. Synthetic preparation accepts only the running trusted CPython canonical
 executable and a source-owned producer hash allowlist. The bundled Internal
 `artifact_fixture_worker` is a finite lifecycle oracle; it is not a detector and
 does not issue a clean finding verdict. Reviewed richer fixture identities require
-separate source changes. Real compatible scanner/material acceptance remains
+separate source and policy-schema changes. The initial fixed policy is bounded
+strict UTF-8 JSON: duplicate/nonfinite values and version/type aliases fail before
+grant issuance and in the worker itself. Real compatible scanner/material acceptance remains
 work in #140, #142 and #158; no tool or database is downloaded here.
 
 Build `ArtifactPolicyContext(current_scope, current_policy, owner_ref)` and call

@@ -101,3 +101,25 @@ def test_StandaloneEntryPointAndConfigDirectoryRemainPortable(tmp_path, monkeypa
         runpy.run_path(str(Path(worker.__file__)), run_name="__main__")
 
     assert raised.value.code == 0, "Portable bundled entry point failed"
+
+
+@pytest.mark.parametrize("payload", [
+    b'{"schema_version":true,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+    b'{"schema_version":1.0,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+    b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":"failure","mode":"success"}',
+    b'{"schema_version":NaN,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+    b'{"schema_version":Infinity,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+    b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":[]}',
+    b'\xff',
+])
+def test_AmbiguousJsonCannotTurnFailureIntoSuccess(tmp_path, monkeypatch, payload):
+    """The reviewed wire rejects duplicate/nonfinite/version-alias data before a lifecycle mode."""
+
+    arguments = Arguments(tmp_path, {})
+    Path(arguments[2]).write_bytes(payload)
+    monkeypatch.setattr(sys, "argv", arguments)
+
+    assert worker.Main() == 7, "Malformed material became a successful worker lifecycle"
+
+    with pytest.raises(ValueError):
+        worker.ParseFixturePolicy(payload)

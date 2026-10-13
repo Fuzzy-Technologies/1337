@@ -361,3 +361,22 @@ def test_PassiveCeilingCannotAuthorizeSafeArtifactExecution(tmp_path, ceiling):
 
     with pytest.raises(ArtifactDeniedError):
         ArtifactPolicyEngine().Validate(grant, prepared, stage, changed, at=AT)
+
+
+@pytest.mark.parametrize("payload", [
+    b'{"schema_version":true,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+    b'{"schema_version":1.0,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+    b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":"failure","mode":"success"}',
+    b'{"schema_version":NaN,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+    b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":null}',
+    b'\xff',
+])
+def test_MalformedPinnedMaterialDeniedBeforeGrantOrLaunch(tmp_path, payload):
+    """A content hash cannot make ambiguous JSON policy into approved SAFE material."""
+
+    with pytest.raises(ArtifactDeniedError):
+        OwnedArtifact(tmp_path, policy_payload=payload)
+
+    scratch = tmp_path.resolve() / "workspace/artifacts-stage/scratch"
+
+    assert not tuple(scratch.iterdir()), "Malformed material launched or initialized a run"

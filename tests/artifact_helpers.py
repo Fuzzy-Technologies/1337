@@ -36,6 +36,7 @@ def OwnedArtifact(
     *,
     mode: str = "success",
     profile: ArtifactProfile = ArtifactProfile.SYNTHETIC_IMAGE,
+    policy_payload: bytes | None = None,
 ):
     """Create explicitly selected owned inputs and same-store approved scope fixtures."""
 
@@ -58,6 +59,9 @@ def OwnedArtifact(
             }
         )
     )
+    if policy_payload is not None:
+        policy_file.write_bytes(policy_payload)
+
     name = (
         "image.tar"
         if profile == ArtifactProfile.SYNTHETIC_IMAGE

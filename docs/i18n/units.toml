@@ -8936,3 +8936,36 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_fixture_worker.FixtureFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_fixture_worker.py"
+sourceHash = "sha256:f1eeb74e99f5a9a37fc7ddaaaa5da043c3285eeb1d6b31b74ead60691acf9ecc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_fixture_worker.ParseFixturePolicy"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_fixture_worker.py"
+sourceHash = "sha256:65bd2659e7302d72848d1b911c5337a6f73c09b60f53be7e6e9c2a6134ebb15a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_fixture_worker.RejectFixtureConstant"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_fixture_worker.py"
+sourceHash = "sha256:db686b9eef7967abd2139e0b9d3167335ad5937d05bb92542db2ad029fbdc290"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"

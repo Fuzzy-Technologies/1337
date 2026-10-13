@@ -12,6 +12,80 @@ import stat
 import sys
 import time
 from pathlib import Path
+from typing import NoReturn
+
+
+def FixtureFields(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Reject duplicate policy fields instead of selecting one ambiguous mode.
+
+    Args:
+        pairs: Decoded JSON object fields in source order.
+
+    Returns:
+        Exact unique fields; duplicate names raise ValueError.
+    """
+
+    fields: dict[str, object] = {}
+
+    for name, value in pairs:
+        if name in fields:
+            raise ValueError("fixture policy contains duplicate fields")
+
+        fields[name] = value
+
+    return fields
+
+
+def RejectFixtureConstant(value: str) -> NoReturn:
+    """Reject non-JSON numerical constants without reflecting their input spelling.
+
+    Args:
+        value: Unsupported decoder constant; never interpreted as a lifecycle mode.
+
+    Returns:
+        Never returns; malformed policy raises ValueError.
+    """
+
+    raise ValueError("fixture policy contains a non-JSON constant")
+
+
+def ParseFixturePolicy(payload: bytes) -> str:
+    """Parse only bounded strict UTF-8 JSON with exact version and closed lifecycle mode.
+
+    Args:
+        payload: At most 4,096 explicitly selected immutable policy bytes.
+
+    Returns:
+        One finite typed lifecycle mode; malformed material raises ValueError.
+    """
+
+    if not isinstance(payload, bytes) or len(payload) > 4096:
+        raise ValueError("fixture policy is oversized or not byte content")
+
+    try:
+        policy = json.loads(payload.decode("utf-8"), object_pairs_hook=FixtureFields,
+                            parse_constant=RejectFixtureConstant)
+
+    except (UnicodeError, ValueError) as error:
+        raise ValueError("fixture policy requires strict UTF-8 JSON") from error
+
+    if not isinstance(policy, dict) or set(policy) != {"schema_version", "fixture_id", "mode"}:
+        raise ValueError("fixture policy fields are invalid")
+
+    if (
+        type(policy["schema_version"]) is not int or policy["schema_version"] != 1
+        or policy["fixture_id"] != "owned-artifact-lifecycle-v1"
+    ):
+        raise ValueError("fixture policy version or identity is unsupported")
+
+    mode = policy["mode"]
+
+    if not isinstance(mode, str) or mode not in {
+        "success", "failure", "wait", "overflow", "mutate", "scratch",
+    }:
+        raise ValueError("fixture policy mode is unsupported")
+
+    return mode
 
 
 def Main() -> int:
@@ -50,22 +124,11 @@ def Main() -> int:
 
     parser.add_argument("target", nargs="?")
     arguments = parser.parse_args()
-    policy_bytes = Path(arguments.fixture_policy).read_bytes()
+    try:
+        with Path(arguments.fixture_policy).open("rb") as stream:
+            mode = ParseFixturePolicy(stream.read(4097))
 
-    if len(policy_bytes) > 4096:
-        return 7
-
-    policy = json.loads(policy_bytes)
-
-    if not isinstance(policy, dict) or set(policy) != {"schema_version", "fixture_id", "mode"}:
-        return 7
-
-    if policy["schema_version"] != 1 or policy["fixture_id"] != "owned-artifact-lifecycle-v1":
-        return 7
-
-    mode = policy["mode"]
-
-    if mode not in {"success", "failure", "wait", "overflow", "mutate", "scratch"}:
+    except ValueError:
         return 7
 
     selected = (
