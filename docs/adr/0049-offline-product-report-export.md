@@ -58,6 +58,8 @@ The output's physical parent must already exist and the selected filename must
 be absent. Reject traversal, observed links/reparse points, non-directory parents
 and output inside the source workspace. No overwrite, automatic directory creation
 or raw-evidence copying is provided. This keeps the source workspace unchanged.
+Compare the selected source's physical directory identity with every output
+ancestor to reject case/short-name aliases; unavailable identities fail closed.
 
 Serialize completely before publication. Write a private same-directory temporary
 file, flush/fsync it, publish with an atomic no-clobber hard link, then remove only
@@ -67,6 +69,9 @@ synchronization and atomic publication. Unsupported filesystem hard-link support
 fails explicitly. No fallback may expose a partial file or overwrite existing data.
 A post-publication synchronization/cleanup error reports failure even when a
 complete output already exists; it never removes or mislabels that output.
+After a lost syscall acknowledgement, confirm only a non-following destination
+whose device/inode/size match the original fully written private file. Equal
+foreign content or a competing link/directory never establishes publication.
 The operator must exclude hostile concurrent filesystem writers, as for the stores.
 
 ## Outcome and acceptance

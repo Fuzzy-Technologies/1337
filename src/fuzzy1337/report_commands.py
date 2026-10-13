@@ -230,20 +230,55 @@ def ReportOutputPath(destination: Path, root: Path) -> Path:
     """
 
     destination = RequireReportPath(destination)
+    source_metadata = StoragePathInfo(root)
 
-    if destination.is_relative_to(root):
+    if (
+        source_metadata is None or not stat.S_ISDIR(source_metadata.st_mode)
+        or source_metadata.st_ino <= 0 or destination.is_relative_to(root)
+    ):
         raise ReportFailure("configuration", 2)
 
     for directory in (*reversed(destination.parent.parents), destination.parent):
         metadata = StoragePathInfo(directory)
 
-        if metadata is None or not stat.S_ISDIR(metadata.st_mode):
+        if (
+            metadata is None or not stat.S_ISDIR(metadata.st_mode) or metadata.st_ino <= 0
+            or os.path.samestat(source_metadata, metadata)
+        ):
             raise ReportFailure("configuration", 2)
 
     if StoragePathInfo(destination) is not None:
         raise ReportFailure("configuration", 2)
 
     return destination
+
+
+def ConfirmReportPublication(destination: Path, owned_metadata: os.stat_result | None) -> bool:
+    """Confirm a lost link acknowledgement using only the original private file's identity.
+
+    Args:
+        destination: Selected output inspected without following links or reparse points.
+        owned_metadata: Original fstat identity of the completely written private file.
+
+    Returns:
+        True only for the same physical regular file and size; equal foreign bytes do not count.
+        Missing, unsafe or unreadable metadata cannot confirm a publication.
+    """
+
+    if owned_metadata is None or owned_metadata.st_ino <= 0:
+        return False
+
+    try:
+        observed = StoragePathInfo(destination)
+
+    except (OSError, ValueError):
+        return False
+
+    return (
+        observed is not None and stat.S_ISREG(observed.st_mode)
+        and os.path.samestat(owned_metadata, observed)
+        and owned_metadata.st_size == observed.st_size
+    )
 
 
 def CheckReportSnapshot(root: Path, original: ReportInput) -> None:
@@ -273,6 +308,7 @@ def PublishReport(destination: Path, payload: bytes) -> None:
 
     temporary: Path | None = None
     published = False
+    owned_metadata: os.stat_result | None = None
 
     try:
         with tempfile.NamedTemporaryFile(mode="wb", prefix=".1337-report-", suffix=".pending",
@@ -284,6 +320,7 @@ def PublishReport(destination: Path, payload: bytes) -> None:
 
             stream.flush()
             os.fsync(stream.fileno())
+            owned_metadata = os.fstat(stream.fileno())
 
         os.link(temporary, destination)
         published = True
@@ -292,9 +329,15 @@ def PublishReport(destination: Path, payload: bytes) -> None:
         SyncStorageDirectory(destination.parent)
 
     except KeyboardInterrupt as error:
+        if not published:
+            published = ConfirmReportPublication(destination, owned_metadata)
+
         raise ReportFailure("interrupted", 130, published=published) from error
 
     except OSError as error:
+        if not published:
+            published = ConfirmReportPublication(destination, owned_metadata)
+
         raise ReportFailure("publication", published=published) from error
 
     finally:

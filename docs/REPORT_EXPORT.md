@@ -46,6 +46,11 @@ Publication uses a private same-directory file, flush/fsync, atomic no-clobber
 hard link and owned temporary cleanup; POSIX also synchronizes the parent.
 Existing files and concurrent creators are preserved. Links/reparse points,
 traversal, missing parents and unsupported hard-link filesystems fail explicitly.
+Physical directory identities also reject source aliases such as alternate case
+or short names; unavailable identities fail configuration. If a link commits
+before an interrupt or failure is acknowledged, only the exact original private
+file's device/inode/size can confirm publication. Equal foreign bytes, directories
+and observed links never count, and competing selected files are never removed.
 Exclude hostile concurrent filesystem writers as required by the owning stores.
 If synchronization or cleanup fails after the atomic link, the command reports
 failure while preserving the complete output and `output_published: true`.

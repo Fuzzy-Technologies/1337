@@ -547,3 +547,151 @@ def test_RepeatedInterruptionDuringCleanupPreservesConfirmedPublication(tmp_path
 
     for path in tmp_path.glob(".1337-report-*.pending"):
         path.unlink()
+
+
+@pytest.mark.parametrize("error,status,category", [
+    (KeyboardInterrupt(), 130, "interrupted"), (OSError("owned lost acknowledgement"), 4,
+                                               "publication"),
+])
+def test_CommittedLinkWithLostAcknowledgementRemainsExplicit(
+    tmp_path, monkeypatch, error, status, category,
+):
+    """The filesystem commit can precede Python's success flag or syscall acknowledgement."""
+
+    root, _ = Context(tmp_path)
+    before = Files(root)
+    link = os.link
+
+    def LinkThenFail(source, destination):
+        """Perform the real no-clobber commit before injecting its lost acknowledgement."""
+
+        link(source, destination)
+
+        raise error
+
+    monkeypatch.setattr(commands.os, "link", LinkThenFail)
+    destination = tmp_path / "committed-before-interruption.json"
+    observed, outcome = Run(root, destination)
+    assert observed == status and outcome["failure"] == category, (
+        "A committed but unacknowledged syscall must retain its actual failure outcome."
+    )
+    assert outcome["output_published"] and destination.exists(), (
+        "The exact owned complete file must remain a confirmed publication despite the gap."
+    )
+    Validator().validate(json.loads(destination.read_bytes()))
+    assert hashlib.sha256(destination.read_bytes()).hexdigest() == outcome["report_sha256"], (
+        "Physical reconciliation must identify the fully prepared selected report."
+    )
+    assert not list(tmp_path.glob(".1337-report-*.pending")), (
+        "Only owned temporary data is removed."
+    )
+    assert Files(root) == before, "Acknowledgement recovery cannot write source workspace state."
+
+
+@pytest.mark.parametrize("foreign_kind", ["equal-bytes", "directory", "symlink"])
+def test_InterruptedLinkCannotClaimOrRemoveAForeignConcurrentDestination(
+    tmp_path, monkeypatch, foreign_kind,
+):
+    """Only physical owned identity confirms publication; matching report bytes are insufficient."""
+
+    root, _ = Context(tmp_path)
+    destination = tmp_path / "foreign-selected.json"
+    foreign_bytes = []
+    foreign_target = tmp_path / "foreign-owned-bytes"
+
+    def CreateForeignThenInterrupt(source, target):
+        """Create competing owned test data rather than performing the exporter link."""
+
+        if foreign_kind == "directory":
+            Path(target).mkdir()
+
+        elif foreign_kind == "symlink":
+            foreign_target.write_bytes(b"owned competitor content")
+
+            try:
+                Path(target).symlink_to(foreign_target)
+
+            except OSError:
+                pytest.skip("This platform cannot create the owned symlink regression fixture.")
+
+        else:
+            foreign_bytes.append(Path(source).read_bytes())
+            Path(target).write_bytes(foreign_bytes[0])
+
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(commands.os, "link", CreateForeignThenInterrupt)
+    observed, outcome = Run(root, destination)
+    assert observed == 130 and not outcome["output_published"], (
+        "A foreign destination cannot become an exporter commit even with identical bytes."
+    )
+    assert destination.exists(), "Failed acknowledgement recovery must never remove competing data."
+    assert not list(tmp_path.glob(".1337-report-*.pending")), "Clean only the owned temporary file."
+
+    if foreign_kind == "equal-bytes":
+        assert destination.read_bytes() == foreign_bytes[0], "Keep the equal foreign bytes intact."
+
+    elif foreign_kind == "symlink":
+        assert destination.is_symlink() and foreign_target.read_bytes() == (
+            b"owned competitor content"
+        ), "Observed link refusal must retain the competitor and its original target."
+
+    else:
+        assert destination.is_dir(), "A competing directory must remain untouched."
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_PhysicalSourceAliasesInAnyOutputAncestorAreRejected(tmp_path, monkeypatch, nested):
+    """Model case/short-name aliases with real metadata on any supported test filesystem."""
+
+    root, _ = Context(tmp_path)
+    physical_alias = tmp_path / "owned-physical-alias"
+    physical_alias.mkdir()
+    parent = physical_alias / "nested" if nested else physical_alias
+    parent.mkdir(exist_ok=True)
+    destination = parent / "inside-aliased-source.json"
+    inspecting = commands.StoragePathInfo
+    source_identity = root.lstat()
+
+    def AliasIdentity(path):
+        """Supply the actual source identity for one already physical test-owned parent alias."""
+
+        return source_identity if path == physical_alias else inspecting(path)
+
+    monkeypatch.setattr(commands, "StoragePathInfo", AliasIdentity)
+    assert not destination.is_relative_to(root), "The regression must bypass lexical containment."
+    status, outcome = Run(root, destination)
+    assert status == 2 and outcome["failure"] == "configuration", (
+        "Every physical ancestor must remain outside the selected source, including aliases."
+    )
+    assert not destination.exists(), "An alias of the source cannot become a derived output parent."
+
+
+@pytest.mark.parametrize("unknown", ["source", "output-parent"])
+def test_UnidentifiablePhysicalDirectoriesFailBeforePublication(tmp_path, monkeypatch, unknown):
+    """Unavailable physical identity cannot prove that selected output is outside the source."""
+
+    root, _ = Context(tmp_path)
+    inspecting = commands.StoragePathInfo
+    selected = root if unknown == "source" else tmp_path
+
+    def UnknownIdentity(path):
+        """Retain real directory kind/size while modeling an unavailable physical inode."""
+
+        metadata = inspecting(path)
+
+        if metadata is not None and path == selected:
+            fields = list(metadata)
+            fields[1] = 0
+
+            return os.stat_result(fields)
+
+        return metadata
+
+    monkeypatch.setattr(commands, "StoragePathInfo", UnknownIdentity)
+    destination = tmp_path / "unidentifiable.json"
+    status, outcome = Run(root, destination)
+    assert status == 2 and outcome["failure"] == "configuration", (
+        "Unavailable physical identity must not infer safe output containment."
+    )
+    assert not destination.exists(), "No output may be written without a finite parent identity."

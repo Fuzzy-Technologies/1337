@@ -8508,3 +8508,14 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.report_commands.ConfirmReportPublication"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/report_commands.py"
+sourceHash = "sha256:2e9374378992d701c8c726afa01e5828d50d0dd88bb79a5c713ed06de3c2d30b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
