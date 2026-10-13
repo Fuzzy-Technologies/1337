@@ -499,10 +499,12 @@ def test_PreparedEnvironmentFreezesCallerAliasesAndDivergentMapping(tmp_path):
 
             return prepared.environment[name]
 
-        def items(self):
+        def Items(self):
             """Supply a different environment to a naive process request constructor."""
 
             return (*prepared.environment.items(), ("ARTIFACT_REVIEW_PROBE", "owned-unapproved"))
+
+        items = Items
 
     hostile = replace(prepared, environment=DivergentEnvironment())
 

@@ -305,10 +305,12 @@ def test_ChangingSourceDuringStreamingCannotProduceSnapshot(selected):
     class MutatingDestination:
         """Replace only this fixture's source while its read is active."""
 
-        def write(self, chunk):
+        def Write(self, chunk):
             """Mutate the owned source at the bounded-copy callback boundary."""
 
             source.write_bytes(b"owned-mutation")
+
+        write = Write
 
     with pytest.raises(ValueError):
         inputs.ReadArtifactFile(source, "image.tar", MutatingDestination())
