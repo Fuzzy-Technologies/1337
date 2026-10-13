@@ -386,7 +386,9 @@ def test_PublicBoundaryRejectsUnstructuredAcquisitionClaims(context, field):
 
 
 @pytest.mark.parametrize("raw", [b"{", b"[]", b'{"private":1,"private":2}', b'{"x":NaN}',
-    b'{"x":1e999}', b"[" * 2000, b'\xff', b" " * (4 * 1024 * 1024 + 1)])
+    b'{"x":1e999}', b"[" * 2000, b'\xff', b" " * (4 * 1024 * 1024 + 1)],
+    ids=["incomplete-object", "wrong-top-level", "duplicate-key", "nonfinite-constant",
+        "numeric-overflow", "excessive-nesting", "invalid-utf8", "excessive-bytes"])
 def test_StrictBoundedJsonFailsWithoutPartialInventory(context, raw):
     """Malformed syntax, numeric constants, UTF-8 and excessive bytes remain validation failures."""
 
