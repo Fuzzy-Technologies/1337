@@ -672,8 +672,24 @@ class NucleiAdapter:
         if CanonicalUrl(record.get("matched-at")) != expected_url:
             raise NucleiReportError("Nuclei match URL differs from the exact approved target")
 
-        if "host" in record and CanonicalUrl(record["host"]) != expected_url:
-            raise NucleiReportError("Nuclei input host differs from the exact approved target")
+        endpoint = urlsplit(expected_url)
+
+        if "host" in record:
+            if record["host"] == endpoint.netloc:
+                if (record.get("url") != expected_url or record.get("scheme") != endpoint.scheme
+                    or record.get("port") != str(endpoint.port)):
+                    raise NucleiReportError("Nuclei authority requires exact destination fields")
+
+            elif CanonicalUrl(record["host"]) != expected_url:
+                raise NucleiReportError("Nuclei input host differs from the exact approved target")
+
+        if "url" in record and CanonicalUrl(record["url"]) != expected_url:
+            raise NucleiReportError("Nuclei input URL differs from the exact approved target")
+
+        if "scheme" in record and record["scheme"] != endpoint.scheme or (
+            "port" in record and record["port"] != str(endpoint.port)
+        ) or ("path" in record and record["path"] != endpoint.path):
+            raise NucleiReportError("Nuclei endpoint components contradict the approved target")
 
         if "ip" in record and record["ip"] != urlsplit(expected_url).hostname:
             raise NucleiReportError("Nuclei reported address differs from the approved literal IP")
