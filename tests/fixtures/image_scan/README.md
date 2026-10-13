@@ -57,16 +57,16 @@ This richer fixture needs independent source review and a fixed source SHA entry
 before governed execution. Pinning caller-selected code does not make it SAFE.
 Native profiles remain metadata-only until supplied-runtime acceptance.
 
-| Scenario         | Wire specimen                                         | Future model acceptance                                     |
-| ---------------- | ----------------------------------------------------- | ----------------------------------------------------------- |
-| success          | Valid schema-2 image JSON, exit zero                   | Only after accepted receipts and exact evidence attribution  |
-| no_findings      | Valid inventory, zero vulnerability proposals          | Inventory only; completeness remains `not-assessed`          |
-| provider_error   | Valid success-shaped image JSON, exit seven            | Reject; preserve original execution and raw output           |
-| malformed        | Incomplete JSON, exit zero                             | Reject; preserve raw output                                 |
-| version_mismatch | Native version contradicts independent version wire   | Reject                                                      |
-| package_mismatch | Vulnerability names a package ID absent from inventory | Reject                                                      |
-| output_limit     | 4 MiB stdout plus one detection byte                   | Reject; retain executor output-limit truth                   |
-| hold             | Incomplete raw prefix, then a finite 30-second wait     | Timeout/cancellation reject; owner must await process cleanup |
+| Scenario         | Wire specimen                                          | Future model acceptance                                       |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| success          | Valid schema-2 image JSON, exit zero                   | Only after accepted receipts and exact evidence attribution   |
+| no_findings      | Valid inventory, zero vulnerability proposals          | Inventory only; completeness remains `not-assessed`           |
+| provider_error   | Valid success-shaped image JSON, exit seven            | Reject; preserve original execution and raw output            |
+| malformed        | Incomplete JSON, exit zero                             | Reject; preserve raw output                                   |
+| version_mismatch | Native version contradicts independent version wire    | Reject                                                        |
+| package_mismatch | Vulnerability names a package ID absent from inventory | Reject                                                        |
+| output_limit     | 4 MiB stdout plus one detection byte                   | Reject; retain executor output-limit truth                    |
+| hold             | Incomplete raw prefix, then a finite 30-second wait    | Timeout/cancellation reject; owner must await process cleanup |
 
 Input/scanner/material receipts stay separate from the image importer's exact
 `stdout`, `stderr`, `provider-version` record tuple. Their provenance and source
