@@ -45,6 +45,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   binary/database/archive association. Native image profiles remain metadata-only.
 - Added verified offline vulnerability intelligence and standards-mapping
   metadata, preserving source versions, evidence and uncertainty.
+- Added a reviewed offline standards baseline with seven pinned primary-source
+  artifacts, accountable exact-content decisions, the requested framework families,
+  and typed finding bindings. Contextual relations remain advisory.
 - Added offline OpenAPI request import, bounded synthetic API request generation
   and browser/API journey contracts without granting execution authority.
 - Added opt-in bounded OpenAPI/Swagger YAML import and source-bound synthetic

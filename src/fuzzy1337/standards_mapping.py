@@ -10,11 +10,13 @@ import json
 import re
 from dataclasses import dataclass
 from enum import StrEnum
+from importlib.resources import files as PackageFiles
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters.contracts import RequireIdentifier
 from fuzzy1337.evidence import NormalizeEvidenceTime
-from fuzzy1337.model import CanonicalModelJson, RequireModelReference
+from fuzzy1337.findings import Finding
+from fuzzy1337.model import CanonicalModelJson, RequireModelReference, SecurityObject
 from fuzzy1337.workspace import (
     RejectWorkspaceConstant,
     RequireWorkspaceInteger,
@@ -27,6 +29,9 @@ MAPPING_SCHEMA_VERSION = 1
 MAX_MAPPING_BYTES = 1024 * 1024
 MAX_MAPPING_RECORDS = 1024
 _DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+_REVIEWED_BASELINE_REFERENCE = (
+    "mapping-pack:1eb56765bb50dcc561cfd0e32b528d7352284a0032623e19ee0fa7c1bd485eb2"
+)
 
 
 class MappingRelation(StrEnum):
@@ -699,3 +704,62 @@ def CandidateBaseline() -> MappingPack:
     )
 
     return MappingPack("fuzzy1337.baseline", "0.1.0-candidate", mappings)
+
+
+def ReviewedBaseline() -> MappingPack:
+    """Load the exact bundled baseline and retain its externally recorded owner decision.
+
+    The six relations cover selected SQL-injection and LLM-prompting classifiers.
+    Source SHA-256 values pin acquired catalog bytes, not publisher authenticity.
+    This finite historical revision makes no publication-current or compliance claim.
+    CandidateBaseline remains the unchanged unreviewed historical revision.
+
+    Returns:
+        The packaged schema-v1 revision with accountable approved mapping reviews.
+
+    Raises:
+        ValueError: The resource is malformed, changed, oversized, or not approved.
+        OSError: The installed package cannot supply its required resource.
+    """
+
+    resource = PackageFiles("fuzzy1337").joinpath("data", "standards_baseline_0_2_0.json")
+
+    with resource.open("rb") as stream:
+        payload = stream.read(MAX_MAPPING_BYTES + 1)
+
+    pack = MappingPack.FromBytes(payload)
+
+    if pack.Reference() != _REVIEWED_BASELINE_REFERENCE:
+        raise ValueError("bundled reviewed baseline content reference mismatch")
+
+    if not pack.mappings or any(
+        mapping.ReviewState() is not MappingReviewState.APPROVED for mapping in pack.mappings
+    ):
+        raise ValueError("bundled reviewed baseline requires approved mapping decisions")
+
+    return pack
+
+
+def BindFindingObjectMappings(
+    pack: MappingPack, finding_object: SecurityObject, classifier: StandardIdentity,
+) -> tuple[FindingMappingBinding, ...]:
+    """Bind approved exact-source relations to a validated canonical finding projection.
+
+    Args:
+        pack: Explicit versioned pack with externally accountable review provenance.
+        finding_object: Existing finding supplied by its model/workspace owner.
+        classifier: Explicit versioned classification supplied by the classification owner.
+
+    Returns:
+        Approved nontransitive bindings preserving exact finding, mapping, and pack references.
+
+    Raises:
+        ValueError: The object is not a canonical finding or other inputs are malformed.
+
+    This validates finding shape and identity, not classifier correctness, raw evidence,
+    model membership, reviewer authority, or compliance. It never changes finding triage.
+    """
+
+    Finding.FromObject(finding_object)
+
+    return BindFindingMappings(pack, finding_object.Reference(), classifier)
