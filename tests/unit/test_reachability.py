@@ -784,3 +784,103 @@ def test_CanonicalSerializationFailuresUseSanitizedValueError(fixture):
     oversized_revision = replace(fixture.model, revision=10 ** 10000)
     with pytest.raises(ValueError):
         ReachabilityModelVersion.FromModel(oversized_revision)
+
+
+def test_EqualStringStateCopiesCannotEraseTheNamedBlockingProof(fixture):
+    """Equal JSON string/Enum encodings must not bypass the typed barrier-attribution contract."""
+
+    graph = Projection(fixture, fixture.Phase("initial"))
+    source = fixture.objects["source"].Reference()
+    target = fixture.objects["key"].Reference()
+    original = SearchReachabilityPaths(graph, fixture.model, source, target)
+    assert all(path.state is ReachabilityState.BLOCKED and len(path.decisive_blocking_claims) == 1
+               for path in original.paths), "Original named barrier lost its exact proof"
+    altered = replace(graph, transitions=tuple(replace(hop, state=hop.state.value)
+                                               for hop in graph.transitions))
+    with pytest.raises(ValueError):
+        SearchReachabilityPaths(altered, fixture.model, source, target)
+
+
+@pytest.mark.parametrize("case", ["basis-none", "basis-list", "records-none", "records-list",
+    "observation-untyped", "observation-changed", "assessment-none", "assessment-untyped",
+    "version-none", "controls-none", "control-basis-none", "control-reference-none", "rule-untyped",
+    "reasons-list", "claims-list", "record-reference-none", "record-provenance-none"])
+def test_MalformedCopiedNestedProofsRaiseSanitizedValueError(fixture, case):
+    """Every nested proof/record/tuple guard fails explicitly instead of throwing AttributeError."""
+
+    declaration = fixture.Declaration("source-portal", "BLOCKED", 1.0, controls=("key-control",))
+    loaded = Read(fixture, (fixture.Assessment(fixture.Envelope([declaration])),))
+    original = loaded.claims[0]
+    if case == "basis-none":
+        changed = replace(original, basis=(None,))
+    elif case == "basis-list":
+        changed = replace(original, basis=list(original.basis))
+    elif case in {"records-none", "records-list"}:
+        proof = replace(original.basis[0], records=(None,) if case == "records-none"
+                        else list(original.basis[0].records))
+        changed = replace(original, basis=(proof,))
+    elif case in {"observation-untyped", "observation-changed"}:
+        observation = None if case == "observation-untyped" else replace(
+            original.basis[0].observation, attributes={"changed": "synthetic-private-source-value"},
+        )
+        if case == "observation-untyped":
+            observation = "synthetic-private-source-value"
+        proof = replace(original.basis[0], observation=observation)
+        changed = replace(original, basis=(proof,))
+    elif case in {"assessment-none", "assessment-untyped"}:
+        changed = replace(original, assessment=None if case == "assessment-none" else {})
+    elif case == "version-none":
+        changed = replace(original, model_version=None)
+    elif case == "rule-untyped":
+        changed = replace(original, inference_rule={})
+    elif case == "controls-none":
+        changed = replace(original, blocking_controls=(None,))
+    elif case in {"control-basis-none", "control-reference-none"}:
+        control = replace(original.blocking_controls[0], **{
+            "basis" if case == "control-basis-none" else "control_reference": None,
+        })
+        changed = replace(original, blocking_controls=(control,))
+    elif case == "reasons-list":
+        changed = replace(original, reasons=list(original.reasons))
+    elif case == "claims-list":
+        changed = original
+    else:
+        forged = copy.copy(original.basis[0].records[0])
+        object.__setattr__(forged, "reference" if case == "record-reference-none" else "provenance",
+                           None)
+        proof = replace(original.basis[0], records=(forged,))
+        changed = replace(original, basis=(proof,))
+    copied = replace(loaded, claims=[changed] if case == "claims-list" else (changed,))
+    with pytest.raises(ValueError) as failure:
+        ProjectReachability(fixture.model, (), copied, expected_model_version=loaded.model_version)
+    rendered = "".join(traceback.format_exception(failure.value))
+    assert "synthetic-private-source-value" not in rendered, "Nested copied proof leaked text"
+
+
+@pytest.mark.parametrize("case", ["transitions-none", "transitions-list", "nodes-list",
+    "claim-list", "claim-none", "reasons-list", "coverage-bool", "version-none"])
+def test_MalformedCopiedProjectionFieldsCannotEnterThePureSearch(fixture, case):
+    """Query-visible graph, enum, coverage and nested collections retain exact immutable types."""
+
+    graph = Projection(fixture, (fixture.Assessment(),))
+    if case == "transitions-none":
+        copied = replace(graph, transitions=(None,))
+    elif case == "transitions-list":
+        copied = replace(graph, transitions=list(graph.transitions))
+    elif case == "nodes-list":
+        copied = replace(graph, nodes=list(graph.nodes))
+    elif case == "coverage-bool":
+        copied = replace(graph, unassessed_transitions=True)
+    elif case == "version-none":
+        copied = replace(graph, model_version=None)
+    else:
+        hop = next(item for item in graph.transitions if item.claims)
+        fields = {"claims": list(hop.claims)} if case == "claim-list" else (
+            {"claims": (None,)} if case == "claim-none" else {"reasons": list(hop.reasons)}
+        )
+        altered = replace(hop, **fields)
+        copied = replace(graph, transitions=tuple(altered if item is hop else item
+                                                 for item in graph.transitions))
+    with pytest.raises(ValueError):
+        SearchReachabilityPaths(copied, fixture.model, fixture.objects["source"].Reference(),
+                                fixture.objects["portal"].Reference())

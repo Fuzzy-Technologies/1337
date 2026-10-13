@@ -19,6 +19,7 @@ from typing import cast
 from fuzzy1337.adapters import EvidenceReference, ExecutionState
 from fuzzy1337.evidence import (
     EvidenceError,
+    EvidenceProvenance,
     EvidenceRecord,
     LocalEvidenceStore,
     NormalizeEvidenceTime,
@@ -28,6 +29,7 @@ from fuzzy1337.model import (
     MODEL_SCHEMA_VERSION,
     CanonicalModelJson,
     LocalModelStore,
+    ModelProvenance,
     ModelState,
     ObjectKind,
     Observation,
@@ -380,6 +382,142 @@ class ReachabilitySearch:
     claim_scope: str = "selected-transition-subgraph-only"
 
 
+def OutputTuple(value: object, expected: type[object], maximum: int) -> tuple[object, ...]:
+    """Internal integrity guard: require exact immutable bounded collections and typed children.
+
+    Args:
+        value: Copied or original output field.
+        expected: Required nested record type.
+        maximum: Inclusive profile count ceiling.
+
+    Returns:
+        Unchanged immutable typed collection.
+
+    Raises:
+        ValueError: Collection type, count or a child record is unsupported.
+    """
+
+    if type(value) is not tuple or len(value) > maximum or any(
+        not isinstance(item, expected) for item in value
+    ):
+        raise ValueError("reachability outputs require exact bounded typed tuples")
+
+    return value
+
+
+def OutputVersion(value: object) -> ReachabilityModelVersion:
+    """Internal integrity guard: preserve every exact field type of an output's full model pin.
+
+    Args:
+        value: Original or copied output version field.
+
+    Returns:
+        Supported immutable complete pin.
+
+    Raises:
+        ValueError: Model version type or any exact field constraint is invalid.
+    """
+
+    if not isinstance(value, ReachabilityModelVersion):
+        raise ValueError("reachability outputs require a typed complete model version")
+
+    value.__post_init__()
+
+    return value
+
+
+def OutputRecord(value: object, maximum: int) -> str:
+    """Internal integrity guard: recompute immutable manifest identity without rereading storage.
+
+    Args:
+        value: Original or copied nested evidence record.
+        maximum: Supported original blob size ceiling.
+
+    Returns:
+        Complete canonical manifest identity, preserving its separate source format/version.
+
+    Raises:
+        ValueError: A nested record, parsed reference or canonical identity was changed.
+    """
+
+    try:
+        if not isinstance(value, EvidenceRecord) or not isinstance(
+            value.reference, EvidenceReference,
+        ) or not isinstance(value.provenance, EvidenceProvenance):
+            raise ValueError("invalid output evidence record")
+
+        Integer(value.schema_version, 1, 1)
+        identity = Reference(value.evidence_id, "sha256")
+        Integer(value.reference.size_bytes, 0, maximum)
+
+        if Digest(value.ToDict()) != identity:
+            raise ValueError("changed output evidence record")
+
+        return identity
+
+    except (ValueError, AttributeError, TypeError, UnicodeError, OverflowError, RecursionError):
+        raise ValueError("reachability outputs require exact immutable evidence records") from None
+
+
+def OutputReasons(value: object) -> tuple[str, ...]:
+    """Internal integrity guard: require immutable unique first-party uncertainty labels.
+
+    Args:
+        value: Original or copied reason collection.
+
+    Returns:
+        Unchanged exact reason tuple.
+
+    Raises:
+        ValueError: Reasons are mutable, malformed or duplicated.
+    """
+
+    reasons = cast(tuple[str, ...], OutputTuple(value, str, 32))
+
+    if any(not _IDENTIFIER.fullmatch(reason) for reason in reasons) or (
+        len(set(reasons)) != len(reasons)
+    ):
+        raise ValueError("reachability output reasons must be unique supported identifiers")
+
+    return reasons
+
+
+def OutputBasis(value: object) -> dict[str, object]:
+    """Internal integrity guard: validate all nested proof types before hashing their identities.
+
+    Args:
+        value: Original or copied basis/control support record.
+
+    Returns:
+        Complete compact proof fields without copying support bytes or observation attributes.
+
+    Raises:
+        ValueError: A nested proof type, reference or retained observation identity is invalid.
+    """
+
+    try:
+        if not isinstance(value, ReachabilityBasis):
+            raise ValueError("invalid output basis")
+
+        reference = Reference(value.observation_reference, "observation")
+        observation = value.observation
+
+        if observation is not None and (not isinstance(observation, Observation) or (
+            not isinstance(observation.provenance, ModelProvenance)
+            or observation.Reference() != reference
+        )):
+            raise ValueError("changed output observation")
+
+        records = OutputTuple(value.records, EvidenceRecord, 16)
+
+        return {"observation_reference": reference,
+            "retained_observation_reference": None if observation is None else reference,
+            "manifest_ids": [OutputRecord(record, _SUPPORT_BYTES) for record in records]}
+
+    except (ValueError, AttributeError, TypeError, UnicodeError, OverflowError, RecursionError):
+        raise ValueError("reachability outputs require exact typed proof records") from None
+
+
 def ClaimFields(claim: ReachabilityClaim) -> dict[str, object]:
     """Internal pure integrity helper: bind all admission fields and immutable proof identities.
 
@@ -398,30 +536,29 @@ def ClaimFields(claim: ReachabilityClaim) -> dict[str, object]:
 
     Confidence(claim.confidence, claim.state)
 
-    def BasisFields(proof: ReachabilityBasis) -> dict[str, object]:
-        """Bind both declared and retained observation identities plus full immutable manifest IDs.
+    if claim.state is ReachabilityState.LIKELY:
+        if not isinstance(claim.inference_rule, str) or not _IDENTIFIER.fullmatch(
+            claim.inference_rule,
+        ):
+            raise ValueError("reachability output inference rules require an exact identifier type")
 
-        Args:
-            proof: Owning-read immutable basis or control support output.
+    elif claim.inference_rule is not None:
+        raise ValueError("only likely output claims accept an inference identifier")
 
-        Returns:
-            Compact complete proof identity fields.
-        """
+    basis = OutputTuple(claim.basis, ReachabilityBasis, 16)
+    controls = cast(tuple[ReachabilityControl, ...], OutputTuple(
+        claim.blocking_controls, ReachabilityControl, 16,
+    ))
 
-        return {"observation_reference": proof.observation_reference,
-            "retained_observation_reference": (None if proof.observation is None
-                                               else proof.observation.Reference()),
-            "manifest_ids": [record.evidence_id for record in proof.records]}
-
-    return {"claim_reference": claim.claim_reference,
-        "relation_reference": claim.relation_reference, "state": claim.state,
+    return {"claim_reference": Reference(claim.claim_reference, "sha256"),
+        "relation_reference": Reference(claim.relation_reference, "relation"), "state": claim.state,
         "confidence": claim.confidence, "inference_rule": claim.inference_rule,
-        "model_version": claim.model_version,
-        "assessment_manifest_id": claim.assessment.evidence_id,
-        "basis": [BasisFields(proof) for proof in claim.basis],
-        "blocking_controls": [{"control_reference": control.control_reference,
-            "basis": BasisFields(control.basis)} for control in claim.blocking_controls],
-        "reasons": claim.reasons}
+        "model_version": OutputVersion(claim.model_version),
+        "assessment_manifest_id": OutputRecord(claim.assessment, _ASSESSMENT_BYTES),
+        "basis": [OutputBasis(proof) for proof in basis],
+        "blocking_controls": [{"control_reference": Reference(control.control_reference, "object"),
+            "basis": OutputBasis(control.basis)} for control in controls],
+        "reasons": OutputReasons(claim.reasons)}
 
 
 def ClaimsDigest(claims: ReachabilityClaims) -> str:
@@ -437,13 +574,44 @@ def ClaimsDigest(claims: ReachabilityClaims) -> str:
         ValueError: Claims no longer fit the exact typed bounded output contract.
     """
 
-    if not isinstance(claims.claims, tuple) or len(claims.claims) > 2048:
-        raise ValueError("reachability output claims must retain their exact bounded tuple")
+    declarations = cast(tuple[ReachabilityClaim, ...], OutputTuple(
+        claims.claims, ReachabilityClaim, 2048,
+    ))
 
-    return Digest({"model_version": claims.model_version,
-        "context_reference": claims.context_reference, "scope_reference": claims.scope_reference,
-        "at": claims.at, "max_age_seconds": claims.max_age_seconds,
-        "claims": [ClaimFields(claim) for claim in claims.claims]})
+    return Digest({"model_version": OutputVersion(claims.model_version),
+        "context_reference": Text(claims.context_reference), "scope_reference": Text(
+            claims.scope_reference,
+        ), "at": Time(claims.at), "max_age_seconds": Integer(claims.max_age_seconds, 0, 604800),
+        "claims": [ClaimFields(claim) for claim in declarations]})
+
+
+def TransitionFields(value: object) -> dict[str, object]:
+    """Internal integrity guard: reject equal string labels before identity-dependent path logic.
+
+    Args:
+        value: Original or copied selected transition output.
+
+    Returns:
+        Exact typed transition identity, state and retained declaration integrity fields.
+
+    Raises:
+        ValueError: Transition type, enum state or nested immutable fields are invalid.
+    """
+
+    if not isinstance(value, ReachabilityTransition) or not isinstance(
+        value.state, ReachabilityState,
+    ):
+        raise ValueError("reachability outputs require exact typed transitions and enum states")
+
+    declarations = cast(tuple[ReachabilityClaim, ...], OutputTuple(
+        value.claims, ReachabilityClaim, 2048,
+    ))
+
+    return {"relation_reference": Reference(value.relation_reference, "relation"),
+        "source_reference": Reference(value.source_reference, "object"),
+        "target_reference": Reference(value.target_reference, "object"),
+        "claims": [ClaimFields(claim) for claim in declarations], "state": value.state,
+        "reasons": OutputReasons(value.reasons)}
 
 
 def ProjectionDigest(projection: ReachabilityProjection) -> str:
@@ -454,22 +622,26 @@ def ProjectionDigest(projection: ReachabilityProjection) -> str:
 
     Returns:
         Canonical profile identity detecting changes on copied graph wrappers.
+
+    Raises:
+        ValueError: Nested output fields no longer use their exact typed bounded contracts.
     """
 
+    nodes = OutputTuple(projection.nodes, str, 512)
+    transitions = OutputTuple(projection.transitions, ReachabilityTransition, 2048)
+
     return Digest({"profile_version": REACHABILITY_PROFILE_VERSION,
-        "model_version": projection.model_version,
-        "context_reference": projection.context_reference,
-        "scope_reference": projection.scope_reference, "at": projection.at,
-        "max_age_seconds": projection.max_age_seconds, "nodes": projection.nodes,
-        "transitions": [{"relation_reference": item.relation_reference,
-            "source_reference": item.source_reference, "target_reference": item.target_reference,
-            "claims": [ClaimFields(claim) for claim in item.claims], "state": item.state,
-            "reasons": item.reasons} for item in projection.transitions],
-        "coverage": {"admitted_claims": projection.admitted_claims,
-            "unusable_claims": projection.unusable_claims,
-            "unassessed_transitions": projection.unassessed_transitions,
-            "conflicting_transitions": projection.conflicting_transitions,
-            "unknown_transitions": projection.unknown_transitions}})
+        "model_version": OutputVersion(projection.model_version),
+        "context_reference": Text(projection.context_reference),
+        "scope_reference": Text(projection.scope_reference), "at": Time(projection.at),
+        "max_age_seconds": Integer(projection.max_age_seconds, 0, 604800),
+        "nodes": [Reference(node, "object") for node in nodes],
+        "transitions": [TransitionFields(item) for item in transitions],
+        "coverage": {"admitted_claims": Integer(projection.admitted_claims, 0, 2048),
+            "unusable_claims": Integer(projection.unusable_claims, 0, 2048),
+            "unassessed_transitions": Integer(projection.unassessed_transitions, 0, 2048),
+            "conflicting_transitions": Integer(projection.conflicting_transitions, 0, 2048),
+            "unknown_transitions": Integer(projection.unknown_transitions, 0, 2048)}})
 
 
 class BoundedEvidenceStore(LocalEvidenceStore):

@@ -8544,7 +8544,7 @@ state = "missing"
 id = "symbol:fuzzy1337.reachability.ProjectionDigest"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/reachability.py"
-sourceHash = "sha256:c2118942bb875fb1eadc8146cad9d3834850be66dbfd29e5f1377406792c61be"
+sourceHash = "sha256:ab06a37e4854a8c30315eaf3ccedb65124fb7fd871e2d7f2d53fb035dada6b39"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -8883,6 +8883,84 @@ id = "symbol:fuzzy1337.reachability.Version"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/reachability.py"
 sourceHash = "sha256:b9aa67f968859a90be61596fa55b2362a07b5e6d07d5d6a9b7cbf253c6c6de99"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputBasis"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:b80f05fe7f60599621d2cbf58713689b7ffebe77f0e46fc4ddce8006c0bdbecb"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputReasons"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:c75e3da5dd6762a8110bce9432a56fd0ee31e7b4ee3ce2c0c6dea582d0ce0609"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputRecord"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:7748a61e9b7c742a06ad1c8194625a09a70541022ca56985389b908ca6441c4b"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputTuple"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:823d11b0bb6cfc0becddcfd26ec27cf8bbfc0ace482e9a6580ba7f0c07570a8c"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputVersion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:500efec5256496761dc1a2f43308ba6f94cb1923508cfece8c95fe5749d41c92"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.TransitionFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:399cbdf35cd6cf834261d1a589a5b5d7fb8201e2eac4e767fe23f1de139494d3"
 reviewClass = "technical"
 
 [units.translations.ru]
