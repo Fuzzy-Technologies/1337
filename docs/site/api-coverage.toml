@@ -198,6 +198,12 @@ mode = "authored"
 page = "api/fuzzy1337.scan_commands.md"
 
 [[surfaces]]
+module = "fuzzy1337.api_request_generation"
+source = "src/fuzzy1337/api_request_generation.py"
+mode = "authored"
+page = "api/fuzzy1337.api_request_generation.md"
+
+[[surfaces]]
 module = "fuzzy1337.performance"
 source = "src/fuzzy1337/performance.py"
 mode = "authored"

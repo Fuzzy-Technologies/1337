@@ -1,8 +1,8 @@
 # Synthetic API request generation
 
-ADR 0042 defines the accepted next generation profile for #144. Implementation
-and validation are being prepared in this private work stream. The current
-structural capability is documented in [OpenAPI import](OPENAPI.md).
+ADR 0042 defines Experimental generation profile version 1 for #144.
+GenerateOpenApiRequest produces one offline synthetic request preview using the
+structural capability documented in [OpenAPI import](OPENAPI.md).
 
 ## Source and ownership boundary
 
@@ -12,6 +12,12 @@ import. Reimport the document, select that actual operation/server/media and
 independently validate the original effective schemas. A matching digest or an
 ApiInput `constrained=False` summary alone cannot certify validity. Unknown or
 unimplemented consumed assertions fail before returning a partial request.
+
+Structural source text remains necessary: server/path components, operation IDs,
+parameter/property/header names and source pointers are preserved. Callers must
+use non-secret structural metadata; syntax cannot detect a credential disguised
+as an otherwise valid name or path. Only source default/example/description
+contents and credential value selections are excluded from generated values.
 
 The producer emits one deterministic synthetic baseline per selected operation.
 It accepts no captured/caller literal values, session lookup, credential or
@@ -26,6 +32,15 @@ targets or persist values in Security Object Model request attributes. Existing
 CheckOpenApiTarget must consume the generated actual URL including its query,
 the matching current workspace/scope and an explicit aware time. Runtime DNS,
 redirects, invocation authorization and network execution remain separate.
+
+GenerateOpenApiRequest accepts source text, a canonical operation reference,
+workspace_id and the same optional base_url resolution context as ImportOpenApi.
+GeneratedApiRequest exposes operation, target, immutable header pairs and body
+bytes. The method remains on operation.template.endpoint.method. Reference binds
+the actual target/header encoding and body digest to the original operation and
+profile; Metadata returns references/digests without concrete header/body values.
+Parsing/rendering helpers and direct record constructors are Internal. Use the
+public producer when source binding and validation matter.
 
 ## Exact value profile
 
@@ -55,6 +70,8 @@ readOnly/writeOnly and other unimplemented assertion keywords are rejected.
 Defaults, examples, descriptions and titles remain ignored annotations; private
 literal contents never become samples. This is not a complete schema/source
 validator, and unconsumed response sections are not validated.
+Swagger non-body Items Objects permit default as an ignored annotation; schema
+references and other unimplemented Items fields are rejected.
 
 ## Serialization profile
 
@@ -84,6 +101,9 @@ generated. Transport/authentication-owned headers, including Host, Cookie,
 Authorization, Content-Length, Transfer-Encoding and Connection, are rejected as
 ordinary schema input declarations. Generated Content-Type and combined Cookie
 headers are owned by the renderer.
+TRACE operations with a declared body are rejected according to RFC 9110.
+Method-specific server acceptance, HTTP transport and request execution remain
+separate from this offline schema/encoding preview.
 
 Only absent security requirements or an explicitly empty anonymous OR
 alternative is supported. Authenticated-only operations and session-bound
@@ -96,6 +116,7 @@ templates fail; an anonymous alternative never establishes authenticated state.
 | Original input/resolution | Existing importer 1 MiB, 20000 nodes, depth 32, 4096 work |
 | Generated schema nesting  | 8                                                         |
 | Injection coordinates     | Existing request maximum 128                              |
+| Symbolic request template | Existing serialized maximum 64 KiB                        |
 | Primitive array members   | 2                                                         |
 | Encoded actual URL        | 8 KiB UTF-8                                               |
 | Encoded headers           | 8 KiB ASCII including framing                             |
@@ -105,6 +126,8 @@ templates fail; an anonymous alternative never establishes authenticated state.
 All failures preserve caller-owned stores and use diagnostics that omit source
 values, including chained tracebacks. Generation creates no files or state stores.
 Byte limits are independent of structural metadata size and use encoded output.
+Existing source/template bounds also apply and may reject an oversized source
+before the renderer reaches its output bounds.
 
 ## Required acceptance evidence
 

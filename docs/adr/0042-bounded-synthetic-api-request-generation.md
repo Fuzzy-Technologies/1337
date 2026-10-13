@@ -35,6 +35,12 @@ values, compositions, dynamic references and readOnly/writeOnly flags fail close
 Descriptions, defaults and examples are annotations only: their values are never
 selected, copied into generated values or exposed through error diagnostics.
 
+Structural server/path components, operation IDs, property/parameter/header names
+and pointers necessarily preserve original source text. Callers supply non-secret
+structural metadata; this profile does not recognize every secret disguised as a
+syntactically valid name. Excluding literal sample values does not redact all
+source-derived text.
+
 Support default OpenAPI form/simple parameter serialization, scalar cookies,
 Swagger csv and query/formData multi, JSON/+json, plain text, URL-encoded scalar
 forms and synthetic scalar multipart parts. Swagger URL-encoded formData may
@@ -51,6 +57,8 @@ assemble authentication, import source literal credentials or accept caller valu
 overrides. Reject transport/authentication-controlled header declarations before
 rendering. Validate media tokens and independently bound encoded URL, header,
 body and total byte sizes.
+Reject a declared TRACE body because HTTP semantics forbid TRACE content. This
+does not establish server acceptance or execution authority for other methods.
 
 Return an ephemeral request record containing method, the exact existing URL
 Target, ordered header pairs, body bytes and original operation/template/source
@@ -83,5 +91,6 @@ execution remain open under #144.
 - [OpenAPI 3.1.2](https://spec.openapis.org/oas/v3.1.2.html)
 - [Swagger 2.0](https://swagger.io/specification/v2/)
 - [RFC 7578](https://www.rfc-editor.org/rfc/rfc7578.txt)
+- [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.3.8)
 - [ADR 0038](0038-offline-openapi-request-import.md)
 - [ADR 0028](0028-structural-web-request-contracts.md)
