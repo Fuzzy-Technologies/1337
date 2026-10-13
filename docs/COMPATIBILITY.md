@@ -75,6 +75,15 @@ interpretation, exact per-URL scope preparation, deterministic partial frontiers
 and pure existing request/model projection. Source hashes authenticate neither
 transport nor collector; the consumer grants no browser/network execution authority.
 
+`fuzzy1337.adapters.page_capture` and `fuzzy1337.page_capture` are Experimental
+at page-capture profile version `1`. ADR 0052 and `docs/LOCAL_PAGE_CAPTURE.md`
+define one governed anonymous GET to an explicitly owned canonical loopback URL,
+admitting only the exact closed non-secret HTML fixture. Actual owner-verified
+evidence feeds the existing captured-web frontier and one durable model Save.
+NativeHTTP version 1 remains a separate capability. The packaged
+`fuzzy1337.page_capture_worker` is Internal; its schema-1 flat record is verified
+by the parent and does not grant caller-selected crawling or browser execution.
+
 `fuzzy1337.adapters` is the first explicitly documented Python SDK namespace. ADR
 0014 declares it Experimental at contract version `1`; other import paths remain
 internal unless this document explicitly states otherwise.

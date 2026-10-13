@@ -310,3 +310,21 @@ module = "fuzzy1337.captured_web"
 source = "src/fuzzy1337/captured_web.py"
 mode = "authored"
 page = "api/fuzzy1337.captured_web.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.page_capture"
+source = "src/fuzzy1337/adapters/page_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.page_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.page_capture"
+source = "src/fuzzy1337/page_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.page_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.page_capture_worker"
+source = "src/fuzzy1337/page_capture_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.page_capture_worker.md"

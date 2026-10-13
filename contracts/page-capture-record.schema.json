@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/page-capture-record.schema.json",
+  "title": "Closed owned-loopback HTML worker record version 1",
+  "description": "Experimental ADR0052 flat record; owning parser additionally enforces exact canonical bytes, destination/body binding and count-derived header feasibility.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "error"],
+      "properties": {
+        "schema_version": {"type": "integer", "const": 1},
+        "error": {"type": "string", "enum": ["input", "connection", "timeout", "protocol", "response-policy", "body-policy"]}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "fixture_id", "url", "address", "port", "scheme", "status", "http_version", "content_type", "declared_charset", "content_length", "header_size_bytes", "header_count", "body_sha256", "body_base64"],
+      "properties": {
+        "schema_version": {"type": "integer", "const": 1},
+        "fixture_id": {"type": "string", "const": "owned-loopback-html.v1"},
+        "url": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "address": {"type": "string", "enum": ["127.0.0.1", "::1"]},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "scheme": {"type": "string", "const": "http"},
+        "status": {"type": "integer", "const": 200},
+        "http_version": {"type": "string", "enum": ["HTTP/1.0", "HTTP/1.1"]},
+        "content_type": {"type": "string", "const": "text/html"},
+        "declared_charset": {"enum": [null, "utf-8"]},
+        "content_length": {"type": "integer", "const": 541},
+        "header_size_bytes": {"type": "integer", "minimum": 61, "maximum": 16384},
+        "header_count": {"type": "integer", "minimum": 2, "maximum": 64},
+        "body_sha256": {"type": "string", "const": "c0b909f728bdcc098193c1fd268f056eea33c27b6537cd504fa77c3a25afe817"},
+        "body_base64": {"type": "string", "minLength": 724, "maxLength": 724, "pattern": "^[A-Za-z0-9+/]{722}==$"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"declared_charset": {"const": "utf-8"}}},
+          "then": {"properties": {"header_size_bytes": {"minimum": 75}}}
+        }
+      ]
+    }
+  ]
+}
