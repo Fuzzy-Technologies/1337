@@ -89,37 +89,57 @@ def test_CliCreatesArtifactScopeCollectsReopensAndExports(
 
     owned = CreateOwnedImage(tmp_path, scenario)
     root = tmp_path / "CLI workspace with spaces"
-    assert Main(["workspace", "create", str(root), "--id", "cli-images", "--name", "Images"]) == 0
+    assert Main([
+        "workspace", "create", str(root), "--id", "cli-images", "--name", "Images",
+    ]) == 0, (
+        "Public CLI must initialize the explicit owning workspace"
+    )
     capsys.readouterr()
     authority = owned.context.scope.authorization
     assert Main(["scope", "create", str(root), "--id", "image-scope", "--allow-artifact",
         owned.context.scope.targets[0].value, "--grant-consent", "--owner",
         authority.authority_reference, "--consent-reference", authority.record_reference,
-        "--valid-from", authority.valid_from, "--valid-until", authority.valid_until]) == 0
+        "--valid-from", authority.valid_from, "--valid-until", authority.valid_until]) == 0, (
+        "Public CLI must register the exact artifact target with explicit authority"
+    )
     capsys.readouterr()
     destination = tmp_path / ("report." + report_format)
     assert Main([*ImageCliArguments(owned, root=root), "--json", "--report-format", report_format,
         "--report-output", str(destination)]) == 0, "CLI succeeds after actual durable saves"
     summary = json.loads(capsys.readouterr().out)
-    assert summary["workflow"] == "synthetic-image" and summary["source_id"] == "synthetic.trivy"
-    assert summary["state"] == "completed" and summary["scan_completeness"] == "not-assessed"
+    assert summary["workflow"] == "synthetic-image" and summary["source_id"] == "synthetic.trivy", (
+        "CLI must retain the closed synthetic workflow and original source attribution"
+    )
+    assert summary["state"] == "completed" and summary["scan_completeness"] == "not-assessed", (
+        "Completed fixture execution must not claim native scanner completeness"
+    )
     assert [item["operation"] for item in summary["operations"]] == ["version", "scan"], (
         "Observed independent VERSION precedes original prerequisite-bound SCAN"
     )
     model = LocalModelStore(root).Open()
-    assert len(Findings(model)) == finding_count and summary["model_revision"] == model.revision
-    assert summary["report"]["output_published"] and summary["report"]["status"] == "completed"
+    assert len(Findings(model)) == finding_count and summary["model_revision"] == model.revision, (
+        "Fixture Finding count and summary revision must match the actual durable model"
+    )
+    assert summary["report"]["output_published"] and summary["report"]["status"] == "completed", (
+        "Successful export must confirm complete output publication separately from scan state"
+    )
     report = json.loads(destination.read_bytes())
 
     if report_format == "json":
-        assert report["model"] == model.ToDict() and report["scan_completeness"] == "not-assessed"
+        assert report["model"] == model.ToDict() and (
+            report["scan_completeness"] == "not-assessed"
+        ), (
+            "JSON export must preserve the exact saved model and unassessed completeness"
+        )
 
     else:
         assert len(report["runs"][0]["results"]) == finding_count, (
             "SARIF preserves fixture findings"
         )
 
-    assert Main(["workspace", "open", str(root), "--json"]) == 0
+    assert Main(["workspace", "open", str(root), "--json"]) == 0, (
+        "Public CLI must reopen and verify the actually persisted workspace"
+    )
     reopened = json.loads(capsys.readouterr().out)
     assert reopened["model_revision"] == summary["model_revision"], "Reopen uses committed state"
     assert reopened["verified_evidence_records"] == 12, (
@@ -161,7 +181,9 @@ def test_CliEventStreamKeepsTerminalSummaryAndSeparateReportFailure(tmp_path, ca
     destination = tmp_path / "existing.json"
     destination.write_bytes(b"existing owned report")
     assert Main([*ImageCliArguments(owned), "--events-json", "--report-format", "json",
-        "--report-output", str(destination)]) == 4
+        "--report-output", str(destination)]) == 4, (
+        "Existing report destination must return a separate nonzero export outcome"
+    )
     messages = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
     summary = messages[-1]["summary"]
     events = [item["event"] for item in messages[:-1]]
@@ -171,7 +193,9 @@ def test_CliEventStreamKeepsTerminalSummaryAndSeparateReportFailure(tmp_path, ca
     assert summary["state"] == "completed" and summary["model_revision"] > 0, (
         "Separate report refusal cannot erase the actual completed scan/model commit"
     )
-    assert summary["report"]["status"] == "failed" and not summary["report"]["output_published"]
+    assert summary["report"]["status"] == "failed" and not summary["report"]["output_published"], (
+        "No-clobber refusal must not claim a new report publication"
+    )
     assert destination.read_bytes() == b"existing owned report", "Publication never clobbers a file"
 
 

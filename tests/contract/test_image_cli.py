@@ -84,12 +84,16 @@ def test_ScopeManifestRulesRemainArtifactTargetsWithoutAutomaticConsent(tmp_path
     """Literal manifest identities are registered through the existing canonical scope owner."""
 
     root = tmp_path / "workspace"
-    assert Main(["workspace", "create", str(root), "--id", "images", "--name", "Images"]) == 0
+    assert Main(["workspace", "create", str(root), "--id", "images", "--name", "Images"]) == 0, (
+        "Explicit workspace setup must succeed before scope registration"
+    )
     capsys.readouterr()
     allowed = "manifest-sha256:" + "a" * 64
     excluded = "manifest-sha256:" + "b" * 64
     assert Main(["scope", "create", str(root), "--id", "image-scope",
-        "--allow-artifact", allowed, "--exclude-artifact", excluded, "--json"]) == 0
+        "--allow-artifact", allowed, "--exclude-artifact", excluded, "--json"]) == 0, (
+        "Canonical manifest allow and exclusion rules must register through the CLI"
+    )
     capsys.readouterr()
     scope = LocalScopeStore(root).Open("image-scope")
     assert scope.targets[0].kind is TargetKind.ARTIFACT and scope.allow[0].value == allowed, (
@@ -107,10 +111,14 @@ def test_ScopeRejectsPathsAndMalformedArtifactIdentities(tmp_path, capsys, targe
     """Artifact rules accept only the exact current canonical manifest-digest syntax."""
 
     root = tmp_path / "workspace"
-    assert Main(["workspace", "create", str(root), "--id", "images", "--name", "Images"]) == 0
+    assert Main(["workspace", "create", str(root), "--id", "images", "--name", "Images"]) == 0, (
+        "Owned workspace must exist before invalid artifact rules are tested"
+    )
     capsys.readouterr()
     assert Main(["scope", "create", str(root), "--id", "image-scope",
-        "--allow-artifact", target, "--json"]) == 2
+        "--allow-artifact", target, "--json"]) == 2, (
+        "Invalid canonical artifact identities must return configuration refusal"
+    )
     assert "invalid_configuration" in capsys.readouterr().out, "Malformed artifact is refused"
 
     with pytest.raises(OSError):
