@@ -554,14 +554,16 @@ class RequestGenerationContext:
 
 def GenerateOpenApiRequest(
     value: str, operation_reference: str, *, workspace_id: str, base_url: str | None = None,
+    document_format: str = "json",
 ) -> GeneratedApiRequest:
     """Generate one source-bound anonymous synthetic preview without traffic or state changes.
 
     Args:
-        value: Exact original untrusted JSON text, never a filename or retrieval URL.
+        value: Exact original untrusted text, never a filename or retrieval URL.
         operation_reference: Canonical source/server/media operation reference from ImportOpenApi.
         workspace_id: Explicit matching existing workspace-local owner.
         base_url: Same explicit resolution context used by the original import, when required.
+        document_format: Same explicit json/yaml interpretation used by the original import.
 
     Returns:
         One bounded ephemeral preview with generated values and original source identity.
@@ -576,13 +578,14 @@ def GenerateOpenApiRequest(
         ):
             raise ValueError("generation requires a canonical operation reference")
 
-        imported = ImportOpenApi(value, workspace_id=workspace_id, base_url=base_url)
+        imported = ImportOpenApi(value, workspace_id=workspace_id, base_url=base_url,
+                                 document_format=document_format)
         matches = [item for item in imported.operations if item.Reference() == operation_reference]
 
         if len(matches) != 1:
             raise ValueError("operation reference does not match the exact source/context")
 
-        document, version, _, _ = DecodeApiDocument(value)
+        document, version, _, _ = DecodeApiDocument(value, document_format=document_format)
         return RequestGenerationContext(document, version, matches[0]).Render()
 
     except (ValueError, TypeError, KeyError, IndexError, StopIteration, UnicodeError):

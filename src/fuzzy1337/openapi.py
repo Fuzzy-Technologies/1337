@@ -15,6 +15,7 @@ from typing import cast
 from urllib.parse import urlsplit
 
 from fuzzy1337.model import CanonicalModelJson, ModelProvenance, SecurityObject
+from fuzzy1337.openapi_yaml import DecodeOpenApiYaml
 from fuzzy1337.requests import (
     BodyKind,
     Endpoint,
@@ -890,18 +891,24 @@ def ApiImportServers(
     return tuple(sorted(result))
 
 
-def DecodeApiDocument(value: str) -> tuple[dict[str, object], str, bool, str]:
-    """Decode bounded strict JSON and validate every node before schema/reference traversal.
+def DecodeApiDocument(
+    value: str, *, document_format: str = "json",
+) -> tuple[dict[str, object], str, bool, str]:
+    """Decode explicit bounded JSON/YAML before existing schema/reference traversal.
 
     Args:
-        value: Candidate structural JSON value; no I/O or execution occurs.
+        value: Supplied text; no file, URL, constructor or reference is opened.
+        document_format: Explicit json default or optional bounded yaml profile.
 
     Returns:
         Document, supported version, legacy flag and exact input-byte digest.
     """
 
     if not isinstance(value, str):
-        raise ValueError("API import requires JSON text")
+        raise ValueError("API import requires supplied text")
+
+    if not isinstance(document_format, str) or document_format not in {"json", "yaml"}:
+        raise ValueError("API document format must be json or yaml")
 
     try:
         raw = value.encode("utf-8")
@@ -909,14 +916,20 @@ def DecodeApiDocument(value: str) -> tuple[dict[str, object], str, bool, str]:
         if len(raw) > MAX_OPENAPI_BYTES:
             raise ValueError("API input exceeds its byte bound")
 
-        try:
-            parsed_document = json.loads(
-                value, object_pairs_hook=UniqueWorkspaceObject,
-                parse_constant=RejectWorkspaceConstant,
+        if document_format == "yaml":
+            parsed_document = DecodeOpenApiYaml(
+                value, maximum_nodes=MAX_OPENAPI_NODES, maximum_depth=MAX_OPENAPI_DEPTH,
             )
 
-        except ValueError:
-            raise ValueError("API JSON syntax, keys or numeric constants are invalid") from None
+        else:
+            try:
+                parsed_document = json.loads(
+                    value, object_pairs_hook=UniqueWorkspaceObject,
+                    parse_constant=RejectWorkspaceConstant,
+                )
+
+            except ValueError:
+                raise ValueError("API JSON syntax, keys or numeric constants are invalid") from None
 
         document = ApiImportObject(parsed_document)
         pending: list[tuple[object, int]] = [(document, 0)]
@@ -963,14 +976,16 @@ def DecodeApiDocument(value: str) -> tuple[dict[str, object], str, bool, str]:
 def ImportOpenApi(
     value: str, *, workspace_id: str, base_url: str | None = None,
     session_reference: SessionReference | None = None,
+    document_format: str = "json",
 ) -> OpenApiImport:
-    """Import bounded JSON into symbolic requests without network, file or credential access.
+    """Import bounded JSON/YAML into symbolic requests without I/O or credential access.
 
     Args:
-        value: Untrusted supplied JSON text, not a filename or retrieval URL.
+        value: Untrusted supplied text, not a filename or retrieval URL.
         workspace_id: Existing workspace-local endpoint owner.
         base_url: Explicit HTTP(S) resolution context for document-relative servers.
         session_reference: Optional separately owned same-workspace session reference.
+        document_format: Explicit json default or optional bounded yaml profile.
 
     Returns:
         Deterministic operation/media/server variants and structural schema/auth summaries.
@@ -980,7 +995,7 @@ def ImportOpenApi(
     """
 
     Endpoint(workspace_id, "http://127.0.0.1", "/")
-    document, version, legacy, digest = DecodeApiDocument(value)
+    document, version, legacy, digest = DecodeApiDocument(value, document_format=document_format)
     context = ApiImportContext(document, version)
     paths = ApiImportObject(document.get("paths"))
     operations = []
