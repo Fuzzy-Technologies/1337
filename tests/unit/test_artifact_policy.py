@@ -18,6 +18,7 @@ from artifact_helpers import AT, OwnedArtifact
 from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ImpactLevel
 from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactSelection, ArtifactStage
 from fuzzy1337.artifact_policy import (
+    ArtifactAcceptance,
     ArtifactDeniedError,
     ArtifactPolicyEngine,
     GovernedArtifactExecutor,
@@ -376,6 +377,7 @@ def test_PassiveCeilingCannotAuthorizeSafeArtifactExecution(tmp_path, ceiling):
         b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":null}',
         b"\xff",
     ],
+    ids=["boolean-version", "float-version", "duplicate-mode", "nonfinite", "null-mode", "utf8"],
 )
 def test_MalformedPinnedMaterialDeniedBeforeGrantOrLaunch(tmp_path, payload):
     """A content hash cannot make ambiguous JSON policy into approved SAFE material."""
@@ -609,3 +611,33 @@ def test_AuthorityChangedDuringScratchSetupCannotLaunch(tmp_path, monkeypatch, m
     assert not any(event.kind == ExecutionEventKind.STARTED for event in events), (
         "Changed final authority reached a child"
     )
+
+
+def test_ReceiptMarkerMetadataIsFiniteAndFreezesCallerAlias(tmp_path):
+    """A receipt never consumes an unbounded marker iterable or retains a mutable alias."""
+
+    _, stage, _, _, grant = OwnedArtifact(tmp_path)
+    caller_identity = [0, 0, 0, 0, 0]
+    receipt = ArtifactAcceptance(
+        "artifact-run:owned",
+        grant.authorization.authorization_id,
+        stage.lease_id,
+        "0" * 64,
+        AT.isoformat(),
+        None,
+        caller_identity,
+    )
+    caller_identity[0] = 1
+
+    assert receipt.marker_identity == (0, 0, 0, 0, 0), "Caller alias changed physical marker facts"
+
+    class MarkerIterator:
+        """Reject arbitrary iteration before trusting observed physical metadata."""
+
+        def __iter__(self):
+            """Fail if a supposedly finite constructor consumes caller-controlled iteration."""
+
+            raise AssertionError("An unbounded marker iterator was consumed")
+
+    with pytest.raises(ValueError):
+        replace(receipt, marker_identity=MarkerIterator())

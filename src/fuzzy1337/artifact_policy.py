@@ -34,6 +34,7 @@ from fuzzy1337.artifact_inputs import (
     ArtifactProfile,
     ArtifactRole,
     ArtifactStage,
+    FreezePhysicalIdentity,
     PhysicalIdentity,
     ReadArtifactFile,
 )
@@ -1017,12 +1018,9 @@ class ArtifactAcceptance:
             raise ValueError("artifact refusal must be a typed sanitized reason")
 
         if self.marker_identity is not None:
-            identity = tuple(self.marker_identity)
-
-            if len(identity) != 5 or any(type(value) is not int for value in identity):
-                raise ValueError("artifact marker requires observed physical integer metadata")
-
-            object.__setattr__(self, "marker_identity", identity)
+            object.__setattr__(
+                self, "marker_identity", FreezePhysicalIdentity(self.marker_identity, 5)
+            )
 
         if self.refusal is None and self.marker_identity is None:
             raise ValueError("accepted artifact receipt requires an actual launch marker")

@@ -76,6 +76,27 @@ def Stage(selected):
         "a\nsecret",
         "a\x00b",
     ],
+    ids=[
+        "empty",
+        "dot",
+        "parent",
+        "traversal",
+        "absolute",
+        "backslash",
+        "colon",
+        "empty-component",
+        "parent-component",
+        "trailing-dot",
+        "trailing-space",
+        "device",
+        "device-extension",
+        "nested-device",
+        "non-ascii",
+        "long-name",
+        "deep-path",
+        "newline",
+        "nul",
+    ],
 )
 def test_PortableNamesFailClosedWithoutReads(name, selected):
     """Unsafe names cannot become paths even when their source is selected."""

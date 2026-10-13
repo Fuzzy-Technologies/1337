@@ -103,15 +103,27 @@ def test_StandaloneEntryPointAndConfigDirectoryRemainPortable(tmp_path, monkeypa
     assert raised.value.code == 0, "Portable bundled entry point failed"
 
 
-@pytest.mark.parametrize("payload", [
-    b'{"schema_version":true,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
-    b'{"schema_version":1.0,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
-    b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":"failure","mode":"success"}',
-    b'{"schema_version":NaN,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
-    b'{"schema_version":Infinity,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
-    b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":[]}',
-    b'\xff',
-])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b'{"schema_version":true,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+        b'{"schema_version":1.0,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+        b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":"failure","mode":"success"}',
+        b'{"schema_version":NaN,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+        b'{"schema_version":Infinity,"fixture_id":"owned-artifact-lifecycle-v1","mode":"success"}',
+        b'{"schema_version":1,"fixture_id":"owned-artifact-lifecycle-v1","mode":[]}',
+        b"\xff",
+    ],
+    ids=[
+        "boolean-version",
+        "float-version",
+        "duplicate-mode",
+        "nan",
+        "infinity",
+        "mode-type",
+        "utf8",
+    ],
+)
 def test_AmbiguousJsonCannotTurnFailureIntoSuccess(tmp_path, monkeypatch, payload):
     """The reviewed wire rejects duplicate/nonfinite/version-alias data before a lifecycle mode."""
 

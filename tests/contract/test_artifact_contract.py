@@ -81,6 +81,7 @@ def test_SchemaAndSameScopeSnapshotSupportOnlyExactArtifactTarget():
         "/owned/archive.tar",
         "0" * 64,
     ],
+    ids=["oci-prefix", "uppercase", "short-digest", "physical-path", "missing-prefix"],
 )
 def test_ArtifactTargetRejectsOciPathAndNoncanonicalDigests(value):
     """No path, OCI spelling or heuristic kind inference can grant an artifact scope."""
