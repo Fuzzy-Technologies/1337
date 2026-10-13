@@ -1,8 +1,8 @@
 # Owned loopback page capture
 
 This Accepted ADR-0052 profile is an exact bounded next slice of #59/#53. It
-preserves NativeHTTP version 1. Behavior implementation begins only after design
-review; the reviewed ADR-0050 captured-web consumer is an integration dependency.
+preserves NativeHTTP version 1. The implementation follows the reviewed design
+and composes the accepted ADR-0050 captured-web consumer.
 
 ## Authority and input
 
@@ -49,7 +49,7 @@ loads a caller-selected file or fixture path.
 
 ## Experimental consumer shape and limits
 
-The implementation will use new owned adapter, worker and producer paths:
+The implementation uses new owned adapter, worker and producer paths:
 `fuzzy1337.adapters.page_capture`, `fuzzy1337.page_capture_worker` and
 `fuzzy1337.page_capture`. The concrete provider shape is
 `LocalPageCaptureProvider(workspace_root, source, expected_body, scope_id, policy,

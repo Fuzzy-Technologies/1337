@@ -45,6 +45,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   pinned source fixtures, retaining the independently authored result oracle.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
   checks and model projection that preserves existing Endpoint requests.
+- Added governed acquisition of one owned loopback HTML page from the closed
+  non-secret fixture catalog, with bounded transport parsing, retained evidence,
+  existing lexical frontier projection and one durable model Save.
 
 - Added explicit saved-workspace `report export` for bounded JSON and SARIF,
   owner-verifying every retained raw evidence reference and preserving failed
