@@ -1,6 +1,6 @@
 # ADR 0050: Verified captured HTML frontiers
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-13
 - Decision owners: Fuzzy Technologies
 - Related work: #59, #53, #58, #153
@@ -14,7 +14,7 @@ have structural identities, scope preparation and separate runtime ownership.
 The next useful web-engine slice can interpret explicitly supplied static HTML
 without adding a second acquisition path or claiming browser execution.
 
-## Decision proposed for implementation
+## Decision
 
 Add Experimental `fuzzy1337.captured_web`, frontier profile version 1, in new
 source paths. Read one explicit non-secret UTF-8 `text/html` evidence artifact
@@ -64,7 +64,8 @@ new schema enum, model/evidence store, queue database, job, CLI or launch path.
 
 The exact profile, API shape, limits, failure categories, projection attribution
 and handwritten source/oracle are defined in [Captured web frontiers](../CAPTURED_WEB.md).
-Implementation starts only after review of this immutable design checkpoint.
+The immutable design/oracle checkpoint was independently reviewed before behavior
+implementation. The documented bounded profile is accepted for implementation.
 
 ## Validation and remaining work
 

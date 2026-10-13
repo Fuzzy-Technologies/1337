@@ -1,14 +1,14 @@
 # Captured web frontiers
 
-This proposed Experimental profile advances #59/#53 with an offline consumer of
+This Experimental profile advances #59/#53 with an offline consumer of
 explicit static HTML. It is not an HTTP client, async crawler or browser executor.
 The accepted native HTTP version-1 evidence cannot supply this input because it
 contains no response body. No source code or rules are ported from another engine.
 
-## Proposed API and ownership
+## API and ownership
 
 `CAPTURED_WEB_PROFILE_VERSION = 1` and `CapturedWebLimits` are Experimental.
-Two functions form the proposed producer/consumer boundary:
+Two functions form the producer/consumer boundary:
 
 - `ReadCapturedWebFrontier(workspace_root, source, capture, scope_id, *, at,
   limits=CapturedWebLimits())` returns an immutable frontier. It reads only the
