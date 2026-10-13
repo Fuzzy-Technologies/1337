@@ -54,6 +54,13 @@ states for review or exploratory reports; rejected relations remain excluded.
 Selection never follows another mapping transitively or implies reverse relations.
 The caller must verify that the referenced object exists and is a finding.
 
+`BindFindingObjectMappings` accepts the canonical `SecurityObject` instead of an
+opaque reference. It validates finding shape and fingerprint through the owning
+`Finding.FromObject` contract, then uses the same approved-only exact selection.
+It does not prove model membership, classifier correctness, or raw evidence
+integrity. The caller supplies those checks and the explicit versioned classifier.
+Neither binding helper changes finding status or publishes a model observation.
+
 ```python
 from fuzzy1337.standards_mapping import (
     BindFindingMappings, CandidateBaseline, MappingPack, StandardIdentity,
@@ -95,7 +102,21 @@ Primary sources:
 - [NIST CSF 2.0, Appendix A, printed page 18](https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf).
 - [MITRE ATT&CK 19 T1190, technique version 2.8](https://attack.mitre.org/versions/v19/techniques/T1190/).
 
-An exact sourced ATLAS baseline relation and accountable owner review remain open
-for #68. No automatic publication-current claim is made for any source. This
-contract can later bind independently owned Intel identities through an explicit
-version-aware bridge; it imports no pending Intel implementation.
+The candidate revision retains its original missing ATLAS association and absent
+review decisions. `ReviewedBaseline()` provides the additive version `0.2.0`,
+with six selected relations, all seven raw-source pins, an ATLAS contextual
+association, and the externally recorded content decision. It reads one bounded
+installed package resource, verifies the exact pack content reference and approved
+states, and fails visibly if the resource is absent or changed. No candidate
+fallback or source fetching occurs.
+
+The [reviewed source record](STANDARDS_MAPPING_BASELINE.md) distinguishes explicit
+publisher crosswalks from 1337 contextual interpretations and preserves exact
+source locators, content references, acquisition digests, and review provenance.
+See [ADR 0063](adr/0063-reviewed-standards-baseline.md). This is a finite historical
+baseline, not complete or automatically current framework coverage. A source
+digest does not authenticate its publisher or verify security Evidence.
+
+Future explicit version-aware Intel bridges may use this contract independently;
+no pending Intel implementation is imported, and Security Object identity remains
+unchanged.
