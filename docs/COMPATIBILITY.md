@@ -174,6 +174,15 @@ the existing model schema or granting execution authority.
 The synthetic helper has a fixed fixture namespace and does not admit evidence,
 apply a model transition, grant execution or change native import behavior.
 
+`fuzzy1337.image_evidence` and `fuzzy1337.image_workflow` are Internal closed-fixture
+capture/orchestration modules. The capture helper retains original typed SDK
+envelopes and acquisition provenance; `fuzzy1337.synthetic_images` remains the
+single interpretation owner. One governed job composes independent VERSION/SCAN runs,
+selected-material and six-role evidence, final current paired acceptance, durable
+model/workspace CAS saves and separate JSON/SARIF publication, as described in
+`docs/IMAGE_WORKFLOW.md`. Genuine supplied Trivy acceptance and a CLI image entry
+remain separate; native import and reviewed worker/builder/oracle bytes are unchanged.
+
 `fuzzy1337.discovery` and `fuzzy1337.adapters.native_http` are Experimental
 Python producer/sensor APIs at contract version `1`. ADR 0036 and
 `docs/NATIVE_DISCOVERY.md` define finite SAFE literal-IP endpoint acquisition,
