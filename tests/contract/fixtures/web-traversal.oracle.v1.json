@@ -1,0 +1,13 @@
+{
+  "profile": "owned-traversal.v1",
+  "commit_paths": ["/index", "/alpha", "/beta", "/shared"],
+  "request_paths": ["/alpha", "/beta", "/index", "/shared"],
+  "unselected_candidates": 1,
+  "successful_pages": 4,
+  "body_bytes": 421,
+  "manifest_count": 8,
+  "index_exclusions": {"off-origin": 1, "scope.excluded": 1},
+  "index_candidate_paths": ["/alpha", "/beta", "/unselected"],
+  "model_revision": 4,
+  "redirect_destination_requests": 0
+}
