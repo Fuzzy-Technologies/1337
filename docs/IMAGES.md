@@ -11,10 +11,10 @@ Internal `TrivyCandidates` helper constructs the existing object, relation,
 observation and Finding batch. This helper performs no evidence reads or model
 application and does not expose a namespace or authority override. The supported
 native signature, three roles and version record without execution facts remain
-unchanged. A separate future synthetic importer is described in the
-[consumer design](SYNTHETIC_IMAGE_IMPORT_DESIGN.md); its live and historical
-boundaries require the independently accepted richer operation SDK and are not
-implemented by this factoring.
+unchanged. The separate synthetic importer uses original typed VERSION/SCAN
+proofs through the operation-aware artifact SDK, with its own live and read-only
+historical boundaries. See the [consumer contract](SYNTHETIC_IMAGE_IMPORT_DESIGN.md)
+and [assembled closed image workflow](IMAGE_WORKFLOW.md).
 
 The Internal `SyntheticTrivyCandidates` helper prepares a detached batch in the
 fixed `synthetic.trivy:owned-synthetic-image-wire-v1:` asset namespace. It rewrites
@@ -91,6 +91,40 @@ closed. Findings use the existing Finding contract and retain evidence-linked
 image-origin observations. Existing operator disposition remains unchanged on
 re-detection. Reopening a closed disposition is an explicit TransitionFinding
 operation; inventory import does not make that decision.
+
+## Separate synthetic Trivy-format reports
+
+`ApplyVerifiedSyntheticTrivyImages(state, version_proof, scan_outcome,
+scan_prepared, scan_stage, records, workspace_root, *, context_provider)` accepts
+only the closed `owned-synthetic-image-wire-v1` family and `synthetic.trivy`
+source. It derives original SCAN provenance from six immutable acquisition
+manifests, verifies both original operation capture envelopes and their exact
+request/stage/grant/prerequisite bindings, then constructs the complete candidate
+batch. The canonical SDK facade refreshes both original grants after all
+evidence/candidate work; subsequent application uses pure `ApplyFindings` without
+another evidence read. This boundary neither launches nor saves/publishes state.
+
+Every config/manifest image, package, OS, layer and license key has the literal
+`synthetic.trivy:owned-synthetic-image-wire-v1:` prefix. Finding checks use
+`synthetic.supply-chain.vulnerability`; all relation/observation/Finding subjects
+and the `image_reference` attribute stay inside that family. Matching digest/PURL
+hints do not create native associations or attribute overlays. Existing synthetic
+triage survives later accepted collections, and all entire colliding native
+assets/provenance/dispositions remain unchanged.
+
+`VerifySyntheticTrivyImageReplay(records, workspace_root)` separately verifies
+original saved schema-2 receipts, strict capture/request/stage shapes, original
+SDK replay digests, actual stream facts, collection chronology and package wire.
+It returns immutable original SCAN `ModelProvenance`. It reads no current physical
+stage, performs no live acceptance, issues no grant and saves/applies nothing.
+Relocation keeps original receipt paths and bytes; it does not revive authority.
+Legacy schema-1 artifact replay remains the artifact owner's original-shape
+contract and cannot be upgraded into this richer image proof.
+
+Synthetic inventory observations and reports retain `scan_completeness:
+not-assessed`, including no_findings. The worker emits explicit fixture proposals;
+these tests establish neither genuine Trivy/database compatibility nor detection
+accuracy. Task #142 remains open for native acceptance.
 
 ## CycloneDX inventory
 

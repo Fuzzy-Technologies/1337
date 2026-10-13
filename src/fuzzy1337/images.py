@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import cast
@@ -15,13 +15,33 @@ from urllib.parse import unquote
 
 from fuzzy1337.adapters import AdapterReport, ExecutionState
 from fuzzy1337.adapters.trivy import ParseJson
-from fuzzy1337.evidence import EvidenceRecord, LocalEvidenceStore, NormalizeEvidenceTime
+from fuzzy1337.artifact_inputs import ArtifactStage
+from fuzzy1337.artifact_policy import (
+    ArtifactDeniedError,
+    ArtifactExecutionOutcome,
+    ArtifactPolicyContext,
+    ArtifactVersionProof,
+    GovernedArtifactExecutor,
+    PreparedArtifact,
+)
+from fuzzy1337.evidence import (
+    EvidenceError,
+    EvidenceRecord,
+    LocalEvidenceStore,
+    NormalizeEvidenceTime,
+)
 from fuzzy1337.executors import InvocationDigest
 from fuzzy1337.findings import (
+    ApplyFindings,
     ApplyVerifiedFindings,
     Finding,
     FindingSeverity,
     Remediation,
+)
+from fuzzy1337.image_evidence import (
+    ImageOperationCapture,
+    SavedImageProvenance,
+    VerifySavedSyntheticImagePair,
 )
 from fuzzy1337.model import (
     CanonicalModelJson,
@@ -58,6 +78,7 @@ _NATIVE_PURL_TYPES = {
 __all__ = [
     "IMAGE_CONTRACT_VERSION", "IMAGE_IMPORT_MAX_BYTES", "IMAGE_IMPORT_MAX_ITEMS",
     "ImageIdentity", "PackageIdentity", "ApplyVerifiedTrivyImages", "ApplyVerifiedCycloneDx",
+    "ApplyVerifiedSyntheticTrivyImages", "VerifySyntheticTrivyImageReplay",
 ]
 
 
@@ -702,6 +723,9 @@ def SyntheticTrivyCandidates(workspace_id: str, payload: dict[str, object],
     for item in observations:
         attributes = dict(item.attributes)
 
+        if item.kind == "image-inventory":
+            attributes["scan_completeness"] = "not-assessed"
+
         if "image_reference" in attributes:
             attributes["image_reference"] = references[cast(str, attributes["image_reference"])]
 
@@ -712,6 +736,104 @@ def SyntheticTrivyCandidates(workspace_id: str, payload: dict[str, object],
         check_id="synthetic.supply-chain.vulnerability") for item in findings]
 
     return isolated, isolated_relations, isolated_observations, isolated_findings
+
+
+def ApplyVerifiedSyntheticTrivyImages(
+    state: ModelState, version_proof: ArtifactVersionProof,
+    scan_outcome: ArtifactExecutionOutcome, scan_prepared: PreparedArtifact,
+    scan_stage: ArtifactStage, records: tuple[EvidenceRecord, ...], workspace_root: Path,
+    *, context_provider: Callable[[], ArtifactPolicyContext],
+) -> tuple[ModelState, ModelDelta]:
+    """Propose isolated synthetic interpretations after original-pair and fresh authority checks.
+
+    Args:
+        state: Existing immutable canonical snapshot in the owning workspace.
+        version_proof: Exact original typed VERSION prerequisite bound into SCAN's grant.
+        scan_outcome: Actual original SCAN outcome with its unmodified process facts.
+        scan_prepared: Original fixed SCAN request containing the prerequisite identity.
+        scan_stage: Original physical SCAN stage, separate from VERSION.
+        records: Exact six immutable original operation stream/receipt acquisitions.
+        workspace_root: Owning workspace and original immutable evidence store.
+        context_provider: Canonical synchronous current scope/operator-policy/owner facts.
+
+    Returns:
+        One isolated in-memory transition and delta; this neither saves nor publishes a model.
+
+    Raises:
+        ArtifactDeniedError: Canonical final original-pair authority/material acceptance refuses.
+        ValueError: Original evidence, wire, chronology or exact prerequisite binding is invalid.
+    """
+
+    try:
+        if not isinstance(version_proof, ArtifactVersionProof):
+            raise ValueError("synthetic image import requires the original typed VERSION proof")
+
+        provenance = SavedImageProvenance(records, workspace_root)
+        verified = VerifySavedSyntheticImagePair(state, provenance, records, workspace_root)
+        version_record = next(item for item in records if item.reference.role == "provider-version")
+        scan_record = next(item for item in records if item.reference.role == "stdout")
+        version_capture = ImageOperationCapture(version_proof.outcome, version_proof.prepared,
+            version_proof.stage, version_record.provenance.started_at,
+            version_record.provenance.finished_at)
+        scan_capture = ImageOperationCapture(scan_outcome, scan_prepared, scan_stage,
+            scan_record.provenance.started_at, scan_record.provenance.finished_at)
+
+        if verified.version_envelope != version_capture.Envelope() or (
+            verified.scan_envelope != scan_capture.Envelope()
+        ):
+            raise ValueError("synthetic image records do not capture the exact original pair")
+
+        objects, relations, observations, findings = SyntheticTrivyCandidates(state.workspace_id,
+            verified.payload, verified.version, verified.database, provenance)
+        facade = GovernedArtifactExecutor(workspace_root)
+        facade.ValidatePairAcceptanceFresh(
+            (version_proof.outcome, version_proof.prepared, version_proof.stage),
+            (scan_outcome, scan_prepared, scan_stage), context_provider,
+        )
+        updated, first = state.Apply(objects=tuple(objects), relations=tuple(relations),
+                                     observations=tuple(observations))
+        updated, second = ApplyFindings(updated, tuple(findings))
+        created = set(first.created) | set(second.created)
+        changed = (set(first.updated) | set(second.updated)) - created
+        updated = replace(updated, revision=state.revision + bool(created or changed))
+
+        return updated, ModelDelta(state.revision, updated.revision,
+                                  tuple(sorted(created)), tuple(sorted(changed)))
+
+    except ArtifactDeniedError as error:
+        raise ArtifactDeniedError(error.reason) from None
+
+    except (EvidenceError, OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError):
+        raise ValueError("synthetic image interpretation refused") from None
+
+
+def VerifySyntheticTrivyImageReplay(records: tuple[EvidenceRecord, ...],
+                                    workspace_root: Path) -> ModelProvenance:
+    """Verify retained original synthetic interpretation facts without launching or applying state.
+
+    Args:
+        records: Exact original six stream/receipt acquisition manifests.
+        workspace_root: Current owning workspace, including a verified relocated evidence store.
+
+    Returns:
+        Immutable original SCAN attribution; it grants no live acceptance or new model transition.
+
+    Raises:
+        ValueError: Saved original pair, evidence, wire or package interpretation is inconsistent.
+    """
+
+    try:
+        workspace_id = LocalWorkspaceStore(workspace_root).Open().workspace_id
+        provenance = SavedImageProvenance(records, workspace_root)
+        verified = VerifySavedSyntheticImagePair(ModelState(workspace_id), provenance,
+                                                 records, workspace_root)
+        SyntheticTrivyCandidates(workspace_id, verified.payload, verified.version,
+                                 verified.database, provenance)
+
+        return provenance
+
+    except (EvidenceError, OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError):
+        raise ValueError("synthetic image historical verification refused") from None
 
 
 def ApplyVerifiedTrivyImages(state: ModelState, report: AdapterReport,

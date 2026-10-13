@@ -1,25 +1,27 @@
 # Separate verified synthetic image interpretation
 
 This is the concrete consumer plan for the accepted [ADR 0048](adr/0048-closed-synthetic-image-operations.md)
-and [operation contract](SYNTHETIC_IMAGE_OPERATIONS_DESIGN.md). It does not add an
-importer, register a producer, authorize a process or complete Task #142. The
-accepted initial artifact foundation remains separate from the proposed richer
-operation API. Implementation waits for that producer API to be independently
-reviewed and accepted. Native interpretation remains the ADR 0040 contract.
+and [operation contract](SYNTHETIC_IMAGE_OPERATIONS_DESIGN.md). Its separate
+Experimental importer consumes the operation-aware artifact SDK; neither importer
+nor historical verifier registers a producer, launches a process or completes
+Task #142. The [assembled workflow](IMAGE_WORKFLOW.md) owns execution and durable
+saves separately. Native interpretation remains the ADR 0040 contract.
 
 The owner accepted the narrow behavior-preserving native candidate factoring
-decision on 2026-10-13. The synthetic live/replay boundaries below remain proposed
-until their operation-aware SDK dependencies and independent review are accepted.
+decision on 2026-10-13. Synthetic runtime publication still requires its exact
+operation-aware SDK prerequisites, independent review and full CI. Native
+scanner/database compatibility and full Task #142 acceptance remain open.
 
-## Proposed live boundary
+## Live boundary
 
-The proposed Experimental Python boundary is
+The Experimental Python boundary is
 `ApplyVerifiedSyntheticTrivyImages(state, version_proof, scan_outcome,
 scan_prepared, scan_stage, records, workspace_root, *, context_provider)`.
-The artifact SDK owner is preparing `ArtifactVersionProof`, the operation-aware
-request and outcome types, and `GovernedArtifactExecutor.ValidatePair`. Their
-final accepted signatures must be used directly; this plan does not define a
-parallel SDK or a substitute verifier.
+It uses `ArtifactVersionProof`, the original operation-aware request/outcome types
+and `GovernedArtifactExecutor.ValidatePairAcceptanceFresh`. The facade receives
+the original `(outcome, prepared, stage)` tuple for VERSION and SCAN plus the
+current factual context provider. The consumer constructs that canonical facade;
+it defines no parallel SDK, verification callback or substitute executor.
 
 `version_proof` contains the actual original VERSION outcome, prepared request
 and physical stage. SCAN supplies its own original typed outcome, request and
@@ -126,7 +128,7 @@ requires exactly stdout, stderr and provider-version; provider-version still
 requires invocation_sha256 and execution to be absent. CycloneDX, SPDX,
 ImageIdentity, PackageIdentity and native ApplyBatch retain their existing API.
 
-The future synthetic boundary calls the pure candidate helper only after its own
+The synthetic boundary calls the pure candidate helper only after its own
 separate evidence and operation checks. Before application it rewrites every
 asset natural key with the fixed literal prefix
 `synthetic.trivy:owned-synthetic-image-wire-v1:`. The six permitted native-derived
@@ -144,7 +146,7 @@ provenance and key/check namespaces remain explicit; image inventory observation
 retain `scan_completeness: not-assessed`, including no_findings.
 
 Verify and construct the complete candidate batch before the final authority
-barrier. The SDK's ValidatePair performs the full original receipt/material checks
+barrier. The SDK's ValidatePairAcceptanceFresh performs original receipt/material checks
 for both operations, then refreshes authority and clock after expensive work and
 checks both original grants immediately before pure application. It never extends
 VERSION validity to accommodate SCAN. Failure retains raw evidence and the
@@ -155,13 +157,13 @@ keeps its existing verified Finding boundary.
 
 ## Separate read-only historical verification
 
-`VerifySyntheticTrivyImageReplay(records, workspace_root)` is a proposed separate
+`VerifySyntheticTrivyImageReplay(records, workspace_root)` is a separate
 read-only boundary. It verifies the original six records, capture windows,
 detached payloads, complete original request/grant/receipt digests, actual stream
 facts and cross-stage binding using the SDK's schema-specific replay codec.
-It returns immutable original attribution facts, not a live acceptance token,
+It returns original immutable SCAN ModelProvenance, not a live acceptance token,
 ModelDelta, grant or updated model. It does not inspect a current/relocated stage,
-call ValidatePair, invoke live Apply, create a process or save anything.
+call ValidatePairAcceptanceFresh, invoke live Apply, create a process or save anything.
 
 Legacy SDK schema-1 replay keeps the original field shape and hashes and remains
 legacy SCAN provenance. The richer importer requires actual schema-2 VERSION and
