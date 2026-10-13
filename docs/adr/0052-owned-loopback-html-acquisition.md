@@ -71,9 +71,13 @@ cancellation, event failure or a lost acknowledgement can leave model/evidence
 persisted without a delivered delta; report actual known/ambiguous state and do
 not claim rollback or cross-store atomicity. Actual worker success remains distinct
 from the later owning job outcome. Post-capture interpretation must use the same
-exact current scope as the launch plan. After all evidence/model I/O and composition,
-recheck the full launch scope hash/revision, exact source-URL/literal-IP membership
-and fresh consent/expiry immediately before owner Save; a changed, revoked or
+exact pinned ScopeSnapshot/ToDict and revision used at launch. Verify the launch
+policy digest and frontier digest with their respective existing serializers;
+valid Unicode consent metadata can yield unequal strings for the same snapshot.
+Retain both with explicit owner roles; do not change either serializer or impose
+an ASCII-only metadata restriction. After all evidence/model I/O and composition,
+recheck the full snapshot/revision, both respective digests, exact source-URL/
+literal-IP membership and fresh consent/expiry immediately before owner Save; a changed, revoked or
 expired scope fails at that boundary. This is bounded
 snapshot checking, not continuous revocation or a cross-store atomic transaction.
 
@@ -96,7 +100,9 @@ synthetic secret markers do not leak through any retained channel.
 Scope revocation between grant/launch, post-acquisition scope changes, EOF/slow
 responses, output overflow, cancellation/reaping, corrupt evidence, optimistic
 model conflicts, existing template preservation and exact replay remain explicit
-acceptance cases. Canonical locked gates, strict per-module branch coverage,
+acceptance cases. Include unchanged Unicode consent metadata whose two valid owner
+digests differ, and changed snapshot/revision variants; string equality across
+different serializers is never the acceptance oracle. Canonical locked gates, strict per-module branch coverage,
 documentation/inventory audits and independent source review are required.
 
 Tasks #59 and #53 remain open. This is a useful one-page synthetic acquisition

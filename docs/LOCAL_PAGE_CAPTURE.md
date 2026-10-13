@@ -201,13 +201,22 @@ they are not cryptographic transport or collector authentication. The body
 manifest still has no transport URL field. A standalone supplied body retains
 ADR 0050's caller-association boundary. Never label a lexical link as acquired.
 
-Call ReadCapturedWebFrontier through its existing owners/current scope after
-capture. Require its complete scope SHA/revision to equal the launch plan, and
-reread/check that same current consented scope after all evidence reads, model
+Pin the full owning ScopeSnapshot used for launch, including its exact revision
+and ToDict representation. Call ReadCapturedWebFrontier through its existing
+owners/current scope after capture. Require the frontier to bind that same full
+snapshot/revision using its existing scope serializer/digest, and independently
+require the launch plan's scope digest to match the pinned snapshot using the
+existing policy serializer/digest. Do not compare the two digest strings directly:
+the policy serializer uses ASCII escaping while the frontier's model serializer
+preserves Unicode; valid non-ASCII consent metadata can produce different hashes
+for the same snapshot. Retain both hashes with explicit owner roles, without
+changing either owner serializer or restricting consent metadata to ASCII.
+
+Reread/check that same full consented snapshot after all evidence reads, model
 open/composition and other expensive validation, immediately before owner Save.
-Require the full scope hash/revision to still equal the launch plan and recheck
-exact source-URL/literal-IP membership and current consent/expiry with a fresh
-clock reading at that final boundary. No stored earlier check time or launch grant
+Require exact ToDict/revision equality and each respective owning digest, then
+recheck exact source-URL/literal-IP membership and current consent/expiry with a
+fresh clock reading at that final boundary. No stored earlier check time or launch grant
 substitutes for it. A changed,
 revoked or expired scope fails; the already admitted artifacts remain inspectable.
 No worker already in flight is magically revoked. There is no cross-scope/model
@@ -225,7 +234,8 @@ publishing MODEL_DELTA. An optimistic conflict fails explicitly, with no overwri
 One `http.synthetic-page` source Observation is subject to the structural source
 Endpoint. Retain normalized HTTP/header metadata, exact body/stdout manifest IDs,
 source request/target, closed fixture ID, invocation SHA, launch plan intent, authorization ID,
-scope/policy SHA and revision, and prior model canonical SHA/revision. ModelProvenance
+launch policy scope SHA/revision, policy SHA/revision, and prior model canonical
+SHA/revision. Retain the separate frontier scope SHA/revision in its owning role. ModelProvenance
 keeps actual provider/worker version, owning job run, source target, both evidence
 references, collection finish time and exact execution. Also retain frontier digest,
 scope SHA/revision/check time, total/processed anchors, complete/discarded candidate
@@ -273,8 +283,9 @@ remain runtime bindings, not invented fixture constants.
 Acceptance includes the exact original wire/body/oracle plus strict boundary and
 failure variants: header/body +/-1, max count, duplicate/folded/non-ASCII headers,
 malformed status/length/media/encoding, early EOF/extra byte/keep-alive/slow progress,
-wrong SHA/same-length changed body, unexpected synthetic secret markers, invalid
-UTF-8/BOM, IPv6 if the runner can own it, denial at grant/final launch, postcapture
+wrong SHA/same-length changed body, unexpected synthetic secret markers, valid
+Unicode consent authority/reference metadata with distinct owner digests but an
+unchanged pinned scope snapshot, changed scope metadata/revision, invalid UTF-8/BOM, IPv6 if the runner can own it, denial at grant/final launch, postcapture
 scope change, corrupt/missing/oversized actual evidence, copied wrappers, stderr/
 invalid execution, storage conflict, timeout/cancellation and retained artifacts.
 Test full template preservation, save/reopen, exact projection replay, event order,
