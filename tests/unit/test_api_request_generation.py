@@ -227,6 +227,31 @@ def test_OperationReferenceMustMatchExactOriginalImportContext(change):
         GenerateOpenApiRequest(text, reference, **options)
 
 
+def test_CanonicalSelectionBindsTheActualServerAndMediaWithinOneOriginalDocument():
+    """A four-variant source retains independent exact destinations and selected body encodings."""
+
+    document = Document()
+    document["servers"] = [
+        {"url": "http://127.0.0.1:19001/first"},
+        {"url": "http://127.0.0.1:19002/second"},
+    ]
+    Body(document, {"type": "integer"})
+    Operation(document)["requestBody"]["content"]["text/plain"] = {"schema": {"type": "string"}}
+    text = json.dumps(document)
+    imported = ImportOpenApi(text, workspace_id="generation-unit")
+    generated = [GenerateOpenApiRequest(text, operation.Reference(), workspace_id="generation-unit")
+                 for operation in imported.operations]
+    actual = {(item.target.value, item.headers, item.body) for item in generated}
+    expected = {
+        ("http://127.0.0.1:19001/first/owned", (("content-type", "application/json"),), b"1"),
+        ("http://127.0.0.1:19001/first/owned", (("content-type", "text/plain"),), b"synthetic"),
+        ("http://127.0.0.1:19002/second/owned", (("content-type", "application/json"),), b"1"),
+        ("http://127.0.0.1:19002/second/owned", (("content-type", "text/plain"),), b"synthetic"),
+    }
+    assert actual == expected, "Selected server/media was replaced by another source variant"
+    assert len({item.Reference() for item in generated}) == 4, "Distinct encodings shared identity"
+
+
 def test_OnlyExplicitAnonymousSecurityAlternativeCanProduceAPreview():
     """An empty OR alternative permits synthetic generation without creating an auth session."""
 
