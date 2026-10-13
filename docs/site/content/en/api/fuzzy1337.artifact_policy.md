@@ -9,6 +9,12 @@ bytes. Fresh current authority/material is required at launch and acceptance;
 historical replay grants nothing. Post-run refusal retains actual raw process
 facts. This API does not establish authenticated principals or OS isolation.
 
+The reviewed closed configuration family admits only synthetic Dockerfile or
+Kubernetes SCAN with exact source/material bindings, SAFE approval and 16 KiB
+stream ceilings. Configuration VERSION and image-proof substitution are refused;
+native configuration and model interpretation remain separate. See ADR 0059 in
+the repository for the exact five-case profile.
+
 New execution metadata is schema 2. The closed richer image family adds separate
 VERSION/SCAN requests, immutable `ArtifactVersionProof` and original prerequisite
 bindings at planning, issuance, launch and final pair acceptance. Original schema-1

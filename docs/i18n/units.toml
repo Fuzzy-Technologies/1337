@@ -9036,7 +9036,7 @@ state = "missing"
 id = "page:api.fuzzy1337.artifact-policy"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.artifact_policy.md"
-sourceHash = "sha256:79fa9dde30fa1647dc6d6a758ec4bb939aa6fda6b72a0afd8d3c944919392831"
+sourceHash = "sha256:fe78dc2c239162addc0627b56eeaa7850ef93991917c779ae75a187c9dd7ad75"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9319,6 +9319,28 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "symbol:fuzzy1337.artifact_policy.ConfigurationPolicyInteger"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_policy.py"
+sourceHash = "sha256:cc4a48bc8e3208a658380816f5fc1917eb9bf012641e5cd811c4cd6d60640712"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.artifact_policy.ParseConfigurationFixturePolicy"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/artifact_policy.py"
+sourceHash = "sha256:77def69ae7ee68de7bafcae6ff24ca437bc46ca213282a624bb92b165d27d8ae"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "symbol:fuzzy1337.artifact_policy.ArtifactAcceptance"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_policy.py"
@@ -9542,7 +9564,7 @@ state = "missing"
 id = "symbol:fuzzy1337.artifact_policy.PrepareArtifact"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/artifact_policy.py"
-sourceHash = "sha256:2d5c3ae898488a74b4b1bf74281a26b7a3259d639c611946220662636b372434"
+sourceHash = "sha256:053737b5f3387c919660c0e922d90387c9dc1ec9cfc5bba61a00df80facddeb5"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
