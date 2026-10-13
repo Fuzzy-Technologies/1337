@@ -6,6 +6,16 @@ collected, verified local evidence through the existing Security Object Model an
 Finding lifecycle. It does not execute a scanner, contact a registry, access a
 daemon, grant authorization or create another persistence store.
 
+The native boundary verifies evidence and observed version metadata before its
+Internal `TrivyCandidates` helper constructs the existing object, relation,
+observation and Finding batch. This helper performs no evidence reads or model
+application and does not expose a namespace or authority override. The supported
+native signature, three roles and version record without execution facts remain
+unchanged. A separate future synthetic importer is described in the
+[consumer design](SYNTHETIC_IMAGE_IMPORT_DESIGN.md); its live and historical
+boundaries require the independently accepted richer operation SDK and are not
+implemented by this factoring.
+
 ## Identity and correlation
 
 `ImageIdentity(digest, digest_kind)` requires lowercase `sha256:<64 hex>` and an

@@ -516,6 +516,140 @@ def LicenseObjects(workspace_id: str, package: SecurityObject, licenses: list[ob
     return objects, relations
 
 
+def TrivyCandidates(workspace_id: str, payload: dict[str, object],
+                    version: dict[str, object], database: dict[str, object],
+                    provenance: ModelProvenance) -> tuple[
+                        list[SecurityObject], list[Relation], list[Observation], list[Finding],
+                    ]:
+    """Construct internal Trivy-format candidates without reading evidence or applying state.
+
+    Args:
+        workspace_id: Owning canonical workspace identifier from the verified boundary.
+        payload: Strictly decoded schema-2 container-image output.
+        version: Independently verified observed provider-version object.
+        database: Verified provider/database metadata belonging to version.
+        provenance: Exact evidence-linked acquisition and interpretation attribution.
+
+    Returns:
+        Ordered object, relation, observation and Finding candidates; no state is changed.
+
+    Raises:
+        ValueError: Shape, identity, source version or package correlation is unsupported.
+    """
+
+    if type(payload.get("SchemaVersion")) is not int or payload["SchemaVersion"] != 2 or (
+        payload.get("ArtifactType") != "container_image"
+    ):
+        raise ValueError("image import requires native schema 2 container_image output")
+
+    if "Trivy" in payload and Record(payload["Trivy"]).get("Version") != version["Version"]:
+        raise ValueError("native Trivy report version contradicts collected version evidence")
+
+    metadata = Record(payload.get("Metadata"))
+    image_identity = ImageIdentity(Digest(metadata.get("ImageID")))
+    image = SecurityObject(image_identity.Object(workspace_id),
+        {"asset_type": "image", "digest": image_identity.digest, "digest_kind": "config"},
+        (provenance,))
+    objects = [image]
+    relations = []
+    observations = [Observation("image-inventory", image.Reference(),
+        {"provider_version": version["Version"], "database_updated_at": database["UpdatedAt"]},
+        provenance)]
+    findings = []
+    os_fields = Record(metadata.get("OS", {}))
+
+    if os_fields:
+        family, name = Text(os_fields.get("Family")), Text(os_fields.get("Name"))
+        key = hashlib.sha256(CanonicalModelJson({"family": family, "name": name})).hexdigest()
+        operating_system = Asset(workspace_id, f"operating-system:{key}",
+            {"asset_type": "operating-system", "family": family, "version": name}, provenance)
+        objects.append(operating_system)
+        relations.append(Relation(RelationKind.CONTAINS, image.Reference(),
+                                  operating_system.Reference(), provenance=(provenance,)))
+
+    for value in Items(metadata.get("RepoDigests", [])):
+        _, separator, digest = Text(value).rpartition("@")
+
+        if not separator:
+            raise ValueError("repo digest requires an explicit digest suffix")
+
+        manifest_identity = ImageIdentity(Digest(digest), "manifest")
+        alias = SecurityObject(manifest_identity.Object(workspace_id),
+            {"asset_type": "image", "digest": digest, "digest_kind": "manifest"}, (provenance,))
+        objects.append(alias)
+        relations.append(Relation(RelationKind.RELATED_TO, alias.Reference(), image.Reference(),
+                                  {"association": "provider-reported-config"}, (provenance,)))
+
+    diff_ids = [Digest(item) for item in Items(metadata.get("DiffIDs", []))]
+
+    for digest in diff_ids:
+        layer = Asset(workspace_id, f"image-layer-diffid:{digest}",
+                      {"asset_type": "image-layer", "diff_id": digest}, provenance)
+        objects.append(layer)
+        relations.append(Relation(RelationKind.CONTAINS, image.Reference(), layer.Reference(),
+                                  provenance=(provenance,)))
+
+    observations.append(Observation("image-layer-order", image.Reference(),
+                                    {"diff_ids": diff_ids}, provenance))
+
+    for native in Items(payload.get("Results", [])):
+        result = Record(native)
+        ecosystem = Text(result.get("Type"))
+        packages = []
+
+        native_packages = result.get("Packages")
+
+        for value in Items([] if native_packages is None else native_packages):
+            package = Record(value)
+            identity = PackageRecord(package, ecosystem, os_fields)
+            entity = SecurityObject(identity.Object(workspace_id), PackageFields(identity),
+                                    (provenance,))
+            objects.append(entity)
+            packages.append((package, identity, entity))
+            relations.append(Relation(RelationKind.CONTAINS, image.Reference(), entity.Reference(),
+                                      provenance=(provenance,)))
+            native_licenses = package.get("Licenses")
+            licenses, license_relations = LicenseObjects(workspace_id, entity,
+                Items([] if native_licenses is None else native_licenses), provenance)
+            objects.extend(licenses)
+            relations.extend(license_relations)
+
+        native_vulnerabilities = result.get("Vulnerabilities")
+
+        for value in Items([] if native_vulnerabilities is None else native_vulnerabilities):
+            vulnerability = Record(value)
+            name = Text(vulnerability.get("PkgName"))
+            installed = Text(vulnerability.get("InstalledVersion"))
+            matches = [entity for package, identity, entity in packages if (
+                PackageNameMatches(identity, name)
+                and identity.version == installed
+                and ("PkgID" not in vulnerability or package.get("ID") == vulnerability["PkgID"])
+            )]
+
+            if not matches or len({entity.Reference() for entity in matches}) != 1:
+                raise ValueError("vulnerability requires exactly one installed package identity")
+
+            subject = matches[0].Reference()
+            vulnerability_id = Text(vulnerability.get("VulnerabilityID"))
+            severity_text = Text(vulnerability.get("Severity")).lower()
+
+            if severity_text not in {item.value for item in FindingSeverity}:
+                raise ValueError("image vulnerability severity is unsupported")
+
+            severity = FindingSeverity(severity_text)
+            fixed = vulnerability.get("FixedVersion")
+            remediation = Remediation(summary=f"Upgrade to {Text(fixed)}" if fixed else None)
+            findings.append(Finding(subject, "supply-chain.vulnerability", vulnerability_id,
+                f"{vulnerability_id} in {name} {installed}", (provenance,), severity=severity,
+                remediation=remediation))
+            observations.append(Observation("image-vulnerability", subject,
+                {"image_reference": image.Reference(), "vulnerability_id": vulnerability_id,
+                 "installed_version": installed, "fixed_version": Text(fixed) if fixed else None},
+                provenance))
+
+    return objects, relations, observations, findings
+
+
 def ApplyVerifiedTrivyImages(state: ModelState, report: AdapterReport,
                              provenance: ModelProvenance, records: tuple[EvidenceRecord, ...],
                              workspace_root: Path) -> tuple[ModelState, ModelDelta]:
@@ -573,115 +707,9 @@ def ApplyVerifiedTrivyImages(state: ModelState, report: AdapterReport,
 
     payload = ParseJson(raw["stdout"], IMAGE_IMPORT_MAX_BYTES)
 
-    if type(payload.get("SchemaVersion")) is not int or payload["SchemaVersion"] != 2 or (
-        payload.get("ArtifactType") != "container_image"
-    ):
-        raise ValueError("image import requires native schema 2 container_image output")
-
-    if "Trivy" in payload and Record(payload["Trivy"]).get("Version") != version["Version"]:
-        raise ValueError("native Trivy report version contradicts collected version evidence")
-
-    metadata = Record(payload.get("Metadata"))
-    image_identity = ImageIdentity(Digest(metadata.get("ImageID")))
-    image = SecurityObject(image_identity.Object(state.workspace_id),
-        {"asset_type": "image", "digest": image_identity.digest, "digest_kind": "config"},
-        (provenance,))
-    objects = [image]
-    relations = []
-    observations = [Observation("image-inventory", image.Reference(),
-        {"provider_version": version["Version"], "database_updated_at": database["UpdatedAt"]},
-        provenance)]
-    findings = []
-    os_fields = Record(metadata.get("OS", {}))
-
-    if os_fields:
-        family, name = Text(os_fields.get("Family")), Text(os_fields.get("Name"))
-        key = hashlib.sha256(CanonicalModelJson({"family": family, "name": name})).hexdigest()
-        operating_system = Asset(state.workspace_id, f"operating-system:{key}",
-            {"asset_type": "operating-system", "family": family, "version": name}, provenance)
-        objects.append(operating_system)
-        relations.append(Relation(RelationKind.CONTAINS, image.Reference(),
-                                  operating_system.Reference(), provenance=(provenance,)))
-
-    for value in Items(metadata.get("RepoDigests", [])):
-        _, separator, digest = Text(value).rpartition("@")
-
-        if not separator:
-            raise ValueError("repo digest requires an explicit digest suffix")
-
-        manifest_identity = ImageIdentity(Digest(digest), "manifest")
-        alias = SecurityObject(manifest_identity.Object(state.workspace_id),
-            {"asset_type": "image", "digest": digest, "digest_kind": "manifest"}, (provenance,))
-        objects.append(alias)
-        relations.append(Relation(RelationKind.RELATED_TO, alias.Reference(), image.Reference(),
-                                  {"association": "provider-reported-config"}, (provenance,)))
-
-    diff_ids = [Digest(item) for item in Items(metadata.get("DiffIDs", []))]
-
-    for digest in diff_ids:
-        layer = Asset(state.workspace_id, f"image-layer-diffid:{digest}",
-                      {"asset_type": "image-layer", "diff_id": digest}, provenance)
-        objects.append(layer)
-        relations.append(Relation(RelationKind.CONTAINS, image.Reference(), layer.Reference(),
-                                  provenance=(provenance,)))
-
-    observations.append(Observation("image-layer-order", image.Reference(),
-                                    {"diff_ids": diff_ids}, provenance))
-
-    for native in Items(payload.get("Results", [])):
-        result = Record(native)
-        ecosystem = Text(result.get("Type"))
-        packages = []
-
-        native_packages = result.get("Packages")
-
-        for value in Items([] if native_packages is None else native_packages):
-            package = Record(value)
-            identity = PackageRecord(package, ecosystem, os_fields)
-            entity = SecurityObject(identity.Object(state.workspace_id), PackageFields(identity),
-                                    (provenance,))
-            objects.append(entity)
-            packages.append((package, identity, entity))
-            relations.append(Relation(RelationKind.CONTAINS, image.Reference(), entity.Reference(),
-                                      provenance=(provenance,)))
-            native_licenses = package.get("Licenses")
-            licenses, license_relations = LicenseObjects(state.workspace_id, entity,
-                Items([] if native_licenses is None else native_licenses), provenance)
-            objects.extend(licenses)
-            relations.extend(license_relations)
-
-        native_vulnerabilities = result.get("Vulnerabilities")
-
-        for value in Items([] if native_vulnerabilities is None else native_vulnerabilities):
-            vulnerability = Record(value)
-            name = Text(vulnerability.get("PkgName"))
-            installed = Text(vulnerability.get("InstalledVersion"))
-            matches = [entity for package, identity, entity in packages if (
-                PackageNameMatches(identity, name)
-                and identity.version == installed
-                and ("PkgID" not in vulnerability or package.get("ID") == vulnerability["PkgID"])
-            )]
-
-            if not matches or len({entity.Reference() for entity in matches}) != 1:
-                raise ValueError("vulnerability requires exactly one installed package identity")
-
-            subject = matches[0].Reference()
-            vulnerability_id = Text(vulnerability.get("VulnerabilityID"))
-            severity_text = Text(vulnerability.get("Severity")).lower()
-
-            if severity_text not in {item.value for item in FindingSeverity}:
-                raise ValueError("image vulnerability severity is unsupported")
-
-            severity = FindingSeverity(severity_text)
-            fixed = vulnerability.get("FixedVersion")
-            remediation = Remediation(summary=f"Upgrade to {Text(fixed)}" if fixed else None)
-            findings.append(Finding(subject, "supply-chain.vulnerability", vulnerability_id,
-                f"{vulnerability_id} in {name} {installed}", (provenance,), severity=severity,
-                remediation=remediation))
-            observations.append(Observation("image-vulnerability", subject,
-                {"image_reference": image.Reference(), "vulnerability_id": vulnerability_id,
-                 "installed_version": installed, "fixed_version": Text(fixed) if fixed else None},
-                provenance))
+    objects, relations, observations, findings = TrivyCandidates(
+        state.workspace_id, payload, version, database, provenance
+    )
 
     return ApplyBatch(state, objects, relations, observations, findings, workspace_root)
 

@@ -7514,7 +7514,7 @@ state = "missing"
 id = "page:api.fuzzy1337.images"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.images.md"
-sourceHash = "sha256:7b94d3bacd8bb68138cb6c7dbedefb18250b5aa5609e13ef4251eaf992073c21"
+sourceHash = "sha256:f10714b7873d96b6a847d1690a6d3acdb5b7473d0dba4e349e6479db921ecd9a"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9956,6 +9956,17 @@ id = "symbol:fuzzy1337.captured_web.WebText"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/captured_web.py"
 sourceHash = "sha256:c2c36ce92a37bc03c97313eb665e9a4a2f53ca69191a5035b58fe7779cad3e59"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.images.TrivyCandidates"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/images.py"
+sourceHash = "sha256:c0f3f61f439b7ad34d0afd09d07a2b062087b8890913153096c25f63a0fc336f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
