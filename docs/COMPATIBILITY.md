@@ -311,6 +311,11 @@ with explicit operation/family and original VERSION prerequisite bindings.
 Strict read-only schema-1 replay retains its original field shapes and digests.
 Only the reviewed richer synthetic image family admits VERSION and proof-bound
 SCAN; lifecycle SCAN remains compatible and native profiles remain unavailable.
+The reviewed configuration family admits only SCAN for synthetic Dockerfile and
+Kubernetes profiles, with exact selected-source/material bindings and 16 KiB
+stream ceilings. Its VERSION prerequisite fields are null; configuration cannot
+consume an image proof or obtain native execution authority. ADR 0059 defines
+this additive closed family; model projection remains separate.
 See [Governed local artifacts](ARTIFACTS.md) and
 [ADR 0044](adr/0044-governed-local-artifact-authorization.md).
 

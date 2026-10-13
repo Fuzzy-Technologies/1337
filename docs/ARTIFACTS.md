@@ -115,6 +115,13 @@ and captures at most 4 MiB stdout/1 MiB stderr. Lifecycle SCAN retains its exist
 120-second default and exact argv ordering. Every operation has a separate fresh
 stage/root/scratch/lease/grant/run/marker/receipt; no native profile is enabled.
 
+The reviewed configuration producer adds SCAN for the closed synthetic Dockerfile
+and Kubernetes profiles under ADR 0059. Its five exact source cases use at most
+4 KiB input and 1 KiB policy, a 30-second default deadline with integer 1–60-second
+selection, and 16 KiB per-stream capture. It cannot obtain VERSION or consume an
+image proof. Original lifecycle and image factories remain separate; configuration
+normalization and native scanner acceptance are subsequent work.
+
 After collecting and freshly accepting an actual richer VERSION, construct
 `ArtifactVersionProof(outcome, prepared, stage)`. Its construction checks original
 successful raw/receipt/request/stage facts and strict observed version JSON, but
@@ -123,7 +130,7 @@ does not create current authority. Pass it to richer SCAN preparation as
 failed VERSION cannot grant SCAN; VERSION and lifecycle SCAN require no proof.
 The request and schema-2 plan contain explicit `operation`, `producer_family`,
 `version_run_id`, `version_grant_id` and `version_prerequisite_sha256`; the last
-three are null only for VERSION and lifecycle SCAN. The original prerequisite
+three are null for VERSION, lifecycle SCAN and configuration SCAN. The original prerequisite
 digest commits original VERSION metadata and complete prepared/stage payloads.
 SCAN planning/issuance/launch freshly verify it, so another valid same-content
 VERSION cannot replace the originally bound proof.

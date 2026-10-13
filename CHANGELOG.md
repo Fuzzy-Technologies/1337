@@ -71,6 +71,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   genuine native Trivy acceptance remains separate.
 - Added a bounded standalone Dockerfile/Kubernetes synthetic producer for five
   pinned source fixtures, retaining the independently authored result oracle.
+- Added governed SCAN registration for the reviewed closed configuration worker,
+  exact five-case source/material bindings, SAFE approvals, bounded raw capture
+  and original-family replay. Native configuration and model projection remain
+  separate.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
   checks and model projection that preserves existing Endpoint requests.
 - Added governed acquisition of one owned loopback HTML page from the closed

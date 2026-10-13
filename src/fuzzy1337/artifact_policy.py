@@ -76,6 +76,25 @@ _REVIEWED_PRODUCERS = frozenset(
 _LIFECYCLE_FAMILY = "owned-artifact-lifecycle-v1"
 _IMAGE_FAMILY = "owned-synthetic-image-wire-v1"
 _IMAGE_PRODUCER_SHA256 = "afb5b935f151fb9780feee28eda0fbf13ddc6d721e6f7cc55e753aa32e4cfa53"
+_CONFIGURATION_FAMILY = "owned-synthetic-configuration-wire-v1"
+_CONFIGURATION_PRODUCER_SHA256 = (
+    "af34b374fa49ce3048d3a7821df5ad8370849240a786dabc7311e14322476eb6"
+)
+_CONFIGURATION_PROFILES = frozenset(
+    {ArtifactProfile.SYNTHETIC_DOCKERFILE, ArtifactProfile.SYNTHETIC_KUBERNETES}
+)
+_CONFIGURATION_CASES = {
+    "dockerfile.root-user": (ArtifactProfile.SYNTHETIC_DOCKERFILE, "Dockerfile", 264,
+        "3f0114052cfa7d826abf315fededac339851d4c1991b5c2447bfdf01882323b7"),
+    "dockerfile.non-root-user": (ArtifactProfile.SYNTHETIC_DOCKERFILE, "Dockerfile", 271,
+        "1712d2480103b5881b6df078d5471d12a2c9e0d1d7f6cb96270aa7751943231c"),
+    "kubernetes.privileged-container": (ArtifactProfile.SYNTHETIC_KUBERNETES, "unsafe.yaml", 410,
+        "63b77e1703ab126b9f5283daa5091f750af8ddab3e3b8e24eed63ea36888dd1d"),
+    "kubernetes.non-privileged-container": (ArtifactProfile.SYNTHETIC_KUBERNETES, "safe.yaml", 409,
+        "52e45b63f8aec99934dcfddd90d1f3b417111ccabe4514c262e3e8cf443f729f"),
+    "kubernetes.second-document": (ArtifactProfile.SYNTHETIC_KUBERNETES, "multi.yaml", 823,
+        "8cd7163a754dc1a0c29ce1e54fc29cb68a5a0a2b71c79d03a3c54d9caf363b1f"),
+}
 _LEGACY_PRODUCERS = _REVIEWED_PRODUCERS | {
     "6cec015e044f290f2f5f48d04156fe1430ba679ee629505100e192459d10ec7a",
     "48626d65b8e4d092859ed948507b8162a5e276b70599469e65fe8abc179a6bb1",
@@ -236,6 +255,9 @@ def ValidateArtifactProfile(stage: ArtifactStage) -> str:
     elif producer_sha256 == _IMAGE_PRODUCER_SHA256 and profile == ArtifactProfile.SYNTHETIC_IMAGE:
         family = _IMAGE_FAMILY
 
+    elif producer_sha256 == _CONFIGURATION_PRODUCER_SHA256 and profile in _CONFIGURATION_PROFILES:
+        family = _CONFIGURATION_FAMILY
+
     else:
         raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_PRODUCER)
 
@@ -248,6 +270,12 @@ def ValidateArtifactProfile(stage: ArtifactStage) -> str:
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
 
     if family == _IMAGE_FAMILY and stage.input.manifest.files[0].size_bytes > 128 * 1024:
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+    if family == _CONFIGURATION_FAMILY and (
+        len(names) != 1 or stage.input.manifest.files[0].size_bytes > 4096
+        or "/" in names[0]
+    ):
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
 
     if profile == ArtifactProfile.SYNTHETIC_DOCKERFILE and names != ("Dockerfile",):
@@ -275,12 +303,78 @@ def ValidateArtifactProfile(stage: ArtifactStage) -> str:
     if tuple(item.name for item in stage.material.manifest.files) != ("policy.json",):
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
 
-    policy_limit = 512 if family == _IMAGE_FAMILY else 4096
+    policy_limit = 512 if family == _IMAGE_FAMILY else (
+        1024 if family == _CONFIGURATION_FAMILY else 4096
+    )
 
     if stage.material.manifest.files[0].size_bytes > policy_limit:
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
 
     return family
+
+
+def ConfigurationPolicyInteger(text: str) -> int:
+    """Bound configuration policy integer decoding before schema interpretation.
+
+    Args:
+        text: JSON decoder integer spelling, never reflected in diagnostics.
+
+    Returns:
+        Finite integer; spellings longer than ten characters raise ValueError.
+    """
+
+    if len(text) > 10:
+        raise ValueError("configuration policy integer exceeds its bound")
+
+    return int(text)
+
+
+def ParseConfigurationFixturePolicy(payload: bytes, manifest: ArtifactManifest) -> None:
+    """Bind exact source-owned policy to one immutable selected configuration file.
+
+    Args:
+        payload: At most 1 KiB of explicit configuration material, never worker code.
+        manifest: Canonical input manifest; whole-manifest and file hashes stay distinct.
+
+    Raises:
+        ValueError: Closed family, profile, case, fields or actual selected bytes differ.
+    """
+
+    if not isinstance(payload, bytes) or not 0 < len(payload) <= 1024:
+        raise ValueError("configuration policy exceeds its closed byte bound")
+
+    try:
+        policy = json.loads(
+            payload.decode("utf-8"), object_pairs_hook=FixtureFields,
+            parse_int=ConfigurationPolicyInteger, parse_float=RejectFixtureConstant,
+            parse_constant=RejectFixtureConstant,
+        )
+
+    except (UnicodeError, ValueError, RecursionError, OverflowError):
+        raise ValueError("configuration policy requires strict bounded UTF-8 JSON") from None
+
+    if not isinstance(policy, dict) or set(policy) != {
+        "schema_version", "fixture_id", "provider_version", "profile_id", "case_id",
+    } or type(policy["schema_version"]) is not int or policy["schema_version"] != 1:
+        raise ValueError("configuration policy requires the exact owned schema")
+
+    if any(type(policy[key]) is not str for key in (
+        "fixture_id", "provider_version", "profile_id", "case_id",
+    )) or policy["fixture_id"] != _CONFIGURATION_FAMILY or (
+        policy["provider_version"] != "0.75.0-synthetic"
+        or policy["case_id"] not in _CONFIGURATION_CASES
+    ):
+        raise ValueError("configuration policy requires the exact owned family and case")
+
+    profile, name, size_bytes, sha256 = _CONFIGURATION_CASES[policy["case_id"]]
+
+    if (
+        manifest.role is not ArtifactRole.INPUT or manifest.profile is not profile
+        or policy["profile_id"] != profile.value or len(manifest.files) != 1
+        or manifest.files[0].name != name or manifest.files[0].size_bytes != size_bytes
+        or manifest.files[0].sha256 != sha256
+    ):
+        raise ValueError("configuration policy differs from its exact selected source")
 
 
 def ParseImageFixturePolicy(payload: bytes) -> None:
@@ -454,7 +548,9 @@ class PreparedArtifact:
             or not isinstance(self.environment, Mapping)
             or not isinstance(self.operation, ArtifactOperation)
             or not isinstance(self.producer_family, str)
-            or self.producer_family not in {_LIFECYCLE_FAMILY, _IMAGE_FAMILY}
+            or self.producer_family not in {
+                _LIFECYCLE_FAMILY, _IMAGE_FAMILY, _CONFIGURATION_FAMILY,
+            }
             or (
                 self.operation == ArtifactOperation.VERSION
                 and self.producer_family != _IMAGE_FAMILY
@@ -549,9 +645,12 @@ def ValidateArtifactResources(
         ValueError: Numeric declarations exceed the original closed factory bounds.
     """
 
-    timeout_max = 60 if family == _IMAGE_FAMILY else 300
+    timeout_max = 60 if family in {_IMAGE_FAMILY, _CONFIGURATION_FAMILY} else 300
     stdout_max = 4 * 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
     stderr_max = 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
+
+    if family == _CONFIGURATION_FAMILY:
+        stdout_max = stderr_max = 16 * 1024
 
     if operation == ArtifactOperation.VERSION:
         stdout_max = stderr_max = 16 * 1024
@@ -706,6 +805,9 @@ def BuildPreparedArtifact(
         if family == _IMAGE_FAMILY:
             ParseImageFixturePolicy(policy)
 
+        elif family == _CONFIGURATION_FAMILY:
+            ParseConfigurationFixturePolicy(policy, stage.input.manifest)
+
         else:
             ParseFixturePolicy(policy)
 
@@ -764,7 +866,7 @@ def PrepareArtifact(
     Args:
         stage: Fresh explicit-read-authorized stage with trusted runtime and producer bytes.
         workspace_root: Existing physical workspace enclosing the owned stage.
-        timeout_seconds: Lifecycle SCAN defaults to 120; image SCAN to 30; VERSION to 3.
+        timeout_seconds: Lifecycle SCAN defaults to 120; image/config SCAN to 30; VERSION to 3.
         resources: Family/operation capture ceilings; cleanup grace at most five seconds.
         operation: SCAN default, or reviewed richer image VERSION in a separate fresh stage.
         version_proof: Immutable accepted original VERSION, mandatory for richer image SCAN.
@@ -785,7 +887,7 @@ def PrepareArtifact(
 
     if timeout_seconds is None:
         timeout_seconds = 3 if operation == ArtifactOperation.VERSION else (
-            30 if family == _IMAGE_FAMILY else 120
+            30 if family in {_IMAGE_FAMILY, _CONFIGURATION_FAMILY} else 120
         )
 
     if resources is None:
@@ -794,6 +896,9 @@ def PrepareArtifact(
 
         elif family == _IMAGE_FAMILY:
             resources = ExecutionResources(max_stderr_bytes=1024 * 1024)
+
+        elif family == _CONFIGURATION_FAMILY:
+            resources = ExecutionResources(max_stdout_bytes=16 * 1024, max_stderr_bytes=16 * 1024)
 
         else:
             resources = ExecutionResources()
@@ -877,10 +982,16 @@ class ArtifactPlan:
             or self.provider_version != "0.75.0-synthetic"
             or not isinstance(self.operation, ArtifactOperation)
             or not isinstance(self.producer_family, str)
-            or self.producer_family not in {_LIFECYCLE_FAMILY, _IMAGE_FAMILY}
+            or self.producer_family not in {
+                _LIFECYCLE_FAMILY, _IMAGE_FAMILY, _CONFIGURATION_FAMILY,
+            }
             or (
                 self.producer_family == _IMAGE_FAMILY
                 and self.profile != ArtifactProfile.SYNTHETIC_IMAGE
+            )
+            or (
+                self.producer_family == _CONFIGURATION_FAMILY
+                and self.profile not in _CONFIGURATION_PROFILES
             )
             or (
                 self.operation == ArtifactOperation.VERSION
@@ -1983,10 +2094,24 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
 
     if set(scanner_files) != {"executable", "producer.py"} or (
         scanner_files["producer.py"].sha256 not in (
-            _LEGACY_PRODUCERS if family == _LIFECYCLE_FAMILY else {_IMAGE_PRODUCER_SHA256}
+            _LEGACY_PRODUCERS if family == _LIFECYCLE_FAMILY else (
+                {_CONFIGURATION_PRODUCER_SHA256} if family == _CONFIGURATION_FAMILY
+                else {_IMAGE_PRODUCER_SHA256}
+            )
         )
     ):
         raise ValueError("artifact replay producer does not match its original schema family")
+
+    if family == _CONFIGURATION_FAMILY and (
+        len(stdout) > 16 * 1024 or len(stderr) > 16 * 1024
+        or len(manifests[0].files) != 1
+        or (manifests[0].profile, manifests[0].files[0].name,
+            manifests[0].files[0].size_bytes, manifests[0].files[0].sha256)
+        not in _CONFIGURATION_CASES.values()
+        or tuple(item.name for item in manifests[2].files) != ("policy.json",)
+        or manifests[2].files[0].size_bytes > 1024
+    ):
+        raise ValueError("artifact replay configuration exceeds its original closed material")
 
     facts = cast(
         dict[str, Any],
