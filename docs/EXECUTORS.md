@@ -54,6 +54,23 @@ handoff. Cleanup drains captured pipes in bounded chunks without calling the
 failed observer or retaining additional output. Repeated cancellation does not
 abandon process reaping.
 
+Task #273 covers process-exit races during both TERM and KILL cleanup. A POSIX
+`EPERM` can be recovered only after a bounded wait observes the owned child's
+exit and a non-mutating group-existence check proves that its group disappeared.
+A live child, a remaining or inaccessible group, and other signaling errors
+remain explicit `LocalExecutionError` failures. The executor never sends another
+mutating signal after observing child exit. Owned exit waits and pipe draining
+after a failed observer are bounded by the configured termination grace rather
+than waiting indefinitely. Normal awaitable-observer execution retains the
+responsiveness contract below.
+
+Recovered races preserve the actual output-limit, timeout, or cancellation
+result and captured evidence. Unrecoverable cleanup cannot claim that every
+resource was reaped: it is a provider failure, not a new authorization denial or
+successful execution. `LocalExecutionJob` uses the sanitized message
+`The approved local execution could not complete` for `LocalExecutionError`;
+the pre-launch policy denial boundary remains separate.
+
 Awaitable observers must remain responsive. The process-wait timeout does not
 bound observer execution; a caller may cancel the execution coroutine while an
 observer is suspended. Observer failures return no successful execution result.

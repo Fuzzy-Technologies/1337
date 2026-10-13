@@ -837,7 +837,7 @@ class LocalExecutionJob:
 
         except LocalExecutionError as error:
             raise JobError(JobFailure(
-                JobFailureCode.PROVIDER, "Could not launch the approved local execution",
+                JobFailureCode.PROVIDER, "The approved local execution could not complete",
             )) from error
 
         except PermissionError as error:

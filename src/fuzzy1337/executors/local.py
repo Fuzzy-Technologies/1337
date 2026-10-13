@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import inspect
 import os
 import signal
@@ -51,6 +52,7 @@ def KillProcessGroup(process_id: int, termination_signal: int) -> None:
 
     Raises:
         ProcessLookupError: The process group no longer exists.
+        OSError: The operating system rejects the owned-group signal.
     """
 
     killpg = cast(Callable[[int, int], None], getattr(os, "killpg"))
@@ -58,7 +60,7 @@ def KillProcessGroup(process_id: int, termination_signal: int) -> None:
 
 
 class LocalExecutionError(RuntimeError):
-    """Fail-closed validation or process-launch error from the local executor."""
+    """Fail-closed workspace, launch or owned-process cleanup error from the local executor."""
 
 
 class LocalExecutor:
@@ -93,8 +95,9 @@ class LocalExecutor:
         """Run an immutable argv and return bounded output plus structured events.
 
         Starts an owned process using explicit argv and a limited inherited environment.
-        Observer errors and task cancellation propagate after the owned child and
-        background tasks are reaped, including the initial STARTED handoff.
+        Observer errors and task cancellation propagate after owned cleanup,
+        including the initial STARTED handoff. An operating-system denial or
+        bounded cleanup failure instead raises LocalExecutionError.
         Awaitable observers must remain responsive; the process-wait timeout does
         not bound observer execution. Timeout, cancellation and output overflow
         during the process-wait phase terminate the owned process.
@@ -111,7 +114,7 @@ class LocalExecutor:
             Terminal state, retained bounded streams and ordered lifecycle events.
 
         Raises:
-            LocalExecutionError: Workspace validation or process launch fails.
+            LocalExecutionError: Workspace validation, launch or bounded owned cleanup fails.
             asyncio.CancelledError: The caller cancels execution; cleanup completes first.
         """
 
@@ -255,6 +258,25 @@ class LocalExecutor:
         state = ExecutionState.FAILED
         owned_tasks = (stdout_task, stderr_task, process_task, output_limit_task, cancellation_task)
 
+        async def Join(*awaitables: Awaitable[object]) -> None:
+            """Bound owned exit/pipe joins by the configured termination grace.
+
+            Args:
+                awaitables: Owned process-wait or stream-drain tasks to finish.
+
+            Raises:
+                LocalExecutionError: A join times out or the operating system rejects cleanup.
+            """
+
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*awaitables),
+                    timeout=request.resources.terminate_grace_seconds,
+                )
+
+            except (TimeoutError, OSError) as error:
+                raise LocalExecutionError("Owned execution cleanup could not complete") from error
+
         try:
             async with emit_lock:
                 await Emit(ExecutionEventKind.STARTED)
@@ -308,7 +330,7 @@ class LocalExecutor:
                     ExecutionState.SUCCEEDED if natural_return_code == 0 else ExecutionState.FAILED
                 )
 
-            await process_task
+            await Join(process_task)
 
             await asyncio.gather(stdout_task, stderr_task)
 
@@ -342,7 +364,7 @@ class LocalExecutor:
                 try:
                     await self.Terminate(process, request.resources.terminate_grace_seconds)
 
-                    await asyncio.gather(*drains)
+                    await Join(*drains)
 
                 finally:
                     for task in drains:
@@ -486,47 +508,116 @@ class LocalExecutor:
     ) -> None:
         """Terminate the owned process group and escalate after the grace period.
 
-        Already-exited or vanished processes require no action. POSIX signals target the owned
-        group; Windows uses subprocess terminate/kill operations. Waits for exit after
-        escalation.
+        Known exited children are never signaled again. Each exit wait is bounded.
+        POSIX EPERM recovery requires observed child exit and a non-mutating check
+        proving group disappearance. Vanished groups still require observed child
+        exit. Windows uses the owned subprocess terminate/kill operations.
 
         Args:
             process: Child process owned by this executor
-            grace_seconds: Wait after initial termination before escalation.
+            grace_seconds: Maximum exit-observation wait in each termination phase.
+
+        Raises:
+            LocalExecutionError: Signaling or bounded reaping cannot confirm owned cleanup.
         """
 
         if process.returncode is not None:
             return
 
-        try:
-            if os.name == "posix":
-                KillProcessGroup(process.pid, signal.SIGTERM)
+        async def ObserveExit() -> bool:
+            """Independently observe owned-child exit without an unbounded waiter.
 
-            else:
-                process.terminate()
+            Returns:
+                True only when the owned wait finishes and publishes a return code.
 
-        except ProcessLookupError:
+            Raises:
+                LocalExecutionError: The operating system rejects owned-child reaping.
+            """
+
+            try:
+                await asyncio.wait_for(process.wait(), timeout=grace_seconds)
+
+            except TimeoutError:
+                return False
+
+            except OSError as error:
+                raise LocalExecutionError("Could not observe owned process exit") from error
+
+            return process.returncode is not None
+
+        async def Signal(*, forced: bool) -> bool:
+            """Signal only a still-owned child or prove a narrowly recovered exit race.
+
+            Args:
+                forced: Escalate to KILL instead of the initial TERM request.
+
+            Returns:
+                True when owned-child exit is already known or independently confirmed.
+
+            Raises:
+                LocalExecutionError: Signaling denial or group disappearance is unresolved.
+            """
+
+            if process.returncode is not None:
+                return True
+
+            try:
+                if os.name == "posix":
+                    selected = cast(int, getattr(signal, "SIGKILL")) if forced else signal.SIGTERM
+                    KillProcessGroup(process.pid, selected)
+
+                elif forced:
+                    process.kill()
+
+                else:
+                    process.terminate()
+
+            except ProcessLookupError as error:
+                if os.name == "posix" and error.errno != errno.ESRCH:
+                    raise LocalExecutionError(
+                        "Could not confirm process group disappearance"
+                    ) from error
+
+                if await ObserveExit():
+                    return True
+
+                raise LocalExecutionError(
+                    "Vanished process group has unconfirmed child exit"
+                ) from error
+
+            except OSError as error:
+                if os.name != "posix" or error.errno != errno.EPERM:
+                    raise LocalExecutionError("Could not signal owned local execution") from error
+
+                if not await ObserveExit():
+                    raise LocalExecutionError("Denied signal has unconfirmed child exit") from error
+
+                try:
+                    KillProcessGroup(process.pid, 0)
+
+                except ProcessLookupError as proof_error:
+                    if proof_error.errno == errno.ESRCH:
+                        return True
+
+                    raise LocalExecutionError(
+                        "Could not confirm process group disappearance"
+                    ) from proof_error
+
+                except OSError as proof_error:
+                    raise LocalExecutionError(
+                        "Could not confirm process group disappearance"
+                    ) from proof_error
+
+                raise LocalExecutionError(
+                    "Denied process group remains after child exit"
+                ) from error
+
+            return False
+
+        if await Signal(forced=False) or await ObserveExit():
             return
 
-        try:
-            await asyncio.wait_for(process.wait(), timeout=grace_seconds)
-
+        if await Signal(forced=True) or await ObserveExit():
             return
 
-        except TimeoutError:
-            pass
-
-        try:
-            if os.name == "posix":
-                KillProcessGroup(
-                    process.pid,
-                    cast(int, getattr(signal, "SIGKILL")),
-                )
-
-            else:
-                process.kill()
-
-        except ProcessLookupError:
-            return
-
-        await process.wait()
+        raise LocalExecutionError("Owned process did not exit after forced termination")
