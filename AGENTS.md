@@ -84,7 +84,7 @@ Before reporting completion:
 
 1. verify the exact diff;
 2. run the applicable targeted tests;
-3. run the canonical full gate when it exists;
+3. at PR opening and after fixing a bug or review/CI defect in that PR, trigger the canonical full gate, preferably through shared CI; routine commits require only the changed feature's tests and relevant regressions, as defined in section 10 of `DEVELOPMENT_PROTOCOL.md`;
 4. verify no secret or unrelated file entered the change;
 5. update documentation/changelog when required;
 6. report actual evidence, failures, and remaining uncertainty.
