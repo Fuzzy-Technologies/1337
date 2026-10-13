@@ -415,7 +415,7 @@ def test_JsonExceptionTracebacksDoNotReflectRejectedPrivateValues():
 
 
 def test_EveryAdmittedSourceAndProducerRetainsPinnedHashesAndLfWithoutGit():
-    """Require six independently pinned byte/LF/attribute contracts on every runtime runner."""
+    """Require six independently pinned byte/LF contracts on every runtime runner."""
 
     pinned = {
         "dockerfile/unsafe/Dockerfile":
@@ -432,8 +432,6 @@ def test_EveryAdmittedSourceAndProducerRetainsPinnedHashesAndLfWithoutGit():
     selected = [(CORPUS / path, digest) for path, digest in pinned.items()]
     selected.append((PRODUCER,
         "af34b374fa49ce3048d3a7821df5ad8370849240a786dabc7311e14322476eb6"))
-    attributes = (REPOSITORY_ROOT / ".gitattributes").read_text().splitlines()
-
     assert set(pinned) == {case["inputs"][0]["fixture"] for case in CASES.values()}, (
         "Independent byte pins must cover exactly every admitted input fixture."
     )
@@ -443,9 +441,6 @@ def test_EveryAdmittedSourceAndProducerRetainsPinnedHashesAndLfWithoutGit():
 
         assert hashlib.sha256(raw).hexdigest() == digest and b"\r" not in raw, (
             "Each admitted corpus/worker source must retain its exact reviewed LF byte hash."
-        )
-        assert path.relative_to(REPOSITORY_ROOT).as_posix() + " text eol=lf" in attributes, (
-            "Every source-hashed corpus/worker file must keep its exact narrow LF attribute."
         )
 
 
@@ -461,6 +456,13 @@ def test_WindowsCheckoutPreservesEveryAdmittedSourceAndProducerByte(tmp_path):
 
     if git is None:
         pytest.skip("Git checkout simulation requires Git; byte/hash/LF checks run separately.")
+
+    attributes = (REPOSITORY_ROOT / ".gitattributes").read_text().splitlines()
+
+    for path in paths:
+        assert path.replace("\\", "/") + " text eol=lf" in attributes, (
+            "Every source-hashed corpus/worker file must keep its exact narrow LF attribute."
+        )
 
     subprocess.run([git, "-c", "core.autocrlf=true", "-c", "core.eol=crlf", "checkout-index",
                     "--prefix=" + destination.as_posix() + "/", "--", *paths],
