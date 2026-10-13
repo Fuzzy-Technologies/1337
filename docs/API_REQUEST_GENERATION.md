@@ -6,12 +6,21 @@ structural capability documented in [OpenAPI import](OPENAPI.md).
 
 ## Source and ownership boundary
 
-Profile version 1 takes the exact supplied OpenAPI/Swagger JSON and a canonical
+Profile version 1 takes the exact supplied OpenAPI/Swagger text and a canonical
 operation reference, with the same workspace/base context as the original
 import. Reimport the document, select that actual operation/server/media and
 independently validate the original effective schemas. A matching digest or an
 ApiInput `constrained=False` summary alone cannot certify validity. Unknown or
 unimplemented consumed assertions fail before returning a partial request.
+
+The default `document_format="json"` preserves existing JSON behavior. YAML
+requires the optional `1337[openapi-yaml]` extra and explicit
+`document_format="yaml"` on both the original `ImportOpenApi` and
+`GenerateOpenApiRequest` calls. It uses the bounded JSON-compatible profile in
+[OpenAPI import](OPENAPI.md#explicit-optional-yaml-input), including scalar/tag,
+key, alias and resource refusal. The generator reimports original YAML, rather
+than a normalized JSON copy. Its operation/preview references remain bound to
+the exact supplied bytes; changing a comment changes that source identity.
 
 Structural source text remains necessary: server/path components, operation IDs,
 parameter/property/header names and source pointers are preserved. Callers must
@@ -145,6 +154,6 @@ resource/byte limits, escaped JSON names, CRLF and reserved headers, multipart
 framing and source default/example markers absent from payloads and tracebacks.
 The complete canonical locked gate and independent review remain mandatory.
 
-YAML, general schema solving, additional serialization styles, cookie/form
+General schema solving, additional serialization styles, cookie/form
 arrays outside this profile, auth/session assembly, files/binary, GraphQL and
 live scanner execution remain open. Task #144 stays open for those gaps.

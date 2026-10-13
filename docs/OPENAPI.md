@@ -1,15 +1,18 @@
 # Offline OpenAPI import
 
 `fuzzy1337.openapi` is an Experimental library at import contract version `1`.
-It accepts supplied **JSON text**, producing existing structural request contracts
-and attributable operation metadata. It reads no file, contacts no server,
+It accepts supplied **JSON text** by default, or explicitly selected bounded YAML,
+producing existing structural request contracts and attributable operation
+metadata. It reads no file, contacts no server,
 fetches no reference and resolves no session. It emits no concrete request values
-and sends no HTTP traffic. This is the first schema-import slice of #144; actual
-request rendering and schema-valid test-value generation remain open.
+and sends no HTTP traffic. This advances the schema-import slice of #144;
+[synthetic request previews](API_REQUEST_GENERATION.md) are available separately;
+general schema-valid test generation and execution remain open.
 
 ## Supported interface
 
-- `ImportOpenApi(text, workspace_id=..., base_url=None, session_reference=None)`
+- `ImportOpenApi(text, workspace_id=..., base_url=None, session_reference=None,
+  document_format="json")`
   returns an `OpenApiImport` with immutable operation/input/security records.
 - `ProjectOpenApi(imported, provenance=...)` returns existing Endpoint model
   patches. Save them through `ModelState.Apply` and `LocalModelStore` with its
@@ -31,21 +34,61 @@ defaults, enums, constraint expressions, responses and vendor-extension values
 are not copied. Consumed unsupported features fail without returning a partial
 import; unconsumed schema/response sections are not independently validated.
 
-| Boundary                 | Limit                  |
-| ------------------------ | ---------------------- |
-| Input JSON               | 1 MiB UTF-8 bytes      |
-| JSON nodes / depth       | 20000 / 32             |
-| Reference/schema work    | 4096 resolution visits |
-| Reference/body nesting   | 16                     |
-| Generated operation rows | 128                    |
-| Servers / media variants | 4 / 8 per operation    |
-| Canonical import output  | 512 KiB UTF-8 bytes    |
+| Boundary                      | Limit                  |
+| ----------------------------- | ---------------------- |
+| Input JSON or YAML            | 1 MiB UTF-8 bytes      |
+| JSON-compatible nodes / depth | 20000 / 32             |
+| Reference/schema work         | 4096 resolution visits |
+| Reference/body nesting        | 16                     |
+| Generated operation rows      | 128                    |
+| Servers / media variants      | 4 / 8 per operation    |
+| Canonical import output       | 512 KiB UTF-8 bytes    |
 
 The existing request contract additionally limits a template to 128 injection
 points and 64 KiB; the existing model limits each attribute projection to 64 KiB.
 Duplicate JSON keys, non-finite numbers, invalid Unicode and excessive nesting
 are rejected, including in ignored source fields. Validation errors do not echo
 invalid enum values or duplicate-key text.
+
+## Explicit optional YAML input
+
+Install `1337[openapi-yaml]` and pass `document_format="yaml"`; the optional parser
+is pinned to PyYAML 6.0.3. Existing JSON callers do not load or require that
+dependency. No format is detected automatically, and invalid JSON never retries
+through another parser.
+
+The decoder consumes parser events without constructors or legacy implicit
+resolvers. Accept one JSON-compatible YAML document with flow/block collections,
+comments, strings, optional BOM/document markers and an optional YAML 1.2
+directive. Collection/scalar nodes, including mapping keys, are bounded before
+the tree is built. Root depth is zero. Built-in JSON-compatible tags must match
+their node type. Refuse custom tag directives, tags/types outside this profile,
+anchors/aliases, merge keys, duplicate decoded keys, non-string/complex keys,
+multidocument streams, invalid Unicode and non-finite/overflowing numbers, even
+in ignored fields. Diagnostics exclude parser marks and original source text.
+
+Plain lowercase `null`, `true`, `false` and finite JSON-number spellings decode
+as their JSON types; an empty plain node is null. Quoted/block values are strings
+unless an explicitly supported scalar tag declares a matching lexeme. Ordinary
+words such as `on`/`yes`, dates and dotted OpenAPI versions remain strings.
+Ambiguous numeric forms such as `01`, `+1`, `.5`, `1.`, `0x12`, `1_000` and `1:00`
+fail. Quote numeric response codes, Swagger version `'2.0'` and the string schema
+type `'null'`. This is a declared bounded subset, not full YAML Core semantics.
+
+```python
+from fuzzy1337.openapi import ImportOpenApi
+
+imported = ImportOpenApi(supplied_yaml_text, workspace_id="owned",
+                         document_format="yaml")
+```
+
+The source digest uses the exact original UTF-8 bytes, including comments/BOM,
+without YAML-to-JSON normalization. Equivalent YAML/JSON presentations preserve
+the same structural request identities but different operation identities when
+their source bytes differ. Strict JSON bytes explicitly parsed as YAML have the
+same interpretation and existing identity. All common reference, schema, server,
+auth and scope boundaries below apply to either input format. See
+[ADR 0061](adr/0061-bounded-openapi-yaml-input.md).
 
 Local `$ref` uses canonical `#/...` JSON Pointers, including `~0`/`~1` escapes
 and canonical array indexes. Referenced cycles, external/URI references,
@@ -126,7 +169,7 @@ scope and obtain governed invocation authorization, including redirects/DNS.
 
 ## Remaining work
 
-YAML, OpenAPI 3.2 and other versions, complete schema/auth profile validation,
-concrete test-value generation/rendering, file uploads, GraphQL, CLI integration
+OpenAPI 3.2 and other versions, complete schema/auth profile validation,
+general test-value solving, file uploads, GraphQL, CLI integration
 and live scanner execution remain open. See [ADR 0038](adr/0038-offline-openapi-request-import.md),
 [requests](REQUESTS.md), [scope](SCOPE.md) and [model](SECURITY_MODEL.md).
