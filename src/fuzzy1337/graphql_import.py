@@ -22,6 +22,7 @@ from fuzzy1337.requests import (
     ProjectRequests,
     RequestDigest,
     RequestTemplate,
+    RequirePointer,
 )
 from fuzzy1337.scope import ScopeDecision, ScopeSnapshot, Target, TargetKind
 from fuzzy1337.workspace import RejectWorkspaceConstant, UniqueWorkspaceObject
@@ -715,6 +716,179 @@ def GenerateGraphQlRequest(
                                   (("content-type", "application/json"),), body)
 
 
+def RequireGraphQlType(reference: object, allowed: set[str]) -> None:
+    """Require closed immutable type metadata before consuming a caller-constructed record.
+
+    Args:
+        reference: Candidate producer type record, including values rebuilt by dataclasses.replace.
+        allowed: Permitted named kinds for this input/output coordinate.
+
+    Raises:
+        ValueError: A substituted type or wrapping sequence is outside the producer contract.
+    """
+
+    if type(reference) is not GraphQlTypeReference:
+        raise ValueError("GraphQL consumers require the closed producer type record")
+
+    GraphQlName(reference.name)
+
+    if not isinstance(reference.kind, str) or reference.kind not in allowed or (
+        type(reference.wrappers) is not tuple
+        or len(reference.wrappers) > MAX_GRAPHQL_TYPE_DEPTH
+        or any(not isinstance(item, str) or item not in {"LIST", "NON_NULL"}
+               for item in reference.wrappers)
+        or any(left == right == "NON_NULL"
+               for left, right in zip(reference.wrappers, reference.wrappers[1:]))
+    ):
+        raise ValueError("GraphQL consumed type metadata is invalid")
+
+
+def RequireGraphQlArguments(arguments: object) -> None:
+    """Validate immutable symbolic arguments without trusting replaceable source annotations.
+
+    Args:
+        arguments: Candidate exact producer argument/input-field tuple.
+
+    Raises:
+        ValueError: Types, pointers, identifiers, default flags or member bounds are invalid.
+    """
+
+    if type(arguments) is not tuple or len(arguments) > MAX_GRAPHQL_MEMBERS:
+        raise ValueError("GraphQL consumers require a bounded immutable argument tuple")
+
+    names = []
+
+    for argument in arguments:
+        if type(argument) is not GraphQlArgument or type(argument.has_default) is not bool or (
+            not isinstance(argument.source_pointer, str)
+            or not argument.source_pointer.startswith("#/")
+        ):
+            raise ValueError("GraphQL consumed argument metadata is invalid")
+
+        names.append(GraphQlName(argument.name))
+        RequirePointer(argument.source_pointer[1:])
+        RequireGraphQlType(argument.value_type, _INPUT_KINDS)
+
+    if names != sorted(set(names)):
+        raise ValueError("GraphQL consumed arguments require sorted unique names")
+
+
+def RequireGraphQlOperation(operation: object) -> None:
+    """Bind an exact producer operation to its concrete template target and typed variables.
+
+    Args:
+        operation: Candidate closed producer value; no source authenticity is attested.
+
+    Raises:
+        ValueError: Endpoint, operation kind, attribution or symbolic template was substituted.
+    """
+
+    if type(operation) is not GraphQlOperation or type(operation.target) is not Target or (
+        type(operation.template) is not RequestTemplate
+        or type(operation.template.endpoint) is not Endpoint
+        or operation.target.kind is not TargetKind.URL
+    ):
+        raise ValueError("GraphQL consumers require a closed operation, target and template")
+
+    if not isinstance(operation.operation_kind, str) or operation.operation_kind not in {
+        "query", "mutation", "subscription",
+    } or not isinstance(operation.source_digest, str) or not re.fullmatch(
+        r"sha256:[0-9a-f]{64}", operation.source_digest,
+    ) or not isinstance(operation.source_pointer, str) or not re.fullmatch(
+        r"#/(?:data/)?__schema/types/(?:0|[1-9][0-9]*)/fields/(?:0|[1-9][0-9]*)",
+        operation.source_pointer,
+    ):
+        raise ValueError("GraphQL consumed operation kind or source attribution is invalid")
+
+    GraphQlName(operation.field_name)
+    RequireGraphQlArguments(operation.arguments)
+    RequireGraphQlType(operation.result_type, _OUTPUT_KINDS)
+    endpoint = operation.template.endpoint
+    expected_target = Target(TargetKind.URL, endpoint.origin + endpoint.path_template)
+    expected_name = "Gql" + operation.operation_kind.title() + "_" + hashlib.sha256(
+        operation.field_name.encode("ascii")
+    ).hexdigest()[:16]
+    expected_template = RequestTemplate(endpoint, tuple(ApiImportPoint(
+        InjectionLocation.GRAPHQL, "/variables/" + item.name,
+    ) for item in operation.arguments), BodyKind.GRAPHQL, graphql_operation=expected_name)
+
+    if endpoint.method != "POST" or endpoint.PathVariables() or (
+        operation.target != expected_target or operation.template != expected_template
+    ):
+        raise ValueError("GraphQL consumed target and template must match the producer context")
+
+
+def RequireGraphQlImport(imported: object) -> None:
+    """Keep projection attribution coherent with every operation's original producer context.
+
+    Args:
+        imported: Candidate closed finite import; raw source bytes remain separately owned evidence.
+
+    Raises:
+        ValueError: Workspace, digest, operation collection or named type metadata is inconsistent.
+    """
+
+    if type(imported) is not GraphQlImport or type(imported.operations) is not tuple or (
+        not 1 <= len(imported.operations) <= MAX_GRAPHQL_OPERATIONS
+        or type(imported.types) is not tuple or not 1 <= len(imported.types) <= MAX_GRAPHQL_TYPES
+    ):
+        raise ValueError("GraphQL projection requires a closed bounded import")
+
+    definitions = {}
+
+    for definition in imported.types:
+        if type(definition) is not GraphQlTypeDefinition or (
+            not isinstance(definition.kind, str)
+        ) or (
+            definition.kind not in _KINDS or type(definition.enum_values) is not tuple
+            or len(definition.enum_values) > MAX_GRAPHQL_MEMBERS
+        ):
+            raise ValueError("GraphQL consumed named type definition is invalid")
+
+        name = GraphQlName(definition.name)
+        RequireGraphQlArguments(definition.input_fields)
+
+        if name in definitions or (
+            name in {"Int", "Float", "Boolean", "String", "ID"} and definition.kind != "SCALAR"
+        ) or (bool(definition.input_fields) != (definition.kind == "INPUT_OBJECT")) or (
+            bool(definition.enum_values) != (definition.kind == "ENUM")
+        ):
+            raise ValueError("GraphQL consumed named definitions contradict their kinds")
+
+        values = [GraphQlName(item) for item in definition.enum_values]
+
+        if values != sorted(set(values)) or set(values) & {"true", "false", "null"}:
+            raise ValueError("GraphQL consumed enums require sorted unique declared names")
+
+        definitions[name] = definition
+
+    keys = []
+    endpoint: Endpoint | None = None
+    references = [item.value_type for definition in imported.types
+                  for item in definition.input_fields]
+
+    for operation in imported.operations:
+        RequireGraphQlOperation(operation)
+
+        if operation.template.endpoint.workspace_id != imported.workspace_id or (
+            operation.source_digest != imported.source_digest
+            or endpoint is not None and operation.template.endpoint != endpoint
+        ):
+            raise ValueError("GraphQL import attribution must match every operation producer")
+
+        endpoint = operation.template.endpoint
+        keys.append((operation.operation_kind, operation.field_name))
+        references.extend(item.value_type for item in operation.arguments)
+        references.append(operation.result_type)
+
+    if keys != sorted(set(keys)):
+        raise ValueError("GraphQL consumed operations require sorted unique root fields")
+
+    for reference in references:
+        if reference.name not in definitions or definitions[reference.name].kind != reference.kind:
+            raise ValueError("GraphQL consumed references must match their named definitions")
+
+
 def ProjectGraphQl(
     imported: GraphQlImport, *, provenance: tuple[ModelProvenance, ...],
 ) -> SecurityObject:
@@ -731,9 +905,7 @@ def ProjectGraphQl(
         ValueError: Import, request ownership, provenance or existing model attribute limits fail.
     """
 
-    if not isinstance(imported, GraphQlImport):
-        raise ValueError("GraphQL projection requires a GraphQlImport")
-
+    RequireGraphQlImport(imported)
     projection = ProjectRequests(tuple(item.template for item in imported.operations),
                                  provenance=provenance)
 
@@ -761,8 +933,10 @@ def CheckGraphQlTarget(
         PermissionError: Current explicit scope or consent denies the actual URL.
     """
 
-    if not isinstance(operation, GraphQlOperation) or not isinstance(target, Target) or (
-        not isinstance(scope, ScopeSnapshot) or target != operation.target
+    RequireGraphQlOperation(operation)
+
+    if type(target) is not Target or (
+        type(scope) is not ScopeSnapshot or target != operation.target
         or target.kind is not TargetKind.URL
         or scope.workspace_id != operation.template.endpoint.workspace_id
     ):

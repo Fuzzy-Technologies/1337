@@ -70,6 +70,13 @@ impact, a runtime invocation or execution authorization. It mutates no scope or
 workspace state. An imported schema cannot create consent or override a deny
 rule.
 
+Projection and preflight consume closed immutable producer records and check
+their internal consistency. Changing an operation target without changing its
+concrete template, or changing global workspace/source annotations while leaving
+operations unchanged, fails explicitly. These checks preserve attribution;
+they do not authenticate supplied source bytes or turn descriptive records into
+execution authority.
+
 Limits are 512 KiB source, 10000 JSON nodes, depth 24, 128 named types, 32 root
 operations, 32 argument/input/enum members, wrapper and generated depth 8,
 2048 generated nodes, 32 KiB concrete body and 256 KiB imported metadata.

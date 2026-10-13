@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -364,3 +365,91 @@ def test_ExactScopePreflightDoesNotManufactureConsentOrApproveRuntimeImpact():
 
     with pytest.raises(ValueError):
         graphql.CheckGraphQlTarget(None, operation.target, allowed, at=at)
+
+
+def test_ReplacedOperationCannotBorrowConsentFromAnotherConcreteTemplateTarget():
+    """Ordinary record replacement must not check /allowed consent for a /graphql template."""
+
+    operation = next(item for item in Imported().operations if item.field_name == "lookup")
+    other = Target(TargetKind.URL, "http://127.0.0.1:8080/allowed")
+    forged = replace(operation, target=other)
+    at = datetime(2026, 10, 13, tzinfo=timezone.utc)
+    scope = ScopeSnapshot("owned", "owned", ScopeAuthorization(
+        AuthorizationState.GRANTED, "operator:owned", "consent:owned",
+    ), targets=(other,), allow=(other,))
+    assert scope.Check(other, at=at).Allowed(), "Control target lacks its intended exact consent"
+
+    with pytest.raises(ValueError, match="producer context"):
+        graphql.CheckGraphQlTarget(forged, other, scope, at=at)
+
+    assert operation.template.endpoint.path_template == "/graphql", "Original template changed"
+
+
+@pytest.mark.parametrize("field,value", [
+    ("workspace_id", "foreign"), ("source_digest", "sha256:" + "f" * 64),
+    ("operations", []), ("types", []),
+])
+def test_ReplacedImportCannotPublishContradictoryWorkspaceOrByteAttribution(field, value):
+    """Actual model projection rejects inconsistent global/operation producer annotations."""
+
+    imported = Imported()
+    provenance = ModelProvenance("graphql-import", "run:owned", "2026-10-13T00:00:01Z",
+        "scope:owned", imported.operations[0].target.Reference(), "1", ())
+
+    with pytest.raises(ValueError):
+        graphql.ProjectGraphQl(replace(imported, **{field: value}), provenance=(provenance,))
+
+
+@pytest.mark.parametrize("field,value", [
+    ("arguments", []), ("source_digest", "bad"), ("source_pointer", "#/foreign"),
+    ("operation_kind", "execute"), ("field_name", "__reserved"), ("result_type", "String"),
+])
+def test_ReplacedOperationCannotBypassClosedSymbolicProducerContract(field, value):
+    """The scope consumer refuses malformed typed records before interpreting their context."""
+
+    operation = next(item for item in Imported().operations if item.field_name == "lookup")
+    scope = ScopeSnapshot("owned", "owned", ScopeAuthorization(
+        AuthorizationState.GRANTED, "operator:owned", "consent:owned",
+    ), targets=(operation.target,), allow=(operation.target,))
+
+    with pytest.raises(ValueError):
+        graphql.CheckGraphQlTarget(replace(operation, **{field: value}), operation.target, scope,
+                                  at=datetime(2026, 10, 13, tzinfo=timezone.utc))
+
+
+def test_ReplacedArgumentAndNamedDefinitionCannotContradictActualProducerTypes():
+    """Argument bindings and type registries are checked before existing model publication."""
+
+    imported = Imported()
+    operation = next(item for item in imported.operations if item.field_name == "lookup")
+    provenance = ModelProvenance("graphql-import", "run:owned", "2026-10-13T00:00:01Z",
+                                "scope:owned", operation.target.Reference(), "1", ())
+    argument = operation.arguments[0]
+    malformed = replace(argument, value_type=replace(argument.value_type, wrappers=["LIST"]))
+    forged_operation = replace(operation, arguments=(malformed, *operation.arguments[1:]))
+    operations = tuple(forged_operation if item == operation else item
+                       for item in imported.operations)
+
+    with pytest.raises(ValueError):
+        graphql.ProjectGraphQl(replace(imported, operations=operations), provenance=(provenance,))
+
+    definitions = tuple(replace(item, kind="OBJECT", input_fields=()) if item.name == "Filter"
+                        else item for item in imported.types)
+
+    with pytest.raises(ValueError, match="named definitions"):
+        graphql.ProjectGraphQl(replace(imported, types=definitions), provenance=(provenance,))
+
+
+class UntrustedGraphQlImport(graphql.GraphQlImport):
+    """Represent a record subclass that is not part of the closed offline producer contract."""
+
+
+def test_RecordSubclassCannotOverrideClosedProjectionConsumer():
+    """Projection accepts exact producer records without arbitrary overriding behaviors."""
+
+    imported = Imported()
+    subclass = UntrustedGraphQlImport(imported.workspace_id, imported.source_digest,
+                                     imported.operations, imported.types)
+
+    with pytest.raises(ValueError, match="closed bounded"):
+        graphql.ProjectGraphQl(subclass, provenance=())
