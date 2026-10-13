@@ -1,5 +1,13 @@
 # Targets and Scope
 
+Experimental artifact targets additionally use the exact canonical
+`manifest-sha256:<64 lowercase hex>` value in this same store. Their identity
+binds a selected input manifest; it is not a file path or OCI digest. Matching is
+exact and never crosses target kinds. Existing schema 1 persists this additive
+kind; older readers reject unknown kinds. Capturing selected files grants no scan
+authority, and network policy rejects artifact targets. See
+[Governed local artifacts](ARTIFACTS.md).
+
 `fuzzy1337.scope` is an Experimental Python library and persisted scope schema at
 version `1`, defined by [ADR 0022](adr/0022-target-registration-and-scope.md).
 It registers typed targets, evaluates explicit consent and membership offline,

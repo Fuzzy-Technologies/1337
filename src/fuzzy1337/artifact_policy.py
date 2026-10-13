@@ -1,0 +1,1597 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+"""Closed synthetic artifact grants with fresh authority and immutable raw-result receipts."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import inspect
+import json
+import os
+import sys
+import uuid
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field, fields
+from datetime import datetime, timedelta, timezone
+from enum import StrEnum
+from pathlib import Path
+from typing import Any, cast
+
+from fuzzy1337.adapters import (
+    AdapterExecution,
+    AdapterInvocation,
+    AdapterRequest,
+    ExecutionState,
+    ImpactLevel,
+    SerializeContract,
+)
+from fuzzy1337.artifact_fixture_worker import ParseFixturePolicy
+from fuzzy1337.artifact_inputs import (
+    ArtifactManifest,
+    ArtifactPathInfo,
+    ArtifactProfile,
+    ArtifactRole,
+    ArtifactStage,
+    FreezePhysicalIdentity,
+    PhysicalIdentity,
+    ReadArtifactFile,
+)
+from fuzzy1337.executors import (
+    CapabilityDescriptor,
+    ExecutionAuthorization,
+    ExecutionResources,
+    ExecutionTermination,
+    InvocationDigest,
+    LocalExecutionRequest,
+    LocalExecutionResult,
+    LocalExecutor,
+)
+from fuzzy1337.executors.contracts import (
+    FreezeEnvironment,
+    RequireIdentifier,
+    RequireReference,
+    UniqueIdentifiers,
+)
+from fuzzy1337.executors.local import EventCallback
+from fuzzy1337.policy import Digest, ImpactPolicy, RequireDigest, RequireTime
+from fuzzy1337.scope import LocalScopeStore, NormalizeTime, ScopeSnapshot
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceFields
+
+# Source updates and matching LF byte identities require independent source review.
+_REVIEWED_PRODUCERS = frozenset(
+    {
+        "2a07b2d817b1294305bedae203b8ae7f968c2eb27838d873becd0d29071ac91d",
+    }
+)
+_SYNTHETIC_PROFILES = frozenset(
+    {
+        ArtifactProfile.SYNTHETIC_IMAGE,
+        ArtifactProfile.SYNTHETIC_DOCKERFILE,
+        ArtifactProfile.SYNTHETIC_KUBERNETES,
+    }
+)
+_IMPACT_ORDER = {impact: index for index, impact in enumerate(ImpactLevel)}
+_CAPABILITIES = {
+    ArtifactProfile.IMAGE: "image.archive-vulnerabilities",
+    ArtifactProfile.SYNTHETIC_IMAGE: "image.archive-vulnerabilities",
+    ArtifactProfile.DOCKERFILE: "config.dockerfile-misconfigurations",
+    ArtifactProfile.SYNTHETIC_DOCKERFILE: "config.dockerfile-misconfigurations",
+    ArtifactProfile.KUBERNETES: "config.kubernetes-misconfigurations",
+    ArtifactProfile.SYNTHETIC_KUBERNETES: "config.kubernetes-misconfigurations",
+}
+
+__all__ = [
+    "ArtifactDenialReason",
+    "ArtifactDeniedError",
+    "ArtifactPolicyContext",
+    "PreparedArtifact",
+    "ArtifactPlan",
+    "ArtifactGrant",
+    "ArtifactAcceptance",
+    "ArtifactExecutionOutcome",
+    "ArtifactPolicyEngine",
+    "GovernedArtifactExecutor",
+    "PrepareArtifact",
+    "ProfileCapability",
+    "VerifyArtifactReplay",
+]
+
+
+class ArtifactDenialReason(StrEnum):
+    """Sanitized refusal reason without reflecting selected paths, flags or stream contents."""
+
+    NATIVE_UNAVAILABLE = "native_unavailable"
+    UNTRUSTED_PRODUCER = "untrusted_producer"
+    UNTRUSTED_RUNTIME = "untrusted_runtime"
+    MATERIAL_CHANGED = "material_changed"
+    AUTHORITY_DENIED = "authority_denied"
+    IMPACT_DENIED = "impact_denied"
+    PLAN_CHANGED = "plan_changed"
+    GRANT_EXPIRED = "grant_expired"
+    EXECUTION_FAILED = "execution_failed"
+    STORAGE = "storage"
+    CONTEXT_INVALID = "context_invalid"
+
+
+class ArtifactDeniedError(PermissionError):
+    """Deny an artifact launch or normalization without changing actual process facts."""
+
+    def __init__(self, reason: ArtifactDenialReason) -> None:
+        """Retain only one typed sanitized refusal reason.
+
+        Args:
+            reason: Exact artifact boundary refusal classification.
+        """
+
+        self.reason = reason
+        super().__init__("Artifact operation denied: " + reason.value)
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactPolicyContext:
+    """Current same-store scope, operator impact policy and explicit executing owner metadata."""
+
+    scope: ScopeSnapshot
+    policy: ImpactPolicy
+    owner_ref: str
+
+    def __post_init__(self) -> None:
+        """Require typed current authority without treating references as authentication."""
+
+        if not isinstance(self.scope, ScopeSnapshot) or not isinstance(self.policy, ImpactPolicy):
+            raise ValueError("artifact context requires existing scope and policy records")
+
+        RequireReference(self.owner_ref, "artifact owner")
+
+        if len(self.owner_ref) > 4096:
+            raise ValueError("artifact owner reference is oversized")
+
+
+def ProfileCapability(profile: ArtifactProfile) -> CapabilityDescriptor:
+    """Return closed profile metadata without granting or proving native execution.
+
+    Args:
+        profile: One explicit Experimental profile identity.
+
+    Returns:
+        SAFE capability metadata; native profiles remain non-authorizable.
+
+    Raises:
+        ValueError: The profile is outside the closed catalog.
+    """
+
+    if not isinstance(profile, ArtifactProfile):
+        raise ValueError("artifact capability requires a closed profile")
+
+    provider = "synthetic.trivy" if profile in _SYNTHETIC_PROFILES else "native.trivy"
+
+    return CapabilityDescriptor(_CAPABILITIES[profile], provider, ImpactLevel.SAFE)
+
+
+def ValidateArtifactProfile(stage: ArtifactStage) -> None:
+    """Reject unaccepted native execution and both legs of synthetic command substitution.
+
+    Args:
+        stage: Explicit selected-byte stage, independently verified by the request factory.
+    """
+
+    profile = stage.input.manifest.profile
+
+    if profile not in _SYNTHETIC_PROFILES:
+        raise ArtifactDeniedError(ArtifactDenialReason.NATIVE_UNAVAILABLE)
+
+    if sys.implementation.name != "cpython" or stage.executable != Path(sys.executable).resolve():
+        raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_RUNTIME)
+
+    scanner = {item.name: item for item in stage.scanner.manifest.files}
+
+    if (
+        set(scanner) != {"executable", "producer.py"}
+        or scanner["producer.py"].sha256 not in _REVIEWED_PRODUCERS
+    ):
+        raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_PRODUCER)
+
+    if stage.version != "0.75.0-synthetic":
+        raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_PRODUCER)
+
+    names = tuple(item.name for item in stage.input.manifest.files)
+
+    if profile == ArtifactProfile.SYNTHETIC_IMAGE and names != ("image.tar",):
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+    if profile == ArtifactProfile.SYNTHETIC_DOCKERFILE and names != ("Dockerfile",):
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+    if profile == ArtifactProfile.SYNTHETIC_KUBERNETES and any(
+        not name.endswith((".yaml", ".yml"))
+        or Path(name).name.casefold()
+        in {
+            "trivy.yaml",
+            "trivy.yml",
+            "trivyignore.yaml",
+            "trivyignore.yml",
+            "chart.yaml",
+            "chart.yml",
+            "values.yaml",
+            "values.yml",
+            "kustomization.yaml",
+            "kustomization.yml",
+        }
+        for name in names
+    ):
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+    if tuple(item.name for item in stage.material.manifest.files) != ("policy.json",):
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+    if stage.material.manifest.files[0].size_bytes > 4096:
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
+
+
+def ControlledArtifactEnvironment(stage: ArtifactStage) -> Mapping[str, str]:
+    """Replace inherited overlays with bound owned paths and minimal trusted platform values.
+
+    Args:
+        stage: Single-run owned stage whose scratch is separate from immutable inputs.
+
+    Returns:
+        Frozen exact environment overrides, including bound trusted Windows runtime values.
+    """
+
+    scratch = stage.root / "scratch"
+    environment = {
+        "PATH": "",
+        "PATHEXT": "",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "COMSPEC": "",
+        "HOME": str(scratch / "home"),
+        "USERPROFILE": str(scratch / "home"),
+        "TMP": str(scratch / "temp"),
+        "TEMP": str(scratch / "temp"),
+        "TMPDIR": str(scratch / "temp"),
+        "XDG_CONFIG_HOME": str(scratch / "config"),
+        "XDG_CACHE_HOME": str(scratch / "cache"),
+        "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
+        "WINDIR": os.environ.get("WINDIR", ""),
+    }
+
+    return FreezeEnvironment(environment)
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedArtifact:
+    """Exact fixed factory request including fields omitted by legacy InvocationDigest."""
+
+    workspace_root: Path
+    stage_lease: str
+    invocation: AdapterInvocation
+    capability: CapabilityDescriptor
+    workspace: str
+    environment: Mapping[str, str]
+    resources: ExecutionResources
+
+    def __post_init__(self) -> None:
+        """Freeze controlled environment values and require typed request observations."""
+
+        if (
+            not isinstance(self.workspace_root, Path)
+            or not self.workspace_root.is_absolute()
+            or not isinstance(self.invocation, AdapterInvocation)
+            or not isinstance(self.capability, CapabilityDescriptor)
+            or not isinstance(self.resources, ExecutionResources)
+            or not isinstance(self.environment, Mapping)
+        ):
+            raise ValueError("prepared artifact requires typed immutable request fields")
+
+        RequireReference(self.stage_lease, "prepared artifact lease")
+        object.__setattr__(self, "environment", FreezeEnvironment(self.environment))
+
+    def Payload(self) -> dict[str, object]:
+        """Render all immutable process-affecting request fields.
+
+        Returns:
+            Full request binding without an authorization envelope.
+        """
+
+        return {
+            "workspace_root": str(self.workspace_root),
+            "stage_lease": self.stage_lease,
+            "invocation": self.invocation,
+            "capability": self.capability,
+            "workspace": self.workspace,
+            "environment": dict(self.environment),
+            "resources": self.resources,
+        }
+
+    def Request(self, grant: ArtifactGrant) -> LocalExecutionRequest:
+        """Bridge only a matching artifact grant into the existing executor envelope.
+
+        Args:
+            grant: Same-plan artifact grant; launch freshness is checked by the facade.
+
+        Returns:
+            Exact SDK request; raw LocalExecutor alone is not the artifact policy facade.
+
+        Raises:
+            ArtifactDeniedError: Grant request identity is different.
+            ValueError: A network or other grant type is supplied.
+        """
+
+        if not isinstance(grant, ArtifactGrant):
+            raise ValueError("artifact execution requires an ArtifactGrant")
+
+        if grant.plan.request_sha256 != Digest(self.Payload()):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        return LocalExecutionRequest(
+            self.invocation,
+            self.capability,
+            grant.authorization,
+            self.workspace,
+            self.environment,
+            self.resources,
+        )
+
+
+def BuildPreparedArtifact(
+    stage: ArtifactStage,
+    workspace_root: Path,
+    timeout_seconds: int,
+    resources: ExecutionResources,
+    *,
+    after_run: bool,
+) -> PreparedArtifact:
+    """Rebuild the only accepted command/environment/resource contract without launching.
+
+    Args:
+        stage: Closed reviewed synthetic stage; native profiles remain unavailable.
+        workspace_root: Existing physical owned workspace enclosing the stage.
+        timeout_seconds: Explicit integer process bound from 1 through 300 seconds.
+        resources: Finite output and cleanup budgets, independently limited by this factory.
+        after_run: Verify bounded observed scratch outputs instead of requiring empty scratch.
+
+    Returns:
+        Exact rebuilt fixed request; unavailable or changed material raises ArtifactDeniedError.
+    """
+
+    if not isinstance(stage, ArtifactStage) or not isinstance(workspace_root, Path):
+        raise ValueError("artifact preparation requires a stage and owned workspace Path")
+
+    ValidateArtifactProfile(stage)
+
+    if (
+        type(timeout_seconds) is not int
+        or not 1 <= timeout_seconds <= 300
+        or not isinstance(resources, ExecutionResources)
+        or max(resources.max_stdout_bytes, resources.max_stderr_bytes) > 16 * 1024 * 1024
+        or resources.terminate_grace_seconds > 5
+    ):
+        raise ValueError("artifact timeout/output/cleanup resources exceed fixed profile bounds")
+
+    try:
+        stage.Verify(after_run=after_run)
+
+        with (stage.material.directory / "policy.json").open("rb") as policy_stream:
+            ParseFixturePolicy(policy_stream.read(4097))
+
+        stage.root.relative_to(workspace_root)
+        LocalWorkspaceStore(workspace_root).Open()
+
+    except ValueError as error:
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED) from error
+
+    profile = stage.input.manifest.profile
+    capability = ProfileCapability(profile)
+    cache = str(stage.root / "scratch/cache")
+    prefix = (
+        str(stage.executable),
+        "-I",
+        "-S",
+        str(stage.root / "scanner/producer.py"),
+        "--fixture-policy",
+        str(stage.root / "material/policy.json"),
+        "--cache-dir",
+        cache,
+        "--config=",
+    )
+    common = (
+        "--cache-backend",
+        "memory",
+        "--format",
+        "json",
+        "--disable-telemetry",
+        "--skip-check-update",
+        "--skip-version-check",
+        "--ignorefile=",
+        "--exit-code",
+        "0",
+        "--timeout",
+        f"{timeout_seconds}s",
+    )
+
+    argv: tuple[str, ...]
+
+    if profile == ArtifactProfile.SYNTHETIC_IMAGE:
+        argv = (
+            prefix
+            + (
+                "image",
+                "--input",
+                str(stage.root / "input/image.tar"),
+                "--scanners",
+                "vuln",
+                "--offline-scan",
+                "--skip-db-update",
+                "--skip-java-db-update",
+                "--skip-vex-repo-update",
+                "--list-all-pkgs",
+                "--no-progress",
+            )
+            + common
+        )
+
+    else:
+        scanner = "dockerfile" if profile == ArtifactProfile.SYNTHETIC_DOCKERFILE else "kubernetes"
+        argv = (
+            prefix
+            + ("config", "--misconfig-scanners", scanner)
+            + common
+            + (str(stage.root / "input"),)
+        )
+
+    invocation = AdapterInvocation(
+        capability.adapter_id,
+        AdapterRequest(
+            capability.identifier,
+            stage.input.manifest.Target().Reference(),
+            ImpactLevel.SAFE,
+            {"profile": profile.value, "input_manifest_sha256": stage.input.manifest.Digest()},
+        ),
+        argv,
+        timeout_seconds,
+        stage.version,
+    )
+
+    return PreparedArtifact(
+        workspace_root,
+        stage.lease_id,
+        invocation,
+        capability,
+        (stage.root / "scratch").relative_to(workspace_root).as_posix(),
+        ControlledArtifactEnvironment(stage),
+        resources,
+    )
+
+
+def PrepareArtifact(
+    stage: ArtifactStage,
+    workspace_root: Path,
+    *,
+    timeout_seconds: int = 120,
+    resources: ExecutionResources | None = None,
+) -> PreparedArtifact:
+    """Prepare one closed reviewed synthetic offline request with no process side effect.
+
+    Args:
+        stage: Fresh explicit-read-authorized stage with trusted runtime and producer bytes.
+        workspace_root: Existing physical workspace enclosing the owned stage.
+        timeout_seconds: Integer process-wait bound from 1 through 300 seconds.
+        resources: Output limits at most 16 MiB each, cleanup grace at most five seconds.
+
+    Returns:
+        Exact immutable request metadata; scope/policy approval remains necessary.
+
+    Raises:
+        ArtifactDeniedError: Native profile, untrusted runtime/producer or changed material.
+        ValueError: Resource or structural inputs are unsupported.
+        OSError: Selected material/workspace cannot be inspected.
+    """
+
+    return BuildPreparedArtifact(
+        stage,
+        workspace_root,
+        timeout_seconds,
+        ExecutionResources() if resources is None else resources,
+        after_run=False,
+    )
+
+
+def ArtifactStagePayload(stage: ArtifactStage) -> dict[str, object]:
+    """Bind all immutable material, read receipts and physical single-run lease metadata.
+
+    Args:
+        stage: Original physical stage with role-separated selected-byte manifests.
+
+    Returns:
+        Non-secret exact physical/material/read-receipt binding for grant identity.
+    """
+
+    return {
+        "root": str(stage.root),
+        "lease": stage.lease_id,
+        "root_identity": stage.root_identity,
+        "executable": str(stage.executable),
+        "executable_identity": stage.executable_identity,
+        "version": stage.version,
+        "partitions": [
+            {
+                "manifest": snapshot.manifest.ToDict(),
+                "consent": snapshot.consent,
+                "identities": snapshot.identities,
+                "directory_identity": snapshot.directory_identity,
+            }
+            for snapshot in (stage.input, stage.scanner, stage.material)
+        ],
+    }
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactPlan:
+    """Complete operator authority and request bindings; this plan grants nothing."""
+
+    owner_ref: str
+    profile: ArtifactProfile
+    provider_version: str
+    input_manifest_sha256: str
+    scanner_manifest_sha256: str
+    material_manifest_sha256: str
+    workspace_id: str
+    scope_reference: str
+    scope_revision: int
+    scope_sha256: str
+    policy_reference: str
+    policy_revision: int
+    policy_sha256: str
+    target_reference: str
+    stage_sha256: str
+    stage_lease: str
+    request_sha256: str
+    invocation_sha256: str
+    granted_privileges: tuple[str, ...]
+    intent_sha256: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Digest every exact binding without inferring signatures or principal identity."""
+
+        if (
+            not isinstance(self.profile, ArtifactProfile)
+            or self.profile not in _SYNTHETIC_PROFILES
+            or self.provider_version != "0.75.0-synthetic"
+        ):
+            raise ValueError("artifact execution plan requires a reviewed synthetic profile")
+
+        RequireIdentifier(self.workspace_id, "artifact workspace")
+
+        for value in (
+            self.owner_ref,
+            self.scope_reference,
+            self.policy_reference,
+            self.target_reference,
+            self.stage_lease,
+        ):
+            RequireReference(value, "artifact plan reference")
+
+        for name in (
+            "input_manifest_sha256",
+            "scanner_manifest_sha256",
+            "material_manifest_sha256",
+            "scope_sha256",
+            "policy_sha256",
+            "stage_sha256",
+            "request_sha256",
+            "invocation_sha256",
+        ):
+            RequireDigest(getattr(self, name))
+
+        for revision in (self.scope_revision, self.policy_revision):
+            if type(revision) is not int or revision < 0:
+                raise ValueError("artifact authority revisions must be non-negative integers")
+
+        object.__setattr__(
+            self,
+            "granted_privileges",
+            UniqueIdentifiers(self.granted_privileges, "artifact privileges"),
+        )
+
+        object.__setattr__(
+            self,
+            "intent_sha256",
+            Digest(
+                {
+                    item.name: getattr(self, item.name)
+                    for item in fields(self)
+                    if item.name != "intent_sha256"
+                }
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactGrant:
+    """Artifact-only bounded metadata authority, independently refreshed at both boundaries."""
+
+    plan: ArtifactPlan
+    authorization: ExecutionAuthorization
+    issued_at: str
+    valid_until: str
+
+    def __post_init__(self) -> None:
+        """Require typed artifact authority with an increasing aware validity interval."""
+
+        if not isinstance(self.plan, ArtifactPlan) or not isinstance(
+            self.authorization, ExecutionAuthorization
+        ):
+            raise ValueError("artifact grant requires artifact plan and executor envelope")
+
+        object.__setattr__(self, "issued_at", NormalizeTime(self.issued_at))
+        object.__setattr__(self, "valid_until", NormalizeTime(self.valid_until))
+
+        if datetime.fromisoformat(self.issued_at) >= datetime.fromisoformat(self.valid_until):
+            raise ValueError("artifact grant validity must be increasing")
+
+
+class ArtifactPolicyEngine:
+    """Fresh same-store artifact authority with no fake destination or native launch bypass."""
+
+    def Plan(
+        self,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+        after_run: bool = False,
+    ) -> ArtifactPlan:
+        """Rebuild exact fixed request and current owned scope/policy before planning.
+
+        Args:
+            prepared: Exact fixed factory request; free flags/environment are rejected.
+            stage: Bound physical immutable input/scanner/material snapshots.
+            context: Current operator owner, same-store scope and impact policy.
+            at: Explicit aware decision time.
+            after_run: Permit observed bounded scratch writes for result acceptance only.
+
+        Returns:
+            Complete artifact authority/request plan; no process is started.
+
+        Raises:
+            ArtifactDeniedError: Request/material/scope/policy is unavailable or changed.
+            ValueError: Typed authority or clock contract is invalid.
+            OSError: Current authoritative metadata/material is unreadable.
+        """
+
+        RequireTime(at)
+
+        if not isinstance(prepared, PreparedArtifact) or not isinstance(
+            context, ArtifactPolicyContext
+        ):
+            raise ValueError("artifact planning requires a fixed prepared request and context")
+
+        rebuilt = BuildPreparedArtifact(
+            stage,
+            prepared.workspace_root,
+            prepared.invocation.timeout_seconds,
+            prepared.resources,
+            after_run=after_run,
+        )
+
+        if Digest(prepared.Payload()) != Digest(rebuilt.Payload()):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        workspace = LocalWorkspaceStore(prepared.workspace_root).Open()
+        current_scope = LocalScopeStore(prepared.workspace_root).Open(context.scope.scope_id)
+
+        if workspace.workspace_id != context.scope.workspace_id or current_scope != context.scope:
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        target = stage.input.manifest.Target()
+
+        if not context.scope.Check(target, at=at).Allowed():
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        permission = next(
+            (
+                item
+                for item in context.policy.permissions
+                if (
+                    item.capability_id == prepared.capability.identifier
+                    and item.adapter_id == prepared.capability.adapter_id
+                )
+            ),
+            None,
+        )
+
+        if permission is None or not set(prepared.capability.required_privileges).issubset(
+            permission.granted_privileges
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        if any(
+            _IMPACT_ORDER[prepared.invocation.request.impact] > _IMPACT_ORDER[ceiling]
+            for ceiling in (
+                context.policy.maximum_impact,
+                permission.maximum_impact,
+                prepared.capability.maximum_impact,
+            )
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.IMPACT_DENIED)
+
+        return ArtifactPlan(
+            context.owner_ref,
+            stage.input.manifest.profile,
+            stage.version,
+            stage.input.manifest.Digest(),
+            stage.scanner.manifest.Digest(),
+            stage.material.manifest.Digest(),
+            workspace.workspace_id,
+            context.scope.Reference(),
+            context.scope.revision,
+            Digest(context.scope.ToDict()),
+            context.policy.Reference(),
+            context.policy.revision,
+            Digest(context.policy),
+            target.Reference(),
+            Digest(ArtifactStagePayload(stage)),
+            stage.lease_id,
+            Digest(prepared.Payload()),
+            InvocationDigest(prepared.invocation),
+            permission.granted_privileges,
+        )
+
+    def Authorize(
+        self,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+    ) -> ArtifactGrant:
+        """Issue artifact-only metadata after fresh fixed-profile/same-store authority checks.
+
+        Args:
+            prepared: Fixed trusted synthetic request.
+            stage: Fresh read-authorized owned stage.
+            context: Current persisted scope, operator policy and explicit owner.
+            at: Aware issuance time; lifetime is bounded by policy and consent.
+
+        Returns:
+            Immutable grant requiring fresh launch and acceptance validation.
+
+        Raises:
+            ArtifactDeniedError: Authority/material fails or a bounded expiry cannot be represented.
+        """
+
+        plan = self.Plan(prepared, stage, context, at=at)
+        issued_at = at.astimezone(timezone.utc).isoformat()
+
+        try:
+            expiry = at + timedelta(seconds=context.policy.max_authorization_seconds)
+
+        except OverflowError as error:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED) from error
+
+        if context.scope.authorization.valid_until is not None:
+            expiry = min(expiry, datetime.fromisoformat(context.scope.authorization.valid_until))
+
+        valid_until = expiry.astimezone(timezone.utc).isoformat()
+        authorization = self.Envelope(plan, issued_at, valid_until)
+
+        return ArtifactGrant(plan, authorization, issued_at, valid_until)
+
+    def Envelope(
+        self, plan: ArtifactPlan, issued_at: str, valid_until: str
+    ) -> ExecutionAuthorization:
+        """Rebuild domain-separated artifact metadata, never a network grant.
+
+        Args:
+            plan: Exact fresh artifact policy and complete request/material inputs.
+            issued_at: Canonical aware issuance time.
+            valid_until: Canonical exclusive expiry, also applied at acceptance.
+
+        Returns:
+            Existing executor envelope whose identity explicitly denotes artifact authority.
+        """
+
+        return ExecutionAuthorization(
+            "artifact-authorization:" + Digest((plan, issued_at, valid_until)),
+            plan.scope_reference,
+            plan.policy_reference,
+            plan.invocation_sha256,
+            plan.granted_privileges,
+        )
+
+    def Validate(
+        self,
+        grant: ArtifactGrant,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+        after_run: bool = False,
+    ) -> None:
+        """Reject expired, altered, revoked or replaced artifact-only authority.
+
+        Args:
+            grant: Previously issued artifact grant; possession alone proves no authority.
+            prepared: Exact fixed request proposed for launch/acceptance.
+            stage: Same observed physical immutable material and single-run lease.
+            context: Fresh current persisted scope/operator policy/owner.
+            at: Aware launch or result-acceptance time; expiry applies to both.
+            after_run: Permit bounded observed scratch contents after execution.
+
+        Raises:
+            ArtifactDeniedError: Current authority, exact bindings or time fail closed.
+            ValueError: A network grant or malformed clock/type is supplied.
+        """
+
+        if not isinstance(grant, ArtifactGrant):
+            raise ValueError("artifact policy requires an ArtifactGrant")
+
+        self.ValidateTime(grant, stage, context, at=at)
+        plan = self.Plan(prepared, stage, context, at=at, after_run=after_run)
+
+        if plan != grant.plan or grant.authorization != self.Envelope(
+            plan, grant.issued_at, grant.valid_until
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+    def ValidateTime(
+        self,
+        grant: ArtifactGrant,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+    ) -> None:
+        """Check canonical issued lifetime and consent after expensive material verification.
+
+        Args:
+            grant: Original typed artifact grant with issuance/exclusive expiry.
+            stage: Bound input manifest; this check does not rehash physical files.
+            context: Same current context already fully validated against persistent scope.
+            at: Fresh aware clock read immediately before launch-hook return.
+
+        Raises:
+            ArtifactDeniedError: Canonical policy/consent lifetime differs or authority expired.
+            ValueError: The typed context/grant/time contract is malformed.
+        """
+
+        RequireTime(at)
+
+        if not isinstance(grant, ArtifactGrant) or not isinstance(context, ArtifactPolicyContext):
+            raise ValueError("artifact time validation requires typed grant and context")
+
+        if (
+            not datetime.fromisoformat(grant.issued_at)
+            <= at
+            < datetime.fromisoformat(grant.valid_until)
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.GRANT_EXPIRED)
+
+        issued_at = datetime.fromisoformat(grant.issued_at)
+
+        try:
+            expiry = issued_at + timedelta(seconds=context.policy.max_authorization_seconds)
+
+        except OverflowError as error:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED) from error
+
+        if context.scope.authorization.valid_until is not None:
+            expiry = min(expiry, datetime.fromisoformat(context.scope.authorization.valid_until))
+
+        if datetime.fromisoformat(grant.valid_until) != expiry:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        if not context.scope.Check(stage.input.manifest.Target(), at=issued_at).Allowed():
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        if not context.scope.Check(stage.input.manifest.Target(), at=at).Allowed():
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+    def ValidateCurrent(
+        self,
+        grant: ArtifactGrant,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+    ) -> None:
+        """Refresh complete authority/request metadata after hashing without rehashing files.
+
+        Args:
+            grant: Original artifact grant already fully validated against physical material.
+            prepared: Original exact factory request including capability/environment/resources.
+            stage: Original immutable role manifests and physical lease metadata.
+            context: Newly read current owner/scope/policy after expensive work or scratch setup.
+            at: Fresh aware time for current consent and grant validity.
+
+        Raises:
+            ArtifactDeniedError: Current content/revision/owner/permission/impact differs or denies.
+            OSError: Fresh authoritative workspace/scope metadata cannot be read.
+        """
+
+        self.ValidateTime(grant, stage, context, at=at)
+        scope = LocalScopeStore(prepared.workspace_root).Open(context.scope.scope_id)
+        workspace = LocalWorkspaceStore(prepared.workspace_root).Open()
+
+        if scope != context.scope or workspace.workspace_id != grant.plan.workspace_id:
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        permission = next(
+            (
+                item
+                for item in context.policy.permissions
+                if (
+                    item.capability_id == prepared.capability.identifier
+                    and item.adapter_id == prepared.capability.adapter_id
+                )
+            ),
+            None,
+        )
+
+        if permission is None or not set(prepared.capability.required_privileges).issubset(
+            permission.granted_privileges
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
+
+        if any(
+            _IMPACT_ORDER[prepared.invocation.request.impact] > _IMPACT_ORDER[ceiling]
+            for ceiling in (
+                context.policy.maximum_impact,
+                permission.maximum_impact,
+                prepared.capability.maximum_impact,
+            )
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.IMPACT_DENIED)
+
+        if (
+            context.owner_ref != grant.plan.owner_ref
+            or context.scope.Reference() != grant.plan.scope_reference
+            or context.scope.revision != grant.plan.scope_revision
+            or Digest(context.scope.ToDict()) != grant.plan.scope_sha256
+            or context.policy.Reference() != grant.plan.policy_reference
+            or context.policy.revision != grant.plan.policy_revision
+            or Digest(context.policy) != grant.plan.policy_sha256
+            or permission.granted_privileges != grant.plan.granted_privileges
+            or Digest(prepared.Payload()) != grant.plan.request_sha256
+            or Digest(ArtifactStagePayload(stage)) != grant.plan.stage_sha256
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+
+def RawResultFacts(result: LocalExecutionResult) -> dict[str, object]:
+    """Render bounded metadata binding actual process facts and retained stream/event bytes.
+
+    Args:
+        result: Actual unchanged result returned by the accepted local executor.
+
+    Returns:
+        Execution/termination/stream hashes and event digest/count, without copying raw content.
+    """
+
+    return {
+        "execution": result.execution,
+        "termination": result.termination,
+        "stdout_sha256": hashlib.sha256(result.stdout).hexdigest(),
+        "stdout_bytes": len(result.stdout),
+        "stderr_sha256": hashlib.sha256(result.stderr).hexdigest(),
+        "stderr_bytes": len(result.stderr),
+        "events_sha256": Digest(
+            [
+                (
+                    event.sequence,
+                    event.kind,
+                    hashlib.sha256(event.data).hexdigest(),
+                    len(event.data),
+                    event.termination,
+                )
+                for event in result.events
+            ]
+        ),
+        "events_count": len(result.events),
+    }
+
+
+def RawResultDigest(result: LocalExecutionResult) -> str:
+    """Bind exact original process facts without reflecting stream bytes.
+
+    Args:
+        result: Actual raw executor result whose stream/event facts are retained.
+
+    Returns:
+        SHA-256 of exact fact metadata, never authority to execute or normalize.
+    """
+
+    return Digest(RawResultFacts(result))
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactAcceptance:
+    """Per-run exact-raw-result receipt; acceptance is freshly checked before model use."""
+
+    run_id: str
+    grant_id: str
+    stage_lease: str
+    raw_sha256: str
+    checked_at: str
+    refusal: ArtifactDenialReason | None
+    marker_identity: tuple[int, int, int, int, int] | None
+
+    def __post_init__(self) -> None:
+        """Reject malformed receipt identities without interpreting raw content."""
+
+        for value in (self.run_id, self.grant_id, self.stage_lease):
+            RequireReference(value, "artifact receipt")
+
+        RequireDigest(self.raw_sha256)
+        object.__setattr__(self, "checked_at", NormalizeTime(self.checked_at))
+
+        if self.refusal is not None and not isinstance(self.refusal, ArtifactDenialReason):
+            raise ValueError("artifact refusal must be a typed sanitized reason")
+
+        if self.marker_identity is not None:
+            object.__setattr__(
+                self, "marker_identity", FreezePhysicalIdentity(self.marker_identity, 5)
+            )
+
+        if self.refusal is None and self.marker_identity is None:
+            raise ValueError("accepted artifact receipt requires an actual launch marker")
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactExecutionOutcome:
+    """Immutable raw process facts and separate original-run acceptance provenance."""
+
+    raw_result: LocalExecutionResult
+    grant: ArtifactGrant
+    acceptance: ArtifactAcceptance
+    run_id: str
+    manifests: tuple[ArtifactManifest, ...]
+
+    def __post_init__(self) -> None:
+        """Reject replaced raw bytes or a receipt belonging to another grant/run."""
+
+        if (
+            not isinstance(self.raw_result, LocalExecutionResult)
+            or not isinstance(self.grant, ArtifactGrant)
+            or not isinstance(self.acceptance, ArtifactAcceptance)
+        ):
+            raise ValueError("artifact outcome requires raw result, artifact grant and receipt")
+
+        if (
+            self.acceptance.raw_sha256 != RawResultDigest(self.raw_result)
+            or self.acceptance.grant_id != self.grant.authorization.authorization_id
+        ):
+            raise ValueError("artifact receipt does not bind the actual raw result and grant")
+
+        if self.acceptance.run_id != self.run_id:
+            raise ValueError("artifact receipt does not belong to this run")
+
+        if self.acceptance.stage_lease != self.grant.plan.stage_lease:
+            raise ValueError("artifact receipt does not belong to the granted stage")
+
+        if self.acceptance.refusal is None and not (
+            datetime.fromisoformat(self.grant.issued_at)
+            <= datetime.fromisoformat(self.acceptance.checked_at)
+            < datetime.fromisoformat(self.grant.valid_until)
+        ):
+            raise ValueError("accepted artifact receipt time contradicts its original grant")
+
+        if (
+            not isinstance(self.manifests, (list, tuple))
+            or len(self.manifests) != 3
+            or any(not isinstance(item, ArtifactManifest) for item in self.manifests)
+        ):
+            raise ValueError("artifact outcome requires three finite typed manifests")
+
+        object.__setattr__(self, "manifests", tuple(self.manifests))
+        expected = (
+            self.grant.plan.input_manifest_sha256,
+            self.grant.plan.scanner_manifest_sha256,
+            self.grant.plan.material_manifest_sha256,
+        )
+
+        if len(self.manifests) != 3 or tuple(item.Digest() for item in self.manifests) != expected:
+            raise ValueError("artifact outcome manifests do not match the original grant")
+
+    def Metadata(self) -> dict[str, object]:
+        """Render original provenance for existing evidence storage and read-only replay.
+
+        Returns:
+            Exact grant/receipt/manifest bindings without raw stream contents or new authority.
+        """
+
+        return cast(
+            dict[str, object],
+            json.loads(
+                SerializeContract(
+                    {
+                        "schema_version": 1,
+                        "grant": self.grant,
+                        "acceptance": self.acceptance,
+                        "manifests": [item.ToDict() for item in self.manifests],
+                        "raw_facts": RawResultFacts(self.raw_result),
+                    }
+                )
+            ),
+        )
+
+
+def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> ArtifactAcceptance:
+    """Verify saved original provenance against retained raw bytes without current authorization.
+
+    Args:
+        metadata: Original outcome metadata obtained from verified existing evidence storage.
+        stdout: Retained original stdout bytes, independently verified by the evidence store.
+        stderr: Retained original stderr bytes, independently verified by the evidence store.
+
+    Returns:
+        Original per-run acceptance/refusal metadata; this issues no launch or model authority.
+
+    Raises:
+        ValueError: Version, exact fields, hashes, execution facts or provenance are inconsistent.
+    """
+
+    record = WorkspaceFields(
+        metadata,
+        {"schema_version", "grant", "acceptance", "manifests", "raw_facts"},
+        "artifact replay",
+    )
+
+    if type(record["schema_version"]) is not int or record["schema_version"] != 1:
+        raise ValueError("artifact replay version is unsupported")
+
+    if (
+        not isinstance(stdout, bytes)
+        or not isinstance(stderr, bytes)
+        or max(len(stdout), len(stderr)) > 16 * 1024 * 1024
+    ):
+        raise ValueError("artifact replay requires bounded retained stream bytes")
+
+    grant_record = WorkspaceFields(
+        record["grant"], {"plan", "authorization", "issued_at", "valid_until"}, "artifact grant"
+    )
+    plan_record = WorkspaceFields(
+        grant_record["plan"], {item.name for item in fields(ArtifactPlan)}, "artifact plan"
+    )
+    plan_values: dict[str, Any] = {
+        key: value for key, value in plan_record.items() if key != "intent_sha256"
+    }
+
+    try:
+        plan_values["profile"] = ArtifactProfile(plan_values["profile"])
+        plan = ArtifactPlan(**plan_values)
+        authorization_record = cast(
+            dict[str, Any],
+            WorkspaceFields(
+                grant_record["authorization"],
+                {item.name for item in fields(ExecutionAuthorization)},
+                "artifact envelope",
+            ),
+        )
+        authorization = ExecutionAuthorization(**authorization_record)
+        grant_values = cast(dict[str, Any], grant_record)
+        grant = ArtifactGrant(
+            plan, authorization, grant_values["issued_at"], grant_values["valid_until"]
+        )
+        receipt_record = WorkspaceFields(
+            record["acceptance"],
+            {item.name for item in fields(ArtifactAcceptance)},
+            "artifact receipt",
+        )
+        receipt_values: dict[str, Any] = dict(receipt_record)
+        receipt_values["refusal"] = (
+            None
+            if receipt_values["refusal"] is None
+            else ArtifactDenialReason(receipt_values["refusal"])
+        )
+        receipt = ArtifactAcceptance(**receipt_values)
+
+    except (TypeError, ValueError) as error:
+        raise ValueError("artifact replay metadata is malformed") from error
+
+    if plan.intent_sha256 != plan_record[
+        "intent_sha256"
+    ] or authorization != ArtifactPolicyEngine().Envelope(plan, grant.issued_at, grant.valid_until):
+        raise ValueError("artifact replay plan or original envelope is inconsistent")
+
+    manifest_records = record["manifests"]
+
+    if not isinstance(manifest_records, list) or len(manifest_records) != 3:
+        raise ValueError("artifact replay requires three role-separated manifests")
+
+    manifests = tuple(ArtifactManifest.FromDict(item) for item in manifest_records)
+
+    if (
+        tuple(item.role for item in manifests)
+        != (ArtifactRole.INPUT, ArtifactRole.SCANNER, ArtifactRole.MATERIAL)
+        or any(item.profile != plan.profile for item in manifests)
+        or tuple(item.Digest() for item in manifests)
+        != (plan.input_manifest_sha256, plan.scanner_manifest_sha256, plan.material_manifest_sha256)
+        or manifests[0].Target().Reference() != plan.target_reference
+    ):
+        raise ValueError("artifact replay manifests do not match original input authority")
+
+    facts = cast(
+        dict[str, Any],
+        WorkspaceFields(
+            record["raw_facts"],
+            {
+                "execution",
+                "termination",
+                "stdout_sha256",
+                "stdout_bytes",
+                "stderr_sha256",
+                "stderr_bytes",
+                "events_sha256",
+                "events_count",
+            },
+            "artifact raw facts",
+        ),
+    )
+    execution_record = cast(
+        dict[str, Any],
+        WorkspaceFields(
+            facts["execution"],
+            {item.name for item in fields(AdapterExecution)},
+            "artifact execution",
+        ),
+    )
+
+    if isinstance(execution_record["duration_seconds"], bool):
+        raise ValueError("artifact replay execution duration is malformed")
+
+    try:
+        AdapterExecution(
+            ExecutionState(execution_record["state"]),
+            execution_record["exit_code"],
+            execution_record["duration_seconds"],
+        )
+        ExecutionTermination(facts["termination"])
+        RequireDigest(facts["events_sha256"])
+
+    except (TypeError, ValueError, OverflowError) as error:
+        raise ValueError("artifact replay execution facts are malformed") from error
+
+    if type(facts["events_count"]) is not int or facts["events_count"] < 0:
+        raise ValueError("artifact replay event count is malformed")
+
+    if facts["events_count"] > len(stdout) + len(stderr) + 2:
+        raise ValueError("artifact replay event count exceeds retained-output bounds")
+
+    if receipt.refusal is None and not (
+        execution_record["state"] == ExecutionState.SUCCEEDED.value
+        and execution_record["exit_code"] == 0
+        and facts["termination"] == ExecutionTermination.PROCESS_EXIT.value
+        and datetime.fromisoformat(grant.issued_at)
+        <= datetime.fromisoformat(receipt.checked_at)
+        < datetime.fromisoformat(grant.valid_until)
+    ):
+        raise ValueError("artifact replay falsely claims successful original acceptance")
+
+    if (
+        receipt.grant_id != authorization.authorization_id
+        or receipt.raw_sha256 != Digest(facts)
+        or receipt.stage_lease != plan.stage_lease
+        or type(facts["stdout_bytes"]) is not int
+        or type(facts["stderr_bytes"]) is not int
+        or facts["stdout_bytes"] != len(stdout)
+        or facts["stderr_bytes"] != len(stderr)
+        or facts["stdout_sha256"] != hashlib.sha256(stdout).hexdigest()
+        or facts["stderr_sha256"] != hashlib.sha256(stderr).hexdigest()
+    ):
+        raise ValueError("artifact replay raw bytes do not match their original receipt")
+
+    return receipt
+
+
+def ExecutionMarkerBytes(run_id: str, grant_id: str) -> bytes:
+    """Encode the fixed bounded original-run/original-authorization witness without I/O.
+
+    Args:
+        run_id: Original run reference chosen before the final launch hook.
+        grant_id: Original artifact authorization identity validated for this exact launch.
+
+    Returns:
+        Canonical private schema-1 JSON bytes with exactly three fields, at most 512 bytes.
+
+    Raises:
+        ValueError: References are malformed or exceed the fixed marker byte limit.
+    """
+
+    RequireReference(run_id, "artifact marker run")
+    RequireReference(grant_id, "artifact marker grant")
+    payload = json.dumps(
+        {"schema_version": 1, "run_id": run_id, "grant_id": grant_id},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    if len(payload) > 512:
+        raise ValueError("artifact execution marker exceeds its fixed byte limit")
+
+    return payload
+
+
+def VerifyExecutionMarker(
+    stage: ArtifactStage,
+    run_id: str,
+    grant_id: str,
+    identity: tuple[int, int, int, int, int] | None,
+) -> None:
+    """Bind fresh acceptance to the physical marker created by this actual single launch.
+
+    Args:
+        stage: Original owned stage; historical replay never calls this physical check.
+        run_id: Original run identity written at the final validated launch boundary.
+        grant_id: Original authorization identity written alongside that actual run.
+        identity: Original observed marker device/inode/length/modification/change identity.
+
+    Raises:
+        ArtifactDeniedError: Missing, replaced, relinked, changed or unrelated marker.
+        OSError: The owned marker cannot be inspected.
+    """
+
+    if identity is None:
+        raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+    path = stage.root / "scratch/run-lease.json"
+
+    try:
+        if PhysicalIdentity(ArtifactPathInfo(path)) != identity:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        record = ReadArtifactFile(path, "run-lease.json", max_bytes=512)
+
+    except ValueError as error:
+        raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED) from error
+
+    expected = ExecutionMarkerBytes(run_id, grant_id)
+
+    if record.size_bytes != len(expected) or record.sha256 != hashlib.sha256(expected).hexdigest():
+        raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+
+class GovernedArtifactExecutor:
+    """Run only closed reviewed synthetic profiles and preserve raw post-run refusal evidence."""
+
+    def __init__(
+        self, workspace_root: Path, *, clock: Callable[[], datetime] | None = None
+    ) -> None:
+        """Bind the accepted local executor and explicit decision clock.
+
+        Args:
+            workspace_root: Existing physical workspace root enclosing the selected stage.
+            clock: Optional aware clock for deterministic grant/acceptance tests.
+        """
+
+        self._root = workspace_root
+        self._executor = LocalExecutor(workspace_root)
+        self._engine = ArtifactPolicyEngine()
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
+
+    def CurrentContext(
+        self, provider: Callable[[], ArtifactPolicyContext]
+    ) -> ArtifactPolicyContext:
+        """Require a synchronous fresh typed authority provider, closing a bare coroutine.
+
+        Args:
+            provider: Trusted callable returning current authority synchronously.
+
+        Returns:
+            Current typed context; unsupported callbacks raise ValueError before launch.
+        """
+
+        if not callable(provider):
+            raise ValueError("artifact context provider must be callable")
+
+        response = provider()
+
+        if not isinstance(response, ArtifactPolicyContext):
+            if inspect.iscoroutine(response):
+                response.close()
+
+            raise ValueError("artifact context provider must synchronously return current context")
+
+        return response
+
+    async def Execute(
+        self,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        grant: ArtifactGrant,
+        context_provider: Callable[[], ArtifactPolicyContext],
+        *,
+        on_event: EventCallback | None = None,
+        cancellation: asyncio.Event | None = None,
+    ) -> ArtifactExecutionOutcome:
+        """Launch through fresh authority and return raw facts even if later acceptance fails.
+
+        Args:
+            prepared: Exact fixed request for this executor workspace.
+            stage: Fresh single-run owned stage.
+            grant: Artifact-only bounded approval.
+            context_provider: Trusted synchronous fresh persisted scope/policy/owner lookup.
+            on_event: Existing executor observer; never a raw-output metadata logger.
+            cancellation: Cooperative cancellation preserving a returned raw terminal result.
+
+        Returns:
+            Per-run immutable raw result and exact receipt, including post-run refusal.
+
+        Raises:
+            ArtifactDeniedError: Pre-launch approval/material fails; no process is started.
+            ValueError: Structural request/context contract is malformed.
+            asyncio.CancelledError: Caller coroutine cancellation after owned executor cleanup.
+        """
+
+        if prepared.workspace_root != self._root:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        self._engine.Validate(
+            grant, prepared, stage, self.CurrentContext(context_provider), at=self._clock()
+        )
+        request = prepared.Request(grant)
+        run_id = "artifact-run:" + uuid.uuid4().hex
+        marker_identity: tuple[int, int, int, int, int] | None = None
+
+        def BeforeLaunch(actual: LocalExecutionRequest) -> None:
+            """Recheck exact authority immediately before owned scratch initialization/launch."""
+
+            nonlocal marker_identity
+
+            if actual != prepared.Request(grant):
+                raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+            launch_context = self.CurrentContext(context_provider)
+            self._engine.Validate(grant, prepared, stage, launch_context, at=self._clock())
+            launch_context = self.CurrentContext(context_provider)
+            self._engine.ValidateCurrent(grant, prepared, stage, launch_context, at=self._clock())
+            self._engine.ValidateTime(grant, stage, launch_context, at=self._clock())
+            scratch = stage.root / "scratch"
+
+            with (scratch / "run-lease.json").open("xb") as marker:
+                marker.write(ExecutionMarkerBytes(run_id, grant.authorization.authorization_id))
+
+            marker_identity = PhysicalIdentity(ArtifactPathInfo(scratch / "run-lease.json"))
+
+            for name in ("home", "temp", "config", "cache"):
+                (scratch / name).mkdir(mode=0o700)
+
+            launch_context = self.CurrentContext(context_provider)
+            self._engine.ValidateCurrent(grant, prepared, stage, launch_context, at=self._clock())
+            self._engine.ValidateTime(grant, stage, launch_context, at=self._clock())
+
+        raw = await self._executor.Execute(
+            request, on_event=on_event, cancellation=cancellation, pre_launch=BeforeLaunch
+        )
+        checked_at = datetime.now(timezone.utc)
+        refusal = None
+
+        try:
+            checked_at = self._clock()
+            RequireTime(checked_at)
+            self._engine.Validate(
+                grant,
+                prepared,
+                stage,
+                self.CurrentContext(context_provider),
+                at=checked_at,
+                after_run=True,
+            )
+
+            if marker_identity is not None:
+                VerifyExecutionMarker(
+                    stage, run_id, grant.authorization.authorization_id, marker_identity
+                )
+
+            acceptance_context = self.CurrentContext(context_provider)
+            checked_at = self._clock()
+            self._engine.ValidateCurrent(
+                grant, prepared, stage, acceptance_context, at=checked_at
+            )
+            checked_at = self._clock()
+            self._engine.ValidateTime(grant, stage, acceptance_context, at=checked_at)
+
+        except ArtifactDeniedError as error:
+            refusal = error.reason
+
+        except PermissionError:
+            refusal = ArtifactDenialReason.AUTHORITY_DENIED
+
+        except OSError:
+            refusal = ArtifactDenialReason.STORAGE
+
+        except Exception:
+            refusal = ArtifactDenialReason.CONTEXT_INVALID
+            checked_at = datetime.now(timezone.utc)
+
+        if refusal is None and not (
+            raw.execution.state == ExecutionState.SUCCEEDED
+            and raw.execution.exit_code == 0
+            and raw.termination == ExecutionTermination.PROCESS_EXIT
+        ):
+            refusal = ArtifactDenialReason.EXECUTION_FAILED
+
+        if refusal is None and marker_identity is None:
+            refusal = ArtifactDenialReason.PLAN_CHANGED
+
+        receipt = ArtifactAcceptance(
+            run_id,
+            grant.authorization.authorization_id,
+            stage.lease_id,
+            RawResultDigest(raw),
+            checked_at.isoformat(),
+            refusal,
+            marker_identity,
+        )
+
+        return ArtifactExecutionOutcome(
+            raw,
+            grant,
+            receipt,
+            run_id,
+            (stage.input.manifest, stage.scanner.manifest, stage.material.manifest),
+        )
+
+    def ValidateAcceptance(
+        self,
+        outcome: ArtifactExecutionOutcome,
+        prepared: PreparedArtifact,
+        stage: ArtifactStage,
+        context: ArtifactPolicyContext,
+        *,
+        at: datetime,
+    ) -> None:
+        """Refresh original-run authority after raw capture and immediately before model acceptance.
+
+        Args:
+            outcome: Original immutable raw result and bound receipt.
+            prepared: Original exact fixed request.
+            stage: Original physical stage; relocation/replay never authorizes another launch.
+            context: Fresh persisted scope/operator policy/owner.
+            at: Aware result-acceptance time, including grant expiry during execution.
+
+        Raises:
+            ArtifactDeniedError: Refusal, non-success, stale authority or altered material/result.
+            ValueError: Result/receipt types are malformed.
+        """
+
+        if not isinstance(outcome, ArtifactExecutionOutcome):
+            raise ValueError("artifact acceptance requires an immutable per-run outcome")
+
+        RequireTime(at)
+        receipt = outcome.acceptance
+
+        if (
+            receipt.raw_sha256 != RawResultDigest(outcome.raw_result)
+            or receipt.grant_id != outcome.grant.authorization.authorization_id
+            or receipt.stage_lease != stage.lease_id
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        if receipt.refusal is not None:
+            raise ArtifactDeniedError(receipt.refusal)
+
+        if not (
+            datetime.fromisoformat(outcome.grant.issued_at)
+            <= datetime.fromisoformat(receipt.checked_at)
+            < datetime.fromisoformat(outcome.grant.valid_until)
+            and datetime.fromisoformat(receipt.checked_at) <= at
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+        VerifyExecutionMarker(stage, outcome.run_id, receipt.grant_id, receipt.marker_identity)
+
+        if not (
+            outcome.raw_result.execution.state == ExecutionState.SUCCEEDED
+            and outcome.raw_result.execution.exit_code == 0
+            and outcome.raw_result.termination == ExecutionTermination.PROCESS_EXIT
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.EXECUTION_FAILED)
+
+        self._engine.Validate(outcome.grant, prepared, stage, context, at=at, after_run=True)
