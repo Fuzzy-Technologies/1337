@@ -12,6 +12,8 @@ Unsupported synthesis and input cycles are refused; subscriptions remain
 descriptive. `ProjectGraphQl` builds existing model request metadata with caller
 provenance. `CheckGraphQlTarget` checks existing exact scope membership and grants
 no invocation authorization. Context helpers and decoder functions are Internal.
+Consumers reject inconsistent operation/template targets and imported workspace,
+source-digest or named-type contexts before projection or scope admission.
 
 ADR 0065 and `docs/GRAPHQL_IMPORT.md` define limits and the supported subset.
 Source acquisition, model persistence and evidence verification remain with their

@@ -8718,7 +8718,7 @@ state = "missing"
 id = "page:api.fuzzy1337.graphql-import"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.graphql_import.md"
-sourceHash = "sha256:dd427219b3559553daf523f1a25c0a8b567257e768f21ad09f40809f6950fe50"
+sourceHash = "sha256:72e76e1455ed2b7152d9ac70bf852166903c9f9aaa60ca8ea9bf3f1c80cdb4ef"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -8730,6 +8730,50 @@ id = "page:api.fuzzy1337.api-request-generation"
 kind = "page"
 sourceHash = "sha256:7d37c46123fc30b7278f07611022cb36b5f64b38dfc93f6c331f80e82c42f8c3"
 sourcePath = "docs/site/content/en/api/fuzzy1337.api_request_generation.md"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.RequireGraphQlArguments"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:d51f2bdf7269ca4b4d7e2e8d0fb11c2e45eecd51f81f4c7442e75c35115d586b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.RequireGraphQlImport"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:0367120fde87436a634dd4b26a563afab8736bad3c25c7ccb088c8b84ac858ac"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.RequireGraphQlOperation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:08167206c33c6b4c75b91cb31aad00649832e548dd6fddb405dbb043f5f15975"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.graphql_import.RequireGraphQlType"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/graphql_import.py"
+sourceHash = "sha256:5afc8f73421a98e97dc948e2753e4b804fb02347e4feb5267aea3d266a27f166"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
