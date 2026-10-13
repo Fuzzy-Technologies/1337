@@ -76,6 +76,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added governed acquisition of one owned loopback HTML page from the closed
   non-secret fixture catalog, with bounded transport parsing, retained evidence,
   existing lexical frontier projection and one durable model Save.
+- Added bounded asynchronous traversal of four reviewed owned loopback pages,
+  concurrent governed acquisition, deterministic canonical commits and incremental
+  evidence. Cancellation drains workers and commit waiters; budgets and failures
+  preserve actual partial state and original response facts.
 
 - Added explicit saved-workspace `report export` for bounded JSON and SARIF,
   owner-verifying every retained raw evidence reference and preserving failed

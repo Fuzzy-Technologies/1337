@@ -15,13 +15,13 @@ current persisted consent and the separate `http.synthetic-page-capture` SAFE
 permission; selecting known bytes grants neither. Scope is independently reread
 at every grant/launch and immediately before each canonical Save.
 
-| Reviewed body ID             | Exact bytes | Purpose                                |
-| ---------------------------- | ----------- | -------------------------------------- |
-| `owned-loopback-html.v1`      | 541         | Existing one-page acquisition contract  |
-| `owned-traversal-index.v1`    | 220         | Branches, duplicate and excluded links  |
-| `owned-traversal-alpha.v1`    | 81          | Shared leaf and seed cycle              |
-| `owned-traversal-beta.v1`     | 55          | Duplicate shared leaf                   |
-| `owned-traversal-shared.v1`   | 65          | Leaf without executable content         |
+| Reviewed body ID            | Exact bytes | Purpose                                |
+| --------------------------- | ----------- | -------------------------------------- |
+| `owned-loopback-html.v1`    | 541         | Existing one-page acquisition contract |
+| `owned-traversal-index.v1`  | 220         | Branches, duplicate and excluded links |
+| `owned-traversal-alpha.v1`  | 81          | Shared leaf and seed cycle             |
+| `owned-traversal-beta.v1`   | 55          | Duplicate shared leaf                  |
+| `owned-traversal-shared.v1` | 65          | Leaf without executable content        |
 
 The exact source bodies and handwritten oracle are in
 `tests/contract/fixtures/web-traversal.*.v1.html` and
@@ -38,14 +38,14 @@ fetched. All redirects remain refused; Location is neither retained nor followed
 Each refused redirect retains the existing fixed failed stdout record and starts
 zero destination acquisitions.
 
-| Limit                      | Default | Accepted range | Meaning                         |
-| -------------------------- | ------- | -------------- | ------------------------------- |
-| `max_pages`                | 16      | 1..16          | Reserved selected requests      |
-| `max_depth`                | 4       | 0..4           | Seed depth is zero              |
-| `concurrency`              | 2       | 1..4           | Concurrent workers in one wave  |
-| `max_total_body_bytes`     | 65536   | 1..1048576     | Sum of selected catalog bodies  |
-| `start_interval_seconds`  | 0.05    | 0.05..1        | Minimum controller start gap    |
-| `timeout_seconds`         | 30      | 0.05..60       | Entire traversal including waits|
+| Limit                    | Default | Accepted range | Meaning                          |
+| ------------------------ | ------- | -------------- | -------------------------------- |
+| `max_pages`              | 16      | 1..16          | Reserved selected requests       |
+| `max_depth`              | 4       | 0..4           | Seed depth is zero               |
+| `concurrency`            | 2       | 1..4           | Concurrent workers in one wave   |
+| `max_total_body_bytes`   | 65536   | 1..1048576     | Sum of selected catalog bodies   |
+| `start_interval_seconds` | 0.05    | 0.05..1        | Minimum controller start gap     |
+| `timeout_seconds`        | 30      | 0.05..60       | Entire traversal including waits |
 
 Booleans, numeric coercion and nonfinite values refuse. Existing body, header,
 stdout, stderr and request/process deadlines independently remain enforced.
