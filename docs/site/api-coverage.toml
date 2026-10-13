@@ -318,6 +318,18 @@ mode = "authored"
 page = "api/fuzzy1337.adapters.trivy.md"
 
 [[surfaces]]
+module = "fuzzy1337.intelligence_acquisition"
+source = "src/fuzzy1337/intelligence_acquisition.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_acquisition.md"
+
+[[surfaces]]
+module = "fuzzy1337.intelligence_transport"
+source = "src/fuzzy1337/intelligence_transport.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_transport.md"
+
+[[surfaces]]
 module = "fuzzy1337.intelligence"
 source = "src/fuzzy1337/intelligence.py"
 mode = "authored"
