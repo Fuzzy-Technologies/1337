@@ -268,3 +268,9 @@ module = "fuzzy1337.reachability"
 source = "src/fuzzy1337/reachability.py"
 mode = "authored"
 page = "api/fuzzy1337.reachability.md"
+
+[[surfaces]]
+module = "fuzzy1337.captured_web"
+source = "src/fuzzy1337/captured_web.py"
+mode = "authored"
+page = "api/fuzzy1337.captured_web.md"

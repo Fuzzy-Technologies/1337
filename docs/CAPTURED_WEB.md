@@ -264,7 +264,25 @@ subprocess and writes during read/preparation/projection. Refused actual artifac
 must not reach allocating Read, including a forged small caller reference.
 No local web server, browser, real target or raw secret is needed. Full locked
 checks and independent review are required after implementation, not claimed for
-this design-only checkpoint. #59/#53 remain open for their broader acceptance.
+the initial design checkpoint. #59/#53 remain open for their broader acceptance.
 
 The two owned fixture files have explicit LF checkout attributes; exact evidence
 bytes and their content identities must not change under Windows checkout settings.
+
+The implementation's focused acceptance suites use the existing locked developer
+environment and no source acquisition runtime:
+
+```bash
+uv run --locked --extra dev pytest tests/unit/test_captured_web.py
+uv run --locked --extra dev pytest tests/contract/test_captured_web_contract.py
+uv run --locked --extra dev pytest tests/integration/test_captured_web_model.py
+```
+
+For model integration, select every current object whose identity matches a
+returned structural Endpoint. Then pass that complete explicit collection to
+`ProjectCapturedWebFrontier`, apply both its object patches and observations with
+`ModelState.Apply`, and save through `LocalModelStore` with the previous expected
+revision. Publish/display the owning ModelDelta only after successful persistence.
+Those deltas describe captured-source candidates; they do not represent a network
+probe or browser traversal. A changed current scope requires new preparation and
+every later actual invocation still requires its ordinary scope/impact grant.
