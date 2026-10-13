@@ -46,6 +46,17 @@ MAX_STDERR_BYTES = 1024
 FIXTURE_ID = "owned-loopback-html.v1"
 FIXTURE_SIZE_BYTES = 541
 FIXTURE_SHA256 = "c0b909f728bdcc098193c1fd268f056eea33c27b6537cd504fa77c3a25afe817"
+_REVIEWED_BODIES = MappingProxyType({
+    FIXTURE_ID: (FIXTURE_SHA256, FIXTURE_SIZE_BYTES),
+    "owned-traversal-index.v1": (
+        "f3058581088204e59828513b2c97b2e5d78f8551b66847ad461694f846039847", 220),
+    "owned-traversal-alpha.v1": (
+        "b4c02acd68dcb9e0b7876129211a0973a4ddfa3bb1497fe9866b19bdcf930778", 81),
+    "owned-traversal-beta.v1": (
+        "6280766abcb3598cc72f439892490485a2cf1bf7f1b0db2944a138794ec1f68f", 55),
+    "owned-traversal-shared.v1": (
+        "5f33a7d34dfa15c0170b83ccdbaf7abdf8be1fb7fdbfd74b79cfb64a2033ada4", 65),
+})
 ERROR_EXITS = {"input": 64, "connection": 1, "timeout": 124, "protocol": 1,
                "response-policy": 1, "body-policy": 1}
 _SUCCESS_FIELDS = frozenset({
@@ -109,7 +120,7 @@ def Seconds(value: object, maximum: float) -> float:
 
 @dataclass(frozen=True, slots=True)
 class KnownSyntheticHtmlBody:
-    """Select the sole reviewed non-secret body; selection supplies no execution authority."""
+    """Select a finite reviewed non-secret body; selection supplies no execution authority."""
 
     fixture_id: str
     sha256: str = field(init=False)
@@ -118,11 +129,14 @@ class KnownSyntheticHtmlBody:
     def __post_init__(self) -> None:
         """Derive immutable catalog identity without files, arbitrary digests or defaults."""
 
-        if type(self.fixture_id) is not str or self.fixture_id != FIXTURE_ID:
+        if type(self.fixture_id) is not str or len(self.fixture_id) > 64 or (
+            self.fixture_id not in _REVIEWED_BODIES
+        ):
             raise ValueError("page capture requires an explicit reviewed fixture identifier")
 
-        object.__setattr__(self, "sha256", FIXTURE_SHA256)
-        object.__setattr__(self, "size_bytes", FIXTURE_SIZE_BYTES)
+        digest, size = _REVIEWED_BODIES[self.fixture_id]
+        object.__setattr__(self, "sha256", digest)
+        object.__setattr__(self, "size_bytes", size)
 
 
 def KnownBody(value: object) -> KnownSyntheticHtmlBody:
@@ -378,7 +392,9 @@ def ParseRecord(raw: bytes, url: str, expected_body: KnownSyntheticHtmlBody,
         Integer(record["status"], 200, 200)
         Integer(record["content_length"], expected.size_bytes, expected.size_bytes)
         count = Integer(record["header_count"], 2, MAX_HEADER_FIELDS)
-        minimum = 61 + (14 if record["declared_charset"] is not None else 0) + (
+        minimum = 58 + len(str(expected.size_bytes)) + (
+            14 if record["declared_charset"] is not None else 0
+        ) + (
             4 * (count - 2) + max(0, count - 53)
         )
         Integer(record["header_size_bytes"], minimum,

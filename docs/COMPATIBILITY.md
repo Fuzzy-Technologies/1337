@@ -87,6 +87,15 @@ at page-capture profile version `1`. ADR 0052 and `docs/LOCAL_PAGE_CAPTURE.md`
 define one governed anonymous GET to an explicitly owned canonical loopback URL,
 admitting only the exact closed non-secret HTML fixture. Actual owner-verified
 evidence feeds the existing captured-web frontier and one durable model Save.
+
+`fuzzy1337.web_traversal` is an additive Experimental controller under ADR 0062.
+It traverses only four explicitly selected reviewed owned pages, with bounded
+concurrent acquisitions and deterministic commit order through the existing
+page-capture governor. Per-launch and pre-Save consent/scope remain current;
+discovered links grant no authority and redirects are refused. The closed record
+schema adds exact catalog cases while preserving the original page's grammar.
+Its internal ordering hook and retained-frontier result do not enable arbitrary
+HTTP crawling, browser execution or native security checks.
 NativeHTTP version 1 remains a separate capability. The packaged
 `fuzzy1337.page_capture_worker` is Internal; its schema-1 flat record is verified
 by the parent and does not grant caller-selected crawling or browser execution.

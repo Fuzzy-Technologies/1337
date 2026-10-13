@@ -33,3 +33,9 @@ message remains generic. Reopen the saved model and inspect the retained source
 observation/evidence; that message alone does not prove the model stayed unchanged.
 
 ::: fuzzy1337.page_capture
+
+ADR 0062 adds an internal optional asynchronous commit-order gate and retained
+frontier return for the bounded owned traversal controller. Defaults preserve
+one-page acquisition and progress. Final model composition, current authority
+and canonical Save follow admission to the ordering gate; cancellation retains
+only actual committed state and original process/evidence facts.

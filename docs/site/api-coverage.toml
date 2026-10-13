@@ -354,6 +354,12 @@ mode = "authored"
 page = "api/fuzzy1337.reachability.md"
 
 [[surfaces]]
+module = "fuzzy1337.web_traversal"
+source = "src/fuzzy1337/web_traversal.py"
+mode = "authored"
+page = "api/fuzzy1337.web_traversal.md"
+
+[[surfaces]]
 module = "fuzzy1337.captured_web"
 source = "src/fuzzy1337/captured_web.py"
 mode = "authored"
