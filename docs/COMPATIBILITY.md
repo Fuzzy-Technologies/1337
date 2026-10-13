@@ -75,6 +75,12 @@ and portable model persistence. Scope/target references do not grant authority.
 ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
+`fuzzy1337.reporting` and `fuzzy1337.report_formats` are Experimental libraries.
+ADR 0039 and `docs/REPORTING.md` define report projection schema `1`, SARIF `2.1.0`,
+and a version-1 JUnit adapter. Reports preserve canonical state and do not imply
+scanner completeness, authorization, verified bytes, or compliance. Pure reports
+remain byte-unverified; verification requires the explicit owned evidence boundary.
+
 `fuzzy1337.evidence` is an Experimental local storage API and manifest schema
 at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
@@ -111,6 +117,11 @@ control fulfillment, certification, or Evidence integrity.
 `fuzzy1337.policy` is an Experimental Python library at contract version `1`.
 ADR 0025 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
+
+`fuzzy1337.images` is an Experimental offline interpretation library at contract
+version `1`. ADR 0040 and `docs/IMAGES.md` define ASSET-based image/package identities,
+verified native/SBOM imports and canonical Finding correlation without changing
+the existing model schema or granting execution authority.
 
 `fuzzy1337.discovery` and `fuzzy1337.adapters.native_http` are Experimental
 Python producer/sensor APIs at contract version `1`. ADR 0036 and
@@ -238,22 +249,24 @@ Current versioned public contracts:
 | Contract family      | Schema version | Location                                                   | Status       |
 | -------------------- | -------------- | ---------------------------------------------------------- | ------------ |
 | Extension manifest   | `1`            | `contracts/extension-manifest.schema.json`                 | Stable       |
-| Workflow lenses      | `1`            | `fuzzy1337.lenses`                                         | Experimental |
 | Targets and Scope    | `1`            | `fuzzy1337.scope`; `docs/SCOPE.md`                         | Experimental |
-| Web request model    | `1`            | `fuzzy1337.requests`                                       | Experimental |
 | Workspace state      | `1`            | `fuzzy1337.workspace`; `docs/WORKSPACES.md`                | Experimental |
-| Scan jobs            | `1`            | `fuzzy1337.jobs`                                           | Experimental |
-| Quick Scan summary   | `1`            | `contracts/quick-scan-summary.schema.json`                 | Experimental |
 | ToolAdapter SDK      | `1`            | `fuzzy1337.adapters`; `docs/TOOL_ADAPTERS.md`              | Experimental |
 | Security Model       | `1`            | `fuzzy1337.model`; `docs/SECURITY_MODEL.md`                | Experimental |
-| Finding core         | `1`            | `fuzzy1337.findings`                                       | Experimental |
+| Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md`   | Experimental |
 | Local Evidence Store | `1`            | `fuzzy1337.evidence`; `docs/EVIDENCE.md`                   | Experimental |
 | Nmap adapter         | `1`            | `fuzzy1337.adapters.nmap`                                  | Experimental |
 | Nuclei adapter       | `1`            | `fuzzy1337.adapters.nuclei`                                | Experimental |
+| Report projection    | `1`            | `fuzzy1337.reporting`; `report_formats`                    | Experimental |
 | Executor SDK         | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`                 | Experimental |
-| Synthetic journeys   | `1`            | `contracts/journey-scenario.schema.json`                   | Experimental |
+| Web request model    | `1`            | `fuzzy1337.requests`                                       | Experimental |
 | Impact policy        | `1`            | `fuzzy1337.policy`                                         | Experimental |
-| Intel references     | `1`            | `fuzzy1337.intel_references`; `docs/INTEL_REFERENCES.md`   | Experimental |
+| Scan jobs            | `1`            | `fuzzy1337.jobs`                                           | Experimental |
+| Finding core         | `1`            | `fuzzy1337.findings`                                       | Experimental |
+| Image/package model  | `1`            | `fuzzy1337.images`; `docs/IMAGES.md`                       | Experimental |
+| Workflow lenses      | `1`            | `fuzzy1337.lenses`                                         | Experimental |
+| Quick Scan summary   | `1`            | `contracts/quick-scan-summary.schema.json`                 | Experimental |
+| Synthetic journeys   | `1`            | `contracts/journey-scenario.schema.json`                   | Experimental |
 | Standards Mappings   | `1`            | `fuzzy1337.standards_mapping`; `docs/STANDARDS_MAPPING.md` | Experimental |
 | Vulnerability Intel  | `1`            | `fuzzy1337.intelligence`; `docs/INTELLIGENCE.md`           | Experimental |
 
