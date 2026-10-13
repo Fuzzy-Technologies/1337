@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "fixture_id": "owned-native-trivy-python-metadata-v1",
+  "provider_version": "0.75.0",
+  "release_asset": "https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz",
+  "release_asset_sha256": "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f",
+  "database_repository": "ghcr.io/aquasecurity/trivy-db@sha256:4efa1d9d38f992c2472847b04b802f390924514574fad189f7d89e4c7e93ab00",
+  "database_created_at": "2026-06-22T14:30:14Z",
+  "advisory_source": "https://github.com/psf/requests/security/advisories/GHSA-j8r2-6x86-q33q",
+  "advisory_id": "CVE-2023-32681",
+  "package_name": "requests",
+  "cases": [
+    {
+      "version": "2.30.0",
+      "archive_size_bytes": 20480,
+      "archive_sha256": "90d1a0fe43c89e341e370221fb240591231e875895b1475d30ea28f37b178aa1",
+      "expected_advisory_match": true
+    },
+    {
+      "version": "2.31.0",
+      "archive_size_bytes": 20480,
+      "archive_sha256": "b681fdb5e0214cd1ddc5272e77ed498af210d5e82bb7e23d3a0d885db54d84fb",
+      "expected_advisory_match": false
+    }
+  ],
+  "scope": "Owned inert metadata; no package implementation, exploit or model-state publication",
+  "scan_completeness": "not-assessed"
+}
