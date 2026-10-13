@@ -8332,3 +8332,665 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+[[units]]
+id = "page:api.fuzzy1337.reachability"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.reachability.md"
+sourceHash = "sha256:8a0b77dd7391bb371c436e5219b609e361ed59912bdabdeec70c11c2f367f87a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.AssessmentJson"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:180fe976395ebb831c9457048f7835628ff16df37af727ce73b2a0143f03c873"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.BoundedEvidenceStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:b8d3f77956e8f97893c492bbf915f99fd10601fdbfdf24a29c0a5a590562f220"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.BoundedEvidenceStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:0320b5d76c707eea87511f8c1ab342adb3a8bfdc2b2627130149a5dd83fb721d"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.CandidatePath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:34b0a7651b8106a84fa02a478bada7b96c970731172c3bd84b343d406fe98e17"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ClaimFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:338124eb0e20ed7fcfab39c5b5ba29b6d089f2c704cfe27fe604695e7effc4c5"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ClaimsDigest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:4b59a79174ed802269db5414d40e0b779f87e34e37a8e583179d18c546b8d3db"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Confidence"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:beca883a88f1f849613293a4bf0730fe6adc957c666370c995b620a9b1a87b77"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.CurrentBasis"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:28fc3e3157ab049e98e39299ce0e4c8bd9eec36016fed77be68261374e889d47"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Declaration"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:3b99514d6ec4fca765714f880d70b44864a0573f26b81f1e3d8b4ee8fee7a02a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Digest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:514af10fd5337e17570d85633090fd55ce2177778b507e4da749e8309d21080c"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ExactBasis"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:1195b63cab0bda4ac9f56517cb2718586b1fb3a390ed1a3d7fa5e3e131f57e82"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Fields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:699e5f9163cccd282137d3fd8d6bd1901380575ebf49ad33bca5f24b68f5f206"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Integer"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:abcabdbd876f74a4e0cdeb9a3d1d01c2f7f7211605e1c0a7249a6f50e379c21e"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Items"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:05c7244e7ef7e0967c13ec2ab351e204e6c2419a75fbef57fcf4066aa60d1837"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ProjectReachability"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:96d13389ccf459e24e05c15e74b15c2f9cd33976cf1a936924cf082f7a37d673"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ProjectionDigest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:ab06a37e4854a8c30315eaf3ccedb65124fb7fd871e2d7f2d53fb035dada6b39"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ProofEntry"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:a4eb351153bdd9dab549821359163feb0fed9320e3c400597ecf7defa49d2fe9"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ProofReader"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:704e56f80a9ca51490ad08189938db23f1f2132c9ce6051eb7064e346baa2943"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ProofReader.Basis"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:0ac61fb6fa6360b9e7accb6d5d5b86d9bd54c89c526f61440baff43e91c7c2ca"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityBasis"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:bc908a497dc0c021f6867e3d5ecec6aae84783ab3ef189d3471711bc9fcf37f6"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityClaim"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:42e194fc14c98db2b64e09775191cccd4a84cdf9e92f60518f76014d08ec3f2d"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityClaims"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:e67f8b7ad4f5757b71409b813f8922a20cc5c1156a126b3f0463d2f433a4027b"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityControl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:c02b496ae33d5d991d0c238fae8f98990e82b84a5fe6af390321cc39a79db48c"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityEstimate"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:2c9cf3e16ddbb7e54ebd1f643380114dcaea526ad4d3711ce65a38a2b1f95b5d"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:299d3ffc6ed721910589bdee64b8d2ffe9eafc5a03fcdc58ab5a519a8e33b3bd"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityModelVersion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:0b5cea38361195f32a01b771139fffcbf192d77bff2c9f709b0d4ae791614f0a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityModelVersion.FromModel"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:85596dabf7fed2b6e45ed7151dd1cf4fd5d57eb4a8ef0744013def0f5d18dfb1"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityPath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:0f64885ca6d4ed985a9618994a4e98755a4ab1dc47e0e57a5f7dca7e21cee96e"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityProjection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:a22949a6e57adc26e718588680096975e3be2d4d9f2208436ff1db9034ac0860"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilitySearch"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:97406eaf579f18cc70a7495f492323e47f595d766d2e945f8766dff49b216d9f"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityState"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:d983da3a53ad152afff48ea87d3c70cc6fe4a6a2b52e55ed4745d0b26dc41822"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReachabilityTransition"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:30e35b3022ea1aac40861f0ec94a2233b7e3ee37d15e5d7644ed697f8b1fff84"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ReadReachabilityClaims"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:ebbf52ade21bbeee3eb638ea3c7d38658348e0c3f528a9aa1247bfe534dededb"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Reference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:2463949e628dc2700df639ea077e3414bf7128617816d1d5596180cb9bb2d2ab"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.RejectConstant"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:5cc59f250a35ad2d97e2dfd56f76d4c34f4486219158c1efeae3176b47644419"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.SearchReachabilityPaths"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:e524166b762c8c061c8cb69d1c42b2adb2dd697a34049092b29d9ebc6ef9e2d2"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Text"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:95d2f8768b02b78d1c4da6fc7b961d4cddacffad1003ce6b3a1c4630441b3b8e"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Time"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:1d38ab0519b3207a23123f9525f56e773cad8b418fc2bee846cda2f7538f67c1"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.TimeReasons"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:616d16f594bab19b728356f457b6467a80687fa633af887463294ce423e4a549"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.UniqueFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:602ede41cf1c891dc08dbfacec277eb7146dbe9b4f3845e485d960eb688b6caf"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.VerifiedRecord"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:a7d8e727810eecec1e6899e147a32701785f6bbb5a34e1ce2562fb6e6050ab2d"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.Version"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:b9aa67f968859a90be61596fa55b2362a07b5e6d07d5d6a9b7cbf253c6c6de99"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputBasis"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:b80f05fe7f60599621d2cbf58713689b7ffebe77f0e46fc4ddce8006c0bdbecb"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputReasons"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:c75e3da5dd6762a8110bce9432a56fd0ee31e7b4ee3ce2c0c6dea582d0ce0609"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputRecord"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:7748a61e9b7c742a06ad1c8194625a09a70541022ca56985389b908ca6441c4b"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputTuple"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:823d11b0bb6cfc0becddcfd26ec27cf8bbfc0ace482e9a6580ba7f0c07570a8c"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.OutputVersion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:500efec5256496761dc1a2f43308ba6f94cb1923508cfece8c95fe5749d41c92"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.TransitionFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:399cbdf35cd6cf834261d1a589a5b5d7fb8201e2eac4e767fe23f1de139494d3"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.JsonScalarSize"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:3b83fc626e39f0d21ec34fb667595ae8441ece84964ff0f750b66800b77d8746"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.reachability.ModelSnapshotSize"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/reachability.py"
+sourceHash = "sha256:e7efd81a594f0295c26bd34a2d48936d06c0dac75c3a02dbb844f72eb4f3775f"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"

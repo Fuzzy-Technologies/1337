@@ -81,6 +81,12 @@ at version `1`. ADR 0023 and `docs/SECURITY_MODEL.md` define deterministic objec
 identity, attributable updates, typed relations, observations, incremental deltas,
 and portable model persistence. Scope/target references do not grant authority.
 
+`fuzzy1337.reachability` is an Experimental offline Python library at profile `1`.
+ADR 0047 and `docs/REACHABILITY.md` define exact current-basis source-attestation
+verification, explicit existing transition projection and bounded deterministic
+candidate search. Hop/path labels preserve source estimates; they grant no
+execution authority or independent end-to-end network/exploit confirmation.
+
 `fuzzy1337.findings` is an Experimental Python library at contract version `1`.
 ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
@@ -289,5 +295,6 @@ Current versioned public contracts:
 | Vulnerability Intel    | `1`            | `fuzzy1337.intelligence`; `docs/INTELLIGENCE.md`                     | Experimental |
 | SPDX package inventory | `1`            | `fuzzy1337.sbom_spdx`; `docs/SBOM_SPDX.md`                           | Experimental |
 | Synthetic API request  | `1`            | `fuzzy1337.api_request_generation`; `docs/API_REQUEST_GENERATION.md` | Experimental |
+| Offline Reachability   | `1`            | `fuzzy1337.reachability`; `docs/REACHABILITY.md`                     | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

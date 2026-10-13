@@ -1,0 +1,69 @@
+{
+  "fixture_kind": "symbolic-offline-reachability",
+  "fixture_version": 1,
+  "workspace_id": "reachability-fixture",
+  "scope_reference": "scope:fixture",
+  "context_reference": "fixture-context",
+  "support_time": "2026-10-13T00:00:00Z",
+  "assessment_started_at": "2026-10-13T00:00:01Z",
+  "assessment_finished_at": "2026-10-13T00:00:02Z",
+  "query_at": "2026-10-13T00:00:03Z",
+  "alias_resolution": "Existing ObjectIdentity, Relation and Observation constructors; aliases are not production references.",
+  "nodes": [
+    {"alias": "source", "kind": "asset", "key": "reachability-node:source"},
+    {"alias": "portal", "kind": "asset", "key": "reachability-node:portal"},
+    {"alias": "identity", "kind": "asset", "key": "reachability-node:identity"},
+    {"alias": "billing", "kind": "asset", "key": "reachability-node:billing"},
+    {"alias": "event", "kind": "asset", "key": "reachability-node:event"},
+    {"alias": "key", "kind": "asset", "key": "reachability-node:key"},
+    {"alias": "detour", "kind": "asset", "key": "reachability-node:detour"},
+    {"alias": "isolated", "kind": "asset", "key": "reachability-node:isolated"},
+    {"alias": "key-control", "kind": "asset", "key": "reachability-control:key", "asset_type": "reachability-control"},
+    {"alias": "identity-control", "kind": "asset", "key": "reachability-control:identity", "asset_type": "reachability-control"}
+  ],
+  "transitions": [
+    {"alias": "source-portal", "source": "source", "target": "portal", "kind": "related-to"},
+    {"alias": "source-detour", "source": "source", "target": "detour", "kind": "related-to"},
+    {"alias": "portal-identity", "source": "portal", "target": "identity", "kind": "related-to"},
+    {"alias": "portal-detour", "source": "portal", "target": "detour", "kind": "related-to"},
+    {"alias": "detour-identity", "source": "detour", "target": "identity", "kind": "related-to"},
+    {"alias": "identity-billing", "source": "identity", "target": "billing", "kind": "related-to"},
+    {"alias": "billing-event", "source": "billing", "target": "event", "kind": "related-to"},
+    {"alias": "billing-key", "source": "billing", "target": "key", "kind": "related-to"},
+    {"alias": "identity-portal-cycle", "source": "identity", "target": "portal", "kind": "related-to"},
+    {"alias": "detour-self-cycle", "source": "detour", "target": "detour", "kind": "related-to"}
+  ],
+  "proof_fixture_contract": {
+    "basis_observation_kind": "reachability-support",
+    "basis_source_id": "synthetic-reachability-witness",
+    "assessment_source_id": "synthetic-reachability-attester",
+    "source_version": "1",
+    "assessment_kind": "supplied-transition-attestation",
+    "model_version": "Bind the exact persisted model after independent support observations; do not insert assessment artifacts into it.",
+    "support_payload": "An independent synthetic witness artifact, retained by the existing evidence owner.",
+    "forbidden_literal": "synthetic-private-source-value"
+  },
+  "phases": [
+    {"id": "initial", "default_state": "UNKNOWN", "default_confidence": 0.0, "overrides": [
+      {"relation": "billing-key", "state": "BLOCKED", "confidence": 1.0, "controls": ["key-control"]}
+    ]},
+    {"id": "potential", "default_state": "POTENTIAL", "default_confidence": 0.55, "overrides": [
+      {"relation": "billing-key", "state": "BLOCKED", "confidence": 1.0, "controls": ["key-control"]}
+    ]},
+    {"id": "likely", "default_state": "CONFIRMED", "default_confidence": 0.99, "overrides": [
+      {"relation": "identity-billing", "state": "LIKELY", "confidence": 0.8, "inference_rule": "rule.synthetic-hop"},
+      {"relation": "billing-key", "state": "BLOCKED", "confidence": 1.0, "controls": ["key-control"]}
+    ]},
+    {"id": "confirmed", "default_state": "CONFIRMED", "default_confidence": 0.99, "overrides": [
+      {"relation": "billing-key", "state": "BLOCKED", "confidence": 1.0, "controls": ["key-control"]}
+    ]},
+    {"id": "remediation", "default_state": "CONFIRMED", "default_confidence": 0.99, "overrides": [
+      {"relation": "portal-identity", "state": "BLOCKED", "confidence": 1.0, "controls": ["identity-control"]},
+      {"relation": "billing-key", "state": "BLOCKED", "confidence": 1.0, "controls": ["key-control"]}
+    ]},
+    {"id": "conflicting-barrier", "default_state": "UNKNOWN", "default_confidence": 0.0, "overrides": [
+      {"relation": "billing-key", "state": "BLOCKED", "confidence": 1.0, "controls": ["key-control"]},
+      {"relation": "billing-key", "state": "CONFIRMED", "confidence": 0.99, "independent_artifact": true}
+    ]}
+  ]
+}
