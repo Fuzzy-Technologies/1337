@@ -3,6 +3,7 @@
 
 """Tests for packaging behavior."""
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -50,6 +51,16 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
 
     with zipfile.ZipFile(wheels[0]) as archive:
         members = archive.namelist()
+        from fuzzy1337 import artifact_fixture_worker, artifact_policy
+
+        worker_bytes = archive.read("fuzzy1337/artifact_fixture_worker.py")
+        assert worker_bytes == Path(artifact_fixture_worker.__file__).read_bytes(), (
+            "Built wheel changed reviewed closed producer source bytes"
+        )
+        assert b"\r\n" not in worker_bytes, "Reviewed producer did not preserve LF bytes"
+        assert hashlib.sha256(worker_bytes).hexdigest() in artifact_policy._REVIEWED_PRODUCERS, (
+            "Built wheel producer does not match the closed reviewed allowlist"
+        )
         assert "fuzzy1337/cli.py" in members, "sdist wheel and clean installation invariant failed."
         assert "fuzzy1337/adapters/contracts.py" in members, (
             "sdist wheel and clean installation invariant failed."

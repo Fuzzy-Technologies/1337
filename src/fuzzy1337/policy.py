@@ -186,6 +186,9 @@ class PolicyContext:
         if not isinstance(self.target, Target):
             raise ValueError("target must be a Target")
 
+        if self.target.kind == TargetKind.ARTIFACT:
+            raise ValueError("network policy cannot authorize an artifact target")
+
         destinations = tuple(self.destinations)
 
         if not 1 <= len(destinations) <= _MAX_DESTINATIONS:
@@ -358,6 +361,9 @@ class PolicyEngine:
             raise ValueError("planning requires a CapabilityDescriptor and PolicyContext")
 
         if invocation.request.target_reference != context.target.Reference():
+            raise PolicyDeniedError(PolicyDenialReason.TARGET_MISMATCH)
+
+        if context.target.kind == TargetKind.ARTIFACT:
             raise PolicyDeniedError(PolicyDenialReason.TARGET_MISMATCH)
 
         decision = context.scope.Check(context.target, at=at)
