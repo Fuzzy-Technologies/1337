@@ -69,3 +69,18 @@ def test_AdvisoryOracleKeepsSpecificBoundaryWithoutCleanScanClaim():
         "The advisory's vulnerable/fixed version boundary is independently declared"
     )
     assert ORACLE["scan_completeness"] == "not-assessed", "One advisory is not scanner completeness"
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("", True), ("Iface\tDestination\tGateway\tFlags\n", True),
+    ("Iface\tDestination\tGateway\neth0\t00000000\t0100007F\n", False),
+    ("eth0\t00000000\t0100007F\n", False), ("Unrecognized kernel route output\n", False),
+])
+def test_IsolatedIpv4RouteTableAcceptsBothEmptyKernelForms(raw, expected):
+    """Actual CI's headerless empty table remains no-routes while every route stays refused."""
+
+    from tests.integration.test_trivy_native import NoIpv4Routes
+
+    assert NoIpv4Routes(raw) is expected, (
+        "Route validation must accept genuine empty/header-only tables and reject route content"
+    )

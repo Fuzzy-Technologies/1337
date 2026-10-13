@@ -47,6 +47,16 @@ def FileDigest(path: Path) -> str:
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
+def NoIpv4Routes(raw: str) -> bool:
+    """Accept kernel empty or sole recognized header forms without admitting any route record."""
+
+    lines = raw.splitlines()
+
+    return not lines or (len(lines) == 1 and lines[0].split()[:3] == [
+        "Iface", "Destination", "Gateway",
+    ])
+
+
 @pytest.fixture(scope="module")
 def native_runtime():
     """Require explicit material and an actual separate network namespace without routes."""
@@ -63,7 +73,7 @@ def native_runtime():
     current = os.readlink("/proc/self/ns/net")
     assert current != selected[3], "Native scanner must run in a different netns from provisioning"
     assert socket.if_nameindex() == [(1, "lo")], "Isolated native netns must have only loopback"
-    assert len(Path("/proc/net/route").read_text().splitlines()) == 1, (
+    assert NoIpv4Routes(Path("/proc/net/route").read_text()), (
         "The native network namespace must have no IPv4 routes"
     )
     assert all(line.split()[0] == "0" * 32 for line in
