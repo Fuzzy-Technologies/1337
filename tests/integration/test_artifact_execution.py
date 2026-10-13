@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 import os
@@ -17,19 +18,22 @@ import pytest
 from artifact_helpers import AT, OwnedArtifact, OwnedImageArtifact
 
 from fuzzy1337 import artifact_fixture_worker, artifact_policy
-from fuzzy1337.adapters import ExecutionState
+from fuzzy1337.adapters import ExecutionState, SerializeContract
 from fuzzy1337.artifact_inputs import ArtifactOperation, ArtifactProfile, ArtifactStage
 from fuzzy1337.artifact_policy import (
     ArtifactDenialReason,
     ArtifactDeniedError,
     ArtifactPolicyContext,
     ArtifactPolicyEngine,
+    ArtifactStagePayload,
     ArtifactVersionProof,
     GovernedArtifactExecutor,
     PrepareArtifact,
     VerifyArtifactReplay,
+    VerifySyntheticImagePayloadReplay,
 )
 from fuzzy1337.executors import ExecutionEventKind, ExecutionResources, ExecutionTermination
+from fuzzy1337.policy import Digest
 from fuzzy1337.scope import AuthorizationState, LocalScopeStore
 
 
@@ -741,6 +745,124 @@ def ImageScan(tmp_path, root, context, executor, proof, *, scenario="success"):
     outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
 
     return outcome, prepared, stage
+
+
+def DetachedImageRun(outcome, prepared, stage):
+    """Capture exact original detached SDK payloads alongside actual retained raw streams."""
+
+    original = json.loads(SerializeContract((outcome.Metadata(), prepared.Payload(),
+                                           ArtifactStagePayload(stage))))
+
+    return (*original, outcome.raw_result.stdout, outcome.raw_result.stderr)
+
+
+@pytest.fixture(scope="module")
+def detached_original_image_runs(tmp_path_factory):
+    """Execute both actual reviewed operations once before pure historical mutation probes."""
+
+    selected = tmp_path_factory.mktemp("original-image-runs")
+    root, context, executor, proof = ImageVersion(selected)
+    scan = ImageScan(selected, root, context, executor, proof)
+    executor.ValidatePairAcceptanceFresh(
+        (proof.outcome, proof.prepared, proof.stage), scan, lambda: context,
+    )
+
+    return (DetachedImageRun(proof.outcome, proof.prepared, proof.stage), DetachedImageRun(*scan))
+
+
+@pytest.mark.parametrize("index", [0, 1], ids=["version", "scan"])
+def test_ActualDetachedImagePayloadReplayUsesOriginalOnly(
+    detached_original_image_runs, monkeypatch, index,
+):
+    """Actual original factory/output captures replay after current physical authority is absent."""
+
+    from fuzzy1337.workspace import LocalWorkspaceStore
+
+    metadata, prepared, stage, stdout, stderr = copy.deepcopy(detached_original_image_runs[index])
+
+    def Forbidden(*_args, **_kwargs):
+        """Trip any accidental current filesystem, launch, policy or workspace lookup."""
+
+        raise AssertionError("Detached historical replay consulted current execution authority")
+
+    monkeypatch.setattr(Path, "open", Forbidden)
+    monkeypatch.setattr(Path, "stat", Forbidden)
+    monkeypatch.setattr(Path, "resolve", Forbidden)
+    monkeypatch.setattr(ArtifactStage, "Verify", Forbidden)
+    monkeypatch.setattr(LocalWorkspaceStore, "Open", Forbidden)
+    monkeypatch.setattr(ArtifactPolicyEngine, "Authorize", Forbidden)
+    monkeypatch.setattr(GovernedArtifactExecutor, "Execute", Forbidden)
+    before = copy.deepcopy((metadata, prepared, stage, stdout, stderr))
+    VerifyArtifactReplay(metadata, stdout, stderr)
+    VerifySyntheticImagePayloadReplay(metadata, prepared, stage)
+    assert (metadata, prepared, stage, stdout, stderr) == before, (
+        "Historical payload verification must preserve all original facts and raw bytes"
+    )
+
+
+@pytest.mark.parametrize("index", [0, 1], ids=["version", "scan"])
+@pytest.mark.parametrize("mutation", [
+    "argv", "cwd", "environment", "resources", "cleanup", "operation",
+    "partition-alias", "file-alias",
+])
+def test_ActualDetachedImageRehashedFactoryMutationsDeny(
+    detached_original_image_runs, index, mutation,
+):
+    """Self-consistent recorded hashes remain insufficient to pass the closed SDK grammar."""
+
+    metadata, prepared, stage, stdout, stderr = copy.deepcopy(detached_original_image_runs[index])
+    grant = metadata["grant"]
+    plan = grant["plan"]
+
+    if mutation == "argv":
+        prepared["invocation"]["argv"] = ["unsupported-synthetic-command"]
+
+    elif mutation == "cwd":
+        prepared["workspace"] = "unsupported/scratch"
+
+    elif mutation == "environment":
+        prepared["environment"]["PYTHONPATH"] = "unsupported-overlay"
+
+    elif mutation == "resources":
+        prepared["resources"]["max_stdout_bytes"] = 16 * 1024 * 1024
+
+    elif mutation == "cleanup":
+        prepared["resources"]["terminate_grace_seconds"] = 6
+
+    elif mutation == "operation":
+        plan["operation"] = prepared["operation"] = "scan" if index == 0 else "version"
+
+        for name, value in (("version_run_id", "artifact-run:other"),
+                            ("version_grant_id", "artifact-authorization:other"),
+                            ("version_prerequisite_sha256", "0" * 64)):
+            plan[name] = prepared[name] = value if index == 0 else None
+
+    elif mutation == "partition-alias":
+        stage["partitions"][2]["directory_identity"] = stage["partitions"][0]["directory_identity"]
+
+    else:
+        input_identity = stage["partitions"][0]["identities"][0][1]
+        stage["partitions"][2]["identities"][0][1][:2] = input_identity[:2]
+
+    plan["stage_sha256"] = Digest(stage)
+    plan["request_sha256"] = Digest(prepared)
+    plan["invocation_sha256"] = Digest(prepared["invocation"])
+    plan["intent_sha256"] = Digest({key: value for key, value in plan.items()
+                                   if key != "intent_sha256"})
+    authorization = grant["authorization"]
+    authorization["invocation_sha256"] = plan["invocation_sha256"]
+    authorization["authorization_id"] = "artifact-authorization:" + Digest(
+        (plan, grant["issued_at"], grant["valid_until"])
+    )
+    metadata["acceptance"]["grant_id"] = authorization["authorization_id"]
+    VerifyArtifactReplay(metadata, stdout, stderr)
+
+    with pytest.raises(ValueError):
+        VerifySyntheticImagePayloadReplay(metadata, prepared, stage)
+
+    assert (stdout, stderr) == detached_original_image_runs[index][-2:], (
+        "Factory refusal must not rewrite the actual original process bytes"
+    )
 
 
 @pytest.mark.parametrize("scenario", ["success", "no_findings"])

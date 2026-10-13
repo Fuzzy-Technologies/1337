@@ -150,6 +150,22 @@ missing fields reject. Obtain metadata and streams through the existing evidence
 checks first. Replay issues no grant, reads no current scope, reauthorizes no
 launch and never relabels old bytes with today's owner or consent.
 
+For the richer image schema-2 family, also call
+`VerifySyntheticImagePayloadReplay(metadata, prepared_payload, stage_payload)`
+with the original detached JSON payloads. This pure SDK boundary checks their
+original request/stage grant hashes, exact closed argv/cwd/environment/resource
+grammar, selected manifest roles and bounded physical observation shapes. It
+uses the recorded POSIX or Windows path flavor without consulting the reader's
+filesystem, interpreter, environment, scope, policy or clock. It preserves
+canonical operator-granted privileges; an empty required-privilege declaration
+does not prohibit explicit policy grants. The consumer separately verifies raw
+replay, six evidence records, pairing/prerequisites, capture chronology and
+cross-stage physical-copy separation. Stage paths and physical IDs remain
+original attribution. Material manifests retain selected policy hashes/lengths;
+without the selected bytes this path cannot reparse policy contents or
+authenticate executable publishers. It creates no live authority and changes no
+schema-1 replay shape or bytes.
+
 The operator must exclude hostile writers from selected executable and physical
 staging paths. Portable read-only copies, observed identities and before/after
 hashes cannot detect a concurrent change-and-restore attack, attest interpreter

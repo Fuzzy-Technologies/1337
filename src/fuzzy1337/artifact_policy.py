@@ -9,14 +9,16 @@ import asyncio
 import hashlib
 import inspect
 import json
+import math
 import os
+import re
 import sys
 import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
-from pathlib import Path
+from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
 from typing import Any, cast
 
 from fuzzy1337.adapters import (
@@ -37,6 +39,7 @@ from fuzzy1337.artifact_inputs import (
     ArtifactOperation,
     ArtifactPathInfo,
     ArtifactProfile,
+    ArtifactReadConsent,
     ArtifactRole,
     ArtifactStage,
     FreezePhysicalIdentity,
@@ -127,6 +130,7 @@ __all__ = [
     "ArtifactStagePayload",
     "ProfileCapability",
     "VerifyArtifactReplay",
+    "VerifySyntheticImagePayloadReplay",
 ]
 
 
@@ -327,7 +331,25 @@ def ControlledArtifactEnvironment(stage: ArtifactStage) -> Mapping[str, str]:
         Frozen exact environment overrides, including bound trusted Windows runtime values.
     """
 
-    scratch = stage.root / "scratch"
+    return ArtifactEnvironment(stage.root, os.environ.get("SYSTEMROOT", ""),
+                               os.environ.get("WINDIR", ""))
+
+
+def ArtifactEnvironment(
+    root: PurePath, system_root: str, windows_directory: str,
+) -> Mapping[str, str]:
+    """Build fixed scratch overlays from explicit original platform values without host lookup.
+
+    Args:
+        root: Original operation's absolute path in its original path flavor.
+        system_root: Original factory-observed SYSTEMROOT value, without refreshed trust.
+        windows_directory: Original factory-observed WINDIR value, without refreshed trust.
+
+    Returns:
+        Frozen canonical environment; recorded platform values remain operator attribution.
+    """
+
+    scratch = root / "scratch"
     environment = {
         "PATH": "",
         "PATHEXT": "",
@@ -341,8 +363,8 @@ def ControlledArtifactEnvironment(stage: ArtifactStage) -> Mapping[str, str]:
         "TMPDIR": str(scratch / "temp"),
         "XDG_CONFIG_HOME": str(scratch / "config"),
         "XDG_CACHE_HOME": str(scratch / "cache"),
-        "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
-        "WINDIR": os.environ.get("WINDIR", ""),
+        "SYSTEMROOT": system_root,
+        "WINDIR": windows_directory,
     }
 
     return FreezeEnvironment(environment)
@@ -512,6 +534,130 @@ class PreparedArtifact:
         )
 
 
+def ValidateArtifactResources(
+    family: str, operation: ArtifactOperation, timeout_seconds: int, resources: ExecutionResources,
+) -> None:
+    """Check the shared closed live/detached deadline, stream and cleanup bounds.
+
+    Args:
+        family: Previously selected source-owned lifecycle or richer image family.
+        operation: Previously checked VERSION or SCAN operation.
+        timeout_seconds: Exact VERSION or finite family-specific SCAN process bound.
+        resources: Finite output and cleanup budgets, independently limited by this factory.
+
+    Raises:
+        ValueError: Numeric declarations exceed the original closed factory bounds.
+    """
+
+    timeout_max = 60 if family == _IMAGE_FAMILY else 300
+    stdout_max = 4 * 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
+    stderr_max = 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
+
+    if operation == ArtifactOperation.VERSION:
+        stdout_max = stderr_max = 16 * 1024
+
+    if (
+        type(timeout_seconds) is not int
+        or not 1 <= timeout_seconds <= timeout_max
+        or (operation == ArtifactOperation.VERSION and timeout_seconds != 3)
+        or not isinstance(resources, ExecutionResources)
+        or resources.max_stdout_bytes > stdout_max
+        or resources.max_stderr_bytes > stderr_max
+        or resources.terminate_grace_seconds > 5
+    ):
+        raise ValueError("artifact timeout/output/cleanup resources exceed fixed profile bounds")
+
+
+def ArtifactArgv(
+    root: PurePath, executable: PurePath, profile: ArtifactProfile, family: str,
+    operation: ArtifactOperation, timeout_seconds: int,
+) -> tuple[str, ...]:
+    """Build the source-owned command from validated original facts without I/O.
+
+    Args:
+        root: Original absolute operation root, preserving its original path flavor.
+        executable: Original selected executable path, without current-host discovery.
+        profile: Validated closed synthetic artifact profile.
+        family: Validated source-owned lifecycle or richer image family.
+        operation: Validated VERSION or SCAN operation.
+        timeout_seconds: Already validated exact executor deadline.
+
+    Returns:
+        Exact original fixed argv; constructing it supplies no execution authority.
+    """
+
+    cache = str(root / "scratch/cache")
+    prefix = (
+        str(executable),
+        "-I",
+        "-S",
+        str(root / "scanner/producer.py"),
+        "--fixture-policy",
+        str(root / "material/policy.json"),
+        "--cache-dir",
+        cache,
+        "--config=",
+    )
+    common = (
+        "--cache-backend",
+        "memory",
+        "--format",
+        "json",
+        "--disable-telemetry",
+        "--skip-check-update",
+        "--skip-version-check",
+        "--ignorefile=",
+        "--exit-code",
+        "0",
+        "--timeout",
+        f"{timeout_seconds}s",
+    )
+
+    argv: tuple[str, ...]
+
+    if operation == ArtifactOperation.VERSION:
+        argv = prefix + ("--version", "--format", "json")
+
+    elif family == _IMAGE_FAMILY:
+        argv = prefix + (
+            "image", "--cache-backend", "memory", "--input", str(root / "input/image.tar"),
+            "--format", "json", "--scanners", "vuln", "--disable-telemetry", "--offline-scan",
+            "--skip-db-update", "--skip-java-db-update", "--skip-check-update",
+            "--skip-version-check", "--skip-vex-repo-update", "--ignorefile=", "--list-all-pkgs",
+            "--exit-code", "0", "--no-progress", "--timeout", f"{timeout_seconds}s",
+        )
+
+    elif profile == ArtifactProfile.SYNTHETIC_IMAGE:
+        argv = (
+            prefix
+            + (
+                "image",
+                "--input",
+                str(root / "input/image.tar"),
+                "--scanners",
+                "vuln",
+                "--offline-scan",
+                "--skip-db-update",
+                "--skip-java-db-update",
+                "--skip-vex-repo-update",
+                "--list-all-pkgs",
+                "--no-progress",
+            )
+            + common
+        )
+
+    else:
+        scanner = "dockerfile" if profile == ArtifactProfile.SYNTHETIC_DOCKERFILE else "kubernetes"
+        argv = (
+            prefix
+            + ("config", "--misconfig-scanners", scanner)
+            + common
+            + (str(root / "input"),)
+        )
+
+    return argv
+
+
 def BuildPreparedArtifact(
     stage: ArtifactStage,
     workspace_root: Path,
@@ -549,24 +695,7 @@ def BuildPreparedArtifact(
         raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_PRODUCER)
 
     ValidatePrerequisiteType(operation, family, version_proof)
-
-    timeout_max = 60 if family == _IMAGE_FAMILY else 300
-    stdout_max = 4 * 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
-    stderr_max = 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
-
-    if operation == ArtifactOperation.VERSION:
-        stdout_max = stderr_max = 16 * 1024
-
-    if (
-        type(timeout_seconds) is not int
-        or not 1 <= timeout_seconds <= timeout_max
-        or (operation == ArtifactOperation.VERSION and timeout_seconds != 3)
-        or not isinstance(resources, ExecutionResources)
-        or resources.max_stdout_bytes > stdout_max
-        or resources.max_stderr_bytes > stderr_max
-        or resources.terminate_grace_seconds > 5
-    ):
-        raise ValueError("artifact timeout/output/cleanup resources exceed fixed profile bounds")
+    ValidateArtifactResources(family, operation, timeout_seconds, resources)
 
     try:
         stage.Verify(after_run=after_run)
@@ -588,75 +717,7 @@ def BuildPreparedArtifact(
 
     profile = stage.input.manifest.profile
     capability = ProfileCapability(profile)
-    cache = str(stage.root / "scratch/cache")
-    prefix = (
-        str(stage.executable),
-        "-I",
-        "-S",
-        str(stage.root / "scanner/producer.py"),
-        "--fixture-policy",
-        str(stage.root / "material/policy.json"),
-        "--cache-dir",
-        cache,
-        "--config=",
-    )
-    common = (
-        "--cache-backend",
-        "memory",
-        "--format",
-        "json",
-        "--disable-telemetry",
-        "--skip-check-update",
-        "--skip-version-check",
-        "--ignorefile=",
-        "--exit-code",
-        "0",
-        "--timeout",
-        f"{timeout_seconds}s",
-    )
-
-    argv: tuple[str, ...]
-
-    if operation == ArtifactOperation.VERSION:
-        argv = prefix + ("--version", "--format", "json")
-
-    elif family == _IMAGE_FAMILY:
-        argv = prefix + (
-            "image", "--cache-backend", "memory", "--input", str(stage.root / "input/image.tar"),
-            "--format", "json", "--scanners", "vuln", "--disable-telemetry", "--offline-scan",
-            "--skip-db-update", "--skip-java-db-update", "--skip-check-update",
-            "--skip-version-check", "--skip-vex-repo-update", "--ignorefile=", "--list-all-pkgs",
-            "--exit-code", "0", "--no-progress", "--timeout", f"{timeout_seconds}s",
-        )
-
-    elif profile == ArtifactProfile.SYNTHETIC_IMAGE:
-        argv = (
-            prefix
-            + (
-                "image",
-                "--input",
-                str(stage.root / "input/image.tar"),
-                "--scanners",
-                "vuln",
-                "--offline-scan",
-                "--skip-db-update",
-                "--skip-java-db-update",
-                "--skip-vex-repo-update",
-                "--list-all-pkgs",
-                "--no-progress",
-            )
-            + common
-        )
-
-    else:
-        scanner = "dockerfile" if profile == ArtifactProfile.SYNTHETIC_DOCKERFILE else "kubernetes"
-        argv = (
-            prefix
-            + ("config", "--misconfig-scanners", scanner)
-            + common
-            + (str(stage.root / "input"),)
-        )
-
+    argv = ArtifactArgv(stage.root, stage.executable, profile, family, operation, timeout_seconds)
     invocation = AdapterInvocation(
         capability.adapter_id,
         AdapterRequest(
@@ -1537,6 +1598,275 @@ class ArtifactVersionProof:
         """
 
         return Digest(self.Payload())
+
+
+def DetachedReplayBounds(value: object) -> None:
+    """Bound detached JSON work before any hashing or nested reconstruction.
+
+    Args:
+        value: One original metadata/request/stage JSON object, never a caller-defined wrapper.
+
+    Raises:
+        ValueError: Shape, depth, node, text, integer or finite-number bounds are unsupported.
+    """
+
+    pending = [(value, 0)]
+    nodes = 0
+    text_bytes = 0
+
+    while pending:
+        item, depth = pending.pop()
+        nodes += 1
+
+        if nodes > 1024 or depth > 16:
+            raise ValueError("detached artifact payload exceeds its structural bounds")
+
+        if type(item) in (dict, list):
+            container = cast(dict[str, object] | list[object], item)
+
+            if len(container) > 1024 - nodes - len(pending):
+                raise ValueError("detached artifact payload exceeds its node bound")
+
+            if type(item) is dict:
+                for key in item:
+                    if type(key) is not str or len(key) > 64:
+                        raise ValueError("detached artifact field names are unsupported")
+
+                pending.extend((child, depth + 1) for child in item.values())
+
+            else:
+                pending.extend((child, depth + 1) for child in cast(list[object], item))
+
+        elif type(item) is str:
+            if len(item) > 4096 or "\x00" in item:
+                raise ValueError("detached artifact text exceeds its field bound")
+
+            text_bytes += len(item.encode("utf-8"))
+
+            if text_bytes > 1024 * 1024:
+                raise ValueError("detached artifact text exceeds its aggregate bound")
+
+        elif type(item) is int:
+            if item.bit_length() > 128:
+                raise ValueError("detached artifact integers exceed their recorded bound")
+
+        elif type(item) is float:
+            if not math.isfinite(item):
+                raise ValueError("detached artifact numbers must be finite")
+
+        elif item is not None and type(item) is not bool:
+            raise ValueError("detached artifact payload must contain only original JSON values")
+
+
+def DetachedReplayPath(value: object) -> PurePath:
+    """Preserve an original canonical absolute POSIX or Windows path without filesystem access.
+
+    Args:
+        value: Bounded original serialized path; current host syntax does not select its flavor.
+
+    Returns:
+        Lexical absolute path with its original flavor; no resolution or existence claim.
+    """
+
+    if type(value) is not str or not value or len(value) > 4096 or any(
+        character in value for character in ("\x00", "\r", "\n")
+    ):
+        raise ValueError("detached artifact path text is unsupported")
+
+    path: PurePath = PurePosixPath(value) if value.startswith("/") else PureWindowsPath(value)
+
+    if not path.is_absolute() or str(path) != value or ".." in path.parts:
+        raise ValueError("detached artifact requires an original canonical absolute path")
+
+    return path
+
+
+def DetachedReplayIdentity(value: object, length: int) -> tuple[int, ...]:
+    """Check bounded recorded physical observations without consulting any current inode.
+
+    Args:
+        value: Original JSON list with two directory or five selected-file components.
+        length: Exact required observation width.
+
+    Returns:
+        Frozen device/inode and optional size/time facts; these are attribution, not attestation.
+    """
+
+    if type(value) is not list:
+        raise ValueError("detached artifact identity must use its original JSON list shape")
+
+    identity = FreezePhysicalIdentity(value, length)
+
+    if any(item.bit_length() > 128 for item in identity) or identity[0] < 0 or identity[1] <= 0:
+        raise ValueError("detached artifact physical identity is unsupported")
+
+    if length == 5 and identity[2] < 0:
+        raise ValueError("detached artifact observed file size is unsupported")
+
+    return identity
+
+
+def VerifySyntheticImagePayloadReplay(
+    metadata: object, prepared_payload: object, stage_payload: object,
+) -> None:
+    """Verify detached richer-image schema-2 factory grammar without current authority or I/O.
+
+    Call VerifyArtifactReplay separately with the original retained raw streams. The consumer
+    owns original evidence records, cross-operation pairing, prerequisites and capture chronology.
+    Recorded platform values and physical identities are attribution, not publisher authentication.
+
+    Args:
+        metadata: Original operation-aware outcome metadata, independently obtained from evidence.
+        prepared_payload: Original JSON-serialized PreparedArtifact.Payload, without relocation.
+        stage_payload: Original JSON-serialized ArtifactStagePayload with original observations.
+
+    Raises:
+        ValueError: Bounded payloads, exact factory grammar or original bindings are inconsistent.
+    """
+
+    for value in (metadata, prepared_payload, stage_payload):
+        DetachedReplayBounds(value)
+
+    record = WorkspaceFields(metadata,
+        {"schema_version", "grant", "acceptance", "manifests", "raw_facts"}, "detached artifact")
+
+    if type(record["schema_version"]) is not int or record["schema_version"] != 2:
+        raise ValueError("detached image factory replay requires original schema two")
+
+    grant = WorkspaceFields(record["grant"],
+        {"plan", "authorization", "issued_at", "valid_until"}, "detached grant")
+    plan = VerifyReplayPlan(grant["plan"], 2)
+
+    if plan["profile"] != ArtifactProfile.SYNTHETIC_IMAGE.value or (
+        plan["producer_family"] != _IMAGE_FAMILY
+    ):
+        raise ValueError("detached replay requires the closed reviewed synthetic image family")
+
+    prepared = WorkspaceFields(prepared_payload, {
+        "workspace_root", "stage_lease", "invocation", "capability", "workspace", "environment",
+        "resources", "operation", "producer_family", "version_run_id", "version_grant_id",
+        "version_prerequisite_sha256",
+    }, "detached request")
+    stage = WorkspaceFields(stage_payload, {
+        "root", "lease", "root_identity", "executable", "executable_identity", "version",
+        "partitions",
+    }, "detached stage")
+
+    if Digest(prepared) != plan["request_sha256"] or Digest(stage) != plan["stage_sha256"]:
+        raise ValueError("detached payloads differ from the original grant")
+
+    if type(stage["lease"]) is not str or not re.fullmatch(r"[0-9a-f]{32}", stage["lease"]) or (
+        stage["lease"] != prepared["stage_lease"] or stage["lease"] != plan["stage_lease"]
+        or stage["version"] != plan["provider_version"]
+    ):
+        raise ValueError("detached stage lease or version differs from its original plan")
+
+    for name in ("operation", "producer_family", "version_run_id", "version_grant_id",
+                 "version_prerequisite_sha256"):
+        if prepared[name] != plan[name]:
+            raise ValueError("detached operation or prerequisite differs from the original plan")
+
+    root = DetachedReplayPath(stage["root"])
+    workspace_root = DetachedReplayPath(prepared["workspace_root"])
+    executable = DetachedReplayPath(stage["executable"])
+
+    if type(root) is not type(workspace_root) or type(root) is not type(executable) or (
+        root == workspace_root or not root.is_relative_to(workspace_root)
+        or executable.is_relative_to(root)
+        or prepared["workspace"] != (root / "scratch").relative_to(workspace_root).as_posix()
+    ):
+        raise ValueError("detached stage, selected runtime or scratch paths are inconsistent")
+
+    partitions = stage["partitions"]
+
+    if type(partitions) is not list or len(partitions) != 3:
+        raise ValueError("detached image requires three original stage partitions")
+
+    physical_ids = {DetachedReplayIdentity(stage["root_identity"], 2)}
+    executable_identity = DetachedReplayIdentity(stage["executable_identity"], 5)
+
+    if executable_identity[:2] in physical_ids:
+        raise ValueError("detached runtime and stage have aliased physical identities")
+
+    physical_ids.add(executable_identity[:2])
+    manifests = []
+
+    for index, role in enumerate((ArtifactRole.INPUT, ArtifactRole.SCANNER, ArtifactRole.MATERIAL)):
+        partition = WorkspaceFields(partitions[index],
+            {"manifest", "consent", "identities", "directory_identity"}, "detached partition")
+        manifest = ArtifactManifest.FromDict(partition["manifest"])
+        manifests.append(manifest)
+        consent = WorkspaceFields(partition["consent"], {"actor_ref", "record_ref"},
+                                  "detached read consent")
+        ArtifactReadConsent(**cast(dict[str, Any], consent))
+        directory_identity = DetachedReplayIdentity(partition["directory_identity"], 2)
+
+        if directory_identity in physical_ids or manifest.role is not role or (
+            manifest.profile is not ArtifactProfile.SYNTHETIC_IMAGE
+        ):
+            raise ValueError("detached partition roles or physical identities are inconsistent")
+
+        physical_ids.add(directory_identity)
+        identities = partition["identities"]
+
+        if type(identities) is not list or len(identities) != len(manifest.files):
+            raise ValueError("detached partition file observations differ from its manifest")
+
+        for file_record, observation in zip(manifest.files, identities, strict=True):
+            if type(observation) is not list or len(observation) != 2 or (
+                observation[0] != file_record.name
+            ):
+                raise ValueError("detached file observation ordering is inconsistent")
+
+            identity = DetachedReplayIdentity(observation[1], 5)
+
+            if identity[:2] in physical_ids or identity[2] != file_record.size_bytes:
+                raise ValueError("detached selected copies have aliased identities or wrong sizes")
+
+            physical_ids.add(identity[:2])
+
+    if [item.ToDict() for item in manifests] != record["manifests"] or (
+        tuple(item.Digest() for item in manifests) != (
+            plan["input_manifest_sha256"], plan["scanner_manifest_sha256"],
+            plan["material_manifest_sha256"],
+        ) or manifests[0].Target().Reference() != plan["target_reference"]
+        or tuple(item.name for item in manifests[0].files) != ("image.tar",)
+        or tuple(item.name for item in manifests[1].files) != ("executable", "producer.py")
+        or tuple(item.name for item in manifests[2].files) != ("policy.json",)
+        or manifests[0].files[0].size_bytes > 128 * 1024
+        or manifests[2].files[0].size_bytes > 512
+        or manifests[1].files[1].sha256 != _IMAGE_PRODUCER_SHA256
+        or executable_identity[2] != manifests[1].files[0].size_bytes
+    ):
+        raise ValueError("detached image material is outside the original closed factory")
+
+    invocation_record = WorkspaceFields(prepared["invocation"],
+        {"adapter_id", "request", "argv", "timeout_seconds", "provider_version"},
+        "detached invocation")
+    resource_record = WorkspaceFields(prepared["resources"],
+        {item.name for item in fields(ExecutionResources)}, "detached resources")
+    resources = ExecutionResources(**cast(dict[str, Any], resource_record))
+    timeout = cast(int, invocation_record["timeout_seconds"])
+    operation = ArtifactOperation(cast(str, plan["operation"]))
+    ValidateArtifactResources(_IMAGE_FAMILY, operation, timeout, resources)
+    capability = ProfileCapability(ArtifactProfile.SYNTHETIC_IMAGE)
+    invocation = AdapterInvocation(capability.adapter_id, AdapterRequest(
+        capability.identifier, manifests[0].Target().Reference(), ImpactLevel.SAFE, {
+            "profile": ArtifactProfile.SYNTHETIC_IMAGE.value,
+            "input_manifest_sha256": manifests[0].Digest(), "operation": operation.value,
+            "producer_family": _IMAGE_FAMILY,
+        }), ArtifactArgv(root, executable, ArtifactProfile.SYNTHETIC_IMAGE, _IMAGE_FAMILY,
+                         operation, timeout), timeout, "0.75.0-synthetic")
+    environment = WorkspaceFields(prepared["environment"],
+        set(ArtifactEnvironment(root, "", "")), "detached environment")
+
+    if invocation_record != json.loads(SerializeContract(invocation)) or (
+        prepared["capability"] != json.loads(SerializeContract(capability))
+        or environment != dict(ArtifactEnvironment(root, cast(str, environment["SYSTEMROOT"]),
+                                                   cast(str, environment["WINDIR"])))
+        or InvocationDigest(invocation) != plan["invocation_sha256"]
+    ):
+        raise ValueError("detached request differs from the original closed factory grammar")
 
 
 def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> ArtifactAcceptance:

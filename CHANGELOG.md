@@ -51,6 +51,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added independent closed synthetic image VERSION/SCAN operations, an immutable
   original VERSION prerequisite bound into SCAN authorization, fresh paired-run
   acceptance and strict original-shape read-only schema-1 receipt verification.
+- Added bounded read-only verification of original synthetic image factory
+  payloads, sharing live command grammar and preserving recorded path and privilege
+  semantics without consulting current authority or granting execution.
 - Added a bounded standalone Dockerfile/Kubernetes synthetic producer for five
   pinned source fixtures, retaining the independently authored result oracle.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope

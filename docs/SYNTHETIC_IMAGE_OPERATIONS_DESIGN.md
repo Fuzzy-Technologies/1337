@@ -282,6 +282,20 @@ perform current acceptance, launch VERSION/SCAN or save model changes. Existing
 saved synthetic triage remains unchanged. Any new collection requires fresh
 stages, grants and live acceptance.
 
+`VerifySyntheticImagePayloadReplay(artifact_metadata, prepared_payload,
+stage_payload)` is the pure artifact-owner check for each original richer-image
+schema-2 capture. It verifies the original grant's complete detached payload
+hashes and source-owned request/cwd/environment/resources/stage grammar. The live
+factory and this verifier share command, environment and resource construction;
+the live factory retains its physical material and current-runtime checks.
+Detached input is bounded before hashing or nested reconstruction. Original
+Windows and POSIX path syntax is checked lexically, with no current host lookup.
+The two original platform environment values and recorded physical identities
+remain attributed facts; selected material policy contents are not reparsed from
+their hashes. This helper does not replace `VerifyArtifactReplay` of actual raw
+streams or the consumer's six-role, cross-stage, prerequisite and chronology
+checks. It grants no launch, acceptance or model authority.
+
 ## Required future failure oracle
 
 | Failure or mutation                            | Required result                                                    |

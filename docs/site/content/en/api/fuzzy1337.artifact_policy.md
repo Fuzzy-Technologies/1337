@@ -15,6 +15,13 @@ bindings at planning, issuance, launch and final pair acceptance. Original schem
 captures retain strict read-only verification with their original field shapes and
 hashes; they never become current grants or VERSION evidence.
 
+`VerifySyntheticImagePayloadReplay` adds pure richer-image schema-2 validation of
+original detached request/stage payload bindings and closed factory grammar.
+It preserves original path flavor and recorded platform values without current
+filesystem, environment, interpreter or authority lookup. Raw stream verification
+and consumer evidence/pairing remain separate. Saved physical observations and
+material hashes are attribution rather than publisher authentication.
+
 See [Governed local artifacts](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/ARTIFACTS.md).
 
 ::: fuzzy1337.artifact_policy
