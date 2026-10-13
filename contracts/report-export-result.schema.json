@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1337.fuzzy.technology/contracts/report-export-result.schema.json",
+  "title": "1337 offline report export command outcome",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "command", "status", "format", "model_revision", "snapshot_sha256",
+    "report_sha256", "size_bytes", "output_published", "scan_completeness",
+    "verified_retained_acquisitions", "checked_model_evidence_references", "failure"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "command": {"const": "report.export"},
+    "status": {"enum": ["completed", "failed"]},
+    "format": {"enum": ["json", "sarif", null]},
+    "model_revision": {"type": ["integer", "null"], "minimum": 0},
+    "snapshot_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "report_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "size_bytes": {"type": ["integer", "null"], "minimum": 0, "maximum": 33554432},
+    "output_published": {"type": "boolean"},
+    "scan_completeness": {"const": "not-assessed"},
+    "verified_retained_acquisitions": {
+      "type": ["integer", "null"], "minimum": 0, "maximum": 1024
+    },
+    "checked_model_evidence_references": {"type": ["integer", "null"], "minimum": 0},
+    "failure": {
+      "enum": [null, "configuration", "integrity", "limit", "input-changed", "rendering",
+               "publication", "interrupted", "internal"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "completed"}}},
+      "then": {
+        "properties": {
+          "format": {"enum": ["json", "sarif"]},
+          "model_revision": {"type": "integer"},
+          "snapshot_sha256": {"type": "string"},
+          "report_sha256": {"type": "string"},
+          "size_bytes": {"type": "integer"},
+          "output_published": {"const": true},
+          "verified_retained_acquisitions": {"type": "integer"},
+          "checked_model_evidence_references": {"type": "integer"},
+          "failure": {"const": null}
+        }
+      },
+      "else": {"properties": {"failure": {"type": "string"}}}
+    }
+  ]
+}

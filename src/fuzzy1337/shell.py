@@ -12,6 +12,7 @@ from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
+from types import ModuleType
 from typing import TextIO, cast
 
 from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
@@ -31,6 +32,7 @@ SHELL_COMMANDS = (
     "model",
     "palette",
     "quit",
+    "report",
     "scan",
     "scope",
     "select",
@@ -120,6 +122,120 @@ def FuzzyScore(query: str, candidate: str) -> int | None:
     return score
 
 
+@dataclass(slots=True)
+class NativeInputHistory:
+    """Track only an owned terminal loop's new entries without changing readline settings."""
+
+    editor: ModuleType
+    last_index: int
+
+    @classmethod
+    def Open(cls, editor: ModuleType) -> NativeInputHistory:
+        """Pin native absolute indexing before accepting input, including capped GNU histories.
+
+        Args:
+            editor: Existing standard-library readline backend in the owned terminal process.
+
+        Returns:
+            Loop-local cursor; no prior history content is retained or rewritten.
+
+        Raises:
+            RuntimeError: Bounded public-API lookup cannot identify the native history safely.
+        """
+
+        count = int(editor.get_current_history_length())
+
+        if not count:
+            return cls(editor, 0)
+
+        for first_index in range(1, HISTORY_LIMIT + 1):
+            if editor.get_history_item(first_index) is None:
+                continue
+
+            last_index = first_index + count - 1
+
+            if (
+                editor.get_history_item(last_index) is not None
+                and editor.get_history_item(last_index + 1) is None
+            ):
+                return cls(editor, last_index)
+
+        raise RuntimeError("Native terminal history cannot be identified safely.")
+
+    def Reconcile(self, shell: InteractiveShell, line: str | None) -> None:
+        """Replace only subsequent protected input entries, preserving caller history and settings.
+
+        Args:
+            shell: Owning loop whose actual parser classifies the protected namespaces.
+            line: Actual input for exact matching, empty for observation, or None for exit cleanup.
+
+        Raises:
+            RuntimeError: Native indexing, retirement or growth cannot be identified safely.
+        """
+
+        count = int(self.editor.get_current_history_length())
+
+        if not count and not self.last_index:
+            return
+
+        entries: list[tuple[int, str]] = []
+
+        for index in range(self.last_index + 1, self.last_index + HISTORY_LIMIT + 2):
+            value = self.editor.get_history_item(index)
+
+            if value is None:
+                if entries:
+                    break
+
+                continue
+
+            if not isinstance(value, str) or index - self.last_index > HISTORY_LIMIT:
+                raise RuntimeError("Native terminal history changed outside its owned boundary.")
+
+            entries.append((index, value))
+
+        last_index = entries[-1][0] if entries else self.last_index
+
+        if (
+            not entries and line == "" and self.last_index
+            and self.editor.get_history_item(self.last_index) is None
+        ):
+            for previous_index in range(
+                self.last_index - 1, max(0, self.last_index - HISTORY_LIMIT - 1), -1
+            ):
+                if self.editor.get_history_item(previous_index) is not None:
+                    last_index = previous_index
+                    break
+
+        first_index = last_index - count + 1
+
+        if (
+            count <= 0 or first_index <= 0
+            or self.editor.get_history_item(first_index) is None
+            or self.editor.get_history_item(last_index) is None
+            or self.editor.get_history_item(last_index + 1) is not None
+            or int(self.editor.get_current_history_length()) != count
+        ):
+            raise RuntimeError("Native terminal history cannot be identified safely.")
+
+        for index, value in entries:
+            if line is not None and value != line:
+                continue
+
+            parsed, _, _ = shell.parseline(value)
+            command = parsed.lower() if parsed else ""
+
+            if command in {"workspace", "scope", "scan", "report"}:
+                position = index - first_index
+
+                if not 0 <= position < count:
+                    raise RuntimeError("Native terminal input no longer has an owned position.")
+
+                self.editor.replace_history_item(position, command)
+
+        self.last_index = last_index
+
+
 class InteractiveShell(cmd.Cmd):
     """Provide a keyboard-first shell with explicit read-only model snapshot views."""
 
@@ -147,6 +263,59 @@ class InteractiveShell(cmd.Cmd):
         self._history: deque[str] = deque(maxlen=HISTORY_LIMIT)
         self._context_actions: dict[str, tuple[ContextualAction, ...]] = {}
         self._model: ModelState | None = None
+        self._native_history: NativeInputHistory | None = None
+
+    def CommandLoop(self, intro: str | None = None) -> None:
+        """Own only native entries created by this loop while preserving framework completion.
+
+        Args:
+            intro: Optional framework intro override, without implicit input or history files.
+
+        Raises:
+            KeyboardInterrupt: Terminal interruption after scoped cleanup and completer restore.
+            RuntimeError: Native history cannot be identified safely before accepting input.
+        """
+
+        if self.use_rawinput and sys.stdin.isatty() and sys.stdout.isatty():
+            try:
+                import readline
+
+            except ImportError:
+                pass
+
+            else:
+                self._native_history = NativeInputHistory.Open(readline)
+
+        try:
+            super().cmdloop(intro=intro)
+
+        finally:
+            try:
+                if self._native_history is not None:
+                    self._native_history.Reconcile(self, None)
+
+            finally:
+                self._native_history = None
+
+    cmdloop = CommandLoop
+
+    def AfterCommand(self, stop: bool, line: str) -> bool:
+        """Observe command-time additions without treating them as input owned by this loop.
+
+        Args:
+            stop: Framework termination result to preserve unchanged.
+            line: Framework command text; it never supplies native history ownership.
+
+        Returns:
+            Original framework termination result.
+        """
+
+        if self._native_history is not None:
+            self._native_history.Reconcile(self, "")
+
+        return stop
+
+    postcmd = AfterCommand
 
     def BindModel(self, state: ModelState) -> None:
         """Bind an immutable shared snapshot without authorizing, executing, or persisting work.
@@ -208,7 +377,8 @@ class InteractiveShell(cmd.Cmd):
         """Run a command while retaining bounded operator history for local search.
 
         Records ordinary nonempty commands except history in bounded local history.
-        Workspace/scope/scan retain only their namespace, avoiding rejected secret arguments.
+        Workspace/scope/scan/report retain only their namespace, avoiding rejected secret arguments.
+        Classification uses the dispatch parser before either history or replay state is retained.
 
         Args:
             line: Operator command line to dispatch through cmd.Cmd.
@@ -218,23 +388,37 @@ class InteractiveShell(cmd.Cmd):
         """
 
         normalized = line.strip()
-        command = normalized.split(maxsplit=1)[0].lower() if normalized else ""
+        parsed_command, argument, _ = self.parseline(normalized)
+        command = parsed_command.lower() if parsed_command else ""
+
         if normalized and command != "history":
             self._history.append(
-                command if command in {"workspace", "scope", "scan"} else normalized
+                command if command in {"workspace", "scope", "scan", "report"} else normalized
             )
 
-        if command in {"workspace", "scope", "scan"}:
-            remainder = normalized.split(maxsplit=1)[1:] or [""]
+        if command in {"workspace", "scope", "scan", "report"}:
+            handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
+                        "scan": self.do_scan, "report": self.do_report}
+            self.lastcmd = command
 
             try:
-                return super().onecmd(command + " " + remainder[0])
+                handlers[command](argument or "")
+
+                return False
 
             finally:
-                # cmd.Cmd retains raw input for empty-line replay unless explicitly cleared.
+                # The framework must never retain raw product arguments for empty-line replay.
                 self.lastcmd = command
 
-        return super().onecmd(line)
+                if self._native_history is not None:
+                    self._native_history.Reconcile(self, "")
+
+        try:
+            return super().onecmd(line)
+
+        finally:
+            if self._native_history is not None:
+                self._native_history.Reconcile(self, "")
 
     def completenames(self, text: str, *ignored: object) -> list[str]:
         """Offer fuzzy command discovery for keyboard completion.
@@ -250,7 +434,7 @@ class InteractiveShell(cmd.Cmd):
         return list(FuzzyMatches(text, SHELL_COMMANDS))
 
     def precmd(self, line: str) -> str:
-        """Render queued updates before accepting the next operator action.
+        """Protect owned native input history and render queued updates before the next action.
 
         Args:
             line: Operator line to return unchanged for dispatch.
@@ -258,6 +442,9 @@ class InteractiveShell(cmd.Cmd):
         Returns:
             Original line after pending updates have been rendered.
         """
+
+        if self._native_history is not None:
+            self._native_history.Reconcile(self, line)
 
         self.RenderUpdates()
         return line
@@ -307,7 +494,7 @@ class InteractiveShell(cmd.Cmd):
         help_text = {
             "": (
                 "commands, context, history [query], lens [<name>] [--json], "
-                "model <workspace-path>, palette [query], select <object-id>, "
+                "model <workspace-path>, palette [query], report export, select <object-id>, "
                 "scan quick, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
@@ -323,6 +510,7 @@ class InteractiveShell(cmd.Cmd):
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
+            "report": "report export <workspace>: verify and export saved JSON or SARIF.",
             "scan": "scan quick <workspace>: run approved SAFE discovery with live events.",
             "scope": "scope create <workspace>: record explicit targets, rules and consent.",
             "workspace": "workspace <create|open>: initialize or verify durable shared state.",
@@ -339,21 +527,29 @@ class InteractiveShell(cmd.Cmd):
         self.Write(message)
 
     def RunLocalCommand(self, command: str, argument: str) -> None:
-        """Dispatch the same explicit foreground workspace/scope/scan path as the CLI.
+        """Dispatch the same explicit foreground workspace/scope/scan/report path as the CLI.
 
         Args:
             command: Product namespace; shell context never supplies implicit authority.
             argument: Quoted operator argument line, parsed without a subprocess shell.
         """
 
-        from fuzzy1337.scan_commands import RunCommands
-
         try:
             arguments = shlex.split(argument)
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
-            status = RunCommands(command, arguments, cast(TextIO, self.stdout),
-                                 json_output=json_output)
+
+            if command == "report":
+                from fuzzy1337.report_commands import RunReportCommands
+
+                status = RunReportCommands(arguments, cast(TextIO, self.stdout),
+                                           json_output=json_output)
+
+            else:
+                from fuzzy1337.scan_commands import RunCommands
+
+                status = RunCommands(command, arguments, cast(TextIO, self.stdout),
+                                     json_output=json_output)
 
             if status:
                 self.Write(f"Command exit status: {status}")
@@ -391,6 +587,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("scan", argument)
+
+    def do_report(self, argument: str) -> None:
+        """Export an explicitly selected saved workspace; shell context is never implicit input.
+
+        Args:
+            argument: Report action, workspace, selected format and new output path.
+        """
+
+        self.RunLocalCommand("report", argument)
 
     def do_history(self, argument: str) -> None:
         """Search local command history in reverse chronological order.

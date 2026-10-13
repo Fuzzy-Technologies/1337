@@ -104,6 +104,13 @@ and a version-1 JUnit adapter. Reports preserve canonical state and do not imply
 scanner completeness, authorization, verified bytes, or compliance. Pure reports
 remain byte-unverified; verification requires the explicit owned evidence boundary.
 
+The `report export` product command and schema-v1
+`contracts/report-export-result.schema.json` are Experimental. ADR 0049 and
+`docs/REPORT_EXPORT.md` define explicit saved-workspace reading, consumer quotas,
+no-clobber output and terminal publication truth. Export success never establishes
+scan completeness or upgrades failed source execution. `fuzzy1337.report_commands`
+is Internal CLI implementation and adds no public authoritative store.
+
 `fuzzy1337.evidence` is an Experimental local storage API and manifest schema
 at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
@@ -298,6 +305,7 @@ Current versioned public contracts:
 | Nmap adapter           | `1`            | `fuzzy1337.adapters.nmap`                                            | Experimental |
 | Nuclei adapter         | `1`            | `fuzzy1337.adapters.nuclei`                                          | Experimental |
 | Report projection      | `1`            | `fuzzy1337.reporting`; `report_formats`                              | Experimental |
+| Report export outcome  | `1`            | `contracts/report-export-result.schema.json`                         | Experimental |
 | Executor SDK           | `1`            | `fuzzy1337.executors`; `docs/EXECUTORS.md`                           | Experimental |
 | Web request model      | `1`            | `fuzzy1337.requests`                                                 | Experimental |
 | Offline API import     | `1`            | `fuzzy1337.openapi`; `docs/OPENAPI.md`                               | Experimental |

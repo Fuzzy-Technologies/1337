@@ -3,6 +3,8 @@
 For the current development candidate's explicit workspace/scope commands and
 bounded native SAFE discovery, see [Quick Scan](QUICK_SCAN.md). Those commands
 are separate from the immutable v0.2.1 demonstration below.
+The development candidate also offers [Offline report export](REPORT_EXPORT.md)
+from an explicitly selected existing saved workspace, without running a provider.
 
 This pre-alpha provides an interactive shell and Experimental Python foundations.
 Use CPython 3.11 or newer and Git. Core runtime dependencies are empty. Docker and
