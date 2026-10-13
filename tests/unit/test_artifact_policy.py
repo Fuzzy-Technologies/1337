@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import copy
 import inspect
 import json
 import stat
@@ -17,8 +18,9 @@ from pathlib import Path
 import pytest
 from artifact_helpers import AT, OwnedArtifact, OwnedImageArtifact
 
-from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ImpactLevel
+from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ImpactLevel, SerializeContract
 from fuzzy1337.artifact_inputs import (
+    ArtifactManifest,
     ArtifactOperation,
     ArtifactProfile,
     ArtifactSelection,
@@ -29,15 +31,333 @@ from fuzzy1337.artifact_policy import (
     ArtifactDenialReason,
     ArtifactDeniedError,
     ArtifactPolicyEngine,
+    ArtifactStagePayload,
     GovernedArtifactExecutor,
     ParseObservedImageVersion,
     PrepareArtifact,
     PreparedArtifact,
     ProfileCapability,
+    VerifySyntheticImagePayloadReplay,
 )
 from fuzzy1337.executors import ExecutionEventKind, ExecutionResources
-from fuzzy1337.policy import PolicyContext, PolicyDeniedError, PolicyEngine
+from fuzzy1337.policy import Digest, PolicyContext, PolicyDeniedError, PolicyEngine
 from fuzzy1337.scope import AuthorizationState, LocalScopeStore, Target, TargetKind
+
+
+@pytest.fixture(scope="module")
+def detached_image_payloads(tmp_path_factory):
+    """Capture original SDK factory facts without a process or network operation."""
+
+    _, stage, prepared, _, grant = OwnedImageArtifact(tmp_path_factory.mktemp("detached-image"))
+    metadata = {"schema_version": 2, "grant": grant, "acceptance": {}, "raw_facts": {},
+                "manifests": [snapshot.manifest.ToDict()
+                              for snapshot in (stage.input, stage.scanner, stage.material)]}
+
+    payloads = (metadata, prepared.Payload(), ArtifactStagePayload(stage))
+
+    return json.loads(SerializeContract(payloads))
+
+
+def RehashDetachedPayloads(metadata, prepared, stage):
+    """Simulate self-consistently edited saved bindings without creating any live authority."""
+
+    plan = metadata["grant"]["plan"]
+    plan["stage_sha256"] = Digest(stage)
+    plan["request_sha256"] = Digest(prepared)
+    plan["invocation_sha256"] = Digest(prepared["invocation"])
+    plan["intent_sha256"] = Digest({key: value for key, value in plan.items()
+                                   if key != "intent_sha256"})
+
+
+def test_DetachedImageOriginalFactoryPayloadNeedsNoCurrentHost(
+    detached_image_payloads, monkeypatch,
+):
+    """Historical factory validation uses recorded paths/env and performs no current lookup."""
+
+    from fuzzy1337 import artifact_policy
+    from fuzzy1337.workspace import LocalWorkspaceStore
+
+    metadata, prepared, stage = copy.deepcopy(detached_image_payloads)
+
+    def Forbidden(*_args, **_kwargs):
+        """Trip any accidental physical verification, current authority or host lookup."""
+
+        raise AssertionError("Detached payload replay must not inspect current host authority")
+
+    monkeypatch.setattr(ArtifactStage, "Verify", Forbidden)
+    monkeypatch.setattr(LocalWorkspaceStore, "Open", Forbidden)
+    monkeypatch.setattr(Path, "resolve", Forbidden)
+    monkeypatch.setattr(Path, "stat", Forbidden)
+    monkeypatch.setattr(artifact_policy, "ControlledArtifactEnvironment", Forbidden)
+    monkeypatch.setattr(artifact_policy.sys, "executable", "/different/current/python")
+    monkeypatch.setenv("SYSTEMROOT", "different-current-platform")
+    before = copy.deepcopy((metadata, prepared, stage))
+    VerifySyntheticImagePayloadReplay(metadata, prepared, stage)
+    assert (metadata, prepared, stage) == before, "Read-only replay changed original saved facts"
+
+
+@pytest.mark.parametrize("flavor", ["windows", "posix-double-root"])
+def test_DetachedImageOriginalPathFlavorsReplayOnAnyHost(detached_image_payloads, flavor):
+    """Original Windows and POSIX path roots retain their syntax on any replay reader."""
+
+    metadata, prepared, stage = copy.deepcopy(detached_image_payloads)
+    old_root = stage["root"]
+    old_executable = stage["executable"]
+    separator = "\\" if flavor == "windows" else "/"
+    new_root = r"C:\owned\workspace\image-stage" if flavor == "windows" else (
+        "//owned/workspace/image-stage"
+    )
+    new_executable = r"D:\runtime\python.exe" if flavor == "windows" else "//runtime/python"
+    stage["root"] = new_root
+    stage["executable"] = new_executable
+    prepared["workspace_root"] = r"C:\owned\workspace" if flavor == "windows" else (
+        "//owned/workspace"
+    )
+    prepared["workspace"] = "image-stage/scratch"
+    prepared["invocation"]["argv"] = [
+        new_executable if value == old_executable else (
+            new_root + value[len(old_root):].replace("\\", "/").replace("/", separator)
+            if value.startswith(old_root) else value
+        ) for value in prepared["invocation"]["argv"]
+    ]
+
+    for name, value in prepared["environment"].items():
+        if value.startswith(old_root):
+            suffix = value[len(old_root):].replace("\\", "/").replace("/", separator)
+            prepared["environment"][name] = new_root + suffix
+
+    prepared["environment"]["SYSTEMROOT"] = r"C:\Windows"
+    prepared["environment"]["WINDIR"] = r"C:\Windows"
+    RehashDetachedPayloads(metadata, prepared, stage)
+    VerifySyntheticImagePayloadReplay(metadata, prepared, stage)
+
+
+def test_DetachedImagePreservesCanonicalOperatorGrantedPrivileges(tmp_path):
+    """The fixed capability requires no privileges but preserves valid explicit policy grants."""
+
+    _, stage, prepared, context, _ = OwnedImageArtifact(tmp_path)
+    permission = replace(context.policy.permissions[0], granted_privileges=("filesystem-read",))
+    context = replace(context, policy=replace(context.policy, permissions=(permission,)))
+    grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=AT)
+    metadata = {"schema_version": 2, "grant": grant, "acceptance": {}, "raw_facts": {},
+                "manifests": [snapshot.manifest.ToDict()
+                              for snapshot in (stage.input, stage.scanner, stage.material)]}
+    payloads = (metadata, prepared.Payload(), ArtifactStagePayload(stage))
+    payloads = json.loads(SerializeContract(payloads))
+    VerifySyntheticImagePayloadReplay(*payloads)
+    assert grant.plan.granted_privileges == ("filesystem-read",), (
+        "Historical replay must preserve canonical original operator privilege attribution"
+    )
+
+
+@pytest.mark.parametrize("change", [
+    "argv", "extra-flag", "cwd", "workspace-outside", "stage-is-workspace", "runtime-in-stage",
+    "mixed-paths", "relative-path", "parent-path", "noncanonical-path", "root-text",
+    "env-value", "env-extra", "env-platform-type", "timeout-bool", "timeout-version",
+    "stdout-budget", "stderr-budget", "cleanup-budget", "resource-bool", "stage-hash",
+    "request-hash", "lease", "version", "operation-binding", "operation-swap", "family",
+    "schema-one", "schema-bool", "profile", "privilege", "partitions-count", "consent",
+    "directory-alias", "file-alias", "runtime-alias", "file-size", "identity-order",
+    "identity-width", "identity-zero", "identity-negative-size", "identity-shape",
+    "manifest-binding", "producer", "input-name", "policy-name", "archive-budget",
+    "policy-budget", "selected-runtime-size", "invocation-digest", "capability", "request-extra",
+])
+def test_RehashedDetachedImageUnsupportedFactoryFactsDeny(detached_image_payloads, change):
+    """Recomputing saved hashes cannot turn unsupported factory facts into accepted grammar."""
+
+    metadata, prepared, stage = copy.deepcopy(detached_image_payloads)
+    plan = metadata["grant"]["plan"]
+    invocation = prepared["invocation"]
+    input_partition, scanner_partition, material_partition = stage["partitions"]
+
+    if change == "argv":
+        invocation["argv"] = ["unsupported-synthetic-command"]
+
+    elif change == "extra-flag":
+        invocation["argv"].append("--server=unsupported")
+
+    elif change == "cwd":
+        prepared["workspace"] = "other/scratch"
+
+    elif change == "workspace-outside":
+        prepared["workspace_root"] += "-outside"
+
+    elif change == "stage-is-workspace":
+        stage["root"] = prepared["workspace_root"]
+
+    elif change == "runtime-in-stage":
+        stage["executable"] = stage["root"] + "/scanner/executable"
+
+    elif change == "mixed-paths":
+        stage["executable"] = r"D:\runtime\python.exe"
+
+    elif change == "relative-path":
+        stage["root"] = "relative/stage"
+
+    elif change == "parent-path":
+        stage["root"] += "/../other"
+
+    elif change == "noncanonical-path":
+        stage["root"] += "/"
+
+    elif change == "root-text":
+        stage["root"] += "\n"
+
+    elif change == "env-value":
+        prepared["environment"]["HOME"] += "-elsewhere"
+
+    elif change == "env-extra":
+        prepared["environment"]["TRIVY_SERVER"] = "unsupported"
+
+    elif change == "env-platform-type":
+        prepared["environment"]["SYSTEMROOT"] = 1
+
+    elif change in {"timeout-bool", "timeout-version"}:
+        invocation["timeout_seconds"] = True if change == "timeout-bool" else 4
+
+    elif change in {"stdout-budget", "stderr-budget"}:
+        stream = "stdout" if change == "stdout-budget" else "stderr"
+        prepared["resources"]["max_" + stream + "_bytes"] = 16385
+
+    elif change == "cleanup-budget":
+        prepared["resources"]["terminate_grace_seconds"] = 5.01
+
+    elif change == "resource-bool":
+        prepared["resources"]["max_stdout_bytes"] = True
+
+    elif change == "lease":
+        stage["lease"] = prepared["stage_lease"] = plan["stage_lease"] = "unsupported-lease"
+
+    elif change == "version":
+        stage["version"] = "0.75.1-synthetic"
+
+    elif change == "operation-binding":
+        prepared["operation"] = "scan"
+
+    elif change == "operation-swap":
+        plan["operation"] = prepared["operation"] = "scan"
+
+        for name, value in (("version_run_id", "artifact-run:test"),
+                            ("version_grant_id", "artifact-authorization:test"),
+                            ("version_prerequisite_sha256", "0" * 64)):
+            plan[name] = prepared[name] = value
+
+    elif change == "family":
+        plan["producer_family"] = prepared["producer_family"] = "owned-artifact-lifecycle-v1"
+        plan["operation"] = prepared["operation"] = "scan"
+
+    elif change in {"schema-one", "schema-bool"}:
+        metadata["schema_version"] = 1 if change == "schema-one" else True
+
+    elif change == "profile":
+        plan["profile"] = ArtifactProfile.SYNTHETIC_DOCKERFILE.value
+        plan["producer_family"] = "owned-artifact-lifecycle-v1"
+        plan["operation"] = "scan"
+
+    elif change == "privilege":
+        plan["granted_privileges"] = ["root", "root"]
+
+    elif change == "partitions-count":
+        stage["partitions"].pop()
+
+    elif change == "consent":
+        input_partition["consent"]["actor_ref"] = ""
+
+    elif change == "directory-alias":
+        material_partition["directory_identity"] = input_partition["directory_identity"]
+
+    elif change == "file-alias":
+        material_partition["identities"][0][1][:2] = input_partition["identities"][0][1][:2]
+
+    elif change == "runtime-alias":
+        stage["executable_identity"][:2] = stage["root_identity"]
+
+    elif change == "file-size":
+        input_partition["identities"][0][1][2] += 1
+
+    elif change == "identity-order":
+        scanner_partition["identities"].reverse()
+
+    elif change == "identity-width":
+        input_partition["directory_identity"].append(1)
+
+    elif change == "identity-zero":
+        input_partition["directory_identity"][1] = 0
+
+    elif change == "identity-negative-size":
+        input_partition["identities"][0][1][2] = -1
+
+    elif change == "identity-shape":
+        input_partition["directory_identity"] = {}
+
+    elif change == "manifest-binding":
+        metadata["manifests"][0]["files"][0]["sha256"] = "0" * 64
+
+    elif change in {"producer", "input-name", "policy-name", "archive-budget", "policy-budget"}:
+        partition = scanner_partition if change == "producer" else (
+            input_partition if change in {"input-name", "archive-budget"} else material_partition
+        )
+        index = 1 if change == "producer" else 0
+        file_record = partition["manifest"]["files"][index]
+
+        if change == "producer":
+            file_record["sha256"] = "0" * 64
+
+        elif change in {"input-name", "policy-name"}:
+            file_record["name"] = partition["identities"][index][0] = "unsupported.bin"
+
+        else:
+            file_record["size_bytes"] = 128 * 1024 + 1 if change == "archive-budget" else 513
+            partition["identities"][index][1][2] = file_record["size_bytes"]
+
+        metadata["manifests"] = [item["manifest"] for item in stage["partitions"]]
+
+        for role, item in zip(("input", "scanner", "material"), metadata["manifests"], strict=True):
+            plan[role + "_manifest_sha256"] = Digest(item)
+
+        plan["target_reference"] = ArtifactManifest.FromDict(metadata["manifests"][0]).Target() \
+            .Reference()
+
+    elif change == "selected-runtime-size":
+        stage["executable_identity"][2] += 1
+
+    elif change == "capability":
+        prepared["capability"]["identifier"] = "config.unsupported"
+
+    elif change == "request-extra":
+        prepared["unsupported"] = "field"
+
+    RehashDetachedPayloads(metadata, prepared, stage)
+
+    if change in {"stage-hash", "request-hash", "invocation-digest"}:
+        field = {"stage-hash": "stage_sha256", "request-hash": "request_sha256",
+                 "invocation-digest": "invocation_sha256"}[change]
+        plan[field] = "0" * 64
+        plan["intent_sha256"] = Digest({key: value for key, value in plan.items()
+                                       if key != "intent_sha256"})
+
+    with pytest.raises(ValueError):
+        VerifySyntheticImagePayloadReplay(metadata, prepared, stage)
+
+
+@pytest.mark.parametrize("value", [
+    {"a": "x" * 4097}, {"a": 1 << 129}, {"a": float("nan")}, {"a": object()},
+    {"x" * 65: None}, [None] * 1025, [[[[[[[[[[[[[[[[[None]]]]]]]]]]]]]]]]],
+], ids=["text", "integer", "nonfinite", "wrapper", "key", "nodes", "depth"])
+def test_DetachedImageBoundsRejectBeforeHashing(value, monkeypatch):
+    """Oversized or custom serialized facts deny before hashing or nested consumer allocation."""
+
+    from fuzzy1337 import artifact_policy
+
+    def Forbidden(*_args, **_kwargs):
+        """Refuse any digest operation before the detached work bound has been checked."""
+
+        raise AssertionError("Unbounded detached payload reached hashing")
+
+    monkeypatch.setattr(artifact_policy, "Digest", Forbidden)
+
+    with pytest.raises(ValueError):
+        VerifySyntheticImagePayloadReplay(value, {}, {})
 
 
 @pytest.mark.parametrize(
