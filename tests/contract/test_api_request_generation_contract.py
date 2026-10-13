@@ -17,24 +17,28 @@ from jsonschema import Draft202012Validator
 
 from fuzzy1337.api_request_generation import GenerateOpenApiRequest
 from fuzzy1337.model import CanonicalModelJson
-from fuzzy1337.openapi import ImportOpenApi
+from fuzzy1337.openapi import DecodeApiDocument, ImportOpenApi
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize("name", ["oas", "swagger"])
-def test_IndependentFixtureOraclesConsumeRealGeneratedRequests(name):
+@pytest.mark.parametrize("document_format", ["json", "yaml"])
+def test_IndependentFixtureOraclesConsumeRealGeneratedRequests(name, document_format):
     """Hand-authored expectations verify all encodings without invoking an HTTP client."""
 
-    text = (ROOT / f"tests/contract/fixtures/api_request_generation.{name}.json").read_text()
-    document = json.loads(text)
+    fixture = ROOT / f"tests/contract/fixtures/api_request_generation.{name}.{document_format}"
+    text = fixture.read_text(encoding="utf-8")
+    document = DecodeApiDocument(text, document_format=document_format)[0]
     oracle_path = ROOT / "tests/contract/fixtures/api_request_generation.expected.json"
     expected = json.loads(oracle_path.read_text())
-    imported = ImportOpenApi(text, workspace_id="generation-contract")
+    imported = ImportOpenApi(text, workspace_id="generation-contract",
+                             document_format=document_format)
 
     for operation in imported.operations:
         generated = GenerateOpenApiRequest(
             text, operation.Reference(), workspace_id=imported.workspace_id,
+            document_format=document_format,
         )
         oracle = expected[operation.operation_id]
         parts = urlsplit(generated.target.value)
@@ -99,6 +103,7 @@ def test_IndependentFixtureOraclesConsumeRealGeneratedRequests(name):
         assert marker not in str(generated.headers), "Source header leaked"
         assert GenerateOpenApiRequest(
             text, operation.Reference(), workspace_id=imported.workspace_id,
+            document_format=document_format,
         ) == generated, (
             "Exact input produced a nondeterministic request preview"
         )

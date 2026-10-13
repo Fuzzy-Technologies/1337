@@ -17,6 +17,7 @@ dependencies = []
 1337-dev = "fuzzy1337.dev_commands:Main"
 
 [project.optional-dependencies]
+openapi-yaml = ["PyYAML==6.0.3"]
 dev = [
     "build==1.6.1",
     "coverage==7.16.2",
@@ -27,6 +28,7 @@ dev = [
     "pytest-cov==7.1.0",
     "pytest-timeout==2.4.0",
     "pytest-xdist==3.8.0",
+    "PyYAML==6.0.3",
     "ruff==0.16.10",
 ]
 

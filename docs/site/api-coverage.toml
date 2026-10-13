@@ -78,6 +78,12 @@ source = "src/fuzzy1337/__main__.py"
 reason = "Executable entry point delegates to the documented CLI Main function."
 
 [[surfaces]]
+module = "fuzzy1337.openapi_yaml"
+source = "src/fuzzy1337/openapi_yaml.py"
+mode = "authored"
+page = "api/fuzzy1337.openapi_yaml.md"
+
+[[surfaces]]
 module = "fuzzy1337.adapters"
 source = "src/fuzzy1337/adapters/__init__.py"
 mode = "authored"

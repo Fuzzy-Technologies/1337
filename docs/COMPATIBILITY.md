@@ -61,12 +61,19 @@ The interface grants no authority beyond an explicitly approved scope/policy.
 `fuzzy1337.openapi` is an Experimental offline Python importer at contract version
 `1`. ADR 0038 defines bounded structural OpenAPI/Swagger JSON import and projection
 into existing request/model contracts. It generates no concrete values or traffic.
+ADR 0061 adds explicit `document_format="yaml"` through the optional
+`1337[openapi-yaml]` parser extra. The restricted JSON-compatible event profile
+preserves exact original source-byte identity and existing JSON defaults; it
+rejects aliases, unsafe tags, duplicate/non-string keys and resource excess.
+`fuzzy1337.openapi_yaml` remains an Internal decoder behind these import APIs.
 
 `fuzzy1337.api_request_generation` is an Experimental offline Python producer at
 generation profile version `1`. ADR 0042 and `docs/API_REQUEST_GENERATION.md` define
 the exact anonymous synthetic schema/serialization subset, original-source
 validation, bounded ephemeral previews and existing actual-target scope handoff.
 It grants no scope, method, authentication or execution permission.
+Generation accepts the same explicit JSON/YAML selection as its original import;
+the source, operation and resolution context must still agree exactly.
 
 `fuzzy1337.captured_web` is an Experimental offline Python consumer at frontier
 profile version `1`. ADR 0050 and `docs/CAPTURED_WEB.md` define owner-verified
