@@ -71,6 +71,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Reject historical synthetic-image pairs that reuse one physical marker,
+  including coherently rehashed captures with changed snapshot attributes.
+
 - Preserved complementary page-provider loop-isolation and local-demo startup
   regressions, with active unit-network denial and subprocess phase diagnostics
   (Refs #40, #59).
