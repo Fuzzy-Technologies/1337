@@ -765,7 +765,10 @@ class ArtifactStage:
         if not after_run and (files or directories):
             raise ValueError("artifact scratch must start empty for a single run")
 
-        if sum(ArtifactPathInfo(scratch / name).st_size for name in files) > MAX_ARTIFACT_TOTAL_BYTES:
+        if (
+            sum(ArtifactPathInfo(scratch / name).st_size for name in files)
+            > MAX_ARTIFACT_TOTAL_BYTES
+        ):
             raise ValueError("observed artifact scratch aggregate byte bound exceeded")
 
         remaining = MAX_ARTIFACT_TOTAL_BYTES

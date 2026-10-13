@@ -240,6 +240,16 @@ Compatibility is never a reason to weaken security.
 
 ## Consumer rules
 
+`fuzzy1337.artifact_inputs` and `fuzzy1337.artifact_policy` are Experimental
+contract-version-1 selected-byte staging and same-store artifact authorization
+surfaces. Native profile IDs are metadata-only and cannot obtain execution grants.
+Synthetic execution is limited to the trusted running CPython runtime and a closed
+reviewed producer SHA allowlist. `fuzzy1337.artifact_fixture_worker` remains
+Internal fixture code, not a scanner API. Role-separated manifest identities and
+historical receipts never replace current consent or authorize network policy.
+See [Governed local artifacts](ARTIFACTS.md) and
+[ADR 0044](adr/0044-governed-local-artifact-authorization.md).
+
 External consumers should:
 
 1. depend only on explicitly Stable public contracts;
@@ -289,5 +299,6 @@ Current versioned public contracts:
 | Vulnerability Intel    | `1`            | `fuzzy1337.intelligence`; `docs/INTELLIGENCE.md`                     | Experimental |
 | SPDX package inventory | `1`            | `fuzzy1337.sbom_spdx`; `docs/SBOM_SPDX.md`                           | Experimental |
 | Synthetic API request  | `1`            | `fuzzy1337.api_request_generation`; `docs/API_REQUEST_GENERATION.md` | Experimental |
+| Local artifacts        | `1`            | `contracts/artifact-manifest.schema.json`; `docs/ARTIFACTS.md`       | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.

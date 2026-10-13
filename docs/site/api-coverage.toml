@@ -7,6 +7,24 @@ mode = "authored"
 page = "api/fuzzy1337.sbom_spdx.md"
 
 [[surfaces]]
+module = "fuzzy1337.artifact_inputs"
+source = "src/fuzzy1337/artifact_inputs.py"
+mode = "authored"
+page = "api/fuzzy1337.artifact_inputs.md"
+
+[[surfaces]]
+module = "fuzzy1337.artifact_policy"
+source = "src/fuzzy1337/artifact_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.artifact_policy.md"
+
+[[surfaces]]
+module = "fuzzy1337.artifact_fixture_worker"
+source = "src/fuzzy1337/artifact_fixture_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.artifact_fixture_worker.md"
+
+[[surfaces]]
 module = "fuzzy1337.images"
 source = "src/fuzzy1337/images.py"
 mode = "authored"
