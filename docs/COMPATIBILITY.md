@@ -270,6 +270,11 @@ Synthetic execution is limited to the trusted running CPython runtime and a clos
 reviewed producer SHA allowlist. `fuzzy1337.artifact_fixture_worker` remains
 Internal fixture code, not a scanner API. Role-separated manifest identities and
 historical receipts never replace current consent or authorize network policy.
+Selected-byte manifests remain schema 1; new execution metadata uses schema 2
+with explicit operation/family and original VERSION prerequisite bindings.
+Strict read-only schema-1 replay retains its original field shapes and digests.
+Only the reviewed richer synthetic image family admits VERSION and proof-bound
+SCAN; lifecycle SCAN remains compatible and native profiles remain unavailable.
 See [Governed local artifacts](ARTIFACTS.md) and
 [ADR 0044](adr/0044-governed-local-artifact-authorization.md).
 
