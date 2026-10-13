@@ -183,6 +183,10 @@ def PreservePair(root: Path, label: str, version, scan, provisioning: dict, netw
         "provisioning": provisioning, "network_namespace": network,
         "archive_sha256": FileDigest(root / "owned.tar"),
         "scan_completeness": "not-assessed", "native_artifact_profile": "metadata-only"}
+    metadata = root / "trivy-cache" / "db" / "metadata.json"
+    summary["selected_database_metadata"] = json.loads(metadata.read_bytes()) if (
+        metadata.is_file()
+    ) else None
     (output / "run.json").write_text(json.dumps(summary, sort_keys=True, indent=2) + "\n")
 
     return output

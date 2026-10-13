@@ -275,7 +275,18 @@ def CheckVersion(version: NativeTrivyOperationCapture, selection: NativeTrivySel
     }:
         raise ValueError("native VERSION association requires its exact three original records")
 
+    expected = EvidenceProvenance(workspace_id,
+        version.request.authorization.scope_reference, "native.trivy", "1",
+        version.observed_version, version.started_at, version.finished_at,
+        InvocationDigest(version.request.invocation), version.outcome.execution)
+
     for record in version.records:
+        media = "text/plain" if record.reference.role == "provider-version-stderr" else (
+            "application/json")
+
+        if record.provenance != expected or record.reference.media_type != media:
+            raise ValueError("native VERSION record differs from original operation provenance")
+
         if store.Get(record.evidence_id) != record:
             raise ValueError("native VERSION differs from its immutable record")
 

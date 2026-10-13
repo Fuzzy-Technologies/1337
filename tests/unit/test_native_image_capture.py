@@ -492,3 +492,28 @@ def test_AnotherFactoryValidArchiveCannotBorrowSelectedMaterialFacts(
         Capture(capture_runner, owned, executor, invocation=invocation)
 
     assert not executor[0], "Unselected archive cannot borrow another material's custody"
+
+
+@pytest.mark.parametrize("role", [
+    "provider-version", "provider-version-stderr", "native-version-receipt",
+])
+def test_ForeignRecordCannotReplaceOriginalVersionCustody(
+    capture_runner, owned, executor, role
+):
+    """Identical raw bytes never erase original operation provenance, including receipt custody."""
+
+    version = Capture(capture_runner, owned, executor)
+    store = owned[1]
+    original = next(record for record in version.records if record.reference.role == role)
+    foreign = store.Put(store.Read(original.reference), role, original.reference.media_type,
+        replace(original.provenance, workspace_id="workspace:foreign",
+                scope_reference="scope:foreign", source_id="foreign.provider",
+                invocation_sha256="0" * 64))
+    version = replace(version, records=tuple(foreign if record == original else record
+                                            for record in version.records))
+
+    with pytest.raises(ValueError, match="original operation provenance"):
+        Capture(capture_runner, owned, executor, operation=NativeTrivyOperation.SCAN,
+                version=version)
+
+    assert len(executor[0]) == 1, "Foreign raw/receipt custody cannot launch an associated SCAN"
