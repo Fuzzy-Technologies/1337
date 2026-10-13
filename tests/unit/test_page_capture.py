@@ -5,12 +5,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import copy
 import hashlib
 import json
 import socket
 import sys
+from collections.abc import Iterator
 from dataclasses import replace
 from types import MappingProxyType
 
@@ -46,7 +48,15 @@ from fuzzy1337.adapters.page_capture import (
 from fuzzy1337.executors import LocalExecutionResult
 from fuzzy1337.executors.contracts import ExecutionEvent, ExecutionEventKind, ExecutionTermination
 from fuzzy1337.executors.local import LocalExecutionError
-from fuzzy1337.jobs import JobContext, JobEventKind, JobFailureCode, JobSpec, JobState, ScanJob
+from fuzzy1337.jobs import (
+    JobContext,
+    JobEventKind,
+    JobFailureCode,
+    JobSnapshot,
+    JobSpec,
+    JobState,
+    ScanJob,
+)
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.page_capture import (
     BoundedPageEvidenceStore,
@@ -65,9 +75,70 @@ from fuzzy1337.page_capture_worker import (
 )
 from fuzzy1337.policy import GovernedLocalExecutor
 from fuzzy1337.scope import Target, TargetKind
-from tests.contract.page_capture_fixture import NOW, Body, Fixture, Run, Wire
+from tests.contract.page_capture_fixture import NOW, Body, Fixture, Wire
 
 URL = "http://127.0.0.1:32123/docs/index"
+
+
+@pytest.fixture(scope="module")
+def owned_page_runner() -> Iterator[asyncio.Runner]:
+    """Initialize the owned Windows loop self-pipe before the unit network guard."""
+
+    with asyncio.Runner() as runner:
+        yield runner
+
+
+@pytest.fixture
+def page_runner(owned_page_runner: asyncio.Runner) -> Iterator[asyncio.Runner]:
+    """Reuse the initialized loop and reap tasks at every isolated test boundary."""
+
+    yield owned_page_runner
+
+    async def Cleanup() -> None:
+        """Cancel and reap any remaining test-owned tasks without opening another loop."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    owned_page_runner.run(Cleanup())
+
+
+def RunJob(job: ScanJob, runner: asyncio.Runner) -> JobSnapshot:
+    """Use the actual job lifecycle on an already initialized, network-guarded loop."""
+
+    async def StartAndWait() -> JobSnapshot:
+        """Start and await the terminal owning job state without a provider bypass."""
+
+        job.Start()
+
+        return await job.Wait()
+
+    return runner.run(StartAndWait())
+
+
+def test_PageRunnerPreservesNetworkDenial(page_runner, monkeypatch):
+    """Loop reuse leaves provider connections denied and never creates a lazy Windows loop."""
+
+    def ReopenLoop():
+        """Reject new event-loop construction inside the guarded unit-test phase."""
+
+        raise AssertionError("Guarded page tests must reuse their initialized event loop")
+
+    monkeypatch.setattr(asyncio.events, "new_event_loop", ReopenLoop)
+
+    async def CheckConnections():
+        """Exercise every unchanged unit connection guard from the running owned loop."""
+
+        with socket.socket() as connection:
+            for callback in (connection.connect, connection.connect_ex, socket.create_connection):
+                with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                    callback(("127.0.0.1", 9))
+
+    page_runner.run(CheckConnections())
 
 
 def Request(**changes):
@@ -216,7 +287,8 @@ def test_ClosedBodySelectionAndImmutableDerivedFields():
             KnownBody(copied)
 
 
-@pytest.mark.parametrize("value", [None, True, 541, "", "unknown", "x" * 100000])
+@pytest.mark.parametrize("value", [None, True, 541, "", "unknown", "x" * 100000],
+                         ids=["none", "boolean", "integer", "empty", "unknown", "oversized-id"])
 def test_UnknownFixtureIdentifiersNeverBecomeDeclarations(value):
     """Only the explicitly supplied known ID selects non-secret allowed bytes."""
 
@@ -967,7 +1039,7 @@ def test_ProviderRefusesCopiedInputsBeforeAnyTransport(tmp_path, variant):
     ("model-io", JobFailureCode.STORAGE), ("final-io", JobFailureCode.STORAGE),
     ("progress-delivery", JobFailureCode.OUTPUT_LIMIT),
 ])
-def test_ProviderFailureClassificationAndExactTerminalAdmission(tmp_path, monkeypatch,
+def test_ProviderFailureClassificationAndExactTerminalAdmission(tmp_path, monkeypatch, page_runner,
                                                               variant, code):
     """An isolated executor seam proves output admission and post-Save failure behavior."""
 
@@ -1058,7 +1130,7 @@ def test_ProviderFailureClassificationAndExactTerminalAdmission(tmp_path, monkey
         monkeypatch.setattr(JobContext, "Progress", FailProgress)
 
     job = fixture.Job(provider=provider)
-    snapshot = Run(job)
+    snapshot = RunJob(job, page_runner)
     assert snapshot.state is JobState.FAILED, snapshot.failure
     assert (
         snapshot.failure.code is code
@@ -1119,23 +1191,23 @@ def test_RoleBoundedEvidenceFacadeRejectsBeforeOwnerAllocation(tmp_path, monkeyp
         BoundedPageEvidenceStore(tmp_path / "evidence").Read(reference)
 
 
-def test_ProviderOwnershipAndMissingInitialModelDenyBeforeExecution(tmp_path, monkeypatch):
+def test_ProviderOwnershipAndMissingInitialModelDenyBeforeExecution(tmp_path, page_runner):
     """Consumer-owned persisted state must exist and exact job workspace attribution must match."""
 
     fixture = Fixture.Create(tmp_path / "workspace")
     provider = fixture.Provider()
     spec = JobSpec("job:wrong", "wrong", "scope:local", "owner:test", PAGE_CAPTURE_PROVIDER_ID)
     assert (
-        Run(ScanJob(spec, provider)).failure.code is JobFailureCode.AUTHORIZATION
+        RunJob(ScanJob(spec, provider), page_runner).failure.code is JobFailureCode.AUTHORIZATION
     ), (
-        'Expected invariant: Run(ScanJob(spec, provider)).failure.code is '
+        'Expected invariant: RunJob(ScanJob(spec, provider), page_runner).failure.code is '
         'JobFailureCode.AUTHORIZATION'
     )
     (fixture.root / "state" / "model" / "model.json").unlink()
     assert (
-        Run(fixture.Job(provider=provider)).failure.code is JobFailureCode.STORAGE
+        RunJob(fixture.Job(provider=provider), page_runner).failure.code is JobFailureCode.STORAGE
     ), (
-        'Expected invariant: Run(fixture.Job(provider=provider)).failure.code is '
+        'Expected invariant: RunJob(fixture.Job(provider=provider), page_runner).failure.code is '
         'JobFailureCode.STORAGE'
     )
 
