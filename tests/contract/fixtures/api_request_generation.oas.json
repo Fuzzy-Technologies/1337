@@ -1,0 +1,231 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Owned synthetic generation fixture",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:19001/api"
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/items/{item_id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "item_id",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "CreateOwned",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tags",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [
+                "synthetic-private-source-value"
+              ]
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Owned-Mode",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "owned",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "synthetic-private-source-value"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "default": "synthetic-private-source-value"
+                  },
+                  "a/b~c": {
+                    "type": "object",
+                    "required": [
+                      "count"
+                    ],
+                    "properties": {
+                      "count": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "flags": {
+                    "type": "array",
+                    "items": {
+                      "type": "boolean"
+                    }
+                  },
+                  "onlyNull": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Owned synthetic response"
+          }
+        }
+      }
+    },
+    "/arrays/{segments}": {
+      "get": {
+        "operationId": "ListOwned",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "segments",
+            "required": true,
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "in": "query",
+            "name": "tags",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Owned-Ids",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned synthetic response"
+          }
+        }
+      }
+    },
+    "/form": {
+      "post": {
+        "operationId": "FormOwned",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Owned synthetic response"
+          }
+        }
+      }
+    },
+    "/parts": {
+      "post": {
+        "operationId": "PartsOwned",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Owned synthetic response"
+          }
+        }
+      }
+    },
+    "/text": {
+      "post": {
+        "operationId": "TextOwned",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string",
+                "example": "synthetic-private-source-value"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Owned synthetic response"
+          }
+        }
+      }
+    }
+  }
+}
