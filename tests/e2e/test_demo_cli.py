@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shlex
 import signal
 import socket
 import subprocess
@@ -25,6 +26,7 @@ from fuzzy1337.cli import Main
 from fuzzy1337.model import LocalModelStore, ObjectKind
 from fuzzy1337.report_commands import ReportFailure
 from fuzzy1337.scope import AuthorizationState, LocalScopeStore, ScopeAuthorization
+from fuzzy1337.shell import InteractiveShell
 from fuzzy1337.workspace import LocalWorkspaceStore
 
 
@@ -124,6 +126,50 @@ def test_HumanDemoDisplaysActualLiveUpdatesAndRetainedOutput(tmp_path) -> None:
     assert "model_delta" in output.getvalue() and "Local demo completed" in output.getvalue()
     assert str(root) in output.getvalue()
     AssertStopped(root)
+
+
+def test_ForegroundShellDemoPreservesContextHistoryAndReopensActualSavedModel(tmp_path) -> None:
+    """Run the same product demo in the shell with explicit approval and manual model inspection."""
+
+    root = tmp_path / "shell demo with spaces"
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    shell.onecmd("lens dfir")
+    shell.onecmd("view updates")
+    shell.onecmd("select object:retained")
+    context = shell.State
+
+    def Execute(arguments: list[str]) -> str:
+        """Run one actual foreground action and capture its own presentation without replay."""
+
+        output.seek(0)
+        output.truncate()
+        assert not shell.onecmd(shlex.join(arguments)), "Product demo must keep the shell alive."
+
+        return output.getvalue()
+
+    denied = Execute(["demo", "local", str(root), "--json"])
+    assert json.loads(denied.splitlines()[0])["state"] == "denied"
+    assert denied.splitlines()[-1] == "Command exit status: 3"
+    assert not root.exists(), "Shell context never supplies missing explicit SAFE approval."
+    approved = Execute(["demo", "local", str(root), "--approve-safe-http", "--json"])
+    ValidateSuccess(root, json.loads(approved))
+    assert shell.State == context, "Foreground demo must preserve lens, selection and view."
+    assert shell.lastcmd == "demo", "Replay must not retain the root or approval arguments."
+    assert shell._model is None, "Demo must not implicitly replace the shell's selected model."
+    before = Files(root)
+    output.seek(0)
+    output.truncate()
+    assert not shell.onecmd(""), "Empty-line repeat must keep the Workbench running."
+    assert "Command exit status: 2" in output.getvalue()
+    assert shell.lastcmd == "demo" and Files(root) == before
+    Execute(["history", "demo"])
+    assert output.getvalue().splitlines() == ["demo", "demo", "demo"]
+    assert not shell.onecmd("model " + str(root / "workspace"))
+    view = json.loads(Execute(["view", "model", "--json"]))
+    assert view["revision"] == 3, "Explicit model reopen must show the actual saved demo revision."
+    assert shell.State.lens == "dfir" and shell.State.selected_object == "object:retained"
+    assert Files(root) == before, "Inspection must preserve saved model/evidence/report bytes."
 
 
 def test_ModuleSubprocessExposesRealDemoAndRejectsExistingOutput(tmp_path) -> None:
