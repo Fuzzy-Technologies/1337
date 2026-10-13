@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "fixture_id": "owned-synthetic-image-wire-v1",
+  "genuine_scanner_acceptance": "not-executed",
+  "provider_id": "synthetic.trivy",
+  "provider_version": "0.75.0-synthetic",
+  "execution_profile": "synthetic.image-archive-offline.v1",
+  "synthetic_asset_prefix": "synthetic.trivy:owned-synthetic-image-wire-v1:",
+  "success_archive": {
+    "size_bytes": 20480,
+    "sha256": "43befd5adb2d11479d4cc6e8280d0b56651cc600c05a86995f67dddc3eadb088"
+  },
+  "domain_facts": {
+    "config_digest": "sha256:e5d819aa18ecef0483ca2163926b58bc099ca38016e0e17d619c77ff2d6cfa75",
+    "manifest_digest": "sha256:7245189edf189664ca3dc8b37d58d5b746841f8b04cb2d195e3f23449963d4ca",
+    "layer_diff_id": "sha256:c3b538cabc90e843a60d2bdf4511c78b92b6fb6fb247e444c9caede273f75c81",
+    "synthetic_asset_keys": {
+      "image_config": "synthetic.trivy:owned-synthetic-image-wire-v1:image-config:sha256:e5d819aa18ecef0483ca2163926b58bc099ca38016e0e17d619c77ff2d6cfa75",
+      "image_manifest": "synthetic.trivy:owned-synthetic-image-wire-v1:image-manifest:sha256:7245189edf189664ca3dc8b37d58d5b746841f8b04cb2d195e3f23449963d4ca",
+      "layer": "synthetic.trivy:owned-synthetic-image-wire-v1:image-layer-diffid:sha256:c3b538cabc90e843a60d2bdf4511c78b92b6fb6fb247e444c9caede273f75c81",
+      "operating_system": "synthetic.trivy:owned-synthetic-image-wire-v1:operating-system:46a459738ce6a95f79e3d10d6aa42a45c6a7ead6030aa731acdc7760baeff8ab",
+      "package": "synthetic.trivy:owned-synthetic-image-wire-v1:package-version:44a3f8476083fc8c7a639a40789e208bf2d8efd41c8d65fe6c0346b8ce724062",
+      "license": "synthetic.trivy:owned-synthetic-image-wire-v1:license-declaration:e5dcffe836b6ec8a58e492419b550e65fb8cbdc308503979e5dacb33ac7ea3b7"
+    },
+    "operating_system": {"family": "alpine", "version": "3.20"},
+    "license": {"expression": "MIT"},
+    "package": {
+      "ecosystem": "pypi",
+      "name": "owned-lib",
+      "version": "1.0",
+      "namespace": "",
+      "qualifiers": {},
+      "purl": "pkg:pypi/owned-lib@1.0",
+      "object_key": "synthetic.trivy:owned-synthetic-image-wire-v1:package-version:44a3f8476083fc8c7a639a40789e208bf2d8efd41c8d65fe6c0346b8ce724062"
+    },
+    "finding": {
+      "check_id": "synthetic.supply-chain.vulnerability",
+      "location_key": "CVE-2099-0001",
+      "severity": "high",
+      "confidence": 0.0,
+      "status": "open",
+      "remediation_summary": "Upgrade to 2.0",
+      "subject_object_key": "synthetic.trivy:owned-synthetic-image-wire-v1:package-version:44a3f8476083fc8c7a639a40789e208bf2d8efd41c8d65fe6c0346b8ce724062"
+    }
+  },
+  "native_namespace_baseline": {
+    "purpose": "owned test seeds, not evidence of genuine native discovery",
+    "asset_seeds": [
+      {
+        "natural_key": "image-config:sha256:e5d819aa18ecef0483ca2163926b58bc099ca38016e0e17d619c77ff2d6cfa75",
+        "attributes": {"asset_type": "image", "digest": "sha256:e5d819aa18ecef0483ca2163926b58bc099ca38016e0e17d619c77ff2d6cfa75", "digest_kind": "config", "operator_note": "owned native-namespace config baseline"}
+      },
+      {
+        "natural_key": "image-manifest:sha256:7245189edf189664ca3dc8b37d58d5b746841f8b04cb2d195e3f23449963d4ca",
+        "attributes": {"asset_type": "image", "digest": "sha256:7245189edf189664ca3dc8b37d58d5b746841f8b04cb2d195e3f23449963d4ca", "digest_kind": "manifest", "operator_note": "owned native-namespace manifest baseline"}
+      },
+      {
+        "natural_key": "image-layer-diffid:sha256:c3b538cabc90e843a60d2bdf4511c78b92b6fb6fb247e444c9caede273f75c81",
+        "attributes": {"asset_type": "image-layer", "diff_id": "sha256:c3b538cabc90e843a60d2bdf4511c78b92b6fb6fb247e444c9caede273f75c81", "operator_note": "owned native-namespace layer baseline"}
+      },
+      {
+        "natural_key": "operating-system:46a459738ce6a95f79e3d10d6aa42a45c6a7ead6030aa731acdc7760baeff8ab",
+        "attributes": {"asset_type": "operating-system", "family": "alpine", "version": "3.20", "operator_note": "owned native-namespace OS baseline"}
+      },
+      {
+        "natural_key": "package-version:44a3f8476083fc8c7a639a40789e208bf2d8efd41c8d65fe6c0346b8ce724062",
+        "attributes": {"asset_type": "package", "ecosystem": "pypi", "name": "owned-lib", "version": "1.0", "namespace": "", "qualifiers": {}, "operator_note": "owned native-namespace package baseline"}
+      },
+      {
+        "natural_key": "license-declaration:e5dcffe836b6ec8a58e492419b550e65fb8cbdc308503979e5dacb33ac7ea3b7",
+        "attributes": {"asset_type": "license", "expression": "MIT", "operator_note": "owned native-namespace license baseline"}
+      }
+    ],
+    "triaged_finding": {
+      "subject_object_key": "package-version:44a3f8476083fc8c7a639a40789e208bf2d8efd41c8d65fe6c0346b8ce724062",
+      "check_id": "supply-chain.vulnerability",
+      "location_key": "CVE-2099-0001",
+      "severity": "medium",
+      "confidence": 0.75,
+      "status": "dismissed",
+      "remediation_summary": "Operator retained baseline interpretation"
+    },
+    "preservation": "compare full canonical object/provenance/triage bytes before and after collection and historical replay"
+  },
+  "scenarios": {
+    "success": {"process_exit_code": 0, "native_json": "valid", "proposed_findings": 1},
+    "no_findings": {"process_exit_code": 0, "native_json": "valid", "proposed_findings": 0},
+    "provider_error": {"process_exit_code": 7, "native_json": "valid", "model_acceptance": "denied"},
+    "malformed": {"process_exit_code": 0, "native_json": "invalid", "model_acceptance": "denied"},
+    "version_mismatch": {"process_exit_code": 0, "native_json": "valid", "model_acceptance": "denied"},
+    "package_mismatch": {"process_exit_code": 0, "native_json": "valid", "model_acceptance": "denied"},
+    "output_limit": {"stdout_size_bytes": 4194305, "model_acceptance": "denied"},
+    "hold": {"partial_stdout": "{", "model_acceptance": "denied-on-timeout-or-cancellation"}
+  },
+  "future_consumer_assertions": [
+    "accepted artifact and scanner/material receipts precede interpretation",
+    "scope, policy, owner and material change deny new model updates",
+    "stdout, stderr and provider-version retain actual collection and execution provenance",
+    "input and material receipt roles are separate from native image report roles",
+    "LocalModelStore saves the original expected revision before ModelDelta publication",
+    "workspace references and every old/new retained acquisition are verified and saved",
+    "failed or rejected runs retain raw evidence and the previous canonical model",
+    "every synthetic asset uses the closed fixture-family prefix and every finding its synthetic check ID",
+    "all native-namespace baseline assets and the triaged native Finding remain byte-exact after collection and replay",
+    "no synthetic-to-native relation, digest/PURL promotion or native provenance overlay is created",
+    "historical replay preserves synthetic finding disposition and never issues a grant or relaunches",
+    "report projection matches the exact saved model digest and revision",
+    "SARIF active results retain the original finding and evidence references",
+    "no source paths, physical locations, successful invocation or clean scan are inferred",
+    "scan completeness remains not-assessed, including no_findings"
+  ]
+}
