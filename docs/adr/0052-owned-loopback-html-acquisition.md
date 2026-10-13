@@ -66,8 +66,14 @@ Compose every existing source/candidate template collection, preserve unrelated
 attributes and history, and publish the existing ModelDelta only after Save.
 Do not create Host/Port/Service, connectivity relations, findings or reachability
 claims. Link candidates are never described as fetched or checked endpoints.
-Post-capture interpretation must use the same exact current scope as the launch
-plan; a changed or revoked scope fails before model publication. This is bounded
+A pre-Save failure leaves the prior model unchanged. After Save commits, later
+cancellation, event failure or a lost acknowledgement can leave model/evidence
+persisted without a delivered delta; report actual known/ambiguous state and do
+not claim rollback or cross-store atomicity. Actual worker success remains distinct
+from the later owning job outcome. Post-capture interpretation must use the same
+exact current scope as the launch plan. After all evidence/model I/O and composition,
+recheck that scope and fresh consent/expiry immediately before owner Save; a changed,
+revoked or expired scope fails at that boundary. This is bounded
 snapshot checking, not continuous revocation or a cross-store atomic transaction.
 
 The exact API, HTTP grammar, quotas, privacy/failure rules, model attribution and

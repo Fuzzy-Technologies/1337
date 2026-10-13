@@ -94,10 +94,13 @@ monotonic deadline covers connect, send, complete headers, exact body and final 
 partial progress never renews it. No DNS or environment proxy is consulted.
 
 The status line is exactly HTTP/1.0 or HTTP/1.1, one space, three ASCII status
-digits, then optional space plus printable ASCII reason text, and CRLF. Only
+digits, then exactly one required space, zero or more printable ASCII reason
+characters, and CRLF. The separator space is required even for an empty reason. Only
 status 200 is admitted as a page. Interim responses, redirects and other statuses
 fail without following anything. Reason text is transient parser input only.
-All section lines use CRLF. A field is a nonempty ASCII HTTP token name, colon,
+All section lines use CRLF. A field name is one or more ASCII letters, ASCII
+digits or the exact characters ``!#$%&'*+-.^_`|~``; Unicode character predicates do
+not admit additional characters. A field is that nonempty token name, colon,
 then zero or more ASCII printable characters or horizontal TAB. Leading/trailing
 SP/TAB around its value are ignored. Whitespace before colon, folded continuation,
 bare LF/CR, non-ASCII/control values, duplicate names after lowercasing, incomplete
@@ -132,7 +135,14 @@ Version/status/port/length/counts are actual integers, excluding booleans. Versi
 is 1, fixture ID is the exact selected closed catalog ID, scheme is `http`, status
 is 200, HTTP version is `HTTP/1.0` or `HTTP/1.1`,
 content type is `text/html`, declared charset is null or `utf-8`. Header size/count
-are measured within the bounds and at least contain the required fields. URL,
+are measured within the bounds and contain at least the two required fields.
+For this 541-byte catalog entry, require `2 <= header_count <= 64` and
+`61 + (14 if declared_charset is not null else 0) + 4 * (header_count - 2)
+<= header_size_bytes <= min(16384, 4096 * (header_count + 1) + 2)`.
+The lower bound includes the shortest valid status, required fields, final CRLF
+and minimum extra token-field lines; the upper bound applies every line budget.
+These checks reject logically impossible reports. They do not reconstruct or
+authenticate discarded header values. URL,
 address and port equal the exact approved canonical destination. Base64 is strict
 canonical standard encoding; decoded size/hash equal the explicit declaration.
 Preparation accepts only parameters `url`, `timeout_seconds`, `max_body_bytes`
@@ -142,7 +152,10 @@ timeout text, fixture ID, and decimal body limit, in that order. The existing
 invocation digest binds all these inputs. Both parent and worker independently
 check the closed catalog and bounds before execution/network admission.
 
-The output is sorted compact standards-compliant UTF-8 JSON plus one LF. No raw
+The output is sorted compact standards-compliant UTF-8 JSON plus one LF. The
+parent requires exact byte equality with that canonical re-encoding for both
+successful and fixed failure records; whitespace variants, alternate key order,
+extra line endings and equivalent noncanonical encodings reject. No raw
 header, reason, original HTML charset text, exception message or unknown field
 belongs to this record. The base64 is of already-admitted known non-secret bytes.
 
@@ -187,7 +200,10 @@ ADR 0050's caller-association boundary. Never label a lexical link as acquired.
 
 Call ReadCapturedWebFrontier through its existing owners/current scope after
 capture. Require its complete scope SHA/revision to equal the launch plan, and
-reread/check that same current consented scope before model publication. A changed,
+reread/check that same current consented scope after all evidence reads, model
+open/composition and other expensive validation, immediately before owner Save.
+Evaluate current consent/expiry with a fresh clock reading at that final boundary;
+no stored earlier check time or launch grant substitutes for it. A changed,
 revoked or expired scope fails; the already admitted artifacts remain inspectable.
 No worker already in flight is magically revoked. There is no cross-scope/model
 transaction or guarantee against changes after the final snapshot check.
@@ -216,10 +232,17 @@ An explicitly truncated frontier can complete that bounded plan; its measured
 partiality remains visible, never web-application coverage or scan completeness.
 
 Evidence survives later lexical, authority, cancellation or persistence failure.
-Such failure yields no model delta; there is no completed model publication before
-the atomic owner Save. Cancellation uses the existing cooperative signal and
-governed executor cleanup/reaping before terminal state. No future request starts.
-Failures use fixed JobFailure categories/messages without raw stream/cause text.
+A failure before Save leaves the prior persisted model unchanged and publishes no
+model delta. Once owner Save commits, a later cancellation, event-publication
+failure or lost acknowledgement can leave the new model and evidence persisted
+without a delivered delta. Never claim rollback or rewrite an earlier revision.
+An ambiguous Save acknowledgement does not establish that no commit occurred;
+report that uncertainty and use owner reopen/verification where available rather
+than inventing an atomic cross-store result. The source observation retains the
+actual worker execution outcome even if the later owning job fails or is cancelled.
+Cancellation uses the existing cooperative signal and governed executor cleanup/
+reaping before terminal state. No future request starts. Failures use fixed
+JobFailure categories/messages without raw stream/cause text.
 
 ## Independent fixture and acceptance
 
