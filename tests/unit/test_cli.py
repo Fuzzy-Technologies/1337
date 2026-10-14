@@ -464,3 +464,44 @@ def test_ApiRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
     assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
         "SYNTHETIC_PRIVATE_MARKER" not in output.out
     ), "API grammar refusal exposed rejected source selections"
+
+
+@pytest.mark.parametrize("status", [0, 2, 4, 130])
+def test_SbomRoutePreservesExplicitArgumentsOutputAndHandlerStatus(monkeypatch, capsys, status):
+    """Actual top-level registration delegates exact supplied values without ambient authority."""
+
+    from fuzzy1337 import sbom_commands
+
+    calls = []
+
+    def RunSbomCommands(arguments, output, *, json_output):
+        """Observe exact registration forwarding without opening a workspace or source."""
+
+        calls.append((arguments, json_output))
+        output.write("owned-sbom-outcome\n")
+
+        return status
+
+    monkeypatch.setattr(sbom_commands, "RunSbomCommands", RunSbomCommands)
+    assert Main(["sbom", "import", "spdx-graph", "explicit workspace", "--json"]) == (
+        status
+    ), "Registered sbom route replaced the actual handler status"
+    assert calls == [(["import", "spdx-graph", "explicit workspace"], True)], (
+        "Registration inferred, omitted or reordered explicit caller selections"
+    )
+    assert capsys.readouterr().out == "owned-sbom-outcome\n", "Registered outcome was changed"
+
+
+def test_SbomRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
+    """Original source and declared image semantics are visible before local workspace setup."""
+
+    assert Main(["sbom", "import", "--help"]) == 0, "SBOM static help failed"
+    help_text = capsys.readouterr().out
+    assert "--read-consent-reference" in help_text and "--expected-workspace-revision" in (
+        help_text
+    ) and "--image-digest-kind" in help_text, "SBOM help omitted explicit source or image bases"
+    assert Main(["sbom", "SYNTHETIC_PRIVATE_MARKER", "--json"]) == 2, "Unknown SBOM grammar passed"
+    output = capsys.readouterr()
+    assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
+        "SYNTHETIC_PRIVATE_MARKER" not in output.out
+    ), "SBOM grammar refusal exposed rejected source values"

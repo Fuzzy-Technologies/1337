@@ -25,6 +25,13 @@ mode = "authored"
 page = "api/fuzzy1337.sbom_graph.md"
 
 [[surfaces]]
+# Internal implementation of the closed Experimental v1 owned SPDX graph product command.
+module = "fuzzy1337.sbom_commands"
+source = "src/fuzzy1337/sbom_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.sbom_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.sbom_spdx"
 source = "src/fuzzy1337/sbom_spdx.py"
 mode = "authored"

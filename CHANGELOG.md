@@ -37,6 +37,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   evidence-backed nested containment, inert license facts and canonical package
   linkage. Dependency claims assert no runtime reachability; saved portable
   replay retains existing finding triage and the flat profile stays unchanged.
+- Added Experimental `sbom import spdx-graph` in the installed CLI and interactive
+  shell, with explicit owned-file consent, source attribution, image digest kind
+  and revision bases or exact known original-manifest replay. Four-MiB original
+  custody and all-known SBOM alias checks precede generic evidence reads; three
+  independent acquisition/model/workspace acknowledgements expose partial saves.
+  Existing scopes, larger unrelated evidence, triage and UNKNOWN reachability
+  survive portable replay; inert license facts assert no compliance result.
 - Added an explicitly confirmed STANDARD Nuclei workflow through governed jobs,
   retained raw evidence and durable canonical Findings, with current authority
   checks at launch and model Save and pinned genuine-provider loopback CI.
@@ -181,6 +188,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   original receipt anchors and verified portable replay. Safe counts/hashes/IDs
   preserve confirmed refusals and unknown acquisition acknowledgements without
   source-body output, Core/workspace saves, probing or authority inference.
+- Added a development-checkout agent quickstart with canonical English and
+  explicitly marked Russian/Chinese prompt drafts, source/content provenance and
+  a recorded owned local-demo rehearsal through plan, execution, offline reopen,
+  fresh export and no-clobber refusal. Human-agent approval, translation review
+  and release/published-package acceptance remain separate work.
 
 #### Fixed
 

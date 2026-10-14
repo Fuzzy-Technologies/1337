@@ -5,6 +5,9 @@ bounded native SAFE discovery, see [Quick Scan](QUICK_SCAN.md). Those commands
 are separate from the immutable v0.2.1 demonstration below.
 The development candidate also offers [Offline report export](REPORT_EXPORT.md)
 from an explicitly selected existing saved workspace, without running a provider.
+For an external agent using that accepted development checkout, see the
+[agent quickstart and localized prompt drafts](AGENT_QUICKSTART.md). Its owned
+local demo requires an explicit plan/approval and is absent from v0.2.1.
 
 This pre-alpha provides an interactive shell and Experimental Python foundations.
 Use CPython 3.11 or newer and Git. Core runtime dependencies are empty. Docker and
