@@ -205,6 +205,12 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("workbench.report-export",),
         ),
         CommandDescriptor(
+            identifier="intel",
+            summary="Import explicit local intelligence and verify or apply selected snapshots.",
+            usage="1337 intel <import|inspect|apply> <workspace>",
+            capabilities=("intelligence.local-snapshot", "intelligence.finding-enrichment"),
+        ),
+        CommandDescriptor(
             identifier="demo",
             summary="Run an explicitly approved command-owned local SAFE discovery demo.",
             usage="1337 demo local <new-output-root> [--approve-safe-http]",

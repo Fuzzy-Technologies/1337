@@ -29,6 +29,7 @@ SHELL_COMMANDS = (
     "demo",
     "help",
     "history",
+    "intel",
     "lens",
     "model",
     "palette",
@@ -226,7 +227,7 @@ class NativeInputHistory:
             parsed, _, _ = shell.parseline(value)
             command = parsed.lower() if parsed else ""
 
-            if command in {"workspace", "scope", "scan", "report", "demo"}:
+            if command in {"workspace", "scope", "scan", "report", "demo", "intel"}:
                 position = index - first_index
 
                 if not 0 <= position < count:
@@ -394,13 +395,14 @@ class InteractiveShell(cmd.Cmd):
 
         if normalized and command != "history":
             self._history.append(
-                command if command in {"workspace", "scope", "scan", "report", "demo"}
+                command if command in {"workspace", "scope", "scan", "report", "demo", "intel"}
                 else normalized
             )
 
-        if command in {"workspace", "scope", "scan", "report", "demo"}:
+        if command in {"workspace", "scope", "scan", "report", "demo", "intel"}:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
-                        "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo}
+                        "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
+                        "intel": self.do_intel}
             self.lastcmd = command
 
             try:
@@ -496,7 +498,8 @@ class InteractiveShell(cmd.Cmd):
         help_text = {
             "": (
                 "commands, context, demo local, history [query], lens [<name>] [--json], "
-                "model <workspace-path>, palette [query], report export, select <object-id>, "
+                "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
+                "report export, select <object-id>, "
                 "scan quick, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
@@ -507,6 +510,10 @@ class InteractiveShell(cmd.Cmd):
                 "run only the explicitly approved command-owned localhost demo."
             ),
             "history": "history [query]: search previous shell commands from newest to oldest.",
+            "intel": (
+                "intel <import|inspect|apply> <workspace>: explicitly select local source files, "
+                "verified snapshots/receipts, or one finding's enrichment."
+            ),
             "lens": (
                 "lens [<name>] [--json]: select pentest, dfir, devsecops, or purple; "
                 "--json describes the selected lens."
@@ -545,7 +552,13 @@ class InteractiveShell(cmd.Cmd):
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
 
-            if command == "report":
+            if command == "intel":
+                from fuzzy1337.intelligence_commands import RunIntelCommands
+
+                status = RunIntelCommands(arguments, cast(TextIO, self.stdout),
+                                          json_output=json_output)
+
+            elif command == "report":
                 from fuzzy1337.report_commands import RunReportCommands
 
                 status = RunReportCommands(arguments, cast(TextIO, self.stdout),
@@ -608,6 +621,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("report", argument)
+
+    def do_intel(self, argument: str) -> None:
+        """Use explicit local intelligence selections without deriving them from shell context.
+
+        Args:
+            argument: Import, inspect, or apply action with its complete explicit arguments.
+        """
+
+        self.RunLocalCommand("intel", argument)
 
     def do_demo(self, argument: str) -> None:
         """Run the explicit local demo without deriving approval from selected shell context.

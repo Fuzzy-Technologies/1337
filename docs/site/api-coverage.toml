@@ -354,6 +354,12 @@ mode = "authored"
 page = "api/fuzzy1337.intelligence_transport.md"
 
 [[surfaces]]
+module = "fuzzy1337.intelligence_commands"
+source = "src/fuzzy1337/intelligence_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.intelligence"
 source = "src/fuzzy1337/intelligence.py"
 mode = "authored"
