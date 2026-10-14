@@ -181,6 +181,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   original receipt anchors and verified portable replay. Safe counts/hashes/IDs
   preserve confirmed refusals and unknown acquisition acknowledgements without
   source-body output, Core/workspace saves, probing or authority inference.
+- Added a development-checkout agent quickstart with canonical English and
+  explicitly marked Russian/Chinese prompt drafts, source/content provenance and
+  a recorded owned local-demo rehearsal through plan, execution, offline reopen,
+  fresh export and no-clobber refusal. Human-agent approval, translation review
+  and release/published-package acceptance remain separate work.
 
 #### Fixed
 
