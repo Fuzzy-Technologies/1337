@@ -12,6 +12,7 @@ import pytest
 from fuzzy1337.adapters import EvidenceReference
 from fuzzy1337.ci_gate import (
     CiFindingCriterion,
+    CiPredicateResult,
     EvaluateConfigurationCriterion,
     EvaluatePredicate,
     RequireModelContracts,
@@ -74,7 +75,7 @@ def test_HandwrittenPredicateTruthTable(severities, statuses, limit, matches, sa
 
     model, findings = Specimens()
     criterion = CiFindingCriterion(severities, statuses, limit, True)
-    result = EvaluatePredicate(model, findings[:3], criterion, "a" * 64, "run:test")
+    result = EvaluatePredicate(model, findings[:3], criterion, "a" * 64, "artifact-run:" + "a" * 32)
     document = result.ToDict()
     assert result.satisfied is satisfied and document["matched_count"] == matches, (
         "Explicit conjunction/count truth must match the handwritten criterion oracle"
@@ -94,10 +95,10 @@ def test_UnknownSeverityRequiresExplicitCallerSelection():
     criterion = CiFindingCriterion((FindingSeverity.HIGH,), (FindingStatus.OPEN,), 0, True)
 
     with pytest.raises(ValueError):
-        EvaluatePredicate(model, findings, criterion, "a" * 64, "run:test")
+        EvaluatePredicate(model, findings, criterion, "a" * 64, "artifact-run:" + "a" * 32)
 
     explicit = replace(criterion, severities=(FindingSeverity.UNKNOWN,))
-    result = EvaluatePredicate(model, findings, explicit, "a" * 64, "run:test")
+    result = EvaluatePredicate(model, findings, explicit, "a" * 64, "artifact-run:" + "a" * 32)
     assert not result.satisfied and len(result.matched_finding_references) == 1, (
         "Explicit unknown severity must enter the caller-selected count rather than imply clean"
     )
@@ -111,12 +112,12 @@ def test_PredicateRejectsForeignFindingCollections(value):
     criterion = CiFindingCriterion((FindingSeverity.HIGH,), (FindingStatus.OPEN,), 0, True)
 
     if value == ():
-        result = EvaluatePredicate(model, (), criterion, "a" * 64, "run:test")
+        result = EvaluatePredicate(model, (), criterion, "a" * 64, "artifact-run:" + "a" * 32)
         assert result.satisfied, "Proven empty selection may satisfy an explicit predicate"
 
     else:
         with pytest.raises(ValueError):
-            EvaluatePredicate(model, value, criterion, "a" * 64, "run:test")
+            EvaluatePredicate(model, value, criterion, "a" * 64, "artifact-run:" + "a" * 32)
 
 
 def test_ModifiedCriterionCannotBypassReconstruction():
@@ -130,7 +131,7 @@ def test_ModifiedCriterionCannotBypassReconstruction():
         criterion.ToDict()
 
     with pytest.raises(ValueError):
-        EvaluatePredicate(model, findings[:1], criterion, "a" * 64, "run:test")
+        EvaluatePredicate(model, findings[:1], criterion, "a" * 64, "artifact-run:" + "a" * 32)
 
 
 def test_PublicGateRejectsForeignWrappersBeforeStorage(tmp_path):
@@ -162,3 +163,27 @@ def test_ForeignNestedModelImplementationsAreRefused():
 
     with pytest.raises(ValueError):
         RequireModelContracts(altered)
+
+
+@pytest.mark.parametrize("changes", [
+    {"satisfied": 1}, {"snapshot_sha256": "invalid"}, {"run_reference": "run:foreign"},
+    {"selected_finding_references": []}, {"matched_finding_references": ("object:" + "b" * 64,)},
+    {"selected_finding_references": ("object:" + "a" * 64, "object:" + "a" * 64)},
+    {"selected_finding_references": ("relation:" + "a" * 64,)},
+])
+def test_ResultReconstructionRejectsForeignOrInconsistentFields(changes):
+    """Returned records validate exact grammar and selection without claiming source authority."""
+
+    values = {"satisfied": True, "snapshot_sha256": "a" * 64,
+        "run_reference": "artifact-run:" + "a" * 32,
+        "selected_finding_references": ("object:" + "a" * 64,), "matched_finding_references": ()}
+    values.update(changes)
+
+    with pytest.raises(ValueError):
+        CiPredicateResult(**values)
+
+    valid = CiPredicateResult(True, "a" * 64, "artifact-run:" + "a" * 32, (), ())
+    object.__setattr__(valid, "satisfied", 1)
+
+    with pytest.raises(ValueError):
+        valid.ToDict()

@@ -38,14 +38,14 @@ reported per artifact without changing original scan facts.
 
 ## Terminal status
 
-| Exit | Meaning                                                             |
-| ---- | ------------------------------------------------------------------- |
-| 0    | Acknowledged selected predicate satisfied; completeness not assessed |
-| 1    | Selected predicate violated after successful workflow and artifacts  |
-| 2    | Invalid explicit configuration; no successful criterion claim         |
-| 3    | Current authorization or selected material refused                    |
+| Exit | Meaning                                                                |
+| ---- | ---------------------------------------------------------------------- |
+| 0    | Acknowledged selected predicate satisfied; completeness not assessed   |
+| 1    | Selected predicate violated after successful workflow and artifacts    |
+| 2    | Invalid explicit configuration; no successful criterion claim          |
+| 3    | Current authorization or selected material refused                     |
 | 4    | Execution, evidence, storage, basis or report outcome failed/uncertain |
-| 130  | Cancelled or interrupted execution/publication                        |
+| 130  | Cancelled or interrupted execution/publication                         |
 
 ## Boundaries
 

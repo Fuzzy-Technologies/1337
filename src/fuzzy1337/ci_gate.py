@@ -5,29 +5,61 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from fuzzy1337.adapters import AdapterExecution, EvidenceReference
-from fuzzy1337.artifact_policy import ArtifactPolicyContext, GovernedArtifactExecutor
+from fuzzy1337.adapters import (
+    AdapterExecution,
+    AdapterInvocation,
+    EvidenceReference,
+    ExecutionState,
+)
+from fuzzy1337.artifact_inputs import (
+    ArtifactFile,
+    ArtifactManifest,
+    ArtifactOperation,
+    ArtifactProfile,
+    ArtifactReadConsent,
+    ArtifactRole,
+    ArtifactSnapshot,
+)
+from fuzzy1337.artifact_policy import (
+    ArtifactAcceptance,
+    ArtifactGrant,
+    ArtifactPlan,
+    ArtifactPolicyContext,
+    GovernedArtifactExecutor,
+)
 from fuzzy1337.configuration_evidence import (
     Candidates,
     ConfigurationOperationCapture,
     VerifiedCapture,
 )
-from fuzzy1337.evidence import EvidenceRecord
+from fuzzy1337.evidence import EvidenceProvenance, EvidenceRecord
+from fuzzy1337.executors import (
+    CapabilityDescriptor,
+    ExecutionAuthorization,
+    ExecutionEvent,
+    ExecutionResources,
+    ExecutionTermination,
+    LocalExecutionResult,
+)
 from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus
 from fuzzy1337.model import (
+    LocalModelStore,
     ModelProvenance,
     ModelState,
     ObjectIdentity,
     Observation,
     Relation,
+    RequireModelReference,
     SecurityObject,
 )
 from fuzzy1337.policy import RequireDigest
 from fuzzy1337.reporting import ReportSnapshot
+from fuzzy1337.workspace import RequireWorkspaceText
 
 __all__ = ["CiFindingCriterion", "CiPredicateResult", "EvaluateConfigurationCriterion"]
 
@@ -87,12 +119,42 @@ class CiPredicateResult:
     selected_finding_references: tuple[str, ...]
     matched_finding_references: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        """Validate exact immutable output fields without treating construction as source proof.
+
+        Raises:
+            ValueError: A field has a foreign type, malformed identity or inconsistent selection.
+        """
+
+        if type(self.satisfied) is not bool or type(self.snapshot_sha256) is not str or (
+            type(self.run_reference) is not str
+        ):
+            raise ValueError("CI result requires exact immutable scalar fields")
+
+        RequireDigest(self.snapshot_sha256)
+        RequireWorkspaceText(self.run_reference, "CI run reference")
+
+        if not re.fullmatch(r"artifact-run:[0-9a-f]{32}", self.run_reference):
+            raise ValueError("CI result requires an original run identity")
+
+        for values in (self.selected_finding_references, self.matched_finding_references):
+            if type(values) is not tuple or len(values) > 1024 or any(
+                type(item) is not str or not RequireModelReference(item).startswith("object:")
+                for item in values
+            ) or tuple(sorted(set(values))) != values:
+                raise ValueError("CI result requires exact unique ordered finding references")
+
+        if not set(self.matched_finding_references) <= set(self.selected_finding_references):
+            raise ValueError("CI matched findings must belong to the proven selection")
+
     def ToDict(self) -> dict[str, object]:
         """Separate selected finding facts from discovery completeness and full report contents.
 
         Returns:
             Criterion status, selection, count and exact saved-model/source-run attribution.
         """
+
+        self.__post_init__()
 
         return {"status": "satisfied" if self.satisfied else "violated",
             "scope": "selected-profile-finding-predicate", "scan_completeness": "not-assessed",
@@ -179,6 +241,72 @@ def RequireModelContracts(model: ModelState) -> None:
             raise ValueError("CI model requires exact original provenance contracts")
 
 
+def RequireCaptureContracts(capture: ConfigurationOperationCapture,
+                            records: tuple[EvidenceRecord, ...]) -> None:
+    """Reject foreign nested implementations before original-record reads or callable serializers.
+
+    Args:
+        capture: Original first-party configuration capture already checked for its exact type.
+        records: Exact original source acquisitions from the owning job.
+
+    Raises:
+        ValueError: An SDK/evidence nested record has a foreign runtime type or changed receipt.
+    """
+
+    outcome = capture.outcome
+    prepared = capture.prepared
+
+    for value, expected in ((outcome.raw_result, LocalExecutionResult),
+        (outcome.grant, ArtifactGrant), (outcome.acceptance, ArtifactAcceptance),
+        (prepared.invocation, AdapterInvocation),
+        (prepared.capability, CapabilityDescriptor), (prepared.resources, ExecutionResources)):
+        if type(value) is not expected:
+            raise ValueError("CI capture requires exact original SDK record types")
+
+    for nested_value, nested_type in ((outcome.grant.plan, ArtifactPlan),
+        (outcome.grant.authorization, ExecutionAuthorization),
+        (outcome.raw_result.execution, AdapterExecution),
+        (outcome.raw_result.termination, ExecutionTermination),
+        (prepared.operation, ArtifactOperation)):
+        if type(nested_value) is not nested_type:
+            raise ValueError("CI capture requires exact original SDK child contracts")
+
+    if type(outcome.raw_result.execution.state) is not ExecutionState:
+        raise ValueError("CI capture requires an exact original execution state")
+
+    if type(outcome.raw_result.events) is not tuple or any(
+        type(item) is not ExecutionEvent for item in outcome.raw_result.events
+    ) or type(outcome.manifests) is not tuple:
+        raise ValueError("CI capture requires exact immutable SDK collections")
+
+    manifests = list(outcome.manifests)
+
+    for snapshot in (capture.stage.input, capture.stage.scanner, capture.stage.material):
+        if type(snapshot) is not ArtifactSnapshot or (
+            type(snapshot.consent) is not ArtifactReadConsent
+        ):
+            raise ValueError("CI capture requires exact original stage partitions")
+
+        manifests.append(snapshot.manifest)
+
+    for manifest in manifests:
+        if type(manifest) is not ArtifactManifest or type(manifest.files) is not tuple or any(
+            type(item) is not ArtifactFile for item in manifest.files
+        ):
+            raise ValueError("CI capture requires exact original selected manifests")
+
+        if type(manifest.profile) is not ArtifactProfile or type(manifest.role) is not ArtifactRole:
+            raise ValueError("CI capture requires exact original manifest labels")
+
+    if type(records) is not tuple or len(records) != 4 or any(
+        type(record) is not EvidenceRecord or type(record.reference) is not EvidenceReference
+        or type(record.provenance) is not EvidenceProvenance for record in records
+    ):
+        raise ValueError("CI capture requires exact original acquisition contracts")
+
+    outcome.__post_init__()
+
+
 def EvaluateConfigurationCriterion(
     model: ModelState, capture: ConfigurationOperationCapture, records: tuple[EvidenceRecord, ...],
     workspace_root: Path, *, expected_snapshot_sha256: str, criterion: CiFindingCriterion,
@@ -215,6 +343,9 @@ def EvaluateConfigurationCriterion(
 
     criterion.__post_init__()
     RequireDigest(expected_snapshot_sha256)
+    ConfigurationOperationCapture(capture.outcome, capture.prepared, capture.stage,
+                                  capture.started_at, capture.finished_at)
+    RequireCaptureContracts(capture, records)
     RequireModelContracts(model)
     rebuilt_model = ModelState.FromDict(model.ToDict())
 
@@ -223,8 +354,9 @@ def EvaluateConfigurationCriterion(
     ):
         raise ValueError("CI gate requires the complete exact saved snapshot")
 
-    ConfigurationOperationCapture(capture.outcome, capture.prepared, capture.stage,
-                                  capture.started_at, capture.finished_at)
+    if LocalModelStore(workspace_root).Open() != rebuilt_model:
+        raise ValueError("CI gate basis differs from its current owning saved model")
+
     facts, envelope, raw = VerifiedCapture(records, workspace_root)
 
     if facts.acceptance.refusal is not None or envelope != capture.Envelope() or (
