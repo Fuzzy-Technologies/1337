@@ -49,6 +49,13 @@ at contract version `1`. ADR 0037 and `docs/QUICK_SCAN.md` define explicit conse
 SAFE-only capability opt-in, bounded streaming, terminal JSON/exit statuses and
 durable model/evidence reopening. SDK workflow composition grants no authority.
 
+The first-party `owned-plaintext-proxy.v1` profile described in
+[`docs/PROXY_REGRESSION.md`](PROXY_REGRESSION.md) is Internal test coverage of this
+unchanged Quick Scan contract. Its versioned fixture oracle and independently
+counted backend requests are test-only facts, not public evidence fields,
+execution grants or reachability claims. It introduces no scanner proxy option,
+transport change, TLS trust behavior or third-party WAF compatibility promise.
+
 `fuzzy1337.scope` is an Experimental Python library and persisted scope schema
 at version `1`. ADR 0022 and `docs/SCOPE.md` define typed target identity,
 explicit consent metadata, offline membership, and portable scope persistence.
