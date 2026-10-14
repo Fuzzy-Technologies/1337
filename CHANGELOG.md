@@ -160,6 +160,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   DNS and SHA-256, preserving original tokens, source positions and declared times
   with separate acquisition clocks, immutable raw/receipt/snapshot provenance and
   portable original-byte replay. Candidates grant no incident, model or scan authority.
+- Added explicit `trace ioc import|inspect` CLI and foreground shell commands
+  with finite owned-file guards, exact source/budget pins, independently retained
+  original receipt anchors and verified portable replay. Safe counts/hashes/IDs
+  preserve confirmed refusals and unknown acquisition acknowledgements without
+  source-body output, Core/workspace saves, probing or authority inference.
 
 #### Fixed
 

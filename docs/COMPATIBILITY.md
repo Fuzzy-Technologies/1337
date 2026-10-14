@@ -361,6 +361,23 @@ requires an independent caller-retained original acquisition record/id alongside
 the selected snapshot for replay; the candidate cannot choose its trusted anchor.
 It adds no incident/event/Core schema, model mutation, probing or scan authority.
 
+The Experimental contract-version-one `trace ioc import|inspect` CLI and
+foreground shell commands expose that same original acquisition and independently
+anchored replay under ADR 0080 and `docs/IOC_ARTIFACT_CLI.md`. Import requires
+explicit owned non-secret file, source/version/license/hash/scope/read-consent
+selections and finite quotas. Physical singly linked file identities must remain
+stable within path and handle views; the accepted Windows cross-view ctime
+allowance never permits a same-view change. Inspect requires separate original
+snapshot and receipt manifest identities and accepts no source/consent override.
+Schema-one summaries contain counts, observed hash/length, acquisition times and
+confirmed evidence identifiers, without original tokens or physical paths.
+Digest/parse refusal retains confirmed raw/receipt records; failed acknowledgement
+may leave immutable evidence with `unknown` commitment and no rollback claim.
+Neither action saves Core/workspace state, resolves names, probes hosts or grants
+current authority. All `fuzzy1337.ioc_commands` classes, functions, methods and
+helpers, including `IocParser` and `RunIocCommands`, remain Internal implementation
+surfaces; their visibility does not establish a supported Python SDK.
+
 `fuzzy1337.intelligence_acquisition` is an Experimental schema-v1 acquisition and
 receipt library under ADR 0060. Explicit local source bytes or an immutable
 official CISA mirror selection produce bounded immutable evidence and truthful
