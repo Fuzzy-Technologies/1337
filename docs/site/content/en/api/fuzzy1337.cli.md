@@ -1,5 +1,9 @@
 # fuzzy1337.cli
 
+`ci scan` dispatches an explicit selected-profile finding predicate and three
+verified report exports. Satisfied/violated outcomes remain distinct from
+invalid setup, authority refusal, integrity failure and cancellation.
+
 The product CLI routes explicit local `intel import|inspect|apply` commands to
 their owning evidence/model workflow. `--json` emits bounded terminal summaries;
 command preparation grants no remote acquisition or automatic enrichment.

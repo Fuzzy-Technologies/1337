@@ -146,6 +146,17 @@ ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
 `fuzzy1337.reporting` and `fuzzy1337.report_formats` are Experimental libraries.
+
+`fuzzy1337.ci_gate` and the `1337 ci scan` command add an Experimental
+selected-profile finding predicate under ADR 0075. Required caller selections
+and a count limit apply only to original verified current-run configuration
+detections in the exact saved snapshot. Explicit unassessed-completeness
+acknowledgement, source/run proof and current acceptance are mandatory. Three
+report exports share the same snapshot pin and retain partial-publication truth.
+No severity ranking, aggregate risk, reachable-risk criterion, native execution
+grant or Core schema change is introduced. `fuzzy1337.ci_commands` is Internal.
+
+The report libraries retain their existing contracts:
 ADR 0039 and `docs/REPORTING.md` define report projection schema `1`, SARIF `2.1.0`,
 and a version-1 JUnit adapter. Reports preserve canonical state and do not imply
 scanner completeness, authorization, verified bytes, or compliance. Pure reports
@@ -255,6 +266,21 @@ The importer returns one in-memory transition and grants no live daemon/network
 authority. Other helpers remain Internal; daemon discovery and physical runtime
 acceptance remain separate.
 
+`fuzzy1337.kubernetes_inventory` is an Experimental owned offline Kubernetes
+`v1`/`List` input profile at contract version `1`, defined by ADR 0074 and
+`docs/KUBERNETES_INVENTORY.md`. `KubernetesInventoryLimits` and
+`ApplyVerifiedKubernetesList` are its supported surface; all other helpers remain
+Internal. Exact original evidence attribution, a declared cluster ASSET and the
+current persisted model basis precede one caller-persisted in-memory transition.
+Cluster-separated UID identities, nominal RBAC and configured selector/owner/
+Service/Ingress/NetworkPolicy associations reuse existing model types. Missing
+facts, effective permissions, aggregation, CNI enforcement and image digest
+domains remain unknown. OPEN configured-condition findings preserve operator
+triage; relationships grant no authorization or confirmed reachability. Unsupported
+kinds, including Secret, fail before normalization. Original bytes remain exact
+and are not redacted; the caller supplies a non-sensitive owned export. Live
+discovery and full privilege validation remain separate work.
+
 `fuzzy1337.image_evidence` and `fuzzy1337.image_workflow` are Internal closed-fixture
 capture/orchestration modules. The capture helper retains original typed SDK
 envelopes and acquisition provenance; `fuzzy1337.synthetic_images` remains the
@@ -306,6 +332,18 @@ at version `1`. ADR 0041 and `docs/INTELLIGENCE.md` define the documented source
 record, parser, and verified finding-observation boundaries. Validation helpers
 remain Internal. Catalog metadata does not establish vulnerability applicability,
 authenticated source identity, approval, or execution authority.
+
+`fuzzy1337.ioc_artifacts` is an Experimental schema-one offline candidate and
+evidence library under ADR 0076 and `docs/IOC_ARTIFACTS.md`. Its supported exports
+are `IocSource`, `IocLimits`, `IocCandidate`, `IocRequest`, `IocSnapshot`,
+`IocAcquisition`, `ParseIocArtifact`, `AcquireIocArtifact`, `ReplayIocArtifact`
+and `LoadIocArtifact`; other helpers and module constants remain Internal. The
+closed ASCII TSV profile preserves supplied IPv4/IPv6/DNS/SHA-256 occurrences,
+original token/source/time declarations, separate observed acquisition clocks,
+finite budgets and immutable raw/receipt/snapshot pins with portable reparse. It
+requires an independent caller-retained original acquisition record/id alongside
+the selected snapshot for replay; the candidate cannot choose its trusted anchor.
+It adds no incident/event/Core schema, model mutation, probing or scan authority.
 
 `fuzzy1337.intelligence_acquisition` is an Experimental schema-v1 acquisition and
 receipt library under ADR 0060. Explicit local source bytes or an immutable

@@ -81,6 +81,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   configured-condition findings with original evidence and preserved triage.
   Missing facts remain unknown; configured associations grant no reachability,
   physical access or live daemon authority.
+- Added bounded caller-owned Kubernetes List inventory, cluster-separated UID
+  identities, nominal RBAC and configured selector/owner/Service/Ingress/
+  NetworkPolicy associations with original evidence and preserved finding triage.
+  Unsupported kinds, including Secret, fail before normalization; effective
+  permissions, aggregation, CNI enforcement and reachability remain unknown.
+  Live discovery and full privilege validation remain separate work.
 - Added selected-read-consent artifact capture, canonical input/scanner/material
   manifests, guarded staging and governed execution of closed synthetic workers.
   Native scanner profiles remain metadata-only until actual tool acceptance.
@@ -132,6 +138,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added explicit saved-workspace `report export` for bounded JSON and SARIF,
   owner-verifying every retained raw evidence reference and preserving failed
   execution, uncertainty and actual no-clobber publication outcomes.
+- Added explicit `1337 ci scan` for closed configuration profiles, caller-selected
+  current-run finding predicates and exact-snapshot JSON/SARIF/JUnit publication.
+  Completeness acknowledgement is required; partial exports and failed proof
+  remain nonzero, without aggregate scoring or inferred reachable-risk claims.
 
 - Added bounded intelligence snapshot import and pinned CISA KEV mirror
   acquisition, observed receiver times, immutable original/partial evidence and
@@ -140,6 +150,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added explicit local `intel import|inspect|apply` CLI and shell workflows for
   original snapshot/receipt verification and selected persisted Finding enrichment,
   preserving triage and reporting uncertain save acknowledgement honestly.
+- Added bounded caller-owned IOC candidate parsing for literal IPv4/IPv6, ASCII
+  DNS and SHA-256, preserving original tokens, source positions and declared times
+  with separate acquisition clocks, immutable raw/receipt/snapshot provenance and
+  portable original-byte replay. Candidates grant no incident, model or scan authority.
 
 #### Fixed
 

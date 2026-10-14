@@ -55,6 +55,12 @@ mode = "authored"
 page = "api/fuzzy1337.images.md"
 
 [[surfaces]]
+module = "fuzzy1337.kubernetes_inventory"
+source = "src/fuzzy1337/kubernetes_inventory.py"
+mode = "authored"
+page = "api/fuzzy1337.kubernetes_inventory.md"
+
+[[surfaces]]
 module = "fuzzy1337.docker_inventory"
 source = "src/fuzzy1337/docker_inventory.py"
 mode = "authored"
@@ -246,6 +252,12 @@ mode = "authored"
 page = "api/fuzzy1337.functional_metrics.md"
 
 [[surfaces]]
+module = "fuzzy1337.ioc_artifacts"
+source = "src/fuzzy1337/ioc_artifacts.py"
+mode = "authored"
+page = "api/fuzzy1337.ioc_artifacts.md"
+
+[[surfaces]]
 module = "fuzzy1337.intel_references"
 source = "src/fuzzy1337/intel_references.py"
 mode = "authored"
@@ -334,6 +346,18 @@ module = "fuzzy1337.report_formats"
 source = "src/fuzzy1337/report_formats.py"
 mode = "authored"
 page = "api/fuzzy1337.report_formats.md"
+
+[[surfaces]]
+module = "fuzzy1337.ci_gate"
+source = "src/fuzzy1337/ci_gate.py"
+mode = "authored"
+page = "api/fuzzy1337.ci_gate.md"
+
+[[surfaces]]
+module = "fuzzy1337.ci_commands"
+source = "src/fuzzy1337/ci_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.ci_commands.md"
 
 [[surfaces]]
 module = "fuzzy1337.report_commands"
