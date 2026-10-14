@@ -37,6 +37,12 @@ mode = "authored"
 page = "api/fuzzy1337.images.md"
 
 [[surfaces]]
+module = "fuzzy1337.docker_inventory"
+source = "src/fuzzy1337/docker_inventory.py"
+mode = "authored"
+page = "api/fuzzy1337.docker_inventory.md"
+
+[[surfaces]]
 module = "fuzzy1337.image_evidence"
 source = "src/fuzzy1337/image_evidence.py"
 mode = "authored"

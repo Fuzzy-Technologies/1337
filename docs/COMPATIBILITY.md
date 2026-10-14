@@ -229,6 +229,18 @@ the existing model schema or granting execution authority.
 The synthetic helper has a fixed fixture namespace and does not admit evidence,
 apply a model transition, grant execution or change native import behavior.
 
+`fuzzy1337.docker_inventory` is an Experimental owned offline Docker container
+inspect input profile at contract version `1`, defined by ADR 0070 and
+`docs/DOCKER_INVENTORY.md`. It requires exact owning raw evidence attribution and
+an existing explicit literal HOST. Host-scoped container/network/service/resource
+facts reuse canonical model types and image config identity without a schema
+change. Missing facts remain unknown; direct configured-condition findings
+preserve operator triage and never confirm physical access or exploitability.
+Associations remain UNKNOWN reachability inputs without separate admitted claims.
+The importer returns one in-memory transition and grants no live daemon/network
+authority. Other helpers remain Internal; daemon discovery and physical runtime
+acceptance remain separate.
+
 `fuzzy1337.image_evidence` and `fuzzy1337.image_workflow` are Internal closed-fixture
 capture/orchestration modules. The capture helper retains original typed SDK
 envelopes and acquisition provenance; `fuzzy1337.synthetic_images` remains the
