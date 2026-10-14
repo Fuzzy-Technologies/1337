@@ -216,5 +216,11 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 demo local <new-output-root> [--approve-safe-http]",
             capabilities=("workbench.local-demo",),
         ),
+        CommandDescriptor(
+            identifier="ci",
+            summary="Evaluate an explicit current-run finding predicate with verified reports.",
+            usage="1337 ci scan <workspace> --profile <synthetic-dockerfile|synthetic-kubernetes>",
+            capabilities=("workbench.selected-finding-gate",),
+        ),
     )
 )

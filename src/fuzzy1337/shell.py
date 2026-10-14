@@ -24,6 +24,7 @@ DEFAULT_LENS = "pentest"
 DEFAULT_VIEW = "context"
 LENSES = tuple(descriptor.identifier for descriptor in LENS_CATALOG)
 SHELL_COMMANDS = (
+    "ci",
     "commands",
     "context",
     "demo",
@@ -227,7 +228,7 @@ class NativeInputHistory:
             parsed, _, _ = shell.parseline(value)
             command = parsed.lower() if parsed else ""
 
-            if command in {"workspace", "scope", "scan", "report", "demo", "intel"}:
+            if command in {"workspace", "scope", "scan", "report", "demo", "intel", "ci"}:
                 position = index - first_index
 
                 if not 0 <= position < count:
@@ -379,7 +380,7 @@ class InteractiveShell(cmd.Cmd):
         """Run a command while retaining bounded operator history for local search.
 
         Records ordinary nonempty commands except history in bounded local history.
-        Workspace/scope/scan/report/demo retain only their namespace, excluding rejected arguments.
+        Product commands retain only their namespace, excluding rejected arguments.
         Classification uses the dispatch parser before either history or replay state is retained.
 
         Args:
@@ -395,13 +396,16 @@ class InteractiveShell(cmd.Cmd):
 
         if normalized and command != "history":
             self._history.append(
-                command if command in {"workspace", "scope", "scan", "report", "demo", "intel"}
+                command if command in {
+                    "workspace", "scope", "scan", "report", "demo", "intel", "ci"
+                }
                 else normalized
             )
 
-        if command in {"workspace", "scope", "scan", "report", "demo", "intel"}:
+        if command in {"workspace", "scope", "scan", "report", "demo", "intel", "ci"}:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
+                        "ci": self.do_ci,
                         "intel": self.do_intel}
             self.lastcmd = command
 
@@ -497,13 +501,17 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         help_text = {
             "": (
-                "commands, context, demo local, history [query], lens [<name>] [--json], "
+                "ci scan, commands, context, demo local, history [query], lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
                 "report export, select <object-id>, "
                 "scan quick, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
             "commands": "commands: list interactive and current top-level CLI commands.",
+            "ci": (
+                "ci scan <workspace>: run the explicitly selected configuration profile, "
+                "finding predicate and new JSON/SARIF/JUnit exports."
+            ),
             "context": "context: show the current lens and selected object reference.",
             "demo": (
                 "demo local <new-output-root> [--approve-safe-http]: "
@@ -540,7 +548,7 @@ class InteractiveShell(cmd.Cmd):
         self.Write(message)
 
     def RunLocalCommand(self, command: str, argument: str) -> None:
-        """Dispatch the same explicit foreground workspace/scope/scan/report/demo path as the CLI.
+        """Dispatch the same explicit foreground product commands as the CLI.
 
         Args:
             command: Product namespace; shell context never supplies implicit authority.
@@ -552,7 +560,13 @@ class InteractiveShell(cmd.Cmd):
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
 
-            if command == "intel":
+            if command == "ci":
+                from fuzzy1337.ci_commands import RunCiCommands
+
+                status = RunCiCommands(arguments, cast(TextIO, self.stdout),
+                                       json_output=json_output)
+
+            elif command == "intel":
                 from fuzzy1337.intelligence_commands import RunIntelCommands
 
                 status = RunIntelCommands(arguments, cast(TextIO, self.stdout),
@@ -621,6 +635,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("report", argument)
+
+    def do_ci(self, argument: str) -> None:
+        """Run an explicit current-execution finding predicate and verified report exports.
+
+        Args:
+            argument: Explicit profile, inputs, authority, criterion and three new output paths.
+        """
+
+        self.RunLocalCommand("ci", argument)
 
     def do_intel(self, argument: str) -> None:
         """Use explicit local intelligence selections without deriving them from shell context.
