@@ -10574,6 +10574,17 @@ state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 [[units]]
+id = "page:api.fuzzy1337.business-events"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.business_events.md"
+sourceHash = "sha256:d4c065302f94417d07da7841388b63656f966c84b35f8691f5bbd6f6f0b23a3b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.path-analysis"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.path_analysis.md"
@@ -10594,6 +10605,171 @@ reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
 
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.AnalyzeBusinessEventPaths"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:9b0e40ae46fdef223f9c5eed1e1e55fd605155687abd47191471e9ac27d670bc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.ApplyBusinessEvent"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:131722bf490baf5267871dbe2dea14ffdef2554ac2799a41beb256382c9e8f1b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.BusinessEventAnalysis"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:0cc5c410cf30e27911c3e35610d7caae6fea5469540579c03aff847bf5762a0f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.BusinessEventDefinition"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:822c0ad926f0c28ac3f4f9cade6afc36b697bbd7645fc2bf672f20537514f43b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.BusinessEventPath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:ac23880efdf41535e4efa80dffbb822d326e2a2ee725891b3dfc7b84f1e3726a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.DefinitionEvidenceStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:2acfd96065450ad1bfcbb940f1a9506be06198594f028522b6bb0dbefc550ee1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.DefinitionEvidenceStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:b6611ff122457b85d7072e7e5883189c7b717b3abf3819805c69e34093f24fbf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.DefinitionFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:c4bcb6f1c09f8ca1227c9cfdeb709c55028390a13b3de2b16f853ff8b4416707"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.Digest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:6206a603cc0d578699e6f7a9d3fb14a117748429486c907f798cfd476d5bba5b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.ProofDigest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:e85140169d4a1ecafa31fc7d35a05e5c0bcb345bf24463505d12586be98a4b59"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.ReadBusinessEventDefinition"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:4bf57b1c3a69d30e1eaae496f3b6792c22323066123707e2e72f19d0183bedcc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.References"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:4c912a42ac65a415283b09f07bfb87f79ac47af10ed4bfcefdfbd010bc81b8cb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.Representation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:3c7132ddc8c412a37df21ac2a14b4168c47defc4597e78258997ab5cc178444a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.Text"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:c9889ef053382c6f326d7d202178adf57f6a92c331d4a8b7463fe75bdf9725fc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.business_events.ValidateDefinition"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/business_events.py"
+sourceHash = "sha256:5db272d22c53d7e31affdf7a1c7ab20f73961a8d5e3a4b9ab3cc4863f8392183"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 

@@ -62,6 +62,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added explainable path participation, sample removal leverage, independently
   bounded structural choke-point checks and lossless explicit presentation groups.
   Conclusions retain selected-graph and truncation limits.
+- Added verified owner-declared unacceptable business outcomes, explicit critical
+  Asset membership and persisted scenario explanations over existing technical
+  paths. Descriptive outcome links remain separate from hop states, confidence
+  estimates and bounded search/cut results; declarations do not establish incidents.
 - Added independent inert image-archive and Dockerfile/Kubernetes fixtures and
   future producer/consumer contracts. These fixtures do not claim native scanner
   acceptance or implemented image/configuration product workflows.
