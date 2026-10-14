@@ -10,6 +10,7 @@ import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -517,3 +518,136 @@ def test_ForeignRecordCannotReplaceOriginalVersionCustody(
                 version=version)
 
     assert len(executor[0]) == 1, "Foreign raw/receipt custody cannot launch an associated SCAN"
+
+
+def StatView(info, **changed):
+    """Represent exact path/handle identity fields with one controlled platform-view change."""
+
+    fields = {name: getattr(info, name) for name in
+              ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")}
+    fields.update(changed)
+
+    return SimpleNamespace(**fields)
+
+
+def test_SeparateWindowsCtimeViewsKeepOriginalVersionAndScanCustody(
+    capture_runner, owned, executor, monkeypatch
+):
+    """Stable Windows path/handle ctime differences cannot erase accepted original VERSION."""
+
+    from fuzzy1337 import artifact_inputs, native_image_capture
+
+    original = native_image_capture.ArtifactHandleInfo
+
+    def HandleView(descriptor):
+        """Return a stable handle view of the same bytes with its distinct ctime representation."""
+
+        info = original(descriptor)
+
+        return StatView(info, st_ctime_ns=info.st_ctime_ns + 1)
+
+    monkeypatch.setattr(artifact_inputs, "_WINDOWS_STAT_VIEWS", True)
+    monkeypatch.setattr(native_image_capture, "ArtifactHandleInfo", HandleView)
+    version = Capture(capture_runner, owned, executor)
+    assert version.refusal is None and version.observed_version == "0.75.0", (
+        "Separate stable stat views must preserve actual VERSION observation and original custody"
+    )
+    executor[1][0] = Result(b"original failed scan", state=ExecutionState.FAILED)
+    scan = Capture(capture_runner, owned, executor, operation=NativeTrivyOperation.SCAN,
+                   version=version)
+    assert scan.refusal == "execution-not-successful" and scan.version_prerequisite_sha256 == (
+        version.Digest()
+    ), "Windows stat views must preserve original VERSION association and actual later SCAN failure"
+    assert owned[1].Read(scan.records[0].reference) == b"original failed scan", (
+        "Original failed SCAN stdout must survive independently from Windows VERSION verification"
+    )
+
+
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"])
+def test_VersionRejectsEveryChangedFieldWithinOriginalHandleView(owned, monkeypatch, field):
+    """Cross-platform matching must not weaken any of the five same-handle mutation fields."""
+
+    from fuzzy1337 import native_image_capture
+
+    material = owned[0].Material()
+    original = native_image_capture.ArtifactHandleInfo
+    calls = [0]
+
+    def ChangedHandle(descriptor):
+        """Change only the second same-handle observation after the original metadata read."""
+
+        info = original(descriptor)
+        calls[0] += 1
+
+        if calls[0] == 2:
+            return StatView(info, **{field: getattr(info, field) + 1})
+
+        return info
+
+    monkeypatch.setattr(native_image_capture, "ArtifactHandleInfo", ChangedHandle)
+
+    with pytest.raises(ValueError, match="during bounded"):
+        native_image_capture.ObserveVersion(json.dumps(VERSION).encode(), material)
+
+
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"])
+def test_VersionRejectsEveryChangedFieldWithinOriginalPathView(owned, monkeypatch, field):
+    """A closed metadata read still requires the exact original full path identity afterward."""
+
+    from fuzzy1337 import native_image_capture
+
+    material = owned[0].Material()
+    original = native_image_capture.ArtifactPathInfo
+    calls = [0]
+
+    def ChangedPath(path, **options):
+        """Change only the path observation after the bounded metadata handle has closed."""
+
+        info = original(path, **options)
+        calls[0] += 1
+
+        if calls[0] == 2:
+            return StatView(info, **{field: getattr(info, field) + 1})
+
+        return info
+
+    monkeypatch.setattr(native_image_capture, "ArtifactPathInfo", ChangedPath)
+
+    with pytest.raises(ValueError, match="after bounded"):
+        native_image_capture.ObserveVersion(json.dumps(VERSION).encode(), material)
+
+
+def test_VersionRejectsOriginalMetadataPathChangedBeforeBoundedRead(owned):
+    """The captured selected-file identity remains required before opening metadata again."""
+
+    from fuzzy1337 import native_image_capture
+
+    material = owned[0].Material()
+    path = owned[0].workspace_root / "trivy-cache/db/metadata.json"
+    path.write_bytes(path.read_bytes() + b" ")
+
+    with pytest.raises(ValueError, match="before bounded"):
+        native_image_capture.ObserveVersion(json.dumps(VERSION).encode(), material)
+
+
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns"])
+def test_WindowsVersionStillRejectsEveryChangedCrossViewIdentityField(owned, monkeypatch, field):
+    """The Windows ctime distinction cannot permit any changed byte/physical binding field."""
+
+    from fuzzy1337 import artifact_inputs, native_image_capture
+
+    material = owned[0].Material()
+    original = native_image_capture.ArtifactHandleInfo
+
+    def ForeignHandle(descriptor):
+        """Represent a different opened identity while preserving its independently checked type."""
+
+        info = original(descriptor)
+
+        return StatView(info, **{field: getattr(info, field) + 1})
+
+    monkeypatch.setattr(artifact_inputs, "_WINDOWS_STAT_VIEWS", True)
+    monkeypatch.setattr(native_image_capture, "ArtifactHandleInfo", ForeignHandle)
+
+    with pytest.raises(ValueError, match="before bounded"):
+        native_image_capture.ObserveVersion(json.dumps(VERSION).encode(), material)
