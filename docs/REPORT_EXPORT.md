@@ -1,17 +1,21 @@
 # Offline report export
 
 The current development candidate exposes the accepted report SDK through one
-Experimental product command, defined by [ADR 0049](adr/0049-offline-product-report-export.md):
+Experimental product command. [ADR 0049](adr/0049-offline-product-report-export.md)
+defines the owning read/publication boundary;
+[ADR 0077](adr/0077-explicit-html-junit-report-export.md) adds HTML and JUnit:
 
 ```bash
 uv run --locked 1337 report export owned-workspace --format json --output report.json --json
 uv run --locked 1337 report export owned-workspace --format sarif --output report.sarif.json
+uv run --locked 1337 report export owned-workspace --format html --output report.html --json
+uv run --locked 1337 report export owned-workspace --format junit --output report.junit.xml --json
 ```
 
 The selected workspace must already exist and contain a saved canonical model.
 The output parent must already exist and the selected file must be absent, outside
 the source workspace. `--format` and `--output` are required. Use `report export
-<workspace> --format <json|sarif> --output <new-file>` inside the shell; the shell
+<workspace> --format <json|sarif|html|junit> --output <new-file>` inside the shell; the shell
 uses the same foreground consumer and retains only `report` in history/replay.
 That protection also covers malformed punctuation, missing spaces and quoting;
 the namespace is sanitized before dispatch, including during empty-line replay.
@@ -42,12 +46,27 @@ execution approval and does not replace original source attribution with current
 scope revisions. Empty saved workspaces need no scope.
 
 The JSON report embeds the exact saved model and its digest/revision. The SARIF
-adapter preserves the existing active/closed finding semantics. Both keep failed
-source outcomes and operator triage. Reports include links/metadata, never acquired
-raw bytes or local workspace paths. Metadata must already satisfy the model's
+adapter preserves the existing active/closed finding semantics. HTML and JUnit
+use the same accepted pure renderers over that exact owner-verified saved snapshot,
+as defined by [ADR 0077](adr/0077-explicit-html-junit-report-export.md).
+All four formats keep failed source outcomes and operator triage. Reports include
+links/metadata, never acquired raw bytes or local workspace paths. Metadata must already satisfy the model's
 non-secret input contract; this reader does not discover or redact secrets.
 See [report semantics](REPORTING.md) for the distinction between byte integrity,
 source claims and finding interpretations.
+
+HTML is the existing self-contained dark report with escaped text, native
+disclosures and canonical evidence/object fragments. It includes no scripts,
+remote assets or acquired raw bytes. JUnit XML retains one case per Finding:
+open/confirmed dispositions fail and dismissed/resolved dispositions skip.
+An empty snapshot has zero cases, without inventing passed security checks.
+Report metadata retains original source failures, verified byte references,
+snapshot identity and `scan_completeness: not-assessed` in every format.
+These are presentation semantics. A successfully published JUnit report exits
+zero even when it contains failure cases; `report export` does not apply finding
+thresholds or run a CI gate. The emitted report remains a pinned historical
+artifact after later model changes. A new explicit export selects the later
+saved snapshot; it cannot rewrite the prior output.
 
 ## Bounds and output truth
 
@@ -88,7 +107,7 @@ Export success is independent of source success, and `scan_completeness` remains
 `not-assessed`. Zero findings do not establish a clean scan.
 
 This command opens no job, starts no provider/process and contacts no target.
-HTML/JUnit product commands, inferred reference context, raw evidence bundles,
+Inferred reference context, raw evidence bundles,
 concurrent TUI, scanner enrichment and release acceptance remain separate work.
 Task #40 remains open. `fuzzy1337.report_commands`, including its house-style
 helpers, is Internal CLI implementation; this adds no authoritative storage API.
@@ -112,3 +131,20 @@ ownership remain covered independently. The GNU oracle also preserves a cap
 established before or during the loop, using its advancing absolute history base.
 Actual cap1 handler additions exercise retired gaps, privacy before consumer
 dispatch, exact 100-position recovery and 101-position refusal.
+The HTML/JUnit addition also exercises actual installed-module console commands
+for workspace creation and all four exports over retained owned synthetic
+evidence/model facts. Independent literal HTML/XML assertions cover inert hostile
+markup, visible controls, resolved fragments, failed source facts, all four
+Finding dispositions and zero-case output. Relocation, historical revoked scope,
+later model mutation, corrupt unused evidence and foreground shell keep the same
+snapshot/ownership boundary. Actual no-clobber links and deterministic failure
+injection verify complete publication, competing creators, interruption and lost
+acknowledgements without changing renderer or source state.
+Both new formats also reject renderer exceptions, cooperative full workspace/model
+changes between rendering and publication, and actual complete output above the
+existing product quota. These checks retain original selected snapshot facts,
+fixed safe diagnostics and confirmed publication truth.
+
+```bash
+uv run --locked --extra dev pytest tests/contract/test_report_export_formats_contract.py tests/e2e/test_html_junit_cli_exports.py -n 2 --no-cov
+```
