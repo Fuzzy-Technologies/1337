@@ -523,7 +523,9 @@ class InteractiveShell(cmd.Cmd):
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
-            "report": "report export <workspace>: verify and export saved JSON or SARIF.",
+            "report": (
+                "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
+            ),
             "scan": "scan quick <workspace>: run approved SAFE discovery with live events.",
             "scope": "scope create <workspace>: record explicit targets, rules and consent.",
             "workspace": "workspace <create|open>: initialize or verify durable shared state.",

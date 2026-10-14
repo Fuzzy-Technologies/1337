@@ -200,8 +200,11 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="report",
-            summary="Export a verified saved model to bounded offline JSON or SARIF.",
-            usage="1337 report export <workspace> --format <json|sarif> --output <new-file>",
+            summary="Export a verified saved model to bounded JSON, SARIF, HTML or JUnit.",
+            usage=(
+                "1337 report export <workspace> --format <json|sarif|html|junit> "
+                "--output <new-file>"
+            ),
             capabilities=("workbench.report-export",),
         ),
         CommandDescriptor(
