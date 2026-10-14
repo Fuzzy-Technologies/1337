@@ -8,10 +8,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Never, TextIO
 
 from fuzzy1337.adapters import EvidenceReference
@@ -23,12 +25,16 @@ from fuzzy1337.artifact_inputs import (
 )
 from fuzzy1337.docker_inventory import ApplyVerifiedDockerInspect, DockerInventoryLimits
 from fuzzy1337.evidence import (
+    EVIDENCE_MANIFEST_MAX_BYTES,
     CheckStorageEntry,
     EvidenceError,
     EvidenceProvenance,
     EvidenceRecord,
     LocalEvidenceStore,
+    ParseEvidenceManifest,
+    RequireEvidenceDigest,
 )
+from fuzzy1337.kubernetes_inventory import ApplyVerifiedKubernetesList, KubernetesInventoryLimits
 from fuzzy1337.model import (
     CanonicalModelJson,
     LocalModelStore,
@@ -54,6 +60,11 @@ from fuzzy1337.workspace import (
 _SOURCE_ID = "inventory.docker-inspect"
 _SOURCE_VERSION = "owned-docker-container-inspect-v1"
 _MAX_BYTES = DockerInventoryLimits().max_bytes
+_PROFILES = MappingProxyType({
+    "docker-inspect": (_SOURCE_ID, _SOURCE_VERSION, _MAX_BYTES),
+    "kubernetes-list": ("inventory.kubernetes-list", "owned-kubernetes-list-v1",
+                        KubernetesInventoryLimits().max_bytes),
+})
 
 
 class RuntimeFailure(RuntimeError):
@@ -86,7 +97,19 @@ class RuntimeArgumentParser(argparse.ArgumentParser):
 
 
 class RuntimeEvidenceStore(LocalEvidenceStore):
-    """Bound the actual original inspect reference before Get eagerly reads its raw blob."""
+    """Bind the actual original reference to one selected profile before eager blob reads."""
+
+    def __init__(self, root: Path, *, profile: str = "docker-inspect") -> None:
+        """Retain one exact closed profile and its fixed original byte ceiling.
+
+        Args:
+            root: Existing owning workspace evidence directory.
+            profile: Explicit profile; the legacy Internal constructor retains Docker semantics.
+        """
+
+        _, _, self.maximum = RuntimeProfile(profile)
+        self.profile = profile
+        super().__init__(root)
 
     def Read(self, reference: EvidenceReference) -> bytes:
         """Admit only the fixed profile role/media and its original one-MiB byte ceiling.
@@ -95,17 +118,122 @@ class RuntimeEvidenceStore(LocalEvidenceStore):
             reference: Explicit or actually parsed original manifest content reference.
 
         Returns:
-            Original verified inspect bytes without interpretation or retrieval.
+            Original verified selected-profile bytes without interpretation or retrieval.
         """
 
-        if type(reference) is not EvidenceReference or reference.role != "docker-inspect" or (
+        self.CheckReference(reference)
+
+        return super().Read(reference)
+
+    def CheckReference(self, reference: EvidenceReference) -> None:
+        """Refuse an actual incompatible role/media/size before any owning raw byte read.
+
+        Args:
+            reference: Exact typed original reference parsed from the selected manifest.
+        """
+
+        if type(reference) is not EvidenceReference or reference.role != self.profile or (
             reference.media_type != "application/json"
             or type(reference.size_bytes) is not int
-            or not 1 <= reference.size_bytes <= _MAX_BYTES
+            or not 1 <= reference.size_bytes <= self.maximum
         ):
             raise RuntimeFailure("integrity")
 
-        return super().Read(reference)
+    def Get(self, evidence_id: str) -> EvidenceRecord:
+        """Check the exact selected original manifest profile before the owner's eager blob read.
+
+        Args:
+            evidence_id: Explicit original SHA-256 manifest selection.
+
+        Returns:
+            Original record after unchanged manifest identity and complete raw-byte verification.
+        """
+
+        self.Manifest(evidence_id)
+
+        return super().Get(evidence_id)
+
+    def Manifest(self, evidence_id: str) -> EvidenceRecord:
+        """Preflight the original identity/profile without reading any referenced raw blob.
+
+        Args:
+            evidence_id: Explicit selected original manifest identity.
+
+        Returns:
+            Exact parsed original record for caller-owned context checks before raw reads.
+        """
+
+        if type(evidence_id) is not str or not evidence_id.startswith("sha256:"):
+            raise RuntimeFailure("integrity")
+
+        RequireEvidenceDigest(evidence_id[7:])
+        data = self.ReadStoredBytes(("records", evidence_id[7:] + ".json"),
+                                    EVIDENCE_MANIFEST_MAX_BYTES)
+        record = ParseEvidenceManifest(data)
+        source_id, source_version, _ = RuntimeProfile(self.profile)
+
+        if record.evidence_id != evidence_id or record.provenance.source_id != source_id or (
+            record.provenance.source_version != source_version
+            or record.provenance.execution is not None
+            or record.provenance.invocation_sha256 is not None
+        ):
+            raise RuntimeFailure("integrity")
+
+        self.CheckReference(record.reference)
+
+        return record
+
+
+def RuntimeProfile(profile: str) -> tuple[str, str, int]:
+    """Return only fixed source identity and limits for an exact selected offline profile.
+
+    Args:
+        profile: Literal Docker inspect or Kubernetes List profile, without default inference.
+
+    Returns:
+        Fixed source ID, version and original byte ceiling.
+    """
+
+    if type(profile) is not str or profile not in _PROFILES:
+        raise RuntimeFailure("configuration", 2)
+
+    return _PROFILES[profile]
+
+
+def RequireRuntimeAnchor(state: ModelState, profile: str, reference: str) -> str:
+    """Require the selected existing HOST or exact declared cluster ASSET before source reads.
+
+    Args:
+        state: Current validated owning snapshot, before evidence verification reads.
+        profile: Exact closed selected profile.
+        reference: Explicit canonical object reference, never an inferred target.
+
+    Returns:
+        Unchanged validated reference; no object or authority is created.
+    """
+
+    RuntimeProfile(profile)
+    selected = RequireModelReference(reference)
+    entity = next((item for item in state.objects if item.Reference() == selected), None)
+
+    if profile == "docker-inspect":
+        if entity is None or entity.identity.kind is not ObjectKind.HOST:
+            raise RuntimeFailure("host", 2)
+
+    else:
+        if entity is None or entity.identity.kind is not ObjectKind.ASSET:
+            raise RuntimeFailure("cluster", 2)
+
+        cluster_id = entity.attributes.get("cluster_id")
+
+        if entity.attributes.get("asset_type") != "kubernetes-cluster" or (
+            type(cluster_id) is not str
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}", cluster_id)
+            or entity.identity.key != "kubernetes-cluster:" + cluster_id
+        ):
+            raise RuntimeFailure("cluster", 2)
+
+    return selected
 
 
 def RuntimePath(path: Path) -> Path:
@@ -134,13 +262,15 @@ def RuntimePath(path: Path) -> Path:
 
 
 def ReadOwnedInspect(path: Path, consent: ArtifactReadConsent,
-                     clock: Callable[[], datetime]) -> tuple[bytes, str, str]:
+                     clock: Callable[[], datetime], *, maximum: int = _MAX_BYTES
+                     ) -> tuple[bytes, str, str]:
     """Read exactly one consented original file while observing bounded size and stable metadata.
 
     Args:
         path: Explicit current caller-owned physical source, never a daemon socket or mount path.
         consent: Exact explicit actor/read-record references, not a signature or scan grant.
         clock: Owning UTC observation clock called immediately around the original file read.
+        maximum: Positive original ceiling, never above the unchanged one-MiB file-read bound.
 
     Returns:
         Unmodified complete bounded bytes and actual local-read observation timestamps.
@@ -154,13 +284,17 @@ def ReadOwnedInspect(path: Path, consent: ArtifactReadConsent,
         raise RuntimeFailure("configuration", 2)
 
     consent = ArtifactReadConsent(consent.actor_ref, consent.record_ref)
+
+    if type(maximum) is not int or not 1 <= maximum <= _MAX_BYTES:
+        raise RuntimeFailure("configuration", 2)
+
     selected = RuntimePath(path)
     before = CheckStorageEntry(selected, directory=False)
 
     if before.st_nlink != 1:
         raise RuntimeFailure("configuration", 2)
 
-    if not 1 <= before.st_size <= _MAX_BYTES:
+    if not 1 <= before.st_size <= maximum:
         raise RuntimeFailure("limit")
 
     started_at = clock().isoformat()
@@ -171,7 +305,7 @@ def ReadOwnedInspect(path: Path, consent: ArtifactReadConsent,
         if opened.st_nlink != 1 or not MatchesArtifactReadIdentity(before, opened):
             raise RuntimeFailure("source-changed")
 
-        raw = stream.read(_MAX_BYTES + 1)
+        raw = stream.read(maximum + 1)
         finished_at = clock().isoformat()
         finished = os.fstat(stream.fileno())
 
@@ -202,17 +336,26 @@ def RuntimeParser() -> argparse.ArgumentParser:
     --host OBJECT_REFERENCE --scope SCOPE_ID --run RUN_REFERENCE
     --expected-revision MODEL_REVISION --expected-workspace-revision WORKSPACE_REVISION
     [--provider-version DECLARED_VERSION]
+  import kubernetes-list WORKSPACE
+    (--file FILE --owner ACTOR --read-consent-reference REFERENCE | --evidence sha256:MANIFEST)
+    --cluster OBJECT_REFERENCE --scope SCOPE_ID --run RUN_REFERENCE
+    --expected-revision MODEL_REVISION --expected-workspace-revision WORKSPACE_REVISION
+    [--provider-version DECLARED_VERSION]
 Retained evidence preserves original context and accepts no file-read or provider overrides.""")
     actions = parser.add_subparsers(dest="action", required=True,
                                    parser_class=RuntimeArgumentParser)
     importer = actions.add_parser("import", add_help=False)
-    importer.add_argument("profile", choices=("docker-inspect",))
+    importer.add_argument("profile", choices=tuple(_PROFILES))
     importer.add_argument("workspace", type=Path)
     selection = importer.add_mutually_exclusive_group(required=True)
     selection.add_argument("--file", type=Path)
     selection.add_argument("--evidence")
 
-    for name in ("host", "scope", "run"):
+    anchor = importer.add_mutually_exclusive_group(required=True)
+    anchor.add_argument("--host")
+    anchor.add_argument("--cluster")
+
+    for name in ("scope", "run"):
         importer.add_argument("--" + name, required=True)
 
     importer.add_argument("--expected-revision", type=int, required=True)
@@ -249,14 +392,16 @@ def CheckBases(root: Path, workspace: WorkspaceState, model: ModelState,
 
 
 def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProvenance,
-               consent: ArtifactReadConsent | None) -> Observation:
-    """Bind original manifest identity and retain original product host/run/read descriptions.
+               consent: ArtifactReadConsent | None, *, profile: str = "docker-inspect"
+               ) -> Observation:
+    """Bind original manifest identity and retain original profile/anchor/run/read descriptions.
 
     Args:
         state: Exact owning basis containing any original import source fact.
         record: Original manifest already verified through its owning store.
         provenance: Exact original source/scope/version/time/raw-reference offline attribution.
         consent: Explicit current file-read references, or None for retained original selection.
+        profile: Exact selected profile; legacy Internal callers retain Docker semantics.
 
     Returns:
         Original immutable source fact on replay, or one inert first product custody observation.
@@ -265,6 +410,7 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
         RuntimeFailure: Existing original manifest or compatible SDK attribution changes context.
     """
 
+    source_id, source_version, _ = RuntimeProfile(profile)
     facts = [item for item in state.observations if item.kind == "runtime-import-source"
              and item.attributes.get("evidence_id") == record.evidence_id]
 
@@ -275,9 +421,9 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
                 "profile", "evidence_id", "source_sha256", "source_version",
                 "read_actor_reference", "read_consent_reference",
             }
-            or facts[0].attributes.get("profile") != "docker-inspect"
+            or facts[0].attributes.get("profile") != profile
             or facts[0].attributes.get("source_sha256") != record.reference.sha256
-            or facts[0].attributes.get("source_version") != _SOURCE_VERSION
+            or facts[0].attributes.get("source_version") != source_version
         ):
             raise RuntimeFailure("source-context")
 
@@ -303,7 +449,7 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
         return facts[0]
 
     contexts = [item.provenance for item in state.observations
-                if item.provenance.source_id == _SOURCE_ID
+                if item.provenance.source_id == source_id
                 and item.provenance.observed_at == record.provenance.finished_at
                 and record.reference in item.provenance.evidence_references]
 
@@ -311,8 +457,8 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
         raise RuntimeFailure("source-context")
 
     return Observation("runtime-import-source", provenance.target_reference, {
-        "profile": "docker-inspect", "evidence_id": record.evidence_id,
-        "source_sha256": record.reference.sha256, "source_version": _SOURCE_VERSION,
+        "profile": profile, "evidence_id": record.evidence_id,
+        "source_sha256": record.reference.sha256, "source_version": source_version,
         "read_actor_reference": consent.actor_ref if consent is not None else None,
         "read_consent_reference": consent.record_ref if consent is not None else None,
     }, provenance)
@@ -348,7 +494,7 @@ def ReferenceProposal(workspace: WorkspaceState, model: ModelState, record: Evid
     Args:
         workspace: Exact original workspace basis for its independent CAS owner.
         model: Exact successfully saved model snapshot.
-        record: Immutable owning original inspect acquisition manifest.
+        record: Immutable owning original selected-profile acquisition manifest.
         scope: Existing local source attribution scope.
 
     Returns:
@@ -397,16 +543,29 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
         "workspace_commit": "not-attempted", "model_revision": None,
         "workspace_revision": None, "created": None, "updated": None, "failure": None,
     }
+
+    if list(arguments[:2]) == ["import", "kubernetes-list"]:
+        outcome["command"] = "runtime.import.kubernetes-list"
+
     status = 4
     phase = "configuration"
 
     try:
         options = parser.parse_args(arguments)
+        source_id, source_version, maximum = RuntimeProfile(options.profile)
+        outcome["command"] = "runtime.import." + options.profile
+
+        if (options.profile == "docker-inspect" and options.host is None) or (
+            options.profile == "kubernetes-list" and options.cluster is None
+        ):
+            raise RuntimeFailure("configuration", 2)
+
         RequireWorkspaceInteger(options.expected_revision, "expected_revision")
         RequireWorkspaceInteger(options.expected_workspace_revision, "expected_workspace_revision")
         RequireWorkspaceText(options.run, "run_reference")
         RequireIdentifier(options.scope, "scope_id")
-        host = RequireModelReference(options.host)
+        anchor = RequireModelReference(
+            options.host if options.host is not None else options.cluster)
         consent = None
 
         if options.provider_version is not None:
@@ -422,8 +581,8 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
 
         root = RuntimePath(options.workspace)
         phase = "integrity"
-        original = OpenReportInput(root)
-        workspace, basis = original.workspace, original.report.state
+        workspace = LocalWorkspaceStore(root).Open()
+        basis = LocalModelStore(root).Open()
         scope = LocalScopeStore(root).Open(options.scope)
 
         if basis.revision != options.expected_revision:
@@ -435,11 +594,25 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
         if not set(workspace.object_references) <= {item.Reference() for item in basis.objects}:
             raise RuntimeFailure("integrity")
 
-        if not any(item.Reference() == host and item.identity.kind is ObjectKind.HOST
-                   for item in basis.objects):
-            raise RuntimeFailure("host", 2)
+        anchor = RequireRuntimeAnchor(basis, options.profile, anchor)
+        evidence = RuntimeEvidenceStore(root / "evidence", profile=options.profile)
 
-        evidence = RuntimeEvidenceStore(root / "evidence")
+        if options.evidence is not None:
+            selected_record = evidence.Manifest(options.evidence)
+
+            if selected_record.provenance.workspace_id != workspace.workspace_id or (
+                selected_record.provenance.scope_reference != scope.Reference()
+            ):
+                raise RuntimeFailure("integrity")
+
+        original = OpenReportInput(root)
+
+        if original.workspace != workspace:
+            raise RuntimeFailure("workspace-conflict")
+
+        if original.report.state != basis:
+            raise RuntimeFailure("revision-conflict")
+
         outcome["source_selection"] = "file" if options.file is not None else "retained"
 
         if options.file is not None:
@@ -448,16 +621,16 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
             if consent is None:
                 raise RuntimeFailure("configuration", 2)
 
-            raw, started, finished = ReadOwnedInspect(options.file, consent, clock)
-            source = EvidenceProvenance(workspace.workspace_id, scope.Reference(), _SOURCE_ID,
-                                       _SOURCE_VERSION, options.provider_version, started, finished)
+            raw, started, finished = ReadOwnedInspect(options.file, consent, clock, maximum=maximum)
+            source = EvidenceProvenance(workspace.workspace_id, scope.Reference(), source_id,
+                                       source_version, options.provider_version, started, finished)
             digest = hashlib.sha256(raw).hexdigest()
-            expected = EvidenceRecord(EvidenceReference("docker-inspect",
+            expected = EvidenceRecord(EvidenceReference(options.profile,
                 "blobs/sha256/" + digest, digest,
                 "application/json", len(raw)), source)
             outcome.update({"evidence_id": expected.evidence_id,
                             "acquisition_commit": "unknown"})
-            record = evidence.Put(raw, "docker-inspect", "application/json", source)
+            record = evidence.Put(raw, options.profile, "application/json", source)
 
             if record != expected:
                 raise RuntimeFailure("integrity")
@@ -467,8 +640,8 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
 
         source = record.provenance
 
-        if source.workspace_id != basis.workspace_id or source.source_id != _SOURCE_ID or (
-            source.source_version != _SOURCE_VERSION or source.scope_reference != scope.Reference()
+        if source.workspace_id != basis.workspace_id or source.source_id != source_id or (
+            source.source_version != source_version or source.scope_reference != scope.Reference()
             or source.invocation_sha256 is not None or source.execution is not None
             or evidence.Get(record.evidence_id) != record
         ):
@@ -478,12 +651,19 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
                         "source_sha256": record.reference.sha256,
                         "received_bytes": record.reference.size_bytes,
                         "started_at": source.started_at, "finished_at": source.finished_at})
-        provenance = ModelProvenance(_SOURCE_ID, options.run, source.finished_at,
-            source.scope_reference, host, source.tool_version, (record.reference,))
-        fact = SourceFact(basis, record, provenance, consent)
+        provenance = ModelProvenance(source_id, options.run, source.finished_at,
+            source.scope_reference, anchor, source.tool_version, (record.reference,))
+        fact = SourceFact(basis, record, provenance, consent, profile=options.profile)
         phase = "normalization"
-        proposed, delta = ApplyVerifiedDockerInspect(basis, record, provenance,
-            host_reference=host, workspace_root=root)
+
+        if options.profile == "docker-inspect":
+            proposed, delta = ApplyVerifiedDockerInspect(basis, record, provenance,
+                host_reference=anchor, workspace_root=root)
+
+        else:
+            proposed, delta = ApplyVerifiedKubernetesList(basis, record, provenance,
+                cluster_reference=anchor, workspace_root=root)
+
         proposed, delta = ApplySourceFact(proposed, delta, fact)
         phase = "model-verification"
         CheckBases(root, workspace, basis, scope)

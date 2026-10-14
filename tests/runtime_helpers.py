@@ -13,6 +13,7 @@ from fuzzy1337.model import LocalModelStore
 from fuzzy1337.scope import LocalScopeStore, ScopeSnapshot
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.docker_helpers import FIXTURES, OwnedContext
+from tests.kubernetes_helpers import OwnedKubernetesContext
 
 
 def Context(parent: Path):
@@ -26,12 +27,25 @@ def Context(parent: Path):
     return root, state, host, evidence, source
 
 
-def Arguments(context, *, evidence_id: str | None = None):
+def KubernetesContext(parent: Path):
+    """Create current cluster/scope owners with an independent original owned List file."""
+
+    root, state, cluster, evidence = OwnedKubernetesContext(parent / "ws", "runtime-test")
+    LocalScopeStore(root).Create(ScopeSnapshot("owned", state.workspace_id))
+    source = parent / "list.json"
+    source.write_bytes((FIXTURES / "kubernetes-list.owned.v1.json").read_bytes())
+
+    return root, state, cluster, evidence, source
+
+
+def Arguments(context, *, evidence_id: str | None = None, profile: str = "docker-inspect"):
     """Declare current exact owner bases and explicit consent or original retained selection."""
 
-    root, _, host, _, source = context
-    arguments = ["import", "docker-inspect", str(root), "--host", host.Reference(),
-        "--scope", "owned", "--run", "run:owned-inspect", "--expected-revision",
+    root, _, anchor, _, source = context
+    flag = "--host" if profile == "docker-inspect" else "--cluster"
+    run = "run:owned-inspect" if profile == "docker-inspect" else "run:owned-kubernetes"
+    arguments = ["import", profile, str(root), flag, anchor.Reference(),
+        "--scope", "owned", "--run", run, "--expected-revision",
         str(LocalModelStore(root).Open().revision), "--expected-workspace-revision",
         str(LocalWorkspaceStore(root).Open().revision)]
 
