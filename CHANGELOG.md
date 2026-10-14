@@ -131,6 +131,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   evidence. Cancellation drains workers and commit waiters; budgets and failures
   preserve actual partial state and original response facts.
 
+- Added explicit HTML and JUnit product report exports through existing pure
+  renderers and verified saved snapshots, retaining source failure, triage,
+  byte quotas and no-clobber/post-publication acknowledgement facts.
+
 - Added explicit saved-workspace `report export` for bounded JSON and SARIF,
   owner-verifying every retained raw evidence reference and preserving failed
   execution, uncertainty and actual no-clobber publication outcomes.

@@ -12,4 +12,8 @@ Foreground `scan config` uses the same explicit five-case configuration adapter
 as the CLI. Product command arguments remain excluded from persisted history;
 shell selection never supplies source paths, scope or SAFE approval.
 
+Foreground `report export` also admits explicit HTML and JUnit formats through
+the same owner-verified snapshot and publication consumer as JSON and SARIF.
+Shell context never supplies missing input or destination selections.
+
 ::: fuzzy1337.shell

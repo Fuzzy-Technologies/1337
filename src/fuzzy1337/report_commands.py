@@ -24,7 +24,7 @@ from fuzzy1337.evidence import (
     LocalEvidenceStore,
 )
 from fuzzy1337.model import LocalModelStore, Relation, SecurityObject
-from fuzzy1337.report_formats import SerializeJson, SerializeSarif
+from fuzzy1337.report_formats import RenderHtml, SerializeJson, SerializeJunit, SerializeSarif
 from fuzzy1337.reporting import MAX_REPORT_BYTES, ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.scope import LocalScopeStore
 from fuzzy1337.workspace import (
@@ -362,7 +362,7 @@ def ReportParser() -> argparse.ArgumentParser:
     parser = ReportArgumentParser(prog="1337 report", add_help=False)
     parser.add_argument("action", choices=("export",))
     parser.add_argument("workspace", type=Path)
-    parser.add_argument("--format", choices=("json", "sarif"), required=True)
+    parser.add_argument("--format", choices=("json", "sarif", "html", "junit"), required=True)
     parser.add_argument("--output", type=Path, required=True)
 
     return parser
@@ -421,9 +421,17 @@ def RunReportCommands(
             "checked_model_evidence_references": len(original.report.EvidenceReferences()),
         })
         phase = "rendering"
-        payload = SerializeJson(original.report) if options.format == "json" else (
-            SerializeSarif(original.report)
-        )
+
+        if options.format == "html":
+            payload = RenderHtml(original.report)
+
+        elif options.format == "junit":
+            payload = SerializeJunit(original.report)
+
+        else:
+            payload = SerializeJson(original.report) if options.format == "json" else (
+                SerializeSarif(original.report)
+            )
 
         if len(payload) > MAX_REPORT_BYTES:
             raise ReportFailure("limit")

@@ -531,7 +531,9 @@ class InteractiveShell(cmd.Cmd):
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
-            "report": "report export <workspace>: verify and export saved JSON or SARIF.",
+            "report": (
+                "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
+            ),
             "scan": (
                 "scan <quick|nuclei|image|config> <workspace>: run explicitly governed scans; "
                 "config requires --profile synthetic and complete selected source/consent inputs."

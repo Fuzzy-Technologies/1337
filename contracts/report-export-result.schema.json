@@ -13,7 +13,7 @@
     "schema_version": {"const": 1},
     "command": {"const": "report.export"},
     "status": {"enum": ["completed", "failed"]},
-    "format": {"enum": ["json", "sarif", null]},
+    "format": {"enum": ["json", "sarif", "html", "junit", null]},
     "model_revision": {"type": ["integer", "null"], "minimum": 0},
     "snapshot_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
     "report_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
@@ -34,7 +34,7 @@
       "if": {"properties": {"status": {"const": "completed"}}},
       "then": {
         "properties": {
-          "format": {"enum": ["json", "sarif"]},
+          "format": {"enum": ["json", "sarif", "html", "junit"]},
           "model_revision": {"type": "integer"},
           "snapshot_sha256": {"type": "string"},
           "report_sha256": {"type": "string"},
