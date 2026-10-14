@@ -93,6 +93,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Unsupported kinds, including Secret, fail before normalization; effective
   permissions, aggregation, CNI enforcement and reachability remain unknown.
   Live discovery and full privilege validation remain separate work.
+- Added Experimental `runtime import kubernetes-list` with an explicit existing
+  cluster ASSET, owned-file consent or exact retained-manifest selection, and
+  unchanged SDK/model/workspace owners. Profile/cluster preflight precedes raw
+  reads; original acquisition identities, triage and portable replay preserve
+  three independent acknowledgements. Legacy Docker custody stays byte-compatible;
+  nominal RBAC, configured associations and unassessed access remain UNKNOWN.
 - Added selected-read-consent artifact capture, canonical input/scanner/material
   manifests, guarded staging and governed execution of closed synthetic workers.
   Native scanner profiles remain metadata-only until actual tool acceptance.

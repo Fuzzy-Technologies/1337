@@ -59,7 +59,9 @@ def test_NoArgumentsDescribeBootstrap(capsys):
     assert "1337 shell" in output.out, "no arguments describe bootstrap invariant failed."
     assert "1337 doctor" in output.out, "no arguments describe bootstrap invariant failed."
     assert "1337 demo local" in output.out, "Help must expose the actual local demo command."
-    assert "1337 runtime import docker-inspect" in output.out, "Help must expose owned import."
+    assert "1337 runtime import <docker-inspect|kubernetes-list>" in output.out, (
+        "Help must expose explicit owned import profiles"
+    )
     assert not output.err, "no arguments describe bootstrap invariant failed."
 
 
