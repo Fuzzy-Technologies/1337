@@ -265,7 +265,7 @@ def PreflightKnownRuntimeReferences(state: ModelState, workspace: WorkspaceState
         original_facts = custody.get(evidence_id, [])
 
         if any(fact.attributes["profile"] != reference.role for fact in original_facts):
-            raise RuntimeFailure("integrity")
+            raise RuntimeFailure("source-context" if reference.role in _PROFILES else "integrity")
 
         if reference.role not in _PROFILES:
             continue
