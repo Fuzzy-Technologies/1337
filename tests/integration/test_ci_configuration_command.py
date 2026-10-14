@@ -409,8 +409,7 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
 
         elif mode == "foreign-manifest":
             manifest = capture.outcome.manifests[0]
-            foreign = ForeignManifest(manifest.profile, manifest.role, manifest.files,
-                                      manifest.schema_version)
+            foreign = ForeignManifest(manifest.profile, manifest.role, manifest.files)
             object.__setattr__(capture.outcome, "manifests",
                                (foreign, *capture.outcome.manifests[1:]))
 
@@ -464,7 +463,10 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
     ), "Foreign methods must not dispatch, and failed proof cannot publish later report formats"
 
 
-def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(tmp_path, monkeypatch):
+@pytest.mark.parametrize("kind", ["record", "manifest"])
+def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(
+    tmp_path, monkeypatch, kind
+):
     """A correctly constructed equivalent foreign manifest fails at the actual typed gate."""
 
     root, selection, _ = LiveConfiguration(tmp_path)
@@ -476,18 +478,51 @@ def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(tmp_pat
     model = LocalModelStore(root).Open()
     records = tuple(item.evidence for item in summary.snapshot.artifacts)
     source = records[0]
+    forbidden_calls = []
 
     class ForeignRecord(EvidenceRecord):
         """A correctly initialized alternative implementation cannot borrow manifest authority."""
 
-    foreign = ForeignRecord(source.reference, source.provenance, source.schema_version)
-    assert foreign.evidence_id == source.evidence_id and foreign.ToDict() == source.ToDict(), (
-        "Foreign specimen construction succeeds and preserves the same canonical manifest bytes"
-    )
-    altered = (foreign, *records[1:])
+    class ForeignManifest(ArtifactManifest):
+        """A correctly constructed selected manifest cannot dispatch foreign serialization."""
+
+        def ToDict(self):
+            """Trip foreign serializer dispatch after controlled specimen construction."""
+
+            forbidden_calls.append("manifest-serializer")
+
+            raise AssertionError("Foreign selected-manifest serializer cannot execute")
+
+        def Digest(self):
+            """Trip foreign digest dispatch before the actual capture boundary refuses its type."""
+
+            forbidden_calls.append("manifest-digest")
+
+            raise AssertionError("Foreign selected-manifest digest cannot execute")
+
+    capture = summary.captures[0]
+    expected_error = "exact original acquisition contracts"
+    altered = records
+
+    if kind == "record":
+        foreign = ForeignRecord(source.reference, source.provenance, source.schema_version)
+        assert foreign.evidence_id == source.evidence_id and foreign.ToDict() == source.ToDict(), (
+            "Foreign record construction succeeds with the same canonical acquisition bytes"
+        )
+        altered = (foreign, *records[1:])
+
+    else:
+        manifest = capture.outcome.manifests[0]
+        foreign_manifest = ForeignManifest(manifest.profile, manifest.role, manifest.files)
+        assert ArtifactManifest.ToDict(foreign_manifest) == manifest.ToDict(), (
+            "Foreign selected-manifest construction succeeds with the same canonical source fields"
+        )
+        object.__setattr__(capture.outcome, "manifests",
+                           (foreign_manifest, *capture.outcome.manifests[1:]))
+        expected_error = "exact original selected manifests"
+
     criterion = CiFindingCriterion((FindingSeverity.HIGH,), (FindingStatus.OPEN,), 0, True)
     pin = ReportSnapshot(model).SnapshotDigest()
-    forbidden_calls = []
 
     def Forbidden(*_args, **_kwargs):
         """Trip any owning read or fresh authority lookup after exact foreign type refusal."""
@@ -501,8 +536,8 @@ def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(tmp_pat
     monkeypatch.setattr(LocalEvidenceStore, "Read", Forbidden)
     monkeypatch.setattr(GovernedArtifactExecutor, "ValidateAcceptanceFresh", Forbidden)
 
-    with pytest.raises(ValueError, match="exact original acquisition contracts"):
-        commands.EvaluateConfigurationCriterion(model, summary.captures[0], altered, root,
+    with pytest.raises(ValueError, match=expected_error):
+        commands.EvaluateConfigurationCriterion(model, capture, altered, root,
             expected_snapshot_sha256=pin, criterion=criterion, context_provider=Forbidden)
 
     assert not forbidden_calls, "Foreign acquisition is refused before storage or authority reads"
