@@ -9,7 +9,8 @@ all classes, methods, functions and helpers, including `RuntimeParser` and
 `ReadOwnedInspect`, `CheckBases`, `SourceFact`, `ApplySourceFact` and
 `ReferenceProposal`, `RuntimeProfile`, `RequireRuntimeAnchor` and
 `RuntimeEvidenceStore.CheckReference`, `.Manifest` and `.Get` keep that same
-implementation status. The profile lookup is closed; it is not an extension or
+implementation status. `PreflightKnownRuntimeReferences` is also Internal.
+The profile lookup is closed; it is not an extension or
 native discovery interface.
 
 Import requires an existing workspace/model, explicit profile anchor, existing
@@ -34,6 +35,24 @@ verification; owning Get still verifies canonical identity and complete bytes.
 Docker keeps role `docker-inspect`, source `inventory.docker-inspect` and version
 `owned-docker-container-inspect-v1`. Kubernetes keeps role `kubernetes-list`, source
 `inventory.kubernetes-list` and version `owned-kubernetes-list-v1`.
+
+`PreflightKnownRuntimeReferences` runs in both source modes before generic
+workspace/report evidence verification. It scans workspace manifest IDs,
+custody IDs left after a confirmed model save and lost workspace acknowledgement,
+and retained workspace/model raw references. Metadata-only preflight binds
+every custody-declared original ID to its old profile before role classification.
+A different role cannot reclassify that original as unrelated evidence.
+The unchanged `SourceFact` validator checks its original source
+hash/version, scope/time/provider, run, read descriptions and existing anchor.
+Legacy null read descriptions remain valid; older originals keep their own
+scope/provider context independently of the current selection.
+
+`RuntimeEvidenceStore.CheckReference` checks exact profile role, JSON media,
+the one-MiB ceiling, canonical locator/digest and actual singly linked physical
+size before raw access. All aliases sharing a known original's digest or locator
+must match its canonical reference, including role/media/size/hash. Unrelated
+larger non-runtime originals retain their existing owner's limits. Budget
+preflight performs no custody adoption, scope mutation or execution authorization.
 
 Original file acquisition admits one physical singly linked regular file,
 non-following parent checks, the existing one-MiB byte ceiling plus one overflow

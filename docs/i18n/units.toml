@@ -9237,7 +9237,18 @@ state = "missing"
 id = "page:api.fuzzy1337.runtime-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.runtime_commands.md"
-sourceHash = "sha256:5b4d2736441d6c445458d1da87c5a6ccf1f506d7553c0d38fe64a0e1b504434c"
+sourceHash = "sha256:0f699ac9478b591a8f097a2520d7d738cd02a1e91a38cdfb45630657a3ab56cf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.runtime_commands.PreflightKnownRuntimeReferences"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/runtime_commands.py"
+sourceHash = "sha256:b175452d8944737fefa064d5aded9334b7349ecde8994ae073fe9a26c0366f0b"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9259,7 +9270,7 @@ state = "missing"
 id = "symbol:fuzzy1337.runtime_commands.RuntimeEvidenceStore.CheckReference"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/runtime_commands.py"
-sourceHash = "sha256:4df8b3e265bb0b0799edb7f71d81b0ee3a95ddc2eb9ecf1b4753d65280a37840"
+sourceHash = "sha256:e3ad1e9763d2d5280b03eb2e2aa8d8baac899b6cc7911453685bcc5c91560232"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
