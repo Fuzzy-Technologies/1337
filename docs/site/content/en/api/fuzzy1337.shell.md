@@ -9,8 +9,10 @@ and empty-line replay retains only the canonical namespace. Quoted Windows
 paths preserve spaces and backslashes through the shared argument parser.
 
 Foreground `ci scan` preserves explicit CLI arguments and predicate/failure exit
-statuses. CI input paths and criteria are excluded from persisted/replayed
-argument history before the owning consumer executes.
+statuses for the three selected closed configuration/image profiles. Shell help
+and dispatch provide no source/archive selection, SAFE approval, scope or
+completeness acknowledgement. CI input paths and criteria are excluded from
+persisted/replayed argument history before the owning consumer executes.
 
 The interactive shell shares the explicit local intelligence commands with the
 product CLI. Intelligence command arguments are excluded from persisted history;

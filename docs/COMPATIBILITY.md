@@ -156,6 +156,18 @@ report exports share the same snapshot pin and retain partial-publication truth.
 No severity ranking, aggregate risk, reachable-risk criterion, native execution
 grant or Core schema change is introduced. `fuzzy1337.ci_commands` is Internal.
 
+The version-one `synthetic-image` CI profile extends the same explicit predicate
+with original separate VERSION/SCAN captures, six immutable execution acquisitions,
+exact source-derived saved inventory/detections and fresh paired acceptance.
+`EvaluateImageCriterion` is an additive Experimental `fuzzy1337.ci_gate` surface.
+The original JSON export's complete model pin and published-payload digest remain
+distinct. Full reports preserve triage and historical/unrelated findings; only
+current original SCAN detections enter the criterion. The Internal image summary
+adds an optional trailing typed capture tuple in memory; prior positional fields
+and detached JSON/operation summaries remain compatible. Cross-profile input and
+SAFE approval options are refused before execution. Completeness stays
+`not-assessed`; no native execution, scoring, reachability or Core change is added.
+
 The report libraries retain their existing contracts:
 ADR 0039 and `docs/REPORTING.md` define report projection schema `1`, SARIF `2.1.0`,
 and a version-1 JUnit adapter. Reports preserve canonical state and do not imply
