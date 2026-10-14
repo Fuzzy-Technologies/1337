@@ -1,5 +1,13 @@
 # fuzzy1337.shell
 
+Foreground `api import graphql-introspection` forwards explicit quoted selections
+to the Internal API handler and preserves its actual terminal status. Shell
+context supplies no endpoint, scope, source, run, read consent or revision basis.
+The complete `api` namespace, including malformed input, is protected from local/
+native argument history and empty-line replay before dispatch. Original acquisition
+and independent model/workspace acknowledgements retain their owning semantics;
+the shell adds no request preview, transport or execution authority.
+
 Foreground `trace ioc import|inspect` forwards explicit quoted arguments to the
 Internal IOC handler and preserves its actual terminal status. Shell context
 supplies no missing file, source, scope, read consent, snapshot or original receipt

@@ -64,6 +64,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added bounded owned GraphQL introspection import, typed root operations and
   source-bound query/mutation previews using existing model and exact scope
   contracts. Subscription metadata grants no execution permission.
+- Added explicit `api import graphql-introspection` CLI and foreground shell
+  import of an owned original file or known original evidence custody. Exact
+  endpoint/scope/revision selections, bounded unredacted acquisition, occupied
+  collection refusal and independent evidence/model/workspace acknowledgements
+  preserve source attribution without introspection requests or execution grants.
 - Added attributed offline reachability states and deterministic bounded path
   search over selected model relations, with explicit conflicts and truncation.
 - Added explainable path participation, sample removal leverage, independently

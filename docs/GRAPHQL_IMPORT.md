@@ -91,3 +91,71 @@ See [ADR 0065](adr/0065-bounded-graphql-introspection-import.md) and the owned
 fixture in `tests/contract/fixtures/graphql_introspection.owned.json`. Focused
 tests exercise independent JSON/GraphQL preview oracles, real source/evidence
 replay and model save/reopen/relocation, exact scope denials and resource failures.
+
+## Owned original-file product import
+
+The Experimental v1 product route imports structural metadata through existing
+workspace, scope, evidence and model owners. Set up an owned workspace/model and
+an existing scope with explicit consent, registered exact endpoint and allow
+rules before importing. The command neither fetches introspection nor generates
+or sends a request.
+
+```text
+1337 --json api import graphql-introspection OWNED_WORKSPACE
+  --file OWNED_INTROSPECTION.json --owner actor:owned
+  --read-consent-reference consent:original-file
+  --endpoint http://127.0.0.1:8080/graphql --scope owned
+  --run run:owned-graphql
+  --expected-revision MODEL_REV --expected-workspace-revision WS_REV
+```
+
+This wrapped example describes one command. Quote paths according to your shell
+and supply the actual current independent revisions. The endpoint is mandatory,
+concrete and query-free; source contents supply no endpoint or scope authority.
+Read actor/consent references describe explicit artifact-read consent, separately
+from existing endpoint scope consent. These references are not verified
+signatures and never become an execution grant.
+
+The selected original file must be regular, singly linked and physically stable
+within the 512 KiB SDK limit. Original bytes are retained unredacted: descriptions,
+default literals and other unsupported contents can remain in evidence even when
+normalization fails. Select only an owned source appropriate for that retention.
+Summaries contain digests, counts and storage acknowledgements; they omit source
+contents, the physical filename and rejected argument values.
+
+An Endpoint with no API collection can receive its first description. An already
+occupied Endpoint requires exactly matching canonical `request_templates` and
+`graphql_import` values. Partial/incompatible collections are refused before
+model write; the route supplies no refresh or multi-source merge. Unrelated
+attributes, provenance and UNKNOWN values are preserved. Structural mutation/
+subscription descriptions produce neither findings nor execution permission.
+
+Successful output identifies the original acquisition as `evidence_id`, distinct
+from `source_sha256`. Replay selects that exact known original custody:
+
+```text
+1337 --json api import graphql-introspection OWNED_WORKSPACE
+  --evidence sha256:ORIGINAL_MANIFEST_DIGEST
+  --endpoint http://127.0.0.1:8080/graphql --scope owned
+  --run run:owned-graphql
+  --expected-revision MODEL_REV --expected-workspace-revision WS_REV
+```
+
+Replay requires unchanged original endpoint/run/scope and current exact scope
+membership. It accepts no file-read/provider/session overrides. A bare compatible
+SDK manifest without this product's known original custody is refused. Moving
+the workspace and deleting the external input do not affect retained replay.
+Equivalent raw bytes from separate acquisitions retain distinct manifests and
+custody; exact known-source replay preserves stored owner bytes. Changed original
+formatting changes source identity and is refused on an occupied Endpoint.
+
+`acquisition_commit`, `model_commit` and `workspace_commit` are independent:
+`confirmed` acknowledges that owner, `not-attempted` means its boundary was not
+entered, `not-committed` reports a known lock/revision refusal, and `unknown`
+reports a lost acknowledgement. An unknown result may already have committed.
+Reopen the real owners and use current revisions; do not assume rollback or retry
+as a new acquisition. Known retained custody can complete workspace references
+after an earlier model commit. No cross-store atomic transaction is claimed.
+
+See [ADR 0081](adr/0081-owned-offline-graphql-product-import.md). Python command
+helpers are Internal; SDK parsing/projection and request schemas are unchanged.
