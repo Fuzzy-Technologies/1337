@@ -158,6 +158,12 @@ no-clobber output and terminal publication truth. Export success never establish
 scan completeness or upgrades failed source execution. `fuzzy1337.report_commands`
 is Internal CLI implementation and adds no public authoritative store.
 
+ADR 0077 adds explicit `html` and `junit` product export selections alongside
+JSON/SARIF over the same verified saved snapshot. The schema-1 command outcome
+format enum grows additively; accepted renderers, source failure/triage semantics,
+quotas and publication truth remain unchanged. A successfully published JUnit
+report may contain failure cases; export success is not a finding or CI gate.
+
 `fuzzy1337.evidence` is an Experimental local storage API and manifest schema
 at version `1`. ADR 0020 defines immutable content/provenance identities;
 [`docs/EVIDENCE.md`](EVIDENCE.md) defines the supported API and integrity/storage
