@@ -117,6 +117,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Preserved native VERSION verification across distinct Windows path/handle stat
+  views while retaining full unchanged-view identity, byte bounds and digest checks.
+
 - Reject historical synthetic-image pairs that reuse one physical marker,
   including coherently rehashed captures with changed snapshot attributes.
 
