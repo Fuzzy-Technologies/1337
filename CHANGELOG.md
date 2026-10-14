@@ -136,6 +136,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added explicit local `intel import|inspect|apply` CLI and shell workflows for
   original snapshot/receipt verification and selected persisted Finding enrichment,
   preserving triage and reporting uncertain save acknowledgement honestly.
+- Added bounded caller-owned IOC candidate parsing for literal IPv4/IPv6, ASCII
+  DNS and SHA-256, preserving original tokens, source positions and declared times
+  with separate acquisition clocks, immutable raw/receipt/snapshot provenance and
+  portable original-byte replay. Candidates grant no incident, model or scan authority.
 
 #### Fixed
 
