@@ -3,6 +3,7 @@
 
 """Tests for cli behavior."""
 
+import json
 import runpy
 import sys
 from importlib.metadata import version
@@ -58,6 +59,7 @@ def test_NoArgumentsDescribeBootstrap(capsys):
     assert "1337 shell" in output.out, "no arguments describe bootstrap invariant failed."
     assert "1337 doctor" in output.out, "no arguments describe bootstrap invariant failed."
     assert "1337 demo local" in output.out, "Help must expose the actual local demo command."
+    assert "1337 runtime import docker-inspect" in output.out, "Help must expose owned import."
     assert not output.err, "no arguments describe bootstrap invariant failed."
 
 
@@ -342,3 +344,44 @@ def test_LocalDemoTopLevelDispatchHasExplicitApprovalAndSelectedHelp(tmp_path, c
     assert Main(["demo", "local", str(root), "--json"]) == 3, "Default demo must fail closed."
     assert '"state": "denied"' in capsys.readouterr().out, "JSON must describe the actual denial."
     assert not root.exists(), "A displayed plan must not create a filesystem root."
+
+
+@pytest.mark.parametrize("status", [0, 2, 4, 130])
+def test_RuntimeRoutePreservesExplicitArgumentsOutputAndHandlerStatus(monkeypatch, capsys, status):
+    """Actual top-level registration delegates exact supplied values without ambient authority."""
+
+    from fuzzy1337 import runtime_commands
+
+    calls = []
+
+    def RunRuntimeCommands(arguments, output, *, json_output):
+        """Observe exact registration forwarding without opening a workspace or source."""
+
+        calls.append((arguments, json_output))
+        output.write("owned-runtime-outcome\n")
+
+        return status
+
+    monkeypatch.setattr(runtime_commands, "RunRuntimeCommands", RunRuntimeCommands)
+    assert Main(["runtime", "import", "docker-inspect", "explicit workspace", "--json"]) == (
+        status
+    ), "Registered runtime route replaced the actual handler status"
+    assert calls == [(["import", "docker-inspect", "explicit workspace"], True)], (
+        "Registration inferred, omitted or reordered explicit caller selections"
+    )
+    assert capsys.readouterr().out == "owned-runtime-outcome\n", "Registered outcome was changed"
+
+
+def test_RuntimeRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
+    """Static import help and safe invalid grammar are available before workspace setup."""
+
+    assert Main(["runtime", "import", "--help"]) == 0, "Runtime static help failed"
+    help_text = capsys.readouterr().out
+    assert "--read-consent-reference" in help_text and "--expected-workspace-revision" in (
+        help_text
+    ), "Runtime help omitted the explicit original source and owner bases"
+    assert Main(["runtime", "SYNTHETIC_PRIVATE_MARKER", "--json"]) == 2, "Unknown profile passed"
+    output = capsys.readouterr()
+    assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
+        "SYNTHETIC_PRIVATE_MARKER" not in output.out
+    ), "Registered grammar refusal exposed rejected values"
