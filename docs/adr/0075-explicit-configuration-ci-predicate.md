@@ -36,6 +36,34 @@ proof, failed storage acknowledgements, rendering/publication failure and curren
 authority refusal cannot produce exit zero. Partial output publication is
 reported per artifact without changing original scan facts.
 
+## Closed image profile extension
+
+The explicit `synthetic-image` profile reuses the accepted separate VERSION/SCAN
+workflow, with the same caller-selected predicate and report owners. Archive,
+runtime, reviewed worker, material, scope, owner, read consent and image SAFE
+opt-in remain explicit. Configuration-only source/logical-path/approval options
+and image-only archive/approval options are refused in the other profile before
+execution or report publication.
+
+The owning workflow returns both original typed `ImageOperationCapture` records
+in an Internal-only field after existing summary fields. Detached operation
+summaries and JSON do not expose or reconstruct the original grant, stage or
+prerequisite. The gate verifies all six original execution acquisitions, both
+unchanged envelopes and streams, original VERSION prerequisite, and current
+paired acceptance through the existing SDK. It reconstructs the existing image
+owner's inventory, relations, observations and finding detections from these
+original bytes and requires their exact current saved proof and complete model
+digest. Original native-namespace and unrelated historical facts remain intact;
+only current original synthetic SCAN detections enter the criterion, retaining
+authoritative operator triage. Proven current no-findings inventory does not
+resolve or select historical detections.
+
+The final publication barrier checks the complete snapshot and fresh paired
+acceptance again. Failed execution, storage acknowledgement, changed saved basis
+or current authority cannot produce zero. This extension adds no scanner,
+synthetic-to-native promotion, image daemon contact, database freshness claim,
+reachability assessment or native execution authority.
+
 ## Terminal status
 
 | Exit | Meaning                                                                |

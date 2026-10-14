@@ -154,6 +154,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   current-run finding predicates and exact-snapshot JSON/SARIF/JUnit publication.
   Completeness acknowledgement is required; partial exports and failed proof
   remain nonzero, without aggregate scoring or inferred reachable-risk claims.
+- Added the explicit closed `synthetic-image` CI profile over original separate
+  VERSION/SCAN captures, six execution acquisitions and fresh paired acceptance.
+  Exact saved inventory and current detections precede the selected predicate;
+  full reports preserve triage/history and distinguish the canonical model pin
+  from published JSON bytes, with honest storage and publication outcomes.
 
 - Added bounded intelligence snapshot import and pinned CISA KEV mirror
   acquisition, observed receiver times, immutable original/partial evidence and

@@ -1,10 +1,10 @@
-# Explicit configuration CI scan
+# Explicit synthetic CI scan
 
-`1337 ci scan` runs one explicitly selected accepted synthetic configuration
+`1337 ci scan` runs one explicitly selected accepted synthetic configuration or image
 profile, saves its canonical model and evidence, evaluates a caller-selected
 finding predicate, and publishes JSON, SARIF and JUnit from the same saved
-snapshot. The first profiles are `synthetic-dockerfile` and
-`synthetic-kubernetes`. They use the reviewed closed fixture family; they do not
+snapshot. Profiles are `synthetic-dockerfile`, `synthetic-kubernetes` and
+`synthetic-image`. They use reviewed closed fixture families; they do not
 provide native configuration or reachable-risk acceptance.
 
 The workspace and artifact scope must already exist. The current recorded owner,
@@ -34,6 +34,35 @@ shape is:
   --report-sarif /owned/reports/configuration.sarif \
   --report-junit /owned/reports/configuration.xml --json
 ```
+
+The image profile selects an existing owned archive and uses the accepted
+separate VERSION then SCAN workflow. Its explicit command shape is:
+
+```bash
+1337 ci scan /owned/workspace \
+  --profile synthetic-image --archive /owned/selected/image.tar \
+  --executable /owned/runtime/python \
+  --producer /owned/reviewed/image-producer.py \
+  --material /owned/selected/policy.json \
+  --scope image-scope --owner owner:local \
+  --read-consent-reference read:image --approve-safe-image \
+  --severity high --severity critical --status open --status confirmed \
+  --max-matches 0 --acknowledge-unassessed-completeness \
+  --report-json /owned/reports/image.json \
+  --report-sarif /owned/reports/image.sarif \
+  --report-junit /owned/reports/image.xml --json
+```
+
+For `synthetic-image`, `--archive` and the explicit image SAFE opt-in belong to
+this profile. Configuration profiles require `--source`, `--logical-path` and
+their independent configuration SAFE opt-in. Cross-profile source/approval
+arguments fail before launch. The image gate uses both original typed captures,
+six original execution acquisitions, exact original VERSION prerequisite, and
+current paired grant acceptance. Detached operation summaries cannot substitute
+for this proof. Exact source-derived image inventory, relationships and
+observations must exist in the complete saved model. No image build, daemon,
+registry contact, native scan, implicit database update or reachability rule is
+introduced. The final output barrier verifies current paired acceptance again.
 
 The severity and disposition sets are required, nonempty and unique. Their
 conjunction selects matching current source findings. `--max-matches` explicitly

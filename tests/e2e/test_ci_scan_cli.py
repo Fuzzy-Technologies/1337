@@ -15,7 +15,8 @@ import pytest
 from configuration_helpers import LiveConfiguration
 
 from fuzzy1337.model import LocalModelStore
-from tests.ci_helpers import CiArguments
+from tests.ci_helpers import CiArguments, ImageCiArguments
+from tests.image_helpers import CreateOwnedImage
 
 
 @pytest.mark.parametrize("case_id,mode,expected", [
@@ -77,3 +78,50 @@ def test_RegisteredCliSubprocessPreservesActualGateAndArtifactTaxonomy(
         assert LocalModelStore(root).Open().revision == 0 and not (tmp_path / "ci.json").exists(), (
             "Invalid configuration or authority refusal cannot fabricate a saved scan or artifact"
         )
+
+
+@pytest.mark.parametrize("scenario,mode,expected", [
+    ("no_findings", "complete", 0), ("success", "complete", 1),
+    ("success", "missing-ack", 2), ("success", "missing-approval", 3),
+    ("provider_error", "complete", 4),
+])
+def test_RegisteredImageCiSubprocessPreservesPairedSourceAndTerminalTaxonomy(
+    tmp_path, scenario, mode, expected
+):
+    """The actual assembled console drives image VERSION/SCAN, reports and safe terminal output."""
+
+    owned = CreateOwnedImage(tmp_path, scenario)
+    arguments = ImageCiArguments(owned, tmp_path)
+
+    if mode == "missing-ack":
+        arguments.remove("--acknowledge-unassessed-completeness")
+
+    elif mode == "missing-approval":
+        arguments.remove("--approve-safe-image")
+
+    result = subprocess.run([sys.executable, "-m", "fuzzy1337", "ci", *arguments, "--json"],
+        cwd=tmp_path, check=False, capture_output=True, text=True, timeout=60)
+    outcome = json.loads(result.stdout)
+    assert result.returncode == expected == outcome["exit_code"] and not result.stderr, (
+        "Actual image product subprocess must preserve deterministic safe terminal categories"
+    )
+    assert outcome["scan_completeness"] == "not-assessed" and (
+        outcome["scope"] == "selected-profile-finding-predicate"
+    ), "Actual image CI cannot turn acknowledged subset satisfaction into global completeness"
+
+    if expected in {0, 1}:
+        saved = LocalModelStore(owned.root).Open()
+        exported = json.loads((tmp_path / "ci.json").read_bytes())
+        assert exported["model"] == saved.ToDict() and all(
+            item["status"] == "completed" for item in outcome["reports"].values()
+        ), "Actual image console must publish all formats from its complete durable saved model"
+        assert [item["operation"] for item in outcome["scan"]["operations"]] == (
+            ["version", "scan"]
+        ), (
+            "Two-phase original producer facts remain visible as detached operation summaries"
+        )
+
+    else:
+        assert LocalModelStore(owned.root).Open().revision == 0 and not (
+            tmp_path / "ci.json"
+        ).exists(), "Invalid, refused and failed product runs cannot fabricate success artifacts"

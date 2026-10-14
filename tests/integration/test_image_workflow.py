@@ -107,6 +107,13 @@ def test_ActualTwoOperationWorkflowPreservesNativeGraphAndProjectsExactSavedRepo
     assert len(summary.operations) == 2 and summary.operations[0]["operation"] == "version", (
         "Independent observed VERSION must precede SCAN"
     )
+    assert len(summary.captures) == 2 and [item.prepared.operation.value
+        for item in summary.captures] == ["version", "scan"], (
+        "Internal summary retains both actual original captures in their executed order"
+    )
+    assert "captures" not in summary.ToDict(), (
+        "Detached canonical summary excludes original grant, stage and prerequisite proof"
+    )
     assert set(original_bytes) <= {item.Reference() for item in saved.objects}, (
         "All original native assets and the triaged Finding must remain present"
     )

@@ -1,14 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Explicit finding predicates over verified current synthetic configuration acquisitions."""
+"""Explicit finding predicates over verified current synthetic configuration/image acquisitions."""
 
 from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import cast
 
 from fuzzy1337.adapters import (
     AdapterExecution,
@@ -16,6 +17,7 @@ from fuzzy1337.adapters import (
     EvidenceReference,
     ExecutionState,
 )
+from fuzzy1337.adapters.trivy import ParseJson
 from fuzzy1337.artifact_inputs import (
     ArtifactFile,
     ArtifactManifest,
@@ -24,13 +26,17 @@ from fuzzy1337.artifact_inputs import (
     ArtifactReadConsent,
     ArtifactRole,
     ArtifactSnapshot,
+    ArtifactStage,
 )
 from fuzzy1337.artifact_policy import (
     ArtifactAcceptance,
+    ArtifactExecutionOutcome,
     ArtifactGrant,
     ArtifactPlan,
     ArtifactPolicyContext,
+    ArtifactVersionProof,
     GovernedArtifactExecutor,
+    PreparedArtifact,
 )
 from fuzzy1337.configuration_evidence import (
     Candidates,
@@ -47,6 +53,8 @@ from fuzzy1337.executors import (
     LocalExecutionResult,
 )
 from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus
+from fuzzy1337.image_evidence import ImageOperationCapture
+from fuzzy1337.images import SyntheticTrivyCandidates
 from fuzzy1337.model import (
     LocalModelStore,
     ModelProvenance,
@@ -59,9 +67,11 @@ from fuzzy1337.model import (
 )
 from fuzzy1337.policy import RequireDigest
 from fuzzy1337.reporting import ReportSnapshot
+from fuzzy1337.synthetic_images import VerifyRecords
 from fuzzy1337.workspace import RequireWorkspaceText
 
-__all__ = ["CiFindingCriterion", "CiPredicateResult", "EvaluateConfigurationCriterion"]
+__all__ = ["CiFindingCriterion", "CiPredicateResult", "EvaluateConfigurationCriterion",
+           "EvaluateImageCriterion"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,13 +251,14 @@ def RequireModelContracts(model: ModelState) -> None:
             raise ValueError("CI model requires exact original provenance contracts")
 
 
-def RequireCaptureContracts(capture: ConfigurationOperationCapture,
-                            records: tuple[EvidenceRecord, ...]) -> None:
+def RequireCaptureContracts(capture: ConfigurationOperationCapture | ImageOperationCapture,
+                            records: tuple[EvidenceRecord, ...], *, record_count: int = 4) -> None:
     """Reject foreign nested implementations before original-record reads or callable serializers.
 
     Args:
-        capture: Original first-party configuration capture already checked for its exact type.
+        capture: Original first-party capture already checked for its exact type.
         records: Exact original source acquisitions from the owning job.
+        record_count: Exact operation-profile acquisition count supplied by this consumer.
 
     Raises:
         ValueError: An SDK/evidence nested record has a foreign runtime type or changed receipt.
@@ -256,7 +267,8 @@ def RequireCaptureContracts(capture: ConfigurationOperationCapture,
     outcome = capture.outcome
     prepared = capture.prepared
 
-    for value, expected in ((outcome.raw_result, LocalExecutionResult),
+    for value, expected in ((outcome, ArtifactExecutionOutcome), (prepared, PreparedArtifact),
+        (capture.stage, ArtifactStage), (outcome.raw_result, LocalExecutionResult),
         (outcome.grant, ArtifactGrant), (outcome.acceptance, ArtifactAcceptance),
         (prepared.invocation, AdapterInvocation),
         (prepared.capability, CapabilityDescriptor), (prepared.resources, ExecutionResources)):
@@ -298,11 +310,21 @@ def RequireCaptureContracts(capture: ConfigurationOperationCapture,
         if type(manifest.profile) is not ArtifactProfile or type(manifest.role) is not ArtifactRole:
             raise ValueError("CI capture requires exact original manifest labels")
 
-    if type(records) is not tuple or len(records) != 4 or any(
+    if type(records) is not tuple or len(records) != record_count or any(
         type(record) is not EvidenceRecord or type(record.reference) is not EvidenceReference
-        or type(record.provenance) is not EvidenceProvenance for record in records
+        or type(record.provenance) is not EvidenceProvenance
+        or record.provenance.execution is not None and (
+            type(record.provenance.execution) is not AdapterExecution
+            or type(record.provenance.execution.state) is not ExecutionState)
+        for record in records
     ):
         raise ValueError("CI capture requires exact original acquisition contracts")
+
+    for record in records:
+        if type(record.evidence_id) is not str or (
+            EvidenceRecord(record.reference, record.provenance, record.schema_version) != record
+        ):
+            raise ValueError("CI acquisition differs from its reconstructed original manifest")
 
     outcome.__post_init__()
 
@@ -405,3 +427,146 @@ def EvaluateConfigurationCriterion(
 
     return EvaluatePredicate(rebuilt_model, tuple(selected), criterion, expected_snapshot_sha256,
                              capture.outcome.run_id)
+
+
+def EvaluateImageCriterion(
+    model: ModelState, captures: tuple[ImageOperationCapture, ...],
+    records: tuple[EvidenceRecord, ...], workspace_root: Path, *,
+    expected_snapshot_sha256: str, criterion: CiFindingCriterion,
+    context_provider: Callable[[], ArtifactPolicyContext],
+) -> CiPredicateResult:
+    """Verify both original image operations and exact saved source facts before predicate use.
+
+    Args:
+        model: Exact owner-read complete saved model matching the original JSON export pin.
+        captures: Original typed VERSION then SCAN captures, never detached summary operations.
+        records: Six original immutable operation acquisitions from the actual owning job.
+        workspace_root: Existing owner of saved model, acquisitions and original physical stages.
+        expected_snapshot_sha256: Complete original saved model digest, not revision alone.
+        criterion: Caller-selected severity/disposition conjunction, bound and acknowledgement.
+        context_provider: Fresh scope/owner/policy lookup for original paired grant acceptance.
+
+    Returns:
+        Criterion truth for only original current SCAN detections with authoritative saved triage.
+        Absent and unrelated historical detections remain facts of the full report snapshot.
+
+    Raises:
+        ValueError: Exact nested contracts, original pair, saved pin or source proof disagree.
+        ArtifactDeniedError: Either original operation is no longer currently acceptable.
+        EvidenceError: Original owning manifests or retained streams fail verification.
+        OSError: Current owning storage cannot be read.
+    """
+
+    if type(model) is not ModelState or type(captures) is not tuple or len(captures) != 2 or (
+        any(type(item) is not ImageOperationCapture for item in captures)
+        or type(criterion) is not CiFindingCriterion or type(expected_snapshot_sha256) is not str
+    ):
+        raise ValueError("CI image gate requires exact original paired contracts")
+
+    criterion.__post_init__()
+    RequireDigest(expected_snapshot_sha256)
+
+    for capture in captures:
+        RequireCaptureContracts(capture, records, record_count=6)
+        reconstructed = ImageOperationCapture(capture.outcome, capture.prepared, capture.stage,
+            capture.started_at, capture.finished_at)
+
+        if reconstructed != capture:
+            raise ValueError("CI image capture differs from its reconstructed contract")
+
+    version, scan = captures
+
+    if (version.prepared.operation, scan.prepared.operation) != (
+        ArtifactOperation.VERSION, ArtifactOperation.SCAN
+    ):
+        raise ValueError("CI image gate requires original VERSION before SCAN")
+
+    proof = scan.prepared.version_proof
+
+    if version.prepared.version_proof is not None or type(proof) is not ArtifactVersionProof or (
+        type(proof.outcome) is not ArtifactExecutionOutcome
+        or type(proof.prepared) is not PreparedArtifact or type(proof.stage) is not ArtifactStage
+        or (proof.outcome, proof.prepared, proof.stage) != (
+            version.outcome, version.prepared, version.stage)
+    ):
+        raise ValueError("CI image gate requires this exact original VERSION prerequisite")
+
+    RequireModelContracts(model)
+    rebuilt_model = ModelState.FromDict(model.ToDict())
+
+    if rebuilt_model != model or ReportSnapshot(rebuilt_model).SnapshotDigest() != (
+        expected_snapshot_sha256
+    ) or LocalModelStore(workspace_root).Open() != rebuilt_model:
+        raise ValueError("CI image gate requires the complete exact current saved snapshot")
+
+    facts, original_version, original_scan = VerifyRecords(records, workspace_root)
+
+    if facts.workspace_id != rebuilt_model.workspace_id or (
+        facts.scan_acceptance.refusal is not None
+    ):
+        raise ValueError("CI image gate requires its successful original owned SCAN")
+
+    for capture, original in ((version, original_version), (scan, original_scan)):
+        if original.envelope != capture.Envelope() or (
+            original.stdout != capture.outcome.raw_result.stdout
+            or original.stderr != capture.outcome.raw_result.stderr
+        ):
+            raise ValueError("CI image acquisitions differ from these exact original captures")
+
+    GovernedArtifactExecutor(workspace_root).ValidatePairAcceptanceFresh(
+        (version.outcome, version.prepared, version.stage),
+        (scan.outcome, scan.prepared, scan.stage), context_provider)
+    version_payload = ParseJson(original_version.stdout, 16 * 1024)
+    candidates = SyntheticTrivyCandidates(rebuilt_model.workspace_id,
+        ParseJson(original_scan.stdout, 4 * 1024 * 1024), version_payload,
+        cast(dict[str, object], version_payload["VulnerabilityDB"]), facts.provenance)
+    objects, relations, observations, findings = candidates
+    saved_objects = {item.Reference(): item for item in rebuilt_model.objects}
+    saved_relations = {item.Reference(): item for item in rebuilt_model.relations}
+    entities: tuple[SecurityObject | Relation, ...] = (*objects, *relations)
+
+    for entity in entities:
+        saved: SecurityObject | Relation | None = saved_objects.get(entity.Reference()) if (
+            isinstance(entity, SecurityObject)
+        ) else saved_relations.get(entity.Reference())
+
+        if saved is None or saved.attributes != entity.attributes or (
+            facts.provenance not in saved.provenance
+        ):
+            raise ValueError("CI image gate has no exact saved current inventory proof")
+
+    for observation in observations:
+        if observation.kind == "image-inventory":
+            observation = replace(observation, attributes={**observation.attributes,
+                "scan_completeness": "not-assessed"})
+
+        if observation not in rebuilt_model.observations:
+            raise ValueError("CI image gate has no exact saved current source observation")
+
+    selected = []
+
+    for candidate in findings:
+        reference = candidate.ToObject(rebuilt_model.workspace_id).Reference()
+        saved_finding = saved_objects.get(reference)
+        detection = Observation("finding-detection", reference, candidate.ToAttributes(),
+                                facts.provenance)
+
+        if saved_finding is None or facts.provenance not in saved_finding.provenance or (
+            detection not in rebuilt_model.observations
+        ):
+            raise ValueError("CI image gate has no exact saved current detection proof")
+
+        current = Finding.FromObject(saved_finding)
+        attributes, expected = current.ToAttributes(), candidate.ToAttributes()
+
+        for field_name in ("status", "status_reason"):
+            attributes.pop(field_name)
+            expected.pop(field_name)
+
+        if attributes != expected:
+            raise ValueError("CI saved image interpretation differs from original source facts")
+
+        selected.append(current)
+
+    return EvaluatePredicate(rebuilt_model, tuple(selected), criterion, expected_snapshot_sha256,
+                             scan.outcome.run_id)

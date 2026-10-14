@@ -18,7 +18,8 @@ from fuzzy1337.ci_commands import RequireSummary, RunCiCommands
 from fuzzy1337.configuration_workflow import ConfigurationReportOutcome, ConfigurationScanSummary
 from fuzzy1337.jobs import JobSnapshot, JobSpec, JobState
 from fuzzy1337.report_commands import ReportFailure
-from tests.ci_helpers import CiArguments, InvokeCi
+from tests.ci_helpers import CiArguments, ImageCiArguments, InvokeCi
+from tests.image_helpers import CreateOwnedImage
 
 
 @pytest.mark.parametrize("mode", ["ack", "severity", "status", "negative", "large", "timeout",
@@ -168,3 +169,51 @@ def test_HelpAndHumanOutputUseTheSameExplicitContract():
     assert "invalid-sensitive-value" not in output.getvalue() and "not assessed" in (
         output.getvalue()
     ), "Human output must preserve safe diagnostics and honest global completeness"
+
+
+@pytest.mark.parametrize("profile,mode", [
+    ("image", "source"), ("image", "logical"), ("image", "approval"), ("image", "missing-archive"),
+    ("config", "archive"), ("config", "approval"), ("config", "missing-source"),
+    ("config", "missing-logical"),
+])
+def test_CrossProfileInputsRefuseBeforeExecutionOrArtifactWrites(
+    tmp_path, monkeypatch, profile, mode
+):
+    """Source/profile grammar and independent SAFE opt-ins cannot be silently ignored."""
+
+    if profile == "image":
+        arguments = ImageCiArguments(CreateOwnedImage(tmp_path), tmp_path)
+
+        if mode == "missing-archive":
+            position = arguments.index("--archive")
+            del arguments[position:position + 2]
+
+        else:
+            additions = {"source": ["--source", str(tmp_path / "source")],
+                "logical": ["--logical-path", "Dockerfile"],
+                "approval": ["--approve-safe-configuration"]}
+            arguments.extend(additions[mode])
+
+    else:
+        root, selection, _ = LiveConfiguration(tmp_path)
+        arguments = CiArguments(root, selection, tmp_path)
+
+        if mode in {"missing-source", "missing-logical"}:
+            position = arguments.index("--source" if mode == "missing-source" else "--logical-path")
+            del arguments[position:position + 2]
+
+        else:
+            arguments.extend(["--archive", str(tmp_path / "archive.tar")] if mode == "archive"
+                             else ["--approve-safe-image"])
+
+    async def Forbidden(*_args, **_kwargs):
+        """Trip any workflow launch for incompatible explicit profile configuration."""
+
+        raise AssertionError("Cross-profile inputs reached actual execution")
+
+    monkeypatch.setattr(commands, "RunSyntheticConfigurationScan", Forbidden)
+    monkeypatch.setattr(commands, "RunSyntheticImageScan", Forbidden)
+    status, outcome = InvokeCi(arguments)
+    assert status == 2 and outcome["scan"] is None and not (tmp_path / "ci.json").exists(), (
+        "Cross-profile arguments must fail before any producer or artifact write"
+    )

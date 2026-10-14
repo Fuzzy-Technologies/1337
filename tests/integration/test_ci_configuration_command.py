@@ -362,6 +362,7 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
     root, selection, _ = LiveConfiguration(tmp_path)
     original = commands.EvaluateConfigurationCriterion
     forbidden_calls = []
+    reached_gate = []
 
     class ForeignModel(ModelState):
         """Hostile equivalent wrapper whose serializer must never be called."""
@@ -403,14 +404,12 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
 
         elif mode == "foreign-record":
             record = records[0]
-            foreign = ForeignRecord(record.evidence_id, record.reference, record.provenance,
-                                    record.schema_version)
+            foreign = ForeignRecord(record.reference, record.provenance, record.schema_version)
             records = (foreign, *records[1:])
 
         elif mode == "foreign-manifest":
             manifest = capture.outcome.manifests[0]
-            foreign = ForeignManifest(manifest.profile, manifest.role, manifest.files,
-                                      manifest.schema_version)
+            foreign = ForeignManifest(manifest.profile, manifest.role, manifest.files)
             object.__setattr__(capture.outcome, "manifests",
                                (foreign, *capture.outcome.manifests[1:]))
 
@@ -447,13 +446,98 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
                 store = LocalModelStore(root)
                 store.WriteState(store.ValidatePaths(), model)
 
+        reached_gate.append(mode)
+
         return original(model, capture, records, selected_root, **options)
 
     monkeypatch.setattr(commands, "EvaluateConfigurationCriterion", Gate)
     status, outcome = InvokeCi(CiArguments(root, selection, tmp_path))
+    assert reached_gate == [mode], (
+        "The hostile specimen must reach the actual gate, without constructor-error false positives"
+    )
     assert status == 4 and outcome["criterion"]["status"] == "indeterminate" and (
         outcome["scan"]["state"] == "completed"
     ), "Original successful execution cannot authorize a substituted or unproven gate input"
     assert not forbidden_calls and outcome["reports"]["json"]["status"] == "completed" and (
         not (tmp_path / "ci.sarif").exists()
     ), "Foreign methods must not dispatch, and failed proof cannot publish later report formats"
+
+
+@pytest.mark.parametrize("kind", ["record", "manifest"])
+def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(
+    tmp_path, monkeypatch, kind
+):
+    """A correctly constructed equivalent foreign manifest fails at the actual typed gate."""
+
+    root, selection, _ = LiveConfiguration(tmp_path)
+    summary = asyncio.run(RunSyntheticConfigurationScan(root, "config-scope", "owner:test",
+        selection, approve_safe_configuration=True))
+    assert summary.ExitCode() == 0 and len(summary.captures) == 1, (
+        "The source boundary test requires actual accepted execution and durable original proof"
+    )
+    model = LocalModelStore(root).Open()
+    records = tuple(item.evidence for item in summary.snapshot.artifacts)
+    source = records[0]
+    forbidden_calls = []
+
+    class ForeignRecord(EvidenceRecord):
+        """A correctly initialized alternative implementation cannot borrow manifest authority."""
+
+    class ForeignManifest(ArtifactManifest):
+        """A correctly constructed selected manifest cannot dispatch foreign serialization."""
+
+        def ToDict(self):
+            """Trip foreign serializer dispatch after controlled specimen construction."""
+
+            forbidden_calls.append("manifest-serializer")
+
+            raise AssertionError("Foreign selected-manifest serializer cannot execute")
+
+        def Digest(self):
+            """Trip foreign digest dispatch before the actual capture boundary refuses its type."""
+
+            forbidden_calls.append("manifest-digest")
+
+            raise AssertionError("Foreign selected-manifest digest cannot execute")
+
+    capture = summary.captures[0]
+    expected_error = "exact original acquisition contracts"
+    altered = records
+
+    if kind == "record":
+        foreign = ForeignRecord(source.reference, source.provenance, source.schema_version)
+        assert foreign.evidence_id == source.evidence_id and foreign.ToDict() == source.ToDict(), (
+            "Foreign record construction succeeds with the same canonical acquisition bytes"
+        )
+        altered = (foreign, *records[1:])
+
+    else:
+        manifest = capture.outcome.manifests[0]
+        foreign_manifest = ForeignManifest(manifest.profile, manifest.role, manifest.files)
+        assert ArtifactManifest.ToDict(foreign_manifest) == manifest.ToDict(), (
+            "Foreign selected-manifest construction succeeds with the same canonical source fields"
+        )
+        object.__setattr__(capture.outcome, "manifests",
+                           (foreign_manifest, *capture.outcome.manifests[1:]))
+        expected_error = "exact original selected manifests"
+
+    criterion = CiFindingCriterion((FindingSeverity.HIGH,), (FindingStatus.OPEN,), 0, True)
+    pin = ReportSnapshot(model).SnapshotDigest()
+
+    def Forbidden(*_args, **_kwargs):
+        """Trip any owning read or fresh authority lookup after exact foreign type refusal."""
+
+        forbidden_calls.append("reader-or-authority")
+
+        raise AssertionError("Foreign acquisition reached a reader or authority boundary")
+
+    monkeypatch.setattr(LocalModelStore, "Open", Forbidden)
+    monkeypatch.setattr(LocalEvidenceStore, "Get", Forbidden)
+    monkeypatch.setattr(LocalEvidenceStore, "Read", Forbidden)
+    monkeypatch.setattr(GovernedArtifactExecutor, "ValidateAcceptanceFresh", Forbidden)
+
+    with pytest.raises(ValueError, match=expected_error):
+        commands.EvaluateConfigurationCriterion(model, capture, altered, root,
+            expected_snapshot_sha256=pin, criterion=criterion, context_provider=Forbidden)
+
+    assert not forbidden_calls, "Foreign acquisition is refused before storage or authority reads"

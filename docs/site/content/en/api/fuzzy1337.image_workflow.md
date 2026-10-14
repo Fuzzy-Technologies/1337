@@ -12,6 +12,15 @@ the actual saved revision visible. Requested export has its own outcome and
 atomic publication truth. Source remains `synthetic.trivy`; completeness remains
 `not-assessed`. No native scanner, installation or arbitrary target is enabled.
 
+`ImageScanSummary.captures` adds an optional trailing tuple after existing report
+fields and carries both actual original typed VERSION/SCAN captures in memory.
+The existing `ToDict()` JSON and detached operation summaries exclude this proof;
+neither summary JSON nor retained bytes reconstruct current execution authority.
+The CI consumer verifies the original pair, all six execution acquisitions,
+exact saved source facts and current paired acceptance before applying its
+explicit criterion. Original model/workspace saves and separate export
+acknowledgement semantics remain unchanged.
+
 See [Closed synthetic image workflow](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/IMAGE_WORKFLOW.md).
 
 ::: fuzzy1337.image_workflow

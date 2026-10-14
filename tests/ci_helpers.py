@@ -12,6 +12,7 @@ from pathlib import Path
 from fuzzy1337.artifact_inputs import ArtifactProfile
 from fuzzy1337.ci_commands import RunCiCommands
 from fuzzy1337.configuration_workflow import ConfigurationScanSelection
+from tests.image_helpers import OwnedImage
 
 
 def CiArguments(root: Path, selection: ConfigurationScanSelection, parent: Path) -> list[str]:
@@ -54,3 +55,26 @@ def InvokeCi(arguments: list[str]) -> tuple[int, dict]:
     status = RunCiCommands(arguments, output, json_output=True)
 
     return status, json.loads(output.getvalue())
+
+
+def ImageCiArguments(owned: OwnedImage, parent: Path) -> list[str]:
+    """Select the original closed image workflow and the same explicit CI criterion/artifacts.
+
+    Args:
+        owned: Existing approved owned workspace and reviewed explicit archive selection.
+        parent: Existing physical directory outside the workspace for three new reports.
+
+    Returns:
+        Canonical image profile arguments with explicit zero-match high/open criterion.
+    """
+
+    selection = owned.selection
+
+    return ["scan", str(owned.root), "--profile", "synthetic-image",
+        "--archive", str(selection.archive), "--executable", str(selection.executable),
+        "--producer", str(selection.producer), "--material", str(selection.material),
+        "--scope", "image-scope", "--owner", "owner:image-test", "--read-consent-reference",
+        selection.read_consent.record_ref, "--approve-safe-image", "--severity", "high",
+        "--status", "open", "--max-matches", "0", "--acknowledge-unassessed-completeness",
+        "--report-json", str(parent / "ci.json"), "--report-sarif", str(parent / "ci.sarif"),
+        "--report-junit", str(parent / "ci.xml")]

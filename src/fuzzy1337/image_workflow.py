@@ -194,6 +194,7 @@ class ImageScanSummary:
     events: tuple[JobEvent, ...]
     operations: tuple[dict[str, object], ...]
     report: ImageReportOutcome | None = None
+    captures: tuple[ImageOperationCapture, ...] = ()
 
     def ToDict(self) -> dict[str, object]:
         """Render detached machine facts without original physical paths or raw stream values.
@@ -618,4 +619,4 @@ async def RunSyntheticImageScan(
     return ImageScanSummary(snapshot, started_at, datetime.now(UTC).isoformat(),
         time.monotonic() - started, first_update, actual.revision,
         tuple((kind.value, len(actual.Objects(kind))) for kind in ObjectKind),
-        job.EventsSince(), operations, export)
+        job.EventsSince(), operations, export, tuple(workflow.captures))

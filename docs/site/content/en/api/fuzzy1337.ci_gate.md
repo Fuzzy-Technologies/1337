@@ -1,9 +1,10 @@
 # fuzzy1337.ci_gate
 
 This Experimental profile evaluates an explicit finding predicate over one
-original verified synthetic configuration execution and its exact saved model.
-`CiFindingCriterion`, `CiPredicateResult` and `EvaluateConfigurationCriterion`
-are the supported surface; remaining helpers are Internal.
+original verified synthetic configuration execution or image VERSION/SCAN pair
+and its exact saved model. `CiFindingCriterion`, `CiPredicateResult`,
+`EvaluateConfigurationCriterion` and additive `EvaluateImageCriterion` are the
+Experimental version-one supported surface; remaining helpers are Internal.
 
 Caller-selected severity/status sets and a bounded maximum matching count form
 the complete criterion. Explicit acknowledgement of unassessed completeness is
@@ -11,6 +12,16 @@ required. Labels are not ranked or combined into a risk score. Original four-rol
 source/run proof, exact saved-snapshot digest and fresh acceptance checks precede
 selection. Only original current-run detections enter the predicate; unrelated
 retained findings remain report facts and operator triage is preserved.
+
+`EvaluateImageCriterion` requires both original typed captures, their exact
+original VERSION prerequisite and six immutable execution acquisitions. Both
+envelopes/streams and current paired grant acceptance must verify through their
+existing owners. Exact source-derived image inventory, relations, observations
+and current finding detections must exist in the complete owner-read saved model.
+The explicit snapshot pin covers all model contents; a revision, namespace,
+finding count or detached operation summary does not establish this proof. Only
+current original SCAN detections enter the predicate, with saved operator triage;
+processed no-findings inventory neither selects nor resolves historical facts.
 
 Zero matching findings cannot substitute for missing original processing proof.
 The result describes selected-profile predicate satisfaction or violation, with
