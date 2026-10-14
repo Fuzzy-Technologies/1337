@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -17,6 +19,22 @@ from fuzzy1337.configuration_workflow import ConfigurationScanSummary
 from fuzzy1337.evidence import EvidenceError
 from fuzzy1337.jobs import JobEvent, JobEventKind, JobSnapshot, JobSpec, JobState
 from fuzzy1337.workspace import WorkspaceBusyError, WorkspaceConflictError
+
+
+@pytest.fixture(scope="module")
+def command_loop() -> Iterator[asyncio.Runner]:
+    """Own event-loop resources before the unchanged per-test network denial guard."""
+
+    with asyncio.Runner() as runner:
+        runner.get_loop()
+        yield runner
+
+
+@pytest.fixture(autouse=True)
+def reuse_command_loop(command_loop: asyncio.Runner, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Use the initialized loop for dispatch doubles while keeping network denial active."""
+
+    monkeypatch.setattr(scan_commands.asyncio, "run", command_loop.run)
 
 
 def Arguments(root: Path) -> list[str]:
