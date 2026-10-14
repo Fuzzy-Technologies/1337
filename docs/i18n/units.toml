@@ -5607,7 +5607,7 @@ state = "missing"
 id = "symbol:fuzzy1337.ioc_commands.IocArgumentParser.Error"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/ioc_commands.py"
-sourceHash = "sha256:df12f2e6dbe2367d06bf3c13587809cd75a1e0a84688de946250ecf39a2b7c6f"
+sourceHash = "sha256:1713fe81213fd3c96b3bedcd8f8baa49a378376b6caed41b8e3d118b979ea82d"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

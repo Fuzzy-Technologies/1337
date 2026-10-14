@@ -57,7 +57,14 @@ class IocArgumentParser(argparse.ArgumentParser):
     """Suppress framework diagnostics that can reflect untrusted material or metadata."""
 
     def Error(self, message: str) -> Never:
-        """Reject malformed grammar using a fixed category without rendering the supplied text."""
+        """Reject malformed grammar without rendering the supplied untrusted text.
+
+        Args:
+            message: Unretained framework diagnostic, which may contain source selections.
+
+        Returns:
+            Never returns; the handler receives only a fixed configuration failure.
+        """
 
         raise IocFailure("configuration", 2)
 
