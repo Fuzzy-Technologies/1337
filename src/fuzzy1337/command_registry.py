@@ -229,8 +229,8 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="runtime",
-            summary="Import an explicit owned offline Docker inspect file or retained manifest.",
-            usage="1337 runtime import docker-inspect <workspace>",
+            summary="Import explicit owned offline Docker inspect or Kubernetes List evidence.",
+            usage="1337 runtime import <docker-inspect|kubernetes-list> <workspace>",
             capabilities=("runtime.owned-offline-import",),
         ),
     )

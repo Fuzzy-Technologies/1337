@@ -124,6 +124,9 @@ owners enforce their additional canonical integrity and persistence limits.
 
 Exact replay is a no-op and remains valid after workspace relocation. Original
 bytes/manifests, source attribution and persisted findings remain unchanged by
-import. There is no new CLI command, runtime dependency or model schema version.
+import. The separate [owned runtime command](RUNTIME_IMPORT.md) now composes
+explicit file or retained-manifest selection with this unchanged SDK, existing
+declared cluster and independent CAS owners. The SDK adds no runtime dependency
+or model schema version and performs no acquisition itself.
 
 Design: [ADR 0074](adr/0074-owned-kubernetes-list-inventory.md).
