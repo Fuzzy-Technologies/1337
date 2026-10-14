@@ -1,9 +1,12 @@
 # fuzzy1337.shell
 
-Foreground `runtime import docker-inspect` forwards only explicit quoted CLI
+Foreground `runtime import <docker-inspect|kubernetes-list>` forwards only explicit quoted CLI
 arguments to the Internal runtime handler and preserves its actual exit status.
 The Experimental version-one command requires source selection, existing
-HOST/scope and exact revision bases; shell context supplies none of them.
+HOST (`--host`) or declared cluster ASSET (`--cluster`), scope and exact revision
+bases; shell context supplies none of them. Cross-profile anchor flags fail before
+acquisition. Both profiles retain original manifest context and three independent
+save acknowledgements; nominal Kubernetes associations remain UNKNOWN access.
 Runtime arguments are excluded from local/native input history before dispatch,
 and empty-line replay retains only the canonical namespace. Quoted Windows
 paths preserve spaces and backslashes through the shared argument parser.

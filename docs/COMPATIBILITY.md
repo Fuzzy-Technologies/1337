@@ -266,21 +266,33 @@ The importer returns one in-memory transition and grants no live daemon/network
 authority. Other helpers remain Internal; daemon discovery and physical runtime
 acceptance remain separate.
 
-`runtime import docker-inspect` is an Experimental owned offline product command
-at contract version `1`, defined by ADR 0078 and `docs/RUNTIME_IMPORT.md`. The
-installed CLI and interactive shell require an existing explicit literal HOST,
-local scope and exact model/workspace revision bases. New-file selection requires
+`runtime import docker-inspect` and `runtime import kubernetes-list` are the two
+closed Experimental owned offline product profiles at contract version `1`,
+defined by ADRs 0078/0079 and `docs/RUNTIME_IMPORT.md`. Docker requires explicit
+`--host` with an existing literal HOST; Kubernetes requires explicit `--cluster`
+with an existing declared cluster ASSET and matching literal cluster identity.
+Both require local scope and exact model/workspace revision bases before source
+reads, without default anchors or execution grants. New-file selection requires
 explicit read-consent references and a bounded stable singly linked physical file;
 retained selection verifies the exact original manifest and preserves its source
-and first HOST/run context. One HOST source observation binds original acquisition
+and first profile/anchor/run context. Selected manifests are identity/profile/
+role/media/size/source-version preflighted without reading blobs, then bound to
+the owning workspace/scope before retained raw reads. One source observation on
+the selected HOST or cluster ASSET binds original acquisition
 identity before separate model/workspace CAS saves. Schema-one terminal summaries
 distinguish acquisition, model and workspace acknowledgements, including unknown
 save outcomes and partial commits; they promise no cross-store atomic transaction.
 Exact retained replay preserves owner bytes, triage and UNKNOWN source meanings.
 All `fuzzy1337.runtime_commands` classes, functions and helpers, including
-`RuntimeParser` and `RunRuntimeCommands`, remain Internal implementation surfaces.
-The command reuses the Docker inspect SDK without changing Core schemas or
-issuing daemon, execution, reachability or policy grants.
+`RuntimeParser`, `RunRuntimeCommands`, `RuntimeProfile`, `RequireRuntimeAnchor` and
+manifest-preflight helpers, remain Internal implementation surfaces. Existing
+Docker custody attribute keys, HOST/run context, original source/version and
+manifest replay meanings remain unchanged; no migration is required. Kubernetes
+nominal RBAC, selectors, image declarations and effective permission/enforcement
+unknowns keep SDK meanings. Original exports are unredacted and explicitly
+caller-owned, including exports later refused by normalization. Both profiles
+reuse unchanged SDKs without changing Core schemas, scores or issuing daemon,
+cluster API, execution, physical reachability or policy grants.
 
 `fuzzy1337.kubernetes_inventory` is an Experimental owned offline Kubernetes
 `v1`/`List` input profile at contract version `1`, defined by ADR 0074 and
