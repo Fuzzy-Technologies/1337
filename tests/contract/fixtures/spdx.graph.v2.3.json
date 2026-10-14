@@ -1,0 +1,73 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Owned local package graph",
+  "documentNamespace": "urn:owned:spdx:local-graph",
+  "creationInfo": {
+    "created": "2026-10-01T00:00:00Z",
+    "creators": ["Tool: repository-handwritten-graph"]
+  },
+  "documentDescribes": ["SPDXRef-Image"],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Image",
+      "name": "owned-image",
+      "primaryPackagePurpose": "CONTAINER",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "checksums": [{"algorithm": "SHA256", "checksumValue": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]
+    },
+    {
+      "SPDXID": "SPDXRef-App",
+      "name": "Owned_App",
+      "versionInfo": "2.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/owned-app@2.0"}],
+      "licenseDeclared": "NONE",
+      "licenseConcluded": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-Lib",
+      "name": "Owned_Lib",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "https://owned.invalid/SYNTHETIC_PRIVATE_MARKER",
+      "externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/owned-lib@1.0"}],
+      "licenseDeclared": "MIT",
+      "licenseConcluded": "Apache-2.0",
+      "sourceInfo": "SYNTHETIC_PRIVATE_MARKER"
+    },
+    {
+      "SPDXID": "SPDXRef-Lib-Alias",
+      "name": "owned-lib",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/owned-lib@1.0"}],
+      "licenseConcluded": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-Helper",
+      "name": "@owned/helper",
+      "versionInfo": "3.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:npm/%40owned/helper@3.0"}],
+      "licenseDeclared": "MIT OR Apache-2.0"
+    }
+  ],
+  "relationships": [
+    {"spdxElementId": "SPDXRef-Image", "relationshipType": "DESCRIBED_BY", "relatedSpdxElement": "SPDXRef-DOCUMENT"},
+    {"spdxElementId": "SPDXRef-Image", "relationshipType": "CONTAINS", "relatedSpdxElement": "SPDXRef-App"},
+    {"spdxElementId": "SPDXRef-Lib", "relationshipType": "CONTAINED_BY", "relatedSpdxElement": "SPDXRef-App"},
+    {"spdxElementId": "SPDXRef-Image", "relationshipType": "CONTAINS", "relatedSpdxElement": "SPDXRef-Lib-Alias"},
+    {"spdxElementId": "SPDXRef-Lib", "relationshipType": "CONTAINS", "relatedSpdxElement": "SPDXRef-Helper"},
+    {"spdxElementId": "SPDXRef-Helper", "relationshipType": "CONTAINED_BY", "relatedSpdxElement": "SPDXRef-Lib-Alias"},
+    {"spdxElementId": "SPDXRef-App", "relationshipType": "DEPENDS_ON", "relatedSpdxElement": "SPDXRef-Lib"},
+    {"spdxElementId": "SPDXRef-Helper", "relationshipType": "DEPENDENCY_OF", "relatedSpdxElement": "SPDXRef-Lib"},
+    {"spdxElementId": "SPDXRef-Helper", "relationshipType": "DEPENDS_ON", "relatedSpdxElement": "SPDXRef-App", "comment": "SYNTHETIC_PRIVATE_MARKER"},
+    {"spdxElementId": "SPDXRef-Lib-Alias", "relationshipType": "DEPENDS_ON", "relatedSpdxElement": "SPDXRef-Helper"}
+  ]
+}
