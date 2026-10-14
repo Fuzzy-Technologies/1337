@@ -463,3 +463,51 @@ def test_CaptureConstructorRejectsForeignTypesAndInvalidChronology(
 
     with pytest.raises(ValueError):
         ConfigurationOperationCapture(**values)
+
+
+def test_IsolatedPresentationFailureCancelsAndDrainsOwningJob(
+    tmp_path, configuration_loop, process_double
+):
+    """A failing event sink propagates after canonical cancellation and owning-job cleanup."""
+
+    root, selection, _ = LiveConfiguration(tmp_path)
+
+    def Observe(_event):
+        """Reject event presentation without pretending the owning scan succeeded."""
+
+        raise RuntimeError("Owned presentation failure")
+
+    with pytest.raises(RuntimeError, match="presentation"):
+        configuration_loop.run(RunSyntheticConfigurationScan(root, "config-scope", "owner:test",
+            selection, approve_safe_configuration=True, on_event=Observe))
+
+    assert not configuration_loop.get_loop().is_closed(), "Owned loop remains usable"
+
+
+def test_IsolatedCallerCancellationReturnsTruthfulTerminalSummary(
+    tmp_path, configuration_loop, process_double
+):
+    """Parent presentation cancellation preserves already completed owning-job facts."""
+
+    root, selection, _ = LiveConfiguration(tmp_path)
+    requested = False
+
+    def Observe(_event):
+        """Request one parent cancellation without forcing an invented provider outcome."""
+
+        nonlocal requested
+
+        if not requested:
+            requested = True
+            asyncio.current_task().cancel()
+
+    summary = configuration_loop.run(RunSyntheticConfigurationScan(root, "config-scope",
+        "owner:test", selection, approve_safe_configuration=True, on_event=Observe))
+    assert requested and summary.snapshot.state is JobState.COMPLETED, (
+        "Completed owning jobs retain original completion after presentation cancellation"
+    )
+    assert not summary.snapshot.cancellation_requested and (
+        LocalModelStore(root).Open().revision == 1
+    ), (
+        "Presentation cancellation cannot invent a late job cancellation or erase committed state"
+    )

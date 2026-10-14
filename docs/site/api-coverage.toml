@@ -25,6 +25,18 @@ mode = "authored"
 page = "api/fuzzy1337.artifact_policy.md"
 
 [[surfaces]]
+module = "fuzzy1337.configuration_evidence"
+source = "src/fuzzy1337/configuration_evidence.py"
+mode = "authored"
+page = "api/fuzzy1337.configuration_evidence.md"
+
+[[surfaces]]
+module = "fuzzy1337.configuration_workflow"
+source = "src/fuzzy1337/configuration_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.configuration_workflow.md"
+
+[[surfaces]]
 module = "fuzzy1337.artifact_fixture_worker"
 source = "src/fuzzy1337/artifact_fixture_worker.py"
 mode = "authored"

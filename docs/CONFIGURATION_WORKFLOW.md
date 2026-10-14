@@ -64,5 +64,5 @@ behavior only. They are separate from actual scanner/job functional evidence.
 
 ```bash
 uv run --locked --extra dev pytest tests/unit/test_configuration_workflow.py tests/unit/test_configuration_sdk.py -n 2 --no-cov
-uv run --locked --extra dev pytest tests/integration/test_configuration_workflow.py tests/integration/test_configuration_execution.py -n 2 --no-cov
+uv run --locked --extra dev pytest tests/integration/test_configuration_model.py tests/integration/test_configuration_execution.py -n 2 --no-cov
 ```

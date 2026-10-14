@@ -89,13 +89,28 @@ __all__ = ["ConfigurationOperationCapture", "ConfigurationReplay",
 
 
 def Detached(value: object) -> dict[str, Any]:
-    """Detach canonical first-party facts without retaining mutable caller aliases."""
+    """Detach canonical first-party facts without retaining mutable caller aliases.
+
+    Args:
+        value: Exact typed SDK or first-party capture facts.
+
+    Returns:
+        Detached finite canonical JSON object without caller aliases.
+    """
 
     return cast(dict[str, Any], json.loads(SerializeContract(value)))
 
 
 def Fields(value: object, expected: set[str]) -> dict[str, Any]:
-    """Require exact consumer-owned fields without defaults or ignored extensions."""
+    """Require exact consumer-owned fields without defaults or ignored extensions.
+
+    Args:
+        value: Previously bounded original capture object.
+        expected: Complete consumer-owned field-name set.
+
+    Returns:
+        Original detached dictionary with exactly the required fields.
+    """
 
     return cast(dict[str, Any], WorkspaceFields(value, expected, "configuration capture"))
 
@@ -166,7 +181,14 @@ class ConfigurationEvidenceStore(LocalEvidenceStore):
     """Check consumer budgets before the evidence owner's eager immutable raw verification."""
 
     def Read(self, reference: EvidenceReference) -> bytes:
-        """Read one original bounded configuration role through canonical integrity checks."""
+        """Read one original bounded configuration role through canonical integrity checks.
+
+        Args:
+            reference: Typed caller or actual stored original evidence reference.
+
+        Returns:
+            Bounded retained bytes after canonical source integrity checks.
+        """
 
         if type(reference) is not EvidenceReference or reference.role not in _ROLES:
             raise ValueError("configuration evidence requires its exact source role")
@@ -182,7 +204,14 @@ class ConfigurationEvidenceStore(LocalEvidenceStore):
 
 
 def VerifyFactory(envelope: dict[str, Any]) -> ArtifactManifest:
-    """Verify detached original configuration factory grammar without filesystem access."""
+    """Verify detached original configuration factory grammar without filesystem access.
+
+    Args:
+        envelope: Previously bounded detached original receipt and request/stage payloads.
+
+    Returns:
+        Exact original typed input manifest; no current path or authority lookup.
+    """
 
     metadata = envelope["artifact_metadata"]
     prepared = Fields(envelope["prepared_payload"], {
@@ -296,7 +325,15 @@ def VerifyFactory(envelope: dict[str, Any]) -> ArtifactManifest:
 
 def VerifiedCapture(records: tuple[EvidenceRecord, ...], workspace_root: Path
                     ) -> tuple[ConfigurationReplay, dict[str, Any], dict[str, bytes]]:
-    """Verify owning immutable records, original raw receipt and original source attribution."""
+    """Verify owning immutable records, original raw receipt and original source attribution.
+
+    Args:
+        records: Four exact original typed source acquisitions.
+        workspace_root: Existing or relocated workspace owning their evidence.
+
+    Returns:
+        Verified historical facts, detached original envelope and independently read raw bytes.
+    """
 
     if type(records) is not tuple or len(records) != 4 or any(
         type(item) is not EvidenceRecord for item in records
@@ -401,7 +438,15 @@ def VerifySyntheticConfigurationReplay(records: tuple[EvidenceRecord, ...],
 
 def Candidates(facts: ConfigurationReplay, raw: dict[str, bytes]
                ) -> tuple[SecurityObject, Observation, tuple[Finding, ...]]:
-    """Normalize exactly the reviewed configuration wire and source-coordinate semantics."""
+    """Normalize exactly the reviewed configuration wire and source-coordinate semantics.
+
+    Args:
+        facts: Independently verified original configuration receipt and source manifest.
+        raw: Verified original stdout/stderr/source/receipt bytes by exact role.
+
+    Returns:
+        Canonical synthetic asset, inventory observation and typed source-position Findings.
+    """
 
     payload = Fields(ParseJson(raw["configuration-stdout"], 16 * 1024), {
         "schema_version", "provider_id", "provider_version", "fixture_id", "profile_id",

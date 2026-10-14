@@ -278,7 +278,14 @@ class SyntheticConfigurationWorkflow:
     saved_model: ModelState | None = None
 
     def CurrentContext(self) -> ArtifactPolicyContext:
-        """Reopen actual same-store scope and enforce the explicitly executing recorded owner."""
+        """Reopen same-store scope and enforce the explicitly executing recorded owner.
+
+        Returns:
+            Fresh typed factual scope/owner/policy context; never an automatic scope grant.
+
+        Raises:
+            ArtifactDeniedError: Actual current storage or recorded owner cannot be verified.
+        """
 
         try:
             scope = LocalScopeStore(self.workspace_root).Open(self.scope_id)
@@ -293,7 +300,16 @@ class SyntheticConfigurationWorkflow:
 
     def CaptureOperation(self, context: JobContext, capture: ConfigurationOperationCapture,
                          source: bytes) -> tuple[EvidenceRecord, ...]:
-        """Retain original streams, detached SDK facts and selected source before interpretation."""
+        """Retain original streams, SDK facts and selected source before interpretation.
+
+        Args:
+            context: Actual owning job evidence-publication boundary.
+            capture: Original typed SDK result/request/stage and collection readings.
+            source: Bounded exact selected-source bytes independently read within that window.
+
+        Returns:
+            Four original immutable owning acquisitions, including verified empty stderr.
+        """
 
         result = capture.outcome.raw_result
         provenance = capture.Provenance()
@@ -306,7 +322,14 @@ class SyntheticConfigurationWorkflow:
                      for role, data, media in values)
 
     async def Run(self, context: JobContext) -> None:
-        """Run actual governed SDK execution and persist one atomic accepted model proposal."""
+        """Run actual governed SDK execution and persist one accepted model proposal.
+
+        Args:
+            context: Existing owning cancellation, immutable evidence and canonical event boundary.
+
+        Raises:
+            JobError: Classified authority, execution, normalization or storage failure.
+        """
 
         delta: ModelDelta | None = None
         phase = JobFailureCode.STORAGE
@@ -386,7 +409,14 @@ class SyntheticConfigurationWorkflow:
             context.ModelChanged(delta)
 
     def RequireProcessSuccess(self, capture: ConfigurationOperationCapture) -> None:
-        """Preserve actual process failure classifications after retaining raw facts."""
+        """Preserve actual process failure classifications after retaining raw facts.
+
+        Args:
+            capture: Original process outcome already retained through the evidence owner.
+
+        Raises:
+            JobError: Actual timeout/output-limit/failed-exit facts cannot become scan success.
+        """
 
         raw = capture.outcome.raw_result
         code = JobFailureCode.PROVIDER
@@ -504,7 +534,11 @@ async def RunSyntheticConfigurationScan(workspace_root: Path, scope_id: str, own
         owner_reference, CONFIGURATION_SOURCE, timeout_seconds=timeout_seconds + 15)
 
     def Snapshot() -> JobSnapshot:
-        """Bind provider persistence to its original owning job."""
+        """Bind provider persistence to its original owning job.
+
+        Returns:
+            Current immutable snapshot of this exact owning job.
+        """
 
         return job.Snapshot()
 
@@ -518,7 +552,11 @@ async def RunSyntheticConfigurationScan(workspace_root: Path, scope_id: str, own
     job.Start()
 
     def Observe(event: JobEvent) -> None:
-        """Measure actually published committed delta time and retain canonical event identity."""
+        """Measure committed delta time and retain canonical event identity.
+
+        Args:
+            event: Original canonical job event delivered in sequence order.
+        """
 
         nonlocal cursor, first_update
         cursor = event.sequence

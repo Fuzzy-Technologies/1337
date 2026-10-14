@@ -91,6 +91,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   exact five-case source/material bindings, SAFE approvals, bounded raw capture
   and original-family replay. Native configuration and model projection remain
   separate.
+- Added a closed configuration evidence workflow with actual governed SCAN jobs,
+  original source/stream/receipt verification, canonical configuration assets and
+  source-position Findings, durable model/workspace references, relocated replay
+  and separate JSON/SARIF exports. Native configuration acceptance remains separate.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
   checks and model projection that preserves existing Endpoint requests.
 - Added governed acquisition of one owned loopback HTML page from the closed
