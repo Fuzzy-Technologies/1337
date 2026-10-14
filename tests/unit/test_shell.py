@@ -147,6 +147,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: update",
         "cli: intel",
         "cli: ci",
+        "cli: paths",
         "cli: api",
         "cli: runtime",
         "cli: trace",
@@ -217,11 +218,11 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
     assert output.getvalue().splitlines() == [
         (
             "Interactive commands: api, ci, commands, context, demo, help, history, intel, lens, "
-            "model, palette, quit, report, runtime, sbom, scan, scope, select, trace, update, "
-            "updates, view, workspace"
+            "model, palette, paths, quit, report, runtime, sbom, scan, scope, select, trace, "
+            "update, updates, view, workspace"
         ),
         ("CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report, "
-         "intel, demo, ci, sbom, api, runtime, trace"),
+         "intel, demo, ci, paths, sbom, api, runtime, trace"),
         "[model] asset changed",
         "usage: quit",
         "",
@@ -482,7 +483,8 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
 
 
 @pytest.mark.parametrize("namespace", [
-    "workspace", "scope", "scan", "report", "demo", "ci", "runtime", "sbom", "api", "trace",
+    "workspace", "scope", "scan", "report", "demo", "ci", "runtime", "paths", "sbom", "api",
+    "trace",
 ])
 @pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
 def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
@@ -564,7 +566,9 @@ def NativeEditor(entries):
     return editor, settings
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "sbom", "api", "trace"])
+@pytest.mark.parametrize("namespace", [
+    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace",
+])
 def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput(namespace):
     """A native cap advances absolute base; matching prior/command-time entries remain unowned."""
 
@@ -768,7 +772,9 @@ def test_CommandExceptionCannotClaimCallerNativeAdditionsDuringLoopCleanup(monke
     )
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "sbom", "api", "trace"])
+@pytest.mark.parametrize("namespace", [
+    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace",
+])
 def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, namespace):
     """Stream/queued inputs have no native auto-history ownership and preserve preexisting state."""
 
@@ -793,7 +799,9 @@ def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, n
     )
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "sbom", "api", "trace"])
+@pytest.mark.parametrize("namespace", [
+    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace",
+])
 def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch, namespace):
     """Even a matching queued string cannot claim an unchanged preexisting native history item."""
 
@@ -978,6 +986,46 @@ def test_SbomShellUsesQuotedWindowsPathsWithoutImplicitContextOrRetainedArgument
         "Shell sbom route changed explicit Windows selections or inferred context"
     )
     assert "Command exit status: 4" in output.getvalue(), "Shell hid actual sbom failure"
+    shell.onecmd("history")
+    assert r"C:\Owned" not in output.getvalue() and shell.lastcmd == "history", (
+        "Windows source arguments escaped the protected namespace history"
+    )
+
+
+def test_PathShellUsesQuotedWindowsPathsWithoutImplicitContextOrRetainedArguments(monkeypatch):
+    """Quoted backslashes/spaces round-trip through the real shell's lazy paths dispatcher."""
+
+    from fuzzy1337 import path_commands
+
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    supplied = ["analyze", r"C:\Owned Workspace", "--source", "object:explicit-source",
+        "--target", "object:explicit-target", "--transition", "relation:explicit",
+        "--expected-revision", "1", "--expected-snapshot-sha256", "a" * 64,
+        "--no-assessments", "--context", "context:explicit", "--scope-reference", "scope:explicit",
+        "--as-of", "2026-10-14T10:00:00Z", "--max-age-seconds", "60", "--max-depth", "2",
+        "--max-paths", "4", "--max-work", "20", "--max-frontier", "8", "--max-cut-work", "100"]
+    calls = []
+
+    def RunPathCommands(arguments, target, *, json_output):
+        """Observe caller-owned values and private history before producing one safe result."""
+
+        assert shell.lastcmd == "paths" and list(shell._history)[-1] == "paths", (
+            "Path arguments entered history before the handler was dispatched"
+        )
+        calls.append((arguments, json_output, target))
+
+        return 4
+
+    monkeypatch.setattr(path_commands, "RunPathCommands", RunPathCommands)
+    shell.onecmd("lens purple")
+    shell.onecmd("select object:unrelated")
+    prior = shell.State
+    shell.onecmd("paths " + shlex.join([*supplied, "--json"]))
+    assert calls == [(supplied, True, output)] and shell.State == prior, (
+        "Shell paths route changed explicit Windows selections or inferred context"
+    )
+    assert "Command exit status: 4" in output.getvalue(), "Shell hid actual paths failure"
     shell.onecmd("history")
     assert r"C:\Owned" not in output.getvalue() and shell.lastcmd == "history", (
         "Windows source arguments escaped the protected namespace history"

@@ -231,6 +231,12 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("workbench.selected-finding-gate",),
         ),
         CommandDescriptor(
+            identifier="paths",
+            summary="Analyze selected saved-model paths and original reachability proof.",
+            usage="1337 paths analyze <workspace>",
+            capabilities=("model.reachability-path-analysis",),
+        ),
+        CommandDescriptor(
             identifier="sbom",
             summary="Import an explicit owned offline SPDX package graph.",
             usage="1337 sbom import spdx-graph <workspace>",

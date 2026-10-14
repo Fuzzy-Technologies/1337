@@ -452,6 +452,13 @@ mode = "authored"
 page = "api/fuzzy1337.path_analysis.md"
 
 [[surfaces]]
+# Internal implementation of the Experimental v1 read-only saved-graph path command.
+module = "fuzzy1337.path_commands"
+source = "src/fuzzy1337/path_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.path_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.business_events"
 source = "src/fuzzy1337/business_events.py"
 mode = "authored"

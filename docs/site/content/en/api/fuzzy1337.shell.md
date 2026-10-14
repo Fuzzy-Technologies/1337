@@ -1,5 +1,17 @@
 # fuzzy1337.shell
 
+Foreground `paths analyze` forwards only explicit quoted arguments to the same
+Internal read-only owner as the installed CLI and preserves its actual exit code.
+Shell context supplies no workspace, exact saved-model revision/snapshot pin,
+source/target/transitions, original assessment manifests or `--no-assessments`,
+context/scope, replay clock, freshness or finite search/cut budgets. The existing
+whole-model 512-eligible-object preflight and original proof/UNKNOWN boundaries
+remain unchanged. Bounded output preserves distinct search/cut completeness and
+structural counts without model/evidence writes, scores or execution authority.
+Local/native history and empty-line replay retain only the protected `paths`
+namespace; quoted Windows paths retain spaces/backslashes through the shared
+argument parser. No acquisition or hidden output is introduced.
+
 Foreground Experimental version-one `sbom import spdx-graph` forwards explicit
 quoted arguments to the Internal owning handler and preserves its actual exit
 status and three independent acquisition/model/workspace acknowledgements.

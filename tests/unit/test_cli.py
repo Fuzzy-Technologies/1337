@@ -505,3 +505,44 @@ def test_SbomRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
     assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
         "SYNTHETIC_PRIVATE_MARKER" not in output.out
     ), "SBOM grammar refusal exposed rejected source values"
+
+
+@pytest.mark.parametrize("status", [0, 2, 4, 130])
+def test_PathRoutePreservesExplicitArgumentsOutputAndHandlerStatus(monkeypatch, capsys, status):
+    """Actual top-level registration delegates exact supplied values without ambient authority."""
+
+    from fuzzy1337 import path_commands
+
+    calls = []
+
+    def RunPathCommands(arguments, output, *, json_output):
+        """Observe exact registration forwarding without opening a workspace or source."""
+
+        calls.append((arguments, json_output))
+        output.write("owned-paths-outcome\n")
+
+        return status
+
+    monkeypatch.setattr(path_commands, "RunPathCommands", RunPathCommands)
+    assert Main(["paths", "analyze", "explicit workspace", "--json"]) == (
+        status
+    ), "Registered paths route replaced the actual handler status"
+    assert calls == [(["analyze", "explicit workspace"], True)], (
+        "Registration inferred, omitted or reordered explicit caller selections"
+    )
+    assert capsys.readouterr().out == "owned-paths-outcome\n", "Registered outcome was changed"
+
+
+def test_PathRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
+    """Exact model pins and explicit assessment absence remain visible before workspace setup."""
+
+    assert Main(["paths", "analyze", "--help"]) == 0, "Path static help failed"
+    help_text = capsys.readouterr().out
+    assert "--expected-snapshot-sha256" in help_text and "--no-assessments" in (
+        help_text
+    ) and "--as-of" in help_text, "Path help omitted model, proof or analysis clock selections"
+    assert Main(["paths", "SYNTHETIC_PRIVATE_MARKER", "--json"]) == 2, "Unknown path grammar passed"
+    output = capsys.readouterr()
+    assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
+        "SYNTHETIC_PRIVATE_MARKER" not in output.out
+    ), "Path grammar refusal exposed rejected selections"

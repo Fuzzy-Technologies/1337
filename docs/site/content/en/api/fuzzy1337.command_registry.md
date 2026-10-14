@@ -1,5 +1,13 @@
 # fuzzy1337.command_registry
 
+The `paths` descriptor advertises Experimental version-one `paths analyze` over
+one explicit pinned saved-model source/target selection and original reachability
+proof. Discovery supplies no workspace, full model pin, selected references,
+assessment manifests, attribution, replay clock, freshness, search/cut budgets or
+authority. The Internal owner retains the existing whole-model node ceiling,
+original UNKNOWN/confidence semantics and independent completeness results.
+Registry presence creates no graph edge, acquisition, write, score or grant.
+
 The `sbom` descriptor advertises Experimental version-one owned offline
 `sbom import spdx-graph`. Discovery supplies no source path, original manifest,
 source attribution, image digest kind, scope/run, revision basis or read consent.
