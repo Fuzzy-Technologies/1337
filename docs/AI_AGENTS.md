@@ -2,6 +2,13 @@
 
 This document describes how AI systems are intended to use 1337 Security Workbench.
 
+For a runnable first task through the accepted development checkout's existing
+CLI, use the [agent quickstart](AGENT_QUICKSTART.md) and its EN/RU/zh-cn prompt
+resources. The command-owned local demo requires explicit approval for the actual
+plan, preserves ordinary workspace/evidence state and does not require MCP.
+It is absent from immutable v0.2.1; this development recipe is not release or
+published-package acceptance. Translation drafts are marked in their resources.
+
 ## Project identity
 
 ```yaml
