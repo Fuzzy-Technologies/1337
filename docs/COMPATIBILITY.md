@@ -267,6 +267,14 @@ receiver provenance. `fuzzy1337.intelligence_transport` and acquisition helpers
 remain Internal. No publisher-signature authentication, automatic refresh,
 applicability conclusion or scan authority is provided.
 
+The Experimental `intel import|inspect|apply` CLI and shell commands expose
+explicit local acquisition, verified receipt/snapshot inspection and selected
+Finding enrichment through the existing CAS model owner. ADR 0069 and
+`docs/INTELLIGENCE_CLI.md` define bounded schema-v1 JSON outcomes, original-record
+verification, triage preservation and honest save uncertainty. The command
+implementation remains Internal; no remote scheduling or automatic refresh is
+introduced.
+
 ### Repository releases
 
 Before `1.0.0`:

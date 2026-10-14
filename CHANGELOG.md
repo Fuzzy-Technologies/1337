@@ -109,6 +109,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   acquisition, observed receiver times, immutable original/partial evidence and
   terminal receipts, honest batch outcomes and verified portable replay.
   Owned HTTPS receiver deadlines and cancellation terminate and join the child.
+- Added explicit local `intel import|inspect|apply` CLI and shell workflows for
+  original snapshot/receipt verification and selected persisted Finding enrichment,
+  preserving triage and reporting uncertain save acknowledgement honestly.
 
 #### Fixed
 

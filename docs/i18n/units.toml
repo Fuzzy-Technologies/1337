@@ -59,7 +59,7 @@ state = "missing"
 id = "page:api.fuzzy1337.cli"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.cli.md"
-sourceHash = "sha256:f10e6fda157c73c60ac9893f1bf5e4779b69757ea303f053fa39864943ff537b"
+sourceHash = "sha256:dcc26058bc24f33ffdb5832819e1174f565109981eedd694be4e04310259fbae"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -70,7 +70,7 @@ state = "missing"
 id = "page:api.fuzzy1337.command-registry"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.command_registry.md"
-sourceHash = "sha256:1cf4a4c9ed3b45b7c8305bd929eb2eddcf77b6a00be4d3dfbe0ced6d3e3bb91b"
+sourceHash = "sha256:0bad2455267ad699a9ece186c388654304013105aa6151909dd03430e2a397e9"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -270,7 +270,7 @@ state = "missing"
 id = "page:api.fuzzy1337.shell"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.shell.md"
-sourceHash = "sha256:7b205dea0d7fb9e4bb2c3dab47ca86ec5a7bb13701dcedc60759304ab1a617d2"
+sourceHash = "sha256:4d8b947621a69f03f91eb2598497e795d995200db5ed827ef7c088be27110637"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -1550,6 +1550,17 @@ state = "missing"
 
 [units.translations.zh-cn]
 state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.do_intel"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:66c8984acd685952ddcd88550a97225bea77c8e1fe14d0a73cf00a2c87886f16"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
 [[units]]
 id = "symbol:fuzzy1337.shell.InteractiveShell.do_demo"
 kind = "symbol"
@@ -7690,6 +7701,17 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.intelligence-commands"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_commands.md"
+sourceHash = "sha256:b2e29aa1fdfb510a0a609cddc296174ea97be4092187ecdeaae3c816bc377385"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.intelligence-transport"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_transport.md"
@@ -7871,6 +7893,116 @@ id = "symbol:fuzzy1337.intelligence_acquisition.SyncState"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence_acquisition.py"
 sourceHash = "sha256:1d5c8affe1cffe6490988a3338bb91a70b0026bd10c6f242f1acb074d600aadf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.BoundedIntelEvidenceStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:659a62a7eb46f6cbd289dd5de70a63fa172ba6dbd1e7bc6feb065e4b925e1d49"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.BoundedIntelEvidenceStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:7d247048b228f99d497ba0acda71b8948b8d66d89a611026217076df4a5a378c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.IntelArgumentParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:f669177a0e455979af84438a947b969b15f08a70f01ab04da0e2844007f9fc7d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.IntelArgumentParser.Error"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:d3c157e303d5f6d6771a88f941dcc0dddb27cd35871057b7772171993d19c008"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.IntelFailure"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:00f0bade6a461554263059164bdda45a653c867710a0f2ed92aa2d2719927202"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.IntelParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:ce50ea8e58a205c71958ffab3bf999b7b15c776eded5e2bf8ad6767666419bc2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.IntelPath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:3ccf2144ac8bcdeeba2f6367e035a7f578db54e60a78445d53a8788d6040eddf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.ReadLocalIntel"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:c02cce6318dcf9bbc3cc9c17e99a20065057ff945f1359195172e62c6d2c81bb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.RunIntelCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:c70855b1b4c63c79e6e9046c083fcbbe60fef6cd7917f671d740d73d92747613"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_commands.VerifiedIntelSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_commands.py"
+sourceHash = "sha256:1db34d7e8721761e122d8c3aab020462ad387dc9b10440d3d5ab09c83e80974f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
