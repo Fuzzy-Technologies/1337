@@ -596,9 +596,11 @@ def Container(batch: InventoryBatch, record: dict[str, object], host: str,
             "Container user is configured as root; effective UID and mapping are unverified.",
             FindingSeverity.LOW)
 
-    for name in ("pid_mode", "ipc_mode", "userns_mode", "network_mode"):
+    for name, source_name in (("pid_mode", "PidMode"), ("ipc_mode", "IpcMode"),
+                              ("userns_mode", "UsernsMode"), ("network_mode", "NetworkMode")):
         if fields[name] == "host":
-            batch.Finding(container, "host-" + name.replace("_mode", ""), "HostConfig." + name,
+            batch.Finding(container, "host-" + name.replace("_mode", ""),
+                "HostConfig." + source_name,
                 "Container uses a configured host namespace; physical isolation is unverified.",
                 FindingSeverity.MEDIUM)
 
@@ -801,7 +803,7 @@ def ApplyVerifiedDockerInspect(
 
     Args:
         state: Canonical model snapshot belonging to the explicit workspace.
-        record: Original immutable docker-inspect/application-json evidence manifest.
+        record: Original immutable docker-inspect evidence manifest with application/json media.
         provenance: Exact matching source/scope/version/time/raw-reference attribution.
         host_reference: Existing caller-supplied literal HOST reference; no host is discovered.
         workspace_root: Existing operator-owned workspace used through its storage owners.

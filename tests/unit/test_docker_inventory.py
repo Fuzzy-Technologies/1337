@@ -12,7 +12,7 @@ import pytest
 
 from fuzzy1337.adapters import AdapterExecution, ExecutionState
 from fuzzy1337.docker_inventory import ApplyVerifiedDockerInspect, DockerInventoryLimits
-from fuzzy1337.evidence import EvidenceError, EvidenceRecord
+from fuzzy1337.evidence import EvidenceError, EvidenceRecord, LocalEvidenceStore
 from fuzzy1337.findings import Findings
 from fuzzy1337.images import ImageIdentity
 from fuzzy1337.model import LocalModelStore, ModelProvenance, ObjectKind
@@ -391,3 +391,78 @@ def test_ConfigAndManifestDigestsKeepTheirExistingSeparateIdentityDomains(contex
               if item.attributes.get("asset_type") == "image"]
     assert [item.identity for item in images] == [expected], "Config image correlation broke"
     assert images[0].Reference() != manifest.Reference(), "Config and manifest domains conflated"
+
+
+@pytest.mark.parametrize("name", ["state", "record", "provenance", "limits"])
+def test_PublicBoundaryRefusesUntypedOwnerInputs(context, name):
+    """Untyped contracts fail before any storage ownership or model update is attempted."""
+
+    record, provenance = Acquire(context)
+    fields = {"state": context[1], "record": record, "provenance": provenance,
+              "limits": DockerInventoryLimits(), "host_reference": context[2].Reference(),
+              "workspace_root": context[0]}
+    fields[name] = None
+
+    with pytest.raises(ValueError):
+        ApplyVerifiedDockerInspect(**fields)
+
+
+def test_ActualParsedOwnerReferenceIsBoundedBeforeEagerBlobRead(context, monkeypatch):
+    """A small substituted caller reference cannot hide a larger actual owning manifest."""
+
+    record, provenance = Acquire(context)
+    large = context[3].Put(b"x" * 33, record.reference.role, record.reference.media_type,
+                            record.provenance)
+    small = replace(large, reference=replace(large.reference, size_bytes=5))
+    object.__setattr__(small, "evidence_id", large.evidence_id)
+    attribution = replace(provenance, evidence_references=(small.reference,))
+    reads = []
+    owner_read = LocalEvidenceStore.Read
+
+    def Read(self, reference):
+        """Record actual raw owner reads after the importer quota interception.
+
+        Args:
+            self: Actual owning evidence store.
+            reference: Actual parsed source reference.
+
+        Returns:
+            Original verified owner bytes if admission permits the read.
+        """
+
+        reads.append(reference)
+
+        return owner_read(self, reference)
+
+    monkeypatch.setattr("fuzzy1337.evidence.LocalEvidenceStore.Read", Read)
+
+    with pytest.raises(ValueError):
+        Apply(context, small, attribution, limits=DockerInventoryLimits(max_bytes=32))
+
+    assert not reads, "Oversized actual parsed manifest reached its eager raw owner read"
+
+
+def test_AdditionalSupportedConfiguredValuesPreserveUnknownAndEmptyFacts(context):
+    """Known namespace categories, finite numbers and explicit empty bindings are retained."""
+
+    payload = Payload()
+    payload[0]["HostConfig"].update({"Privileged": False, "PidMode": "container:" + "e" * 64,
+        "IpcMode": "host", "UsernsMode": "host", "NetworkMode": "owned-network", "CapAdd": ["ALL"]})
+    payload[0]["Mounts"][0]["Source"] = "/run/docker.sock/"
+    payload[0]["NetworkSettings"]["Networks"]["owned-network"]["IPAddress"] = ""
+    payload[0]["NetworkSettings"]["Networks"]["owned-network"]["GlobalIPv6Address"] = None
+    payload[0]["NetworkSettings"]["Ports"]["443/tcp"] = []
+    payload[0]["ignored"] = 0.5
+    record, provenance = Acquire(context, payload)
+    model, _ = Apply(context, record, provenance)
+    container = next(item for item in model.objects
+                     if item.attributes.get("container_id") == "a" * 64)
+    assert container.attributes["pid_mode"] == "container", "Cross-container mode lost its category"
+    assert container.attributes["network_mode"] == "named", "Named mode gained opaque selector"
+    checks = {item.check_id for item in Findings(model)}
+    assert {"docker.configured.host-ipc", "docker.configured.host-userns"} <= checks, (
+        "Explicit host namespace configuration lost its direct checks"
+    )
+    assert "docker.configured.privileged" not in checks, "False privileged flag created a positive"
+    service = next(item for item in model.objects if item.attributes.get("container_port") == 443)
+    assert service.attributes["host_bindings"] == (), "Explicit empty bindings became unknown"
