@@ -21,6 +21,12 @@ from fuzzy1337.ioc_artifacts import (
 )
 
 
+def CaseId(value: object) -> str:
+    """Keep byte-heavy negative-case identifiers short across pytest and Windows artifact paths."""
+
+    return "case-" + hashlib.sha256(repr(value).encode("utf-8")).hexdigest()[:8]
+
+
 @pytest.fixture
 def ioc_source():
     """Return an explicit owned fixture selection with its exact source-byte pin."""
@@ -73,10 +79,14 @@ def test_UnitHandWrittenNormalizationAndOriginalCoordinates(ioc_source):
     ("ipv4", "255.255.255.255", "255.255.255.255"),
     ("ipv6", "::", "::"),
     ("ipv6", "::ffff:192.0.2.1", "::ffff:c000:201"),
+    ("ipv6", "1:2:3:4:5:6:7:8", "1:2:3:4:5:6:7:8"),
+    ("ipv6", "1:0:0:2:0:0:3:4", "1::2:0:0:3:4"),
+    ("ipv6", "1:2:3:4:5:6:0:0", "1:2:3:4:5:6::"),
     ("dns", "A-B.EXAMPLE.INVALID", "a-b.example.invalid"),
     ("dns", "xn--owned.example", "xn--owned.example"),
     ("sha256", "aB" * 32, "ab" * 32),
-])
+], ids=("v4-zero", "v4-max", "v6-zero", "v6-mapped", "v6-full", "v6-first-tie",
+        "v6-trailing", "dns-hyphen", "dns-ascii", "sha256-mixed"))
 def test_UnitExplicitSupportedTokenFamilies(ioc_source, kind, token, normalized):
     """Explicit supported token families receive deterministic normalization."""
 
@@ -96,6 +106,8 @@ def test_UnitExplicitSupportedTokenFamilies(ioc_source, kind, token, normalized)
     b"dns\texample.invalid\t2026-10-12T12:00:00-00:00\t-00:00\n",
     b"dns\texample.invalid\t2026-02-30T12:00:00Z\tZ\n",
     b"dns\texample.invalid\t2026-10-12T12:00:00+24:00\t+24:00\n",
+    b"dns\texample.invalid\t2026-10-12T12:00:00+00:60\t+00:60\n",
+    b"dns\texample.invalid\t0001-01-01T00:00:00+05:00\t+05:00\n",
     b"\xef\xbb\xbfdns\texample.invalid\n", b"dns\texample.\xff\n",
     b"kind\ttoken\n", b"# comment\n", b"url\thttps://example.invalid/\n",
     b"md5\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", b"sha256\tabcd\n",
@@ -107,7 +119,7 @@ def test_UnitExplicitSupportedTokenFamilies(ioc_source, kind, token, normalized)
     b"dns\t" + b"a" * 64 + b".invalid\n",
     b"dns\t" + b"a." * 126 + b"invalid\n",
     b"dns\texample.invalid\x00\n", b"dns\texample.invalid\x1b\n",
-])
+], ids=CaseId)
 def test_UnitMalformedOrUnsupportedBytesFailClosed(ioc_source, raw):
     """Malformed, inferred, ambiguous, control-bearing and unsupported source bytes are rejected."""
 
@@ -118,7 +130,7 @@ def test_UnitMalformedOrUnsupportedBytesFailClosed(ioc_source, raw):
 @pytest.mark.parametrize("limits", [
     IocLimits(max_bytes=5), IocLimits(max_lines=1), IocLimits(max_items=1),
     IocLimits(max_line_bytes=10), IocLimits(max_token_bytes=3),
-])
+], ids=("bytes", "lines", "items", "line-bytes", "token-bytes"))
 def test_UnitEveryCallerParserBudgetIsEnforced(ioc_source, limits):
     """Every independent caller budget constrains the parser beneath its global ceiling."""
 
@@ -132,7 +144,7 @@ def test_UnitEveryCallerParserBudgetIsEnforced(ioc_source, limits):
     ("max_bytes", 65536), ("max_lines", 256), ("max_items", 256),
     ("max_line_bytes", 512), ("max_token_bytes", 512),
 ])
-@pytest.mark.parametrize("value", [0, -1, True, 1.5, "2", None, "over"])
+@pytest.mark.parametrize("value", [0, -1, True, 1.5, "2", None, "over"], ids=CaseId)
 def test_UnitUnboundedOrUntypedLimitsAreRejected(name, ceiling, value):
     """Limits accept exact positive integers only and cannot expand hard ceilings."""
 
@@ -144,7 +156,7 @@ def test_UnitUnboundedOrUntypedLimitsAreRejected(name, ceiling, value):
     "source_id", "source_version", "source_locator", "license_name", "license_locator",
     "expected_sha256",
 ])
-@pytest.mark.parametrize("value", ["", "a\tb", " x", "a" * 257, "unicode-\u00e9", 1])
+@pytest.mark.parametrize("value", ["", "a\tb", " x", "a" * 257, "unicode-\u00e9", 1], ids=CaseId)
 def test_UnitSourceAttributionIsExplicitBoundedAscii(ioc_source, name, value):
     """No source/version/license/locator field accepts missing, hidden or unbounded attribution."""
 
@@ -185,7 +197,7 @@ def test_UnitOriginalObservationTimezoneIsNeverAcquisitionTime(ioc_source, zone)
 @pytest.mark.parametrize("payload", [
     b"[]", b'{"x":1,"x":2}', b'{"x":NaN}', b'{"x":Infinity}', b'{"x": 1}',
     b"{", b'{"x":"\xff"}', b'{"x":' + b"[" * 9 + b"0" + b"]" * 9 + b"}",
-])
+], ids=CaseId)
 def test_UnitMetadataRejectsNoncanonicalDuplicateNonfiniteAndDeepJson(payload):
     """Snapshot/receipt interchange cannot hide fields or allocate unbounded nested JSON."""
 
@@ -219,7 +231,7 @@ def test_UnitCandidateFactsMustAgreeWithTheirDeclaredGrammar(ioc_source, changes
         replace(original, **changes)
 
 
-@pytest.mark.parametrize("candidates", [(), [], (object(),)])
+@pytest.mark.parametrize("candidates", [(), [], (object(),)], ids=("empty", "list", "foreign"))
 def test_UnitSnapshotRequiresExactBoundedCandidateTypes(ioc_source, candidates):
     """Snapshot serialization cannot accept foreign or empty normalized candidate collections."""
 
