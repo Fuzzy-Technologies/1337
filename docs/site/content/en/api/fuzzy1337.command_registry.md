@@ -1,5 +1,11 @@
 # fuzzy1337.command_registry
 
+The `sbom` descriptor advertises Experimental version-one owned offline
+`sbom import spdx-graph`. Discovery supplies no source path, original manifest,
+source attribution, image digest kind, scope/run, revision basis or read consent.
+The Internal handler owns acquisition, preserved custody and independent saves;
+registry presence grants no scanner, retrieval or execution authority.
+
 The `api` descriptor advertises Experimental version-one
 `api import graphql-introspection`. Discovery metadata supplies no endpoint, source,
 scope, consent, revision basis or transport authority. The Internal handler owns

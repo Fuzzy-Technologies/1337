@@ -1,5 +1,13 @@
 # fuzzy1337.cli
 
+Experimental version-one `sbom import spdx-graph` imports an explicitly owned
+offline original file or exact known original product manifest. The caller
+selects source/read-consent attribution, image digest semantics, offline scope,
+run and both current revision bases. The Internal handler preserves original
+custody, all-known SBOM alias preflight and three independent acquisition/model/
+workspace acknowledgements. Static help opens no local state; import grants no
+scanner, remote retrieval, reachability or license-compliance authority.
+
 The Experimental version-one `api import graphql-introspection` route imports one
 explicit owned original file or known original evidence custody. Endpoint, current
 scope, run and model/workspace revision bases remain caller-selected. The Internal
