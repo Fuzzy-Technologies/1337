@@ -40,6 +40,7 @@ SHELL_COMMANDS = (
     "scan",
     "scope",
     "select",
+    "trace",
     "update",
     "updates",
     "view",
@@ -230,7 +231,7 @@ class NativeInputHistory:
             command = parsed.lower() if parsed else ""
 
             if command in {
-                "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime"
+                "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime", "trace"
             }:
                 position = index - first_index
 
@@ -400,18 +401,18 @@ class InteractiveShell(cmd.Cmd):
         if normalized and command != "history":
             self._history.append(
                 command if command in {
-                    "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime"
+                    "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
+                    "trace"
                 }
                 else normalized
             )
 
         if command in {
-            "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime"
+            "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime", "trace"
         }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
-                        "ci": self.do_ci,
-                        "runtime": self.do_runtime,
+                        "ci": self.do_ci, "runtime": self.do_runtime, "trace": self.do_trace,
                         "intel": self.do_intel}
             self.lastcmd = command
 
@@ -510,6 +511,7 @@ class InteractiveShell(cmd.Cmd):
                 "ci scan, commands, context, demo local, history [query], lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
                 "report export, runtime import <docker-inspect|kubernetes-list>, "
+                "trace ioc <import|inspect>, "
                 "select <object-id>, "
                 "scan <quick|nuclei|image|config>, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
@@ -545,6 +547,10 @@ class InteractiveShell(cmd.Cmd):
             "runtime": (
                 "runtime import <docker-inspect|kubernetes-list> <workspace>: import one explicit "
                 "owned file or retained manifest with existing HOST/cluster, scope and exact bases."
+            ),
+            "trace": (
+                "trace ioc <import|inspect> <workspace>: use explicit local candidate files or "
+                "independent snapshot/receipt anchors without changing the Security Object Model."
             ),
             "scan": (
                 "scan <quick|nuclei|image|config> <workspace>: run explicitly governed scans; "
@@ -582,6 +588,12 @@ class InteractiveShell(cmd.Cmd):
 
                 status = RunRuntimeCommands(arguments, cast(TextIO, self.stdout),
                                             json_output=json_output)
+
+            elif command == "trace":
+                from fuzzy1337.ioc_commands import RunIocCommands
+
+                status = RunIocCommands(arguments, cast(TextIO, self.stdout),
+                                        json_output=json_output)
 
             elif command == "ci":
                 from fuzzy1337.ci_commands import RunCiCommands
@@ -658,6 +670,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("report", argument)
+
+    def do_trace(self, argument: str) -> None:
+        """Use explicitly owned local IOC candidates without deriving authority from shell state.
+
+        Args:
+            argument: IOC action, owning workspace, source selections or independent anchors.
+        """
+
+        self.RunLocalCommand("trace", argument)
 
     def do_ci(self, argument: str) -> None:
         """Run an explicit current-execution finding predicate and verified report exports.

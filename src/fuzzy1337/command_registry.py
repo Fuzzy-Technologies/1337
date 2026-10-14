@@ -236,5 +236,13 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 runtime import <docker-inspect|kubernetes-list> <workspace>",
             capabilities=("runtime.owned-offline-import",),
         ),
+        CommandDescriptor(
+            identifier="trace",
+            summary=(
+                "Import explicit local IOC candidates or inspect independently anchored artifacts."
+            ),
+            usage="1337 trace ioc <import|inspect> <workspace>",
+            capabilities=("trace.local-ioc-candidates",),
+        ),
     )
 )

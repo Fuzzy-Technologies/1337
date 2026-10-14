@@ -148,6 +148,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: intel",
         "cli: ci",
         "cli: runtime",
+        "cli: trace",
         "action: show-evidence — Show evidence for this object.",
         "action: show-paths — Show paths from this object.",
         "cli: workspace",
@@ -215,10 +216,11 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
     assert output.getvalue().splitlines() == [
         (
             "Interactive commands: ci, commands, context, demo, help, history, intel, lens, model, "
-            "palette, quit, report, runtime, scan, scope, select, update, updates, view, workspace"
+            "palette, quit, report, runtime, scan, scope, select, trace, update, updates, "
+            "view, workspace"
         ),
         ("CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report, "
-         "intel, demo, ci, runtime"),
+         "intel, demo, ci, runtime, trace"),
         "[model] asset changed",
         "usage: quit",
         "",
@@ -479,7 +481,7 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
 
 
 @pytest.mark.parametrize("namespace", [
-    "workspace", "scope", "scan", "report", "demo", "ci", "runtime",
+    "workspace", "scope", "scan", "report", "demo", "ci", "runtime", "trace",
 ])
 @pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
 def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
@@ -561,7 +563,7 @@ def NativeEditor(entries):
     return editor, settings
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "trace"])
 def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput(namespace):
     """A native cap advances absolute base; matching prior/command-time entries remain unowned."""
 
@@ -765,7 +767,7 @@ def test_CommandExceptionCannotClaimCallerNativeAdditionsDuringLoopCleanup(monke
     )
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "trace"])
 def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, namespace):
     """Stream/queued inputs have no native auto-history ownership and preserve preexisting state."""
 
@@ -790,7 +792,7 @@ def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, n
     )
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "trace"])
 def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch, namespace):
     """Even a matching queued string cannot claim an unchanged preexisting native history item."""
 
@@ -808,6 +810,58 @@ def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch, na
     assert entries == [(1, line)], "Queued commands cannot own prior native history, even if equal."
     assert settings["completer"] is marker and shell._native_history is None, (
         "The standard completion lifecycle and scoped cursor must restore exactly."
+    )
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_TraceShellProtectsWindowsSelectionsBeforeDispatchAndPreservesContext(monkeypatch,
+                                                                           interrupted):
+    """Source paths and receipt selections never enter replay even when IOC dispatch interrupts."""
+
+    module = ModuleType("fuzzy1337.ioc_commands")
+    output = StringIO()
+    shell = InteractiveShell(stdout=output)
+    shell.onecmd("select object:owned")
+    basis = shell._state
+    selected = ["ioc", "import", r"C:\Owned Workspace", "--file",
+                r"C:\Owned Evidence\private-candidates.tsv"]
+    calls = []
+
+    def ObserveInvocation(arguments, stream, *, json_output=False):
+        """Inspect the already protected command boundary without executing acquisition."""
+
+        assert stream is output and shell.lastcmd == "trace", (
+            "The shell forwards its output owner and protects replay before consumer entry."
+        )
+        assert "private-candidates" not in str(shell._history), (
+            "History must already omit private source arguments while acquisition runs."
+        )
+        calls.append((arguments, json_output))
+
+        if interrupted:
+            raise KeyboardInterrupt
+
+        return 4
+
+    module.RunIocCommands = ObserveInvocation
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    line = "trace " + shlex.join([*selected, "--json"])
+
+    if interrupted:
+        with pytest.raises(KeyboardInterrupt):
+            shell.onecmd(line)
+
+    else:
+        shell.onecmd(line)
+        assert "Command exit status: 4" in output.getvalue(), (
+            "The interactive route preserves actual consumer failure status."
+        )
+
+    assert calls == [(selected, True)] and shell._state == basis, (
+        "Quoted Windows selections retain their exact spelling without using selected context."
+    )
+    assert shell._history[-1] == "trace" and shell.lastcmd == "trace", (
+        "Normal and interrupted IOC input retain only the canonical protected namespace."
     )
 
 

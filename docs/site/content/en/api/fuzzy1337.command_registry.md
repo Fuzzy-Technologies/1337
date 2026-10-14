@@ -1,5 +1,11 @@
 # fuzzy1337.command_registry
 
+The `trace` descriptor advertises Experimental version-one explicit local
+`trace ioc import|inspect`. Metadata supplies no selected file, source attribution,
+receipt anchor, read consent, workspace context or execution authority. The
+Internal handler owns bounded original acquisition and independently anchored
+read-only replay; registry discovery creates no Core state or candidate facts.
+
 The `runtime` descriptor advertises Experimental version-one owned offline
 `runtime import <docker-inspect|kubernetes-list>`. Docker requires explicit `--host`;
 Kubernetes requires explicit `--cluster` with an existing declared cluster ASSET.

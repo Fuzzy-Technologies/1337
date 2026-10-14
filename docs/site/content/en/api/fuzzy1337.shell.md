@@ -1,6 +1,14 @@
 # fuzzy1337.shell
 
-Foreground `runtime import <docker-inspect|kubernetes-list>` forwards only explicit quoted CLI
+Foreground `trace ioc import|inspect` forwards explicit quoted arguments to the
+Internal IOC handler and preserves its actual terminal status. Shell context
+supplies no missing file, source, scope, read consent, snapshot or original receipt
+anchor. The complete `trace` namespace, including malformed input, is protected
+from local/native argument history and empty-line replay before dispatch. Import
+retains original evidence with honest acknowledgement; inspection does not acquire
+or save evidence/Core/workspace state and performs no external source discovery.
+
+Foreground `runtime import <docker-inspect|kubernetes-list>` forwards explicit quoted CLI
 arguments to the Internal runtime handler and preserves its actual exit status.
 The Experimental version-one command requires source selection, existing
 HOST (`--host`) or declared cluster ASSET (`--cluster`), scope and exact revision

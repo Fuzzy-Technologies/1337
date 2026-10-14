@@ -120,7 +120,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "command",
         choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan", "report",
-                 "demo", "intel", "ci", "runtime"),
+                 "demo", "intel", "ci", "runtime", "trace"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
@@ -138,6 +138,14 @@ def Main(argv: Sequence[str] | None = None) -> int:
             remaining.append("--help")
 
         return RunRuntimeCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "trace":
+        from fuzzy1337.ioc_commands import RunIocCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunIocCommands(remaining, sys.stdout, json_output=arguments.json)
 
     if arguments.command == "ci":
         from fuzzy1337.ci_commands import RunCiCommands
@@ -189,7 +197,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     if arguments.json and arguments.command != "update":
         parser.error(
             "--json is only available for update, workspace, scope, scan, report, demo, "
-            "intel, ci and runtime"
+            "intel, ci, runtime and trace"
         )
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):
