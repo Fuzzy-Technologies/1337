@@ -214,6 +214,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Changed
 
+- Run the four required full development workflows at PR checkpoints without
+  repeating them after a `develop` merge. Stable `master` checks and master-only
+  documentation deployment remain unchanged.
+
 - Limited browser-based documentation rendering to the protected-master publication
   gate. Pull requests retain static source, locale, link, package and build checks.
 

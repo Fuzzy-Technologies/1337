@@ -86,6 +86,10 @@ tracked-file edits require relevant focused validation rather than a duplicate
 local full gate. Full-gate evidence belongs to its tested revision; required CI
 must validate the proposed PR revision before review readiness or merge.
 
+The four required development workflows run on pull requests to `develop` or
+`master`. A merge into `develop` does not repeat those full gates. Protected
+`master` pushes retain stable-branch checks and master-only documentation deployment.
+
 Plain `pytest` also defaults to `tests/unit`. The `1337-dev unit` command additionally
 enforces the per-module contract; `1337-dev test` runs all test layers, and
 `1337-dev check` is the full repository gate. A stale coverage JSON file is removed
