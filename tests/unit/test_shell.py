@@ -152,6 +152,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "action: show-evidence — Show evidence for this object.",
         "action: show-paths — Show paths from this object.",
         "cli: workspace",
+        "cli: runtime",
         "action: show-evidence — Show evidence for this object.",
         "No palette matches.",
     ], "shell palette searches local commands and cached context actions invariant failed."

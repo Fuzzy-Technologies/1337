@@ -70,7 +70,7 @@ state = "missing"
 id = "page:api.fuzzy1337.command-registry"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.command_registry.md"
-sourceHash = "sha256:6a647e1a6a8f81dd7784e5f365c640f342111793e6f21a0be0612117ae33e4fd"
+sourceHash = "sha256:97d91d68be54d9e81304f83ec7b0eb942fc7b05cce0c204b264f147b10c73ce8"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -270,7 +270,7 @@ state = "missing"
 id = "page:api.fuzzy1337.shell"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.shell.md"
-sourceHash = "sha256:93062bda4edd7f129c033759a7bca8157d27a8d5a16b98fd22d4ba4449e76584"
+sourceHash = "sha256:e8f39e82ae297348b1081fef6e971ce67f867bdae45d297810b98b9d8cb01919"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9226,7 +9226,62 @@ state = "missing"
 id = "page:api.fuzzy1337.runtime-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.runtime_commands.md"
-sourceHash = "sha256:533c43e83a45748b8b6050f99773dbd10b1f766c7062674f766b5410687aaa3b"
+sourceHash = "sha256:5b4d2736441d6c445458d1da87c5a6ccf1f506d7553c0d38fe64a0e1b504434c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.runtime_commands.RequireRuntimeAnchor"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/runtime_commands.py"
+sourceHash = "sha256:d704e5b451e9319ca54d996ba660cd9e84ee2ad48f2b3671a79fed6b7eba1e8c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.runtime_commands.RuntimeEvidenceStore.CheckReference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/runtime_commands.py"
+sourceHash = "sha256:4df8b3e265bb0b0799edb7f71d81b0ee3a95ddc2eb9ecf1b4753d65280a37840"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.runtime_commands.RuntimeEvidenceStore.Get"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/runtime_commands.py"
+sourceHash = "sha256:cf45f9019a4efca96b23759b0aa9bbef8f17dda5714e52093379c735311c3930"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.runtime_commands.RuntimeEvidenceStore.Manifest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/runtime_commands.py"
+sourceHash = "sha256:a79e3231f8fd102b1680c4928953c60216ce7bb1be9fe8942df70036f5d79b1c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.runtime_commands.RuntimeProfile"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/runtime_commands.py"
+sourceHash = "sha256:019074f81d81ea99667968c4bc735fbdc3e6db21e5175dd97d72ac872ebb068e"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9259,7 +9314,7 @@ state = "missing"
 id = "symbol:fuzzy1337.runtime_commands.ReadOwnedInspect"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/runtime_commands.py"
-sourceHash = "sha256:d08200f601c8ee2103f971a70842d4ad441aa5a504e5da9ac08bcab8c081711a"
+sourceHash = "sha256:d66ba527476e3afb394855918d0fb41fc3580e0fda03cebdcdfd36557671a693"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9270,7 +9325,7 @@ state = "missing"
 id = "symbol:fuzzy1337.runtime_commands.ReferenceProposal"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/runtime_commands.py"
-sourceHash = "sha256:505122469ec023050ae8066078586419fbf2ef854aec3ca7171e2e0d9d7207c1"
+sourceHash = "sha256:101ba257557a075229c72797761b52bc8e41003924cc36d28495dc161c79fa94"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9314,7 +9369,7 @@ state = "missing"
 id = "symbol:fuzzy1337.runtime_commands.RuntimeEvidenceStore"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/runtime_commands.py"
-sourceHash = "sha256:6cfda6acafdfd12450f538dedd9226e7c21e7080cc56c78926484489ac313eb7"
+sourceHash = "sha256:0c0cb8239def79ab0044a9e47883e6aa89a11dc29e29b7568e9409c6d5743322"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9325,7 +9380,7 @@ state = "missing"
 id = "symbol:fuzzy1337.runtime_commands.RuntimeEvidenceStore.Read"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/runtime_commands.py"
-sourceHash = "sha256:a4badb23f4b1642a610a59b00fceddb98adf76aa0f1ac06e55bf33513d0617ef"
+sourceHash = "sha256:3069d0d4701c86dd04a11a5bc231adfcf234ab2d0aa0c4e5b3d989bd38ba16a0"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9369,7 +9424,7 @@ state = "missing"
 id = "symbol:fuzzy1337.runtime_commands.SourceFact"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/runtime_commands.py"
-sourceHash = "sha256:98523dd8b1b5149a5b14c8192c642d3bfc8ae8012d54320cedd15aa963de6af7"
+sourceHash = "sha256:017b93aa48c05d30e50d8518a0707aec273332bf67dbfe2aeb7b121db7a884af"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

@@ -14,7 +14,7 @@ from io import StringIO
 
 from fuzzy1337.findings import Findings, FindingStatus, TransitionFinding
 from fuzzy1337.images import ImageIdentity
-from fuzzy1337.model import LocalModelStore, ModelProvenance, SecurityObject
+from fuzzy1337.model import LocalModelStore, ModelProvenance, Observation, SecurityObject
 from fuzzy1337.reachability import (
     ProjectReachability,
     ReachabilityModelVersion,
@@ -23,7 +23,8 @@ from fuzzy1337.reachability import (
 )
 from fuzzy1337.report_commands import RunReportCommands
 from fuzzy1337.workspace import LocalWorkspaceStore
-from tests.runtime_helpers import Arguments, Context, Run
+from tests.docker_helpers import Acquire
+from tests.runtime_helpers import Arguments, Context, KubernetesContext, Run
 
 TIME = datetime(2026, 10, 14, 10, 0, tzinfo=timezone.utc)
 
@@ -180,3 +181,79 @@ def test_SameRawBytesWithDifferentOriginalManifestIdentityRemainDistinctOnReplay
         "Original manifest could not replay after another same-byte acquisition"
     )
     assert (root / "state/model/model.json").read_bytes() == before, "Original replay rewrote model"
+
+
+def test_KubernetesRuntimeAcquisitionAndRetainedReplayNeedNoLiveTransportOrNewReadAuthority(
+    tmp_path, monkeypatch,
+):
+    """Actual handler acquisition, owner saves and exact replay work under live-access tripwires."""
+
+    context = KubernetesContext(tmp_path)
+
+    def Refuse(*args, **kwargs):
+        """Fail any cluster/native access or new observation clock in retained replay."""
+
+        raise AssertionError("Owned Kubernetes import attempted live access or fresh retained read")
+
+    with monkeypatch.context() as guard:
+        guard.setattr(socket, "socket", Refuse)
+        guard.setattr(socket, "create_connection", Refuse)
+        guard.setattr(subprocess, "Popen", Refuse)
+        status, outcome = Run(Arguments(context, profile="kubernetes-list"), clock=lambda: TIME)
+        assert status == 0, "Actual Kubernetes handler failed without live access"
+        before = {path.relative_to(context[0]): path.read_bytes()
+                  for path in context[0].rglob("*") if path.is_file()}
+        context[4].unlink()
+        status, replay = Run(Arguments(context, profile="kubernetes-list",
+            evidence_id=outcome["evidence_id"]), clock=Refuse)
+        assert status == 0 and replay["created"] == replay["updated"] == 0, (
+            "Retained original selection performed a fresh external acquisition"
+        )
+
+    assert before == {path.relative_to(context[0]): path.read_bytes()
+                      for path in context[0].rglob("*") if path.is_file()}, (
+        "Actual retained no-op changed authoritative owner bytes"
+    )
+
+
+def test_PreexistingDockerCustodyShapeReplaysWithoutMigrationOrSavedByteChanges(tmp_path):
+    """Handwritten accepted Docker product custody remains compatible across shared helper reuse."""
+
+    from fuzzy1337.docker_inventory import ApplyVerifiedDockerInspect
+
+    context = Context(tmp_path)
+    root, basis, host, _, _ = context
+    record, provenance = Acquire(context[:4])
+    proposed, _ = ApplyVerifiedDockerInspect(basis, record, provenance,
+        host_reference=host.Reference(), workspace_root=root)
+    original_fact = Observation("runtime-import-source", host.Reference(), {
+        "profile": "docker-inspect", "evidence_id": record.evidence_id,
+        "source_sha256": record.reference.sha256,
+        "source_version": "owned-docker-container-inspect-v1",
+        "read_actor_reference": "owner:legacy",
+        "read_consent_reference": "consent:legacy",
+    }, provenance)
+    legacy, _ = proposed.Apply(observations=(original_fact,))
+    legacy = replace(legacy, revision=proposed.revision)
+    LocalModelStore(root).Save(legacy, expected_revision=basis.revision)
+    workspace = LocalWorkspaceStore(root)
+    workspace.Save(replace(workspace.Open(), scope_references=("scope:owned",),
+        object_references=tuple(sorted(item.Reference() for item in legacy.objects)),
+        evidence_references=(record.reference,), evidence_record_references=(record.evidence_id,)))
+    before = {path.relative_to(root): path.read_bytes()
+              for path in root.rglob("*") if path.is_file()}
+
+    def NoClock():
+        """Refuse a fabricated fresh acquisition during legacy original retained replay."""
+
+        raise AssertionError("Legacy retained Docker replay acquired new source authority")
+
+    status, outcome = Run(Arguments(context, evidence_id=record.evidence_id), clock=NoClock)
+    assert status == 0 and outcome["created"] == outcome["updated"] == 0, (
+        "Existing accepted Docker custody required migration or reinterpretation"
+    )
+    after = {path.relative_to(root): path.read_bytes()
+             for path in root.rglob("*") if path.is_file()}
+    assert after == before and original_fact in LocalModelStore(root).Open().observations, (
+        "Shared profiles changed original Docker attribute keys, host/run or read descriptions"
+    )
