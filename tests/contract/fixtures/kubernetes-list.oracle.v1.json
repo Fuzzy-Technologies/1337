@@ -1,0 +1,11 @@
+{
+  "resources": 18,
+  "container_declarations": 3,
+  "counts": {"objects": 25, "relations": 46, "findings": 3},
+  "expected_checks": ["kubernetes.configured.privileged", "kubernetes.configured.host-network", "kubernetes.configured.rbac-wildcard"],
+  "absent_checks": ["kubernetes.configured.host-pid", "kubernetes.configured.host-ipc", "kubernetes.effective.cluster-admin"],
+  "selector_matches": {"Deployment:blue:web": ["blue:web-one"], "Service:blue:web": ["blue:web-batch", "blue:web-one"], "NetworkPolicy:blue:web": ["blue:web-one"]},
+  "role_links": {"RoleBinding:blue:reader": "Role:blue:reader", "ClusterRoleBinding::pod-wildcard": "ClusterRole::pod-wildcard"},
+  "subject_links": {"RoleBinding:blue:reader": ["blue:build", "red:build"], "ClusterRoleBinding::pod-wildcard": ["blue:build"]},
+  "nominal_reader_rule": {"api_groups": [""], "resources": ["pods"], "verbs": ["get", "list"], "resource_names": null, "non_resource_urls": null}
+}
