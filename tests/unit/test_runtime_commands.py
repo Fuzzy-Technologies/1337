@@ -30,7 +30,7 @@ from fuzzy1337.model import (
 from fuzzy1337.scope import LocalScopeStore
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.docker_helpers import Acquire
-from tests.runtime_helpers import Arguments, Context, Run
+from tests.runtime_helpers import Arguments, Context, KubernetesContext, Run
 
 TIME = datetime(2026, 10, 14, 10, 0, tzinfo=timezone.utc)
 
@@ -534,14 +534,15 @@ def test_ActualBusyOwnerNeverLosesItsWriterLock(tmp_path, owner):
 @pytest.mark.parametrize("owner", ["model", "workspace"])
 @pytest.mark.parametrize("committed", [False, True])
 @pytest.mark.parametrize("error", [OSError, KeyboardInterrupt])
+@pytest.mark.parametrize("profile", ["docker-inspect", "kubernetes-list"])
 def test_SaveAcknowledgementLossPreservesActualIndependentOwnerState(
-    tmp_path, monkeypatch, capsys, owner, committed, error,
+    tmp_path, monkeypatch, capsys, owner, committed, error, profile,
 ):
     """Before/after real replacement failure stays unknown without rollback or invented success."""
 
     from fuzzy1337.cli import Main
 
-    context = Context(tmp_path)
+    context = Context(tmp_path) if profile == "docker-inspect" else KubernetesContext(tmp_path)
     root = context[0]
     store_type = LocalModelStore if owner == "model" else LocalWorkspaceStore
     original = store_type.Save
@@ -555,7 +556,7 @@ def test_SaveAcknowledgementLossPreservesActualIndependentOwnerState(
         raise error("SYNTHETIC_PRIVATE_MARKER")
 
     monkeypatch.setattr(store_type, "Save", Save)
-    status = Main(["runtime", *Arguments(context), "--json"])
+    status = Main(["runtime", *Arguments(context, profile=profile), "--json"])
     outcome = json.loads(capsys.readouterr().out)
     assert status == (130 if error is KeyboardInterrupt else 4), "Lost acknowledgement hid failure"
     assert outcome[owner + "_commit"] == "unknown", "Lost acknowledgement guessed storage state"
@@ -743,3 +744,191 @@ def test_LexicalPathRefusalDoesNotTraverseRejectedSource(path):
 
     with pytest.raises(commands.RuntimeFailure, match="configuration"):
         commands.RuntimePath(Path(path))
+
+
+@pytest.mark.parametrize("field,value", [
+    ("asset_type", "other"), ("cluster_id", "different"), ("cluster_id", "invalid\ncluster"),
+])
+def test_KubernetesDeclaredAnchorRefusesBeforeAnyOriginalOrRetainedBlobRead(
+    tmp_path, monkeypatch, field, value,
+):
+    """A selected existing ASSET cannot substitute its literal declared cluster context."""
+
+    context = KubernetesContext(tmp_path)
+    root, basis, cluster, evidence, source = context
+    record = evidence.Put(source.read_bytes(), "kubernetes-list", "application/json",
+        EvidenceProvenance("runtime-test", "scope:owned", "inventory.kubernetes-list",
+            "owned-kubernetes-list-v1", None, TIME.isoformat(), TIME.isoformat()))
+    workspace = LocalWorkspaceStore(root)
+    workspace.Save(replace(workspace.Open(), evidence_references=(record.reference,),
+                           evidence_record_references=(record.evidence_id,)))
+    changed = replace(cluster, attributes={**cluster.attributes, field: value})
+    proposal, _ = basis.Apply(objects=(changed,))
+    LocalModelStore(root).Save(proposal, expected_revision=basis.revision)
+
+    def NoRead(*args, **kwargs):
+        """Reject all raw evidence or current source reads during invalid anchor selection."""
+
+        pytest.fail("Invalid declared cluster reached original byte reading")
+
+    monkeypatch.setattr(LocalEvidenceStore, "Read", NoRead)
+    monkeypatch.setattr(commands, "ReadOwnedInspect", NoRead)
+
+    for evidence_id in (None, record.evidence_id):
+        status, outcome = Run(Arguments(context, profile="kubernetes-list",
+                                       evidence_id=evidence_id))
+        assert status == 2 and outcome["failure"] == "cluster", "Invalid cluster was inferred"
+        assert outcome["acquisition_commit"] == "not-attempted", "Invalid anchor read original"
+
+
+@pytest.mark.parametrize("profile,flag", [
+    ("docker-inspect", "--cluster"), ("kubernetes-list", "--host"),
+])
+def test_RuntimeProfileRequiresItsOwnExplicitAnchorGrammar(tmp_path, profile, flag):
+    """The other profile's anchor cannot act as a fallback even when it names an existing object."""
+
+    context = Context(tmp_path) if profile == "docker-inspect" else KubernetesContext(tmp_path)
+    arguments = Arguments(context, profile=profile)
+    arguments[arguments.index("--host" if profile == "docker-inspect" else "--cluster")] = flag
+    status, outcome = Run(arguments)
+    assert status == 2 and outcome["failure"] == "configuration", "Profile inferred an anchor"
+    assert outcome["acquisition_commit"] == "not-attempted", "Wrong anchor grammar read source"
+
+
+@pytest.mark.parametrize("field,value", [
+    ("role", "docker-inspect"), ("media_type", "text/plain"), ("size", 1024 * 1024 + 1),
+    ("source_id", "inventory.docker-inspect"), ("source_version", "other"),
+    ("workspace_id", "foreign"), ("scope_reference", "scope:foreign"),
+    ("invocation_sha256", "a" * 64),
+])
+def test_KubernetesActualManifestProfileAndContextRefuseBeforeEveryBlobRead(
+    tmp_path, monkeypatch, field, value,
+):
+    """Preflight precedes even existing workspace-retained evidence verification reads."""
+
+    context = KubernetesContext(tmp_path)
+    root, basis, _, evidence, source = context
+    provenance = EvidenceProvenance("runtime-test", "scope:owned", "inventory.kubernetes-list",
+        "owned-kubernetes-list-v1", None, TIME.isoformat(), TIME.isoformat())
+    raw = b"x" * value if field == "size" else source.read_bytes()
+    role = value if field == "role" else "kubernetes-list"
+    media = value if field == "media_type" else "application/json"
+
+    if field not in {"role", "media_type", "size"}:
+        provenance = replace(provenance, **{field: value})
+
+    record = evidence.Put(raw, role, media, provenance)
+    workspace = LocalWorkspaceStore(root)
+    workspace.Save(replace(workspace.Open(), evidence_references=(record.reference,),
+                           evidence_record_references=(record.evidence_id,)))
+
+    def NoBlob(*args, **kwargs):
+        """Fail any eager raw read of the selected, already retained rejected manifest."""
+
+        pytest.fail("Rejected selected Kubernetes manifest reached original blob reading")
+
+    monkeypatch.setattr(LocalEvidenceStore, "Read", NoBlob)
+    status, outcome = Run(Arguments(context, profile="kubernetes-list",
+                                    evidence_id=record.evidence_id))
+    assert status == 4 and outcome["failure"] == "integrity", "Manifest preflight was omitted"
+    assert outcome["model_commit"] == "not-attempted" and LocalModelStore(root).Open() == basis, (
+        "Rejected selected manifest changed the owning model"
+    )
+
+
+@pytest.mark.parametrize("mode", ["Secret", "ConfigMap", "Node", "pagination", "duplicate-uid"])
+def test_KubernetesUnsupportedOrIncompleteOriginalRetainsHonestAcquisitionRefusal(tmp_path, mode):
+    """Explicit unredacted custody succeeds independently of whole-export SDK refusal."""
+
+    context = KubernetesContext(tmp_path)
+    payload = json.loads(context[4].read_bytes())
+
+    if mode == "pagination":
+        payload["metadata"] = {"continue": "owned-next-page"}
+
+    elif mode == "duplicate-uid":
+        payload["items"][1]["metadata"]["uid"] = payload["items"][0]["metadata"]["uid"]
+
+    else:
+        payload["items"][0]["kind"] = mode
+        payload["items"][0]["data"] = {"owned-inert": "SYNTHETIC_PRIVATE_MARKER"}
+
+    original = json.dumps(payload).encode()
+    context[4].write_bytes(original)
+    status, outcome = Run(Arguments(context, profile="kubernetes-list"), clock=lambda: TIME)
+    assert status == 4 and outcome["failure"] == "normalization", "Unsupported export was applied"
+    assert outcome["acquisition_commit"] == "confirmed" and (
+        outcome["model_commit"] == outcome["workspace_commit"] == "not-attempted"
+    ), "Normalization refusal invented rollback or failed original acquisition"
+    record = context[3].Get(outcome["evidence_id"])
+    assert context[3].Read(record.reference) == original, "Explicit original bytes were redacted"
+    assert LocalModelStore(context[0]).Open() == context[1] and (
+        "SYNTHETIC_PRIVATE_MARKER" not in json.dumps(outcome)
+    ), "Unsupported export changed the saved graph or leaked raw values"
+
+
+@pytest.mark.parametrize("value", [0, True, 1024 * 1024 + 1])
+def test_RuntimeOriginalReadCeilingCannotBeRelaxedBeforePhysicalAccess(
+    tmp_path, monkeypatch, value,
+):
+    """Shared Internal file-read reuse preserves the original exact typed byte budget."""
+
+    def NoPath(*args, **kwargs):
+        """Reject attempts to observe physical source before a malformed ceiling is refused."""
+
+        pytest.fail("Malformed source ceiling reached physical access")
+
+    monkeypatch.setattr(commands, "RuntimePath", NoPath)
+
+    with pytest.raises(commands.RuntimeFailure, match="configuration"):
+        commands.ReadOwnedInspect(tmp_path / "absent", ArtifactReadConsent("owner:x", "consent:x"),
+                                  lambda: TIME, maximum=value)
+
+
+def test_RuntimeClosedProfilesRefuseUnknownAndTypedSubstitutions():
+    """Closed profile selection cannot relax source roles or invent extension dispatch."""
+
+    derived = type("Derived", (str,), {"__doc__": "Rejected profile text subclass."})
+
+    for value in ("other", derived("kubernetes-list"), None):
+        with pytest.raises(commands.RuntimeFailure, match="configuration"):
+            commands.RuntimeProfile(value)
+
+
+@pytest.mark.parametrize("field", ["run", "cluster", "custody-profile"])
+def test_KubernetesOriginalCustodyCannotBeReboundToAnotherContext(tmp_path, field):
+    """Original manifest identity fixes its first selected cluster/run and custody profile."""
+
+    context = KubernetesContext(tmp_path)
+    status, original = Run(Arguments(context, profile="kubernetes-list"), clock=lambda: TIME)
+    assert status == 0, "Original Kubernetes setup did not import"
+    model = LocalModelStore(context[0])
+    state = model.Open()
+    arguments = Arguments(context, profile="kubernetes-list", evidence_id=original["evidence_id"])
+
+    if field == "run":
+        arguments = Value(arguments, "--run", "run:other")
+
+    elif field == "cluster":
+        cluster = SecurityObject(ObjectIdentity(state.workspace_id, ObjectKind.ASSET,
+            "kubernetes-cluster:other"),
+            {"asset_type": "kubernetes-cluster", "cluster_id": "other"},
+            context[2].provenance)
+        proposal, _ = state.Apply(objects=(cluster,))
+        model.Save(proposal, expected_revision=state.revision)
+        arguments = Value(Arguments(context, profile="kubernetes-list",
+            evidence_id=original["evidence_id"]), "--cluster", cluster.Reference())
+
+    else:
+        observations = tuple(replace(item,
+            attributes={**item.attributes, "profile": "docker-inspect"})
+            if item.kind == "runtime-import-source" else item for item in state.observations)
+        model.Save(replace(state, revision=state.revision + 1, observations=observations),
+                   expected_revision=state.revision)
+        arguments = Arguments(context, profile="kubernetes-list",
+                              evidence_id=original["evidence_id"])
+
+    before = model.Open()
+    status, outcome = Run(arguments)
+    assert status == 4 and outcome["failure"] == "source-context", "Original context was rebound"
+    assert model.Open() == before, "Rejected original Kubernetes context mutated the saved basis"

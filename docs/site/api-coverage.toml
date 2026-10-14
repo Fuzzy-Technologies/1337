@@ -61,6 +61,7 @@ mode = "authored"
 page = "api/fuzzy1337.kubernetes_inventory.md"
 
 [[surfaces]]
+# Internal implementation of the two closed Experimental v1 runtime import profiles.
 module = "fuzzy1337.runtime_commands"
 source = "src/fuzzy1337/runtime_commands.py"
 mode = "authored"

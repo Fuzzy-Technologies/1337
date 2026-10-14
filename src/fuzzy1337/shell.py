@@ -509,7 +509,8 @@ class InteractiveShell(cmd.Cmd):
             "": (
                 "ci scan, commands, context, demo local, history [query], lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
-                "report export, runtime import docker-inspect, select <object-id>, "
+                "report export, runtime import <docker-inspect|kubernetes-list>, "
+                "select <object-id>, "
                 "scan <quick|nuclei|image|config>, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
@@ -542,8 +543,8 @@ class InteractiveShell(cmd.Cmd):
                 "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
             ),
             "runtime": (
-                "runtime import docker-inspect <workspace>: import one explicit owned offline "
-                "file or retained manifest with existing HOST/scope and exact revision bases."
+                "runtime import <docker-inspect|kubernetes-list> <workspace>: import one explicit "
+                "owned file or retained manifest with existing HOST/cluster, scope and exact bases."
             ),
             "scan": (
                 "scan <quick|nuclei|image|config> <workspace>: run explicitly governed scans; "
