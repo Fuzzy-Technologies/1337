@@ -12,6 +12,7 @@ import os
 import shutil
 import socket
 import sys
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -36,11 +37,18 @@ from fuzzy1337.executors import (
     LocalExecutionRequest,
     LocalExecutor,
 )
+from fuzzy1337.findings import Finding
+from fuzzy1337.model import LocalModelStore, ObjectKind
+from fuzzy1337.native_image_admission import (
+    ApplyVerifiedNativeTrivyImages,
+    VerifyNativeTrivyImageReplay,
+)
 from fuzzy1337.native_image_capture import (
     CaptureNativeTrivyOperation,
     NativeTrivyOperation,
     NativeTrivySelection,
 )
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
 from tests.fixtures.trivy.native_archive import ArchiveBytes
 
 ORACLE = json.loads((Path(__file__).parents[1] / "fixtures/trivy/native_oracle.json").read_bytes())
@@ -196,9 +204,10 @@ def RunNativePair(root: Path, executable: Path, package_version: str,
                   provisioning: dict, network: dict):
     """Exercise actual production custody with independent explicit test VERSION/SCAN decisions."""
 
-    (root / "evidence").mkdir()
+    (root / "evidence").mkdir(exist_ok=True)
     (root / "owned.tar").write_bytes(ArchiveBytes(package_version))
     store = LocalEvidenceStore(root / "evidence")
+    workspace_id = LocalWorkspaceStore(root).Open().workspace_id
     owner = "owner:pytest-owned-native-image"
     selection = NativeTrivySelection(root, executable, "owned.tar", "trivy-cache",
         ArtifactReadConsent(owner, "read:pytest-owned-pinned-native-material"))
@@ -211,7 +220,7 @@ def RunNativePair(root: Path, executable: Path, package_version: str,
         "scope:pytest-owned-native-image", "policy:pytest-native-acceptance",
         InvocationDigest(invocation))
     version = asyncio.run(CaptureNativeTrivyOperation(NativeTrivyOperation.VERSION, selection,
-        invocation, authority, store, "workspace:owned-native-acceptance", owner))
+        invocation, authority, store, workspace_id, owner))
     PreservePair(root, package_version, version, None, provisioning, network)
     assert version.refusal is None, "Actual executed VERSION must establish original custody"
     assert version.observed_version == ORACLE["provider_version"], "Pinned VERSION is required"
@@ -223,7 +232,7 @@ def RunNativePair(root: Path, executable: Path, package_version: str,
         "scope:pytest-owned-native-image", "policy:pytest-native-acceptance",
         InvocationDigest(invocation))
     scan = asyncio.run(CaptureNativeTrivyOperation(NativeTrivyOperation.SCAN, selection,
-        invocation, authority, store, "workspace:owned-native-acceptance", owner,
+        invocation, authority, store, workspace_id, owner,
         version_prerequisite=version))
     output = PreservePair(root, package_version, version, scan, provisioning, network)
     assert scan.refusal is None, "Actual SCAN requires unchanged original VERSION/material custody"
@@ -234,7 +243,7 @@ def RunNativePair(root: Path, executable: Path, package_version: str,
     report = AdapterReport(invocation, scan.outcome.execution,
         (scan.records[0].reference, scan.records[1].reference, version.records[0].reference))
 
-    return adapter, report, scan.outcome, version, output
+    return adapter, report, scan.outcome, version, scan, output
 
 
 def PreserveRun(root: Path, label: str, report, captured, probe, request,
@@ -267,7 +276,11 @@ def test_GenuinePinnedTrivyInventoryAndAdvisoryBoundaryOffline(tmp_path, native_
     """Decode owned metadata and match an independently selected real advisory without egress."""
 
     executable, supplied_cache, provisioning, network = native_runtime
-    root = tmp_path.resolve()
+    root = tmp_path / "workspace"
+    workspace_store = LocalWorkspaceStore(root)
+    workspace_store.Create(WorkspaceConfiguration("Owned genuine native acceptance"),
+                           "owned-native-acceptance")
+    initial = LocalModelStore(root).Create()
     cache = root / "trivy-cache" / "db"
     cache.mkdir(parents=True)
 
@@ -278,7 +291,7 @@ def test_GenuinePinnedTrivyInventoryAndAdvisoryBoundaryOffline(tmp_path, native_
     assert before == provisioning["database_files"], (
         "Fresh test cache bytes must match the original selected database receipt"
     )
-    adapter, report, captured, version, output = RunNativePair(
+    adapter, report, captured, version, scan, output = RunNativePair(
         root, executable, case["version"], provisioning, network)
     assert captured.execution.state is ExecutionState.SUCCEEDED, (
         "Native flags or scan failure must fail acceptance; inspect the original raw artifacts"
@@ -318,6 +331,43 @@ def test_GenuinePinnedTrivyInventoryAndAdvisoryBoundaryOffline(tmp_path, native_
     assert result.observations[0].attributes["database_metadata"]["Version"] == 2, (
         "Successful native evidence must retain actual schema-2 provider-observed DB metadata"
     )
+    admitted, delta = ApplyVerifiedNativeTrivyImages(initial, version, scan, root)
+    saved = LocalModelStore(root).Save(admitted, expected_revision=initial.revision)
+    assert LocalModelStore(root).Open() == saved and delta.revision == saved.revision, (
+        "Genuine original custody must compose into canonical CAS-save and independent reopening"
+    )
+    package_assets = [item for item in saved.objects if item.identity.kind is ObjectKind.ASSET
+                      and item.attributes.get("asset_type") == "package"]
+    assert len(package_assets) == 1 and package_assets[0].attributes["name"] == (
+        ORACLE["package_name"]
+    ) and package_assets[0].attributes["version"] == case["version"], (
+        "Canonical native inventory must contain the exact independently selected package version"
+    )
+    canonical_findings = [Finding.FromObject(item) for item in saved.objects
+                          if item.identity.kind is ObjectKind.FINDING]
+    matches = [item for item in canonical_findings if item.location_key == ORACLE["advisory_id"]]
+    assert bool(matches) is case["expected_advisory_match"], (
+        "Canonical genuine findings must preserve the independently selected advisory boundary"
+    )
+    records = (*version.records, *scan.records)
+
+    for finding in canonical_findings:
+        assert finding.subject_reference == package_assets[0].Reference() and (
+            len(finding.provenance[0].evidence_references) == 6
+        ), "Genuine canonical findings must bind the package and all original executed-pair roles"
+
+    workspace_store.Save(replace(workspace_store.Open(),
+        object_references=tuple(sorted(item.Reference() for item in saved.objects)),
+        evidence_references=tuple(record.reference for record in records),
+        evidence_record_references=tuple(record.evidence_id for record in records)))
+    replay = VerifyNativeTrivyImageReplay(records, root)
+    assert replay.scan_execution == captured.execution and replay.version_execution == (
+        version.outcome.execution
+    ), "Genuine replay must retain separate actual VERSION and SCAN original executions"
+    shutil.copyfile(root / "state/model/model.json", output / "model.json")
+    shutil.copyfile(root / "workspace.json", output / "workspace.json")
+    (output / "admission.json").write_text(SerializeContract({
+        "model_delta": delta, "replay": replay, "scan_completeness": "not-assessed"}) + "\n")
 
 
 @pytest.mark.integration
@@ -338,6 +388,9 @@ def test_GenuinePinnedTrivyMissingOfflineDatabaseIsActualFailure(tmp_path, nativ
     assert not result.findings and result.observations[0].attributes["complete"] is False, (
         "Missing offline DB retains original failure rather than successful interpretations"
     )
+
+    with pytest.raises(ValueError, match="original typed"):
+        ApplyVerifiedNativeTrivyImages(None, probe, captured, root)
 
 
 @pytest.mark.integration
@@ -379,3 +432,6 @@ def test_GenuineExecutedVersionWithoutDatabaseCannotAssociateScan(tmp_path, nati
     assert len(tuple((store.root / "records").glob("*.json"))) == 3, (
         "Refused SCAN cannot publish fabricated execution evidence"
     )
+
+    with pytest.raises(ValueError, match="original typed"):
+        ApplyVerifiedNativeTrivyImages(None, version, None, root)

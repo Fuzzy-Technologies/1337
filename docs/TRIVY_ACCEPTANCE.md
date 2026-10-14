@@ -2,11 +2,12 @@
 
 The `Genuine Trivy acceptance` workflow validates the existing optional
 `TrivyAdapter -> CaptureNativeTrivyOperation -> LocalExecutor -> LocalEvidenceStore`
-and detached `NormalizeReport`
-boundary. It uses a genuine upstream binary and official offline vulnerability
+and original native model admission, with detached `NormalizeReport` compatibility
+checks. It uses a genuine upstream binary and official offline vulnerability
 database with repository-owned inert image archives. Native artifact profiles
-remain metadata-only; this acceptance lane does not expose native product scan
-execution or write fixture findings into durable model state.
+remain metadata-only. The low-level caller-authorized positive cases save genuine
+canonical inventory and findings through the separate verified admission consumer;
+native product scan enrollment and its CLI/job workflow remain separate work.
 
 ## Independent material and advisory pins
 
@@ -71,8 +72,9 @@ That invocation cannot provision material or create its own isolation. The
 canonical workflow supplies both before executing it. Its retained artifacts are
 under `functional-evidence/trivy-native/`: each original immutable evidence store,
 exact invocation/terminal run document, material and network context, and unchanged
-normalized SDK proposals for successful cases. A missing-DB case retains actual
-provider failure rather than an empty successful scan.
+normalized SDK proposals, canonical saved model/workspace documents and admission
+replay facts for successful cases. A missing-DB case retains actual provider
+failure rather than an empty successful scan.
 
 Positive cases now execute original VERSION through the same bounded low-level
 executor as the independent SCAN. VERSION retains its own 3-second deadline,
@@ -97,8 +99,14 @@ without product artifact grants. Receipt bytes, checksums and supplied
 `ExecutionAuthorization` values cannot issue SDK native image permission. The
 legacy `ApplyVerifiedTrivyImages` import retains its original health-only version
 shape and intentionally refuses execution-bearing VERSION provenance; no field
-is stripped to force these captures through it. Detached adapter normalization
-in this lane writes no model state. Native product paired acceptance remains
+is stripped to force these captures through it. The separate internal
+`ApplyVerifiedNativeTrivyImages` consumer verifies all six original manifests,
+receipts, requests and outcomes before proposing canonical image/package/Finding
+objects. Positive cases CAS-save and reopen that model, preserving the independent
+vulnerable/fixed package oracle and every other genuine advisory. All canonical
+findings retain their exact package subject and six-role original attribution.
+`VerifyNativeTrivyImageReplay` preserves original executed VERSION and SCAN facts.
+Native execution enrollment and the native product CLI/job workflow remain
 future work. Database metadata is provider-observed; byte receipts establish
 neither feed completeness nor freshness. `scan_completeness` stays `not-assessed`.
 
@@ -123,5 +131,7 @@ contract and does not create accepted model state.
 
 [ADR 0057](adr/0057-pinned-native-trivy-acceptance.md) defines the initial acceptance
 prerequisite; [ADR 0058](adr/0058-original-native-image-capture.md) defines original
-independent VERSION/SCAN custody. Supplied native product authorization and the remaining #140/#142
-criteria remain separate work. No PyPI operation is performed.
+independent VERSION/SCAN custody. [ADR 0067](adr/0067-original-native-image-admission.md)
+defines the separate original native admission consumer. Supplied native product
+authorization and the remaining #140/#142 criteria remain separate work. No PyPI
+operation is performed.
