@@ -36,6 +36,7 @@ SHELL_COMMANDS = (
     "palette",
     "quit",
     "report",
+    "runtime",
     "scan",
     "scope",
     "select",
@@ -229,7 +230,9 @@ class NativeInputHistory:
             parsed, _, _ = shell.parseline(value)
             command = parsed.lower() if parsed else ""
 
-            if command in {"workspace", "scope", "scan", "report", "demo", "intel", "ci", "trace"}:
+            if command in {
+                "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime", "trace"
+            }:
                 position = index - first_index
 
                 if not 0 <= position < count:
@@ -398,15 +401,18 @@ class InteractiveShell(cmd.Cmd):
         if normalized and command != "history":
             self._history.append(
                 command if command in {
-                    "workspace", "scope", "scan", "report", "demo", "intel", "ci", "trace"
+                    "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
+                    "trace"
                 }
                 else normalized
             )
 
-        if command in {"workspace", "scope", "scan", "report", "demo", "intel", "ci", "trace"}:
+        if command in {
+            "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime", "trace"
+        }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
-                        "ci": self.do_ci, "trace": self.do_trace,
+                        "ci": self.do_ci, "runtime": self.do_runtime, "trace": self.do_trace,
                         "intel": self.do_intel}
             self.lastcmd = command
 
@@ -504,7 +510,8 @@ class InteractiveShell(cmd.Cmd):
             "": (
                 "ci scan, commands, context, demo local, history [query], lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
-                "report export, trace ioc <import|inspect>, select <object-id>, "
+                "report export, runtime import docker-inspect, trace ioc <import|inspect>, "
+                "select <object-id>, "
                 "scan <quick|nuclei|image|config>, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
@@ -534,6 +541,10 @@ class InteractiveShell(cmd.Cmd):
             "select": "select <object-id>: keep an opaque object reference in the current context.",
             "report": (
                 "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
+            ),
+            "runtime": (
+                "runtime import docker-inspect <workspace>: import one explicit owned offline "
+                "file or retained manifest with existing HOST/scope and exact revision bases."
             ),
             "trace": (
                 "trace ioc <import|inspect> <workspace>: use explicit local candidate files or "
@@ -570,7 +581,13 @@ class InteractiveShell(cmd.Cmd):
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
 
-            if command == "trace":
+            if command == "runtime":
+                from fuzzy1337.runtime_commands import RunRuntimeCommands
+
+                status = RunRuntimeCommands(arguments, cast(TextIO, self.stdout),
+                                            json_output=json_output)
+
+            elif command == "trace":
                 from fuzzy1337.ioc_commands import RunIocCommands
 
                 status = RunIocCommands(arguments, cast(TextIO, self.stdout),
@@ -669,6 +686,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("ci", argument)
+
+    def do_runtime(self, argument: str) -> None:
+        """Import explicitly owned offline source without deriving authority from shell context.
+
+        Args:
+            argument: Import profile, selected source, existing HOST/scope and exact owner bases.
+        """
+
+        self.RunLocalCommand("runtime", argument)
 
     def do_intel(self, argument: str) -> None:
         """Use explicit local intelligence selections without deriving them from shell context.

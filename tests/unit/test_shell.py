@@ -147,6 +147,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: update",
         "cli: intel",
         "cli: ci",
+        "cli: runtime",
         "cli: trace",
         "action: show-evidence — Show evidence for this object.",
         "action: show-paths — Show paths from this object.",
@@ -214,10 +215,11 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
     assert output.getvalue().splitlines() == [
         (
             "Interactive commands: ci, commands, context, demo, help, history, intel, lens, model, "
-            "palette, quit, report, scan, scope, select, trace, update, updates, view, workspace"
+            "palette, quit, report, runtime, scan, scope, select, trace, update, updates, "
+            "view, workspace"
         ),
         ("CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report, "
-         "intel, demo, ci, trace"),
+         "intel, demo, ci, runtime, trace"),
         "[model] asset changed",
         "usage: quit",
         "",
@@ -478,7 +480,7 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
 
 
 @pytest.mark.parametrize("namespace", [
-    "workspace", "scope", "scan", "report", "demo", "ci", "trace",
+    "workspace", "scope", "scan", "report", "demo", "ci", "runtime", "trace",
 ])
 @pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
 def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
@@ -560,7 +562,7 @@ def NativeEditor(entries):
     return editor, settings
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "trace"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "trace"])
 def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput(namespace):
     """A native cap advances absolute base; matching prior/command-time entries remain unowned."""
 
@@ -764,7 +766,7 @@ def test_CommandExceptionCannotClaimCallerNativeAdditionsDuringLoopCleanup(monke
     )
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "trace"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "trace"])
 def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, namespace):
     """Stream/queued inputs have no native auto-history ownership and preserve preexisting state."""
 
@@ -789,7 +791,7 @@ def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, n
     )
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "trace"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci", "runtime", "trace"])
 def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch, namespace):
     """Even a matching queued string cannot claim an unchanged preexisting native history item."""
 
@@ -859,4 +861,43 @@ def test_TraceShellProtectsWindowsSelectionsBeforeDispatchAndPreservesContext(mo
     )
     assert shell._history[-1] == "trace" and shell.lastcmd == "trace", (
         "Normal and interrupted IOC input retain only the canonical protected namespace."
+    )
+
+
+def test_RuntimeShellUsesQuotedWindowsPathsWithoutImplicitContextOrRetainedArguments(monkeypatch):
+    """Quoted backslashes/spaces round-trip through the real shell's lazy runtime dispatcher."""
+
+    from fuzzy1337 import runtime_commands
+
+    output = StringIO()
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    supplied = ["import", "docker-inspect", r"C:\Owned Workspace", "--file",
+        r"C:\Owned Input\inspect.json", "--owner", "owner:explicit",
+        "--read-consent-reference", "consent:explicit", "--host", "object:explicit",
+        "--scope", "scope-explicit", "--run", "run:explicit", "--expected-revision", "1",
+        "--expected-workspace-revision", "0"]
+    calls = []
+
+    def RunRuntimeCommands(arguments, target, *, json_output):
+        """Observe caller-owned values and private history before producing one safe result."""
+
+        assert shell.lastcmd == "runtime" and list(shell._history)[-1] == "runtime", (
+            "Runtime arguments entered history before the handler was dispatched"
+        )
+        calls.append((arguments, json_output, target))
+
+        return 4
+
+    monkeypatch.setattr(runtime_commands, "RunRuntimeCommands", RunRuntimeCommands)
+    shell.onecmd("lens purple")
+    shell.onecmd("select object:unrelated")
+    prior = shell.State
+    shell.onecmd("runtime " + shlex.join([*supplied, "--json"]))
+    assert calls == [(supplied, True, output)] and shell.State == prior, (
+        "Shell runtime route changed explicit Windows selections or inferred context"
+    )
+    assert "Command exit status: 4" in output.getvalue(), "Shell hid actual runtime failure"
+    shell.onecmd("history")
+    assert r"C:\Owned" not in output.getvalue() and shell.lastcmd == "history", (
+        "Windows source arguments escaped the protected namespace history"
     )

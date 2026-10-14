@@ -228,6 +228,12 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("workbench.selected-finding-gate",),
         ),
         CommandDescriptor(
+            identifier="runtime",
+            summary="Import an explicit owned offline Docker inspect file or retained manifest.",
+            usage="1337 runtime import docker-inspect <workspace>",
+            capabilities=("runtime.owned-offline-import",),
+        ),
+        CommandDescriptor(
             identifier="trace",
             summary=(
                 "Import explicit local IOC candidates or inspect independently anchored artifacts."
