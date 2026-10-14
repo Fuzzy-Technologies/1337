@@ -120,7 +120,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "command",
         choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan", "report",
-                 "demo", "intel", "ci", "runtime", "trace"),
+                 "demo", "intel", "ci", "runtime", "api", "trace"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
@@ -130,6 +130,14 @@ def Main(argv: Sequence[str] | None = None) -> int:
         help="Write experimental JSON for update or an explicit product command outcome.",
     )
     arguments, remaining = parser.parse_known_args(argv)
+
+    if arguments.command == "api":
+        from fuzzy1337.api_commands import RunApiCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunApiCommands(remaining, sys.stdout, json_output=arguments.json)
 
     if arguments.command == "runtime":
         from fuzzy1337.runtime_commands import RunRuntimeCommands
@@ -197,7 +205,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     if arguments.json and arguments.command != "update":
         parser.error(
             "--json is only available for update, workspace, scope, scan, report, demo, "
-            "intel, ci, runtime and trace"
+            "intel, ci, runtime, api and trace"
         )
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):

@@ -422,3 +422,45 @@ def test_RuntimeRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
     assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
         "SYNTHETIC_PRIVATE_MARKER" not in output.out
     ), "Registered grammar refusal exposed rejected values"
+
+
+@pytest.mark.parametrize("status", [0, 2, 4, 130])
+def test_ApiRoutePreservesExplicitArgumentsOutputAndHandlerStatus(monkeypatch, capsys, status):
+    """Actual top-level registration delegates exact supplied values without ambient authority."""
+
+    from fuzzy1337 import api_commands
+
+    calls = []
+
+    def RunApiCommands(arguments, output, *, json_output):
+        """Observe exact registration forwarding without opening a workspace or source."""
+
+        calls.append((arguments, json_output))
+        output.write("owned-api-outcome\n")
+
+        return status
+
+    monkeypatch.setattr(api_commands, "RunApiCommands", RunApiCommands)
+    assert Main(["api", "import", "graphql-introspection", "explicit workspace", "--json"]) == (
+        status
+    ), "Registered api route replaced the actual handler status"
+    assert calls == [(["import", "graphql-introspection", "explicit workspace"], True)], (
+        "Registration inferred, omitted or reordered explicit caller selections"
+    )
+    assert capsys.readouterr().out == "owned-api-outcome\n", "Registered outcome was changed"
+
+
+
+def test_ApiRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
+    """The original source and exact owner bases remain visible before workspace setup."""
+
+    assert Main(["api", "import", "--help"]) == 0, "API static help failed"
+    help_text = capsys.readouterr().out
+    assert "--read-consent-reference" in help_text and "--expected-workspace-revision" in (
+        help_text
+    ) and "--endpoint" in help_text, "API help omitted original source or selected owner bases"
+    assert Main(["api", "SYNTHETIC_PRIVATE_MARKER", "--json"]) == 2, "Unknown API grammar passed"
+    output = capsys.readouterr()
+    assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
+        "SYNTHETIC_PRIVATE_MARKER" not in output.out
+    ), "API grammar refusal exposed rejected source selections"

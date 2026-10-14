@@ -1,5 +1,11 @@
 # fuzzy1337.command_registry
 
+The `api` descriptor advertises Experimental version-one
+`api import graphql-introspection`. Discovery metadata supplies no endpoint, source,
+scope, consent, revision basis or transport authority. The Internal handler owns
+original-file acquisition or known original-custody replay through existing stores;
+registry discovery performs no import, preview, target registration or execution.
+
 The `trace` descriptor advertises Experimental version-one explicit local
 `trace ioc import|inspect`. Metadata supplies no selected file, source attribution,
 receipt anchor, read consent, workspace context or execution authority. The

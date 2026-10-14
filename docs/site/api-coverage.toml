@@ -1,6 +1,12 @@
 schemaVersion = 1
 
 [[surfaces]]
+module = "fuzzy1337.api_commands"
+source = "src/fuzzy1337/api_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.api_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.ioc_commands"
 source = "src/fuzzy1337/ioc_commands.py"
 mode = "authored"

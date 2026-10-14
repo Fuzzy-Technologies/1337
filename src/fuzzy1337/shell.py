@@ -24,6 +24,7 @@ DEFAULT_LENS = "pentest"
 DEFAULT_VIEW = "context"
 LENSES = tuple(descriptor.identifier for descriptor in LENS_CATALOG)
 SHELL_COMMANDS = (
+    "api",
     "ci",
     "commands",
     "context",
@@ -231,7 +232,8 @@ class NativeInputHistory:
             command = parsed.lower() if parsed else ""
 
             if command in {
-                "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime", "trace"
+                "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
+                "api", "trace"
             }:
                 position = index - first_index
 
@@ -402,17 +404,21 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "trace"
+                    "api", "trace"
                 }
                 else normalized
             )
 
         if command in {
-            "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime", "trace"
+            "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
+            "api", "trace"
         }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
-                        "ci": self.do_ci, "runtime": self.do_runtime, "trace": self.do_trace,
+                        "ci": self.do_ci,
+                        "runtime": self.do_runtime,
+                        "api": self.do_api,
+                        "trace": self.do_trace,
                         "intel": self.do_intel}
             self.lastcmd = command
 
@@ -508,13 +514,18 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         help_text = {
             "": (
-                "ci scan, commands, context, demo local, history [query], lens [<name>] [--json], "
+                "api import graphql-introspection, ci scan, commands, context, demo local, "
+                "history [query], lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
                 "report export, runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect>, "
                 "select <object-id>, "
                 "scan <quick|nuclei|image|config>, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
+            ),
+            "api": (
+                "api import graphql-introspection <workspace>: import one explicit owned offline "
+                "file or retained original manifest with endpoint/scope and exact revision bases."
             ),
             "commands": "commands: list interactive and current top-level CLI commands.",
             "ci": (
@@ -583,7 +594,13 @@ class InteractiveShell(cmd.Cmd):
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
 
-            if command == "runtime":
+            if command == "api":
+                from fuzzy1337.api_commands import RunApiCommands
+
+                status = RunApiCommands(arguments, cast(TextIO, self.stdout),
+                                        json_output=json_output)
+
+            elif command == "runtime":
                 from fuzzy1337.runtime_commands import RunRuntimeCommands
 
                 status = RunRuntimeCommands(arguments, cast(TextIO, self.stdout),
@@ -688,6 +705,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("ci", argument)
+
+    def do_api(self, argument: str) -> None:
+        """Import an explicit offline API source without deriving authority from shell context.
+
+        Args:
+            argument: Import profile, source, exact endpoint/scope and owner revision bases.
+        """
+
+        self.RunLocalCommand("api", argument)
 
     def do_runtime(self, argument: str) -> None:
         """Import explicitly owned offline source without deriving authority from shell context.

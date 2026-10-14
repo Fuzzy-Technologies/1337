@@ -82,6 +82,26 @@ using unchanged request/model/scope contracts. Subscriptions remain descriptive;
 unsupported synthesis is refused. Import or preparation grants no execution,
 authentication or permission to send introspection or mutation requests.
 
+The Experimental contract-version-one `api import graphql-introspection` CLI and
+foreground shell command compose that unchanged SDK with existing workspace,
+scope, evidence and model owners under ADR 0081. Import requires an explicit
+concrete query-free endpoint, current exact scope membership, run and independent
+model/workspace revisions. Original-file selection requires explicit read actor/
+consent references and a stable physical singly linked file within 512 KiB.
+Original evidence is retained unredacted, including rejected normalization input;
+terminal summaries omit source bodies, physical paths and rejected argument values.
+Retained selection requires the exact original manifest and already known
+`api-import-source` custody with unchanged endpoint/run/scope; a matching source
+digest alone cannot establish that custody. An occupied Endpoint admits only
+exactly matching complete `request_templates` and `graphql_import` collections;
+partial/incompatible collections fail before model write. Independent acquisition,
+model and workspace acknowledgements preserve confirmed partial commits and
+unknown outcomes without promising rollback or a cross-store transaction.
+No scope registration, request preview, introspection fetch, HTTP/native execution,
+Finding or execution grant is produced. All `fuzzy1337.api_commands` classes,
+methods, functions and helpers, including `ApiParser` and `RunApiCommands`, remain
+Internal implementation surfaces and do not establish a supported Python SDK.
+
 `fuzzy1337.captured_web` is an Experimental offline Python consumer at frontier
 profile version `1`. ADR 0050 and `docs/CAPTURED_WEB.md` define owner-verified
 explicit HTML artifacts, caller-associated sources, bounded lexical anchor

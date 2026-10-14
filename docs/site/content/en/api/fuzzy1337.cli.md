@@ -1,5 +1,13 @@
 # fuzzy1337.cli
 
+The Experimental version-one `api import graphql-introspection` route imports one
+explicit owned original file or known original evidence custody. Endpoint, current
+scope, run and model/workspace revision bases remain caller-selected. The Internal
+handler uses unchanged SDK/store owners, refuses incompatible occupied API
+collections and reports acquisition/model/workspace acknowledgements separately.
+It retains bounded original bytes unredacted and supplies no introspection fetch,
+request preview, HTTP/native execution, Finding or execution grant.
+
 The Experimental version-one `trace ioc import|inspect` route imports an explicitly
 selected owned non-secret local file or verifies independently retained snapshot
 and original receipt manifest identities. Source/version/license/hash/scope/read

@@ -231,6 +231,12 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("workbench.selected-finding-gate",),
         ),
         CommandDescriptor(
+            identifier="api",
+            summary="Import an explicit owned offline GraphQL introspection source.",
+            usage="1337 api import graphql-introspection <workspace>",
+            capabilities=("api.owned-offline-import",),
+        ),
+        CommandDescriptor(
             identifier="runtime",
             summary="Import explicit owned offline Docker inspect or Kubernetes List evidence.",
             usage="1337 runtime import <docker-inspect|kubernetes-list> <workspace>",
