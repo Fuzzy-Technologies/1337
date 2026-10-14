@@ -426,17 +426,9 @@ def test_GlobalDeadlineDrainsWorkersAndRetainsPriorCommit(tmp_path, owned_pages,
     assert "/shared" not in server.requests, "Deadline allowed another frontier wave"
 
 
-@pytest.mark.parametrize("failure", ["conflict", "lost-ack", "event"])
-def test_OrderedSaveFailuresDrainWaitingSiblingAndPreserveActualState(
-    tmp_path, owned_pages, monkeypatch, failure,
-):
-    """A predecessor's CAS/post-Save failure never releases its captured successor as complete."""
+def ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job):
+    """Install a test-only custody barrier while preserving actual acquisition and ordered gates."""
 
-    server = owned_pages()
-    fixture = Fixture.Create(tmp_path / "workspace", server.origin)
-    provider = fixture.Provider()
-    original_save = LocalModelStore.Save
-    original_event = JobContext.ModelChanged
     original_acquire = LocalPageCaptureProvider.Acquire
     beta_captured = asyncio.Event()
 
@@ -471,6 +463,23 @@ def test_OrderedSaveFailuresDrainWaitingSiblingAndPreserveActualState(
         return await original_acquire(self, context, before_commit=Gate,
                                       publish_progress=publish_progress)
 
+    monkeypatch.setattr(LocalPageCaptureProvider, "Acquire", OrderCapturedSibling)
+
+    return beta_captured
+
+
+@pytest.mark.parametrize("failure", ["conflict", "lost-ack", "event"])
+def test_OrderedSaveFailuresDrainWaitingSiblingAndPreserveActualState(
+    tmp_path, owned_pages, monkeypatch, failure,
+):
+    """A predecessor's CAS/post-Save failure never releases its captured successor as complete."""
+
+    server = owned_pages()
+    fixture = Fixture.Create(tmp_path / "workspace", server.origin)
+    provider = fixture.Provider()
+    original_save = LocalModelStore.Save
+    original_event = JobContext.ModelChanged
+
     def FailSave(self, state, *, expected_revision):
         """Fail actual alpha CAS or its acknowledgement, never substituting the real owner write."""
 
@@ -492,10 +501,10 @@ def test_OrderedSaveFailuresDrainWaitingSiblingAndPreserveActualState(
 
         return original_event(self, delta)
 
-    monkeypatch.setattr(LocalPageCaptureProvider, "Acquire", OrderCapturedSibling)
     monkeypatch.setattr(LocalModelStore, "Save", FailSave)
     monkeypatch.setattr(JobContext, "ModelChanged", FailEvent)
     job = fixture.Job(provider)
+    beta_captured = ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job)
     snapshot = Run(job)
     assert beta_captured.is_set(), "The failure scenario must include a captured waiting beta"
     assert snapshot.state is JobState.FAILED, "Failed predecessor released another canonical Save"
@@ -514,7 +523,7 @@ def test_OrderedSaveFailuresDrainWaitingSiblingAndPreserveActualState(
 def test_ExpiredConsentWhileWaitingForOrderedCommitDeniesSave(tmp_path, owned_pages, monkeypatch):
     """The ordered admission await precedes fresh final consent, model composition and CAS."""
 
-    server = owned_pages(delays={"/alpha": 0.2})
+    server = owned_pages()
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
     current_time = [NOW]
     scopes = LocalScopeStore(fixture.root)
@@ -534,7 +543,10 @@ def test_ExpiredConsentWhileWaitingForOrderedCommitDeniesSave(tmp_path, owned_pa
             current_time[0] += timedelta(seconds=1)
 
     monkeypatch.setattr(JobContext, "ModelChanged", ExpireAfterAlpha)
-    snapshot = Run(fixture.Job(provider))
+    job = fixture.Job(provider)
+    beta_captured = ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job)
+    snapshot = Run(job)
+    assert beta_captured.is_set(), "Consent expiry must follow actual waiting beta acquisition"
     assert snapshot.state is JobState.FAILED, "Commit gate reused expired earlier authority"
     assert snapshot.failure.code is JobFailureCode.AUTHORIZATION, "Fresh expiry denial was hidden"
     assert LocalModelStore(fixture.root).Open().revision == 2, "Expired beta was saved"
