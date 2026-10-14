@@ -1,5 +1,12 @@
 # fuzzy1337.cli
 
+The Experimental version-one `runtime import docker-inspect` route imports one
+explicit owned offline file or exact retained manifest using an existing literal
+HOST, scope and caller-selected model/workspace revisions. New-file acquisition
+requires explicit read-consent references. `--json` preserves independent
+acquisition/model/workspace acknowledgements and partial failures; static runtime
+help opens no local state. The owning handler and its helpers remain Internal.
+
 `ci scan` dispatches an explicit selected-profile finding predicate and three
 verified report exports. Satisfied/violated outcomes remain distinct from
 invalid setup, authority refusal, integrity failure and cancellation.

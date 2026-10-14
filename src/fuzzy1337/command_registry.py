@@ -227,5 +227,11 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 ci scan <workspace> --profile <synthetic-dockerfile|synthetic-kubernetes>",
             capabilities=("workbench.selected-finding-gate",),
         ),
+        CommandDescriptor(
+            identifier="runtime",
+            summary="Import an explicit owned offline Docker inspect file or retained manifest.",
+            usage="1337 runtime import docker-inspect <workspace>",
+            capabilities=("runtime.owned-offline-import",),
+        ),
     )
 )
