@@ -330,6 +330,18 @@ mode = "authored"
 page = "api/fuzzy1337.report_formats.md"
 
 [[surfaces]]
+module = "fuzzy1337.ci_gate"
+source = "src/fuzzy1337/ci_gate.py"
+mode = "authored"
+page = "api/fuzzy1337.ci_gate.md"
+
+[[surfaces]]
+module = "fuzzy1337.ci_commands"
+source = "src/fuzzy1337/ci_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.ci_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.report_commands"
 source = "src/fuzzy1337/report_commands.py"
 mode = "authored"

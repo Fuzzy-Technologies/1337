@@ -146,6 +146,17 @@ ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
 
 `fuzzy1337.reporting` and `fuzzy1337.report_formats` are Experimental libraries.
+
+`fuzzy1337.ci_gate` and the `1337 ci scan` command add an Experimental
+selected-profile finding predicate under ADR 0075. Required caller selections
+and a count limit apply only to original verified current-run configuration
+detections in the exact saved snapshot. Explicit unassessed-completeness
+acknowledgement, source/run proof and current acceptance are mandatory. Three
+report exports share the same snapshot pin and retain partial-publication truth.
+No severity ranking, aggregate risk, reachable-risk criterion, native execution
+grant or Core schema change is introduced. `fuzzy1337.ci_commands` is Internal.
+
+The report libraries retain their existing contracts:
 ADR 0039 and `docs/REPORTING.md` define report projection schema `1`, SARIF `2.1.0`,
 and a version-1 JUnit adapter. Reports preserve canonical state and do not imply
 scanner completeness, authorization, verified bytes, or compliance. Pure reports
