@@ -412,6 +412,12 @@ See [Governed local artifacts](ARTIFACTS.md) and
 
 `fuzzy1337.configuration_evidence` and `fuzzy1337.configuration_workflow` are additive
 Experimental consumers of the reviewed synthetic SCAN-only configuration family.
+The Experimental `1337 scan config --profile synthetic` command under ADR 0072
+adds explicit Dockerfile/Kubernetes type selection over this same five-case family,
+without changing its source grammar, evidence identities or approval contract.
+Its CLI and foreground-shell terminal outcomes and optional JSON/SARIF exports
+preserve the existing workflow's actual execution and publication facts.
+
 The exact four-role source/stream/receipt capture is schema 1; original SDK metadata
 retains schema 2. Historical verification is read-only after relocation and grants
 no current execution/model authority. Live interpretation requires original typed

@@ -107,6 +107,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   original source/stream/receipt verification, canonical configuration assets and
   source-position Findings, durable model/workspace references, relocated replay
   and separate JSON/SARIF exports. Native configuration acceptance remains separate.
+- Added explicit `1337 scan config --profile synthetic` and foreground shell
+  commands for the five reviewed Dockerfile/Kubernetes cases, preserving explicit
+  read consent and SAFE approval, original evidence, durable Findings and requested
+  JSON/SARIF publication outcomes.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
   checks and model projection that preserves existing Endpoint requests.
 - Added governed acquisition of one owned loopback HTML page from the closed
