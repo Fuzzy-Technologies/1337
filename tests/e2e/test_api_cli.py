@@ -201,7 +201,7 @@ def test_InstalledApiConsolePreservesOriginalOracleTriageUnknownReplayAndReports
     assert set(workspace.evidence_record_references) == {
         first["evidence_id"],
         second["evidence_id"],
-    }
+    }, "Actual repeated import lost distinct original acquisition manifests"
     assert not workspace.job_references, "Offline import manufactured a scanner invocation/job"
     before = Files(root)
     moved = tmp_path / "Moved GraphQL Workspace"

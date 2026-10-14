@@ -650,6 +650,49 @@ def test_SameLocatorDifferentDigestAliasRefusesBeforeGenericRead(tmp_path, monke
     )
 
 
+@pytest.mark.parametrize("selection", ["file", "retained"])
+def test_KnownGraphQlCustodyCannotRelabelOversizedNonProfileOriginal(
+    tmp_path, monkeypatch, selection,
+):
+    """Known custody binds the original profile before generic verification can read its bytes."""
+
+    context, first = Imported(tmp_path)
+    root, _, _, evidence, _ = context
+    original = evidence.Get(first["evidence_id"])
+    unrelated = evidence.Put(b"owned offline original\n" * 25000, "stdout", "text/plain",
+                             original.provenance)
+    assert unrelated.reference.size_bytes > commands.MAX_GRAPHQL_BYTES, (
+        "The non-profile original must exceed the GraphQL read ceiling"
+    )
+    basis = LocalModelStore(root).Open()
+    fact = next(item for item in basis.observations if item.kind == "api-import-source")
+    substituted = replace(fact, attributes={**fact.attributes, "evidence_id": unrelated.evidence_id,
+        "source_sha256": unrelated.reference.sha256}, provenance=replace(
+            fact.provenance, evidence_references=(unrelated.reference,)))
+    changed, _ = basis.Apply(observations=(substituted,))
+    LocalModelStore(root).Save(changed, expected_revision=basis.revision)
+    before = Files(root)
+    owning_read = LocalEvidenceStore.Read
+
+    def Read(store, reference):
+        """Expose the claimed non-profile original at the actual generic raw-reader boundary."""
+
+        if reference == unrelated.reference:
+            RefuseRead()
+
+        return owning_read(store, reference)
+
+    monkeypatch.setattr(LocalEvidenceStore, "Read", Read)
+    arguments = Arguments(context, evidence_id=first["evidence_id"]
+                          if selection == "retained" else None)
+    status, outcome = Run(arguments)
+    assert status == 4 and outcome["failure"] == "integrity", "Custody relabel reached raw bytes"
+    assert all(outcome[name] == "not-attempted" for name in (
+        "acquisition_commit", "model_commit", "workspace_commit"
+    )), "Refused custody relabel reached a storage boundary"
+    assert Files(root) == before, "Custody relabel refusal changed original bytes or owner state"
+
+
 def test_FileModePreflightsKnownGraphQlOriginalBeforeGenericReportRead(tmp_path, monkeypatch):
     """A valid file cannot expose a grown known GraphQL blob through a larger role alias."""
 

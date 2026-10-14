@@ -179,14 +179,24 @@ def test_ModelCommittedWorkspaceLostAckCanRepairOnlyKnownOriginalCustody(tmp_pat
     )
 
 
-def test_SelectedGraphQlPreflightPreservesUnrelatedLargerEvidenceAndExactReplay(tmp_path):
+@pytest.mark.parametrize("same_source", [False, True])
+def test_SelectedGraphQlPreflightPreservesUnrelatedLargerEvidenceAndExactReplay(
+    tmp_path, same_source,
+):
     """Selected source bounds do not cap unrelated retained evidence under its existing owner."""
 
     context, first = Imported(tmp_path)
     root, _, scope, evidence, _ = context
+
+    if same_source:
+        provenance = evidence.Get(first["evidence_id"]).provenance
+
+    else:
+        provenance = EvidenceProvenance("api-owned", scope.Reference(), "owned.unrelated", "1",
+            None, TIME.isoformat(), TIME.isoformat())
+
     unrelated = evidence.Put(b"owned unrelated evidence\n" * 25000, "stdout", "text/plain",
-        EvidenceProvenance("api-owned", scope.Reference(), "owned.unrelated", "1", None,
-                           TIME.isoformat(), TIME.isoformat()))
+                             provenance)
     assert unrelated.reference.size_bytes > 512 * 1024, "Unrelated fixture was too small"
     workspace = LocalWorkspaceStore(root).Open()
     LocalWorkspaceStore(root).Save(replace(workspace,
@@ -195,9 +205,11 @@ def test_SelectedGraphQlPreflightPreservesUnrelatedLargerEvidenceAndExactReplay(
         evidence_record_references=tuple(sorted((*workspace.evidence_record_references,
                                                 unrelated.evidence_id)))))
     before = Files(root)
-    status, outcome = Run(Arguments(context, evidence_id=first["evidence_id"]))
-    assert status == 0 and outcome["created"] == outcome["updated"] == 0, "Replay was blocked"
-    assert Files(root) == before, "Preflight rewrote unrelated evidence or no-op owner bytes"
+
+    for identity in (None, first["evidence_id"]):
+        status, outcome = Run(Arguments(context, evidence_id=identity))
+        assert status == 0 and outcome["created"] == outcome["updated"] == 0, "Replay was blocked"
+        assert Files(root) == before, "Preflight rewrote unrelated evidence or no-op owner bytes"
 
 
 def test_FileModeKnownOriginalPreflightPreservesEachAcquisitionScope(tmp_path):

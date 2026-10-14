@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 from collections.abc import Callable, Sequence
 from datetime import datetime
@@ -429,17 +430,19 @@ def PreflightKnownApiReferences(state: ModelState, workspace: WorkspaceState,
     """
 
     record_ids = set(workspace.evidence_record_references)
+    custody: dict[str, list[Observation]] = {}
 
     for fact in state.observations:
-        if fact.kind != "api-import-source" or fact.attributes.get("profile") != _PROFILE:
+        if fact.kind != "api-import-source":
             continue
 
         evidence_id = fact.attributes.get("evidence_id")
 
-        if type(evidence_id) is not str:
+        if fact.attributes.get("profile") != _PROFILE or type(evidence_id) is not str:
             raise RuntimeFailure("integrity")
 
         record_ids.add(evidence_id)
+        custody.setdefault(evidence_id, []).append(fact)
 
     if len(record_ids) > MAX_EXPORT_ACQUISITIONS:
         raise RuntimeFailure("limit")
@@ -456,6 +459,27 @@ def PreflightKnownApiReferences(state: ModelState, workspace: WorkspaceState,
 
         if record.evidence_id != evidence_id:
             raise RuntimeFailure("integrity")
+
+        for fact in custody.get(evidence_id, ()):
+            RequireApiRecord(record, workspace.workspace_id, record.provenance.scope_reference)
+            subject = next((item for item in state.objects
+                            if item.Reference() == fact.subject_reference), None)
+
+            if subject is None:
+                raise RuntimeFailure("integrity")
+
+            endpoint = Endpoint.FromDict({**json.loads(subject.identity.key),
+                "workspace_id": workspace.workspace_id,
+                "object_reference": fact.subject_reference})
+
+            if endpoint.method != "POST" or endpoint.PathVariables():
+                raise RuntimeFailure("integrity")
+
+            provenance = ModelProvenance(_SOURCE_ID, fact.provenance.run_reference,
+                record.provenance.finished_at, record.provenance.scope_reference,
+                Target(TargetKind.URL, endpoint.origin + endpoint.path_template).Reference(),
+                None, (record.reference,))
+            ApiSourceFact(state, record, provenance, endpoint, None)
 
         if record.reference.role == _PROFILE:
             original = ApiEvidenceStore(evidence.root, workspace.workspace_id,
