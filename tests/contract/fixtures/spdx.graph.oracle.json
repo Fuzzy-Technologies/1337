@@ -1,0 +1,24 @@
+{
+  "origin": "Independent handwritten expected local graph and canonical identity keys; not importer output",
+  "package_keys": {
+    "SPDXRef-Image": "image-config:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "SPDXRef-App": "package-version:f9ac32033032cd2d89158ca8d6358c15768ca910d183de6a5ee8d89624543915",
+    "SPDXRef-Lib": "package-version:44a3f8476083fc8c7a639a40789e208bf2d8efd41c8d65fe6c0346b8ce724062",
+    "SPDXRef-Lib-Alias": "package-version:44a3f8476083fc8c7a639a40789e208bf2d8efd41c8d65fe6c0346b8ce724062",
+    "SPDXRef-Helper": "package-version:08b54bc4f80f2f6285ccfd3de0de4039859e488a2731a01b11c511423ffa79b0"
+  },
+  "edges": [
+    [1, "SPDXRef-Image", "CONTAINS", "SPDXRef-App"],
+    [2, "SPDXRef-App", "CONTAINS", "SPDXRef-Lib"],
+    [3, "SPDXRef-Image", "CONTAINS", "SPDXRef-Lib-Alias"],
+    [4, "SPDXRef-Lib", "CONTAINS", "SPDXRef-Helper"],
+    [5, "SPDXRef-Lib-Alias", "CONTAINS", "SPDXRef-Helper"],
+    [6, "SPDXRef-App", "DEPENDS_ON", "SPDXRef-Lib"],
+    [7, "SPDXRef-Lib", "DEPENDS_ON", "SPDXRef-Helper"],
+    [8, "SPDXRef-Helper", "DEPENDS_ON", "SPDXRef-App"],
+    [9, "SPDXRef-Lib-Alias", "DEPENDS_ON", "SPDXRef-Helper"]
+  ],
+  "declared_license_assets": ["MIT", "MIT OR Apache-2.0"],
+  "canonical_contains_count": 4,
+  "canonical_dependency_count": 3
+}
