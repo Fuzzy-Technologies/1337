@@ -14,7 +14,9 @@ anchor, revision basis, read consent or daemon/cluster/execution authority. Comm
 and storage remain with the Internal runtime implementation.
 
 The `ci` descriptor advertises explicit current-run finding predicates and report
-exports. Discovery metadata does not supply policy, completeness or consent.
+exports for caller-selected `synthetic-dockerfile`, `synthetic-kubernetes` and
+`synthetic-image` profiles. Discovery metadata does not supply policy,
+completeness, source/archive selection, SAFE opt-in or consent.
 
 The canonical command registry includes `intel` for explicit local intelligence
 import, verified inspection and selected Finding enrichment. Registry presence

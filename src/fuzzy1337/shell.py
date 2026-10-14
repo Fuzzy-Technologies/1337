@@ -518,7 +518,8 @@ class InteractiveShell(cmd.Cmd):
             ),
             "commands": "commands: list interactive and current top-level CLI commands.",
             "ci": (
-                "ci scan <workspace>: run the explicitly selected configuration profile, "
+                "ci scan <workspace>: run the explicitly selected closed image/configuration "
+                "profile, "
                 "finding predicate and new JSON/SARIF/JUnit exports."
             ),
             "context": "context: show the current lens and selected object reference.",
