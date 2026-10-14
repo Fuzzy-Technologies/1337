@@ -500,7 +500,7 @@ class InteractiveShell(cmd.Cmd):
                 "commands, context, demo local, history [query], lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
                 "report export, select <object-id>, "
-                "scan quick, scope create, workspace <create|open>, "
+                "scan <quick|nuclei|image|config>, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
             "commands": "commands: list interactive and current top-level CLI commands.",
@@ -526,7 +526,10 @@ class InteractiveShell(cmd.Cmd):
             "report": (
                 "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
             ),
-            "scan": "scan quick <workspace>: run approved SAFE discovery with live events.",
+            "scan": (
+                "scan <quick|nuclei|image|config> <workspace>: run explicitly governed scans; "
+                "config requires --profile synthetic and complete selected source/consent inputs."
+            ),
             "scope": "scope create <workspace>: record explicit targets, rules and consent.",
             "workspace": "workspace <create|open>: initialize or verify durable shared state.",
             "update": "update [--json]: inspect local component health without installing updates.",
@@ -607,7 +610,7 @@ class InteractiveShell(cmd.Cmd):
         self.RunLocalCommand("scope", argument)
 
     def do_scan(self, argument: str) -> None:
-        """Run foreground discovery with live events and explicit scan authorization.
+        """Run foreground endpoint or closed synthetic scans with explicit authorization.
 
         Args:
             argument: Scan action and its full explicit CLI argument list.

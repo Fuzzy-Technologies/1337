@@ -33,6 +33,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added reviewed optional Nuclei HTTP-template and Trivy offline-image preparation
   and parsing, image/package normalization and verified flat SPDX inventory.
   Compatible native tools remain operator-supplied and optional.
+- Added an explicit offline SPDX local-package graph profile with original
+  evidence-backed nested containment, inert license facts and canonical package
+  linkage. Dependency claims assert no runtime reachability; saved portable
+  replay retains existing finding triage and the flat profile stays unchanged.
 - Added an explicitly confirmed STANDARD Nuclei workflow through governed jobs,
   retained raw evidence and durable canonical Findings, with current authority
   checks at launch and model Save and pinned genuine-provider loopback CI.
@@ -107,6 +111,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   original source/stream/receipt verification, canonical configuration assets and
   source-position Findings, durable model/workspace references, relocated replay
   and separate JSON/SARIF exports. Native configuration acceptance remains separate.
+- Added explicit `1337 scan config --profile synthetic` and foreground shell
+  commands for the five reviewed Dockerfile/Kubernetes cases, preserving explicit
+  read consent and SAFE approval, original evidence, durable Findings and requested
+  JSON/SARIF publication outcomes.
 - Added owner-verified supplied HTML capture frontiers, exact current URL scope
   checks and model projection that preserves existing Endpoint requests.
 - Added governed acquisition of one owned loopback HTML page from the closed

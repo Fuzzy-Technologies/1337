@@ -70,7 +70,7 @@ state = "missing"
 id = "page:api.fuzzy1337.command-registry"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.command_registry.md"
-sourceHash = "sha256:0bad2455267ad699a9ece186c388654304013105aa6151909dd03430e2a397e9"
+sourceHash = "sha256:866d9e727a99e9a72ad76d31b6f2e1b657a6f1330486c33890dd4d47cb6f249b"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -270,7 +270,7 @@ state = "missing"
 id = "page:api.fuzzy1337.shell"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.shell.md"
-sourceHash = "sha256:4d8b947621a69f03f91eb2598497e795d995200db5ed827ef7c088be27110637"
+sourceHash = "sha256:ae6e89f295a0a1524302666a12fd80f0fdb0f3c1069cf8ada460b37a9f6d0aa2"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -7451,7 +7451,7 @@ state = "missing"
 id = "page:api.fuzzy1337.scan-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.scan_commands.md"
-sourceHash = "sha256:dc914361fdc7bd095657f0064b164ddcdebe0aff5780dac4760019fd9c64e1c1"
+sourceHash = "sha256:37fc31764f6e10dd54fa6d41d66311f8dcf6e61b1699dca7e68a1343c3cb5e36"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -7627,7 +7627,7 @@ state = "missing"
 id = "symbol:fuzzy1337.shell.InteractiveShell.do_scan"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
-sourceHash = "sha256:15537b3d16f6d4d496828b865169e48e01e7161909a396f9215ddd861258049e"
+sourceHash = "sha256:7cabbc5f4061c80e85c73a6af49e759b56b93988b649aa8f09453388a4a22b0c"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -9325,6 +9325,94 @@ id = "page:api.fuzzy1337.sbom-spdx"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.sbom_spdx.md"
 sourceHash = "sha256:32309f8154d2ef0e78b8fd390106b951fb0932678211d8ec9c617fe647eefd03"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.sbom-graph"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.sbom_graph.md"
+sourceHash = "sha256:f77494a792d7f9f6c53f5252902826e9090629aa2b7c619f72b7ec69f70412b3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.ApplyVerifiedSpdxGraph"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:ed0556c05bc24b338546c67d28b077466d3db17cde026ebf9cbea7d55ae1afbe"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.CheckContainment"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:1c71a329c5e8602c2b0f31aff7effdcf9b5160c78fceebb1306c63c1213e54e5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.GraphCandidates"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:8a14199b8bdd9f1d53aae37958b39b95a64cc7d7aebf3eb442e42ae348ed226f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.GraphCatalog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:adf7ddf7c6e82ffbb14d211b35697b260ebc3579f3baf59892ff2724b74dabfd"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.RevalidateInputs"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:7548e79ff2133bd03ae8de81c93a7bed50b86849e74a2a86ab3cc72e15b42d81"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.SourceCatalog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:e2c8fb2ca110a9ba82d124f58086e7957d36a5c17dac157a41c10e52c4068fd4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.SourceEdge"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:254f50c3f98b6f7ede70eab7810830f46a57db15dde6950406079bc7b34fbf62"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
