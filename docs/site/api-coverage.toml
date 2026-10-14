@@ -384,6 +384,12 @@ mode = "authored"
 page = "api/fuzzy1337.path_analysis.md"
 
 [[surfaces]]
+module = "fuzzy1337.business_events"
+source = "src/fuzzy1337/business_events.py"
+mode = "authored"
+page = "api/fuzzy1337.business_events.md"
+
+[[surfaces]]
 module = "fuzzy1337.web_traversal"
 source = "src/fuzzy1337/web_traversal.py"
 mode = "authored"

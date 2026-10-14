@@ -133,6 +133,14 @@ graph cut verification, and explicit lossless presentation groups. Unknown or
 truncated results remain explicit; structural leverage grants no execution or
 remediation-efficacy claim.
 
+`fuzzy1337.business_events` adds an Experimental offline Python profile `1` over
+the unchanged Core model schema. ADR 0071 and `docs/BUSINESS_EVENTS.md` define
+verified owner-declared unacceptable outcomes, explicit ordinary critical Assets,
+attributed descriptive memberships and existing technical-path explanations.
+Declarations remain scenarios: no incident, financial score, aggregate confidence
+or execution authority is inferred. Identity retains the original definition
+manifest; exact replay is idempotent, and bounded query limitations remain explicit.
+
 `fuzzy1337.findings` is an Experimental Python library at contract version `1`.
 ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
