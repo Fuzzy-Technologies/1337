@@ -249,6 +249,21 @@ The importer returns one in-memory transition and grants no live daemon/network
 authority. Other helpers remain Internal; daemon discovery and physical runtime
 acceptance remain separate.
 
+`fuzzy1337.kubernetes_inventory` is an Experimental owned offline Kubernetes
+`v1`/`List` input profile at contract version `1`, defined by ADR 0074 and
+`docs/KUBERNETES_INVENTORY.md`. `KubernetesInventoryLimits` and
+`ApplyVerifiedKubernetesList` are its supported surface; all other helpers remain
+Internal. Exact original evidence attribution, a declared cluster ASSET and the
+current persisted model basis precede one caller-persisted in-memory transition.
+Cluster-separated UID identities, nominal RBAC and configured selector/owner/
+Service/Ingress/NetworkPolicy associations reuse existing model types. Missing
+facts, effective permissions, aggregation, CNI enforcement and image digest
+domains remain unknown. OPEN configured-condition findings preserve operator
+triage; relationships grant no authorization or confirmed reachability. Unsupported
+kinds, including Secret, fail before normalization. Original bytes remain exact
+and are not redacted; the caller supplies a non-sensitive owned export. Live
+discovery and full privilege validation remain separate work.
+
 `fuzzy1337.image_evidence` and `fuzzy1337.image_workflow` are Internal closed-fixture
 capture/orchestration modules. The capture helper retains original typed SDK
 envelopes and acquisition provenance; `fuzzy1337.synthetic_images` remains the
