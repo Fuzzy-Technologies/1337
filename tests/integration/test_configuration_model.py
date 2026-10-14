@@ -9,6 +9,7 @@ import asyncio
 import copy
 import json
 import shutil
+import stat
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -128,6 +129,16 @@ def Captured(tmp_path):
     return root, capture, records, replace(context, policy=policy)
 
 
+def RemoveOwnedTree(root):
+    """Remove this test's owned snapshots after allowing Windows deletion of read-only files."""
+
+    for path in root.rglob("*"):
+        if path.is_file():
+            path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+    shutil.rmtree(root)
+
+
 def test_RelocationReplayPreservesOriginalFactsWithoutStageOrAuthority(tmp_path, monkeypatch):
     """Read-only replay survives removed original stages and expired consent without launching."""
 
@@ -135,8 +146,8 @@ def test_RelocationReplayPreservesOriginalFactsWithoutStageOrAuthority(tmp_path,
     original = VerifySyntheticConfigurationReplay(records, root)
     relocated = tmp_path / "relocated"
     shutil.copytree(root, relocated)
-    shutil.rmtree(capture.stage.root)
-    shutil.rmtree(root)
+    RemoveOwnedTree(capture.stage.root)
+    RemoveOwnedTree(root)
 
     def Forbidden(*_args, **_kwargs):
         """Trip any current execution authority lookup during historical verification."""
