@@ -38,6 +38,7 @@ SHELL_COMMANDS = (
     "quit",
     "report",
     "runtime",
+    "sbom",
     "scan",
     "scope",
     "select",
@@ -233,7 +234,7 @@ class NativeInputHistory:
 
             if command in {
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                "api", "trace"
+                "sbom", "api", "trace"
             }:
                 position = index - first_index
 
@@ -404,19 +405,20 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "api", "trace"
+                    "sbom", "api", "trace"
                 }
                 else normalized
             )
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "api", "trace"
+            "sbom", "api", "trace"
         }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
                         "ci": self.do_ci,
                         "runtime": self.do_runtime,
+                        "sbom": self.do_sbom,
                         "api": self.do_api,
                         "trace": self.do_trace,
                         "intel": self.do_intel}
@@ -520,7 +522,8 @@ class InteractiveShell(cmd.Cmd):
                 "report export, runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect>, "
                 "select <object-id>, "
-                "scan <quick|nuclei|image|config>, scope create, workspace <create|open>, "
+                "sbom import spdx-graph, scan <quick|nuclei|image|config>, scope create, "
+                "workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
             "api": (
@@ -559,6 +562,10 @@ class InteractiveShell(cmd.Cmd):
                 "runtime import <docker-inspect|kubernetes-list> <workspace>: import one explicit "
                 "owned file or retained manifest with existing HOST/cluster, scope and exact bases."
             ),
+            "sbom": (
+                "sbom import spdx-graph <workspace>: import an explicit original file or retained "
+                "manifest with declared image digest/kind, scope and exact owner revision bases."
+            ),
             "trace": (
                 "trace ioc <import|inspect> <workspace>: use explicit local candidate files or "
                 "independent snapshot/receipt anchors without changing the Security Object Model."
@@ -594,7 +601,13 @@ class InteractiveShell(cmd.Cmd):
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
 
-            if command == "api":
+            if command == "sbom":
+                from fuzzy1337.sbom_commands import RunSbomCommands
+
+                status = RunSbomCommands(arguments, cast(TextIO, self.stdout),
+                                         json_output=json_output)
+
+            elif command == "api":
                 from fuzzy1337.api_commands import RunApiCommands
 
                 status = RunApiCommands(arguments, cast(TextIO, self.stdout),
@@ -705,6 +718,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("ci", argument)
+
+    def do_sbom(self, argument: str) -> None:
+        """Import an explicit local SPDX graph without deriving authority from shell context.
+
+        Args:
+            argument: Import action, original source, declared image identity and owner bases.
+        """
+
+        self.RunLocalCommand("sbom", argument)
 
     def do_api(self, argument: str) -> None:
         """Import an explicit offline API source without deriving authority from shell context.

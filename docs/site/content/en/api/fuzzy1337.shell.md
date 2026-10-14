@@ -1,5 +1,15 @@
 # fuzzy1337.shell
 
+Foreground Experimental version-one `sbom import spdx-graph` forwards explicit
+quoted arguments to the Internal owning handler and preserves its actual exit
+status and three independent acquisition/model/workspace acknowledgements.
+Shell context supplies no source, image digest kind, source attribution,
+scope/run, revision basis or read consent. Known original replay and all-known
+SBOM alias preflight retain the CLI's evidence boundaries. SBOM arguments are
+excluded from local/native history before dispatch, and empty-line replay retains
+only the canonical namespace. Quoted paths keep spaces and backslashes through
+the shared parser; no scanner or remote authority follows from shell dispatch.
+
 Foreground `api import graphql-introspection` forwards explicit quoted selections
 to the Internal API handler and preserves its actual terminal status. Shell
 context supplies no endpoint, scope, source, run, read consent or revision basis.

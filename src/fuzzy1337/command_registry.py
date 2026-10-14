@@ -231,6 +231,12 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("workbench.selected-finding-gate",),
         ),
         CommandDescriptor(
+            identifier="sbom",
+            summary="Import an explicit owned offline SPDX package graph.",
+            usage="1337 sbom import spdx-graph <workspace>",
+            capabilities=("image.owned-spdx-graph-import",),
+        ),
+        CommandDescriptor(
             identifier="api",
             summary="Import an explicit owned offline GraphQL introspection source.",
             usage="1337 api import graphql-introspection <workspace>",

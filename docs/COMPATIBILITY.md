@@ -379,6 +379,26 @@ dependencies assert no runtime reachability. Inert license roles remain separate
 and model persistence retains the existing explicit CAS save boundary. No Core
 schema, native authorization or execution receipt contract changes.
 
+`sbom import spdx-graph` is an Experimental owned offline product command at
+contract version `1`, available in the installed CLI and interactive shell.
+ADR 0082 and `docs/SBOM_IMPORT.md` define explicit original-file read consent,
+source ID/version, image digest and `config`/`manifest` kind, existing offline
+scope/run and current model/workspace revision bases. Retained mode accepts only
+known product custody independently bound to the original acquisition manifest;
+equal raw bytes supply no substitute identity or context override. Both modes
+preflight all known original SBOM blobs and same-SHA/same-locator aliases before
+generic evidence reads, including model-only custody after workspace-save loss.
+Original unredacted bytes stay bounded to four MiB, older sources retain their
+own scope/media context, and unrelated larger non-SBOM evidence keeps its existing
+owner budgets. One unchanged SDK transition and custody fact share one model
+revision, with separate acquisition/model/workspace acknowledgements and honest
+partial or lost-save outcomes. Portable exact replay preserves bytes and triage;
+dependency reachability stays UNKNOWN without verified assessment, and license
+facts assert no compliance result. All classes, functions, methods and helpers
+in `fuzzy1337.sbom_commands`, including `SbomParser` and `RunSbomCommands`, and
+its schema-one terminal summary remain Internal. No SDK/Core schema, native
+authorization, read-grant default, remote retrieval or scanner contract changes.
+
 ## Version compatibility rules
 
 `fuzzy1337.demo` and `fuzzy1337.demo_commands` are Experimental schema-version-1
