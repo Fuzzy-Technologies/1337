@@ -83,7 +83,7 @@ def CommandEpilog(registry: CommandRegistry) -> str:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Dispatch local workspace/scope commands, bounded scans, offline reports and diagnostics.
+    """Dispatch local workspace/scope commands, bounded scans, explicit CI gates and reports.
 
     Writes to the terminal and may enter the interactive shell. The default dispatch does not
     start a scan.
@@ -92,7 +92,8 @@ def Main(argv: Sequence[str] | None = None) -> int:
         argv: Arguments excluding the executable, or None for process arguments.
 
     Returns:
-        Zero for completed commands; two for invalid setup, three for scan denial,
+        Zero for completed commands or satisfied explicit CI predicates; one for CI violation,
+        two for invalid setup, three for scan denial,
         four for scan/export integrity, execution or storage failure, 130 for interruption,
         or inspection status.
 
@@ -119,7 +120,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "command",
         choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan", "report",
-                 "demo", "intel"),
+                 "demo", "intel", "ci"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
@@ -129,6 +130,14 @@ def Main(argv: Sequence[str] | None = None) -> int:
         help="Write experimental JSON for update or an explicit product command outcome.",
     )
     arguments, remaining = parser.parse_known_args(argv)
+
+    if arguments.command == "ci":
+        from fuzzy1337.ci_commands import RunCiCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunCiCommands(remaining, sys.stdout, json_output=arguments.json)
 
     if arguments.command == "intel":
         from fuzzy1337.intelligence_commands import RunIntelCommands
@@ -171,7 +180,8 @@ def Main(argv: Sequence[str] | None = None) -> int:
 
     if arguments.json and arguments.command != "update":
         parser.error(
-            "--json is only available for update, workspace, scope, scan, report, demo and intel"
+            "--json is only available for update, workspace, scope, scan, report, demo, "
+            "intel and ci"
         )
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):

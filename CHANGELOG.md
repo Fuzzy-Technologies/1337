@@ -134,6 +134,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added explicit saved-workspace `report export` for bounded JSON and SARIF,
   owner-verifying every retained raw evidence reference and preserving failed
   execution, uncertainty and actual no-clobber publication outcomes.
+- Added explicit `1337 ci scan` for closed configuration profiles, caller-selected
+  current-run finding predicates and exact-snapshot JSON/SARIF/JUnit publication.
+  Completeness acknowledgement is required; partial exports and failed proof
+  remain nonzero, without aggregate scoring or inferred reachable-risk claims.
 
 - Added bounded intelligence snapshot import and pinned CISA KEV mirror
   acquisition, observed receiver times, immutable original/partial evidence and

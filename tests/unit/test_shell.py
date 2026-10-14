@@ -145,6 +145,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: shell",
         "cli: update",
         "cli: intel",
+        "cli: ci",
         "action: show-evidence — Show evidence for this object.",
         "action: show-paths — Show paths from this object.",
         "cli: workspace",
@@ -210,11 +211,11 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
 
     assert output.getvalue().splitlines() == [
         (
-            "Interactive commands: commands, context, demo, help, history, intel, lens, model, "
+            "Interactive commands: ci, commands, context, demo, help, history, intel, lens, model, "
             "palette, quit, report, scan, scope, select, update, updates, view, workspace"
         ),
         ("CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report, "
-         "intel, demo"),
+         "intel, demo, ci"),
         "[model] asset changed",
         "usage: quit",
         "",
@@ -474,7 +475,7 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
     )
 
 
-@pytest.mark.parametrize("namespace", ["workspace", "scope", "scan", "report", "demo"])
+@pytest.mark.parametrize("namespace", ["workspace", "scope", "scan", "report", "demo", "ci"])
 @pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
 def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
     """Punctuation/missing-space forms dispatch a protected namespace without retaining its argv."""
@@ -555,7 +556,7 @@ def NativeEditor(entries):
     return editor, settings
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci"])
 def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput(namespace):
     """A native cap advances absolute base; matching prior/command-time entries remain unowned."""
 
@@ -759,7 +760,7 @@ def test_CommandExceptionCannotClaimCallerNativeAdditionsDuringLoopCleanup(monke
     )
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci"])
 def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, namespace):
     """Stream/queued inputs have no native auto-history ownership and preserve preexisting state."""
 
@@ -784,7 +785,7 @@ def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, n
     )
 
 
-@pytest.mark.parametrize("namespace", ["report", "demo"])
+@pytest.mark.parametrize("namespace", ["report", "demo", "ci"])
 def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch, namespace):
     """Even a matching queued string cannot claim an unchanged preexisting native history item."""
 
