@@ -43,6 +43,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added original bounded native Trivy VERSION/SCAN custody with independent
   caller authorization, raw stderr/exit/provenance and unchanged selected
   binary/database/archive association. Native image profiles remain metadata-only.
+- Added verified original native Trivy pair admission into canonical image,
+  installed-package and Finding identities with retained triage, immutable
+  six-role custody and portable replay. Native execution grants remain separate.
 - Added verified offline vulnerability intelligence and standards-mapping
   metadata, preserving source versions, evidence and uncertainty.
 - Added a reviewed offline standards baseline with seven pinned primary-source
