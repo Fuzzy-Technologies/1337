@@ -208,7 +208,18 @@ custody producer under ADR 0058. Exact caller-issued execution authorization,
 explicit selected reads, unchanged material facts and original receipt provenance
 remain required. Observed provider version is separate from the original
 unobserved VERSION invocation. The legacy importer is unchanged; native IMAGE
-product authorization and durable model integration remain separate.
+product authorization remains separate. The producer performs no model save.
+
+`fuzzy1337.native_image_admission` is an Internal original-pair consumer under
+ADR 0067. Six immutable owning manifests, original receipts, exact executed
+requests and full VERSION prerequisite association precede canonical native
+image/package/Finding interpretation. Existing model schema, provider-independent
+identities and Finding triage remain unchanged. Legacy executionless VERSION
+health ingestion and the isolated synthetic image family retain their existing
+contracts. Admission proposes an in-memory transition; the caller owns model CAS
+and workspace saves. Historical replay opens retained evidence without old
+selected material or current execution authority. Native SDK execution grants
+and the native CLI/job workflow remain separate work.
 
 `fuzzy1337.images` is an Experimental offline interpretation library at contract
 version `1`. ADR 0040 and `docs/IMAGES.md` define ASSET-based image/package identities,

@@ -23,6 +23,6 @@
       "expected_advisory_match": false
     }
   ],
-  "scope": "Owned inert metadata; no package implementation, exploit or model-state publication",
+  "scope": "Owned inert metadata; no package implementation or exploit; local canonical model admission",
   "scan_completeness": "not-assessed"
 }

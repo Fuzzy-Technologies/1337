@@ -43,6 +43,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added original bounded native Trivy VERSION/SCAN custody with independent
   caller authorization, raw stderr/exit/provenance and unchanged selected
   binary/database/archive association. Native image profiles remain metadata-only.
+- Added verified original native Trivy pair admission into canonical image,
+  installed-package and Finding identities with retained triage, immutable
+  six-role custody and portable replay. Native execution grants remain separate.
 - Added verified offline vulnerability intelligence and standards-mapping
   metadata, preserving source versions, evidence and uncertainty.
 - Added a reviewed offline standards baseline with seven pinned primary-source
@@ -111,6 +114,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Owned HTTPS receiver deadlines and cancellation terminate and join the child.
 
 #### Fixed
+
+- Preserved native VERSION verification across distinct Windows path/handle stat
+  views while retaining full unchanged-view identity, byte bounds and digest checks.
 
 - Reject historical synthetic-image pairs that reuse one physical marker,
   including coherently rehashed captures with changed snapshot attributes.
