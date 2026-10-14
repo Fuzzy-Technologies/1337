@@ -1,5 +1,10 @@
 # fuzzy1337.command_registry
 
+The `runtime` descriptor advertises Experimental version-one owned offline
+`runtime import docker-inspect`. Its discovery metadata supplies no source path,
+HOST, revision basis, read consent or daemon/execution authority. Command parsing
+and storage remain with the Internal runtime implementation.
+
 The `ci` descriptor advertises explicit current-run finding predicates and report
 exports. Discovery metadata does not supply policy, completeness or consent.
 

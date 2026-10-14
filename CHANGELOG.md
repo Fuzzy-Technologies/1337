@@ -81,6 +81,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   configured-condition findings with original evidence and preserved triage.
   Missing facts remain unknown; configured associations grant no reachability,
   physical access or live daemon authority.
+- Added Experimental `runtime import docker-inspect` in the installed CLI and
+  interactive shell, composing explicit owned-file consent or exact original
+  retained-manifest selection with the existing SDK and separate model/workspace
+  CAS saves. Original acquisition identity, byte bounds, source privacy, triage
+  and unknown facts survive portable replay; three independent acknowledgements
+  expose partial commits without granting live runtime or execution authority.
 - Added bounded caller-owned Kubernetes List inventory, cluster-separated UID
   identities, nominal RBAC and configured selector/owner/Service/Ingress/
   NetworkPolicy associations with original evidence and preserved finding triage.
