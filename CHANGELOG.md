@@ -81,6 +81,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   configured-condition findings with original evidence and preserved triage.
   Missing facts remain unknown; configured associations grant no reachability,
   physical access or live daemon authority.
+- Added bounded caller-owned Kubernetes List inventory, cluster-separated UID
+  identities, nominal RBAC and configured selector/owner/Service/Ingress/
+  NetworkPolicy associations with original evidence and preserved finding triage.
+  Unsupported kinds, including Secret, fail before normalization; effective
+  permissions, aggregation, CNI enforcement and reachability remain unknown.
+  Live discovery and full privilege validation remain separate work.
 - Added selected-read-consent artifact capture, canonical input/scanner/material
   manifests, guarded staging and governed execution of closed synthetic workers.
   Native scanner profiles remain metadata-only until actual tool acceptance.

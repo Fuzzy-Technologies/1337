@@ -8728,6 +8728,369 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.kubernetes-inventory"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.kubernetes_inventory.md"
+sourceHash = "sha256:c0adc7f10f3f39639ebcfe1eb53d55fe70010e6404f299075185612021a0440a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.ApplyVerifiedKubernetesList"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:33b0088945100f907cc3ffe75409dca9877ab3a029fd1f65e13a785a2f2ea040"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Associations"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:31684359c16dad682b6253e9b7498e6c1e9ac09cea0ce30fe9893fc176939d0c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Binding"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:f9e00ff59f3b14457c8b086b549da29ec5bcc2a912bd1d0f81cb19533e8911a6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.BoundedListStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:6a9779bff482e1185f76b9e88e1c476731b277bd9e2858ad9e47bba7d7c50f31"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.BoundedListStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:3432e32f036d6fa21b8dfd237651e944e250b8c79c5c7af82a48128600310bad"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Containers"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:67ee9a76a88f6e4ba96b0bc9149fa0b05d321fba0b38edb2ef2c82f33a551b4b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Decode"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:81531e446004830d1aa4b6feb19bf85fc878dfe2e4cd91ef457d7e2f8a35aea9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Fields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:d00d3e4ff1dda210c13445343b04ce24b0f3779baf061837eae642042d80b6a5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.FiniteFloat"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:c992b2b9daf6273ac47ee8d131e17ee9a26012cf567558246901e5aac4b11a69"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Ingress"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:b3d9bd78d5928b44ead910cee69543fbb760ed6ac4b7700c93c94acec61841ef"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Integer"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:7f90ffe58cd90e99f9ad7d139127ee0cf739c3a3e3ee533005ab97671085ca73"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.InventoryBatch"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:09cbaa8493706f2d3d1825d4385e98b58673947cc072d2a25f8a15da2cede8d7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.InventoryBatch.Edge"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:e876415080fd4a2dcbd187a71bc549009e36919c1ffda0c322e3caff31980125"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.InventoryBatch.Finding"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:45f6c025dde09ba8a1f53848c1998579a5291149b982a32ad423c86b8607bcee"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.InventoryBatch.Object"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:7dbfdb12d7e28c4d0eda91313ef36ffd7aadd6655752aabd2e340b019f018595"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Items"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:74ce1c2153f345903889ac08f81b5d866baf1057c8a185cd4d8491079d361af0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.KubernetesInventoryLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:5b9498478e5e4e89db326eae4c4cef46f087baf7ba0c587089ddf5b0ffaf8f26"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Labels"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:627ca31b49e569d9b5bfc8d2e01281b5ede7c9f38544e19c7967d756180c5d19"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Matches"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:9ed0411b0f4c4b9ddfc584e0eca0af2b347dcaf582598354b3ebf1b42e91ca54"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Name"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:1b3cc14a1e828c4937949bcbb3f1216852b159ea115a39c387009fbd265192b2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.OptionalBool"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:ccb1df499158081a71ba52c1d2f43bb9a0957659edecdf7184bd0f6337e67b57"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.OptionalFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:00c1db9f1b304c45a1f9ffee752e45787113f907783451bf98b80bc9fe7587f9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.PodSpec"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:bceb400a60093ddb7d3445a400ef9c7b1d5c940c51f78da18a15e9e624adb2fb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.RejectConstant"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:776896f0faa6814941b9042e347e9f6f723e80356e508286af098a76ae067002"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Resource"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:4a780482c9e0b1a515e12beee1eeb074cf2e326f7b64206bc2a3b1c895c134c6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Rules"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:2e652dd9c52ceda8f6e3857df3390a50a4c318132b7c5e0c094304c672d7a3a4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.SelectedPods"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:80e010c4fcd747a7abd0781ffb49db7cc450260d124408554da0aef038da0e42"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Selector"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:a8ccb8ba40eb4fa421f27cf192c210bb460aa197c6c8f18521345c26e171cb4a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.ServicePorts"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:71f706179ab47375e269478be27c214a6c5898a9d095677ce498a90c36f21739"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.StringList"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:a3833c75f098cbbc50b9700cabf2a330914b679f83232eaff98d7b7af3f059ce"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.Text"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:e8a27fabb0b87bbc4b72d7a797157aef61ea5eb55007da8a44cf812836ac451e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.kubernetes_inventory.UniqueFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/kubernetes_inventory.py"
+sourceHash = "sha256:8e1ef95246b05967e80d8607e5e3f52874990f32fde744b4bf50bbc072971d14"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "symbol:fuzzy1337.docker_inventory.Address"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/docker_inventory.py"
