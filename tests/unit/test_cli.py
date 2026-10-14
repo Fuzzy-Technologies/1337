@@ -6,6 +6,7 @@
 import runpy
 import sys
 from importlib.metadata import version
+from types import ModuleType
 
 import pytest
 
@@ -342,3 +343,37 @@ def test_LocalDemoTopLevelDispatchHasExplicitApprovalAndSelectedHelp(tmp_path, c
     assert Main(["demo", "local", str(root), "--json"]) == 3, "Default demo must fail closed."
     assert '"state": "denied"' in capsys.readouterr().out, "JSON must describe the actual denial."
     assert not root.exists(), "A displayed plan must not create a filesystem root."
+
+
+@pytest.mark.parametrize("help_requested", [False, True])
+def test_TraceNamespaceForwardsOnlyExplicitSelectionsAndPreservesStatus(monkeypatch,
+                                                                      help_requested, capsys):
+    """The central route adds no source, receipt, scope or consent defaults to IOC dispatch."""
+
+    module = ModuleType("fuzzy1337.ioc_commands")
+    calls = []
+
+    def ObserveInvocation(arguments, output, *, json_output=False):
+        """Record the exact route-owned argv and return a consumer interruption status."""
+
+        calls.append((arguments, json_output))
+        output.write("owned-summary-only\n")
+
+        return 130
+
+    module.RunIocCommands = ObserveInvocation
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    selected = ["ioc", "inspect", "Owned Workspace", "--snapshot", "sha256:" + "1" * 64,
+                "--receipt", "sha256:" + "2" * 64]
+    argv = ["trace", *selected, "--json"]
+
+    if help_requested:
+        argv.append("--help")
+
+    assert Main(argv) == 130, "The central route must retain the IOC consumer's actual status."
+    assert calls == [(selected + (["--help"] if help_requested else []), True)], (
+        "IOC dispatch receives only explicitly selected arguments and the requested output mode."
+    )
+    assert capsys.readouterr().out == "owned-summary-only\n", (
+        "The central route cannot reconstruct or decorate candidate acquisition output."
+    )

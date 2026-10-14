@@ -227,5 +227,13 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 ci scan <workspace> --profile <synthetic-dockerfile|synthetic-kubernetes>",
             capabilities=("workbench.selected-finding-gate",),
         ),
+        CommandDescriptor(
+            identifier="trace",
+            summary=(
+                "Import explicit local IOC candidates or inspect independently anchored artifacts."
+            ),
+            usage="1337 trace ioc <import|inspect> <workspace>",
+            capabilities=("trace.local-ioc-candidates",),
+        ),
     )
 )

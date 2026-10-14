@@ -39,6 +39,7 @@ SHELL_COMMANDS = (
     "scan",
     "scope",
     "select",
+    "trace",
     "update",
     "updates",
     "view",
@@ -228,7 +229,7 @@ class NativeInputHistory:
             parsed, _, _ = shell.parseline(value)
             command = parsed.lower() if parsed else ""
 
-            if command in {"workspace", "scope", "scan", "report", "demo", "intel", "ci"}:
+            if command in {"workspace", "scope", "scan", "report", "demo", "intel", "ci", "trace"}:
                 position = index - first_index
 
                 if not 0 <= position < count:
@@ -397,15 +398,15 @@ class InteractiveShell(cmd.Cmd):
         if normalized and command != "history":
             self._history.append(
                 command if command in {
-                    "workspace", "scope", "scan", "report", "demo", "intel", "ci"
+                    "workspace", "scope", "scan", "report", "demo", "intel", "ci", "trace"
                 }
                 else normalized
             )
 
-        if command in {"workspace", "scope", "scan", "report", "demo", "intel", "ci"}:
+        if command in {"workspace", "scope", "scan", "report", "demo", "intel", "ci", "trace"}:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
-                        "ci": self.do_ci,
+                        "ci": self.do_ci, "trace": self.do_trace,
                         "intel": self.do_intel}
             self.lastcmd = command
 
@@ -503,7 +504,7 @@ class InteractiveShell(cmd.Cmd):
             "": (
                 "ci scan, commands, context, demo local, history [query], lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
-                "report export, select <object-id>, "
+                "report export, trace ioc <import|inspect>, select <object-id>, "
                 "scan <quick|nuclei|image|config>, scope create, workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
@@ -533,6 +534,10 @@ class InteractiveShell(cmd.Cmd):
             "select": "select <object-id>: keep an opaque object reference in the current context.",
             "report": (
                 "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
+            ),
+            "trace": (
+                "trace ioc <import|inspect> <workspace>: use explicit local candidate files or "
+                "independent snapshot/receipt anchors without changing the Security Object Model."
             ),
             "scan": (
                 "scan <quick|nuclei|image|config> <workspace>: run explicitly governed scans; "
@@ -565,7 +570,13 @@ class InteractiveShell(cmd.Cmd):
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
 
-            if command == "ci":
+            if command == "trace":
+                from fuzzy1337.ioc_commands import RunIocCommands
+
+                status = RunIocCommands(arguments, cast(TextIO, self.stdout),
+                                        json_output=json_output)
+
+            elif command == "ci":
                 from fuzzy1337.ci_commands import RunCiCommands
 
                 status = RunCiCommands(arguments, cast(TextIO, self.stdout),
@@ -640,6 +651,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("report", argument)
+
+    def do_trace(self, argument: str) -> None:
+        """Use explicitly owned local IOC candidates without deriving authority from shell state.
+
+        Args:
+            argument: IOC action, owning workspace, source selections or independent anchors.
+        """
+
+        self.RunLocalCommand("trace", argument)
 
     def do_ci(self, argument: str) -> None:
         """Run an explicit current-execution finding predicate and verified report exports.
