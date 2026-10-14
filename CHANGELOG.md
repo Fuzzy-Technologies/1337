@@ -33,6 +33,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added reviewed optional Nuclei HTTP-template and Trivy offline-image preparation
   and parsing, image/package normalization and verified flat SPDX inventory.
   Compatible native tools remain operator-supplied and optional.
+- Added an explicit offline SPDX local-package graph profile with original
+  evidence-backed nested containment, inert license facts and canonical package
+  linkage. Dependency claims assert no runtime reachability; saved portable
+  replay retains existing finding triage and the flat profile stays unchanged.
 - Added an explicitly confirmed STANDARD Nuclei workflow through governed jobs,
   retained raw evidence and durable canonical Findings, with current authority
   checks at launch and model Save and pinned genuine-provider loopback CI.

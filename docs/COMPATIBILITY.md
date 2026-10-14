@@ -276,6 +276,17 @@ document-scoped aliases. `ApplyVerifiedSpdx` and `SPDX_IMPORT_VERSION` are its
 supported surface; other helpers remain Internal. General SPDX graphs, VEX,
 signatures and execution authority are outside this contract.
 
+`fuzzy1337.sbom_graph` is a separate Experimental offline local-package graph
+interpretation library at contract version `1`. ADR 0073 and `docs/SBOM_GRAPH.md`
+define its supported `SPDX_GRAPH_IMPORT_VERSION` and `ApplyVerifiedSpdxGraph`
+surface; remaining helpers are Internal. It preserves the flat SPDX profile,
+original evidence, canonical package/image identities and finding triage while
+adding direct nested containment and attributed local dependency claims.
+Containment must remain rooted and acyclic after package alias correlation;
+dependencies assert no runtime reachability. Inert license roles remain separate,
+and model persistence retains the existing explicit CAS save boundary. No Core
+schema, native authorization or execution receipt contract changes.
+
 ## Version compatibility rules
 
 `fuzzy1337.demo` and `fuzzy1337.demo_commands` are Experimental schema-version-1

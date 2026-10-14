@@ -9332,6 +9332,94 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.sbom-graph"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.sbom_graph.md"
+sourceHash = "sha256:f77494a792d7f9f6c53f5252902826e9090629aa2b7c619f72b7ec69f70412b3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.ApplyVerifiedSpdxGraph"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:ed0556c05bc24b338546c67d28b077466d3db17cde026ebf9cbea7d55ae1afbe"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.CheckContainment"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:1c71a329c5e8602c2b0f31aff7effdcf9b5160c78fceebb1306c63c1213e54e5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.GraphCandidates"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:8a14199b8bdd9f1d53aae37958b39b95a64cc7d7aebf3eb442e42ae348ed226f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.GraphCatalog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:adf7ddf7c6e82ffbb14d211b35697b260ebc3579f3baf59892ff2724b74dabfd"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.RevalidateInputs"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:7548e79ff2133bd03ae8de81c93a7bed50b86849e74a2a86ab3cc72e15b42d81"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.SourceCatalog"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:e2c8fb2ca110a9ba82d124f58086e7957d36a5c17dac157a41c10e52c4068fd4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sbom_graph.SourceEdge"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sbom_graph.py"
+sourceHash = "sha256:254f50c3f98b6f7ede70eab7810830f46a57db15dde6950406079bc7b34fbf62"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "symbol:fuzzy1337.sbom_spdx.ApplyVerifiedSpdx"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/sbom_spdx.py"
