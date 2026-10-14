@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 from dataclasses import replace
 from io import StringIO
 from pathlib import Path
@@ -310,8 +311,7 @@ def test_ShellIntelDispatchUsesExplicitSelectionsAndRedactsRetainedHistory(tmp_p
     model, _, imported = Imported(tmp_path)
     output = StringIO()
     shell = InteractiveShell(stdin=StringIO(), stdout=output)
-    shell.onecmd("intel inspect " + str(model.root) + " --snapshot " + imported["snapshot_id"]
-                 + " --receipt " + imported["receipt_id"] + " --json")
+    shell.onecmd(shlex.join(["intel", *Selection("inspect", model.root, imported), "--json"]))
     outcome = json.loads(output.getvalue())
     assert outcome["status"] == "succeeded", "Actual shell did not use owning selection replay."
     output.seek(0)
@@ -319,4 +319,34 @@ def test_ShellIntelDispatchUsesExplicitSelectionsAndRedactsRetainedHistory(tmp_p
     shell.onecmd("history")
     assert output.getvalue() == "intel\n" and shell.lastcmd == "history", (
         "Shell retained source paths/receipt IDs or enabled empty-line command replay."
+    )
+
+
+@pytest.mark.parametrize("workspace", [
+    r"C:\Owned\workspace", r"C:\Owned workspace\intelligence", "/owned workspace/intelligence",
+])
+def test_QuotedShellSelectionsPreserveWindowsSeparatorsAndSpaces(workspace, monkeypatch):
+    """The documented shell grammar preserves an explicitly quoted path on every platform."""
+
+    received = []
+    output = StringIO()
+
+    def Dispatch(arguments, stream, *, json_output=False):
+        """Observe the actual shared shell parser without opening a foreign filesystem path."""
+
+        received.append((arguments, json_output))
+        stream.write('{"status":"succeeded"}\n')
+
+        return 0
+
+    monkeypatch.setattr(commands, "RunIntelCommands", Dispatch)
+    shell = InteractiveShell(stdin=StringIO(), stdout=output)
+    arguments = ["inspect", workspace, "--snapshot", "sha256:" + "a" * 64,
+                 "--receipt", "sha256:" + "b" * 64]
+    shell.onecmd(shlex.join(["intel", *arguments, "--json"]))
+    assert received == [(arguments, True)], (
+        "Quoted shell selection removed Windows separators or split one explicit path."
+    )
+    assert json.loads(output.getvalue()) == {"status": "succeeded"}, (
+        "Successful quoted dispatch added a second terminal document."
     )
