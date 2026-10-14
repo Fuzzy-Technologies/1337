@@ -7,6 +7,12 @@ mode = "authored"
 page = "api/fuzzy1337.synthetic_images.md"
 
 [[surfaces]]
+module = "fuzzy1337.sbom_graph"
+source = "src/fuzzy1337/sbom_graph.py"
+mode = "authored"
+page = "api/fuzzy1337.sbom_graph.md"
+
+[[surfaces]]
 module = "fuzzy1337.sbom_spdx"
 source = "src/fuzzy1337/sbom_spdx.py"
 mode = "authored"
@@ -238,6 +244,12 @@ module = "fuzzy1337.functional_metrics"
 source = "src/fuzzy1337/functional_metrics.py"
 mode = "authored"
 page = "api/fuzzy1337.functional_metrics.md"
+
+[[surfaces]]
+module = "fuzzy1337.ioc_artifacts"
+source = "src/fuzzy1337/ioc_artifacts.py"
+mode = "authored"
+page = "api/fuzzy1337.ioc_artifacts.md"
 
 [[surfaces]]
 module = "fuzzy1337.intel_references"

@@ -287,6 +287,17 @@ document-scoped aliases. `ApplyVerifiedSpdx` and `SPDX_IMPORT_VERSION` are its
 supported surface; other helpers remain Internal. General SPDX graphs, VEX,
 signatures and execution authority are outside this contract.
 
+`fuzzy1337.sbom_graph` is a separate Experimental offline local-package graph
+interpretation library at contract version `1`. ADR 0073 and `docs/SBOM_GRAPH.md`
+define its supported `SPDX_GRAPH_IMPORT_VERSION` and `ApplyVerifiedSpdxGraph`
+surface; remaining helpers are Internal. It preserves the flat SPDX profile,
+original evidence, canonical package/image identities and finding triage while
+adding direct nested containment and attributed local dependency claims.
+Containment must remain rooted and acyclic after package alias correlation;
+dependencies assert no runtime reachability. Inert license roles remain separate,
+and model persistence retains the existing explicit CAS save boundary. No Core
+schema, native authorization or execution receipt contract changes.
+
 ## Version compatibility rules
 
 `fuzzy1337.demo` and `fuzzy1337.demo_commands` are Experimental schema-version-1
@@ -300,6 +311,18 @@ at version `1`. ADR 0041 and `docs/INTELLIGENCE.md` define the documented source
 record, parser, and verified finding-observation boundaries. Validation helpers
 remain Internal. Catalog metadata does not establish vulnerability applicability,
 authenticated source identity, approval, or execution authority.
+
+`fuzzy1337.ioc_artifacts` is an Experimental schema-one offline candidate and
+evidence library under ADR 0076 and `docs/IOC_ARTIFACTS.md`. Its supported exports
+are `IocSource`, `IocLimits`, `IocCandidate`, `IocRequest`, `IocSnapshot`,
+`IocAcquisition`, `ParseIocArtifact`, `AcquireIocArtifact`, `ReplayIocArtifact`
+and `LoadIocArtifact`; other helpers and module constants remain Internal. The
+closed ASCII TSV profile preserves supplied IPv4/IPv6/DNS/SHA-256 occurrences,
+original token/source/time declarations, separate observed acquisition clocks,
+finite budgets and immutable raw/receipt/snapshot pins with portable reparse. It
+requires an independent caller-retained original acquisition record/id alongside
+the selected snapshot for replay; the candidate cannot choose its trusted anchor.
+It adds no incident/event/Core schema, model mutation, probing or scan authority.
 
 `fuzzy1337.intelligence_acquisition` is an Experimental schema-v1 acquisition and
 receipt library under ADR 0060. Explicit local source bytes or an immutable
@@ -423,6 +446,12 @@ See [Governed local artifacts](ARTIFACTS.md) and
 
 `fuzzy1337.configuration_evidence` and `fuzzy1337.configuration_workflow` are additive
 Experimental consumers of the reviewed synthetic SCAN-only configuration family.
+The Experimental `1337 scan config --profile synthetic` command under ADR 0072
+adds explicit Dockerfile/Kubernetes type selection over this same five-case family,
+without changing its source grammar, evidence identities or approval contract.
+Its CLI and foreground-shell terminal outcomes and optional JSON/SARIF exports
+preserve the existing workflow's actual execution and publication facts.
+
 The exact four-role source/stream/receipt capture is schema 1; original SDK metadata
 retains schema 2. Historical verification is read-only after relocation and grants
 no current execution/model authority. Live interpretation requires original typed
