@@ -57,6 +57,7 @@ def test_ContractPureParsingAndSerializationHaveNoIoOrCoreWrites(monkeypatch):
         isolated.setattr(subprocess, "Popen", Denied)
         isolated.setattr(LocalWorkspaceStore, "Open", Denied)
         candidates = ParseIocArtifact(RAW, source)
+        selection_pin = ioc.RequestPin(source, IocLimits())
         snapshot = IocSnapshot("sha256:" + "a" * 64, "sha256:" + "b" * 64, source,
                                IocLimits(), candidates)
         serialized = snapshot.Serialize()
@@ -65,6 +66,7 @@ def test_ContractPureParsingAndSerializationHaveNoIoOrCoreWrites(monkeypatch):
     assert decoded["candidates"][0]["normalized_token"] == "example.invalid", (
         "Pure parser/serializer failed its explicit synthetic candidate oracle"
     )
+    assert len(selection_pin) == 64, "Pure selection description lost its canonical digest shape"
     assert set(decoded) == {"schema_version", "family", "profile", "parser_id", "parser_version",
                            "raw_evidence_id", "acquisition_evidence_id", "source", "limits",
                            "candidates"}, "IOC interchange gained inferred incident/model semantics"
@@ -187,7 +189,7 @@ def test_ContractReplayRejectsUntypedManifestBeforeOpeningOwner(monkeypatch, rec
     monkeypatch.setattr(LocalWorkspaceStore, "Open", Denied)
 
     with pytest.raises(ValueError):
-        ReplayIocArtifact(Path("owned"), record)
+        ReplayIocArtifact(Path("owned"), record, record)
 
 
 @pytest.mark.parametrize("role,media,size", [
@@ -230,7 +232,22 @@ def test_ContractForeignManifestCannotBorrowOriginalReplay(monkeypatch):
     monkeypatch.setattr(LocalWorkspaceStore, "Open", Denied)
 
     with pytest.raises(ValueError):
-        ReplayIocArtifact(Path("owned"), record)
+        ReplayIocArtifact(Path("owned"), record, record)
+
+
+@pytest.mark.parametrize("acquisition_record", [None, object()], ids=("missing", "foreign"))
+def test_ContractReplayRequiresIndependentExactAcquisitionRecord(monkeypatch, acquisition_record):
+    """The second original receipt anchor is mandatory and independently typed before any I/O."""
+
+    provenance = EvidenceProvenance("owned", "scope:owned", "ioc-artifacts", "1", "1",
+                                    "2026-10-14T10:00:00Z", "2026-10-14T10:00:01Z")
+    reference = ioc.EvidenceReference("ioc-snapshot", "blobs/sha256/" + "a" * 64,
+                                     "a" * 64, "application/json", 0)
+    record = EvidenceRecord(reference, provenance)
+    monkeypatch.setattr(LocalWorkspaceStore, "Open", Denied)
+
+    with pytest.raises(ValueError):
+        ReplayIocArtifact(Path("owned"), record, acquisition_record)
 
 
 def test_ContractFrozenNestedRecordCannotReplaceOriginalOwnerFacts():

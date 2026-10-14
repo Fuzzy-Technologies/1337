@@ -37,11 +37,17 @@ and derived snapshot use the existing local evidence owner. Parse or digest
 refusal retains bounded original raw bytes and a refusal receipt. Oversize input
 is rejected before acquisition and is never silently truncated.
 
-Replay loads the exact owning manifests, checks consumer role/media/size budgets
+Replay requires an independent caller-retained original acquisition receipt
+record or manifest identity alongside the selected snapshot. It never derives
+that trusted anchor from a candidate snapshot's receipt pointer. Replay loads
+the exact owning manifests, checks consumer role/media/size budgets
 before eager raw reads, verifies receipt/provenance bindings, and reparses original
 bytes. It rejects altered snapshots even when their public hashes are recomputed.
-Receipt references anchor individual manifest-substitution checks; this is local
-integrity and attribution, not publisher signature verification or protection
+The independent original receipt anchor rejects coherently rehashed alternative
+receipts and snapshots that reuse the original raw acquisition. Its canonical
+request digest describes source/profile/parser/budget selection within the
+receipt; execution and invocation provenance remain None for this offline API.
+This is local integrity and attribution, not publisher signature verification or protection
 against an actor replacing an entire trusted chain and its trusted identifiers.
 Replay needs no original path and survives workspace relocation. Exact first-party
 runtime types and reconstruction checks reject subclass and frozen-object field

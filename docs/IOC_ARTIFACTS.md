@@ -79,7 +79,7 @@ source = IocSource(
 outcome = AcquireIocArtifact(root, IocRequest(payload, source), scope_reference="scope:owned")
 assert outcome.state == "succeeded", "Owned acquisition did not accept the explicit profile"
 assert outcome.snapshot_record is not None, "Successful acquisition did not retain its snapshot"
-replayed = LoadIocArtifact(root, outcome.snapshot_record.evidence_id)
+replayed = LoadIocArtifact(root, outcome.snapshot_record.evidence_id, outcome.receipt.evidence_id)
 assert replayed.candidates[0].normalized_token == "example.invalid", "Replay changed the candidate"
 ```
 
@@ -87,7 +87,9 @@ A successful acquisition publishes three immutable owning evidence records:
 `ioc-source`, `ioc-acquisition` and `ioc-snapshot`. The receipt pins the original
 raw manifest identity, exact source/version/license/digest selection, profile,
 parser/version, finite budgets, workspace/scope and receiver-observed collection
-window. A snapshot pins the receipt and raw identities and preserves each raw
+window and a canonical source/profile/parser/budget request digest. Offline
+execution and invocation provenance remain None. A snapshot pins the receipt
+and raw identities and preserves each raw
 token, logical locator, physical line number, byte offset and byte length.
 Offsets are zero-based positions in the original source bytes; line numbers are
 one-based. Duplicate occurrences remain in original order.
@@ -99,11 +101,16 @@ Oversize requests are rejected before storage and are never silently truncated.
 Storage failures raise the existing evidence-owner exceptions; immutable orphan
 records may remain and no successful result is returned.
 
-`ReplayIocArtifact` accepts an exact original typed snapshot record;
-`LoadIocArtifact` accepts its trusted manifest identity. Both reopen the owning
+`ReplayIocArtifact` accepts an exact typed snapshot record plus an independent
+caller-retained original acquisition receipt record. `LoadIocArtifact` accepts
+the two corresponding manifest identities. Retain the original receipt anchor
+when selecting or inspecting snapshots; never take it from the candidate snapshot
+being inspected. Both reopen the owning
 workspace, verify exact manifests and source/parser/time/budget bindings, and
 independently reparse the raw source. Rehashed altered snapshots and individually
 substituted raw/receipt/derived manifests fail the original agreement checks.
+Even coherent receipt and snapshot rewrites cannot alter source/license/budgets
+while borrowing original raw bytes when the caller retains the original anchor.
 Frozen-object field mutations and foreign typed subclasses are revalidated and
 rejected at public boundaries. Original input paths are unused during replay,
 including Windows-form logical locators, so moving the owning workspace preserves
@@ -111,7 +118,8 @@ historical evidence without reviving scan authority.
 
 These are local integrity and attribution guarantees. Publisher authenticity,
 source truth, licensing approval and maliciousness are not assessed. Public
-hashes are not signatures. Preserve trusted original manifest identifiers;
+hashes are not signatures. Preserve the independently trusted original acquisition
+receipt and its manifest identity;
 replacing an entire chain together with its trusted identifiers is outside this
 local evidence-integrity guarantee.
 

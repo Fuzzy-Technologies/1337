@@ -250,6 +250,26 @@ def Checked(value: object, expected: type[IocSource] | type[IocLimits]) -> None:
     expected(**{item.name: getattr(value, item.name) for item in fields(expected)})
 
 
+def RequestPin(source: IocSource, limits: IocLimits) -> str:
+    """Describe an original receipt's canonical declared source and parser selection.
+
+    Args:
+        source: Exact caller-declared source/version/license and expected byte digest.
+        limits: Exact original finite parser budgets.
+
+    Returns:
+        Domain-separated canonical request SHA-256; the independent receipt anchor owns trust.
+    """
+
+    Checked(source, IocSource)
+    Checked(limits, IocLimits)
+
+    return hashlib.sha256(JsonBytes({"domain": "fuzzy1337.ioc.request.v1",
+        "family": IOC_FAMILY, "profile": IOC_PROFILE, "parser_id": IOC_PARSER,
+        "parser_version": IOC_PARSER_VERSION, "source": source.ToDict(),
+        "limits": limits.ToDict()})).hexdigest()
+
+
 def NormalizeToken(kind: str, token: str) -> str:
     """Normalize one explicit type without DNS/URL/hash inference or network access.
 
@@ -651,7 +671,8 @@ def AcquireIocArtifact(workspace_root: Path, request: IocRequest, *,
         "parser_id": IOC_PARSER, "parser_version": IOC_PARSER_VERSION,
         "state": state, "transport": "caller-supplied-bytes", "authentication": "not-assessed",
         "raw_evidence_id": raw.evidence_id, "source": request.source.ToDict(),
-        "limits": request.limits.ToDict(), "provenance": provenance.ToDict()}
+        "limits": request.limits.ToDict(), "provenance": provenance.ToDict(),
+        "request_sha256": RequestPin(request.source, request.limits)}
     receipt = store.Put(JsonBytes(envelope), "ioc-acquisition", "application/json", provenance)
     snapshot = None
     snapshot_record = None
@@ -727,12 +748,15 @@ def Header(data: dict[str, Any], expected: set[str]) -> dict[str, Any]:
     return value
 
 
-def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord) -> IocSnapshot:
+def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord,
+                      acquisition_record: EvidenceRecord) -> IocSnapshot:
     """Verify the original owning chain and reparse bytes after reopening or relocation.
 
     Args:
         workspace_root: Existing or relocated owning workspace; original source paths are unused.
         snapshot_record: Exact original immutable derived-record identity and provenance.
+        acquisition_record: Independent caller-retained original acquisition receipt anchor;
+            never inferred from a candidate snapshot's receipt pointer.
 
     Returns:
         Independently rebuilt supplied candidates, never scan authority or maliciousness proof.
@@ -743,8 +767,10 @@ def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord) -> 
         OSError: Owning workspace could not be opened. No writes, network or process calls occur.
     """
 
-    if type(snapshot_record) is not EvidenceRecord:
-        raise ValueError("IOC replay requires an exact first-party snapshot record")
+    if type(snapshot_record) is not EvidenceRecord or (
+        type(acquisition_record) is not EvidenceRecord
+    ):
+        raise ValueError("IOC replay requires exact first-party snapshot and acquisition records")
 
     workspace = LocalWorkspaceStore(workspace_root)
     workspace_id = workspace.Open().workspace_id
@@ -752,10 +778,14 @@ def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord) -> 
     payload = OriginalRecord(snapshot_record, workspace_id, store, "ioc-snapshot")
     data = Header(Metadata(payload, _ROLES["ioc-snapshot"][0]), {
         "raw_evidence_id", "acquisition_evidence_id", "source", "limits", "candidates"})
-    receipt_record = store.Get(Identity(data["acquisition_evidence_id"]))
+
+    if Identity(data["acquisition_evidence_id"]) != acquisition_record.evidence_id:
+        raise ValueError("IOC snapshot differs from independent original acquisition anchor")
+
+    receipt_record = acquisition_record
     receipt = Header(Metadata(OriginalRecord(receipt_record, workspace_id, store,
         "ioc-acquisition"), _ROLES["ioc-acquisition"][0]), {"state", "transport", "authentication",
-            "raw_evidence_id", "source", "limits", "provenance"})
+            "raw_evidence_id", "source", "limits", "provenance", "request_sha256"})
 
     if receipt["state"] != "succeeded" or receipt["transport"] != "caller-supplied-bytes" or (
         receipt["authentication"] != "not-assessed"
@@ -768,6 +798,10 @@ def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord) -> 
 
     source = IocSource(**ObjectFields(receipt["source"], {item.name for item in fields(IocSource)}))
     limits = IocLimits(**ObjectFields(receipt["limits"], {item.name for item in fields(IocLimits)}))
+
+    if receipt["request_sha256"] != RequestPin(source, limits):
+        raise ValueError("IOC original acquisition receipt has inconsistent declared selection")
+
     store = IocEvidenceStore(workspace.root / "evidence", limits.max_bytes)
     raw_record = store.Get(Identity(receipt["raw_evidence_id"]))
     raw = OriginalRecord(raw_record, workspace_id, store, "ioc-source")
@@ -784,12 +818,15 @@ def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord) -> 
     return reparsed
 
 
-def LoadIocArtifact(workspace_root: Path, evidence_id: str) -> IocSnapshot:
-    """Reopen a trusted snapshot manifest identity and verify its complete original evidence chain.
+def LoadIocArtifact(workspace_root: Path, evidence_id: str,
+                    acquisition_evidence_id: str) -> IocSnapshot:
+    """Reopen a snapshot with an independent trusted original acquisition manifest anchor.
 
     Args:
         workspace_root: Existing or relocated owning workspace.
         evidence_id: Trusted immutable snapshot manifest pin; public hashes are not signatures.
+        acquisition_evidence_id: Independent caller-retained original receipt identity; never
+            derived from the snapshot being inspected.
 
     Returns:
         Verified supplied candidate snapshot with original attribution and declared timestamps.
@@ -801,8 +838,10 @@ def LoadIocArtifact(workspace_root: Path, evidence_id: str) -> IocSnapshot:
     """
 
     Identity(evidence_id)
+    Identity(acquisition_evidence_id)
     workspace = LocalWorkspaceStore(workspace_root)
     workspace.Open()
     store = IocEvidenceStore(workspace.root / "evidence")
 
-    return ReplayIocArtifact(workspace.root, store.Get(evidence_id))
+    return ReplayIocArtifact(workspace.root, store.Get(evidence_id),
+                            store.Get(acquisition_evidence_id))

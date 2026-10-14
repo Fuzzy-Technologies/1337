@@ -99,6 +99,9 @@ def test_IntegrationActualAcquisitionAndReadOnlyRelocationReparsePreserveOrigina
     assert envelope["limits"] == Request().limits.ToDict() and envelope["provenance"] == (
         acquired.raw.provenance.ToDict()
     ), "Acquisition receipt replaced its finite budgets or receiver-observed provenance"
+    assert acquired.raw.provenance.invocation_sha256 is None and (
+        acquired.raw.provenance.execution is None
+    ), "Offline acquisition invented structured invocation or process execution provenance"
     assert acquired.raw.provenance.started_at == "2026-10-14T10:00:00.000000+00:00" and (
         acquired.raw.provenance.finished_at == "2026-10-14T10:00:01.000000+00:00"
     ), "Source-declared future observation replaced actual receiver acquisition clock readings"
@@ -111,8 +114,9 @@ def test_IntegrationActualAcquisitionAndReadOnlyRelocationReparsePreserveOrigina
         for path in files:
             path.chmod(0o444)
 
-        replayed = LoadIocArtifact(moved, acquired.snapshot_record.evidence_id)
-        typed_replay = ReplayIocArtifact(moved, acquired.snapshot_record)
+        replayed = LoadIocArtifact(moved, acquired.snapshot_record.evidence_id,
+                                   acquired.receipt.evidence_id)
+        typed_replay = ReplayIocArtifact(moved, acquired.snapshot_record, acquired.receipt)
 
     finally:
         for path in files:
@@ -159,7 +163,7 @@ def test_IntegrationMalformedAndPartialCallerBytesRetainTruthfulRefusal(ioc_work
     ), "Local supplied bytes were described as fetched or publisher-authenticated evidence"
 
     with pytest.raises(ValueError):
-        LoadIocArtifact(ioc_workspace, acquired.receipt.evidence_id)
+        LoadIocArtifact(ioc_workspace, acquired.receipt.evidence_id, acquired.receipt.evidence_id)
 
 
 def test_IntegrationDigestRefusalRetainsActualBytesAndBothDeclaredAndObservedPins(ioc_workspace):
@@ -198,7 +202,7 @@ def test_IntegrationRehashedSnapshotManifestCannotReplaceOriginalAcquisition(
                        provenance)
 
     with pytest.raises(ValueError):
-        LoadIocArtifact(ioc_workspace, forged.evidence_id)
+        LoadIocArtifact(ioc_workspace, forged.evidence_id, acquired.receipt.evidence_id)
 
 
 @pytest.mark.parametrize("field,value", [
@@ -219,7 +223,7 @@ def test_IntegrationRehashedMetadataCannotReplaceOriginalFamilyOrParser(
     forged = store.Put(ioc.JsonBytes(data), "ioc-snapshot", "application/json", original.provenance)
 
     with pytest.raises(ValueError):
-        LoadIocArtifact(ioc_workspace, forged.evidence_id)
+        LoadIocArtifact(ioc_workspace, forged.evidence_id, acquired.receipt.evidence_id)
 
 
 @pytest.mark.parametrize("mutation", [
@@ -281,7 +285,7 @@ def test_IntegrationRehashedSnapshotAndReceiptSubstitutionsFailOriginalReparse(
     forged = store.Put(ioc.JsonBytes(data), "ioc-snapshot", "application/json", original.provenance)
 
     with pytest.raises(ValueError):
-        LoadIocArtifact(ioc_workspace, forged.evidence_id)
+        LoadIocArtifact(ioc_workspace, forged.evidence_id, acquired.receipt.evidence_id)
 
 
 @pytest.mark.parametrize("role", ["raw", "receipt", "snapshot_record"])
@@ -298,7 +302,8 @@ def test_IntegrationReplayRequiresEveryOriginalOwningManifest(ioc_workspace, rol
     )
 
     with pytest.raises(EvidenceError):
-        LoadIocArtifact(ioc_workspace, acquired.snapshot_record.evidence_id)
+        LoadIocArtifact(ioc_workspace, acquired.snapshot_record.evidence_id,
+                        acquired.receipt.evidence_id)
 
 
 @pytest.mark.parametrize("failure", ["corrupt-raw", "foreign-owner", "frozen-record"])
@@ -323,7 +328,7 @@ def test_IntegrationReplayRejectsCorruptForeignAndFrozenRecordFacts(
         object.__setattr__(record.provenance, "scope_reference", "scope:forged")
 
     with pytest.raises((ValueError, EvidenceError)):
-        ReplayIocArtifact(root, record)
+        ReplayIocArtifact(root, record, acquired.receipt)
 
 
 def test_IntegrationRepeatedAcquisitionNeverOverwritesHistoricalSnapshot(ioc_workspace):
@@ -337,7 +342,8 @@ def test_IntegrationRepeatedAcquisitionNeverOverwritesHistoricalSnapshot(ioc_wor
     assert later.state == "parse-rejected" and store.Read(first.snapshot_record.reference) == (
         original
     ), "A later refused acquisition overwrote earlier normalized evidence"
-    assert LoadIocArtifact(ioc_workspace, first.snapshot_record.evidence_id) == first.snapshot, (
+    assert LoadIocArtifact(ioc_workspace, first.snapshot_record.evidence_id,
+                           first.receipt.evidence_id) == first.snapshot, (
         "Earlier trusted acquisition cannot replay after a later source revision"
     )
 
@@ -379,3 +385,88 @@ def test_IntegrationBackwardAcquisitionClockFailsBeforeEvidencePublication(
     assert not tuple((ioc_workspace / "evidence").iterdir()), (
         "Invalid actual acquisition clock facts published orphaned or successful evidence"
     )
+
+
+@pytest.mark.parametrize("selection", ["version", "license", "locator", "bytes", "items"])
+@pytest.mark.parametrize("attack", ["old-pin", "self-attested-pin"])
+def test_IntegrationCoherentReceiptSnapshotCannotBorrowOriginalRawSelection(
+    ioc_workspace, monkeypatch, selection, attack,
+):
+    """Coherent source edits cannot replace the independently retained original receipt anchor."""
+
+    acquired = Acquired(ioc_workspace)
+    store = LocalEvidenceStore(ioc_workspace / "evidence")
+    data = json.loads(store.Read(acquired.snapshot_record.reference))
+    envelope = json.loads(store.Read(acquired.receipt.reference))
+
+    if selection == "version":
+        envelope["source"]["source_version"] = "forged-version"
+
+    elif selection == "license":
+        envelope["source"]["license_name"] = "forged-license"
+
+    elif selection == "locator":
+        envelope["source"]["source_locator"] = "owned:forged.tsv"
+
+        for item in data["candidates"]:
+            item["source_locator"] = "owned:forged.tsv"
+
+    elif selection == "bytes":
+        envelope["limits"]["max_bytes"] = len(RAW)
+
+    else:
+        envelope["limits"]["max_items"] = len(acquired.snapshot.candidates)
+
+    data["source"] = envelope["source"]
+    data["limits"] = envelope["limits"]
+
+    if attack == "self-attested-pin":
+        envelope["request_sha256"] = ioc.RequestPin(IocSource(**envelope["source"]),
+                                                   IocLimits(**envelope["limits"]))
+
+    receipt = store.Put(ioc.JsonBytes(envelope), "ioc-acquisition", "application/json",
+                        acquired.receipt.provenance)
+    data["acquisition_evidence_id"] = receipt.evidence_id
+    snapshot = store.Put(ioc.JsonBytes(data), "ioc-snapshot", "application/json",
+                         acquired.snapshot_record.provenance)
+    original_read = ioc.IocEvidenceStore.ReadStoredBytes
+
+    def Read(store, parts, max_bytes):
+        """Tripwire original raw reads until the immutable source-selection agreement is proven."""
+
+        if parts == ("blobs", "sha256", acquired.raw.reference.sha256):
+            raise AssertionError("Rewritten source selection reached original raw before refusal")
+
+        return original_read(store, parts, max_bytes)
+
+    monkeypatch.setattr(ioc.IocEvidenceStore, "ReadStoredBytes", Read)
+
+    with pytest.raises(ValueError, match="independent original acquisition anchor"):
+        LoadIocArtifact(ioc_workspace, snapshot.evidence_id, acquired.receipt.evidence_id)
+
+
+@pytest.mark.parametrize("anchor", ["snapshot", "raw", "foreign-owner", "frozen-original"])
+def test_IntegrationIndependentAnchorRequiresExactOriginalOwningAcquisition(
+    ioc_workspace, tmp_path, anchor,
+):
+    """A snapshot or foreign/frozen receipt cannot replace the original acquisition anchor."""
+
+    acquired = Acquired(ioc_workspace)
+    selected = acquired.receipt
+
+    if anchor == "snapshot":
+        selected = acquired.snapshot_record
+
+    elif anchor == "raw":
+        selected = acquired.raw
+
+    elif anchor == "foreign-owner":
+        other = tmp_path / "f"
+        LocalWorkspaceStore(other).Create(WorkspaceConfiguration("Foreign acquisition"), "foreign")
+        selected = Acquired(other).receipt
+
+    else:
+        object.__setattr__(selected, "evidence_id", "sha256:" + "a" * 64)
+
+    with pytest.raises((ValueError, EvidenceError)):
+        ReplayIocArtifact(ioc_workspace, acquired.snapshot_record, selected)
