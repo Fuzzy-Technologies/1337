@@ -97,6 +97,15 @@ identities, finite-number/depth/node/byte limits, forged attribution, missing or
 corrupt manifests/blobs, foreign workspaces and invalid selected fields have direct
 failure coverage.
 
+Run the focused profile with default pytest collection:
+
+```bash
+uv run --locked --extra dev python -m pytest -q -n 2 --no-cov \
+  tests/unit/test_docker_inventory.py \
+  tests/contract/test_docker_inventory_contract.py \
+  tests/integration/test_docker_inventory_model.py
+```
+
 Live daemon inventory, daemon/socket exposure discovery, complete runtime-version
 support, network observation and physical runtime security acceptance remain open.
 See [ADR 0070](adr/0070-owned-docker-inspect-inventory.md).
