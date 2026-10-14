@@ -14,6 +14,7 @@ from fuzzy1337.ci_gate import (
     CiFindingCriterion,
     CiPredicateResult,
     EvaluateConfigurationCriterion,
+    EvaluateImageCriterion,
     EvaluatePredicate,
     RequireModelContracts,
 )
@@ -147,6 +148,10 @@ def test_PublicGateRejectsForeignWrappersBeforeStorage(tmp_path):
 
     with pytest.raises(ValueError):
         EvaluateConfigurationCriterion(model, None, (), tmp_path,
+            expected_snapshot_sha256="a" * 64, criterion=criterion, context_provider=Forbidden)
+
+    with pytest.raises(ValueError):
+        EvaluateImageCriterion(model, (), (), tmp_path,
             expected_snapshot_sha256="a" * 64, criterion=criterion, context_provider=Forbidden)
 
 
