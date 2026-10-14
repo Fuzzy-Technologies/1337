@@ -112,6 +112,22 @@ same-byte acquisitions remain distinct original manifests.
 
 ## Saves and terminal outcomes
 
+Both source modes preflight every already known Docker/Kubernetes original
+before generic workspace/report verification can read evidence. The scan covers
+workspace manifest IDs, model custody IDs even after a lost workspace
+acknowledgement, and retained workspace/model raw references. It checks the
+closed profile, original manifest identity/context, one-MiB ceiling, actual blob
+size/physical ownership and compatible same-digest or same-locator aliases before
+raw access.
+Every manifest named by original runtime custody must match that custody's old
+profile, source hash/version, attribution, read descriptions and anchor before
+role classification. A different role cannot make a custody-owned original
+unrelated evidence. The unchanged validator also accepts legacy null read fields.
+Each older original retains its own scope/provider attribution; budget checks
+neither adopt missing custody nor grant execution authority. Unrelated evidence
+keeps its existing owner's limits. Existing Docker custody fields and both SDK
+profiles remain unchanged.
+
 The handler verifies owning model/workspace bases, applies the existing bounded
 SDK in memory, saves through model CAS, then retains verified raw/manifest/scope/
 object references through workspace CAS. Both owners are reopened for observed
