@@ -45,7 +45,10 @@ def test_ExactOriginalDefinitionGrammarFailsClosed(tmp_path, changes):
 
 @pytest.mark.parametrize("raw", [b"{}", b"[]", b"null", b"false", b"{", b"\xff",
     b'{"profile_version":1,"profile_version":1}', b'{"profile_version":NaN}',
-    b"[" * 2000 + b"]" * 2000, b" " * (65536 + 1)])
+    b"[" * 2000 + b"]" * 2000, b" " * (65536 + 1)], ids=[
+        "empty-object", "array", "null", "boolean", "malformed-json", "invalid-utf8",
+        "duplicate-field", "nonfinite", "excessive-depth", "source-byte-limit",
+    ])
 def test_OriginalSourceRejectsDuplicatesConstantsEncodingNestingAndOversize(tmp_path, raw):
     """Parser denial preserves the strict source grammar and bounded original evidence read."""
 
