@@ -8244,10 +8244,351 @@ state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 [[units]]
+id = "page:api.fuzzy1337.docker-inventory"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.docker_inventory.md"
+sourceHash = "sha256:6974d4b07fc2ffc761399133fcf2aefa9356964f82c061c411450ac32e9dc426"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.images"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.images.md"
 sourceHash = "sha256:c7d93b1351522afa5f36e0614290e120e95bcfb08fbd0833c1eb4ef45100080a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Address"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:5dd83928937767b16de119969dc37be0a2c0188b3b79720882ef4293140c4b91"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.ApplyVerifiedDockerInspect"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:10f3ccb84f8a3ad48f0e31d90a45105bba4b997c59e87430f098186c321cb3ef"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.BoundedInspectStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:abc55f90185a781cb8621be8ad2ef8e508420ddeb01f6c6a4ff7122fb10b5d7a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.BoundedInspectStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:c9ef0ef1d39d0c68b33c77669e3702ffb155a055436b53d63746f125ea3bcf30"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Capabilities"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:c36308fb124ffdf68da6b62e0358e46797bbfc1397baaa7876cf2f553bf3b087"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Choice"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:c2d5a8ad162a5c97b01806fba5d9c66c8c1f9e53cea18f5765b552f9fedc5ee8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Container"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:8616737c60a22d12f677dd1d8d37a2028ec78a059782a9f2a3ab2d6db5f9d144"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Decode"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:3ae7c9fa858b9b7a4411f91a2c9ee8bd1a529e90a3577a44fd560a389c1040ab"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.DockerInventoryLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:73ad1f955995f35256f5c0ea98b4ee52c1a4e8e2d2009bcf495ebb154f384c2c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Fields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:150776c2e5697412bc016ee759fb368dfb5046aeaa9eca707eb3266a5b68930b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.FiniteFloat"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:33e3d05967b30d928554fde4fd432fa4abd5073b4c1bb3cf4e9ee3ce217c74c0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.FullId"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:231b62054116c9c04354215d6def9d2e23559e198f732c4f787d0938ded8dcb4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Integer"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:53f9215635b560131aea5d3aa42db3ea0ad40258ae27ae338f2df9487a78d1c2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.InventoryBatch"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:4a7bb7e1d84710d86c59133f7bf78a187ea7061db579454451e866c8696d0e45"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.InventoryBatch.Asset"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:51ea82f90967419ddf09093ef6d1be06c46e2fc308feb744670e2860e2b60a7a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.InventoryBatch.Edge"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:d5caef95fc98dadb893a8a3ea9f9618f3335f163440c501e70003aff0f2c65cb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.InventoryBatch.Finding"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:7b5cd8c6be81d67ade97d0bc7815d36157754ee4974b090bc5c166f656c17486"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.InventoryBatch.Object"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:2b260cc126991f57de825286478ba8d9a19c36917c9022bf947dfdd691363b64"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Items"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:f5662746c740858632addee537f772d17e93e083cd2d135fdfd2781e37bb95af"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.MountPath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:5703391184b8046a62a6870022dc5e7696782f7bdb1445c67809825b84d521e5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Mounts"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:1f345093daef3a6d86b8fc015435dd3ffd12495848f49c5358aeee943dc096e9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Namespace"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:dc99db2ae0c98c5c087b0ebf943765fd2ba2345210ee936996d20cfd184af1cf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Networks"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:104b5715e76c59bd77a76162c1af20de0687c7e5515fcf587816fe3ef28944fd"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.OptionalBool"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:193f163d1f54ccfd82894d77a5aa91e024a65a12ca2c008626d4f9fe158d17ac"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.OptionalFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:00ec1303307bb1ef456f5ad70867e0c14a494b67ae4f91ca84f454c69c5a57c7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Ports"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:b7987876d7b6a67c4b2b0bb89fb8788864efc8407123683dc66299ce612a558a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.RejectConstant"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:1f19d80f98a1efd7a8f3e0b0771274a7faf8c9c6ab27ff33e1b93000bcc528a4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.Text"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:f86c1206f771cfe50b9cd7b79fe0a66d6555d406aebcc5b4fe7da2cc3217cf07"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.UniqueFields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:37423ae1f1d498a0b2ce225c745231810a60aa5d742f02bca29aef60d15be698"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.docker_inventory.UserCategory"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/docker_inventory.py"
+sourceHash = "sha256:f376ddf1b462b058343e10ae9036b41ad2860dd16e0a6bc2c681dc1c40d6071c"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

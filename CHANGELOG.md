@@ -65,6 +65,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added independent inert image-archive and Dockerfile/Kubernetes fixtures and
   future producer/consumer contracts. These fixtures do not claim native scanner
   acceptance or implemented image/configuration product workflows.
+- Added bounded caller-owned Docker inspect inventory, existing image-config
+  correlation, host/container/network/service/mount associations and direct
+  configured-condition findings with original evidence and preserved triage.
+  Missing facts remain unknown; configured associations grant no reachability,
+  physical access or live daemon authority.
 - Added selected-read-consent artifact capture, canonical input/scanner/material
   manifests, guarded staging and governed execution of closed synthetic workers.
   Native scanner profiles remain metadata-only until actual tool acceptance.
