@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -84,3 +85,28 @@ def OwnedConfiguration(
     context = ArtifactPolicyContext(scope, policy, "owner:test")
 
     return workspace, stage, context
+
+
+def LiveConfiguration(tmp_path: Path, case_id: str = "dockerfile.root-user"):
+    """Initialize actual workflow model and current owner consent for one independent fixture."""
+
+    from datetime import UTC, datetime
+
+    from fuzzy1337.configuration_workflow import ConfigurationScanSelection
+    from fuzzy1337.model import LocalModelStore
+
+    workspace, stage, context = OwnedConfiguration(tmp_path, case_id)
+    now = datetime.now(UTC)
+    store = LocalScopeStore(workspace)
+    scope = store.Save(replace(context.scope, authorization=replace(
+        context.scope.authorization, authority_reference="owner:test",
+        valid_from=(now - timedelta(minutes=1)).isoformat(),
+        valid_until=(now + timedelta(hours=1)).isoformat())))
+    LocalModelStore(workspace).Create()
+    source = tmp_path.resolve() / "selected-configuration"
+    material = tmp_path.resolve() / "selected-policy.json"
+    selection = ConfigurationScanSelection(stage.input.manifest.profile,
+        stage.input.manifest.files[0].name, source, Path(sys.executable).resolve(), PRODUCER,
+        material, stage.input.consent)
+
+    return workspace, selection, replace(context, scope=scope)

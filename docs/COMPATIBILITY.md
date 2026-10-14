@@ -410,6 +410,20 @@ this additive closed family; model projection remains separate.
 See [Governed local artifacts](ARTIFACTS.md) and
 [ADR 0044](adr/0044-governed-local-artifact-authorization.md).
 
+`fuzzy1337.configuration_evidence` and `fuzzy1337.configuration_workflow` are additive
+Experimental consumers of the reviewed synthetic SCAN-only configuration family.
+The exact four-role source/stream/receipt capture is schema 1; original SDK metadata
+retains schema 2. Historical verification is read-only after relocation and grants
+no current execution/model authority. Live interpretation requires original typed
+runs and fresh canonical SDK acceptance. Assets use a separate synthetic configuration
+namespace, and typed source-position Finding re-detection preserves operator triage.
+The job uses the existing evidence, model, scope and workspace stores and revision
+checks; model/workspace saves are distinct, with honest storage-failure outcomes
+rather than a claimed transaction spanning both stores. JSON/SARIF export projects
+the exact saved snapshot. Native configuration and arbitrary-source detection remain
+unavailable; scan completeness is unassessed. See [the workflow](CONFIGURATION_WORKFLOW.md)
+and [ADR 0068](adr/0068-configuration-evidence-workflow.md).
+
 `fuzzy1337.synthetic_images` is a separate Experimental version-1 consumer of the
 closed schema-2 synthetic image operations. Its live import requires actual
 original typed runs and six original source records, then uses the canonical SDK
