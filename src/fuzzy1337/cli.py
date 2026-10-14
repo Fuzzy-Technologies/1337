@@ -119,16 +119,24 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "command",
         choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan", "report",
-                 "demo"),
+                 "demo", "intel"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--json",
         action="store_true",
-        help="Write experimental JSON for update, workspace, scope, scan, report or demo outcomes.",
+        help="Write experimental JSON for update or an explicit product command outcome.",
     )
     arguments, remaining = parser.parse_known_args(argv)
+
+    if arguments.command == "intel":
+        from fuzzy1337.intelligence_commands import RunIntelCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunIntelCommands(remaining, sys.stdout, json_output=arguments.json)
 
     if arguments.command == "demo":
         from fuzzy1337.demo_commands import RunDemoCommands
@@ -162,7 +170,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
         parser.error("unrecognized arguments: " + " ".join(remaining))
 
     if arguments.json and arguments.command != "update":
-        parser.error("--json is only available for update, workspace, scope, scan, report and demo")
+        parser.error(
+            "--json is only available for update, workspace, scope, scan, report, demo and intel"
+        )
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):
         return RunInteractiveShell()
