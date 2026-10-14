@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Explicit workspace, consent and bounded endpoint/synthetic-image product commands."""
+"""Explicit workspace, consent and bounded endpoint or closed synthetic product commands."""
 
 from __future__ import annotations
 
@@ -15,7 +15,12 @@ from typing import NoReturn, TextIO
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters import SerializeContract
-from fuzzy1337.artifact_inputs import ArtifactReadConsent
+from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactReadConsent
+from fuzzy1337.configuration_workflow import (
+    ConfigurationScanSelection,
+    ConfigurationScanSummary,
+    RunSyntheticConfigurationScan,
+)
 from fuzzy1337.discovery import DiscoveryLimits
 from fuzzy1337.evidence import EvidenceError, LocalEvidenceStore
 from fuzzy1337.image_workflow import ImageScanSelection, ImageScanSummary, RunSyntheticImageScan
@@ -285,6 +290,31 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         image.add_argument("--report-format", choices=("json", "sarif"))
         image.add_argument("--report-output", type=Path)
         image.add_argument("--events-json", action="store_true")
+        config = actions.add_parser("config",
+                                    help="Run the closed synthetic configuration workflow.")
+        config.add_argument("path", type=Path)
+        config.add_argument("--profile", choices=("synthetic",), required=True,
+                            help="Explicitly select reviewed synthetic source interpretation.")
+        config.add_argument("--type", choices=("dockerfile", "kubernetes"), required=True,
+                            help="Select the closed Dockerfile or Kubernetes source profile.")
+        config.add_argument("--logical-path", required=True,
+                            help="Exact selected source name in the reviewed input manifest.")
+        config.add_argument("--source", type=Path, required=True,
+                            help="Absolute selected reviewed synthetic source file.")
+        config.add_argument("--scope", required=True)
+        config.add_argument("--owner", required=True)
+        config.add_argument("--executable", type=Path, required=True,
+                            help="Absolute selected current trusted CPython executable.")
+        config.add_argument("--producer", type=Path, required=True,
+                            help="Absolute selected reviewed first-party configuration worker.")
+        config.add_argument("--material", type=Path, required=True,
+                            help="Absolute selected synthetic material policy.")
+        config.add_argument("--read-consent-reference", required=True)
+        config.add_argument("--approve-safe-configuration", action="store_true")
+        config.add_argument("--timeout", type=int, default=30)
+        config.add_argument("--report-format", choices=("json", "sarif"))
+        config.add_argument("--report-output", type=Path)
+        config.add_argument("--events-json", action="store_true")
 
     else:
         raise ValueError("unsupported local command namespace")
@@ -322,7 +352,7 @@ def RunCommands(
     if command == "scan" and arguments.events_json and json_output:
         parser.error("choose --json or --events-json")
 
-    if command == "scan" and arguments.action == "image" and (
+    if command == "scan" and arguments.action in {"image", "config"} and (
         (arguments.report_format is None) != (arguments.report_output is None)
     ):
         parser.error("supply both report format and new output destination")
@@ -378,7 +408,8 @@ def RunCommands(
                     output.flush()
 
             if arguments.action == "nuclei":
-                summary: NucleiScanSummary | QuickScanSummary | ImageScanSummary = asyncio.run(
+                summary: (NucleiScanSummary | QuickScanSummary | ImageScanSummary
+                          | ConfigurationScanSummary) = asyncio.run(
                     RunNucleiScan(
                         arguments.path, arguments.scope, target, arguments.owner, profile,
                         arguments.executable, ReadPolicy,
@@ -395,6 +426,19 @@ def RunCommands(
                 summary = asyncio.run(RunSyntheticImageScan(
                     arguments.path, arguments.scope, arguments.owner, selection,
                     approve_safe_image=arguments.approve_safe_image,
+                    timeout_seconds=arguments.timeout, on_event=OnEvent,
+                    report_format=arguments.report_format, report_output=arguments.report_output,
+                ))
+
+            elif arguments.action == "config":
+                configuration_selection = ConfigurationScanSelection(
+                    ArtifactProfile.SYNTHETIC_DOCKERFILE if arguments.type == "dockerfile" else
+                    ArtifactProfile.SYNTHETIC_KUBERNETES, arguments.logical_path,
+                    arguments.source, arguments.executable, arguments.producer, arguments.material,
+                    ArtifactReadConsent(arguments.owner, arguments.read_consent_reference))
+                summary = asyncio.run(RunSyntheticConfigurationScan(
+                    arguments.path, arguments.scope, arguments.owner, configuration_selection,
+                    approve_safe_configuration=arguments.approve_safe_configuration,
                     timeout_seconds=arguments.timeout, on_event=OnEvent,
                     report_format=arguments.report_format, report_output=arguments.report_output,
                 ))
@@ -422,6 +466,7 @@ def RunCommands(
 
             else:
                 label = {"nuclei": "Nuclei Scan", "image": "Synthetic Image Scan",
+                         "config": "Synthetic Configuration Scan",
                          "quick": "Quick Scan"}[arguments.action]
                 output.write(f"{label} {summary.snapshot.state.value}; "
                              f"model revision {summary.model_revision}; "
