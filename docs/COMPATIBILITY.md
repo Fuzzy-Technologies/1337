@@ -290,6 +290,18 @@ record, parser, and verified finding-observation boundaries. Validation helpers
 remain Internal. Catalog metadata does not establish vulnerability applicability,
 authenticated source identity, approval, or execution authority.
 
+`fuzzy1337.ioc_artifacts` is an Experimental schema-one offline candidate and
+evidence library under ADR 0076 and `docs/IOC_ARTIFACTS.md`. Its supported exports
+are `IocSource`, `IocLimits`, `IocCandidate`, `IocRequest`, `IocSnapshot`,
+`IocAcquisition`, `ParseIocArtifact`, `AcquireIocArtifact`, `ReplayIocArtifact`
+and `LoadIocArtifact`; other helpers and module constants remain Internal. The
+closed ASCII TSV profile preserves supplied IPv4/IPv6/DNS/SHA-256 occurrences,
+original token/source/time declarations, separate observed acquisition clocks,
+finite budgets and immutable raw/receipt/snapshot pins with portable reparse. It
+requires an independent caller-retained original acquisition record/id alongside
+the selected snapshot for replay; the candidate cannot choose its trusted anchor.
+It adds no incident/event/Core schema, model mutation, probing or scan authority.
+
 `fuzzy1337.intelligence_acquisition` is an Experimental schema-v1 acquisition and
 receipt library under ADR 0060. Explicit local source bytes or an immutable
 official CISA mirror selection produce bounded immutable evidence and truthful
