@@ -3198,7 +3198,7 @@ state = "missing"
 id = "symbol:fuzzy1337.dev_commands.Main"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/dev_commands.py"
-sourceHash = "sha256:38095b317e96401b31304e692d6875911c192c59a31b79dd32cf417bd0d71878"
+sourceHash = "sha256:24e6fe444b44da2720272d746f9d541c0210675a82c59a499a53936df1b2b06f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

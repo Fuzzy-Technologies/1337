@@ -305,6 +305,69 @@ def test_VerifiedReceiptRefusesInvalidTypedFieldsAndReadBounds(tmp_path, failure
     assert Files(model.root) == before, "Rejected receipt inspection changed owning bytes."
 
 
+@pytest.mark.parametrize("action", ["inspect", "apply"])
+@pytest.mark.parametrize(
+    "constraint", ["byte-type", "byte-budget", "hard-ceiling", "pin", "timeout"],
+)
+def test_SelectionChecksReceiptConstraintsBeforeOriginalLoader(tmp_path, monkeypatch,
+                                                             action, constraint):
+    """Validate selected receipt limits before entering the original-source loader."""
+
+    model, finding, imported = Imported(tmp_path)
+    store = LocalEvidenceStore(model.root / "evidence")
+    receipt = store.Get(imported["receipt_id"])
+    document = json.loads(store.Read(receipt.reference))
+
+    if constraint == "byte-type":
+        document["limits"]["max_bytes"] = True
+
+    elif constraint == "byte-budget":
+        document["limits"]["max_bytes"] = 1
+
+    elif constraint == "hard-ceiling":
+        document["limits"]["max_bytes"] = commands.MAX_SOURCE_BYTES + 1
+
+    elif constraint == "pin":
+        document["source"]["expected_sha256"] = "0" * 64
+
+    else:
+        document["limits"]["receiver_timeout_seconds"] = 61
+
+    read = commands.BoundedIntelEvidenceStore.Read
+    loader = commands.LoadAcquiredSnapshot
+    loaded = []
+    source_reads = []
+
+    def ReadSelected(owner, reference):
+        """Supply only the selected receipt fields to this validation-order unit test."""
+
+        if reference.role == "intelligence-source":
+            source_reads.append(reference)
+
+        return json.dumps(document).encode() if reference == receipt.reference else (
+            read(owner, reference)
+        )
+
+    def LoadOriginal(root, snapshot_id):
+        """Record entry while preserving the real small owned fixture's loader behavior."""
+
+        loaded.append(snapshot_id)
+
+        return loader(root, snapshot_id)
+
+    monkeypatch.setattr(commands.BoundedIntelEvidenceStore, "Read", ReadSelected)
+    monkeypatch.setattr(commands, "LoadAcquiredSnapshot", LoadOriginal)
+    arguments = Selection("inspect", model.root, imported) if action == "inspect" else (
+        ApplyArguments(model, finding, imported)
+    )
+    before = Files(model.root)
+    status, outcome = Run(arguments)
+    assert status == 4 and outcome["status"] == "failed", "Invalid receipt constraints passed."
+    assert not source_reads, "Original bytes were read before selected receipt constraints."
+    assert not loaded, "The original-source loader ran before selected receipt constraints."
+    assert Files(model.root) == before, "Receipt preflight changed owning workspace bytes."
+
+
 def test_ShellIntelDispatchUsesExplicitSelectionsAndRedactsRetainedHistory(tmp_path):
     """The actual shell uses the product dispatcher but keeps only the namespace in history."""
 

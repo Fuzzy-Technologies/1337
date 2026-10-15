@@ -257,6 +257,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Kept report material paths out of interactive and native input history,
   preserving caller-owned entries and refusing unrecoverable native history gaps.
+- Rejected invalid selected intelligence receipt byte limits, receiver timeouts
+  and source pins/reference sizes before explicit original raw-record retrieval
+  and SDK reparse. Existing bounded snapshot/receipt reads and original-source
+  ownership and integrity verification remain required.
 
 #### Changed
 
@@ -269,6 +273,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Factored pure native image candidate construction with equivalent owner-verified
   graph/delta bytes, validation ordering and triage/replay behavior.
+- Gave the Windows CI profile a bounded 900-second pytest invocation budget and
+  20-minute job limit as the complete suite grew. The full developer check accepts
+  only a suite-budget override; existing local and other-platform defaults,
+  per-test deadlines, complete test selection and coverage requirements remain.
 
 #### Security
 

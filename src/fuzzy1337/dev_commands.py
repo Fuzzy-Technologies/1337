@@ -263,6 +263,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
 
     Args:
         argv: Registered gate and optional test settings, or None for process arguments.
+            The full check accepts only a suite-budget override to preserve all test phases.
 
     Returns:
         Selected gate exit status.
@@ -299,7 +300,11 @@ def Main(argv: Sequence[str] | None = None) -> int:
     except ValueError as error:
         parser.error(str(error))
 
-    if arguments.command not in {"unit", "test"} and test_options != TestOptions():
+    if arguments.command == "check":
+        if test_options != TestOptions(suite_timeout_seconds=arguments.suite_timeout):
+            parser.error("'check' accepts only --suite-timeout among test execution options")
+
+    elif arguments.command not in {"unit", "test"} and test_options != TestOptions():
         parser.error("test execution options are only valid with 'unit' or 'test'")
 
     return Run(arguments.command, test_options)

@@ -185,15 +185,12 @@ def VerifiedIntelSelection(
     if not isinstance(limits, dict) or not isinstance(source_fields, dict):
         raise IntelFailure("integrity")
 
-    # Preflight both bounded manifests before the existing loader's owning reparse path.
+    # Check receipt constraints before Get and the loader verify original source bytes.
     bounded_snapshot = IntelligenceSnapshot.Deserialize(store.Read(snapshot_record.reference))
-    raw_record = store.Get(EvidenceRecord(
-        bounded_snapshot.evidence, snapshot_record.provenance,
-    ).evidence_id)
-    snapshot = LoadAcquiredSnapshot(root, snapshot_id)
     source = SnapshotSource(
-        snapshot.feed, snapshot.catalog_version, snapshot.source.origin, snapshot.source.publisher,
-        snapshot.source.source_url, snapshot.source.license_name, snapshot.source.license_url,
+        bounded_snapshot.feed, bounded_snapshot.catalog_version, bounded_snapshot.source.origin,
+        bounded_snapshot.source.publisher, bounded_snapshot.source.source_url,
+        bounded_snapshot.source.license_name, bounded_snapshot.source.license_url,
         source_fields.get("expected_sha256"),
     )
     max_bytes = limits.get("max_bytes")
@@ -206,12 +203,16 @@ def VerifiedIntelSelection(
         source, b"", max_bytes=max_bytes, timeout_seconds=timeout_seconds,
     )
 
-    if raw_record.reference.size_bytes > request.max_bytes or (
+    if bounded_snapshot.evidence.size_bytes > request.max_bytes or (
         source.expected_sha256 is not None
-        and source.expected_sha256 != snapshot.evidence.sha256
+        and source.expected_sha256 != bounded_snapshot.evidence.sha256
     ):
         raise IntelFailure("integrity")
 
+    raw_record = store.Get(EvidenceRecord(
+        bounded_snapshot.evidence, snapshot_record.provenance,
+    ).evidence_id)
+    snapshot = LoadAcquiredSnapshot(root, snapshot_id)
     expected = AcquisitionOutcome(
         AcquisitionState.SUCCEEDED, source, receipt.provenance.started_at,
         receipt.provenance.finished_at, raw_record.reference.size_bytes, True, None,
