@@ -34,7 +34,13 @@ from fuzzy1337.workspace import LocalWorkspaceStore
 ROOT = Path(__file__).parents[1]
 ORACLE = ROOT / "labs/targets/proxy-regression/oracle.v1.json"
 TLS_ORACLE = ROOT / "labs/targets/proxy-regression/tls-oracle.v1.json"
+TLS_CERTIFICATE_ORACLE = ROOT / "labs/targets/proxy-regression/tls-certificate-oracle.v1.json"
+TLS_CERTIFICATE = ROOT / "labs/targets/proxy-regression/synthetic-self-signed-cert.pem"
+TLS_PUBLIC_TEST_KEY = ROOT / "labs/targets/proxy-regression/synthetic-public-test-key.pem"
 TLS_FATAL_ALERT = bytes.fromhex("15030300020228")
+TLS_CERTIFICATE_REJECTION_ALERTS = frozenset({
+    "TLSV1_ALERT_UNKNOWN_CA", "SSLV3_ALERT_BAD_CERTIFICATE", "SSLV3_ALERT_CERTIFICATE_UNKNOWN",
+})
 PRIVATE_MARKER = "synthetic-proxy-private-value"
 PRIVATE_BODY = (PRIVATE_MARKER + ":body").encode()
 
@@ -49,6 +55,12 @@ def TlsOracle() -> dict[str, Any]:
     """Read independent negotiation-failure expectations without declaring certificate coverage."""
 
     return cast(dict[str, Any], json.loads(TLS_ORACLE.read_text(encoding="utf-8")))
+
+
+def TlsCertificateOracle() -> dict[str, Any]:
+    """Read independently pinned self-signed fixture facts and existing product expectations."""
+
+    return cast(dict[str, Any], json.loads(TLS_CERTIFICATE_ORACLE.read_text(encoding="utf-8")))
 
 
 def Product(arguments: list[str], *, installed: bool = False) -> tuple[int, dict[str, Any]]:
@@ -438,7 +450,7 @@ def PreservePacket(packet: dict[str, Any]) -> Path:
 
 @dataclass
 class TlsLab:
-    """Own one finite TLS negotiation listener; never complete a handshake or handle HTTP."""
+    """Own finite negotiation/certificate rejection with no successful TLS or HTTP service."""
 
     listener: socket.socket
     mode: str
@@ -446,10 +458,14 @@ class TlsLab:
     lock: Any
     client_hello: Event = field(default_factory=Event)
     accepted: Event = field(default_factory=Event)
+    handshake_started: Event = field(default_factory=Event)
     handled: Event = field(default_factory=Event)
     listener_failed: Event = field(default_factory=Event)
     connections: int = 0
     client_hellos: int = 0
+    handshake_attempts: int = 0
+    certificate_rejections: int = 0
+    completed_handshakes: int = 0
     errors: list[str] = field(default_factory=list)
     active_connection: socket.socket | None = None
 
@@ -465,13 +481,28 @@ class TlsLab:
             return {"connections": self.connections, "client_hellos": self.client_hellos,
                     "errors": list(self.errors)}
 
+    def ObserveCertificate(self) -> dict[str, Any]:
+        """Copy server-side TLS outcomes independently of the product's fixed error code."""
+
+        with self.lock:
+            return {"connections": self.connections, "handshake_attempts": self.handshake_attempts,
+                "certificate_rejections": self.certificate_rejections,
+                "completed_handshakes": self.completed_handshakes, "errors": list(self.errors)}
+
 
 @contextmanager
 def OwnedTls(mode: str = "fatal-alert") -> Iterator[TlsLab]:
-    """Refuse or stall a real bounded ClientHello on an ephemeral owned loopback socket."""
+    """Own a bounded loopback negotiation failure or real untrusted certificate rejection."""
 
-    if mode not in {"fatal-alert", "stalled-clienthello"}:
+    if mode not in {"fatal-alert", "stalled-clienthello", "untrusted-self-signed"}:
         raise ValueError("Unknown finite owned TLS negotiation mode")
+
+    certificate_context = None
+
+    if mode == "untrusted-self-signed":
+        certificate_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        certificate_context.minimum_version = ssl.TLSVersion.TLSv1_2
+        certificate_context.load_cert_chain(TLS_CERTIFICATE, TLS_PUBLIC_TEST_KEY)
 
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     release, stop = Event(), Event()
@@ -503,8 +534,43 @@ def OwnedTls(mode: str = "fatal-alert") -> Iterator[TlsLab]:
 
         return bytes(value)
 
+    def CertificateHandshake(connection: socket.socket) -> None:
+        """Offer only the public synthetic certificate and record an actual rejection alert."""
+
+        assert certificate_context is not None, "Certificate mode has no owning server context"
+
+        with lab.lock:
+            if stop.is_set():
+                return
+
+            secure = certificate_context.wrap_socket(connection, server_side=True,
+                                                     do_handshake_on_connect=False)
+            lab.active_connection = secure
+            lab.handshake_attempts += 1
+
+        lab.handshake_started.set()
+
+        with secure:
+            secure.settimeout(2)
+
+            try:
+                secure.do_handshake()
+
+            except ssl.SSLError as error:
+                if error.reason not in TLS_CERTIFICATE_REJECTION_ALERTS:
+                    raise
+
+                with lab.lock:
+                    lab.certificate_rejections += 1
+
+            else:
+                with lab.lock:
+                    lab.completed_handshakes += 1
+
+                raise ValueError("Untrusted certificate fixture unexpectedly completed TLS")
+
     def Serve() -> None:
-        """Count original accepted connections and return only a fixed alert or no response."""
+        """Count accepted connections and perform one finite owned TLS fixture interaction."""
 
         while not stop.is_set():
             try:
@@ -534,6 +600,11 @@ def OwnedTls(mode: str = "fatal-alert") -> Iterator[TlsLab]:
                 deadline = time.monotonic() + 3
 
                 try:
+                    if certificate_context is not None:
+                        CertificateHandshake(connection)
+
+                        continue
+
                     header = Read(connection, 5, deadline)
                     size = int.from_bytes(header[3:5], "big")
 
@@ -602,10 +673,20 @@ def TlsEvidencePacket(root: Path, summary: dict[str, Any], case: dict[str, Any],
                       ) -> dict[str, Any]:
     """Retain original product acquisitions, source configuration and actual TLS observations."""
 
-    packet = EvidencePacket(root, summary, case, proxy, oracle_path=TLS_ORACLE)
-    packet.update(openssl_version=ssl.OPENSSL_VERSION, test_only_tls=tls.Observe(),
+    certificate_mode = tls.mode == "untrusted-self-signed"
+    oracle_path = TLS_CERTIFICATE_ORACLE if certificate_mode else TLS_ORACLE
+    packet = EvidencePacket(root, summary, case, proxy, oracle_path=oracle_path)
+    observed = tls.ObserveCertificate() if certificate_mode else tls.Observe()
+    packet.update(openssl_version=ssl.OPENSSL_VERSION, test_only_tls=observed,
                   test_only_tls_mode=tls.mode, test_only_tls_url=tls.Url(),
                   test_only_sequence=(["transparent"] if preceding_http else []) + [case["id"]])
+
+    if certificate_mode:
+        packet["test_only_certificate_fixture_sha256"] = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in (TLS_CERTIFICATE, TLS_PUBLIC_TEST_KEY)
+        }
+
     PreservePacket(packet)
 
     return packet
@@ -615,10 +696,24 @@ def VerifyTls(root: Path, summary: dict[str, Any], case: dict[str, Any],
               proxy: ProxyLab, tls: TlsLab) -> dict[str, Any]:
     """Check real refusal/timeout/redirect outcomes without inventing successful TLS facts."""
 
+    certificate_mode = tls.mode == "untrusted-self-signed"
+    handled = not certificate_mode or tls.handled.wait(timeout=3)
     packet = TlsEvidencePacket(root, summary, case, proxy, tls)
-    assert tls.Observe() == {"connections": case["tls_connections"],
-        "client_hellos": case["tls_connections"], "errors": []}, (
-        "TLS contact/ClientHello differs from the independent negotiation oracle"
+    assert handled, "Certificate fixture did not finish its TLS attempt"
+    expected_contact = {"connections": case["tls_connections"],
+        "client_hellos": case["tls_connections"], "errors": []}
+
+    if certificate_mode:
+        expected_contact = {"connections": 1, "handshake_attempts": 1,
+            "certificate_rejections": 1, "completed_handshakes": 0, "errors": []}
+        certificate = packet["profile"]["certificate"]
+        assert packet["test_only_certificate_fixture_sha256"] == {
+            certificate["file"]: certificate["pem_sha256"],
+            certificate["public_test_key_file"]: certificate["public_test_key_sha256"],
+        }, "Retained certificate fixture bytes differ from the independent source oracle"
+
+    assert packet["test_only_tls"] == expected_contact, (
+        "TLS contact/rejection differs from the independent fixture oracle"
     )
     assert proxy.Observe() == (case["frontend_hits"], []), (
         "Negotiation or HTTPS redirect contacted an unselected HTTP frontend/backend"
