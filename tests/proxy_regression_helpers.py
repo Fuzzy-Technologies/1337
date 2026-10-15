@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Own finite plaintext proxy/backend fixtures and actual product evidence checks for #97."""
+"""Own finite proxy/TLS fixtures and actual product evidence checks for #97."""
 
 from __future__ import annotations
 
@@ -10,8 +10,10 @@ import http.client
 import json
 import os
 import socket
+import ssl
 import subprocess
 import sys
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
@@ -23,8 +25,6 @@ from threading import Event, Lock, Thread, current_thread
 from typing import Any, cast
 from uuid import uuid4
 
-from jsonschema import Draft202012Validator, FormatChecker  # type: ignore[import-untyped]
-
 from fuzzy1337.cli import Main
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.model import LocalModelStore, ObjectKind, RelationKind
@@ -33,6 +33,8 @@ from fuzzy1337.workspace import LocalWorkspaceStore
 
 ROOT = Path(__file__).parents[1]
 ORACLE = ROOT / "labs/targets/proxy-regression/oracle.v1.json"
+TLS_ORACLE = ROOT / "labs/targets/proxy-regression/tls-oracle.v1.json"
+TLS_FATAL_ALERT = bytes.fromhex("15030300020228")
 PRIVATE_MARKER = "synthetic-proxy-private-value"
 PRIVATE_BODY = (PRIVATE_MARKER + ":body").encode()
 
@@ -41,6 +43,12 @@ def Oracle() -> dict[str, Any]:
     """Read independently handwritten finite target/configuration expectations."""
 
     return cast(dict[str, Any], json.loads(ORACLE.read_text(encoding="utf-8")))
+
+
+def TlsOracle() -> dict[str, Any]:
+    """Read independent negotiation-failure expectations without declaring certificate coverage."""
+
+    return cast(dict[str, Any], json.loads(TLS_ORACLE.read_text(encoding="utf-8")))
 
 
 def Product(arguments: list[str], *, installed: bool = False) -> tuple[int, dict[str, Any]]:
@@ -92,11 +100,12 @@ def Setup(root: Path, urls: tuple[str, ...], *, granted: bool = True,
     assert status == 0, "Product explicit proxy scope setup failed"
 
 
-def Scan(root: Path, urls: tuple[str, ...], *, approved: bool = True) -> list[str]:
+def Scan(root: Path, urls: tuple[str, ...], *, approved: bool = True,
+         request_timeout: float = 0.2) -> list[str]:
     """Select exact frontend URLs, ordinary SAFE permission and finite current product budgets."""
 
     arguments = ["scan", "quick", str(root), "--scope", "proxy-local",
-        "--owner", "operator:proxy-owned", "--request-timeout", "0.2",
+        "--owner", "operator:proxy-owned", "--request-timeout", str(request_timeout),
         "--timeout", "8", "--interval", "0.05"]
 
     for url in urls:
@@ -137,7 +146,7 @@ class ProxyLab:
 
 
 @contextmanager
-def OwnedProxy() -> Iterator[ProxyLab]:
+def OwnedProxy(*, tls_redirect_port: int | None = None) -> Iterator[ProxyLab]:
     """Own two ephemeral literal-loopback listeners, all request threads and bounded teardown."""
 
     release, lock = Event(), Lock()
@@ -249,7 +258,12 @@ def OwnedProxy() -> Iterator[ProxyLab]:
                 self.Reply(403)
 
             elif self.path == "/redirect":
-                self.Reply(302, location=f"http://127.0.0.1:{backend.server_port}/never-followed")
+                destination = f"http://127.0.0.1:{backend.server_port}/never-followed"
+
+                if tls_redirect_port is not None:
+                    destination = f"https://127.0.0.1:{tls_redirect_port}/never-followed"
+
+                self.Reply(302, location=destination)
 
             else:
                 self.Reply(404)
@@ -293,6 +307,8 @@ def OwnedProxy() -> Iterator[ProxyLab]:
 def Verify(root: Path, summary: dict[str, Any], case: dict[str, Any], lab: ProxyLab
            ) -> dict[str, Any]:
     """Compare actual product/store facts with the independent handwritten target oracle."""
+
+    from jsonschema import Draft202012Validator, FormatChecker  # type: ignore[import-untyped]
 
     packet = EvidencePacket(root, summary, case, lab)
     PreservePacket(packet)
@@ -366,8 +382,8 @@ def Verify(root: Path, summary: dict[str, Any], case: dict[str, Any], lab: Proxy
     return packet
 
 
-def EvidencePacket(root: Path, summary: dict[str, Any], case: dict[str, Any], lab: ProxyLab
-                   ) -> dict[str, Any]:
+def EvidencePacket(root: Path, summary: dict[str, Any], case: dict[str, Any], lab: ProxyLab,
+                   *, oracle_path: Path = ORACLE) -> dict[str, Any]:
     """Capture original safe acquisitions and fixture metadata before checking expected results.
 
     Args:
@@ -375,6 +391,7 @@ def EvidencePacket(root: Path, summary: dict[str, Any], case: dict[str, Any], la
         summary: Actual machine outcome, never a computed expected result.
         case: Explicit closed test-case identity selecting the independent source oracle.
         lab: Owning listeners and independent test-only observations.
+        oracle_path: Explicit versioned first-party source/configuration oracle.
 
     Returns:
         Version/configuration/source-digest packet, retained even if later comparisons fail.
@@ -393,8 +410,8 @@ def EvidencePacket(root: Path, summary: dict[str, Any], case: dict[str, Any], la
         frontend_hits, backend_hits = list(lab.frontend_hits), list(lab.backend_hits)
         errors = list(lab.errors)
 
-    return {"schema_version": 1, "profile": Oracle(),
-        "oracle_sha256": hashlib.sha256(ORACLE.read_bytes()).hexdigest(),
+    return {"schema_version": 1, "profile": json.loads(oracle_path.read_text(encoding="utf-8")),
+        "oracle_sha256": hashlib.sha256(oracle_path.read_bytes()).hexdigest(),
         "python_version": sys.version, "case_id": case["id"],
         "source_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
             for name in ("tests/proxy_regression_helpers.py", "src/fuzzy1337/quickscan.py",
@@ -417,3 +434,230 @@ def PreservePacket(packet: dict[str, Any]) -> Path:
         json.dump(packet, stream, sort_keys=True)
 
     return path
+
+
+@dataclass
+class TlsLab:
+    """Own one finite TLS negotiation listener; never complete a handshake or handle HTTP."""
+
+    listener: socket.socket
+    mode: str
+    release: Event
+    lock: Any
+    client_hello: Event = field(default_factory=Event)
+    accepted: Event = field(default_factory=Event)
+    handled: Event = field(default_factory=Event)
+    listener_failed: Event = field(default_factory=Event)
+    connections: int = 0
+    client_hellos: int = 0
+    errors: list[str] = field(default_factory=list)
+    active_connection: socket.socket | None = None
+
+    def Url(self) -> str:
+        """Return the explicitly owned literal-IP HTTPS endpoint."""
+
+        return f"https://127.0.0.1:{self.listener.getsockname()[1]}/owned-resource"
+
+    def Observe(self) -> dict[str, Any]:
+        """Copy test-only connection/ClientHello counts without retaining TLS payloads."""
+
+        with self.lock:
+            return {"connections": self.connections, "client_hellos": self.client_hellos,
+                    "errors": list(self.errors)}
+
+
+@contextmanager
+def OwnedTls(mode: str = "fatal-alert") -> Iterator[TlsLab]:
+    """Refuse or stall a real bounded ClientHello on an ephemeral owned loopback socket."""
+
+    if mode not in {"fatal-alert", "stalled-clienthello"}:
+        raise ValueError("Unknown finite owned TLS negotiation mode")
+
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    release, stop = Event(), Event()
+    lab = TlsLab(listener, mode, release, Lock())
+
+    def Read(connection: socket.socket, size: int, deadline: float) -> bytes:
+        """Read only one bounded record while teardown can promptly release stalled input."""
+
+        value = bytearray()
+
+        while len(value) < size:
+            remaining = deadline - time.monotonic()
+
+            if stop.is_set() or remaining <= 0:
+                raise TimeoutError("Owned TLS ClientHello read stopped or exceeded its deadline")
+
+            connection.settimeout(min(0.1, remaining))
+
+            try:
+                chunk = connection.recv(size - len(value))
+
+            except TimeoutError:
+                continue
+
+            if not chunk:
+                raise ValueError("Owned TLS client closed before its complete ClientHello")
+
+            value.extend(chunk)
+
+        return bytes(value)
+
+    def Serve() -> None:
+        """Count original accepted connections and return only a fixed alert or no response."""
+
+        while not stop.is_set():
+            try:
+                connection, _ = listener.accept()
+
+            except TimeoutError:
+                continue
+
+            except OSError:
+                if not stop.is_set():
+                    with lab.lock:
+                        lab.errors.append("listener-failure")
+
+                    lab.listener_failed.set()
+
+                return
+
+            with connection:
+                with lab.lock:
+                    if stop.is_set():
+                        return
+
+                    lab.connections += 1
+                    lab.active_connection = connection
+
+                lab.accepted.set()
+                deadline = time.monotonic() + 3
+
+                try:
+                    header = Read(connection, 5, deadline)
+                    size = int.from_bytes(header[3:5], "big")
+
+                    if header[:2] != b"\x16\x03" or not 4 <= size <= 16384:
+                        raise ValueError("Owned TLS target expected a bounded handshake record")
+
+                    payload = Read(connection, size, deadline)
+
+                    if payload[0] != 1:
+                        raise ValueError("Owned TLS target expected ClientHello")
+
+                    with lab.lock:
+                        lab.client_hellos += 1
+
+                    lab.client_hello.set()
+
+                    if mode == "fatal-alert":
+                        connection.sendall(TLS_FATAL_ALERT)
+
+                    else:
+                        release.wait(timeout=5)
+
+                except (OSError, ValueError):
+                    if not stop.is_set():
+                        with lab.lock:
+                            lab.errors.append("negotiation-fixture-failure")
+
+                finally:
+                    with lab.lock:
+                        lab.active_connection = None
+
+                    lab.handled.set()
+
+    thread = Thread(target=Serve, daemon=False)
+
+    try:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(4)
+        listener.settimeout(0.05)
+        thread.start()
+
+        yield lab
+
+    finally:
+        stop.set()
+        release.set()
+        listener.close()
+
+        with lab.lock:
+            connection = lab.active_connection
+
+        if connection is not None:
+            try:
+                connection.shutdown(socket.SHUT_RDWR)
+
+            except OSError:
+                pass
+
+        if thread.ident is not None:
+            thread.join(timeout=3)
+            assert not thread.is_alive(), "Owned TLS negotiation thread was not reaped"
+
+
+def TlsEvidencePacket(root: Path, summary: dict[str, Any], case: dict[str, Any],
+                      proxy: ProxyLab, tls: TlsLab, *, preceding_http: bool = False,
+                      ) -> dict[str, Any]:
+    """Retain original product acquisitions, source configuration and actual TLS observations."""
+
+    packet = EvidencePacket(root, summary, case, proxy, oracle_path=TLS_ORACLE)
+    packet.update(openssl_version=ssl.OPENSSL_VERSION, test_only_tls=tls.Observe(),
+                  test_only_tls_mode=tls.mode, test_only_tls_url=tls.Url(),
+                  test_only_sequence=(["transparent"] if preceding_http else []) + [case["id"]])
+    PreservePacket(packet)
+
+    return packet
+
+
+def VerifyTls(root: Path, summary: dict[str, Any], case: dict[str, Any],
+              proxy: ProxyLab, tls: TlsLab) -> dict[str, Any]:
+    """Check real refusal/timeout/redirect outcomes without inventing successful TLS facts."""
+
+    packet = TlsEvidencePacket(root, summary, case, proxy, tls)
+    assert tls.Observe() == {"connections": case["tls_connections"],
+        "client_hellos": case["tls_connections"], "errors": []}, (
+        "TLS contact/ClientHello differs from the independent negotiation oracle"
+    )
+    assert proxy.Observe() == (case["frontend_hits"], []), (
+        "Negotiation or HTTPS redirect contacted an unselected HTTP frontend/backend"
+    )
+    assert summary["state"] == summary["job"]["state"] == case["job_state"] and (
+        summary["job"]["last_sequence"] == len(summary["events"]) - 1
+    ), "TLS result hid terminal state or its original ordered job event stream"
+    failure = summary["job"]["failure"]
+    assert (None if failure is None else failure["code"]) == case["failure_code"], (
+        "TLS failure was reclassified or reported as successful discovery"
+    )
+    state = LocalModelStore(root).Open()
+    assert state.revision == summary["model_revision"] == case["model_revision"] and (
+        len(state.objects) == case["objects"] and not state.Objects(ObjectKind.FINDING)
+        and all(item.kind is not RelationKind.RELATED_TO for item in state.relations)
+    ), "TLS failure fabricated a discovered endpoint, Finding or reachability claim"
+    records = packet["original_evidence_manifests"]
+    assert len(records) == case["evidence_records"] and all(
+        record["provenance"]["source_id"] == "native.http"
+        and record["provenance"]["source_version"] == "1"
+        and record["provenance"]["execution"] is not None for record in records
+    ), "Original native TLS acquisition lost source/version/execution attribution"
+    expected = {"schema_version": 1, "error": case["worker_error"]}
+
+    if case["worker_error"] is None:
+        expected = {"schema_version": 1, "url": proxy.Url(case), "address": "127.0.0.1",
+            "port": proxy.frontend.server_port, "scheme": "http", "status": 302}
+        assert [item.identity.key for item in state.Objects(ObjectKind.ENDPOINT)] == [
+            proxy.Url(case)
+        ], "An unfollowed HTTPS redirect became a discovered TLS endpoint"
+
+    assert packet["original_safe_worker_records"] == [expected], (
+        "TLS bytes/exception text replaced the original fixed-code worker acquisition"
+    )
+
+    for path in root.rglob("*"):
+        if path.is_file():
+            assert PRIVATE_MARKER.encode() not in path.read_bytes(), (
+                "TLS/redirect state retained synthetic private response fields"
+            )
+
+    return packet

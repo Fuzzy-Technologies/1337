@@ -205,6 +205,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   cases. Independent backend hit counts, original evidence, durable reopen and
   failure cleanup preserve frontend-only conclusions and current scope/privacy
   contracts. TLS and version-pinned CRS/ModSecurity profiles remain separate work.
+- Added owned TLS negotiation regressions for real fatal-alert refusal, stalled
+  ClientHello and HTTP-to-HTTPS redirect containment through installed Quick Scan.
+  Original failure evidence, zero-contact denials, partial state and bounded
+  teardown preserve current verification/authorization behavior. Successful TLS
+  and certificate validation acceptance remain separate work.
 
 #### Fixed
 
