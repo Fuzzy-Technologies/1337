@@ -16,9 +16,74 @@ import yaml
 import fuzzy1337
 from fuzzy1337.adapters import AdapterRequest, ImpactLevel
 from fuzzy1337.adapters.nuclei import NucleiAdapter, NucleiProfile, NucleiTemplate
+from fuzzy1337.functional_metrics import (
+    BuildReport, RawEvidence, RenderHtml, RenderMarkdown, RunStatus, SerializeReport,
+)
+from tests.functional.nuclei_web_metrics import Scenario, WebCheckRun
+from tests.web_vulnerability_helpers import Oracle
 
 PACK = Path(fuzzy1337.__file__).parent / "data/nuclei"
 MANIFEST = json.loads((PACK / "manifest.v1.json").read_text(encoding="utf-8"))
+
+
+def test_ActualWebCheckMetadataBuildsAllReportViewsWithoutNativeExecution():
+    """Catch consumer metadata incompatibility using the exact shared factory and target oracle."""
+
+    metadata = Oracle()
+    scenarios = tuple(Scenario(metadata, case) for case in metadata["cases"])
+    evidence = (
+        RawEvidence("stdout", "application/json", ""),
+        RawEvidence("stderr", "text/plain", "contract metadata only; no scanner executed\n"),
+        RawEvidence("invocation", "application/json", '{"contract_only":true}'),
+    )
+    runs = tuple(WebCheckRun(case["id"], "3.4.10", MANIFEST["version"],
+        RunStatus.COMPLETED, 0.0, detected_checks=(), evidence=evidence)
+        for case in metadata["cases"])
+    report = BuildReport(scenarios, runs)
+    document = json.loads(SerializeReport(report))
+    assert len(document["runs"]) == len(metadata["cases"]), (
+        "Every real acceptance case must admit the actual consumer's metadata."
+    )
+    assert all(item["run"]["scanner_id"] == "fuzzy1337.nuclei.web-checks"
+               and item["run"]["release_id"] == "nuclei-3.4.10+checks-1"
+               for item in document["runs"]), (
+        "Scanner identifiers and the observed provider/pack versions must survive serialization."
+    )
+    metrics = [item["metrics"] for item in document["runs"]]
+    assert sum(item["tp"] for item in metrics) == 0 and (
+        sum(item["fn"] for item in metrics)
+        == sum(case["expected_match"] for case in metadata["cases"])
+    ), "Metadata construction must not convert oracle positives into invented detections."
+    assert all(item["run"]["evidence"][1]["content"] == evidence[1].content
+               for item in document["runs"]), "Report construction changed supplied raw evidence."
+    assert "fuzzy1337.nuclei.web-checks" in RenderMarkdown(report), (
+        "The actual scanner identifier must be accepted by the Markdown report consumer."
+    )
+    assert "fuzzy1337.nuclei.web-checks" in RenderHtml(report), (
+        "The actual scanner identifier must be accepted by the HTML report consumer."
+    )
+
+
+@pytest.mark.parametrize("status", [RunStatus.CRASHED, RunStatus.TIMED_OUT])
+def test_ActualWebCheckMetadataPreservesIncompleteRunTruth(status):
+    """Failed consumer outcomes retain partial evidence without receiving accuracy scores."""
+
+    metadata = Oracle()
+    case = metadata["cases"][0]
+    evidence = (RawEvidence("stderr", "text/plain", "contract-only partial output\n"),)
+    run = WebCheckRun(case["id"], "3.4.10", MANIFEST["version"], status, 0.25,
+                      detected_checks=(case["id"],), evidence=evidence)
+    report = BuildReport((Scenario(metadata, case),), (run,))
+    measured = report["runs"][0]
+    assert run.status is status and run.evidence == evidence, (
+        "Consumer metadata cannot promote failed work or discard partial output."
+    )
+    assert measured["metrics"]["accuracy"] is None, (
+        "A partial native result must not be scored as a completed detector assessment."
+    )
+    assert report["matrix"]["rows"][0]["cells"][0]["state"] == status.value, (
+        "The matrix must retain actual crash/timeout state despite partial detections."
+    )
 
 
 def test_PackPinsThreeIndependentlyNamedReviewedArtifacts():

@@ -24,13 +24,10 @@ from fuzzy1337.executors import InvocationDigest
 from fuzzy1337.findings import Findings, FindingStatus
 from fuzzy1337.functional_metrics import (
     BuildReport,
-    FunctionalRun,
-    OracleCheck,
     RawEvidence,
     RenderHtml,
     RenderMarkdown,
     RunStatus,
-    ScenarioOracle,
     SerializeReport,
 )
 from fuzzy1337.jobs import JobFailureCode, JobState
@@ -47,6 +44,7 @@ from fuzzy1337.scope import (
     Target,
     TargetKind,
 )
+from tests.functional.nuclei_web_metrics import Scenario, WebCheckRun
 from tests.web_vulnerability_helpers import Oracle, OwnedWebVulnerabilityTarget
 
 PACK = Path(fuzzy1337.__file__).parent / "data/nuclei"
@@ -108,17 +106,6 @@ def ScopedWorkspace(root, url, family):
     ), targets=(target, address), allow=(target, address)))
 
     return target, SelectedProfile(root, family)
-
-
-def Scenario(metadata, case):
-    """Translate only independent target expectations into the existing finite oracle schema."""
-
-    return ScenarioOracle(
-        identifier=case["id"], target_pack=metadata["target_pack"],
-        target_version=metadata["target_version"], provenance=metadata["provenance"],
-        complete=True,
-        checks=(OracleCheck(case["id"], case["capability"], case["expected_match"]),),
-    )
 
 
 def PersistMatrix(scenarios, runs):
@@ -224,6 +211,14 @@ def test_GenuineReviewedChecksProduceIndependentOracleMetricsAndReopen(
             summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                 str(native_web_check_binary), Policy, confirmation=confirmation))
             observed = service.Observe()
+            output = EVIDENCE / case["id"]
+            output.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(root / "evidence", output / "evidence", dirs_exist_ok=True)
+            (output / "plan.json").write_text(json.dumps(plan.ToDict(), indent=2), encoding="utf-8")
+            (output / "summary.json").write_text(json.dumps(summary.ToDict(), indent=2),
+                                                  encoding="utf-8")
+            (output / "target-observations.json").write_text(json.dumps(observed, indent=2),
+                                                             encoding="utf-8")
             model = LocalModelStore(root).Open()
             actual_findings = Findings(model)
             expected_check_id = "nuclei." + profile.templates[0].template_id
@@ -234,23 +229,14 @@ def test_GenuineReviewedChecksProduceIndependentOracleMetricsAndReopen(
                 summary.snapshot.failure.code is JobFailureCode.TIMEOUT else RunStatus.CRASHED
             )
             raw = VerifiedRunEvidence(root, plan, summary)
-            runs.append(FunctionalRun(case["id"], "1337.nuclei.web-checks",
-                "nuclei-" + plan.invocation.provider_version + "+checks-" + MANIFEST["version"],
-                status, time.monotonic() - started, detected_checks=detected,
+            runs.append(WebCheckRun(case["id"], plan.invocation.provider_version,
+                MANIFEST["version"], status, time.monotonic() - started, detected_checks=detected,
                 evidence=(*raw, RawEvidence("provider", "application/json", json.dumps({
                     "executable_sha256": binary_sha256,
                     "version": plan.invocation.provider_version,
                     "profile": json.loads(SerializeContract(profile)),
                 }, sort_keys=True)))))
             report = PersistMatrix(scenarios, runs)
-            output = EVIDENCE / case["id"]
-            output.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(root / "evidence", output / "evidence", dirs_exist_ok=True)
-            (output / "plan.json").write_text(json.dumps(plan.ToDict(), indent=2), encoding="utf-8")
-            (output / "summary.json").write_text(json.dumps(summary.ToDict(), indent=2),
-                                                  encoding="utf-8")
-            (output / "target-observations.json").write_text(json.dumps(observed, indent=2),
-                                                             encoding="utf-8")
             assert summary.ExitCode() == 0, "A genuine scanner failure must fail acceptance."
             assert {item.role for item in raw} == {"stdout", "stderr", "invocation"}, (
                 "Successful native acceptance must preserve both actual terminal streams."

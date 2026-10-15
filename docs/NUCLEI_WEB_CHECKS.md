@@ -129,6 +129,9 @@ raw acquisitions, independent target observations and the generated JSON,
 Markdown and HTML matrix. Confusion counts use only the finite oracle. Failed
 runs withhold accuracy, and untouched cases remain `not-run`. A successful empty
 provider output is zero reported matches, not target safety or broad check coverage.
+Each case exports its actual acquisitions, plan, terminal summary and target
+observations before model verification, metric construction or acceptance assertions,
+so a later consumer failure does not discard the acquired evidence.
 
 General differential SQL injection, arbitrary crawling, native body acquisition,
 browser/DOM execution, SSRF and traversal checks remain outside this pack. There

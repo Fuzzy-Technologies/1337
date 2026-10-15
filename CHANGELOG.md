@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added owned self-signed TLS certificate rejection coverage through the actual
+  Quick Scan worker, with independent verifying-client and server observations,
+  original fixed-code evidence, denial-before-contact, partial-state preservation
+  and offline reopen. Public synthetic certificate fixtures preserve default
+  trust behavior; successful trusted HTTPS and broader TLS profiles remain open.
+
 - Added typed, versioned subsystem contracts and documented APIs for incremental
   Workbench development, with deterministic validation and failure-path tests.
   The subsystem documentation describes the capabilities present in each change.

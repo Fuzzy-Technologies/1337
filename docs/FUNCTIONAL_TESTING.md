@@ -104,6 +104,16 @@ uv run --locked --extra dev pytest tests/contract/test_functional_metrics.py \
   tests/contract/test_web_micro_metrics.py
 ```
 
+## Genuine reviewed web checks
+
+The separate [reviewed web-check acceptance](NUCLEI_WEB_CHECKS.md) executes actual
+Nuclei against owned file reads, SQLite query behavior and HTML insertion, with
+fixed variants, decoys and a redirect control. Its twelve-case matrix comes from
+persisted canonical Findings and the independent target oracle. The genuine
+provider CI retains original streams, invocation/template attribution and
+reopen checks under `functional-evidence/nuclei-web-checks/`. Target-only or
+local matcher checks do not substitute for this provider run.
+
 ## Optional pinned external pack
 
 [The external target pack](../labs/external/README.md) provides opt-in Juice Shop

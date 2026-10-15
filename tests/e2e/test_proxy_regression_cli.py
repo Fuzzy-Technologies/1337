@@ -18,6 +18,7 @@ from tests.proxy_regression_helpers import (
     Product,
     Scan,
     Setup,
+    TlsCertificateOracle,
     TlsOracle,
     Verify,
     VerifyTls,
@@ -42,9 +43,10 @@ def test_InstalledQuickScanPreservesFrontendTruthAndOriginalEvidence(tmp_path, c
         assert lab.Observe() == before, "Read-only workspace reopen contacted proxy or backend"
 
 
-@pytest.mark.parametrize("case", TlsOracle()["cases"], ids=lambda case: case["id"])
+@pytest.mark.parametrize("case", TlsOracle()["cases"] + TlsCertificateOracle()["cases"],
+                         ids=lambda case: case["id"])
 def test_InstalledQuickScanKeepsTlsNegotiationFailuresAndRedirectsTruthful(tmp_path, case):
-    """Real packaged TLS negotiation preserves fixed failure evidence without weakening trust."""
+    """Real TLS and certificate rejection preserve fixed evidence without weakening trust."""
 
     with OwnedTls(case["mode"]) as tls, OwnedProxy(
         tls_redirect_port=tls.listener.getsockname()[1],

@@ -11,4 +11,5 @@ tests/contract/fixtures/configuration_profiles/kubernetes/multi.yaml text eol=lf
 tests/fixtures/configuration_scan/producer.py text eol=lf
 tests/contract/fixtures/artifact_replay/schema1-* -text
 tests/contract/fixtures/web-traversal.*.v1.html text eol=lf
+labs/targets/proxy-regression/synthetic-*.pem text eol=lf
 src/fuzzy1337/data/nuclei/* text eol=lf
