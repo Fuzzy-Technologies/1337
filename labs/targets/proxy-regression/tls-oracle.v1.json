@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "profile_id": "owned-tls-negotiation-failures.v1",
+  "provenance": "first-party:labs/targets/proxy-regression",
+  "frontend_version": "owned-stdlib-reverse-proxy-v1",
+  "tls_fixture_version": "owned-finite-tls-negotiation-v1",
+  "configuration": {
+    "bind_address": "127.0.0.1",
+    "fatal_alert_hex": "15030300020228",
+    "maximum_clienthello_record_bytes": 16384,
+    "request_timeout_seconds": 2.0,
+    "accept_timeout_seconds": 0.05,
+    "clienthello_deadline_seconds": 3,
+    "read_poll_seconds": 0.1,
+    "stall_release_timeout_seconds": 5,
+    "listener_backlog": 4,
+    "successful_tls_handshakes": 0,
+    "tls_http_requests": 0,
+    "certificate_coverage": "not-assessed",
+    "trust_configuration_changes": false,
+    "redirect_route": "/never-followed",
+    "findings": 0,
+    "related_to_relations": 0
+  },
+  "cases": [
+    {
+      "id": "tls-fatal-alert",
+      "mode": "fatal-alert",
+      "scheme": "https",
+      "frontend_route": "/owned-resource",
+      "frontend_hits": [],
+      "tls_connections": 1,
+      "exit_code": 4,
+      "job_state": "failed",
+      "failure_code": "provider",
+      "worker_error": "tls",
+      "model_revision": 0,
+      "objects": 0,
+      "evidence_records": 1
+    },
+    {
+      "id": "tls-stalled-clienthello",
+      "mode": "stalled-clienthello",
+      "scheme": "https",
+      "frontend_route": "/owned-resource",
+      "frontend_hits": [],
+      "tls_connections": 1,
+      "exit_code": 4,
+      "job_state": "failed",
+      "failure_code": "timeout",
+      "worker_error": "timeout",
+      "model_revision": 0,
+      "objects": 0,
+      "evidence_records": 1
+    },
+    {
+      "id": "http-to-https-redirect",
+      "mode": "fatal-alert",
+      "scheme": "http",
+      "frontend_route": "/redirect",
+      "frontend_hits": ["/redirect"],
+      "tls_connections": 0,
+      "exit_code": 0,
+      "job_state": "completed",
+      "failure_code": null,
+      "worker_error": null,
+      "model_revision": 1,
+      "objects": 4,
+      "evidence_records": 1
+    }
+  ]
+}

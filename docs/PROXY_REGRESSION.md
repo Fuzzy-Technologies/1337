@@ -110,3 +110,47 @@ attack-path source support and TLS trust changes need separate accepted contract
 See [Native discovery](NATIVE_DISCOVERY.md), [Quick Scan](QUICK_SCAN.md),
 [functional testing](FUNCTIONAL_TESTING.md) and the existing
 [wire contract](../contracts/native-http-record.schema.json).
+
+## Owned TLS negotiation failures
+
+The companion [`tls-oracle.v1.json`](../labs/targets/proxy-regression/tls-oracle.v1.json)
+defines `owned-tls-negotiation-failures.v1`. It exercises the real installed native
+worker's default verifying TLS context against a finite loopback wire fixture.
+The fixture receives one bounded ClientHello and either sends the fixed fatal
+`handshake_failure` alert or waits until teardown/deadline. It owns no certificate,
+completes no TLS handshake and handles no HTTPS application request. No production
+TLS context, certificate store, authorization or executor environment is modified.
+
+| Case                   | Independent target observation         | Original product outcome                                   |
+| ---------------------- | -------------------------------------- | ---------------------------------------------------------- |
+| Fatal handshake alert  | One connection and one ClientHello     | Failed provider job, exit 4, safe worker error `tls`       |
+| Stalled ClientHello    | One connection and one ClientHello     | Failed timeout job, exit 4, safe worker error `timeout`    |
+| HTTP to HTTPS redirect | HTTP 302, zero TLS/backend connections | Completed HTTP frontend observation, exit 0, no TLS object |
+
+The two failures retain the exact original fixed-code record and source/version/
+execution manifest without creating model objects, Findings or inferred BLOCKED
+reachability. A successful HTTP acquisition preceding either TLS failure remains
+saved alongside both original evidence records. Workspace reopen verifies those
+records without another connection. Unknown consent, excluded scope and missing
+SAFE permission deny before TCP connection or ClientHello.
+
+Direct fixture checks use an independent ordinary verifying TLS client. Installed
+CLI checks exercise the actual policy/executor/worker/evidence chain, with a two-
+second request budget and the existing eight-second overall limit. This allows
+normal platform trust-store initialization while keeping deliberate stalls bounded.
+Evidence packets retain the versioned wire configuration, Python/OpenSSL versions,
+source digests, original product summary and acquisitions, and explicitly test-only
+connection/ClientHello counts. TLS payloads and exception text are not retained.
+
+The listener uses a single three-second deadline for the complete bounded initial
+record, short stop-aware read polling and explicit accepted-socket shutdown.
+Exception, partial-header and startup-failure tests verify listener/thread cleanup;
+unexpected wire/listener failures become fixed fixture-error observations.
+These independent fixtures need no installed OpenSSL executable, certificate files,
+new dependencies, external host, shared port or retry and use the same focused
+pytest selection above.
+
+This profile proves negotiation failure handling and redirect containment only.
+It does not establish successful trusted HTTPS, certificate-chain or literal-IP
+identity validation, WAF behavior, or a TLS compatibility matrix. Those acceptance
+boundaries and the remaining version-pinned CRS/ModSecurity work stay open in #97.

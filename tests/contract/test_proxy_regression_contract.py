@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from fuzzy1337.adapters.native_http import NativeHttpAdapter
-from tests.proxy_regression_helpers import Oracle
+from tests.proxy_regression_helpers import TLS_FATAL_ALERT, Oracle, TlsOracle
 
 
 def test_HandwrittenProxyOracleDeclaresExactCasesWithoutInventedScannerCapabilities():
@@ -31,3 +31,28 @@ def test_HandwrittenProxyOracleDeclaresExactCasesWithoutInventedScannerCapabilit
         descriptor.capabilities == ("http.endpoint-discovery",)
         and descriptor.maximum_impact.name == "SAFE"
     ), "Regression added scanner transport or WAF capability instead of testing existing discovery"
+
+
+def test_TlsOracleDeclaresNegotiationFailuresWithoutCertificateOrTrustClaims():
+    """The finite first-party wire profile makes no successful TLS/certificate assertion."""
+
+    oracle = TlsOracle()
+    assert oracle["schema_version"] == 1 and oracle["configuration"] == {
+        "bind_address": "127.0.0.1", "fatal_alert_hex": "15030300020228",
+        "maximum_clienthello_record_bytes": 16384, "request_timeout_seconds": 2.0,
+        "accept_timeout_seconds": 0.05, "clienthello_deadline_seconds": 3,
+        "read_poll_seconds": 0.1,
+        "stall_release_timeout_seconds": 5, "listener_backlog": 4,
+        "successful_tls_handshakes": 0, "tls_http_requests": 0,
+        "certificate_coverage": "not-assessed", "trust_configuration_changes": False,
+        "redirect_route": "/never-followed", "findings": 0, "related_to_relations": 0,
+    }, "TLS fixture changed its finite wire/configuration boundary or claimed certificate coverage"
+    assert TLS_FATAL_ALERT.hex() == oracle["configuration"]["fatal_alert_hex"], (
+        "Actual fatal handshake_failure alert differs from the handwritten source oracle"
+    )
+    assert [(case["id"], case["tls_connections"], case["worker_error"], case["failure_code"])
+        for case in oracle["cases"]] == [
+        ("tls-fatal-alert", 1, "tls", "provider"),
+        ("tls-stalled-clienthello", 1, "timeout", "timeout"),
+        ("http-to-https-redirect", 0, None, None),
+    ], "TLS negotiation cases no longer match the independent source oracle"
