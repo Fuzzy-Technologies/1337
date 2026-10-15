@@ -43,10 +43,12 @@ from fuzzy1337.model import (
     ModelState,
     ObjectKind,
     Observation,
+    Relation,
     RequireModelReference,
+    SecurityObject,
 )
 from fuzzy1337.policy import UtcNow
-from fuzzy1337.report_commands import OpenReportInput
+from fuzzy1337.report_commands import MAX_EXPORT_ACQUISITIONS, OpenReportInput
 from fuzzy1337.scope import LocalScopeStore, ScopeSnapshot
 from fuzzy1337.workspace import (
     LocalWorkspaceStore,
@@ -126,10 +128,10 @@ class RuntimeEvidenceStore(LocalEvidenceStore):
         return super().Read(reference)
 
     def CheckReference(self, reference: EvidenceReference) -> None:
-        """Refuse an actual incompatible role/media/size before any owning raw byte read.
+        """Check fixed role/media/size and actual physical ownership before any raw byte read.
 
         Args:
-            reference: Exact typed original reference parsed from the selected manifest.
+            reference: Exact original reference from a manifest or retained model provenance.
         """
 
         if type(reference) is not EvidenceReference or reference.role != self.profile or (
@@ -137,6 +139,18 @@ class RuntimeEvidenceStore(LocalEvidenceStore):
             or type(reference.size_bytes) is not int
             or not 1 <= reference.size_bytes <= self.maximum
         ):
+            raise RuntimeFailure("integrity")
+
+        RequireEvidenceDigest(reference.sha256)
+
+        if reference.locator != "blobs/sha256/" + reference.sha256:
+            raise RuntimeFailure("integrity")
+
+        metadata = CheckStorageEntry(
+            self.StoragePath(("blobs", "sha256", reference.sha256)), directory=False,
+        )
+
+        if metadata.st_nlink != 1 or metadata.st_size != reference.size_bytes:
             raise RuntimeFailure("integrity")
 
     def Get(self, evidence_id: str) -> EvidenceRecord:
@@ -198,6 +212,95 @@ def RuntimeProfile(profile: str) -> tuple[str, str, int]:
         raise RuntimeFailure("configuration", 2)
 
     return _PROFILES[profile]
+
+
+def PreflightKnownRuntimeReferences(state: ModelState, workspace: WorkspaceState,
+                                    evidence: LocalEvidenceStore) -> None:
+    """Bound known closed-profile originals and aliases before any generic retained raw read.
+
+    Args:
+        state: Current owning model, including custody after a lost workspace acknowledgement.
+        workspace: Independently selected owner and retained manifest/raw references.
+        evidence: Original evidence partition; unrelated roles keep their existing owner bounds.
+    """
+
+    entities: tuple[SecurityObject | Relation, ...] = (*state.objects, *state.relations)
+    contexts = [provenance for item in entities for provenance in item.provenance]
+    contexts.extend(item.provenance for item in state.observations)
+    references = {*workspace.evidence_references,
+                  *(item for context in contexts for item in context.evidence_references)}
+    record_ids = set(workspace.evidence_record_references)
+    custody: dict[str, list[Observation]] = {}
+
+    for fact in state.observations:
+        if fact.kind != "runtime-import-source":
+            continue
+
+        profile = fact.attributes.get("profile")
+        evidence_id = fact.attributes.get("evidence_id")
+
+        if type(profile) is not str or profile not in _PROFILES or type(evidence_id) is not str:
+            raise RuntimeFailure("source-context")
+
+        custody.setdefault(evidence_id, []).append(fact)
+        record_ids.add(evidence_id)
+
+    if len(record_ids) > MAX_EXPORT_ACQUISITIONS:
+        raise RuntimeFailure("limit")
+
+    for evidence_id in sorted(record_ids):
+        if not evidence_id.startswith("sha256:"):
+            raise RuntimeFailure("integrity")
+
+        digest = evidence_id[7:]
+        RequireEvidenceDigest(digest)
+        record = ParseEvidenceManifest(evidence.ReadStoredBytes(
+            ("records", digest + ".json"), EVIDENCE_MANIFEST_MAX_BYTES,
+        ))
+
+        if record.evidence_id != evidence_id:
+            raise RuntimeFailure("integrity")
+
+        reference, source = record.reference, record.provenance
+        original_facts = custody.get(evidence_id, [])
+
+        if any(fact.attributes["profile"] != reference.role for fact in original_facts):
+            raise RuntimeFailure("source-context" if reference.role in _PROFILES else "integrity")
+
+        if reference.role not in _PROFILES:
+            continue
+
+        source_id, source_version, _ = RuntimeProfile(reference.role)
+
+        if source.workspace_id != workspace.workspace_id or source.source_id != source_id or (
+            source.source_version != source_version or source.execution is not None
+            or source.invocation_sha256 is not None
+        ):
+            raise RuntimeFailure("integrity")
+
+        for fact in original_facts:
+            try:
+                anchor = RequireRuntimeAnchor(state, reference.role, fact.subject_reference)
+                provenance = ModelProvenance(source_id, fact.provenance.run_reference,
+                    source.finished_at, source.scope_reference, anchor, source.tool_version,
+                    (reference,))
+                SourceFact(state, record, provenance, None, profile=reference.role)
+
+            except (RuntimeFailure, ValueError, TypeError):
+                raise RuntimeFailure("source-context") from None
+
+        RuntimeEvidenceStore(evidence.root, profile=reference.role).CheckReference(reference)
+        references.add(reference)
+
+    for reference in references:
+        if reference.role not in _PROFILES:
+            continue
+
+        RuntimeEvidenceStore(evidence.root, profile=reference.role).CheckReference(reference)
+
+        if any((item.sha256 == reference.sha256 or item.locator == reference.locator)
+               and item != reference for item in references):
+            raise RuntimeFailure("integrity")
 
 
 def RequireRuntimeAnchor(state: ModelState, profile: str, reference: str) -> str:
@@ -605,6 +708,7 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
             ):
                 raise RuntimeFailure("integrity")
 
+        PreflightKnownRuntimeReferences(basis, workspace, evidence)
         original = OpenReportInput(root)
 
         if original.workspace != workspace:

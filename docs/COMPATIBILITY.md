@@ -333,6 +333,19 @@ caller-owned, including exports later refused by normalization. Both profiles
 reuse unchanged SDKs without changing Core schemas, scores or issuing daemon,
 cluster API, execution, physical reachability or policy grants.
 
+Internal `PreflightKnownRuntimeReferences` now enforces each known original's
+one-MiB profile bound before generic workspace/report raw verification in both
+import modes. It scans retained manifest IDs, model custody IDs after a lost
+workspace acknowledgement and workspace/model raw references. Every
+custody-declared ID must match its original profile, source hash/version,
+scope/provider/time, run, read descriptions and anchor before role classification;
+physical size/ownership and same-digest or same-locator aliases are checked before
+raw reads. The unchanged six-field Docker custody validator retains legacy null
+read descriptions and byte-preserving replay. Older scopes/providers and
+unrelated larger non-runtime evidence retain their own context and limits.
+This enforces the existing Experimental v1 boundary without changing product
+grammar, SDK/Core schemas, scores, execution grants or version promises.
+
 `fuzzy1337.kubernetes_inventory` is an Experimental owned offline Kubernetes
 `v1`/`List` input profile at contract version `1`, defined by ADR 0074 and
 `docs/KUBERNETES_INVENTORY.md`. `KubernetesInventoryLimits` and

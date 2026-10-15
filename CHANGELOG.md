@@ -201,6 +201,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Enforced original Docker/Kubernetes byte limits before generic retained-evidence
+  reads in both runtime import modes. Known custody binds its original profile
+  and context before role classification; oversized blobs and incompatible
+  same-digest/locator aliases are refused. Legacy custody, repair after lost
+  acknowledgements and unrelated larger evidence remain compatible.
+
 - Preserved native VERSION verification across distinct Windows path/handle stat
   views while retaining full unchanged-view identity, byte bounds and digest checks.
 
