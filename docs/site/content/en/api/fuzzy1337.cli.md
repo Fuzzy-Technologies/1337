@@ -1,5 +1,15 @@
 # fuzzy1337.cli
 
+The Experimental version-one `paths analyze` route delegates to its Internal
+read-only owner with exact saved-model revision/snapshot pins, explicit original
+source/target/transitions and assessment manifests or `--no-assessments`, offline
+context/scope, replay clock, freshness and finite search/cut budgets. The existing
+whole-model 512-eligible-object ceiling is checked before proof reads. `--json`
+preserves original UNKNOWN/reasons and declared versus effective confidence,
+structural counts and separate search/cut completeness in a bounded explanation.
+Static help reads no local state; dispatch grants no authority and writes no
+Core/model/workspace/evidence or hidden output.
+
 Experimental version-one `sbom import spdx-graph` imports an explicitly owned
 offline original file or exact known original product manifest. The caller
 selects source/read-consent attribution, image digest semantics, offline scope,

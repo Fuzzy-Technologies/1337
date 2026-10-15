@@ -48,8 +48,11 @@ def test_MissingRepositoryIsReported(monkeypatch, tmp_path, capsys):
     process.assert_not_called()
 
 
-def test_CheckRunsAllQualityStepsAndRemovesStaleReport(repository, monkeypatch):
-    """Verify check runs all quality steps and removes stale report."""
+@pytest.mark.parametrize("suite_timeout_seconds", [600, 900])
+def test_CheckRunsAllQualityStepsAndRemovesStaleReport(
+    repository, monkeypatch, suite_timeout_seconds,
+):
+    """Default and explicit suite budgets preserve every full-check phase and fresh evidence."""
 
     report = repository / "coverage/coverage.json"
     report.parent.mkdir()
@@ -71,7 +74,12 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(repository, monkeypatch):
         return subprocess.CompletedProcess(arguments, 0)
 
     monkeypatch.setattr(subprocess, "run", Process)
-    assert dev_commands.Run("check") == 0, (
+    arguments = ["check"]
+
+    if suite_timeout_seconds != 600:
+        arguments.extend(["--suite-timeout", str(suite_timeout_seconds)])
+
+    assert dev_commands.Main(arguments) == 0, (
         "check runs all quality steps and removes stale report invariant failed."
     )
     assert [call[2] for call in calls] == [
@@ -82,10 +90,32 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(repository, monkeypatch):
         "fuzzy1337.coverage_gate",
         "build",
     ], "check runs all quality steps and removes stale report invariant failed."
-    test_process.assert_called_once()
+    test_process.assert_called_once_with(
+        "tests", dev_commands.TestOptions(suite_timeout_seconds=suite_timeout_seconds),
+    )
     assert not report.exists(), (
         "check runs all quality steps and removes stale report invariant failed."
     )
+
+
+@pytest.mark.parametrize("code", [1, 124, 127])
+def test_CheckSuiteBudgetPreservesFailureWithoutRetry(repository, monkeypatch, code):
+    """A larger full-check suite budget cannot retry failure or proceed to coverage/build."""
+
+    process = Mock(return_value=subprocess.CompletedProcess([], 0))
+    test_process = Mock(return_value=code)
+    monkeypatch.setattr(subprocess, "run", process)
+    monkeypatch.setattr(dev_commands, "RunTests", test_process)
+
+    assert dev_commands.Main(["check", "--suite-timeout", "900"]) == code, (
+        "Full-check suite expiration or failure must retain its original exit status."
+    )
+    test_process.assert_called_once_with(
+        "tests", dev_commands.TestOptions(suite_timeout_seconds=900),
+    )
+    assert [call.args[0][2] for call in process.call_args_list] == [
+        "compileall", "ruff", "mypy", "fuzzy1337.performance",
+    ], "Failed tests must stop before coverage validation and packaging without retries."
 
 
 def test_UnitRunsOnlyTheUnitSuiteAndCoverageGate(repository, monkeypatch):
@@ -203,16 +233,54 @@ def test_DeveloperEntrypointKeepsSuiteAndPerTestTimeoutsIndependent(monkeypatch)
     ))
 
 
-def test_NontestDeveloperCommandRejectsSuiteTimeoutBeforeDispatch(monkeypatch):
+@pytest.mark.parametrize("command", [
+    "setup", "compile", "lint", "typecheck", "performance", "build",
+])
+def test_NontestDeveloperCommandRejectsSuiteTimeoutBeforeDispatch(monkeypatch, command):
     """Suite budgeting cannot silently alter a developer command that does not run pytest."""
 
     process = Mock()
     monkeypatch.setattr(dev_commands, "Run", process)
 
     with pytest.raises(SystemExit) as caught:
-        dev_commands.Main(["lint", "--suite-timeout", "37"])
+        dev_commands.Main([command, "--suite-timeout", "37"])
 
     assert caught.value.code == 2, "Nontest commands must reject the pytest suite budget."
+    process.assert_not_called()
+
+
+@pytest.mark.parametrize("options", [
+    ["--jobs", "2"],
+    ["--timeout", "30"],
+    ["--serial"],
+    ["--fail-fast"],
+    ["--suite-timeout", "900", "--serial"],
+    ["--suite-timeout", "900", "--fail-fast"],
+])
+def test_CheckRejectsOverridesThatAlterFullTestExecution(monkeypatch, options):
+    """Full-check budgeting must not admit options that change its required test execution."""
+
+    process = Mock()
+    monkeypatch.setattr(dev_commands, "Run", process)
+
+    with pytest.raises(SystemExit) as caught:
+        dev_commands.Main(["check", *options])
+
+    assert caught.value.code == 2, "Only the suite timeout may vary for the full quality gate."
+    process.assert_not_called()
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "true", "1.5", "Infinity", "3601"])
+def test_CheckRejectsInvalidSuiteBudgetBeforeDispatch(monkeypatch, value):
+    """Full checks retain the runner's finite integer suite-budget boundary."""
+
+    process = Mock()
+    monkeypatch.setattr(dev_commands, "Run", process)
+
+    with pytest.raises(SystemExit) as caught:
+        dev_commands.Main(["check", "--suite-timeout", value])
+
+    assert caught.value.code == 2, "Invalid full-check budgets must fail before any work starts."
     process.assert_not_called()
 
 
