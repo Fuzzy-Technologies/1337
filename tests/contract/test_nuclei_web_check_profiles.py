@@ -17,7 +17,12 @@ import fuzzy1337
 from fuzzy1337.adapters import AdapterRequest, ImpactLevel
 from fuzzy1337.adapters.nuclei import NucleiAdapter, NucleiProfile, NucleiTemplate
 from fuzzy1337.functional_metrics import (
-    BuildReport, RawEvidence, RenderHtml, RenderMarkdown, RunStatus, SerializeReport,
+    BuildReport,
+    RawEvidence,
+    RenderHtml,
+    RenderMarkdown,
+    RunStatus,
+    SerializeReport,
 )
 from tests.functional.nuclei_web_metrics import Scenario, WebCheckRun
 from tests.web_vulnerability_helpers import Oracle
