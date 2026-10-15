@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "target_pack": "first-party.web-vulnerable",
+  "target_version": "1",
+  "provenance": "repository-owned-standard-library",
+  "configuration": {
+    "bind_address": "127.0.0.1",
+    "transport": "plaintext-http",
+    "method": "GET",
+    "maximum_path_bytes": 1024,
+    "maximum_file_bytes": 256,
+    "request_socket_timeout_seconds": 2,
+    "database": "read-only-in-memory-sqlite",
+    "database_vm_instruction_budget": 10000,
+    "credentials": false,
+    "outbound_requests": 0,
+    "browser_execution": "not-assessed",
+    "scanner_detection": "requires-independent-provider-evidence"
+  },
+  "cases": [
+    {
+      "id": "git-exposed",
+      "family": "git",
+      "capability": "fuzzy1337-git-head-exposure",
+      "route": "/git/vulnerable/.git/HEAD",
+      "expected_match": true,
+      "expected_status": 200,
+      "content_type": "text/plain",
+      "expected_behavior": {
+        "file_reads": ["public/.git/HEAD"],
+        "body": "ref: refs/heads/owned-fixture\n"
+      }
+    },
+    {
+      "id": "git-fixed",
+      "family": "git",
+      "capability": "fuzzy1337-git-head-exposure",
+      "route": "/git/fixed/.git/HEAD",
+      "expected_match": false,
+      "expected_status": 403,
+      "content_type": "text/plain",
+      "expected_behavior": {"file_reads": [], "body": "dotfile-access-denied"}
+    },
+    {
+      "id": "git-decoy",
+      "family": "git",
+      "capability": "fuzzy1337-git-head-exposure",
+      "route": "/git/decoy/.git/HEAD",
+      "expected_match": false,
+      "expected_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "expected_behavior": {
+        "file_reads": [],
+        "body": "<html><body>HEAD example: <code>ref: refs/heads/owned-fixture\n</code></body></html>"
+      }
+    },
+    {
+      "id": "git-redirect",
+      "family": "git",
+      "capability": "fuzzy1337-git-head-exposure",
+      "route": "/redirect",
+      "expected_match": false,
+      "expected_status": 302,
+      "content_type": "text/plain",
+      "expected_behavior": {
+        "file_reads": [],
+        "body": "owned-redirect",
+        "location": "/git/vulnerable/.git/HEAD",
+        "redirected_destination_requests": 0
+      }
+    },
+    {
+      "id": "sql-baseline",
+      "family": "sql",
+      "capability": "fuzzy1337-owned-sql-canary-disclosure",
+      "route": "/sql/vulnerable/public",
+      "expected_match": false,
+      "expected_status": 200,
+      "content_type": "application/json",
+      "expected_behavior": {
+        "input": "public",
+        "parameterized": false,
+        "rows": ["owned-public-row"]
+      }
+    },
+    {
+      "id": "sql-true",
+      "family": "sql",
+      "capability": "fuzzy1337-owned-sql-canary-disclosure",
+      "route": "/sql/vulnerable/%27%20OR%20is_hidden%3D1%20--",
+      "expected_match": true,
+      "expected_status": 200,
+      "content_type": "application/json",
+      "expected_behavior": {
+        "input": "' OR is_hidden=1 --",
+        "parameterized": false,
+        "rows": ["owned-private-row"]
+      }
+    },
+    {
+      "id": "sql-false",
+      "family": "sql",
+      "capability": "fuzzy1337-owned-sql-canary-disclosure",
+      "route": "/sql/vulnerable/%27%20OR%20is_hidden%3D2%20--",
+      "expected_match": false,
+      "expected_status": 200,
+      "content_type": "application/json",
+      "expected_behavior": {"input": "' OR is_hidden=2 --", "parameterized": false, "rows": []}
+    },
+    {
+      "id": "sql-fixed",
+      "family": "sql",
+      "capability": "fuzzy1337-owned-sql-canary-disclosure",
+      "route": "/sql/fixed/%27%20OR%20is_hidden%3D1%20--",
+      "expected_match": false,
+      "expected_status": 200,
+      "content_type": "application/json",
+      "expected_behavior": {"input": "' OR is_hidden=1 --", "parameterized": true, "rows": []}
+    },
+    {
+      "id": "sql-decoy",
+      "family": "sql",
+      "capability": "fuzzy1337-owned-sql-canary-disclosure",
+      "route": "/sql/decoy/%27%20OR%20is_hidden%3D1%20--",
+      "expected_match": false,
+      "expected_status": 200,
+      "content_type": "application/json",
+      "expected_behavior": {
+        "input": "' OR is_hidden=1 --",
+        "parameterized": true,
+        "rows": [],
+        "documentation": "Example hidden canary: owned-private-row"
+      }
+    },
+    {
+      "id": "reflection-raw",
+      "family": "reflection",
+      "capability": "fuzzy1337-unsafe-html-reflection",
+      "route": "/reflect/vulnerable/%3Cfuzzy1337-probe%3Eowned%3C/fuzzy1337-probe%3E",
+      "expected_match": true,
+      "expected_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "expected_behavior": {
+        "input": "<fuzzy1337-probe>owned</fuzzy1337-probe>",
+        "mode": "raw",
+        "marker_elements": 1
+      }
+    },
+    {
+      "id": "reflection-escaped",
+      "family": "reflection",
+      "capability": "fuzzy1337-unsafe-html-reflection",
+      "route": "/reflect/fixed/%3Cfuzzy1337-probe%3Eowned%3C/fuzzy1337-probe%3E",
+      "expected_match": false,
+      "expected_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "expected_behavior": {
+        "input": "<fuzzy1337-probe>owned</fuzzy1337-probe>",
+        "mode": "escaped",
+        "marker_elements": 0
+      }
+    },
+    {
+      "id": "reflection-decoy",
+      "family": "reflection",
+      "capability": "fuzzy1337-unsafe-html-reflection",
+      "route": "/reflect/decoy/%3Cfuzzy1337-probe%3Eowned%3C/fuzzy1337-probe%3E",
+      "expected_match": false,
+      "expected_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "expected_behavior": {
+        "input": "<fuzzy1337-probe>owned</fuzzy1337-probe>",
+        "mode": "comment",
+        "marker_elements": 0
+      }
+    }
+  ]
+}
