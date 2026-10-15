@@ -25,6 +25,7 @@ from tests.proxy_regression_helpers import (
     Product,
     Scan,
     Setup,
+    TlsCertificateOracle,
     TlsEvidencePacket,
     TlsOracle,
     Verify,
@@ -245,10 +246,11 @@ def test_IndependentVerifyingTlsClientEstablishesNegotiationFixtureTruth(mode):
 
 
 @pytest.mark.parametrize("condition", ["unknown-consent", "excluded", "missing-safe-permission"])
-def test_TlsDenialPrecedesAnyTcpConnectionOrClientHello(tmp_path, condition):
+@pytest.mark.parametrize("mode", ["fatal-alert", "untrusted-self-signed"])
+def test_TlsDenialPrecedesAnyTcpConnectionOrClientHello(tmp_path, condition, mode):
     """TLS fixture metadata grants no current target consent or SAFE execution permission."""
 
-    with OwnedTls() as tls:
+    with OwnedTls(mode) as tls:
         root = tmp_path / "workspace"
         urls = (tls.Url(),)
         Setup(root, urls, granted=condition != "unknown-consent", excluded=condition == "excluded")
@@ -263,7 +265,8 @@ def test_TlsDenialPrecedesAnyTcpConnectionOrClientHello(tmp_path, condition):
         ), "Denied TLS scan connected, began TLS negotiation or fabricated acquisition evidence"
 
 
-@pytest.mark.parametrize("case", TlsOracle()["cases"][:2], ids=lambda case: case["id"])
+@pytest.mark.parametrize("case", TlsOracle()["cases"][:2] + TlsCertificateOracle()["cases"],
+                         ids=lambda case: case["id"])
 def test_LaterTlsFailurePreservesEarlierHttpFactsAndBothOriginalAcquisitions(tmp_path, case):
     """Real TLS refusal/timeout cannot erase a saved earlier frontend or invent a TLS endpoint."""
 
@@ -272,11 +275,20 @@ def test_LaterTlsFailurePreservesEarlierHttpFactsAndBothOriginalAcquisitions(tmp
         urls = (proxy.Url(Oracle()["cases"][0]), tls.Url())
         Setup(root, urls)
         status, summary = Product(Scan(root, urls, request_timeout=2))
+
+        handled = case["mode"] != "untrusted-self-signed" or tls.handled.wait(timeout=3)
         packet = TlsEvidencePacket(root, summary, case, proxy, tls, preceding_http=True)
+        assert handled, "Partial-state certificate attempt did not finish"
         assert status == 4 and summary["state"] == "failed" and (
             summary["job"]["failure"]["code"] == case["failure_code"]
         ), "Later TLS failure was hidden by an earlier successful HTTP observation"
-        assert tls.Observe() == {"connections": 1, "client_hellos": 1, "errors": []} and (
+        expected_contact = {"connections": 1, "client_hellos": 1, "errors": []}
+
+        if case["mode"] == "untrusted-self-signed":
+            expected_contact = {"connections": 1, "handshake_attempts": 1,
+                "certificate_rejections": 1, "completed_handshakes": 0, "errors": []}
+
+        assert packet["test_only_tls"] == expected_contact and (
             proxy.Observe() == (["/transparent"], ["/owned-resource"])
         ), "Partial TLS failure contacted an unselected target or repeated acquisition"
         state = LocalModelStore(root).Open()
@@ -334,7 +346,8 @@ def test_InterruptedTlsFixtureReleasesRealStalledHandshakeAndJoinsItsThread():
     )
 
 
-def test_TlsFixtureStartupFailureClosesItsUnstartedListener(monkeypatch):
+@pytest.mark.parametrize("mode", ["fatal-alert", "untrusted-self-signed"])
+def test_TlsFixtureStartupFailureClosesItsUnstartedListener(monkeypatch, mode):
     """Listener allocation is unwound even if its owning thread cannot start."""
 
     listeners = []
@@ -357,7 +370,7 @@ def test_TlsFixtureStartupFailureClosesItsUnstartedListener(monkeypatch):
     monkeypatch.setattr(helpers.Thread, "start", RefuseStart)
 
     with pytest.raises(RuntimeError, match="controlled TLS startup failure"):
-        with OwnedTls():
+        with OwnedTls(mode):
             pytest.fail("TLS startup failure incorrectly exposed an active fixture")
 
     assert len(listeners) == 1 and listeners[0].fileno() == -1, (
@@ -365,17 +378,23 @@ def test_TlsFixtureStartupFailureClosesItsUnstartedListener(monkeypatch):
     )
 
 
-def test_PartialTlsHeaderInterruptionClosesTheOwnedAcceptedSocket():
+@pytest.mark.parametrize("mode", ["fatal-alert", "untrusted-self-signed"])
+def test_PartialTlsHeaderInterruptionClosesTheOwnedAcceptedSocket(mode):
     """Teardown interrupts incomplete ClientHello input without waiting for more peer bytes."""
 
     connection = None
 
     try:
         with pytest.raises(RuntimeError, match="controlled partial TLS header failure"):
-            with OwnedTls() as tls:
+            with OwnedTls(mode) as tls:
                 connection = socket.create_connection(tls.listener.getsockname(), timeout=1)
                 connection.sendall(b"\x16\x03")
                 assert tls.accepted.wait(timeout=2), "Partial-header fixture accepted no connection"
+
+                if mode == "untrusted-self-signed":
+                    assert tls.handshake_started.wait(timeout=2), (
+                        "Partial-header certificate fixture did not begin its actual TLS handshake"
+                    )
 
                 raise RuntimeError("controlled partial TLS header failure")
 
@@ -386,6 +405,12 @@ def test_PartialTlsHeaderInterruptionClosesTheOwnedAcceptedSocket():
     assert tls.listener.fileno() == -1 and tls.Observe() == {
         "connections": 1, "client_hellos": 0, "errors": [],
     }, "Partial-header teardown abandoned a socket/thread or invented complete TLS negotiation"
+
+    if mode == "untrusted-self-signed":
+        assert tls.ObserveCertificate() == {"connections": 1, "handshake_attempts": 1,
+            "certificate_rejections": 0, "completed_handshakes": 0, "errors": []}, (
+            "Interrupted certificate handshake fabricated a rejection or retained an active socket"
+        )
 
 
 def test_InvalidTlsHeaderIsRecordedAsFixtureFailureWithoutUnobservedThreadError():
@@ -412,3 +437,54 @@ def test_UnexpectedTlsListenerFailureRetainsExplicitFixtureError():
             "errors": ["listener-failure"]}, (
             "Unexpected listening failure was hidden or misreported as a completed TLS contact"
         )
+
+
+def test_IndependentVerifyingClientRejectsTheActualSelfSignedCertificate():
+    """Unchanged trust and matching IP/lifetime yield a specific self-signed verification error."""
+
+    context = ssl.create_default_context()
+    assert context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED, (
+        "Independent certificate oracle disabled ordinary chain or hostname verification"
+    )
+
+    with OwnedTls("untrusted-self-signed") as tls:
+        with socket.create_connection(tls.listener.getsockname(), timeout=2) as connection:
+            with pytest.raises(ssl.SSLCertVerificationError) as captured:
+                context.wrap_socket(connection, server_hostname="127.0.0.1")
+
+        assert captured.value.verify_code == TlsCertificateOracle()["certificate"][
+            "independent_client_verify_code"
+        ] == 18, "Independent client failure was not the expected self-signed chain rejection"
+        assert tls.handled.wait(timeout=3), "Certificate target did not observe client rejection"
+        assert tls.ObserveCertificate() == {"connections": 1, "handshake_attempts": 1,
+            "certificate_rejections": 1, "completed_handshakes": 0, "errors": []}, (
+            "Real server did not independently observe one rejected certificate handshake"
+        )
+
+    assert tls.listener.fileno() == -1 and tls.active_connection is None, (
+        "Certificate rejection fixture retained a live listener, client or owning thread"
+    )
+
+
+def test_InvalidCertificateFixtureFailsBeforeAllocatingAListener(tmp_path, monkeypatch):
+    """A broken test certificate cannot become a misleading generic network failure."""
+
+    invalid = tmp_path / "invalid-certificate.pem"
+    invalid.write_text("not a synthetic certificate", encoding="ascii")
+    monkeypatch.setattr(helpers, "TLS_CERTIFICATE", invalid)
+    allocations = []
+
+    def RefuseSocket(*args, **kwargs):
+        """Detect an attempted listener allocation after invalid fixture configuration."""
+
+        allocations.append(True)
+
+        raise AssertionError("Invalid certificate fixture allocated a listening socket")
+
+    monkeypatch.setattr(helpers.socket, "socket", RefuseSocket)
+
+    with pytest.raises(ssl.SSLError):
+        with OwnedTls("untrusted-self-signed"):
+            pytest.fail("Invalid certificate fixture became an active TLS target")
+
+    assert not allocations, "Invalid certificate fixture reached network resource allocation"

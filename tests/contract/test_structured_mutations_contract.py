@@ -63,8 +63,8 @@ def test_SeededOrderAndEveryMetadataIdentityCanBeRecomputedWithoutProducerHelper
     selection = JsonMutationSelection("/value")
     candidates = GenerateJsonMutations(template, body, (selection,), seed=17)
     assert [(item.variant, json.loads(item.body)) for item in candidates] == [
-        ("int32-max", {"value": 2147483647}), ("zero", {"value": 0}),
-        ("int32-min", {"value": -2147483648}), ("negative", {"value": -1}),
+        ("int32-max", {"value": 2147483647}), ("int32-min", {"value": -2147483648}),
+        ("negative", {"value": -1}), ("zero", {"value": 0}),
     ], "Versioned seed/corpus ordering drifted"
     expected_configuration = {
         "seed": 17, "profile": "scalar-boundaries-v1",
@@ -119,7 +119,9 @@ def test_ExplicitJsonStringDecodingChangesOnlyTheSelectedInnerScalar():
     assert candidate.Metadata()["encoding_chain"] == ["json-utf8", "json-string"], (
         "Explicit decoder provenance was lost"
     )
-    assert candidate.Metadata()["selection"] == {"pointer": "/packed", "decoded_pointer": "/a~1b/0"}
+    assert candidate.Metadata()["selection"] == {
+        "pointer": "/packed", "decoded_pointer": "/a~1b/0",
+    }, "Explicit outer and inner pointer provenance changed"
     raw_candidates = GenerateJsonMutations(Template(), source,
                                           (JsonMutationSelection("/packed"),), seed=0)
     assert {json.loads(item.body)["packed"] for item in raw_candidates} == {

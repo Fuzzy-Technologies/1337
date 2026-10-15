@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "profile_id": "owned-tls-untrusted-certificate.v1",
+  "provenance": "first-party:labs/targets/proxy-regression",
+  "tls_fixture_version": "owned-stdlib-certificate-rejection-v1",
+  "configuration": {
+    "bind_address": "127.0.0.1",
+    "minimum_tls_version": "TLSv1.2",
+    "request_timeout_seconds": 2.0,
+    "server_handshake_timeout_seconds": 2.0,
+    "trust_configuration_changes": false,
+    "successful_tls_handshakes": 0,
+    "http_requests_handled": 0,
+    "certificate_coverage": "untrusted-self-signed-rejection-only",
+    "hostname_rejection_assessed": false,
+    "expiry_rejection_assessed": false,
+    "findings": 0,
+    "related_to_relations": 0
+  },
+  "certificate": {
+    "file": "synthetic-self-signed-cert.pem",
+    "pem_sha256": "85bdb1740d09f4d2e69aebbbb511dd3679580de43c76baf6350e522fea8d6a97",
+    "der_sha256": "61170436b9213298d712a8fdf71aadee5ad8129d5a27532bb37075585c0ccc66",
+    "public_test_key_file": "synthetic-public-test-key.pem",
+    "public_test_key_sha256": "2bfac13141a7bad63a171fca031b6d4858e06df043788b2a7acb2a1f37dcc9f2",
+    "key_is_public_non_secret_test_fixture": true,
+    "generation_tool": "OpenSSL 3.0.13 30 Jan 2024",
+    "subject_common_name": "synthetic-proxy-private-value.invalid",
+    "subject_organization": "1337-Owned-Synthetic-Test-Only",
+    "subject_equals_issuer": true,
+    "serial_hex": "0539",
+    "not_before_utc": "2026-10-15T21:48:37Z",
+    "not_after_utc": "2046-10-10T21:48:37Z",
+    "subject_alt_ip": "127.0.0.1",
+    "key_algorithm": "RSA-2048",
+    "signature_algorithm": "sha256WithRSAEncryption",
+    "independent_client_verify_code": 18
+  },
+  "cases": [
+    {
+      "id": "tls-untrusted-self-signed",
+      "mode": "untrusted-self-signed",
+      "scheme": "https",
+      "frontend_route": "/owned-resource",
+      "frontend_hits": [],
+      "tls_connections": 1,
+      "exit_code": 4,
+      "job_state": "failed",
+      "failure_code": "provider",
+      "worker_error": "tls",
+      "model_revision": 0,
+      "objects": 0,
+      "evidence_records": 1
+    }
+  ]
+}
