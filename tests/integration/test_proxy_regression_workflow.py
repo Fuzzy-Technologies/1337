@@ -514,21 +514,25 @@ def test_IndependentVerifyingClientRejectsTheActualSelfSignedCertificate():
 
     with OwnedTls("untrusted-self-signed") as tls:
         with socket.create_connection(tls.listener.getsockname(), timeout=2) as connection:
-            with pytest.raises(ssl.SSLCertVerificationError) as captured:
-                context.wrap_socket(connection, server_hostname="127.0.0.1")
+            # Implicit wrap failure closes this client before we can observe the server alert.
+            with context.wrap_socket(connection, server_hostname="127.0.0.1",
+                                     do_handshake_on_connect=False) as secure:
+                with pytest.raises(ssl.SSLCertVerificationError) as captured:
+                    secure.do_handshake()
 
-        assert captured.value.verify_code == TlsCertificateOracle()["certificate"][
-            "independent_client_verify_code"
-        ] == 18, "Independent client failure was not the expected self-signed chain rejection"
-        assert tls.handled.wait(timeout=3), "Certificate target did not observe client rejection"
-        assert tls.ObserveCertificate() == {"connections": 1, "handshake_attempts": 1,
-            "certificate_rejections": 1, "completed_handshakes": 0, "errors": []}, (
-            "Real server did not independently observe one rejected certificate handshake"
-        )
+                assert captured.value.verify_code == TlsCertificateOracle()["certificate"][
+                    "independent_client_verify_code"
+                ] == 18, "Independent client did not reject the self-signed certificate chain"
+                assert secure.fileno() != -1, "Client closed before server alert observation"
+                assert tls.handled.wait(timeout=3), "Certificate target missed client rejection"
+                assert tls.ObserveCertificate() == {"connections": 1, "handshake_attempts": 1,
+                    "certificate_rejections": 1, "completed_handshakes": 0, "errors": []}, (
+                    "Real server did not independently observe one rejected certificate handshake"
+                )
 
-    assert tls.listener.fileno() == -1 and tls.active_connection is None, (
-        "Certificate rejection fixture retained a live listener, client or owning thread"
-    )
+    assert secure.fileno() == -1 and tls.listener.fileno() == -1 and (
+        tls.active_connection is None
+    ), "Certificate rejection fixture retained a live listener, client or owning thread"
 
 
 def test_InvalidCertificateFixtureFailsBeforeAllocatingAListener(tmp_path, monkeypatch):

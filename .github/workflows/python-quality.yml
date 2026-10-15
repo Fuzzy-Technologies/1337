@@ -45,6 +45,14 @@ jobs:
         run: python -m pip install uv==0.11.33
       - name: Synchronize locked environment
         run: uv sync --locked --extra dev --python ${{ matrix.python }}
+      - name: Check owned transport lifecycle on Windows
+        if: matrix.os == 'windows-2022'
+        run: >-
+          uv run --locked --extra dev pytest
+          tests/integration/test_proxy_regression_workflow.py
+          tests/integration/test_web_vulnerability_target.py
+          -o addopts='' -q
+          -k 'IndependentVerifyingClientRejectsTheActualSelfSignedCertificate or PartialHeader'
       - name: Run repository quality gate
         run: >-
           uv run --locked --extra dev 1337-dev check

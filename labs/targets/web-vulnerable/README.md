@@ -63,6 +63,8 @@ non-daemon service thread. It signals readiness without a hidden HTTP probe.
 It closes accepted sockets before stopping and joining the service, including
 when input is an incomplete header or the test body fails. Temporary files are
 removed on exit. It supports context-managed local testing, not public hosting.
+Incomplete-header tests retain the existing two-second socket read deadline and
+three-second thread join, exercising both shutdown and actual deadline fallback.
 
 `Observe()` returns copied `requests`, `file_reads`, `queries`, `reflections` and
 `errors` lists. File-read records contain the owned relative path and actual
