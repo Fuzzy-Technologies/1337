@@ -344,6 +344,12 @@ mode = "authored"
 page = "api/fuzzy1337.api_request_generation.md"
 
 [[surfaces]]
+module = "fuzzy1337.structured_mutations"
+source = "src/fuzzy1337/structured_mutations.py"
+mode = "authored"
+page = "api/fuzzy1337.structured_mutations.md"
+
+[[surfaces]]
 module = "fuzzy1337.graphql_import"
 source = "src/fuzzy1337/graphql_import.py"
 mode = "authored"

@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added bounded offline JSON scalar and explicit JSON-in-string mutation
+  preparation with versioned profiles, complete seed/path/digest provenance,
+  independently anchored replay and actual API preview/model/evidence consumer
+  tests. Candidates grant no execution or schema-validity claim; other codecs,
+  live anomaly detection and minimized reproducers remain open.
+
 - Added typed, versioned subsystem contracts and documented APIs for incremental
   Workbench development, with deterministic validation and failure-path tests.
   The subsystem documentation describes the capabilities present in each change.
