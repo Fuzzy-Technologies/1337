@@ -149,8 +149,8 @@ def OwnedProxy() -> Iterator[ProxyLab]:
         daemon_threads = False
         block_on_close = True
 
-        def process_request_thread(self, request: socket.socket | tuple[bytes, socket.socket],
-                                   client_address: tuple[str, int]) -> None:
+        def ProcessRequestThread(self, request: socket.socket | tuple[bytes, socket.socket],
+                                 client_address: tuple[str, int]) -> None:
             """Track every owned accepted handler and bound waits for unexpected client input."""
 
             with lock:
@@ -160,12 +160,16 @@ def OwnedProxy() -> Iterator[ProxyLab]:
             request.settimeout(2)
             super().process_request_thread(request, client_address)
 
-        def handle_error(self, request: socket.socket | tuple[bytes, socket.socket],
-                         client_address: tuple[str, int]) -> None:
+        process_request_thread = ProcessRequestThread
+
+        def HandleError(self, request: socket.socket | tuple[bytes, socket.socket],
+                        client_address: tuple[str, int]) -> None:
             """Keep fixed test-only failure truth without printing transient request contents."""
 
             with lock:
                 fixture.errors.append("handler-failure")
+
+        handle_error = HandleError
 
     class Handler(BaseHTTPRequestHandler):
         """Serve only finite reviewed non-secret responses and discard normal access logging."""
