@@ -66,10 +66,12 @@ with OwnedWebFileAccessTarget(tmp_path) as target:
     observed = target.Observe()
 ```
 
-Readiness performs no hidden HTTP request. Cleanup stops new dispatch, interrupts
+Readiness performs no hidden HTTP request. Cleanup stops new dispatch, shuts down
 accepted sockets, closes the listener and joins the thread before removing the
 owned tree. Actual incomplete-header, test-body and service-loop failure cases
-exercise that lifecycle. No outbound request, command execution, arbitrary file
+exercise that lifecycle. Incomplete-header tests preserve the two-second socket
+read deadline and three-second thread join, including actual deadline fallback
+when shutdown fails. No outbound request, command execution, arbitrary file
 selection or public hosting entry point is provided.
 
 ## Focused verification
