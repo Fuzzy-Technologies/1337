@@ -592,7 +592,9 @@ def ReplayJsonMutation(
     try:
         if type(mutation.selection_index) is not int or not (
             0 <= mutation.selection_index < len(mutation.selections)
-        ) or type(mutation.body) is not bytes or len(mutation.body) > mutation.limits.max_body_bytes:
+        ) or type(mutation.body) is not bytes or (
+            len(mutation.body) > mutation.limits.max_body_bytes
+        ):
             raise ValueError("JSON mutation replay candidate fields are invalid")
 
         if mutation.Reference() != expected_reference:
