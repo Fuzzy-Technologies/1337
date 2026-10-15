@@ -211,6 +211,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   with independent source oracles, fixed/decoy controls, no-follow redirect and
   bounded failure cleanup. Target tests prove mechanisms; detector accuracy
   remains tied to separate real-provider evidence.
+- Added six owned filesystem-access target cases with actual temporary-file
+  traversal, fixed containment before reads, real missing-file behavior and a
+  documentation decoy. Explicit QUERY coordinates, bounded file and socket
+  ownership and negative controls preserve current provider refusal; this
+  target-only pack does not establish scanner path-traversal detection.
 - Added a versioned owned plaintext reverse-proxy regression pack exercising
   installed Quick Scan against transparent, 403, 302, rewritten-status and timeout
   cases. Independent backend hit counts, original evidence, durable reopen and

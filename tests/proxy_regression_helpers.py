@@ -658,7 +658,9 @@ def OwnedTls(mode: str = "fatal-alert") -> Iterator[TlsLab]:
 
         if connection is not None:
             try:
-                connection.shutdown(socket.SHUT_RDWR)
+                # The serving thread owns SSL state and close. Interrupt only TCP;
+                # SSLSocket.shutdown would clear its pending handshake's SSL object.
+                socket.socket.shutdown(connection, socket.SHUT_RDWR)
 
             except OSError:
                 pass
