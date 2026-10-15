@@ -47,6 +47,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added an explicitly confirmed STANDARD Nuclei workflow through governed jobs,
   retained raw evidence and durable canonical Findings, with current authority
   checks at launch and model Save and pinned genuine-provider loopback CI.
+- Added three original reviewed single-GET Nuclei response checks for Git HEAD
+  exposure, owned SQL canary disclosure and unsafe HTML reflection candidates.
+  Genuine-provider acceptance compares persisted Findings against twelve owned
+  positive/fixed/decoy scenarios, retains original streams and template provenance,
+  and verifies offline reopen. Clean-wheel checks pin the shipped resources;
+  generic SQL injection and browser-confirmed XSS remain separate capabilities.
 - Added opt-in genuine Trivy adapter acceptance with checksum/digest-pinned
   upstream material, owned inert image metadata, specific advisory boundary tests,
   original raw evidence and a Linux scan namespace without external routes.

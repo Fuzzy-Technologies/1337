@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+id: fuzzy1337-git-head-exposure
+info:
+  name: Exposed Git HEAD symbolic reference
+  author: fuzzy-technologies
+  severity: low
+  description: >-
+    The explicitly selected endpoint returned a supported symbolic Git HEAD
+    reference. This identifies exposed metadata, not successful source recovery.
+    Reference components use only ASCII letters, digits, underscores and hyphens;
+    other valid reference forms and detached HEAD values are not assessed.
+  tags: exposure,git
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    redirects: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: header
+        regex:
+          - '(?im)^content-type:\s*(?:text/plain|application/octet-stream)(?:;[^\r\n]*)?\r?$'
+      - type: regex
+        part: body
+        regex:
+          - '^ref: refs/heads/[A-Za-z0-9][A-Za-z0-9_-]{0,63}(?:/[A-Za-z0-9][A-Za-z0-9_-]{0,63}){0,7}\r?\n?$'
