@@ -200,6 +200,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   a recorded owned local-demo rehearsal through plan, execution, offline reopen,
   fresh export and no-clobber refusal. Human-agent approval, translation review
   and release/published-package acceptance remain separate work.
+- Added a versioned owned plaintext reverse-proxy regression pack exercising
+  installed Quick Scan against transparent, 403, 302, rewritten-status and timeout
+  cases. Independent backend hit counts, original evidence, durable reopen and
+  failure cleanup preserve frontend-only conclusions and current scope/privacy
+  contracts. TLS and version-pinned CRS/ModSecurity profiles remain separate work.
 
 #### Fixed
 
