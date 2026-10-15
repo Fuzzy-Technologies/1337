@@ -35,6 +35,7 @@ SHELL_COMMANDS = (
     "lens",
     "model",
     "palette",
+    "paths",
     "quit",
     "report",
     "runtime",
@@ -234,7 +235,7 @@ class NativeInputHistory:
 
             if command in {
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                "sbom", "api", "trace"
+                "paths", "sbom", "api", "trace"
             }:
                 position = index - first_index
 
@@ -405,19 +406,20 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "sbom", "api", "trace"
+                    "paths", "sbom", "api", "trace"
                 }
                 else normalized
             )
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "sbom", "api", "trace"
+            "paths", "sbom", "api", "trace"
         }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
                         "ci": self.do_ci,
                         "runtime": self.do_runtime,
+                        "paths": self.do_paths,
                         "sbom": self.do_sbom,
                         "api": self.do_api,
                         "trace": self.do_trace,
@@ -519,7 +521,7 @@ class InteractiveShell(cmd.Cmd):
                 "api import graphql-introspection, ci scan, commands, context, demo local, "
                 "history [query], lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
-                "report export, runtime import <docker-inspect|kubernetes-list>, "
+                "paths analyze, report export, runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect>, "
                 "select <object-id>, "
                 "sbom import spdx-graph, scan <quick|nuclei|image|config>, scope create, "
@@ -555,6 +557,10 @@ class InteractiveShell(cmd.Cmd):
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
+            "paths": (
+                "paths analyze <workspace>: explain an exact saved-model selection using original "
+                "assessment manifests, an explicit analysis clock and finite search/cut budgets."
+            ),
             "report": (
                 "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
             ),
@@ -601,7 +607,13 @@ class InteractiveShell(cmd.Cmd):
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
 
-            if command == "sbom":
+            if command == "paths":
+                from fuzzy1337.path_commands import RunPathCommands
+
+                status = RunPathCommands(arguments, cast(TextIO, self.stdout),
+                                         json_output=json_output)
+
+            elif command == "sbom":
                 from fuzzy1337.sbom_commands import RunSbomCommands
 
                 status = RunSbomCommands(arguments, cast(TextIO, self.stdout),
@@ -718,6 +730,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("ci", argument)
+
+    def do_paths(self, argument: str) -> None:
+        """Analyze explicit retained paths without deriving scope or selection from shell context.
+
+        Args:
+            argument: Analyze action, saved-model pins, original selections, clock and budgets.
+        """
+
+        self.RunLocalCommand("paths", argument)
 
     def do_sbom(self, argument: str) -> None:
         """Import an explicit local SPDX graph without deriving authority from shell context.

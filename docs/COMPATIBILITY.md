@@ -153,6 +153,28 @@ graph cut verification, and explicit lossless presentation groups. Unknown or
 truncated results remain explicit; structural leverage grants no execution or
 remediation-efficacy claim.
 
+`1337 paths analyze` is an Experimental read-only product profile at version `1`,
+defined by ADR 0083 and `docs/PATHS_ANALYSIS.md`. Exact full saved-model revision/
+snapshot pins, one explicit source/target, caller-selected original transitions,
+original assessment manifests or explicit `--no-assessments`, context/scope,
+analysis clock, freshness and finite search/cut budgets are mandatory. The existing
+512-eligible-object ceiling applies to the entire saved model before proof I/O;
+no implicit partition or graph/source discovery bypasses it. Selected original
+typed identity/profile/context, support joins and physical byte/link bounds are
+preflighted before their raw reads, then unchanged reachability and path owners
+construct admitted inputs and actual analysis results. UNKNOWN reasons retain original
+declared estimates without effective confidence. Bounded schema-one explanations
+keep returned-path counts, single-removal structural counts and independent
+search/cut completeness separate; they establish no score, aggregate probability,
+physical reachability or mitigation efficacy. Foreground shell context supplies
+no missing input or authority and protected history retains only the namespace.
+All `fuzzy1337.path_commands` classes, functions and helpers, including
+`PathParser` and `RunPathCommands`, are Internal implementation surfaces, not a
+supported Python SDK. The product command acquires nothing, writes no Core/model/
+workspace/evidence or hidden output, and grants no target, network or execution
+authority. Existing SDKs, schemas and grouping/source-support boundaries are
+unchanged; original retained replay survives complete-workspace relocation.
+
 `fuzzy1337.business_events` adds an Experimental offline Python profile `1` over
 the unchanged Core model schema. ADR 0071 and `docs/BUSINESS_EVENTS.md` define
 verified owner-declared unacceptable outcomes, explicit ordinary critical Assets,

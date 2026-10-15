@@ -81,6 +81,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added explainable path participation, sample removal leverage, independently
   bounded structural choke-point checks and lossless explicit presentation groups.
   Conclusions retain selected-graph and truncation limits.
+- Added Experimental `paths analyze` in the installed CLI and foreground shell
+  over an explicitly pinned saved model, original selected transitions and
+  assessment manifests or explicit unassessed UNKNOWN. Required replay clock,
+  freshness and finite budgets preserve original confidence/reasons, structural
+  counts and separate search/cut truncation in a bounded read-only explanation.
+  The existing whole-model eligible-node ceiling is checked before proof reads;
+  no acquisition, model/evidence writes, score or execution authority is added.
 - Added verified owner-declared unacceptable business outcomes, explicit critical
   Asset membership and persisted scenario explanations over existing technical
   paths. Descriptive outcome links remain separate from hop states, confidence
