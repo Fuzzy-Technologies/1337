@@ -677,7 +677,7 @@ state = "missing"
 id = "symbol:fuzzy1337.adapters.nuclei.NucleiAdapter.NormalizeFinding"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/nuclei.py"
-sourceHash = "sha256:ee323b12dcf0ac863fb7eff0e6eba401a27168cf020a5c330af885df202f2835"
+sourceHash = "sha256:10011c69b143bf06388b948c28a1093d488debc80f521fb9973f35dfe70255c0"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

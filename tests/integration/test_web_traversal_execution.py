@@ -338,9 +338,12 @@ def test_ActualCancellationDrainsConcurrentWorkersAndCommitWaiter(
 ):
     """Cancel after the later page reaches its gate; earlier slow worker and waiter both drain."""
 
-    server = owned_pages(delays={"/alpha": 2})
+    alpha_hold = threading.Event()
+    response_barrier = threading.Barrier(2)
+    server = owned_pages(holds={"/alpha": alpha_hold},
+        barriers={"/alpha": response_barrier, "/beta": response_barrier})
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
-    provider = fixture.Provider()
+    provider = fixture.Provider(page_limits=PageCaptureLimits(request_timeout_seconds=5))
     job = fixture.Job(provider)
     gate_waiting = threading.Event()
     original = LocalPageCaptureProvider.Acquire
@@ -367,6 +370,7 @@ def test_ActualCancellationDrainsConcurrentWorkersAndCommitWaiter(
         job.Start()
         seen = await asyncio.to_thread(gate_waiting.wait, 3)
         assert seen, "Actual beta acquisition never reached the waiting commit gate"
+        assert server.wave_received.is_set(), "Cancellation must follow both actual wave requests"
         job.Cancel("owner:test")
 
         return await asyncio.wait_for(job.Wait(), 3)

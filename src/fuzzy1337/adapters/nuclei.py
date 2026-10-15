@@ -681,6 +681,10 @@ class NucleiAdapter:
                          record: Mapping[str, object]) -> NormalizedFinding:
         """Bind a provider match to the exact template/URL and its enclosing evidence.
 
+        Native authority-shaped records carry decoded input URL/path context.
+        These fields must equal the representation derived from the approved URL;
+        the matched URL remains bound to its exact provider-preserved spelling.
+
         Args:
             report: Original invocation and execution facts.
             record: One bounded unique-key JSONL object.
@@ -707,22 +711,26 @@ class NucleiAdapter:
             raise NucleiReportError("Nuclei match URL differs from the exact approved target")
 
         endpoint = urlsplit(expected_url)
+        expected_path = endpoint.path
 
-        if "host" in record:
-            if record["host"] == endpoint.netloc:
-                if (record.get("url") != expected_url or record.get("scheme") != endpoint.scheme
-                    or record.get("port") != str(endpoint.port)):
-                    raise NucleiReportError("Nuclei authority requires exact destination fields")
+        if record.get("host") == endpoint.netloc:
+            expected_path = unquote_to_bytes(endpoint.path).decode("ascii")
+            context_url = f"{endpoint.scheme}://{endpoint.netloc}{expected_path}"
 
-            elif CanonicalUrl(record["host"]) != expected_url:
+            if (record.get("url") != context_url or record.get("scheme") != endpoint.scheme
+                or record.get("port") != str(endpoint.port)):
+                raise NucleiReportError("Nuclei authority requires exact destination fields")
+
+        else:
+            if "host" in record and CanonicalUrl(record["host"]) != expected_url:
                 raise NucleiReportError("Nuclei input host differs from the exact approved target")
 
-        if "url" in record and CanonicalUrl(record["url"]) != expected_url:
-            raise NucleiReportError("Nuclei input URL differs from the exact approved target")
+            if "url" in record and CanonicalUrl(record["url"]) != expected_url:
+                raise NucleiReportError("Nuclei input URL differs from the exact approved target")
 
         if "scheme" in record and record["scheme"] != endpoint.scheme or (
             "port" in record and record["port"] != str(endpoint.port)
-        ) or ("path" in record and record["path"] != endpoint.path):
+        ) or ("path" in record and record["path"] != expected_path):
             raise NucleiReportError("Nuclei endpoint components contradict the approved target")
 
         if "ip" in record and record["ip"] != urlsplit(expected_url).hostname:

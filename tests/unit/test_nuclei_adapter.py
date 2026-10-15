@@ -36,6 +36,8 @@ from fuzzy1337.adapters.nuclei import (
 
 FIXTURES = Path(__file__).parents[1] / "fixtures/nuclei"
 JSONL = (FIXTURES / "result.jsonl").read_bytes()
+NATIVE_ENCODED_JSONL = (FIXTURES / "native-encoded-result.jsonl").read_bytes()
+NATIVE_ENCODED_URL = "http://127.0.0.1:41891/sql/vulnerable/%27%20OR%20is_hidden=1%20--"
 
 
 def Profile(tmp_path):
@@ -98,6 +100,108 @@ def Report(tmp_path, raw=JSONL, state=ExecutionState.SUCCEEDED):
     report = AdapterReport(adapter.PrepareInvocation(Request(profile)), execution, (reference,))
 
     return adapter, report
+
+
+def ReboundNativeReport(tmp_path, record=None):
+    """Copy the captured native shape and rebind only its template path for portable tests."""
+
+    source = (Path(__file__).parents[2]
+              / "src/fuzzy1337/data/nuclei/owned-sql-canary-disclosure.yaml")
+    template_raw = source.read_bytes()
+    template_path = tmp_path / "owned-sql-canary-disclosure.yaml"
+    template_path.write_bytes(template_raw)
+    configuration_path = tmp_path / "empty.yaml"
+    configuration_path.write_bytes(b"{}\n")
+    adapted = dict(ParseJsonl(NATIVE_ENCODED_JSONL)[0] if record is None else record)
+    adapted["template-path"] = str(template_path)
+    raw = json.dumps(adapted).encode("utf-8")
+    template = NucleiTemplate("fuzzy1337-owned-sql-canary-disclosure", str(template_path),
+        hashlib.sha256(template_raw).hexdigest(), len(template_raw),
+        "first-party:fuzzy1337/data/nuclei/owned-sql-canary-disclosure.yaml", "1",
+        "review:NUCLEI_WEB_CHECKS-v1:sql", "single-get-exact-url")
+    profile = NucleiProfile("owned-sql", (template,), str(configuration_path))
+    adapter = NucleiAdapter(lambda reference: raw, profile, provider_version="3.4.10")
+    reference = EvidenceReference("stdout", "fixture/rebound-native-encoded-result.jsonl",
+        hashlib.sha256(raw).hexdigest(), "application/x-ndjson", len(raw))
+    invocation = adapter.BuildInvocation(Request(profile, url=NATIVE_ENCODED_URL))
+    report = AdapterReport(invocation, AdapterExecution(ExecutionState.SUCCEEDED, 0, 0.1),
+                           (reference,))
+
+    return adapter, report, raw
+
+
+def test_CapturedNativeShapeBindsDecodedContextAfterLocalTemplateRebind(tmp_path, monkeypatch):
+    """Preserve the capture, then normalize a copied shape with only its template path rebound."""
+
+    assert hashlib.sha256(NATIVE_ENCODED_JSONL).hexdigest() == (
+        "c11d2590352442185ccf65f653c7033245ceb2693975bcb7f7cb169d632c51e4"
+    ), "The native regression fixture must remain the exact retained CI stdout line."
+    captured = ParseJsonl(NATIVE_ENCODED_JSONL)
+    assert len(captured) == 1, (
+        "The unchanged captured stdout must parse to one actual native match."
+    )
+    adapter, report, adapted_raw = ReboundNativeReport(tmp_path)
+    adapted = ParseJsonl(adapted_raw)[0]
+    assert adapted["template-path"] == str(tmp_path / "owned-sql-canary-disclosure.yaml"), (
+        "Only the optional template path is rebound to the current platform's owned local file."
+    )
+    assert {key: value for key, value in adapted.items() if key != "template-path"} == {
+        key: value for key, value in captured[0].items() if key != "template-path"
+    }, "Portable replay must preserve every actual URL, context, match and provider field."
+
+    def NoEffect(*arguments, **keywords):
+        """Prevent retained native evidence replay from touching provider files or a process."""
+
+        pytest.fail("Native evidence replay must not read runner paths or start a process")
+
+    monkeypatch.setattr(nuclei, "VerifyArtifact", NoEffect)
+    monkeypatch.setattr(nuclei.subprocess, "Popen", NoEffect)
+    normalized = adapter.NormalizeReport(report)
+    assert normalized.report is report and len(normalized.findings) == 1, (
+        "Native decoded context must bind to one finding and preserve the adapted test evidence."
+    )
+    assert normalized.findings[0].attributes["matched_at"] == NATIVE_ENCODED_URL, (
+        "Decoded input context cannot replace the exact approved encoded match URL."
+    )
+
+
+@pytest.mark.parametrize("field,value", [
+    ("host", "127.0.0.2:41891"), ("host", "127.0.0.1"), ("host", None),
+    ("host", NATIVE_ENCODED_URL), ("scheme", "https"), ("scheme", None),
+    ("port", "041891"), ("port", 41891), ("ip", "127.0.0.2"),
+    ("url", NATIVE_ENCODED_URL), ("url", None),
+    ("url", "http://127.0.0.1:41891/sql/vulnerable/%27 OR is_hidden=1 --"),
+    ("url", "http://127.0.0.1:41891/sql/vulnerable/' OR is_hidden=2 --"),
+    ("url", "http://127.0.0.1:41891/sql/vulnerable/' OR is_hidden=1 --?x=1"),
+    ("url", "http://127.0.0.1:41891/sql/vulnerable/' OR is_hidden=1 --#fragment"),
+    ("url", "http://user@127.0.0.1:41891/sql/vulnerable/' OR is_hidden=1 --"),
+    ("path", "/sql/vulnerable/%27%20OR%20is_hidden=1%20--"),
+    ("path", "/sql/vulnerable/%2527%20OR%20is_hidden=1%20--"), ("path", None),
+    ("matched-at", NATIVE_ENCODED_URL.replace("=1", "=2")),
+    ("matched-at", NATIVE_ENCODED_URL.replace("=", "%3D")),
+    ("matched-at", "http://127.0.0.1:41891/sql/vulnerable/' OR is_hidden=1 --"),
+])
+def test_CapturedNativeContextCannotChangeDestinationOrMixRepresentations(tmp_path, field, value):
+    """Every native context field must match its single approved representation exactly."""
+
+    record = json.loads(NATIVE_ENCODED_JSONL)
+    record[field] = value
+    adapter, report, _ = ReboundNativeReport(tmp_path, record)
+
+    with pytest.raises(NucleiReportError):
+        adapter.NormalizeReport(report)
+
+
+@pytest.mark.parametrize("field", ["host", "url", "scheme", "port"])
+def test_CapturedDecodedContextCannotOmitRequiredNativeAuthorityFields(tmp_path, field):
+    """Decoded context is admissible only in the complete exact native authority shape."""
+
+    record = json.loads(NATIVE_ENCODED_JSONL)
+    del record[field]
+    adapter, report, _ = ReboundNativeReport(tmp_path, record)
+
+    with pytest.raises(NucleiReportError):
+        adapter.NormalizeReport(report)
 
 
 def test_NativeAuthorityShapeRetainsExactTargetBinding(tmp_path):

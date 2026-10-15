@@ -92,6 +92,16 @@ binding, selected hashes/source/review, severity/classification and deterministi
 source finding identity are retained. Raw evidence stays in the enclosing report.
 No provider-owned core model or persistence path is introduced.
 
+Native authority-shaped records carry decoded `url` and `path` context separately
+from `matched-at`. The authority, scheme and port must agree with the approved
+target, and those context strings must equal the exact representation derived
+from that already validated URL. They cannot replace or relax the encoded match
+address. Full-URL host records keep their existing canonical URL checks. This
+distinction follows the pinned provider's
+[output-field producer](https://github.com/projectdiscovery/nuclei/blob/v3.4.10/pkg/protocols/utils/fields.go)
+and an actual retained SQL-canary result. Missing required native fields or
+contradictory context fails; the optional `path` is checked when supplied.
+
 Failed, timed-out and cancelled execution remain incomplete. Invalid successful
 JSONL fails; malformed partial unsuccessful output becomes an explicit parse
 diagnostic with no trusted findings. Zero matches mean no reported matches; they

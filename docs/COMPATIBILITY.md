@@ -265,7 +265,9 @@ material, explicit STANDARD permission, exact-plan confirmation, fresh governed
 launch and final acceptance, canonical Finding ingestion and durable reopening.
 `NucleiAuthorityDeniedError` distinguishes operator denial from filesystem access
 failures. Native authority-only host records require exact URL/scheme/port agreement;
-existing full-URL records remain supported. Genuine pinned Nuclei 3.4.10 acceptance
+their decoded context URL/path must match the approved input's derived representation,
+while `matched-at` keeps exact provider-stable URL validation. Existing full-URL
+records remain supported. Genuine pinned Nuclei 3.4.10 acceptance
 uses a pytest-owned loopback target; the provider remains optional.
 
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
