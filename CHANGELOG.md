@@ -245,6 +245,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Kept report material paths out of interactive and native input history,
   preserving caller-owned entries and refusing unrecoverable native history gaps.
+- Rejected invalid selected intelligence receipt byte limits, receiver timeouts
+  and source pins/reference sizes before explicit original raw-record retrieval
+  and SDK reparse. Existing bounded snapshot/receipt reads and original-source
+  ownership and integrity verification remain required.
 
 #### Changed
 
