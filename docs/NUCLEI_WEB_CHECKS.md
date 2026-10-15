@@ -63,8 +63,8 @@ pack = files("fuzzy1337").joinpath("data/nuclei")
 manifest = json.loads(pack.joinpath("manifest.v1.json").read_text(encoding="utf-8"))
 record = next(item for item in manifest["templates"] if item["family"] == "git")
 raw = pack.joinpath(record["filename"]).read_bytes()
-assert len(raw) == record["size_bytes"]
-assert hashlib.sha256(raw).hexdigest() == record["sha256"]
+assert len(raw) == record["size_bytes"], "Selected template size differs from its review"
+assert hashlib.sha256(raw).hexdigest() == record["sha256"], "Selected template digest differs"
 owned = Path("owned-web-check-profile").absolute()
 owned.mkdir()
 template_path = owned / record["filename"]
@@ -88,11 +88,15 @@ confirmation reference, as documented in the workflow. The package never infers
 permission from a template, payload or known target path.
 
 SQL and reflection input is already part of the explicitly selected path. The
-template generates no additional request. Existing canonical URL checks remain
-unchanged: queries, fragments, credentials and ambiguous traversal encodings are
-unsupported. A rejected traversal request is not assessed; it is not a successful
-negative vulnerability result. The pack does not expand native discovery's
-status-only records or the reviewed page-capture catalog.
+template generates no additional request. Queries, fragments, credentials and
+ambiguous traversal encodings remain unsupported. The adapter additionally
+requires [provider-preserved path spelling](NUCLEI_ADAPTER.md#provider-preserved-paths)
+before preparation or result normalization. The SQL oracle explicitly selects
+literal `=` after genuine-provider evidence showed that `%3D` was not preserved;
+obsolete spellings are rejected, without alias routing or implicit authorization.
+A rejected traversal request is not assessed; it is not a successful negative
+vulnerability result. The pack does not expand native discovery's status-only
+records or the reviewed page-capture catalog.
 
 ## Genuine acceptance and retained evidence
 

@@ -230,6 +230,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Reject Nuclei paths whose selected spelling changes in the provider URL
+  pipeline, before invocation or finding normalization. Genuine-provider wire
+  evidence exposed the mismatch; explicit fixture URL selection and negative
+  preflight checks preserve exact scope without accepting decoded aliases.
+
 - Enforced original Docker/Kubernetes byte limits before generic retained-evidence
   reads in both runtime import modes. Known custody binds its original profile
   and context before role classification; oversized blobs and incompatible

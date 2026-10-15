@@ -31,26 +31,16 @@ GIT_ROUTES = {
 }
 SQL_ROUTES = {
     "/sql/vulnerable/public": "vulnerable",
-    "/sql/vulnerable/" + quote(SQL_TRUE, safe=""): "vulnerable",
-    "/sql/vulnerable/" + quote(SQL_FALSE, safe=""): "vulnerable",
-    "/sql/fixed/" + quote(SQL_TRUE, safe=""): "fixed",
-    "/sql/decoy/" + quote(SQL_TRUE, safe=""): "decoy",
+    "/sql/vulnerable/" + quote(SQL_TRUE, safe="="): "vulnerable",
+    "/sql/vulnerable/" + quote(SQL_FALSE, safe="="): "vulnerable",
+    "/sql/fixed/" + quote(SQL_TRUE, safe="="): "fixed",
+    "/sql/decoy/" + quote(SQL_TRUE, safe="="): "decoy",
 }
 REFLECTION_ROUTES = {
     f"/reflect/{mode}/" + quote(REFLECTION_INPUT, safe="/"): mode
     for mode in ("vulnerable", "fixed", "decoy")
 }
 KNOWN_ROUTES = frozenset((*GIT_ROUTES, *SQL_ROUTES, *REFLECTION_ROUTES, "/redirect"))
-REJECTED_SQL_WIRE_VARIANTS = {
-    "sql-true-literal-equals": "/sql/vulnerable/%27%20OR%20is_hidden=1%20--",
-    "sql-false-literal-equals": "/sql/vulnerable/%27%20OR%20is_hidden=2%20--",
-    "sql-fixed-literal-equals": "/sql/fixed/%27%20OR%20is_hidden=1%20--",
-    "sql-decoy-literal-equals": "/sql/decoy/%27%20OR%20is_hidden=1%20--",
-}
-WIRE_DIAGNOSTIC_HEADERS = frozenset((
-    "host", "user-agent", "accept", "accept-language", "accept-encoding", "connection",
-    "content-length",
-))
 MAX_PATH_BYTES = 1024
 MAX_FILE_BYTES = 256
 
@@ -121,7 +111,6 @@ class TargetState:
         self.lock = Lock()
         self.records: dict[str, list[Any]] = {
             "requests": [], "file_reads": [], "queries": [], "reflections": [], "errors": [],
-            "rejected_wire_paths": [],
         }
 
     def Observe(self) -> dict[str, list[Any]]:
@@ -179,31 +168,15 @@ class WebVulnerabilityHandler(BaseHTTPRequestHandler):
             return
 
         state = server.state
-        blocked_input = (
-            "Authorization" in self.headers or "Cookie" in self.headers
-            or "Transfer-Encoding" in self.headers
-            or self.headers.get("Content-Length", "0") != "0"
-        )
         rejected = (
             len(self.path.encode("utf-8")) > MAX_PATH_BYTES or self.path not in KNOWN_ROUTES
-            or blocked_input
+            or "Authorization" in self.headers or "Cookie" in self.headers
+            or "Transfer-Encoding" in self.headers
+            or self.headers.get_all("Content-Length", ["0"]) != ["0"]
         )
 
         if rejected:
             state.Record("requests", "<rejected>")
-            header_names = tuple(name.lower() for name in self.headers)
-
-            if (not blocked_input and len(header_names) == len(set(header_names))
-                and all(name in WIRE_DIAGNOSTIC_HEADERS for name in header_names)
-            ):
-                for variant_id, reviewed_path in REJECTED_SQL_WIRE_VARIANTS.items():
-                    if self.path == reviewed_path:
-                        state.Record("rejected_wire_paths", {
-                            "variant_id": variant_id, "reviewed_path": reviewed_path,
-                        })
-
-                        break
-
             self.Reply(404, b"unknown-owned-route", "text/plain")
 
             return

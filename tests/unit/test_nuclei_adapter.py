@@ -199,7 +199,7 @@ def test_FinitePreparationKeepsSdkAndReviewedProvenance(tmp_path, monkeypatch):
     "http://0.0.0.0/", "http://224.0.0.1/", "http://[fe80::1%eth0]/", "http://127.0.0.1:0/",
     "http://127.0.0.1:65536/", "http://127.0.0.1/\n", "http://127.0.0.1/\\path", None,
     "http://255.255.255.255/", "\x01http://127.0.0.1/", "http://127.0.0.1/\x01",
-    "http://127.0.0.1/\x7f",
+    "http://127.0.0.1/\x7f", "http://127.0.0.1/a,b",
 ])
 def test_RejectUrlExpansionAndCredentials(url):
     """Only one exact literal URL can enter the finite CLI profile."""
@@ -217,6 +217,117 @@ def test_CanonicalLiteralIpv6AndHttpsDefaults():
     assert CanonicalUrl("http://127.0.0.1") == "http://127.0.0.1:80/", (
         "An explicit default port and root path make replay comparisons deterministic."
     )
+
+
+@pytest.mark.parametrize("path", [
+    "/a-A_0.~/$&+/:;=@", "/raw!'()*[]", "/%20", "/%3Cprobe%3E",
+    "/sql/vulnerable/%27%20OR%20is_hidden=1%20--", "/%20$&+:;=@",
+    "/%21%27%28%29%2A%5B%5D%20",
+])
+def test_ProviderStablePathsRemainExactInCanonicalUrlAndInvocation(tmp_path, path):
+    """Both pinned RawPath branches must preserve the operator's exact selected spelling."""
+
+    url = "http://127.0.0.1:8080" + path
+    profile = Profile(tmp_path)
+    adapter = NucleiAdapter(lambda reference: JSONL, profile, provider_version="3.4.10")
+    assert CanonicalUrl(url) == url, "Supported path spelling must never be silently rewritten."
+    invocation = adapter.PrepareInvocation(Request(profile, url=url))
+    assert invocation.argv[2] == url and invocation.request.parameters["url"] == url, (
+        "The approved request and actual argv must retain the exact provider-stable path."
+    )
+
+
+@pytest.mark.parametrize("path", [
+    "/sql/vulnerable/%27%20OR%20is_hidden%3D1%20--",
+    "/%41", "/%7E", "/%2F", "/%40", "/%3A", "/%24", "/%26", "/%2B", "/%2C",
+    "/%27", "/%21", "/%28", "/%29", "/%2A", "/%5B", "/%5D", "/%3cprobe%3e",
+    "/'%20", "/!%20", "/(%20", "/)%20", "/*%20", "/[%20", "/]%20",
+    "/%", "/%2", "/%GG", "/%2527", "/%252F", "/%25", "/%3F", "/%23",
+    "/%00", "/%09", "/%0A", "/%0D", "/%7F", "/%5C", "/%C3%A9", "/\u00e9",
+    "/%FF", "/%C0%AF", "/%7B", "/%7D", "/%7B%7BHost%7D%7D",
+    "/%7B%7BHost%20%2B%20%27x%27%7D%7D", "/%C2%A7Host%C2%A7",
+])
+def test_UnstableOrAmbiguousPathFailsBeforeMaterialReadsOrProcess(tmp_path, monkeypatch, path):
+    """Provider spelling drift and reparse semantics cannot reach reviewed files or execution."""
+
+    profile = Profile(tmp_path)
+    adapter = NucleiAdapter(lambda reference: JSONL, profile, provider_version="3.4.10")
+    url = "http://127.0.0.1:8080" + path
+
+    def NoEffect(*arguments, **keywords):
+        """Reject accidental artifact access or process creation after an unsupported URL."""
+
+        pytest.fail("Unstable provider paths must fail before artifact or process access")
+
+    monkeypatch.setattr(nuclei, "VerifyArtifact", NoEffect)
+    monkeypatch.setattr(nuclei.subprocess, "Popen", NoEffect)
+
+    with pytest.raises(ValueError, match="provider-stable"):
+        CanonicalUrl(url)
+
+    with pytest.raises(ValueError, match="provider-stable"):
+        adapter.PrepareInvocation(Request(profile, url=url))
+
+
+@pytest.mark.parametrize("field", ["matched-at", "host", "url"])
+def test_NormalizedFindingCannotSubstituteEquivalentButUnstablePath(tmp_path, field):
+    """Matching decoded paths is insufficient when retained native URL spelling differs."""
+
+    stable = "http://127.0.0.1:8080/sql/%27%20OR%20is_hidden=1%20--"
+    record = json.loads(JSONL)
+    record.update({"matched-at": stable, "host": stable, "url": stable})
+    record[field] = stable.replace("=", "%3D")
+    adapter, report = Report(tmp_path, raw=json.dumps(record).encode("utf-8"))
+    request = replace(report.invocation.request,
+                      parameters={**report.invocation.request.parameters, "url": stable})
+    report = replace(report, invocation=adapter.BuildInvocation(request))
+
+    with pytest.raises(NucleiReportError, match="invalid"):
+        adapter.NormalizeReport(report)
+
+
+@pytest.mark.parametrize("path", [
+    "/sql/%27%20OR%20is_hidden=1%20--", "/reflect/%3Cfuzzy1337-probe%3Eowned%3C/probe%3E",
+])
+def test_ProviderStableEncodedFindingRetainsExactEvidenceBinding(tmp_path, path):
+    """Accepted SQL and HTML path spelling survives real normalization and raw attribution."""
+
+    stable = "http://127.0.0.1:8080" + path
+    record = json.loads(JSONL)
+    record.update({"matched-at": stable, "host": stable, "url": stable})
+    adapter, report = Report(tmp_path, raw=json.dumps(record).encode("utf-8"))
+    request = replace(report.invocation.request,
+                      parameters={**report.invocation.request.parameters, "url": stable})
+    report = replace(report, invocation=adapter.BuildInvocation(request))
+    normalized = adapter.NormalizeReport(report)
+    assert len(normalized.findings) == 1, "Stable exact-path findings must remain usable."
+    assert normalized.findings[0].attributes["matched_at"] == stable, (
+        "Normalization must retain the exact selected path, including its preserved escapes."
+    )
+    assert normalized.report is report, (
+        "Accepted path validation cannot replace the original invocation or raw evidence binding."
+    )
+
+
+@pytest.mark.parametrize("path", ["/sql/%3D", "/%7B%7BHost%7D%7D"])
+def test_UnstableRetainedInvocationFailsBeforeRawEvidenceRead(tmp_path, monkeypatch, path):
+    """Replay cannot reopen evidence for a historical invocation outside the corrected boundary."""
+
+    adapter, report = Report(tmp_path)
+    request = replace(report.invocation.request, parameters={
+        **report.invocation.request.parameters, "url": "http://127.0.0.1:8080" + path,
+    })
+    report = replace(report, invocation=replace(report.invocation, request=request))
+
+    def NoRead(reference):
+        """Fail if unsupported retained URL metadata reaches raw evidence acquisition."""
+
+        pytest.fail("Unsupported retained invocation must fail before reading raw evidence")
+
+    monkeypatch.setattr(adapter, "_read_evidence", NoRead)
+
+    with pytest.raises(ValueError, match="provider-stable"):
+        adapter.NormalizeReport(report)
 
 
 @pytest.mark.parametrize("parameters", [

@@ -254,6 +254,10 @@ Nmap is supplied by the operator; this adapter never grants execution authority.
 `fuzzy1337.adapters.nuclei` is an Experimental Python library at contract version `1`.
 ADR 0030 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
+The exact-URL profile rejects paths whose spelling the reviewed provider would
+change, including encoded aliases, nested escapes and unsupported non-ASCII
+paths. This tightens preparation and report validation without silently changing
+an approved destination; see `docs/NUCLEI_ADAPTER.md` for the pinned wire evidence.
 
 `fuzzy1337.nucleiscan` and `1337 scan nuclei` are Experimental at workflow schema
 version `1`. ADR 0055 and `docs/NUCLEI_WORKFLOW.md` define operator-supplied reviewed

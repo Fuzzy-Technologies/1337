@@ -622,7 +622,7 @@ state = "missing"
 id = "symbol:fuzzy1337.adapters.nuclei.CanonicalUrl"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/nuclei.py"
-sourceHash = "sha256:2487604de0c1f01c7c2477f5b4dd961cf99cb80692e5332cf4fda3658509d20f"
+sourceHash = "sha256:885d14da333a2587e781a34b855fff038346f3e605d3f21b47e93a8ac0e18949"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
