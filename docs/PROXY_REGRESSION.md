@@ -154,3 +154,32 @@ This profile proves negotiation failure handling and redirect containment only.
 It does not establish successful trusted HTTPS, certificate-chain or literal-IP
 identity validation, WAF behavior, or a TLS compatibility matrix. Those acceptance
 boundaries and the remaining version-pinned CRS/ModSecurity work stay open in #97.
+
+## Owned untrusted certificate rejection
+
+The separate [`tls-certificate-oracle.v1.json`](../labs/targets/proxy-regression/tls-certificate-oracle.v1.json)
+defines `owned-tls-untrusted-certificate.v1`. The same finite listener offers an
+actual self-signed RSA-2048 certificate with an IP SAN matching `127.0.0.1` and a
+pinned validity interval. Its committed key is deliberately public, non-secret
+synthetic test material; generation and rotation provenance are documented in the
+[fixture README](../labs/targets/proxy-regression/README.md).
+
+An independent default-verifying client must reject this certificate with
+`SSLCertVerificationError` code `18`. The owned server separately records one
+handshake attempt, one certificate-rejection alert and zero completed handshakes.
+It has no HTTPS application handler. The installed Quick Scan must fail with exit
+`4`, provider failure and the original safe `tls` acquisition, without successful
+endpoint objects or Findings. No trust store, production TLS context, executor
+environment or authorization rule changes.
+
+The existing focused test command covers this profile too. Unknown consent,
+excluded scope and missing SAFE permission deny before any connection. An earlier
+successful HTTP result survives later certificate rejection with both original
+acquisitions retained; verified workspace reopen remains offline. Evidence
+packets pin the certificate/key bytes, oracle, source and Python/OpenSSL versions.
+Invalid certificate configuration fails before listener allocation, and partial
+handshake and startup-failure cases verify complete socket/thread cleanup.
+
+This establishes rejection of the particular untrusted certificate. Successful
+trusted HTTPS, hostname-specific and expiry-specific rejection, revocation and
+broader TLS interoperability remain separate acceptance work under #97.
