@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import math
@@ -26,7 +27,8 @@ from fuzzy1337.requests import (
 from fuzzy1337.workspace import RejectWorkspaceConstant, UniqueWorkspaceObject
 
 __all__ = [
-    "JsonMutation", "JsonMutationLimits", "JsonMutationProfile", "JsonMutationSelection",
+    "JsonMutation", "JsonMutationEncoding", "JsonMutationLimits", "JsonMutationProfile",
+    "JsonMutationSelection",
     "GenerateJsonMutations", "ReplayJsonMutation",
 ]
 
@@ -36,6 +38,13 @@ class JsonMutationProfile(StrEnum):
 
     SCALAR_BOUNDARIES = "scalar-boundaries-v1"
     TYPE_CHANGE = "type-change-v1"
+
+
+class JsonMutationEncoding(StrEnum):
+    """Choose one explicit string-to-JSON path without automatic codec detection."""
+
+    JSON_STRING = "json-string"
+    BASE64_JSON = "base64-json-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,10 +83,11 @@ class JsonMutationLimits:
 
 @dataclass(frozen=True, slots=True)
 class JsonMutationSelection:
-    """Address one scalar, optionally inside one explicitly selected JSON string."""
+    """Address one scalar through an optional explicit string-to-JSON decoding path."""
 
     pointer: str
     decoded_pointer: str | None = None
+    encoding: JsonMutationEncoding = JsonMutationEncoding.JSON_STRING
 
     def __post_init__(self) -> None:
         """Reuse the structural request pointer grammar, including its bounded root selector."""
@@ -87,16 +97,27 @@ class JsonMutationSelection:
         if self.decoded_pointer is not None:
             RequirePointer(self.decoded_pointer)
 
+        if not isinstance(self.encoding, JsonMutationEncoding) or (
+            self.decoded_pointer is None and self.encoding is not JsonMutationEncoding.JSON_STRING
+        ):
+            raise ValueError("JSON mutation encoding requires an explicit decoded selection")
+
         CanonicalModelJson(self.ToDict())
 
     def ToDict(self) -> dict[str, object]:
         """Expose exact structural paths without interpreting their contents.
 
         Returns:
-            Outer and optional inner pointers; None and an inner root remain distinct.
+            Exact paths and nondefault codec; legacy selections retain their original shape.
         """
 
-        return {"pointer": self.pointer, "decoded_pointer": self.decoded_pointer}
+        result: dict[str, object] = {"pointer": self.pointer,
+                                    "decoded_pointer": self.decoded_pointer}
+
+        if self.encoding is not JsonMutationEncoding.JSON_STRING:
+            result["encoding"] = self.encoding.value
+
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,7 +162,9 @@ class JsonMutation:
             "configuration_reference": RequestDigest("json-mutation-config", configuration),
             "selection_index": self.selection_index, "selection": selection.ToDict(),
             "encoding_chain": ["json-utf8"] + (
-                ["json-string"] if selection.decoded_pointer is not None else []
+                (["json-string", "base64-rfc4648", "json-utf8"]
+                 if selection.encoding is JsonMutationEncoding.BASE64_JSON else ["json-string"])
+                if selection.decoded_pointer is not None else []
             ),
             "variant": self.variant, "body_digest": BodyDigest(self.body),
         }
@@ -224,6 +247,48 @@ def DecodeBody(value: bytes, limits: JsonMutationLimits, *, depth: int = 0) -> t
                          parse_constant=RejectWorkspaceConstant)
 
     return decoded, InspectTree(decoded, limits, depth=depth)
+
+
+def DecodeSelectedString(
+    value: str, encoding: JsonMutationEncoding, limits: JsonMutationLimits, remaining: int,
+) -> tuple[bytes, int]:
+    """Preflight one explicit decoder and account for every allocated byte layer.
+
+    Args:
+        value: Selected bounded outer JSON string.
+        encoding: Explicit JSON-string or canonical standard Base64 JSON decoding path.
+        limits: Individual encoded and decoded body bounds.
+        remaining: Aggregate decoded-byte allowance after earlier selected strings.
+
+    Returns:
+        Strict JSON input bytes and the complete byte charge for this selected string.
+
+    Raises:
+        ValueError: Codec spelling, canonical padding or a preflight byte bound is invalid.
+    """
+
+    encoded = value.encode("utf-8")
+
+    if len(encoded) > min(limits.max_body_bytes, remaining):
+        raise ValueError("JSON mutation string exceeds its byte budget")
+
+    if encoding is JsonMutationEncoding.JSON_STRING:
+        return encoded, len(encoded)
+
+    if len(encoded) % 4 or re.fullmatch(rb"[A-Za-z0-9+/]*={0,2}", encoded) is None:
+        raise ValueError("JSON mutation Base64 spelling is invalid")
+
+    decoded_size = len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip(b"=")))
+
+    if decoded_size > limits.max_body_bytes or len(encoded) + decoded_size > remaining:
+        raise ValueError("JSON mutation Base64 decoding exceeds its byte budget")
+
+    decoded = base64.b64decode(encoded, validate=True)
+
+    if base64.b64encode(decoded) != encoded:
+        raise ValueError("JSON mutation Base64 spelling is not canonical")
+
+    return decoded, len(encoded) + len(decoded)
 
 
 def PointerTokens(pointer: str) -> tuple[str, ...]:
@@ -406,7 +471,7 @@ def GenerateJsonMutations(
         template: Existing anonymous JSON template; a template never grants permission.
         body: Exact UTF-8 JSON bytes. Association with the template is caller attribution.
         selections: One to 64 distinct explicit pointers beneath declared JSON inputs.
-            A decoded_pointer opts into exactly one JSON-string layer at that outer pointer.
+            A decoded_pointer opts into the selected explicit string-to-JSON encoding path.
         seed: Unsigned 64-bit seed determining each finite corpus's SHA-256 ordering.
         profile: Versioned type-preserving boundaries or deliberate JSON type changes.
         limits: Positive bounded budgets; decoded nodes/bytes aggregate across selected strings.
@@ -469,6 +534,10 @@ def PrepareMutations(
     raw_pointers = {item.pointer for item in selections if item.decoded_pointer is None}
     decoded_pointers = {item.pointer for item in selections if item.decoded_pointer is not None}
 
+    if len({(item.pointer, item.encoding) for item in selections
+            if item.decoded_pointer is not None}) != len(decoded_pointers):
+        raise ValueError("JSON mutation selections cannot mix decoding paths")
+
     if raw_pointers & decoded_pointers:
         raise ValueError("JSON mutation selections cannot mix raw and decoded input versions")
 
@@ -497,15 +566,13 @@ def PrepareMutations(
                 raise ValueError("JSON string decoding requires a string")
 
             if selection.pointer not in decoded:
-                inner_bytes = selected.encode("utf-8")
-                decoded_bytes += len(inner_bytes)
-
-                if decoded_bytes > limits.max_decoded_bytes:
-                    raise ValueError("JSON mutation decoding exceeds its aggregate byte budget")
+                inner_bytes, charge = DecodeSelectedString(selected, selection.encoding, limits,
+                    limits.max_decoded_bytes - decoded_bytes)
+                decoded_bytes += charge
 
                 inner, inner_nodes = DecodeBody(inner_bytes, limits, depth=len(tokens) + 1)
                 decoded[selection.pointer] = inner
-                decoded_sizes[selection.pointer] = len(inner_bytes)
+                decoded_sizes[selection.pointer] = charge
                 nodes += inner_nodes
 
                 if nodes > limits.max_nodes:
@@ -540,7 +607,21 @@ def PrepareMutations(
                                 PointerTokens(selection.decoded_pointer), replacement)
                 InspectTree(inner, limits, depth=len(tokens) + 1)
                 encoded_inner = EncodeBody(inner, limits.max_body_bytes)
-                candidate_decoded_bytes += len(encoded_inner) - decoded_sizes[selection.pointer]
+                charge = len(encoded_inner)
+
+                if selection.encoding is JsonMutationEncoding.BASE64_JSON:
+                    encoded_size = (len(encoded_inner) + 2) // 3 * 4
+
+                    if encoded_size > limits.max_body_bytes or (
+                        candidate_decoded_bytes - decoded_sizes[selection.pointer]
+                        + charge + encoded_size > limits.max_decoded_bytes
+                    ):
+                        raise ValueError("JSON mutation Base64 output exceeds its byte budget")
+
+                    encoded_inner = base64.b64encode(encoded_inner)
+                    charge += len(encoded_inner)
+
+                candidate_decoded_bytes += charge - decoded_sizes[selection.pointer]
                 replacement = encoded_inner.decode("utf-8")
 
             mutated = Replace(mutated, tokens, replacement)

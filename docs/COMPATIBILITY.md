@@ -86,6 +86,9 @@ the source, operation and resolution context must still agree exactly.
 JSON mutation profile version `1`. ADR 0084 and `docs/STRUCTURED_MUTATIONS.md`
 define bounded scalar and explicitly selected JSON-in-string transformations,
 complete seed/path/content attribution and independent-reference replay.
+ADR 0085 adds explicit canonical standard Base64 JSON selection at encoding
+version `base64-json-v1`. The default encoding is omitted from metadata, preserving
+existing selection shapes, deterministic order and references.
 Public preparation and replay use the existing request template; they grant no
 schema-validity, source-authenticity, persistence or execution guarantee. Direct
 record constructors and decoding/rendering helpers remain Internal.

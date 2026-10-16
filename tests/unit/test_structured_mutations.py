@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from dataclasses import replace
 from traceback import format_exception
@@ -23,6 +24,7 @@ from fuzzy1337.requests import (
 )
 from fuzzy1337.structured_mutations import (
     GenerateJsonMutations,
+    JsonMutationEncoding,
     JsonMutationLimits,
     JsonMutationProfile,
     JsonMutationSelection,
@@ -335,3 +337,148 @@ def test_ParserDiagnosticsAndRepresentationDoNotExposeSourceValues():
     candidate = Generate(json.dumps({"value": marker}).encode())[0]
     assert marker not in repr(candidate) and "body=" not in repr(candidate), "Body repr leaked"
     assert marker not in json.dumps(candidate.Metadata()), "Metadata leaked a source value"
+
+
+def Base64Selection(pointer="/value", decoded_pointer=""):
+    """Select one canonical standard Base64 string's explicit inner JSON coordinate."""
+
+    return JsonMutationSelection(pointer, decoded_pointer, JsonMutationEncoding.BASE64_JSON)
+
+
+def Base64Body(inner):
+    """Wrap independently supplied bytes without normalizing their inner JSON spelling."""
+
+    return json.dumps({"value": base64.b64encode(inner).decode("ascii")}).encode()
+
+
+@pytest.mark.parametrize("encoded", [
+    "", "dHJ1ZQ", "dHJ1ZQ=", "dHJ1ZQ===", "dHJ1ZQ==\n", " dHJ1ZQ==", "dHJ1ZQ== ",
+    "dHJ1ZQ==AAAA", "dHJ1=ZQ=", "dHJ1Zg__", "dHJ1Zg--", "dHJ1ZQé=", "dHJ1Zh==",
+    "====", "=AAA", "A===", "dHJ1ZQ==\x00",
+])
+def test_Base64NoncanonicalAlphabetPaddingWhitespaceAndPadBitsFailClosed(encoded):
+    """Canonical spelling excludes ignored characters, alternate alphabets and pad-bit aliases."""
+
+    with pytest.raises(ValueError, match="bounded JSON mutation"):
+        Generate(json.dumps({"value": encoded}).encode(), selections=(Base64Selection(),))
+
+
+@pytest.mark.parametrize("inner", [
+    b"", b"{", b"true trailing", b"\xef\xbb\xbftrue", b'"\xff"', b'"\\ud800"',
+    b'{"x":1,"x":2}', b"NaN", b"1e999", b"[" * 1500 + b"0" + b"]" * 1500,
+])
+def test_Base64DecodedBytesRetainStrictJsonUtf8AndDepthRefusals(inner):
+    """Canonical transport never weakens inner parser or Unicode validation."""
+
+    with pytest.raises(ValueError, match="bounded JSON mutation"):
+        Generate(Base64Body(inner), selections=(Base64Selection(),))
+
+
+@pytest.mark.parametrize("encoding,decoded_pointer", [
+    ("base64-json-v1", ""), (None, ""), (JsonMutationEncoding.BASE64_JSON, None),
+])
+def test_Base64RequiresAnExplicitTypedEncodingAndInnerPointer(encoding, decoded_pointer):
+    """An omitted inner selector never silently enables a decoder."""
+
+    with pytest.raises(ValueError):
+        JsonMutationSelection("/value", decoded_pointer, encoding)
+
+
+def test_Base64DecodingPreflightsAggregateAllowanceBeforeCallingDecoder(monkeypatch):
+    """An oversized predicted inner allocation must fail before the Base64 decoder runs."""
+
+    body = Base64Body(b"true")
+    called = []
+
+    def Forbidden(*args, **kwargs):
+        """Record any attempt to allocate the over-budget decoded payload."""
+
+        called.append(True)
+        raise AssertionError("Base64 decoder called before preflight")
+
+    monkeypatch.setattr(base64, "b64decode", Forbidden)
+
+    with pytest.raises(ValueError):
+        Generate(body, selections=(Base64Selection(),),
+                 limits=JsonMutationLimits(max_decoded_bytes=len(body) + 8 + 3))
+
+    assert not called, "Decoded-size budget must precede allocation"
+
+
+def test_Base64SharedDecodeChargesEachLayerOnceAndOutputGrowthIsBounded(monkeypatch):
+    """Two selected booleans reuse one tree; both output layers remain in the decoded budget."""
+
+    inner = b'{"a":false,"b":false}'
+    body = Base64Body(inner)
+    selections = (Base64Selection(decoded_pointer="/a"), Base64Selection(decoded_pointer="/b"))
+    allowance = len(body) + len(base64.b64encode(inner)) + len(inner)
+    original = base64.b64decode
+    calls = []
+
+    def Observe(*args, **kwargs):
+        """Count actual transport decoding while preserving the standard-library behavior."""
+
+        calls.append(True)
+
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(base64, "b64decode", Observe)
+    candidates = Generate(body, selections=selections,
+                          limits=JsonMutationLimits(max_decoded_bytes=allowance))
+    assert len(candidates) == 2 and calls == [True], "Shared Base64 string was decoded twice"
+
+    compact = Base64Body(b"true").replace(b": ", b":")
+
+    with pytest.raises(ValueError):
+        Generate(compact, selections=(Base64Selection(),),
+                 limits=JsonMutationLimits(max_decoded_bytes=len(compact) + 8 + 4))
+
+
+@pytest.mark.parametrize("limits", [
+    JsonMutationLimits(max_nodes=4), JsonMutationLimits(max_depth=2),
+    JsonMutationLimits(max_body_bytes=25), JsonMutationLimits(max_output_bytes=30),
+    JsonMutationLimits(max_mutations=1), JsonMutationLimits(max_decoded_bytes=60),
+])
+def test_Base64CompleteCorpusHonorsEveryResourceBudget(limits):
+    """Nested finite mutations fail closed when any independent configured budget is exhausted."""
+
+    body = Base64Body(b'{"x":[1,2]}')
+
+    with pytest.raises(ValueError):
+        Generate(body, selections=(Base64Selection(decoded_pointer="/x/0"),), limits=limits)
+
+
+def test_Base64DifferentStringsAggregateAndMixedInterpretationsAreRejected():
+    """Distinct decodes cannot evade totals or reinterpret one coordinate under two codecs."""
+
+    body = b'{"a":"ZmFsc2U=","b":"ZmFsc2U="}'
+    selections = (Base64Selection("/a"), Base64Selection("/b"))
+    assert len(Generate(body, selections=selections)) == 2, "Distinct canonical strings failed"
+
+    with pytest.raises(ValueError):
+        Generate(body, selections=selections,
+                 limits=JsonMutationLimits(max_decoded_bytes=len(body) + 25))
+
+    for other in [JsonMutationSelection("/a"), JsonMutationSelection("/a", "")]:
+        with pytest.raises(ValueError):
+            Generate(body, selections=(Base64Selection("/a"), other))
+
+
+def test_Base64NoAutodetectionRecursiveExpansionOrParserDiagnosticLeakage():
+    """Codec opt-in stays single layer and malformed inner JSON cannot expose values."""
+
+    body = Base64Body(b'"dHJ1ZQ=="')
+    raw = Generate(body)
+    assert {json.loads(item.body)["value"] for item in raw} == {"", "1337", "'\"\\", "\x00"}, (
+        "Base64-looking raw string was decoded automatically"
+    )
+    decoded = Generate(body, selections=(Base64Selection(),))
+    assert {json.loads(base64.b64decode(json.loads(item.body)["value"]))
+            for item in decoded} == {"", "1337", "'\"\\", "\x00"}, "Nested string was guessed"
+    marker = "synthetic-private-base64-value"
+
+    with pytest.raises(ValueError) as caught:
+        Generate(Base64Body(('{"' + marker + '":1,"' + marker + '":2}').encode()),
+                 selections=(Base64Selection(),))
+
+    assert marker not in "".join(format_exception(caught.value)), "Decoded parser detail leaked"

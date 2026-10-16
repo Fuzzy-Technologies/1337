@@ -81,6 +81,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   independently anchored replay and actual API preview/model/evidence consumer
   tests. Candidates grant no execution or schema-validity claim; other codecs,
   live anomaly detection and minimized reproducers remain open.
+- Added explicit canonical standard Base64 JSON mutation selection with strict
+  alphabet/padding/pad-bit and UTF-8/JSON refusal, preflight byte budgets, complete
+  encoding provenance and replay after evidence relocation. Existing direct JSON
+  selection shapes and references remain compatible; no codec is autodetected.
 - Added opt-in bounded OpenAPI/Swagger YAML import and source-bound synthetic
   request previews with an optional pinned event parser. JSON defaults and
   identities remain compatible; aliases, unsafe tags, duplicate/non-string keys
