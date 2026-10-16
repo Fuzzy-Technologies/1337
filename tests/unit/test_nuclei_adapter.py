@@ -36,6 +36,8 @@ from fuzzy1337.adapters.nuclei import (
 
 FIXTURES = Path(__file__).parents[1] / "fixtures/nuclei"
 JSONL = (FIXTURES / "result.jsonl").read_bytes()
+NATIVE_ENCODED_JSONL = (FIXTURES / "native-encoded-result.jsonl").read_bytes()
+NATIVE_ENCODED_URL = "http://127.0.0.1:41891/sql/vulnerable/%27%20OR%20is_hidden=1%20--"
 
 
 def Profile(tmp_path):
@@ -98,6 +100,108 @@ def Report(tmp_path, raw=JSONL, state=ExecutionState.SUCCEEDED):
     report = AdapterReport(adapter.PrepareInvocation(Request(profile)), execution, (reference,))
 
     return adapter, report
+
+
+def ReboundNativeReport(tmp_path, record=None):
+    """Copy the captured native shape and rebind only its template path for portable tests."""
+
+    source = (Path(__file__).parents[2]
+              / "src/fuzzy1337/data/nuclei/owned-sql-canary-disclosure.yaml")
+    template_raw = source.read_bytes()
+    template_path = tmp_path / "owned-sql-canary-disclosure.yaml"
+    template_path.write_bytes(template_raw)
+    configuration_path = tmp_path / "empty.yaml"
+    configuration_path.write_bytes(b"{}\n")
+    adapted = dict(ParseJsonl(NATIVE_ENCODED_JSONL)[0] if record is None else record)
+    adapted["template-path"] = str(template_path)
+    raw = json.dumps(adapted).encode("utf-8")
+    template = NucleiTemplate("fuzzy1337-owned-sql-canary-disclosure", str(template_path),
+        hashlib.sha256(template_raw).hexdigest(), len(template_raw),
+        "first-party:fuzzy1337/data/nuclei/owned-sql-canary-disclosure.yaml", "1",
+        "review:NUCLEI_WEB_CHECKS-v1:sql", "single-get-exact-url")
+    profile = NucleiProfile("owned-sql", (template,), str(configuration_path))
+    adapter = NucleiAdapter(lambda reference: raw, profile, provider_version="3.4.10")
+    reference = EvidenceReference("stdout", "fixture/rebound-native-encoded-result.jsonl",
+        hashlib.sha256(raw).hexdigest(), "application/x-ndjson", len(raw))
+    invocation = adapter.BuildInvocation(Request(profile, url=NATIVE_ENCODED_URL))
+    report = AdapterReport(invocation, AdapterExecution(ExecutionState.SUCCEEDED, 0, 0.1),
+                           (reference,))
+
+    return adapter, report, raw
+
+
+def test_CapturedNativeShapeBindsDecodedContextAfterLocalTemplateRebind(tmp_path, monkeypatch):
+    """Preserve the capture, then normalize a copied shape with only its template path rebound."""
+
+    assert hashlib.sha256(NATIVE_ENCODED_JSONL).hexdigest() == (
+        "c11d2590352442185ccf65f653c7033245ceb2693975bcb7f7cb169d632c51e4"
+    ), "The native regression fixture must remain the exact retained CI stdout line."
+    captured = ParseJsonl(NATIVE_ENCODED_JSONL)
+    assert len(captured) == 1, (
+        "The unchanged captured stdout must parse to one actual native match."
+    )
+    adapter, report, adapted_raw = ReboundNativeReport(tmp_path)
+    adapted = ParseJsonl(adapted_raw)[0]
+    assert adapted["template-path"] == str(tmp_path / "owned-sql-canary-disclosure.yaml"), (
+        "Only the optional template path is rebound to the current platform's owned local file."
+    )
+    assert {key: value for key, value in adapted.items() if key != "template-path"} == {
+        key: value for key, value in captured[0].items() if key != "template-path"
+    }, "Portable replay must preserve every actual URL, context, match and provider field."
+
+    def NoEffect(*arguments, **keywords):
+        """Prevent retained native evidence replay from touching provider files or a process."""
+
+        pytest.fail("Native evidence replay must not read runner paths or start a process")
+
+    monkeypatch.setattr(nuclei, "VerifyArtifact", NoEffect)
+    monkeypatch.setattr(nuclei.subprocess, "Popen", NoEffect)
+    normalized = adapter.NormalizeReport(report)
+    assert normalized.report is report and len(normalized.findings) == 1, (
+        "Native decoded context must bind to one finding and preserve the adapted test evidence."
+    )
+    assert normalized.findings[0].attributes["matched_at"] == NATIVE_ENCODED_URL, (
+        "Decoded input context cannot replace the exact approved encoded match URL."
+    )
+
+
+@pytest.mark.parametrize("field,value", [
+    ("host", "127.0.0.2:41891"), ("host", "127.0.0.1"), ("host", None),
+    ("host", NATIVE_ENCODED_URL), ("scheme", "https"), ("scheme", None),
+    ("port", "041891"), ("port", 41891), ("ip", "127.0.0.2"),
+    ("url", NATIVE_ENCODED_URL), ("url", None),
+    ("url", "http://127.0.0.1:41891/sql/vulnerable/%27 OR is_hidden=1 --"),
+    ("url", "http://127.0.0.1:41891/sql/vulnerable/' OR is_hidden=2 --"),
+    ("url", "http://127.0.0.1:41891/sql/vulnerable/' OR is_hidden=1 --?x=1"),
+    ("url", "http://127.0.0.1:41891/sql/vulnerable/' OR is_hidden=1 --#fragment"),
+    ("url", "http://user@127.0.0.1:41891/sql/vulnerable/' OR is_hidden=1 --"),
+    ("path", "/sql/vulnerable/%27%20OR%20is_hidden=1%20--"),
+    ("path", "/sql/vulnerable/%2527%20OR%20is_hidden=1%20--"), ("path", None),
+    ("matched-at", NATIVE_ENCODED_URL.replace("=1", "=2")),
+    ("matched-at", NATIVE_ENCODED_URL.replace("=", "%3D")),
+    ("matched-at", "http://127.0.0.1:41891/sql/vulnerable/' OR is_hidden=1 --"),
+])
+def test_CapturedNativeContextCannotChangeDestinationOrMixRepresentations(tmp_path, field, value):
+    """Every native context field must match its single approved representation exactly."""
+
+    record = json.loads(NATIVE_ENCODED_JSONL)
+    record[field] = value
+    adapter, report, _ = ReboundNativeReport(tmp_path, record)
+
+    with pytest.raises(NucleiReportError):
+        adapter.NormalizeReport(report)
+
+
+@pytest.mark.parametrize("field", ["host", "url", "scheme", "port"])
+def test_CapturedDecodedContextCannotOmitRequiredNativeAuthorityFields(tmp_path, field):
+    """Decoded context is admissible only in the complete exact native authority shape."""
+
+    record = json.loads(NATIVE_ENCODED_JSONL)
+    del record[field]
+    adapter, report, _ = ReboundNativeReport(tmp_path, record)
+
+    with pytest.raises(NucleiReportError):
+        adapter.NormalizeReport(report)
 
 
 def test_NativeAuthorityShapeRetainsExactTargetBinding(tmp_path):
@@ -199,7 +303,7 @@ def test_FinitePreparationKeepsSdkAndReviewedProvenance(tmp_path, monkeypatch):
     "http://0.0.0.0/", "http://224.0.0.1/", "http://[fe80::1%eth0]/", "http://127.0.0.1:0/",
     "http://127.0.0.1:65536/", "http://127.0.0.1/\n", "http://127.0.0.1/\\path", None,
     "http://255.255.255.255/", "\x01http://127.0.0.1/", "http://127.0.0.1/\x01",
-    "http://127.0.0.1/\x7f",
+    "http://127.0.0.1/\x7f", "http://127.0.0.1/a,b",
 ])
 def test_RejectUrlExpansionAndCredentials(url):
     """Only one exact literal URL can enter the finite CLI profile."""
@@ -217,6 +321,117 @@ def test_CanonicalLiteralIpv6AndHttpsDefaults():
     assert CanonicalUrl("http://127.0.0.1") == "http://127.0.0.1:80/", (
         "An explicit default port and root path make replay comparisons deterministic."
     )
+
+
+@pytest.mark.parametrize("path", [
+    "/a-A_0.~/$&+/:;=@", "/raw!'()*[]", "/%20", "/%3Cprobe%3E",
+    "/sql/vulnerable/%27%20OR%20is_hidden=1%20--", "/%20$&+:;=@",
+    "/%21%27%28%29%2A%5B%5D%20",
+])
+def test_ProviderStablePathsRemainExactInCanonicalUrlAndInvocation(tmp_path, path):
+    """Both pinned RawPath branches must preserve the operator's exact selected spelling."""
+
+    url = "http://127.0.0.1:8080" + path
+    profile = Profile(tmp_path)
+    adapter = NucleiAdapter(lambda reference: JSONL, profile, provider_version="3.4.10")
+    assert CanonicalUrl(url) == url, "Supported path spelling must never be silently rewritten."
+    invocation = adapter.PrepareInvocation(Request(profile, url=url))
+    assert invocation.argv[2] == url and invocation.request.parameters["url"] == url, (
+        "The approved request and actual argv must retain the exact provider-stable path."
+    )
+
+
+@pytest.mark.parametrize("path", [
+    "/sql/vulnerable/%27%20OR%20is_hidden%3D1%20--",
+    "/%41", "/%7E", "/%2F", "/%40", "/%3A", "/%24", "/%26", "/%2B", "/%2C",
+    "/%27", "/%21", "/%28", "/%29", "/%2A", "/%5B", "/%5D", "/%3cprobe%3e",
+    "/'%20", "/!%20", "/(%20", "/)%20", "/*%20", "/[%20", "/]%20",
+    "/%", "/%2", "/%GG", "/%2527", "/%252F", "/%25", "/%3F", "/%23",
+    "/%00", "/%09", "/%0A", "/%0D", "/%7F", "/%5C", "/%C3%A9", "/\u00e9",
+    "/%FF", "/%C0%AF", "/%7B", "/%7D", "/%7B%7BHost%7D%7D",
+    "/%7B%7BHost%20%2B%20%27x%27%7D%7D", "/%C2%A7Host%C2%A7",
+])
+def test_UnstableOrAmbiguousPathFailsBeforeMaterialReadsOrProcess(tmp_path, monkeypatch, path):
+    """Provider spelling drift and reparse semantics cannot reach reviewed files or execution."""
+
+    profile = Profile(tmp_path)
+    adapter = NucleiAdapter(lambda reference: JSONL, profile, provider_version="3.4.10")
+    url = "http://127.0.0.1:8080" + path
+
+    def NoEffect(*arguments, **keywords):
+        """Reject accidental artifact access or process creation after an unsupported URL."""
+
+        pytest.fail("Unstable provider paths must fail before artifact or process access")
+
+    monkeypatch.setattr(nuclei, "VerifyArtifact", NoEffect)
+    monkeypatch.setattr(nuclei.subprocess, "Popen", NoEffect)
+
+    with pytest.raises(ValueError, match="provider-stable"):
+        CanonicalUrl(url)
+
+    with pytest.raises(ValueError, match="provider-stable"):
+        adapter.PrepareInvocation(Request(profile, url=url))
+
+
+@pytest.mark.parametrize("field", ["matched-at", "host", "url"])
+def test_NormalizedFindingCannotSubstituteEquivalentButUnstablePath(tmp_path, field):
+    """Matching decoded paths is insufficient when retained native URL spelling differs."""
+
+    stable = "http://127.0.0.1:8080/sql/%27%20OR%20is_hidden=1%20--"
+    record = json.loads(JSONL)
+    record.update({"matched-at": stable, "host": stable, "url": stable})
+    record[field] = stable.replace("=", "%3D")
+    adapter, report = Report(tmp_path, raw=json.dumps(record).encode("utf-8"))
+    request = replace(report.invocation.request,
+                      parameters={**report.invocation.request.parameters, "url": stable})
+    report = replace(report, invocation=adapter.BuildInvocation(request))
+
+    with pytest.raises(NucleiReportError, match="invalid"):
+        adapter.NormalizeReport(report)
+
+
+@pytest.mark.parametrize("path", [
+    "/sql/%27%20OR%20is_hidden=1%20--", "/reflect/%3Cfuzzy1337-probe%3Eowned%3C/probe%3E",
+])
+def test_ProviderStableEncodedFindingRetainsExactEvidenceBinding(tmp_path, path):
+    """Accepted SQL and HTML path spelling survives real normalization and raw attribution."""
+
+    stable = "http://127.0.0.1:8080" + path
+    record = json.loads(JSONL)
+    record.update({"matched-at": stable, "host": stable, "url": stable})
+    adapter, report = Report(tmp_path, raw=json.dumps(record).encode("utf-8"))
+    request = replace(report.invocation.request,
+                      parameters={**report.invocation.request.parameters, "url": stable})
+    report = replace(report, invocation=adapter.BuildInvocation(request))
+    normalized = adapter.NormalizeReport(report)
+    assert len(normalized.findings) == 1, "Stable exact-path findings must remain usable."
+    assert normalized.findings[0].attributes["matched_at"] == stable, (
+        "Normalization must retain the exact selected path, including its preserved escapes."
+    )
+    assert normalized.report is report, (
+        "Accepted path validation cannot replace the original invocation or raw evidence binding."
+    )
+
+
+@pytest.mark.parametrize("path", ["/sql/%3D", "/%7B%7BHost%7D%7D"])
+def test_UnstableRetainedInvocationFailsBeforeRawEvidenceRead(tmp_path, monkeypatch, path):
+    """Replay cannot reopen evidence for a historical invocation outside the corrected boundary."""
+
+    adapter, report = Report(tmp_path)
+    request = replace(report.invocation.request, parameters={
+        **report.invocation.request.parameters, "url": "http://127.0.0.1:8080" + path,
+    })
+    report = replace(report, invocation=replace(report.invocation, request=request))
+
+    def NoRead(reference):
+        """Fail if unsupported retained URL metadata reaches raw evidence acquisition."""
+
+        pytest.fail("Unsupported retained invocation must fail before reading raw evidence")
+
+    monkeypatch.setattr(adapter, "_read_evidence", NoRead)
+
+    with pytest.raises(ValueError, match="provider-stable"):
+        adapter.NormalizeReport(report)
 
 
 @pytest.mark.parametrize("parameters", [
@@ -498,7 +713,9 @@ def test_RealBoundedHealthCapture(tmp_path, monkeypatch, mode):
     profile = Profile(tmp_path)
     executable = tmp_path / "owned-version"
     scripts = {
-        "good": 'print("[INF] Nuclei Engine Version: v3.4.10-synthetic")',
+        # Successful startup may exceed the timeout-only case's accelerated deadline.
+        "good": ('import time\ntime.sleep(0.2)\n'
+                 'print("[INF] Nuclei Engine Version: v3.4.10-synthetic")'),
         "invalid": 'print("unrecognized version")',
         "failed": 'raise SystemExit(7)',
         "timeout": 'import time; time.sleep(2)',
@@ -507,7 +724,10 @@ def test_RealBoundedHealthCapture(tmp_path, monkeypatch, mode):
     executable.write_text(f"#!{sys.executable}\n" + scripts[mode] + "\n", encoding="utf-8")
     executable.chmod(0o700)
     adapter = NucleiAdapter(lambda reference: JSONL, profile, str(executable))
-    monkeypatch.setattr(nuclei, "NUCLEI_HEALTH_TIMEOUT_SECONDS", 0.1)
+
+    if mode == "timeout":
+        monkeypatch.setattr(nuclei, "NUCLEI_HEALTH_TIMEOUT_SECONDS", 0.1)
+
     health = adapter.CheckHealth()
 
     if mode == "good":

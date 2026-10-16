@@ -31,10 +31,10 @@ GIT_ROUTES = {
 }
 SQL_ROUTES = {
     "/sql/vulnerable/public": "vulnerable",
-    "/sql/vulnerable/" + quote(SQL_TRUE, safe=""): "vulnerable",
-    "/sql/vulnerable/" + quote(SQL_FALSE, safe=""): "vulnerable",
-    "/sql/fixed/" + quote(SQL_TRUE, safe=""): "fixed",
-    "/sql/decoy/" + quote(SQL_TRUE, safe=""): "decoy",
+    "/sql/vulnerable/" + quote(SQL_TRUE, safe="="): "vulnerable",
+    "/sql/vulnerable/" + quote(SQL_FALSE, safe="="): "vulnerable",
+    "/sql/fixed/" + quote(SQL_TRUE, safe="="): "fixed",
+    "/sql/decoy/" + quote(SQL_TRUE, safe="="): "decoy",
 }
 REFLECTION_ROUTES = {
     f"/reflect/{mode}/" + quote(REFLECTION_INPUT, safe="/"): mode
@@ -172,7 +172,7 @@ class WebVulnerabilityHandler(BaseHTTPRequestHandler):
             len(self.path.encode("utf-8")) > MAX_PATH_BYTES or self.path not in KNOWN_ROUTES
             or "Authorization" in self.headers or "Cookie" in self.headers
             or "Transfer-Encoding" in self.headers
-            or self.headers.get("Content-Length", "0") != "0"
+            or self.headers.get_all("Content-Length", ["0"]) != ["0"]
         )
 
         if rejected:

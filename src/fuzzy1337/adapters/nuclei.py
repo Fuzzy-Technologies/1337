@@ -19,7 +19,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
-from urllib.parse import urlsplit
+from urllib.parse import quote, unquote_to_bytes, urlsplit
 
 from fuzzy1337.adapters import (
     AdapterDescriptor,
@@ -69,6 +69,10 @@ _HEALTH_VERSION_PATTERN = re.compile(
 )
 _EMPTY_CONFIG = b"{}\n"
 _SEVERITIES = frozenset({"info", "low", "medium", "high", "critical", "unknown"})
+_GO_RAW_PATH_CHARACTERS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~/!$&'()*+,;=:@[]"
+)
+_GO_PATH_SAFE = "/:$&+,;=@-._~"
 
 
 class NucleiReportError(ValueError):
@@ -199,16 +203,21 @@ def RequireInteger(value: object, minimum: int, maximum: int, field_name: str) -
 
 
 def CanonicalUrl(value: object) -> str:
-    """Require one credential-free HTTP(S) URL with a literal unicast address.
+    """Require literal HTTP(S) authority and a provider-preserved ASCII path.
+
+    Reviewed Nuclei 3.4.10 BaseURL interpolation reparses the decoded path. The
+    complete path must retain its exact selected spelling through that operation.
+    Nested escapes, decoded query/fragment or expression delimiters, controls,
+    backslashes and non-ASCII paths are outside this finite provider profile.
 
     Args:
-        value: Exact authorized URL, including its explicit path.
+        value: Exact authorized URL with a provider-preserved ASCII path.
 
     Returns:
-        Canonical literal URL with an explicit port and no DNS expansion.
+        Canonical literal URL with an explicit port and the unchanged selected path.
 
     Raises:
-        ValueError: The URL has unsupported authority, credentials, or expansion.
+        ValueError: Authority, credentials or path spelling violate the finite profile.
     """
 
     if not isinstance(value, str) or any(
@@ -239,8 +248,33 @@ def CanonicalUrl(value: object) -> str:
         raise ValueError("Nuclei URL must be unicast HTTP(S) without credentials/query/fragment")
 
     host = f"[{address}]" if address.version == 6 else str(address)
+    path = parsed.path or "/"
+    path_error = "Nuclei URL requires an exact provider-stable ASCII path"
 
-    return f"{parsed.scheme}://{host}:{port}{parsed.path or '/'}"
+    if re.search(r"%(?![0-9A-Fa-f]{2})", path):
+        raise ValueError(path_error)
+
+    try:
+        decoded_path = unquote_to_bytes(path).decode("ascii")
+
+    except UnicodeError as error:
+        raise ValueError(path_error) from error
+
+    if any(ord(character) < 32 or ord(character) == 127 or character in "%?#\\{}"
+           for character in decoded_path):
+        raise ValueError(path_error)
+
+    # Nuclei 3.4.10 interpolates decoded BaseURL, then reparses it. Go preserves
+    # valid RawPath, including apostrophes, or escapes the complete decoded path.
+    wire_path = decoded_path if all(character in _GO_RAW_PATH_CHARACTERS
+                                   for character in decoded_path) else (
+        quote(decoded_path, safe=_GO_PATH_SAFE)
+    )
+
+    if path != wire_path:
+        raise ValueError(path_error)
+
+    return f"{parsed.scheme}://{host}:{port}{path}"
 
 
 def VerifyArtifact(path: str, sha256: str, size_bytes: int) -> bytes:
@@ -647,6 +681,10 @@ class NucleiAdapter:
                          record: Mapping[str, object]) -> NormalizedFinding:
         """Bind a provider match to the exact template/URL and its enclosing evidence.
 
+        Native authority-shaped records carry decoded input URL/path context.
+        These fields must equal the representation derived from the approved URL;
+        the matched URL remains bound to its exact provider-preserved spelling.
+
         Args:
             report: Original invocation and execution facts.
             record: One bounded unique-key JSONL object.
@@ -673,22 +711,26 @@ class NucleiAdapter:
             raise NucleiReportError("Nuclei match URL differs from the exact approved target")
 
         endpoint = urlsplit(expected_url)
+        expected_path = endpoint.path
 
-        if "host" in record:
-            if record["host"] == endpoint.netloc:
-                if (record.get("url") != expected_url or record.get("scheme") != endpoint.scheme
-                    or record.get("port") != str(endpoint.port)):
-                    raise NucleiReportError("Nuclei authority requires exact destination fields")
+        if record.get("host") == endpoint.netloc:
+            expected_path = unquote_to_bytes(endpoint.path).decode("ascii")
+            context_url = f"{endpoint.scheme}://{endpoint.netloc}{expected_path}"
 
-            elif CanonicalUrl(record["host"]) != expected_url:
+            if (record.get("url") != context_url or record.get("scheme") != endpoint.scheme
+                or record.get("port") != str(endpoint.port)):
+                raise NucleiReportError("Nuclei authority requires exact destination fields")
+
+        else:
+            if "host" in record and CanonicalUrl(record["host"]) != expected_url:
                 raise NucleiReportError("Nuclei input host differs from the exact approved target")
 
-        if "url" in record and CanonicalUrl(record["url"]) != expected_url:
-            raise NucleiReportError("Nuclei input URL differs from the exact approved target")
+            if "url" in record and CanonicalUrl(record["url"]) != expected_url:
+                raise NucleiReportError("Nuclei input URL differs from the exact approved target")
 
         if "scheme" in record and record["scheme"] != endpoint.scheme or (
             "port" in record and record["port"] != str(endpoint.port)
-        ) or ("path" in record and record["path"] != endpoint.path):
+        ) or ("path" in record and record["path"] != expected_path):
             raise NucleiReportError("Nuclei endpoint components contradict the approved target")
 
         if "ip" in record and record["ip"] != urlsplit(expected_url).hostname:
