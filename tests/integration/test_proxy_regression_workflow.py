@@ -9,6 +9,7 @@ import http.client
 import json
 import socket
 import ssl
+import threading
 from threading import Thread
 
 import pytest
@@ -413,6 +414,70 @@ def test_PartialTlsHeaderInterruptionClosesTheOwnedAcceptedSocket(mode):
         )
 
 
+def test_TlsTeardownBeforeHandshakeKeepsSslStateWithItsOwningThread(monkeypatch):
+    """Actual TCP interruption cannot clear SSL state before its owner starts the handshake."""
+
+    entered, peer_closed = threading.Event(), threading.Event()
+    original = ssl.SSLSocket.do_handshake
+    thread_errors, secure_sockets, owners, peer_results = [], [], [], []
+    client, peer = None, None
+
+    def HoldHandshake(connection, block=False):
+        """Resume the actual handshake only after the peer observes real transport shutdown."""
+
+        secure_sockets.append(connection)
+        owners.append(threading.current_thread())
+        entered.set()
+        assert peer_closed.wait(timeout=3), "The peer never observed actual TCP interruption"
+
+        return original(connection, block)
+
+    def ObservePeer(connection):
+        """Independently observe EOF or connection reset without releasing the fixture itself."""
+
+        try:
+            assert connection.recv(1) == b"", "Interrupted TLS fixture returned unexpected bytes"
+            peer_results.append("eof")
+
+        except ConnectionResetError:
+            peer_results.append("reset")
+
+        peer_closed.set()
+
+    monkeypatch.setattr(ssl.SSLSocket, "do_handshake", HoldHandshake)
+    monkeypatch.setattr(threading, "excepthook", thread_errors.append)
+
+    try:
+        with OwnedTls("untrusted-self-signed") as tls:
+            client = socket.create_connection(tls.listener.getsockname(), timeout=2)
+            client.sendall(b"\x16\x03")
+            peer = Thread(target=ObservePeer, args=(client,), daemon=False)
+            peer.start()
+            assert entered.wait(timeout=2), "Certificate handshake never reached its real barrier"
+
+    finally:
+        if client is not None:
+            client.close()
+
+        if peer is not None:
+            peer.join(timeout=3)
+            assert not peer.is_alive(), "The independent peer observer was not reaped"
+
+    assert not thread_errors, "TLS teardown caused an unhandled owning-thread exception"
+    assert peer_results in (["eof"], ["reset"]), "No actual transport interruption was observed"
+    assert len(secure_sockets) == len(owners) == 1 and secure_sockets[0].fileno() == -1, (
+        "The owning server did not close its single wrapped TLS socket"
+    )
+    assert not owners[0].is_alive() and tls.listener.fileno() == -1, (
+        "TLS teardown abandoned its serving thread or listener"
+    )
+    assert tls.handled.is_set() and tls.active_connection is None, "TLS ownership was not released"
+    assert tls.ObserveCertificate() == {"connections": 1, "handshake_attempts": 1,
+        "certificate_rejections": 0, "completed_handshakes": 0, "errors": []}, (
+        "Interrupted certificate handshake fabricated a TLS result or lost lifecycle state"
+    )
+
+
 def test_InvalidTlsHeaderIsRecordedAsFixtureFailureWithoutUnobservedThreadError():
     """Unexpected wire input remains explicit test failure truth with deterministic cleanup."""
 
@@ -449,21 +514,25 @@ def test_IndependentVerifyingClientRejectsTheActualSelfSignedCertificate():
 
     with OwnedTls("untrusted-self-signed") as tls:
         with socket.create_connection(tls.listener.getsockname(), timeout=2) as connection:
-            with pytest.raises(ssl.SSLCertVerificationError) as captured:
-                context.wrap_socket(connection, server_hostname="127.0.0.1")
+            # Implicit wrap failure closes this client before we can observe the server alert.
+            with context.wrap_socket(connection, server_hostname="127.0.0.1",
+                                     do_handshake_on_connect=False) as secure:
+                with pytest.raises(ssl.SSLCertVerificationError) as captured:
+                    secure.do_handshake()
 
-        assert captured.value.verify_code == TlsCertificateOracle()["certificate"][
-            "independent_client_verify_code"
-        ] == 18, "Independent client failure was not the expected self-signed chain rejection"
-        assert tls.handled.wait(timeout=3), "Certificate target did not observe client rejection"
-        assert tls.ObserveCertificate() == {"connections": 1, "handshake_attempts": 1,
-            "certificate_rejections": 1, "completed_handshakes": 0, "errors": []}, (
-            "Real server did not independently observe one rejected certificate handshake"
-        )
+                assert captured.value.verify_code == TlsCertificateOracle()["certificate"][
+                    "independent_client_verify_code"
+                ] == 18, "Independent client did not reject the self-signed certificate chain"
+                assert secure.fileno() != -1, "Client closed before server alert observation"
+                assert tls.handled.wait(timeout=3), "Certificate target missed client rejection"
+                assert tls.ObserveCertificate() == {"connections": 1, "handshake_attempts": 1,
+                    "certificate_rejections": 1, "completed_handshakes": 0, "errors": []}, (
+                    "Real server did not independently observe one rejected certificate handshake"
+                )
 
-    assert tls.listener.fileno() == -1 and tls.active_connection is None, (
-        "Certificate rejection fixture retained a live listener, client or owning thread"
-    )
+    assert secure.fileno() == -1 and tls.listener.fileno() == -1 and (
+        tls.active_connection is None
+    ), "Certificate rejection fixture retained a live listener, client or owning thread"
 
 
 def test_InvalidCertificateFixtureFailsBeforeAllocatingAListener(tmp_path, monkeypatch):

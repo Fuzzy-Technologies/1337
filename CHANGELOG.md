@@ -70,6 +70,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   and typed finding bindings. Contextual relations remain advisory.
 - Added offline OpenAPI request import, bounded synthetic API request generation
   and browser/API journey contracts without granting execution authority.
+- Added bounded offline JSON scalar and explicit JSON-in-string mutation
+  preparation with versioned profiles, complete seed/path/digest provenance,
+  independently anchored replay and actual API preview/model/evidence consumer
+  tests. Candidates grant no execution or schema-validity claim; other codecs,
+  live anomaly detection and minimized reproducers remain open.
 - Added opt-in bounded OpenAPI/Swagger YAML import and source-bound synthetic
   request previews with an optional pinned event parser. JSON defaults and
   identities remain compatible; aliases, unsafe tags, duplicate/non-string keys
