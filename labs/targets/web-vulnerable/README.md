@@ -37,6 +37,10 @@ the oracle. Unsupported or unexecuted provider cases are not true negatives.
 
 The finite input is explicitly supplied in the URL path. SQL apostrophes and
 markup are percent-encoded; the closing HTML tag keeps an ordinary path slash.
+The four SQL payload routes explicitly select literal `=` as their sole spelling.
+The prior `%3D` spelling is rejected with 404 before SQL execution; there are no
+accepted aliases. This fixture selection follows observed provider wire behavior
+and does not authorize rewriting an earlier approved target URL.
 The existing product URL/scope rules accept these paths unchanged. Queries,
 fragments, encoded path separators, traversal, alternate payloads, credentials
 and arbitrary route input are not added to the provider contract. There is no

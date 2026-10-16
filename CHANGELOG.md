@@ -53,6 +53,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added an explicitly confirmed STANDARD Nuclei workflow through governed jobs,
   retained raw evidence and durable canonical Findings, with current authority
   checks at launch and model Save and pinned genuine-provider loopback CI.
+- Added three original reviewed single-GET Nuclei response checks for Git HEAD
+  exposure, owned SQL canary disclosure and unsafe HTML reflection candidates.
+  Genuine-provider acceptance compares persisted Findings against twelve owned
+  positive/fixed/decoy scenarios, retains original streams and template provenance,
+  and verifies offline reopen. Clean-wheel checks pin the shipped resources;
+  generic SQL injection and browser-confirmed XSS remain separate capabilities.
 - Added opt-in genuine Trivy adapter acceptance with checksum/digest-pinned
   upstream material, owned inert image metadata, specific advisory boundary tests,
   original raw evidence and a Linux scan namespace without external routes.
@@ -75,6 +81,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   independently anchored replay and actual API preview/model/evidence consumer
   tests. Candidates grant no execution or schema-validity claim; other codecs,
   live anomaly detection and minimized reproducers remain open.
+- Added explicit canonical standard Base64 JSON mutation selection with strict
+  alphabet/padding/pad-bit and UTF-8/JSON refusal, preflight byte budgets, complete
+  encoding provenance and replay after evidence relocation. Existing direct JSON
+  selection shapes and references remain compatible; no codec is autodetected.
 - Added opt-in bounded OpenAPI/Swagger YAML import and source-bound synthetic
   request previews with an optional pinned event parser. JSON defaults and
   identities remain compatible; aliases, unsafe tags, duplicate/non-string keys
@@ -216,6 +226,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   with independent source oracles, fixed/decoy controls, no-follow redirect and
   bounded failure cleanup. Target tests prove mechanisms; detector accuracy
   remains tied to separate real-provider evidence.
+- Added six owned filesystem-access target cases with actual temporary-file
+  traversal, fixed containment before reads, real missing-file behavior and a
+  documentation decoy. Explicit QUERY coordinates, bounded file and socket
+  ownership and negative controls preserve current provider refusal; this
+  target-only pack does not establish scanner path-traversal detection.
 - Added a versioned owned plaintext reverse-proxy regression pack exercising
   installed Quick Scan against transparent, 403, 302, rewritten-status and timeout
   cases. Independent backend hit counts, original evidence, durable reopen and
@@ -228,6 +243,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   and certificate validation acceptance remain separate work.
 
 #### Fixed
+
+- Reject Nuclei paths whose selected spelling changes in the provider URL
+  pipeline, before invocation or finding normalization. Genuine-provider wire
+  evidence exposed the mismatch; explicit fixture URL selection and negative
+  preflight checks preserve exact scope without accepting decoded aliases.
 
 - Enforced original Docker/Kubernetes byte limits before generic retained-evidence
   reads in both runtime import modes. Known custody binds its original profile

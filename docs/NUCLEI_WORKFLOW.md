@@ -135,6 +135,13 @@ canonical findings, reopen and report integrity. Ignored artifacts are retained
 under `functional-evidence/nuclei-native/`; absent opt-in is a skip. The pinned Linux
 acceptance lane uses upstream Nuclei v3.4.10.
 
+The [reviewed web response checks](NUCLEI_WEB_CHECKS.md) add shipped first-party
+Git HEAD, owned SQL-canary and unsafe-HTML-reflection predicates through this
+same workflow. Their separate twelve-case owned target matrix retains genuine
+provider acquisitions and explicitly limits each detection claim. The native CI
+lane also runs `tests/functional/test_nuclei_web_checks.py`; it preserves those
+results under `functional-evidence/nuclei-web-checks/`.
+
 ```bash
 FUZZY1337_NUCLEI_BINARY=/absolute/path/to/nuclei \
   uv run --locked --extra dev pytest -q tests/integration/test_nuclei_native.py

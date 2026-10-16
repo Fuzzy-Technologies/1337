@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+id: fuzzy1337-owned-sql-canary-disclosure
+info:
+  name: Owned read-only SQL canary row disclosure
+  author: fuzzy-technologies
+  severity: low
+  description: >-
+    The explicitly selected endpoint returned only the owned lab's non-secret
+    private row. This response check is not a general SQL injection detector;
+    separately approved baseline, true, false and parameterized controls establish
+    the real SQLite mechanism in the finite acceptance scenario.
+  tags: owned-lab,sql,disclosure
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    redirects: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: header
+        regex:
+          - '(?im)^content-type:\s*application/json(?:;[^\r\n]*)?\r?$'
+      - type: regex
+        part: body
+        regex:
+          - '^\{\s*"rows"\s*:\s*\[\s*"owned-private-row"\s*\]\s*\}\r?\n?$'

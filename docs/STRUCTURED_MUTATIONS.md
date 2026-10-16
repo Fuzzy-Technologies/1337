@@ -1,7 +1,8 @@
 # Structured JSON mutations
 
 `fuzzy1337.structured_mutations` is an **Experimental offline library** for
-preparing reproducible synthetic JSON body candidates. It performs no request
+preparing reproducible synthetic JSON body candidates, including explicitly
+selected canonical standard Base64 JSON strings. It performs no request
 transmission, finding creation or authorization. A candidate is not evidence that
 a target is vulnerable. This implements a bounded first slice of #207 under
 [ADR 0084](adr/0084-bounded-structured-json-mutations.md).
@@ -78,6 +79,45 @@ root, while `None` means no decoding. Other strings are never guessed or decoded
 Multiple inner selections share one decode of that outer string. Duplicate
 selections and mixing raw/decoded selections for one outer value are rejected.
 
+## Explicit canonical Base64 JSON
+
+Use `JsonMutationEncoding.BASE64_JSON` to decode one selected outer string as
+standard RFC 4648 Base64 and then strict UTF-8 JSON:
+
+```python
+from fuzzy1337.structured_mutations import JsonMutationEncoding
+
+selection = JsonMutationSelection(
+    "/packed", "/flags/0", encoding=JsonMutationEncoding.BASE64_JSON,
+)
+```
+
+For `{"packed":"eyJmbGFncyI6W3RydWUsZmFsc2VdfQ=="}`, this changes the first
+inner boolean and emits canonical Base64 containing `{"flags":[false,false]}`.
+The inner empty pointer selects the decoded root. Base64 requires an explicit
+inner pointer; choosing the codec with `decoded_pointer=None` is invalid.
+Only standard `A-Z`, `a-z`, `0-9`, `+`, `/` and required terminal `=` padding are
+accepted. Whitespace, URL-safe characters, missing/excess/interior padding and
+nonzero pad bits fail closed. Exact decode/re-encode equality verifies canonical
+spelling. The inner bytes retain the same strict UTF-8/JSON checks as direct
+JSON-string decoding. No codec is guessed, and inner strings are not decoded again.
+
+`JsonMutationEncoding.JSON_STRING` is the default and retains the original direct
+JSON-string behavior. Its field is omitted from `ToDict()` so existing selection
+shapes, seeded order and references remain unchanged. Base64 selections include
+`"encoding":"base64-json-v1"` in selection/configuration metadata and the complete
+chain `["json-utf8","json-string","base64-rfc4648","json-utf8"]`. One outer pointer
+cannot mix raw, direct-JSON and Base64 interpretations. Multiple inner selections
+using the same codec share one decoded document.
+
+Base64 decoded length is checked before calling the decoder. Aggregate decoded
+bytes count the outer body plus each selected Base64 transport string and its
+inner JSON bytes; direct JSON strings keep their existing single inner-byte charge.
+Candidate re-encoding checks the predicted Base64 size before allocation, charges
+both inner layers and retains the outer-body and complete-output bounds. JSON node
+and depth accounting remains unchanged: Base64 itself adds no JSON tree node.
+See [ADR 0085](adr/0085-explicit-base64-json-mutations.md).
+
 ## Profiles and deterministic replay
 
 `JsonMutationProfile.SCALAR_BOUNDARIES` (`scalar-boundaries-v1`) uses these fixed
@@ -122,9 +162,10 @@ Replay is a content-integrity check, not source authenticity or permission.
 - maximum complete output candidates: 64;
 - maximum aggregate generated body bytes: 1,048,576.
 
-All budgets are positive integers, excluding booleans. Decoded bytes/nodes count
-the outer JSON plus each distinct explicitly decoded string. Inner depth starts
-one level beyond its outer-string coordinate. Candidate bytes are checked both
+All budgets are positive integers, excluding booleans. Decoded nodes count the
+outer tree plus each distinct explicitly decoded inner JSON tree. Decoded bytes
+count the outer JSON, each direct JSON string, and both transport/JSON layers for
+Base64. Inner depth starts one level beyond its outer-string coordinate. Candidate bytes are checked both
 individually and against the aggregate output budget while encoding; candidate
 outer/selected inner encodings must also fit the decoded-byte budget. Duplicate
 JSON keys, nonfinite values, invalid UTF-8/surrogates and unresolved selections
@@ -141,10 +182,15 @@ negative-case oracles. Integration tests consume the actual API generator,
 substitute candidate bodies into its existing preview record, preserve source
 and persistent model bytes, and explicitly save/reopen reference metadata with
 the existing evidence store after workspace relocation. No network service is
-needed for this offline capability.
+needed for this offline capability. The Base64 integration scenario wraps exact
+actual API-generated JSON bytes in an explicitly synthetic envelope under a
+declared string input. It retains that envelope through existing evidence owners,
+relocates the workspace, reopens its original bytes and independent reference, and
+replays the candidate. The API generator itself does not claim to generate Base64
+or validate the synthetic envelope against the original schema.
 
-Base64, gzip and other compression, protobuf, MessagePack, JWT, additional codec
-layers, full schema-preserving mutation, malformed JSON, live execution, rate
+URL-safe Base64, gzip and other compression, protobuf, MessagePack, JWT, additional
+codec layers, full schema-preserving mutation, malformed JSON, live execution, rate
 limits, crash/timeout/anomaly classification and minimized reproducers remain
 open under #207. These tests establish preparation/replay behavior, not scanner
 attack-vector detection or standards coverage.

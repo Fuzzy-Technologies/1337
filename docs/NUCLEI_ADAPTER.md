@@ -35,6 +35,33 @@ expansion. Its exact path and port are retained.
 There is no arbitrary provider option passthrough. The profile hash binds all
 selected source/revision/review data into existing invocation authorization.
 
+### Provider-preserved paths
+
+The selected path must already have the spelling preserved by the reviewed
+provider URL pipeline. Unsupported spellings fail during preparation and report
+normalization. The adapter never rewrites a selected path to make it acceptable.
+This closes a mismatch observed in genuine Nuclei 3.4.10 acceptance: the selected
+SQL fixture path contained `%3D`, but the actual request contained literal `=`.
+The target rejected that request, and the failed run remains failed evidence.
+
+The conservative path check uses ASCII only, refuses nested or malformed percent
+escapes, decoded query/fragment separators, braces, controls and backslashes,
+and compares the original path with the provider-preserved spelling. Braces
+are excluded before provider expression evaluation can reinterpret URL text.
+Both Go raw-path
+preservation and fallback escaping matter: standalone `%27` is unsupported,
+whereas the reviewed SQL path with `%27%20` and literal `=` is preserved.
+An encoded alias never authorizes its decoded destination. A different selected
+URL needs its own current scope and exact-plan confirmation.
+
+The behavior is traced to the pinned provider's
+[decoded-path serialization](https://github.com/projectdiscovery/utils/blob/v0.4.23/url/url.go),
+[expression evaluation](https://github.com/projectdiscovery/nuclei/blob/v3.4.10/pkg/protocols/common/expressions/expressions.go)
+and Go's
+[path escaping](https://github.com/golang/go/blob/go1.24.1/src/net/url/url.go).
+Real wire acceptance is pinned to Nuclei 3.4.10; version health alone does not
+establish compatibility for another provider release.
+
 Create `NucleiAdapter(evidence_store.Read, profile, executable, provider_version)`
 using trusted operator-selected executable configuration. `CheckHealth()` runs
 only bounded `-version -duc` and reports availability/version; it grants nothing.
@@ -65,6 +92,16 @@ binding, selected hashes/source/review, severity/classification and deterministi
 source finding identity are retained. Raw evidence stays in the enclosing report.
 No provider-owned core model or persistence path is introduced.
 
+Native authority-shaped records carry decoded `url` and `path` context separately
+from `matched-at`. The authority, scheme and port must agree with the approved
+target, and those context strings must equal the exact representation derived
+from that already validated URL. They cannot replace or relax the encoded match
+address. Full-URL host records keep their existing canonical URL checks. This
+distinction follows the pinned provider's
+[output-field producer](https://github.com/projectdiscovery/nuclei/blob/v3.4.10/pkg/protocols/utils/fields.go)
+and an actual retained SQL-canary result. Missing required native fields or
+contradictory context fails; the optional `path` is checked when supplied.
+
 Failed, timed-out and cancelled execution remain incomplete. Invalid successful
 JSONL fails; malformed partial unsuccessful output becomes an explicit parse
 diagnostic with no trusted findings. Zero matches mean no reported matches; they
@@ -90,3 +127,9 @@ Real provider compatibility is based on the upstream
 [CLI flag reference](https://github.com/projectdiscovery/nuclei/blob/dev/README.md#command-line-flags)
 and [template/output behavior](https://docs.projectdiscovery.io/opensource/nuclei/running).
 No Internet target is part of the test suite.
+
+The separate [reviewed web-check acceptance](NUCLEI_WEB_CHECKS.md) runs the genuine
+pinned provider against actual owned Git-file, SQL and reflection mechanisms.
+Its exact-request observations and independently authored oracle also exercise
+the supported encoded paths. These results apply to the declared predicates and
+finite scenarios; they do not establish general SQLi or browser XSS detection.

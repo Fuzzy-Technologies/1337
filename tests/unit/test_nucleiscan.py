@@ -232,6 +232,37 @@ def test_InvalidPlanningInputsCannotReachProvider(
         PlanNucleiScan(tmp_path, "local", target, "operator:owned", None, executable, Policy)
 
 
+@pytest.mark.parametrize("path", [
+    "/sql/vulnerable/%27%20OR%20is_hidden%3D1%20--", "/%2527", "/%3F", "/%23", "/%27",
+    "/%7B%7BHost%7D%7D",
+])
+def test_UnstablePathFailsPlanningAndRunBeforeStatePolicyOrProvider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, runner: asyncio.Runner, path: str,
+) -> None:
+    """The exact URL preflight must precede every local read, policy call and version process."""
+
+    root = tmp_path / "uncreated-workspace"
+    target = Target(TargetKind.URL, "http://127.0.0.1:8080" + path)
+
+    def NoEffect(*arguments, **keywords):
+        """Fail if unsupported URL spelling reaches a state store, provider or policy reader."""
+
+        pytest.fail("Unstable path must fail before local state, policy or provider access")
+
+    for name in ("LocalWorkspaceStore", "LocalEvidenceStore", "LocalModelStore", "NucleiAdapter"):
+        monkeypatch.setattr(nucleiscan, name, NoEffect)
+
+    with pytest.raises(ValueError, match="provider-stable"):
+        PlanNucleiScan(root, "local", target, "operator:owned", None, str(root / "nuclei"),
+                      NoEffect)
+
+    with pytest.raises(ValueError, match="provider-stable"):
+        runner.run(RunNucleiScan(root, "local", target, "operator:owned", None,
+                                str(root / "nuclei"), NoEffect))
+
+    assert not root.exists(), "A denied target must not create workspace or evidence state."
+
+
 @pytest.fixture
 def portable_workflow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Bind a clearly synthetic portable executor boundary without any provider process/network.
