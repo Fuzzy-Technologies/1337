@@ -15965,3 +15965,234 @@ state = "missing"
 
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.structured-mutations"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.structured_mutations.md"
+sourceHash = "sha256:9f08205f00359029c3ee9519afff2b9cced4f73fe6dd57126fdea9321fa012fc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.BodyDigest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:1a4ad4c9d581d62876c52864aa58a82e991cf56a074922c1dc974639f81ab042"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.Child"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:eb8f8e14766955a1b3f9474843742b4fae93f20b25b0fcf131994968850cddbe"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.DecodeBody"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:67eb2eb622cdd55b23e667f3ee8702c89de7ec80c1546608fb1c71902a02882e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.EncodeBody"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:68f228cc82aca2e588a370dd030cd047de07d09ef67a27ce3e56e129606c99a5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.GenerateJsonMutations"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:7196deb35abde7ae534440917c7895139bc84eb30d48074a0ca92811e1a47c7c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.InspectTree"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:3c858321600b6952e0d8912f5d74f8f8d8520e1b3b5d675db861052310d7a7fb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.JsonMutation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:8ee66bf3e433c92275c9110b791ad78d88a79498c49d09cfb1ad52628cb5d632"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.JsonMutation.Metadata"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:67a5496f3349430b2a4d85f7f5719742d805086ea83de36052e1d4d45ca8f3cb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.JsonMutation.Reference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:c8e24ce9e9afa9797aeb8e7206bbd6ef1126166062c3dcfb25d0409cc8c89920"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.JsonMutationLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:7ca2897be7468037bf0fd273d37d155b478549f8a151c103dde16193e4801c37"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.JsonMutationLimits.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:263f60fc0a5b07e544a1f5057ef447a93e8c40d3f6560e513b5204a71214dfd6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.JsonMutationProfile"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:eba86f0084b15b4c1a002516dbb6f7f0b1facaff75cd7193ac88f8bb1e5fc6ed"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.JsonMutationSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:6d208d2821f00df049716f7365d278213cf283afb281e2b4e8b18ffb1b600516"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.JsonMutationSelection.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:a0c5f7dade89f303bb8d4395282a9104ab5df7bac4985e2151c102c5ea3624de"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.PointerTokens"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:b519a60b710c5758cb8543ca9250975c8caadaf37f7cbd6b9a7fef403ed10b54"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.PrepareMutations"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:5dbed1fb674cb24ad8b3f03b3af18be53d182b58da7afc10b7a961d0ae1467d8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.Replace"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:f78d3c83777136cfdf8fc48e3f0b7443dbb5e9d5b1ec33c803216a0c156aaea7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.ReplayJsonMutation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:72a3de89c45f78774e7782ba20c3063853a1f7344d3d9143c9205a338809b3c3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.Resolve"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:a4115492723bb30c3d29e7953d4df893224dc7c8898d378109ff37ffc6464ece"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.structured_mutations.Variants"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/structured_mutations.py"
+sourceHash = "sha256:0022ef914ca6f9cb05a854cf437db15adf45fc1bc952f32de2babb7b6de8fd0f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"

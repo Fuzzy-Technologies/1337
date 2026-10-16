@@ -82,6 +82,14 @@ It grants no scope, method, authentication or execution permission.
 Generation accepts the same explicit JSON/YAML selection as its original import;
 the source, operation and resolution context must still agree exactly.
 
+`fuzzy1337.structured_mutations` is an Experimental offline Python producer at
+JSON mutation profile version `1`. ADR 0084 and `docs/STRUCTURED_MUTATIONS.md`
+define bounded scalar and explicitly selected JSON-in-string transformations,
+complete seed/path/content attribution and independent-reference replay.
+Public preparation and replay use the existing request template; they grant no
+schema-validity, source-authenticity, persistence or execution guarantee. Direct
+record constructors and decoding/rendering helpers remain Internal.
+
 `fuzzy1337.graphql_import` is an Experimental offline Python profile at version
 `1`. ADR 0065 and `docs/GRAPHQL_IMPORT.md` define explicit owned introspection
 import, source-bound typed operation metadata and bounded query/mutation previews

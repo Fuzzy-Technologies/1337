@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +25,11 @@ from fuzzy1337.scope import (
     ScopeSnapshot,
     Target,
     TargetKind,
+)
+from fuzzy1337.structured_mutations import (
+    GenerateJsonMutations,
+    JsonMutationSelection,
+    ReplayJsonMutation,
 )
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
 
@@ -162,3 +168,77 @@ def test_ActualGeneratedUrlAndQueryRequireCurrentExactScopeConsent(tmp_path, doc
 
     assert (root / "state/scopes/owned.json").read_bytes() == scope_before, "Preview changed scope"
     assert (root / "workspace.json").read_bytes() == workspace_before, "Preview changed workspace"
+
+
+def test_StructuredMutationConsumesActualApiPreviewAndPreservesPersistentTruth(tmp_path):
+    """Real API and model owners retain source attribution without granting mutation truth."""
+
+    root = tmp_path / "workspace"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned mutation"), "mutation-api")
+    store = LocalModelStore(root)
+    initial = store.Create()
+    text = Source()
+    imported = ImportOpenApi(text, workspace_id=initial.workspace_id)
+    operation = next(item for item in imported.operations if item.operation_id == "CreateOwned")
+    generated = GenerateOpenApiRequest(text, operation.Reference(),
+                                       workspace_id=initial.workspace_id)
+    provenance = ModelProvenance("api-generation", "run:mutation", "2026-10-15T00:00:00Z",
+                                "scope:owned", generated.target.Reference(), "1")
+    projection = ProjectOpenApi(imported, provenance=(provenance,))
+    updated, _ = initial.Apply(objects=projection)
+    saved = store.Save(updated, expected_revision=initial.revision)
+    source_before = text.encode("utf-8")
+    model_before = (root / "state/model/model.json").read_bytes()
+    workspace_before = (root / "workspace.json").read_bytes()
+    candidates = GenerateJsonMutations(operation.template, generated.body,
+        (JsonMutationSelection("/a~1b~0c/count"), JsonMutationSelection("/flags/0")), seed=17)
+    baseline = {"a/b~c": {"count": 1}, "flags": [True, False],
+                "name": "synthetic", "onlyNull": None}
+    assert json.loads(generated.body) == baseline, "Independent baseline oracle changed"
+
+    for candidate in candidates:
+        preview = replace(generated, body=candidate.body)
+        parsed = json.loads(preview.body)
+        assert preview.target == generated.target and preview.headers == generated.headers, (
+            "Body mutation changed target or transport structure"
+        )
+        assert preview.operation == generated.operation, "Original schema provenance changed"
+        assert parsed["name"] == "synthetic" and parsed["onlyNull"] is None, (
+            "Sibling values changed"
+        )
+
+        if candidate.selection_index == 0:
+            assert parsed["flags"] == [True, False], "Unselected array changed"
+            assert parsed["a/b~c"]["count"] in [0, -1, 2147483647, -2147483648], (
+                "Integer candidate differs from the independently declared boundary corpus"
+            )
+
+        else:
+            assert parsed == {**baseline, "flags": [False, False]}, "Array element oracle failed"
+
+        assert ReplayJsonMutation(operation.template, generated.body, candidate,
+            expected_reference=candidate.Reference()) == candidate, (
+            "Actual API-derived mutation cannot replay"
+        )
+
+    assert len(candidates) == 5, "Actual API body did not yield the expected bounded corpus"
+    assert (root / "state/model/model.json").read_bytes() == model_before, "Mutation changed model"
+    assert (root / "workspace.json").read_bytes() == workspace_before, "Mutation changed workspace"
+    assert Source().encode("utf-8") == source_before, "Mutation rewrote the original API source"
+    assert store.Open() == saved and not Findings(saved), (
+        "Mutation invented observations or findings"
+    )
+    metadata = CanonicalModelJson({"baseline": generated.Metadata(),
+                                  "mutations": [item.Metadata() for item in candidates]})
+    evidence_store = LocalEvidenceStore(root / "evidence")
+    evidence = evidence_store.Put(metadata, "synthetic-mutation-metadata", "application/json",
+        EvidenceProvenance(initial.workspace_id, "scope:owned", "json-mutation", "1", None,
+                           "2026-10-15T00:00:00Z", "2026-10-15T00:00:01Z"))
+    assert generated.body not in metadata, "Baseline payload leaked into reference metadata"
+    assert all(item.body not in metadata for item in candidates), "Mutation payload leaked"
+    moved = tmp_path / "relocated"
+    root.rename(moved)
+    assert LocalModelStore(moved).Open() == saved, "Mutation metadata changed structural truth"
+    assert LocalEvidenceStore(moved / "evidence").Read(evidence.reference) == metadata, (
+        "Explicit synthetic provenance cannot be reopened after relocation"
+    )

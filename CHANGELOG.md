@@ -76,6 +76,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   and typed finding bindings. Contextual relations remain advisory.
 - Added offline OpenAPI request import, bounded synthetic API request generation
   and browser/API journey contracts without granting execution authority.
+- Added bounded offline JSON scalar and explicit JSON-in-string mutation
+  preparation with versioned profiles, complete seed/path/digest provenance,
+  independently anchored replay and actual API preview/model/evidence consumer
+  tests. Candidates grant no execution or schema-validity claim; other codecs,
+  live anomaly detection and minimized reproducers remain open.
 - Added opt-in bounded OpenAPI/Swagger YAML import and source-bound synthetic
   request previews with an optional pinned event parser. JSON defaults and
   identities remain compatible; aliases, unsafe tags, duplicate/non-string keys
@@ -217,6 +222,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   with independent source oracles, fixed/decoy controls, no-follow redirect and
   bounded failure cleanup. Target tests prove mechanisms; detector accuracy
   remains tied to separate real-provider evidence.
+- Added six owned filesystem-access target cases with actual temporary-file
+  traversal, fixed containment before reads, real missing-file behavior and a
+  documentation decoy. Explicit QUERY coordinates, bounded file and socket
+  ownership and negative controls preserve current provider refusal; this
+  target-only pack does not establish scanner path-traversal detection.
 - Added a versioned owned plaintext reverse-proxy regression pack exercising
   installed Quick Scan against transparent, 403, 302, rewritten-status and timeout
   cases. Independent backend hit counts, original evidence, durable reopen and

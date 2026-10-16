@@ -713,7 +713,9 @@ def test_RealBoundedHealthCapture(tmp_path, monkeypatch, mode):
     profile = Profile(tmp_path)
     executable = tmp_path / "owned-version"
     scripts = {
-        "good": 'print("[INF] Nuclei Engine Version: v3.4.10-synthetic")',
+        # Successful startup may exceed the timeout-only case's accelerated deadline.
+        "good": ('import time\ntime.sleep(0.2)\n'
+                 'print("[INF] Nuclei Engine Version: v3.4.10-synthetic")'),
         "invalid": 'print("unrecognized version")',
         "failed": 'raise SystemExit(7)',
         "timeout": 'import time; time.sleep(2)',
@@ -722,7 +724,10 @@ def test_RealBoundedHealthCapture(tmp_path, monkeypatch, mode):
     executable.write_text(f"#!{sys.executable}\n" + scripts[mode] + "\n", encoding="utf-8")
     executable.chmod(0o700)
     adapter = NucleiAdapter(lambda reference: JSONL, profile, str(executable))
-    monkeypatch.setattr(nuclei, "NUCLEI_HEALTH_TIMEOUT_SECONDS", 0.1)
+
+    if mode == "timeout":
+        monkeypatch.setattr(nuclei, "NUCLEI_HEALTH_TIMEOUT_SECONDS", 0.1)
+
     health = adapter.CheckHealth()
 
     if mode == "good":
