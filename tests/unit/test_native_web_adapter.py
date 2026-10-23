@@ -19,12 +19,18 @@ from fuzzy1337.adapters import (
     ImpactLevel,
 )
 from fuzzy1337.adapters.native_web import (
+    NATIVE_FILE_CANARY_CAPABILITY,
+    NATIVE_FILE_CANARY_CHECK_ID,
+    NATIVE_FILE_CANARY_PROFILE,
     NATIVE_WEB_CAPABILITY,
     NATIVE_WEB_CHECK_ID,
     CanonicalRecord,
+    MatchesFileCanary,
     MatchesGitHead,
+    NativeFileCanaryTemplate,
     NativeWebAdapter,
     NativeWebEndpoint,
+    NativeWebParameters,
     NativeWebRecordError,
     ParseNativeWebRecord,
 )
@@ -280,13 +286,141 @@ def test_OriginalStreamRolesAndReaderResultsRemainAuthoritative(change: str) -> 
         adapter.NormalizeReport(report)
 
 
-def test_DescriptorRequiresOnlyItsDeclaredStandardCheck() -> None:
+def test_DescriptorRequiresOnlyItsDeclaredStandardChecks() -> None:
     """Packaged availability never lowers the capability's explicit STANDARD impact."""
 
     adapter, _ = Report()
-    assert adapter.Descriptor.capabilities == (NATIVE_WEB_CAPABILITY,), (
+    assert adapter.Descriptor.capabilities == (
+        NATIVE_WEB_CAPABILITY, NATIVE_FILE_CANARY_CAPABILITY,
+    ), (
         "The native descriptor silently added a hidden execution capability."
     )
     assert adapter.Descriptor.maximum_impact is ImpactLevel.STANDARD, (
         "The native web check unexpectedly lowered its explicit confirmation boundary."
     )
+
+
+@pytest.mark.parametrize("value", [
+    "http://127.0.0.1:8080/files/vulnerable?name=hello.txt",
+    "http://127.0.0.2:8080/files/fixed?name=..%2Fprivate%2Fcanary.txt",
+    "http://[::1]:8080/files/decoy?name=..%2Fprivate%2Fmissing.txt",
+])
+def test_CanaryEndpointAdmitsOnlyTheOwnedLoopbackPack(value: str) -> None:
+    """The explicit closed file profile retains its exact path/query and refuses default Git use."""
+
+    target, _, _, _ = NativeWebEndpoint(value, check_id=NATIVE_FILE_CANARY_CHECK_ID)
+    assert target.value == value, "The closed native request rewrote its selected wire input."
+
+    with pytest.raises(ValueError):
+        NativeWebEndpoint(value)
+
+
+@pytest.mark.parametrize("value", [
+    "http://192.0.2.1/files/vulnerable?name=hello.txt",
+    "http://10.0.0.1/files/vulnerable?name=hello.txt",
+    "http://localhost/files/vulnerable?name=hello.txt",
+    "http://127.0.0.1/other?name=hello.txt",
+    "http://127.0.0.1/files/vulnerable?other=hello.txt",
+    "http://127.0.0.1/files/vulnerable?name=hello.txt&name=hello.txt",
+    "http://127.0.0.1/files/vulnerable?name=hello.txt&other=hello.txt",
+    "http://127.0.0.1/files/vulnerable?name=..%2fprivate%2fcanary.txt",
+    "http://127.0.0.1/files/vulnerable?name=..%252Fprivate%252Fcanary.txt",
+    "http://127.0.0.1/files/vulnerable?name=../private/canary.txt",
+    "http://127.0.0.1/files/vulnerable?name=hello+txt",
+    "http://user:password@127.0.0.1/files/vulnerable?name=hello.txt",
+])
+def test_CanaryRefusesRemoteOrUnreviewedRequestsBeforeTransport(value: str) -> None:
+    """Only the literal loopback pack and exact finite query spelling enter preparation."""
+
+    with pytest.raises(ValueError):
+        NativeWebEndpoint(value, check_id=NATIVE_FILE_CANARY_CHECK_ID)
+
+
+@pytest.mark.parametrize("status,media,body,matched", [
+    (200, "text/plain", b"owned-private-file-canary\n", True),
+    (200, "application/octet-stream", b"owned-private-file-canary\n", True),
+    (200, "other", b"owned-private-file-canary\n", False),
+    (403, "text/plain", b"owned-private-file-canary\n", False),
+    (200, "text/plain", b"prefix-owned-private-file-canary\n", False),
+    (200, "text/plain", b"owned-private-file-canary\nsuffix", False),
+    (200, "text/plain", b"owned-public-file\n", False),
+])
+def test_CanaryPredicateRequiresCompleteOwnedBytes(status, media, body, matched) -> None:
+    """A fixed exact non-secret response determines the result independently of route labels."""
+
+    assert MatchesFileCanary(status, media, body) is matched, "Closed canary predicate drifted."
+
+
+def test_CanaryInvocationBindsItsAnonymousStructuralRequest() -> None:
+    """The exact template, coordinate, profile and workspace enter the original intent."""
+
+    url = "http://127.0.0.1:8080/files/vulnerable?name=hello.txt"
+    parameters = NativeWebParameters(url, 1.0, check_id=NATIVE_FILE_CANARY_CHECK_ID,
+                                     workspace_id="owned-canary")
+    adapter = NativeWebAdapter(lambda _: b"")
+    request = AdapterRequest(NATIVE_FILE_CANARY_CAPABILITY,
+        NativeWebEndpoint(url, check_id=NATIVE_FILE_CANARY_CHECK_ID)[0].Reference(),
+        ImpactLevel.STANDARD, parameters)
+    invocation = adapter.PrepareInvocation(request)
+    assert invocation.argv[-4:] == (url, "1.0", NATIVE_FILE_CANARY_CHECK_ID, "owned-canary"), (
+        "The worker lost its exact selected local URL/check/workspace binding."
+    )
+    assert parameters["request_profile"] == NATIVE_FILE_CANARY_PROFILE, "Request profile changed."
+    assert "owned-private-file-canary" not in CanonicalRecord(parameters).decode(), (
+        "Concrete response bytes entered structural execution metadata."
+    )
+
+    for field in ("check_id", "request_profile", "injection_reference"):
+        altered = dict(parameters)
+        altered[field] = "unreviewed"
+
+        with pytest.raises(ValueError):
+            adapter.PrepareInvocation(replace(request, parameters=altered))
+
+
+def CanaryRecord() -> tuple[str, dict[str, object]]:
+    """Create fixed synthetic metadata for parser-boundary tests without any target contact."""
+
+    url = "http://127.0.0.1:8080/files/vulnerable?name=..%2Fprivate%2Fcanary.txt"
+    template = NativeFileCanaryTemplate("owned-canary", url)
+    body = b"owned-private-file-canary\n"
+
+    return url, {"schema_version": 1, "check_id": NATIVE_FILE_CANARY_CHECK_ID,
+        "profile_version": "1", "url": url, "address": "127.0.0.1", "port": 8080,
+        "scheme": "http", "status": 200, "media_type": "text/plain",
+        "body_bytes": len(body), "body_sha256": hashlib.sha256(body).hexdigest(), "matched": True,
+        "request_profile": NATIVE_FILE_CANARY_PROFILE, "request_reference": template.Reference(),
+        "injection_reference": template.injection_points[0].Reference(template.Reference())}
+
+
+def test_CanaryRecordRequiresTheOriginalCheckAndWorkspace() -> None:
+    """The fixed original report is accepted only in its exact selected structural partition."""
+
+    url, record = CanaryRecord()
+    raw = CanonicalRecord(record)
+    assert ParseNativeWebRecord(raw, url, check_id=NATIVE_FILE_CANARY_CHECK_ID,
+                               workspace_id="owned-canary") == record, (
+        "A canonical declared owned-canary report lost its exact original bindings."
+    )
+
+    with pytest.raises(NativeWebRecordError):
+        ParseNativeWebRecord(raw, url)
+
+    with pytest.raises(NativeWebRecordError):
+        ParseNativeWebRecord(raw, url, check_id=NATIVE_FILE_CANARY_CHECK_ID, workspace_id="other")
+
+
+@pytest.mark.parametrize("field,value", [
+    ("request_profile", "other"), ("request_reference", "other"),
+    ("injection_reference", "other"), ("check_id", NATIVE_WEB_CHECK_ID),
+    ("body_bytes", 25), ("body_sha256", "0" * 64), ("matched", False),
+])
+def test_CanaryRecordRejectsForgedBindingsAndPredicateFacts(field, value) -> None:
+    """Original-check references and complete canary digest/length facts cannot be substituted."""
+
+    url, record = CanaryRecord()
+    record[field] = value
+
+    with pytest.raises(NativeWebRecordError):
+        ParseNativeWebRecord(CanonicalRecord(record), url, check_id=NATIVE_FILE_CANARY_CHECK_ID,
+                             workspace_id="owned-canary")

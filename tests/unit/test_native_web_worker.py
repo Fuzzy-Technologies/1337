@@ -12,7 +12,11 @@ import ssl
 import pytest
 
 from fuzzy1337 import native_web_worker as worker
-from fuzzy1337.adapters.native_web import CanonicalRecord
+from fuzzy1337.adapters.native_web import (
+    NATIVE_FILE_CANARY_CHECK_ID,
+    CanonicalRecord,
+    NativeFileCanaryTemplate,
+)
 
 BODY = b"ref: refs/heads/owned\n"
 HEADER = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 22\r\n\r\n"
@@ -355,3 +359,46 @@ def test_MainUsesProcessArgumentsWithoutLeakingResponseOrCookie(monkeypatch, cap
         "The original execution report lost its actual negative response attribution."
     )
     assert not captured.err and transport.closed, "Native completion leaked stderr or transport."
+
+
+def test_OwnedCanaryProbeKeepsExactQueryAndStructuralReferences(monkeypatch):
+    """The real bounded parser uses the selected owned query and emits no original body bytes."""
+
+    url = "http://127.0.0.1:8080/files/vulnerable?name=..%2Fprivate%2Fcanary.txt"
+    body = b"owned-private-file-canary\n"
+    transport = FakeSocket([Header(body) + body])
+    monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
+    record = worker.Probe(url, 1.0, check_id=NATIVE_FILE_CANARY_CHECK_ID,
+                          workspace_id="owned-canary")
+    template = NativeFileCanaryTemplate("owned-canary", url)
+    assert record["matched"] is True and record["request_reference"] == template.Reference(), (
+        "The fixed owned response lost its declared predicate or request identity."
+    )
+    assert record["injection_reference"] == template.injection_points[0].Reference(
+        template.Reference()), "The query coordinate lost its owning request binding."
+    assert transport.sent.startswith(
+        b"GET /files/vulnerable?name=..%2Fprivate%2Fcanary.txt HTTP/1.1\r\n"), (
+        "The worker rewrote or omitted the explicitly selected fixed query."
+    )
+    assert body not in CanonicalRecord(record) and transport.closed, (
+        "The worker retained raw response bytes or leaked its transport."
+    )
+
+
+@pytest.mark.parametrize("url,workspace_id", [
+    ("http://192.0.2.1/files/vulnerable?name=hello.txt", "owned-canary"),
+    ("http://127.0.0.1/other?name=hello.txt", "owned-canary"),
+    ("http://127.0.0.1/files/vulnerable?name=hello.txt", None),
+])
+def test_OwnedCanaryWorkerRejectsUnreviewedInputBeforeSocket(monkeypatch, url, workspace_id):
+    """The isolated worker independently enforces its closed local profile before any transport."""
+
+    def RefuseSocket(*_arguments):
+        """Expose any attempted transport for an input outside the fixed local profile."""
+
+        raise AssertionError("unreviewed native input reached the socket boundary")
+
+    monkeypatch.setattr(worker.socket, "socket", RefuseSocket)
+
+    with pytest.raises(ValueError):
+        worker.Probe(url, 1.0, check_id=NATIVE_FILE_CANARY_CHECK_ID, workspace_id=workspace_id)

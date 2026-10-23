@@ -22,16 +22,22 @@ from fuzzy1337.adapters import (
     ImpactLevel,
     SerializeContract,
 )
+from fuzzy1337.adapters.contracts import JsonValue
 from fuzzy1337.adapters.native_http import RequestTimeout
 from fuzzy1337.adapters.native_web import (
     MAX_NATIVE_WEB_RECORD_BYTES,
+    NATIVE_FILE_CANARY_CAPABILITY,
+    NATIVE_FILE_CANARY_CHECK_ID,
+    NATIVE_FILE_CANARY_PROFILE,
     NATIVE_WEB_CAPABILITY,
     NATIVE_WEB_CHECK_ID,
     NATIVE_WEB_PROVIDER_ID,
     NATIVE_WEB_VERSION,
     CanonicalRecord,
     NativeWebAdapter,
+    NativeWebCheckFor,
     NativeWebEndpoint,
+    NativeWebParameters,
 )
 from fuzzy1337.evidence import EvidenceError, LocalEvidenceStore
 from fuzzy1337.executors import (
@@ -75,6 +81,7 @@ from fuzzy1337.policy import (
     UtcNow,
 )
 from fuzzy1337.quickscan import VerifyWorkspaceEvidence
+from fuzzy1337.requests import ProjectRequests, RequestsFromObject, RequestTemplate
 from fuzzy1337.scope import LocalScopeStore, Target, TargetKind
 from fuzzy1337.workspace import (
     LocalWorkspaceStore,
@@ -85,6 +92,7 @@ from fuzzy1337.workspace import (
 
 __all__ = [
     "NATIVE_WEB_PROVIDER_ID", "NATIVE_WEB_CAPABILITY", "NATIVE_WEB_CHECK_ID",
+    "NATIVE_FILE_CANARY_CHECK_ID", "NATIVE_FILE_CANARY_CAPABILITY", "NATIVE_FILE_CANARY_PROFILE",
     "NativeWebAuthorityDeniedError", "NativeWebScanLimits", "NativeWebScanPlan",
     "NativeWebScanSummary", "PlanNativeWebScan", "RunNativeWebScan",
 ]
@@ -128,7 +136,8 @@ class NativeWebScanPlan:
 
         return {
             "schema_version": 1, "workflow": "native-web", "state": "planned",
-            "check_id": NATIVE_WEB_CHECK_ID, "impact": ImpactLevel.STANDARD.value,
+            "check_id": self.invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID),
+            "impact": ImpactLevel.STANDARD.value,
             "confirmation_required": True, "intent_sha256": self.policy_plan.intent_sha256,
             "invocation": json.loads(SerializeContract(self.invocation)),
             "policy_plan": json.loads(SerializeContract(self.policy_plan)),
@@ -138,15 +147,17 @@ class NativeWebScanPlan:
 def CurrentContext(
     workspace_root: Path, scope_id: str, target: Target, owner_reference: str,
     policy_provider: Callable[[], ImpactPolicy],
+    *, check_id: str = NATIVE_WEB_CHECK_ID,
 ) -> PolicyContext:
     """Reread explicit owner, current consent, URL/IP membership and typed operator policy.
 
     Args:
         workspace_root: Existing caller-owned persisted workspace partition.
         scope_id: Explicit current owning scope identifier.
-        target: Exact canonical query-free literal-IP URL selected for this operation.
+        target: Exact canonical URL admitted by the explicit native request profile.
         owner_reference: Operator required to match the current recorded consent authority.
         policy_provider: Trusted synchronous reader of the current typed impact policy.
+        check_id: Selected packaged check; its stricter destination profile remains enforced.
 
     Returns:
         Fresh current owner context joining the exact URL and its actual literal IP.
@@ -162,7 +173,7 @@ def CurrentContext(
     if type(policy) is not ImpactPolicy:
         raise ValueError("native web requires a typed current impact policy")
 
-    _, address, _, _ = NativeWebEndpoint(target.value)
+    _, address, _, _ = NativeWebEndpoint(target.value, check_id=check_id)
 
     return PolicyContext(scope, policy, target, (target, Target(TargetKind.IP, address)))
 
@@ -170,7 +181,8 @@ def CurrentContext(
 def PlanNativeWebScan(
     workspace_root: Path, scope_id: str, target: Target, owner_reference: str,
     policy_provider: Callable[[], ImpactPolicy],
-    *, limits: NativeWebScanLimits = NativeWebScanLimits(),
+    *, check_id: str = NATIVE_WEB_CHECK_ID,
+    limits: NativeWebScanLimits = NativeWebScanLimits(),
     clock: Callable[[], datetime] = UtcNow,
 ) -> NativeWebScanPlan:
     """Verify owned local state and plan one exact first-party STANDARD response check.
@@ -178,9 +190,10 @@ def PlanNativeWebScan(
     Args:
         workspace_root: Existing initialized workspace, model, evidence and explicit scope.
         scope_id: Existing caller-selected current consented scope.
-        target: One exact canonical literal-IP HTTP(S) URL without queries or credentials.
+        target: One exact canonical URL admitted by the selected native request profile.
         owner_reference: Operator matching the recorded scope authority at every boundary.
         policy_provider: Trusted synchronous reader of current typed operator policy.
+        check_id: Explicit registered predicate, defaulting to the original query-free Git check.
         limits: Finite complete-request and whole-operation deadlines.
         clock: Aware authority clock; planning performs no HTTP or subprocess execution.
 
@@ -198,7 +211,8 @@ def PlanNativeWebScan(
     ):
         raise ValueError("native web requires one exact URL target and typed limits")
 
-    NativeWebEndpoint(target.value)
+    check = NativeWebCheckFor(check_id)
+    NativeWebEndpoint(target.value, check_id=check_id)
     RequireWorkspaceText(owner_reference, "owner_reference")
     workspace_store = LocalWorkspaceStore(workspace_root)
     workspace = workspace_store.Open()
@@ -206,14 +220,16 @@ def PlanNativeWebScan(
     VerifyWorkspaceEvidence(workspace, evidence)
     LocalModelStore(workspace_store.root).Open()
     authority = CurrentContext(workspace_store.root, scope_id, target, owner_reference,
-                               policy_provider)
+                               policy_provider, check_id=check_id)
     adapter = NativeWebAdapter(evidence.Read)
     invocation = adapter.PrepareInvocation(AdapterRequest(
-        NATIVE_WEB_CAPABILITY, target.Reference(), ImpactLevel.STANDARD,
-        {"url": target.value, "timeout_seconds": limits.request_timeout_seconds},
+        check.capability, target.Reference(), ImpactLevel.STANDARD,
+        NativeWebParameters(target.value, limits.request_timeout_seconds, check_id=check_id,
+                            workspace_id=workspace.workspace_id),
     ))
-    policy_plan = PolicyEngine().Plan(invocation, CapabilityDescriptors(adapter.Descriptor)[0],
-                                      authority, at=clock())
+    capability = next(item for item in CapabilityDescriptors(adapter.Descriptor)
+                      if item.identifier == invocation.request.capability)
+    policy_plan = PolicyEngine().Plan(invocation, capability, authority, at=clock())
 
     return NativeWebScanPlan(invocation, policy_plan)
 
@@ -229,6 +245,7 @@ class NativeWebScanSummary:
     model_revision: int
     object_counts: tuple[tuple[str, int], ...]
     events: tuple[JobEvent, ...]
+    check_id: str = NATIVE_WEB_CHECK_ID
 
     def ToDict(self) -> dict[str, object]:
         """Serialize the existing job/evidence state and finite assessed capability only.
@@ -238,8 +255,9 @@ class NativeWebScanSummary:
         """
 
         return {
-            "schema_version": 1, "workflow": "native-web", "check_id": NATIVE_WEB_CHECK_ID,
-            "state": self.snapshot.state.value, "capabilities": [NATIVE_WEB_CAPABILITY],
+            "schema_version": 1, "workflow": "native-web", "check_id": self.check_id,
+            "state": self.snapshot.state.value,
+            "capabilities": [NativeWebCheckFor(self.check_id).capability],
             "started_at": self.started_at, "finished_at": self.finished_at,
             "duration_seconds": self.duration_seconds, "model_revision": self.model_revision,
             "object_counts": dict(self.object_counts),
@@ -293,8 +311,19 @@ class NativeWebWorkflow:
         if self.adapter.PrepareInvocation(self.invocation.request) != self.invocation:
             raise ValueError("native web selected invocation changed")
 
+        check_id = str(self.invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID))
+
+        if check_id == NATIVE_FILE_CANARY_CHECK_ID:
+            template = RequestTemplate.FromDict(JsonValue(
+                self.invocation.request.parameters["request_template"]))
+
+            if template.endpoint.workspace_id != (
+                LocalWorkspaceStore(self.workspace_root).Open().workspace_id
+            ):
+                raise ValueError("owned canary request differs from its current workspace")
+
         return CurrentContext(self.workspace_root, self.scope_id, self.target,
-                              self.owner_reference, self.policy_provider)
+                              self.owner_reference, self.policy_provider, check_id=check_id)
 
     async def Run(self, context: JobContext) -> None:
         """Run one exact confirmed worker and retain actual acquisitions on every terminal path.
@@ -305,7 +334,8 @@ class NativeWebWorkflow:
 
         try:
             try:
-                capability = CapabilityDescriptors(self.adapter.Descriptor)[0]
+                capability = next(item for item in CapabilityDescriptors(self.adapter.Descriptor)
+                                  if item.identifier == self.invocation.request.capability)
                 grant = PolicyEngine().Authorize(self.invocation, capability, self.Context(),
                     at=self.clock(), confirmation=self.confirmation)
 
@@ -394,14 +424,32 @@ class NativeWebWorkflow:
             NATIVE_WEB_VERSION, report.evidence, report.execution)
         store = LocalModelStore(self.workspace_root)
         state = store.Open()
-        subject = ObjectIdentity(state.workspace_id, ObjectKind.ENDPOINT, self.target.value)
-        projected, _ = state.Apply(objects=(SecurityObject(subject, {"url": self.target.value},
-                                                            (provenance,)),))
+        check_id = str(self.invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID))
+
+        if check_id == NATIVE_FILE_CANARY_CHECK_ID:
+            template = RequestTemplate.FromDict(JsonValue(
+                self.invocation.request.parameters["request_template"]))
+
+            if template.endpoint.workspace_id != state.workspace_id:
+                raise ValueError("owned canary template differs from its model workspace")
+
+            subject = template.endpoint.Identity()
+            current = next((item for item in state.objects if item.identity == subject), None)
+            previous = RequestsFromObject(current) if current is not None else ()
+            templates = {item.Reference(): item for item in (*previous, template)}
+            patch = ProjectRequests(tuple(templates[key] for key in sorted(templates)),
+                                    provenance=(provenance,))
+            projected, _ = state.Apply(objects=(patch,))
+
+        else:
+            subject = ObjectIdentity(state.workspace_id, ObjectKind.ENDPOINT, self.target.value)
+            projected, _ = state.Apply(objects=(SecurityObject(subject, {"url": self.target.value},
+                                                                (provenance,)),))
         projected, _ = projected.ApplyAdapterResult(
             normalized, {self.target.Reference(): subject}, provenance,
         )
         findings = tuple(Finding(
-            subject.Reference(), NATIVE_WEB_CHECK_ID, self.target.value, item.summary,
+            subject.Reference(), check_id, self.target.value, item.summary,
             (provenance,), severity=FindingSeverity.LOW,
         ) for item in normalized.findings)
         projected, _ = ApplyVerifiedFindings(projected, findings, self.workspace_root)
@@ -414,7 +462,9 @@ class NativeWebWorkflow:
         try:
             context.CheckCancellation()
             PolicyEngine().Validate(grant, self.invocation,
-                CapabilityDescriptors(self.adapter.Descriptor)[0], self.Context(), at=self.clock())
+                next(item for item in CapabilityDescriptors(self.adapter.Descriptor)
+                     if item.identifier == self.invocation.request.capability),
+                self.Context(), at=self.clock())
 
         except (NativeWebAuthorityDeniedError, PolicyDeniedError) as error:
             raise JobError(JobFailure(JobFailureCode.AUTHORIZATION,
@@ -484,6 +534,7 @@ async def RunNativeWebScan(
     workspace_root: Path, scope_id: str, target: Target, owner_reference: str,
     policy_provider: Callable[[], ImpactPolicy],
     *, confirmation: PolicyConfirmation | None = None,
+    check_id: str = NATIVE_WEB_CHECK_ID,
     limits: NativeWebScanLimits = NativeWebScanLimits(),
     on_event: Callable[[JobEvent], None] | None = None,
     clock: Callable[[], datetime] = UtcNow,
@@ -493,10 +544,11 @@ async def RunNativeWebScan(
     Args:
         workspace_root: Existing owned workspace/model/evidence and explicit current scope.
         scope_id: Selected current persisted scope.
-        target: One exact already canonical literal-IP URL with no credential/query fields.
+        target: One exact canonical URL admitted by the explicit selected native profile.
         owner_reference: Operator matching recorded consent at every authority boundary.
         policy_provider: Trusted fresh typed policy reader, never an implicit capability grant.
         confirmation: Separate STANDARD confirmation binding the exact previously shown intent.
+        check_id: Registered native predicate; default Git invocation/report behavior is unchanged.
         limits: Finite request and whole-job time budgets.
         on_event: Fast synchronous presentation sink; errors cancel and await owned cleanup.
         clock: Aware authority clock used again at launch and immediately before model Save.
@@ -512,7 +564,7 @@ async def RunNativeWebScan(
     """
 
     plan = PlanNativeWebScan(workspace_root, scope_id, target, owner_reference,
-                            policy_provider, limits=limits, clock=clock)
+                            policy_provider, check_id=check_id, limits=limits, clock=clock)
     store = LocalWorkspaceStore(workspace_root)
     workspace = store.Open()
     evidence = LocalEvidenceStore(store.root / "evidence")
@@ -563,4 +615,5 @@ async def RunNativeWebScan(
 
     return NativeWebScanSummary(snapshot, started_at, datetime.now(UTC).isoformat(),
         time.monotonic() - started, model.revision,
-        tuple((kind.value, len(model.Objects(kind))) for kind in ObjectKind), job.EventsSince())
+        tuple((kind.value, len(model.Objects(kind))) for kind in ObjectKind), job.EventsSince(),
+        check_id=check_id)
