@@ -456,6 +456,12 @@ mode = "authored"
 page = "api/fuzzy1337.shell.md"
 
 [[surfaces]]
+module = "fuzzy1337.test_progress"
+source = "src/fuzzy1337/test_progress.py"
+mode = "authored"
+page = "api/fuzzy1337.test_progress.md"
+
+[[surfaces]]
 module = "fuzzy1337.test_runner"
 source = "src/fuzzy1337/test_runner.py"
 mode = "authored"

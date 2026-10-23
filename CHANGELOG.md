@@ -284,6 +284,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Preserve bounded completed-case diagnostics when a shared pytest invocation
+  terminates before JUnit finalization. Partial records retain hashes, sanitized
+  labels, durations and explicit incompleteness; they never replace acceptance
+  evidence or change test deadlines, coverage, scheduling or retry behavior.
+
 - Reject Nuclei paths whose selected spelling changes in the provider URL
   pipeline, before invocation or finding normalization. Genuine-provider wire
   evidence exposed the mismatch; explicit fixture URL selection and negative

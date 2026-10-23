@@ -163,6 +163,18 @@ a non-zero exit. Each invocation discards its stale JUnit report before starting
 an exit-zero child without fresh JUnit evidence still fails. Suite timeouts are
 reported as failure with status 124 and are never retried automatically.
 
+Shared runner invocations additionally preserve bounded completed-case progress
+under `coverage/<phase>-tests.progress/`. The optional pytest plugin records
+hashed full case identities, sanitized labels without parameter values,
+durations and fixed outcomes. Each phase has at most twelve worker files capped
+at 1 MiB each. Buffered progress may omit the currently running case and a small
+unfinished batch; truncation or unavailable diagnostics are explicit.
+
+On termination, `summary.json` reports only retained diagnostic records
+and a bounded slowest-case selection. It is not fresh JUnit, coverage or merge
+acceptance. A timeout still fails with code 124; missing fresh JUnit still fails.
+The plugin does not change deadlines, test selection, scheduling or retries.
+
 The performance gate measures only capabilities that are implemented today. It
 starts fresh processes for CLI cold start and interactive readiness, then measures
 local command-palette search and lens/view state transitions in process. Every case

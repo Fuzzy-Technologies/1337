@@ -104,6 +104,10 @@ def test_ParallelArgumentsUseProcessWorkersAndLoadScope(tmp_path):
     assert "not serial" in arguments, (
         "parallel arguments use process workers and load scope invariant failed."
     )
+    assert arguments[arguments.index("-p") + 1] == "fuzzy1337.test_progress", (
+        "The installed diagnostic plugin must be selected explicitly without an eager import."
+    )
+    assert "--1337-progress" in arguments, "The fixed diagnostic profile must be explicit."
     assert "--timeout=42" in arguments, (
         "parallel arguments use process workers and load scope invariant failed."
     )
@@ -468,4 +472,85 @@ def test_SerialCollectionReportsNoTestsWithoutTreatingItAsAnError(monkeypatch):
 
     assert not test_runner.HasSerialTests("tests"), (
         "serial collection reports no tests without treating it as an error invariant failed."
+    )
+
+
+def test_TimeoutRetainsPartialDiagnosticsWithoutPromotingThemToJunit(
+    tmp_path, monkeypatch, capsys,
+):
+    """A hard suite cutoff retains completed phase diagnostics while the gate still fails124."""
+
+    from types import SimpleNamespace
+
+    from fuzzy1337 import test_progress
+
+    report = tmp_path / "owned.xml"
+
+    def Process(arguments, **kwargs):
+        """Flush one completed case and simulate interruption before another teardown."""
+
+        recorder = test_progress.ProgressRecorder(
+            test_progress.ProgressDirectory(report), "gw0", clock=lambda: 0,
+        )
+        for phase in ("setup", "call", "teardown"):
+            recorder.pytest_runtest_logreport(SimpleNamespace(
+                nodeid="test_owned.py::test_Complete[PRIVATE]", when=phase,
+                outcome="passed", duration=0.01,
+            ))
+        recorder.Flush()
+        recorder.Close()
+        raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
+
+    monkeypatch.setattr(test_runner.subprocess, "run", Process)
+    ticks = iter((10.0, 910.0))
+    monkeypatch.setattr(test_runner.time, "monotonic", lambda: next(ticks))
+    arguments = test_runner.PytestArguments("tests", test_runner.TestOptions(jobs="16"),
+                                          report, serial=False)
+    code, summary = test_runner.RunPytest(arguments, report, 900)
+    assert code == 124 and summary == test_runner.TestSummary(
+        failed=1, timeout=1, duration_seconds=900,
+    ), "Partial diagnostics must never alter authoritative timeout failure or elapsed duration."
+    diagnostic = (test_progress.ProgressDirectory(report) / "summary.json").read_text()
+    assert '"completed":1' in diagnostic and '"truncated":true' in diagnostic, (
+        "The bounded snapshot must retain completed counts and the explicit worker-cap limit."
+    )
+    assert "Partial pytest diagnostic (not JUnit): completed=1" in capsys.readouterr().out, (
+        "The diagnostic line must explicitly distinguish partial counts from JUnit acceptance."
+    )
+
+
+def test_UnknownProgressFilesDisableOnlyDiagnosticOptIn(tmp_path, monkeypatch, capsys):
+    """Unowned diagnostic data is preserved while the exact selected tests still execute."""
+
+    from fuzzy1337.test_progress import ProgressDirectory
+
+    report = tmp_path / "owned.xml"
+    directory = ProgressDirectory(report)
+    directory.mkdir()
+    operator = directory / "operator.txt"
+    operator.write_text("keep")
+    calls = []
+
+    def Process(arguments, **kwargs):
+        """Record the unmodified execution contract and publish independent JUnit evidence."""
+
+        calls.append((arguments, kwargs))
+        report.write_text('<testsuite tests="1" failures="0" time="0"/>')
+        return subprocess.CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr(test_runner.subprocess, "run", Process)
+    arguments = test_runner.PytestArguments("tests", test_runner.TestOptions(jobs="4"),
+                                          report, serial=False)
+    code, summary = test_runner.RunPytest(arguments, report, 900)
+    assert code == 0 and summary.passed == 1, "Diagnostics must not change JUnit acceptance."
+    actual, kwargs = calls[0]
+    assert actual == [value for value in arguments if value != "--1337-progress"], (
+        "Only the diagnostic opt-in may be disabled when its own directory is unavailable."
+    )
+    assert kwargs == {"check": False, "shell": False, "timeout": 900}, (
+        "The whole-suite subprocess deadline must remain exact without retries."
+    )
+    assert operator.read_text() == "keep", "Unrecognized data must remain untouched."
+    assert "diagnostic unavailable" in capsys.readouterr().out, (
+        "Unavailable diagnostic output must be explicit without fabricated progress evidence."
     )
