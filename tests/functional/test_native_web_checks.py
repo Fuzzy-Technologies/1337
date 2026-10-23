@@ -286,6 +286,59 @@ def test_NativeCheckRejectsConsentRevocationAfterPlanning(tmp_path):
         assert Findings(LocalModelStore(root).Open()) == (), "Revoked work invented Findings."
 
 
+def test_NativeWorkerIgnoresWorkspacePythonModuleShadowing(tmp_path):
+    """Run the installed native worker despite an inert same-named package in the owned cwd."""
+
+    with OwnedWebVulnerabilityTarget(tmp_path / "target") as service:
+        root = tmp_path / "workspace"
+        target = NativeWorkspace(root, service.Url("git-exposed"))
+        shadow = root / "fuzzy1337"
+        shadow.mkdir()
+        marker = root / "shadow-module-executed"
+        source = (
+            '"""Inert owned shadow module that records only its accidental execution."""\n'
+            "from pathlib import Path\n"
+            'Path(__file__).parent.parent.joinpath("shadow-module-executed").write_text(\n'
+            '    "owned-shadow-was-executed", encoding="utf-8")\n'
+        )
+        fake_negative = json.dumps({
+            "schema_version": 1, "check_id": "native.git-head-exposure", "profile_version": "1",
+            "url": target.value, "address": "127.0.0.1", "port": service.server.server_port,
+            "scheme": "http", "status": 200, "media_type": "other", "body_bytes": 0,
+            "body_sha256": hashlib.sha256(b"").hexdigest(), "matched": False,
+        }, sort_keys=True, separators=(",", ":")) + "\n"
+        (shadow / "__init__.py").write_text(source, encoding="utf-8")
+        (shadow / "native_web_worker.py").write_text(
+            source + "import sys\nsys.stdout.write(" + repr(fake_negative) + ")\n",
+            encoding="utf-8")
+        plan, summary = ConfirmedNativeRun(root, target)
+
+        assert summary.ExitCode() == 0 and summary.snapshot.state is JobState.COMPLETED, (
+            "Owned workspace Python files must not replace the installed native worker."
+        )
+        assert not marker.exists(), "The worker imported executable input from its workspace cwd."
+        observed = service.Observe()
+        assert observed["requests"] == ["/git/vulnerable/.git/HEAD"], (
+            "The actual installed worker must make exactly the selected owned GET."
+        )
+        assert observed["file_reads"] == [{
+            "path": "public/.git/HEAD",
+            "sha256": hashlib.sha256(b"ref: refs/heads/owned-fixture\n").hexdigest(),
+        }], "The native positive must arise from the independent actual target file read."
+        findings = Findings(LocalModelStore(root).Open())
+        assert len(findings) == 1 and findings[0].check_id == NATIVE_WEB_CHECK_ID, (
+            "A saved native Finding must come from the actual owned response, not shadow output."
+        )
+        raw = NativeRunEvidence(root, plan, summary)
+        worker = json.loads(next(item.content for item in raw if item.role == "stdout"))
+        assert worker["matched"] is True and worker["check_id"] == NATIVE_WEB_CHECK_ID, (
+            "Original evidence must retain the genuine first-party worker's bounded report."
+        )
+        assert OpenWorkspace(root)["verified_evidence_records"] == 2, (
+            "The real worker evidence must survive reopen despite unrelated owned input files."
+        )
+
+
 @pytest.mark.parametrize("body,matched", [
     (b"ref: refs/heads/team/release_1\r\n", True),
     (b"ref: refs/heads/owned", True),
