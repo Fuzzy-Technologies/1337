@@ -11,10 +11,14 @@ import inspect
 import os
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from fuzzy1337.executors.owned_process import OwnedExecution
 
 from fuzzy1337.adapters import AdapterExecution, ExecutionState
 from fuzzy1337.executors.contracts import (
@@ -91,6 +95,7 @@ class LocalExecutor:
         on_event: EventCallback | None = None,
         cancellation: asyncio.Event | None = None,
         pre_launch: Callable[[LocalExecutionRequest], None] | None = None,
+        own_descendants: bool = False,
     ) -> LocalExecutionResult:
         """Run an immutable argv and return bounded output plus structured events.
 
@@ -109,6 +114,8 @@ class LocalExecutor:
             cancellation: Optional cooperative signal also checked before launch.
             pre_launch: Optional synchronous upstream policy check immediately before launch;
                 must return None. Exceptions propagate without starting a process.
+            own_descendants: Explicit Linux-only stronger descendant ownership. The default
+                request serialization and direct process path remain unchanged.
 
         Returns:
             Terminal state, retained bounded streams and ordered lifecycle events.
@@ -118,7 +125,20 @@ class LocalExecutor:
             asyncio.CancelledError: The caller cancels execution; cleanup completes first.
         """
 
+        if type(own_descendants) is not bool or (
+            own_descendants and sys.platform != "linux"
+        ):
+            raise LocalExecutionError(
+                "Owned descendant execution requires an explicit Linux opt-in")
+
+        if own_descendants:
+            from fuzzy1337.executors.owned_process import RequireLinuxOwnership
+
+            RequireLinuxOwnership()
+
         workspace = self.ResolveWorkspace(request.workspace)
+        owned: OwnedExecution | None = None
+        grace_seconds = request.resources.terminate_grace_seconds
         events: list[ExecutionEvent] = []
 
         async def Emit(
@@ -165,10 +185,10 @@ class LocalExecutor:
                 events=tuple(events),
             )
 
-        environment = {
+        inherited_environment = {
             name: os.environ[name] for name in _INHERITED_ENVIRONMENT if name in os.environ
         }
-        environment.update(request.environment)
+        environment = {**inherited_environment, **request.environment}
 
         if pre_launch is not None:
             response = cast(Callable[[LocalExecutionRequest], object], pre_launch)(request)
@@ -179,7 +199,32 @@ class LocalExecutor:
 
                 raise LocalExecutionError("pre_launch must be synchronous and return None")
 
-        process = await self.StartProcess(request, workspace, environment)
+        if own_descendants:
+            from fuzzy1337.executors.owned_process import (
+                OWNED_PARENT_GRACE_SECONDS,
+                StartOwnedExecution,
+            )
+
+            grace_seconds = max(grace_seconds, OWNED_PARENT_GRACE_SECONDS)
+
+            def BeforeWorkerStart() -> None:
+                """Recheck current authority after helper readiness and before the worker gate."""
+
+                if pre_launch is not None:
+                    response = cast(Callable[[LocalExecutionRequest], object], pre_launch)(request)
+
+                    if response is not None:
+                        if inspect.iscoroutine(response):
+                            response.close()
+
+                        raise LocalExecutionError("pre_launch must return None")
+
+            owned = await StartOwnedExecution(request.invocation.argv, workspace, environment,
+                inherited_environment, before_worker_start=BeforeWorkerStart)
+            process = owned.process
+
+        else:
+            process = await self.StartProcess(request, workspace, environment)
 
         stdout = bytearray()
         stderr = bytearray()
@@ -243,7 +288,7 @@ class LocalExecutor:
             )
         )
 
-        process_task = asyncio.create_task(process.wait())
+        process_task = asyncio.create_task(process.wait() if owned is None else owned.Wait())
         output_limit_task = asyncio.create_task(output_limit.wait())
         cancellation_task = (
             asyncio.create_task(cancellation.wait()) if cancellation is not None else None
@@ -271,7 +316,7 @@ class LocalExecutor:
             try:
                 await asyncio.wait_for(
                     asyncio.gather(*awaitables),
-                    timeout=request.resources.terminate_grace_seconds,
+                    timeout=grace_seconds,
                 )
 
             except (TimeoutError, OSError) as error:
@@ -304,13 +349,13 @@ class LocalExecutor:
                 termination = ExecutionTermination.TIMEOUT
                 state = ExecutionState.TIMED_OUT
 
-                await self.Terminate(process, request.resources.terminate_grace_seconds)
+                await self.Terminate(process, grace_seconds)
 
             elif output_limit_task in done and output_limit.is_set():
                 termination = ExecutionTermination.OUTPUT_LIMIT
                 state = ExecutionState.CANCELLED
 
-                await self.Terminate(process, request.resources.terminate_grace_seconds)
+                await self.Terminate(process, grace_seconds)
 
             elif (
                 cancellation_task is not None
@@ -322,7 +367,7 @@ class LocalExecutor:
                 termination = ExecutionTermination.CANCELLATION
                 state = ExecutionState.CANCELLED
 
-                await self.Terminate(process, request.resources.terminate_grace_seconds)
+                await self.Terminate(process, grace_seconds)
 
             else:
                 natural_return_code = await process_task
@@ -362,7 +407,10 @@ class LocalExecutor:
                 ]
 
                 try:
-                    await self.Terminate(process, request.resources.terminate_grace_seconds)
+                    await self.Terminate(process, grace_seconds)
+
+                    if owned is not None:
+                        owned.Verify()
 
                     await Join(*drains)
 
@@ -396,7 +444,10 @@ class LocalExecutor:
                 return_exceptions=True,
             )
 
-        final_return_code = process.returncode
+            if owned is not None:
+                owned.Close()
+
+        final_return_code = process.returncode if owned is None else owned.worker_returncode
 
         if state in {ExecutionState.TIMED_OUT, ExecutionState.CANCELLED} and final_return_code == 0:
             final_return_code = None

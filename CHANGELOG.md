@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added explicit Linux executor ownership of trusted approved workers' detached
+  descendants, with bounded reaping and a private verified cleanup receipt.
+  Timeout, output exhaustion, cancellation and observer/caller abort require
+  confirmed cleanup; unknown cleanup remains a provider error. Default execution
+  and serialized contracts remain compatible; this is not an OS sandbox.
+
 - Added owned original JSON OpenAPI/Swagger import through the installed console
   and foreground shell. The bounded concrete-endpoint profile preserves complete
   operation/source custody, explicit resolution context and independent storage

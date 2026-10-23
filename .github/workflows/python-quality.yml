@@ -58,6 +58,8 @@ jobs:
           -o addopts='' -q
           -k 'IndependentVerifyingClientRejectsTheActualSelfSignedCertificate or PartialHeader'
       - name: Run repository quality gate
+        env:
+          FUZZY1337_RUN_DESCENDANT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
         run: >-
           uv run --locked --extra dev 1337-dev check
           --suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}

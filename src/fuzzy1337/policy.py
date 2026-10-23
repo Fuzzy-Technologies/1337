@@ -592,6 +592,7 @@ class GovernedLocalExecutor:
         context_provider: Callable[[], PolicyContext],
         on_event: EventCallback | None = None,
         cancellation: asyncio.Event | None = None,
+        own_descendants: bool = False,
     ) -> LocalExecutionResult:
         """Revalidate fresh context immediately before launching the exact approved request.
 
@@ -606,6 +607,8 @@ class GovernedLocalExecutor:
             context_provider: Trusted synchronous reader of current authorization inputs.
             on_event: Optional local executor progress observer.
             cancellation: Cooperative cancellation, preserving existing executor behavior.
+            own_descendants: Explicit Linux-only stronger child ownership; authorization
+                still binds the unchanged original request and invocation.
 
         Returns:
             The unchanged local executor result with truthful terminal state and output.
@@ -633,6 +636,14 @@ class GovernedLocalExecutor:
                 grant, current_request.invocation, current_request.capability,
                 context_provider(), at=self._clock(),
             )
+
+        if own_descendants:
+            return await self._executor.Execute(request, on_event=on_event,
+                cancellation=cancellation, pre_launch=CheckBeforeLaunch,
+                own_descendants=own_descendants)
+
+        if type(own_descendants) is not bool:
+            raise ValueError("own_descendants must be an explicit boolean")
 
         return await self._executor.Execute(
             request, on_event=on_event, cancellation=cancellation, pre_launch=CheckBeforeLaunch

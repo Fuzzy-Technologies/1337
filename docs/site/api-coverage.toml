@@ -298,6 +298,20 @@ mode = "authored"
 page = "api/fuzzy1337.executors.local.md"
 
 [[surfaces]]
+# Internal trusted control channel for opt-in Linux descendant ownership.
+module = "fuzzy1337.executors.owned_process"
+source = "src/fuzzy1337/executors/owned_process.py"
+mode = "authored"
+page = "api/fuzzy1337.executors.owned_process.md"
+
+[[surfaces]]
+# Internal installed Linux subreaper entry point, not an execution authority API.
+module = "fuzzy1337.executors.descendant_supervisor"
+source = "src/fuzzy1337/executors/descendant_supervisor.py"
+mode = "authored"
+page = "api/fuzzy1337.executors.descendant_supervisor.md"
+
+[[surfaces]]
 module = "fuzzy1337.functional_metrics"
 source = "src/fuzzy1337/functional_metrics.py"
 mode = "authored"

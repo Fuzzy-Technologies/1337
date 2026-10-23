@@ -75,6 +75,51 @@ Awaitable observers must remain responsive. The process-wait timeout does not
 bound observer execution; a caller may cancel the execution coroutine while an
 observer is suspended. Observer failures return no successful execution result.
 
+## Optional Linux descendant ownership
+
+`LocalExecutor.Execute` and `GovernedLocalExecutor.Execute` accept the explicit
+keyword `own_descendants=True` under
+[ADR 0091](adr/0091-opt-in-linux-descendant-process-ownership.md). The default is
+`False`. Request serialization, approved invocation metadata and result fields
+retain their existing contract. Unsupported platforms reject the opt-in before
+launching the approved worker.
+The kernel must expose the supervisor's direct-child list through procfs and
+support sealed anonymous configuration. Missing primitives fail before worker
+launch. Required Linux integration CI sets
+`FUZZY1337_RUN_DESCENDANT_ACCEPTANCE=1`: unavailable capabilities fail the actual
+detached-process tests there. An unsupported local environment can explicitly
+skip those positive cases and supplies no acceptance evidence.
+
+The Linux implementation starts an installed isolated supervisor that owns and
+reaps detached descendants as a child subreaper. Only that dedicated process
+changes its subreaper state. It reads its own kernel child list, never a global
+process table. The approved worker receives its original argv and environment;
+stdout and stderr remain the original bounded byte streams. Private sealed
+configuration and receipt descriptors are not inherited by the worker.
+The helper first proves its setup and reports readiness through a separate
+private one-byte pipe. The parent then repeats the synchronous launch-policy
+check immediately before acknowledging the worker start, with no intervening
+await. Denied or interrupted handoffs require verified unstarted cleanup;
+abort after a delivered acknowledgement actively stops the known helper and
+verifies the actual started or unstarted outcome.
+
+Normal worker exit, timeout, output exhaustion, cooperative cancellation,
+observer failure and caller cancellation all require verified descendant cleanup
+before returning or propagating the original outcome. Cleanup is bounded at two
+seconds and 128 processes/reaps; the parent uses at least three seconds of
+termination grace for this opt-in. The `started` event records supervisor
+ownership and can precede actual worker startup. A worker spawn failure raises
+`LocalExecutionError`, while an actual worker's nonzero or negative signal exit
+code remains its own exit status.
+
+A missing or inconsistent receipt, failed cleanup or forced supervisor kill
+raises `LocalExecutionError`. It cannot establish a completed cancellation or
+successful result. The receipt is a private OS-owned control channel, without
+cryptographic attestation. This mechanism supports trusted approved providers;
+it provides no same-UID containment, network/filesystem sandbox or universal
+guarantee after uncatchable owner termination or kernel failure. Windows and
+other platform implementations remain separate work.
+
 ## Capability discovery
 
 `LazyAdapterRegistry` accepts immutable `AdapterDescriptor` metadata and a
