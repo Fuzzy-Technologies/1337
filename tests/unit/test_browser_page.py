@@ -382,15 +382,21 @@ def test_RenderBoundaryIndependentlyRefusesArbitraryBytesBeforeAnyOptionalImport
 @pytest.mark.parametrize("mode", [
     "version", "chromium-version", "missing-package", "import", "timeout", "extra-page",
     "websocket", "download", "navigation", "dom-type", "dom-size", "count", "stop",
+    "api-launch-timeout", "api-content-timeout",
 ])
 def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessment(
-    monkeypatch, browser_runner, mode,
+    tmp_path, monkeypatch, browser_runner, mode,
 ):
     """Portable API doubles exercise only refusals; actual browser execution remains required CI."""
 
     output = io.BytesIO()
     callbacks = {}
     facts = {"blocked": 0, "socket_closed": 0, "download_cancelled": 0, "stopped": 0}
+
+    class ApiTimeout(Exception):
+        """Model the pinned API's actual timeout hierarchy independently from builtin timeouts."""
+
+    assert not issubclass(ApiTimeout, TimeoutError), "API timeout accidentally became builtin."
 
     async def Stop():
         """Fail the last close after fixed measurements, without fabricating a successful render."""
@@ -458,6 +464,10 @@ def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessm
         assert body == BODY.decode("utf-8") and wait_until == "load" and 0 < timeout <= 6000, (
             "Renderer body or shared finite operation budget changed."
         )
+
+        if mode == "api-content-timeout":
+            raise ApiTimeout("PRIVATE_ENGINE_DIAGNOSTIC")
+
         await callbacks["route"](SimpleNamespace(abort=Abort))
 
         if mode == "websocket":
@@ -519,6 +529,9 @@ def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessm
         if mode == "timeout":
             raise TimeoutError("PRIVATE_ENGINE_DIAGNOSTIC")
 
+        if mode == "api-launch-timeout":
+            raise ApiTimeout("PRIVATE_ENGINE_DIAGNOSTIC")
+
         return browser
 
     manager = SimpleNamespace(chromium=SimpleNamespace(launch=Launch), stop=Stop)
@@ -548,7 +561,8 @@ def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessm
         if mode == "import":
             raise ImportError("PRIVATE_MODULE_DIAGNOSTIC")
 
-        return SimpleNamespace(async_playwright=lambda: SimpleNamespace(start=Start))
+        return SimpleNamespace(async_playwright=lambda: SimpleNamespace(start=Start),
+                               TimeoutError=ApiTimeout)
 
     monkeypatch.setattr(worker, "metadata", SimpleNamespace(version=Version,
         PackageNotFoundError=worker.metadata.PackageNotFoundError))
@@ -577,6 +591,43 @@ def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessm
 
     if mode == "stop":
         assert facts["blocked"] == 1 and facts["stopped"] >= 1, "Close failure path was untested."
+
+    if mode in ("api-launch-timeout", "api-content-timeout"):
+        assert status == 124 and record["error"] == "renderer-timeout", (
+            "The API-owned timeout was misclassified as an ordinary provider failure."
+        )
+        fixture = Fixture.Create(tmp_path / "workspace")
+        provider = BrowserProvider(fixture)
+        before = LocalModelStore(fixture.root).Open()
+        result = replace(Result(output.getvalue()),
+            execution=AdapterExecution(ExecutionState.FAILED, status, 0.1))
+
+        async def Execute(*args, **options):
+            """Pass only the actual timeout record through real job/evidence/model owners."""
+
+            assert options["own_descendants"] is True, "API timeout lost strong ownership."
+
+            return result
+
+        monkeypatch.setattr(owned_process, "RequireLinuxOwnership", lambda: None)
+        monkeypatch.setattr(GovernedLocalExecutor, "Execute", Execute)
+        snapshot = RunJob(BrowserJob(fixture, provider), browser_runner)
+        assert snapshot.state is JobState.FAILED and snapshot.failure is not None, (
+            "API timeout became a completed browser/page assessment."
+        )
+        assert snapshot.failure.code is JobFailureCode.TIMEOUT, "API timeout lost TIMEOUT truth."
+        assert LocalModelStore(fixture.root).Open() == before, "API timeout committed model state."
+        records = tuple(artifact.evidence for artifact in snapshot.artifacts)
+        assert {item.reference.role for item in records} == {"stdout", "response-body"}, (
+            "API timeout lost complete verified native source custody."
+        )
+
+        for item in records:
+            expected = BODY if item.reference.role == "response-body" else output.getvalue()
+            assert LocalEvidenceStore(fixture.root / "evidence").Read(item.reference) == expected, (
+                "API timeout changed original source/report evidence."
+            )
+            assert item.provenance.tool_version is None, "API timeout invented an engine version."
 
 
 def BrowserProvider(fixture, *, clock=lambda: NOW):

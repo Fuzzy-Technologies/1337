@@ -96,6 +96,7 @@ async def Render(body: bytes, expected_body: KnownSyntheticHtmlBody) -> dict[str
     manager: Any = None
     browser: Any = None
     context: Any = None
+    api_timeouts: tuple[type[Exception], ...] = ()
     blocked = 0
     pages = 0
     policy_failed = False
@@ -165,6 +166,7 @@ async def Render(body: bytes, expected_body: KnownSyntheticHtmlBody) -> dict[str
 
             try:
                 api = import_module("playwright.async_api")
+                api_timeouts = (api.TimeoutError,)
 
             except ImportError:
                 raise BrowserRenderError("renderer-unavailable") from None
@@ -230,6 +232,9 @@ async def Render(body: bytes, expected_body: KnownSyntheticHtmlBody) -> dict[str
             return result
 
     except TimeoutError:
+        raise BrowserRenderError("renderer-timeout") from None
+
+    except api_timeouts:
         raise BrowserRenderError("renderer-timeout") from None
 
     finally:
