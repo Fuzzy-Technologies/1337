@@ -3,6 +3,7 @@ name: Python quality
 on:
   pull_request:
     branches: [develop, master]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
   push:
     branches: [master]
 
@@ -15,6 +16,9 @@ concurrency:
 
 jobs:
   quality:
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false)
     name: Python ${{ matrix.python }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.job_timeout_minutes || 15 }}
@@ -71,6 +75,9 @@ jobs:
           retention-days: 14
 
   container-quality:
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false)
     name: Container configuration and quality
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -87,6 +94,9 @@ jobs:
         run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile quality run --rm quality
 
   synthetic-lab:
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false)
     name: Synthetic lab lifecycle
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -118,6 +128,9 @@ jobs:
         run: docker compose --profile lab --profile attack-path down --volumes --remove-orphans
 
   external-targets:
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false)
     name: Pinned external target regression
     runs-on: ubuntu-24.04
     timeout-minutes: 15

@@ -313,6 +313,16 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Changed
 
+- Deferred full development CI while implementation PRs are draft. Final readiness
+  starts the integration gate; returning to draft cancels stale runs. Intermediate
+  commits use small feature/regression selections, and approval/merge still needs
+  actual full-job success for the final revision. Stable publication checks retain
+  their existing boundary.
+
+- Parallelized independent documentation test modules with bounded xdist workers
+  while retaining branch coverage. Required tests and gate outcomes use deterministic
+  code/fixtures without live LLM calls, service credentials or model judgments.
+
 - Run the four required full development workflows at PR checkpoints without
   repeating them after a `develop` merge. Stable `master` checks and master-only
   documentation deployment remain unchanged.
