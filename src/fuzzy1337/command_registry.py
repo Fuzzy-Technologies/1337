@@ -194,7 +194,7 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="scan",
-            summary="Run governed discovery, web checks or closed artifact workflows.",
+            summary="Run governed discovery, web checks or explicit synthetic/native images.",
             usage="1337 scan <quick|ports|web|nuclei|image|config> <workspace>",
             capabilities=("http.endpoint-discovery", "web.git-head-check",
                           "network.tcp-connect",

@@ -21,7 +21,7 @@ from fuzzy1337.adapters import (
     ExecutionState,
     SerializeContract,
 )
-from fuzzy1337.adapters.trivy import TRIVY_MAX_TIMEOUT_SECONDS
+from fuzzy1337.adapters.trivy import TRIVY_MAX_TIMEOUT_SECONDS, RelativePath
 from fuzzy1337.artifact_inputs import ArtifactFile, ArtifactManifest, ArtifactProfile, ArtifactRole
 from fuzzy1337.artifact_policy import (
     ArtifactDenialReason,
@@ -103,7 +103,7 @@ def ValidateSelection(workspace_root: Path, owner_reference: str,
         timeout_seconds: Existing native adapter scan deadline.
 
     Raises:
-        ValueError: Ownership, workspace or finite timeout declarations differ.
+        ValueError: Ownership, workspace, portable path syntax or finite limits differ.
     """
 
     if type(selection) is not NativeTrivySelection or (
@@ -113,6 +113,9 @@ def ValidateSelection(workspace_root: Path, owner_reference: str,
         or not 1 <= timeout_seconds <= TRIVY_MAX_TIMEOUT_SECONDS
     ):
         raise ValueError("native image workflow requires exact selections and finite limits")
+
+    RelativePath(selection.archive)
+    RelativePath(selection.cache_directory)
 
 
 def CurrentContext(root: Path, scope_id: str, owner_reference: str,

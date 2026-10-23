@@ -20,6 +20,11 @@ INTEGRATION_CONDITION = (
     "github.event_name == 'push' || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == false)"
 )
+NATIVE_IMAGE_FEATURE_CONDITION = (
+    INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
+    "&& github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, '[native-image-feature-checkpoint]'))"
+)
 
 
 def Workflow(name: str) -> dict[str, Any]:
@@ -64,8 +69,11 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     for job_id in WORKFLOWS[name]:
         job = jobs[job_id]
         condition = " ".join(str(job.get("if", "")).split())
-        assert condition == INTEGRATION_CONDITION, (
-            f"{name}/{job_id} must wait for a ready PR or the existing stable push."
+        expected_condition = (
+            NATIVE_IMAGE_FEATURE_CONDITION if name == "trivy-acceptance.yml"
+            else INTEGRATION_CONDITION)
+        assert condition == expected_condition, (
+            f"{name}/{job_id} lost its full gate or explicit native-image feature checkpoint."
         )
         assert job.get("continue-on-error", False) is False, "Full gate failures became advisory."
         assert job["steps"], "Required integration work was replaced with an empty job."
@@ -114,3 +122,34 @@ def test_NmapAcceptanceRequiresGenuinePinnedProviderAndProductOracle() -> None:
         if command.startswith("python - <<'PY'\n"):
             source = command.removeprefix("python - <<'PY'\n").removesuffix("PY\n")
             compile(source, "nmap-acceptance.yml:" + step["name"], "exec")
+
+
+def test_NativeImageProductAcceptanceRequiresActualIsolatedSdkAndInstalledCli() -> None:
+    """Required native product execution keeps pinning, no egress and both independent cases."""
+
+    job = Workflow("trivy-acceptance.yml")["jobs"]["owned-offline"]
+    command = next(step["run"] for step in job["steps"] if step.get("name") == (
+        "Run genuine adapter acceptance with no external network interface or route"))
+    assert "sudo unshare --net -- setpriv" in command and "env -i PATH=/usr/bin:/bin" in command, (
+        "Genuine image execution lost its separate no-egress namespace or cleared environment."
+    )
+    assert "FUZZY1337_RUN_NATIVE_IMAGE_PRODUCT_ACCEPTANCE=1" in command, (
+        "Missing native product prerequisites could silently skip required acceptance."
+    )
+
+    for selected in ("BINARY", "CACHE", "PROVISIONING", "HOST_NETNS"):
+        assert f"FUZZY1337_TRIVY_{selected}=" in command, (
+            "Actual native product acceptance lost explicit pinned provisioning material."
+        )
+
+    assert "tests/integration/test_trivy_native.py" in command and (
+        "tests/functional/test_native_image_product.py" in command
+    ), "Original adapter acceptance and the independent real SDK/CLI oracle are both required."
+    assert "-n 2 --dist=load" in command, (
+        "Independent owned archive cases lost bounded parallelism."
+    )
+    upload = next(step for step in job["steps"] if step.get("name") == (
+        "Preserve actual native provider evidence"))
+    assert upload["if"] == "always()" and (
+        "functional-evidence/native-image-product/" in upload["with"]["path"]
+    ), "Actual acquired product evidence must survive failures as well as successes."

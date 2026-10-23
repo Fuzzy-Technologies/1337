@@ -95,6 +95,17 @@ def test_ExistingNativeAdapterLimitEndpointsRemainAccepted(owned, timeout):
     product.ValidateSelection(owned.root, "owner:unit", owned.selection, timeout)
 
 
+@pytest.mark.parametrize("field,value", [("archive", "a//b.tar"), ("archive", "./image.tar"),
+    ("archive", "../image.tar"), ("cache_directory", "/absolute/cache"),
+    ("cache_directory", "cache//db"), ("cache_directory", "cache/../db")])
+def test_NativeOriginalRelativePathSyntaxIsCheckedBeforeReaderSetup(owned, field, value):
+    """Pure preflight preserves original path spelling before normalization or content reads."""
+
+    with pytest.raises(ValueError, match="Trivy paths"):
+        product.ValidateSelection(owned.root, "owner:unit",
+                                  replace(owned.selection, **{field: value}), 30)
+
+
 def test_ExecutingOwnerIsReadActorAndScopeAttesterIsIndependent(owned):
     """Scope provenance is fully retained without requiring the attester to execute the scan."""
 

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Explicit workspace, consent and bounded endpoint or closed synthetic product commands."""
+"""Explicit workspace, consent and bounded endpoint or selected artifact product commands."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import ipaddress
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import NoReturn, TextIO
+from typing import TYPE_CHECKING, NoReturn, TextIO
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters import SerializeContract
@@ -21,6 +21,7 @@ from fuzzy1337.adapters.native_web import (
     NativeWebEndpoint,
 )
 from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactReadConsent
+from fuzzy1337.artifact_policy import ArtifactDenialReason, ArtifactDeniedError
 from fuzzy1337.configuration_workflow import (
     ConfigurationScanSelection,
     ConfigurationScanSummary,
@@ -72,6 +73,9 @@ from fuzzy1337.workspace import (
     WorkspaceConfiguration,
     WorkspaceConflictError,
 )
+
+if TYPE_CHECKING:
+    from fuzzy1337.native_image_workflow import NativeImageScanSummary
 
 
 class ProductArgumentParser(argparse.ArgumentParser):
@@ -351,20 +355,27 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         web.add_argument("--confirm-plan")
         web.add_argument("--confirmation-reference")
         web.add_argument("--events-json", action="store_true")
-        image = actions.add_parser("image", help="Run the closed synthetic image workflow.")
+        image = actions.add_parser("image", help="Plan/run an explicit synthetic or native image.")
         image.add_argument("path", type=Path)
-        image.add_argument("--profile", choices=("synthetic",), required=True,
-                           help="Explicitly select synthetic fixture interpretation.")
-        image.add_argument("--scope", required=True)
+        image.add_argument("--profile", choices=("synthetic", "native"), required=True,
+                           help="Explicitly select fixture interpretation or native Trivy.")
+        image.add_argument("--scope")
         image.add_argument("--owner", required=True)
-        image.add_argument("--archive", type=Path, required=True)
+        image.add_argument("--archive", required=True,
+                           help="Synthetic absolute file or canonical native workspace path.")
         image.add_argument("--executable", type=Path, required=True,
-                           help="Absolute selected current trusted CPython executable.")
-        image.add_argument("--producer", type=Path, required=True,
+                           help="Absolute selected trusted CPython or native Trivy executable.")
+        image.add_argument("--producer", type=Path,
                            help="Absolute selected reviewed first-party image worker.")
-        image.add_argument("--material", type=Path, required=True,
+        image.add_argument("--material", type=Path,
                            help="Absolute selected synthetic material policy.")
         image.add_argument("--read-consent-reference", required=True)
+        image.add_argument("--cache-directory",
+                           help="Explicit canonical native workspace-relative Trivy cache.")
+        image.add_argument("--policy", type=Path,
+                           help="Selected strict native ImpactPolicy, reread before authority use.")
+        image.add_argument("--plan", action="store_true",
+                           help="Native descriptive preview or scoped VERSION plan; no Trivy.")
         image.add_argument("--approve-safe-image", action="store_true")
         image.add_argument("--timeout", type=int, default=30)
         image.add_argument("--report-format", choices=("json", "sarif"))
@@ -437,6 +448,29 @@ def RunCommands(
     ):
         parser.error("supply both report format and new output destination")
 
+    if command == "scan" and arguments.action == "image":
+        if arguments.profile == "synthetic":
+            if not all((arguments.scope, arguments.producer, arguments.material)) or any((
+                arguments.cache_directory is not None, arguments.policy is not None,
+                arguments.plan,
+            )):
+                parser.error("synthetic image requires scope, producer and material only")
+
+        else:
+            if arguments.cache_directory is None or any((
+                arguments.producer is not None, arguments.material is not None,
+            )):
+                parser.error("native image requires cache and excludes synthetic material")
+
+            if (arguments.scope is None) != (arguments.policy is None) or (
+                not arguments.plan and arguments.scope is None
+            ):
+                parser.error("native execution requires both scope and policy")
+
+            if arguments.plan and any((arguments.events_json, arguments.report_format,
+                                       arguments.approve_safe_image)):
+                parser.error("planning emits one descriptive document without execution approval")
+
     if command == "scan" and arguments.action in {"nuclei", "web", "ports"}:
         if bool(arguments.confirm_plan) != bool(arguments.confirmation_reference):
             parser.error("supply both exact plan digest and confirmation record reference")
@@ -453,6 +487,39 @@ def RunCommands(
             document = CreateScope(arguments.path, arguments)
 
         else:
+            if arguments.action == "image" and arguments.profile == "native":
+                from fuzzy1337.native_image_capture import NativeTrivySelection
+                from fuzzy1337.native_image_observation import NativeImageObservationError
+                from fuzzy1337.native_image_workflow import PlanNativeImageScan, ScanNativeImage
+
+                native_root = LocalWorkspaceStore(arguments.path).root
+                native_selection = NativeTrivySelection(native_root, arguments.executable,
+                    arguments.archive, arguments.cache_directory,
+                    ArtifactReadConsent(arguments.owner, arguments.read_consent_reference))
+
+                def NativeReadPolicy() -> ImpactPolicy:
+                    """Reread the explicit native policy without deriving consent from approval."""
+
+                    return ReadNucleiPolicy(arguments.policy)
+
+                if arguments.plan:
+                    try:
+                        native_plan = asyncio.run(PlanNativeImageScan(native_root,
+                            arguments.owner, native_selection, scope_id=arguments.scope,
+                            policy_provider=NativeReadPolicy if arguments.policy else None,
+                            timeout_seconds=arguments.timeout))
+
+                    except NativeImageObservationError:
+                        WriteJson(output, {"schema_version": 1, "state": "failed",
+                            "failure": {"code": "provider",
+                                        "message": "Selected native material is unverified"}})
+
+                        return 4
+
+                    WriteJson(output, native_plan.ToDict())
+
+                    return 0
+
             if arguments.action in {"nuclei", "web", "ports"}:
                 check_id = (
                     NATIVE_FILE_CANARY_CHECK_ID if arguments.action == "web"
@@ -521,7 +588,8 @@ def RunCommands(
 
             if arguments.action == "ports":
                 summary: (PortScanSummary | NativeWebScanSummary | NucleiScanSummary
-                          | QuickScanSummary | ImageScanSummary | ConfigurationScanSummary) = (
+                          | QuickScanSummary | ImageScanSummary | ConfigurationScanSummary
+                          | NativeImageScanSummary) = (
                     asyncio.run(RunPortScan(arguments.path, arguments.scope, target,
                         arguments.owner, arguments.ports, arguments.executable, ReadPolicy,
                         confirmation=PolicyConfirmation(arguments.confirm_plan,
@@ -550,8 +618,15 @@ def RunCommands(
                     )
                 )
 
+            elif arguments.action == "image" and arguments.profile == "native":
+                summary = asyncio.run(ScanNativeImage(native_root, arguments.scope,
+                    arguments.owner, native_selection, NativeReadPolicy,
+                    approve_safe_image=arguments.approve_safe_image,
+                    timeout_seconds=arguments.timeout, on_event=OnEvent,
+                    report_format=arguments.report_format, report_output=arguments.report_output))
+
             elif arguments.action == "image":
-                selection = ImageScanSelection(arguments.archive, arguments.executable,
+                selection = ImageScanSelection(Path(arguments.archive), arguments.executable,
                     arguments.producer, arguments.material,
                     ArtifactReadConsent(arguments.owner, arguments.read_consent_reference))
                 summary = asyncio.run(RunSyntheticImageScan(
@@ -598,7 +673,9 @@ def RunCommands(
             else:
                 label = {"ports": "TCP Port Scan", "web": "Native Web Scan",
                          "nuclei": "Nuclei Scan",
-                         "image": "Synthetic Image Scan",
+                         "image": ("Native Image Scan" if arguments.action == "image"
+                                   and arguments.profile == "native" else
+                                   "Synthetic Image Scan"),
                          "config": "Synthetic Configuration Scan",
                          "quick": "Quick Scan"}[arguments.action]
                 output.write(f"{label} {summary.snapshot.state.value}; "
@@ -608,6 +685,15 @@ def RunCommands(
                 output.flush()
 
             return summary.ExitCode()
+
+    except ArtifactDeniedError as error:
+        storage_failure = error.reason is ArtifactDenialReason.STORAGE
+        WriteJson(output, {"schema_version": 1, "state": "failed", "failure": {
+            "code": "storage" if storage_failure else "authorization",
+            "message": "Native image storage is unverified" if storage_failure else
+                       "Current native image authority denied execution"}})
+
+        return 4 if storage_failure else 3
 
     except (NativeWebAuthorityDeniedError, NucleiAuthorityDeniedError,
             PortScanAuthorityDeniedError, PolicyDeniedError):
