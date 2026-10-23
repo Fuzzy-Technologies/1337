@@ -245,7 +245,7 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="api",
-            summary="Import an explicit owned offline GraphQL or OpenAPI JSON source.",
+            summary="Import an owned offline GraphQL introspection or OpenAPI JSON source.",
             usage="1337 api import <graphql-introspection|openapi-json> <workspace>",
             capabilities=("api.owned-offline-import",),
         ),
