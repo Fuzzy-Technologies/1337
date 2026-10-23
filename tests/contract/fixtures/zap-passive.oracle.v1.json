@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "catalog_version": 1,
+  "profile": "owned-response-zap-passive.v1",
+  "fixture_kind": "static-original-http-response-wire-and-independent-oracle",
+  "provenance": "Response bytes and selected-rule expectations are independently handwritten. Base64, sizes and SHA-256 use only Python standard-library encoding and hashing, without production builders, parsers or provider output.",
+  "evidence_status": "Static original-wire fixture and expected outcomes; not a genuine ZAP result, execution receipt, authority grant or provider enrollment.",
+  "request_contract": {
+    "literal_addresses": [
+      "127.0.0.1",
+      "::1"
+    ],
+    "port_binding": "explicitly selected owned listener at runtime",
+    "method": "GET",
+    "http_version": "HTTP/1.1",
+    "path_binding": "exact case path",
+    "query": "",
+    "body_size_bytes": 0,
+    "expected_acquisition_requests_per_case_run": 1,
+    "expected_provider_origin_target_requests_per_case_run": 0
+  },
+  "response_contract": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "content_type": "text/html; charset=utf-8",
+    "connection": "close",
+    "eof_required": true,
+    "header_section_includes_status_line_and_final_crlfcrlf": true,
+    "header_order_and_spacing": "exact decoded header_section bytes",
+    "optional_header": {
+      "name": "X-Content-Type-Options",
+      "value": "nosniff"
+    },
+    "additional_headers_allowed": false,
+    "response_bytes": "header_section bytes immediately followed by body bytes, with no trailing bytes"
+  },
+  "selected_rule": {
+    "provider": "ZAP",
+    "rule_id": 10021,
+    "kind": "passive",
+    "threshold": "Medium",
+    "expected_canonical_severity": "Low",
+    "count_semantics": "Expected selected-rule alerts for one complete imported response; no claim about exploitability, unrelated rules or general security.",
+    "assessed_result_requires": [
+      "Exactly one source-bound HAR entry is imported without sending requests.",
+      "Only passive rule 10021 is enabled at Medium threshold.",
+      "The passive queue is verified complete.",
+      "The bounded original report and execution finish without warning, failure, timeout, cancellation or incomplete custody."
+    ],
+    "fixed_zero_requires_all_assessed_result_conditions": true
+  },
+  "cases": [
+    {
+      "case_id": "missing",
+      "path": "/zap-passive/missing",
+      "header_fields_in_order": [
+        {
+          "name": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        },
+        {
+          "name": "Content-Length",
+          "value": "170"
+        },
+        {
+          "name": "Connection",
+          "value": "close"
+        }
+      ],
+      "expected": {
+        "selected_rule_alert_count": 1,
+        "nosniff_header_present": false,
+        "condition": "The complete actual response header section has no X-Content-Type-Options field."
+      },
+      "header_section": {
+        "base64": "SFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbDsgY2hhcnNldD11dGYtOA0KQ29udGVudC1MZW5ndGg6IDE3MA0KQ29ubmVjdGlvbjogY2xvc2UNCg0K",
+        "size_bytes": 99,
+        "sha256": "bcca1cf672b83ca7791f5b50c449ad7baee09ac86b477553bf3710b2b0baae27"
+      },
+      "body": {
+        "base64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+PG1ldGEgY2hhcnNldD0idXRmLTgiPjx0aXRsZT5Pd25lZCBwYXNzaXZlIGhlYWRlciBmaXh0dXJlPC90aXRsZT48L2hlYWQ+Cjxib2R5PjxwPlJldmlld2VkIG5vbi1zZWNyZXQgcmVzcG9uc2UuPC9wPjwvYm9keT4KPC9odG1sPgo=",
+        "size_bytes": 170,
+        "sha256": "74b5932864774c4e36be665cf61254fbc5b6bdda879c02fd7304e31f93dce549",
+        "text_utf8": "<!doctype html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><title>Owned passive header fixture</title></head>\n<body><p>Reviewed non-secret response.</p></body>\n</html>\n"
+      },
+      "response": {
+        "base64": "SFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbDsgY2hhcnNldD11dGYtOA0KQ29udGVudC1MZW5ndGg6IDE3MA0KQ29ubmVjdGlvbjogY2xvc2UNCg0KPCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+PG1ldGEgY2hhcnNldD0idXRmLTgiPjx0aXRsZT5Pd25lZCBwYXNzaXZlIGhlYWRlciBmaXh0dXJlPC90aXRsZT48L2hlYWQ+Cjxib2R5PjxwPlJldmlld2VkIG5vbi1zZWNyZXQgcmVzcG9uc2UuPC9wPjwvYm9keT4KPC9odG1sPgo=",
+        "size_bytes": 269,
+        "sha256": "69d48285478ebbb0016fbd0589340ef5ea142804f061ddbfb1547a5eff3345cc"
+      }
+    },
+    {
+      "case_id": "fixed",
+      "path": "/zap-passive/fixed",
+      "header_fields_in_order": [
+        {
+          "name": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        },
+        {
+          "name": "Content-Length",
+          "value": "170"
+        },
+        {
+          "name": "Connection",
+          "value": "close"
+        },
+        {
+          "name": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ],
+      "expected": {
+        "selected_rule_alert_count": 0,
+        "nosniff_header_present": true,
+        "condition": "The complete actual response header section contains the exact nosniff field; the body is unchanged from missing."
+      },
+      "header_section": {
+        "base64": "SFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbDsgY2hhcnNldD11dGYtOA0KQ29udGVudC1MZW5ndGg6IDE3MA0KQ29ubmVjdGlvbjogY2xvc2UNClgtQ29udGVudC1UeXBlLU9wdGlvbnM6IG5vc25pZmYNCg0K",
+        "size_bytes": 132,
+        "sha256": "7d6492151cd53d50d14cb015f572e36388917f177fe9de84e2862ec29de6b0b4"
+      },
+      "body": {
+        "base64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+PG1ldGEgY2hhcnNldD0idXRmLTgiPjx0aXRsZT5Pd25lZCBwYXNzaXZlIGhlYWRlciBmaXh0dXJlPC90aXRsZT48L2hlYWQ+Cjxib2R5PjxwPlJldmlld2VkIG5vbi1zZWNyZXQgcmVzcG9uc2UuPC9wPjwvYm9keT4KPC9odG1sPgo=",
+        "size_bytes": 170,
+        "sha256": "74b5932864774c4e36be665cf61254fbc5b6bdda879c02fd7304e31f93dce549",
+        "text_utf8": "<!doctype html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><title>Owned passive header fixture</title></head>\n<body><p>Reviewed non-secret response.</p></body>\n</html>\n"
+      },
+      "response": {
+        "base64": "SFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbDsgY2hhcnNldD11dGYtOA0KQ29udGVudC1MZW5ndGg6IDE3MA0KQ29ubmVjdGlvbjogY2xvc2UNClgtQ29udGVudC1UeXBlLU9wdGlvbnM6IG5vc25pZmYNCg0KPCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+PG1ldGEgY2hhcnNldD0idXRmLTgiPjx0aXRsZT5Pd25lZCBwYXNzaXZlIGhlYWRlciBmaXh0dXJlPC90aXRsZT48L2hlYWQ+Cjxib2R5PjxwPlJldmlld2VkIG5vbi1zZWNyZXQgcmVzcG9uc2UuPC9wPjwvYm9keT4KPC9odG1sPgo=",
+        "size_bytes": 302,
+        "sha256": "d46e7ec91b286545af6696f9d447f60b488e023e353fdcd269318635bf8ba0e0"
+      }
+    },
+    {
+      "case_id": "body-decoy",
+      "path": "/zap-passive/body-decoy",
+      "header_fields_in_order": [
+        {
+          "name": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        },
+        {
+          "name": "Content-Length",
+          "value": "212"
+        },
+        {
+          "name": "Connection",
+          "value": "close"
+        }
+      ],
+      "expected": {
+        "selected_rule_alert_count": 1,
+        "nosniff_header_present": false,
+        "condition": "The body mentions X-Content-Type-Options: nosniff, but the complete actual response header section has no such field."
+      },
+      "header_section": {
+        "base64": "SFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbDsgY2hhcnNldD11dGYtOA0KQ29udGVudC1MZW5ndGg6IDIxMg0KQ29ubmVjdGlvbjogY2xvc2UNCg0K",
+        "size_bytes": 99,
+        "sha256": "c0ee3036bf2c5c03093e3f2acf22c2f28cb00cd03045f73544750fe83af9ed7e"
+      },
+      "body": {
+        "base64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+PG1ldGEgY2hhcnNldD0idXRmLTgiPjx0aXRsZT5Pd25lZCBwYXNzaXZlIGhlYWRlciBmaXh0dXJlPC90aXRsZT48L2hlYWQ+Cjxib2R5PjxwPlJldmlld2VkIG5vbi1zZWNyZXQgcmVzcG9uc2UuPC9wPjxwcmU+WC1Db250ZW50LVR5cGUtT3B0aW9uczogbm9zbmlmZjwvcHJlPjwvYm9keT4KPC9odG1sPgo=",
+        "size_bytes": 212,
+        "sha256": "bc2000850157e7b49c02abe6925f3c6e8eaeceb0a9257ec99e3d334a8df18907",
+        "text_utf8": "<!doctype html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><title>Owned passive header fixture</title></head>\n<body><p>Reviewed non-secret response.</p><pre>X-Content-Type-Options: nosniff</pre></body>\n</html>\n"
+      },
+      "response": {
+        "base64": "SFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbDsgY2hhcnNldD11dGYtOA0KQ29udGVudC1MZW5ndGg6IDIxMg0KQ29ubmVjdGlvbjogY2xvc2UNCg0KPCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+PG1ldGEgY2hhcnNldD0idXRmLTgiPjx0aXRsZT5Pd25lZCBwYXNzaXZlIGhlYWRlciBmaXh0dXJlPC90aXRsZT48L2hlYWQ+Cjxib2R5PjxwPlJldmlld2VkIG5vbi1zZWNyZXQgcmVzcG9uc2UuPC9wPjxwcmU+WC1Db250ZW50LVR5cGUtT3B0aW9uczogbm9zbmlmZjwvcHJlPjwvYm9keT4KPC9odG1sPgo=",
+        "size_bytes": 311,
+        "sha256": "26faed184202a13a2ec6d1933938824bd1e575a082b630240066587c0730b7af"
+      }
+    }
+  ]
+}

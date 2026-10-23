@@ -18,6 +18,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Recorded a proposed finite owned-response/ZAP passive boundary and independently
+  authored missing/fixed/body-decoy wire oracle. Header-retention, authority,
+  runtime isolation and file-custody prerequisites remain explicit; this design
+  does not enroll an executable provider or claim genuine ZAP acceptance.
+
 - Added an explicit browser-only draft CI checkpoint for supported genuine engine
   diagnostics. Full integration still starts only at final readiness; browser
   setup downloads the pinned headless shell without an unrelated OS upgrade.
