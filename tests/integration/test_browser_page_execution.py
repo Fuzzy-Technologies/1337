@@ -240,13 +240,22 @@ def test_ActualChromiumRendersClosedBodyAndReopensCanonicalCustody(
         assert state.revision == 1 and len(state.Objects(ObjectKind.ENDPOINT)) == 2, (
             "The exact source and one lexical candidate must form one canonical transition"
         )
-        assert len(state.observations) == 2 and not state.relations and all(
+        assert len(state.observations) == 4 and not state.relations and all(
             item.identity.kind is ObjectKind.ENDPOINT for item in state.objects
-        ), "Acquisition must create only source/lexical facts, without findings or host claims"
+        ), "Acquisition must retain source/lexical and two owner updates without extra objects"
         source_observation = next(item for item in state.observations
                                   if item.kind == "http.synthetic-page-browser")
         link = next(item for item in state.observations if item.kind == "web.lexical-link")
         candidate = RequestTemplate(Endpoint("synthetic", server.origin, "/selected-next"))
+        expected_observations = (
+            ("http.synthetic-page-browser", source.endpoint.Identity().Reference()),
+            ("web.lexical-link", candidate.endpoint.Identity().Reference()),
+            ("object-update", source.endpoint.Identity().Reference()),
+            ("object-update", candidate.endpoint.Identity().Reference()),
+        )
+        assert sorted((item.kind, item.subject_reference) for item in state.observations) == (
+            sorted(expected_observations)
+        ), "The exact two semantic facts and two owner updates must bind their endpoint subjects"
         assert source_observation.subject_reference == source.endpoint.Identity().Reference(), (
             "Browser source observation lost its canonical source endpoint identity"
         )
