@@ -18,6 +18,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added governed native image planning and SDK/CLI execution over explicit local
+  Trivy material, with current permission, separate SAFE approval, original paired
+  custody and canonical saved results. Native summaries preserve cancellation,
+  revocation, storage/export uncertainty and actual saved revisions. Required
+  isolated genuine SDK/installed-CLI acceptance covers the two existing archives;
+  an explicit draft checkpoint avoids repeating unrelated full integration jobs.
+
 - Added an explicit native IMAGE authority branch to the canonical artifact-policy
   owner, with fixed observed recipes, fresh SAFE permissions, separate original
   VERSION/SCAN grants and persistent single-use reservations. One-time full
@@ -29,6 +36,17 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   outcome custody. Exact event/receipt ceilings and retained private journals
   distinguish incomplete collection from accepted evidence; native product
   grants, SDK/CLI enrollment and image-model persistence remain a follow-on.
+
+- Added an explicit browser-only draft CI checkpoint for supported genuine engine
+  diagnostics. Full integration still starts only at final readiness; browser
+  setup downloads the pinned headless shell without an unrelated OS upgrade.
+
+- Added an explicit optional offline Chromium page renderer over one completely
+  verified owned-loopback acquisition. Separate SAFE permission, closed body and
+  report profiles, disabled page JavaScript and verified Linux descendant cleanup
+  retain finite DOM facts and actual engine provenance. Renderer failures preserve
+  available original body custody without a completed page or model transition;
+  the native acquisition default remains compatible.
 
 - Added explicit Linux executor ownership of trusted approved workers' detached
   descendants, with bounded reaping and a private verified cleanup receipt.
@@ -288,6 +306,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   and certificate validation acceptance remain separate work.
 
 #### Fixed
+
+- Preserve bounded completed-case diagnostics when a shared pytest invocation
+  terminates before JUnit finalization. Partial records retain hashes, sanitized
+  labels, durations and explicit incompleteness; they never replace acceptance
+  evidence or change test deadlines, coverage, scheduling or retry behavior.
+  A late bootstrap preserves startup measurement in each coverage worker.
 
 - Reject Nuclei paths whose selected spelling changes in the provider URL
   pipeline, before invocation or finding normalization. Genuine-provider wire

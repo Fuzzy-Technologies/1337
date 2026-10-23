@@ -147,6 +147,9 @@ def PytestArguments(
         "--junitxml",
         str(report_path),
         f"--timeout={options.timeout_seconds}",
+        "-p",
+        "tools.pytest_progress",
+        "--1337-progress",
     ]
     if options.fail_fast:
         arguments.append("-x")
@@ -229,7 +232,18 @@ def RunPytest(
     if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= MAX_TIMEOUT_SECONDS:
         raise ValueError("suite timeout must be an integer between 1 and 3600 seconds")
 
+    from fuzzy1337.test_progress import PrepareProgress, SaveProgressSummary
+
     report_path.unlink(missing_ok=True)
+    progress_ready = PrepareProgress(report_path)
+    selected_workers = next((arguments[index + 1] for index, value in enumerate(arguments[:-1])
+                             if value == "-n"), "auto")
+    worker_digits = selected_workers.lstrip("0") or "0"
+    worker_limit_exceeded = (selected_workers.isdecimal()
+                             and (len(worker_digits) > 2 or int(worker_digits) > 12))
+    if not progress_ready:
+        arguments = [argument for argument in arguments if argument != "--1337-progress"]
+        print("Partial pytest diagnostic unavailable; JUnit acceptance unchanged.", flush=True)
     started = time.monotonic()
     try:
         result = subprocess.run(
@@ -240,10 +254,24 @@ def RunPytest(
         )
 
     except subprocess.TimeoutExpired:
+        if progress_ready:
+            diagnostic = SaveProgressSummary(
+                report_path, timed_out=True, worker_limit_exceeded=worker_limit_exceeded,
+            )
+            print("Partial pytest diagnostic (not JUnit): "
+                  f"completed={diagnostic['completed']} "
+                  f"truncated={diagnostic['truncated']} "
+                  f"unavailable={diagnostic['unavailable']}", flush=True)
         return 124, TestSummary(failed=1, timeout=1, duration_seconds=time.monotonic() - started)
 
     except OSError:
+        if progress_ready:
+            SaveProgressSummary(report_path, timed_out=False,
+                                worker_limit_exceeded=worker_limit_exceeded)
         return 127, TestSummary(failed=1, duration_seconds=time.monotonic() - started)
+    if progress_ready:
+        SaveProgressSummary(report_path, timed_out=False,
+                            worker_limit_exceeded=worker_limit_exceeded)
     summary = ReadJunitSummary(report_path)
 
     return result.returncode or (1 if summary.failed else 0), summary

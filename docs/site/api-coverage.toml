@@ -88,6 +88,12 @@ mode = "authored"
 page = "api/fuzzy1337.native_image_policy.md"
 
 [[surfaces]]
+module = "fuzzy1337.native_image_workflow"
+source = "src/fuzzy1337/native_image_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_workflow.md"
+
+[[surfaces]]
 module = "fuzzy1337.configuration_evidence"
 source = "src/fuzzy1337/configuration_evidence.py"
 mode = "authored"
@@ -480,6 +486,12 @@ mode = "authored"
 page = "api/fuzzy1337.shell.md"
 
 [[surfaces]]
+module = "fuzzy1337.test_progress"
+source = "src/fuzzy1337/test_progress.py"
+mode = "authored"
+page = "api/fuzzy1337.test_progress.md"
+
+[[surfaces]]
 module = "fuzzy1337.test_runner"
 source = "src/fuzzy1337/test_runner.py"
 mode = "authored"
@@ -569,3 +581,17 @@ module = "fuzzy1337.page_capture_worker"
 source = "src/fuzzy1337/page_capture_worker.py"
 mode = "authored"
 page = "api/fuzzy1337.page_capture_worker.md"
+
+[[surfaces]]
+# Internal closed grammar for the explicitly selected Experimental offline browser profile.
+module = "fuzzy1337.adapters.browser_page"
+source = "src/fuzzy1337/adapters/browser_page.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.browser_page.md"
+
+[[surfaces]]
+# Internal worker; actual launch remains owned by policy, executor and page provider.
+module = "fuzzy1337.browser_page_worker"
+source = "src/fuzzy1337/browser_page_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.browser_page_worker.md"

@@ -23,6 +23,7 @@ from fuzzy1337.adapters.page_capture import (
     KnownSyntheticHtmlBody,
     NativeLoopbackPageAdapter,
     PageCaptureRecordError,
+    PageRenderer,
     ParseRecord,
 )
 from fuzzy1337.jobs import JobProvider
@@ -90,12 +91,18 @@ def test_PublicShapesMatchOnlyTheAcceptedExperimentalConsumer():
     assert (
         tuple(signature.parameters) == (
             "workspace_root", "source", "expected_body", "scope_id", "policy",
-            "limits", "frontier_limits", "clock",
+            "limits", "frontier_limits", "clock", "renderer",
         )
     ), (
         'Expected invariant: tuple(signature.parameters) == ( "workspace_root", '
         '"source", "expected_body", "scope_id", "policy", "limits", '
-        '"frontier_limits", "clock", )'
+        '"frontier_limits", "clock", "renderer", )'
+    )
+    assert signature.parameters["renderer"].kind is inspect.Parameter.KEYWORD_ONLY, (
+        "The browser selection changed existing positional constructor compatibility."
+    )
+    assert signature.parameters["renderer"].default is PageRenderer.NATIVE, (
+        "The additive browser selection changed the existing native default."
     )
     assert (
         isinstance(NativeLoopbackPageAdapter(lambda _: b""), ToolAdapter)

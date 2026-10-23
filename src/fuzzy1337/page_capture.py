@@ -20,15 +20,18 @@ from fuzzy1337.adapters import (
     ExecutionState,
     ImpactLevel,
 )
+from fuzzy1337.adapters.browser_page import BROWSER_ERROR_EXITS, ParseBrowserRecord
 from fuzzy1337.adapters.contracts import RequireIdentifier
 from fuzzy1337.adapters.page_capture import (
     ERROR_EXITS,
     MAX_BODY_BYTES,
     MAX_RECORD_BYTES,
     MAX_STDERR_BYTES,
+    PAGE_BROWSER_CAPABILITY,
     PAGE_CAPTURE_CAPABILITY,
     PAGE_CAPTURE_PROVIDER_ID,
     PAGE_CAPTURE_VERSION,
+    BrowserPageCaptureLimits,
     DecodeBody,
     Destination,
     Execution,
@@ -38,6 +41,7 @@ from fuzzy1337.adapters.page_capture import (
     NativeLoopbackPageAdapter,
     PageCaptureLimits,
     PageCaptureRecordError,
+    PageRenderer,
     ParseRecord,
 )
 from fuzzy1337.captured_web import (
@@ -91,6 +95,7 @@ from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceBusyError, Workspa
 
 __all__ = [
     "PAGE_CAPTURE_VERSION", "PAGE_CAPTURE_PROVIDER_ID", "PAGE_CAPTURE_CAPABILITY",
+    "PAGE_BROWSER_CAPABILITY", "PageRenderer", "BrowserPageCaptureLimits",
     "KnownSyntheticHtmlBody", "PageCaptureLimits", "LocalPageCaptureProvider",
 ]
 
@@ -201,9 +206,10 @@ class LocalPageCaptureProvider:
     def __init__(
         self, workspace_root: Path, source: RequestTemplate,
         expected_body: KnownSyntheticHtmlBody, scope_id: str, policy: ImpactPolicy,
-        *, limits: PageCaptureLimits = PageCaptureLimits(),
+        *, limits: PageCaptureLimits | BrowserPageCaptureLimits = PageCaptureLimits(),
         frontier_limits: CapturedWebLimits = CapturedWebLimits(),
         clock: Callable[[], datetime] = UtcNow,
+        renderer: PageRenderer = PageRenderer.NATIVE,
     ) -> None:
         """Validate only finite typed inputs; preparation performs no network or owner writes.
 
@@ -216,19 +222,26 @@ class LocalPageCaptureProvider:
             limits: Selected body/request/provider budgets following ADR 0052.
             frontier_limits: Existing lexical-work/candidate bounds, without traversal.
             clock: Aware decision clock, reread again immediately before model Save.
+            renderer: Finite native or offline-browser profile, with matching explicit limit type.
 
         Raises:
             ValueError: Source, catalog, nested types or finite budgets are unsupported.
         """
 
-        if type(limits) is not PageCaptureLimits or (
+        if type(renderer) is not PageRenderer:
+            raise ValueError("page capture requires an explicit finite renderer selection")
+
+        limit_type = PageCaptureLimits if renderer is PageRenderer.NATIVE else (
+            BrowserPageCaptureLimits)
+
+        if type(limits) is not limit_type or (
             type(frontier_limits) is not CapturedWebLimits
             or type(policy) is not ImpactPolicy or not callable(clock)
         ):
             raise ValueError("page capture requires exact typed limits, policy and clock")
 
-        checked_limits = PageCaptureLimits(limits.max_body_bytes, limits.request_timeout_seconds,
-                                          limits.timeout_seconds)
+        checked_limits = limit_type(limits.max_body_bytes, limits.request_timeout_seconds,
+                                    limits.timeout_seconds)
         checked_frontier = CapturedWebLimits(frontier_limits.max_anchor_work,
                                             frontier_limits.max_candidates)
         body = KnownBody(expected_body)
@@ -248,7 +261,10 @@ class LocalPageCaptureProvider:
         self._scope = LocalScopeStore(self._workspace.root)
         self._model = LocalModelStore(self._workspace.root)
         self._evidence = BoundedPageEvidenceStore(self._workspace.root / "evidence")
-        self._adapter = NativeLoopbackPageAdapter(self._evidence.Read)
+        self._adapter = NativeLoopbackPageAdapter(self._evidence.Read, renderer=renderer)
+        self._renderer = renderer
+        self._capability = PAGE_CAPTURE_CAPABILITY if renderer is PageRenderer.NATIVE else (
+            PAGE_BROWSER_CAPABILITY)
         self._source = source
         self._target = target
         self._address = Target(TargetKind.IP, address)
@@ -354,12 +370,27 @@ class LocalPageCaptureProvider:
             The retained verified frontier after the owning model Save and event publication.
         """
 
-        invocation = self._adapter.PrepareInvocation(AdapterRequest(PAGE_CAPTURE_CAPABILITY,
+        if self._renderer is PageRenderer.PLAYWRIGHT_OFFLINE:
+            if context.Spec.timeout_seconds < self.limits.timeout_seconds + 1:
+                raise JobError(JobFailure(JobFailureCode.PROVIDER,
+                    "Browser page job budget must include provider cleanup and custody margin"))
+
+            from fuzzy1337.executors.owned_process import RequireLinuxOwnership
+
+            try:
+                RequireLinuxOwnership()
+
+            except LocalExecutionError:
+                raise JobError(JobFailure(JobFailureCode.PROVIDER,
+                    "Linux browser descendant ownership is unavailable")) from None
+
+        invocation = self._adapter.PrepareInvocation(AdapterRequest(self._capability,
             self._target.Reference(), ImpactLevel.SAFE, {"url": self._target.value,
                 "timeout_seconds": self.limits.request_timeout_seconds,
                 "max_body_bytes": self.limits.max_body_bytes,
                 "fixture_id": self._expected_body.fixture_id}))
-        capability = CapabilityDescriptors(self.Descriptor)[0]
+        capability = next(item for item in CapabilityDescriptors(self.Descriptor)
+                          if item.identifier == self._capability)
 
         def OnEvent(event: ExecutionEvent) -> None:
             """Publish just the two lifecycle heartbeats; never forward raw stream chunks."""
@@ -388,9 +419,17 @@ class LocalPageCaptureProvider:
 
                 return current
 
-            result = await GovernedLocalExecutor(self._workspace.root, clock=self._clock).Execute(
-                request, grant=grant, context_provider=LaunchContext, on_event=OnEvent,
-                cancellation=context.Cancellation)
+            executor = GovernedLocalExecutor(self._workspace.root, clock=self._clock)
+
+            if self._renderer is PageRenderer.PLAYWRIGHT_OFFLINE:
+                result = await executor.Execute(request, grant=grant,
+                    context_provider=LaunchContext, on_event=OnEvent,
+                    cancellation=context.Cancellation, own_descendants=True)
+
+            else:
+                result = await executor.Execute(request, grant=grant,
+                    context_provider=LaunchContext, on_event=OnEvent,
+                    cancellation=context.Cancellation)
 
         except PermissionError:
             raise JobError(JobFailure(JobFailureCode.AUTHORIZATION,
@@ -427,13 +466,16 @@ class LocalPageCaptureProvider:
             if result.stderr:
                 raise ValueError("stderr cannot become retained acquisition evidence")
 
-            record = ParseRecord(result.stdout, self._target.value,
-                                 self._expected_body, self.limits.max_body_bytes)
+            parser = ParseRecord if self._renderer is PageRenderer.NATIVE else ParseBrowserRecord
+            record = parser(result.stdout, self._target.value,
+                            self._expected_body, self.limits.max_body_bytes)
             error_code = record.get("error")
+            exits = ERROR_EXITS if self._renderer is PageRenderer.NATIVE else (
+                {**ERROR_EXITS, **BROWSER_ERROR_EXITS})
 
             if error_code is not None:
                 if result.execution.state is not ExecutionState.FAILED or (
-                    result.execution.exit_code != ERROR_EXITS[str(error_code)]
+                    result.execution.exit_code != exits[str(error_code)]
                 ):
                     raise ValueError("worker failure record and terminal outcome disagree")
 
@@ -442,8 +484,10 @@ class LocalPageCaptureProvider:
             ):
                 raise ValueError("worker page record and terminal outcome disagree")
 
+            tool_version = PAGE_CAPTURE_VERSION if self._renderer is PageRenderer.NATIVE else (
+                str(record["chromium_version"]) if error_code is None else None)
             provenance = EvidenceProvenance(context.Spec.workspace_id, context.Spec.scope_reference,
-                PAGE_CAPTURE_PROVIDER_ID, PAGE_CAPTURE_VERSION, PAGE_CAPTURE_VERSION, started,
+                PAGE_CAPTURE_PROVIDER_ID, PAGE_CAPTURE_VERSION, tool_version, started,
                 self.Now().isoformat(), InvocationDigest(invocation), result.execution)
 
         except (ValueError, TypeError, AttributeError, OverflowError):
@@ -454,7 +498,21 @@ class LocalPageCaptureProvider:
                                                provenance).evidence
 
         if error_code is not None:
-            code = JobFailureCode.TIMEOUT if error_code == "timeout" else JobFailureCode.PROVIDER
+            if self._renderer is PageRenderer.PLAYWRIGHT_OFFLINE and "body_base64" in record:
+                try:
+                    partial_body = DecodeBody(record, self._expected_body)
+                    partial_record = context.CaptureEvidence(partial_body, "response-body",
+                                                             "text/html", provenance).evidence
+                    self.VerifyEvidence(stdout_record, result.stdout, provenance, "stdout")
+                    self.VerifyEvidence(partial_record, partial_body, provenance, "response-body")
+
+                except (ValueError, TypeError, AttributeError, OverflowError, OSError,
+                        EvidenceError):
+                    raise JobError(JobFailure(JobFailureCode.NORMALIZATION,
+                        "Could not verify failed browser acquisition source custody")) from None
+
+            code = JobFailureCode.TIMEOUT if error_code in ("timeout", "renderer-timeout") else (
+                JobFailureCode.PROVIDER)
             raise JobError(JobFailure(code, "Closed synthetic page acquisition failed")) from None
 
         body = DecodeBody(record, self._expected_body)
@@ -535,7 +593,9 @@ class LocalPageCaptureProvider:
                 "frontier_discarded_candidates": frontier.discarded_candidates,
                 "frontier_truncation_reasons": frontier.truncation_reasons,
             })
-            source_observation = Observation("http.synthetic-page", identity, attributes,
+            kind = "http.synthetic-page" if self._renderer is PageRenderer.NATIVE else (
+                "http.synthetic-page-browser")
+            source_observation = Observation(kind, identity, attributes,
                                              provenance_model)
             updated, delta = state.Apply(objects=(source_patch, *projection.object_patches),
                 observations=(source_observation, *projection.observations))
@@ -605,7 +665,7 @@ class LocalPageCaptureProvider:
         Args:
             record: Exact owning manifest returned from the job attachment boundary.
             expected: Already admitted exact worker stdout or decoded closed body.
-            provenance: Exact prepared collection metadata and actual successful execution.
+            provenance: Exact prepared collection metadata and actual terminal execution.
             role: Explicit stdout or response-body profile, without arbitrary roles.
         """
 
@@ -620,6 +680,16 @@ class LocalPageCaptureProvider:
 
         for name in ("workspace_id", "scope_reference", "source_id", "source_version",
                      "tool_version", "started_at", "finished_at", "invocation_sha256"):
+            if name == "tool_version" and self._renderer is PageRenderer.PLAYWRIGHT_OFFLINE and (
+                provenance.tool_version is None
+            ):
+                if record.provenance.tool_version is not None or provenance.execution is None or (
+                    provenance.execution.state is not ExecutionState.FAILED
+                ):
+                    raise ValueError("unknown browser tool version requires a failed execution")
+
+                continue
+
             WebText(getattr(record.provenance, name))
 
         Execution(record.provenance.execution)
@@ -671,6 +741,10 @@ class LocalPageCaptureProvider:
             raise PermissionError("page capture final snapshot or owning digests changed")
 
         fresh = self.Now()
+
+        if self._renderer is PageRenderer.PLAYWRIGHT_OFFLINE:
+            PolicyEngine().Validate(grant, invocation, capability, current, at=fresh)
+
         plan = PolicyEngine().Plan(invocation, capability, current, at=fresh)
 
         if plan != grant.plan or not current.scope.Check(self._target, at=fresh).Allowed() or (

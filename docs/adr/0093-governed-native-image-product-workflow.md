@@ -4,8 +4,11 @@
 
 Partially accepted — 2026-10-23, after independent architecture review.
 ADR0094's isolated prerequisite, additive native authority/atomic-claim slice and
-SDK/CLI integration below are implementation-authorized. Native enrollment
-requires their own reviewed implementation and genuine paired product acceptance.
+SDK/CLI integration below are implementation-authorized. Reviewed component
+checkpoints PR360/PR361 are consolidated in final integration PR362; native
+enrollment requires that exact integration head's full gate and genuine paired
+product acceptance. The earlier draft feature checkpoint passed genuine SDK/CLI
+acceptance, but does not replace the final integration gate.
 Refs M2 Tasks #140 and #142, Feature #138, and MVP acceptance #40. This decision
 alone enrolls no executable native product profile.
 
@@ -15,15 +18,17 @@ ADR 0013 selects Trivy as the first optional image/SBOM provider; Syft and Grype
 remain deferred. The accepted offline archive adapter, original VERSION/SCAN
 capture (ADR 0058), and canonical native admission (ADR 0067) already execute
 the genuine selected engine against owned inert metadata in isolated CI.
-They do not issue a current product grant. `scan image --profile synthetic`
-still selects the separate synthetic family, while `ArtifactProfile.IMAGE`
-(`trivy.image-archive-offline.v1`) remains metadata-only.
+Those adapter/admission layers do not issue a current product grant. At proposal
+time, `ArtifactProfile.IMAGE` (`trivy.image-archive-offline.v1`) was metadata-only.
+PR362 now implements the explicit native authority/workflow described below;
+`scan image --profile synthetic` still selects the separate synthetic family.
 
 The proposal branch starts at `667027f`. The stronger Linux descendant owner
 from PR358 is now accepted at `9b85ca9c71ed9b6bf5321812095dbbb8d24372a7` and is a
 prerequisite of bounded material observation. PR359 offline Playwright/Chromium
-still awaits its own genuine acceptance; this image design does not modify that
-source or turn local optional skips into browser acceptance.
+passed its own genuine acceptance and was accepted into develop at
+`9a1eed70e9721bdccdc6e8bb7fa1c3aacea5e30c`. PR362 composes that accepted browser
+source unchanged; local optional skips are not genuine engine acceptance.
 
 The smallest next first-party product capability is a governed native image
 workflow over the existing Trivy producer, not a new scanner implementation or
@@ -193,10 +198,12 @@ offline replay does not need a current physical claim to reopen old evidence.
 Bounded metadata operations retain the existing soft filesystem timing limits;
 this design adds no real-time or power-loss guarantee.
 
-Current workspace/scope/consent/owner/policy and selected material are checked
-before read-authorized preparation, through bounded observations at the defined
-boundaries, cheaply at each final process launch callback, after cleanup, and
-for both original grants immediately before model Save. Revocation,
+The physical workspace and explicit selected-file read-consent actor bind before
+material observation. Execution scope/policy authority is checked before a scoped
+VERSION plan or any provider claim; explicit material preview grants no execution
+permission and requires no execution scope. Current authority and selected facts
+are checked through bounded observations, cheaply at each process launch callback,
+after cleanup, and for both original grants immediately before model Save. Revocation,
 expiry, changed material, changed policy or mismatched original VERSION refuses
 success. A previous grant, checksum, provisioning receipt or canonical replay
 never supplies current execution authority.
@@ -237,9 +244,9 @@ explicit workflow approval and a fresh typed native-capability policy. Reuse the
 existing `--approve-safe-image` concept as an explicit workflow opt-in; it must
 not manufacture a policy permission. Do not label SAFE as STANDARD or fabricate
 an exact confirmation digest for an unexecuted SCAN. Native CLI selection should
-be explicit (proposed `scan image --profile native`) and leave the existing
-synthetic command unchanged. Final CLI/registry edits belong to one integration
-owner after SDK acceptance.
+be explicit (`scan image --profile native`) and leave the existing synthetic
+command unchanged. PR362's CLI/registry edits follow SDK component acceptance and
+have their own independent review.
 
 After a separately authorized original VERSION succeeds and its selected DB
 metadata is verified, build the actual SCAN invocation using the observed version
@@ -380,18 +387,20 @@ Acceptance must establish:
 
 ## Minimum prerequisite and product follow-on
 
-First, review and implement only ADR0094's bounded installed material observer,
-private proof/control contract, deadline ledger and additive capture custody path
-with closed deterministic owned-file/process acceptance. This prerequisite issues
-no native product grants, enrolls no native profile, adds no native scan CLI and
-changes no historical capture default or receipt schema. The accepted Linux
-descendant owner is reused through its explicit opt-in, not modified or copied.
+The implementation was reviewed in component order: ADR0094's bounded installed
+material observer, private proof/control contract, deadline ledger and additive
+capture custody path first (PR360), then native authority/atomic claims (PR361),
+then SDK/job/model and explicit CLI integration (PR362). The prerequisite alone
+issues no native product grant or CLI route and changes no historical capture
+default or receipt schema. The accepted Linux descendant owner is reused through
+its explicit opt-in, not modified or copied.
 
-Only after that prerequisite is accepted may a separately reviewed product PR
-add this ADR's native artifact authority variant, atomic native execution claim, paired
-SDK/job/model integration and explicit CLI route. Its genuine two-archive/DB
-acceptance remains mandatory before native enrollment is accepted. Both PRs
-reference the existing #140/#142 metadata without closing broader remaining work.
+PR360/PR361 remain draft component checkpoints. Their approved source is included
+in PR362, the sole final integration PR, so one shared full gate covers the whole
+pipeline without repeating it for each checkpoint. Genuine two-archive/DB SDK/CLI
+acceptance remains mandatory on the final head before native enrollment is
+accepted. These PRs reference #140/#142 without closing broader remaining work;
+after PR362 acceptance, the component PRs are closed as superseded checkpoints.
 
 Per-commit checks remain small and deterministic with bounded independent
 workers. Full shared gates run at final review readiness only. No release,
@@ -406,6 +415,7 @@ exact SCAN confirmation; and the bounded observation/custody owner and ledger.
 ADR0094 records the accepted prerequisite choices: fixed installed observer,
 opaque proof, private 0700/0600 control files, additive typed capture facade,
 durable bounded journal and finite cumulative ledger with separate provider
-overhead. Only that prerequisite is authorized. Native artifact policy/claim
-types and product integration require a separately reviewed follow-on. No
+overhead. The additive authority and product slices are also implementation-
+authorized and independently reviewed in the component sequence above; their
+final acceptance remains tied to PR362's exact-head integration results. No
 historical capture receipt/default or existing handwritten oracle changes here.
