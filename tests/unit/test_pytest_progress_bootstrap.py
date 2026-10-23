@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from coverage import Coverage
+
 from tools import pytest_progress as bootstrap
 
 

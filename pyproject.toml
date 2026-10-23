@@ -68,6 +68,10 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "E501", "F", "I"]
 
+[tool.ruff.lint.isort]
+# Generated coverage/ reports must not shadow the external coverage package.
+known-third-party = ["coverage"]
+
 [tool.mypy]
 python_version = "3.11"
 files = ["src"]
