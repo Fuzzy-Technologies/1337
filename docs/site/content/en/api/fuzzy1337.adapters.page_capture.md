@@ -17,5 +17,8 @@ terminal execution, bounded owning evidence and the closed response body. It
 produces only one observed source response envelope. It creates no hosts,
 ports, services, findings, connectivity or fetched-link claims. Internal parser
 helpers are consistency boundaries, not alternate authorization/launch APIs.
+ADR 0087 requires isolated imports for current prepared invocations and default
+provider validation. Only pure normalization admits an exact historical launch
+shape, retaining original argv/digests without enabling that old execution path.
 
 ::: fuzzy1337.adapters.page_capture

@@ -155,6 +155,38 @@ def Captures(snapshot):
     return {artifact.evidence.reference.role: artifact.evidence for artifact in snapshot.artifacts}
 
 
+def test_PageCaptureIgnoresWorkspacePackageShadowAndAcquiresOwnedBody(tmp_path, owned_wire):
+    """Closed acquisition loads its installed worker despite a same-named workspace package."""
+
+    server = owned_wire()
+    fixture = Fixture.Create(tmp_path / "workspace", server.origin)
+    shadow = fixture.root / "fuzzy1337"
+    shadow.mkdir()
+    (shadow / "__init__.py").write_text('"""Owned inert shadow package fixture."""\n',
+                                        encoding="utf-8")
+    (shadow / "page_capture_worker.py").write_text(
+        '"""Owned inert shadow module must never execute."""\n'
+        'from pathlib import Path\n'
+        'Path("shadow-worker.marker").write_text("owned-shadow-executed", encoding="utf-8")\n'
+        'raise SystemExit(73)\n', encoding="utf-8")
+    snapshot = Run(fixture.Job())
+    assert not (fixture.root / "shadow-worker.marker").exists(), (
+        "Page acquisition executed a workspace module instead of the installed worker."
+    )
+    assert snapshot.state is JobState.COMPLETED, snapshot.failure
+    assert server.accepted == 1 and len(server.requests) == 1, (
+        "The installed page worker must issue exactly the approved owned request."
+    )
+    store = LocalEvidenceStore(fixture.root / "evidence")
+    captures = Captures(snapshot)
+    assert store.Read(captures["response-body"].reference) == Body(), (
+        "Page acquisition failed to retain the actual reviewed owned body."
+    )
+    assert LocalModelStore(fixture.root).Open().revision == 1, (
+        "Actual page evidence must precede its acknowledged canonical model transition."
+    )
+
+
 def test_ExactOwnedWireWorkerOracleEvidenceModelAndEvents(tmp_path, owned_wire):
     """Full assembled path makes the exact one GET and one saved source/lexical transition."""
 

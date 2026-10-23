@@ -153,10 +153,16 @@ address and port equal the exact approved canonical destination. Base64 is stric
 canonical standard encoding; decoded size/hash equal the explicit declaration.
 Preparation accepts only parameters `url`, `timeout_seconds`, `max_body_bytes`
 and `fixture_id`, with no credential references. The exact argv is the selected
-current interpreter, `-m`, `fuzzy1337.page_capture_worker`, canonical URL, normalized
+current interpreter, `-I`, `-m`, `fuzzy1337.page_capture_worker`, canonical URL, normalized
 timeout text, fixture ID, and decimal body limit, in that order. The existing
 invocation digest binds all these inputs. Both parent and worker independently
 check the closed catalog and bounds before execution/network admission.
+
+[ADR 0087](adr/0087-isolated-packaged-worker-imports.md) requires isolated Python
+imports so workspace data cannot substitute a package for the installed worker.
+Current provider/launch validation rejects the historical argv without `-I`.
+Pure report normalization may still read the exact old prepared shape; it leaves
+the original invocation/digest unchanged and grants no execution authority.
 
 The output is sorted compact standards-compliant UTF-8 JSON plus one LF. The
 parent requires exact byte equality with that canonical re-encoding for both
