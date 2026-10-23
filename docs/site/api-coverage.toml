@@ -1,6 +1,25 @@
 schemaVersion = 1
 
 [[surfaces]]
+module = "fuzzy1337.native_web"
+source = "src/fuzzy1337/native_web.py"
+mode = "authored"
+page = "api/fuzzy1337.native_web.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.native_web"
+source = "src/fuzzy1337/adapters/native_web.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.native_web.md"
+
+[[surfaces]]
+# Internal worker protocol for the Experimental first-party native web workflow.
+module = "fuzzy1337.native_web_worker"
+source = "src/fuzzy1337/native_web_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_web_worker.md"
+
+[[surfaces]]
 module = "fuzzy1337.api_commands"
 source = "src/fuzzy1337/api_commands.py"
 mode = "authored"

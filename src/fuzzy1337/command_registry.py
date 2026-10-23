@@ -194,9 +194,10 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="scan",
-            summary="Run governed endpoint or closed synthetic image/configuration workflows.",
-            usage="1337 scan <quick|nuclei|image|config> <workspace>",
-            capabilities=("http.endpoint-discovery", "image.archive-vulnerabilities",
+            summary="Run governed native web checks, discovery or closed artifact workflows.",
+            usage="1337 scan <quick|web|nuclei|image|config> <workspace>",
+            capabilities=("http.endpoint-discovery", "web.git-head-check",
+                          "image.archive-vulnerabilities",
                           "config.dockerfile-misconfigurations",
                           "config.kubernetes-misconfigurations"),
         ),

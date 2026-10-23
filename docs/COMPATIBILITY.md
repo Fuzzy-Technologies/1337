@@ -281,6 +281,16 @@ while `matched-at` keeps exact provider-stable URL validation. Existing full-URL
 records remain supported. Genuine pinned Nuclei 3.4.10 acceptance
 uses a pytest-owned loopback target; the provider remains optional.
 
+`fuzzy1337.native_web`, `fuzzy1337.adapters.native_web` and
+`1337 scan web --check git-head-exposure` are Experimental at version `1`.
+ADR 0086 defines one explicitly selected first-party Git HEAD response check with
+STANDARD exact-plan confirmation and the existing policy/executor/job/evidence/
+Finding owners. `fuzzy1337.native_web_worker` is Internal. Existing status-only
+discovery and closed HTML acquisition shapes are unchanged. Retained original
+worker reports bind the observed predicate; absent transient response bodies
+cannot be independently re-evaluated during replay. See
+[Native web checks](NATIVE_WEB_CHECKS.md).
+
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 

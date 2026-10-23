@@ -145,6 +145,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: doctor",
         "cli: shell",
         "cli: update",
+        "cli: scan",
         "cli: intel",
         "cli: ci",
         "cli: paths",
