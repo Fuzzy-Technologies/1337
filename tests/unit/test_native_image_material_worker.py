@@ -9,12 +9,14 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import stat
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+from fuzzy1337 import artifact_inputs
 from fuzzy1337 import native_image_material_worker as worker
 from fuzzy1337.artifact_inputs import PhysicalIdentity
 from fuzzy1337.native_image_material_worker import (
@@ -206,3 +208,157 @@ def test_MetadataReplacementAfterFactHashIsRefused(material_control, monkeypatch
 
     with pytest.raises(ValueError, match="changed"):
         ObserveControl(ReadControl(path, digest, identity), digest, identity)
+
+
+def IdentityView(info, **changes):
+    """Keep actual file observations with only explicitly selected identity-field changes."""
+
+    fields = {name: getattr(info, name) for name in (
+        "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns", "st_mode", "st_nlink",
+    )}
+    fields.update(changes)
+
+    return SimpleNamespace(**fields)
+
+
+def ReadSelectedControl(material_control, selected):
+    """Exercise one worker read using real owned files and descriptors without a scanner."""
+
+    path, digest, identity, value = material_control
+
+    return (ReadControl(path, digest, identity) if selected == "request" else
+            ParseControl(ObserveControl(ParseControl(CanonicalControl(value)), digest, identity)))
+
+
+@pytest.mark.parametrize("selected", ["request", "metadata"])
+@pytest.mark.parametrize("windows", [False, True], ids=["strict-posix", "windows-views"])
+def test_SeparateStableCtimeViewsOnlyMatchOnWindows(
+    material_control, monkeypatch, selected, windows,
+):
+    """Different API ctime views preserve original facts only under the canonical Windows rule."""
+
+    path = material_control[0]
+    target = path if selected == "request" else path.parent.parent / "cache/db/metadata.json"
+    handle_ctime = target.lstat().st_ctime_ns + 1
+    original = worker.ArtifactHandleInfo
+    original_matcher = worker.MatchesArtifactReadIdentity
+
+    def HandleView(descriptor):
+        """Retain an actual opened descriptor's identity with one stable API-view difference."""
+
+        return IdentityView(original(descriptor), st_ctime_ns=handle_ctime)
+
+    def MatchWorkerRead(path_info, handle_info):
+        """Apply simulated API matching only to the worker, after actual material preparation."""
+
+        with monkeypatch.context() as match_mode:
+            match_mode.setattr(artifact_inputs, "_WINDOWS_STAT_VIEWS", windows)
+
+            return original_matcher(path_info, handle_info)
+
+    monkeypatch.setattr(worker, "MatchesArtifactReadIdentity", MatchWorkerRead)
+    monkeypatch.setattr(worker, "ArtifactHandleInfo", HandleView)
+
+    if not windows:
+        with pytest.raises(ValueError, match="changed at open"):
+            ReadSelectedControl(material_control, selected)
+
+        return
+
+    result = ReadSelectedControl(material_control, selected)
+    if selected == "metadata":
+        assert result["request_identity"] == list(material_control[2]), (
+            "API compatibility must preserve the exact original request path identity."
+        )
+        assert result["facts"][-1]["physical_identity"] == list(PhysicalIdentity(target.lstat())), (
+            "The original fact must retain full path-view metadata without normalization."
+        )
+
+    else:
+        assert result["nonce"] == "a" * 32, "API compatibility must preserve the original request."
+
+
+@pytest.mark.parametrize("selected", ["request", "metadata"])
+@pytest.mark.parametrize("view", ["path", "handle"])
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"])
+def test_EverySameApiIdentityMutationStillRefusesWindowsViews(
+    material_control, monkeypatch, selected, view, field,
+):
+    """Windows cross-API ctime compatibility never relaxes any same-API stability field."""
+
+    path = material_control[0]
+    target = path if selected == "request" else path.parent.parent / "cache/db/metadata.json"
+    handle_ctime = target.lstat().st_ctime_ns + 1
+    original_path = worker.ArtifactPathInfo
+    original_handle = worker.ArtifactHandleInfo
+    calls = {"path": 0, "handle": 0}
+
+    def Handle(descriptor):
+        """Observe the real descriptor twice and alter only the chosen second API observation."""
+
+        info = IdentityView(original_handle(descriptor), st_ctime_ns=handle_ctime)
+        calls["handle"] += 1
+
+        return IdentityView(info, **{field: getattr(info, field) + 1}) if (
+            view == "handle" and calls["handle"] == 2
+        ) else info
+
+    def PathInfo(selected_path, **options):
+        """Observe only the owned target path and alter its chosen second observation."""
+
+        info = original_path(selected_path, **options)
+        if selected_path == target:
+            calls["path"] += 1
+            if view == "path" and calls["path"] == 2:
+                return IdentityView(info, **{field: getattr(info, field) + 1})
+
+        return info
+
+    monkeypatch.setattr(artifact_inputs, "_WINDOWS_STAT_VIEWS", True)
+    monkeypatch.setattr(worker, "ArtifactHandleInfo", Handle)
+    monkeypatch.setattr(worker, "ArtifactPathInfo", PathInfo)
+    with pytest.raises(ValueError, match="changed"):
+        ReadSelectedControl(material_control, selected)
+    assert calls[view] == 2, "Refusal must use the complete second same-API identity observation."
+
+
+@pytest.mark.parametrize("selected", ["request", "metadata"])
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns"])
+def test_WindowsCrossApiCommonIdentityFieldsRemainExact(
+    material_control, monkeypatch, selected, field,
+):
+    """Mismatched device, inode, size or mtime never becomes an accepted Windows API difference."""
+
+    original = worker.ArtifactHandleInfo
+
+    def ChangedHandle(descriptor):
+        """Alter exactly one common field from an actual original handle observation."""
+
+        info = original(descriptor)
+
+        return IdentityView(info, **{field: getattr(info, field) + 1})
+
+    monkeypatch.setattr(artifact_inputs, "_WINDOWS_STAT_VIEWS", True)
+    monkeypatch.setattr(worker, "ArtifactHandleInfo", ChangedHandle)
+    with pytest.raises(ValueError, match="changed at open"):
+        ReadSelectedControl(material_control, selected)
+
+
+def test_ActualCopiedMetadataKeepsExactFactsAcrossPathAndHandleApis(material_control):
+    """An actual copy2 replacement retains source times and must pass each platform's real APIs."""
+
+    path, digest, identity, _ = material_control
+    metadata = path.parent.parent / "cache/db/metadata.json"
+    copied = path.parent.parent / "owned-metadata-copy.json"
+    expected = metadata.read_bytes()
+    shutil.copy2(metadata, copied)
+    metadata.unlink()
+    shutil.copy2(copied, metadata)
+    result = ParseControl(ObserveControl(ReadControl(path, digest, identity), digest, identity))
+    fact = result["facts"][-1]
+    assert fact["sha256"] == hashlib.sha256(expected).hexdigest() and fact["size_bytes"] == (
+        len(expected)
+    ), "Copied metadata must retain the exact selected bytes without scanner execution."
+    assert fact["physical_identity"] == list(PhysicalIdentity(metadata.lstat())), (
+        "The original copied file must remain bound to its real full path identity."
+    )

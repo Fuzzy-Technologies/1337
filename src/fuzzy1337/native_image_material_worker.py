@@ -20,6 +20,7 @@ from fuzzy1337.artifact_inputs import (
     ArtifactHandleInfo,
     ArtifactPathInfo,
     ArtifactReadConsent,
+    MatchesArtifactReadIdentity,
     PhysicalIdentity,
 )
 from fuzzy1337.native_image_capture import NativeTrivySelection
@@ -177,15 +178,17 @@ def ReadControl(path: Path, digest: str, identity: tuple[int, ...]) -> dict[str,
     ):
         raise ValueError("native material private request identity differs")
 
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
 
     with os.fdopen(os.open(path, flags), "rb") as source:
-        if PhysicalIdentity(ArtifactHandleInfo(source.fileno())) != identity:
+        opened = ArtifactHandleInfo(source.fileno())
+
+        if not MatchesArtifactReadIdentity(before, opened):
             raise ValueError("native material private request changed at open")
 
         raw = source.read(CONTROL_MAX_BYTES + 1)
 
-        if PhysicalIdentity(ArtifactHandleInfo(source.fileno())) != identity:
+        if PhysicalIdentity(ArtifactHandleInfo(source.fileno())) != PhysicalIdentity(opened):
             raise ValueError("native material private request changed during read")
 
     if PhysicalIdentity(ArtifactPathInfo(path)) != identity or (
@@ -254,20 +257,22 @@ def ObserveControl(value: dict[str, object], digest: str,
 
     if metadata_fact.sha256 is not None:
         path = Path(metadata_fact.path)
-        before = PhysicalIdentity(ArtifactPathInfo(path))
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        before = ArtifactPathInfo(path)
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
 
         with os.fdopen(os.open(path, flags), "rb") as source:
-            if PhysicalIdentity(ArtifactHandleInfo(source.fileno())) != before:
+            opened = ArtifactHandleInfo(source.fileno())
+
+            if not MatchesArtifactReadIdentity(before, opened):
                 raise ValueError("native material metadata changed at open")
 
             raw = source.read(16 * 1024 + 1)
 
-            if PhysicalIdentity(ArtifactHandleInfo(source.fileno())) != before:
+            if PhysicalIdentity(ArtifactHandleInfo(source.fileno())) != PhysicalIdentity(opened):
                 raise ValueError("native material metadata changed during read")
 
-        if before != metadata_fact.physical_identity or (
-            PhysicalIdentity(ArtifactPathInfo(path)) != before or
+        if PhysicalIdentity(before) != metadata_fact.physical_identity or (
+            PhysicalIdentity(ArtifactPathInfo(path)) != PhysicalIdentity(before) or
             hashlib.sha256(raw).hexdigest() != metadata_fact.sha256
         ):
             raise ValueError("native material metadata changed after observation")

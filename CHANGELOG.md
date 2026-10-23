@@ -307,6 +307,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Reused canonical artifact path/handle association for bounded native material
+  reads while retaining each API's full physical mutation checks. Cross-platform
+  protocol checks now account for Windows timestamp views without enabling native
+  execution there or weakening Linux ownership and identity guards.
+- Added an explicit draft-only parallel native protocol checkpoint across the
+  existing Python/OS matrix so focused regressions precede the shared final gate.
+
 - Preserve bounded completed-case diagnostics when a shared pytest invocation
   terminates before JUnit finalization. Partial records retain hashes, sanitized
   labels, durations and explicit incompleteness; they never replace acceptance
