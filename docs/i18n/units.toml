@@ -16790,3 +16790,230 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.portscan"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.portscan.md"
+sourceHash = "sha256:0806ba18a36b05747a82038ed1ffdb07c8304318ffabd7fedc7e4fe0331220b1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.CurrentContext"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:6e0e19e04405cde800cb1ecbc3110e24fd3aaa783ae27359c9f8e60bb91376d1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PlanPortScan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:c22977028198ed10b67ee0d813f88c4b1f4e4d9af842f3abe8f48ff00aa33f8f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortRequest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:873cdebc8b4393ca32c98240b4065ff20cc9c37eb6f3711f0010b949f7a76cf3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanAuthorityDeniedError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:1da0f1d55264b90b0edc49ee35b71492381203cce30199b7486d7ece26342f4a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:6e0f845c6c8a89c179411460607ccbe3bc7c72f5b8e19e0a57ed4d4aee1c90fc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanPlan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:fcf4f63192d487aa949d6f809a1bf02780cc8b2391daff1478e60a3a9bc33a80"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanPlan.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:77dcc93a8a16f2cdb5f3fad1f39045122e4279e48dcca132411a6744ba690cfa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanSummary"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:3f33f74107d7b173e38329a3a85c1221ce6b027bf1cb904b3c2144ad644c97f0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanSummary.ExitCode"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:c2831098e40811e8210240561523a5df9b0744ec1d1b6b1fb2ddb6f0540bcce1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanSummary.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:cbd529156fbec94d340925042ac8b234fcbe040f1451af0d91d93ea1aec34316"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanUnavailableError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:931a375841aea87b487393c218674570f6b18317d0b46d35745d7cc7a6f14d07"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanWorkflow"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:9c5ca59dac0684aa2592617a723a18ca38eeb4d9ec6f5c77c15707b6e2c949fc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanWorkflow.Context"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:faebdd1973f91faf316f68aca8b26884475fe3ffef45d0e97c317c6dc8b178e2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanWorkflow.Ingest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:4e183429cd11adc1cb9815dac3030f86ab9144140503b0a41c3ed2d8f97a23df"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanWorkflow.PersistReferences"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:e564357dfe7f241d2f7bdebdaf6445e0d3483b9b15477fa9ca659a8b322c0069"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.PortScanWorkflow.Run"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:1950439c32b6c4b327d4e170a51e5df8dac7815da4ee24055eaba59f0ee850a7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.portscan.RunPortScan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/portscan.py"
+sourceHash = "sha256:6613df71e07926638bbc82d296050b0c289c717c5f355bd993fcb4c5bc29e60a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.scan_commands.Ports"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/scan_commands.py"
+sourceHash = "sha256:f23ae7882d5f5c75c50bd15cdfa8060be01ea151397b2be61005ea95856ff90b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
