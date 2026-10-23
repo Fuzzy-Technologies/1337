@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added explicit Linux executor ownership of trusted approved workers' detached
+  descendants, with bounded reaping and a private verified cleanup receipt.
+  Timeout, output exhaustion, cancellation and observer/caller abort require
+  confirmed cleanup; unknown cleanup remains a provider error. Default execution
+  and serialized contracts remain compatible; this is not an OS sandbox.
+
 - Added explicit STANDARD TCP-connect discovery through `1337 scan ports` and
   the governed SDK, using an operator-supplied optional Nmap executable. Exact
   IP/port confirmation, current launch/Save authority, original streams and

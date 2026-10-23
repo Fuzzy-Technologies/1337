@@ -328,6 +328,11 @@ template and query injection references; response bodies remain transient.
 
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
+ADR 0091 adds the explicit Linux-only `own_descendants=False` execution keyword
+to local and governed executors. Existing request serialization, default process
+launch and terminal result shapes remain compatible. The opt-in requires a
+verified private supervisor receipt and bounded descendant reaping before
+completion; unavailable ownership or cleanup remains `LocalExecutionError`.
 
 `fuzzy1337.journeys` is an Experimental Python library and standalone scenario
 schema at version `1`. ADR 0034 and `docs/JOURNEYS.md` define immutable finite

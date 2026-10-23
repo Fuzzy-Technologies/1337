@@ -193,7 +193,7 @@ state = "missing"
 id = "page:api.fuzzy1337.executors.local"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.executors.local.md"
-sourceHash = "sha256:7dd90debd2dca1f3cefc8b0959fb3395393ec8ceadffe3c3792945da58cd916b"
+sourceHash = "sha256:83f8c6c35172d55e0ed383c592ccdecdd4093eabc26fe8fef8850f695bfd2aa1"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -226,7 +226,7 @@ state = "missing"
 id = "page:api.fuzzy1337.policy"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.policy.md"
-sourceHash = "sha256:1afe0edf642a29725e2ee00d752e0cf56c47c8e51c0d4801dba27b039830c4af"
+sourceHash = "sha256:0d4ef17f5afd406756de5acae66edada65dc17d4d1979378e3901be64add4bb0"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -4199,7 +4199,7 @@ state = "missing"
 id = "symbol:fuzzy1337.executors.local.LocalExecutor.Execute"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/executors/local.py"
-sourceHash = "sha256:32df58a8dc37d6be40f00f518683c9cc7d84b17076436e0b101ae685ea0776a0"
+sourceHash = "sha256:963df940e149ef09cfeee559e98c8cbc8c19911e30f326afc55586419bb87198"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -4771,7 +4771,7 @@ state = "missing"
 id = "symbol:fuzzy1337.policy.GovernedLocalExecutor.Execute"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/policy.py"
-sourceHash = "sha256:29f29bc7e70524fa1e64df4c689c8d9c6b8914a170808a6e8339e11ca6490494"
+sourceHash = "sha256:43a2561e08de2586ff3b9f23a660918911aef89fed173509c1f2f73b287026c9"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -16792,6 +16792,304 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.executors.descendant-supervisor"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.executors.descendant_supervisor.md"
+sourceHash = "sha256:989c7c8c3b6b507f752d7339772fe758d023dfc85cb596485e1b98c966cbf4b0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "page:api.fuzzy1337.executors.owned-process"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.executors.owned_process.md"
+sourceHash = "sha256:1ed8c8057d48c37bdb156899b19360b5b6356b6ddb49ebe137e2df3ce2d4bb5b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.DescendantOwner"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:b591f1cf0a229056bb8d9c939b056757742b2387a99036fd04aeb3e4af7e8c9a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.DescendantOwner.Children"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:ba484aacdc857c4401378828f2d23d661a203149c94bc6abb3bd79093df9a57e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.DescendantOwner.Cleanup"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:732eb9ecf325e9246a7a60cdce13dee96a45d8f3a2b4a97ce6819b98fdcd9c57"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.DescendantOwner.Configure"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:70da81dd9ca74734937fc846958ad9cb9cf3ed00827aadaa5ce10bb4f8414fc2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.DescendantOwner.Reap"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:8e2d1a434e1e35b0a1bd1f0b8821c881aad20faf65bea526737573b4984123e3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.DescendantOwner.Stop"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:3d48c208f57a308278a32e846dc6def85b1f16f9bafc72823d47ba5f1dea73a0"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.Main"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:0932e6cfef7f4f51c506dab905dbb0c5704599c095cef56b86f18b1d6b36d6e6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.OwnershipFailure"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:a9889893b8ecac4e21eac47a022a2e7b099c88f08ac3be606f4672341c405e83"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.ReadConfiguration"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:6e650c126bd8b9d699e2b749b5e5840f8a62f72f966e2dd573ea92ecef571762"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.descendant_supervisor.WaitForHandoff"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/descendant_supervisor.py"
+sourceHash = "sha256:eb074790eb2c3529015e4d3a05afe704ab7d36e1f24b1b358506494ad3e84cd4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.CanonicalControl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:e7b77cdb7693761441d8c2027f2b03a758e9fdc763f6d89a56291261f8c0081d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.DecodeControl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:1c6648b591ace788397af62528d5a286303a90d53eed0df194f9b2c772a161cd"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.OwnedExecution"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:abc953b327a7b2fb7e652072274132cf8fbd8c7b594c79a3bc5e77e9a014ae41"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.OwnedExecution.AwaitReady"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:3560e4a737230a7412c233e3af5e463213d280e1cd6cec1e85775a416f5b758a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.OwnedExecution.Close"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:171df70fa508261e48b433f85e504363fad6c4b5399f4f1c71a4f456018190ef"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.OwnedExecution.ReadReceipt"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:ceec5d1ae6d6d6c1cceb7aafffc693fdef6682575ed187182a6309d5d0f95b2c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.OwnedExecution.Verify"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:9fa4410d64dae75b83e130f7c4da3912504c8bf0f2a9f1ee6ee500668769d175"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.OwnedExecution.VerifyUnstarted"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:a06ec24aabd8c443a3ff818da4de021ad803656d40754c7d938b0dd7a14f366b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.OwnedExecution.Wait"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:00e40f83401e1375447eaea5dd065d31c21b4c8eaa04022d89410d174019d5f6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.RequireLinuxOwnership"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:e8017f69a0cd094dff9e3de572e11e5c458fddabeecdc3bf2b394d0c1b671269"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.StartOwnedExecution"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:9dd15a11a958c2bc27fe8e5f4165ddc247a33ba5fb7c7ce37f229d29f985fb94"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.UniqueControl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:9c143bf081cecf90503eca47df6a0caf8651838b4397e6d53d5245cdfdf5bba2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.WrapperExit"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:8310202ff64f201f9c6f5befbbbdbeaa990be3152789e2aa1a8c30dc2d91c6fa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
 id = "page:api.fuzzy1337.portscan"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.portscan.md"
@@ -17012,6 +17310,17 @@ id = "symbol:fuzzy1337.scan_commands.Ports"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/scan_commands.py"
 sourceHash = "sha256:f23ae7882d5f5c75c50bd15cdfa8060be01ea151397b2be61005ea95856ff90b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.LinuxFcntlOperation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:a5d8407449a80a54a73a76b7d6833cece3e8cd07eb9d21568735956223ff1201"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
