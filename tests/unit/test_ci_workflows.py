@@ -14,6 +14,7 @@ WORKFLOWS = {
                            "external-targets"},
     "documentation.yml": {"deterministic-documentation"},
     "nuclei-acceptance.yml": {"owned-loopback"},
+    "nmap-acceptance.yml": {"owned-loopback"},
     "trivy-acceptance.yml": {"owned-offline"},
 }
 INTEGRATION_CONDITION = (
@@ -110,3 +111,36 @@ def test_OfflineBrowserAcceptanceRequiresAnInstalledEngineAndSeparatesTheOwnedFi
     assert "-n 0" in tests[1]["run"] and "-m serial" in tests[1]["run"], (
         "The owned browser resource sink can race another fixed-port test."
     )
+
+
+def test_NmapAcceptanceRequiresGenuinePinnedProviderAndProductOracle() -> None:
+    """The genuine provider lane cannot silently skip its installed SDK/CLI acceptance."""
+
+    steps = Workflow("nmap-acceptance.yml")["jobs"]["owned-loopback"]["steps"]
+    acquisition = next(step["run"] for step in steps
+                       if step.get("name") == "Acquire checksum-pinned official Nmap source")
+    assert "https://nmap.org/dist/nmap-7.992.tar.bz2" in acquisition, (
+        "Genuine acceptance lost the exact official source archive."
+    )
+    assert "0c12660eddbf7eabeff6996cb0c044a4eadf2bb0c6fbcb340d6cf72b1caee402" in acquisition, (
+        "Genuine acceptance lost its independently verified upstream checksum."
+    )
+    selected = next(step for step in steps if step.get("name") == (
+        "Execute genuine SDK and installed CLI against pytest-owned loopback only"))
+    assert selected["env"]["FUZZY1337_RUN_NMAP_ACCEPTANCE"] == "1", (
+        "Missing optional-provider opt-in would silently skip required genuine acceptance."
+    )
+    assert selected["env"]["F1337_NMAP_TEST_EXECUTABLE"].endswith(
+        "/nmap-7.992/install/bin/nmap"
+    ), "Genuine acceptance must select the installed pinned executable."
+    assert "tests/functional/test_nmap_product_loopback.py" in selected["run"], (
+        "Parser-only or synthetic tests cannot replace actual product acceptance."
+    )
+    assert "-n 2 --dist=load" in selected["run"], "Focused acceptance lost bounded workers."
+
+    for step in steps:
+        command = step.get("run", "")
+
+        if command.startswith("python - <<'PY'\n"):
+            source = command.removeprefix("python - <<'PY'\n").removesuffix("PY\n")
+            compile(source, "nmap-acceptance.yml:" + step["name"], "exec")

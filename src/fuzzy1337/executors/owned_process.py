@@ -13,6 +13,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol, cast
 
 from fuzzy1337.executors.local import LocalExecutionError
 
@@ -28,6 +29,24 @@ LINUX_REQUIRED_SEALS = 0x0F
 _RECEIPT_FIELDS = frozenset({"schema_version", "configuration_sha256", "cleanup",
                             "worker_returncode", "reaped_processes", "failure"})
 _FAILURES = frozenset({"setup", "spawn", "parent-lost", "ownership", "limit", "timeout"})
+
+
+class LinuxFcntlOperation(Protocol):
+    """Type only the Linux integer seal operations resolved after platform admission."""
+
+    def __call__(self, descriptor: int, operation: int, value: int = 0, /) -> int:
+        """Read or set integer seals through the original local fcntl operation.
+
+        Args:
+            descriptor: Existing private sealed configuration descriptor.
+            operation: Fixed Linux seal command, never operator-supplied flags.
+            value: Fixed required seal mask when adding seals; omitted for reads.
+
+        Returns:
+            Original integer operation result, preserving the underlying failure behavior.
+        """
+
+        ...
 
 
 def RequireLinuxOwnership() -> None:
@@ -155,7 +174,7 @@ class OwnedExecution:
         loop = asyncio.get_running_loop()
         ready: asyncio.Future[None] = loop.create_future()
         descriptor = self.ready_fd
-        os.set_blocking(descriptor, False)
+        cast(Callable[[int, bool], None], getattr(os, "set_blocking"))(descriptor, False)
 
         def Receive() -> None:
             """Consume only the separate fixed readiness byte, leaving the receipt untouched."""
@@ -327,18 +346,22 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
             raise ValueError("owned execution configuration exceeds its bound")
 
         phase = "sealed-file"
-        configuration_fd = os.memfd_create("1337-owned-execution", os.MFD_CLOEXEC |
-                                          os.MFD_ALLOW_SEALING)
+        configuration_fd = cast(Callable[[str, int], int], getattr(os, "memfd_create"))(
+            "1337-owned-execution", cast(int, getattr(os, "MFD_CLOEXEC")) |
+            cast(int, getattr(os, "MFD_ALLOW_SEALING")),
+        )
 
         if os.write(configuration_fd, raw) != len(raw):
             raise OSError("private configuration write was incomplete")
 
         os.lseek(configuration_fd, 0, os.SEEK_SET)
-        fcntl.fcntl(configuration_fd, LINUX_F_ADD_SEALS, LINUX_REQUIRED_SEALS)
+        cast(LinuxFcntlOperation, getattr(fcntl, "fcntl"))(
+            configuration_fd, LINUX_F_ADD_SEALS, LINUX_REQUIRED_SEALS,
+        )
 
-        if fcntl.fcntl(configuration_fd, LINUX_F_GET_SEALS) & LINUX_REQUIRED_SEALS != (
-            LINUX_REQUIRED_SEALS
-        ):
+        if cast(LinuxFcntlOperation, getattr(fcntl, "fcntl"))(
+            configuration_fd, LINUX_F_GET_SEALS,
+        ) & LINUX_REQUIRED_SEALS != LINUX_REQUIRED_SEALS:
             raise OSError("private configuration seals were not established")
         phase = "control-pipes"
         read_fd, write_fd = os.pipe()

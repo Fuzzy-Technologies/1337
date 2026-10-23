@@ -290,6 +290,13 @@ ADR 0024 and `docs/NMAP_ADAPTER.md` define finite invocation profiles, bounded
 health, verified XML normalization, and preservation of executor/evidence facts.
 Nmap is supplied by the operator; this adapter never grants execution authority.
 
+ADR 0092 adds Experimental `fuzzy1337.portscan` and the `scan ports` product
+selection. Schema-one plans and terminal summaries compose the existing finite
+TCP-connect adapter, explicit STANDARD policy/confirmation, original custody
+and canonical Host/Port/Service owners. Existing adapter argv/profiles remain
+unchanged; grouped/omitted ports remain unassessed individually. No service
+probe, arbitrary flags or automatic permission is added.
+
 `fuzzy1337.adapters.nuclei` is an Experimental Python library at contract version `1`.
 ADR 0030 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
