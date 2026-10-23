@@ -6,6 +6,11 @@
 and interprets evidence. It never authorizes or starts a target scan and never
 persists Security Object Model updates.
 
+The separate [governed port-scan product](PORT_SCAN.md) composes this unchanged
+adapter with current policy, exact STANDARD confirmation, jobs, immutable
+evidence and canonical model persistence. Its CLI exposes only TCP connect;
+the adapter's service-discovery profile is not selected by that product route.
+
 The supported surface is `NmapAdapter`, its `Descriptor`, `CheckHealth`,
 `PrepareInvocation`, and `NormalizeReport` operations, `NmapReportError`, and the
 documented `NMAP_*` version/resource constants. Parser, parameter-validator, and
