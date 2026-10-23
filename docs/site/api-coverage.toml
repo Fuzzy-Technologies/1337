@@ -82,6 +82,12 @@ mode = "authored"
 page = "api/fuzzy1337.artifact_policy.md"
 
 [[surfaces]]
+module = "fuzzy1337.native_image_policy"
+source = "src/fuzzy1337/native_image_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_policy.md"
+
+[[surfaces]]
 module = "fuzzy1337.configuration_evidence"
 source = "src/fuzzy1337/configuration_evidence.py"
 mode = "authored"

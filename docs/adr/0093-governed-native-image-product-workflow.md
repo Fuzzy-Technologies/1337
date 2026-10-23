@@ -2,11 +2,12 @@
 
 ## Status
 
-Proposed product follow-on — 2026-10-23; revised after independent architecture
-review. ADR0094's isolated prerequisite is implementation-authorized for PR360.
-Native product authority, SDK/CLI and enrollment remain deferred.
-Refs M2 Tasks #140 and #142, Feature #138, and MVP acceptance #40. This proposal
-does not enroll a native execution profile or change current authority.
+Partially accepted — 2026-10-23, after independent architecture review.
+ADR0094's isolated prerequisite and the additive native authority/atomic-claim
+slice below are implementation-authorized. SDK/CLI integration and native
+enrollment remain proposed, pending their own implementation and genuine paired
+product acceptance. Refs M2 Tasks #140 and #142, Feature #138, and MVP acceptance
+#40. This decision alone enrolls no executable native product profile.
 
 ## Context and accepted boundary
 
@@ -86,7 +87,7 @@ These are filesystem observations at specified boundaries. They are not a
 real-time snapshot, hostile-writer exclusion, publisher authentication or a
 guarantee that bytes cannot change between an observation and use.
 
-## Proposed native authority extension
+## Accepted native authority extension
 
 The canonical artifact-policy owner must explicitly admit this one native IMAGE
 branch. Do not remove the synthetic-only guards in `ValidateArtifactProfile`,
@@ -94,18 +95,20 @@ branch. Do not remove the synthetic-only guards in `ValidateArtifactProfile`,
 network `PolicyEngine` with a fabricated IP destination. Existing synthetic
 plans/grants/replay schemas must retain their original bytes and identities.
 
-Recommended integration: a tagged native-image plan/grant variant owned by the
+Use a tagged native-image plan/grant variant owned by the
 existing `ArtifactPolicyEngine`, with separate native prepare/authorize/validate
 entry points. This is a typed extension of the existing authority subsystem, not
 a new permission store or an authority issued by the capture/admission layer.
-The exact additive type/export integration requires root design approval.
+An additive `native_image_policy.py` owns the explicit native records and bounded
+helpers; thin typed methods on the canonical engine delegate without broadening
+its existing synthetic `Plan` or `Authorize` paths.
 
 The native record binds at least:
 
 - a native-image schema/family discriminator, IMAGE profile, SAFE impact, existing
   `native.trivy` / `image.archive-vulnerabilities` capability, and operation;
-- workspace identity; current scope reference/revision/content digest; current
-  recorded consent actor; explicit executing owner and selected read consent;
+- workspace identity; current scope reference/revision/content digest and complete
+  recorded consent; explicit executing owner and selected read-consent actor;
 - current policy reference/revision/content digest, explicit permission and
   privileges, exclusive expiry bounded by both policy and recorded consent;
 - canonical input-manifest digest/ARTIFACT target and exact ordered native
@@ -122,9 +125,15 @@ the exact original invocation digest. VERSION and SCAN have different original
 authorization identifiers. Product metadata must not retrofit a synthetic stage
 lease/run identifier into a native capture or replace current raw receipt IDs.
 
+Require the executing context owner, observer owner and read-consent actor to
+agree. The scope's existing `authority_reference` remains an independent recorded
+attester/reference, bound through the complete scope content; it is not a new
+executing-actor field or verified signature.
+
 ### Atomic single-use native execution claim
 
-Add explicit native `ClaimNativeImageExecution` and `ValidateNativeImageClaim`
+Add explicit native `ClaimNativeImageExecution`, `BindNativeImageRequest` and
+`ValidateNativeImageClaim`
 operations to the canonical artifact
 owner. Use a separate persistent native-image claim namespace under its owned
 workspace metadata, with hash-of-grant filenames in `native-image-claims`, never
@@ -136,24 +145,53 @@ Verify non-following physical directory/marker ownership and bounded canonical
 marker contents. The same grant can have only one successful claim, including
 concurrent attempts or another process reopening that workspace.
 
-The bounded capture owner first constructs its actual finite request and owned
-scratch association. Claim that exact request/profile once before entering
-executor startup, then recheck cancellation, current metadata/physical identities,
-policy and exclusive grant expiry. Every
-actual launch hook revalidates that same physical claim and exact request; it
-does not attempt a second claim or treat an existing marker as a new successful
-claim. This also supports the accepted descendant owner's repeated authority
-checks around helper readiness. A private original claimed handle is only a
-correlation within its one execution owner; another product execution must call
-`ClaimNativeImageExecution` again and be refused.
+Separate bounded immutable exclusive indexes consume the operation and exact
+issued observation identities, not only the grant identifier. Consume the
+observation index, then the operation index, then the per-grant reservation.
+A later issuance cannot reuse an old operation or proof. Existing, partial or
+unverifiable indexes refuse without rollback or repair; original claim validation
+authenticates all index bytes and physical identities at live/final boundaries.
 
-Creation consumes the claim even if later cancellation, launch refusal, failure
-or crash prevents a worker from starting. Existing, incomplete, replaced or
-unverifiable claims fail closed. Never delete/release a consumed claim to make a
-retry work; retry requires a new current plan, grant, operation and observation.
+Validate the original grant and exact observer-issued proof, then exclusively
+create the immutable reservation before calling bounded capture or checking that
+operation's cancellation signal. Malformed or unauthorized requests fail before
+reservation. Successful creation consumes the grant even if later cancellation,
+unsupported ownership, setup refusal, request-binding failure or crash prevents
+a worker from starting. Never delete or release a consumed reservation.
+
+Each product attempt creates a fresh private callback. Its first invocation
+unconditionally calls `BindNativeImageRequest` on the original opaque claim
+handle. Before the first executor startup, bind verifies the fixed approved
+recipe and exclusively creates, fsyncs and reads back a second bounded canonical
+file containing the full actual `LocalExecutionRequest`, claim digest,
+workspace/scratch physical identities and exact selected proof association.
+`InvocationDigest` alone is insufficient because it excludes workspace,
+environment and resources. The immutable reservation is never rewritten.
+An existing binding is refusal, never a successful new bind or resumed attempt.
+
+Only after that first bind succeeds may subsequent READY, post-execution and
+publication callbacks validate the same original handle/request/binding. They
+recheck current authority, exclusive expiry, cancellation and cheap selected
+physical metadata without creating another claim or repairing partial state.
+Launch and READY checks require the actual live scratch identity. The collector
+legitimately removes scratch before returning; final Save instead authenticates
+the persistent reservation/binding, original returned request/capture and fresh
+selected proof. It must not require an already cleaned scratch directory.
+
+Bind original opaque handles to their issuing engine and exact object identity.
+Another product attempt cannot reuse an old callback or infer permission from an
+existing marker. Existing, incomplete, replaced or unverifiable reservation or
+binding files fail closed, including reopened or concurrent attempts. Retry
+requires a new current plan, grant, operation and observation. The grant binds
+stable selected facts and recipe; each claim additionally binds its exact
+issuer-owned proof. A fresh post-VERSION proof may have a different nonce for
+SCAN only when stable facts and the original VERSION prerequisite still agree.
 Store claim metadata separately from the original six capture roles. Native
 capture/replay schemas and original receipt identifiers remain unchanged, and
 offline replay does not need a current physical claim to reopen old evidence.
+
+Bounded metadata operations retain the existing soft filesystem timing limits;
+this design adds no real-time or power-loss guarantee.
 
 Current workspace/scope/consent/owner/policy and selected material are checked
 before read-authorized preparation, through bounded observations at the defined

@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added an explicit native IMAGE authority branch to the canonical artifact-policy
+  owner, with fixed observed recipes, fresh SAFE permissions, separate original
+  VERSION/SCAN grants and persistent single-use reservations. One-time full
+  request binding and distinct live/post-cleanup validation preserve synthetic
+  guards and original receipt contracts; SDK/CLI enrollment remains separate.
+
 - Added an internal owned native-image material observer with opaque proofs,
   cumulative observation/finalization budgets and additive bounded original
   outcome custody. Exact event/receipt ceilings and retained private journals
