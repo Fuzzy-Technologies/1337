@@ -9,7 +9,55 @@ and sends no HTTP traffic. This advances the schema-import slice of #144;
 [synthetic request previews](API_REQUEST_GENERATION.md) are available separately;
 general schema-valid test generation and execution remain open.
 
-## Supported interface
+## Owned JSON product command
+
+The Experimental version-one console and foreground shell route
+`api import openapi-json` adds original-file custody around the existing SDK,
+as defined in [ADR 0089](adr/0089-owned-openapi-json-product-import.md). The first
+product profile imports every operation and requires nonempty concrete endpoint
+paths. It rejects path variables rather than choosing values or dropping
+operations. The SDK's broader structural and optional YAML interfaces remain
+available separately.
+
+Select an existing workspace, scope and independent current model/workspace
+revisions. Every derived exact endpoint URL must already be registered, allowed
+and covered by current consent. An optional canonical `--base-url` supplies only
+the SDK's resolution context; it does not override absolute source servers or
+register targets. File selection requires explicit read actor/consent references:
+
+```bash
+1337 api import openapi-json owned-workspace \
+  --file owned-api.json --owner operator:demo \
+  --read-consent-reference consent:owned-source \
+  --base-url http://127.0.0.1:19001/ \
+  --scope local --run run:owned-api \
+  --expected-revision MODEL_REV --expected-workspace-revision WORKSPACE_REV --json
+```
+
+The physical source must be singly linked, stable during acquisition and within
+the SDK's one-MiB ceiling. Original bytes are retained unredacted in existing
+evidence, including input rejected during normalization. Public model projections
+and summaries retain structural metadata rather than original defaults/examples;
+summaries omit physical source paths and rejected argument values.
+
+Replay selects `--evidence sha256:ORIGINAL_MANIFEST_DIGEST` instead of the file,
+owner and read-consent options. Keep the original run, scope and exact base option,
+including whether it was absent. Supply the current model/workspace revisions.
+Replay verifies known original per-endpoint custody and the complete operation
+collection; a matching blob digest or an otherwise valid unknown manifest does
+not establish custody. The original file can be absent after workspace relocation.
+
+The route preserves unrelated endpoint/operator attributes and attribution.
+Occupied complete `request_templates`/`openapi_operations` collections must match
+exactly; incompatible or partial collections fail before model write. Refresh and
+source composition require a separate contract. Scope, model and workspace bases
+are checked again before writes. Separate `acquisition_commit`, `model_commit`
+and `workspace_commit` outcomes distinguish confirmed, unknown and unattempted
+storage; a later failure does not roll back earlier commits. GraphQL and OpenAPI
+original sources coexist under their separate bounded profiles. No HTTP request,
+authentication, request preview, execution grant or Finding is produced.
+
+## Supported SDK interface
 
 - `ImportOpenApi(text, workspace_id=..., base_url=None, session_reference=None,
   document_format="json")`
@@ -170,6 +218,6 @@ scope and obtain governed invocation authorization, including redirects/DNS.
 ## Remaining work
 
 OpenAPI 3.2 and other versions, complete schema/auth profile validation,
-general test-value solving, file uploads, GraphQL, CLI integration
+general test-value solving, file uploads, GraphQL, general live CLI execution
 and live scanner execution remain open. See [ADR 0038](adr/0038-offline-openapi-request-import.md),
 [requests](REQUESTS.md), [scope](SCOPE.md) and [model](SECURITY_MODEL.md).

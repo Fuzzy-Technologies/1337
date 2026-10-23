@@ -1,5 +1,10 @@
 # fuzzy1337.api_commands
 
+The API dispatcher also routes the explicit `openapi-json` product profile to
+Internal `fuzzy1337.openapi_commands`. Both routes share bounded original-file
+acquisition and preflight each other's retained custody before generic evidence
+reads. Existing GraphQL defaults and original-custody bindings remain unchanged.
+
 The installed CLI and foreground shell expose Experimental contract-version-one
 `api import graphql-introspection`. This module is their Internal implementation:
 all classes, methods, functions and helpers, including `ApiParser`,

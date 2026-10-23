@@ -74,6 +74,19 @@ preserves exact original source-byte identity and existing JSON defaults; it
 rejects aliases, unsafe tags, duplicate/non-string keys and resource excess.
 `fuzzy1337.openapi_yaml` remains an Internal decoder behind these import APIs.
 
+The Experimental version-one `api import openapi-json` console/shell command
+adds original-file custody under ADR 0089. It imports all operations within the
+existing JSON SDK profile and requires concrete endpoint paths with current exact
+scope membership, explicit independent owner revisions and original-file read
+consent. A separate one-MiB original evidence profile binds the exact optional
+base context and complete per-endpoint operation collections. Known-original
+replay preserves that context across relocation; unknown manifests cannot adopt
+custody. Incompatible occupied API collections are refused. Independent storage
+acknowledgements preserve truthful partial/unknown outcomes. The SDK's broader
+structural and YAML defaults are unchanged. `fuzzy1337.openapi_commands` and the
+shared product admission helpers remain Internal and confer no supported SDK,
+network, authentication, target-registration or execution contract.
+
 `fuzzy1337.api_request_generation` is an Experimental offline Python producer at
 generation profile version `1`. ADR 0042 and `docs/API_REQUEST_GENERATION.md` define
 the exact anonymous synthetic schema/serialization subset, original-source
