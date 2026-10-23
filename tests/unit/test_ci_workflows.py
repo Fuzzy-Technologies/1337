@@ -209,6 +209,12 @@ def test_NativeImageProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate
         "&& contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]')"
     ), "Focused protocol checks must require the explicit draft checkpoint."
     assert "-n 2 --dist=loadscope" in feature["run"], "Protocol checks lost bounded parallelism."
+    assert feature["timeout-minutes"] == 5 and "--timeout=30" in feature["run"], (
+        "The focused protocol step or individual cases lost their finite diagnostic deadline."
+    )
+    assert "--max-worker-restart=0" in feature["run"] and "pytest -q -x " in feature["run"], (
+        "A failed focused case must stop diagnosis without automatic worker replacement."
+    )
     assert "--no-cov" in feature["run"] and "--junitxml=" in feature["run"], (
         "The feature checkpoint must retain results without impersonating full coverage."
     )

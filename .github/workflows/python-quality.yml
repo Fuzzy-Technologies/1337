@@ -62,11 +62,13 @@ jobs:
           -o addopts='' -q
           -k 'IndependentVerifyingClientRejectsTheActualSelfSignedCertificate or PartialHeader'
       - name: Run focused native image protocol checks
+        timeout-minutes: 5
         if: >-
           github.event_name == 'pull_request' && github.event.pull_request.draft == true
           && contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]')
         run: >-
-          uv run --locked --extra dev pytest -q -n 2 --dist=loadscope -o addopts='' --no-cov
+          uv run --locked --extra dev pytest -q -x --max-worker-restart=0
+          --timeout=30 --timeout-method=thread -n 2 --dist=loadscope -o addopts='' --no-cov
           tests/unit/test_native_image_material_worker.py
           tests/unit/test_native_image_observation.py
           tests/unit/test_native_image_bounded_capture.py
