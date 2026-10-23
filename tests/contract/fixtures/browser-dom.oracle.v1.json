@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "profile": "playwright-chromium-offline.v1",
+  "fixture_id": "owned-browser-dom.v1",
+  "provenance": "Handwritten canonical owned HTML and DOM expectations, independent from renderer output",
+  "source_sha256": "75d60b34385f3c65068edcde7a37da78db796290b95be0ab9beb2cdc03fe3e71",
+  "source_size_bytes": 423,
+  "expected_dom_sha256": "75d60b34385f3c65068edcde7a37da78db796290b95be0ab9beb2cdc03fe3e71",
+  "expected_dom_size_bytes": 423,
+  "element_count": 11,
+  "anchor_count": 1,
+  "form_count": 1,
+  "input_count": 1,
+  "blocked_request_count": 1,
+  "resource_sink_url": "http://127.0.0.1:19008/blocked-browser-resource",
+  "expected_resource_sink_contacts": 0,
+  "playwright_version": "1.64.1",
+  "chromium_version": "156.0.8078.4"
+}

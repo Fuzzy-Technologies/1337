@@ -14,6 +14,7 @@ import re
 import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
+from enum import Enum
 from types import MappingProxyType
 from typing import cast
 from urllib.parse import urlsplit
@@ -38,6 +39,11 @@ from fuzzy1337.scope import Target, TargetKind
 PAGE_CAPTURE_VERSION = "1"
 PAGE_CAPTURE_PROVIDER_ID = "native.loopback-page"
 PAGE_CAPTURE_CAPABILITY = "http.synthetic-page-capture"
+PAGE_BROWSER_CAPABILITY = "http.synthetic-page-browser"
+PAGE_BROWSER_PROFILE = "playwright-chromium-offline.v1"
+PLAYWRIGHT_VERSION = "1.64.1"
+CHROMIUM_VERSION = "156.0.8078.4"
+BROWSER_FIXTURE_ID = "owned-browser-dom.v1"
 MAX_RECORD_BYTES = 98304
 MAX_BODY_BYTES = 65536
 MAX_HEADER_BYTES = 16384
@@ -49,6 +55,8 @@ FIXTURE_SIZE_BYTES = 541
 FIXTURE_SHA256 = "c0b909f728bdcc098193c1fd268f056eea33c27b6537cd504fa77c3a25afe817"
 _REVIEWED_BODIES = MappingProxyType({
     FIXTURE_ID: (FIXTURE_SHA256, FIXTURE_SIZE_BYTES),
+    BROWSER_FIXTURE_ID: (
+        "75d60b34385f3c65068edcde7a37da78db796290b95be0ab9beb2cdc03fe3e71", 423),
     "owned-traversal-index.v1": (
         "f3058581088204e59828513b2c97b2e5d78f8551b66847ad461694f846039847", 220),
     "owned-traversal-alpha.v1": (
@@ -67,12 +75,24 @@ _SUCCESS_FIELDS = frozenset({
 })
 _DESCRIPTOR = AdapterDescriptor(PAGE_CAPTURE_PROVIDER_ID, "Owned loopback HTML acquisition",
     PAGE_CAPTURE_VERSION, (PAGE_CAPTURE_CAPABILITY,), ImpactLevel.SAFE)
+_BROWSER_DESCRIPTOR = AdapterDescriptor(PAGE_CAPTURE_PROVIDER_ID,
+    "Owned offline HTML browser rendering", PAGE_CAPTURE_VERSION,
+    (PAGE_BROWSER_CAPABILITY,), ImpactLevel.SAFE)
 
 __all__ = [
     "PAGE_CAPTURE_VERSION", "PAGE_CAPTURE_PROVIDER_ID", "PAGE_CAPTURE_CAPABILITY",
-    "KnownSyntheticHtmlBody", "PageCaptureLimits", "PageCaptureRecordError",
+    "PAGE_BROWSER_CAPABILITY", "PAGE_BROWSER_PROFILE", "PageRenderer",
+    "KnownSyntheticHtmlBody", "PageCaptureLimits", "BrowserPageCaptureLimits",
+    "PageCaptureRecordError",
     "NativeLoopbackPageAdapter",
 ]
+
+
+class PageRenderer(str, Enum):
+    """Select one fixed page implementation without arbitrary programs, flags or content."""
+
+    NATIVE = "native"
+    PLAYWRIGHT_OFFLINE = PAGE_BROWSER_PROFILE
 
 
 class PageCaptureRecordError(ValueError):
@@ -176,6 +196,26 @@ class PageCaptureLimits:
 
         if provider < request + 1:
             raise ValueError("page capture provider budget must include request plus startup")
+
+
+@dataclass(frozen=True, slots=True)
+class BrowserPageCaptureLimits:
+    """Browser-only budgets covering helper readiness, worker, cleanup and source custody."""
+
+    max_body_bytes: int = 16384
+    request_timeout_seconds: float = 2.0
+    timeout_seconds: float = 18.0
+
+    def __post_init__(self) -> None:
+        """Require the finite whole-operation margin without expanding native page defaults."""
+
+        Integer(self.max_body_bytes, 1, MAX_BODY_BYTES)
+        request = Seconds(self.request_timeout_seconds, 5)
+        provider = Seconds(self.timeout_seconds, 30)
+
+        if provider < 3 + math.ceil(request + 7) + 3 + 1:
+            raise ValueError(
+                "browser provider budget must cover readiness, worker, cleanup and Save")
 
 
 def Destination(value: object) -> tuple[Target, str, int, str, str]:
@@ -460,17 +500,20 @@ def Reference(reference: object) -> EvidenceReference:
 class NativeLoopbackPageAdapter:
     """Prepare and normalize only the distinct SAFE closed synthetic-page capability."""
 
-    def __init__(self, evidence_reader: Callable[[EvidenceReference], bytes]) -> None:
+    def __init__(self, evidence_reader: Callable[[EvidenceReference], bytes], *,
+                 renderer: PageRenderer = PageRenderer.NATIVE) -> None:
         """Bind an existing owning evidence reader without target probes or filesystem reads.
 
         Args:
             evidence_reader: Actual owner integrity reader, never a caller-selected file loader.
+            renderer: Exact finite implementation selection; the native default stays unchanged.
         """
 
-        if not callable(evidence_reader):
+        if not callable(evidence_reader) or type(renderer) is not PageRenderer:
             raise ValueError("page capture evidence reader must be callable")
 
         self._read_evidence = evidence_reader
+        self._renderer = renderer
 
     @property
     def Descriptor(self) -> AdapterDescriptor:
@@ -480,7 +523,7 @@ class NativeLoopbackPageAdapter:
             Immutable separate SAFE synthetic-page declaration with no privilege requirement.
         """
 
-        return _DESCRIPTOR
+        return _DESCRIPTOR if self._renderer is PageRenderer.NATIVE else _BROWSER_DESCRIPTOR
 
     def CheckHealth(self) -> AdapterHealth:
         """Report first-party package availability without network or tool discovery.
@@ -505,8 +548,11 @@ class NativeLoopbackPageAdapter:
             ValueError: Types, capability, parameters, target or closed catalog are invalid.
         """
 
+        capability = PAGE_CAPTURE_CAPABILITY if self._renderer is PageRenderer.NATIVE else (
+            PAGE_BROWSER_CAPABILITY)
+
         if type(request) is not AdapterRequest or type(request.capability) is not str or (
-            request.capability != PAGE_CAPTURE_CAPABILITY
+            request.capability != capability
             or type(request.target_reference) is not str
             or request.impact is not ImpactLevel.SAFE
             or type(request.credential_references) is not tuple
@@ -529,10 +575,14 @@ class NativeLoopbackPageAdapter:
         if body.size_bytes > maximum or request.target_reference != target.Reference():
             raise ValueError("page capture selected body or exact target binding differs")
 
+        module = "fuzzy1337.page_capture_worker" if self._renderer is PageRenderer.NATIVE else (
+            "fuzzy1337.browser_page_worker")
+        startup = 1 if self._renderer is PageRenderer.NATIVE else 7
+
         return AdapterInvocation(PAGE_CAPTURE_PROVIDER_ID, request, (
-            sys.executable, "-I", "-m", "fuzzy1337.page_capture_worker", target.value,
+            sys.executable, "-I", "-m", module, target.value,
             str(timeout), body.fixture_id, str(maximum),
-        ), math.ceil(timeout + 1), PAGE_CAPTURE_VERSION)
+        ), math.ceil(timeout + startup), PAGE_CAPTURE_VERSION)
 
     def ValidateInvocation(
         self, invocation: object, *, allow_legacy: bool = False,
@@ -559,7 +609,9 @@ class NativeLoopbackPageAdapter:
 
         prepared = self.PrepareInvocation(invocation.request)
 
-        if allow_legacy is True and invocation.argv == (prepared.argv[0], *prepared.argv[2:]):
+        if allow_legacy is True and self._renderer is PageRenderer.NATIVE and (
+            invocation.argv == (prepared.argv[0], *prepared.argv[2:])
+        ):
             prepared = replace(prepared, argv=invocation.argv)
 
         if invocation != prepared or InvocationDigest(invocation) != InvocationDigest(prepared):
@@ -603,7 +655,14 @@ class NativeLoopbackPageAdapter:
                 raise ValueError("stdout evidence differs from its exact reference")
 
             parameters = invocation.request.parameters
-            record = ParseRecord(raw, cast(str, parameters["url"]),
+            parser = ParseRecord
+
+            if self._renderer is PageRenderer.PLAYWRIGHT_OFFLINE:
+                from fuzzy1337.adapters.browser_page import ParseBrowserRecord
+
+                parser = ParseBrowserRecord
+
+            record = parser(raw, cast(str, parameters["url"]),
                 KnownSyntheticHtmlBody(cast(str, parameters["fixture_id"])),
                 cast(int, parameters["max_body_bytes"]))
 
@@ -612,7 +671,10 @@ class NativeLoopbackPageAdapter:
 
             metadata = {key: value for key, value in record.items() if key != "body_base64"}
 
-            return AdapterResult(report, (NormalizedObservation("http.synthetic-page",
+            kind = "http.synthetic-page" if self._renderer is PageRenderer.NATIVE else (
+                "http.synthetic-page-browser")
+
+            return AdapterResult(report, (NormalizedObservation(kind,
                 invocation.request.target_reference, metadata),))
 
         except (ValueError, TypeError, AttributeError, OverflowError, KeyError, OSError):

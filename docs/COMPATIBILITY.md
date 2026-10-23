@@ -146,6 +146,14 @@ define one governed anonymous GET to an explicitly owned canonical loopback URL,
 admitting only the exact closed non-secret HTML fixture. Actual owner-verified
 evidence feeds the existing captured-web frontier and one durable model Save.
 
+ADR 0090 adds explicit `PageRenderer.PLAYWRIGHT_OFFLINE` selection with
+`BrowserPageCaptureLimits` and the separate SAFE `http.synthetic-page-browser`
+permission. The optional Linux-only renderer uses accepted descendant ownership,
+one unchanged native acquisition and offline rendering of a verified closed body.
+Native defaults remain exact. `fuzzy1337.adapters.browser_page` and
+`fuzzy1337.browser_page_worker` are Internal; the distinct report binds actual
+pinned versions and finite DOM measurements. See `docs/BROWSER_PAGE_CAPTURE.md`.
+
 `fuzzy1337.web_traversal` is an additive Experimental controller under ADR 0062.
 It traverses only four explicitly selected reviewed owned pages, with bounded
 concurrent acquisitions and deterministic commit order through the existing

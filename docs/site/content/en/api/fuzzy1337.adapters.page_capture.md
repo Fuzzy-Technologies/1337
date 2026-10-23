@@ -21,4 +21,12 @@ ADR 0087 requires isolated imports for current prepared invocations and default
 provider validation. Only pure normalization admits an exact historical launch
 shape, retaining original argv/digests without enabling that old execution path.
 
+ADR 0090 adds explicit `PageRenderer.PLAYWRIGHT_OFFLINE` selection and the separate
+SAFE `http.synthetic-page-browser` capability. The native default retains its
+exact descriptor and argv. `BrowserPageCaptureLimits` supplies the explicit larger
+cleanup/custody budget for the browser selection; mixing limit types is refused.
+The optional Linux browser worker renders only an already admitted closed native
+body, with no browser navigation or page JavaScript. Its separate internal grammar
+binds actual engine versions and finite DOM metrics to original input evidence.
+
 ::: fuzzy1337.adapters.page_capture
