@@ -11,7 +11,8 @@ the per-test default remains 120 seconds in pytest arguments. Missing fresh JUni
 evidence cannot produce a successful result, even when the child exits zero.
 
 Shared invocations explicitly opt into bounded completed-case progress files
-under their existing coverage evidence directory. A partial diagnostic after
+under their existing coverage evidence directory, loading the implementation
+after each worker's coverage starts. A partial diagnostic after
 termination never replaces fresh JUnit or changes the failed timeout result.
 
 ::: fuzzy1337.test_runner

@@ -164,7 +164,8 @@ an exit-zero child without fresh JUnit evidence still fails. Suite timeouts are
 reported as failure with status 124 and are never retried automatically.
 
 Shared runner invocations additionally preserve bounded completed-case progress
-under `coverage/<phase>-tests.progress/`. The optional pytest plugin records
+under `coverage/<phase>-tests.progress/`. A thin bootstrap imports the optional
+implementation only after coverage starts in each worker. The plugin records
 hashed full case identities, sanitized labels without parameter values,
 durations and fixed outcomes. Each phase has at most twelve worker files capped
 at 1 MiB each. Buffered progress may omit the currently running case and a small

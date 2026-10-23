@@ -33,6 +33,7 @@ FRAMEWORK_FUNCTIONS = {
     "pytest_collection_modifyitems",
     "pytest_configure",
     "pytest_sessionfinish",
+    "pytest_sessionstart",
     "pytest_xdist_auto_num_workers",
     "write",
 }

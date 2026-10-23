@@ -281,7 +281,7 @@ state = "missing"
 id = "page:api.fuzzy1337.test-runner"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.test_runner.md"
-sourceHash = "sha256:38ae7eed71713470806667350aaa2e9f817bba28ca0764159c6fcdd873ffafae"
+sourceHash = "sha256:51c0465150162d8df2a15fab7261721eb0d1e0b469747bb114644a1b6ee8d80c"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -17438,7 +17438,7 @@ state = "missing"
 id = "page:api.fuzzy1337.test-progress"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.test_progress.md"
-sourceHash = "sha256:2f395f5830b07f58e0e11b65a612a8bda9dbc0e38e383ade06eda31faee7dfb7"
+sourceHash = "sha256:fe025c1ecbe6920a7cd8423ab0203d002fa98f69dd556123ead7abf10d8f5ec9"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -17613,24 +17613,11 @@ state = "missing"
 [units.translations.zh-cn]
 state = "missing"
 
-
 [[units]]
-id = "symbol:fuzzy1337.test_progress.pytest_addoption"
+id = "symbol:fuzzy1337.test_progress.ConfigureProgress"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/test_progress.py"
-sourceHash = "sha256:3264633ccf65b80534f6fb31b898ea36a6c6ea03ac88dca44440db9f1d11b703"
-reviewClass = "technical"
-[units.translations.ru]
-state = "missing"
-[units.translations.zh-cn]
-state = "missing"
-
-
-[[units]]
-id = "symbol:fuzzy1337.test_progress.pytest_configure"
-kind = "symbol"
-sourcePath = "src/fuzzy1337/test_progress.py"
-sourceHash = "sha256:6f278fe69fe1cdb03a5cc6332ad48392ed2adb45331279a4021594afaa3ef6e1"
+sourceHash = "sha256:0b2389d615c480e11f096d3297e46d4d42ff4f2154762a74d3cb6c691b14e7a3"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

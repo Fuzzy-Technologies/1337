@@ -104,8 +104,8 @@ def test_ParallelArgumentsUseProcessWorkersAndLoadScope(tmp_path):
     assert "not serial" in arguments, (
         "parallel arguments use process workers and load scope invariant failed."
     )
-    assert arguments[arguments.index("-p") + 1] == "fuzzy1337.test_progress", (
-        "The installed diagnostic plugin must be selected explicitly without an eager import."
+    assert arguments[arguments.index("-p") + 1] == "tools.pytest_progress", (
+        "The checkout diagnostic bootstrap must be selected without an eager application import."
     )
     assert "--1337-progress" in arguments, "The fixed diagnostic profile must be explicit."
     assert "--timeout=42" in arguments, (

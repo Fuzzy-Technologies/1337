@@ -307,34 +307,24 @@ def test_PluginOnlyRegistersForOptedInValidWorkerOrSerial(tmp_path):
     config = SimpleNamespace(getoption=lambda name, default=None: options.get(name, default),
                              pluginmanager=SimpleNamespace(register=lambda *args: registered.append(
                                  args)))
-    progress.pytest_configure(config)
+    progress.ConfigureProgress(config)
     options["--1337-progress"] = True
-    progress.pytest_configure(config)
+    progress.ConfigureProgress(config)
     config.workerinput = {"workerid": "gw12"}
-    progress.pytest_configure(config)
+    progress.ConfigureProgress(config)
     assert not registered, "Disabled/controller/unsupported worker contexts must not record."
     config.workerinput = {"workerid": "gw1"}
-    progress.pytest_configure(config)
+    progress.ConfigureProgress(config)
     assert len(registered) == 1, "One allowed real worker must get one local recorder."
     registered[0][0].pytest_sessionfinish()
     del config.workerinput
     options["numprocesses"] = 0
     options["xmlpath"] = None
-    progress.pytest_configure(config)
+    progress.ConfigureProgress(config)
     options["xmlpath"] = str(report)
-    progress.pytest_configure(config)
+    progress.ConfigureProgress(config)
     registered[1][0].pytest_sessionfinish()
     assert len(registered) == 2, "An actual serial invocation must have its own recorder."
-
-
-def test_OptionalHookAddsOnlyFixedBooleanOption():
-    """The plugin cannot select arbitrary diagnostic paths through a new option."""
-
-    captured = []
-    progress.pytest_addoption(SimpleNamespace(addoption=lambda *args, **kwargs: captured.append(
-        (args, kwargs))))
-    assert captured[0][0] == ("--1337-progress",), "Only the fixed boolean opt-in may be exposed."
-    assert captured[0][1]["action"] == "store_true", "Output paths must derive from JUnit only."
 
 
 @pytest.mark.parametrize("setup", ["failed", "skipped"])

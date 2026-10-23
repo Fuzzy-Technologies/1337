@@ -148,7 +148,7 @@ def PytestArguments(
         str(report_path),
         f"--timeout={options.timeout_seconds}",
         "-p",
-        "fuzzy1337.test_progress",
+        "tools.pytest_progress",
         "--1337-progress",
     ]
     if options.fail_fast:

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO
 
 if TYPE_CHECKING:
-    from pytest import Config, Parser, TestReport
+    from pytest import Config, TestReport
 
 KIND = "1337-test-progress"
 MAX_WORKERS = 12
@@ -312,18 +312,7 @@ class ProgressRecorder:
         self.Close()
 
 
-def pytest_addoption(parser: Parser) -> None:
-    """Register the fixed runner-only diagnostic opt-in.
-
-    Args:
-        parser: Pytest option parser supplied through its public plugin interface.
-    """
-
-    parser.addoption("--1337-progress", action="store_true", default=False,
-                     help="retain bounded partial test diagnostics beside JUnit")
-
-
-def pytest_configure(config: Config) -> None:
+def ConfigureProgress(config: Config) -> None:
     """Register one recorder only in a serial process or bounded xdist worker.
 
     Args:

@@ -1,8 +1,9 @@
 # Internal bounded pytest progress diagnostics
 
-The shared developer runner explicitly loads this optional pytest plugin to
-retain bounded completed-case diagnostics during a gate. Normal scanner and CLI
-startup do not import it. Worker files contain hashed full case identities,
+The shared developer runner loads a thin `tools.pytest_progress` bootstrap.
+Its late session-start hook imports this implementation after coverage starts
+in each worker. Normal scanner and CLI startup do not import it. Worker files
+contain hashed full case identities,
 sanitized labels, measured durations and fixed outcomes; parameter values are
 omitted. Each of at most twelve worker files is capped at 1 MiB per phase.
 
