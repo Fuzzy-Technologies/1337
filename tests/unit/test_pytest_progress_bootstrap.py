@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+from coverage import Coverage
 from tools import pytest_progress as bootstrap
 
 
@@ -49,4 +50,15 @@ def test_RecorderImportOccursOnlyInOptedInTryLastSessionStart(monkeypatch):
     assert calls == [config], "An opted-in session must delegate exactly its own configuration."
     assert bootstrap.pytest_sessionstart.pytest_impl["trylast"] is True, (
         "The actual pytest hook must run after pytest-cov's default-order worker startup."
+    )
+
+
+def test_DefaultToolCoverageConfigurationDoesNotExcludeBootstrapLines():
+    """Default coverage parsing must retain every bootstrap line without implicit exclusions."""
+
+    measurement = Coverage(config_file=False, data_file=None)
+    _, statements, excluded, _, _ = measurement.analysis2(bootstrap.__file__)
+    assert statements, "The bootstrap must retain its executable source inventory."
+    assert not excluded, (
+        "The documentation gate's default coverage configuration must exclude zero tool lines."
     )

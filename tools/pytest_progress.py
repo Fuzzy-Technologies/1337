@@ -10,12 +10,7 @@ this trylast hook imports the bounded recorder. Normal CLI startup does not load
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from pytest import hookimpl
-
-if TYPE_CHECKING:
-    from pytest import Parser, Session
+from pytest import Parser, Session, hookimpl
 
 
 def pytest_addoption(parser: Parser) -> None:
