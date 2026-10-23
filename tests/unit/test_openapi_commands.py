@@ -27,6 +27,8 @@ from fuzzy1337.scope import (
     TargetKind,
 )
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
+from tests.api_import_helpers import Arguments as GraphQlArguments
+from tests.api_import_helpers import Context as GraphQlContext
 
 NOW = datetime(2026, 10, 23, 18, tzinfo=UTC)
 ORIGIN = "http://127.0.0.1:19004"
@@ -219,6 +221,48 @@ def test_DuplicateOperationMembersDoNotBecomeSilentlyDroppedOperations(tmp_path)
     assert outcome["acquisition_commit"] == "confirmed" and (
         outcome["model_commit"] == "not-attempted"
     ), "Parsing refusal invented a successful model transition or lost original acquisition."
+
+
+@pytest.mark.parametrize("profile", ["openapi-json", "graphql-introspection"])
+def test_NewOriginalFileCannotPublishAnAliasOfExistingWorkspaceCustody(
+    tmp_path, monkeypatch, profile,
+):
+    """A new role must pass existing custody checks before its raw read or model write."""
+
+    context = Context(tmp_path) if profile == "openapi-json" else GraphQlContext(tmp_path)
+    root = context[0]
+    source = context[1] if profile == "openapi-json" else context[4]
+    workspace = LocalWorkspaceStore(root).Open()
+    scope_id = "local" if profile == "openapi-json" else "owned"
+    evidence = LocalEvidenceStore(root / "evidence")
+    previous = evidence.Put(source.read_bytes(), "other-original", "application/json",
+        EvidenceProvenance(workspace.workspace_id, "scope:" + scope_id, "owned.original", "1",
+            None, NOW.isoformat(), NOW.isoformat()))
+    workspace = LocalWorkspaceStore(root).Save(replace(workspace,
+        evidence_references=(previous.reference,),
+        evidence_record_references=(previous.evidence_id,)))
+    basis = LocalModelStore(root).Open()
+    original_read = LocalEvidenceStore.Read
+    roles = []
+
+    def Observe(store, reference):
+        """Observe exact raw roles without replacing the actual evidence integrity reader."""
+
+        roles.append(reference.role)
+
+        return original_read(store, reference)
+
+    monkeypatch.setattr(LocalEvidenceStore, "Read", Observe)
+    arguments = Arguments(context) if profile == "openapi-json" else GraphQlArguments(context)
+    status, outcome = Run(arguments)
+    assert status == 4 and outcome["failure"] == "integrity", outcome
+    assert outcome["acquisition_commit"] == "confirmed" and (
+        outcome["model_commit"] == outcome["workspace_commit"] == "not-attempted"
+    ), "Alias refusal lost the real acquisition or attempted an incompatible model transition."
+    assert profile not in roles, "The new aliased role reached a raw source consumer."
+    assert LocalModelStore(root).Open() == basis and (
+        LocalWorkspaceStore(root).Open() == workspace
+    ), "Refused alias changed the existing model or workspace custody."
 
 
 @pytest.mark.parametrize("field,value", [

@@ -584,6 +584,7 @@ def RunOpenApiCommands(arguments: Sequence[str], output: TextIO, *, json_output:
         if record is None or evidence.Manifest(record.evidence_id) != record:
             raise RuntimeFailure("integrity")
 
+        PreflightApiReferences(basis, workspace, record, evidence)
         raw = evidence.Read(record.reference)
         source = record.provenance
         outcome.update({"acquisition_commit": "confirmed", "evidence_id": record.evidence_id,

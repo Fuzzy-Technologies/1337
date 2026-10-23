@@ -726,6 +726,7 @@ def RunApiCommands(
             raise RuntimeFailure("integrity")
 
         RequireApiRecord(record, workspace.workspace_id, scope.Reference())
+        PreflightApiReferences(basis, workspace, record, evidence)
         source = record.provenance
         provenance = ModelProvenance(
             _SOURCE_ID,
