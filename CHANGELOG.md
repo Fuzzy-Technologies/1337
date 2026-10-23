@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added an internal owned native-image material observer with opaque proofs,
+  cumulative observation/finalization budgets and additive bounded original
+  outcome custody. Exact event/receipt ceilings and retained private journals
+  distinguish incomplete collection from accepted evidence; native product
+  grants, SDK/CLI enrollment and image-model persistence remain a follow-on.
+
 - Added explicit Linux executor ownership of trusted approved workers' detached
   descendants, with bounded reaping and a private verified cleanup receipt.
   Timeout, output exhaustion, cancellation and observer/caller abort require
