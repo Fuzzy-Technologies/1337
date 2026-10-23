@@ -524,7 +524,7 @@ class InteractiveShell(cmd.Cmd):
                 "paths analyze, report export, runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect>, "
                 "select <object-id>, "
-                "sbom import spdx-graph, scan <quick|web|nuclei|image|config>, scope create, "
+                "sbom import spdx-graph, scan <quick|ports|web|nuclei|image|config>, scope create, "
                 "workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
             ),
@@ -577,7 +577,7 @@ class InteractiveShell(cmd.Cmd):
                 "independent snapshot/receipt anchors without changing the Security Object Model."
             ),
             "scan": (
-                "scan <quick|web|nuclei|image|config> <workspace>: run explicitly governed scans; "
+                "scan <quick|ports|web|nuclei|image|config> <workspace>: run governed scans; "
                 "config requires --profile synthetic and complete selected source/consent inputs."
             ),
             "scope": "scope create <workspace>: record explicit targets, rules and consent.",

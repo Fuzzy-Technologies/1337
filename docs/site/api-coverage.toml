@@ -1,6 +1,12 @@
 schemaVersion = 1
 
 [[surfaces]]
+module = "fuzzy1337.portscan"
+source = "src/fuzzy1337/portscan.py"
+mode = "authored"
+page = "api/fuzzy1337.portscan.md"
+
+[[surfaces]]
 module = "fuzzy1337.native_web"
 source = "src/fuzzy1337/native_web.py"
 mode = "authored"

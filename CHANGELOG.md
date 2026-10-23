@@ -18,6 +18,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added explicit STANDARD TCP-connect discovery through `1337 scan ports` and
+  the governed SDK, using an operator-supplied optional Nmap executable. Exact
+  IP/port confirmation, current launch/Save authority, original streams and
+  canonical Host/Port/reported-Service identities survive durable reopen.
+  Grouped ports remain unassessed individually and open ports create no Finding;
+  an outer cleanup/custody margin preserves partial streams on execution timeout.
+
 - Added owned original JSON OpenAPI/Swagger import through the installed console
   and foreground shell. The bounded concrete-endpoint profile preserves complete
   operation/source custody, explicit resolution context and independent storage

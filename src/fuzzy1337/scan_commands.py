@@ -49,6 +49,14 @@ from fuzzy1337.nucleiscan import (
     RunNucleiScan,
 )
 from fuzzy1337.policy import ImpactPolicy, PolicyConfirmation, PolicyDeniedError
+from fuzzy1337.portscan import (
+    PlanPortScan,
+    PortScanAuthorityDeniedError,
+    PortScanLimits,
+    PortScanSummary,
+    PortScanUnavailableError,
+    RunPortScan,
+)
 from fuzzy1337.quickscan import QuickScanSummary, RunQuickScan, VerifyWorkspaceEvidence
 from fuzzy1337.scope import (
     AuthorizationState,
@@ -112,6 +120,29 @@ def Endpoint(value: str) -> Target:
     ipaddress.ip_address(parsed.hostname or "")
 
     return Target(TargetKind.URL, value)
+
+
+def Ports(value: str) -> tuple[int, ...]:
+    """Parse only an explicit bounded comma-separated integer TCP port selection.
+
+    Args:
+        value: One through 1024 decimal port literals; no ranges, names, or extra flags.
+
+    Returns:
+        Immutable ports, with numeric and uniqueness validation owned by the adapter.
+
+    Raises:
+        ValueError: The selected grammar or bounded input size is unsupported.
+    """
+
+    values = value.split(",")
+
+    if not 1 <= len(values) <= 1024 or any(
+        not item.isascii() or not item.isdecimal() or len(item) > 5 for item in values
+    ):
+        raise ValueError("ports require a bounded explicit comma-separated integer list")
+
+    return tuple(int(item) for item in values)
 
 
 def WriteJson(output: TextIO, document: object) -> None:
@@ -279,6 +310,19 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         quick.add_argument("--interval", type=float, default=0.2)
         quick.add_argument("--timeout", type=float, default=30.0)
         quick.add_argument("--events-json", action="store_true")
+        ports = actions.add_parser("ports", help="Plan/run finite STANDARD TCP-connect discovery.")
+        ports.add_argument("path", type=Path)
+        ports.add_argument("--scope", required=True)
+        ports.add_argument("--owner", required=True)
+        ports.add_argument("--target", required=True)
+        ports.add_argument("--ports", type=Ports, required=True)
+        ports.add_argument("--policy", type=Path, required=True)
+        ports.add_argument("--executable", required=True)
+        ports.add_argument("--timeout", type=int, default=30)
+        ports.add_argument("--plan", action="store_true")
+        ports.add_argument("--confirm-plan")
+        ports.add_argument("--confirmation-reference")
+        ports.add_argument("--events-json", action="store_true")
         nuclei = actions.add_parser("nuclei", help="Plan/run one reviewed STANDARD Nuclei profile.")
         nuclei.add_argument("path", type=Path)
         nuclei.add_argument("--scope", required=True)
@@ -393,7 +437,7 @@ def RunCommands(
     ):
         parser.error("supply both report format and new output destination")
 
-    if command == "scan" and arguments.action in {"nuclei", "web"}:
+    if command == "scan" and arguments.action in {"nuclei", "web", "ports"}:
         if bool(arguments.confirm_plan) != bool(arguments.confirmation_reference):
             parser.error("supply both exact plan digest and confirmation record reference")
 
@@ -409,20 +453,35 @@ def RunCommands(
             document = CreateScope(arguments.path, arguments)
 
         else:
-            if arguments.action in {"nuclei", "web"}:
+            if arguments.action in {"nuclei", "web", "ports"}:
                 check_id = (
                     NATIVE_FILE_CANARY_CHECK_ID if arguments.action == "web"
                     and arguments.check == "file-canary-disclosure" else NATIVE_WEB_CHECK_ID
                 )
-                target = (NativeWebEndpoint(arguments.target, check_id=check_id)[0]
-                          if arguments.action == "web" else Endpoint(arguments.target))
+                if arguments.action == "ports":
+                    target = Target(TargetKind.IP, arguments.target)
+
+                else:
+                    target = (NativeWebEndpoint(arguments.target, check_id=check_id)[0]
+                              if arguments.action == "web" else Endpoint(arguments.target))
 
                 def ReadPolicy() -> ImpactPolicy:
                     """Reread the selected strict local policy at every authority boundary."""
 
                     return ReadNucleiPolicy(arguments.policy)
 
-            if arguments.action == "web":
+            if arguments.action == "ports":
+                port_limits = PortScanLimits(arguments.timeout)
+
+                if arguments.plan:
+                    port_plan = PlanPortScan(arguments.path, arguments.scope, target,
+                        arguments.owner, arguments.ports, arguments.executable, ReadPolicy,
+                        limits=port_limits)
+                    WriteJson(output, port_plan.ToDict())
+
+                    return 0
+
+            elif arguments.action == "web":
                 web_limits = NativeWebScanLimits(arguments.request_timeout, arguments.timeout)
 
                 if arguments.plan:
@@ -460,9 +519,18 @@ def RunCommands(
 
                     output.flush()
 
-            if arguments.action == "web":
-                summary: (NativeWebScanSummary | NucleiScanSummary | QuickScanSummary
-                          | ImageScanSummary | ConfigurationScanSummary) = asyncio.run(
+            if arguments.action == "ports":
+                summary: (PortScanSummary | NativeWebScanSummary | NucleiScanSummary
+                          | QuickScanSummary | ImageScanSummary | ConfigurationScanSummary) = (
+                    asyncio.run(RunPortScan(arguments.path, arguments.scope, target,
+                        arguments.owner, arguments.ports, arguments.executable, ReadPolicy,
+                        confirmation=PolicyConfirmation(arguments.confirm_plan,
+                            arguments.confirmation_reference) if arguments.confirm_plan else None,
+                        limits=port_limits, on_event=OnEvent))
+                )
+
+            elif arguments.action == "web":
+                summary = asyncio.run(
                     RunNativeWebScan(
                         arguments.path, arguments.scope, target, arguments.owner, ReadPolicy,
                         confirmation=PolicyConfirmation(arguments.confirm_plan,
@@ -528,7 +596,8 @@ def RunCommands(
                 WriteJson(output, document)
 
             else:
-                label = {"web": "Native Web Scan", "nuclei": "Nuclei Scan",
+                label = {"ports": "TCP Port Scan", "web": "Native Web Scan",
+                         "nuclei": "Nuclei Scan",
                          "image": "Synthetic Image Scan",
                          "config": "Synthetic Configuration Scan",
                          "quick": "Quick Scan"}[arguments.action]
@@ -540,7 +609,8 @@ def RunCommands(
 
             return summary.ExitCode()
 
-    except (NativeWebAuthorityDeniedError, NucleiAuthorityDeniedError, PolicyDeniedError):
+    except (NativeWebAuthorityDeniedError, NucleiAuthorityDeniedError,
+            PortScanAuthorityDeniedError, PolicyDeniedError):
         WriteJson(output, {"schema_version": 1, "state": "failed",
                            "failure": {"code": "authorization",
                                        "message": "Current scan authority denied execution"}})
@@ -551,6 +621,13 @@ def RunCommands(
         WriteJson(output, {"schema_version": 1, "state": "failed",
                            "failure": {"code": "provider",
                                        "message": "Selected Nuclei provider is unavailable"}})
+
+        return 4
+
+    except PortScanUnavailableError:
+        WriteJson(output, {"schema_version": 1, "state": "failed",
+                           "failure": {"code": "provider",
+                                       "message": "Selected optional Nmap is unavailable"}})
 
         return 4
 
