@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.7`
+Protocol version: `0.8`
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -499,13 +499,22 @@ During implementation and before each routine commit:
 - run applicable static checks on the changed code, inspect the exact diff, and record actual commands/results;
 - do not run `1337-dev unit`, `1337-dev test`, or `1337-dev check` as a routine pre-commit requirement: these commands validate complete suites.
 
-Full repository validation belongs at the PR boundary:
+Tests and mandatory checks must be deterministic: use versioned fixtures, controlled
+owned targets, explicit inputs and deterministic assertions. Never call a live LLM,
+require model-service credentials or use model judgments to decide test/gate outcomes.
+Tests of future AI integrations must use fixed recorded fixtures or deterministic
+fakes. Independent test modules and CI jobs run in parallel with bounded workers;
+serialize only declared shared-resource cases or real execution dependencies.
 
-- trigger the canonical full gate when opening the implementation PR;
-- rerun the full gate after fixing a bug or a review/CI defect in that same PR;
-- prefer the existing shared PR CI instead of repeating the same full gate locally and in CI;
-- a later edit requires the relevant targeted checks before its commit, not another local full gate merely because a tracked file changed;
-- full-gate evidence applies only to its tested revision. Required CI must cover the proposed PR revision before review readiness or merge; earlier green evidence is not proof for a changed revision.
+Full repository validation belongs to final PR integration, under the owner's 2026-10-23 instruction:
+
+- keep implementation PRs in draft while intermediate commits are being prepared; draft opening and updates do not run the full gate;
+- run only the small, explicit feature/regression selection and applicable changed-code static checks before each intermediate commit, including review fixes;
+- after implementation and focused validation are complete, mark the final PR revision ready for review to start the canonical full gate in shared CI;
+- before intermediate follow-up work, return the PR to draft; this cancels an in-progress integration run. Mark it ready again when the new final revision is prepared;
+- a new head on an already ready PR reruns full CI, so changed code cannot inherit earlier green evidence;
+- do not duplicate the same full gate locally, in individual development agents or after the accepted merge into `develop`;
+- full-gate evidence applies only to its tested revision. Before approval or merge, verify actual required integration jobs succeeded for the final head after readiness. Skipped draft jobs and workflow-level success without executed checks are not full-gate evidence.
 
 The canonical full repository command is:
 
@@ -565,6 +574,7 @@ A generated artifact may be committed only when it is intentionally part of a st
 
 - AI is an optional intelligence/implementation layer, not the source of truth for deterministic security evidence.
 - Prefer deterministic parsers, validators, tests, and scripts whenever they can answer the question.
+- Use LLMs for bounded implementation/design/review work that deterministic tooling cannot perform. Routine validation, pass/fail decisions and process/deadline monitoring use deterministic tools; do not substitute repeated model reasoning or duplicate test runs.
 - Agents operate through the same project contracts as humans and automation.
 - Agents must not bypass scope/security rules with raw shell access.
 - Model-generated conclusions must be traceable to evidence when they affect findings, risk, or security decisions.

@@ -83,15 +83,29 @@ per-module coverage still applies in the full PR gate. Pytest exit code 5 means
 no selected tests were collected; it is not a passing test run.
 
 Do not run `1337-dev unit`, `1337-dev test` or `1337-dev check` before every
-implementation commit. Run the full gate when opening a PR and after fixing a bug
-or review/CI defect in the same PR, preferably once through shared PR CI. Routine
-tracked-file edits require relevant focused validation rather than a duplicate
-local full gate. Full-gate evidence belongs to its tested revision; required CI
-must validate the proposed PR revision before review readiness or merge.
+implementation commit. Keep intermediate work in a draft PR and run a small,
+explicit selection of feature tests and relevant failure/regression paths, plus
+applicable changed-code static checks. Review fixes follow the same fast cycle.
+When the final revision is prepared, mark the PR ready for review to run the full
+gate once through shared CI. Return it to draft before intermediate follow-up
+work; this cancels any running integration gate. A new head on an already ready
+PR reruns full CI so changed code cannot inherit earlier green evidence.
 
 The four required development workflows run on pull requests to `develop` or
-`master`. A merge into `develop` does not repeat those full gates. Protected
-`master` pushes retain stable-branch checks and master-only documentation deployment.
+`master` when ready, including the explicit `ready_for_review` event. Draft
+opening and updates skip heavy jobs. Before approval or merge, inspect actual
+required job successes from the final readiness run for the proposed head;
+skipped draft jobs can appear green in GitHub and do not prove validation.
+Do not repeat the full gate locally, in individual development agents or after
+the accepted merge into `develop`. Protected `master` pushes retain stable-branch
+checks and master-only documentation deployment.
+
+Mandatory tests/checks use deterministic code and assertions over versioned inputs
+and controlled owned targets. No live LLM call, model-service credential or model
+judgment participates in a test result. Future AI integration tests use fixed
+recorded fixtures or deterministic fakes. Independent workflow jobs run concurrently;
+documentation tests also use bounded xdist workers. Required execution dependencies
+and explicitly marked shared-resource cases retain their ordered owner.
 
 Plain `pytest` also defaults to `tests/unit`. The `1337-dev unit` command additionally
 enforces the per-module contract; `1337-dev test` runs all test layers, and

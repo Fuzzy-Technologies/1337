@@ -3,6 +3,7 @@ name: Documentation
 on:
   pull_request:
     branches: [develop, master]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
   push:
     branches: [master]
 
@@ -15,6 +16,9 @@ concurrency:
 
 jobs:
   deterministic-documentation:
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -38,7 +42,7 @@ jobs:
           .venv/bin/python tools/locale_documentation.py validate --output _build/docs/locales.json
       - name: Exercise documentation boundaries and enforce per-tool branch coverage
         run: |
-          .venv/bin/python -m pytest -q -o addopts='' \
+          .venv/bin/python -m pytest -q -n auto --dist=loadscope -o addopts='' \
             tests/unit/test_api_reference.py tests/unit/test_locale_documentation.py \
             tests/unit/test_compose_documentation.py tests/unit/test_source_documentation_audit.py \
             tests/unit/test_product_site_preparation.py tests/unit/test_documentation_publication_policy.py \
