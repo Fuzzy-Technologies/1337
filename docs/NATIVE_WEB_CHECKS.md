@@ -109,3 +109,45 @@ come from actual saved native Findings after the first-party worker runs, with
 target-side file/read/request observations and offline reopen. Target/transport
 failures are unscored. This finite matrix does not establish broader crawler,
 browser, SQL injection, XSS or file-traversal coverage.
+
+## Owned loopback file-canary profile
+
+`1337 scan web --check file-canary-disclosure` adds the Experimental version-1
+profile in [ADR 0088](adr/0088-owned-loopback-file-canary-check.md). This closed
+development check accepts only literal loopback addresses and the repository's
+`/files/vulnerable`, `/files/fixed` and `/files/decoy` paths. Its sole `name` query
+has exactly one of these canonical wire values: `hello.txt`,
+`..%2Fprivate%2Fcanary.txt` or `..%2Fprivate%2Fmissing.txt`. It does not discover
+files, generate candidates or assess arbitrary remote file access.
+
+Register the exact URL using `scope create --allow-canary-url URL`, alongside
+`--allow-ip` and the existing explicit owner/consent fields. Use
+`--exclude-canary-url URL` for an explicit exclusion. These flags apply the same
+closed raw-input validator as planning; generic `--allow-url` and `--exclude-url`
+still reject all queries. Registration and loopback membership confer no consent.
+
+Select `web.file-canary-check` instead of `web.git-head-check` in the explicit
+STANDARD policy above. Plan and confirm the exact operation through the same CLI:
+
+```bash
+1337 scan web owned-workspace --check file-canary-disclosure \
+  --scope local --owner operator:demo \
+  --target 'http://127.0.0.1:8000/files/vulnerable?name=..%2Fprivate%2Fcanary.txt' \
+  --policy native-web-policy.json --plan
+```
+
+The SDK's `PlanNativeWebScan` and `RunNativeWebScan` accept the keyword
+`check_id="native.file-canary-disclosure"`; omitted selection preserves Git
+behavior. The selected check, full URL, anonymous GET request template, query
+injection reference and profile bind the exact confirmation intent. Current
+authority is rechecked at grant, launch and Save. The new model projection uses
+the existing request endpoint identity and preserves other request templates.
+
+A LOW Finding requires HTTP 200, an admitted plain/octet media category and the
+complete exact non-secret fixture marker. Bodies stay transient. Original worker
+reports retain byte length/digest, predicate and structural references; reopening
+cannot reconstruct the discarded body. Actual worker acceptance in
+`tests/functional/test_native_file_canary.py` covers one positive and five controls,
+denied/mismatched authority, durable reopening and independent file-content
+changes that prove detection follows actual bytes rather than route labels.
+This finite local acceptance does not establish general file traversal coverage.

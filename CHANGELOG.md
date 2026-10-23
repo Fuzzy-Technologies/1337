@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added a separately confirmed native owned-loopback file-canary response check,
+  with a closed fixed query profile, dedicated scope registration and existing
+  request-template/injection references. Independent actual-worker acceptance
+  covers one disclosure and five controls without retaining response bodies;
+  existing Git defaults remain compatible.
+
 - Added an explicitly confirmed first-party Git HEAD response check through
   `1337 scan web`, the foreground shell and governed SDK execution. The native
   worker needs no external scanner; canonical Findings, immutable bounded worker

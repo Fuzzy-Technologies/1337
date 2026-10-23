@@ -15,7 +15,11 @@ from typing import NoReturn, TextIO
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters import SerializeContract
-from fuzzy1337.adapters.native_web import NativeWebEndpoint
+from fuzzy1337.adapters.native_web import (
+    NATIVE_FILE_CANARY_CHECK_ID,
+    NATIVE_WEB_CHECK_ID,
+    NativeWebEndpoint,
+)
 from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactReadConsent
 from fuzzy1337.configuration_workflow import (
     ConfigurationScanSelection,
@@ -189,11 +193,17 @@ def CreateScope(path: Path, arguments: argparse.Namespace) -> dict[str, object]:
         Target(TargetKind.IP, value) for value in arguments.allow_ip
     ) + tuple(
         Target(TargetKind.ARTIFACT, value) for value in arguments.allow_artifact
+    ) + tuple(
+        NativeWebEndpoint(value, check_id=NATIVE_FILE_CANARY_CHECK_ID)[0]
+        for value in getattr(arguments, "allow_canary_url", ())
     )
     exclusions = tuple(Endpoint(value) for value in arguments.exclude_url) + tuple(
         Target(TargetKind.IP, value) for value in arguments.exclude_ip
     ) + tuple(
         Target(TargetKind.ARTIFACT, value) for value in arguments.exclude_artifact
+    ) + tuple(
+        NativeWebEndpoint(value, check_id=NATIVE_FILE_CANARY_CHECK_ID)[0]
+        for value in getattr(arguments, "exclude_canary_url", ())
     )
 
     if not targets or len(targets) + len(exclusions) > 64:
@@ -241,10 +251,14 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         create.add_argument("path", type=Path)
         create.add_argument("--id", required=True)
         create.add_argument("--allow-url", action="append", default=[])
+        create.add_argument("--allow-canary-url", action="append", default=[],
+                            help="Exact repository-owned loopback file-canary URL.")
         create.add_argument("--allow-ip", action="append", default=[])
         create.add_argument("--allow-artifact", action="append", default=[],
                             help="Explicit manifest-sha256:<lowercase-sha256> artifact target.")
         create.add_argument("--exclude-url", action="append", default=[])
+        create.add_argument("--exclude-canary-url", action="append", default=[],
+                            help="Exclude an exact owned loopback file-canary URL.")
         create.add_argument("--exclude-ip", action="append", default=[])
         create.add_argument("--exclude-artifact", action="append", default=[])
         create.add_argument("--grant-consent", action="store_true")
@@ -281,7 +295,8 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         nuclei.add_argument("--events-json", action="store_true")
         web = actions.add_parser("web", help="Plan/run a first-party STANDARD web check.")
         web.add_argument("path", type=Path)
-        web.add_argument("--check", choices=("git-head-exposure",), required=True)
+        web.add_argument("--check", choices=("git-head-exposure", "file-canary-disclosure"),
+                         required=True)
         web.add_argument("--scope", required=True)
         web.add_argument("--owner", required=True)
         web.add_argument("--target", required=True)
@@ -395,7 +410,11 @@ def RunCommands(
 
         else:
             if arguments.action in {"nuclei", "web"}:
-                target = (NativeWebEndpoint(arguments.target)[0]
+                check_id = (
+                    NATIVE_FILE_CANARY_CHECK_ID if arguments.action == "web"
+                    and arguments.check == "file-canary-disclosure" else NATIVE_WEB_CHECK_ID
+                )
+                target = (NativeWebEndpoint(arguments.target, check_id=check_id)[0]
                           if arguments.action == "web" else Endpoint(arguments.target))
 
                 def ReadPolicy() -> ImpactPolicy:
@@ -408,7 +427,7 @@ def RunCommands(
 
                 if arguments.plan:
                     web_plan = PlanNativeWebScan(arguments.path, arguments.scope, target,
-                        arguments.owner, ReadPolicy, limits=web_limits)
+                        arguments.owner, ReadPolicy, check_id=check_id, limits=web_limits)
                     WriteJson(output, web_plan.ToDict())
 
                     return 0
@@ -448,7 +467,7 @@ def RunCommands(
                         arguments.path, arguments.scope, target, arguments.owner, ReadPolicy,
                         confirmation=PolicyConfirmation(arguments.confirm_plan,
                             arguments.confirmation_reference) if arguments.confirm_plan else None,
-                        limits=web_limits, on_event=OnEvent,
+                        check_id=check_id, limits=web_limits, on_event=OnEvent,
                     )
                 )
 

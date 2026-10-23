@@ -298,6 +298,14 @@ worker reports bind the observed predicate; absent transient response bodies
 cannot be independently re-evaluated during replay. See
 [Native web checks](NATIVE_WEB_CHECKS.md).
 
+ADR 0088 adds Experimental `native.file-canary-disclosure` through SDK `check_id`
+and CLI `--check file-canary-disclosure`. Its separate capability and closed
+profile accept only the owned literal-loopback fixture paths and three exact
+query values. Dedicated scope allow/exclude canary flags retain generic URL query
+refusal. Existing Git defaults, invocation arguments and original report fields
+remain unchanged. The canary report additionally binds its anonymous request
+template and query injection references; response bodies remain transient.
+
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 

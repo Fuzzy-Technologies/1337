@@ -18,11 +18,14 @@ from urllib.parse import urlsplit
 from fuzzy1337.adapters.native_http import RequestTimeout
 from fuzzy1337.adapters.native_web import (
     MAX_NATIVE_WEB_BODY_BYTES,
+    NATIVE_FILE_CANARY_CHECK_ID,
+    NATIVE_FILE_CANARY_PROFILE,
     NATIVE_WEB_CHECK_ID,
     NATIVE_WEB_ERROR_EXITS,
     NATIVE_WEB_VERSION,
     CanonicalRecord,
-    MatchesGitHead,
+    NativeFileCanaryTemplate,
+    NativeWebCheckFor,
     NativeWebEndpoint,
 )
 from fuzzy1337.native_http_worker import Remaining
@@ -103,12 +106,17 @@ def Headers(raw: bytes) -> tuple[int, str, int]:
     return status, category, size
 
 
-def Probe(url: str, timeout_seconds: float) -> dict[str, object]:
+def Probe(
+    url: str, timeout_seconds: float, *, check_id: str = NATIVE_WEB_CHECK_ID,
+    workspace_id: str | None = None,
+) -> dict[str, object]:
     """Issue one exact governed-input GET and retain only the complete predicate metadata.
 
     Args:
-        url: Explicit query-free unicast literal-IP HTTP(S) URL validated inside the worker.
+        url: Exact Git URL or closed owned-loopback canary-pack URL.
         timeout_seconds: One monotonic budget across connect, TLS, send, body and final EOF.
+        check_id: Exact registered native predicate; Git remains the compatible default.
+        workspace_id: Owning structural-request partition for the canary profile only.
 
     Returns:
         Fixed schema-one metadata with body digest and match result, never body or header text.
@@ -118,7 +126,16 @@ def Probe(url: str, timeout_seconds: float) -> dict[str, object]:
         OSError: Connection, TLS or complete-request deadline fails.
     """
 
-    target, address, port, scheme = NativeWebEndpoint(url)
+    check = NativeWebCheckFor(check_id)
+    target, address, port, scheme = NativeWebEndpoint(url, check_id=check_id)
+    template = None
+
+    if check_id == NATIVE_FILE_CANARY_CHECK_ID:
+        if type(workspace_id) is not str:
+            raise ValueError("owned canary worker requires its workspace")
+
+        template = NativeFileCanaryTemplate(workspace_id, url)
+
     deadline = time.monotonic() + RequestTimeout(timeout_seconds)
     family = socket.AF_INET6 if ipaddress.ip_address(address).version == 6 else socket.AF_INET
     connection = socket.socket(family, socket.SOCK_STREAM)
@@ -139,7 +156,8 @@ def Probe(url: str, timeout_seconds: float) -> dict[str, object]:
             raise NativeWebProtocolError
 
         parsed = urlsplit(target.value)
-        request = (f"GET {parsed.path} HTTP/1.1\r\nHost: {parsed.netloc}\r\n"
+        request_target = parsed.path + ("?" + parsed.query if template is not None else "")
+        request = (f"GET {request_target} HTTP/1.1\r\nHost: {parsed.netloc}\r\n"
                    "Connection: close\r\nAccept: text/plain, application/octet-stream\r\n"
                    "Accept-Encoding: identity\r\n\r\n")
         connection.settimeout(Remaining(deadline))
@@ -181,13 +199,21 @@ def Probe(url: str, timeout_seconds: float) -> dict[str, object]:
 
         raw_body = bytes(body)
 
-        return {
-            "schema_version": 1, "check_id": NATIVE_WEB_CHECK_ID,
+        record: dict[str, object] = {
+            "schema_version": 1, "check_id": check.check_id,
             "profile_version": NATIVE_WEB_VERSION, "url": target.value, "address": peer,
             "port": port, "scheme": scheme, "status": status, "media_type": media_type,
             "body_bytes": len(raw_body), "body_sha256": hashlib.sha256(raw_body).hexdigest(),
-            "matched": MatchesGitHead(status, media_type, raw_body),
+            "matched": check.predicate(status, media_type, raw_body),
         }
+
+        if template is not None:
+            record.update({"request_profile": NATIVE_FILE_CANARY_PROFILE,
+                "request_reference": template.Reference(),
+                "injection_reference": template.injection_points[0].Reference(
+                    template.Reference())})
+
+        return record
 
     finally:
         connection.close()
@@ -197,7 +223,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     """Emit canonical safe metadata and truthful fixed-code failures without exception text.
 
     Args:
-        argv: Exact URL and request deadline, or process arguments when omitted.
+        argv: Exact URL/deadline, plus explicit canary check/workspace only for that profile.
 
     Returns:
         Zero for assessed response, 64 for input, 124 for timeout and one for other failures.
@@ -207,10 +233,15 @@ def Main(argv: Sequence[str] | None = None) -> int:
     error = "input"
 
     try:
-        if len(arguments) != 2:
-            raise ValueError
+        if len(arguments) == 2:
+            record = Probe(arguments[0], float(arguments[1]))
 
-        record = Probe(arguments[0], float(arguments[1]))
+        elif len(arguments) == 4 and arguments[2] == NATIVE_FILE_CANARY_CHECK_ID:
+            record = Probe(arguments[0], float(arguments[1]), check_id=arguments[2],
+                           workspace_id=arguments[3])
+
+        else:
+            raise ValueError
 
     except TimeoutError:
         error = "timeout"
