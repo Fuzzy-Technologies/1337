@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import ssl
 
 import pytest
@@ -230,6 +231,39 @@ def test_MainInputAndSuccessfulOutputRemainCanonical(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(worker, "Probe", lambda *_: record)
     assert worker.Main(["http://127.0.0.1/", "1"]) == 0, "Synthetic success exit changed."
     assert capsys.readouterr().out.encode() == CanonicalRecord(record), "Canonical output changed."
+
+
+@pytest.mark.parametrize("outcome", ["success", "input", "timeout"])
+def test_MainBypassesPlatformTextNewlineTranslation(monkeypatch, outcome):
+    """Success and failure records retain exact canonical bytes on a Windows-like text stream."""
+
+    output = io.BytesIO()
+    stream = io.TextIOWrapper(output, encoding="utf-8", newline="\r\n")
+    record = {"schema_version": 1, "matched": True}
+
+    def Probe(*_arguments):
+        """Return fixed metadata or reproduce the worker's request-timeout error path."""
+
+        if outcome == "timeout":
+            raise TimeoutError
+
+        return record
+
+    arguments = [] if outcome == "input" else ["http://127.0.0.1/", "1"]
+    expected = record if outcome == "success" else {"schema_version": 1, "error": outcome}
+    expected_code = {"success": 0, "input": 64, "timeout": 124}[outcome]
+    monkeypatch.setattr(worker, "Probe", Probe)
+
+    with monkeypatch.context() as output_patch:
+        output_patch.setattr(worker.sys, "stdout", stream)
+        code = worker.Main(arguments)
+        stream.flush()
+        actual = output.getvalue()
+
+    assert code == expected_code, "Binary report output changed the truthful worker exit code."
+    assert actual == CanonicalRecord(expected), (
+        "Platform text translation changed canonical worker report bytes."
+    )
 
 
 def test_ProbeUsesLiteralIpv6WithoutDnsOrAuthorityRewriting(monkeypatch: pytest.MonkeyPatch):

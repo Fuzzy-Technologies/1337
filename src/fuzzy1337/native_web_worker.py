@@ -231,11 +231,11 @@ def Main(argv: Sequence[str] | None = None) -> int:
         pass
 
     else:
-        sys.stdout.write(CanonicalRecord(record).decode("utf-8"))
+        sys.stdout.buffer.write(CanonicalRecord(record))
 
         return 0
 
-    sys.stdout.write(CanonicalRecord({"schema_version": 1, "error": error}).decode("utf-8"))
+    sys.stdout.buffer.write(CanonicalRecord({"schema_version": 1, "error": error}))
 
     return NATIVE_WEB_ERROR_EXITS[error]
 
