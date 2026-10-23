@@ -4,6 +4,10 @@ This Accepted ADR-0052 profile is an exact bounded next slice of #59/#53. It
 preserves NativeHTTP version 1. The implementation follows the reviewed design
 and composes the accepted ADR-0050 captured-web consumer.
 
+This document defines the native default. ADR 0090 adds a separately selected
+[owned offline browser renderer](BROWSER_PAGE_CAPTURE.md), with its own SAFE
+capability, explicit limit type and Linux descendant-ownership prerequisite.
+
 ## Authority and input
 
 The consumer owns an existing physical workspace, initial durable model, consented
@@ -56,7 +60,7 @@ The implementation uses new owned adapter, worker and producer paths:
 `fuzzy1337.adapters.page_capture`, `fuzzy1337.page_capture_worker` and
 `fuzzy1337.page_capture`. The concrete provider shape is
 `LocalPageCaptureProvider(workspace_root, source, expected_body, scope_id, policy,
-*, limits, frontier_limits, clock)` with existing `JobProvider.Run(context)` and
+*, limits, frontier_limits, clock, renderer)` with existing `JobProvider.Run(context)` and
 read-only `Descriptor`. `PageCaptureLimits` and `KnownSyntheticHtmlBody` are the
 finite typed input records. Adapter preparation/normalization follow the existing
 ToolAdapter contract. Internal wire/parser helpers are not an additional launch

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/browser-page-record.schema.json",
+  "title": "Closed offline browser page record version 1",
+  "description": "Experimental ADR0090 flat report. The owning parser additionally requires canonical original bytes, exact source/input digest binding, native header feasibility and bounded relative DOM counts. No browser navigation, page JavaScript or vulnerability assessment is implied.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "renderer_profile", "error"],
+      "properties": {
+        "schema_version": {"type": "integer", "const": 1},
+        "renderer_profile": {"const": "playwright-chromium-offline.v1"},
+        "error": {"enum": ["input", "connection", "timeout", "protocol", "response-policy", "body-policy", "renderer-unavailable", "renderer-version", "renderer-policy", "renderer-timeout", "renderer"]}
+      }
+    },
+    {
+      "allOf": [
+        {"$ref": "#/$defs/native"},
+        {
+          "required": ["renderer_profile", "input_body_sha256", "error"],
+          "properties": {
+            "renderer_profile": {"const": "playwright-chromium-offline.v1"},
+            "input_body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "error": {"enum": ["renderer-unavailable", "renderer-version", "renderer-policy", "renderer-timeout", "renderer"]}
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    {
+      "allOf": [{"$ref": "#/$defs/native"}, {"$ref": "#/$defs/render"}],
+      "unevaluatedProperties": false
+    }
+  ],
+  "$defs": {
+    "native": {
+      "type": "object",
+      "required": ["schema_version", "fixture_id", "url", "address", "port", "scheme", "status", "http_version", "content_type", "declared_charset", "content_length", "header_size_bytes", "header_count", "body_sha256", "body_base64"],
+      "properties": {
+        "schema_version": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/schema_version"},
+        "fixture_id": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/fixture_id"},
+        "url": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/url"},
+        "address": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/address"},
+        "port": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/port"},
+        "scheme": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/scheme"},
+        "status": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/status"},
+        "http_version": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/http_version"},
+        "content_type": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/content_type"},
+        "declared_charset": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/declared_charset"},
+        "content_length": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/content_length"},
+        "header_size_bytes": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/header_size_bytes"},
+        "header_count": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/header_count"},
+        "body_sha256": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/body_sha256"},
+        "body_base64": {"$ref": "page-capture-record.schema.json#/oneOf/1/properties/body_base64"}
+      },
+      "allOf": [
+        {"$ref": "page-capture-record.schema.json#/oneOf/1/allOf/0"},
+        {"$ref": "page-capture-record.schema.json#/oneOf/1/allOf/1"}
+      ]
+    },
+    "render": {
+      "type": "object",
+      "required": ["renderer_profile", "playwright_version", "chromium_version", "input_body_sha256", "dom_sha256", "dom_size_bytes", "element_count", "anchor_count", "form_count", "input_count", "blocked_request_count"],
+      "properties": {
+        "renderer_profile": {"const": "playwright-chromium-offline.v1"},
+        "playwright_version": {"const": "1.64.1"},
+        "chromium_version": {"const": "156.0.8078.4"},
+        "input_body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "dom_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "dom_size_bytes": {"type": "integer", "minimum": 1, "maximum": 262144},
+        "element_count": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "anchor_count": {"type": "integer", "minimum": 0, "maximum": 8192},
+        "form_count": {"type": "integer", "minimum": 0, "maximum": 8192},
+        "input_count": {"type": "integer", "minimum": 0, "maximum": 8192},
+        "blocked_request_count": {"type": "integer", "minimum": 0, "maximum": 64}
+      }
+    }
+  }
+}

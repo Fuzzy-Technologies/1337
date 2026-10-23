@@ -10,7 +10,8 @@ import pytest
 import yaml
 
 WORKFLOWS = {
-    "python-quality.yml": {"quality", "container-quality", "synthetic-lab", "external-targets"},
+    "python-quality.yml": {"quality", "browser-page-quality", "container-quality", "synthetic-lab",
+                           "external-targets"},
     "documentation.yml": {"deterministic-documentation"},
     "nuclei-acceptance.yml": {"owned-loopback"},
     "trivy-acceptance.yml": {"owned-offline"},
@@ -80,3 +81,32 @@ def test_DocumentationTestsUseParallelWorkersAndKeepBranchCoverage() -> None:
     assert "-n auto --dist=loadscope" in command, "Documentation tests lost process parallelism."
     assert "--cov=tools --cov-branch" in command, "Parallel documentation lost branch measurement."
     assert "fuzzy1337.coverage_gate" in command, "Parallel documentation lost its per-tool gate."
+
+
+def test_OfflineBrowserAcceptanceRequiresAnInstalledEngineAndSeparatesTheOwnedFixedPort() -> None:
+    """Genuine engine acceptance cannot become a skipped test or parallel fixed-port race."""
+
+    job = Workflow("python-quality.yml")["jobs"]["browser-page-quality"]
+    assert job["runs-on"] == "ubuntu-24.04", "Linux descendant acceptance moved platforms."
+    commands = tuple(step for step in job["steps"] if "run" in step)
+    assert any("uv sync --locked --extra dev --extra browser" in step["run"]
+               for step in commands), "The pinned optional browser dependency was not installed."
+    assert any("python -m playwright install --with-deps chromium --only-shell" in step["run"]
+               for step in commands), "Actual pinned Chromium installation was omitted."
+    tests = tuple(step for step in commands if "test_browser_page_execution.py" in step["run"])
+    assert len(tests) == 2, "Browser acceptance no longer separates owner and fixed-port cases."
+
+    for step in tests:
+        assert step["env"]["FUZZY1337_RUN_PLAYWRIGHT_ACCEPTANCE"] == "1", (
+            "Genuine browser acceptance may silently skip a missing engine or Linux capability."
+        )
+        assert "--no-cov" in step["run"] and "--junitxml=" in step["run"], (
+            "Focused genuine acceptance lost bounded execution or retained result evidence."
+        )
+
+    assert "-n 2 --dist=load " in tests[0]["run"] and "-m 'not serial'" in tests[0]["run"], (
+        "Independent browser owner cases lost bounded worker parallelism."
+    )
+    assert "-n 0" in tests[1]["run"] and "-m serial" in tests[1]["run"], (
+        "The owned browser resource sink can race another fixed-port test."
+    )

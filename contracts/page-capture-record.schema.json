@@ -19,7 +19,7 @@
       "required": ["schema_version", "fixture_id", "url", "address", "port", "scheme", "status", "http_version", "content_type", "declared_charset", "content_length", "header_size_bytes", "header_count", "body_sha256", "body_base64"],
       "properties": {
         "schema_version": {"type": "integer", "const": 1},
-        "fixture_id": {"type": "string", "enum": ["owned-loopback-html.v1", "owned-traversal-index.v1", "owned-traversal-alpha.v1", "owned-traversal-beta.v1", "owned-traversal-shared.v1"]},
+        "fixture_id": {"type": "string", "enum": ["owned-loopback-html.v1", "owned-traversal-index.v1", "owned-traversal-alpha.v1", "owned-traversal-beta.v1", "owned-traversal-shared.v1", "owned-browser-dom.v1"]},
         "url": {"type": "string", "minLength": 1, "maxLength": 2048},
         "address": {"type": "string", "enum": ["127.0.0.1", "::1"]},
         "port": {"type": "integer", "minimum": 1, "maximum": 65535},
@@ -40,6 +40,16 @@
           "then": {"properties": {"header_size_bytes": {"minimum": 74}}}
         },
         {"oneOf": [
+          {"properties": {
+            "fixture_id": {"const": "owned-browser-dom.v1"},
+            "content_length": {"const": 423},
+            "header_size_bytes": {"minimum": 61},
+            "body_sha256": {"const": "75d60b34385f3c65068edcde7a37da78db796290b95be0ab9beb2cdc03fe3e71"},
+            "body_base64": {"minLength": 564, "maxLength": 564, "pattern": "^[A-Za-z0-9+/]{564}$"}
+          }, "allOf": [{
+            "if": {"properties": {"declared_charset": {"const": "utf-8"}}},
+            "then": {"properties": {"header_size_bytes": {"minimum": 75}}}
+          }]},
           {"properties": {
             "fixture_id": {"const": "owned-loopback-html.v1"},
             "content_length": {"const": 541},

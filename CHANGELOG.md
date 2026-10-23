@@ -18,6 +18,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added an explicit optional offline Chromium page renderer over one completely
+  verified owned-loopback acquisition. Separate SAFE permission, closed body and
+  report profiles, disabled page JavaScript and verified Linux descendant cleanup
+  retain finite DOM facts and actual engine provenance. Renderer failures preserve
+  available original body custody without a completed page or model transition;
+  the native acquisition default remains compatible.
+
 - Added explicit Linux executor ownership of trusted approved workers' detached
   descendants, with bounded reaping and a private verified cleanup receipt.
   Timeout, output exhaustion, cancellation and observer/caller abort require

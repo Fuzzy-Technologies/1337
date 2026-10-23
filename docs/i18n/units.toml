@@ -14209,7 +14209,7 @@ state = "missing"
 id = "page:api.fuzzy1337.adapters.page-capture"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.page_capture.md"
-sourceHash = "sha256:13990c29c0ccca8ce3284a0890a6fb9370745e2d3b036b40b923694e04f41c62"
+sourceHash = "sha256:0cb64a66bf004b58dc3abeddd565e30aa947d9e09ba25dadfd0879f2cf0cf73a"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -14232,7 +14232,7 @@ state = "missing"
 id = "page:api.fuzzy1337.page-capture"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.page_capture.md"
-sourceHash = "sha256:6799dff0766ad66aa8091639583746651f1ab82e78ce973dbf89db9ff09bac0c"
+sourceHash = "sha256:6e0b4a50501884038a274a06cf3fbb491a8095ca6346df5ca1316be869febb55"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -14727,7 +14727,7 @@ state = "missing"
 id = "symbol:fuzzy1337.page_capture.LocalPageCaptureProvider.VerifyEvidence"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/page_capture.py"
-sourceHash = "sha256:42bde59f01710c80c9269144aa760a564954614cb41855b7e6ec30f27e7dbed3"
+sourceHash = "sha256:f09c8e24ed66e51d19fb274ba3855eb16931662e6329e3074f3ab2bdde22002a"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -17084,6 +17084,113 @@ id = "symbol:fuzzy1337.executors.owned_process.WrapperExit"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/executors/owned_process.py"
 sourceHash = "sha256:8310202ff64f201f9c6f5befbbbdbeaa990be3152789e2aa1a8c30dc2d91c6fa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.adapters.browser-page"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.browser_page.md"
+sourceHash = "sha256:4a07bc135948e547a81b237f4350ec49dde258f040c94a8d3edb7578a68a4dad"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "page:api.fuzzy1337.browser-page-worker"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.browser_page_worker.md"
+sourceHash = "sha256:8c3a7140f8a46608ba153f4c670de8390e223170be2cda5182ab27203b0c456f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.browser_page.ParseBrowserRecord"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/browser_page.py"
+sourceHash = "sha256:1b902890685a461642e0d981ac235a674f6a4bcd943039a7977277e88b33b321"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.page_capture.BrowserPageCaptureLimits"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/page_capture.py"
+sourceHash = "sha256:79542f024c307911b7d5fed62381791b2843d86d791baea6235216d1e82a83a3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.page_capture.PageRenderer"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/page_capture.py"
+sourceHash = "sha256:3f530c2c06fea7e7b683cee4a3101e0c8e5203175322d6e7e70183693b94e3af"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.browser_page_worker.BrowserRenderError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/browser_page_worker.py"
+sourceHash = "sha256:9de166d2747b89f5cdfd51d169006e4067483920c51dd77ee7de08c3ced2d158"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.browser_page_worker.Main"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/browser_page_worker.py"
+sourceHash = "sha256:1e5adf380fb438838fe5603472d0aa8a437173df1fea4eb9dd4a5cd59e036a47"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.browser_page_worker.RemainingMilliseconds"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/browser_page_worker.py"
+sourceHash = "sha256:05400f0e29e7a3bc7bb6e67bd1a2b0cfe451ad0d6289b8848c1d4135bd3dc525"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+
+[[units]]
+id = "symbol:fuzzy1337.browser_page_worker.Render"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/browser_page_worker.py"
+sourceHash = "sha256:3b7a08563811f37319c357195ca3e51f803365b6094030b509cb88893b788041"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

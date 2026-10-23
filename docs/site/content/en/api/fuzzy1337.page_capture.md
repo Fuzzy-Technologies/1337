@@ -39,3 +39,11 @@ frontier return for the bounded owned traversal controller. Defaults preserve
 one-page acquisition and progress. Final model composition, current authority
 and canonical Save follow admission to the ordering gate; cancellation retains
 only actual committed state and original process/evidence facts.
+
+ADR 0090 adds the explicit `renderer=PageRenderer.PLAYWRIGHT_OFFLINE` keyword with
+matching `BrowserPageCaptureLimits`. The separate SAFE browser capability requires
+its own permission and Linux descendant ownership. One native acquisition precedes
+offline rendering of only the verified closed body. Success retains source version
+`1`, actual Chromium tool version and `http.synthetic-page-browser` observations.
+Renderer failure preserves an available original verified body but cannot save a
+completed page or frontier. Fresh final Save also revalidates the original grant.
