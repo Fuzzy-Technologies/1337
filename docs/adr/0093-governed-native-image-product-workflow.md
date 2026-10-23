@@ -3,11 +3,11 @@
 ## Status
 
 Partially accepted — 2026-10-23, after independent architecture review.
-ADR0094's isolated prerequisite and the additive native authority/atomic-claim
-slice below are implementation-authorized. SDK/CLI integration and native
-enrollment remain proposed, pending their own implementation and genuine paired
-product acceptance. Refs M2 Tasks #140 and #142, Feature #138, and MVP acceptance
-#40. This decision alone enrolls no executable native product profile.
+ADR0094's isolated prerequisite, additive native authority/atomic-claim slice and
+SDK/CLI integration below are implementation-authorized. Native enrollment
+requires their own reviewed implementation and genuine paired product acceptance.
+Refs M2 Tasks #140 and #142, Feature #138, and MVP acceptance #40. This decision
+alone enrolls no executable native product profile.
 
 ## Context and accepted boundary
 
@@ -201,7 +201,7 @@ expiry, changed material, changed policy or mismatched original VERSION refuses
 success. A previous grant, checksum, provisioning receipt or canonical replay
 never supplies current execution authority.
 
-## Proposed planning and execution semantics
+## Accepted planning and execution semantics
 
 Add a first-party native-image SDK/workflow owner, reusing these existing owners:
 
@@ -222,6 +222,15 @@ planning command may use the bounded read-authorized material helper and present
 the exact VERSION plan plus a deferred SCAN recipe. It starts no Trivy process
 and cannot claim an accepted original VERSION or fully bound final SCAN intent
 before VERSION executes.
+
+`PlanNativeImageScan` uses a separate planning-only twelve-second observation.
+When both scope and policy are absent, explicit material preview returns the
+canonical INPUT manifest and ARTIFACT target for ordinary operator registration.
+It creates no scope, grant or Trivy process. When both are present, return the
+strictly scoped VERSION plan; one missing input is invalid. A denied scoped plan
+never falls back to preview. `ScanNativeImage` always requires both fresh sources
+and explicit SAFE workflow approval. Native summaries are separate from existing
+synthetic summaries and report overall coverage as `not-assessed`.
 
 Recommended operator contract: retain SAFE semantics, explicit native selection,
 explicit workflow approval and a fresh typed native-capability policy. Reuse the
@@ -286,6 +295,26 @@ acquired by the executor. Finalization and helper cleanup are awaited under the
 same budget, never left as unowned background work. Unconfirmed publication
 retains available staging and reports storage/acknowledgement uncertainty; it
 cannot claim complete custody, usable material proof or canonical success.
+
+Bridge original collector publication through a fixed private evidence-store
+adapter to `JobContext.CaptureEvidence`, preserving exact role/media/provenance
+and original IDs. The job itself uses the plain canonical evidence store to avoid
+recursive publication. Enforce native role/media/size limits before eager blob
+reads. If publication or event acknowledgement fails, bounded readback may retain
+only independently verified exact original records in a private acquisition
+ledger, then rethrow the original failure. It is not a retry or successful
+acknowledgement; summaries expose verified evidence IDs, never private journal
+paths. Reconcile this ledger and job artifacts for references-only retention even
+after cancellation or authority revocation.
+
+Freeze initial model and workspace revisions. Semantic success and finalization
+share one workspace-save attempt state, so finalization does not repeat a stale
+CAS or silently rebase. If model publication committed before acknowledgement or
+a later authority/workspace/event failure, report failure and the independently
+reopened actual revision without rollback or retry. Fresh authority still gates
+semantic success; retention alone does not certify a successful scan. Emit the
+model-change event only after both saves are acknowledged, and export only the
+exact saved model with separate report-failure status.
 
 Finite original event-count and event/control serialization limits must be
 enforced while observing; bounded streams alone do not bound an original event
