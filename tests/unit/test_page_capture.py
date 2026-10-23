@@ -374,10 +374,10 @@ def test_AdapterIsSeparateSafePreparationWithoutNetwork():
         'ImpactLevel.SAFE'
     )
     assert (
-        invocation.argv == (sys.executable, "-m", "fuzzy1337.page_capture_worker", URL,
+        invocation.argv == (sys.executable, "-I", "-m", "fuzzy1337.page_capture_worker", URL,
                                    "2.0", FIXTURE_ID, "16384")
     ), (
-        'Expected invariant: invocation.argv == (sys.executable, "-m", '
+        'Expected invariant: invocation.argv == (sys.executable, "-I", "-m", '
         '"fuzzy1337.page_capture_worker", URL, "2.0", FIXTURE_ID, "16384")'
     )
     assert (
@@ -827,6 +827,31 @@ def test_AdapterNormalizationPreservesSourceOnlyAndKnownMetadata():
         'Expected invariant: not result.findings and not '
         'result.object_enrichments and not result.relation_enrichments'
     )
+
+
+def test_HistoricalPageReportIsReadOnlyAndCannotPassCurrentLaunchValidation():
+    """Exact old argv remains interpretable data without qualifying as a current prepared launch."""
+
+    raw = CanonicalRecord(Record())
+    adapter = Adapter(raw)
+    report = Report(raw)
+    isolated = report.invocation
+    legacy = replace(isolated, argv=(sys.executable, "-m", "fuzzy1337.page_capture_worker",
+                                     URL, "2.0", FIXTURE_ID, "16384"))
+
+    with pytest.raises(PageCaptureRecordError):
+        adapter.ValidateInvocation(legacy)
+
+    result = adapter.NormalizeReport(replace(report, invocation=legacy))
+    assert result.report.invocation == legacy, "Historical page provenance was rewritten."
+    assert result.observations[0].attributes["status"] == 200, "Historical page metadata was lost."
+    assert adapter.PrepareInvocation(Request()) == isolated, (
+        "Read-only historical normalization must leave all current preparation isolated."
+    )
+
+    with pytest.raises(PageCaptureRecordError):
+        adapter.NormalizeReport(replace(report, invocation=replace(legacy,
+            argv=(*legacy.argv, "extra"))))
 
 
 @pytest.mark.parametrize("variant", ["state", "invocation", "argv-list", "bool-timeout", "empty",

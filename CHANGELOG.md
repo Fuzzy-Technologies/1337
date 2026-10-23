@@ -329,6 +329,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Security
 
+- Isolated packaged native HTTP and closed-page workers from workspace Python
+  imports. Actual governed regressions prove that workspace shadow packages do
+  not execute and the original selected targets receive real requests. Current
+  page launch validation is isolated-only; exact historical report interpretation
+  remains read-only and preserves original invocation/digest metadata.
+
 - Require a valid timezone-aware Trivy database update time and reject JSON
   integers exceeding decoder limits before accepting scan provenance.
 - Reject control characters and the IPv4 limited-broadcast address in reviewed

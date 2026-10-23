@@ -208,6 +208,9 @@ def test_AdapterNormalizesActualFactsWithoutFindings():
     assert (
         report.invocation.argv[-2:] == (URL, "0.1")
     ), 'Adapter Normalizes Actual Facts Without Findings boundary invariant failed'
+    assert report.invocation.argv[:4] == (
+        sys.executable, "-I", "-m", "fuzzy1337.native_http_worker",
+    ), "Current native worker preparation must isolate workspace module resolution."
     assert (
         not result.findings
     ), 'Adapter Normalizes Actual Facts Without Findings boundary invariant failed'
@@ -217,6 +220,26 @@ def test_AdapterNormalizesActualFactsWithoutFindings():
     assert (
         len(result.relation_enrichments) == 3
     ), 'Adapter Normalizes Actual Facts Without Findings boundary invariant failed'
+
+
+def test_ExactHistoricalReportRemainsReadableWithoutRestoringOldPreparation():
+    """Historical normalization preserves old provenance while current launch stays isolated."""
+
+    adapter, report = Report()
+    isolated = report.invocation
+    legacy = replace(isolated, argv=(sys.executable, "-m", "fuzzy1337.native_http_worker",
+                                     URL, "0.1"))
+    original = replace(report, invocation=legacy)
+    result = adapter.NormalizeReport(original)
+    assert result.report.invocation == legacy, "Read-only normalization rewrote old provenance."
+    assert result.observations[0].attributes["status"] == 200, "Historical facts were lost."
+    assert adapter.PrepareInvocation(Request()) == isolated, (
+        "Legacy report interpretation must never restore unsafe current preparation."
+    )
+
+    with pytest.raises(NativeHttpRecordError):
+        adapter.NormalizeReport(replace(original, invocation=replace(legacy,
+            argv=(*legacy.argv, "extra"))))
 
 
 @pytest.mark.parametrize("case", [

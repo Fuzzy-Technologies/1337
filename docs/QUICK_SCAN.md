@@ -6,6 +6,13 @@ jobs, immutable evidence and durable Security Object Model. This command is not
 present in the immutable v0.2.1 release. See
 [ADR 0037](adr/0037-bounded-quick-scan-cli.md) and the native discovery contract.
 
+The packaged native HTTP worker runs with Python isolated imports (`-I -m`),
+so workspace-local Python files cannot substitute the worker package. This
+does not change scope, consent, SAFE permission or evidence requirements.
+Exact historical adapter reports remain read-only inputs; new preparation never
+recreates their non-isolated launch. See
+[ADR 0087](adr/0087-isolated-packaged-worker-imports.md).
+
 ## Run an owned localhost example
 
 Use an installed current development candidate or the accepted development

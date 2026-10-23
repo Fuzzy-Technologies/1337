@@ -11,6 +11,7 @@ import json
 import math
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters import (
@@ -254,7 +255,8 @@ class NativeHttpAdapter:
 
         return AdapterInvocation(
             NATIVE_HTTP_PROVIDER_ID, request,
-            (sys.executable, "-m", "fuzzy1337.native_http_worker", target.value, str(timeout)),
+            (sys.executable, "-I", "-m", "fuzzy1337.native_http_worker",
+             target.value, str(timeout)),
             math.ceil(timeout + 1), DISCOVERY_VERSION,
         )
 
@@ -272,7 +274,11 @@ class NativeHttpAdapter:
             ValueError: The recorded request violates the preparation contract.
         """
 
-        if report.invocation != self.PrepareInvocation(report.invocation.request) or (
+        prepared = self.PrepareInvocation(report.invocation.request)
+        legacy = replace(prepared, argv=(prepared.argv[0], *prepared.argv[2:]))
+
+        # Historical report interpretation grants no launch authority to the old argv.
+        if report.invocation not in (prepared, legacy) or (
             report.execution.state is not ExecutionState.SUCCEEDED
         ):
             raise NativeHttpRecordError(

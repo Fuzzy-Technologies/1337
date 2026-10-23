@@ -7671,7 +7671,7 @@ state = "missing"
 id = "page:api.fuzzy1337.adapters.native-http"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.native_http.md"
-sourceHash = "sha256:59e2ed8955b97224986246e1d3d6cbdcd836ed68fb78f263d05b69f17505000c"
+sourceHash = "sha256:0605d003f395fe73dd5651edf4e701a88e2057fb8328ae8c205098e3c5c97811"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -14209,7 +14209,7 @@ state = "missing"
 id = "page:api.fuzzy1337.adapters.page-capture"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.page_capture.md"
-sourceHash = "sha256:022f2da5e2a071143e2522985080d2d020b5b1e8f36e857ed67b197b0207c8a1"
+sourceHash = "sha256:13990c29c0ccca8ce3284a0890a6fb9370745e2d3b036b40b923694e04f41c62"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -14412,7 +14412,7 @@ state = "missing"
 id = "symbol:fuzzy1337.adapters.page_capture.NativeLoopbackPageAdapter.ValidateInvocation"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/page_capture.py"
-sourceHash = "sha256:cf392c2ae6892a683c22605c02d2064dc76ee13dcc2bdb49013d6508f6843cfe"
+sourceHash = "sha256:234ceeb2e38d86068ad7c263df3773eafea7db1b1a819e26f64e67fc04944870"
 reviewClass = "technical"
 
 [units.translations.ru]

@@ -27,6 +27,7 @@ from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.jobs import JobEventKind, JobFailureCode, JobSpec, JobState, ScanJob
 from fuzzy1337.model import LocalModelStore, ObjectKind
 from fuzzy1337.policy import CapabilityPermission, ImpactLevel, ImpactPolicy, PolicyEngine
+from fuzzy1337.quickscan import RunQuickScan
 from fuzzy1337.scope import (
     AuthorizationState,
     LocalScopeStore,
@@ -186,6 +187,37 @@ def test_RealDiscoveryEvidenceModelEventsRepeatAndReopen(tmp_path, owned_http):
     assert (
         len(reopened.observations) > len(state.observations)
     ), 'Real Discovery Evidence Model Events Repeat And Reopen boundary invariant failed'
+
+
+def test_QuickScanIgnoresWorkspacePackageShadowAndContactsOwnedTarget(tmp_path, owned_http):
+    """A workspace package must never replace the trusted installed native discovery worker."""
+
+    base, calls = owned_http
+    root, targets, _, _ = Fixture(tmp_path, (base + "/health",))
+    shadow = root / "fuzzy1337"
+    shadow.mkdir()
+    (shadow / "__init__.py").write_text('"""Owned inert shadow package fixture."""\n',
+                                        encoding="utf-8")
+    (shadow / "native_http_worker.py").write_text(
+        '"""Owned inert shadow module must never execute."""\n'
+        'from pathlib import Path\n'
+        'Path("shadow-worker.marker").write_text("owned-shadow-executed", encoding="utf-8")\n'
+        'raise SystemExit(73)\n', encoding="utf-8")
+    summary = asyncio.run(RunQuickScan(root, "local", targets, "owner:test",
+        approve_safe_http=True, clock=lambda: NOW))
+    assert not (root / "shadow-worker.marker").exists(), (
+        "Quick Scan executed a workspace module instead of the installed native worker."
+    )
+    assert summary.snapshot.state is JobState.COMPLETED, summary.snapshot.failure
+    assert calls == ["/health"], "The installed native worker must make its actual approved GET."
+    model = LocalModelStore(root).Open()
+    assert len(model.Objects(ObjectKind.ENDPOINT)) == 1, "Actual discovery state was not persisted."
+    evidence = LocalEvidenceStore(root / "evidence")
+    records = [json.loads(evidence.Read(item.evidence.reference))
+               for item in summary.snapshot.artifacts]
+    assert len(records) == 1 and records[0]["status"] == 200, (
+        "Discovery evidence must contain the genuine owned target's actual status."
+    )
 
 
 def test_LaterProtocolFailurePreservesEarlierObservedState(tmp_path, owned_http):

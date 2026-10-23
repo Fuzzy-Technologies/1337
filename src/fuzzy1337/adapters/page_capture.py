@@ -13,8 +13,9 @@ import math
 import re
 import sys
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
+from typing import cast
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters import (
@@ -529,22 +530,26 @@ class NativeLoopbackPageAdapter:
             raise ValueError("page capture selected body or exact target binding differs")
 
         return AdapterInvocation(PAGE_CAPTURE_PROVIDER_ID, request, (
-            sys.executable, "-m", "fuzzy1337.page_capture_worker", target.value,
+            sys.executable, "-I", "-m", "fuzzy1337.page_capture_worker", target.value,
             str(timeout), body.fixture_id, str(maximum),
         ), math.ceil(timeout + 1), PAGE_CAPTURE_VERSION)
 
-    def ValidateInvocation(self, invocation: object) -> AdapterInvocation:
+    def ValidateInvocation(
+        self, invocation: object, *, allow_legacy: bool = False,
+    ) -> AdapterInvocation:
         """Reconstruct exact nested request/argv fields and their owning invocation digest.
 
         Args:
             invocation: Typed prepared invocation or copied wrapper requiring nested revalidation.
+            allow_legacy: Admit exact historical argv only for read-only report interpretation.
+                Current launch/provider validation leaves this disabled.
 
         Returns:
             Original invocation only after exact reconstruction and owning SHA agreement.
         """
 
         if type(invocation) is not AdapterInvocation or type(invocation.argv) is not tuple or (
-            len(invocation.argv) != 7
+            len(invocation.argv) not in ((7, 8) if allow_legacy is True else (8,))
             or any(type(argument) is not str for argument in invocation.argv)
             or type(invocation.timeout_seconds) is not int
             or type(invocation.adapter_id) is not str
@@ -553,6 +558,9 @@ class NativeLoopbackPageAdapter:
             raise PageCaptureRecordError("page capture requires an exact prepared invocation")
 
         prepared = self.PrepareInvocation(invocation.request)
+
+        if allow_legacy is True and invocation.argv == (prepared.argv[0], *prepared.argv[2:]):
+            prepared = replace(prepared, argv=invocation.argv)
 
         if invocation != prepared or InvocationDigest(invocation) != InvocationDigest(prepared):
             raise PageCaptureRecordError("page capture invocation differs from preparation")
@@ -580,7 +588,7 @@ class NativeLoopbackPageAdapter:
             ):
                 raise ValueError("invalid report shape")
 
-            invocation = self.ValidateInvocation(report.invocation)
+            invocation = self.ValidateInvocation(report.invocation, allow_legacy=True)
             execution = Execution(report.execution)
 
             if execution.state is not ExecutionState.SUCCEEDED or execution.exit_code != 0:
@@ -594,8 +602,10 @@ class NativeLoopbackPageAdapter:
             ):
                 raise ValueError("stdout evidence differs from its exact reference")
 
-            record = ParseRecord(raw, invocation.argv[3],
-                KnownSyntheticHtmlBody(invocation.argv[5]), int(invocation.argv[6]))
+            parameters = invocation.request.parameters
+            record = ParseRecord(raw, cast(str, parameters["url"]),
+                KnownSyntheticHtmlBody(cast(str, parameters["fixture_id"])),
+                cast(int, parameters["max_body_bytes"]))
 
             if "error" in record:
                 raise ValueError("failure record cannot become a successful page")
