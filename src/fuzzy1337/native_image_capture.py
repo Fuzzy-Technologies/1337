@@ -16,7 +16,15 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from fuzzy1337.native_image_bounded_capture import BoundedNativeTrivyOperationCapture
+    from fuzzy1337.native_image_observation import (
+        NativeImageMaterialObserver,
+        NativeImageMaterialProof,
+        NativeImageObservationBudget,
+    )
 
 from fuzzy1337.adapters import AdapterInvocation, ExecutionState, SerializeContract
 from fuzzy1337.adapters.contracts import RequireText
@@ -537,3 +545,46 @@ async def CaptureNativeTrivyOperation(
     return NativeTrivyOperationCapture(operation, request, outcome,
         workspace_id, owner_reference, selection, material, after, started_at, finished_at,
         prerequisite, version, refusal, (*records, receipt))
+
+
+async def CaptureBoundedNativeTrivyOperation(
+    operation: NativeTrivyOperation, selection: NativeTrivySelection,
+    invocation: AdapterInvocation, authorization: ExecutionAuthorization,
+    store: LocalEvidenceStore, workspace_id: str, owner_reference: str,
+    *, observer: NativeImageMaterialObserver, budget: NativeImageObservationBudget,
+    material_proof: NativeImageMaterialProof, operation_reference: str,
+    version_prerequisite: NativeTrivyOperationCapture | None = None,
+    cancellation: asyncio.Event | None = None,
+    validate_authority: Callable[[LocalExecutionRequest], None] | None = None,
+) -> BoundedNativeTrivyOperationCapture:
+    """Select additive bounded custody explicitly without importing its owners during replay.
+
+    Args:
+        operation: Original explicit VERSION or prerequisite-bound SCAN.
+        selection: Original typed native files and independent read consent.
+        invocation: Original exact finite adapter invocation.
+        authorization: Independent original exact-invocation authority.
+        store: Existing canonical evidence owner.
+        workspace_id: Exact original workspace identity.
+        owner_reference: Exact read-consent actor.
+        observer: Fixed first-party owned material observer.
+        budget: Whole-pair cumulative observation/finalization ledger.
+        material_proof: Original same-observer same-pair current material proof.
+        operation_reference: Whole VERSION/SCAN owner-pair reference.
+        version_prerequisite: Original accepted VERSION required by SCAN.
+        cancellation: Cooperative signal; outer cancellation also signals the owned executor.
+        validate_authority: Fresh synchronous upstream authority check, never a material callback.
+
+    Returns:
+        Unchanged historical capture plus optional reusable post-observation proof.
+    """
+
+    from fuzzy1337.native_image_bounded_capture import (
+        CaptureBoundedNativeTrivyOperation as CaptureBounded,
+    )
+
+    return await CaptureBounded(operation, selection, invocation, authorization, store,
+        workspace_id, owner_reference, observer=observer, budget=budget,
+        material_proof=material_proof, operation_reference=operation_reference,
+        version_prerequisite=version_prerequisite, cancellation=cancellation,
+        validate_authority=validate_authority)

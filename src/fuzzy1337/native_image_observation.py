@@ -115,25 +115,41 @@ class NativeImageObservationBudget:
 
     @property
     def SpentSeconds(self) -> float:
-        """Return actual overhead already charged to completed windows."""
+        """Return actual overhead already charged to completed windows.
+
+        Returns:
+            Cumulative elapsed seconds charged to finished observation/finalization windows.
+        """
 
         return self._spent
 
     @property
     def ObservationCount(self) -> int:
-        """Return observations claimed, including a failed consumed allowance."""
+        """Return observations claimed, including a failed consumed allowance.
+
+        Returns:
+            Number of consumed observation slots, without resetting failed attempts.
+        """
 
         return self._observations
 
     @property
     def FinalizationSeconds(self) -> float:
-        """Return actual finalization charged across all nonoverlapping slices."""
+        """Return actual finalization charged across all nonoverlapping slices.
+
+        Returns:
+            Elapsed seconds consumed from the one shared nine-second finalization reserve.
+        """
 
         return self._finalization
 
     @property
     def Failed(self) -> bool:
-        """Return whether further observation has been irrevocably refused."""
+        """Return whether further observation has been irrevocably refused.
+
+        Returns:
+            True when a failed or overrun observation has latched further-read refusal.
+        """
 
         return self._failed
 
