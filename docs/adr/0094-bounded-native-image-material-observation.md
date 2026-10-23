@@ -6,8 +6,10 @@ Accepted prerequisite architecture — 2026-10-23. Root and independent review
 authorize isolated PR360 implementation under existing M2 Tasks #140/#142,
 subject to the finite event/control correction below. This does not authorize
 native product enrollment or new grants. The accepted Linux descendant owner at
-`9b85ca9c71ed9b6bf5321812095dbbb8d24372a7` is a prerequisite; browser PR359
-remains a separate pending consumer.
+`9b85ca9c71ed9b6bf5321812095dbbb8d24372a7` is a prerequisite. Browser PR359
+is a separate consumer, accepted at `9a1eed70e9721bdccdc6e8bb7fa1c3aacea5e30c`.
+PR360 remains a reviewed draft component checkpoint included in final integration
+PR362, whose product authority is separately defined by ADR0093.
 
 ## Problem
 
