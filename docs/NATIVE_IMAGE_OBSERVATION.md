@@ -11,12 +11,12 @@ the accepted observation and original-custody architecture.
 read consent, workspace identity and owner. Its installed Python worker reads
 only these four selected roles, in order:
 
-| Role | Inclusive byte limit | Absence |
-| --- | ---: | --- |
-| Archive | 512 MiB | Refused |
-| Selected executable | 256 MiB | Refused |
-| Vulnerability database | 2 GiB | Explicit missing fact |
-| Database metadata | 16 KiB | Explicit missing fact |
+| Role                   | Inclusive byte limit | Absence               |
+| ---------------------- | -------------------: | --------------------- |
+| Archive                | 512 MiB              | Refused               |
+| Selected executable    | 256 MiB              | Refused               |
+| Vulnerability database | 2 GiB                | Explicit missing fact |
+| Database metadata      | 16 KiB               | Explicit missing fact |
 
 The helper never runs the selected executable, discovers paths, opens a network
 connection or enumerates directories. Original `NativeFileFact` hashes, lengths
@@ -43,14 +43,14 @@ The operation reference identifies the whole VERSION/SCAN pair. Its first
 observation precedes VERSION; the second follows VERSION and also supplies the
 cheap pre-SCAN check; the third follows SCAN. There is no fourth full hash.
 
-| Allowance | Bound and accounting |
-| --- | --- |
-| Planning | One 12-second observation, no scanner execution |
-| Each of three operation observations | 12 seconds including readiness and cleanup |
-| Worker portion | At most 6 seconds, with 3 seconds each reserved for readiness and cleanup |
-| Journal and publication | One cumulative 9-second allowance across both operations |
-| Total material and finalization | At most 45 seconds, charged by actual monotonic elapsed time |
-| Scanner startup and cleanup | An additional 6 seconds per VERSION/SCAN outside the 45-second ledger |
+| Allowance                            | Bound and accounting                                                      |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| Planning                             | One 12-second observation, no scanner execution                           |
+| Each of three operation observations | 12 seconds including readiness and cleanup                                |
+| Worker portion                       | At most 6 seconds, with 3 seconds each reserved for readiness and cleanup |
+| Journal and publication              | One cumulative 9-second allowance across both operations                  |
+| Total material and finalization      | At most 45 seconds, charged by actual monotonic elapsed time              |
+| Scanner startup and cleanup          | An additional 6 seconds per VERSION/SCAN outside the 45-second ledger     |
 
 Finalization may use multiple nonoverlapping slices. Writing an original journal
 before a post-run observation and publishing its receipts afterward debit the

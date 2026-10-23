@@ -49,8 +49,10 @@ It never enumerates directories or returns archive, executable or database
 content. The metadata role may additionally supply its bounded strict parsed
 schema-two DB metadata, bound to that role's exact hash/identity, for pure
 VERSION-output comparison. This remains private control data, not raw Trivy
-output or a freshness claim. Missing required material can be described but
-cannot form a usable successful product proof.
+output or a freshness claim. Optional database/metadata absence retains its exact
+original `(None, None, None)` fact fields and metadata returns `None`, never an
+invented empty schema-two object. A complete descriptive observation of absence
+is not usable successful VERSION/SCAN product material.
 
 ### Private bounded control and proof
 
@@ -70,7 +72,7 @@ handoff is selected; no sealed-FD alternative or new executor inheritance is
 introduced. Captured private result stdout is at most 64 KiB. Neither caller
 argv/environment nor an arbitrary material callback can replace the fixed worker.
 
-A usable proof requires an actual successful helper result, confirmed descendant
+A complete observation requires an actual successful helper result, confirmed descendant
 cleanup, exact private control association and complete finite facts. A digest
 or caller-built tuple alone is not an executed observation proof. Only the exact
 issuing observer instance accepts its original issued proof object. Bind the proof
@@ -82,6 +84,13 @@ pair, not one invocation's request identifier. The same pair reference permits
 the post-VERSION proof to serve as the SCAN pre-proof without a fourth hash;
 the original VERSION and SCAN request identifiers remain separately bound.
 It is a correlation, never execution authority.
+
+Cheap current checks preserve observed optional absence through no-follow leaf
+metadata checks; later presence or a symlink refuses reuse. Archive/executable
+remain required. VERSION acceptance independently requires present DB/metadata
+facts and strict selected metadata. The final worker-handoff hook rechecks the
+complete current selection/consent digest, including the consent record, rather
+than only comparing its actor.
 
 ## One cumulative budget
 

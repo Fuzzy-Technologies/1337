@@ -75,8 +75,10 @@ native facts directly. Historical selected paths are never reopened by replay.
 A usable observation proof requires explicit read consent before any selected
 file read, the exact four selected paths, an actual successful installed isolated
 Python helper, complete private bounded output, matching selection/owner/nonce,
-and confirmed owned cleanup. Timeout, cancellation, missing material or unknown
-cleanup supplies no usable proof. At final synchronous launch and Save hooks,
+and confirmed owned cleanup. Timeout, cancellation or unknown cleanup supplies
+no complete observation proof. Optional DB/metadata absence retains its original
+all-None facts in a descriptive observation; it cannot supply executable material
+or an accepted VERSION. At final synchronous launch and Save hooks,
 perform only bounded no-follow physical-identity, current authority, expiry,
 cancellation and claim checks; never rehash a multi-GiB database there.
 
