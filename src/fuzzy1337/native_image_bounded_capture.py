@@ -238,8 +238,8 @@ class OutcomeJournal:
 
         self.directory = Path(tempfile.mkdtemp(prefix="native-image-bounded-", dir=workspace))
         os.chmod(self.directory, 0o700)
-        self.scratch = self.directory / "work"
-        self.scratch.mkdir(mode=0o700)
+        self.scratch = Path(tempfile.mkdtemp(prefix="native-image-", dir=workspace))
+        os.chmod(self.scratch, 0o700)
         self.path = self.directory / "outcome.journal"
         self.descriptor = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_EXCL |
             getattr(os, "O_NOFOLLOW", 0), 0o600)
@@ -248,6 +248,10 @@ class OutcomeJournal:
             cast(Callable[[int, int], None], getattr(os, "fchmod"))(self.descriptor, 0o600)
             info = ArtifactPathInfo(self.directory, directory=True)
             self.directory_identity = (info.st_dev, info.st_ino)
+            scratch = ArtifactPathInfo(self.scratch, directory=True)
+            self.scratch_identity = (scratch.st_dev, scratch.st_ino)
+            parent = ArtifactPathInfo(self.directory.parent, directory=True)
+            self.parent_identity = (parent.st_dev, parent.st_ino)
             opened = ArtifactHandleInfo(self.descriptor)
             self.file_identity = (opened.st_dev, opened.st_ino)
             self.size = 0
@@ -258,6 +262,7 @@ class OutcomeJournal:
 
         except BaseException:
             self.Close()
+            shutil.rmtree(self.scratch)
             shutil.rmtree(self.directory)
 
             raise
@@ -266,11 +271,17 @@ class OutcomeJournal:
         """Require original private path/handle identities and exact private permissions."""
 
         directory = ArtifactPathInfo(self.directory, directory=True)
+        scratch = ArtifactPathInfo(self.scratch, directory=True)
+        parent = ArtifactPathInfo(self.directory.parent, directory=True)
         path = ArtifactPathInfo(self.path)
         opened = ArtifactHandleInfo(self.descriptor)
 
         if (directory.st_dev, directory.st_ino) != self.directory_identity or (
-            (path.st_dev, path.st_ino) != self.file_identity
+            (scratch.st_dev, scratch.st_ino) != self.scratch_identity
+            or (parent.st_dev, parent.st_ino) != self.parent_identity
+            or self.scratch.parent != self.directory.parent
+            or stat.S_IMODE(scratch.st_mode) != 0o700
+            or (path.st_dev, path.st_ino) != self.file_identity
             or (opened.st_dev, opened.st_ino) != self.file_identity
             or stat.S_IMODE(directory.st_mode) != 0o700
             or stat.S_IMODE(path.st_mode) != 0o600
@@ -429,6 +440,7 @@ def PureVersion(raw: bytes, proof: NativeImageMaterialProof) -> str:
     if not isinstance(version, str) or not re.fullmatch(r"0\.75\.[0-9]+", version) or (
         proof.facts[-2].sha256 is None or proof.facts[-1].sha256 is None
         or not isinstance(metadata, dict) or not isinstance(observed, dict)
+        or type(observed.get("Version")) is not int or observed["Version"] != 2
         or type(metadata.get("Version")) is not int
         or metadata["Version"] != 2 or not isinstance(metadata.get("UpdatedAt"), str)
         or any(observed.get(key) != value for key, value in metadata.items())
@@ -490,6 +502,34 @@ def PreparedRecord(raw: bytes, role: str, media: str,
                                             media, len(raw)), provenance)
 
 
+def CheckSelection(observer: NativeImageMaterialObserver, selection: NativeTrivySelection) -> None:
+    """Bind every original selected field without delegating to caller replacement classes.
+
+    Args:
+        observer: Exact first-party owner whose proof may describe only its own selections.
+        selection: Exact additive native selection used by the provider invocation factory.
+
+    Raises:
+        ValueError: Any selected workspace, file, cache or read-consent field differs.
+    """
+
+    if type(selection) is not NativeTrivySelection or type(observer.selection) is not (
+        NativeTrivySelection
+    ):
+        raise ValueError("bounded native execution requires its exact selected-material type")
+
+    actual = observer.selection
+
+    if actual.workspace_root != selection.workspace_root or actual.executable != (
+        selection.executable
+    ) or actual.archive != selection.archive or actual.cache_directory != (
+        selection.cache_directory
+    ) or actual.read_consent.actor_ref != selection.read_consent.actor_ref or (
+        actual.read_consent.record_ref != selection.read_consent.record_ref
+    ):
+        raise ValueError("bounded native observer and provider selected material differ")
+
+
 async def CaptureBoundedNativeTrivyOperation(
     operation: NativeTrivyOperation, selection: NativeTrivySelection,
     invocation: AdapterInvocation, authorization: ExecutionAuthorization,
@@ -527,16 +567,17 @@ async def CaptureBoundedNativeTrivyOperation(
         asyncio.CancelledError: Original caller cancellation, after owned cleanup and finalization.
     """
 
-    if not isinstance(operation, NativeTrivyOperation) or not isinstance(
-        selection, NativeTrivySelection
+    if not isinstance(operation, NativeTrivyOperation) or type(selection) is not (
+        NativeTrivySelection
     ) or not isinstance(invocation, AdapterInvocation) or not isinstance(
         authorization, ExecutionAuthorization
-    ) or not isinstance(store, LocalEvidenceStore) or not isinstance(
-        observer, NativeImageMaterialObserver
-    ) or not isinstance(budget, NativeImageObservationBudget) or not isinstance(
-        material_proof, NativeImageMaterialProof
-    ):
+    ) or not isinstance(store, LocalEvidenceStore) or type(observer) is not (
+        NativeImageMaterialObserver
+    ) or type(budget) is not NativeImageObservationBudget or type(material_proof) is not (
+        NativeImageMaterialProof):
         raise ValueError("bounded native capture requires original typed owners and proof")
+
+    CheckSelection(observer, selection)
 
     for value in (workspace_id, owner_reference, operation_reference):
         RequireText(value, "bounded native identity")
@@ -621,6 +662,9 @@ async def CaptureBoundedNativeTrivyOperation(
                 "workspace_identity": material_proof.workspace_identity,
                 "operation_directory_identity": journal.directory_identity,
                 "journal_identity": journal.file_identity,
+                "execution_scratch": str(journal.scratch),
+                "execution_scratch_identity": journal.scratch_identity,
+                "parent_identity": journal.parent_identity,
                 "material_before": material, "started_at": started_at}
             # Paths are explicit JSON strings, never a serializer extension or selected-file read.
             header["selection"] = {"workspace_root": str(selection.workspace_root),
@@ -637,8 +681,11 @@ async def CaptureBoundedNativeTrivyOperation(
                 if actual != request or signal.is_set():
                     raise ValueError("bounded native launch request or cancellation differs")
 
-                observer.CheckCurrent(material_proof, operation_reference=operation_reference)
                 Authority(actual)
+                CheckSelection(observer, selection)
+                observer.CheckCurrent(material_proof, operation_reference=operation_reference)
+                assert journal is not None, "Original execution scratch must already be owned."
+                journal.Check()
 
         def Authority(actual: LocalExecutionRequest) -> None:
             """Require the current upstream decision to stay synchronous at every boundary.
@@ -712,6 +759,7 @@ async def CaptureBoundedNativeTrivyOperation(
             after_proof = await AwaitOwned(observation_task, signal, interrupted)
 
             with Finalization(budget):
+                CheckSelection(observer, selection)
                 observer.CheckCurrent(after_proof, operation_reference=operation_reference)
                 after = after_proof.facts
 

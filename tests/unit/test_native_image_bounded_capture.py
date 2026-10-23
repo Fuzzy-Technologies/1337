@@ -9,8 +9,9 @@ import asyncio
 import hashlib
 import json
 import os
+import shutil
 import stat
-from dataclasses import replace
+from dataclasses import fields, replace
 from types import SimpleNamespace
 
 import pytest
@@ -30,7 +31,14 @@ from fuzzy1337.executors import (
     LocalExecutionResult,
     LocalExecutor,
 )
+from fuzzy1337.model import LocalModelStore, ObjectKind
+from fuzzy1337.native_image_admission import (
+    ApplyVerifiedNativeTrivyImages,
+    VerifyNativeTrivyImageReplay,
+)
 from fuzzy1337.native_image_observation import NativeImageObservationError
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
+from tests.unit.test_native_image_admission import REPORT
 from tests.unit.test_native_image_material_worker import material_control as material_control
 from tests.unit.test_native_image_observation import (
     observation_runner as observation_runner,
@@ -71,9 +79,18 @@ def Frames(path):
 def collector(simulated_observer, observation_runner, monkeypatch):
     """Reuse the actual opaque-proof issuer with a separate explicit provider executor double."""
 
-    observer, wire = simulated_observer
-    selection = observer.selection
-    (selection.workspace_root / "evidence").mkdir()
+    original_observer, wire = simulated_observer
+    original_selection = original_observer.selection
+    root = original_selection.workspace_root / "collector"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned bounded collector"),
+                                     "collector-unit")
+    shutil.copyfile(original_selection.executable, root / "trivy")
+    shutil.copyfile(original_selection.workspace_root / original_selection.archive,
+                    root / "image.tar")
+    shutil.copytree(original_selection.workspace_root / original_selection.cache_directory,
+                    root / "cache", dirs_exist_ok=True)
+    selection = replace(original_selection, workspace_root=root, executable=root / "trivy")
+    observer = bounded.NativeImageMaterialObserver(selection, "collector-unit", "actor:unit")
     store = LocalEvidenceStore(selection.workspace_root / "evidence")
     budget = bounded.NativeImageObservationBudget()
     wire_execute = LocalExecutor.Execute
@@ -112,7 +129,7 @@ def collector(simulated_observer, observation_runner, monkeypatch):
             raw = json.dumps({"Version": "0.75.0", "VulnerabilityDB": initial.Metadata()}).encode()
 
             if request.invocation.provider_version is not None:
-                raw = b'{"SchemaVersion":2,"ArtifactType":"container_image"}'
+                raw = json.dumps(REPORT).encode()
 
             if state.raw is not None:
                 raw = state.raw
@@ -196,9 +213,11 @@ def collector(simulated_observer, observation_runner, monkeypatch):
         invocation, authorization = Invocation(operation,
             None if prerequisite is None else prerequisite.observed_version)
 
-        return bounded.CaptureBoundedNativeTrivyOperation(operation, selection, invocation,
-            authorization, store, "workspace:unit", observer.owner_reference,
-            observer=observer, budget=budget, material_proof=initial if proof is None else proof,
+        return bounded.CaptureBoundedNativeTrivyOperation(operation,
+            options.pop("selection", selection), invocation, authorization, store,
+            observer.workspace_id, observer.owner_reference,
+            observer=options.pop("observer", observer), budget=options.pop("budget", budget),
+            material_proof=initial if proof is None else proof,
             operation_reference=PAIR, version_prerequisite=prerequisite,
             validate_authority=options.pop("validate_authority", Authority), **options)
 
@@ -546,7 +565,8 @@ def test_AdditiveHistoricalFacadeForwardsExactTypedOwnersAndFreshAuthority(colle
     invocation, authorization = collector.Invocation(operation)
     checks = []
     result = collector.run(legacy.CaptureBoundedNativeTrivyOperation(operation,
-        collector.selection, invocation, authorization, collector.store, "workspace:unit",
+        collector.selection, invocation, authorization, collector.store,
+        collector.observer.workspace_id,
         collector.observer.owner_reference, observer=collector.observer, budget=collector.budget,
         material_proof=collector.initial, operation_reference=PAIR,
         validate_authority=checks.append))
@@ -613,6 +633,197 @@ def test_JournalRejectsExactTotalOverflowAndCorruptOriginalFrame(tmp_path, monke
 
         with pytest.raises(ValueError, match="integrity"):
             journal.Verify()
+
+    finally:
+        journal.Close()
+
+
+def test_BoundedPairPassesUnchangedHistoricalReplayAndCanonicalAdmission(collector):
+    """Original bounded roles compose with actual historical owners and a pure model proposal."""
+
+    root = collector.selection.workspace_root
+    workspace = LocalWorkspaceStore(root).Open()
+    model = LocalModelStore(root).Create()
+    version = collector.run(collector.Capture())
+    scan = collector.run(collector.Capture(legacy.NativeTrivyOperation.SCAN,
+        prerequisite=version.capture, proof=version.material_proof))
+    replay = VerifyNativeTrivyImageReplay((*version.capture.records, *scan.capture.records), root)
+    proposed, delta = ApplyVerifiedNativeTrivyImages(model, version.capture, scan.capture, root)
+    assert replay.version_request == version.capture.request and replay.scan_request == (
+        scan.capture.request), "Bounded originals must pass historical request admission."
+    assert proposed.revision == 1 and delta.created, "The pair must admit one canonical batch."
+    assets = [item for item in proposed.objects if item.identity.kind is ObjectKind.ASSET]
+    assert {item.attributes["asset_type"] for item in assets} == {"image", "package"}, (
+        "Bounded successful originals must admit both original image and installed package"
+    )
+    assert any(item.identity.kind is ObjectKind.FINDING for item in proposed.objects), (
+        "The actual historical admission owner must preserve the controlled package finding"
+    )
+    assert LocalWorkspaceStore(root).Open() == workspace and (
+        LocalModelStore(root).Open() == model
+    ), (
+        "Pure bounded admission must preserve both independently persisted authoritative snapshots"
+    )
+    assert not tuple(root.glob("native-image-*")), "Confirmed original staging must be removed."
+
+
+@pytest.mark.parametrize("replacement", ["observer", "budget", "proof", "selection"])
+def test_ReplacementOwnerSubclassesRefuseBeforeAnyOverrideOrProvider(collector, replacement):
+    """The additive closed path never accepts caller replacements for material or ledger owners."""
+
+    called = []
+
+    class ReplacementObserver(bounded.NativeImageMaterialObserver):
+        """Model a caller replacement whose material callbacks must remain unreachable."""
+
+        async def Observe(self, *args, **kwargs):
+            """Record an impermissible replacement callback if reached."""
+
+            called.append("observer-observe")
+            raise AssertionError("Replacement observer was invoked")
+
+        def CheckCurrent(self, *args, **kwargs):
+            """Record an impermissible replacement check if reached."""
+
+            called.append("observer-check")
+            raise AssertionError("Replacement observer was invoked")
+
+    class ReplacementBudget(bounded.NativeImageObservationBudget):
+        """Model a caller replacement for the original cumulative reserve."""
+
+        def BeginFinalization(self):
+            """Record an impermissible replacement reserve callback if reached."""
+
+            called.append("budget")
+            raise AssertionError("Replacement budget was invoked")
+
+    class ReplacementProof(bounded.NativeImageMaterialProof):
+        """Model a caller replacement for fixed immutable material facts."""
+
+        def Metadata(self):
+            """Record an impermissible replacement proof callback if reached."""
+
+            called.append("proof")
+            raise AssertionError("Replacement proof was invoked")
+
+    class ReplacementSelection(legacy.NativeTrivySelection):
+        """Model a caller replacement for the original finite provider factory."""
+
+        def Adapter(self, *args, **kwargs):
+            """Record an impermissible replacement factory callback if reached."""
+
+            called.append("selection")
+            raise AssertionError("Replacement selection was invoked")
+
+    options = {}
+
+    if replacement == "observer":
+        options[replacement] = ReplacementObserver(collector.selection,
+            collector.observer.workspace_id, collector.observer.owner_reference)
+
+    elif replacement == "budget":
+        options[replacement] = ReplacementBudget()
+
+    elif replacement == "proof":
+        options[replacement] = ReplacementProof(**{
+            field.name: getattr(collector.initial, field.name)
+            for field in fields(bounded.NativeImageMaterialProof)})
+
+    else:
+        options[replacement] = ReplacementSelection(**{
+            field.name: getattr(collector.selection, field.name)
+            for field in fields(legacy.NativeTrivySelection)})
+
+    with pytest.raises(ValueError, match="original typed owners"):
+        collector.run(collector.Capture(**options))
+
+    assert called == [] and collector.state.calls == [], (
+        "A replacement material owner, ledger, proof or factory must remain wholly uninvoked"
+    )
+    assert not tuple(collector.selection.workspace_root.glob("native-image-*")), (
+        "Refused replacement owners must not create collector journal or execution scratch"
+    )
+
+
+@pytest.mark.parametrize("schema", [2.0, True])
+def test_NonIntegerObservedDatabaseSchemaNeverEstablishesScanPrerequisite(collector, schema):
+    """Python numeric equality cannot weaken historical exact-integer schema admission."""
+
+    metadata = collector.initial.Metadata()
+    metadata["Version"] = schema
+    collector.state.raw = json.dumps({"Version": "0.75.0", "VulnerabilityDB": metadata}).encode()
+    version = collector.run(collector.Capture())
+    assert version.capture.refusal == "material-or-version-unverified" and (
+        version.capture.observed_version is None
+    ), "Only an exact observed integer schema two may establish a supported VERSION."
+
+    with pytest.raises(ValueError):
+        collector.run(collector.Capture(legacy.NativeTrivyOperation.SCAN,
+            prerequisite=version.capture, proof=version.material_proof or collector.initial))
+
+    assert len(collector.state.calls) == 1, "An invalid observed database schema launched SCAN."
+
+
+@pytest.mark.parametrize("selected_field", ["executable", "cache_directory", "read_consent"])
+def test_ProofForDifferentSelectedMaterialNeverStartsProvider(collector, selected_field):
+    """A same-workspace proof cannot cover a different executable, cache or consent."""
+
+    changes = {"executable": collector.selection.workspace_root / "different-executable",
+        "cache_directory": "different-cache",
+        "read_consent": replace(collector.selection.read_consent, record_ref="read:different")}
+    selected = replace(collector.selection, **{selected_field: changes[selected_field]})
+
+    with pytest.raises(ValueError, match="selected material differ"):
+        collector.run(collector.Capture(selection=selected))
+
+    assert collector.state.calls == [], "A proof for material A reached selected provider B."
+    assert not tuple(collector.selection.workspace_root.glob("native-image-*")), (
+        "An unassociated selection cannot create private custody or execution scratch"
+    )
+
+
+def test_ObserverSelectionChangeAtReadyRefusesBeforeProviderStart(collector):
+    """The final owned READY hook repeats full selected-material association after fresh policy."""
+
+    checks = []
+
+    def Revalidate(request):
+        """Mutate only at the synthetic second owned launch hook, after initial process setup."""
+
+        checks.append(request)
+
+        if len(checks) == 2:
+            collector.observer.selection = replace(collector.selection,
+                cache_directory="different-cache")
+
+    with pytest.raises(bounded.NativeImageBoundedCaptureError):
+        collector.run(collector.Capture(validate_authority=Revalidate))
+
+    assert len(checks) == 2 and not collector.state.started.is_set(), (
+        "A READY-time observer selection change must refuse before any provider-start event"
+    )
+    assert len(collector.wire.calls) == 1, "Changed association cannot start a post-read helper."
+
+
+def test_ReplacedSiblingScratchCannotBeRemovedAsOwnedJournalCleanup(tmp_path):
+    """The journal cleanup owner independently binds the original sibling scratch inode."""
+
+    if os.name == "nt":
+        pytest.skip("Actual private permissions require POSIX; portable doubles are separate")
+
+    journal = bounded.OutcomeJournal(tmp_path)
+    original = tmp_path / "original-scratch"
+
+    try:
+        journal.scratch.rename(original)
+        journal.scratch.mkdir(mode=0o700)
+
+        with pytest.raises(ValueError, match="identity differs"):
+            journal.RemoveConfirmed()
+
+        assert original.is_dir() and journal.scratch.is_dir() and journal.path.is_file(), (
+            "Refused scratch substitution must preserve replacement and original recovery bytes"
+        )
 
     finally:
         journal.Close()
