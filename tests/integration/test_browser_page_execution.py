@@ -56,6 +56,10 @@ from fuzzy1337.scope import (
     TargetKind,
 )
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
+from tests.contract.browser_tree_diagnostics import (
+    AwaitBrowserReadiness,
+    WriteBrowserTreeDiagnostics,
+)
 from tests.contract.page_capture_fixture import NOW, Run
 from tests.integration.test_page_capture_execution import OwnedWireServer
 
@@ -433,6 +437,7 @@ def test_ActualNodeAndChromiumAreReapedBeforeStoppedExecutionReturns(owned_brows
     """Stop a genuine ready engine tree and check known identities before fallback teardown."""
 
     root = owned_browser_tree
+    diagnostics = []
 
     async def Execute():
         """Use explicit actual-ready stdout for cancellation, never race a fast normal render."""
@@ -441,9 +446,12 @@ def test_ActualNodeAndChromiumAreReapedBeforeStoppedExecutionReturns(owned_brows
         cancellation = asyncio.Event()
         ready_marker = b"owned-browser-ready\n"
         ready_bytes = bytearray()
+        observed_events = []
 
         def Observe(event: ExecutionEvent) -> None:
             """Acknowledge the exact bounded readiness stream across arbitrary read chunks."""
+
+            observed_events.append(event)
 
             if event.kind is ExecutionEventKind.STDOUT:
                 remaining = len(ready_marker) + 1 - len(ready_bytes)
@@ -452,24 +460,63 @@ def test_ActualNodeAndChromiumAreReapedBeforeStoppedExecutionReturns(owned_brows
                 if ready_bytes == ready_marker:
                     ready_output.set()
 
-        task = asyncio.create_task(LocalExecutor(root).Execute(TreeRequest(root),
+        request = TreeRequest(root)
+        task = asyncio.create_task(LocalExecutor(root).Execute(request,
             own_descendants=True, cancellation=cancellation, on_event=Observe))
+        result = None
+        error = None
+        wait_outcome = "not-observed"
 
         try:
             if stop == "cancellation":
-                await asyncio.wait_for(ready_output.wait(), 7)
-                cancellation.set()
+                wait_outcome = await AwaitBrowserReadiness(task, ready_output, timeout_seconds=7)
 
-            return await task
+                if wait_outcome in {"ready", "readiness-deadline"}:
+                    cancellation.set()
+
+            else:
+                wait_outcome = "timeout-terminal-wait"
+
+            result = await task
+
+            if stop == "timeout":
+                wait_outcome = "ready" if ready_output.is_set() else "execution-complete"
+
+            return result, wait_outcome
+
+        except BaseException as caught:
+            error = caught
+
+            raise
 
         finally:
             if not task.done():
-                task.cancel()
+                cancellation.set()
 
-            await asyncio.gather(task, return_exceptions=True)
+            settled = (await asyncio.gather(task, return_exceptions=True))[0]
 
-    result = asyncio.run(Execute())
-    assert (root / "ready.json").is_file(), "The actual Node/Chromium page never became ready"
+            if isinstance(settled, BaseException):
+                error = error or settled
+
+            elif result is None:
+                result = settled
+
+            summary = WriteBrowserTreeDiagnostics(
+                Path("functional-evidence") / f"browser-owner-{stop}.json", root, request,
+                result=result, error=error, observed_events=tuple(observed_events),
+                ready_bytes=bytes(ready_bytes), wait_outcome=wait_outcome)
+            diagnostics.append(summary)
+
+            if error is not None:
+                error.add_note(summary)
+
+    result, wait_outcome = asyncio.run(Execute())
+    assert wait_outcome == "ready", (
+        "Actual browser readiness was not established: " + diagnostics[-1]
+    )
+    assert (root / "ready.json").is_file(), (
+        "The actual Node/Chromium page never became ready: " + diagnostics[-1]
+    )
     ready = json.loads((root / "ready.json").read_text(encoding="utf-8"))
     oracle = Oracle()
     assert ready == {"playwright_version": oracle["playwright_version"],

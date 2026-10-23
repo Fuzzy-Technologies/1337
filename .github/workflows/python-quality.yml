@@ -79,7 +79,9 @@ jobs:
   browser-page-quality:
     if: >-
       github.event_name == 'push' || (github.event_name == 'pull_request'
-      && github.event.pull_request.draft == false)
+      && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[browser-feature-checkpoint]'))
     name: Offline browser page acceptance
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -99,7 +101,7 @@ jobs:
       - name: Install the pinned Chromium headless shell
         run: >-
           uv run --locked --extra dev --extra browser
-          python -m playwright install --with-deps chromium --only-shell
+          python -m playwright install chromium --only-shell
       - name: Verify real browser descendant cancellation and timeout
         env:
           FUZZY1337_RUN_PLAYWRIGHT_ACCEPTANCE: "1"
@@ -121,7 +123,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-page-acceptance
-          path: functional-evidence/browser-*.xml
+          path: functional-evidence/browser-*
           if-no-files-found: ignore
           retention-days: 14
 

@@ -21,6 +21,11 @@ INTEGRATION_CONDITION = (
     "github.event_name == 'push' || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == false)"
 )
+BROWSER_FEATURE_CONDITION = (
+    INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
+    "&& github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, '[browser-feature-checkpoint]'))"
+)
 
 
 def Workflow(name: str) -> dict[str, Any]:
@@ -65,8 +70,11 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     for job_id in WORKFLOWS[name]:
         job = jobs[job_id]
         condition = " ".join(str(job.get("if", "")).split())
-        assert condition == INTEGRATION_CONDITION, (
-            f"{name}/{job_id} must wait for a ready PR or the existing stable push."
+        expected_condition = (
+            BROWSER_FEATURE_CONDITION if job_id == "browser-page-quality"
+            else INTEGRATION_CONDITION)
+        assert condition == expected_condition, (
+            f"{name}/{job_id} lost its final gate or explicit browser-only feature checkpoint."
         )
         assert job.get("continue-on-error", False) is False, "Full gate failures became advisory."
         assert job["steps"], "Required integration work was replaced with an empty job."
@@ -92,7 +100,7 @@ def test_OfflineBrowserAcceptanceRequiresAnInstalledEngineAndSeparatesTheOwnedFi
     commands = tuple(step for step in job["steps"] if "run" in step)
     assert any("uv sync --locked --extra dev --extra browser" in step["run"]
                for step in commands), "The pinned optional browser dependency was not installed."
-    assert any("python -m playwright install --with-deps chromium --only-shell" in step["run"]
+    assert any("python -m playwright install chromium --only-shell" in step["run"]
                for step in commands), "Actual pinned Chromium installation was omitted."
     tests = tuple(step for step in commands if "test_browser_page_execution.py" in step["run"])
     assert len(tests) == 2, "Browser acceptance no longer separates owner and fixed-port cases."

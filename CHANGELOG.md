@@ -18,6 +18,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added an explicit browser-only draft CI checkpoint for supported genuine engine
+  diagnostics. Full integration still starts only at final readiness; browser
+  setup downloads the pinned headless shell without an unrelated OS upgrade.
+
 - Added an explicit optional offline Chromium page renderer over one completely
   verified owned-loopback acquisition. Separate SAFE permission, closed body and
   report profiles, disabled page JavaScript and verified Linux descendant cleanup
