@@ -15661,7 +15661,7 @@ state = "missing"
 id = "page:api.fuzzy1337.api-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.api_commands.md"
-sourceHash = "sha256:5719ef1e469a40d5e5a86f7cf23d8403a0f6289b4f8f79e637ac6c2c653bbf85"
+sourceHash = "sha256:e86690530655dd2218dfe67526d1dfae90e8ce50dc8f3c35a60fb944c455bf2b"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -15782,7 +15782,7 @@ state = "missing"
 id = "symbol:fuzzy1337.api_commands.RequireApiRecord"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/api_commands.py"
-sourceHash = "sha256:223e792b70be0f8b4c00c845f7642029602f45ca49d0ba2174a30860fc0387a2"
+sourceHash = "sha256:95ebcb1b0895893857d224041cabdb7d7d7040889a4554f81bafc339ce8dcf08"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -16664,6 +16664,127 @@ id = "symbol:fuzzy1337.adapters.native_web.NativeWebParameters"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/native_web.py"
 sourceHash = "sha256:3242b6e9f1112dbbd30663f910ba6589df11c9b86cf1e7498cad65dc69e8fb21"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.openapi-commands"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.openapi_commands.md"
+sourceHash = "sha256:722d0f046f0556ddf8fa96876d39a42b323861e52df46d8a17502593e0999318"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.api_commands.ReadOwnedApiFile"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/api_commands.py"
+sourceHash = "sha256:70629fa287bee3b56a50d719ce93baca00ef66bd01338a1865c9813e974043db"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.CheckOpenApiScope"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:cdd4d47b6e25c971ff62142ddba1e5b045f1e5ab6cfe3b28143319ea4625bd2f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.KnownOpenApiFacts"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:dea743265473ef4dc04ecaa0b9719d0af5653e71b959e0e31af58ca116de31bd"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.OpenApiAttribution"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:59e43727fa7e59ec81c57ad0fb7a7297d44ba23329d839bd6b22c5d9f059561d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.OpenApiBase"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:e67ff55ccc1602b77b75890467f24f9dfb01c82dfc409600c6893dbe62d0007e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.OpenApiEndpoint"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:985a7ef24543a6a6d918c801997c41ebee7c9fba130a5f7c10cd194c614d92e3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.OpenApiParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:467101ee0a8c4dcf1962a87799f930828858ca906e242cf487f32f6ec3a7ee25"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.OpenApiProjection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:fd5060d13733c712b628e70f17c5e9482a2b5d95b04fac12581bcde97a5221ca"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.PreflightKnownOpenApiReferences"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:657e31560ac0b0b419276a07801086e753d2cd5bbba176145cf282799a893951"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.openapi_commands.RunOpenApiCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/openapi_commands.py"
+sourceHash = "sha256:8e5fc41452f90541958dcc22ccc21210f7a6f5c9d160360dd638c9c6caff130e"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

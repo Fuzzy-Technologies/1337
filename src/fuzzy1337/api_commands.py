@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Internal bounded original GraphQL import with independent storage acknowledgements."""
+"""Internal original GraphQL input and shared closed-profile API product custody."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import os
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import TextIO
 from urllib.parse import urlsplit
 
@@ -47,6 +48,7 @@ from fuzzy1337.model import (
     Relation,
     SecurityObject,
 )
+from fuzzy1337.openapi import MAX_OPENAPI_BYTES
 from fuzzy1337.policy import UtcNow
 from fuzzy1337.report_commands import MAX_EXPORT_ACQUISITIONS, OpenReportInput
 from fuzzy1337.requests import Endpoint
@@ -70,15 +72,21 @@ from fuzzy1337.workspace import (
 _PROFILE = "graphql-introspection"
 _SOURCE_ID = "graphql-import"
 _SOURCE_VERSION = "1"
+_ORIGINAL_PROFILES = MappingProxyType({
+    _PROFILE: (_SOURCE_ID, MAX_GRAPHQL_BYTES),
+    "openapi-json": ("openapi-import", MAX_OPENAPI_BYTES),
+})
 
 
-def RequireApiRecord(record: EvidenceRecord, workspace_id: str, scope_reference: str) -> None:
+def RequireApiRecord(record: EvidenceRecord, workspace_id: str, scope_reference: str,
+                     *, profile: str = _PROFILE) -> None:
     """Check exact nominal original records and full closed collection context before raw access.
 
     Args:
         record: Owning manifest selection, never an imported symbolic description.
         workspace_id: Current independently opened model/workspace identity.
         scope_reference: Exact existing selected scope, not an execution authorization.
+        profile: One closed original-input role; GraphQL remains the existing default.
     """
 
     if (
@@ -88,17 +96,18 @@ def RequireApiRecord(record: EvidenceRecord, workspace_id: str, scope_reference:
     ):
         raise RuntimeFailure("integrity")
 
+    source_id, maximum = _ORIGINAL_PROFILES[profile]
     reference, source = record.reference, record.provenance
 
     if (
-        reference.role != _PROFILE
+        reference.role != profile
         or reference.media_type != "application/json"
         or (
             type(reference.size_bytes) is not int
-            or not 1 <= reference.size_bytes <= MAX_GRAPHQL_BYTES
+            or not 1 <= reference.size_bytes <= maximum
             or source.workspace_id != workspace_id
             or source.scope_reference != scope_reference
-            or source.source_id != _SOURCE_ID
+            or source.source_id != source_id
             or source.source_version != _SOURCE_VERSION
             or source.tool_version is not None
             or source.invocation_sha256 is not None
@@ -112,12 +121,17 @@ def RequireApiRecord(record: EvidenceRecord, workspace_id: str, scope_reference:
 class ApiEvidenceStore(LocalEvidenceStore):
     """Preflight original manifests before the existing evidence owner's eager raw verification."""
 
-    def __init__(self, root: Path, workspace_id: str, scope_reference: str) -> None:
+    def __init__(self, root: Path, workspace_id: str, scope_reference: str,
+                 *, profile: str = _PROFILE) -> None:
         """Retain exact local context without opening any manifest or blob."""
 
         super().__init__(root)
+        if profile not in _ORIGINAL_PROFILES:
+            raise RuntimeFailure("configuration", 2)
+
         self.workspace_id = workspace_id
         self.scope_reference = scope_reference
+        self.profile = profile
 
     def Manifest(self, evidence_id: str) -> EvidenceRecord:
         """Verify the original manifest identity, profile, bounds and context without raw access.
@@ -136,7 +150,7 @@ class ApiEvidenceStore(LocalEvidenceStore):
         RequireEvidenceDigest(digest)
         data = self.ReadStoredBytes(("records", digest + ".json"), EVIDENCE_MANIFEST_MAX_BYTES)
         record = ParseEvidenceManifest(data)
-        RequireApiRecord(record, self.workspace_id, self.scope_reference)
+        RequireApiRecord(record, self.workspace_id, self.scope_reference, profile=self.profile)
 
         if record.evidence_id != evidence_id:
             raise RuntimeFailure("integrity")
@@ -167,11 +181,11 @@ class ApiEvidenceStore(LocalEvidenceStore):
 
         if (
             type(reference) is not EvidenceReference
-            or reference.role != _PROFILE
+            or reference.role != self.profile
             or (
                 reference.media_type != "application/json"
                 or type(reference.size_bytes) is not int
-                or not 1 <= reference.size_bytes <= MAX_GRAPHQL_BYTES
+                or not 1 <= reference.size_bytes <= _ORIGINAL_PROFILES[self.profile][1]
             )
         ):
             raise RuntimeFailure("integrity")
@@ -216,6 +230,27 @@ def ReadOwnedGraphQl(
         Complete unmodified bytes and actual acquisition timestamps.
     """
 
+    return ReadOwnedApiFile(path, consent, clock, maximum=MAX_GRAPHQL_BYTES)
+
+
+def ReadOwnedApiFile(
+    path: Path, consent: ArtifactReadConsent, clock: Callable[[], datetime], *, maximum: int,
+) -> tuple[bytes, str, str]:
+    """Read one original physical file within a selected existing API profile's ceiling.
+
+    Args:
+        path: Explicit source path with links and observed replacement refused.
+        consent: Separate explicit artifact-read actor and original-read record.
+        clock: Aware timestamps immediately around the bounded original acquisition.
+        maximum: Either the closed GraphQL or OpenAPI original-byte limit.
+
+    Returns:
+        Unmodified complete source bytes and acquisition start/finish timestamps.
+    """
+
+    if maximum not in (MAX_GRAPHQL_BYTES, MAX_OPENAPI_BYTES):
+        raise RuntimeFailure("configuration", 2)
+
     if type(consent) is not ArtifactReadConsent:
         raise RuntimeFailure("configuration", 2)
 
@@ -226,7 +261,7 @@ def ReadOwnedGraphQl(
     if before.st_nlink != 1:
         raise RuntimeFailure("configuration", 2)
 
-    if not 1 <= before.st_size <= MAX_GRAPHQL_BYTES:
+    if not 1 <= before.st_size <= maximum:
         raise RuntimeFailure("limit")
 
     started = clock().isoformat()
@@ -237,7 +272,7 @@ def ReadOwnedGraphQl(
         if opened.st_nlink != 1 or not MatchesArtifactReadIdentity(before, opened):
             raise RuntimeFailure("source-changed")
 
-        raw = stream.read(MAX_GRAPHQL_BYTES + 1)
+        raw = stream.read(maximum + 1)
         finished = clock().isoformat()
         closed = os.fstat(stream.fileno())
 
@@ -276,7 +311,12 @@ def ApiParser() -> argparse.ArgumentParser:
     --expected-revision MODEL_REV --expected-workspace-revision WS_REV
 Retained evidence requires known original custody with unchanged endpoint/run/scope.
 Occupied incompatible API collections are refused.
-Refresh and source composition are not supplied.""",
+Refresh and source composition are not supplied.
+  import openapi-json WORKSPACE
+    (--file FILE --owner ACTOR --read-consent-reference REF | --evidence sha256:MANIFEST)
+    --scope SCOPE --run RUN_REF [--base-url CANONICAL_URL]
+    --expected-revision MODEL_REV --expected-workspace-revision WS_REV
+OpenAPI JSON imports every operation and requires concrete endpoint paths.""",
     )
     actions = parser.add_subparsers(
         dest="action", required=True, parser_class=RuntimeArgumentParser
@@ -402,7 +442,8 @@ def PreflightApiReferences(state: ModelState, workspace: WorkspaceState,
         evidence: Actual original evidence owner; unrelated blobs retain their own bounds.
     """
 
-    RequireApiRecord(record, workspace.workspace_id, evidence.scope_reference)
+    RequireApiRecord(record, workspace.workspace_id, evidence.scope_reference,
+                     profile=evidence.profile)
     reference = record.reference
     evidence.CheckReference(reference)
 
@@ -429,6 +470,9 @@ def PreflightKnownApiReferences(state: ModelState, workspace: WorkspaceState,
         evidence: Current evidence partition; each original keeps its own recorded scope.
     """
 
+    from fuzzy1337.openapi_commands import PreflightKnownOpenApiReferences
+
+    PreflightKnownOpenApiReferences(state, workspace, evidence.root)
     record_ids = set(workspace.evidence_record_references)
     custody: dict[str, list[Observation]] = {}
 
@@ -522,6 +566,11 @@ def RunApiCommands(
         Zero on success, two for configuration refusal, four for other failures, or 130 on
         interruption. Unknown acknowledgements may have committed; no rollback is claimed.
     """
+
+    if len(arguments) >= 2 and tuple(arguments[:2]) == ("import", "openapi-json"):
+        from fuzzy1337.openapi_commands import RunOpenApiCommands
+
+        return RunOpenApiCommands(arguments, output, json_output=json_output, clock=clock)
 
     parser = ApiParser()
 
@@ -677,6 +726,7 @@ def RunApiCommands(
             raise RuntimeFailure("integrity")
 
         RequireApiRecord(record, workspace.workspace_id, scope.Reference())
+        PreflightApiReferences(basis, workspace, record, evidence)
         source = record.provenance
         provenance = ModelProvenance(
             _SOURCE_ID,

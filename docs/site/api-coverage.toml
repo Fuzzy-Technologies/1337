@@ -26,6 +26,13 @@ mode = "authored"
 page = "api/fuzzy1337.api_commands.md"
 
 [[surfaces]]
+# Internal controller for the closed Experimental owned OpenAPI JSON product route.
+module = "fuzzy1337.openapi_commands"
+source = "src/fuzzy1337/openapi_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.openapi_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.ioc_commands"
 source = "src/fuzzy1337/ioc_commands.py"
 mode = "authored"

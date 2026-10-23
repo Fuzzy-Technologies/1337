@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added owned original JSON OpenAPI/Swagger import through the installed console
+  and foreground shell. The bounded concrete-endpoint profile preserves complete
+  operation/source custody, explicit resolution context and independent storage
+  acknowledgements, with current scope/revision checks and relocated replay.
+  Shared preflights preserve separate GraphQL and OpenAPI original-source bounds.
+
 - Added a separately confirmed native owned-loopback file-canary response check,
   with a closed fixed query profile, dedicated scope registration and existing
   request-template/injection references. Independent actual-worker acceptance
