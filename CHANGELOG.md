@@ -18,6 +18,14 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added an explicitly confirmed first-party Git HEAD response check through
+  `1337 scan web`, the foreground shell and governed SDK execution. The native
+  worker needs no external scanner; canonical Findings, immutable bounded worker
+  reports and durable reopen retain actual execution provenance. HTTP response
+  bodies stay transient; failed transport is unassessed and no-match is limited
+  to the selected response predicate. Independent owned-target acceptance covers
+  exposure, fixed denial, HTML decoy and unfollowed redirect.
+
 - Added owned self-signed TLS certificate rejection coverage through the actual
   Quick Scan worker, with independent verifying-client and server observations,
   original fixed-code evidence, denial-before-contact, partial-state preservation

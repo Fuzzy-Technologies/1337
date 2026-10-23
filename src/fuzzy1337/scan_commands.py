@@ -15,6 +15,7 @@ from typing import NoReturn, TextIO
 from urllib.parse import urlsplit
 
 from fuzzy1337.adapters import SerializeContract
+from fuzzy1337.adapters.native_web import NativeWebEndpoint
 from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactReadConsent
 from fuzzy1337.configuration_workflow import (
     ConfigurationScanSelection,
@@ -26,6 +27,13 @@ from fuzzy1337.evidence import EvidenceError, LocalEvidenceStore
 from fuzzy1337.image_workflow import ImageScanSelection, ImageScanSummary, RunSyntheticImageScan
 from fuzzy1337.jobs import JobEvent, JobEventKind
 from fuzzy1337.model import LocalModelStore, ObjectKind
+from fuzzy1337.native_web import (
+    NativeWebAuthorityDeniedError,
+    NativeWebScanLimits,
+    NativeWebScanSummary,
+    PlanNativeWebScan,
+    RunNativeWebScan,
+)
 from fuzzy1337.nucleiscan import (
     NucleiAuthorityDeniedError,
     NucleiScanLimits,
@@ -271,6 +279,19 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         nuclei.add_argument("--confirm-plan")
         nuclei.add_argument("--confirmation-reference")
         nuclei.add_argument("--events-json", action="store_true")
+        web = actions.add_parser("web", help="Plan/run a first-party STANDARD web check.")
+        web.add_argument("path", type=Path)
+        web.add_argument("--check", choices=("git-head-exposure",), required=True)
+        web.add_argument("--scope", required=True)
+        web.add_argument("--owner", required=True)
+        web.add_argument("--target", required=True)
+        web.add_argument("--policy", type=Path, required=True)
+        web.add_argument("--request-timeout", type=float, default=3.0)
+        web.add_argument("--timeout", type=int, default=10)
+        web.add_argument("--plan", action="store_true")
+        web.add_argument("--confirm-plan")
+        web.add_argument("--confirmation-reference")
+        web.add_argument("--events-json", action="store_true")
         image = actions.add_parser("image", help="Run the closed synthetic image workflow.")
         image.add_argument("path", type=Path)
         image.add_argument("--profile", choices=("synthetic",), required=True,
@@ -357,7 +378,7 @@ def RunCommands(
     ):
         parser.error("supply both report format and new output destination")
 
-    if command == "scan" and arguments.action == "nuclei":
+    if command == "scan" and arguments.action in {"nuclei", "web"}:
         if bool(arguments.confirm_plan) != bool(arguments.confirmation_reference):
             parser.error("supply both exact plan digest and confirmation record reference")
 
@@ -373,15 +394,28 @@ def RunCommands(
             document = CreateScope(arguments.path, arguments)
 
         else:
-            if arguments.action == "nuclei":
-                profile = ReadNucleiProfile(arguments.profile)
-                nuclei_limits = NucleiScanLimits(arguments.timeout, arguments.rate_limit)
-                target = Endpoint(arguments.target)
+            if arguments.action in {"nuclei", "web"}:
+                target = (NativeWebEndpoint(arguments.target)[0]
+                          if arguments.action == "web" else Endpoint(arguments.target))
 
                 def ReadPolicy() -> ImpactPolicy:
                     """Reread the selected strict local policy at every authority boundary."""
 
                     return ReadNucleiPolicy(arguments.policy)
+
+            if arguments.action == "web":
+                web_limits = NativeWebScanLimits(arguments.request_timeout, arguments.timeout)
+
+                if arguments.plan:
+                    web_plan = PlanNativeWebScan(arguments.path, arguments.scope, target,
+                        arguments.owner, ReadPolicy, limits=web_limits)
+                    WriteJson(output, web_plan.ToDict())
+
+                    return 0
+
+            elif arguments.action == "nuclei":
+                profile = ReadNucleiProfile(arguments.profile)
+                nuclei_limits = NucleiScanLimits(arguments.timeout, arguments.rate_limit)
 
                 if arguments.plan:
                     plan = PlanNucleiScan(arguments.path, arguments.scope, target, arguments.owner,
@@ -407,9 +441,19 @@ def RunCommands(
 
                     output.flush()
 
-            if arguments.action == "nuclei":
-                summary: (NucleiScanSummary | QuickScanSummary | ImageScanSummary
-                          | ConfigurationScanSummary) = asyncio.run(
+            if arguments.action == "web":
+                summary: (NativeWebScanSummary | NucleiScanSummary | QuickScanSummary
+                          | ImageScanSummary | ConfigurationScanSummary) = asyncio.run(
+                    RunNativeWebScan(
+                        arguments.path, arguments.scope, target, arguments.owner, ReadPolicy,
+                        confirmation=PolicyConfirmation(arguments.confirm_plan,
+                            arguments.confirmation_reference) if arguments.confirm_plan else None,
+                        limits=web_limits, on_event=OnEvent,
+                    )
+                )
+
+            elif arguments.action == "nuclei":
+                summary = asyncio.run(
                     RunNucleiScan(
                         arguments.path, arguments.scope, target, arguments.owner, profile,
                         arguments.executable, ReadPolicy,
@@ -465,7 +509,8 @@ def RunCommands(
                 WriteJson(output, document)
 
             else:
-                label = {"nuclei": "Nuclei Scan", "image": "Synthetic Image Scan",
+                label = {"web": "Native Web Scan", "nuclei": "Nuclei Scan",
+                         "image": "Synthetic Image Scan",
                          "config": "Synthetic Configuration Scan",
                          "quick": "Quick Scan"}[arguments.action]
                 output.write(f"{label} {summary.snapshot.state.value}; "
@@ -476,7 +521,7 @@ def RunCommands(
 
             return summary.ExitCode()
 
-    except (NucleiAuthorityDeniedError, PolicyDeniedError):
+    except (NativeWebAuthorityDeniedError, NucleiAuthorityDeniedError, PolicyDeniedError):
         WriteJson(output, {"schema_version": 1, "state": "failed",
                            "failure": {"code": "authorization",
                                        "message": "Current scan authority denied execution"}})

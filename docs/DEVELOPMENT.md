@@ -39,6 +39,9 @@ Current development workflows additionally expose
 [bounded Quick Scan](QUICK_SCAN.md) and [Offline report export](REPORT_EXPORT.md).
 The latter reads an explicitly selected existing workspace and publishes new
 JSON/SARIF output without a job, provider process or target contact.
+The [first-party native web check](NATIVE_WEB_CHECKS.md) uses `scan web` with an
+explicit STANDARD policy and exact-plan confirmation; no external scanner is
+required for its bounded Git HEAD exposure predicate.
 
 | Command                                | Behavior                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |
