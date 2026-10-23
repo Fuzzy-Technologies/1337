@@ -115,7 +115,7 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
         plan = PlanPortScan(root, "local", target, "operator:owned", ports, selected,
                             Policy, limits=limits)
         NoConnection(listening)
-        assert plan.invocation.provider_version == PINNED_VERSION
+        assert plan.invocation.provider_version == PINNED_VERSION, "Provider version differs"
         assert plan.invocation.argv == (selected, "--unprivileged", "-n", "-Pn", "-sT",
             "-p", ",".join(str(port) for port in sorted(ports)), "--host-timeout", "15s",
             "-oX", "-", "127.0.0.1"), "The product changed the reviewed finite command"
@@ -124,26 +124,36 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
         observed = []
         summary = asyncio.run(RunPortScan(root, "local", target, "operator:owned", ports,
             selected, Policy, limits=limits, confirmation=confirmation, on_event=observed.append))
-        assert summary.ExitCode() == 0 and summary.snapshot.state is JobState.COMPLETED
+        assert summary.ExitCode() == 0 and summary.snapshot.state is JobState.COMPLETED, (
+            "The confirmed genuine SDK job must complete successfully"
+        )
         assert observed == list(summary.events), "Actual presentation events lost their owner order"
         assert len(summary.snapshot.artifacts) == 2, "Both original streams need durable custody"
         store = LocalEvidenceStore(root / "evidence")
         roles = {item.evidence.reference.role: item.evidence for item in summary.snapshot.artifacts}
-        assert set(roles) == {"stdout", "stderr"}
+        assert set(roles) == {"stdout", "stderr"}, "Actual stream custody roles differ"
 
         for role, record in roles.items():
-            assert store.Get(record.evidence_id) == record
-            assert record.provenance.invocation_sha256 == InvocationDigest(plan.invocation)
-            assert record.provenance.tool_version == PINNED_VERSION
+            assert store.Get(record.evidence_id) == record, "Original acquisition record changed"
+            assert record.provenance.invocation_sha256 == InvocationDigest(plan.invocation), (
+                "Raw custody must bind the exact planned invocation"
+            )
+            assert record.provenance.tool_version == PINNED_VERSION, "Custody version differs"
             raw = store.Read(record.reference)
-            assert hashlib.sha256(raw).hexdigest() == record.reference.sha256
+            assert hashlib.sha256(raw).hexdigest() == record.reference.sha256, (
+                "The actual original stream no longer matches its retained digest"
+            )
             (EVIDENCE / (role + ".raw")).write_bytes(raw)
 
         xml = ElementTree.fromstring(store.Read(roles["stdout"].reference))
-        assert xml.get("scanner") == "nmap" and xml.get("version") == PINNED_VERSION
-        assert xml.find("runstats/finished").get("exit") == "success"
+        assert xml.get("scanner") == "nmap" and xml.get("version") == PINNED_VERSION, (
+            "Original XML provider identity differs from the pinned genuine binary"
+        )
+        assert xml.find("runstats/finished").get("exit") == "success", "XML completion differs"
         host = xml.find("host")
-        assert host is not None and host.find("address").get("addr") == "127.0.0.1"
+        assert host is not None and host.find("address").get("addr") == "127.0.0.1", (
+            "Original host observation escaped the exact approved loopback target"
+        )
         explicit = {int(item.get("portid")): item.find("state").get("state")
                     for item in host.findall("ports/port")}
         assert set(explicit) <= set(ports), "Original tool output escaped the selected finite ports"
@@ -159,15 +169,19 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
 
         state = LocalModelStore(root).Open()
         hosts = state.Objects(ObjectKind.HOST)
-        assert len(hosts) == 1 and hosts[0].identity.key == "127.0.0.1"
+        assert len(hosts) == 1 and hosts[0].identity.key == "127.0.0.1", (
+            "Canonical Host must use the existing exact address identity"
+        )
         actual_ports = {int(item.attributes["number"]): item
                         for item in state.Objects(ObjectKind.PORT)}
         assert set(actual_ports) == set(explicit), "Grouped output cannot invent individual ports"
 
         for port, item in actual_ports.items():
-            assert item.identity.key == f"host:127.0.0.1/tcp/{port}"
-            assert item.attributes["state"] == explicit[port]
-            assert item.provenance and item.provenance[-1].evidence_references
+            assert item.identity.key == f"host:127.0.0.1/tcp/{port}", "Canonical Port key differs"
+            assert item.attributes["state"] == explicit[port], "Canonical port state was invented"
+            assert item.provenance and item.provenance[-1].evidence_references, (
+                "Canonical port observations require original evidence attribution"
+            )
 
         assert not Findings(state), "Open ports are discovery observations, not vulnerabilities"
         identities = {item.Reference() for item in state.objects}
@@ -175,13 +189,19 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
             "--target", "127.0.0.1", "--ports", ",".join(map(str, ports)), "--timeout", "15",
             "--policy", str(policy_path), "--executable", selected]
         cli_plan = Console([*arguments, "--plan"])
-        assert cli_plan["intent_sha256"] == plan.policy_plan.intent_sha256
+        assert cli_plan["intent_sha256"] == plan.policy_plan.intent_sha256, (
+            "Installed CLI and SDK must present the same exact operation intent"
+        )
         cli_summary = Console([*arguments, "--confirm-plan", cli_plan["intent_sha256"],
                               "--confirmation-reference", "approval:owned-nmap-console"])
-        assert cli_summary["state"] == "completed" and cli_summary["workflow"] == "ports"
+        assert cli_summary["state"] == "completed" and cli_summary["workflow"] == "ports", (
+            "The installed genuine port-scan command did not complete its owned workflow"
+        )
         repeated = LocalModelStore(root).Open()
-        assert {item.Reference() for item in repeated.objects} == identities
-        assert not Findings(repeated)
+        assert {item.Reference() for item in repeated.objects} == identities, (
+            "Repeated genuine scans must preserve canonical logical object identities"
+        )
+        assert not Findings(repeated), "Repeated port discovery cannot create vulnerabilities"
         (EVIDENCE / "sdk-summary.json").write_text(
             json.dumps(summary.ToDict(), sort_keys=True), encoding="utf-8")
         (EVIDENCE / "cli-summary.json").write_text(json.dumps(cli_summary, sort_keys=True),
@@ -191,9 +211,13 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
     relocated = tmp_path / "relocated workspace"
     shutil.move(str(root), relocated)
     reopened = OpenWorkspace(relocated)
-    assert reopened["verified_evidence_records"] == 4
-    assert CanonicalModelJson(LocalModelStore(relocated).Open()) == canonical
-    assert Console(["workspace", "open", str(relocated)]) == reopened
+    assert reopened["verified_evidence_records"] == 4, "Relocated reopen lost original acquisitions"
+    assert CanonicalModelJson(LocalModelStore(relocated).Open()) == canonical, (
+        "Relocation must preserve the exact saved canonical model"
+    )
+    assert Console(["workspace", "open", str(relocated)]) == reopened, (
+        "Installed CLI and SDK must independently verify the same relocated workspace"
+    )
     oracle = {"schema_version": 1, "profile": "nmap-owned-two-port-product.v1",
         "target": "127.0.0.1", "open_port": open_port, "bound_closed_port": closed_port,
         "expected": {"listening": "open", "bound_nonlistener": "closed_or_grouped_unassessed",
