@@ -29,27 +29,27 @@ class FakeSocket:
         self.sent = b""
         self.timeouts: list[float] = []
 
-    def settimeout(self, value: float) -> None:
+    def SetTimeout(self, value: float) -> None:
         """Observe every remaining-deadline update without renewing a clock."""
 
         self.timeouts.append(value)
 
-    def connect(self, address: tuple[str, int]) -> None:
+    def Connect(self, address: tuple[str, int]) -> None:
         """Record only the exact supplied literal address."""
 
         self.address = address
 
-    def getpeername(self) -> tuple[str, int]:
+    def GetPeerName(self) -> tuple[str, int]:
         """Expose the selected literal peer for actual-destination verification."""
 
         return self.peer, 8080
 
-    def sendall(self, value: bytes) -> None:
+    def SendAll(self, value: bytes) -> None:
         """Capture the one actual exact request without performing I/O."""
 
         self.sent += value
 
-    def recv(self, maximum: int) -> bytes:
+    def Receive(self, maximum: int) -> bytes:
         """Return at most the requested finite number of scripted response bytes."""
 
         if not self.parts:
@@ -62,10 +62,18 @@ class FakeSocket:
 
         return value[:maximum]
 
-    def close(self) -> None:
+    def Close(self) -> None:
         """Make deterministic transport cleanup observable on every outcome."""
 
         self.closed = True
+
+    # Preserve the socket interface while implementations follow the callable contract.
+    settimeout = SetTimeout
+    connect = Connect
+    getpeername = GetPeerName
+    sendall = SendAll
+    recv = Receive
+    close = Close
 
 
 def Header(body: bytes = BODY) -> bytes:
@@ -170,13 +178,15 @@ def test_HttpsUsesVerifiedDefaultTrustAndLiteralServerName(monkeypatch: pytest.M
     class Context:
         """Observe fixed TLS setup without substituting a real network or trust decision."""
 
-        def wrap_socket(self, connection, server_hostname):
+        def WrapSocket(self, connection, server_hostname):
             """Bind the exact literal peer and keep the fixed modern minimum TLS version."""
 
             assert server_hostname == "127.0.0.1", "TLS peer identity was silently changed."
             assert self.minimum_version == ssl.TLSVersion.TLSv1_2, "TLS minimum was weakened."
 
             return connection
+
+        wrap_socket = WrapSocket
 
     monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
     monkeypatch.setattr(worker.ssl, "create_default_context", Context)
@@ -255,7 +265,7 @@ def test_TlsFailureClosesOriginalSocketWithoutDisablingVerification(monkeypatch)
     class RejectingContext:
         """Model default certificate verification refusing its selected synthetic peer."""
 
-        def wrap_socket(self, connection, server_hostname):
+        def WrapSocket(self, connection, server_hostname):
             """Refuse before any HTTP request can be transmitted."""
 
             assert connection is transport and server_hostname == "127.0.0.1", (
@@ -263,6 +273,8 @@ def test_TlsFailureClosesOriginalSocketWithoutDisablingVerification(monkeypatch)
             )
 
             raise ssl.SSLCertVerificationError("synthetic-certificate-rejection")
+
+        wrap_socket = WrapSocket
 
     monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
     monkeypatch.setattr(worker.ssl, "create_default_context", RejectingContext)
