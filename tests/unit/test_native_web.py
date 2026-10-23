@@ -21,7 +21,7 @@ from fuzzy1337.executors import (
     ExecutionTermination,
     LocalExecutionResult,
 )
-from fuzzy1337.findings import Findings
+from fuzzy1337.findings import Findings, FindingStatus, TransitionFinding
 from fuzzy1337.jobs import JobEventKind, JobFailureCode
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.native_web import (
@@ -393,3 +393,89 @@ def test_InvalidInputsAndInitialOwnerPolicyFailuresStayExplicit(workflow):
         PlanNativeWebScan(root, "local", target, "operator:owned", lambda: None)
 
     assert not probe["executed"], "Invalid planning input reached a process boundary."
+
+
+def test_RepeatedDetectionPreservesCanonicalIdentityAndOperatorTriage(workflow, runner):
+    """A fresh native acquisition adds provenance without resetting the operator's disposition."""
+
+    root, target, approval, _ = workflow
+    first = runner.run(RunNativeWebScan(root, "local", target, "operator:owned", Policy,
+                                       confirmation=approval))
+    assert first.ExitCode() == 0, "Initial native acquisition must complete before triage."
+    store = LocalModelStore(root)
+    state = store.Open()
+    finding = Findings(state)[0]
+    reference = finding.ToObject(state.workspace_id).Reference()
+    decision = replace(finding.provenance[0], source_id="operator.triage",
+                       run_reference="decision:owned", execution=None, provider_version=None)
+    triaged, _ = TransitionFinding(state, reference, FindingStatus.DISMISSED, decision,
+                                   "Reviewed owned fixture exposure")
+    store.Save(triaged, expected_revision=state.revision)
+    second = runner.run(RunNativeWebScan(root, "local", target, "operator:owned", Policy,
+                                        confirmation=approval))
+    retained = Findings(store.Open())
+    assert second.ExitCode() == 0 and len(retained) == 1, (
+        "Repeated native acquisition must preserve one canonical finding identity."
+    )
+    assert retained[0].Fingerprint() == finding.Fingerprint(), "Detector identity changed."
+    assert retained[0].status is FindingStatus.DISMISSED and (
+        retained[0].status_reason == "Reviewed owned fixture exposure"
+    ), "A repeated detector update silently overwrote the operator's disposition."
+    assert len(LocalWorkspaceStore(root).Open().evidence_record_references) == 4, (
+        "Both actual acquisitions must retain their independently attributed original streams."
+    )
+
+
+def test_PolicyRevisionOnlyDriftAfterEvidenceCannotReuseTheLaunchGrant(
+    workflow, runner, monkeypatch,
+):
+    """A changed policy revision invalidates the original grant even with identical permissions."""
+
+    root, target, approval, _ = workflow
+    policy = [Policy()]
+    original = native_web.ApplyVerifiedFindings
+
+    def Apply(*args, **kwargs):
+        """Change only current policy revision after real incoming evidence verification."""
+
+        projected = original(*args, **kwargs)
+        policy[0] = replace(policy[0], revision=policy[0].revision + 1)
+
+        return projected
+
+    monkeypatch.setattr(native_web, "ApplyVerifiedFindings", Apply)
+    summary = runner.run(RunNativeWebScan(root, "local", target, "operator:owned",
+                                         lambda: policy[0], confirmation=approval))
+    assert summary.ExitCode() == 3 and summary.model_revision == 0, (
+        "Changed policy revision reused an expired policy snapshot for canonical Save."
+    )
+    assert len(summary.snapshot.artifacts) == 2, "Actual original executions were discarded."
+
+
+@pytest.mark.parametrize("stage", ["authorize", "launch", "save"])
+@pytest.mark.parametrize("error_type", [OSError, PermissionError])
+def test_CurrentPolicyReaderFilesystemFailuresRemainStorageFailures(
+    workflow, runner, stage, error_type,
+):
+    """OS permission/read errors remain distinct from an explicit operator or policy denial."""
+
+    root, target, approval, _ = workflow
+    calls = [0]
+    failed_call = {"authorize": 2, "launch": 3, "save": 4}[stage]
+
+    def ReadPolicy():
+        """Return actual typed policy or fail at the selected fresh authority-read seam."""
+
+        calls[0] += 1
+
+        if calls[0] == failed_call:
+            raise error_type("synthetic-current-policy-read-failure")
+
+        return Policy()
+
+    summary = runner.run(RunNativeWebScan(root, "local", target, "operator:owned", ReadPolicy,
+                                         confirmation=approval))
+    assert summary.ExitCode() == 4 and summary.snapshot.failure.code is JobFailureCode.STORAGE, (
+        "Filesystem access failure was mislabeled as explicit authorization denial."
+    )
+    assert summary.model_revision == 0, "Failed authority reads permitted canonical Save."

@@ -56,7 +56,14 @@ class NativeWebRecordError(ValueError):
 
 
 def NativeWebEndpoint(value: object) -> tuple[Target, str, int, str]:
-    """Require already-canonical exact native destinations without rewriting operator input."""
+    """Require already-canonical exact native destinations without rewriting operator input.
+
+    Args:
+        value: Explicit bounded canonical unicast literal-IP HTTP(S) URL without a query.
+
+    Returns:
+        Exact typed URL target, canonical literal address, effective port and scheme.
+    """
 
     result = Endpoint(value)
 
@@ -67,7 +74,14 @@ def NativeWebEndpoint(value: object) -> tuple[Target, str, int, str]:
 
 
 def CanonicalRecord(record: dict[str, object]) -> bytes:
-    """Encode the sole canonical bounded original worker JSON representation."""
+    """Encode the sole canonical original worker JSON representation.
+
+    Args:
+        record: Fixed safe worker metadata containing only standard finite JSON values.
+
+    Returns:
+        Sorted compact UTF-8 JSON bytes terminated by exactly one LF.
+    """
 
     return (json.dumps(record, sort_keys=True, separators=(",", ":"), allow_nan=False)
             + "\n").encode("utf-8")
@@ -172,12 +186,20 @@ class NativeWebAdapter:
 
     @property
     def Descriptor(self) -> AdapterDescriptor:
-        """Return fixed first-party check identity and required STANDARD impact."""
+        """Return fixed first-party check identity and required STANDARD impact.
+
+        Returns:
+            Fixed packaged provider identity and its sole explicitly selected capability.
+        """
 
         return _DESCRIPTOR
 
     def CheckHealth(self) -> AdapterHealth:
-        """Report packaged code availability without probing or authorizing a target."""
+        """Report packaged code availability without probing or authorizing a target.
+
+        Returns:
+            Packaged provider availability/version, without a target or trust decision.
+        """
 
         return AdapterHealth(NATIVE_WEB_PROVIDER_ID, AdapterHealthState.AVAILABLE,
                              NATIVE_WEB_VERSION)

@@ -120,7 +120,11 @@ class NativeWebScanPlan:
     policy_plan: PolicyPlan
 
     def ToDict(self) -> dict[str, object]:
-        """Expose the complete immutable planned operation without granting execution."""
+        """Expose the complete immutable planned operation without granting execution.
+
+        Returns:
+            Detached schema-one exact invocation, policy intent and required confirmation fields.
+        """
 
         return {
             "schema_version": 1, "workflow": "native-web", "state": "planned",
@@ -135,7 +139,18 @@ def CurrentContext(
     workspace_root: Path, scope_id: str, target: Target, owner_reference: str,
     policy_provider: Callable[[], ImpactPolicy],
 ) -> PolicyContext:
-    """Reread explicit owner, current consent, URL/IP membership and typed operator policy."""
+    """Reread explicit owner, current consent, URL/IP membership and typed operator policy.
+
+    Args:
+        workspace_root: Existing caller-owned persisted workspace partition.
+        scope_id: Explicit current owning scope identifier.
+        target: Exact canonical query-free literal-IP URL selected for this operation.
+        owner_reference: Operator required to match the current recorded consent authority.
+        policy_provider: Trusted synchronous reader of the current typed impact policy.
+
+    Returns:
+        Fresh current owner context joining the exact URL and its actual literal IP.
+    """
 
     scope = LocalScopeStore(workspace_root).Open(scope_id)
 
@@ -216,7 +231,11 @@ class NativeWebScanSummary:
     events: tuple[JobEvent, ...]
 
     def ToDict(self) -> dict[str, object]:
-        """Serialize the existing job/evidence state and finite assessed capability only."""
+        """Serialize the existing job/evidence state and finite assessed capability only.
+
+        Returns:
+            Detached schema-one terminal fields with actual job/events and model counts.
+        """
 
         return {
             "schema_version": 1, "workflow": "native-web", "check_id": NATIVE_WEB_CHECK_ID,
@@ -229,7 +248,11 @@ class NativeWebScanSummary:
         }
 
     def ExitCode(self) -> int:
-        """Keep completed/denied/failed/cancelled product exit codes 0/3/4/130."""
+        """Keep completed/denied/failed/cancelled product exit codes 0/3/4/130.
+
+        Returns:
+            Zero for completion, three for authority denial, four for failure, 130 for cancellation.
+        """
 
         if self.snapshot.state is JobState.CANCELLED:
             return 130
@@ -261,7 +284,11 @@ class NativeWebWorkflow:
     clock: Callable[[], datetime]
 
     def Context(self) -> PolicyContext:
-        """Reread current operator authority and verify the exact original selected invocation."""
+        """Reread current operator authority and verify the exact original selected invocation.
+
+        Returns:
+            Fresh owning policy/scope context for the same original prepared operation.
+        """
 
         if self.adapter.PrepareInvocation(self.invocation.request) != self.invocation:
             raise ValueError("native web selected invocation changed")
@@ -270,7 +297,11 @@ class NativeWebWorkflow:
                               self.owner_reference, self.policy_provider)
 
     async def Run(self, context: JobContext) -> None:
-        """Run one exact confirmed worker and retain actual acquisitions on every terminal path."""
+        """Run one exact confirmed worker and retain actual acquisitions on every terminal path.
+
+        Args:
+            context: Existing owning job's cancellation, event and original-evidence boundary.
+        """
 
         try:
             try:
@@ -350,6 +381,11 @@ class NativeWebWorkflow:
         The metadata attests the original native process interpretation. The response
         body is deliberately absent, so reopening does not independently re-evaluate
         the HTTP predicate or authenticate the remote publisher.
+
+        Args:
+            context: Existing owning job receiving only actual canonical commits and metadata.
+            report: Original successful execution and verified original stdout/stderr references.
+            grant: The exact original launch grant, validated afresh immediately before Save.
         """
 
         normalized = self.adapter.NormalizeReport(report)
