@@ -14,7 +14,7 @@ import signal
 import subprocess
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
@@ -27,6 +27,7 @@ from fuzzy1337.executors.owned_process import (
     OWNED_CLEANUP_SECONDS,
     CanonicalControl,
     DecodeControl,
+    LinuxFcntlOperation,
     WrapperExit,
 )
 
@@ -66,12 +67,15 @@ class DescendantOwner:
             expected_parent: Workbench PID recorded in the original private configuration.
         """
 
-        for selected in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        for selected in (signal.SIGTERM, signal.SIGINT, cast(int, getattr(signal, "SIGHUP"))):
             signal.signal(selected, self.Stop)
 
-        signal.signal(signal.SIGCHLD, signal.SIG_DFL)
-        signal.pthread_sigmask(signal.SIG_UNBLOCK,
-                              {signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGCHLD})
+        signal.signal(cast(int, getattr(signal, "SIGCHLD")), signal.SIG_DFL)
+        cast(Callable[[int, set[int]], set[int]], getattr(signal, "pthread_sigmask"))(
+            cast(int, getattr(signal, "SIG_UNBLOCK")),
+            {signal.SIGTERM, signal.SIGINT, cast(int, getattr(signal, "SIGHUP")),
+             cast(int, getattr(signal, "SIGCHLD"))},
+        )
         library = ctypes.CDLL(None, use_errno=True)
         prctl = library.prctl
         prctl.argtypes = [ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong,
@@ -104,7 +108,7 @@ class DescendantOwner:
 
         while True:
             try:
-                process_id, status = os.waitpid(-1, os.WNOHANG)
+                process_id, status = os.waitpid(-1, cast(int, getattr(os, "WNOHANG")))
 
             except ChildProcessError:
                 return True
@@ -169,7 +173,7 @@ class DescendantOwner:
                 return
 
             for process_id in children:
-                os.kill(process_id, signal.SIGKILL)
+                os.kill(process_id, cast(int, getattr(signal, "SIGKILL")))
 
             time.sleep(0.005)
 
@@ -189,7 +193,7 @@ def ReadConfiguration(descriptor: int, digest: str) -> tuple[tuple[str, ...], di
 
     import fcntl
 
-    seals = fcntl.fcntl(descriptor, LINUX_F_GET_SEALS)
+    seals = cast(LinuxFcntlOperation, getattr(fcntl, "fcntl"))(descriptor, LINUX_F_GET_SEALS)
     required = LINUX_REQUIRED_SEALS
 
     if seals & required != required:

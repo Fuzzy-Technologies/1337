@@ -17315,3 +17315,14 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.executors.owned_process.LinuxFcntlOperation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/executors/owned_process.py"
+sourceHash = "sha256:a5d8407449a80a54a73a76b7d6833cece3e8cd07eb9d21568735956223ff1201"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
