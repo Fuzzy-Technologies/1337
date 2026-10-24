@@ -20,6 +20,27 @@ required. PyPI publication tasks remain paused. The complete authorization and
 its boundaries are in [the development protocol](../DEVELOPMENT_PROTOCOL.md).
 Use the focused pre-commit commands below; the full gate belongs to PR checkpoints.
 
+When agents work in parallel, keep an integration coordinator and an independent
+validator with separate progress checkpoints. Each developer, reviewer, coordinator
+and validator has its own next action and finite progress lease. Record concrete
+source, review or evidence progress; polling CI or a completed developer does not
+renew another owner's lease. Lease expiry is a request to inspect actual state,
+not proof of a process hang or its cause.
+
+Check the collaboration tool's actual agent state before dispatch. `send_message`
+steers an already running agent; it does not start a completed turn. Use
+`followup_task` to resume a completed, interrupted or errored owner when authorized
+work remains, or assign an explicit replacement. Never resume or rephrase an
+explicitly blocked task. Review findings sent to a completed author need this
+same explicit resume step before the controller waits for a fix.
+
+Keep a durable issue/PR checkpoint with the exact branch/head, actual accepted or
+failed evidence, next owner and remaining action. A local watchdog cannot recover
+its stopped parent by itself. A scheduled continuation is a separate backstop;
+record its actual execution/recovery evidence and do not claim uninterrupted
+platform operation or recovery until observed. Resume from the published state
+without duplicating an active owner or an already accepted full gate.
+
 `uv.lock` records exact dependency versions and artifact hashes. `--locked`
 rejects stale dependency metadata instead of rewriting the lock. Build backend
 constraints also pin the editable-build environment. Update dependency pins and
@@ -91,11 +112,16 @@ gate once through shared CI. Return it to draft before intermediate follow-up
 work; this cancels any running integration gate. A new head on an already ready
 PR reruns full CI so changed code cannot inherit earlier green evidence.
 
-The four required development workflows run on pull requests to `develop` or
+Required development workflows run on pull requests to `develop` or
 `master` when ready, including the explicit `ready_for_review` event. Draft
 opening and updates skip heavy jobs. Before approval or merge, inspect actual
 required job successes from the final readiness run for the proposed head;
 skipped draft jobs can appear green in GitHub and do not prove validation.
+Explicit draft feature markers may run only their declared browser, Trivy or
+native protocol checks. The native protocol checkpoint uses two workers across
+the existing OS matrix and retains JUnit without claiming complete coverage.
+Remove its marker before final publication/readiness to avoid an extra diagnostic
+run; feature success never substitutes for the final complete integration gate.
 Do not repeat the full gate locally, in individual development agents or after
 the accepted merge into `develop`. Protected `master` pushes retain stable-branch
 checks and master-only documentation deployment.

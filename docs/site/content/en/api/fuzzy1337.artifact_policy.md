@@ -3,11 +3,18 @@
 Experimental contract version 1 provides closed synthetic profile preparation,
 same-store artifact plans/grants and per-run raw-result acceptance receipts.
 The exports in `__all__` are supported Experimental interfaces; helpers remain
-Internal. Native IDs are metadata-only and cannot authorize or launch. Synthetic
-launch requires the current trusted CPython runtime and closed reviewed producer
+Internal. Existing synthetic entry points keep native IDs metadata-only and
+cannot authorize them. Synthetic launch requires the current trusted CPython
+runtime and closed reviewed producer
 bytes. Fresh current authority/material is required at launch and acceptance;
 historical replay grants nothing. Post-run refusal retains actual raw process
 facts. This API does not establish authenticated principals or OS isolation.
+
+Separate Internal native IMAGE methods on the canonical engine delegate to
+`native_image_policy`. They use fixed issued observations, explicit current
+permission, distinct original grants and persistent one-use request claims;
+existing synthetic constructors and replay guards remain unchanged. See
+`docs/NATIVE_IMAGE_AUTHORITY.md`. SDK/CLI enrollment is separate.
 
 The reviewed closed configuration family admits only synthetic Dockerfile or
 Kubernetes SCAN with exact source/material bindings, SAFE approval and 16 KiB

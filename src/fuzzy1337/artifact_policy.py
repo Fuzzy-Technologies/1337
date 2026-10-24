@@ -19,7 +19,7 @@ from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fuzzy1337.adapters import (
     AdapterExecution,
@@ -66,6 +66,20 @@ from fuzzy1337.executors.local import EventCallback
 from fuzzy1337.policy import Digest, ImpactPolicy, RequireDigest, RequireTime
 from fuzzy1337.scope import LocalScopeStore, NormalizeTime, ScopeSnapshot
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceFields
+
+if TYPE_CHECKING:
+    from fuzzy1337.native_image_capture import NativeTrivyOperationCapture
+    from fuzzy1337.native_image_observation import (
+        NativeImageMaterialObserver,
+        NativeImageMaterialProof,
+    )
+    from fuzzy1337.native_image_policy import (
+        NativeImageExecutionClaim,
+        NativeImageOperationGrant,
+        NativeImageOperationPlan,
+        NativeImageVersionPrerequisite,
+        PreparedNativeImageOperation,
+    )
 
 # Source updates and matching LF byte identities require independent source review.
 _REVIEWED_PRODUCERS = frozenset(
@@ -1089,6 +1103,212 @@ class ArtifactGrant:
 
 class ArtifactPolicyEngine:
     """Fresh same-store artifact authority with no fake destination or native launch bypass."""
+
+    def PlanNativeImageOperation(
+        self, prepared: PreparedNativeImageOperation, context: ArtifactPolicyContext,
+        *, observer: NativeImageMaterialObserver, material_proof: NativeImageMaterialProof,
+        at: datetime,
+    ) -> NativeImageOperationPlan:
+        """Describe this one native profile without broadening synthetic plans or executing it.
+
+        Args:
+            prepared: Exact fixed native recipe and stable selected material.
+            context: Fresh same-store scope, policy and executing owner.
+            observer: Original first-party material proof issuer.
+            material_proof: Latest original same-pair issued proof.
+            at: Explicit aware current decision time.
+
+        Returns:
+            Separate native tagged descriptive plan without a claim or execution approval.
+        """
+
+        from fuzzy1337.native_image_policy import PlanNativeImageOperation
+
+        return PlanNativeImageOperation(self, prepared, context, observer=observer,
+            material_proof=material_proof, at=at)
+
+    def AuthorizeNativeImageOperation(
+        self, prepared: PreparedNativeImageOperation, context: ArtifactPolicyContext,
+        *, observer: NativeImageMaterialObserver, material_proof: NativeImageMaterialProof,
+        at: datetime, approve_safe_image: bool = False,
+    ) -> NativeImageOperationGrant:
+        """Issue separate original native authority after permission and explicit SAFE approval.
+
+        Args:
+            prepared: Exact native factory recipe, independent of synthetic stages.
+            context: Fresh scope, policy and executing owner.
+            observer: Original material proof issuer.
+            material_proof: Latest original same-pair proof.
+            at: Explicit aware issuance time.
+            approve_safe_image: Exact True workflow opt-in; never a policy permission.
+
+        Returns:
+            Original native grant retained by this canonical engine instance.
+        """
+
+        from fuzzy1337.native_image_policy import AuthorizeNativeImageOperation
+
+        return AuthorizeNativeImageOperation(self, prepared, context, observer=observer,
+            material_proof=material_proof, at=at, approve_safe_image=approve_safe_image)
+
+    def ValidateNativeImageOperation(
+        self, grant: NativeImageOperationGrant, prepared: PreparedNativeImageOperation,
+        context: ArtifactPolicyContext, *, observer: NativeImageMaterialObserver,
+        material_proof: NativeImageMaterialProof, at: datetime,
+    ) -> None:
+        """Recheck original native grant identity, complete current authority and exclusive expiry.
+
+        Args:
+            grant: Exact original grant issued by this engine.
+            prepared: Exact fixed native operation.
+            context: Fresh current scope/policy and executing owner.
+            observer: Original first-party proof issuer.
+            material_proof: Latest issued same-pair proof with equal stable facts.
+            at: Explicit aware current decision time.
+        """
+
+        from fuzzy1337.native_image_policy import ValidateNativeImageOperation
+
+        ValidateNativeImageOperation(self, grant, prepared, context, observer=observer,
+            material_proof=material_proof, at=at)
+
+    def ClaimNativeImageExecution(
+        self, grant: NativeImageOperationGrant, prepared: PreparedNativeImageOperation,
+        context: ArtifactPolicyContext, *, observer: NativeImageMaterialObserver,
+        material_proof: NativeImageMaterialProof, at: datetime,
+    ) -> NativeImageExecutionClaim:
+        """Reserve a native grant once, before capture setup or operation cancellation checks.
+
+        Args:
+            grant: Exact original explicit-approval native grant.
+            prepared: Exact fixed native recipe.
+            context: Fresh current scope/policy and executing owner.
+            observer: Original proof issuer.
+            material_proof: Original exact proof specifically bound to this claim.
+            at: Explicit aware reservation time.
+
+        Returns:
+            Opaque original engine handle after durable exclusive persistent reservation.
+        """
+
+        from fuzzy1337.native_image_policy import ClaimNativeImageExecution
+
+        return ClaimNativeImageExecution(self, grant, prepared, context, observer=observer,
+            material_proof=material_proof, at=at)
+
+    def BindNativeImageRequest(
+        self, claim: NativeImageExecutionClaim, request: LocalExecutionRequest,
+        context: ArtifactPolicyContext, *, observer: NativeImageMaterialObserver,
+        material_proof: NativeImageMaterialProof, at: datetime,
+    ) -> None:
+        """Exclusively bind the full actual request once before first executor startup.
+
+        Args:
+            claim: Original consumed execution claim.
+            request: Full original fixed collector request and live private scratch.
+            context: Fresh current scope/policy and executing owner.
+            observer: Original claim proof issuer.
+            material_proof: Original exact proof captured in the reservation.
+            at: Explicit aware first-launch time.
+        """
+
+        from fuzzy1337.native_image_policy import BindNativeImageRequest
+
+        BindNativeImageRequest(self, claim, request, context, observer=observer,
+            material_proof=material_proof, at=at)
+
+    def ValidateNativeImageClaim(
+        self, claim: NativeImageExecutionClaim, request: LocalExecutionRequest,
+        context: ArtifactPolicyContext, *, observer: NativeImageMaterialObserver,
+        material_proof: NativeImageMaterialProof, at: datetime,
+    ) -> None:
+        """Revalidate a previously bound launch; this method always requires live scratch.
+
+        Args:
+            claim: Exact original consumed and bound claim.
+            request: Same complete actual request object from the first successful bind.
+            context: Fresh current scope/policy and executing owner.
+            observer: Original proof issuer retained by the claim.
+            material_proof: Original exact claim proof.
+            at: Explicit aware READY or collector publication time.
+        """
+
+        from fuzzy1337.native_image_policy import ValidateNativeImageClaim
+
+        ValidateNativeImageClaim(self, claim, request, context, observer=observer,
+            material_proof=material_proof, at=at)
+
+    def ValidateNativeImageCapture(
+        self, claim: NativeImageExecutionClaim, capture: NativeTrivyOperationCapture,
+        context: ArtifactPolicyContext, *, observer: NativeImageMaterialObserver,
+        material_proof: NativeImageMaterialProof, at: datetime,
+    ) -> None:
+        """Explicitly validate original returned custody after legitimate execution scratch cleanup.
+
+        Args:
+            claim: Exact original bound claim.
+            capture: Actual collector return passed by its trusted product owner.
+            context: Fresh current scope/policy and executing owner.
+            observer: Original first-party proof issuer.
+            material_proof: Latest issued same-pair proof with equal stable facts.
+            at: Explicit aware post-capture time.
+        """
+
+        from fuzzy1337.native_image_policy import ValidateNativeImageCapture
+
+        ValidateNativeImageCapture(self, claim, capture, context, observer=observer,
+            material_proof=material_proof, at=at)
+
+    def AcceptNativeImageVersion(
+        self, claim: NativeImageExecutionClaim, capture: NativeTrivyOperationCapture,
+        context: ArtifactPolicyContext, *, observer: NativeImageMaterialObserver,
+        material_proof: NativeImageMaterialProof, at: datetime,
+    ) -> NativeImageVersionPrerequisite:
+        """Register verified original VERSION association without deriving grants from replay.
+
+        Args:
+            claim: Exact original bound VERSION claim.
+            capture: Actual returned original VERSION passed by its trusted product owner.
+            context: Fresh current scope/policy and executing owner.
+            observer: Original proof issuer.
+            material_proof: Latest issued same-pair proof with stable material.
+            at: Explicit aware acceptance time.
+
+        Returns:
+            Original engine-retained frozen VERSION prerequisite association.
+        """
+
+        from fuzzy1337.native_image_policy import AcceptNativeImageVersion
+
+        return AcceptNativeImageVersion(self, claim, capture, context, observer=observer,
+            material_proof=material_proof, at=at)
+
+    def ValidateNativeImagePairFresh(
+        self, version_prerequisite: NativeImageVersionPrerequisite,
+        scan_prepared: PreparedNativeImageOperation, scan_grant: NativeImageOperationGrant,
+        scan_claim: NativeImageExecutionClaim, scan_capture: NativeTrivyOperationCapture,
+        context: ArtifactPolicyContext, *, observer: NativeImageMaterialObserver,
+        material_proof: NativeImageMaterialProof, at: datetime,
+    ) -> None:
+        """Recheck both original native authorities and canonical captures before a separate Save.
+
+        Args:
+            version_prerequisite: Original engine-retained successful VERSION association.
+            scan_prepared: Original independent fixed SCAN recipe.
+            scan_grant: Exact distinct original SCAN grant.
+            scan_claim: Exact original once-bound SCAN handle.
+            scan_capture: Actual returned original SCAN custody.
+            context: Fresh current scope/policy and executing owner.
+            observer: Original first-party proof issuer.
+            material_proof: Latest original pair proof with equal stable facts.
+            at: Explicit aware final Save decision time.
+        """
+
+        from fuzzy1337.native_image_policy import ValidateNativeImagePairFresh
+
+        ValidateNativeImagePairFresh(self, version_prerequisite, scan_prepared, scan_grant,
+            scan_claim, scan_capture, context, observer=observer, material_proof=material_proof,
+            at=at)
 
     def Plan(
         self,
