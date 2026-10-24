@@ -21,8 +21,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Added Experimental native offline assessment of acknowledged original response
   headers, with separate PASSIVE admission, a fixed original window and source-linked
   missing-field Findings. Independent model/workspace CAS, ACK and historical replay
-  outcomes preserve capture provenance and triage. Focused owned-original cases verify
-  saved Findings and offline replay; final shared integration remains required.
+  outcomes preserve capture provenance and triage. Explicit `response check-headers`
+  / `response replay-headers` retain original references. The 37 SDK cases and six new
+  installed CLI/native-pipeline cases passed (six-case run: 15.47 seconds). Capture
+  retains its separate SAFE approval and closed catalog; final shared CI and platform
+  acceptance remain pending.
 
 - Added Experimental first-party content-driven owned-loopback crawl planning,
   SDK and explicit `scan crawl` enrollment over a sorted admitted URL set. Current

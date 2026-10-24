@@ -11,7 +11,7 @@ from acquisition and ZAP identities. This contract authorizes no execution and
 implements no provider. No socket, process, worker, helper, external engine or
 new source acquisition belongs to the proposed analysis path.
 
-The proposed initial SDK shape is:
+The implemented SDK shape is:
 
 ```text
 ApplyOwnedResponseHeaderCheck(
@@ -236,7 +236,7 @@ Its independently authored original header bytes already distinguish all three
 cases. No new descriptive fixture, copied body catalog or producer-derived oracle
 is needed for this design. Native acceptance ignores its ZAP alert-count fields.
 
-An independent validator must later obtain genuine source receipts through the
+Independent validators must obtain genuine source receipts through the
 accepted capture interface, then remove/disable the listener and prove native
 application and relocated replay need no target or process. Verify missing/fixed/
 body-decoy 1/0/1 from actual persisted Findings and original headers, with unchanged
@@ -251,14 +251,18 @@ inside the window. Prove no renewed deadline/retry and no post-expiry Save while
 scope/policy remain unchanged. Tripwire network/process/helper/new-capture/Put paths.
 No static example or parser-only result is genuine receipt/Finding acceptance.
 
-Future source ownership is new `src/fuzzy1337/native_response_headers.py` for pure
+Implemented source ownership is `src/fuzzy1337/native_response_headers.py` for pure
 verified-source header interpretation and `src/fuzzy1337/native_response_header_workflow.py`
 for the reviewed local authority/persistence composition. Independent validation
 owns functional expectations; coordinator owns SDK/CLI enrollment and task mapping.
 Policy/scope/model/evidence cores, existing receipt/replay schemas, frozen wires,
-external-runtime profiles and other scanner worktrees remain unchanged. This
-checkpoint performs source inspection and documentation checks only; production
-implementation, enrollment, runtime and integration gates remain unrun.
+external-runtime profiles and other scanner worktrees remain unchanged. The 37
+focused SDK cases have passed at their recorded source checkpoints. Six additional
+installed CLI/joined-pipeline cases passed in 15.47 seconds with zero failures,
+errors or skips on required Linux at `b76805d8` / tree `8ede01a7`; the earlier SDK/crawler
+passing cohorts were not repeated. Exact final shared CI and platform acceptance
+remain pending. These finite results do not widen the frozen source catalog or
+authorize a new capture, automatic assessment or external engine.
 
 ## Additive offline CLI enrollment
 

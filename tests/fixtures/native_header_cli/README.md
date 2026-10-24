@@ -1,8 +1,19 @@
 # Independent installed native header CLI pipeline
 
-This is a source checkpoint. None of the six genuine identities below has been
-executed or accepted by this checkpoint. The earlier 37 SDK and 31 crawler cases
-are separate evidence and are not repeated by this cohort.
+All six genuine identities below passed in 15.47 seconds on required Linux at
+`b76805d8` / source tree `8ede01a7`, with zero failures/errors/skips. This is focused
+installed CLI/joined-pipeline evidence; exact final shared CI and platform acceptance
+remain pending. The earlier 37 SDK and 31 crawler cases are separate evidence and
+were not repeated by this cohort. The immutable oracle remains descriptive;
+its historical `runtime_acceptance: not-run` field is not the execution verdict.
+
+Terminal evidence retains 19 production source-to-wheel-to-installed bindings,
+36 original terminal processes and six settled two-origin owners. Sixteen offline
+entry metrics reported zero forbidden acquisition calls. Both denials recorded zero
+store reads/Saves/contacts, and replay/reuse/report made zero Saves. The joined
+pipeline recorded seven actual GETs (four crawl, three capture), zero sentinel
+contacts and header-field accuracy TP2/TN1/FP0/FN0 over its three original cases.
+Actual original roles, distinct source identities and triage survived relocated replay.
 
 `tests/functional/test_native_header_cli_pipeline.py` registers all four shared
 fixtures explicitly. The module-scoped installed wheel depends only on session
@@ -62,7 +73,7 @@ Only fixed owned inputs/evidence are uploaded; no entire environment or workspac
 Accuracy is written only after all case assertions complete; failed work is
 unassessed, never a negative.
 
-After exact source review, root can authorize only this new cohort:
+The reviewed focused cohort selection is:
 
 ```bash
 FUZZY1337_RUN_NATIVE_HEADER_CLI_ACCEPTANCE=1 \

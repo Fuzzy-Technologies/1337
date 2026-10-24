@@ -109,7 +109,9 @@ requires PASSIVE admission to interpret an acknowledged seven-role receipt. It
 preserves original source provenance and independent model/workspace ACK outcomes.
 All 37 focused owned-original cases passed; final shared integration remains required.
 Explicit `response check-headers` / `response replay-headers` enrollment adds no
-capture, job or execution grant; its independent installed CLI acceptance remains pending.
+capture, job or execution grant. Six new required-Linux installed CLI/joined-pipeline
+cases passed in 15.47 seconds with no failures/errors/skips; final shared CI and
+platform acceptance remain pending. Prior SDK/crawler passing cohorts were not repeated.
 
 The [owned-loopback native content crawl](NATIVE_CONTENT_CRAWL.md) uses `scan crawl`
 with an exact sorted selected URL set, current scope/policy and separate SAFE

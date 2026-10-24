@@ -8,6 +8,8 @@ starts no capture, worker, helper, external engine or network request. The
 owners through the CLI and foreground shell. All 37 independent owned-original
 cases have passed across focused runs, including saved missing/fixed/body-decoy
 Findings, denial, partial persistence, triage and relocated offline replay.
+Six new independent installed CLI/joined-pipeline cases also passed in 15.47 seconds
+on the required Linux lane at source tree `8ede01a7`, with no failures/errors/skips.
 Exact final shared integration and platform verification remain required.
 See the [contract](NATIVE_RESPONSE_HEADER_CHECK_CONTRACT.md) and
 [ADR0098](adr/0098-offline-owned-response-header-check.md).
@@ -151,8 +153,9 @@ Replay takes only the relocated workspace and actual retained assessment referen
 Verified historical replay returns 0; unknown source/assessment integrity returns 4.
 Current scope, owner, policy, target and approval inputs are rejected. Both commands
 use the same grammar inside the foreground shell. Original `response capture` and
-`response replay` keep their separate acquisition/custody contracts. Independent
-installed CLI pipeline acceptance is pending for this additive enrollment slice.
+`response replay` keep their separate acquisition/custody contracts. Focused
+installed CLI/pipeline acceptance passed six cases in 15.47 seconds; this is not
+final shared integration or platform acceptance.
 
 ## Predicate, provenance and persistence
 
@@ -217,3 +220,15 @@ and relocated replay. Results apply to the recorded focused source checkpoints;
 all required cases must still pass on the exact final shared-CI revision before
 merge. Unsupported acquisition platforms are explicitly unassessed rather than
 positive runtime acceptance.
+
+The [six new CLI/pipeline cases](../tests/functional/test_native_header_cli_pipeline.py)
+are separate from those 37 SDK cases and the earlier 31 crawler cases; no passing
+cohort was repeated for this checkpoint. Their terminal JUnit records six PASS,
+zero failures/errors/skips and 15.47 seconds at `b76805d8` / tree `8ede01a7`.
+The joined case used four crawl GETs and three separately approved capture GETs,
+then offline header checks scored TP2/TN1/FP0/FN0 over the three original header
+cases. Both denial cases made zero store reads/Saves/contacts; replay/reuse/report
+made zero Saves. Distinct source identities and triage survived removed-root
+relocation. These finite facts establish neither general target coverage nor
+automatic workflow authority. The separately proposed content-response retention
+contract remains unimplemented and is not part of this candidate.
