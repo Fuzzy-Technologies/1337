@@ -10,12 +10,14 @@ before calling them and must independently prove both source owners actually set
 
 from __future__ import annotations
 
+import errno
 import hashlib
+import math
 import re
 from pathlib import PurePosixPath, PureWindowsPath
 from urllib.parse import urlsplit
 
-from tests.contract.owned_content_response_oracle import CaseMatrix
+from tests.contract.owned_content_response_oracle import CaseMatrix, RequestBytes
 
 SOURCE_MODULES = ("adapters/owned_content_response.py", "owned_content_response_worker.py",
     "adapters/owned_response_capture.py", "owned_response_capture.py",
@@ -23,6 +25,7 @@ SOURCE_MODULES = ("adapters/owned_content_response.py", "owned_content_response_
     "native_response_headers.py", "native_response_header_workflow.py")
 CASES = {case.name: case for case in CaseMatrix()}
 MAX_STDOUT_BYTES = 131072
+HELD_WINDOWS_ERRORS = frozenset((10053, 10054, 10060))
 
 
 def AbsoluteRuntimePath(value: str) -> PurePosixPath | PureWindowsPath:
@@ -188,3 +191,205 @@ def AssertContentWorkerCase(name: str, url: str, process: dict, stdout: bytes, s
         "A refusal and an admitted original have distinct actual exit statuses")
     assert stdout == case.ExpectedStdout(url), (
         "Complete worker originals must equal independent source bytes or the exact safe refusal")
+
+
+def AssertFinalSourceOwner(final: dict, origin: str, contacts: int) -> None:
+    """Require explicit original post-cleanup facts, including the otherwise untouched sentinel.
+
+    Args:
+        final: Unmodified FinalSourceFacts plus its original fixture cleanup fields.
+        origin: Independently selected literal source origin.
+        contacts: Required original accepted contact count, not inferred from missing records.
+    """
+
+    fields = {"schema_version", "target_yielded", "owner_state", "listener_alive",
+        "listener_closed", "origin", "counters", "errors", "contacts", "accepted_endpoints",
+        "cleanup_returned", "cleanup_failure", "idle_before_local_close"}
+    assert set(final) == fields and type(final["schema_version"]) is int and (
+        final["schema_version"] == 1), "Absent or foreign final source records are not observations"
+    assert final["target_yielded"] is True and final["owner_state"] == "settled" and (
+        final["listener_alive"] is False and final["listener_closed"] is True and
+        final["cleanup_returned"] is True and final["cleanup_failure"] is None and
+        final["idle_before_local_close"] is True), "Original source cleanup must actually settle"
+    assert final["origin"] == origin, "Cleanup facts must belong to the selected original source"
+    counters = final["counters"]
+    keys = {"contacts", "retained_contacts", "contact_overflow", "active_connections",
+        "active_handlers", "active_dispatches", "maximum_active_handlers", "completed_responses",
+        "errors", "error_overflow"}
+    assert set(counters) == keys and all(type(value) is int and 0 <= value <= 64
+        for value in counters.values()), "Source counters require bounded exact integers"
+    assert type(final["contacts"]) is list and type(final["accepted_endpoints"]) is dict, (
+        "Original contact and endpoint collections must retain their schema")
+    assert counters["contacts"] == counters["retained_contacts"] == len(final["contacts"]) == (
+        contacts), "Original accepts and retained contact records must reconcile"
+    assert all(counters[key] == 0 for key in ("contact_overflow", "active_connections",
+        "active_handlers", "active_dispatches", "error_overflow")), "No original owner may remain"
+    assert type(final["errors"]) is list and len(final["errors"]) == counters["errors"] and all(
+        type(error) is str and 1 <= len(error) <= 100 for error in final["errors"]), (
+            "Original bounded source mechanism failures must remain visible")
+    assert len(final["accepted_endpoints"]) == contacts and counters[
+        "completed_responses"] <= contacts, "Endpoint and completion counts require original joins"
+
+    if contacts == 0:
+        assert counters["maximum_active_handlers"] == counters["completed_responses"] == (
+            counters["errors"]) == 0, "The explicit sentinel must have no contact side effects"
+
+    else:
+        assert counters["maximum_active_handlers"] == 1, "One worker requires one source handler"
+
+
+def AssertOriginalPeerEnd(signal: dict, *, allow_reset: bool) -> None:
+    """Require actual timely original peer termination, never local teardown or a guessed EOF.
+
+    Args:
+        signal: Original retained HeldPeerSignal record.
+        allow_reset: Only the held-response branch accepts a recognized peer reset.
+    """
+
+    assert type(signal) is dict and set(signal) == {"kind", "phase", "before_local_close",
+        "within_hold", "error_type", "errno", "winerror"}, "Original peer terminal is missing"
+    assert signal["phase"] == "peer-receive" and signal["before_local_close"] is True and (
+        signal["within_hold"] is True), "Late or local signals cannot establish original peer end"
+
+    if signal["kind"] == "eof":
+        assert all(signal[key] is None for key in ("error_type", "errno", "winerror")), (
+            "An original EOF cannot be inferred from an error")
+
+    else:
+        assert allow_reset and signal["kind"] == "peer-reset" and (
+            signal["error_type"] == "ConnectionResetError"), "Normal completion requires actual EOF"
+        assert all(value is None or type(value) is int for value in (
+            signal["errno"], signal["winerror"])), "Reset numbers must retain exact numeric types"
+        assert signal["errno"] is None or signal["errno"] in errno.errorcode or (
+            signal["errno"] in HELD_WINDOWS_ERRORS), "Original errno requires its sanitized domain"
+        assert signal["winerror"] is None or signal["winerror"] in HELD_WINDOWS_ERRORS, (
+            "Original winerror must retain its separately sanitized domain")
+        assert signal["errno"] in (54, 104, 10054) or signal["winerror"] == 10054, (
+            "An unknown receive error is not positive peer-reset evidence")
+
+
+def AssertContentSourceFacts(name: str, url: str, main: dict, sentinel: dict, *,
+    sentinel_origin: str) -> str:
+    """Join one frozen source case to its original contact/peer facts and both settled owners.
+
+    Args:
+        name: Independently selected frozen matrix identity.
+        url: Exact selected original source URL.
+        main: Retained original main FinalSourceFacts, including cleanup fields.
+        sentinel: Explicit separate sentinel final facts; absence is never zero contacts.
+        sentinel_origin: Independently selected owned no-contact origin.
+
+    Returns:
+        Distinct source-delivery classification, never a product acquisition verdict.
+    """
+
+    case = CASES[name]
+    parsed = urlsplit(url)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    assert parsed.hostname in ("127.0.0.1", "::1") and parsed.port is not None and (
+        1024 <= parsed.port <= 65535), "Source facts need an independently selected literal origin"
+    host = "[::1]" if parsed.hostname == "::1" else "127.0.0.1"
+    assert url == f"http://{host}:{parsed.port}{case.path}", "Selected source URL must remain exact"
+    other = urlsplit(sentinel_origin)
+    other_host = "[::1]" if other.hostname == "::1" else "127.0.0.1"
+    assert other.hostname in ("127.0.0.1", "::1") and other.port is not None and (
+        1024 <= other.port <= 65535 and sentinel_origin == f"http://{other_host}:{other.port}"
+        and sentinel_origin != origin), "A distinct literal sentinel owner is required"
+    AssertFinalSourceOwner(main, origin, 1)
+    AssertFinalSourceOwner(sentinel, sentinel_origin, 0)
+    record = main["contacts"][0]
+    assert set(record) == {"sequence", "variant", "target", "request_hex", "received_bytes",
+        "request_truncated", "response_hex", "sent_bytes", "accepted_at", "deadline_at",
+        "active_at_start", "completion_sequence", "admission_state", "failure", "socket_closed",
+        "shutdown_error", "shutdown_errno", "close_error", "close_errno"}, (
+            "Original contact facts must retain their complete frozen schema")
+    request, wire = RequestBytes(url), case.Wire()
+    assert record["variant"] == name and record["target"] == case.path and (
+        record["request_hex"] == request.hex() and type(record["received_bytes"]) is int
+        and record["received_bytes"] == len(request) and record["request_truncated"] is False), (
+            "The original complete request must match the selected case and URL")
+    assert record["response_hex"] == wire.hex() and type(record["sent_bytes"]) is int and (
+        0 <= record["sent_bytes"] <= len(wire)), "Actual sends must retain original source bytes"
+    assert type(record["sequence"]) is int and record["sequence"] == 1 and type(
+        record["active_at_start"]) is int and record["active_at_start"] == 1, (
+            "Original accept and handler ownership must join exactly once")
+    assert all(type(record[key]) in (int, float) and math.isfinite(record[key]) for key in (
+        "accepted_at", "deadline_at")) and record["accepted_at"] >= 0 and (
+        record["deadline_at"] - record["accepted_at"] == 7), "Original source deadline is immutable"
+    assert record["socket_closed"] is True and record["close_error"] is False and (
+        record["close_errno"] is None), "An unconfirmed original close cannot establish cleanup"
+    endpoints = main["accepted_endpoints"]
+    assert all(type(key) in (int, str) for key in endpoints) and set(endpoints) in ({0}, {"0"}), (
+        "Actual endpoints must join the original contact index")
+    peer = endpoints[0] if 0 in endpoints else endpoints["0"]
+    assert set(peer) == {"local_address", "local_port", "peer_address", "peer_port",
+        "peer_terminal"} and peer["local_address"] == peer["peer_address"] == parsed.hostname, (
+            "Actual local and peer addresses must match the selected literal family")
+    assert type(peer["local_port"]) is int and peer["local_port"] == parsed.port and type(
+        peer["peer_port"]) is int and 1 <= peer["peer_port"] <= 65535, "Actual ports are unverified"
+
+    if record["failure"] is not None:
+        assert case.error is not None and case.eof_mode == "close" and (
+            record["failure"] == "owned-content-request-failure" and
+            record["admission_state"] == "failed" and record["completion_sequence"] is None
+            and main["counters"]["completed_responses"] == 0 and
+            "owned-content-request-failure" in main["errors"]), (
+                "An original source error must remain a refused incomplete delivery")
+
+        return "refused-source-error"
+
+    assert record["sent_bytes"] == len(wire) and type(record["completion_sequence"]) is int and (
+        record["completion_sequence"] == main["counters"]["completed_responses"] == 1 and
+        main["counters"]["errors"] == 0 and record["shutdown_error"] is False and
+        record["shutdown_errno"] is None), "Sent bytes alone do not establish source completion"
+    held = case.eof_mode == "hold-until-peer-eof"
+    assert record["admission_state"] == ("sent-peer-ended" if held else "completed"), (
+        "Normal and held original completion states must remain distinct")
+    AssertOriginalPeerEnd(peer["peer_terminal"], allow_reset=held)
+
+    return "held-peer-ended" if held else "normal-eof"
+
+
+def AssertContentLauncherEvidence(name: str, url: str, installation: dict, imported: dict,
+    invocation: dict, process: dict, stdout: bytes, stderr: bytes, *, commit: str, tree: str,
+    python: str, cwd: str, timeout_seconds: int) -> None:
+    """Reconcile original prelaunch/terminal metadata without launching or fabricating facts.
+
+    Args:
+        name: Independently selected frozen worker case.
+        url: Exact selected owned source URL.
+        installation: Original unchanged NativeInstallation manifest digest and identity envelope.
+        imported: Original installed import probe document.
+        invocation: Retained NativeProcess prelaunch record, not reconstructed after return.
+        process: Retained original terminal metadata.
+        stdout: Complete original retained stdout.
+        stderr: Complete original retained stderr.
+        commit: Independently pinned source commit.
+        tree: Independently pinned complete source tree.
+        python: Selected absolute installed interpreter.
+        cwd: Independently selected isolated launch directory.
+        timeout_seconds: Independently selected finite launcher bound.
+    """
+
+    AbsoluteRuntimePath(cwd)
+    assert type(timeout_seconds) is int and 1 <= timeout_seconds <= 30, "Launch bound is unverified"
+    assert set(invocation) == {"schema_version", "argv", "cwd", "timeout_seconds", "stdin",
+        "state", "returncode", "terminal_return_observed", "installation"} and type(
+        invocation["schema_version"]) is int, "Original prelaunch schema must remain exact"
+    assert invocation["state"] == "not-launched" and invocation["returncode"] is None and (
+        invocation["terminal_return_observed"] is False), "Original prelaunch intent is required"
+    assert invocation["cwd"] == cwd and invocation["timeout_seconds"] == timeout_seconds and type(
+        invocation["timeout_seconds"]) is int, "Original launch directory and bound must match"
+    assert type(process["timeout_seconds"]) is int, "Terminal launch bound requires exact int type"
+
+    for key in ("schema_version", "argv", "cwd", "timeout_seconds", "stdin", "installation"):
+        assert process[key] == invocation[key], "Terminal facts must retain original invocation"
+
+    assert type(installation) is dict and set(installation) == {"manifest_sha256", "identity"}, (
+        "The original installation envelope must retain both manifest digest and identity")
+    assert type(installation["manifest_sha256"]) is str and re.fullmatch(
+        r"[0-9a-f]{64}", installation["manifest_sha256"]), "Original manifest digest is unverified"
+    assert invocation["installation"] == installation, (
+        "Original invocation must bind its retained selected installation")
+    AssertContentInstallation(installation["identity"], imported, commit=commit, tree=tree)
+    AssertContentWorkerCase(name, url, process, stdout, stderr, python=python)

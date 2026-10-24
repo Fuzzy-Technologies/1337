@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import copy
+import errno
 import hashlib
 
 import pytest
@@ -15,7 +16,10 @@ from tests.contract.owned_content_response_product_runner import (
     SOURCE_MODULES,
     AbsoluteRuntimePath,
     AssertContentInstallation,
+    AssertContentLauncherEvidence,
+    AssertContentSourceFacts,
     AssertContentWorkerCase,
+    AssertOriginalPeerEnd,
     AssertWorkerCohort,
     WorkerCaseIdentities,
 )
@@ -236,3 +240,223 @@ def test_SourceWheelImportMismatchCannotBecomeInstalledAcceptance(mutation):
 
     with pytest.raises(AssertionError):
         AssertContentInstallation(identity, imported, commit=COMMIT, tree=TREE)
+
+
+def SourceFacts(name="missing", address="127.0.0.1"):
+    """Author explicit mocked source/sentinel facts without any fixture or socket construction."""
+
+    from tests.contract.owned_content_response_oracle import RequestBytes
+
+    case = next(case for case in CaseMatrix() if case.name == name)
+    host = "[::1]" if address == "::1" else address
+    origin, other = f"http://{host}:15432", f"http://{host}:15433"
+    url = origin + case.path
+    counters = {"contacts": 1, "retained_contacts": 1, "contact_overflow": 0,
+        "active_connections": 0, "active_handlers": 0, "active_dispatches": 0,
+        "maximum_active_handlers": 1, "completed_responses": 1, "errors": 0, "error_overflow": 0}
+    record = {"sequence": 1, "variant": name, "target": case.path,
+        "request_hex": RequestBytes(url).hex(), "received_bytes": len(RequestBytes(url)),
+        "request_truncated": False, "response_hex": case.Wire().hex(),
+        "sent_bytes": len(case.Wire()), "accepted_at": 1.0, "deadline_at": 8.0,
+        "active_at_start": 1, "completion_sequence": 1, "admission_state": (
+            "sent-peer-ended" if case.eof_mode == "hold-until-peer-eof" else "completed"),
+        "failure": None, "socket_closed": True, "shutdown_error": False, "shutdown_errno": None,
+        "close_error": False, "close_errno": None}
+    signal = {"kind": "eof", "phase": "peer-receive", "before_local_close": True,
+        "within_hold": True, "error_type": None, "errno": None, "winerror": None}
+    main = {"schema_version": 1, "target_yielded": True, "owner_state": "settled",
+        "listener_alive": False, "listener_closed": True, "origin": origin,
+        "cleanup_returned": True, "cleanup_failure": None, "idle_before_local_close": True,
+        "counters": counters, "errors": [], "contacts": [record], "accepted_endpoints": {"0": {
+            "local_address": address, "local_port": 15432, "peer_address": address,
+            "peer_port": 26000, "peer_terminal": signal}}}
+    sentinel = copy.deepcopy(main)
+    sentinel.update(origin=other, contacts=[], accepted_endpoints={})
+    sentinel["counters"] = {key: 0 for key in counters}
+
+    return name, url, main, sentinel, other
+
+
+@pytest.mark.parametrize("name", ["missing", "held-eof", "invalid-utf8"])
+@pytest.mark.parametrize("address", ["127.0.0.1", "::1"])
+def test_SourceFactsKeepNormalHeldAndRefusalDeliveryDistinct(name, address):
+    """Mocked delivery can be normal EOF or held peer end, never product acceptance."""
+
+    name, url, main, sentinel, other = SourceFacts(name, address)
+    observed = AssertContentSourceFacts(name, url, main, sentinel, sentinel_origin=other)
+    assert observed == ("held-peer-ended" if name == "held-eof" else "normal-eof"), (
+        "Original source-delivery classification must remain distinct from worker admission")
+
+
+@pytest.mark.parametrize("mutation", ["absent-sentinel", "foreign-owner", "contact-overflow",
+    "bool-count", "active-handler", "listener-live", "cleanup-unreturned", "late-idle",
+    "cleanup-error", "wrong-request", "truncated", "foreign-wire", "wrong-peer", "bool-port",
+    "wrong-index", "reset-normal", "late-end", "local-end", "unknown-end", "bool-sequence",
+    "nonfinite-clock", "renewed-clock", "sent-only", "unclosed"])
+def test_SourceFactsCounterexamplesCannotPromoteSettlementOrEof(mutation):
+    """Counts/bytes alone cannot replace original ownership, cleanup and actual timely EOF facts."""
+
+    name, url, main, sentinel, other = SourceFacts()
+    record = main["contacts"][0]
+    endpoint = main["accepted_endpoints"]["0"]
+    signal = endpoint["peer_terminal"]
+
+    if mutation == "absent-sentinel":
+        sentinel = {}
+
+    elif mutation == "foreign-owner":
+        sentinel["origin"] = main["origin"]
+
+    elif mutation in ("contact-overflow", "bool-count", "active-handler"):
+        key, value = {"contact-overflow": ("contact_overflow", 1),
+            "bool-count": ("contacts", True), "active-handler": ("active_handlers", 1)}[mutation]
+        main["counters"][key] = value
+
+    elif mutation in ("listener-live", "cleanup-unreturned", "late-idle", "cleanup-error"):
+        key, value = {"listener-live": ("listener_alive", True),
+            "cleanup-unreturned": ("cleanup_returned", False),
+            "late-idle": ("idle_before_local_close", False),
+            "cleanup-error": ("cleanup_failure", "RuntimeError")}[mutation]
+        main[key] = value
+
+    elif mutation in ("wrong-request", "truncated", "foreign-wire", "bool-sequence",
+        "nonfinite-clock", "renewed-clock", "sent-only", "unclosed"):
+        key, value = {"wrong-request": ("request_hex", b"GET /other HTTP/1.1\r\n".hex()),
+            "truncated": ("request_truncated", True), "foreign-wire": ("response_hex", "00"),
+            "bool-sequence": ("sequence", True), "nonfinite-clock": ("accepted_at", float("nan")),
+            "renewed-clock": ("deadline_at", 9.0), "sent-only": ("completion_sequence", None),
+            "unclosed": ("socket_closed", False)}[mutation]
+        record[key] = value
+
+    elif mutation in ("wrong-peer", "bool-port"):
+        endpoint["peer_address" if mutation == "wrong-peer" else "local_port"] = (
+            "127.0.0.2" if mutation == "wrong-peer" else True)
+
+    elif mutation == "wrong-index":
+        main["accepted_endpoints"] = {"1": endpoint}
+
+    else:
+        key, value = {"reset-normal": ("kind", "peer-reset"), "late-end": ("within_hold", False),
+            "local-end": ("before_local_close", False), "unknown-end": ("kind", "os-error")
+        }[mutation]
+        signal[key] = value
+
+    with pytest.raises(AssertionError):
+        AssertContentSourceFacts(name, url, main, sentinel, sentinel_origin=other)
+
+
+@pytest.mark.parametrize("kind", ["recognized-reset", "unknown-reset", "source-error"])
+def test_SourceFactsHeldResetAndRefusedSourceErrorAreNotNormalEof(kind):
+    """Held reset needs actual known error numbers; source failure retains incomplete delivery."""
+
+    name, url, main, sentinel, other = SourceFacts("held-eof" if kind != "source-error" else (
+        "invalid-utf8"))
+
+    if kind == "source-error":
+        main["contacts"][0].update(failure="owned-content-request-failure",
+            admission_state="failed", completion_sequence=None)
+        main["counters"].update(completed_responses=0, errors=1)
+        main["errors"] = ["owned-content-request-failure"]
+        main["accepted_endpoints"]["0"]["peer_terminal"] = None
+        assert AssertContentSourceFacts(name, url, main, sentinel, sentinel_origin=other) == (
+            "refused-source-error"), "A retained source error is never complete delivery"
+
+        return
+
+    signal = main["accepted_endpoints"]["0"]["peer_terminal"]
+    signal.update(kind="peer-reset", error_type="ConnectionResetError",
+        errno=104 if kind == "recognized-reset" else None)
+
+    if kind == "recognized-reset":
+        assert AssertContentSourceFacts(name, url, main, sentinel, sentinel_origin=other) == (
+            "held-peer-ended"), "Recognized held reset is peer end, never a normal EOF claim"
+
+    else:
+        with pytest.raises(AssertionError):
+            AssertContentSourceFacts(name, url, main, sentinel, sentinel_origin=other)
+
+
+@pytest.mark.parametrize("number,windows,allowed", [
+    (errno.ECONNRESET, 10 ** 100, False), (10 ** 100, 10054, False),
+    (errno.ECONNRESET, None, True), (None, 10054, True),
+    (errno.ECONNRESET, 10053, True), (errno.ECONNREFUSED, 10054, True),
+    (True, 10054, False), (errno.ECONNRESET, True, False), (None, None, False)])
+def test_HeldPeerResetCompanionNumbersMustMatchOriginalSanitizedDomains(number, windows, allowed):
+    """Each retained numeric domain is independent even when its companion proves peer reset."""
+
+    signal = {"kind": "peer-reset", "phase": "peer-receive", "before_local_close": True,
+        "within_hold": True, "error_type": "ConnectionResetError", "errno": number,
+        "winerror": windows}
+
+    if allowed:
+        AssertOriginalPeerEnd(signal, allow_reset=True)
+
+    else:
+        with pytest.raises(AssertionError):
+            AssertOriginalPeerEnd(signal, allow_reset=True)
+
+
+@pytest.mark.parametrize("mutation", [None, "cwd", "timeout", "installation", "prelaunch",
+    "digest-drift", "identity-drift", "digest-malformed", "digest-type", "missing-digest",
+    "bool-terminal-timeout"])
+def test_LauncherEvidenceKeepsIndependentPrelaunchAndTerminalBindings(mutation):
+    """Only retained original launch intent may join terminal bytes and installed identities."""
+
+    case = next(case for case in CaseMatrix() if case.name == "missing")
+    url = "http://127.0.0.1:15432" + case.path
+    identity, imported = Installation()
+    installation = {"manifest_sha256": "d" * 64, "identity": identity}
+    stdout = case.ExpectedStdout(url)
+    process = Process(stdout, url, 0)
+    budget = 1 if mutation == "bool-terminal-timeout" else 10
+    process.update(cwd="/owned/launch", timeout_seconds=budget,
+        installation=copy.deepcopy(installation))
+    invocation = {key: copy.deepcopy(value) for key, value in process.items()
+        if key not in ("stdout", "stderr")}
+    invocation.update(state="not-launched", returncode=None, terminal_return_observed=False)
+
+    if mutation == "cwd":
+        process["cwd"] = "/other/launch"
+
+    elif mutation == "timeout":
+        process["timeout_seconds"] = 20
+
+    elif mutation == "installation":
+        process["installation"] = {"identity": {}}
+
+    elif mutation == "prelaunch":
+        invocation["terminal_return_observed"] = True
+
+    elif mutation == "digest-drift":
+        process["installation"]["manifest_sha256"] = "e" * 64
+
+    elif mutation == "identity-drift":
+        process["installation"]["identity"]["source_tree"] = "3" * 40
+
+    elif mutation in ("digest-malformed", "digest-type", "missing-digest"):
+        if mutation == "missing-digest":
+            del installation["manifest_sha256"]
+
+        else:
+            installation["manifest_sha256"] = "not-a-sha256" if mutation == (
+                "digest-malformed") else 123
+
+        process["installation"] = copy.deepcopy(installation)
+        invocation["installation"] = copy.deepcopy(installation)
+
+    elif mutation == "bool-terminal-timeout":
+        process["timeout_seconds"] = True
+
+    def Check():
+        """Check only supplied mocked records; this helper never launches a process."""
+
+        AssertContentLauncherEvidence(case.name, url, installation, imported, invocation, process,
+            stdout, b"", commit=COMMIT, tree=TREE, python=PYTHON, cwd="/owned/launch",
+            timeout_seconds=budget)
+
+    if mutation is None:
+        Check()
+
+    else:
+        with pytest.raises(AssertionError):
+            Check()
