@@ -263,7 +263,8 @@ def Main(argv: Sequence[str] | None = None) -> int:
 
     Args:
         argv: Registered gate and optional test settings, or None for process arguments.
-            The full check accepts only a suite-budget override to preserve all test phases.
+            The full check accepts suite budgeting and fail-fast; successful checks retain
+            every required test, coverage and build phase with unchanged worker/deadline defaults.
 
     Returns:
         Selected gate exit status.
@@ -286,7 +287,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
                         metavar="N",
                         help=f"Each pytest invocation: 1-{MAX_TIMEOUT_SECONDS}s (default: 600).")
     parser.add_argument("--serial", action="store_true")
-    parser.add_argument("--fail-fast", action="store_true")
+    parser.add_argument("--fail-fast", action="store_true",
+                        help="Stop unit/test/check on failure; "
+                             "successful checks retain all phases.")
     arguments = parser.parse_args(argv)
     try:
         test_options = TestOptions(
@@ -301,8 +304,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
         parser.error(str(error))
 
     if arguments.command == "check":
-        if test_options != TestOptions(suite_timeout_seconds=arguments.suite_timeout):
-            parser.error("'check' accepts only --suite-timeout among test execution options")
+        if test_options != TestOptions(fail_fast=arguments.fail_fast,
+                                       suite_timeout_seconds=arguments.suite_timeout):
+            parser.error("'check' accepts only --suite-timeout and --fail-fast among test options")
 
     elif arguments.command not in {"unit", "test"} and test_options != TestOptions():
         parser.error("test execution options are only valid with 'unit' or 'test'")

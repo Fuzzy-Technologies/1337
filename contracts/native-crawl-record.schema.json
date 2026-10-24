@@ -1,0 +1,492 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/native-crawl-record.schema.json",
+  "title": "Proposed non-retaining owned-loopback content crawl record version 1",
+  "description": "ADR0097 contract only; no production implementation, grant, body custody or scanner acceptance. The root validates one worker stdout object; $defs/input freezes its sole immutable JSON argument. Every nested object is closed.",
+  "$comment": "Owning parser must enforce byte/node/depth limits, strict canonical ASCII JSON without duplicates/nonfinite/trailing data, exact primitive types, selected membership and sorting, URL/peer/request/hash/reference joins and complete ordinal accounting. Retained body digests are attributed worker observations, never original body custody. Normative details are in docs/NATIVE_CONTENT_CRAWL_CONTRACT.md.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "profile",
+        "outcome",
+        "input_sha256",
+        "selected_urls_sha256",
+        "source",
+        "response",
+        "frontier"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "profile": {
+          "const": "owned-loopback-content-crawl.v1"
+        },
+        "outcome": {
+          "enum": [
+            "html",
+            "non-html",
+            "client-error"
+          ]
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selected_urls_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "response": {
+          "$ref": "#/$defs/response"
+        },
+        "frontier": {
+          "$ref": "#/$defs/frontier"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "outcome": {
+              "const": "html"
+            },
+            "response": {
+              "properties": {
+                "status": {
+                  "const": 200
+                },
+                "media_type": {
+                  "const": "text/html"
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "outcome": {
+              "const": "non-html"
+            },
+            "response": {
+              "properties": {
+                "status": {
+                  "const": 200
+                },
+                "media_type": {
+                  "enum": [
+                    "text/plain",
+                    "application/octet-stream"
+                  ]
+                }
+              }
+            },
+            "frontier": {
+              "const": {
+                "complete": true,
+                "anchor_count": 0,
+                "entries": [],
+                "exclusion_counts": {
+                  "missing-href": 0,
+                  "invalid-url": 0,
+                  "fragment-only": 0,
+                  "non-http": 0,
+                  "credentials": 0,
+                  "query": 0,
+                  "off-origin": 0,
+                  "unsupported-path": 0,
+                  "source-target": 0,
+                  "not-admitted": 0
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "outcome": {
+              "const": "client-error"
+            },
+            "response": {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "minimum": 400,
+                  "maximum": 499
+                }
+              }
+            },
+            "frontier": {
+              "const": {
+                "complete": true,
+                "anchor_count": 0,
+                "entries": [],
+                "exclusion_counts": {
+                  "missing-href": 0,
+                  "invalid-url": 0,
+                  "fragment-only": 0,
+                  "non-http": 0,
+                  "credentials": 0,
+                  "query": 0,
+                  "off-origin": 0,
+                  "unsupported-path": 0,
+                  "source-target": 0,
+                  "not-admitted": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "profile",
+        "outcome",
+        "error"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "profile": {
+          "const": "owned-loopback-content-crawl.v1"
+        },
+        "outcome": {
+          "const": "refused"
+        },
+        "error": {
+          "enum": [
+            "input",
+            "connection",
+            "timeout",
+            "protocol",
+            "response-policy",
+            "html-policy",
+            "output-limit",
+            "internal"
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "url": {
+      "type": "string",
+      "maxLength": 2048,
+      "pattern": "^http://(?:127\\.0\\.0\\.1|\\[::1\\])(?::(?!80/)(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?/(?:[A-Za-z0-9._~-]+(?:/[A-Za-z0-9._~-]+)*/?)?$(?![\\s\\S])"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "request_reference": {
+      "type": "string",
+      "pattern": "^request:[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "endpoint_reference": {
+      "type": "string",
+      "pattern": "^object:[0-9a-f]{64}$(?![\\s\\S])"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "profile",
+        "workspace_id",
+        "seed_url",
+        "source_url",
+        "selected_urls",
+        "max_body_bytes",
+        "request_timeout_ms"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "profile": {
+          "const": "owned-loopback-content-crawl.v1"
+        },
+        "workspace_id": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$(?![\\s\\S])"
+        },
+        "seed_url": {
+          "$ref": "#/$defs/url"
+        },
+        "source_url": {
+          "$ref": "#/$defs/url"
+        },
+        "selected_urls": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/url"
+          }
+        },
+        "max_body_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "request_timeout_ms": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 5000
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "address",
+        "port",
+        "request_reference",
+        "endpoint_reference",
+        "request_size_bytes",
+        "request_sha256"
+      ],
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/url"
+        },
+        "address": {
+          "enum": [
+            "127.0.0.1",
+            "::1"
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "request_reference": {
+          "$ref": "#/$defs/request_reference"
+        },
+        "endpoint_reference": {
+          "$ref": "#/$defs/endpoint_reference"
+        },
+        "request_size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2048
+        },
+        "request_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "http_version",
+        "status",
+        "media_type",
+        "header_bytes",
+        "header_fields",
+        "body_bytes",
+        "body_sha256"
+      ],
+      "properties": {
+        "http_version": {
+          "enum": [
+            "HTTP/1.0",
+            "HTTP/1.1"
+          ]
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 499
+        },
+        "media_type": {
+          "enum": [
+            "text/html",
+            "text/plain",
+            "application/octet-stream"
+          ]
+        },
+        "header_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16384
+        },
+        "header_fields": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 64
+        },
+        "body_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "if": {
+        "properties": {
+          "body_bytes": {
+            "const": 0
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "body_sha256": {
+            "const": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "request_reference",
+        "endpoint_reference",
+        "ordinals"
+      ],
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/url"
+        },
+        "request_reference": {
+          "$ref": "#/$defs/request_reference"
+        },
+        "endpoint_reference": {
+          "$ref": "#/$defs/endpoint_reference"
+        },
+        "ordinals": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024
+          }
+        }
+      }
+    },
+    "exclusion_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missing-href",
+        "invalid-url",
+        "fragment-only",
+        "non-http",
+        "credentials",
+        "query",
+        "off-origin",
+        "unsupported-path",
+        "source-target",
+        "not-admitted"
+      ],
+      "properties": {
+        "missing-href": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "invalid-url": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "fragment-only": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "non-http": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "credentials": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "query": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "off-origin": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "unsupported-path": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "source-target": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "not-admitted": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        }
+      }
+    },
+    "frontier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "anchor_count",
+        "entries",
+        "exclusion_counts"
+      ],
+      "properties": {
+        "complete": {
+          "type": "boolean",
+          "const": true
+        },
+        "anchor_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "entries": {
+          "type": "array",
+          "maxItems": 15,
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        },
+        "exclusion_counts": {
+          "$ref": "#/$defs/exclusion_counts"
+        }
+      }
+    }
+  }
+}

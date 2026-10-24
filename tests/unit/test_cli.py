@@ -135,6 +135,7 @@ def test_PythonModuleEntrypoint(monkeypatch, capsys):
 
 @pytest.mark.parametrize("arguments", [
     ["workspace", "create"], ["workspace", "open"], ["scope", "create"], ["scan", "quick"],
+    ["scan", "crawl"],
     ["help", "unexpected"], ["--json", "help"],
 ])
 def test_LocalProductNamespacesRequireExplicitInputs(arguments):
@@ -325,6 +326,7 @@ def test_ProductReopenRejectsTamperedOrForeignAcquisition(tmp_path, capsys, fore
 
 @pytest.mark.parametrize("arguments, expected", [
     (["scan", "quick", "--help"], "--approve-safe-http"),
+    (["scan", "crawl", "--help"], "--approve-safe-crawl"),
     (["scope", "create", "--help"], "--grant-consent"),
     (["workspace", "create", "--help"], "--name"),
 ])

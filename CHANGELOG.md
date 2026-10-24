@@ -24,6 +24,14 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   outcomes preserve capture provenance and triage. Focused owned-original cases verify
   saved Findings and offline replay; final shared integration remains required.
 
+- Added Experimental first-party content-driven owned-loopback crawl planning,
+  SDK and explicit `scan crawl` enrollment over a sorted admitted URL set. Current
+  SAFE authority, bounded concurrent acquisition, original report custody and
+  ordered source-only model commits preserve partial/CAS/cancellation truth.
+  Independent installed worker/SDK/CLI cases cover live content, scope refusal,
+  cancellation and relocated reopen. Final shared integration and portability
+  remain required; discovery creates no Finding or automatic check grant.
+
 - Added explicit governed original-response planning, SDK capture and installed
   `response capture` / `response replay` commands. Closed reviewed wire admission
   precedes original seven-role custody; receipt-bound source Observations retain

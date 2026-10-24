@@ -3,6 +3,7 @@
 
 """Protect draft feedback, final integration triggers and required full-job execution."""
 
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,13 @@ BROWSER_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[browser-feature-checkpoint]'))"
+)
+NATIVE_CRAWL_PORTABILITY_JOBS = {
+    "native-crawl-windows-portability", "native-crawl-container-portability",
+}
+NATIVE_CRAWL_PORTABILITY_CONDITION = (
+    "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]')"
 )
 
 
@@ -79,6 +87,10 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     workflow = Workflow(name)
     jobs = workflow["jobs"]
     expected = WORKFLOWS[name] | ({"deploy-pages"} if name == "documentation.yml" else set())
+
+    if name == "python-quality.yml":
+        expected |= NATIVE_CRAWL_PORTABILITY_JOBS
+
     assert set(jobs) == expected, "The integration job inventory changed unexpectedly."
     assert workflow["permissions"] == {"contents": "read"}, "PR authority expanded."
 
@@ -107,6 +119,126 @@ def test_DocumentationTestsUseParallelWorkersAndKeepBranchCoverage() -> None:
     assert "-n auto --dist=loadscope" in command, "Documentation tests lost process parallelism."
     assert "--cov=tools --cov-branch" in command, "Parallel documentation lost branch measurement."
     assert "fuzzy1337.coverage_gate" in command, "Parallel documentation lost its per-tool gate."
+
+
+def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> None:
+    """Fail-fast changes failure latency while complete selection and existing budgets remain."""
+
+    jobs = Workflow("python-quality.yml")["jobs"]
+    full = next(step for step in jobs["quality"]["steps"]
+        if step.get("name") == "Run repository quality gate")
+    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
+        "Only existing Ready/push integration events may start the full Python check."
+    )
+    assert " ".join(full["run"].split()) == (
+        "uv run --locked --extra dev 1337-dev check --fail-fast "
+        "--suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}"
+    ), "The full matrix must preserve its complete gate and original platform suite budget."
+    container = jobs["container-quality"]
+    assert " ".join(container["if"].split()) == INTEGRATION_CONDITION, (
+        "The complete container gate must retain its original Ready/push condition."
+    )
+    command = next(step["run"] for step in container["steps"]
+        if step.get("name") == "Run container quality gate")
+    assert " ".join(command.split()) == (
+        'LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" '
+        "docker compose --profile quality run --rm quality 1337-dev check --fail-fast"
+    ), "Container CI must keep mapped ownership and run the same complete supported check."
+
+    for selected in (full["run"], command):
+        assert not any(option in selected for option in (
+            "--jobs", "--timeout", "--serial", "--no-cov", "tests/",
+        )), (
+            "Fail-fast cannot select a partial suite or change worker, deadline "
+            "or coverage defaults."
+        )
+
+
+@pytest.mark.parametrize("job_id", sorted(NATIVE_CRAWL_PORTABILITY_JOBS))
+def test_CrawlPortabilityJobsRequireDraftMarkerAndRetainTheirOwnEvidence(job_id: str) -> None:
+    """Parallel focused portability diagnostics cannot replace a final ready integration job."""
+
+    job = Workflow("python-quality.yml")["jobs"][job_id]
+    assert " ".join(job["if"].split()) == NATIVE_CRAWL_PORTABILITY_CONDITION, (
+        "Portability diagnosis must require the explicit draft-only marker."
+    )
+    assert "needs" not in job and job.get("continue-on-error", False) is False, (
+        "Independent portability jobs must run concurrently and fail on real prerequisite errors."
+    )
+    assert 1 <= job["timeout-minutes"] <= 10, "Focused jobs must keep finite short ceilings."
+    commands = [step["run"] for step in job["steps"] if "run" in step]
+    assert not any("1337-dev check" in command for command in commands), (
+        "A draft checkpoint cannot start the full repository gate."
+    )
+    upload, = (step for step in job["steps"] if "upload-artifact@" in step.get("uses", ""))
+    assert upload["if"] == "always()" and set(upload["with"]["path"].splitlines()) == {
+        "functional-evidence/native-crawl-portability/", "functional-evidence/native-crawl/",
+    }, "JUnit and original owned-case evidence must survive both successful and failed diagnosis."
+    assert upload["with"]["retention-days"] == 7, "Diagnostic retention must remain bounded."
+
+
+def test_WindowsCrawlCheckpointSelectsOnlyTwoUnitsAndOneActualCancellation() -> None:
+    """The Windows lane isolates loop fixtures and actual worker/socket settlement without mocks."""
+
+    job = Workflow("python-quality.yml")["jobs"]["native-crawl-windows-portability"]
+    assert job["runs-on"] == "windows-2022", "The diagnostic must exercise actual Windows."
+    steps = {step["name"]: step for step in job["steps"]}
+    assert steps["Select Python"]["with"]["python-version"] == "3.12", (
+        "The diagnostic must use the failing shared Windows Python profile."
+    )
+    units = steps["Run focused Windows crawl units"]
+    genuine = steps["Run one genuine Windows crawl cancellation case"]
+    def Selectors(command: str) -> set[str]:
+        """Read only declared pytest paths without executing their workflow shell command."""
+
+        return {token for token in shlex.split(command) if token.startswith("tests/")}
+
+    assert Selectors(units["run"]) == {
+        "tests/unit/test_native_crawl_workflow.py", "tests/unit/test_native_crawl_commands.py",
+    }, "The focused unit lane must not select unrelated suites."
+    assert Selectors(genuine["run"]) == {
+        "tests/functional/test_native_crawl_product.py::"
+        "test_ActualSdkCallerCancellationSettlesOriginalWorkerAndSocket",
+    }, "One actual installed SDK cancellation case is required, not a fake or parser-only test."
+    assert "-n 2 --dist=loadscope" in units["run"] and "--timeout=30" in units["run"], (
+        "Independent units must keep two bounded workers and short per-case deadlines."
+    )
+    assert "-n 0" in genuine["run"] and "--timeout=60" in genuine["run"], (
+        "The single original socket/worker case keeps its own serial bounded owner."
+    )
+
+    for step in (units, genuine):
+        assert "-o addopts='' --no-cov" in step["run"] and "--junitxml=" in step["run"], (
+            "Partial checks must clear whole-suite coverage and retain their actual JUnit."
+        )
+        assert 1 <= step["timeout-minutes"] <= 3, "Focused steps need their original finite caps."
+
+
+def test_ContainerCrawlCheckpointOverridesOnlyTheExistingQualityCommand() -> None:
+    """The actual development image preserves mapped ownership and original source proof."""
+
+    job = Workflow("python-quality.yml")["jobs"]["native-crawl-container-portability"]
+    assert job["runs-on"] == "ubuntu-24.04", "The existing container host profile changed."
+    steps = {step["name"]: step for step in job["steps"]}
+    assert steps["Build existing development image"]["run"] == (
+        "docker compose --profile quality build quality"
+    ), "Feature diagnosis must build only the existing development service."
+    selected = steps["Run one genuine crawl worker through quality override"]
+    command = selected["run"]
+    assert 'LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"' in command and (
+        "docker compose --profile quality run --rm quality pytest" in command
+    ), "Container diagnosis must preserve original UID/GID mapping and quality entrypoint."
+    selectors = {token for token in shlex.split(command) if token.startswith("tests/")}
+    assert selectors == {
+        "tests/integration/test_native_crawl_worker_execution.py::"
+        "test_InstalledWorkerBindsActualGetBodyAndHandwrittenFrontier[positive-/entry]",
+    }, "Only the actual installed positive seed worker is selected."
+    assert "-n 0 -o addopts='' --no-cov" in command and "--timeout=60" in command and (
+        "--junitxml=" in command
+    ), "The single real worker needs bounded ordinary pytest and retained outcome evidence."
+    assert "--entrypoint" not in command and "--privileged" not in command, (
+        "The feature lane cannot replace or weaken the existing container boundary."
+    )
 
 
 def test_OfflineBrowserAcceptanceRequiresAnInstalledEngineAndSeparatesTheOwnedFixedPort() -> None:

@@ -155,8 +155,9 @@ def test_JunitSummaryIsDeterministicAndCountsTimeout(tmp_path):
     ), "junit summary is deterministic and counts timeout invariant failed."
 
 
-def test_DefaultRunExecutesParallelThenSerial(monkeypatch, capsys):
-    """Verify default run executes parallel then serial."""
+@pytest.mark.parametrize("fail_fast", [False, True])
+def test_DefaultRunExecutesParallelThenSerial(monkeypatch, capsys, fail_fast):
+    """Successful default and fail-fast selections run both required pytest phases."""
 
     calls = []
 
@@ -168,12 +169,15 @@ def test_DefaultRunExecutesParallelThenSerial(monkeypatch, capsys):
 
     monkeypatch.setattr(test_runner, "RunPytest", RunPytest)
     monkeypatch.setattr(test_runner, "HasSerialTests", lambda target: True)
-    assert test_runner.RunTests("tests/unit", test_runner.TestOptions()) == 0, (
+    assert test_runner.RunTests("tests/unit", test_runner.TestOptions(fail_fast=fail_fast)) == 0, (
         "default run executes parallel then serial invariant failed."
     )
     assert len(calls) == 2, "default run executes parallel then serial invariant failed."
     assert "not serial" in calls[0], "default run executes parallel then serial invariant failed."
     assert "serial" in calls[1], "default run executes parallel then serial invariant failed."
+    assert all(("-x" in arguments) == fail_fast for arguments in calls), (
+        "Fail-fast adds only the explicit stop-on-failure control to both successful phases."
+    )
     assert "total=4" in capsys.readouterr().out, (
         "default run executes parallel then serial invariant failed."
     )
