@@ -123,6 +123,75 @@ def runner():
         yield loop
 
 
+@pytest.fixture
+def custody_diagnostics(monkeypatch):
+    """Expose only fixed phase names and static source locations on portable unit failure."""
+
+    import fuzzy1337.owned_response_custody as custody
+
+    failures = []
+    original_append = OwnedResponseStage.Append
+    original_capture = JobContext.CaptureEvidence
+    original_verify = custody.VerifyEvidence
+
+    def RecordFailure(phase, error):
+        """Keep one bounded control-only traceback without source bytes, paths or messages."""
+
+        while error is not None and len(failures) < 3:
+            locations = []
+            trace = error.__traceback__
+
+            while trace is not None:
+                if trace.tb_frame.f_globals.get("__name__") in (
+                    "fuzzy1337.owned_response_custody",
+                    "fuzzy1337.jobs",
+                    "fuzzy1337.evidence",
+                    "fuzzy1337.artifact_inputs",
+                ):
+                    locations.append((trace.tb_frame.f_code.co_name, trace.tb_lineno))
+
+                trace = trace.tb_next
+
+            failures.append((phase, type(error).__name__, tuple(locations[-4:])))
+            error = error.__cause__
+
+    def Append(self, frame):
+        """Preserve the original staging call and expose only its fixed failed phase."""
+
+        try:
+            return original_append(self, frame)
+
+        except Exception as error:
+            RecordFailure("stage-" + frame["kind"], error)
+            raise
+
+    def Capture(self, *args, **kwargs):
+        """Preserve original attachment semantics, including an error after real attachment."""
+
+        try:
+            return original_capture(self, *args, **kwargs)
+
+        except Exception as error:
+            RecordFailure("capture-evidence", error)
+            raise
+
+    def Verify(*args, **kwargs):
+        """Preserve exact original evidence verification without publishing its diagnostics."""
+
+        try:
+            return original_verify(*args, **kwargs)
+
+        except Exception as error:
+            RecordFailure("verify-evidence", error)
+            raise
+
+    monkeypatch.setattr(OwnedResponseStage, "Append", Append)
+    monkeypatch.setattr(JobContext, "CaptureEvidence", Capture)
+    monkeypatch.setattr(custody, "VerifyEvidence", Verify)
+
+    return failures
+
+
 def Authority(url=URL):
     """Build explicit synthetic policy/scope without confusing consent attester and actor."""
 
@@ -276,12 +345,17 @@ def Run(runner, job):
     return runner.run(Wait())
 
 
-def test_OriginalFragmentsReceiptLastAndRelocatedReplay(tmp_path, monkeypatch, runner):
+def test_OriginalFragmentsReceiptLastAndRelocatedReplay(
+    tmp_path, monkeypatch, runner, custody_diagnostics
+):
     """Actual fragment boundaries and original IDs survive source/runtime removal and relocation."""
 
     provider, job, _ = Setup(tmp_path, monkeypatch)
     snapshot = Run(runner, job)
-    assert snapshot.state is JobState.COMPLETED, "Closed acquisition must complete"
+    assert snapshot.state is JobState.COMPLETED, (
+        "Closed acquisition must complete",
+        custody_diagnostics,
+    )
     capture = provider.capture
     assert capture is not None and len(capture.records) == 7, (
         "All original roles must be acknowledged"
@@ -309,6 +383,37 @@ def test_OriginalFragmentsReceiptLastAndRelocatedReplay(tmp_path, monkeypatch, r
     assert replay.record_json == Record() and len(replay.original_ids) == 6, (
         "Replay only original facts"
     )
+
+
+def test_PortableCustodyDiagnosticsRetainOnlySafeFailureLocations(
+    tmp_path, monkeypatch, runner, custody_diagnostics
+):
+    """A hidden storage error is located without echoing its arbitrary message or source data."""
+
+    provider, job, _ = Setup(tmp_path, monkeypatch)
+    private = "PRIVATE rejected diagnostics"
+
+    def Refuse(*args, **kwargs):
+        """Simulate one original store failure without any publication acknowledgement."""
+
+        raise EvidenceStorageError(private)
+
+    monkeypatch.setattr(provider.store, "Put", Refuse)
+    snapshot = Run(runner, job)
+    assert snapshot.state is JobState.FAILED and not snapshot.artifacts, (
+        "Diagnostic observation cannot change incomplete original custody"
+    )
+    assert len(custody_diagnostics) == 2 and custody_diagnostics[0][:2] == (
+        "capture-evidence",
+        "JobError",
+    ) and custody_diagnostics[1][:2] == (
+        "capture-evidence",
+        "EvidenceStorageError",
+    ), "The safe diagnostic must identify the original failed phase and exception kind"
+    assert private not in repr(custody_diagnostics) and all(
+        type(name) is str and type(line) is int
+        for name, line in custody_diagnostics[0][2]
+    ), "Only static source function names and line numbers may survive diagnostic observation"
 
 
 @pytest.mark.parametrize("field", ("workspace", "environment", "resources", "authorization"))
@@ -952,7 +1057,7 @@ async def Exercise(root):
         raise AssertionError("Cancelled owner cannot manufacture a result")
 
 with tempfile.TemporaryDirectory() as root:
-    asyncio.run(Exercise(Path(root)))
+    asyncio.run(Exercise(Path(root).resolve()))
 """
 
 
