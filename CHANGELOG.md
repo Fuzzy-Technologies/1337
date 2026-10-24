@@ -18,6 +18,25 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added governed native image planning and SDK/CLI execution over explicit local
+  Trivy material, with current permission, separate SAFE approval, original paired
+  custody and canonical saved results. Native summaries preserve cancellation,
+  revocation, storage/export uncertainty and actual saved revisions. Required
+  isolated genuine SDK/installed-CLI acceptance covers the two existing archives;
+  an explicit draft checkpoint avoids repeating unrelated full integration jobs.
+
+- Added an explicit native IMAGE authority branch to the canonical artifact-policy
+  owner, with fixed observed recipes, fresh SAFE permissions, separate original
+  VERSION/SCAN grants and persistent single-use reservations. One-time full
+  request binding and distinct live/post-cleanup validation preserve synthetic
+  guards and original receipt contracts; SDK/CLI enrollment remains separate.
+
+- Added an internal owned native-image material observer with opaque proofs,
+  cumulative observation/finalization budgets and additive bounded original
+  outcome custody. Exact event/receipt ceilings and retained private journals
+  distinguish incomplete collection from accepted evidence; native product
+  grants, SDK/CLI enrollment and image-model persistence remain a follow-on.
+
 - Added an explicit browser-only draft CI checkpoint for supported genuine engine
   diagnostics. Full integration still starts only at final readiness; browser
   setup downloads the pinned headless shell without an unrelated OS upgrade.
@@ -287,6 +306,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   and certificate validation acceptance remain separate work.
 
 #### Fixed
+
+- Preserved distinct path/handle identity views in native policy controls and
+  original journal readback, with binary framing and unchanged Linux guards.
+  Controlled cancellation tests now surface early owner completion and settle
+  both readiness and operation tasks instead of waiting indefinitely.
+
+- Reused canonical artifact path/handle association for bounded native material
+  reads while retaining each API's full physical mutation checks. Cross-platform
+  protocol checks now account for Windows timestamp views without enabling native
+  execution there or weakening Linux ownership and identity guards.
+- Added an explicit draft-only parallel native protocol checkpoint across the
+  existing Python/OS matrix so focused regressions precede the shared final gate.
 
 - Preserve bounded completed-case diagnostics when a shared pytest invocation
   terminates before JUnit finalization. Partial records retain hashes, sanitized

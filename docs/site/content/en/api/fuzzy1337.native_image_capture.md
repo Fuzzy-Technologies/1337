@@ -14,4 +14,8 @@ ADR 0058 and `docs/TRIVY_ACCEPTANCE.md` define the restricted custody prerequisi
 It issues no native artifact product grant and performs no model persistence;
 the legacy health-only import contract remains separate.
 
+The additive bounded collector described in ADR0094 uses a fixed owned material
+helper, opaque observation proofs and durable original-outcome custody. See
+`docs/NATIVE_IMAGE_OBSERVATION.md`; historical capture defaults remain unchanged.
+
 ::: fuzzy1337.native_image_capture

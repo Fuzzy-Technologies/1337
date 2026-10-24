@@ -18,7 +18,9 @@ jobs:
   owned-offline:
     if: >-
       github.event_name == 'push' || (github.event_name == 'pull_request'
-      && github.event.pull_request.draft == false)
+      && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[native-image-feature-checkpoint]'))
     name: Trivy 0.75.0 / owned offline archive
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -135,12 +137,17 @@ jobs:
             FUZZY1337_TRIVY_BINARY="$RUNNER_TEMP/trivy-native-0.75.0/trivy" \
             FUZZY1337_TRIVY_CACHE="$RUNNER_TEMP/trivy-native-0.75.0/cache" \
             FUZZY1337_TRIVY_PROVISIONING="$RUNNER_TEMP/trivy-native-0.75.0/provisioning.json" \
-            .venv/bin/python -m pytest tests/integration/test_trivy_native.py -o addopts='' -q
+            FUZZY1337_RUN_NATIVE_IMAGE_PRODUCT_ACCEPTANCE=1 \
+            .venv/bin/python -m pytest \
+            tests/integration/test_trivy_native.py tests/functional/test_native_image_product.py \
+            -o addopts='' --no-cov -q -n 2 --dist=load
       - name: Preserve actual native provider evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: genuine-trivy-0.75.0-owned-offline
-          path: functional-evidence/trivy-native/
+          path: |
+            functional-evidence/trivy-native/
+            functional-evidence/native-image-product/
           if-no-files-found: warn
           retention-days: 14

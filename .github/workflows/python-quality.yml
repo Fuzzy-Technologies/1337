@@ -18,7 +18,9 @@ jobs:
   quality:
     if: >-
       github.event_name == 'push' || (github.event_name == 'pull_request'
-      && github.event.pull_request.draft == false)
+      && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]'))
     name: Python ${{ matrix.python }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.job_timeout_minutes || 15 }}
@@ -50,14 +52,36 @@ jobs:
       - name: Synchronize locked environment
         run: uv sync --locked --extra dev --python ${{ matrix.python }}
       - name: Check owned transport lifecycle on Windows
-        if: matrix.os == 'windows-2022'
+        if: >-
+          matrix.os == 'windows-2022' && (github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.draft == false))
         run: >-
           uv run --locked --extra dev pytest
           tests/integration/test_proxy_regression_workflow.py
           tests/integration/test_web_vulnerability_target.py
           -o addopts='' -q
           -k 'IndependentVerifyingClientRejectsTheActualSelfSignedCertificate or PartialHeader'
+      - name: Run focused native image protocol checks
+        timeout-minutes: 5
+        if: >-
+          github.event_name == 'pull_request' && github.event.pull_request.draft == true
+          && contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]')
+        run: >-
+          uv run --locked --extra dev pytest -q -x --max-worker-restart=0
+          --timeout=30 --timeout-method=thread -n 2 --dist=loadscope -o addopts='' --no-cov
+          tests/unit/test_native_image_material_worker.py
+          tests/unit/test_native_image_observation.py
+          tests/unit/test_native_image_bounded_capture.py
+          tests/unit/test_native_image_control_identity.py
+          tests/unit/test_native_image_policy.py
+          tests/unit/test_native_image_policy_oracle.py
+          tests/unit/test_native_image_workflow.py
+          tests/contract/test_native_image_cli.py
+          --junitxml=functional-evidence/native-image-protocol.xml
       - name: Run repository quality gate
+        if: >-
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
         env:
           FUZZY1337_RUN_DESCENDANT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
         run: >-

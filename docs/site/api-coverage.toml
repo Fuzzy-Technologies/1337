@@ -82,6 +82,18 @@ mode = "authored"
 page = "api/fuzzy1337.artifact_policy.md"
 
 [[surfaces]]
+module = "fuzzy1337.native_image_policy"
+source = "src/fuzzy1337/native_image_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_policy.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_workflow"
+source = "src/fuzzy1337/native_image_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_workflow.md"
+
+[[surfaces]]
 module = "fuzzy1337.configuration_evidence"
 source = "src/fuzzy1337/configuration_evidence.py"
 mode = "authored"
@@ -141,6 +153,24 @@ module = "fuzzy1337.native_image_capture"
 source = "src/fuzzy1337/native_image_capture.py"
 mode = "authored"
 page = "api/fuzzy1337.native_image_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_observation"
+source = "src/fuzzy1337/native_image_observation.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_observation.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_material_worker"
+source = "src/fuzzy1337/native_image_material_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_material_worker.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_bounded_capture"
+source = "src/fuzzy1337/native_image_bounded_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_bounded_capture.md"
 
 [[surfaces]]
 module = "fuzzy1337.native_image_admission"

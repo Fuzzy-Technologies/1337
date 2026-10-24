@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "status": "proposed",
+  "oracle_id": "owned-native-trivy-product-v1",
+  "existing_provider_profile": "trivy.image-archive-offline.v1",
+  "provider_id": "native.trivy",
+  "capability": "image.archive-vulnerabilities",
+  "impact": "SAFE",
+  "source_fixture": "tests/fixtures/trivy/native_archive.py",
+  "source_oracle": "tests/fixtures/trivy/native_oracle.json",
+  "input_format": "Docker-save archive with inert package metadata only",
+  "provider_version": "0.75.0",
+  "release_asset_sha256": "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f",
+  "database_repository": "ghcr.io/aquasecurity/trivy-db@sha256:4efa1d9d38f992c2472847b04b802f390924514574fad189f7d89e4c7e93ab00",
+  "database_oci_reference_is_not_input_format_acceptance": true,
+  "selected_advisory_id": "CVE-2023-32681",
+  "selected_package_name": "requests",
+  "logical_input_name": "image.tar",
+  "cases": [
+    {
+      "case_id": "requests-selected-advisory-present",
+      "package_version": "2.30.0",
+      "archive_size_bytes": 20480,
+      "archive_sha256": "90d1a0fe43c89e341e370221fb240591231e875895b1475d30ea28f37b178aa1",
+      "artifact_target_value": "manifest-sha256:d22a5207673c8262054db548205e4f244b0a2459065846ad40960b6cd2e10aa8",
+      "expected_workflow_state": "completed",
+      "expected_selected_advisory_match": true
+    },
+    {
+      "case_id": "requests-selected-advisory-fixed",
+      "package_version": "2.31.0",
+      "archive_size_bytes": 20480,
+      "archive_sha256": "b681fdb5e0214cd1ddc5272e77ed498af210d5e82bb7e23d3a0d885db54d84fb",
+      "artifact_target_value": "manifest-sha256:2e83aa1954e9896050bfb984963fd05414e540c610effb4c24b0e0f3d962dad4",
+      "expected_workflow_state": "completed",
+      "expected_selected_advisory_match": false
+    }
+  ],
+  "unrelated_finding_count": "not-asserted",
+  "scan_completeness": "not-assessed",
+  "required_original_roles": {
+    "version": [
+      "provider-version",
+      "provider-version-stderr",
+      "native-version-receipt"
+    ],
+    "scan": [
+      "stdout",
+      "stderr",
+      "native-scan-receipt"
+    ]
+  },
+  "required_original_bindings": [
+    "unknown-provider-version-in-original-VERSION-invocation",
+    "actually-observed-version-in-SCAN-invocation",
+    "different-original-VERSION-and-SCAN-authorization-identifiers",
+    "exact-original-VERSION-capture-and-receipt-digests",
+    "distinct-original-receipt-manifest-and-blob-identities",
+    "same-owner-workspace-scope-policy-and-selected-material",
+    "actual-original-execution-termination-events-and-stream-bytes"
+  ],
+  "required_product_acceptance": [
+    "actual-paired-SDK-and-installed-isolated-CLI",
+    "no-Trivy-process-during-planning",
+    "read-consent-before-fixed-owned-material-helper",
+    "confirmed-helper-cleanup-before-usable-observation-proof",
+    "one-cumulative-45-second-observation-and-finalization-ledger",
+    "no-whole-file-hash-in-synchronous-launch-or-Save-hook",
+    "atomic-single-use-native-claim-before-launch",
+    "consumed-claim-cannot-be-reused-after-cancellation-or-failure",
+    "original-outcome-retained-before-awaiting-post-run-verification",
+    "outer-cancellation-awaits-owned-cooperative-executor-outcome",
+    "explicit-ARTIFACT-scope-native-policy-and-SAFE-workflow-approval",
+    "current-original-pair-authority-before-process-launch-and-model-CAS",
+    "canonical-image-package-and-evidence-backed-Finding-identities",
+    "repeat-without-logical-duplicates-and-preserve-existing-triage",
+    "offline-and-relocated-reopen-after-selected-source-removal",
+    "denied-before-execution-for-missing-or-changed-authority-and-material",
+    "failed-VERSION-never-launches-SCAN",
+    "actual-delayed-process-retains-partial-streams-on-timeout",
+    "failed-or-refused-SCAN-produces-no-new-successful-model-admission"
+  ],
+  "proposed_material_observation_budget": {
+    "maximum_observations": 3,
+    "maximum_seconds_per_observation_including_owned_cleanup": 12,
+    "maximum_owner_readiness_seconds_per_observation": 3,
+    "maximum_worker_seconds_per_observation": 6,
+    "reserved_cleanup_seconds_per_observation": 3,
+    "shared_custody_finalization_reserve_seconds": 9,
+    "total_observation_and_finalization_seconds": 45,
+    "reset_between_operations": false
+  },
+  "genuine_isolation": {
+    "different_network_namespace_from_provisioning": true,
+    "only_loopback_interface": true,
+    "no_ipv4_routes": true,
+    "no_external_ipv6_routes": true,
+    "missing_required_provider_or_database": "fail",
+    "local_optional_skip_establishes_acceptance": false
+  }
+}
