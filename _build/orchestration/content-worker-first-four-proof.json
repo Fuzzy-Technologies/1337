@@ -1,0 +1,14 @@
+{
+  "source_commit": "8166620c21f673c274687c312756bcac89f26220",
+  "source_tree": "cd61d8d302d23b651243f13517fc688ec1e21421",
+  "public_equivalent": "cfd4cf5aa535e5778cc43107fed9e2213283e2b3",
+  "archive_sha256": "ba40abff324b93f02249e1c9e742816322fac3311aae27ea6d816021b2d5d73c",
+  "archive_bytes": 754995,
+  "archive_blob": "a224524129fd61fe5ede5aa88daea620b3b0897c",
+  "payload_files": 73,
+  "zip_entries": 74,
+  "decision": "Independent verified first FOUR actual worker identities only;1offlineBuild/9modules/12terminalprocesses/8settledowners;2success0+2safeUTF8refusal2 acrossIPv4/IPv6;4main/0sentinelcontacts",
+  "independent_receipt": "first-four-content-independent-review-fba3603166f07b14d020bbf07544c822a38a1668d88f3a1dc0b11f14484e7e59.json",
+  "limit": "114worker+20input+1transport+SDK/header-v2 unrun;no fullCI/productacceptance",
+  "restore": "Fetch Git blob by exact SHA or branch file, decode base64, verify archive SHA256 then each manifest files_sha256 before inspection. Do not merge recovery payload into product or rerun passing four cases."
+}
