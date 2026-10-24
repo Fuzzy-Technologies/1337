@@ -86,6 +86,10 @@ required for its bounded Git HEAD exposure predicate.
 The [original-response capture and replay](OWNED_RESPONSE_CAPTURE.md) commands use
 the `response` namespace, explicit SAFE approval and the reviewed closed wire
 profile to preserve source facts for later assessment.
+The [owned-loopback native content crawl](NATIVE_CONTENT_CRAWL.md) uses `scan crawl`
+with an exact sorted selected URL set, current scope/policy and separate SAFE
+approval. It preserves source-only observations; installed runtime and portability
+acceptance remain required at this development checkpoint.
 
 | Command                                | Behavior                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |
