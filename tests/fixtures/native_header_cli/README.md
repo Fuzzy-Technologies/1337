@@ -23,13 +23,13 @@ whole-request deadlines and three-second cleanup. The frozen original catalog
 `fb57a1e31904e9904ef5501a6dc7721c9263e12ab55672405c5a70fb2c3798d7`
 is unchanged. Its source bytes are used; descriptive ZAP counts are ignored.
 
-| Identity | Required actual result |
-| --- | --- |
-| `ScoresActualOriginalFields[missing]` | Capture CLI ACKs seven roles; offline CLI saves one Finding |
-| `ScoresActualOriginalFields[fixed]` | Capture CLI ACKs seven roles; offline CLI saves one negative assessment |
-| `ScoresActualOriginalFields[body-decoy]` | Body-only field text remains one saved positive Finding |
-| `DeniesBeforeStoreReadsOrOriginalContacts[missing-opt-in]` | Exit 3, no store read/Save, no workspace and zero contacts |
-| `DeniesBeforeStoreReadsOrOriginalContacts[raw-url]` | Noncanonical raw URL exits 2 before normalization/store access; zero contacts |
+| Identity                                                          | Required actual result                                                                                                           |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `ScoresActualOriginalFields[missing]`                             | Capture CLI ACKs seven roles; offline CLI saves one Finding                                                                      |
+| `ScoresActualOriginalFields[fixed]`                               | Capture CLI ACKs seven roles; offline CLI saves one negative assessment                                                          |
+| `ScoresActualOriginalFields[body-decoy]`                          | Body-only field text remains one saved positive Finding                                                                          |
+| `DeniesBeforeStoreReadsOrOriginalContacts[missing-opt-in]`        | Exit 3, no store read/Save, no workspace and zero contacts                                                                       |
+| `DeniesBeforeStoreReadsOrOriginalContacts[raw-url]`               | Noncanonical raw URL exits 2 before normalization/store access; zero contacts                                                    |
 | `OwnNativePipelineRetainsDistinctSourcesTriageAndRelocatedReplay` | Four crawl GETs, three separately approved capture GETs, offline 1/0/1, triage/reuse, removed-root relocation, replay and report |
 
 Live crawl, live capture and offline header interpretation each use a separate
