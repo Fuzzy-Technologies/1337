@@ -167,3 +167,51 @@ def test_IsolationAndFixedGrammarRefuseBeforeInputOrInstalledImports(flags, argv
 
     with pytest.raises(ValueError):
         entrypoint.Main(argv)
+
+
+@pytest.mark.parametrize("operation", ["setup", "inspect"])
+def test_FixedSetupInspectionHookReportsAllControlSourcesWithoutCapture(
+    operation, tmp_path, monkeypatch,
+):
+    """Fixed operations reach only their controlled handoff and preserve typed fixture results."""
+
+    config = tmp_path / "input.json"
+    selection = {"workspace": str(tmp_path / "workspace")}
+    config.write_text(json.dumps({"selection": selection,
+        "observations": str(tmp_path / "fresh-observations")}))
+    output = io.BytesIO()
+    calls = []
+    monkeypatch.setattr(entrypoint.sys, "flags", SimpleNamespace(isolated=1, dont_write_bytecode=1))
+    monkeypatch.setattr(entrypoint.sys, "stdout", SimpleNamespace(buffer=output))
+    monkeypatch.setattr(entrypoint, "Identity", lambda: {"mock_installed_nine": True})
+    monkeypatch.setattr(entrypoint, "Sources", lambda: ({"mock_consumer": "a" * 64}, b"unused"))
+    monkeypatch.setattr(entrypoint, "ControlSources", lambda: ({"mock_fixed_setup_seed_controls":
+        "b" * 64}, b"exact-controls"))
+
+    def Dispatch(selected_operation, selected, observations, *, enabled):
+        """Observe one mocked fixed control; never construct SDK stores or policy authorities."""
+
+        calls.append((selected_operation, selected, observations, enabled))
+
+        return {"mock_original_state": "unmodified"}
+
+    def Load(raw):
+        """Only the exact observed fixed controls bytes are selected for execution."""
+
+        assert raw == b"exact-controls", "No mutable import-path source may replace observed bytes"
+
+        return SimpleNamespace(Dispatch=Dispatch)
+
+    def Unexpected(_raw):
+        """Detect any accidental capture/analysis/replay consumer enrollment by setup or inspect."""
+
+        raise AssertionError("Setup/inspection must not load acquisition consumer")
+
+    monkeypatch.setattr(entrypoint, "LoadControls", Load)
+    monkeypatch.setattr(entrypoint, "LoadConsumer", Unexpected)
+    assert entrypoint.Main([operation, str(config), "--execute"]) == 0
+    assert calls == [(operation, selection, tmp_path / "fresh-observations", True)], (
+        "Only the explicit selected control executes")
+    observed = json.loads(output.getvalue())
+    assert observed["consumer_sources"]["mock_fixed_setup_seed_controls"] == "b" * 64, (
+        "Caller independently reconciles control/setup/seed source identities")
