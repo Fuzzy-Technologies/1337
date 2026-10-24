@@ -110,6 +110,9 @@ preserves original source provenance and independent model/workspace ACK outcome
 All 37 focused owned-original cases passed; final shared integration remains required.
 Explicit `response check-headers` / `response replay-headers` enrollment adds no
 capture, job or execution grant; its independent installed CLI acceptance remains pending.
+The [content-response capture contract](OWNED_CONTENT_RESPONSE_CAPTURE_CONTRACT.md)
+proposes a separate bounded retention profile beyond the closed catalog. It is
+unimplemented; its worker, SDK/CLI enrollment and runtime acceptance are unrun.
 
 The [owned-loopback native content crawl](NATIVE_CONTENT_CRAWL.md) uses `scan crawl`
 with an exact sorted selected URL set, current scope/policy and separate SAFE
