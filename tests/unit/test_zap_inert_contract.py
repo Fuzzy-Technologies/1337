@@ -430,7 +430,8 @@ def test_PartialTestPublicationPreservesAdmittedWritesWithoutRetryOrControl(monk
 
 
 @pytest.mark.parametrize("changed", (None, "capability", "namespace", "quota", "root",
-    "material", "alias", "late"))
+    "material", "alias", "late", "absolute-alias", "consumed-fd3", "target-symlink",
+    "target-foreign", "missing-control"))
 def test_KnownPeerInspectionUsesOriginalFdAndRejectsChangedFacts(monkeypatch, changed):
     """Exercise allowed and refused kernel observations entirely through fixed syscall doubles."""
 
@@ -509,6 +510,9 @@ def test_KnownPeerInspectionUsesOriginalFdAndRejectsChangedFacts(monkeypatch, ch
             return prefix + ":[1]"
 
         if name.endswith("/fd/4"):
+            if changed == "missing-control":
+                raise FileNotFoundError(2, "private diagnostic message", "/private/PID/control")
+
             return "socket:[99]"
 
         alias = name.split("/root/", 1)[1]
@@ -518,11 +522,31 @@ def test_KnownPeerInspectionUsesOriginalFdAndRejectsChangedFacts(monkeypatch, ch
     def Stat(path, **kwargs):
         """Keep report absence separate from ordinary known mounted identities."""
 
+        if kwargs and path in {"home", "tmp", "session", "report", "shm"}:
+            assert kwargs == {"dir_fd": 17, "follow_symlinks": False}, (
+                "Alias target must stay anchored to the original quota without following links")
+
+            if changed == "target-symlink":
+                return SimpleNamespace(**{**vars(info), "st_mode": 0o120777})
+
+            if changed == "target-foreign":
+                return SimpleNamespace(**{**vars(info), "st_dev": 99})
+
+            return info
+
         if kwargs:
             if changed == "late":
                 return info
 
             raise FileNotFoundError
+
+        if str(path).endswith("/fd/3"):
+            raise FileNotFoundError(2, "consumed descriptor is already absent")
+
+        if changed == "absolute-alias" and str(path).startswith("/proc/4321/root/") and (
+            str(path).split("/root/", 1)[1] in owner.ALIASES
+        ):
+            raise FileNotFoundError(2, "absolute alias looked up in inspector root", "/work/home")
 
         if changed == "material" and str(path).endswith("/inert"):
             return SimpleNamespace(**{**vars(info), "st_ino": 77})
@@ -545,7 +569,10 @@ def test_KnownPeerInspectionUsesOriginalFdAndRejectsChangedFacts(monkeypatch, ch
         def __enter__(self):
             """Return fixed entries without scanning a real process."""
 
-            return iter(SimpleNamespace(name=name) for name in ("0", "1", "2", "4"))
+            names = ("0", "1", "2", "3", "4") if changed == "consumed-fd3" else (
+                "0", "1", "2", "4")
+
+            return iter(SimpleNamespace(name=name) for name in names)
 
         def __exit__(self, *_):
             """Finish the mocked fixed descriptor inventory."""
@@ -564,14 +591,22 @@ def test_KnownPeerInspectionUsesOriginalFdAndRejectsChangedFacts(monkeypatch, ch
         O_CLOEXEC=original_os.O_CLOEXEC))
     arguments = (4321, 20, 17, (7, 9, 4096, 16384, 1024), b"original fixed request", materials)
 
-    if changed is None:
+    if changed in {None, "absolute-alias", "consumed-fd3"}:
         actual = owner.VerifyPeer(*arguments)
         assert actual["mount_count"] == 5 and liveness == [20, 20] and closed == [30], (
             "Accepted peer facts need both original pidfd guards and closed nofollow inspection")
 
     else:
-        with pytest.raises(ValueError):
+        with pytest.raises((ValueError, FileNotFoundError)) as caught:
             owner.VerifyPeer(*arguments)
+
+        if changed == "missing-control":
+            observed = {}
+            owner.RecordFirstFailure(observed, "peer-verify", caught.value)
+            first = observed["first_failure"]
+            assert first["phase"] == "peer-verify" and first["errno"] == 2 and any(
+                item["function"] == "VerifyPeer" for item in first["locations"]
+            ), "Original missing control must retain a bounded real source location and errno"
 
         assert liveness[0] == 20 and closed == ([30] if changed == "late" else []), (
             "Refused observations must not leak a short-lived custody descriptor")
@@ -1296,3 +1331,65 @@ def test_ProvisioningInventoryUploadKeepsExplicitPublicMetadataAllowlist():
     prefix = "${{ runner.temp }}/zap-inert-build/"
     assert selected == {prefix + "runtime/provenance.json", prefix + BUILD.INVENTORY_REPORT_NAME}, (
         "Dependency diagnostics must select only the explicit public metadata files")
+
+
+def test_FirstReadyFailureMetadataPreservesOriginalLocationWithoutSensitiveData(monkeypatch):
+    """Retain original control-only exception facts without inspecting paths or new files."""
+
+    if sys.platform != "linux":
+        pytest.skip("Linux-specific owner import")
+
+    owner = Load("owner")
+    observed = {}
+    sensitive = ("/private/customer/PID77777", "sha256:" + "a" * 64, "source-bytes-secret")
+
+    def Fail(*_):
+        """Raise the fixed original failure through a real whitelisted source frame."""
+
+        raise FileNotFoundError(2, sensitive[2], sensitive[0] + sensitive[1])
+
+    def NoNewPath(*_):
+        """Reject diagnostic attempts to perform another path lookup."""
+
+        raise AssertionError("Failure diagnostics must not read or resolve a path")
+
+    monkeypatch.setattr(owner, "os", SimpleNamespace())
+    monkeypatch.setattr(owner, "Path", NoNewPath)
+
+    try:
+        owner.BoundedRead(SimpleNamespace(open=Fail), 64)
+
+    except FileNotFoundError as error:
+        owner.RecordFirstFailure(observed, "peer-verify", error)
+
+    first = observed["first_failure"]
+    encoded = owner.json.dumps(first)
+    assert first["phase"] == "peer-verify" and first["error_type"] == "FileNotFoundError" and (
+        first["errno"] == 2 and 1 <= len(first["locations"]) <= 4
+    ), "The original bounded error phase, class and errno must survive unchanged"
+    assert all(item["function"] == "BoundedRead" and 0 < item["line"] <= 1000000
+        for item in first["locations"]), "Only whitelisted original source frames may be retained"
+    assert len(encoded) <= 1024 and not any(value in encoded for value in sensitive), (
+        "Diagnostics must exclude original messages, paths, PIDs, bytes and hashes")
+    owner.RecordFirstFailure(observed, "ready-receive", PermissionError(13, "later private error"))
+    assert observed["first_failure"] is first, "Later failure overwrote original metadata"
+
+
+def test_FirstReadyFailureMetadataRefusesUnknownLabelsAndErrno():
+    """Unknown classes, phases and errno values cannot become arbitrary diagnostic strings."""
+
+    if sys.platform != "linux":
+        pytest.skip("Linux-specific owner import")
+
+    owner = Load("owner")
+
+    class PrivateError(OSError):
+        """Represent an unapproved exception type without exposing its custom name."""
+
+    observed = {}
+    owner.RecordFirstFailure(observed, "/private/PID111/hash-secret", PrivateError(
+        123456, "private message bytes", "/private/customer/path"))
+    first = observed["first_failure"]
+    assert first == {"phase": "other", "error_type": "other", "errno": None,
+        "locations": [], "frames_limited": False}, (
+        "Unapproved metadata must reduce to fixed neutral labels without sensitive values")

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import array
 import asyncio
+import errno
 import fcntl
 import hashlib
 import importlib.util
@@ -51,6 +52,58 @@ HOST_CAP_FIELDS = ("CapEff", "CapPrm", "CapAmb")
 PEER_CAP_FIELDS = ("CapEff", "CapPrm", "CapAmb", "CapInh", "CapBnd")
 ALIASES = {"home": "/work/home", "tmp": "/work/tmp", "var/tmp": "/work/tmp",
     "session": "/work/session", "report": "/work/report", "dev/shm": "/work/shm"}
+
+FIRST_FAILURE_PHASES = frozenset({"outer-ready", "final-connection", "ready-receive",
+    "peer-verify", "material-recheck", "authority-ack", "work-completion", "host-refusal",
+    "normal-release", "stop-control"})
+FIRST_FAILURE_FUNCTIONS = frozenset({"Run", "ReceiveReady", "VerifyPeer", "BoundedRead",
+    "Fields", "Identity", "Material", "Alive", "ReadyRemaining", "Acknowledge", "WaitPeerExit"})
+FIRST_FAILURE_ERRORS = frozenset({"FileNotFoundError", "PermissionError", "NotADirectoryError",
+    "TimeoutError", "OSError", "ValueError", "BrokenPipeError", "ConnectionResetError",
+    "CancelledError"})
+
+
+def RecordFirstFailure(observations: dict, phase: str, error: BaseException) -> None:
+    """Retain only bounded original control metadata without messages, paths or fresh I/O.
+
+    Args:
+        observations: Original observation record; an existing first failure is immutable.
+        phase: One fixed source-selected boundary label.
+        error: Original caught exception with its untouched original traceback.
+    """
+
+    if "first_failure" in observations:
+        return
+
+    locations = []
+    limited = False
+    original_trace = error.__traceback__
+
+    for _ in range(16):
+        if original_trace is None:
+            break
+
+        frame = original_trace.tb_frame
+        name = frame.f_code.co_name
+        line = original_trace.tb_lineno
+
+        if frame.f_code.co_filename == __file__ and name in FIRST_FAILURE_FUNCTIONS and (
+            type(line) is int and 1 <= line <= 1000000
+        ):
+            locations.append({"function": name, "line": line})
+
+            if len(locations) > 4:
+                del locations[0]
+                limited = True
+
+        original_trace = original_trace.tb_next
+
+    number = error.errno if isinstance(error, OSError) else None
+    error_name = type(error).__name__
+    observations["first_failure"] = {"phase": phase if phase in FIRST_FAILURE_PHASES else "other",
+        "error_type": error_name if error_name in FIRST_FAILURE_ERRORS else "other",
+        "errno": number if type(number) is int and number in errno.errorcode else None,
+        "locations": locations, "frames_limited": limited or original_trace is not None}
 
 
 def LoadContract():
@@ -511,8 +564,17 @@ def VerifyPeer(
         raise ValueError("inert peer request bytes differ")
 
     for alias, expected in ALIASES.items():
-        if os.readlink(root / alias) != expected or os.stat(root / alias).st_dev != work.st_dev:
+        if os.readlink(root / alias) != expected:
             raise ValueError("inert writable alias differs from the original quota")
+
+        # Sandbox-absolute alias text must not be followed through the inspector's root.
+        child_info = os.stat(expected.removeprefix("/work/"), dir_fd=directory,
+            follow_symlinks=False)
+
+        if not stat.S_ISDIR(child_info.st_mode) or stat.S_IMODE(child_info.st_mode) != 0o700 or (
+            child_info.st_uid != os.getuid() or child_info.st_dev != work.st_dev
+        ):
+            raise ValueError("inert writable alias target differs from the original quota")
 
     for path in ("work/home", "work/tmp", "work/session", "work/report", "work/shm", "work/run"):
         child_info = os.lstat(root / path)
@@ -1148,6 +1210,8 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
         accept = asyncio.create_task(asyncio.get_running_loop().sock_accept(listener))
         start_wait = asyncio.create_task(launched.wait())
 
+        phase = "outer-ready"
+
         try:
             started_done, _ = await asyncio.wait((task, start_wait), timeout=3,
                 return_when=asyncio.FIRST_COMPLETED)
@@ -1158,6 +1222,7 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
             if ready_deadline is None:
                 raise ValueError("original final READY origin is absent")
 
+            phase = "final-connection"
             done, _ = await asyncio.wait((task, accept), timeout=ReadyRemaining(ready_deadline),
                 return_when=asyncio.FIRST_COMPLETED)
 
@@ -1167,7 +1232,9 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
             connection, _ = accept.result()
             connection.setblocking(True)
             connection.settimeout(min(1, ReadyRemaining(ready_deadline)))
+            phase = "ready-receive"
             directory, pidfd, peer_pid, declaration = ReceiveReady(connection, envelope)
+            phase = "peer-verify"
             observations = VerifyPeer(peer_pid, pidfd, directory, declaration,
                 envelope.Encode(), materials)
             observations.update(build=provenance, final_ready_verified=True, ack_sent=False,
@@ -1175,6 +1242,8 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
                 cooperative_cancel_requested=False, direct_peer_sigkill_requested=False,
                 direct_peer_exit_observed=False, work_complete_observed=False,
                 normal_release_requested=False)
+
+            phase = "material-recheck"
 
             for role, original in materials.items():
                 if Material(Path(original["path"]), executable=role in {"fixture", "bwrap"}) != (
@@ -1199,6 +1268,7 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
 
                     raise
 
+            phase = "authority-ack"
             Acknowledge(connection, envelope, pidfd, cancellation, FreshAuthority,
                 started, ready_deadline)
             observations["ack_sent"] = True
@@ -1206,10 +1276,12 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
             connection = None
 
             if case not in {"deny", "missing"}:
+                phase = "work-completion"
                 readiness = work_complete if case in {"normal", "bytes", "inodes"} else late
 
                 await asyncio.wait_for(readiness.wait(),
                     ReadyRemaining(ready_deadline - 5 + 11))
+                phase = "host-refusal"
                 Alive(pidfd)
                 probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 probe.settimeout(0.5)
@@ -1225,10 +1297,13 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
                 observations["live_private_listener_host_refused"] = True
 
                 if case in {"normal", "bytes", "inodes"}:
+                    phase = "normal-release"
                     Alive(pidfd)
                     ReadyRemaining(ready_deadline - 5 + 11)
                     signal.pidfd_send_signal(pidfd, signal.SIGUSR1)
                     observations["normal_release_requested"] = True
+
+            phase = "stop-control"
 
             if case in {"cancel", "kill"}:
                 if case == "kill":
@@ -1248,11 +1323,13 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
                 observations["cooperative_cancel_requested"] = True
                 cancellation.set()
 
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as error:
+            RecordFirstFailure(observations, phase, error)
             failure = failure or "caller-cancelled"
             cancellation.set()
 
         except (OSError, ValueError, TimeoutError) as error:
+            RecordFirstFailure(observations, phase, error)
             failure = failure or type(error).__name__
             cancellation.set()
 
