@@ -1,0 +1,204 @@
+{
+  "baseline_source_sha256": "54f180cc507e3d6ee40c9ee65aff44d14c8f30a814882ab00a9de4db16d118cc",
+  "cases": [
+    {
+      "assessment": "attention",
+      "codes": [
+        "unfinished_controller_expired"
+      ],
+      "name": "expired_controller_after_completed_source"
+    },
+    {
+      "assessment": "waiting_ci",
+      "codes": [],
+      "name": "fresh_waiting_ci_is_not_completed_or_stalled"
+    },
+    {
+      "assessment": "complete",
+      "codes": [],
+      "name": "all_complete_ignores_old_active_lease"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "duplicate_source_owner"
+      ],
+      "name": "duplicate_active_source_owner"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "controller_interrupted"
+      ],
+      "name": "observed_controller_interruption"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "authorized_source_not_running"
+      ],
+      "name": "completed_proposal_needs_followup_not_message"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_expired"
+      ],
+      "name": "expired_source_progress"
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "name": "explicit_stop_never_restarts"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "ci_deadline"
+      ],
+      "name": "genuine_ci_deadline_expiry"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "authorized_source_not_running"
+      ],
+      "name": "errored_authorized_work_requires_turn"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_expired"
+      ],
+      "name": "expired_child_detected_after_primary_source_completed"
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "name": "completed_child_preserves_handoff_despite_expired_lease"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_lease_missing"
+      ],
+      "name": "running_child_requires_independent_progress_lease"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "active_owner_unregistered"
+      ],
+      "name": "actual_unregistered_owner_detected"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "task_source_schema_invalid"
+      ],
+      "name": "flat_registered_ledger_not_silent"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "child_source_schema_invalid"
+      ],
+      "name": "missing_child_role_not_silent"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "task_source_schema_invalid"
+      ],
+      "name": "missing_state_not_silent"
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "name": "no_roster_means_no_coverage_claim"
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "name": "controller_and_source_covered"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "name": "observed_verified_at_basis_drift"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "name": "source_proof_owner_mismatch"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "name": "source_blank_action"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "name": "source_naive_proof_timestamp"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "name": "source_future_proof_timestamp"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "controller_progress_proof_invalid"
+      ],
+      "name": "controller_missing_canonical_proof"
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "name": "completed_historical_partial_proof_ignored"
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "registered_active_owner_not_in_roster"
+      ],
+      "name": "new_registered_active_owner_missing_from_explicit_roster"
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "name": "fresh_complete_roster_covers_new_registered_owner"
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "name": "completed_historical_owner_omitted_without_false_alarm"
+    }
+  ],
+  "current_source_sha256": "ba4f4f80f5b822c52bfacca1e5714540ef8f0abd71afde2a3edd3566d4866335",
+  "fixture_sha256": "5956a44a64186da8ad2ea2fde40944196a71c1053e49b96b70e43dc9c593afb0",
+  "historical_counterexample": {
+    "new_assessment": "attention",
+    "new_codes": [
+      "registered_active_owner_not_in_roster"
+    ],
+    "old_assessment": "active_or_handoff",
+    "old_findings": []
+  },
+  "injected_now": "2030-01-01T00:10:00+00:00",
+  "passed": 29,
+  "python": "3.12.14",
+  "verified_at": "2026-10-24T09:30:49.287387+00:00"
+}

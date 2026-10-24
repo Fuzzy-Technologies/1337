@@ -1,0 +1,60 @@
+{
+  "actual_commands": [
+    {
+      "command": "python -B verify.py --assessor assess.py --baseline baseline_assess.py --cases cases.json --result RESULT.json",
+      "exit_code": 0,
+      "passed": 29
+    },
+    {
+      "command": "ruff check --no-cache assess.py baseline_assess.py verify.py",
+      "exit_code": 0
+    }
+  ],
+  "actual_python": "3.12.14",
+  "current_source_sha256": "ba4f4f80f5b822c52bfacca1e5714540ef8f0abd71afde2a3edd3566d4866335",
+  "fixture_count": 29,
+  "historical_source_sha256": "54f180cc507e3d6ee40c9ee65aff44d14c8f30a814882ab00a9de4db16d118cc",
+  "new_case_semantics": {
+    "complete_roster": "no finding",
+    "completed_historical_owner": "excluded from active coverage, no false proof/expiry failure",
+    "omitted_registered_running_owner": "attention + registered_active_owner_not_in_roster"
+  },
+  "payload": [
+    {
+      "bytes": 14,
+      "name": ".gitattributes",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9"
+    },
+    {
+      "bytes": 2424,
+      "name": "README.md",
+      "sha256": "b2bbba1529885fd1dcc83ad623f13accdd2c3b560dfadd7ae58185a1299ba378"
+    },
+    {
+      "bytes": 5030,
+      "name": "RESULT.json",
+      "sha256": "fdbeb0c26dfae886ed05fba7f234a19c5fc33aace6b42e169ddbdccf7f49fbee"
+    },
+    {
+      "bytes": 11620,
+      "name": "assess.py",
+      "sha256": "ba4f4f80f5b822c52bfacca1e5714540ef8f0abd71afde2a3edd3566d4866335"
+    },
+    {
+      "bytes": 11194,
+      "name": "baseline_assess.py",
+      "sha256": "54f180cc507e3d6ee40c9ee65aff44d14c8f30a814882ab00a9de4db16d118cc"
+    },
+    {
+      "bytes": 32099,
+      "name": "cases.json",
+      "sha256": "5956a44a64186da8ad2ea2fde40944196a71c1053e49b96b70e43dc9c593afb0"
+    },
+    {
+      "bytes": 6586,
+      "name": "verify.py",
+      "sha256": "e0e2a9a26e5eb09b3099237d7ac326748af99c6bf59314e3ee2edc66cc3f3c58"
+    }
+  ],
+  "scope": "Frozen standalone finite assessor source and synthetic fixtures only; no operational snapshots or service configuration."
+}

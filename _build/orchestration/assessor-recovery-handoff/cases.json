@@ -1,0 +1,1077 @@
+{
+  "baseline_counterexample": "new_registered_active_owner_missing_from_explicit_roster",
+  "baseline_source_sha256": "54f180cc507e3d6ee40c9ee65aff44d14c8f30a814882ab00a9de4db16d118cc",
+  "cases": [
+    {
+      "assessment": "attention",
+      "codes": [
+        "unfinished_controller_expired"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:05:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:04:59+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "expired_controller_after_completed_source",
+      "tasks": [
+        {
+          "next_action": "Integrate reviewed work",
+          "next_owner": "/root",
+          "phase": "ready_for_integration",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "waiting_ci",
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "fresh_waiting_ci_is_not_completed_or_stalled",
+      "tasks": [
+        {
+          "ci": {
+            "deadline_at": "2030-01-01T00:30:00+00:00"
+          },
+          "next_action": "Integrate reviewed work",
+          "next_owner": "/root",
+          "phase": "waiting_ci",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "complete",
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:05:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:04:59+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "all_complete_ignores_old_active_lease",
+      "tasks": [
+        {
+          "next_action": "Integrate reviewed work",
+          "next_owner": "/root",
+          "phase": "merged",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "duplicate_source_owner"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "duplicate_active_source_owner",
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        },
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "two"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "controller_interrupted"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "interrupted",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00"
+        }
+      },
+      "name": "observed_controller_interruption",
+      "tasks": [
+        {
+          "next_action": "Integrate reviewed work",
+          "next_owner": "/root",
+          "phase": "ready_for_integration",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "authorized_source_not_running"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "completed_proposal_needs_followup_not_message",
+      "recommendation_contains": "followup_task",
+      "tasks": [
+        {
+          "next_action": "Integrate reviewed work",
+          "next_action_requires_source": true,
+          "next_owner": "/root",
+          "phase": "ready_for_integration",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_expired"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "expired_source_progress",
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:05:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:04:59+00:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "explicit_stop_never_restarts",
+      "recommendation_contains": "do not retry",
+      "tasks": [
+        {
+          "explicit_stop": "Previously flagged task must not be retried",
+          "next_action": "Integrate reviewed work",
+          "next_action_requires_source": true,
+          "next_owner": "/root",
+          "phase": "ready_for_integration",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "ci_deadline"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "genuine_ci_deadline_expiry",
+      "tasks": [
+        {
+          "ci": {
+            "deadline_at": "2030-01-01T00:05:00+00:00"
+          },
+          "next_action": "Integrate reviewed work",
+          "next_owner": "/root",
+          "phase": "waiting_ci",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "authorized_source_not_running"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "errored_authorized_work_requires_turn",
+      "recommendation_contains": "followup_task",
+      "tasks": [
+        {
+          "next_action": "Integrate reviewed work",
+          "next_action_requires_source": true,
+          "next_owner": "/root",
+          "phase": "ready_for_integration",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "errored"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_expired"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "finding_owner": "/root/contracts",
+      "name": "expired_child_detected_after_primary_source_completed",
+      "tasks": [
+        {
+          "contracts": {
+            "agent": "/root/contracts",
+            "next_action": "Finish independent contract",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:05:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:04:59+00:00",
+              "owner": "/root/contracts"
+            }
+          },
+          "next_action": "Review completed observer",
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "complete",
+          "source": {
+            "agent": "/root/observer",
+            "observed_state": "completed",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:05:00+00:00"
+            }
+          },
+          "source_role_keys": [
+            "contracts"
+          ],
+          "task": "material"
+        }
+      ]
+    },
+    {
+      "assessment": "active_or_handoff",
+      "child_state": "handoff_pending",
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "completed_child_preserves_handoff_despite_expired_lease",
+      "tasks": [
+        {
+          "contracts": {
+            "agent": "/root/contracts",
+            "next_action": "Review completed contracts",
+            "next_owner": "/root",
+            "observed_state": "completed",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:05:00+00:00"
+            }
+          },
+          "next_action": "Review completed observer",
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "source_review",
+          "source": {
+            "agent": "/root/observer",
+            "observed_state": "completed",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:05:00+00:00"
+            }
+          },
+          "source_role_keys": [
+            "contracts"
+          ],
+          "task": "material"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "source_progress_lease_missing"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "finding_owner": "/root/contracts",
+      "name": "running_child_requires_independent_progress_lease",
+      "tasks": [
+        {
+          "contracts": {
+            "agent": "/root/contracts",
+            "next_action": "Finish independent contract",
+            "observed_state": "running"
+          },
+          "next_action": "Review completed observer",
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "source_review",
+          "source": {
+            "agent": "/root/observer",
+            "observed_state": "completed",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:05:00+00:00"
+            }
+          },
+          "source_role_keys": [
+            "contracts"
+          ],
+          "task": "material"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "active_owner_unregistered"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "actual_unregistered_owner_detected",
+      "owners": [
+        "/root",
+        "/root/missing"
+      ],
+      "tasks": [
+        {
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "source_review",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "task_source_schema_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "flat_registered_ledger_not_silent",
+      "tasks": [
+        {
+          "agent": "/root/dev",
+          "task": "flat"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "child_source_schema_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "missing_child_role_not_silent",
+      "tasks": [
+        {
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "source_review",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "source_role_keys": [
+            "missing"
+          ],
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "task_source_schema_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "missing_state_not_silent",
+      "tasks": [
+        {
+          "source": {
+            "agent": "/root/dev"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "coverage": false,
+      "name": "no_roster_means_no_coverage_claim",
+      "tasks": [
+        {
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "source_review",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "coverage": true,
+      "name": "controller_and_source_covered",
+      "owners": [
+        "/root",
+        "/root/dev"
+      ],
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "observed_verified_at_basis_drift",
+      "reason": "canonical_fields_missing",
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "basis": "Actual docs progress",
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "verified_at": "2030-01-01T00:09:00Z"
+            }
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "source_proof_owner_mismatch",
+      "reason": "owner_mismatch",
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/other"
+            }
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "source_blank_action",
+      "reason": "canonical_fields_missing",
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "  ",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "source_naive_proof_timestamp",
+      "reason": "proof_time_invalid",
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:09:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "source_progress_proof_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "source_future_proof_timestamp",
+      "reason": "proof_time_future",
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:11:00Z",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [
+        "controller_progress_proof_invalid"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00Z"
+        }
+      },
+      "name": "controller_missing_canonical_proof",
+      "reason": "canonical_fields_missing",
+      "tasks": [
+        {
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "source_review",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed"
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "name": "completed_historical_partial_proof_ignored",
+      "tasks": [
+        {
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "source_review",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "completed",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:05:00Z",
+              "verified_at": "legacy"
+            }
+          },
+          "task": "one"
+        }
+      ]
+    },
+    {
+      "assessment": "attention",
+      "codes": [
+        "registered_active_owner_not_in_roster"
+      ],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "coverage": true,
+      "finding_owner": "/root/new_role",
+      "name": "new_registered_active_owner_missing_from_explicit_roster",
+      "owner_coverage_checked": true,
+      "owners": [
+        "/root",
+        "/root/dev"
+      ],
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        },
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/new_role",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/new_role",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "New source assignment persisted before reads",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/new_role"
+            }
+          },
+          "task": "new_role"
+        }
+      ]
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "coverage": true,
+      "name": "fresh_complete_roster_covers_new_registered_owner",
+      "owner_coverage_checked": true,
+      "owners": [
+        "/root",
+        "/root/dev",
+        "/root/new_role"
+      ],
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        },
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/new_role",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/new_role",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "New source assignment persisted before reads",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/new_role"
+            }
+          },
+          "task": "new_role"
+        }
+      ]
+    },
+    {
+      "assessment": "active_or_handoff",
+      "codes": [],
+      "controller": {
+        "agent": "/root",
+        "observed_state": "running",
+        "progress_lease": {
+          "expires_at": "2030-01-01T00:20:00+00:00",
+          "kind": "progress",
+          "last_verified_action": "Fixed source-bound action",
+          "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+          "owner": "/root"
+        }
+      },
+      "coverage": true,
+      "excluded_historical_owner": "/root/new_role",
+      "name": "completed_historical_owner_omitted_without_false_alarm",
+      "owner_coverage_checked": true,
+      "owners": [
+        "/root",
+        "/root/dev"
+      ],
+      "tasks": [
+        {
+          "next_action_requires_source": true,
+          "next_owner": "/root/dev",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/dev",
+            "observed_state": "running",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:20:00+00:00",
+              "kind": "progress",
+              "last_verified_action": "Fixed source-bound action",
+              "last_verified_action_at": "2030-01-01T00:09:00+00:00",
+              "owner": "/root/dev"
+            }
+          },
+          "task": "one"
+        },
+        {
+          "next_action_requires_source": false,
+          "next_owner": "/root",
+          "phase": "implementing",
+          "source": {
+            "agent": "/root/new_role",
+            "observed_state": "completed",
+            "progress_lease": {
+              "expires_at": "2030-01-01T00:05:00Z",
+              "verified_at": "legacy"
+            }
+          },
+          "task": "new_role"
+        }
+      ]
+    }
+  ],
+  "current_source_sha256": "ba4f4f80f5b822c52bfacca1e5714540ef8f0abd71afde2a3edd3566d4866335",
+  "now": "2030-01-01T00:10:00+00:00",
+  "scope": "Synthetic fixed JSON only; no real controller, private automation, signed URL, or operational snapshot."
+}
