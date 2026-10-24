@@ -80,8 +80,17 @@ Owner ceiling is 30 seconds and job ceiling 32: preflight 2, outer READY 3, invo
 cleanup 4, custody 8, final 2. Inner READY is at most 5 seconds inside invocation. Absolute
 monotonic deductions prevent renewal. Report cap is 4 KiB; stdout/stderr 16 KiB each; admitted
 private staging 1 MiB. OS calls/fsync are measured fail-on-late, not hard preemption guarantees.
-Repeated caller cancellation must settle one owned execution task; terminal cancellation is
-classified and never spun on or presented as successful cleanup.
+Repeated caller cancellation settles the same original execution task through the original
+20-second cleanup ceiling, preserving the first failure. First report read follows confirmed
+cleanup only. Custody/publication deduct from the original absolute 28-second ceiling, followed
+by the final two seconds. A late cleanup result never causes an early mount-FD close before
+bounded custody. Expired custody or uncertain publication stays incomplete and hands off the
+original directory, direct peer pidfd and same task. Unconfirmed execution is represented as
+unknown with no fabricated terminal result or complete stdout/stderr; only an observed prefix
+may be retained. No report read occurs while cleanup is unknown. CloseRecovery refuses to drop
+unsettled ownership; confirming an already-settled original task permits disposal without a
+new invocation, renewed budget, late first read or successful-custody claim. This is a volatile
+test-owner handoff within the same process, not crash-durable FD recovery.
 
 Genuine cases cover normal isolation, aggregate byte/inode ENOSPC, actual timeout, cooperative
 cancel, direct peer pidfd SIGKILL with known setsid child cleanup, pre-ACK authority denial, and
@@ -90,6 +99,17 @@ valid CLONE_NEWUSER attempt may return ENOSPC because the pinned helper consumes
 ancestor namespace allowance. ENOSPC is not admitted for mount, network-namespace or write
 denials. No assertion is made that the final visible namespace limit equals zero. Host sink receives zero contacts;
 a separate host-bound non-listening port is usable only by private loopback.
+
+For normal/byte/inode completion, the fixture installs a fixed SIGUSR1 handler and blocks that
+signal before work can be advertised. After actual work finishes it emits `WORK_COMPLETE` and
+atomically waits with sigsuspend and a sig_atomic_t flag. Its private listener remains open until
+one fixed SIGUSR1 arrives through the parent's original direct peer pidfd. The parent observes
+the actual completion marker, proves host refusal while the original peer/listener remain live,
+sends that fixed release once, and requires actual successful exit and owned cleanup. No sleep,
+second ACK, caller-selected signal, numeric PID or new deadline is introduced. Wait/timeout/
+cancel/kill cases retain their listener until the selected stop and never use normal release.
+The wait-mode child acknowledges readiness through an owned pipe only after successful setsid;
+the parent fixture emits `OWNED_CHILD` only after receiving that actual child acknowledgment.
 
 A temporary hosted Ubuntu 22.04 x86_64 lane must run the normal genuine case serially before
 remaining independent cases run with two workers. Required flag

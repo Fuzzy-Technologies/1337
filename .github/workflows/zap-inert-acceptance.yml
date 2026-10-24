@@ -1,0 +1,77 @@
+name: Genuine closed inert isolation
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zap-inert-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  closed-inert:
+    if: >-
+      github.event_name == 'pull_request' &&
+      (github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.body, '[zap-inert-owner-checkpoint]'))
+    name: Rootless static inert prerequisite
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    env:
+      FUZZY1337_RUN_ZAP_INERT_ACCEPTANCE: "1"
+      FUZZY1337_ZAP_INERT_MATERIAL: ${{ runner.temp }}/zap-inert-build/runtime
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned environment tool
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked development tools
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Provision ordinary build dependencies before proof
+        timeout-minutes: 3
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential libcap-dev meson ninja-build pkg-config
+      - name: Build pinned helper and static fixture as original nonroot runner
+        timeout-minutes: 2
+        run: uv run python tests/fixtures/zap_inert/build.py "$RUNNER_TEMP/zap-inert-build"
+      - name: First serial genuine capability case
+        timeout-minutes: 1
+        run: >-
+          uv run pytest tests/integration/test_zap_inert_isolation.py
+          -q -n0 -k NormalGenuineCapabilityCase --no-cov --timeout=40
+          --timeout-method=thread --basetemp=functional-evidence/zap-inert-capability-work
+          --junitxml=functional-evidence/zap-inert-capability.xml
+      - name: Remaining independent genuine cases
+        timeout-minutes: 3
+        run: >-
+          uv run pytest tests/integration/test_zap_inert_isolation.py
+          -q -n2 --dist=load -k GenuineClosedFailureAndQuotaCases --no-cov
+          --timeout=40 --timeout-method=thread --max-worker-restart=0
+          --basetemp=functional-evidence/zap-inert-failure-work
+          --junitxml=functional-evidence/zap-inert-failures.xml
+      - name: Preserve actual outcomes and build provenance
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: zap-inert-original-evidence
+          path: |
+            functional-evidence/zap-inert/
+            functional-evidence/zap-inert-capability.xml
+            functional-evidence/zap-inert-failures.xml
+            functional-evidence/zap-inert-capability-work/**/admitted-evidence/
+            functional-evidence/zap-inert-failure-work/**/admitted-evidence/
+            ${{ runner.temp }}/zap-inert-build/runtime/provenance.json
+          retention-days: 7
+          if-no-files-found: warn

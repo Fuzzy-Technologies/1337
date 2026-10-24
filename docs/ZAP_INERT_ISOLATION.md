@@ -25,6 +25,14 @@ The first-party fixture builds only with `gcc -static -std=c11 -O2 -D_GNU_SOURCE
 ELF64 x86_64, no PT_INTERP or DT_NEEDED, trusted owner, no SUID/SGID/file capabilities and no
 group/world write. Compilation and ELF inspection do not execute it or prove isolation.
 
+The closed owner holds at most nine proof descriptors in addition to standard streams and
+executor-owned internals: listener, accepted stream, original directory, direct peer pidfd,
+operation directory, two owned host sockets and at most two short-lived custody handles.
+Bootstrap has four typed O_PATH slots and at most one temporary handle. The final fixture
+starts with only standard streams; at READY its fixed control FD is 4 and a just-consumed
+quota FD 3 may transiently remain while sendmsg returns. Known-peer descriptor inspection
+rejects any other inherited descriptor. These limits are source contracts pending genuine proof.
+
 ## Evidence and refusal
 
 Only the eight closed cases in ADR 0096 are accepted. The first serial normal case must prove
@@ -32,9 +40,23 @@ actual rootless support, direct peer pidfd, namespace/mount/alias restrictions, 
 late-file creation and post-cleanup original read. Missing support fails required CI promptly.
 Later independent cases use two workers and finite per-test/job ceilings. No live LLM is called.
 
+Normal/quota workloads keep their actual private listener open through `WORK_COMPLETE` and a
+fixed original-pidfd SIGUSR1 release, using a blocked signal and atomic sigsuspend wait. Host
+refusal precedes that release. Success requires the marker, release, actual exit zero and owned
+cleanup. Stop cases use the original timeout/cancellation/direct-peer SIGKILL and actual
+post-setsid child readiness; they do not use normal release or fixed sleeps.
+
 Record actual termination, cleanup, quota/namespace observations, denied syscall errors, host
 socket counters, the original late-file identity/hash and test evidence. A failed execution may
 retain useful original bytes while remaining failed. Sentinel-only retention remains incomplete.
+Caller cancellation after ACK still settles the same original task before the first late read.
+The original cleanup/custody/owner deadlines remain 20/28/30 seconds. A pending or unknown
+cleanup retains the original task, directory, direct peer pidfd and owning test loop instead
+of manufacturing a terminal result or closing the live recovery identity. Already-read bounded
+bytes may remain in an incomplete outcome. Test artifact failures preserve available admitted
+staging and recovery ownership; no replacement execution or publication retry is attempted.
+Only confirmed original settlement permits explicit disposal. This handoff is volatile within
+the original process; no crash/power-loss recovery or future production receipt is established.
 No test result establishes a production receipt, successful ZAP engine or zero Findings.
 
 ## Primary sources
