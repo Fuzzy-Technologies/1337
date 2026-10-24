@@ -29,6 +29,10 @@ def Bundle(name):
     url = "http://127.0.0.1:49123" + case.path
     originals = {}
     ids = {}
+    provenance = {"source_id": "native.loopback-content-response", "workspace_id": "unit-only",
+        "scope_reference": "scope:unit-only", "started_at": "2026-10-24T00:00:00+00:00",
+        "finished_at": "2026-10-24T00:00:01+00:00", "execution": {
+            "state": "succeeded", "exit_code": 0, "duration_seconds": 1.0}}
 
     def Add(role, raw):
         """Create only synthetic records with actual computed fixture hashes and role IDs."""
@@ -37,9 +41,7 @@ def Bundle(name):
         manifest = {"schema_version": 1, "reference": {"role": role,
             "locator": "blobs/sha256/" + digest, "sha256": digest, "size_bytes": len(raw),
             "media_type": "application/json" if role in ("stdout", oracle.RECEIPT_ROLE)
-                else "application/octet-stream"}, "provenance": {
-                    "source_id": "native.loopback-content-response",
-                    "fixture": "synthetic untrusted unit documents — not runtime"}}
+                else "application/octet-stream"}, "provenance": copy.deepcopy(provenance)}
         identity = "sha256:" + hashlib.sha256(Encode(manifest)).hexdigest()
         ids[role] = identity
         originals[identity] = {"manifest": manifest, "data_hex": raw.hex()}
@@ -51,8 +53,17 @@ def Bundle(name):
 
     receipt = {"schema_version": 1, "profile": "owned-content-response-receipt.v1",
         "owner_reference": "actor:synthetic-\u043e\u043f\u0435\u0440\u0430\u0442\u043e\u0440",
+        "workspace_id": provenance["workspace_id"], "started_at": provenance["started_at"],
+        "finished_at": provenance["finished_at"], "refusal": None, "events": [],
+        "request": {"invocation": {"adapter_id": "native.loopback-content-response",
+            "argv": ["/synthetic/bin/python", "-I", "-B", "-m",
+                "fuzzy1337.owned_content_response_worker", url], "request": {
+                    "capability": "http.owned-content-response-capture", "impact": "SAFE",
+                    "target_reference": "target:" + hashlib.sha256(Encode({"kind": "url",
+                        "value": url})).hexdigest(), "parameters": {"url": url,
+                            "retain_response": True}, "credential_references": []}}},
         "custody": "complete", "termination": "process_exit", "execution": {
-            "state": "succeeded", "exit_code": 0}, "evidence_ids": {
+            "state": "succeeded", "exit_code": 0, "duration_seconds": 1.0}, "evidence_ids": {
                 key: ids[role] for role, key in oracle.ROLE_KEYS.items()}}
     Add(oracle.RECEIPT_ROLE, json.dumps(receipt, sort_keys=True, separators=(",", ":"),
         ensure_ascii=True, allow_nan=False).encode("ascii"))
@@ -88,7 +99,7 @@ def test_OriginalCustodyRejectsRebindingAndEqualValueBooleanClaims(mutation):
         originals[identity]["data_hex"] = b"substituted".hex()
 
     elif mutation == "manifest":
-        originals[identity]["manifest"]["provenance"]["fixture"] = "replaced manifest"
+        originals[identity]["manifest"]["provenance"]["scope_reference"] = "scope:replaced"
 
     elif mutation == "role-alias":
         attrs["original_role_ids"]["owned-response-body"] = attrs["original_role_ids"]["stderr"]
@@ -113,7 +124,8 @@ def test_OriginalCustodyRejectsRebindingAndEqualValueBooleanClaims(mutation):
             job_id="job:synthetic-unit-only")
 
 
-@pytest.mark.parametrize("mutation", ["exit-bool", "failed", "catalog", "role-rebind"])
+@pytest.mark.parametrize("mutation", ["exit-bool", "failed", "catalog", "role-rebind",
+    "receipt-extra", "receipt-missing", "receipt-refusal", "foreign-url", "foreign-provider"])
 def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(mutation):
     """A self-consistent new manifest hash cannot validate false underlying custody facts."""
 
@@ -130,8 +142,23 @@ def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(
     elif mutation == "catalog":
         receipt["profile"] = "owned-response-capture-receipt.v1"
 
-    else:
+    elif mutation == "role-rebind":
         receipt["evidence_ids"]["body"] = receipt["evidence_ids"]["headers"]
+
+    elif mutation == "receipt-extra":
+        receipt["unexpected"] = "foreign contract"
+
+    elif mutation == "receipt-missing":
+        del receipt["events"]
+
+    elif mutation == "receipt-refusal":
+        receipt["refusal"] = "protocol"
+
+    elif mutation == "foreign-url":
+        receipt["request"]["invocation"]["request"]["parameters"]["url"] += "/foreign"
+
+    else:
+        receipt["request"]["invocation"]["adapter_id"] = "native.loopback-response"
 
     raw = json.dumps(receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
         allow_nan=False).encode("ascii")
@@ -146,4 +173,33 @@ def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(
 
     with pytest.raises(AssertionError):
         oracle.AssertContentParts("missing", url, replacement_id, originals, attrs,
+            job_id="job:synthetic-unit-only")
+
+
+def test_ResignedPartCannotMixForeignScopeIntoOneOtherwiseConsistentCapture():
+    """Equal bytes and freshly consistent IDs cannot replace original collection provenance."""
+
+    url, receipt_id, originals, attrs = Bundle("missing")
+    body_id = attrs["original_role_ids"]["owned-response-body"]
+    body = originals.pop(body_id)
+    body["manifest"]["provenance"]["scope_reference"] = "scope:foreign"
+    new_body_id = "sha256:" + hashlib.sha256(Encode(body["manifest"])).hexdigest()
+    originals[new_body_id] = body
+    attrs["original_role_ids"]["owned-response-body"] = new_body_id
+    receipt_item = originals.pop(receipt_id)
+    receipt = json.loads(bytes.fromhex(receipt_item["data_hex"]))
+    receipt["evidence_ids"]["body"] = new_body_id
+    raw = json.dumps(receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        allow_nan=False).encode("ascii")
+    digest = hashlib.sha256(raw).hexdigest()
+    receipt_item["data_hex"] = raw.hex()
+    receipt_item["manifest"]["reference"].update(locator="blobs/sha256/" + digest,
+        sha256=digest, size_bytes=len(raw))
+    new_receipt_id = "sha256:" + hashlib.sha256(Encode(receipt_item["manifest"])).hexdigest()
+    originals[new_receipt_id] = receipt_item
+    attrs["original_receipt_id"] = new_receipt_id
+    attrs["original_role_ids"][oracle.RECEIPT_ROLE] = new_receipt_id
+
+    with pytest.raises(AssertionError, match="same actual collection provenance"):
+        oracle.AssertContentParts("missing", url, new_receipt_id, originals, attrs,
             job_id="job:synthetic-unit-only")
