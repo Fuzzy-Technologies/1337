@@ -254,9 +254,9 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="response",
-            summary="Capture one owned original response or verify known custody offline.",
-            usage="1337 response <capture|replay> <workspace>",
-            capabilities=("http.synthetic-response-capture",),
+            summary="Capture original responses, check original headers or replay known custody.",
+            usage="1337 response <capture|replay|check-headers|replay-headers> <workspace>",
+            capabilities=("http.synthetic-response-capture", "http.owned-response-header-check"),
         ),
         CommandDescriptor(
             identifier="runtime",

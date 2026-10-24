@@ -206,17 +206,21 @@ def test_UnknownReplayAssociationRefusesInsteadOfInventingOriginalJob(response_c
     )
 
 
-def test_ResponseHelpAndRegistryAdvertiseOnlyAcquisitionCapability(capsys):
-    """A separate namespace keeps native web checks and future passive analysis distinct."""
+def test_ResponseHelpAndRegistryDistinguishAcquisitionFromOfflineHeaderCapability(capsys):
+    """The namespace names implemented capabilities without claiming ZAP or a general web scan."""
 
     with pytest.raises(SystemExit) as caught:
         Main(["response", "--help"])
 
     help_text = capsys.readouterr().out
     descriptor = COMMAND_REGISTRY.Resolve("response")
-    assert caught.value.code == 0 and "capture" in help_text and "replay" in help_text, (
-        "Both explicit source operations must remain discoverable through the installed interface."
+    assert caught.value.code == 0 and all(action in help_text for action in (
+        "capture", "replay", "check-headers", "replay-headers"
+    )), (
+        "Every distinct source/check/replay operation must remain discoverable."
     )
-    assert descriptor.capabilities == ("http.synthetic-response-capture",), (
-        "Source acquisition must advertise no ZAP or assessed capability."
+    assert descriptor.capabilities == (
+        "http.synthetic-response-capture", "http.owned-response-header-check"
+    ), (
+        "Only actual original capture and the separate native offline header check are advertised."
     )
