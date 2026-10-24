@@ -9,6 +9,8 @@ source authority and target settlement. Summary claims alone cannot satisfy this
 
 from __future__ import annotations
 
+import hashlib
+
 from tests.contract.owned_content_response_sdk_oracle import Canonical
 
 
@@ -21,7 +23,8 @@ def ByReference(rows: list[dict]) -> dict[str, dict]:
     return result
 
 
-def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: list[dict]) -> None:
+def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: list[dict], *,
+    url: str, workspace_id: str, scope_reference: str) -> None:
     """Join one successful fresh acquisition's actual Save returns to reopened original state.
 
     Args:
@@ -32,12 +35,20 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
             returned and exception_type. The model basis is its original keyword argument;
             the workspace basis is its original proposal revision. Observers return unchanged
             original values; workspace Save itself increments the proposal revision.
+        url: Independently selected original URL, not a destination derived from returned state.
+        workspace_id: Independently selected original workspace identity.
+        scope_reference: Explicit selected existing source scope; capture may newly attach it.
 
     This predicate verifies transitions and associations only. It cannot prove that input
     documents came from a real SDK, durable storage, or actual Save calls by itself.
     """
 
     assert type(summary["schema_version"]) is int and summary["schema_version"] == 1
+    assert type(url) is str and url and type(workspace_id) is str and workspace_id
+    assert type(scope_reference) is str and scope_reference
+    assert all(state[owner]["workspace_id"] == workspace_id for state in (before, after)
+        for owner in ("model", "workspace")), (
+            "Both canonical owners must belong to selected workspace")
     assert summary["workflow"] == "owned-content-response-capture" and summary[
         "source_id"] == "native.loopback-content-response"
     assert summary["state"] == "completed" and summary["acquisition_outcome"] == "captured"
@@ -70,8 +81,8 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         assert all(key in actual and Canonical(value) == Canonical(actual[key])
             for key, value in prior.items()), "Existing native model and triage must survive"
 
-    for owner, mutable in (("workspace", {"revision", "object_references", "job_references",
-        "evidence_record_references", "evidence_references"}), ("model", {
+    for owner, mutable in (("workspace", {"revision", "scope_references", "object_references",
+        "job_references", "evidence_record_references", "evidence_references"}), ("model", {
             "revision", "objects", "observations"})):
         assert Canonical({key: value for key, value in before[owner].items()
             if key not in mutable}) == Canonical({key: value for key, value in after[owner].items()
@@ -82,6 +93,12 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         prior_objects)]
     assert len(added_objects) == 1 and added_objects[0]["identity"]["kind"] == "endpoint", (
         "A fresh source acquisition adds one Endpoint and no Findings")
+    endpoint_identity = {"workspace_id": workspace_id, "kind": "endpoint", "key": url}
+    endpoint_reference = "object:" + hashlib.sha256(Canonical({"namespace": "object",
+        "identity": endpoint_identity})).hexdigest()
+    assert Canonical(added_objects[0]["identity"]) == Canonical(endpoint_identity) and (
+        added_objects[0]["reference"] == endpoint_reference), (
+            "The new Endpoint must identify the independently selected original URL/workspace")
 
     for identity, original in before["originals"].items():
         assert identity in after["originals"] and Canonical(original) == Canonical(
@@ -98,6 +115,10 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
     job_id, receipt_id = summary["original_job_id"], summary["original_receipt_id"]
     assert type(job_id) is str and job_id and job_id in workspace["job_references"]
     job = summary["job"]
+    assert job["spec"]["workspace_id"] == workspace_id
+    assert job["spec"]["scope_reference"] == scope_reference
+    assert set(workspace["scope_references"]) == {
+        *before["workspace"]["scope_references"], scope_reference}
     assert job["spec"]["job_id"] == job_id and job["state"] == "completed" and (
         job["failure"] is None and job["cancellation_requested"] is False)
     roles = summary["original_role_ids"]
@@ -105,6 +126,8 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         "owned-response-receipt"] == receipt_id
     references = [after["originals"][identity]["manifest"]["reference"]
         for identity in roles.values()]
+    assert all(after["originals"][identity]["manifest"]["provenance"]["workspace_id"] == (
+        workspace_id) for identity in roles.values()), "All original parts must join selected owner"
     assert set(roles.values()) <= set(workspace["evidence_record_references"])
     assert {Canonical(value) for value in references} <= {
         Canonical(value) for value in workspace["evidence_references"]}
@@ -116,6 +139,9 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
     assert Canonical(fact["attributes"]["original_role_ids"]) == Canonical(roles)
     assert fact["attributes"]["original_job_id"] == fact["provenance"]["run_reference"] == job_id
     assert fact["provenance"]["source_id"] == "native.loopback-content-response"
+    assert fact["provenance"]["scope_reference"] == scope_reference
+    assert fact["provenance"]["target_reference"] == "target:" + hashlib.sha256(Canonical({
+        "kind": "url", "value": url})).hexdigest()
     assert {Canonical(value) for value in fact["provenance"]["evidence_references"]} == {
         Canonical(value) for value in references}
     assert fact["subject_reference"] in workspace["object_references"] and fact[
