@@ -821,9 +821,14 @@ class NativeCrawlProvider:
 
             try:
                 for url in wave:
-                    delay = next_start - asyncio.get_running_loop().time()
+                    while True:
+                        self.CheckBudget()
+                        context.CheckCancellation()
+                        delay = next_start - asyncio.get_running_loop().time()
 
-                    if delay > 0:
+                        if delay <= 0:
+                            break
+
                         await asyncio.sleep(delay)
 
                     self.CheckBudget()
