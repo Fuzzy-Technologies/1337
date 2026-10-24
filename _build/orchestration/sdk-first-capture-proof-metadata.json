@@ -1,0 +1,8 @@
+{
+  "path": "_build/orchestration/sdk-first-capture-proof.zip",
+  "sha256": "1bea32ae34da58aa61a8f05889908a8f841a77731df1745e94ddd5958826ec48",
+  "bytes": 769391,
+  "payload_files": 66,
+  "source_commit": "b1042606485fdab0fdb603cc8ff287f177a7e071",
+  "source_tree": "624ec4ea8dca1c9cdcdeb52a374aadabf20025f7"
+}
