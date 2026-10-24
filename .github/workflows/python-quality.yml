@@ -119,6 +119,60 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  owned-traversal-rate-checkpoint:
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]')
+    name: Owned traversal Windows rate feature checks
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.12
+      - name: Run pure rate deadline and timeout classification regressions
+        timeout-minutes: 2
+        run: >-
+          uv run --locked --extra dev pytest -q -x
+          'tests/unit/test_web_traversal.py::test_RateGateRechecksOriginalDeadlineAfterEarlyWake[complete]'
+          'tests/unit/test_web_traversal.py::test_RateGateRechecksOriginalDeadlineAfterEarlyWake[cancel]'
+          'tests/unit/test_web_traversal.py::test_RateGateRechecksOriginalDeadlineAfterEarlyWake[budget]'
+          'tests/unit/test_native_crawl.py::test_RateGateRechecksOriginalDeadlineAfterEarlyWake[complete]'
+          'tests/unit/test_native_crawl.py::test_RateGateRechecksOriginalDeadlineAfterEarlyWake[cancel]'
+          'tests/unit/test_native_crawl.py::test_RateGateRechecksOriginalDeadlineAfterEarlyWake[budget]'
+          tests/unit/test_test_runner.py::test_IncidentalTimeoutTextCannotRelabelAnOrdinaryJunitFailure
+          tests/unit/test_test_runner.py::test_PinnedPytestTimeoutFailureMessagesRetainCallAndFixtureExpiry
+          -n 2 --dist=loadscope --max-worker-restart=0 -o addopts='' --no-cov
+          --timeout=30 --timeout-method=thread
+          --junitxml=functional-evidence/owned-traversal-rate/windows-pure.xml
+      - name: Run the two affected genuine traversal cases
+        timeout-minutes: 4
+        run: >-
+          uv run --locked --extra dev pytest -q -x
+          tests/integration/test_web_traversal_execution.py::test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle
+          tests/functional/test_native_crawl_product.py::test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState
+          -n 0 -o addopts='' --no-cov --timeout=90 --timeout-method=thread
+          --junitxml=functional-evidence/owned-traversal-rate/windows-genuine.xml
+      - name: Preserve focused traversal rate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owned-traversal-windows-rate-feature
+          path: |
+            functional-evidence/owned-traversal-rate/
+            functional-evidence/native-crawl/
+          retention-days: 7
+          if-no-files-found: warn
+
   native-crawl-windows-portability:
     if: >-
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
