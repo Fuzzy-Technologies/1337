@@ -1,0 +1,31 @@
+{
+  "identity": "sdk:source-replay:relocated-original",
+  "status": "passed",
+  "installed_component_commit": "b1042606485fdab0fdb603cc8ff287f177a7e071",
+  "installed_component_tree": "624ec4ea8dca1c9cdcdeb52a374aadabf20025f7",
+  "helper_commit": "9986c922e2746509ef96ab90094b45c19486c1c9",
+  "helper_tree": "e0dc9a536b9c03b1ed8b7b28bbed397088490391",
+  "original_root_absent": true,
+  "relocated_workspace": "/workspace/scratch/25ef9d999a38/1337/.worktrees/owned-content-response-composed/_build/content-sdk-first-capture-20261024T1548/workspace-relocated-source-replay",
+  "audit_probe_seen": true,
+  "save_calls": 0,
+  "limits": "SOURCE replay only; Analyze/headerReplay/authoritynegatives/fullCI UNRUN",
+  "original_terminal_processes": 1,
+  "forbidden_seams": 51,
+  "forbidden_calls_total": 0,
+  "original_receipt_id": "sha256:c047a4d9714ea5425294d01dca8975546f7ff4373e6135b766b41ec8ce7948ef",
+  "original_job_id": "job:owned-response-b8be566959604bcfae97ecf94c151c16",
+  "original_role_ids": {
+    "owned-response-body": "sha256:094cab911e77084d0ec05d28b32d7fb5512e541549faa3ee8926b09fe95bdbcf",
+    "owned-response-headers": "sha256:c2cbed656bd4ce77ff9fef2753c538df9c916068fc45cf36a259619abea3362a",
+    "owned-response-receipt": "sha256:c047a4d9714ea5425294d01dca8975546f7ff4373e6135b766b41ec8ce7948ef",
+    "owned-response-request": "sha256:1ecbb619e48cfe86cd1a0b6418ececaa7aaaef8f882c991fc18af9be62defba8",
+    "owned-response-wire": "sha256:4728bb04d143aaaf3ea24de4d3fe6028e36557827e25da779be9055527b720ec",
+    "stderr": "sha256:935eac0e6f3206ccf6e15faaaf525770bdf3e6f5fc28e615bad531ea938db506",
+    "stdout": "sha256:bf9a3caf5aecd4057921fde5da1dc7ab47a6582b00436e34b1b07d3a6eeaa615"
+  },
+  "model_revision": 3,
+  "workspace_revision": 2,
+  "verdict_sha256": "b2274909d95f6ca11f8415aaebed72f12749f0264c1b018b5d69a3dfb003382b",
+  "runtime_root": "/workspace/scratch/25ef9d999a38/1337/.worktrees/owned-content-response-composed/_build/content-source-replay-existing-20261024T1621"
+}
