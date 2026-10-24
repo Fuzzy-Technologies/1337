@@ -1,6 +1,6 @@
 # ADR 0096: Closed inert isolation and original-file custody proof
 
-- Status: Accepted design; execution acceptance pending
+- Status: Accepted design; closed candidate execution verified; shared integration pending
 - Date: 2026-10-24
 - Stability: Experimental test-only contract
 - Related: [ADR 0095](0095-owned-response-zap-passive-profile.md)
@@ -118,11 +118,30 @@ optional local SKIP is not acceptance. Dependency setup is separately bounded; a
 proof execution are nonroot. There is no host policy workaround or indefinitely queued
 self-hosted fallback. Source review must precede enabling the first genuine run.
 
+## Recorded candidate evidence
+
+On 2026-10-24, [run 40064389957, job 120784462270](https://github.com/Fuzzy-Technologies/1337/actions/runs/40064389957/job/120784462270)
+verified candidate commit `ccade599cab92c08a21f6a4eeefc2fe3f4ff7e3e`, source tree
+`55ec16b27f14655e7908f110d37ef5907c273ce7`: all eight named genuine cases passed, with zero
+failures, errors or skips. The serial normal case preceded the remaining seven cases with two
+workers. Every case verified final READY, owned cleanup and zero host-sink contacts.
+
+Normal and byte/inode quota cases completed successfully with original late-file custody.
+Actual timeout, cooperative cancellation and direct peer SIGKILL retained their truthful stop
+states and complete late-file custody. Current-authority denial before ACK and the post-ACK
+missing-late-file case retained incomplete custody as required; a passing refusal test does not
+promote either into a successful capture. The exact termination/state/exit matrix is recorded
+in [the prerequisite guide](../ZAP_INERT_ISOLATION.md#verified-closed-candidate).
+
+This is evidence for this closed candidate, not completion of the shared final integration
+gate. No Java, ZAP runtime, production provider or product SDK/CLI capability is introduced.
+
 ## Limits
 
 This trusts the first-party harness, bootstrap, fixture, pinned helper and kernel. It does not
 claim resistance to kernel exploits, hostile same-UID host processes, total anonymous-memory
-exhaustion, parent crash or power loss. Actual untouched-host namespace/peerFD/quota/custody
-capability remains unproven until genuine CI. Even a passing inert proof does not establish
-JRE/ZAP/rootfs/addon material closure, JVM initialization/noexec compatibility, report
-completeness, queue semantics, product SDK/CLI integration or engine enrollment.
+exhaustion, parent crash or power loss. The recorded genuine run establishes the closed
+namespace/peerFD/quota/custody composition on its observed Linux x86_64 runner only. Other
+environments remain unproven. It does not establish JRE/ZAP/rootfs/addon material closure,
+JVM initialization/noexec compatibility, report completeness, queue semantics, product SDK/CLI
+integration or engine enrollment. Shared final integration is pending at this candidate checkpoint.

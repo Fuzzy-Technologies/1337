@@ -1,7 +1,38 @@
 # Closed inert isolation prerequisite
 
-[ADR 0096](adr/0096-closed-inert-isolation-proof.md) freezes the test-only boundary. There is
-currently no accepted genuine run. No production provider or ZAP runtime is introduced.
+[ADR 0096](adr/0096-closed-inert-isolation-proof.md) freezes the test-only boundary. The exact
+closed Linux x86_64 candidate has a verified eight-case genuine CI proof. Shared final
+integration is pending at this candidate checkpoint. Java/ZAP runtime and its production
+provider/SDK/CLI integration remain unimplemented.
+
+## Verified closed candidate
+
+On 2026-10-24, [CI run 40064389957, job 120784462270](https://github.com/Fuzzy-Technologies/1337/actions/runs/40064389957/job/120784462270)
+executed all eight named cases: **8 passed, 0 failed, 0 errors, 0 skipped**. The receipt binds
+candidate commit `ccade599cab92c08a21f6a4eeefc2fe3f4ff7e3e` and source tree
+`55ec16b27f14655e7908f110d37ef5907c273ce7`. The observed hosted Ubuntu 22.04 image was
+`20261012.322.1`, kernel `6.8.0-1064-azure`, with original host UID 1001.
+
+| Case        | Actual termination / state | Exit | Original late-file custody |
+|-------------|----------------------------|------|----------------------------|
+| Normal      | process_exit / succeeded   | 0    | Complete                   |
+| Byte quota  | process_exit / succeeded   | 0    | Complete                   |
+| Inode quota | process_exit / succeeded   | 0    | Complete                   |
+| Timeout     | timeout / timed_out        | -9   | Complete                   |
+| Cancel      | cancellation / cancelled   | -9   | Complete                   |
+| Peer kill   | cancellation / cancelled   | 137  | Complete                   |
+| Deny        | cancellation / cancelled   | -9   | Incomplete; no ACK         |
+| Missing     | cancellation / cancelled   | -9   | Incomplete; no late file   |
+
+All eight verified final READY, confirmed owned cleanup and zero host-sink contacts. The peer-kill
+case observed direct original-pidfd SIGKILL and peer exit; its actual cancellation classification
+and exit 137 remain recorded. Deny refused current authority before ACK. Missing reached the
+post-ACK pause without creating the late report. These two expected incomplete custody outcomes
+passed their refusal oracles; they did not become successful capture results.
+
+This receipt verifies the closed candidate composition only. It does not complete the shared
+final PR gate, establish broader platform support, or implement JVM/ZAP material closure,
+engine reports, queue behavior, product SDK/CLI integration or provider enrollment.
 
 ## Pinned helper and build
 
@@ -31,7 +62,8 @@ operation directory, two owned host sockets and at most two short-lived custody 
 Bootstrap has four typed O_PATH slots and at most one temporary handle. The final fixture
 starts with only standard streams; at READY its fixed control FD is 4 and a just-consumed
 quota FD 3 may transiently remain while sendmsg returns. Known-peer descriptor inspection
-rejects any other inherited descriptor. These limits are source contracts pending genuine proof.
+rejects any other inherited descriptor. The recorded candidate exercised this closed contract;
+new revisions and environments still require the applicable exact-revision acceptance.
 
 ## Evidence and refusal
 
@@ -70,4 +102,5 @@ No test result establishes a production receipt, successful ZAP engine or zero F
 - [Candidate runner inventory](https://github.com/actions/runner-images/blob/ee1ff4569e381a9649b400338bdc8ceb7e18a80e/images/ubuntu/Ubuntu2204-Readme.md)
 
 Ubuntu 22.04 is a temporary candidate, deprecated on 2026-09-17 and scheduled to retire on
-2027-04-17. Its documented kernel compatibility does not establish untouched-host capability.
+2027-04-17. The recorded run proves the closed profile on its observed image; inventory or
+kernel metadata alone does not extend that proof to other environments.
