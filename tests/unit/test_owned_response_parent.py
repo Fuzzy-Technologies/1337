@@ -237,6 +237,56 @@ def custody_diagnostics(monkeypatch):
     return failures
 
 
+def PrintCustodyDiagnostics(failures):
+    """Print one bounded ASCII control line outside pytest's abbreviated assertion repr."""
+
+    failure = next((row for row in failures if len(row) == 4), failures[0] if failures else ())
+    checks = dict(failure[3]) if len(failure) == 4 else {}
+    fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+
+    def Mask(label):
+        """Render original equality booleans in fixed DISMC order, marking missing observations."""
+
+        values = dict(checks.get(label, ()))
+
+        return "".join(
+            "1" if values.get(key) is True else "0" if values.get(key) is False else "?"
+            for key in fields
+        )
+
+    phases = {
+        "stage-header", "stage-intent", "stage-ack", "stage-finished", "capture-evidence",
+        "verify-evidence",
+    }
+    kinds = {
+        "ValueError", "JobError", "EvidenceStorageError", "EvidenceIntegrityError", "OSError",
+        "PermissionError", "FileNotFoundError", "RuntimeError",
+    }
+    functions = {
+        "Append", "ReadPrivate", "CaptureEvidence", "Put", "Get", "Read", "VerifyEvidence",
+        "PublishStoredBytes", "ReadStoredBytes", "CheckStorageEntry", "ArtifactPathInfo",
+        "ArtifactHandleInfo",
+    }
+    locations = []
+
+    for name, line in failure[2][-4:] if failure else ():
+        if name in functions and type(line) is int and 1 <= line <= 100000:
+            locations.append(f"{name}:{line}")
+
+    cap = checks.get("byte-cap-exceeded")
+    value = {
+        "phase": failure[0] if failure and failure[0] in phases else "unobserved",
+        "type": failure[1] if failure and failure[1] in kinds else "unobserved",
+        "location": "/".join(locations),
+        "order": "DISMC",
+        "cap": cap if type(cap) is bool else "?",
+        "path_fd": Mask("path-before/fd-open"),
+        "fd_fd": Mask("fd-open/fd-after"),
+        "fd_path": Mask("fd-after/path-after"),
+    }
+    print("OWNED_CUSTODY " + json.dumps(value, ensure_ascii=True, separators=(",", ":")))
+
+
 def Authority(url=URL):
     """Build explicit synthetic policy/scope without confusing consent attester and actor."""
 
@@ -397,10 +447,11 @@ def test_OriginalFragmentsReceiptLastAndRelocatedReplay(
 
     provider, job, _ = Setup(tmp_path, monkeypatch)
     snapshot = Run(runner, job)
-    assert snapshot.state is JobState.COMPLETED, (
-        "Closed acquisition must complete",
-        custody_diagnostics,
-    )
+
+    if snapshot.state is not JobState.COMPLETED:
+        PrintCustodyDiagnostics(custody_diagnostics)
+
+    assert snapshot.state is JobState.COMPLETED, "Closed acquisition must complete"
     capture = provider.capture
     assert capture is not None and len(capture.records) == 7, (
         "All original roles must be acknowledged"
@@ -459,6 +510,34 @@ def test_PortableCustodyDiagnosticsRetainOnlySafeFailureLocations(
         type(name) is str and type(line) is int
         for name, line in custody_diagnostics[0][2]
     ), "Only static source function names and line numbers may survive diagnostic observation"
+
+
+def test_PortableCustodyDiagnosticStdoutRetainsCompleteMasksWithoutPrivateValues(capsys):
+    """The actual captured-stdout line preserves all masks without assertion repr abbreviation."""
+
+    fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+    private = "PRIVATE path/message/bytes/hash must not appear"
+    checks = (
+        ("byte-cap-exceeded", False),
+        ("path-before/fd-open", tuple((key, key != "st_ctime_ns") for key in fields)),
+        ("fd-open/fd-after", tuple((key, True) for key in fields)),
+        ("unapproved", private),
+    )
+    PrintCustodyDiagnostics(
+        [("stage-header", "ValueError", (("Append", 606), ("ReadPrivate", 210)), checks)]
+    )
+    output = capsys.readouterr()
+    expected = (
+        'OWNED_CUSTODY {"phase":"stage-header","type":"ValueError",'
+        '"location":"Append:606/ReadPrivate:210","order":"DISMC","cap":false,'
+        '"path_fd":"11110","fd_fd":"11111","fd_path":"?????"}\n'
+    )
+    assert output.out == expected and not output.err, (
+        "Captured stdout must retain every compact mask and unobserved marker without truncation"
+    )
+    assert output.out.isascii() and len(output.out) < 512 and private not in output.out, (
+        "The bounded ASCII diagnostic cannot publish arbitrary source values or error messages"
+    )
 
 
 @pytest.mark.parametrize("field", ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"))
