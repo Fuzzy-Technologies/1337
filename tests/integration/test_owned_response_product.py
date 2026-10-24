@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import base64
+import errno
 import hashlib
 import json
 import os
@@ -14,6 +15,8 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -38,6 +41,59 @@ ROLES = {"stdout": "application/json", "stderr": "application/octet-stream",
     "owned-response-headers": "application/octet-stream",
     "owned-response-body": "text/html; charset=utf-8",
     "owned-response-wire": "application/octet-stream", "owned-response-receipt": "application/json"}
+HELD_PEER_SECONDS = 3
+HELD_ERROR_TYPES = frozenset(("OSError", "TimeoutError", "ConnectionResetError",
+    "ConnectionAbortedError", "BrokenPipeError"))
+HELD_WINDOWS_ERRORS = frozenset((10053, 10054, 10060))
+
+
+def HeldPeerSignal(phase: str, before_local_close: bool, data: bytes | None = None,
+                   error: OSError | None = None, *, within_hold: bool = True) -> dict[str, object]:
+    """Classify only original bounded receive facts, without messages or rejected bytes.
+
+    Args:
+        phase: Fixed original request, readiness or peer-receive boundary.
+        before_local_close: Whether observation preceded any local teardown action.
+        data: Actual recv return, never retained in diagnostic metadata.
+        error: Original receive failure, without diagnostic I/O or stringification.
+        within_hold: Whether the original receive was observed inside its unchanged hold.
+
+    Returns:
+        Fixed terminal kind and bounded original class/known error numbers.
+    """
+
+    number = None if error is None else error.errno
+    windows = None if error is None else getattr(error, "winerror", None)
+    number = number if type(number) is int and (
+        number in errno.errorcode or number in HELD_WINDOWS_ERRORS) else None
+    windows = windows if type(windows) is int and windows in HELD_WINDOWS_ERRORS else None
+    name = None if error is None else type(error).__name__
+    name = name if name in HELD_ERROR_TYPES else "other" if error is not None else None
+
+    if not before_local_close:
+        kind = "local-teardown"
+
+    elif phase != "peer-receive":
+        kind = "before-peer-receive"
+
+    elif isinstance(error, TimeoutError):
+        kind = "timeout"
+
+    elif isinstance(error, ConnectionResetError) and (
+        number in (errno.ECONNRESET, 10054) or windows == 10054
+    ):
+        kind = "peer-reset"
+
+    elif error is not None:
+        kind = "os-error"
+
+    else:
+        kind = "eof" if data == b"" else "unexpected-data"
+
+    return {"kind": kind, "phase": phase if phase in (
+        "request", "readiness", "peer-receive") else "other",
+        "before_local_close": before_local_close, "within_hold": within_hold, "error_type": name,
+        "errno": number, "winerror": windows}
 
 
 @pytest.fixture(autouse=True)
@@ -62,12 +118,94 @@ class HeldResponseListener(OwnedResponseListener):
         """
 
         self.readiness = readiness
-        self.peer_closed = False
-        self.hold_expired = False
+        self.InitializePeerObservation()
         super().__init__(b"")
 
+    def InitializePeerObservation(self) -> None:
+        """Create pure terminal state before the original listener thread can start."""
+
+        self.peer_closed = False
+        self.hold_expired = False
+        self.peer_signal: dict[str, object] = {"kind": "unobserved", "phase": "other",
+            "before_local_close": False, "within_hold": False,
+            "error_type": None, "errno": None, "winerror": None}
+        self.peer_observed = threading.Event()
+        self.peer_lock = threading.Lock()
+        self.peer_deadline: float | None = None
+        self.local_close_started = False
+
+    def RecordPeerSignal(self, phase: str, data: bytes | None = None,
+                         error: OSError | None = None) -> None:
+        """Keep the first original terminal observation before releasing its bounded waiter.
+
+        Args:
+            phase: Fixed original receive/readiness phase.
+            data: Actual receive return, without retained diagnostic bytes.
+            error: Actual original OSError or timeout.
+        """
+
+        with self.peer_lock:
+            if self.peer_observed.is_set():
+                return
+
+            within_hold = self.peer_deadline is not None and time.monotonic() < self.peer_deadline
+            self.peer_signal = HeldPeerSignal(phase, not self.local_close_started, data, error,
+                                              within_hold=within_hold)
+            self.peer_closed = self.peer_signal["kind"] == "eof"
+            self.hold_expired = isinstance(error, TimeoutError)
+            self.peer_observed.set()
+
+    def PeerSignal(self) -> dict[str, object]:
+        """Return immutable-by-copy original bounded terminal facts.
+
+        Returns:
+            First observation, or explicit unobserved metadata.
+        """
+
+        with self.peer_lock:
+            return dict(self.peer_signal)
+
+    def PeerTerminated(self) -> bool:
+        """Require actual EOF or recognized receive reset before any local teardown.
+
+        Returns:
+            True only for the two explicitly named original remote terminal signals.
+        """
+
+        signal = self.PeerSignal()
+
+        return signal["before_local_close"] is True and signal["within_hold"] is True and (
+            signal["kind"] in ("eof", "peer-reset"))
+
+    def WaitPeerTerminal(self) -> bool:
+        """Wait only within the original peer-read deadline, without renewal or polling.
+
+        Returns:
+            Actual observed remote termination, never a local-close inference.
+        """
+
+        with self.peer_lock:
+            deadline = self.peer_deadline
+
+        if deadline is None:
+            return False
+
+        self.peer_observed.wait(max(0, deadline - time.monotonic()))
+
+        return self.PeerTerminated()
+
+    def Close(self) -> None:
+        """Observe within the original hold before beginning bounded local listener cleanup."""
+
+        self.WaitPeerTerminal()
+
+        with self.peer_lock:
+            self.local_close_started = True
+
+        super().Close()
+
     def Serve(self) -> None:
-        """Keep one connection open until actual peer EOF, with a finite emergency hold."""
+        """Keep one connection until original EOF/reset or the unchanged emergency hold."""
 
         while not self.stopping.is_set():
             try:
@@ -81,25 +219,33 @@ class HeldResponseListener(OwnedResponseListener):
 
             self.accepted += 1
             request = bytearray()
+            phase = "request"
 
             with connection:
-                connection.settimeout(3)
+                connection.settimeout(HELD_PEER_SECONDS)
 
                 try:
                     while b"\r\n\r\n" not in request and len(request) <= 1024:
                         chunk = connection.recv(1025 - len(request))
 
                         if not chunk:
+                            self.RecordPeerSignal(phase, data=chunk)
                             return
 
                         request.extend(chunk)
 
                     self.requests.append(bytes(request))
-                    self.readiness.write_bytes(b"actual-selected-get")
-                    self.peer_closed = connection.recv(1) == b""
 
-                except (OSError, TimeoutError):
-                    self.hold_expired = True
+                    with self.peer_lock:
+                        self.peer_deadline = time.monotonic() + HELD_PEER_SECONDS
+
+                    phase = "readiness"
+                    self.readiness.write_bytes(b"actual-selected-get")
+                    phase = "peer-receive"
+                    self.RecordPeerSignal(phase, data=connection.recv(1))
+
+                except OSError as error:
+                    self.RecordPeerSignal(phase, error=error)
 
 
 def Sha(value) -> str:
@@ -545,7 +691,9 @@ def test_InstalledSdkCallerCancellationAwaitsActualWorkerAndSocketCleanup(
     assert listener.accepted == 1 and listener.requests == [ExpectedRequest(listener, "missing")], (
         "Caller cancellation must occur after exactly one actual selected GET without retry"
     )
-    assert listener.peer_closed and not listener.hold_expired, (
+    assert listener.peer_closed and not listener.hold_expired and (
+        listener.PeerSignal()["within_hold"] is True
+    ), (
         "The actual worker must close its owned socket before the listener's emergency deadline"
     )
     summary = cancelled["summary"]

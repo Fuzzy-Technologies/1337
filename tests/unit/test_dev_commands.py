@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from fuzzy1337 import dev_commands
+from fuzzy1337 import dev_commands, test_runner
 
 
 @pytest.fixture
@@ -49,10 +49,11 @@ def test_MissingRepositoryIsReported(monkeypatch, tmp_path, capsys):
 
 
 @pytest.mark.parametrize("suite_timeout_seconds", [600, 900])
+@pytest.mark.parametrize("fail_fast", [False, True])
 def test_CheckRunsAllQualityStepsAndRemovesStaleReport(
-    repository, monkeypatch, suite_timeout_seconds,
+    repository, monkeypatch, suite_timeout_seconds, fail_fast,
 ):
-    """Default and explicit suite budgets preserve every full-check phase and fresh evidence."""
+    """Successful default and fail-fast checks retain every quality phase and fresh evidence."""
 
     report = repository / "coverage/coverage.json"
     report.parent.mkdir()
@@ -79,6 +80,9 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(
     if suite_timeout_seconds != 600:
         arguments.extend(["--suite-timeout", str(suite_timeout_seconds)])
 
+    if fail_fast:
+        arguments.append("--fail-fast")
+
     assert dev_commands.Main(arguments) == 0, (
         "check runs all quality steps and removes stale report invariant failed."
     )
@@ -91,7 +95,8 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(
         "build",
     ], "check runs all quality steps and removes stale report invariant failed."
     test_process.assert_called_once_with(
-        "tests", dev_commands.TestOptions(suite_timeout_seconds=suite_timeout_seconds),
+        "tests", dev_commands.TestOptions(fail_fast=fail_fast,
+                                         suite_timeout_seconds=suite_timeout_seconds),
     )
     assert not report.exists(), (
         "check runs all quality steps and removes stale report invariant failed."
@@ -116,6 +121,61 @@ def test_CheckSuiteBudgetPreservesFailureWithoutRetry(repository, monkeypatch, c
     assert [call.args[0][2] for call in process.call_args_list] == [
         "compileall", "ruff", "mypy", "fuzzy1337.performance",
     ], "Failed tests must stop before coverage validation and packaging without retries."
+
+
+@pytest.mark.parametrize("test_code", [0, 1, 124])
+def test_CheckFailFastKeepsEveryPhaseUnlessItsActualTestInvocationFails(
+    repository, monkeypatch, test_code,
+):
+    """Real parser/dispatch/runner composition retains all work on success and stops on failure."""
+
+    processes = []
+    invocations = []
+
+    def Process(arguments, **kwargs):
+        """Record ordinary quality phases without starting tools or a nested pytest process."""
+
+        processes.append(arguments)
+
+        return subprocess.CompletedProcess(arguments, 0)
+
+    def RunPytest(arguments, report_path, timeout_seconds):
+        """Supply one causally selected terminal result at the original pytest boundary."""
+
+        invocations.append((arguments, report_path, timeout_seconds))
+
+        return test_code, test_runner.TestSummary(total=1, passed=int(test_code == 0),
+            failed=int(test_code != 0), timeout=int(test_code == 124))
+
+    monkeypatch.setattr(subprocess, "run", Process)
+    monkeypatch.setattr(test_runner, "RunPytest", RunPytest)
+    monkeypatch.setattr(test_runner, "HasSerialTests", lambda target: True)
+    assert dev_commands.Main(["check", "--fail-fast", "--suite-timeout", "900"]) == test_code, (
+        "Fail-fast must propagate the original actual test failure or complete success unchanged."
+    )
+    expected_phases = ["compileall", "ruff", "mypy", "fuzzy1337.performance"]
+
+    if not test_code:
+        expected_phases.extend(["fuzzy1337.coverage_gate", "build"])
+
+    assert [arguments[2] for arguments in processes] == expected_phases, (
+        "Only an actual nonzero test invocation may prevent later coverage and build phases."
+    )
+    assert len(invocations) == (1 if test_code else 2), (
+        "Successful fail-fast keeps the separate serial selection; failures are not retried."
+    )
+    assert all(arguments[3] == "tests" and "-x" in arguments and "--timeout=120" in arguments
+               and timeout == 900 for arguments, _, timeout in invocations), (
+        "Fail-fast cannot narrow the full selection or change the worker/per-test timeout contract."
+    )
+    assert "not serial" in invocations[0][0] and "--dist=loadscope" in invocations[0][0], (
+        "The initial invocation retains its process pool and complete nonserial selection."
+    )
+
+    if not test_code:
+        assert "serial" in invocations[1][0] and "--cov-append" in invocations[1][0], (
+            "Successful fail-fast retains serial coverage append before the unchanged module gate."
+        )
 
 
 def test_UnitRunsOnlyTheUnitSuiteAndCoverageGate(repository, monkeypatch):
@@ -236,16 +296,17 @@ def test_DeveloperEntrypointKeepsSuiteAndPerTestTimeoutsIndependent(monkeypatch)
 @pytest.mark.parametrize("command", [
     "setup", "compile", "lint", "typecheck", "performance", "build",
 ])
-def test_NontestDeveloperCommandRejectsSuiteTimeoutBeforeDispatch(monkeypatch, command):
-    """Suite budgeting cannot silently alter a developer command that does not run pytest."""
+@pytest.mark.parametrize("options", [["--suite-timeout", "37"], ["--fail-fast"]])
+def test_NontestDeveloperCommandRejectsSuiteTimeoutBeforeDispatch(monkeypatch, command, options):
+    """Pytest settings cannot silently alter a developer command that does not run tests."""
 
     process = Mock()
     monkeypatch.setattr(dev_commands, "Run", process)
 
     with pytest.raises(SystemExit) as caught:
-        dev_commands.Main([command, "--suite-timeout", "37"])
+        dev_commands.Main([command, *options])
 
-    assert caught.value.code == 2, "Nontest commands must reject the pytest suite budget."
+    assert caught.value.code == 2, "Nontest commands must reject pytest budgets and fail-fast."
     process.assert_not_called()
 
 
@@ -253,9 +314,10 @@ def test_NontestDeveloperCommandRejectsSuiteTimeoutBeforeDispatch(monkeypatch, c
     ["--jobs", "2"],
     ["--timeout", "30"],
     ["--serial"],
-    ["--fail-fast"],
     ["--suite-timeout", "900", "--serial"],
-    ["--suite-timeout", "900", "--fail-fast"],
+    ["--fail-fast", "--jobs", "2"],
+    ["--suite-timeout", "900", "--fail-fast", "--timeout", "30"],
+    ["--fail-fast", "--serial"],
 ])
 def test_CheckRejectsOverridesThatAlterFullTestExecution(monkeypatch, options):
     """Full-check budgeting must not admit options that change its required test execution."""
@@ -266,7 +328,9 @@ def test_CheckRejectsOverridesThatAlterFullTestExecution(monkeypatch, options):
     with pytest.raises(SystemExit) as caught:
         dev_commands.Main(["check", *options])
 
-    assert caught.value.code == 2, "Only the suite timeout may vary for the full quality gate."
+    assert caught.value.code == 2, (
+        "Suite budgeting or fail-fast must not permit worker, per-test or serial overrides."
+    )
     process.assert_not_called()
 
 
@@ -347,6 +411,9 @@ def test_DeveloperTimeoutCliHelpDocumentsSupportedRange(capsys):
     assert output.count("1-3600") == 2, "Both timeout options must declare the supported range."
     assert "default: 120" in output and "default: 600" in output, (
         "Timeout range documentation must retain the independent unchanged defaults."
+    )
+    assert "Stop unit/test/check on failure" in output, (
+        "Fail-fast help must name supported gates without implying a successful partial check."
     )
 
 

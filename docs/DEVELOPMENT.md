@@ -61,6 +61,15 @@ record its actual execution/recovery evidence and do not claim uninterrupted
 platform operation or recovery until observed. Resume from the published state
 without duplicating an active owner or an already accepted full gate.
 
+Synchronize the actual source branch to the connected Git repository promptly
+after a tested handoff, before starting another long phase. A local commit hash
+in a message does not preserve its Git objects. Keep unfinished checkpoints in
+draft and state failing or unexecuted checks honestly; publication is not approval.
+After an execution environment reconnects, compare actual checkout heads/trees
+and owner proofs with the published checkpoint before editing or resuming tests.
+Preserve an unexpected older checkout and create a new worktree from the verified
+published ref instead of resetting it or assuming the latest local work survived.
+
 `uv.lock` records exact dependency versions and artifact hashes. `--locked`
 rejects stale dependency metadata instead of rewriting the lock. Build backend
 constraints also pin the editable-build environment. Update dependency pins and

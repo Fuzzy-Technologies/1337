@@ -550,7 +550,7 @@ def test_ActualSdkRelocatedOriginalsReopenOfflineAfterOriginalRootRemoval(
 def test_ActualSdkCallerCancellationSettlesOriginalWorkerAndSocket(
     installed_native_crawl, tmp_path, native_case_evidence,
 ) -> None:
-    """Cancel after real GET readiness; require peer EOF and incomplete custody."""
+    """Cancel after real GET readiness; require original peer termination and incomplete custody."""
 
     readiness = tmp_path / "actual-get-ready"
 
@@ -580,8 +580,14 @@ def test_ActualSdkCallerCancellationSettlesOriginalWorkerAndSocket(
         assert controls and controls[0]["termination"] == "cancellation" and all(
             control["original_job_id"] == summary["original_job_id"] for control in controls
         ), "Original cancelled control evidence must bind the same job without fabricated success."
+        assert listener.WaitPeerTerminal(), (
+            "Observe original EOF or known receive-side reset before any local listener teardown."
+        )
 
     assert listener.accepted == 1 and listener.requests == [NativeGet(listener.origin,
-        "/native-crawl-held")] and listener.peer_closed and not listener.hold_expired and (
+        "/native-crawl-held")] and listener.PeerTerminated() and not listener.hold_expired and (
             not listener.thread.is_alive()
-        ), "The cancelled worker must reach actual peer EOF and the listener must join."
+        ), "The original peer must terminate before local close and the listener must join."
+    assert listener.peer_closed is (listener.PeerSignal()["kind"] == "eof"), (
+        "A separately observed peer reset must never be reported as EOF."
+    )

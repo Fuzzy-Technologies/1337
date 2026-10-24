@@ -151,11 +151,24 @@
     "persistence_requirements": ["original-stdout-stderr-and-invocation", "saved-findings",
       "operator-triage-preserved-on-rerun", "workspace-reopen", "capability-metadata"]
   },
+  "cancellation_peer_observation": {
+    "accepted_terminal_kinds": ["eof", "peer-reset"],
+    "peer_closed_means": "original-eof-only",
+    "requires_original_peer_receive": true,
+    "requires_before_local_close": true,
+    "requires_within_original_hold": true,
+    "known_reset_codes": {"posix": "ECONNRESET", "windows": 10054},
+    "refused_kinds": ["timeout", "os-error", "unexpected-data", "local-teardown",
+      "before-peer-receive", "unobserved"],
+    "original_hold_seconds": 3,
+    "requires_original_sdk_execution_control_and_no_model_save": true
+  },
   "acceptance_required": [
     "installed-packaged-worker", "genuine-sdk", "installed-cli", "same-seed-byte-mutation",
     "exact-original-requests-and-served-bytes", "ordered-model-saves", "original-worker-evidence",
     "zero-contact-rejected-links", "zero-retained-transient-markers", "explicit-git-plan-handoff",
-    "failed-work-remains-unassessed", "distinct-consent-attester", "trusted-current-owner-drift"
+    "failed-work-remains-unassessed", "distinct-consent-attester", "trusted-current-owner-drift",
+    "original-peer-eof-or-known-receive-reset-before-local-close"
   ],
   "source_checkpoint_runtime_acceptance": "not-run"
 }

@@ -69,6 +69,19 @@ exposes exact accepted/error totals separately from retained records and overflo
 A zero-contact assertion must require `Counters()["contacts"] == 0`, zero overflow
 and no retained contacts. Empty valid-response output alone proves no such thing.
 
+The separate held cancellation listener retains its original three-second hold.
+It observes the accepted connection within that hold before local listener teardown,
+using a bounded terminal Event wait within that same deadline. A successful portable
+cancellation requires an actual empty receive (EOF) or a separately named known
+receive-side peer reset (`ECONNRESET` or Windows 10054), plus the unchanged original
+SDK task, execution/control, incomplete-custody and no-model-Save checks.
+`peer_closed` means observed EOF only; reset never sets it. Timeout, unknown error,
+local abort 10053, unexpected data, pre-readiness failure and local teardown are
+not peer-closure proof. Only fixed phase/kind, whitelisted exception class and known
+error numbers are retained, without exception text, paths or rejected bytes.
+Historical artifacts that collapsed errors into `hold_expired` remain unclassified;
+this does not infer that an earlier failure was a reset or EOF.
+
 ## Source API handoff
 
 - `graph.Url(path)` accepts only an explicitly declared selected path.

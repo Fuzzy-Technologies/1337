@@ -576,7 +576,7 @@ def NativeIpv6Terminal(evidence: NativeCaseEvidence) -> Iterator[Any]:
 
 @contextmanager
 def NativeHeldCancellation(evidence: NativeCaseEvidence, readiness: Path) -> Iterator[Any]:
-    """Reuse the accepted held-response readiness/peer-EOF fixture without a generic new server."""
+    """Reuse held readiness and separate peer-terminal facts without a new server API."""
 
     from tests.integration.test_owned_response_product import HeldResponseListener
 
@@ -600,6 +600,8 @@ def NativeHeldCancellation(evidence: NativeCaseEvidence, readiness: Path) -> Ite
                 facts.update(owner_state="unsettled" if listener.thread.is_alive() else "settled",
                     listener_alive=listener.thread.is_alive(), original_accepts=listener.accepted,
                     original_requests_hex=[raw.hex() for raw in listener.requests],
-                    peer_closed=listener.peer_closed, hold_expired=listener.hold_expired)
+                    peer_closed=listener.peer_closed, hold_expired=listener.hold_expired,
+                    peer_signal=listener.PeerSignal(),
+                    remote_termination_before_local_close=listener.PeerTerminated())
 
             evidence.Json("cancel-target-final.json", facts)
