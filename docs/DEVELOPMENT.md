@@ -41,6 +41,13 @@ and concrete source/review/evidence handoff before waiting again. Keep one write
 for the controller checkpoint. The validator reports its expiry and maintains its
 own checkpoint instead of renewing the controller's lease.
 
+Persist a verified source, review or evidence result before announcing its handoff
+or starting another operation. On a resumed turn and before waiting, assess the
+finite owner checkpoints, including the validator's own lease. An expired lease
+requires an actual state/evidence inspection and a concrete next action before
+more polling. Keep one authoritative validator lease; derive summaries from that
+record instead of maintaining independent copies that can silently disagree.
+
 Retain bounded terminal status and fresh JUnit beside important checks, bound to
 the checked source hashes. A lost execution-session reference or partial stdout
 does not establish completion. Inspect available terminal evidence and actual

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import io
 import re
 import struct
 import sys
@@ -1108,3 +1109,190 @@ def test_WorkflowRunnerContextStaysInGenuineStepEnvironment():
         assert step.get("env", {}).get("FUZZY1337_ZAP_INERT_MATERIAL") == (
             "${{ runner.temp }}/zap-inert-build/runtime"
         ), "Genuine test material must use runner context only in the supported step env"
+
+
+def LicenseMembers():
+    """Return a synthetic ordinary COPYING plus the only two allowed relative license links."""
+
+    root = tarfile.TarInfo("bubblewrap-0.13.0")
+    root.type = tarfile.DIRTYPE
+    copying = tarfile.TarInfo("bubblewrap-0.13.0/COPYING")
+    copying.size = len(b"synthetic upstream license notice\n")
+    members = [root, copying]
+
+    for name in ("COPYING.LIB", "LICENSE"):
+        link = tarfile.TarInfo("bubblewrap-0.13.0/" + name)
+        link.type = tarfile.SYMTYPE
+        link.linkname = "COPYING"
+        members.append(link)
+
+    return members
+
+
+def test_PinnedLicenseSymlinksKeepOrdinaryTargetAndOriginalNoticeBytes():
+    """Admit exact synthetic metadata and resolve its unchanged notice in memory only."""
+
+    members = LicenseMembers()
+    BUILD.ValidateMembers(members)
+    storage = io.BytesIO()
+    notice = b"synthetic upstream license notice\n"
+
+    with tarfile.open(fileobj=storage, mode="w") as archive:
+        for member in members:
+            archive.addfile(member, io.BytesIO(notice) if member.isfile() else None)
+
+    storage.seek(0)
+
+    with tarfile.open(fileobj=storage, mode="r:") as archive:
+        BUILD.ValidateMembers(archive.getmembers())
+
+        for name in ("COPYING", "COPYING.LIB", "LICENSE"):
+            stream = archive.extractfile("bubblewrap-0.13.0/" + name)
+            assert stream is not None and stream.read() == notice, (
+                "Admitted license aliases must preserve the exact ordinary synthetic notice")
+
+
+@pytest.mark.parametrize("case", ("escape", "absolute", "dot-target", "transitive", "self",
+    "foreign", "hardlink", "nonzero-link", "missing-target", "directory-target", "linked-target",
+    "duplicate", "duplicate-root", "dot-alias", "slash-alias", "backslash-alias", "parent-alias",
+    "negative-size", "byte-cap", "count-cap", "sparse-target"))
+def test_ClosedLicenseAdmissionRejectsForeignOrAliasedMetadata(case):
+    """Keep the two license exceptions closed against links, chains, aliases and size bypasses."""
+
+    members = LicenseMembers()
+    link = members[-1]
+    targets = {"escape": "../COPYING", "absolute": "/COPYING", "dot-target": "./COPYING",
+        "transitive": "COPYING.LIB", "self": "LICENSE"}
+
+    if case in targets:
+        link.linkname = targets[case]
+
+    elif case == "foreign":
+        link.name = "bubblewrap-0.13.0/other"
+
+    elif case == "hardlink":
+        link.type = tarfile.LNKTYPE
+
+    elif case == "nonzero-link":
+        link.size = 1
+
+    elif case == "missing-target":
+        del members[1]
+
+    elif case == "directory-target":
+        members[1].type = tarfile.DIRTYPE
+        members[1].size = 0
+
+    elif case == "linked-target":
+        members[1].type = tarfile.SYMTYPE
+        members[1].size = 0
+        members[1].linkname = "LICENSE"
+
+    elif case == "duplicate":
+        members.append(link)
+
+    elif case == "duplicate-root":
+        duplicate = tarfile.TarInfo("bubblewrap-0.13.0/")
+        duplicate.type = tarfile.DIRTYPE
+        members.append(duplicate)
+
+    elif case == "dot-alias":
+        link.name = "bubblewrap-0.13.0/./LICENSE"
+
+    elif case == "slash-alias":
+        link.name = "bubblewrap-0.13.0//LICENSE"
+
+    elif case == "backslash-alias":
+        link.name = "bubblewrap-0.13.0/dir\\LICENSE"
+
+    elif case == "parent-alias":
+        members.append(tarfile.TarInfo("bubblewrap-0.13.0/LICENSE/child"))
+
+    elif case == "negative-size":
+        members[1].size = -1
+
+    elif case == "byte-cap":
+        members[1].size = 8 * 1024 * 1024 + 1
+
+    elif case == "count-cap":
+        members.extend(tarfile.TarInfo(f"bubblewrap-0.13.0/file-{index}") for index in range(253))
+
+    elif case == "sparse-target":
+        members[1].sparse = []
+
+    with pytest.raises(ValueError):
+        BUILD.ValidateMembers(members)
+
+
+@pytest.mark.parametrize("case", ("valid", "bad-target", "count-cap", "bounded-preview"))
+def test_ArchiveDiagnosticPrecedesAdmissionAndPreservesFirstRefusal(monkeypatch, case):
+    """Retain bounded metadata in memory before an actual pure admission decision."""
+
+    members = LicenseMembers()
+
+    if case == "bad-target":
+        members[-1].linkname = "../COPYING"
+
+    elif case == "count-cap":
+        members.extend(tarfile.TarInfo(f"bubblewrap-0.13.0/file-{index}") for index in range(253))
+
+    elif case == "bounded-preview":
+        members = [tarfile.TarInfo("bubblewrap-0.13.0/" + "\x01" * 1024) for _ in range(256)]
+
+    writes = []
+    original = BUILD.ValidateMembers
+
+    class ProvisioningReport:
+        """Capture only diagnostic JSON without creating a file or running a helper."""
+
+        def WriteBytes(self, raw):
+            """Retain one bounded standards-compliant metadata checkpoint."""
+
+            assert len(raw) <= 512 * 1024, "Provisioning diagnostics exceeded their fixed bound"
+            writes.append(BUILD.json.loads(raw))
+
+            return len(raw)
+
+        write_bytes = WriteBytes
+
+    def Validate(original_members):
+        """Require the original inventory checkpoint before the pure validator may decide."""
+
+        assert len(writes) == 1 and writes[0]["admission"] == "pending", (
+            "Archive admission started before original inventory was retained")
+        assert writes[0]["member_count"] == len(original_members), (
+            "The diagnostic inventory must describe the original selected archive metadata")
+        original(original_members)
+
+    monkeypatch.setattr(BUILD, "ValidateMembers", Validate)
+
+    if case == "valid":
+        BUILD.AdmitMembers(members, ProvisioningReport())
+        assert writes[-1]["admission"] == "admitted" and writes[-1]["first_rejection"] is None, (
+            "An admitted synthetic inventory acquired an invented rejection")
+
+    else:
+        with pytest.raises(ValueError):
+            BUILD.AdmitMembers(members, ProvisioningReport())
+
+        assert writes[-1]["admission"] == "refused" and writes[-1]["first_rejection"], (
+            "A refused inventory lost its first explicit admission reason")
+
+    assert len(writes) == 2 and len(writes[-1]["members"]) <= 256, (
+        "Only one pre-admission and one final bounded diagnostic may be written")
+    assert writes[-1]["inventory_truncated"] == (case == "count-cap"), (
+        "Inventory truncation must remain explicit rather than hiding excluded metadata")
+
+
+def test_ProvisioningInventoryUploadKeepsExplicitPublicMetadataAllowlist():
+    """Upload the bounded admission JSON without exposing the dependency tree or control sockets."""
+
+    workflow = yaml.safe_load((ROOT / ".github/workflows/zap-inert-acceptance.yml").read_text())
+    steps = workflow["jobs"]["closed-inert"]["steps"]
+    upload = next(step for step in steps
+        if step.get("uses", "").startswith("actions/upload-artifact@"))
+    selected = {line.strip() for line in upload["with"]["path"].splitlines()
+        if "/zap-inert-build/" in line}
+    prefix = "${{ runner.temp }}/zap-inert-build/"
+    assert selected == {prefix + "runtime/provenance.json", prefix + BUILD.INVENTORY_REPORT_NAME}, (
+        "Dependency diagnostics must select only the explicit public metadata files")

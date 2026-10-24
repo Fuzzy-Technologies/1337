@@ -19,14 +19,14 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration.test_owned_response_capture_worker import (
+from tests.integration.test_owned_response_worker_execution import (
     CATALOG_SHA256,
     Canonical,
     CatalogCase,
     ExpectedRequest,
     OwnedResponseListener,
 )
-from tests.integration.test_owned_response_capture_worker import (
+from tests.integration.test_owned_response_worker_execution import (
     installed_worker as installed_worker,
 )
 
@@ -580,7 +580,7 @@ def test_InstalledSdkCallerCancellationAwaitsActualWorkerAndSocketCleanup(
     assert raw == Canonical(receipt) and receipt["custody"] == "control-only" and (
         receipt["request"] == actual["request"] and receipt["execution"] == actual["execution"]
         and receipt["termination"] == actual["termination"]
-        and receipt["refusal"] == "record-unadmitted"
+        and receipt["refusal"] == "cancelled"
         and receipt["evidence_ids"] == dict.fromkeys(
             ("stdout", "stderr", "request", "headers", "body", "response"))
         and receipt["events"] == [{"sequence": event["sequence"], "kind": event["kind"],

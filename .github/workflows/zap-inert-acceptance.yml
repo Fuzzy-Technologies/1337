@@ -76,5 +76,6 @@ jobs:
             functional-evidence/zap-inert-capability-work/**/admitted-evidence/
             functional-evidence/zap-inert-failure-work/**/admitted-evidence/
             ${{ runner.temp }}/zap-inert-build/runtime/provenance.json
+            ${{ runner.temp }}/zap-inert-build/source-archive-inventory.json
           retention-days: 7
           if-no-files-found: warn

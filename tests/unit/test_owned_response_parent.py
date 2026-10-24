@@ -58,6 +58,24 @@ URL = "http://127.0.0.1:32123/zap-passive/missing"
 AT = datetime(2026, 10, 24, tzinfo=timezone.utc)
 
 
+def FakePosixInfo(info):
+    """Model private POSIX modes and coherent ctime without claiming native Windows permissions."""
+
+    fields = {
+        key: getattr(info, key)
+        for key in (
+            "st_dev", "st_ino", "st_uid", "st_nlink", "st_size", "st_mtime_ns", "st_ctime_ns",
+        )
+    }
+    fields["st_mode"] = stat.S_IFMT(info.st_mode) | (
+        0o700 if stat.S_ISDIR(info.st_mode) else 0o600
+    )
+    # Native Windows path/handle ctime differs; this unit view models it from unchanged real mtime.
+    fields["st_ctime_ns"] = info.st_mtime_ns
+
+    return SimpleNamespace(**fields)
+
+
 @pytest.fixture(autouse=True)
 def private_system(monkeypatch):
     """Isolate an explicit fake POSIX view without changing global platform or permission claims."""
@@ -78,36 +96,15 @@ def private_system(monkeypatch):
         path_info = custody.ArtifactPathInfo
         handle_info = custody.ArtifactHandleInfo
 
-        def ModeView(info):
-            """Project unit-only POSIX modes without claiming Windows ACL proof."""
-
-            fields = {
-                key: getattr(info, key)
-                for key in (
-                    "st_dev",
-                    "st_ino",
-                    "st_uid",
-                    "st_nlink",
-                    "st_size",
-                    "st_mtime_ns",
-                    "st_ctime_ns",
-                )
-            }
-            fields["st_mode"] = stat.S_IFMT(info.st_mode) | (
-                0o700 if stat.S_ISDIR(info.st_mode) else 0o600
-            )
-
-            return SimpleNamespace(**fields)
-
         def PathInfo(path, *, directory=False):
             """Retain actual identity/size checks under the unit-only mode view."""
 
-            return ModeView(path_info(path, directory=directory))
+            return FakePosixInfo(path_info(path, directory=directory))
 
         def HandleInfo(descriptor):
             """Retain the actual opened handle identity under the unit-only mode view."""
 
-            return ModeView(handle_info(descriptor))
+            return FakePosixInfo(handle_info(descriptor))
 
         monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
         monkeypatch.setattr(custody, "ArtifactHandleInfo", HandleInfo)
@@ -127,22 +124,69 @@ def runner():
 def custody_diagnostics(monkeypatch):
     """Expose only fixed phase names and static source locations on portable unit failure."""
 
+    import fuzzy1337.owned_response_capture as parent
     import fuzzy1337.owned_response_custody as custody
 
     failures = []
+    observed_errors = []
     original_append = OwnedResponseStage.Append
     original_capture = JobContext.CaptureEvidence
     original_verify = custody.VerifyEvidence
+    original_path_info = custody.ArtifactPathInfo
+    path_observations = []
+
+    def PathInfo(path, *, directory=False):
+        """Remember at most eight original file observations without extra filesystem reads."""
+
+        info = original_path_info(path, directory=directory)
+
+        if not directory:
+            path_observations.append((path, info))
+            del path_observations[:-8]
+
+        return info
+
+    def MetadataChecks(frame):
+        """Compare original failed-read locals using fixed field names and booleans only."""
+
+        local = frame.f_locals
+        fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+        before, opened, after = (local.get(key) for key in ("before", "opened", "after"))
+
+        if any(info is None for info in (before, opened, after)):
+            return ()
+
+        latest = next(
+            (info for path, info in reversed(path_observations) if path == local["path"]), None
+        )
+        pairs = (("path-before/fd-open", before, opened), ("fd-open/fd-after", opened, after))
+
+        if latest is not None and latest is not before:
+            pairs += (("fd-after/path-after", after, latest),)
+
+        return (
+            ("byte-cap-exceeded", len(local["raw"]) > local["maximum"]),
+            *(
+                (label, tuple((key, getattr(left, key) == getattr(right, key)) for key in fields))
+                for label, left, right in pairs
+            ),
+        )
 
     def RecordFailure(phase, error):
         """Keep one bounded control-only traceback without source bytes, paths or messages."""
 
         while error is not None and len(failures) < 3:
+            if any(error is observed for observed in observed_errors):
+                break
+
+            observed_errors.append(error)
             locations = []
+            checks = ()
             trace = error.__traceback__
 
             while trace is not None:
                 if trace.tb_frame.f_globals.get("__name__") in (
+                    "fuzzy1337.owned_response_capture",
                     "fuzzy1337.owned_response_custody",
                     "fuzzy1337.jobs",
                     "fuzzy1337.evidence",
@@ -150,10 +194,46 @@ def custody_diagnostics(monkeypatch):
                 ):
                     locations.append((trace.tb_frame.f_code.co_name, trace.tb_lineno))
 
+                    if trace.tb_frame.f_code.co_name == "ReadPrivate":
+                        checks = MetadataChecks(trace.tb_frame)
+
                 trace = trace.tb_next
 
-            failures.append((phase, type(error).__name__, tuple(locations[-4:])))
-            error = error.__cause__
+            failure = (phase, type(error).__name__, tuple(locations[-4:]))
+            failures.append(failure + (checks,) if checks else failure)
+            error = error.__cause__ or error.__context__
+
+    def Observe(phase, function):
+        """Preserve one original synchronous boundary and its first control-only failure."""
+
+        def Call(*args, **kwargs):
+            """Return the original result or observe and rethrow the original exception."""
+
+            try:
+                return function(*args, **kwargs)
+
+            except Exception as error:
+                RecordFailure(phase, error)
+                raise
+
+        return Call
+
+    def ObserveAsync(phase, function):
+        """Await the original boundary in the same task without creating an execution owner."""
+
+        async def Call(*args, **kwargs):
+            """Preserve the original await and do not replace an earlier observed failure."""
+
+            try:
+                return await function(*args, **kwargs)
+
+            except Exception as error:
+                if phase != "run" or not failures:
+                    RecordFailure(phase, error)
+
+                raise
+
+        return Call
 
     def Append(self, frame):
         """Preserve the original staging call and expose only its fixed failed phase."""
@@ -188,8 +268,82 @@ def custody_diagnostics(monkeypatch):
     monkeypatch.setattr(OwnedResponseStage, "Append", Append)
     monkeypatch.setattr(JobContext, "CaptureEvidence", Capture)
     monkeypatch.setattr(custody, "VerifyEvidence", Verify)
+    monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
+
+    for name, phase in (("Prepare", "prepare"), ("CheckPrepared", "check-prepared")):
+        original = getattr(OwnedResponseCaptureProvider, name)
+        monkeypatch.setattr(OwnedResponseCaptureProvider, name, Observe(phase, original))
+
+    for name, phase in (("Execute", "execute"), ("Run", "run")):
+        original = getattr(OwnedResponseCaptureProvider, name)
+        monkeypatch.setattr(OwnedResponseCaptureProvider, name, ObserveAsync(phase, original))
+
+    for name, phase in (
+        ("ValidateControlResult", "prestage-control"),
+        ("ValidateResult", "prestage-admission"),
+        ("PublishCapture", "publish-capture"),
+    ):
+        original = getattr(parent, name)
+        monkeypatch.setattr(parent, name, Observe(phase, original))
 
     return failures
+
+
+def PrintCustodyDiagnostics(failures):
+    """Print one bounded ASCII control line outside pytest's abbreviated assertion repr."""
+
+    failure = failures[0] if failures else ()
+    checks = dict(failure[3]) if len(failure) == 4 else {}
+    fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+
+    def Mask(label):
+        """Render original equality booleans in fixed DISMC order, marking missing observations."""
+
+        values = dict(checks.get(label, ()))
+
+        return "".join(
+            "1" if values.get(key) is True else "0" if values.get(key) is False else "?"
+            for key in fields
+        )
+
+    phases = {
+        "stage-header", "stage-intent", "stage-ack", "stage-finished", "capture-evidence",
+        "verify-evidence",
+        "prepare", "check-prepared", "execute", "prestage-control", "prestage-admission",
+        "publish-capture", "run",
+    }
+    kinds = {
+        "ValueError", "JobError", "EvidenceStorageError", "EvidenceIntegrityError", "OSError",
+        "PermissionError", "FileNotFoundError", "RuntimeError",
+        "TypeError", "AssertionError",
+        "OwnedResponseRecordError",
+    }
+    functions = {
+        "Append", "ReadPrivate", "CaptureEvidence", "Put", "Get", "Read", "VerifyEvidence",
+        "PublishStoredBytes", "ReadStoredBytes", "CheckStorageEntry", "ArtifactPathInfo",
+        "ArtifactHandleInfo",
+        "Prepare", "CheckPrepared", "Execute", "Run", "Tick", "Now", "Current",
+        "DirectoryIdentity", "ValidateRequest", "ValidateControlResult", "ValidateResult",
+        "PublishCapture", "WriteExclusive", "__init__", "ParseCanonical", "Canonical",
+    }
+    locations = []
+
+    for name, line in failure[2][-4:] if failure else ():
+        if name in functions and type(line) is int and 1 <= line <= 100000:
+            locations.append(f"{name}:{line}")
+
+    cap = checks.get("byte-cap-exceeded")
+    value = {
+        "phase": failure[0] if failure and failure[0] in phases else "unobserved",
+        "type": failure[1] if failure and failure[1] in kinds else "unobserved",
+        "location": "/".join(locations),
+        "order": "DISMC",
+        "cap": cap if type(cap) is bool else "?",
+        "path_fd": Mask("path-before/fd-open"),
+        "fd_fd": Mask("fd-open/fd-after"),
+        "fd_path": Mask("fd-after/path-after"),
+    }
+    print("OWNED_CUSTODY " + json.dumps(value, ensure_ascii=True, separators=(",", ":")))
 
 
 def Authority(url=URL):
@@ -352,10 +506,11 @@ def test_OriginalFragmentsReceiptLastAndRelocatedReplay(
 
     provider, job, _ = Setup(tmp_path, monkeypatch)
     snapshot = Run(runner, job)
-    assert snapshot.state is JobState.COMPLETED, (
-        "Closed acquisition must complete",
-        custody_diagnostics,
-    )
+
+    if snapshot.state is not JobState.COMPLETED:
+        PrintCustodyDiagnostics(custody_diagnostics)
+
+    assert snapshot.state is JobState.COMPLETED, "Closed acquisition must complete"
     capture = provider.capture
     assert capture is not None and len(capture.records) == 7, (
         "All original roles must be acknowledged"
@@ -414,6 +569,237 @@ def test_PortableCustodyDiagnosticsRetainOnlySafeFailureLocations(
         type(name) is str and type(line) is int
         for name, line in custody_diagnostics[0][2]
     ), "Only static source function names and line numbers may survive diagnostic observation"
+
+
+def test_PortableCustodyDiagnosticStdoutRetainsCompleteMasksWithoutPrivateValues(capsys):
+    """The actual captured-stdout line preserves all masks without assertion repr abbreviation."""
+
+    fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+    private = "PRIVATE path/message/bytes/hash must not appear"
+    checks = (
+        ("byte-cap-exceeded", False),
+        ("path-before/fd-open", tuple((key, key != "st_ctime_ns") for key in fields)),
+        ("fd-open/fd-after", tuple((key, True) for key in fields)),
+        ("unapproved", private),
+    )
+    PrintCustodyDiagnostics(
+        [("stage-header", "ValueError", (("Append", 606), ("ReadPrivate", 210)), checks)]
+    )
+    output = capsys.readouterr()
+    expected = (
+        'OWNED_CUSTODY {"phase":"stage-header","type":"ValueError",'
+        '"location":"Append:606/ReadPrivate:210","order":"DISMC","cap":false,'
+        '"path_fd":"11110","fd_fd":"11111","fd_path":"?????"}\n'
+    )
+    assert output.out == expected and not output.err, (
+        "Captured stdout must retain every compact mask and unobserved marker without truncation"
+    )
+    assert output.out.isascii() and len(output.out) < 512 and private not in output.out, (
+        "The bounded ASCII diagnostic cannot publish arbitrary source values or error messages"
+    )
+
+
+@pytest.mark.parametrize(
+    "phase",
+    ("prepare", "check-prepared", "execute", "prestage-control", "prestage-admission",
+     "publish-capture", "run"),
+)
+def test_PortableDiagnosticsObserveFirstOriginalFailureBeforeOrDuringCustody(
+    tmp_path, monkeypatch, runner, custody_diagnostics, capsys, phase
+):
+    """The broad owner catch must retain the first actual boundary before staging begins."""
+
+    import fuzzy1337.owned_response_capture as parent
+
+    private = b"PRIVATE source/exception diagnostic"
+    provider, job, _ = Setup(
+        tmp_path, monkeypatch, raw=private if phase == "prestage-admission" else None
+    )
+
+    def Refuse(*args, **kwargs):
+        """Raise the original private error without allowing diagnostic message publication."""
+
+        raise ValueError(private.decode())
+
+    if phase == "prepare":
+        monkeypatch.setattr(parent, "PrepareOwnedResponseInvocation", Refuse)
+
+    elif phase == "check-prepared":
+        monkeypatch.setattr(parent.PolicyEngine, "Validate", Refuse)
+
+    elif phase == "execute":
+        async def Execute(*args, **kwargs):
+            """Fail the actual awaited owner boundary without an invented terminal result."""
+
+            raise ValueError(private.decode())
+
+        monkeypatch.setattr(GovernedLocalExecutor, "Execute", Execute)
+
+    elif phase == "prestage-control":
+        original = Result
+
+        def ContradictoryResult(*args, **kwargs):
+            """Supply individually typed facts that contradict the actual exit termination."""
+
+            result = original(*args, **kwargs)
+
+            return replace(
+                result, execution=AdapterExecution(ExecutionState.TIMED_OUT, None, 0.01)
+            )
+
+        monkeypatch.setattr(sys.modules[__name__], "Result", ContradictoryResult)
+
+    elif phase == "publish-capture":
+        monkeypatch.setattr(OwnedResponseStage, "WriteExclusive", Refuse)
+
+    elif phase == "run":
+        provider._monotonic = lambda: float("nan")
+
+    snapshot = Run(runner, job)
+    assert snapshot.state is JobState.FAILED and custody_diagnostics[0][0] == phase, (
+        "The original first failing phase must remain visible through the owning provider catch"
+    )
+    PrintCustodyDiagnostics(custody_diagnostics)
+    output = capsys.readouterr()
+    value = json.loads(output.out.removeprefix("OWNED_CUSTODY "))
+    expected_kind = "OwnedResponseRecordError" if phase == "prestage-admission" else "ValueError"
+    assert value["phase"] == phase and value["type"] == expected_kind and value["location"], (
+        "Each actual failed boundary must retain its fixed phase, original kind and source location"
+    )
+    assert private.decode() not in output.out and len(output.out) < 512 and not output.err, (
+        "First-failure observation cannot echo private values, paths or exception messages"
+    )
+
+
+@pytest.mark.parametrize("field", ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"))
+def test_PortableCustodyDiagnosticsIdentifyExactPhysicalFieldWithoutValues(
+    tmp_path, monkeypatch, custody_diagnostics, field
+):
+    """Locate each original cross-view mismatch without exporting any observed metadata value."""
+
+    import fuzzy1337.owned_response_custody as custody
+
+    tmp_path.chmod(0o700)
+    stage = OwnedResponseStage(
+        tmp_path, {"workspace_id": "workspace", "owner_reference": "operator:execution"}
+    )
+    original = custody.ArtifactHandleInfo
+
+    def Changed(descriptor):
+        """Inject one mismatching opened-handle field while preserving the original path view."""
+
+        info = original(descriptor)
+        fields = {
+            key: getattr(info, key)
+            for key in (
+                "st_dev", "st_ino", "st_uid", "st_nlink", "st_size", "st_mtime_ns",
+                "st_ctime_ns", "st_mode",
+            )
+        }
+        fields[field] += 1
+
+        return SimpleNamespace(**fields)
+
+    monkeypatch.setattr(custody, "ArtifactHandleInfo", Changed)
+
+    with pytest.raises(ValueError):
+        stage.Append({"kind": "intent"})
+
+    checks = dict(custody_diagnostics[0][3])
+    assert checks["byte-cap-exceeded"] is False and dict(checks["path-before/fd-open"]) == {
+        key: key != field
+        for key in ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+    }, "The diagnostic must identify only the original unequal physical field"
+    assert all(equal for _, equal in checks["fd-open/fd-after"]), (
+        "Two stable original handle views must remain distinct from the mismatching path view"
+    )
+
+
+def test_FakePosixViewRepairsProvenCrossApiCtimeMismatchOnly(tmp_path, monkeypatch):
+    """Actual strict ReadPrivate refuses the proven old view and accepts coherent unit metadata."""
+
+    import fuzzy1337.owned_response_custody as custody
+
+    selected = tmp_path / "original"
+    raw = b"closed unit bytes"
+    selected.write_bytes(raw)
+    selected.chmod(0o600)
+    path_info = custody.ArtifactPathInfo
+    handle_info = custody.ArtifactHandleInfo
+    coherent = [False]
+
+    def PathInfo(path, *, directory=False):
+        """Model one stable path ctime view while preserving real common identity fields."""
+
+        info = FakePosixInfo(path_info(path, directory=directory))
+        info.st_ctime_ns += 1
+
+        return FakePosixInfo(info) if coherent[0] else info
+
+    def HandleInfo(descriptor):
+        """Model the distinct stable handle ctime that the actual Windows trace identified."""
+
+        info = FakePosixInfo(handle_info(descriptor))
+        info.st_ctime_ns += 2
+
+        return FakePosixInfo(info) if coherent[0] else info
+
+    monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
+    monkeypatch.setattr(custody, "ArtifactHandleInfo", HandleInfo)
+
+    with pytest.raises(ValueError, match="staging changed during read"):
+        ReadPrivate(selected, len(raw))
+
+    coherent[0] = True
+    assert ReadPrivate(selected, len(raw)) == raw, (
+        "Only the explicit fake POSIX metadata view may reconcile the stable cross-API ctime"
+    )
+
+
+@pytest.mark.parametrize("changed", ("path-after", "fd-after"))
+def test_CoherentUnitViewStillRefusesExactCtimeOnlyMutation(tmp_path, monkeypatch, changed):
+    """The untouched production five-field guard rejects a ctime-only change after projection."""
+
+    import fuzzy1337.owned_response_custody as custody
+
+    selected = tmp_path / "original"
+    selected.write_bytes(b"closed unit bytes")
+    selected.chmod(0o600)
+    path_info = custody.ArtifactPathInfo
+    handle_info = custody.ArtifactHandleInfo
+    calls = {"path": 0, "fd": 0}
+
+    def PathInfo(path, *, directory=False):
+        """Preserve the original coherent path view except the selected second observation."""
+
+        info = FakePosixInfo(path_info(path, directory=directory))
+        calls["path"] += 1
+
+        if changed == "path-after" and calls["path"] == 2:
+            info.st_ctime_ns += 1
+
+        return info
+
+    def HandleInfo(descriptor):
+        """Preserve real fields and inject only the selected second handle ctime."""
+
+        info = FakePosixInfo(handle_info(descriptor))
+        calls["fd"] += 1
+
+        if changed == "fd-after" and calls["fd"] == 2:
+            info.st_ctime_ns += 1
+
+        return info
+
+    monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
+    monkeypatch.setattr(custody, "ArtifactHandleInfo", HandleInfo)
+
+    with pytest.raises(ValueError, match="staging changed during read"):
+        ReadPrivate(selected, 1024)
+
+    assert calls["fd"] == 2 and calls["path"] == (2 if changed == "path-after" else 1), (
+        "The original strict comparison must actually observe and reject the ctime-only mutation"
+    )
 
 
 @pytest.mark.parametrize("field", ("workspace", "environment", "resources", "authorization"))

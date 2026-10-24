@@ -8,9 +8,12 @@ from __future__ import annotations
 import io
 import json
 import shlex
+import sys
+from types import SimpleNamespace
 
 import pytest
 
+from fuzzy1337 import owned_response_capture as parent
 from fuzzy1337 import response_commands as commands
 from fuzzy1337.adapters import SerializeContract
 from fuzzy1337.cli import Main
@@ -19,6 +22,7 @@ from fuzzy1337.model import LocalModelStore
 from fuzzy1337.shell import InteractiveShell
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.unit.test_owned_response_parent import AT, URL
+from tests.unit.test_owned_response_parent import private_system as private_system
 from tests.unit.test_owned_response_parent import runner as runner
 from tests.unit.test_owned_response_workflow import owned as owned
 
@@ -120,6 +124,20 @@ def test_CliPlanAndMissingApprovalNeverPersistOrAcquire(response_cli, capsys):
         "Planning and denied workflow approval must not write model or workspace state."
     )
     assert not tuple(root.glob("owned-response-*")), "Neither route creates private capture work."
+
+
+def test_ControlledCliUsesScopedPortableParentViewWithoutChangingGlobalPlatform(
+    response_cli, monkeypatch, capsys,
+):
+    """A controlled unsupported-host view still needs the shared parent fixture before execution."""
+
+    original_platform = sys.platform
+    monkeypatch.setattr(parent, "sys", SimpleNamespace(platform="darwin",
+                                                      executable=sys.executable))
+    status = Main([*Arguments(response_cli.root), "--approve-safe-response-capture", "--json"])
+    capsys.readouterr()
+    assert status == 0, "The controlled CLI must request its shared portable parent fixture."
+    assert sys.platform == original_platform, "Portable units cannot change global platform state."
 
 
 @pytest.mark.parametrize("presentation", ["json", "events", "human"])
