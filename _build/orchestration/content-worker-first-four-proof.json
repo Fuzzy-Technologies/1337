@@ -10,5 +10,23 @@
   "decision": "Independent verified first FOUR actual worker identities only;1offlineBuild/9modules/12terminalprocesses/8settledowners;2success0+2safeUTF8refusal2 acrossIPv4/IPv6;4main/0sentinelcontacts",
   "independent_receipt": "first-four-content-independent-review-fba3603166f07b14d020bbf07544c822a38a1668d88f3a1dc0b11f14484e7e59.json",
   "limit": "114worker+20input+1transport+SDK/header-v2 unrun;no fullCI/productacceptance",
-  "restore": "Fetch Git blob by exact SHA or branch file, decode base64, verify archive SHA256 then each manifest files_sha256 before inspection. Do not merge recovery payload into product or rerun passing four cases."
+  "restore": "Read UTF-8 base64 parts in listed order (GitHub fetch_blob decodes UTF-8 and cannot fetch binary ZIP), concatenate without added newlines, base64-decode, verify archive_sha256, then each archive manifest files_sha256. Do not rerun passing four cases or merge recovery payload into product.",
+  "base64_parts": [
+    "_build/orchestration/content-worker-first-four-proof.base64/part-000.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-001.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-002.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-003.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-004.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-005.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-006.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-007.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-008.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-009.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-010.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-011.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-012.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-013.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-014.txt",
+    "_build/orchestration/content-worker-first-four-proof.base64/part-015.txt"
+  ]
 }
