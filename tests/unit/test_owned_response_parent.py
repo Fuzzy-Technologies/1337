@@ -127,9 +127,11 @@ def runner():
 def custody_diagnostics(monkeypatch):
     """Expose only fixed phase names and static source locations on portable unit failure."""
 
+    import fuzzy1337.owned_response_capture as parent
     import fuzzy1337.owned_response_custody as custody
 
     failures = []
+    observed_errors = []
     original_append = OwnedResponseStage.Append
     original_capture = JobContext.CaptureEvidence
     original_verify = custody.VerifyEvidence
@@ -177,12 +179,17 @@ def custody_diagnostics(monkeypatch):
         """Keep one bounded control-only traceback without source bytes, paths or messages."""
 
         while error is not None and len(failures) < 3:
+            if any(error is observed for observed in observed_errors):
+                break
+
+            observed_errors.append(error)
             locations = []
             checks = ()
             trace = error.__traceback__
 
             while trace is not None:
                 if trace.tb_frame.f_globals.get("__name__") in (
+                    "fuzzy1337.owned_response_capture",
                     "fuzzy1337.owned_response_custody",
                     "fuzzy1337.jobs",
                     "fuzzy1337.evidence",
@@ -197,7 +204,39 @@ def custody_diagnostics(monkeypatch):
 
             failure = (phase, type(error).__name__, tuple(locations[-4:]))
             failures.append(failure + (checks,) if checks else failure)
-            error = error.__cause__
+            error = error.__cause__ or error.__context__
+
+    def Observe(phase, function):
+        """Preserve one original synchronous boundary and its first control-only failure."""
+
+        def Call(*args, **kwargs):
+            """Return the original result or observe and rethrow the original exception."""
+
+            try:
+                return function(*args, **kwargs)
+
+            except Exception as error:
+                RecordFailure(phase, error)
+                raise
+
+        return Call
+
+    def ObserveAsync(phase, function):
+        """Await the original boundary in the same task without creating an execution owner."""
+
+        async def Call(*args, **kwargs):
+            """Preserve the original await and do not replace an earlier observed failure."""
+
+            try:
+                return await function(*args, **kwargs)
+
+            except Exception as error:
+                if phase != "run" or not failures:
+                    RecordFailure(phase, error)
+
+                raise
+
+        return Call
 
     def Append(self, frame):
         """Preserve the original staging call and expose only its fixed failed phase."""
@@ -234,13 +273,29 @@ def custody_diagnostics(monkeypatch):
     monkeypatch.setattr(custody, "VerifyEvidence", Verify)
     monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
 
+    for name, phase in (("Prepare", "prepare"), ("CheckPrepared", "check-prepared")):
+        original = getattr(OwnedResponseCaptureProvider, name)
+        monkeypatch.setattr(OwnedResponseCaptureProvider, name, Observe(phase, original))
+
+    for name, phase in (("Execute", "execute"), ("Run", "run")):
+        original = getattr(OwnedResponseCaptureProvider, name)
+        monkeypatch.setattr(OwnedResponseCaptureProvider, name, ObserveAsync(phase, original))
+
+    for name, phase in (
+        ("ValidateControlResult", "prestage-control"),
+        ("ValidateResult", "prestage-admission"),
+        ("PublishCapture", "publish-capture"),
+    ):
+        original = getattr(parent, name)
+        monkeypatch.setattr(parent, name, Observe(phase, original))
+
     return failures
 
 
 def PrintCustodyDiagnostics(failures):
     """Print one bounded ASCII control line outside pytest's abbreviated assertion repr."""
 
-    failure = next((row for row in failures if len(row) == 4), failures[0] if failures else ())
+    failure = failures[0] if failures else ()
     checks = dict(failure[3]) if len(failure) == 4 else {}
     fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
 
@@ -257,15 +312,22 @@ def PrintCustodyDiagnostics(failures):
     phases = {
         "stage-header", "stage-intent", "stage-ack", "stage-finished", "capture-evidence",
         "verify-evidence",
+        "prepare", "check-prepared", "execute", "prestage-control", "prestage-admission",
+        "publish-capture", "run",
     }
     kinds = {
         "ValueError", "JobError", "EvidenceStorageError", "EvidenceIntegrityError", "OSError",
         "PermissionError", "FileNotFoundError", "RuntimeError",
+        "TypeError", "AssertionError",
+        "OwnedResponseRecordError",
     }
     functions = {
         "Append", "ReadPrivate", "CaptureEvidence", "Put", "Get", "Read", "VerifyEvidence",
         "PublishStoredBytes", "ReadStoredBytes", "CheckStorageEntry", "ArtifactPathInfo",
         "ArtifactHandleInfo",
+        "Prepare", "CheckPrepared", "Execute", "Run", "Tick", "Now", "Current",
+        "DirectoryIdentity", "ValidateRequest", "ValidateControlResult", "ValidateResult",
+        "PublishCapture", "WriteExclusive", "__init__", "ParseCanonical", "Canonical",
     }
     locations = []
 
@@ -537,6 +599,78 @@ def test_PortableCustodyDiagnosticStdoutRetainsCompleteMasksWithoutPrivateValues
     )
     assert output.out.isascii() and len(output.out) < 512 and private not in output.out, (
         "The bounded ASCII diagnostic cannot publish arbitrary source values or error messages"
+    )
+
+
+@pytest.mark.parametrize(
+    "phase",
+    ("prepare", "check-prepared", "execute", "prestage-control", "prestage-admission",
+     "publish-capture", "run"),
+)
+def test_PortableDiagnosticsObserveFirstOriginalFailureBeforeOrDuringCustody(
+    tmp_path, monkeypatch, runner, custody_diagnostics, capsys, phase
+):
+    """The broad owner catch must retain the first actual boundary before staging begins."""
+
+    import fuzzy1337.owned_response_capture as parent
+
+    private = b"PRIVATE source/exception diagnostic"
+    provider, job, _ = Setup(
+        tmp_path, monkeypatch, raw=private if phase == "prestage-admission" else None
+    )
+
+    def Refuse(*args, **kwargs):
+        """Raise the original private error without allowing diagnostic message publication."""
+
+        raise ValueError(private.decode())
+
+    if phase == "prepare":
+        monkeypatch.setattr(parent, "PrepareOwnedResponseInvocation", Refuse)
+
+    elif phase == "check-prepared":
+        monkeypatch.setattr(parent.PolicyEngine, "Validate", Refuse)
+
+    elif phase == "execute":
+        async def Execute(*args, **kwargs):
+            """Fail the actual awaited owner boundary without an invented terminal result."""
+
+            raise ValueError(private.decode())
+
+        monkeypatch.setattr(GovernedLocalExecutor, "Execute", Execute)
+
+    elif phase == "prestage-control":
+        original = Result
+
+        def ContradictoryResult(*args, **kwargs):
+            """Supply individually typed facts that contradict the actual exit termination."""
+
+            result = original(*args, **kwargs)
+
+            return replace(
+                result, execution=AdapterExecution(ExecutionState.TIMED_OUT, None, 0.01)
+            )
+
+        monkeypatch.setattr(sys.modules[__name__], "Result", ContradictoryResult)
+
+    elif phase == "publish-capture":
+        monkeypatch.setattr(OwnedResponseStage, "WriteExclusive", Refuse)
+
+    elif phase == "run":
+        provider._monotonic = lambda: float("nan")
+
+    snapshot = Run(runner, job)
+    assert snapshot.state is JobState.FAILED and custody_diagnostics[0][0] == phase, (
+        "The original first failing phase must remain visible through the owning provider catch"
+    )
+    PrintCustodyDiagnostics(custody_diagnostics)
+    output = capsys.readouterr()
+    value = json.loads(output.out.removeprefix("OWNED_CUSTODY "))
+    expected_kind = "OwnedResponseRecordError" if phase == "prestage-admission" else "ValueError"
+    assert value["phase"] == phase and value["type"] == expected_kind and value["location"], (
+        "Each actual failed boundary must retain its fixed phase, original kind and source location"
+    )
+    assert private.decode() not in output.out and len(output.out) < 512 and not output.err, (
+        "First-failure observation cannot echo private values, paths or exception messages"
     )
 
 
