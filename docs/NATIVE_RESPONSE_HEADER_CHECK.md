@@ -3,8 +3,9 @@
 The development SDK exposes synchronous `ApplyOwnedResponseHeaderCheck` and
 read-only `ReplayOwnedResponseHeaderCheck`. Profile
 `owned-response-header-absence.v1` interprets an existing original response; it
-starts no capture, worker, helper, external engine or network request. There is
-no header-assessment CLI command in this slice. All 37 independent owned-original
+starts no capture, worker, helper, external engine or network request. The
+`response check-headers` and `response replay-headers` commands expose these same
+owners through the CLI and foreground shell. All 37 independent owned-original
 cases have passed across focused runs, including saved missing/fixed/body-decoy
 Findings, denial, partial persistence, triage and relocated offline replay.
 Exact final shared integration and platform verification remain required.
@@ -96,6 +97,62 @@ post-Save returns retain their truthful refusal/partial outcome; no renewed wind
 or hard blocking-I/O interruption is promised. Current authority is refreshed
 after callback-time fencing before Save. This is bounded ordered admission,
 not atomic protection against arbitrary mutually mutating trusted readers.
+
+## CLI and foreground shell
+
+Use the exact typed policy serialization for the separate native permission.
+For example, an explicitly selected `header-policy.json` contains all fields:
+
+```json
+{
+  "policy_id": "owned-header-check",
+  "revision": 0,
+  "maximum_impact": "PASSIVE",
+  "permissions": [{
+    "capability_id": "http.owned-response-header-check",
+    "adapter_id": "native.response-passive",
+    "maximum_impact": "PASSIVE",
+    "granted_privileges": []
+  }],
+  "max_authorization_seconds": 30
+}
+```
+
+Select an actual retained receipt, its exact source URL/scope and a new independent
+analysis reference. Replace the receipt placeholder with the complete actual ID:
+
+```bash
+1337 response check-headers workspace --receipt sha256:ORIGINAL_RECEIPT_DIGEST \
+  --target http://127.0.0.1:19008/zap-passive/missing --scope original-source-scope \
+  --owner operator:local-lab --policy header-policy.json \
+  --analysis-reference analysis:headers-001 --approve-passive-header-check --json
+```
+
+Missing PASSIVE opt-in refuses with exit 3. The CLI rereads the selected policy
+at SDK admission boundaries and passes one freshly opened model/workspace revision
+pair into the original-basis SDK attempt. It never retries a conflict or overrides
+revisions. `--owner` remains selected operator attribution; the CLI supplies no
+trusted current-principal reader or authentication claim. Source consent is still
+required independently. No grant, new capture, job or event stream is created;
+there is no `--plan`, runtime override or caller-header option for this action.
+
+Completed or already-applied interpretation returns 0, denied admission 3, and
+failed/partial interpretation 4. Invalid configuration or grammar returns 2.
+JSON preserves the owning SDK summary, original references and separate commit
+statuses. A nonzero result may follow an actual model commit; it is not a rollback.
+
+Replay takes only the relocated workspace and actual retained assessment reference:
+
+```bash
+1337 response replay-headers relocated-workspace \
+  --assessment observation:ACTUAL_ASSESSMENT_REFERENCE --json
+```
+
+Verified historical replay returns 0; unknown source/assessment integrity returns 4.
+Current scope, owner, policy, target and approval inputs are rejected. Both commands
+use the same grammar inside the foreground shell. Original `response capture` and
+`response replay` keep their separate acquisition/custody contracts. Independent
+installed CLI pipeline acceptance is pending for this additive enrollment slice.
 
 ## Predicate, provenance and persistence
 

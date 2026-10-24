@@ -259,3 +259,22 @@ Policy/scope/model/evidence cores, existing receipt/replay schemas, frozen wires
 external-runtime profiles and other scanner worktrees remain unchanged. This
 checkpoint performs source inspection and documentation checks only; production
 implementation, enrollment, runtime and integration gates remain unrun.
+
+## Additive offline CLI enrollment
+
+The `response check-headers` action supplies explicit workspace, `--receipt`,
+`--target`, `--scope`, `--owner`, `--policy`, `--analysis-reference` and separate
+`--approve-passive-header-check` to the existing SDK. Default missing opt-in refuses.
+It selects one fresh original model/workspace revision pair, without a caller
+revision override, CAS retry or rebase. Current policy is reread by the SDK callback;
+CLI owner selection is attribution only, independent of the consent attester.
+
+The `response replay-headers` action accepts only workspace and `--assessment`.
+It requires no current target/authority or runtime. Both use the same foreground
+shell dispatcher and optional global `--json`; neither provides a plan, events,
+capture, job or execution grant. Original capture/replay grammar remains unchanged.
+Zero means completed/already-applied check or verified historical replay; 2 is
+invalid configuration/grammar, 3 denied admission and 4 failed/partial state or
+historical integrity refusal. Preserve the unchanged SDK summary and independent
+store ACK facts; a nonzero status never fabricates rollback or missing custody.
+See the [operator guide](NATIVE_RESPONSE_HEADER_CHECK.md) for complete examples.

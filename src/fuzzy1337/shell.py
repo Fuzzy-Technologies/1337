@@ -766,10 +766,10 @@ class InteractiveShell(cmd.Cmd):
         self.RunLocalCommand("api", argument)
 
     def do_response(self, argument: str) -> None:
-        """Capture original source bytes or verify known custody without implicit authority.
+        """Capture originals, separately check headers or replay without implicit authority.
 
         Args:
-            argument: Capture or replay action with its complete explicit argument list.
+            argument: Capture, header-check or historical replay with complete explicit inputs.
         """
 
         self.RunLocalCommand("response", argument)
