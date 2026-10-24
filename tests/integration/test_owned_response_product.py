@@ -19,14 +19,14 @@ from pathlib import Path
 
 import pytest
 
-from tests.integration.test_owned_response_capture_worker import (
+from tests.integration.test_owned_response_worker_execution import (
     CATALOG_SHA256,
     Canonical,
     CatalogCase,
     ExpectedRequest,
     OwnedResponseListener,
 )
-from tests.integration.test_owned_response_capture_worker import (
+from tests.integration.test_owned_response_worker_execution import (
     installed_worker as installed_worker,
 )
 
