@@ -664,6 +664,33 @@ class NativeImageWorkflow:
             context.ModelChanged(delta)
 
 
+async def SettleNativeImageCleanup(task: asyncio.Task[JobSnapshot]) -> JobSnapshot:
+    """Await the one original native cleanup task through repeated external cancellations.
+
+    Args:
+        task: Original coordinator cancellation/wait task, without restarting or repeating stops.
+
+    Returns:
+        Actual original terminal snapshot after confirmed coordinator cleanup.
+
+    Raises:
+        RuntimeError: The cleanup task itself terminated cancelled without confirmation.
+        BaseException: The original cleanup failure without a fabricated completed snapshot.
+    """
+
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+
+        except asyncio.CancelledError:
+            continue
+
+    if task.cancelled():
+        raise RuntimeError("Native image cleanup terminated without confirmation")
+
+    return task.result()
+
+
 async def ScanNativeImage(
     workspace_root: Path, scope_id: str, owner_reference: str, selection: NativeTrivySelection,
     policy_provider: Callable[[], ImpactPolicy], *, approve_safe_image: bool = False,
@@ -739,11 +766,15 @@ async def ScanNativeImage(
         async for event in job.Events():
             Observe(event)
     except asyncio.CancelledError:
-        await job.CancelAndWait(owner_reference)
+        cleanup = asyncio.create_task(job.CancelAndWait(owner_reference))
+
+        await SettleNativeImageCleanup(cleanup)
         for event in job.EventsSince(cursor):
             Observe(event)
     except BaseException:
-        await job.CancelAndWait(owner_reference)
+        cleanup = asyncio.create_task(job.CancelAndWait(owner_reference))
+
+        await SettleNativeImageCleanup(cleanup)
         raise
     snapshot = await job.Wait()
     actual = LocalModelStore(workspace_root).Open()

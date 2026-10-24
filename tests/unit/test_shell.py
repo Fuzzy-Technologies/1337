@@ -223,7 +223,7 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
             "update, updates, view, workspace"
         ),
         ("CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report, "
-         "intel, demo, ci, paths, sbom, api, runtime, trace"),
+         "intel, demo, ci, paths, sbom, api, response, runtime, trace"),
         "[model] asset changed",
         "usage: quit",
         "",

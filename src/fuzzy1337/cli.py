@@ -120,7 +120,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "command",
         choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan", "report",
-                 "demo", "intel", "ci", "runtime", "paths", "sbom", "api", "trace"),
+                 "demo", "intel", "ci", "runtime", "paths", "sbom", "api", "trace", "response"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
@@ -130,6 +130,14 @@ def Main(argv: Sequence[str] | None = None) -> int:
         help="Write experimental JSON for update or an explicit product command outcome.",
     )
     arguments, remaining = parser.parse_known_args(argv)
+
+    if arguments.command == "response":
+        from fuzzy1337.response_commands import RunResponseCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunResponseCommands(remaining, sys.stdout, json_output=arguments.json)
 
     if arguments.command == "paths":
         from fuzzy1337.path_commands import RunPathCommands

@@ -18,6 +18,17 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added explicit governed original-response planning, SDK capture and installed
+  `response capture` / `response replay` commands. Closed reviewed wire admission
+  precedes original seven-role custody; receipt-bound source Observations retain
+  real job associations, model/workspace acknowledgements and portable replay.
+  This acquisition profile creates no security Finding or ZAP assessment.
+
+- Recorded a proposed finite owned-response/ZAP passive boundary and independently
+  authored missing/fixed/body-decoy wire oracle. Header-retention, authority,
+  runtime isolation and file-custody prerequisites remain explicit; this design
+  does not enroll an executable provider or claim genuine ZAP acceptance.
+
 - Added governed native image planning and SDK/CLI execution over explicit local
   Trivy material, with current permission, separate SAFE approval, original paired
   custody and canonical saved results. Native summaries preserve cancellation,
@@ -307,6 +318,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Kept response and native-image SDK cleanup owned through repeated caller
+  cancellation, without losing the first presentation failure or actual saved
+  state. A terminal cancelled executor task no longer causes a non-yielding wait;
+  actual timeout/output-limit/cancellation classifications survive safe custody,
+  and contradictory terminal facts refuse before staging.
+
 - Preserved distinct path/handle identity views in native policy controls and
   original journal readback, with binary framing and unchanged Linux guards.
   Controlled cancellation tests now surface early owner completion and settle
@@ -385,6 +402,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   ownership and integrity verification remain required.
 
 #### Changed
+
+- Added a bounded owned-response protocol checkpoint to the existing four-platform
+  matrix, including the changed native SDK cancellation boundary. Intermediate
+  checks retain small deterministic parallel selections; complete final Linux CI
+  requires actual installed SDK/CLI acquisition acceptance. Controller and validator
+  checkpoints have separate writers, explicit interrupted-child resumption and
+  source-bound terminal evidence without a platform-continuity guarantee.
 
 - Deferred full development CI while implementation PRs are draft. Final readiness
   starts the integration gate; returning to draft cancels stale runs. Intermediate
