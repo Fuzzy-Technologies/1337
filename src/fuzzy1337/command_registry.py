@@ -251,6 +251,12 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("api.owned-offline-import",),
         ),
         CommandDescriptor(
+            identifier="response",
+            summary="Capture one owned original response or verify known custody offline.",
+            usage="1337 response <capture|replay> <workspace>",
+            capabilities=("http.synthetic-response-capture",),
+        ),
+        CommandDescriptor(
             identifier="runtime",
             summary="Import explicit owned offline Docker inspect or Kubernetes List evidence.",
             usage="1337 runtime import <docker-inspect|kubernetes-list> <workspace>",

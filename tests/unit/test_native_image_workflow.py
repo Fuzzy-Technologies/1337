@@ -447,6 +447,181 @@ def test_CallerCancellationWaitsForOwnedWireAndRetainsOriginalAcquisitions(autho
     )
 
 
+@pytest.mark.parametrize("presentation_failure", [False, True])
+def test_RepeatedNativeCallerCancellationWaitsForOriginalCleanupAndFirstError(
+    owned, native_image_runner, monkeypatch, presentation_failure,
+):
+    """Public SDK ownership survives repeated cancellation without any material or engine task."""
+
+    ready, stopping, release, cleaned = (asyncio.Event() for _ in range(4))
+    jobs = []
+    cancellations = []
+    original_job = product.ScanJob
+    original_error = RuntimeError("controlled original native presentation failure")
+
+    class CapturedJob(original_job):
+        """Keep only the actual original core coordinator for guaranteed final settlement."""
+
+        def __init__(self, *args, **kwargs):
+            """Construct the unchanged coordinator and record this test's owned identity."""
+
+            super().__init__(*args, **kwargs)
+            jobs.append(self)
+
+        async def CancelAndWait(self, requested_by, **kwargs):
+            """Count the one original stop request without changing its core behavior."""
+
+            cancellations.append(requested_by)
+
+            return await super().CancelAndWait(requested_by, **kwargs)
+
+    class ControlledProvider:
+        """Exercise only public SDK/core task ownership, without executing a material observer."""
+
+        def __init__(self, *args, **kwargs):
+            """Retain unchanged empty summary fields because this provider acquires no bytes."""
+
+            self.captures = []
+            self.custody_uncertain = False
+            self.bridge = None
+            self.saved_model = None
+
+        async def Run(self, context):
+            """Hold cooperative cleanup until this test explicitly releases the owned provider."""
+
+            ready.set()
+            context.Heartbeat()
+
+            await context.Cancellation.wait()
+
+            stopping.set()
+
+            await release.wait()
+
+            cleaned.set()
+
+        def Records(self):
+            """Return no originals because this control-only provider collected no material."""
+
+            return ()
+
+    def Observe(event):
+        """Raise the original presentation error only after actual owned execution is active."""
+
+        if presentation_failure and ready.is_set():
+            raise original_error
+
+    async def Run():
+        """Race readiness with terminal execution and settle the original job in every branch."""
+
+        task = asyncio.create_task(product.ScanNativeImage(owned.root, "native-scope", "owner:unit",
+            owned.selection, lambda: ImpactPolicy("unused-control-only"), approve_safe_image=True,
+            on_event=Observe))
+
+        try:
+            waiter = asyncio.create_task(ready.wait())
+
+            try:
+                done, _ = await asyncio.wait((task, waiter), timeout=2,
+                                             return_when=asyncio.FIRST_COMPLETED)
+
+                if task in done:
+                    task.result()
+
+                assert waiter in done, "The original controlled provider must reach readiness."
+
+            finally:
+                waiter.cancel()
+
+                await asyncio.gather(waiter, return_exceptions=True)
+
+            if not presentation_failure:
+                task.cancel()
+
+            await asyncio.wait_for(stopping.wait(), timeout=2)
+
+            for _ in range(2):
+                task.cancel()
+
+                await asyncio.sleep(0)
+
+            assert not task.done() and not cleaned.is_set(), (
+                "Public native SDK completion must not overtake its original held cleanup."
+            )
+            release.set()
+
+            if presentation_failure:
+                with pytest.raises(RuntimeError) as caught:
+                    await task
+
+                assert caught.value is original_error, (
+                    "Later caller cancellation must preserve the first native presentation failure."
+                )
+
+            else:
+                summary = await task
+                assert summary.ExitCode() == 130 and summary.snapshot.state is JobState.CANCELLED, (
+                    "A native cancellation summary requires actual original cleanup completion."
+                )
+
+            assert cleaned.is_set() and cancellations == ["owner:unit"], (
+                "Only one coordinator stop may run, and cleanup must finish before SDK settlement."
+            )
+
+        finally:
+            release.set()
+
+            if not task.done():
+                task.cancel()
+
+            await asyncio.gather(task, return_exceptions=True)
+
+            if jobs:
+                await asyncio.wait_for(jobs[0].Wait(), timeout=2)
+
+    monkeypatch.setattr(product, "NativeImageWorkflow", ControlledProvider)
+    monkeypatch.setattr(product, "ScanJob", CapturedJob)
+    native_image_runner.run(Run())
+    assert LocalModelStore(owned.root).Open() == owned.model and (
+        LocalWorkspaceStore(owned.root).Open() == owned.workspace
+    ), "Control-only cancellation must preserve original stores without a Save or export."
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_TerminalNativeCleanupFailureIsNotExternalCancellation(native_image_runner, cancelled):
+    """A terminal cleanup child cannot busy-loop or be reported as confirmed native cleanup."""
+
+    original = RuntimeError("controlled original native cleanup error")
+
+    async def Failed():
+        """End this actual child task without launching any image, material or process operation."""
+
+        if cancelled:
+            raise asyncio.CancelledError
+
+        raise original
+
+    async def Run():
+        """Verify exact terminal task truth without another cancellation or replacement attempt."""
+
+        task = asyncio.create_task(Failed())
+
+        with pytest.raises(RuntimeError) as caught:
+            await product.SettleNativeImageCleanup(task)
+
+        assert task.done(), "A failed cleanup task must be inspected without repeating the wait."
+
+        if cancelled:
+            assert task.cancelled() and "without confirmation" in str(caught.value), (
+                "A terminal cancelled child must explicitly refuse cleanup confirmation."
+            )
+
+        else:
+            assert caught.value is original, "Original native cleanup failure must survive."
+
+    native_image_runner.run(Run())
+
+
 def test_EarlyFailedSdkSummaryImmediatelyRefusesReadinessWithoutTaskLeaks(authority):
     """Real native policy refusal returns its original failed summary before a worker signal."""
 

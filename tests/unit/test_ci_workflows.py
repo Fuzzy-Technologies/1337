@@ -31,6 +31,11 @@ NATIVE_PROTOCOL_FEATURE_CONDITION = (
     "&& github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]'))"
 )
+PORTABLE_PROTOCOL_FEATURE_CONDITION = (
+    NATIVE_PROTOCOL_FEATURE_CONDITION + " || (github.event_name == 'pull_request' "
+    "&& github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, '[owned-response-protocol-checkpoint]'))"
+)
 BROWSER_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
@@ -82,7 +87,7 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
         condition = " ".join(str(job.get("if", "")).split())
         expected_condition = (
             BROWSER_FEATURE_CONDITION if job_id == "browser-page-quality"
-            else NATIVE_PROTOCOL_FEATURE_CONDITION if job_id == "quality"
+            else PORTABLE_PROTOCOL_FEATURE_CONDITION if job_id == "quality"
             else NATIVE_IMAGE_FEATURE_CONDITION if name == "trivy-acceptance.yml"
             else INTEGRATION_CONDITION)
         assert condition == expected_condition, (
@@ -197,16 +202,39 @@ def test_NativeImageProductAcceptanceRequiresActualIsolatedSdkAndInstalledCli() 
     ), "Actual acquired product evidence must survive failures as well as successes."
 
 
-def test_NativeImageProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate() -> None:
+@pytest.mark.parametrize(("step_name", "marker", "selectors"), (
+    ("Run focused native image protocol checks", "native-image-protocol-checkpoint", (
+        "tests/unit/test_native_image_material_worker.py",
+        "tests/unit/test_native_image_observation.py",
+        "tests/unit/test_native_image_bounded_capture.py",
+        "tests/unit/test_native_image_control_identity.py",
+        "tests/unit/test_native_image_policy.py",
+        "tests/unit/test_native_image_policy_oracle.py",
+        "tests/unit/test_native_image_workflow.py",
+        "tests/contract/test_native_image_cli.py",
+    )),
+    ("Run focused owned response protocol checks", "owned-response-protocol-checkpoint", (
+        "tests/unit/test_owned_response_capture.py",
+        "tests/unit/test_owned_response_capture_worker.py",
+        "tests/unit/test_owned_response_parent.py",
+        "tests/unit/test_owned_response_workflow.py",
+        "tests/unit/test_response_commands.py",
+        "tests/unit/test_native_image_workflow.py",
+        "tests/integration/test_owned_response_worker_execution.py",
+    )),
+))
+def test_PortableProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate(
+    step_name: str, marker: str, selectors: tuple[str, ...],
+) -> None:
     """Portable protocol diagnosis cannot launch or replace the ordinary complete gate."""
 
     job = Workflow("python-quality.yml")["jobs"]["quality"]
     steps = {step.get("name"): step for step in job["steps"]}
-    feature = steps["Run focused native image protocol checks"]
+    feature = steps[step_name]
     condition = " ".join(feature["if"].split())
     assert condition == (
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-        "&& contains(github.event.pull_request.body, '[native-image-protocol-checkpoint]')"
+        f"&& contains(github.event.pull_request.body, '[{marker}]')"
     ), "Focused protocol checks must require the explicit draft checkpoint."
     assert "-n 2 --dist=loadscope" in feature["run"], "Protocol checks lost bounded parallelism."
     assert feature["timeout-minutes"] == 5 and "--timeout=30" in feature["run"], (
@@ -218,25 +246,21 @@ def test_NativeImageProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate
     assert "--no-cov" in feature["run"] and "--junitxml=" in feature["run"], (
         "The feature checkpoint must retain results without impersonating full coverage."
     )
-    selectors = (
-        "tests/unit/test_native_image_material_worker.py",
-        "tests/unit/test_native_image_observation.py",
-        "tests/unit/test_native_image_bounded_capture.py",
-        "tests/unit/test_native_image_control_identity.py",
-        "tests/unit/test_native_image_policy.py",
-        "tests/unit/test_native_image_policy_oracle.py",
-        "tests/unit/test_native_image_workflow.py",
-        "tests/contract/test_native_image_cli.py",
-    )
     assert all(path in feature["run"] for path in selectors), (
-        "Native protocol regression selection lost a reviewed producer or consumer."
+        "Protocol regression selection lost a declared producer or consumer."
     )
     root = Path(__file__).resolve().parents[2]
     assert all((root / path).is_file() for path in selectors), (
         "The focused protocol checkpoint names a missing test module."
+    )
+    assert len({Path(path).stem for path in selectors}) == len(selectors), (
+        "Portable checkpoint modules cannot share a prepend-mode pytest import name."
     )
     full = steps["Run repository quality gate"]
     assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
         "The complete gate must run unchanged at final readiness."
     )
     assert "1337-dev check" in full["run"], "Final integration no longer runs the complete gate."
+    assert full["env"]["FUZZY1337_RUN_OWNED_RESPONSE_PRODUCT_ACCEPTANCE"] == (
+        "${{ runner.os == 'Linux' && '1' || '0' }}"
+    ), "Linux final product acceptance must fail on unavailable acquisition prerequisites."

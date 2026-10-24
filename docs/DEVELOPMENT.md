@@ -34,6 +34,19 @@ work remains, or assign an explicit replacement. Never resume or rephrase an
 explicitly blocked task. Review findings sent to a completed author need this
 same explicit resume step before the controller waits for a fix.
 
+The coordinator also inspects actual role states at finite progress checkpoints,
+including the validator itself; silence is not a running-state confirmation.
+After an interruption, verify the explicit resume with a new running-state read
+and concrete source/review/evidence handoff before waiting again. Keep one writer
+for the controller checkpoint. The validator reports its expiry and maintains its
+own checkpoint instead of renewing the controller's lease.
+
+Retain bounded terminal status and fresh JUnit beside important checks, bound to
+the checked source hashes. A lost execution-session reference or partial stdout
+does not establish completion. Inspect available terminal evidence and actual
+remaining ownership before resuming work; never restart an accepted full gate
+because its old interactive session is unavailable.
+
 Keep a durable issue/PR checkpoint with the exact branch/head, actual accepted or
 failed evidence, next owner and remaining action. A local watchdog cannot recover
 its stopped parent by itself. A scheduled continuation is a separate backstop;
@@ -53,7 +66,7 @@ prerequisite is installing `uv==0.11.33` as shown above.
 
 The current `1337` entry point provides help, installed-version output, the
 interactive shell foundation, local diagnostics, and read-only component-health
-inspection. Scanner workflows belong to subsequent product work. See
+inspection. Explicit experimental scanner workflows are documented below. See
 [Component health and update inspection](COMPONENT_HEALTH.md) for the explicit
 non-mutation boundary and experimental JSON report.
 Current development workflows additionally expose
@@ -63,6 +76,9 @@ JSON/SARIF output without a job, provider process or target contact.
 The [first-party native web check](NATIVE_WEB_CHECKS.md) uses `scan web` with an
 explicit STANDARD policy and exact-plan confirmation; no external scanner is
 required for its bounded Git HEAD exposure predicate.
+The [original-response capture and replay](OWNED_RESPONSE_CAPTURE.md) commands use
+the `response` namespace, explicit SAFE approval and the reviewed closed wire
+profile to preserve source facts for later assessment.
 
 | Command                                | Behavior                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -117,9 +133,10 @@ Required development workflows run on pull requests to `develop` or
 opening and updates skip heavy jobs. Before approval or merge, inspect actual
 required job successes from the final readiness run for the proposed head;
 skipped draft jobs can appear green in GitHub and do not prove validation.
-Explicit draft feature markers may run only their declared browser, Trivy or
-native protocol checks. The native protocol checkpoint uses two workers across
-the existing OS matrix and retains JUnit without claiming complete coverage.
+Explicit draft feature markers may run only their declared browser, Trivy, native
+image or owned-response protocol checks. Portable protocol checkpoints use two
+workers across the existing OS matrix, a 30-second per-case deadline and a
+five-minute step limit. They retain JUnit without claiming complete coverage.
 Remove its marker before final publication/readiness to avoid an extra diagnostic
 run; feature success never substitutes for the final complete integration gate.
 Do not repeat the full gate locally, in individual development agents or after

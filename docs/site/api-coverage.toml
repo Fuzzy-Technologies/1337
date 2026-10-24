@@ -94,6 +94,42 @@ mode = "authored"
 page = "api/fuzzy1337.native_image_workflow.md"
 
 [[surfaces]]
+module = "fuzzy1337.adapters.owned_response_capture"
+source = "src/fuzzy1337/adapters/owned_response_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.owned_response_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.owned_response_capture_worker"
+source = "src/fuzzy1337/owned_response_capture_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_response_capture_worker.md"
+
+[[surfaces]]
+module = "fuzzy1337.owned_response_capture"
+source = "src/fuzzy1337/owned_response_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_response_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.owned_response_custody"
+source = "src/fuzzy1337/owned_response_custody.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_response_custody.md"
+
+[[surfaces]]
+module = "fuzzy1337.owned_response_workflow"
+source = "src/fuzzy1337/owned_response_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_response_workflow.md"
+
+[[surfaces]]
+module = "fuzzy1337.response_commands"
+source = "src/fuzzy1337/response_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.response_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.configuration_evidence"
 source = "src/fuzzy1337/configuration_evidence.py"
 mode = "authored"

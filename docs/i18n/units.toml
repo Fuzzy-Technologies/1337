@@ -17676,7 +17676,7 @@ state = "missing"
 id = "page:api.fuzzy1337.native-image-workflow"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.native_image_workflow.md"
-sourceHash = "sha256:de507f635f3d585ac6538ba33f1586a734bc2993772ae5014f6258d288584335"
+sourceHash = "sha256:ede8f5e55b36ef688f3f6097c5ad5b76464838bc9d843f7d5f74978ccd2dc7ee"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -19177,6 +19177,897 @@ id = "symbol:fuzzy1337.native_image_workflow.ValidateSelection"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/native_image_workflow.py"
 sourceHash = "sha256:43b5ba8baf6967bbf7f9a2ba86e54ad6d18c44471034a4982edbe0b3ca92a06c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.adapters.owned-response-capture"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.owned_response_capture.md"
+sourceHash = "sha256:7f30a79771db04343ec5c8bc476feb08f1592e8fc98d2931c588fa3f6530860e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.owned-response-capture"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.owned_response_capture.md"
+sourceHash = "sha256:8a699a87007dce529ea3e9ad7ecebdee189604e4c869ca0a6bf5c7e0f7603973"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.owned-response-capture-worker"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.owned_response_capture_worker.md"
+sourceHash = "sha256:9e0a8433479df702e714fb308b28b9f3d0ea32ed3e77fa001b01957ed38363d6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.owned-response-custody"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.owned_response_custody.md"
+sourceHash = "sha256:6c30f717c855caab7765c875cdb9dcccc2fc54493965deba52e8d5f47576324b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.owned-response-workflow"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.owned_response_workflow.md"
+sourceHash = "sha256:0b2021ada07cff22c7dccae37fb7ad48b7a9ff326521e0845c8d1440c45a0f02"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.response-commands"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.response_commands.md"
+sourceHash = "sha256:60bfbd4dd556655c7b15fe8492477aa72bbc568e5d91d9cc54331b274638cb80"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.BoundJson"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:f348be5ff529cc464d0b78e282c5fa2d62bc60fb61388406fbc9050da7802737"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.BytePart"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:9bae3e5bbfa046d2d2e83f7c8257d72c7c405dee2f4871b544edcd59cba3e301"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.Destination"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:330a3969a4c2f477f7a0368b263c260ef21b61e90fa6a004341630390cd51f39"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.Fields"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:2fe3a1d6cbeae78da36df099993295ba053076bbf391e4bbe9402dbb6bc9f44f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.OwnedResponseRecordError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:4285764f741713ae6ba5db6c4455d00972963d061f706cadacd6b5f2902369a3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.ParseOwnedResponseCapture"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:7a3d968852f2573383dfec9f72edb391ac442fd48f475a740a7d5f15dcd53922"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.RequestBytes"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:b94dc3fdc89eec7bc7faf67ec5415a11bb68493fcaec978dcdd3382dda4ce903"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.ReviewedResponse"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:161cf057e29940bf4738cf2bde3f126b24d0388de59053df043f514cc8b07097"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.UniqueObject"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:3ae208bc260d6602ebed48549b33f358f78d8244dc407da53e641980883c8687"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.owned_response_capture.VerifyPart"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/owned_response_capture.py"
+sourceHash = "sha256:1e3323861c45e140abc652c0f79e7795a0389ece4f5554b327a94c3f058467eb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.native_image_workflow.SettleNativeImageCleanup"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/native_image_workflow.py"
+sourceHash = "sha256:60c7c20d370e40d5ee43abf15f8d797162b62d1aff8018cd41408a4273c2b9e1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseAuthority"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:9f7ee970e955742f0619b16a05b83753a10ef2b31722f6d3d17be15ae2e343db"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:7ee274f55c0a5dbf554c05e83a0632fab19da766227b626f7bc16a0ed05f5167"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.CaptureBinding"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:69cffa830c3e08ec14ed3463717aa623da54054ba2e45a631b0db6369130f3a6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.CheckPrepared"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:f14eba623426a34aa39c431093a026df41cc25b352951af92e7c4b64ed1efa0d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.Current"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:28564b5a631a806944e277e1f11ce17d3d8460b9ef467844f1ee05764a88a553"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.Execute"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:423fba45bba188cb005deb85448f49dbcbe484e06b65c17adc2996205e49fe7f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.Now"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:976ff0a73b9559f3bc51114c2bcac7f6a36584cb4dc4ea7fb873978e9b3d1e1d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.Prepare"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:0fc21aef407b8c0ccc15164121638a030f5af6a1ac9b4b08dd7db7274fb6724f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.Run"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:54779fb9d35c96e392a255377da10a1a90e90a8cc102cd011ea50ab92f77ed77"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.Tick"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:9d7cc403ea5024ad14a80efdbc75d4318b21fb4ea155b7b1b091d635a61cd46a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.OwnedResponseCaptureProvider.ValidatePersistence"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:75dc6296a7c82dfc7d119ba09c31088e07ce34de050e2a0751a40eeb3c452aa6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.PrepareOwnedResponseInvocation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:ceabe843473aa668ebd3dba645947377d99822771fb1efa4fa65b0ddf0612a2e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.PreparedOwnedResponseCapture"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:e468ca9f920ff0eedb0cfb6f6d4cf71ba4cdbd54628d005ea2a8ba783eeaaa2c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.RuntimeExecutable"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:646bc403d9ceb206a9b431152174429e7c47a866e6ee98951839901776f15aad"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.RuntimeWorkPath"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:9c20f819cbf9e23d606dc610f32b57c0045b99bc8919b605e926e720a41d4650"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture.SupportedPlatform"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture.py"
+sourceHash = "sha256:f9c85d193af37b1904c2e23eb03144401a972f43b734d91d61862d152aefca15"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture_worker.CaptureRefusal"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture_worker.py"
+sourceHash = "sha256:46c6bd9225b0d4e53aa347fc9a7fdfbd85b8e3a361aca743194eaf00fd3e4a62"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture_worker.Main"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture_worker.py"
+sourceHash = "sha256:96bedba1f08d2f1a93103a1eb7f990a7f57c8796c4441f70d39643264c411d05"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture_worker.Probe"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture_worker.py"
+sourceHash = "sha256:ed348ed5f30ef97236687cdb99b775b1ff3ed5344ffe309cc85d2f12333247e3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_capture_worker.Remaining"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_capture_worker.py"
+sourceHash = "sha256:7368090e94e13e07eb95e2b1178cda0ba91f4f2b1f2e0a5294b553a4469b275b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.Canonical"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:0472d044c60fffa7cdbf43f568609bcad1dbb39101e5a938baf40fb11f9704bb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.DirectoryIdentity"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:b6879d0281ac8692dade2b556ddc33bc9c1e0dfa501406d0e3b8f266b5ab972a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.NoFollowFlag"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:c2312ad38a9b7e8c3dc0cc15a3e4b4062778e73eb0ffb4f43f86e232e5731741"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseCapture"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:977196adf2b944eaf897ff03e5ef847d82ee95adc040f7e5ccb9757b0df7b80b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseEvidenceStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:e0e4a1b3a6c43494fd7cbf0380a324fd7ac065f20175d521476d040b58a23271"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseEvidenceStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:5c3551c9e90996ae5521d180148c0357e187e43fa4ab1d0ca0defdd555e9de12"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseReconciliation"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:46905675e4a1451b42e0d17474d87f255c792bcf26469f86c0fba4998343e2ff"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseReplay"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:ba82d484d2d6becf48e4e8d9727fa1f556ee93e82692acd4e5088a6735bb9646"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseStage"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:85b8e2cbb034793b3d8031810110865c14ff92a84a2970bebea09adef2f74c54"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseStage.Append"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:8e2a12a22bc05f91c68a0b550f59e4c1784953b985995e3fdf7df7df4febb28c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseStage.Check"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:d535239070053ac088a6bd7d7ad5a1f14f35c26c6f4a5dbb504b350c6ad72ffa"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.OwnedResponseStage.WriteExclusive"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:af3e34127a9194ea1dae93ffbdfaf8e3fb84be8371973fc552b43fa875bf2e49"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.ParseCanonical"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:f902ab0579c43ef60ecafdef7003b8941b3b13f56aa4f513e2280c9cce0674dc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.PublishCapture"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:e47b8e5cd756ff900e86a73d94a5c1edaa05c266b4dfc2b2af67ebc87efaa28d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.ReadPrivate"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:06f4d28f082ca65d83755ac64aedf81c6fe698eba9bb5fddbf6af23f94e92133"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.Receipt"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:89566b1fd7b55b6d0cf4bc58b8c608ed1784bcff833bf83b980214fc798b334b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.ReconcileOwnedResponse"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:a89ebb7e8c914453fc1781c56a7a1c205c6f02a24cfea4f86a7479cb38c9612b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.ReplayOwnedResponseCapture"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:20b3575802e408a10cc1cd7a05d85995e3bb87573d444d7776faf3a8971b3787"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.ValidateControlResult"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:af2a3334977f16ca27055cc355b7c777ed7c2975e0195dfef3a9bde3e59159f4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.ValidateRequest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:5f0be65455aaded9576e9088a6abd0569ce6ee475d2887f9eb7b4f407c353fd4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.ValidateResult"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:dcbb977dce83f7322d273ca8beaa89bc487d759de472bbb9e39ff4665d763569"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_custody.VerifyEvidence"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_custody.py"
+sourceHash = "sha256:667d4413980dfd9a29598e34dbc455d97597caefce3cd6859f20b9020fbc8ebd"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.CurrentAuthority"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:9283272c9fa6f980ca33c34908621b0710d1174fb07f835e6247b8941aa4c437"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseAuthorityDeniedError"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:be9dd15af23234edb84392c66583cd327166d329bf919fb417d993e93c628ba9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseCapturePlan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:58b26d8d213f64598e2fa4bbfb18bec961b22b0e61cb2cbb5e2916a04b18755e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseCapturePlan.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:51f61cc64b7435fd45e1e48c365708c6058590fbc31e32581ea148f83d7dd835"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseCaptureSummary"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:4cc906a1ede6c89b83447553c0b4cd55a996bf80750651cd408032cf7b063558"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseCaptureSummary.ExitCode"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:663af40b4bcad819ce7b125d6595a8ef9a85d0b7460832d792bb51ac8fa70928"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseCaptureSummary.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:cf94d3c92071ddeca17cb988519b0005ffd395289923e31dda16d6b1f923c07c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseReplaySummary"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:5da080bfa4cee712e7944f34504396328817c68c04edaf06989b177051bd60db"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseReplaySummary.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:8aafab5aab76084d39de04777ec31b8f3e354f607284146dbbc2b45e1ae9d6cb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseWorkflow"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:15794a99c8c0dbf1cbcffeb850fd666446d1e4252648b339d02dfc0b2a6cfc35"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseWorkflow.PersistReferences"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:3d373bae95067a7c12249bddcc0f6cd7e4b84b7dcd5a0cf7bc0f8d72585a6aa7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseWorkflow.Records"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:eb8774e3c8ffe995a090cee182c2e08e367c37cd52f12aaa6391ab0afe73043f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.OwnedResponseWorkflow.Run"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:3557d9ecbcb7a11f6e25e9beed21a799822b452dc3fb35c4e75e662e65d33424"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.PersistenceStatus"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:cf323beddbb5f4cb4cbd68c31716cc6b5096dfafeb6e467bb134e6982438ce79"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.PlanOwnedResponseCapture"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:9331c85fc420a3059104f9e0c1cc37a8615013a94f57597c2f84b8ab0cc4daa6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.ReplayOwnedResponse"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:9132b8d047dea961c8bcc5d70c32fb38da1442d36eb99e4e9d9f529b13f31f11"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.RunOwnedResponseCapture"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:ab767268e7ffcefa262d38b03af8699b43e170ac4bd253ff9371c7583b3caf70"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.SettleOwnedResponseCleanup"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:fc36d72512c6b6a9f27c3ddb80fd9110c4d3c5aad7440f5d15679b057016e2e8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.owned_response_workflow.SourceFact"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/owned_response_workflow.py"
+sourceHash = "sha256:7d31880336cf7918778f086b0f3bd30f5185ade53cc30a7605879191b14f4bda"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.response_commands.ResponseParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/response_commands.py"
+sourceHash = "sha256:a82c754b5c5369a71f7d78d4383b3bbea5dbb9c5feb527461ad418cf50d01881"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.response_commands.RunResponseCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/response_commands.py"
+sourceHash = "sha256:73d8fd58b4437314e457f49cb37c7ea75974ef0508f50e3f3839b285eff2ea75"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.shell.InteractiveShell.do_response"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/shell.py"
+sourceHash = "sha256:80eae00a3f86be406d589cd8d0ee2bfe64cf5be4eacef2af308a48aad70fd746"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

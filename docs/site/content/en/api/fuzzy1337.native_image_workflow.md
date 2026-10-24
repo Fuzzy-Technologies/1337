@@ -10,6 +10,10 @@ job-owned acquisitions and current authority before canonical model/workspace CA
 Failure summaries retain verified evidence and actual saved revisions, with a
 separate export outcome. Historical reopen grants no new execution authority.
 
+Repeated caller cancellation waits for the one original cleanup task before the
+public SDK settles. A cancelled cleanup task remains an unknown-cleanup failure;
+it cannot supply an invented completion or replace an already committed revision.
+
 See `docs/NATIVE_IMAGE_WORKFLOW.md`, `docs/NATIVE_IMAGE_AUTHORITY.md` and ADR 0093.
 Genuine provider acceptance remains an explicit isolated CI requirement.
 

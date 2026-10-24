@@ -413,7 +413,7 @@ class InteractiveShell(cmd.Cmd):
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "paths", "sbom", "api", "trace"
+            "paths", "sbom", "api", "trace", "response"
         }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
@@ -422,6 +422,7 @@ class InteractiveShell(cmd.Cmd):
                         "paths": self.do_paths,
                         "sbom": self.do_sbom,
                         "api": self.do_api,
+                        "response": self.do_response,
                         "trace": self.do_trace,
                         "intel": self.do_intel}
             self.lastcmd = command
@@ -625,6 +626,12 @@ class InteractiveShell(cmd.Cmd):
                 status = RunApiCommands(arguments, cast(TextIO, self.stdout),
                                         json_output=json_output)
 
+            elif command == "response":
+                from fuzzy1337.response_commands import RunResponseCommands
+
+                status = RunResponseCommands(arguments, cast(TextIO, self.stdout),
+                                             json_output=json_output)
+
             elif command == "runtime":
                 from fuzzy1337.runtime_commands import RunRuntimeCommands
 
@@ -757,6 +764,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("api", argument)
+
+    def do_response(self, argument: str) -> None:
+        """Capture original source bytes or verify known custody without implicit authority.
+
+        Args:
+            argument: Capture or replay action with its complete explicit argument list.
+        """
+
+        self.RunLocalCommand("response", argument)
 
     def do_runtime(self, argument: str) -> None:
         """Import explicitly owned offline source without deriving authority from shell context.
