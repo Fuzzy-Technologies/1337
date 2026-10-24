@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "profile": "independent-native-header-cli-pipeline.v1",
+  "original_catalog_sha256": "fb57a1e31904e9904ef5501a6dc7721c9263e12ab55672405c5a70fb2c3798d7",
+  "seed_path": "/native-header-seed",
+  "seed_links_in_document_order": ["/zap-passive/missing", "/zap-passive/fixed", "/zap-passive/body-decoy"],
+  "selected_main_urls": 4,
+  "owned_origins": 2,
+  "sentinel_contacts": 0,
+  "header_truth": [true, false, true],
+  "truth_basis": "complete case-insensitive field names in actual acknowledged original headers",
+  "pipeline_contacts": {"seed": 1, "missing": 2, "fixed": 2, "body-decoy": 2},
+  "pipeline_completed_accuracy": {"tp": 2, "tn": 1, "fp": 0, "fn": 0},
+  "case_count": 6,
+  "separate_actions": ["SAFE crawl", "SAFE original capture", "PASSIVE header assessment"],
+  "identity_join": "explicit source selection only; retain structural and exact-URL Endpoints",
+  "required_after_cleanup": ["original-header-cli", "historical-replay", "triage-preserving-reuse", "removed-root-relocated-replay", "actual-report-export", "zero-new-contacts"],
+  "runtime_acceptance": "not-run"
+}
