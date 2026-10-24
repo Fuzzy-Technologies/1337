@@ -5,12 +5,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import shlex
+import socket
 
 import pytest
 
+from fuzzy1337 import native_crawl_commands as commands
 from fuzzy1337 import native_crawl_workflow as product
 from fuzzy1337.adapters import SerializeContract
 from fuzzy1337.cli import Main
@@ -19,7 +22,9 @@ from fuzzy1337.model import LocalModelStore
 from fuzzy1337.shell import InteractiveShell
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.unit.test_native_crawl_workflow import AT, SEED, URLS
+from tests.unit.test_native_crawl_workflow import crawl_runner as crawl_runner
 from tests.unit.test_native_crawl_workflow import owned as owned
+from tests.unit.test_native_crawl_workflow import owned_crawl_runner as owned_crawl_runner
 
 
 def Arguments(root):
@@ -58,8 +63,40 @@ def crawl_cli(owned, monkeypatch):
 
     monkeypatch.setattr(product, "PlanNativeCrawl", Plan)
     monkeypatch.setattr(product, "RunNativeCrawl", Run)
+    monkeypatch.setattr(commands.asyncio, "run", owned.runner.run)
 
     return owned
+
+
+def test_CrawlCliReusesOwnedLoopWithoutWeakeningNetworkDenial(crawl_cli, monkeypatch, capsys):
+    """CLI execution reuses its original loop without allowing real connection side effects."""
+
+    def ReopenLoop():
+        """Reject lazy loop/self-pipe creation after the function network guard is active."""
+
+        raise AssertionError("Crawl CLI units must reuse their initialized event loop")
+
+    monkeypatch.setattr(asyncio.events, "new_event_loop", ReopenLoop)
+
+    async def CheckConnections():
+        """Observe original loop identity and unchanged denials from the running unit loop."""
+
+        assert asyncio.get_running_loop() is crawl_cli.runner.get_loop(), (
+            "The CLI fixture must retain its original initialized loop."
+        )
+
+        with socket.socket() as connection:
+            for callback in (connection.connect, connection.connect_ex, socket.create_connection):
+                with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                    callback(("127.0.0.1", 9))
+
+    crawl_cli.runner.run(CheckConnections())
+    assert Main([*Arguments(crawl_cli.root), "--approve-safe-crawl", "--json"]) == 0, (
+        "The actual CLI unit route must complete on the preinitialized guarded loop."
+    )
+    assert json.loads(capsys.readouterr().out)["state"] == "completed", (
+        "Loop reuse must preserve the actual SDK terminal result."
+    )
 
 
 @pytest.mark.parametrize("flag", ("--seed", "--selected", "--scope", "--owner", "--policy"))

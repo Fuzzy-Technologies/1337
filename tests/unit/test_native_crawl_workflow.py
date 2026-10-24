@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import socket
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -59,6 +61,34 @@ ORIGIN = "http://127.0.0.1:32123"
 PATHS = ("/alpha", "/beta", "/index", "/shared", "/unreachable")
 URLS = tuple(ORIGIN + path for path in PATHS)
 SEED = ORIGIN + "/index"
+
+
+@pytest.fixture(scope="module")
+def owned_crawl_runner() -> Iterator[asyncio.Runner]:
+    """Initialize portable loop resources before the unchanged unit network guard."""
+
+    with asyncio.Runner() as runner:
+        runner.get_loop()
+        yield runner
+
+
+@pytest.fixture
+def crawl_runner(owned_crawl_runner: asyncio.Runner) -> Iterator[asyncio.Runner]:
+    """Reuse the original loop and settle its remaining tasks at each test boundary."""
+
+    yield owned_crawl_runner
+
+    async def Cleanup() -> None:
+        """Cancel and await remaining test-owned tasks without constructing another loop."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    owned_crawl_runner.run(Cleanup())
 
 
 def Record(document, links):
@@ -114,7 +144,7 @@ def Result(raw, *, exit_code=0, termination=ExecutionTermination.PROCESS_EXIT, s
 
 
 @pytest.fixture
-def owned(tmp_path, monkeypatch):
+def owned(tmp_path, monkeypatch, crawl_runner):
     """Use real canonical owners and only replace the finite governed executor transport seam."""
 
     root = tmp_path / "workspace"
@@ -135,6 +165,7 @@ def owned(tmp_path, monkeypatch):
     policy = ImpactPolicy("local", permissions=(CapabilityPermission(
         NATIVE_CRAWL_CAPABILITY, NATIVE_CRAWL_PROVIDER_ID, parent.ImpactLevel.SAFE),))
     state = SimpleNamespace(root=root, workspace=workspace, model=model, unrelated=unrelated,
+        runner=crawl_runner,
         policy=policy, calls=[], returned=[], graph={SEED: (URLS[0], URLS[1]),
         URLS[0]: (URLS[3],), URLS[1]: (URLS[3],), URLS[3]: (SEED,)},
         before_launch=None, before_return=None, record_change=None, outcome=None, inversion=False,
@@ -187,8 +218,62 @@ def owned(tmp_path, monkeypatch):
 def Run(owned, **kwargs):
     """Run the public actual SDK with no real transport or helper process."""
 
-    return asyncio.run(product.RunNativeCrawl(owned.root, "local", SEED, URLS, "actor:operator",
+    return owned.runner.run(product.RunNativeCrawl(
+        owned.root, "local", SEED, URLS, "actor:operator",
         lambda: owned.policy, approve_safe_crawl=True, clock=lambda: AT, **kwargs))
+
+
+def test_CrawlSdkReusesOwnedLoopWithoutWeakeningNetworkDenial(owned, monkeypatch):
+    """SDK units must reuse their initialized loop while every real connection stays denied."""
+
+    def ReopenLoop():
+        """Expose lazy event-loop/self-pipe construction during the guarded test phase."""
+
+        raise AssertionError("Crawl unit tests must reuse their initialized event loop")
+
+    monkeypatch.setattr(asyncio.events, "new_event_loop", ReopenLoop)
+    loop = owned.runner.get_loop()
+
+    async def CheckConnections():
+        """Check original loop identity and all unchanged network tripwires without transport."""
+
+        assert asyncio.get_running_loop() is loop, "The original initialized loop must be reused."
+
+        with socket.socket() as connection:
+            for callback in (connection.connect, connection.connect_ex, socket.create_connection):
+                with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                    callback(("127.0.0.1", 9))
+
+    owned.runner.run(CheckConnections())
+    summary = Run(owned)
+    assert summary.snapshot.state is JobState.COMPLETED, (
+        "The real SDK unit composition must complete without recreating its guarded loop."
+    )
+
+
+def test_CrawlFixtureDrainsOriginalTasksBeforeReusingItsLoop(owned_crawl_runner):
+    """A leftover owned task must actually cancel and settle before the next loop use."""
+
+    boundary = crawl_runner.__wrapped__(owned_crawl_runner)
+    runner = next(boundary)
+
+    async def LeavePending():
+        """Return one known local task after it starts awaiting its original event."""
+
+        waiting = asyncio.Event()
+        task = asyncio.create_task(waiting.wait())
+
+        await asyncio.sleep(0)
+
+        return task
+
+    task = runner.run(LeavePending())
+    assert not task.done(), "The cleanup counterexample requires an actually pending local task."
+
+    with pytest.raises(StopIteration):
+        next(boundary)
+
+    assert task.cancelled(), "The fixture boundary must settle its original leftover task."
 
 
 def test_ActualSdkPlansWithoutGrantAndCommitsSortedIncrementalSourceFacts(owned, monkeypatch):
@@ -209,7 +294,7 @@ def test_ActualSdkPlansWithoutGrantAndCommitsSortedIncrementalSourceFacts(owned,
         return await product.RunNativeCrawl(owned.root, "local", SEED, URLS, "actor:operator",
             lambda: owned.policy, approve_safe_crawl=True, clock=lambda: AT)
 
-    summary = asyncio.run(Start())
+    summary = owned.runner.run(Start())
     expected = (SEED, URLS[0], URLS[1], URLS[3])
     assert summary.ExitCode() == 0 and summary.completed_urls == expected, summary.ToDict()
     assert set(owned.calls) == set(expected) and len(owned.calls) == 4, (
@@ -471,7 +556,7 @@ def test_RepeatedCallerCancelSettlesOriginalCleanupAndPreservesFirstFailure(
 
             await asyncio.gather(task, return_exceptions=True)
 
-    asyncio.run(Scenario())
+    owned.runner.run(Scenario())
 
 
 @pytest.mark.parametrize("boundary", ("initial", "launch", "save"))
@@ -528,7 +613,7 @@ def test_ProviderRejectsForeignActualJobBeforeExecution(owned, field, value):
 
         return await job.Wait()
 
-    snapshot = asyncio.run(Start())
+    snapshot = owned.runner.run(Start())
     assert snapshot.failure.code.value == "authorization" and not owned.calls, (
         "Every actual workspace/scope/provider/actor mismatch must refuse before acquisition."
     )
@@ -631,7 +716,7 @@ def test_TerminalCancelledOwnedTaskDoesNotBusyLoop(owned):
         with pytest.raises(RuntimeError, match="cleanup terminated without confirmation"):
             await parent.SettleCrawlTask(task)
 
-    asyncio.run(Scenario())
+    owned.runner.run(Scenario())
 
 
 def test_SynchronousAuthorityReadCannotRenewExpiredOriginalLaunchBudget(owned, monkeypatch):
@@ -756,7 +841,7 @@ def test_LastCustodyReadDriftCannotBypassTheFinalOriginalSaveGuard(
     monkeypatch.setattr(parent.NativeCrawlProvider, "ValidatePersistence", ValidatePersistence)
     monkeypatch.setattr(parent.NativeCrawlProvider, "VerifyRecord", Verify)
     monkeypatch.setattr(parent.NativeCrawlEvidenceStore, "Read", Read)
-    summary = asyncio.run(product.RunNativeCrawl(owned.root, "local", SEED, URLS,
+    summary = owned.runner.run(product.RunNativeCrawl(owned.root, "local", SEED, URLS,
         "actor:operator", lambda: owned.policy, approve_safe_crawl=True, clock=lambda: clock[0],
         current_owner_provider=lambda: actor[0]))
     assert armed["changed"], "The counterexample must reach the actual last custody read seam."
@@ -844,7 +929,7 @@ def test_FinalValidAuthorityCallbackCancellationCannotReachEitherSave(
 
     monkeypatch.setattr(parent.NativeCrawlProvider, "ValidatePage", ValidatePage)
     monkeypatch.setattr(parent.NativeCrawlProvider, "ValidatePersistence", ValidatePersistence)
-    summary = asyncio.run(product.RunNativeCrawl(owned.root, "local", SEED, URLS,
+    summary = owned.runner.run(product.RunNativeCrawl(owned.root, "local", SEED, URLS,
         "actor:operator", Policy, approve_safe_crawl=True, clock=Clock,
         current_owner_provider=Owner))
     assert cancelled and summary.snapshot.state is JobState.CANCELLED, summary.ToDict()
@@ -1013,7 +1098,7 @@ def test_OwnedPageCancellationRetainsOnlyTheOriginalReturnedExecutorOutcome(
 
             await asyncio.gather(task, return_exceptions=True)
 
-    asyncio.run(Scenario())
+    owned.runner.run(Scenario())
 
 
 def test_SelfCancelledOriginalExecutorRemainsUnknownWithoutFabricatedCustody(owned, monkeypatch):
@@ -1078,7 +1163,7 @@ def test_SiblingAbortUsesPrivateSignalWithoutReplacingTheOriginalFailure(owned, 
         return await product.RunNativeCrawl(owned.root, "local", SEED, URLS, "actor:operator",
             lambda: owned.policy, approve_safe_crawl=True, clock=lambda: AT)
 
-    summary = asyncio.run(Scenario())
+    summary = owned.runner.run(Scenario())
     assert summary.snapshot.state is JobState.FAILED and (
         summary.snapshot.failure.message == "Native crawl worker refused this page"
     ), "Sibling cleanup must preserve the original page refusal instead of changing it to cancel."
