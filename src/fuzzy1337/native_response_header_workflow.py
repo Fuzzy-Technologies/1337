@@ -41,13 +41,18 @@ from fuzzy1337.native_response_headers import (
     NativeResponseHeaderError,
 )
 from fuzzy1337.owned_response_custody import (
-    PROVIDER_ID,
+    _CATALOG_FAMILY,
+    _CONTENT_FAMILY,
     OwnedResponseEvidenceStore,
+    ParseResponseRecord,
     ReplayOwnedResponseCapture,
+    RequireResponseFamily,
+    ResponseDestination,
+    ResponseFamily,
 )
 from fuzzy1337.owned_response_workflow import (
-    SOURCE_KIND,
     PersistenceStatus,
+    ReplayOwnedContentResponse,
     ReplayOwnedResponse,
     SourceFact,
 )
@@ -74,6 +79,49 @@ _ASSESSMENT_FIELDS = frozenset(("schema_version", "profile", "check_id", "analys
 _RECEIPT_ID = re.compile(r"sha256:[0-9a-f]{64}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _RESULT = TypeVar("_RESULT")
+
+_CONTENT_HEADER_PROFILE = "owned-response-header-absence.v2"
+
+
+def HeaderFamilyForProfile(profile: str) -> ResponseFamily:
+    """Select exactly one declared source family, never trial parsing or downgrade."""
+
+    if type(profile) is str:
+        if profile == _CATALOG_FAMILY.profile:
+            return _CATALOG_FAMILY
+
+        if profile == _CONTENT_FAMILY.profile:
+            return _CONTENT_FAMILY
+
+    raise NativeResponseHeaderError("native response source profile is unadmitted")
+
+
+def HeaderAssessmentFamily(attributes: Mapping[str, object]) -> ResponseFamily:
+    """Require the strict recorded assessment version before reopening original sources."""
+
+    schema = attributes.get("schema_version")
+
+    if type(schema) is int:
+        if schema == 1 and attributes.get("profile") == NATIVE_RESPONSE_PROFILE and (
+            "source_profile" not in attributes
+        ):
+            return _CATALOG_FAMILY
+
+        if schema == 2 and attributes.get("profile") == _CONTENT_HEADER_PROFILE and (
+            attributes.get("source_profile") == _CONTENT_FAMILY.profile
+        ):
+            return _CONTENT_FAMILY
+
+    raise NativeResponseHeaderError("native response assessment is unadmitted")
+
+
+def HeaderSourceDestination(url: str, family: ResponseFamily) -> tuple[str, int, str, str]:
+    """Keep the old source route separate from the explicitly selected content grammar."""
+
+    if RequireResponseFamily(family) is _CATALOG_FAMILY:
+        return Destination(url)[:4]
+
+    return ResponseDestination(url, family)
 
 
 class MissingHeaderRetentionError(NativeResponseHeaderError):
@@ -117,7 +165,8 @@ class HeaderAdmission:
                  receipt_id: str, target: Target, owner: str, analysis: str,
                  policy_provider: Callable[[], ImpactPolicy], approved: bool,
                  current_owner_provider: Callable[[], str] | None,
-                 clock: Callable[[], datetime]) -> None:
+                 clock: Callable[[], datetime], *,
+                 _family: ResponseFamily = _CATALOG_FAMILY) -> None:
         """Freeze selected attribution separately from the independent scope attester.
 
         Args:
@@ -141,7 +190,8 @@ class HeaderAdmission:
         self.owner, self.analysis = owner, analysis
         self.policy_provider, self.approved = policy_provider, approved
         self.current_owner_provider, self.clock = current_owner_provider, clock
-        self.literal_ip = Target(TargetKind.IP, Destination(target.value)[0])
+        self._family = RequireResponseFamily(_family)
+        self.literal_ip = Target(TargetKind.IP, HeaderSourceDestination(target.value, _family)[0])
         self.fixed: dict[str, object] | None = None
         self.issued: datetime | None = None
         self.expires: datetime | None = None
@@ -250,6 +300,9 @@ class HeaderAdmission:
                 "workflow_approved": True, "issued_at": self.issued.isoformat(),
                 "expires_at": self.expires.isoformat(), "checked_at": now.isoformat(),
             }
+            if self._family is _CONTENT_FAMILY:
+                basis["source_profile"] = self._family.profile
+
             fixed = {key: value for key, value in basis.items() if key != "checked_at"}
 
             if self.fixed is not None and fixed != self.fixed:
@@ -298,6 +351,7 @@ class OwnedHeaderSource:
     headers: bytes
     receipt_id: str
     job_id: str
+    _family: ResponseFamily = _CATALOG_FAMILY
 
     def RoleIds(self) -> dict[str, str]:
         """Return existing original manifest IDs by role without adopting a raw locator.
@@ -311,7 +365,8 @@ class OwnedHeaderSource:
 
 def ReadHeaderSource(root: Path, workspace: WorkspaceState, model: ModelState, receipt_id: str,
                      target: Target, scope_reference: str | None = None,
-                     admission: HeaderAdmission | None = None) -> OwnedHeaderSource:
+                     admission: HeaderAdmission | None = None, *,
+                     _family: ResponseFamily = _CATALOG_FAMILY) -> OwnedHeaderSource:
     """Join both original replay owners and exact retained seven-role source association.
 
     Args:
@@ -327,10 +382,19 @@ def ReadHeaderSource(root: Path, workspace: WorkspaceState, model: ModelState, r
         Original role bytes and source association after complete successful verification.
     """
 
-    product = SourceCall(admission, lambda: ReplayOwnedResponse(root, receipt_id))
-    store = OwnedResponseEvidenceStore(root / "evidence")
+    RequireResponseFamily(_family)
+
+    if _family is _CATALOG_FAMILY:
+        product = SourceCall(admission, lambda: ReplayOwnedResponse(root, receipt_id))
+        store = OwnedResponseEvidenceStore(root / "evidence")
+
+    else:
+        product = SourceCall(admission, lambda: ReplayOwnedContentResponse(root, receipt_id))
+        store = OwnedResponseEvidenceStore(root / "evidence", _family=_family)
     custody = SourceCall(admission, lambda: ReplayOwnedResponseCapture(store, receipt_id))
-    record = ParseOwnedResponseCapture(custody.record_json, target.value)
+    record = (ParseOwnedResponseCapture(custody.record_json, target.value)
+              if _family is _CATALOG_FAMILY else
+              ParseResponseRecord(custody.record_json, target.value, _family))
     records = product.records
     identities = tuple(item.evidence_id for item in records)
     roles = {item.reference.role for item in records}
@@ -353,7 +417,8 @@ def ReadHeaderSource(root: Path, workspace: WorkspaceState, model: ModelState, r
     receipt = next(item for item in records if item.evidence_id == receipt_id)
     original = receipt.provenance
 
-    if original.workspace_id != workspace.workspace_id or original.source_id != PROVIDER_ID or (
+    if original.workspace_id != workspace.workspace_id or (
+        original.source_id != _family.provider_id or
         original.source_version != "1" or original.tool_version != "1"
         or original.scope_reference not in workspace.scope_references
         or scope_reference is not None and original.scope_reference != scope_reference
@@ -364,8 +429,8 @@ def ReadHeaderSource(root: Path, workspace: WorkspaceState, model: ModelState, r
         raise NativeResponseHeaderError("original response source is unadmitted")
 
     expected = SourceFact(workspace.workspace_id, record, records, receipt_id,
-        product.original_job_id)
-    facts = tuple(item for item in model.observations if item.kind == SOURCE_KIND and
+        product.original_job_id, _family=_family)
+    facts = tuple(item for item in model.observations if item.kind == _family.source_kind and
         item.attributes.get("original_receipt_id") == receipt_id)
     endpoint_id = ObjectIdentity(workspace.workspace_id, ObjectKind.ENDPOINT, target.value)
     endpoint = next((item for item in model.objects if item.identity == endpoint_id), None)
@@ -391,7 +456,8 @@ def ReadHeaderSource(root: Path, workspace: WorkspaceState, model: ModelState, r
     ):
         raise NativeResponseHeaderError("original response source is unadmitted")
 
-    return OwnedHeaderSource(target, expected, records, raw, receipt_id, product.original_job_id)
+    return OwnedHeaderSource(target, expected, records, raw, receipt_id,
+                             product.original_job_id, _family)
 
 
 def HeaderFinding(source: OwnedHeaderSource, provenance: ModelProvenance) -> Finding:
@@ -431,6 +497,10 @@ def HeaderAssessment(source: OwnedHeaderSource, provenance: ModelProvenance,
         "original_role_ids": source.RoleIds(), "header_sha256": hashlib.sha256(
             source.headers).hexdigest(), "condition_observed": condition, "authority_basis": basis}
 
+    if source._family is _CONTENT_FAMILY:
+        attributes.update(schema_version=2, profile=_CONTENT_HEADER_PROFILE,
+                          source_profile=source._family.profile)
+
     if len(CanonicalModelJson(attributes)) > MAX_ASSESSMENT_BYTES:
         raise NativeResponseHeaderError("native response assessment is unadmitted")
 
@@ -455,12 +525,17 @@ def VerifyHeaderAssessment(workspace: WorkspaceState, model: ModelState,
     attributes = json.loads(CanonicalModelJson(assessment.attributes))
     basis = attributes.get("authority_basis")
     provenance = assessment.provenance
+    family = HeaderAssessmentFamily(attributes)
+    additional = {"source_profile"} if family is _CONTENT_FAMILY else set()
+
+    if family is not source._family:
+        raise NativeResponseHeaderError("native response assessment source differs")
 
     if assessment.kind != NATIVE_RESPONSE_ASSESSMENT_KIND or (
-        set(attributes) != _ASSESSMENT_FIELDS or
-        type(basis) is not dict or set(basis) != _BASIS_FIELDS
+        set(attributes) != _ASSESSMENT_FIELDS | additional or
+        type(basis) is not dict or set(basis) != _BASIS_FIELDS | additional
         or type(attributes.get("condition_observed")) is not bool
-        or type(attributes.get("schema_version")) is not int or attributes["schema_version"] != 1
+        or (family is _CONTENT_FAMILY and basis.get("source_profile") != family.profile)
     ):
         raise NativeResponseHeaderError("native response assessment is unadmitted")
 
@@ -484,7 +559,7 @@ def VerifyHeaderAssessment(workspace: WorkspaceState, model: ModelState,
         or basis["scope_reference"] != source.fact.provenance.scope_reference
         or basis["source_target_reference"] != source.target.Reference()
         or basis["literal_ip_reference"] != Target(TargetKind.IP,
-            Destination(source.target.value)[0]).Reference()
+            HeaderSourceDestination(source.target.value, family)[0]).Reference()
         or basis["original_receipt_id"] != source.receipt_id
         or basis["analysis_reference"] != provenance.run_reference
         or not cast(str, basis["policy_reference"]).startswith("policy:")
@@ -565,6 +640,7 @@ class OwnedResponseHeaderCheckSummary:
     model_revision: int | None = None
     workspace_revision: int | None = None
     failure: str | None = None
+    _family: ResponseFamily = _CATALOG_FAMILY
 
     def ToDict(self) -> dict[str, object]:
         """Render the closed version-one SDK result without rejected diagnostic material.
@@ -574,7 +650,8 @@ class OwnedResponseHeaderCheckSummary:
         """
 
         return {"schema_version": 1, "workflow": "owned-response-header-check", "state": self.state,
-            "source_id": NATIVE_RESPONSE_PROVIDER_ID, "profile": NATIVE_RESPONSE_PROFILE,
+            "source_id": NATIVE_RESPONSE_PROVIDER_ID, "profile": (NATIVE_RESPONSE_PROFILE
+                if self._family is _CATALOG_FAMILY else _CONTENT_HEADER_PROFILE),
             "check_id": NATIVE_RESPONSE_CHECK_ID, "impact": "PASSIVE",
             "original_receipt_id": self.original_receipt_id,
             "analysis_reference": self.analysis_reference,
@@ -583,7 +660,9 @@ class OwnedResponseHeaderCheckSummary:
             "assessment_reference": self.assessment_reference,
             "finding_reference": self.finding_reference, "model_commit": self.model_commit,
             "workspace_commit": self.workspace_commit, "model_revision": self.model_revision,
-            "workspace_revision": self.workspace_revision, "failure": self.failure}
+            "workspace_revision": self.workspace_revision, "failure": self.failure,
+            **({"source_profile": self._family.profile}
+               if self._family is _CONTENT_FAMILY else {})}
 
 
 @dataclass(frozen=True, slots=True)
@@ -597,6 +676,7 @@ class OwnedResponseHeaderReplaySummary:
     finding_reference: str | None
     model_revision: int
     workspace_revision: int
+    _family: ResponseFamily = _CATALOG_FAMILY
 
     def ToDict(self) -> dict[str, object]:
         """Render the closed historical result without target access or new persistence.
@@ -607,20 +687,24 @@ class OwnedResponseHeaderReplaySummary:
 
         return {"schema_version": 1, "workflow": "owned-response-header-replay",
             "state": "verified",
-            "source_id": NATIVE_RESPONSE_PROVIDER_ID, "profile": NATIVE_RESPONSE_PROFILE,
+            "source_id": NATIVE_RESPONSE_PROVIDER_ID, "profile": (NATIVE_RESPONSE_PROFILE
+                if self._family is _CATALOG_FAMILY else _CONTENT_HEADER_PROFILE),
             "check_id": NATIVE_RESPONSE_CHECK_ID, "original_receipt_id": self.original_receipt_id,
             "analysis_reference": self.analysis_reference,
             "assessment_reference": self.assessment_reference,
             "condition_observed": self.condition_observed,
             "finding_reference": self.finding_reference,
-            "model_revision": self.model_revision, "workspace_revision": self.workspace_revision}
+            "model_revision": self.model_revision, "workspace_revision": self.workspace_revision,
+            **({"source_profile": self._family.profile}
+               if self._family is _CONTENT_FAMILY else {})}
 
 
 def RequireHeaderConfiguration(root: Path, scope_id: str, receipt_id: str, target: Target,
                                owner: str, policy: Callable[[], ImpactPolicy], analysis: str,
                                model_revision: int, workspace_revision: int, approved: bool,
                                actor: Callable[[], str] | None,
-                               clock: Callable[[], datetime]) -> None:
+                               clock: Callable[[], datetime], *,
+                               _family: ResponseFamily = _CATALOG_FAMILY) -> None:
     """Reject malformed preconfiguration before source I/O, without interpreting it as consent.
 
     Args:
@@ -647,7 +731,7 @@ def RequireHeaderConfiguration(root: Path, scope_id: str, receipt_id: str, targe
         ):
             raise ValueError("configuration")
 
-        Destination(target.value)
+        HeaderSourceDestination(target.value, _family)
 
         for text in (scope_id, owner, analysis):
             RequireWorkspaceText(text, "selection")
@@ -667,7 +751,8 @@ def RequireHeaderConfiguration(root: Path, scope_id: str, receipt_id: str, targe
 class HeaderAttempt:
     """Keep original-basis persistence and independent outcome observation in one attempt."""
 
-    def __init__(self, root: Path, receipt_id: str, analysis: str, target: Target) -> None:
+    def __init__(self, root: Path, receipt_id: str, analysis: str, target: Target, *,
+                 _family: ResponseFamily = _CATALOG_FAMILY) -> None:
         """Initialize outcome tracking without reading sources or granting permission.
 
         Args:
@@ -678,6 +763,7 @@ class HeaderAttempt:
         """
 
         self.root, self.receipt_id, self.analysis, self.target = root, receipt_id, analysis, target
+        self._family = RequireResponseFamily(_family)
         self.workspace: WorkspaceState | None = None
         self.model: ModelState | None = None
         self.model_proposed: ModelState | None = None
@@ -734,7 +820,8 @@ class HeaderAttempt:
             self.assessment.Reference() if retained and self.assessment is not None else None,
             self.finding_reference if retained else None, model_status, workspace_status,
             actual_model.revision if actual_model is not None else None,
-            actual_workspace.revision if actual_workspace is not None else None, failure)
+            actual_workspace.revision if actual_workspace is not None else None, failure,
+            self._family)
 
     def Run(self, scope_id: str, owner: str, policy: Callable[[], ImpactPolicy], approved: bool,
             actor: Callable[[], str] | None, clock: Callable[[], datetime],
@@ -770,11 +857,12 @@ class HeaderAttempt:
                 raise WorkspaceConflictError("original basis changed")
 
             admission = HeaderAdmission(self.root, scope_id, workspace, model, self.receipt_id,
-                self.target, owner, self.analysis, policy, approved, actor, clock)
+                self.target, owner, self.analysis, policy, approved, actor, clock,
+                _family=self._family)
             basis = admission.Check()
             phase = "source"
             source = ReadHeaderSource(self.root, workspace, model, self.receipt_id, self.target,
-                cast(str, basis["scope_reference"]), admission)
+                cast(str, basis["scope_reference"]), admission, _family=self._family)
 
             if self.analysis == source.job_id:
                 raise NativeResponseHeaderError("analysis identity differs from acquisition")
@@ -889,6 +977,7 @@ def ApplyOwnedResponseHeaderCheck(
     approve_passive_header_check: bool = False,
     current_owner_provider: Callable[[], str] | None = None,
     clock: Callable[[], datetime] = UtcNow,
+    source_profile: str = _CATALOG_FAMILY.profile,
 ) -> OwnedResponseHeaderCheckSummary:
     """Interpret one verified original response with separate explicit PASSIVE admission.
 
@@ -909,15 +998,19 @@ def ApplyOwnedResponseHeaderCheck(
         approve_passive_header_check: Separate opt-in, default denied.
         current_owner_provider: Optional trusted actor reader, never an attester alias.
         clock: Fresh aware receiver clock; original window never renews.
+        source_profile: Explicit original source family; defaults to the unchanged catalog profile.
 
     Returns:
         Truthful completed, denied, failed, already-applied or partial outcome.
     """
 
+    family = HeaderFamilyForProfile(source_profile)
     RequireHeaderConfiguration(workspace_root, scope_id, original_receipt_id, source_target,
         owner_reference, policy_provider, analysis_reference, expected_model_revision,
-        expected_workspace_revision, approve_passive_header_check, current_owner_provider, clock)
-    attempt = HeaderAttempt(workspace_root, original_receipt_id, analysis_reference, source_target)
+        expected_workspace_revision, approve_passive_header_check, current_owner_provider, clock,
+        _family=family)
+    attempt = HeaderAttempt(workspace_root, original_receipt_id, analysis_reference, source_target,
+                            _family=family)
 
     return attempt.Run(scope_id, owner_reference, policy_provider, approve_passive_header_check,
         current_owner_provider, clock, expected_model_revision, expected_workspace_revision)
@@ -956,6 +1049,7 @@ def ReplayOwnedResponseHeaderCheck(
             raise ValueError("selection")
 
         assessment = matches[0]
+        family = HeaderAssessmentFamily(assessment.attributes)
         endpoint = next((item for item in model.objects if
             item.Reference() == assessment.subject_reference), None)
 
@@ -963,19 +1057,20 @@ def ReplayOwnedResponseHeaderCheck(
             raise ValueError("subject")
 
         target = Target(TargetKind.URL, endpoint.identity.key)
-        Destination(target.value)
+        HeaderSourceDestination(target.value, family)
         receipt_id = assessment.attributes.get("original_receipt_id")
 
         if type(receipt_id) is not str or _RECEIPT_ID.fullmatch(receipt_id) is None:
             raise ValueError("receipt")
 
-        source = ReadHeaderSource(workspace_store.root, workspace, model, receipt_id, target)
+        source = ReadHeaderSource(workspace_store.root, workspace, model, receipt_id, target,
+                                  _family=family)
         reference = VerifyHeaderAssessment(workspace, model, assessment, source)
 
         return OwnedResponseHeaderReplaySummary(receipt_id,
             cast(str, assessment.attributes["analysis_reference"]), assessment.Reference(),
             cast(bool, assessment.attributes["condition_observed"]), reference,
-            model.revision, workspace.revision)
+            model.revision, workspace.revision, family)
 
     except Exception:
         raise NativeResponseHeaderError("native response header replay is unverified") from None
