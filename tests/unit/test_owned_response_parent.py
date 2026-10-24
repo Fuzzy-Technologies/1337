@@ -58,6 +58,24 @@ URL = "http://127.0.0.1:32123/zap-passive/missing"
 AT = datetime(2026, 10, 24, tzinfo=timezone.utc)
 
 
+def FakePosixInfo(info):
+    """Model private POSIX modes and coherent ctime without claiming native Windows permissions."""
+
+    fields = {
+        key: getattr(info, key)
+        for key in (
+            "st_dev", "st_ino", "st_uid", "st_nlink", "st_size", "st_mtime_ns", "st_ctime_ns",
+        )
+    }
+    fields["st_mode"] = stat.S_IFMT(info.st_mode) | (
+        0o700 if stat.S_ISDIR(info.st_mode) else 0o600
+    )
+    # Native Windows path/handle ctime differs; this unit view models it from unchanged real mtime.
+    fields["st_ctime_ns"] = info.st_mtime_ns
+
+    return SimpleNamespace(**fields)
+
+
 @pytest.fixture(autouse=True)
 def private_system(monkeypatch):
     """Isolate an explicit fake POSIX view without changing global platform or permission claims."""
@@ -78,36 +96,15 @@ def private_system(monkeypatch):
         path_info = custody.ArtifactPathInfo
         handle_info = custody.ArtifactHandleInfo
 
-        def ModeView(info):
-            """Project unit-only POSIX modes without claiming Windows ACL proof."""
-
-            fields = {
-                key: getattr(info, key)
-                for key in (
-                    "st_dev",
-                    "st_ino",
-                    "st_uid",
-                    "st_nlink",
-                    "st_size",
-                    "st_mtime_ns",
-                    "st_ctime_ns",
-                )
-            }
-            fields["st_mode"] = stat.S_IFMT(info.st_mode) | (
-                0o700 if stat.S_ISDIR(info.st_mode) else 0o600
-            )
-
-            return SimpleNamespace(**fields)
-
         def PathInfo(path, *, directory=False):
             """Retain actual identity/size checks under the unit-only mode view."""
 
-            return ModeView(path_info(path, directory=directory))
+            return FakePosixInfo(path_info(path, directory=directory))
 
         def HandleInfo(descriptor):
             """Retain the actual opened handle identity under the unit-only mode view."""
 
-            return ModeView(handle_info(descriptor))
+            return FakePosixInfo(handle_info(descriptor))
 
         monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
         monkeypatch.setattr(custody, "ArtifactHandleInfo", HandleInfo)
@@ -715,6 +712,93 @@ def test_PortableCustodyDiagnosticsIdentifyExactPhysicalFieldWithoutValues(
     }, "The diagnostic must identify only the original unequal physical field"
     assert all(equal for _, equal in checks["fd-open/fd-after"]), (
         "Two stable original handle views must remain distinct from the mismatching path view"
+    )
+
+
+def test_FakePosixViewRepairsProvenCrossApiCtimeMismatchOnly(tmp_path, monkeypatch):
+    """Actual strict ReadPrivate refuses the proven old view and accepts coherent unit metadata."""
+
+    import fuzzy1337.owned_response_custody as custody
+
+    selected = tmp_path / "original"
+    raw = b"closed unit bytes"
+    selected.write_bytes(raw)
+    selected.chmod(0o600)
+    path_info = custody.ArtifactPathInfo
+    handle_info = custody.ArtifactHandleInfo
+    coherent = [False]
+
+    def PathInfo(path, *, directory=False):
+        """Model one stable path ctime view while preserving real common identity fields."""
+
+        info = FakePosixInfo(path_info(path, directory=directory))
+        info.st_ctime_ns += 1
+
+        return FakePosixInfo(info) if coherent[0] else info
+
+    def HandleInfo(descriptor):
+        """Model the distinct stable handle ctime that the actual Windows trace identified."""
+
+        info = FakePosixInfo(handle_info(descriptor))
+        info.st_ctime_ns += 2
+
+        return FakePosixInfo(info) if coherent[0] else info
+
+    monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
+    monkeypatch.setattr(custody, "ArtifactHandleInfo", HandleInfo)
+
+    with pytest.raises(ValueError, match="staging changed during read"):
+        ReadPrivate(selected, len(raw))
+
+    coherent[0] = True
+    assert ReadPrivate(selected, len(raw)) == raw, (
+        "Only the explicit fake POSIX metadata view may reconcile the stable cross-API ctime"
+    )
+
+
+@pytest.mark.parametrize("changed", ("path-after", "fd-after"))
+def test_CoherentUnitViewStillRefusesExactCtimeOnlyMutation(tmp_path, monkeypatch, changed):
+    """The untouched production five-field guard rejects a ctime-only change after projection."""
+
+    import fuzzy1337.owned_response_custody as custody
+
+    selected = tmp_path / "original"
+    selected.write_bytes(b"closed unit bytes")
+    selected.chmod(0o600)
+    path_info = custody.ArtifactPathInfo
+    handle_info = custody.ArtifactHandleInfo
+    calls = {"path": 0, "fd": 0}
+
+    def PathInfo(path, *, directory=False):
+        """Preserve the original coherent path view except the selected second observation."""
+
+        info = FakePosixInfo(path_info(path, directory=directory))
+        calls["path"] += 1
+
+        if changed == "path-after" and calls["path"] == 2:
+            info.st_ctime_ns += 1
+
+        return info
+
+    def HandleInfo(descriptor):
+        """Preserve real fields and inject only the selected second handle ctime."""
+
+        info = FakePosixInfo(handle_info(descriptor))
+        calls["fd"] += 1
+
+        if changed == "fd-after" and calls["fd"] == 2:
+            info.st_ctime_ns += 1
+
+        return info
+
+    monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
+    monkeypatch.setattr(custody, "ArtifactHandleInfo", HandleInfo)
+
+    with pytest.raises(ValueError, match="staging changed during read"):
+        ReadPrivate(selected, 1024)
+
+    assert calls["fd"] == 2 and calls["path"] == (2 if changed == "path-after" else 1), (
+        "The original strict comparison must actually observe and reject the ctime-only mutation"
     )
 
 
