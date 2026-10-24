@@ -5,9 +5,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import shlex
+import socket
+from collections.abc import Iterator
 from types import SimpleNamespace
 
 import pytest
@@ -25,6 +28,60 @@ from fuzzy1337.shell import InteractiveShell
 URL = "http://127.0.0.1:19008/zap-passive/missing"
 RECEIPT = "sha256:" + "a" * 64
 ASSESSMENT = "observation:" + "b" * 64
+
+
+@pytest.fixture(scope="module")
+def owned_header_runner() -> Iterator[asyncio.Runner]:
+    """Initialize portable loop resources before the unchanged unit network guard."""
+
+    with asyncio.Runner() as runner:
+        runner.get_loop()
+        yield runner
+
+
+@pytest.fixture
+def header_runner(owned_header_runner: asyncio.Runner, monkeypatch) -> Iterator[asyncio.Runner]:
+    """Reuse the original loop and settle its remaining tasks at each test boundary."""
+
+    def ReopenLoop():
+        """Reject lazy loop/self-pipe creation after the unit network guard is active."""
+
+        raise AssertionError("Header CLI units must reuse their initialized event loop")
+
+    monkeypatch.setattr(commands.asyncio, "run", owned_header_runner.run)
+    monkeypatch.setattr(asyncio.events, "new_event_loop", ReopenLoop)
+
+    yield owned_header_runner
+
+    async def Cleanup() -> None:
+        """Cancel and await remaining test-owned tasks without constructing another loop."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    owned_header_runner.run(Cleanup())
+
+
+def test_HeaderRunnerPreservesNetworkDenial(header_runner):
+    """Preinitializing self-pipe resources must not permit unit connection side effects."""
+
+    async def CheckConnections():
+        """Observe the original initialized loop with unchanged network denials active."""
+
+        assert asyncio.get_running_loop() is header_runner.get_loop(), (
+            "Header CLI units must run on their original initialized loop."
+        )
+
+        with socket.socket() as connection:
+            for callback in (connection.connect, connection.connect_ex, socket.create_connection):
+                with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                    callback(("127.0.0.1", 9))
+
+    header_runner.run(CheckConnections())
 
 
 def Arguments(root):
@@ -343,7 +400,7 @@ def test_HeaderHelpNeedsNoWorkspaceOrOriginals(boundary, action, expected, capsy
 
 @pytest.mark.parametrize("mode", ["plan", "json", "events", "human"])
 def test_LegacyCapturePresentationStillDelegatesOnlyToItsOwnSdk(
-    boundary, mode, monkeypatch, capsys,
+    boundary, mode, header_runner, monkeypatch, capsys,
 ):
     """Adding offline actions must preserve original capture policy, event and approval handoffs."""
 
