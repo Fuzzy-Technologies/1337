@@ -66,6 +66,15 @@ rejects stale dependency metadata instead of rewriting the lock. Build backend
 constraints also pin the editable-build environment. Update dependency pins and
 the lock together in a reviewed change; do not regenerate them during CI.
 
+When adding a production module, update the explicit API inventory, authored
+canonical reference and locale units before final readiness. Run this focused
+preflight without the full suite:
+
+```bash
+uv run --locked --extra dev pytest -o addopts='' --no-cov \
+  tests/unit/test_api_reference.py::test_InventoryCoversEverySourceModule
+```
+
 `1337-dev setup` is the repeatable CLI entry point for the locked development
 environment. It invokes `uv sync --locked --extra dev` with `shell=False` and
 fails if the pinned `uv` executable is unavailable. The initial one-time
