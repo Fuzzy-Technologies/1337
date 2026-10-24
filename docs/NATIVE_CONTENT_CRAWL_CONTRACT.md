@@ -71,16 +71,16 @@ PolicyContext nor worker input/output; actor attribution stays parent-owned.
 
 Per-page input has exactly these fields:
 
-| Field                      | Meaning                                                    |
-| -------------------------- | ---------------------------------------------------------- |
-| `schema_version`           | Exact integer 1                                            |
-| `profile`                  | `owned-loopback-content-crawl.v1`                          |
-| `workspace_id`             | Existing lowercase identifier, at most 64 ASCII characters |
-| `seed_url`                 | Original exact selected seed                               |
-| `source_url`               | Current exact selected source                              |
-| `selected_urls`            | Entire immutable sorted admitted set, including both above |
-| `max_body_bytes`           | Exact integer per-page admission/allocation ceiling        |
-| `request_timeout_ms`       | Exact integer complete-request deadline in milliseconds    |
+| Field                | Meaning                                                    |
+| -------------------- | ---------------------------------------------------------- |
+| `schema_version`     | Exact integer 1                                            |
+| `profile`            | `owned-loopback-content-crawl.v1`                          |
+| `workspace_id`       | Existing lowercase identifier, at most 64 ASCII characters |
+| `seed_url`           | Original exact selected seed                               |
+| `source_url`         | Current exact selected source                              |
+| `selected_urls`      | Entire immutable sorted admitted set, including both above |
+| `max_body_bytes`     | Exact integer per-page admission/allocation ceiling        |
+| `request_timeout_ms` | Exact integer complete-request deadline in milliseconds    |
 
 Use `SerializeContract(input).encode("ascii")`, at most 24576 bytes, without
 newline/BOM/whitespace. The same object is frozen in AdapterRequest.parameters;
