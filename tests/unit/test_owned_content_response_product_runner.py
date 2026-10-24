@@ -13,6 +13,7 @@ import pytest
 from tests.contract.owned_content_response_oracle import CaseMatrix
 from tests.contract.owned_content_response_product_runner import (
     SOURCE_MODULES,
+    AbsoluteRuntimePath,
     AssertContentInstallation,
     AssertContentWorkerCase,
     AssertWorkerCohort,
@@ -104,6 +105,66 @@ def Installation() -> tuple[dict, dict]:
         "sha256": digest} for name, digest in modules.items()}}
 
     return identity, imported
+
+
+@pytest.mark.parametrize("prefix", ["/owned/lib/site-packages/fuzzy1337/",
+    "C:\\owned\\Lib\\site-packages\\fuzzy1337\\", "C:/owned/Lib/site-packages/fuzzy1337/"])
+def test_InstalledAbsolutePathPortabilityPreservesExactModuleBindings(prefix):
+    """Real Windows drive-absolute spelling is valid without reading or running that platform."""
+
+    identity, imported = Installation()
+
+    for name in SOURCE_MODULES:
+        suffix = name.replace("/", "\\") if "\\" in prefix else name
+        imported["installed_sources"][name]["path"] = prefix + suffix
+
+    AssertContentInstallation(identity, imported, commit=COMMIT, tree=TREE)
+
+
+@pytest.mark.parametrize("python", ["/owned/bin/python", "C:\\owned\\Scripts\\python.exe",
+    "C:/owned/Scripts/python.exe"])
+def test_WorkerAbsoluteInterpreterPortabilityPreservesOriginalArgv(python):
+    """Either installed absolute path flavor remains the exact original invocation value."""
+
+    case = next(case for case in CaseMatrix() if case.name == "missing")
+    url = f"http://127.0.0.1:15432{case.path}"
+    stdout = case.ExpectedStdout(url)
+    process = Process(stdout, url, 0)
+    process["argv"][0] = python
+    AssertContentWorkerCase(case.name, url, process, stdout, b"", python=python)
+
+
+@pytest.mark.parametrize("path", ["relative/bin/python", "C:owned\\python.exe",
+    "\\owned\\python.exe", "C:\\owned\\..\\python.exe", "C:/owned/../python.exe",
+    "/owned/../bin/python", "C:\\owned\\.\\python.exe", "/owned/./bin/python",
+    "\\\\server\\share\\python.exe", "\\\\?\\C:\\owned\\python.exe",
+    "//server/share/python", "C:\\owned\\python.exe:stream", "/owned//bin/python"])
+def test_RuntimePathPortabilityRefusesAmbiguousOrNonlocalSpelling(path):
+    """Lexical portability never introduces normalization, implicit drives or traversal."""
+
+    with pytest.raises(AssertionError):
+        AbsoluteRuntimePath(path)
+
+
+@pytest.mark.parametrize("mutation", ["drive", "root", "flavor", "suffix"])
+def test_WindowsInstalledPathsRetainOneExactPackageRootAndSuffix(mutation):
+    """A valid module digest alone cannot bridge foreign drives, roots or source locations."""
+
+    identity, imported = Installation()
+
+    for name in SOURCE_MODULES:
+        imported["installed_sources"][name]["path"] = (
+            "C:\\owned\\Lib\\site-packages\\fuzzy1337\\" + name.replace("/", "\\"))
+
+    name = SOURCE_MODULES[0]
+    prefix = {"drive": "D:\\owned\\Lib\\site-packages\\fuzzy1337\\",
+        "root": "C:\\other\\Lib\\site-packages\\fuzzy1337\\",
+        "flavor": "/owned/lib/site-packages/fuzzy1337/",
+        "suffix": "C:\\owned\\Lib\\site-packages\\other-package\\"}[mutation]
+    imported["installed_sources"][name]["path"] = prefix + name
+
+    with pytest.raises(AssertionError):
+        AssertContentInstallation(identity, imported, commit=COMMIT, tree=TREE)
 
 
 def test_ExactPinnedSourceWheelAndInstalledModuleBinding():

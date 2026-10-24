@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from pathlib import PurePosixPath
+from pathlib import PurePosixPath, PureWindowsPath
 from urllib.parse import urlsplit
 
 from tests.contract.owned_content_response_oracle import CaseMatrix
@@ -23,6 +23,40 @@ SOURCE_MODULES = ("adapters/owned_content_response.py", "owned_content_response_
     "native_response_headers.py", "native_response_header_workflow.py")
 CASES = {case.name: case for case in CaseMatrix()}
 MAX_STDOUT_BYTES = 131072
+
+
+def AbsoluteRuntimePath(value: str) -> PurePosixPath | PureWindowsPath:
+    """Admit lexical local absolute paths without resolving or rewriting original values.
+
+    Args:
+        value: Original selected interpreter or observed installed source path.
+
+    Returns:
+        Its explicit POSIX or Windows-drive path flavor for suffix/root comparison only.
+        Drive-relative, root-relative, device/UNC and traversal spellings are refused.
+    """
+
+    assert type(value) is str and value and not any(ord(char) < 32 for char in value), (
+        "Runtime paths must be nonempty literal text without control characters")
+    windows = PureWindowsPath(value)
+
+    if windows.drive or "\\" in value:
+        assert re.fullmatch(r"[A-Za-z]:", windows.drive) and windows.is_absolute(), (
+            "Windows runtime paths require an explicit local drive and root")
+        segments = value[3:].replace("\\", "/").split("/")
+        assert ":" not in value[2:], "Windows alternate streams are not runtime paths"
+        path: PurePosixPath | PureWindowsPath = windows
+
+    else:
+        assert value.startswith("/") and not value.startswith("//"), (
+            "POSIX runtime paths require an explicit local absolute root")
+        segments = value[1:].split("/")
+        path = PurePosixPath(value)
+
+    assert all(part not in ("", ".", "..") for part in segments), (
+        "Traversal or implicitly normalized path segments cannot establish installed identity")
+
+    return path
 
 
 def WorkerCaseIdentities() -> tuple[str, ...]:
@@ -82,12 +116,13 @@ def AssertContentInstallation(installation: dict, imported: dict, *, commit: str
 
     for name in SOURCE_MODULES:
         item = observed[name]
-        path = PurePosixPath(item["path"])
-        suffix = "/site-packages/fuzzy1337/" + name
-        assert path.is_absolute() and ".." not in path.parts and str(path).endswith(suffix), (
+        path = AbsoluteRuntimePath(item["path"])
+        module_parts = PurePosixPath(name).parts
+        suffix = ("site-packages", "fuzzy1337", *module_parts)
+        assert path.parts[-len(suffix):] == suffix, (
             "Checkout, editable, relative and fallback imports are not installed acceptance")
         assert item["sha256"] == wheel[name], "Imported bytes must match the retained actual wheel"
-        roots.add(str(path)[:-len(name)])
+        roots.add(path.parents[len(module_parts) - 1])
 
     assert len(roots) == 1, "All observed imports must belong to one installed package"
 
@@ -144,8 +179,7 @@ def AssertContentWorkerCase(name: str, url: str, process: dict, stdout: bytes, s
     host = "[::1]" if selected.hostname == "::1" else "127.0.0.1"
     assert url == f"http://{host}:{selected.port}{case.path}", (
         "No normalized URL, alternate case path, query or fragment can replace selection")
-    assert PurePosixPath(python).is_absolute() and ".." not in PurePosixPath(python).parts, (
-        "Worker acceptance requires the selected absolute installed interpreter")
+    AbsoluteRuntimePath(python)
     argv = (python, "-I", "-B", "-m", "fuzzy1337.owned_content_response_worker", url)
     AssertOriginalTerminalProcess(process, stdout, stderr, argv=argv)
     assert stderr == b"" and len(stdout) <= MAX_STDOUT_BYTES, (
