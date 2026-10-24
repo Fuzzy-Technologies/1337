@@ -2,12 +2,16 @@
 
 ## Status and owners
 
-Proposed Experimental contract, 2026-10-23, under [ADR0095](adr/0095-owned-response-zap-passive-profile.md).
+Experimental design under [ADR0095](adr/0095-owned-response-zap-passive-profile.md).
+The coordinator accepted the `2d1af60` record/schema, admission, receipt branches
+and byte ceilings on 2026-10-24, followed by the independently reviewed `fcd1d17`
+parent launch/recovery design with the clarifications below. Genuine runtime
+acceptance remains separate; parent source requires its own assigned work slice.
 This document and [worker record schema](../contracts/owned-response-capture-record.schema.json)
 freeze a reviewable acquisition proposal. They do not implement or enroll a
 provider, authorize execution, prove original custody or establish a ZAP result.
 The existing page/discovery records, non-retention promises and defaults remain
-unchanged. Source implementation requires separate approval of this contract.
+unchanged. The separately assigned pure worker/parser does not enroll a provider.
 
 The provider is `native.loopback-response`; its sole capability is
 `http.synthetic-response-capture`, at SAFE impact. Use the existing PolicyEngine,
@@ -136,8 +140,9 @@ alphabet or nonzero padding bits. Check every actual length and lowercase SHA-25
 against decoded originals; bind case, path, URL, address and port together.
 JSON Schema alone cannot enforce these cross-field/byte/primitive-type rules.
 
-The following are proposed inclusive implementation ceilings, pending root
-review and actual fixed-worker acceptance. They are not inherited permissions:
+The byte ceilings below are accepted implementation admission ceilings. Accepted
+time allocations are measured fail-on-late budgets, not hard real-time limits;
+actual fixed-worker acceptance remains required. These are not inherited permissions:
 
 | Boundary                       | Ceiling                                                     |
 | ------------------------------ | ----------------------------------------------------------- |
@@ -159,7 +164,160 @@ stderr, observer failure or missing terminal state cannot be called a complete
 record. Counters describe retained observations, not all bytes a peer/child may
 have produced or discarded. OS scheduling and blocking filesystem calls do not
 turn these budgets into hard real-time guarantees. Evidence manifest limits and
-job quotas remain independently enforced by their existing owners.
+job event limits remain enforced by their existing owners. The provider must
+enforce aggregate payload/role ceilings itself: JobSpec/CaptureEvidence have no
+aggregate artifact-count or payload-byte quota.
+
+## Accepted parent launch and recovery design
+
+This section freezes the approved parent recipe, not executable source. The
+initial parent profile supports Linux private POSIX file permissions only;
+unsupported platforms refuse before launch. This does not require Java
+namespaces, a generic FD API, a new authority owner or descendant opt-in.
+
+Use the explicitly selected trusted installed Python/1337 runtime. Freeze the
+absolute selected `sys.executable`; never search PATH, use a shell/checkout file,
+or fall back to PYTHONPATH/editable imports. Exact argv is:
+
+```text
+<absolute-python> -I -B -m fuzzy1337.owned_response_capture_worker <canonical-url>
+```
+
+The canonical URL is the sole argument; case, limits and the 5-second worker
+deadline are constants. AdapterRequest is SAFE with the source Target.Reference(),
+exactly `{"url": "<canonical-url>"}` parameters and no credential references.
+AdapterInvocation binds `native.loopback-response` / version `1`, exact argv and
+integer timeout 10. LocalExecutionRequest uses the existing capability and
+original PolicyGrant.authorization, `ExecutionResources(8192, 1, 0.5)`, and
+ordinary `GovernedLocalExecutor.Execute(..., own_descendants=False)`. The fixed
+stdlib worker spawns no children. Reuse its exact current pre-launch validator,
+shared cancellation and awaited process cleanup; this is not an OS sandbox.
+PolicyEngine binds invocation/capability authority, not workspace, environment
+or resources. Before Execute, the closed parent compares the whole actual request
+with its frozen fixed projection, including original authorization, workspace,
+environment and resources. Its synchronous current-context closure captures that
+same actual immutable request passed to GovernedLocalExecutor.Execute, repeats
+the whole-request comparison and original directory-identity checks before
+returning fresh PolicyContext. The existing facade invokes that closure at its
+pre-launch boundary; do not claim that the facade alone enforces these extra
+request fields. No new generic hook or authority store is required.
+
+Create a fresh exclusive 0700 workspace operation directory
+`owned-response-<32-lowercase-hex>` with a 0700 `work` child. Request.workspace is
+that relative child path. Bind original workspace/operation/work physical
+identities, refusing links/reparse points, replacement or conflicting occupancy.
+Directory identity uses device/inode/kind/owner/mode; do not freeze directory
+size/mtime/ctime across the owner's own child-file writes. File read verification
+uses the existing full before/open/after physical identity checks.
+The worker writes no files. Remove work only after executor cleanup is confirmed
+and original directory identity is checked; canonical evidence is elsewhere.
+
+LocalExecutor merges inherited environment with request.environment. Override
+**all nine** inherited names; an empty mapping does not clear them:
+
+| Keys                                       | Exact value                              |
+| ------------------------------------------ | ---------------------------------------- |
+| LANG, LC_ALL                               | `C`                                      |
+| PATH, COMSPEC, PATHEXT, SYSTEMROOT, WINDIR | Empty string                             |
+| TEMP, TMP                                  | Absolute original private work directory |
+
+Permit no other environment keys. Bind/check this complete effective map in the
+full request at pre-launch. `-I` excludes Python environment/user-site input;
+`-B` disables bytecode writes. Trusted installed runtime provenance is not
+publisher attestation of all dependencies. Acceptance must prove this exact
+installed isolated recipe works, without importing checkout code.
+
+Use one monotonic provider origin and absolute 28-second provider deadline;
+require JobSpec.timeout_seconds exactly 30. Phase allowances are cumulative and
+sum to 28; progress/retry never renews a phase or shared deadline:
+
+| Phase                                        | Allowance |
+| -------------------------------------------- | --------- |
+| Validate inputs and prepare private work     | 2 s       |
+| Execute, including spawn and awaited cleanup | 16 s      |
+| Admit, stage, publish and verify custody     | 8 s       |
+| Final current authority and persistence      | 2 s       |
+
+Execution reserves startup 2 seconds, original invocation timeout 10 and
+cancellation/cleanup 4. The 5-second request deadline is inside invocation.
+LocalExecutor's timeout starts after spawn/STARTED notification, so the parent
+must independently account for startup and shared remaining time. On forward
+budget expiry, signal the cooperative cancellation bridge, await the same
+Execute task through cleanup, and preserve its actual status/failure; never
+abandon a shielded task or launch a replacement. Caller/job cancellation follows
+that same ownership path. The extra 2 job seconds are terminal/scheduling margin,
+not forward work. Any late return fails the phase/shared budget. Blocking OS/fsync
+calls are measured after return, not claimed to be preempted by a hard timer.
+
+Use ScanJob(max_events=32), at most two synchronous lifecycle heartbeats, two fixed
+progress updates and seven artifact events. Forward no raw executor fragments.
+The synchronous observer does bounded counter/control work and never awaits an
+external callback. Preserve existing cancellation/failure/terminal event slots.
+Enforce <=3145728 payload bytes and <=8 roles before the first publication and
+again as data is retained. This slice publishes no HAR; its eighth role remains
+reserved for the separately reviewed derivation.
+
+After full record/result/wire admission, and before the first Put, stage exact
+safe original result/fragments, fixed request, frozen provenance and the ordered
+publication plan in exclusive 0600 `admitted.json` below the original private
+operation directory. It is at most 3145728 bytes. Seven success roles are stdout,
+stderr, request, headers, body, response and receipt, in the evidence-table order;
+a closed refusal has only stdout, stderr and receipt. Stage the exact candidate
+manifests/bytes without changing timestamps. A computed candidate manifest ID is
+only a planned address, never an original Put/attachment acknowledgement.
+Publish the receipt only after every preceding part/stream has its actual original
+acknowledgement and successful exact Get/Read verification; planned IDs do not suffice.
+
+The sole companion `publication.log` is append-only, 0600, <=131072 bytes: at most
+16 canonical JSON frames, each <=8192 bytes including its four-byte unsigned
+big-endian length. Frames are one header, up to seven intent/ack pairs and one
+final status. Header binds operation/workspace/owner, original directory identity
+and admitted.json digest/size; intent binds role/candidate ID; ack contains only
+an actual returned original ID. Fsync/read back admitted.json and each complete
+intent before CaptureEvidence; fsync/read back ack only after actual original
+return and Get/Read verification. A reconciled real original Snapshot artifact
+can establish that attachment separately; a computed candidate never can.
+Reject partial/reordered/duplicate frames,
+replacement, unsafe modes/kinds or overflow. Preserve without truncation/repair.
+Use existing artifact physical read checks; this stage is recovery material,
+not a second evidence or authority store. Unadmitted bytes/hashes never enter it;
+invalid output uses only the earlier safe control-only receipt branch.
+
+On the first CaptureEvidence/verification error, stop publication and retain
+the admitted stage and every actual acknowledged attachment. Do not replace a
+partially published capture with all-null control custody. Recovery is read-only:
+the coordinator can inspect the original ScanJob.Snapshot().artifacts and perform
+one bounded Get(candidate_id)/Read(reference) per staged role, without enumeration.
+Authenticate exact manifests/bytes, keeping stored/absent/unverifiable separate
+from acknowledged/unknown. A real existing JobArtifact can recover attachment
+information after ARTIFACT publication failed. Candidate-ID storage verification
+does not recover an unreturned Put/attachment acknowledgement or upgrade
+incomplete custody to successful replay. Across restart, an unavailable original
+job snapshot leaves attachment status unknown even if candidate objects exist.
+
+Never re-Put, create a replacement job, attach after terminal, rewrite receipts,
+change provenance, repair partial logs or rerun acquisition for recovery. Current
+public APIs provide no terminal attach-existing operation; that is a deliberate
+incomplete state, not a reason to add one in this slice. Retain admitted stage on
+any uncertain custody/persistence result. Remove stage files only after all actual
+original acknowledgements, complete receipt verification and owning persistence
+acknowledgements. Before fsync/readback or after a crash, report only what can be
+proved; this is not a power-loss guarantee.
+
+| Existing API                                                     | Reuse and exact boundary                                                                           |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| PolicyEngine.Authorize / Validate; GovernedLocalExecutor.Execute | Invocation/capability authority; closed parent closure additionally checks the whole fixed request |
+| LocalExecutor.Execute / ExecutionResources                       | Process group, stream limits, cleanup; no sandbox or artifact aggregate                            |
+| ScanJob / JobSpec / Snapshot                                     | Deadline, terminal state and actual partial artifact snapshot                                      |
+| JobContext.Cancellation / Heartbeat                              | Shared cancellation and bounded safe control only                                                  |
+| JobContext.CaptureEvidence                                       | Put, append artifact, then ARTIFACT event; may raise after storage/attachment                      |
+| LocalEvidenceStore.Put                                           | Blob then manifest; failure may leave either without an acknowledgement                            |
+| LocalEvidenceStore.Get / Read                                    | Authenticate stored originals; no attachment or lost-Put acknowledgement                           |
+| ArtifactPathInfo / ArtifactHandleInfo / PhysicalIdentity         | Existing selected physical staging/read checks                                                     |
+
+These are existing methods in `policy.py`, `executors/local.py`, `jobs.py`,
+`evidence.py` and `artifact_inputs.py`. Do not use generic raw-stream-first
+LocalExecutionJob unchanged: admission must precede any raw publication.
 
 ## Canonical evidence and actual execution receipt
 
@@ -251,7 +409,8 @@ Future code must preserve cleanup on caller cancellation without abandoning a
 background task. A failed Put or uncertain acknowledgement keeps available
 admitted private staging for recovery and truthfully reports incomplete custody;
 never claim rollback, invent an evidence ID or publish rejected material to
-improve diagnostics. The staging/recovery mechanism needs implementation review.
+improve diagnostics. The accepted staging/recovery design still requires actual
+implementation and acceptance evidence.
 
 ## Pure historical replay and future derivations
 
@@ -291,10 +450,10 @@ count or assessment is carried by this acquisition record.
 
 ## Remaining approval and acceptance
 
-Root review must approve the new schema/roles/receipt branches and candidate
-budgets before acquisition source implementation. Implementation review must
-freeze fixed installed worker invocation/environment/resources, canonical
-receipt admission and recovery staging; do not claim those bindings exist now.
+The accepted design permits separately assigned pure worker/parser and parent
+implementation slices, not provider enrollment. Installed recipe, receipt
+admission, cancellation and recovery acceptance remain unexecuted by this
+document change. Java/HAR remain separately blocked prerequisites.
 Future deterministic acquisition acceptance must run each owned fixture through
 the shared SDK/installed isolated CLI and prove one selected GET, original byte
 custody, refusal non-retention, current authority, cancellation/cleanup and pure
