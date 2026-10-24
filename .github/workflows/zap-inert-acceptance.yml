@@ -45,6 +45,9 @@ jobs:
       - name: Build pinned helper and static fixture as original nonroot runner
         timeout-minutes: 2
         run: uv run python tests/fixtures/zap_inert/build.py "$RUNNER_TEMP/zap-inert-build"
+      - name: Prepare test evidence parent
+        timeout-minutes: 1
+        run: mkdir -p functional-evidence
       - name: First serial genuine capability case
         timeout-minutes: 1
         env:
