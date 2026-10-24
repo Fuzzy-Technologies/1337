@@ -36,7 +36,7 @@ from fuzzy1337 import owned_response_workflow as acquisition
 from fuzzy1337.adapters import ImpactLevel
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.executors import LocalExecutor
-from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus
+from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus, TransitionFinding
 from fuzzy1337.model import LocalModelStore, ModelProvenance, ObjectKind
 from fuzzy1337.owned_response_custody import OwnedResponseEvidenceStore, OwnedResponseStage
 from fuzzy1337.policy import CapabilityPermission, GovernedLocalExecutor, ImpactPolicy, PolicyEngine
@@ -446,9 +446,44 @@ def original(tmp_path, installed_header_worker, request, header_case_evidence):
         )
 
     else:
-        assert summary["state"] != "completed" and summary["acquisition_outcome"] != "captured", (
-            'Acquire actual originals and close/join the listener before exposing offline '
-            'state.'
+        assert summary["state"] == "failed" and summary["acquisition_outcome"] == "refused" and (
+            set(summary["original_role_ids"]) == {"stdout", "stderr", "owned-response-receipt"}
+            and summary["custody_status"] == "complete"
+            and summary["model_persistence_status"] == summary["workspace_persistence_status"]
+            == "not-attempted"
+        ), "Refused capture must retain only its actual three roles and no capture Save ACK"
+        assert len(captured["executions"]) == 1 and (
+            captured["executions"][0]["execution"]["state"] == "failed"
+            and captured["executions"][0]["execution"]["exit_code"] == 2
+            and captured["executions"][0]["termination"] == "process_exit"
+        ), "The genuine refused source must preserve its actual worker failure"
+        scope = LocalScopeStore(root).Open("owned-source")
+        workspace_store = LocalWorkspaceStore(root)
+        before = workspace_store.Open()
+        assert scope.workspace_id == before.workspace_id and (
+            scope.Reference() not in before.scope_references
+        ), "Refused fixture must explicitly register only its existing selected workspace scope"
+        proposed = replace(before, scope_references=(*before.scope_references, scope.Reference()))
+        prerequisite = {"schema_version": 1, "purpose": "offline-analysis-scope-prerequisite",
+            "scope_reference": scope.Reference(), "cas_basis_revision": before.revision,
+            "proposed_revision": proposed.revision, "acknowledgement_returned": False,
+            "acknowledged_revision": None, "exact_acknowledgement": False,
+            "capture_model_persistence_status": summary["model_persistence_status"],
+            "capture_workspace_persistence_status": summary["workspace_persistence_status"]}
+        header_case_evidence.Json("refused-scope-prerequisite.json", prerequisite)
+
+        try:
+            acknowledged = workspace_store.Save(proposed)
+            prerequisite.update(acknowledgement_returned=True,
+                acknowledged_revision=acknowledged.revision,
+                exact_acknowledgement=acknowledged == replace(proposed,
+                    revision=before.revision + 1))
+
+        finally:
+            header_case_evidence.Json("refused-scope-prerequisite.json", prerequisite)
+
+        assert prerequisite["exact_acknowledgement"] is True, (
+            "Separate fixture prerequisite requires its actual exact workspace CAS acknowledgement"
         )
 
     return SimpleNamespace(root=root, url=url, receipt=summary["original_receipt_id"],
@@ -1112,14 +1147,55 @@ def test_NegativeAssessmentNeverResolvesControlledExistingOperatorTriage(origina
     seeded = Finding(original.source["source"].subject_reference, CHECK,
         original.url + "#response-header:x-content-type-options",
         "Controlled existing triage; not a claimed native detector result", (attribution,),
-        severity=FindingSeverity.LOW, status=FindingStatus.CONFIRMED,
-        status_reason="Independent existing operator disposition").ToObject(state.workspace_id)
-    proposed, _delta = state.Apply(objects=(seeded,))
-    model_store.Save(proposed, expected_revision=state.revision)
-    workspace_store = LocalWorkspaceStore(original.root)
-    workspace = workspace_store.Open()
-    workspace_store.Save(replace(workspace,
-        object_references=(*workspace.object_references, seeded.Reference())))
+        severity=FindingSeverity.LOW, status=FindingStatus.OPEN).ToObject(state.workspace_id)
+    setup = {"schema_version": 1, "purpose": "controlled-negative-triage-fixture-setup",
+        "native_detector_result": False, "finding_reference": seeded.Reference(), "steps": []}
+    original.evidence.Json("negative-triage-setup.json", setup)
+
+    try:
+        proposed, _delta = state.Apply(objects=(seeded,))
+        creation = {"phase": "open-creation", "basis_revision": state.revision,
+            "proposed_revision": proposed.revision, "acknowledgement_returned": False,
+            "acknowledged_revision": None, "exact_acknowledgement": False}
+        setup["steps"].append(creation)
+        created = model_store.Save(proposed, expected_revision=state.revision)
+        creation.update(acknowledgement_returned=True, acknowledged_revision=created.revision,
+            exact_acknowledgement=created == proposed)
+        assert created == proposed and created.revision == state.revision + 1, (
+            "Controlled OPEN creation requires its actual exact model Save acknowledgement"
+        )
+        proposed, _delta = TransitionFinding(created, seeded.Reference(), FindingStatus.CONFIRMED,
+            attribution, "Independent existing operator disposition")
+        confirmation = {"phase": "operator-confirmation", "basis_revision": created.revision,
+            "proposed_revision": proposed.revision, "acknowledgement_returned": False,
+            "acknowledged_revision": None, "exact_acknowledgement": False}
+        setup["steps"].append(confirmation)
+        confirmed = model_store.Save(proposed, expected_revision=created.revision)
+        confirmation.update(acknowledgement_returned=True, acknowledged_revision=confirmed.revision,
+            exact_acknowledgement=confirmed == proposed)
+        assert confirmed == proposed and confirmed.revision == created.revision + 1, (
+            "Controlled operator confirmation requires its separate actual model Save ACK"
+        )
+        seeded = next(item for item in confirmed.objects if item.Reference() == seeded.Reference())
+        workspace_store = LocalWorkspaceStore(original.root)
+        workspace = workspace_store.Open()
+        proposed_workspace = replace(workspace,
+            object_references=(*workspace.object_references, seeded.Reference()))
+        retention = {"phase": "workspace-reference-retention", "basis_revision": workspace.revision,
+            "proposed_revision": proposed_workspace.revision, "acknowledgement_returned": False,
+            "acknowledged_revision": None, "exact_acknowledgement": False}
+        setup["steps"].append(retention)
+        retained = workspace_store.Save(proposed_workspace)
+        retention.update(acknowledgement_returned=True, acknowledged_revision=retained.revision,
+            exact_acknowledgement=retained == replace(proposed_workspace,
+                revision=workspace.revision + 1))
+        assert retention["exact_acknowledgement"] is True, (
+            "Controlled triage object retention requires its actual separate workspace CAS ACK"
+        )
+
+    finally:
+        original.evidence.Json("negative-triage-setup.json", setup)
+
     before = model_store.Open()
     source = dict(original.source, model=before, workspace=workspace_store.Open())
     summary = Apply(offline, original)
@@ -1133,7 +1209,12 @@ def test_NegativeAssessmentNeverResolvesControlledExistingOperatorTriage(origina
         'An actual negative source cannot delete or resolve an explicitly seeded earlier '
         'Finding.'
     )
-    assert seeded in model_store.Open().objects, (
+    after = model_store.Open()
+    assert seeded in after.objects, (
         'An actual negative source cannot delete or resolve an explicitly seeded earlier '
         'Finding.'
     )
+    preserved = next(item for item in after.objects if item.Reference() == seeded.Reference())
+    assert Finding.FromObject(preserved).status is FindingStatus.CONFIRMED and (
+        Finding.FromObject(preserved).status_reason == "Independent existing operator disposition"
+    ), "The preserved existing operator disposition must remain explicitly CONFIRMED"

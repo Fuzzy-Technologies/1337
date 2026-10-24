@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added Experimental native offline assessment of acknowledged original response
+  headers, with separate PASSIVE admission, a fixed original window and source-linked
+  missing-field Findings. Independent model/workspace CAS, ACK and historical replay
+  outcomes preserve capture provenance and triage. Focused owned-original cases verify
+  saved Findings and offline replay; final shared integration remains required.
+
 - Added explicit governed original-response planning, SDK capture and installed
   `response capture` / `response replay` commands. Closed reviewed wire admission
   precedes original seven-role custody; receipt-bound source Observations retain

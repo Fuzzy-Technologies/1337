@@ -86,6 +86,10 @@ required for its bounded Git HEAD exposure predicate.
 The [original-response capture and replay](OWNED_RESPONSE_CAPTURE.md) commands use
 the `response` namespace, explicit SAFE approval and the reviewed closed wire
 profile to preserve source facts for later assessment.
+The [native offline original-header SDK](NATIVE_RESPONSE_HEADER_CHECK.md) separately
+requires PASSIVE admission to interpret an acknowledged seven-role receipt. It
+preserves original source provenance and independent model/workspace ACK outcomes.
+All 37 focused owned-original cases passed; final shared integration remains required.
 
 | Command                                | Behavior                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |

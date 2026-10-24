@@ -1,6 +1,20 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Experimental public offline original-header apply/replay SDK and explicit summaries.
+module = "fuzzy1337.native_response_header_workflow"
+source = "src/fuzzy1337/native_response_header_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_response_header_workflow.md"
+
+[[surfaces]]
+# Internal pure field-name predicate; direct use proves neither custody nor permission.
+module = "fuzzy1337.native_response_headers"
+source = "src/fuzzy1337/native_response_headers.py"
+mode = "authored"
+page = "api/fuzzy1337.native_response_headers.md"
+
+[[surfaces]]
 module = "fuzzy1337.portscan"
 source = "src/fuzzy1337/portscan.py"
 mode = "authored"
