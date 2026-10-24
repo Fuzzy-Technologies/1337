@@ -131,11 +131,15 @@ async def Capture(config: dict, observations: Path, *, enabled: bool = False,
         "approve_safe_content_response_capture", "retain_response"})
     ReserveObservation(observations, "capture")
     from fuzzy1337.executors import LocalExecutor
+    from fuzzy1337.model import LocalModelStore
     from fuzzy1337.nucleiscan import ReadNucleiPolicy
     from fuzzy1337.owned_response_workflow import RunOwnedContentResponseCapture
+    from fuzzy1337.workspace import LocalWorkspaceStore
 
     original_execute = LocalExecutor.Execute
+    original_model_save, original_workspace_save = LocalModelStore.Save, LocalWorkspaceStore.Save
     originals = []
+    saves = []
     document = None
     exception_type = None
 
@@ -147,7 +151,37 @@ async def Capture(config: dict, observations: Path, *, enabled: bool = False,
 
         return result
 
+    def Save(owner, original, store, state, expected_revision, options):
+        """Retain actual call/return objects without changing the original store operation."""
+
+        record = {"owner": owner, "expected_revision": expected_revision, "proposal": state,
+            "returned": None, "exception_type": None}
+        saves.append(record)
+
+        try:
+            result = original(store, state, **options)
+            record["returned"] = result
+
+            return result
+
+        except BaseException as error:
+            record["exception_type"] = type(error).__name__
+
+            raise
+
+    def ModelSave(store, state, *, expected_revision):
+        """Observe the original explicit model CAS keyword without substituting a proposal."""
+
+        return Save("model", original_model_save, store, state, expected_revision,
+            {"expected_revision": expected_revision})
+
+    def WorkspaceSave(store, state):
+        """Observe the original workspace proposal revision; its owner increments on commit."""
+
+        return Save("workspace", original_workspace_save, store, state, state.revision, {})
+
     LocalExecutor.Execute = Observe
+    LocalModelStore.Save, LocalWorkspaceStore.Save = ModelSave, WorkspaceSave
 
     try:
         summary = await RunOwnedContentResponseCapture(root, config["scope_id"], config["url"],
@@ -166,8 +200,13 @@ async def Capture(config: dict, observations: Path, *, enabled: bool = False,
 
     finally:
         LocalExecutor.Execute = original_execute
+        LocalModelStore.Save = original_model_save
+        LocalWorkspaceStore.Save = original_workspace_save
+        detached = [{**row, "proposal": row["proposal"].ToDict(), "returned": (
+            None if row["returned"] is None else row["returned"].ToDict())} for row in saves]
         Observation(observations, "capture", {"summary": document, "exception_type": exception_type,
-            "executions": [OriginalExecution(request, result) for request, result in originals]})
+            "executions": [OriginalExecution(request, result) for request, result in originals],
+            "store_saves": detached})
 
 
 def Analyze(config: dict, observations: Path, *, enabled: bool = False,
