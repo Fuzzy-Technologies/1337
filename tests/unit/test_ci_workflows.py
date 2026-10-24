@@ -49,6 +49,11 @@ NATIVE_CRAWL_PORTABILITY_CONDITION = (
     "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]')"
 )
+OWNED_TRAVERSAL_RATE_JOB = "owned-traversal-rate-checkpoint"
+OWNED_TRAVERSAL_RATE_CONDITION = (
+    "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]')"
+)
 
 
 def Workflow(name: str) -> dict[str, Any]:
@@ -89,7 +94,7 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     expected = WORKFLOWS[name] | ({"deploy-pages"} if name == "documentation.yml" else set())
 
     if name == "python-quality.yml":
-        expected |= NATIVE_CRAWL_PORTABILITY_JOBS
+        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {OWNED_TRAVERSAL_RATE_JOB}
 
     assert set(jobs) == expected, "The integration job inventory changed unexpectedly."
     assert workflow["permissions"] == {"contents": "read"}, "PR authority expanded."
@@ -212,6 +217,99 @@ def test_WindowsCrawlCheckpointSelectsOnlyTwoUnitsAndOneActualCancellation() -> 
             "Partial checks must clear whole-suite coverage and retain their actual JUnit."
         )
         assert 1 <= step["timeout-minutes"] <= 3, "Focused steps need their original finite caps."
+
+
+def test_TraversalRateCheckpointKeepsExactBoundedWindowsSelectionsAndOriginalEvidence() -> None:
+    """The draft-only new regression lane preserves final gates and earlier portability owners."""
+
+    jobs = Workflow("python-quality.yml")["jobs"]
+    job = jobs[OWNED_TRAVERSAL_RATE_JOB]
+    assert " ".join(job["if"].split()) == OWNED_TRAVERSAL_RATE_CONDITION, (
+        "The new feature must require its own explicit marker and an actual draft PR."
+    )
+    assert job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8, (
+        "The failing Windows profile needs one bounded eight-minute job."
+    )
+    assert "needs" not in job and job.get("continue-on-error", False) is False, (
+        "Independent feature feedback must neither wait for nor soften other gates."
+    )
+    steps = {step["name"]: step for step in job["steps"]}
+    prior = {step["name"]: step
+        for step in jobs["native-crawl-windows-portability"]["steps"]}
+    assert list(steps) == [
+        "Check out source", "Select Python", "Install pinned uv",
+        "Synchronize locked environment",
+        "Run pure rate deadline and timeout classification regressions",
+        "Run the two affected genuine traversal cases", "Preserve focused traversal rate evidence",
+    ], "The feature lane must not acquire extra setup, test or full-gate commands."
+
+    for name in ("Check out source", "Select Python", "Install pinned uv",
+                 "Synchronize locked environment"):
+        assert steps[name] == prior[name], "The checkpoint must reuse existing pinned setup."
+
+    units = steps["Run pure rate deadline and timeout classification regressions"]
+    genuine = steps["Run the two affected genuine traversal cases"]
+    unit_tokens, genuine_tokens = shlex.split(units["run"]), shlex.split(genuine["run"])
+    unit_selectors = {token for token in unit_tokens if token.startswith("tests/")}
+    expected_rate = {
+        f"tests/unit/{module}::test_RateGateRechecksOriginalDeadlineAfterEarlyWake[{outcome}]"
+        for module in ("test_web_traversal.py", "test_native_crawl.py")
+        for outcome in ("complete", "cancel", "budget")
+    }
+    assert unit_selectors == expected_rate | {
+        "tests/unit/test_test_runner.py::"
+        "test_IncidentalTimeoutTextCannotRelabelAnOrdinaryJunitFailure",
+        "tests/unit/test_test_runner.py::"
+        "test_PinnedPytestTimeoutFailureMessagesRetainCallAndFixtureExpiry",
+    }, "Only the six new rate cases and the two new parser parameter groups may run."
+    assert {token for token in genuine_tokens if token.startswith("tests/")} == {
+        "tests/integration/test_web_traversal_execution.py::"
+        "test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle",
+        "tests/functional/test_native_crawl_product.py::"
+        "test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState",
+    }, "Only the failed legacy interval and changed same-seed native case may execute."
+    assert "-n 2 --dist=loadscope --max-worker-restart=0" in units["run"], (
+        "Pure regression groups must keep two process workers without automatic replacement."
+    )
+    assert "-n 0" in genuine["run"] and "--timeout=90" in genuine["run"], (
+        "Actual target lifecycles need their serial owner and finite per-case deadline."
+    )
+    assert units["timeout-minutes"] == 2 and genuine["timeout-minutes"] == 4, (
+        "The two feature steps lost their independent short deadlines."
+    )
+    assert "--timeout=30" in units["run"], "Pure cases must retain their short deadline."
+
+    for step in (units, genuine):
+        assert "-o addopts='' --no-cov" in step["run"] and (
+            "--timeout-method=thread" in step["run"]
+        ), "Partial checks must clear full coverage and retain the portable timeout owner."
+        assert "continue-on-error" not in step and "if" not in step, (
+            "Feature regressions must retain ordinary failure and step-order semantics."
+        )
+
+    assert "--junitxml=functional-evidence/owned-traversal-rate/windows-pure.xml" in units["run"], (
+        "Pure regression results must retain their own focused JUnit."
+    )
+    assert "--junitxml=functional-evidence/owned-traversal-rate/windows-genuine.xml" in (
+        genuine["run"]
+    ), "Actual traversal results must retain their own focused JUnit."
+    upload = steps["Preserve focused traversal rate evidence"]
+    assert upload["if"] == "always()" and upload["uses"] == (
+        prior["Preserve focused Windows crawl evidence"]["uses"]
+    ), "Failed feature checks still need the existing pinned upload action."
+    assert set(upload["with"]["path"].splitlines()) == {
+        "functional-evidence/owned-traversal-rate/", "functional-evidence/native-crawl/",
+    } and upload["with"]["retention-days"] == 7, (
+        "Focused JUnit and actual original acquisitions need bounded retained custody."
+    )
+    assert all("1337-dev check" not in step.get("run", "") for step in job["steps"]), (
+        "The diagnostic must not launch or replace a full integration gate."
+    )
+    full = next(step for step in jobs["quality"]["steps"]
+        if step.get("name") == "Run repository quality gate")
+    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
+        "The existing final Ready/push gate must remain unchanged."
+    )
 
 
 def test_ContainerCrawlCheckpointOverridesOnlyTheExistingQualityCommand() -> None:

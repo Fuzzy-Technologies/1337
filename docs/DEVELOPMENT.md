@@ -183,6 +183,16 @@ case evidence. Missing required prerequisites fail; these focused results never
 satisfy final full integration or platform acceptance.
 Remove its marker before final publication/readiness to avoid an extra diagnostic
 run; feature success never substitutes for the final complete integration gate.
+
+The separate `[owned-traversal-rate-checkpoint]` selects one independent draft-only
+Windows 2022/Python 3.12 job. It runs only the six new controlled rate/deadline
+cases and 21 timeout-classifier cases with two workers, then the two affected
+actual traversal cases serially. The eight-minute job keeps 30/90-second per-case
+and two/four-minute step ceilings, disables partial coverage and always uploads
+its JUnit and original native-crawl evidence. It does not rerun the earlier
+portability cohorts or satisfy the final Ready integration gate. Remove this
+marker before final readiness; the existing portability marker stays independent.
+
 Do not repeat the full gate locally, in individual development agents or after
 the accepted merge into `develop`. Protected `master` pushes retain stable-branch
 checks and master-only documentation deployment.

@@ -23,8 +23,18 @@ from fuzzy1337.scope import (
     TargetKind,
 )
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
+from tests.contract.rate_gate_regression import CheckEarlyWakeRateGate
+from tests.unit.test_web_traversal import owned_traversal_runner as owned_traversal_runner
+from tests.unit.test_web_traversal import traversal_runner as traversal_runner
 
 URLS = ("http://127.0.0.1:32123/index", "http://127.0.0.1:32123/leaf")
+
+
+@pytest.mark.parametrize("stop", ["complete", "cancel", "budget"])
+def test_RateGateRechecksOriginalDeadlineAfterEarlyWake(stop, monkeypatch, traversal_runner):
+    """Finite early wakes preserve original launch deadlines, cancellation and operation budget."""
+
+    CheckEarlyWakeRateGate("native", stop, monkeypatch, traversal_runner)
 
 
 @pytest.fixture

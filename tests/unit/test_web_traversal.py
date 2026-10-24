@@ -23,6 +23,7 @@ from fuzzy1337.web_traversal import (
     OwnedTraversalPage,
     WebTraversalLimits,
 )
+from tests.contract.rate_gate_regression import CheckEarlyWakeRateGate
 from tests.contract.web_traversal_fixture import PATHS, Body, Fixture
 
 
@@ -86,6 +87,13 @@ def test_TraversalRunnerPreservesNetworkDenial(traversal_runner, monkeypatch):
                     callback(("127.0.0.1", 9))
 
     traversal_runner.run(CheckConnections())
+
+
+@pytest.mark.parametrize("stop", ["complete", "cancel", "budget"])
+def test_RateGateRechecksOriginalDeadlineAfterEarlyWake(stop, monkeypatch, traversal_runner):
+    """Finite early wakes preserve original launch deadlines, cancellation and operation timeout."""
+
+    CheckEarlyWakeRateGate("web", stop, monkeypatch, traversal_runner)
 
 
 @pytest.mark.parametrize("path", PATHS)

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import subprocess
+import xml.etree.ElementTree as element_tree
 
 import pytest
 
@@ -140,7 +141,9 @@ def test_JunitSummaryIsDeterministicAndCountsTimeout(tmp_path):
 <testsuite tests=\"4\" failures=\"1\" errors=\"0\" skipped=\"1\" time=\"1.25\">
   <testcase name=\"passed\" />
   <testcase name=\"skipped\"><skipped /></testcase>
-  <testcase name=\"timeout\"><failure message=\"Timeout exceeded\" /></testcase>
+  <testcase name=\"timeout\">
+    <failure message=\"Failed: Timeout (&gt;30.0s) from pytest-timeout.\" />
+  </testcase>
   <testcase name=\"passed-too\" />
 </testsuite>
 """,
@@ -153,6 +156,65 @@ def test_JunitSummaryIsDeterministicAndCountsTimeout(tmp_path):
     assert summary.Display() == (
         "Test summary: total=4 passed=2 failed=1 skipped=1 timeout=1 duration=1.250s"
     ), "junit summary is deterministic and counts timeout invariant failed."
+
+
+@pytest.mark.parametrize("message,text", [
+    ("AssertionError: monotonic interval was too short", "request_timeout_seconds=5"),
+    ("FileNotFoundError: git", "subprocess.run(command, timeout=40)"),
+    ("AssertionError: timeout configuration differs", "assert request.timeout == 30"),
+    ("TimeoutError: application wait failed", "ordinary application exception"),
+    ("Timeout exceeded", "unsupported generic label"),
+    ("AssertionError: Timeout (>30.0s) from pytest-timeout.", "ordinary assertion"),
+    ("ordinary failure", "E Failed: Timeout (>30.0s) from pytest-timeout."),
+    ("worker 'gw0' crashed while running a test", "Timeout (>30.0s) from pytest-timeout."),
+    ("Failed: Timeout (>0.0s) from pytest-timeout.", "disabled timer is not an expiry"),
+    ("Failed: Timeout (>infs) from pytest-timeout.", "unsupported timer value"),
+    ("Failed: Timeout (>1e309s) from pytest-timeout.", "nonfinite numeric timer value"),
+    ("Failed: Timeout (>30.0s) from pytest-timeout. extra", "noncanonical diagnostic"),
+])
+def test_IncidentalTimeoutTextCannotRelabelAnOrdinaryJunitFailure(tmp_path, message, text):
+    """Only the pinned plugin's explicit failure diagnostic establishes a report timeout."""
+
+    root = element_tree.Element("testsuite", tests="1", failures="1", errors="0", skipped="0")
+    case = element_tree.SubElement(root, "testcase", name="ordinary-failure")
+    failure = element_tree.SubElement(case, "failure", message=message)
+    failure.text = text
+    report = tmp_path / "ordinary.xml"
+    element_tree.ElementTree(root).write(report, encoding="utf-8")
+    assert test_runner.ReadJunitSummary(report) == test_runner.TestSummary(
+        total=1, failed=1, timeout=0,
+    ), "Traceback variables, application errors and unsupported labels must stay ordinary failures."
+
+
+@pytest.mark.parametrize("phase", ["call", "setup", "teardown"])
+@pytest.mark.parametrize("seconds", [0.5, 30.0, 1e-5])
+def test_PinnedPytestTimeoutFailureMessagesRetainCallAndFixtureExpiry(tmp_path, phase, seconds):
+    """Use the actual pinned diagnostic and pytest exception rendering without firing a timer."""
+
+    import pytest_timeout
+
+    with pytest.raises(pytest.fail.Exception) as caught:
+        pytest.fail(pytest_timeout.PYTEST_FAILURE_MESSAGE % seconds)
+
+    representation = caught.getrepr().reprcrash
+    assert representation is not None, (
+        "The controlled pytest failure must expose its actual message."
+    )
+    message = representation.message
+    tag = "failure" if phase == "call" else "error"
+
+    if phase != "call":
+        message = f'failed on {phase} with "{message}"'
+
+    root = element_tree.Element("testsuite", tests="1", failures=str(int(phase == "call")),
+        errors=str(int(phase != "call")), skipped="0")
+    case = element_tree.SubElement(root, "testcase", name="controlled-plugin-diagnostic")
+    element_tree.SubElement(case, tag, message=message)
+    report = tmp_path / "plugin.xml"
+    element_tree.ElementTree(root).write(report, encoding="utf-8")
+    assert test_runner.ReadJunitSummary(report) == test_runner.TestSummary(
+        total=1, failed=1, timeout=1,
+    ), "Actual plugin call/setup/teardown diagnostics must retain timeout and failure counts."
 
 
 @pytest.mark.parametrize("fail_fast", [False, True])
