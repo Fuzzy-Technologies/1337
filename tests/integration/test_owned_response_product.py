@@ -580,7 +580,7 @@ def test_InstalledSdkCallerCancellationAwaitsActualWorkerAndSocketCleanup(
     assert raw == Canonical(receipt) and receipt["custody"] == "control-only" and (
         receipt["request"] == actual["request"] and receipt["execution"] == actual["execution"]
         and receipt["termination"] == actual["termination"]
-        and receipt["refusal"] == "record-unadmitted"
+        and receipt["refusal"] == "cancelled"
         and receipt["evidence_ids"] == dict.fromkeys(
             ("stdout", "stderr", "request", "headers", "body", "response"))
         and receipt["events"] == [{"sequence": event["sequence"], "kind": event["kind"],
