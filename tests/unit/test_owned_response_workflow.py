@@ -33,11 +33,12 @@ from fuzzy1337.scope import LocalScopeStore
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
 from tests.contract.browser_tree_diagnostics import AwaitBrowserReadiness
 from tests.unit.test_owned_response_parent import AT, URL, Result, Setup
+from tests.unit.test_owned_response_parent import private_system as private_system
 from tests.unit.test_owned_response_parent import runner as runner
 
 
 @pytest.fixture
-def owned(tmp_path, monkeypatch):
+def owned(tmp_path, monkeypatch, private_system):
     """Use real canonical owners with the parent's finite original-execution wire double."""
 
     root = tmp_path / "workspace"

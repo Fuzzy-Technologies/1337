@@ -133,12 +133,52 @@ def custody_diagnostics(monkeypatch):
     original_append = OwnedResponseStage.Append
     original_capture = JobContext.CaptureEvidence
     original_verify = custody.VerifyEvidence
+    original_path_info = custody.ArtifactPathInfo
+    path_observations = []
+
+    def PathInfo(path, *, directory=False):
+        """Remember at most eight original file observations without extra filesystem reads."""
+
+        info = original_path_info(path, directory=directory)
+
+        if not directory:
+            path_observations.append((path, info))
+            del path_observations[:-8]
+
+        return info
+
+    def MetadataChecks(frame):
+        """Compare original failed-read locals using fixed field names and booleans only."""
+
+        local = frame.f_locals
+        fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+        before, opened, after = (local.get(key) for key in ("before", "opened", "after"))
+
+        if any(info is None for info in (before, opened, after)):
+            return ()
+
+        latest = next(
+            (info for path, info in reversed(path_observations) if path == local["path"]), None
+        )
+        pairs = (("path-before/fd-open", before, opened), ("fd-open/fd-after", opened, after))
+
+        if latest is not None and latest is not before:
+            pairs += (("fd-after/path-after", after, latest),)
+
+        return (
+            ("byte-cap-exceeded", len(local["raw"]) > local["maximum"]),
+            *(
+                (label, tuple((key, getattr(left, key) == getattr(right, key)) for key in fields))
+                for label, left, right in pairs
+            ),
+        )
 
     def RecordFailure(phase, error):
         """Keep one bounded control-only traceback without source bytes, paths or messages."""
 
         while error is not None and len(failures) < 3:
             locations = []
+            checks = ()
             trace = error.__traceback__
 
             while trace is not None:
@@ -150,9 +190,13 @@ def custody_diagnostics(monkeypatch):
                 ):
                     locations.append((trace.tb_frame.f_code.co_name, trace.tb_lineno))
 
+                    if trace.tb_frame.f_code.co_name == "ReadPrivate":
+                        checks = MetadataChecks(trace.tb_frame)
+
                 trace = trace.tb_next
 
-            failures.append((phase, type(error).__name__, tuple(locations[-4:])))
+            failure = (phase, type(error).__name__, tuple(locations[-4:]))
+            failures.append(failure + (checks,) if checks else failure)
             error = error.__cause__
 
     def Append(self, frame):
@@ -188,6 +232,7 @@ def custody_diagnostics(monkeypatch):
     monkeypatch.setattr(OwnedResponseStage, "Append", Append)
     monkeypatch.setattr(JobContext, "CaptureEvidence", Capture)
     monkeypatch.setattr(custody, "VerifyEvidence", Verify)
+    monkeypatch.setattr(custody, "ArtifactPathInfo", PathInfo)
 
     return failures
 
@@ -414,6 +459,50 @@ def test_PortableCustodyDiagnosticsRetainOnlySafeFailureLocations(
         type(name) is str and type(line) is int
         for name, line in custody_diagnostics[0][2]
     ), "Only static source function names and line numbers may survive diagnostic observation"
+
+
+@pytest.mark.parametrize("field", ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"))
+def test_PortableCustodyDiagnosticsIdentifyExactPhysicalFieldWithoutValues(
+    tmp_path, monkeypatch, custody_diagnostics, field
+):
+    """Locate each original cross-view mismatch without exporting any observed metadata value."""
+
+    import fuzzy1337.owned_response_custody as custody
+
+    tmp_path.chmod(0o700)
+    stage = OwnedResponseStage(
+        tmp_path, {"workspace_id": "workspace", "owner_reference": "operator:execution"}
+    )
+    original = custody.ArtifactHandleInfo
+
+    def Changed(descriptor):
+        """Inject one mismatching opened-handle field while preserving the original path view."""
+
+        info = original(descriptor)
+        fields = {
+            key: getattr(info, key)
+            for key in (
+                "st_dev", "st_ino", "st_uid", "st_nlink", "st_size", "st_mtime_ns",
+                "st_ctime_ns", "st_mode",
+            )
+        }
+        fields[field] += 1
+
+        return SimpleNamespace(**fields)
+
+    monkeypatch.setattr(custody, "ArtifactHandleInfo", Changed)
+
+    with pytest.raises(ValueError):
+        stage.Append({"kind": "intent"})
+
+    checks = dict(custody_diagnostics[0][3])
+    assert checks["byte-cap-exceeded"] is False and dict(checks["path-before/fd-open"]) == {
+        key: key != field
+        for key in ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+    }, "The diagnostic must identify only the original unequal physical field"
+    assert all(equal for _, equal in checks["fd-open/fd-after"]), (
+        "Two stable original handle views must remain distinct from the mismatching path view"
+    )
 
 
 @pytest.mark.parametrize("field", ("workspace", "environment", "resources", "authorization"))
