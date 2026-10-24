@@ -222,6 +222,7 @@ def test_NativeImageProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate
         "tests/unit/test_native_image_material_worker.py",
         "tests/unit/test_native_image_observation.py",
         "tests/unit/test_native_image_bounded_capture.py",
+        "tests/unit/test_native_image_control_identity.py",
         "tests/unit/test_native_image_policy.py",
         "tests/unit/test_native_image_policy_oracle.py",
         "tests/unit/test_native_image_workflow.py",

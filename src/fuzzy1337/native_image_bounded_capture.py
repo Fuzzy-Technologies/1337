@@ -28,7 +28,12 @@ from fuzzy1337.adapters import (
 )
 from fuzzy1337.adapters.contracts import JsonValue, RequireText
 from fuzzy1337.adapters.trivy import ParseJson
-from fuzzy1337.artifact_inputs import ArtifactHandleInfo, ArtifactPathInfo
+from fuzzy1337.artifact_inputs import (
+    ArtifactHandleInfo,
+    ArtifactPathInfo,
+    MatchesArtifactReadIdentity,
+    PhysicalIdentity,
+)
 from fuzzy1337.evidence import EvidenceProvenance, EvidenceRecord, LocalEvidenceStore
 from fuzzy1337.executors import (
     CapabilityDescriptors,
@@ -242,7 +247,7 @@ class OutcomeJournal:
         os.chmod(self.scratch, 0o700)
         self.path = self.directory / "outcome.journal"
         self.descriptor = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_EXCL |
-            getattr(os, "O_NOFOLLOW", 0), 0o600)
+            getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
 
         try:
             cast(Callable[[int, int], None], getattr(os, "fchmod"))(self.descriptor, 0o600)
@@ -258,6 +263,7 @@ class OutcomeJournal:
             self.outcome_retained = False
             self.fragments_retained = False
             self.removed = False
+            self.Check()
             self.Write(JOURNAL_MAGIC)
 
         except BaseException:
@@ -267,8 +273,12 @@ class OutcomeJournal:
 
             raise
 
-    def Check(self) -> None:
-        """Require original private path/handle identities and exact private permissions."""
+    def Check(self) -> tuple[os.stat_result, os.stat_result]:
+        """Require original private identities, cross-view binding and private permissions.
+
+        Returns:
+            Separate complete stable path/handle snapshots for original readback checks.
+        """
 
         directory = ArtifactPathInfo(self.directory, directory=True)
         scratch = ArtifactPathInfo(self.scratch, directory=True)
@@ -286,8 +296,16 @@ class OutcomeJournal:
             or stat.S_IMODE(directory.st_mode) != 0o700
             or stat.S_IMODE(path.st_mode) != 0o600
             or path.st_size != self.size or opened.st_size != self.size
+            or not MatchesArtifactReadIdentity(path, opened)
         ):
             raise ValueError("native private journal identity differs")
+
+        if PhysicalIdentity(ArtifactPathInfo(self.path)) != PhysicalIdentity(path) or (
+            PhysicalIdentity(ArtifactHandleInfo(self.descriptor)) != PhysicalIdentity(opened)
+        ):
+            raise ValueError("native private journal identity differs")
+
+        return path, opened
 
     def Write(self, raw: bytes) -> None:
         """Write complete finite private bytes without accepting a short write as custody.
@@ -343,7 +361,7 @@ class OutcomeJournal:
     def Verify(self) -> None:
         """Verify exact finite journal length, private identities and every original frame hash."""
 
-        self.Check()
+        path_before, handle_before = self.Check()
         os.lseek(self.descriptor, 0, os.SEEK_SET)
         raw = bytearray()
 
@@ -373,6 +391,13 @@ class OutcomeJournal:
                 raise ValueError("native private journal integrity differs")
 
             offset += size
+
+        path_after, handle_after = self.Check()
+
+        if PhysicalIdentity(path_after) != PhysicalIdentity(path_before) or (
+            PhysicalIdentity(handle_after) != PhysicalIdentity(handle_before)
+        ):
+            raise ValueError("native private journal changed during readback")
 
         os.lseek(self.descriptor, 0, os.SEEK_END)
 

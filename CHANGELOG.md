@@ -307,6 +307,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Fixed
 
+- Preserved distinct path/handle identity views in native policy controls and
+  original journal readback, with binary framing and unchanged Linux guards.
+  Controlled cancellation tests now surface early owner completion and settle
+  both readiness and operation tasks instead of waiting indefinitely.
+
 - Reused canonical artifact path/handle association for bounded native material
   reads while retaining each API's full physical mutation checks. Cross-platform
   protocol checks now account for Windows timestamp views without enabling native

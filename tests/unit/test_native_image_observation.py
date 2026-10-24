@@ -31,6 +31,7 @@ from fuzzy1337.native_image_observation import (
     NativeImageObservationBudget,
     NativeImageObservationError,
 )
+from tests.contract.native_image_task_barriers import OwnedTaskAtReadiness
 from tests.unit.test_native_image_material_worker import material_control as material_control
 
 
@@ -186,19 +187,105 @@ def test_OuterCancellationAwaitsOwnedSimulatedTerminalBeforeRemovingControl(
     async def Cancel():
         """Cancel only after the fixed simulated worker handshake reaches its owned wait."""
 
-        task = asyncio.create_task(owner.Observe(budget, operation_reference="pair:unit"))
+        async with OwnedTaskAtReadiness(owner.Observe(budget, operation_reference="pair:unit"),
+                                       state.started) as task:
+            task.cancel()
 
-        await state.started.wait()
-        task.cancel()
-
-        with pytest.raises(asyncio.CancelledError):
-            await task
+            with pytest.raises(asyncio.CancelledError):
+                await task
 
     observation_runner.run(Cancel())
     assert budget.Failed and not owner._proofs, "Cancellation cannot issue a usable proof."
     assert len(tuple(owner.selection.workspace_root.glob("native-material-*/request.json"))) == 1, (
         "Verified terminal cancellation permits cleanup of only the observer's private request."
     )
+
+
+def test_ReadinessRethrowsOriginalEarlyExceptionAndSettlesItsWaiter(observation_runner):
+    """An operation that fails before its signal cannot leave the readiness controller waiting."""
+
+    original = NativeImageObservationError("controlled original early observation failure")
+
+    async def Fail():
+        """Raise the original controlled exception before publishing any readiness signal."""
+
+        raise original
+
+    async def Run():
+        """Verify exact original exception identity and no remaining owned background tasks."""
+
+        before = asyncio.all_tasks()
+        with pytest.raises(NativeImageObservationError) as caught:
+            async with OwnedTaskAtReadiness(Fail(), asyncio.Event()):
+                pytest.fail("An early failed operation cannot reach readiness")
+        assert caught.value is original, (
+            "The barrier must rethrow the original operation exception."
+        )
+        assert asyncio.all_tasks() == before, "Early failure must settle the event waiter as well."
+
+    observation_runner.run(Run())
+
+
+def test_PostReadinessAssertionStillCancelsAndSettlesOwnedTasks(observation_runner):
+    """A failure before the caller requests cancellation cannot abandon the ready operation."""
+
+    async def Run():
+        """Assert post-readiness failure settles both owned tasks before propagation."""
+
+        ready = asyncio.Event()
+        settled = asyncio.Event()
+        original = AssertionError("controlled readiness-body assertion")
+        before = asyncio.all_tasks()
+
+        async def Pending():
+            """Publish actual controlled readiness, then remain owned until final cleanup."""
+
+            try:
+                ready.set()
+
+                await asyncio.Event().wait()
+
+            finally:
+                settled.set()
+
+        with pytest.raises(AssertionError) as caught:
+            async with OwnedTaskAtReadiness(Pending(), ready):
+                raise original
+        assert caught.value is original and settled.is_set(), (
+            "The caller's original failure must propagate only after owned operation cleanup."
+        )
+        assert asyncio.all_tasks() == before, (
+            "A failed readiness assertion must leave no owned tasks."
+        )
+
+    observation_runner.run(Run())
+
+
+def test_MissingReadinessDeadlineCancelsAndSettlesTheOwnedOperation(observation_runner):
+    """A deterministic zero deadline rejects neither-ready-nor-terminal and awaits task cleanup."""
+
+    async def Run():
+        """Use event controls only, without clocks, subprocesses or an unowned background task."""
+
+        settled = asyncio.Event()
+        before = asyncio.all_tasks()
+
+        async def Pending():
+            """Remain pending until the readiness owner cancels and awaits this operation."""
+
+            try:
+                await asyncio.Event().wait()
+
+            finally:
+                settled.set()
+
+        with pytest.raises(TimeoutError, match="neither became ready nor terminated"):
+            async with OwnedTaskAtReadiness(Pending(), asyncio.Event(), timeout_seconds=0):
+                pytest.fail("Neither completed task can supply readiness")
+        assert settled.is_set(), "Deadline refusal must wait for the owned operation's cleanup."
+        assert asyncio.all_tasks() == before, "Deadline refusal must settle both owned tasks."
+
+    observation_runner.run(Run())
 
 
 @pytest.mark.parametrize("mutation", ["consent", "workspace", "file", "pair", "copy"])

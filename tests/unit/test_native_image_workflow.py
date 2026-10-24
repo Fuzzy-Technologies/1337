@@ -29,6 +29,7 @@ from fuzzy1337.native_image_capture import NativeFileFact, NativeTrivySelection
 from fuzzy1337.policy import ImpactPolicy
 from fuzzy1337.scope import AuthorizationState, LocalScopeStore, ScopeAuthorization, ScopeSnapshot
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
+from tests.contract.native_image_task_barriers import EarlyOperationCompletion, OwnedTaskAtReadiness
 from tests.unit.test_native_image_policy import AT
 from tests.unit.test_native_image_policy import authority as authority
 from tests.unit.test_native_image_policy import collector as collector
@@ -426,13 +427,13 @@ def test_CallerCancellationWaitsForOwnedWireAndRetainsOriginalAcquisitions(autho
     async def Cancel():
         """Cancel only the explicit owned SDK task after its selected wire reaches readiness."""
 
-        task = asyncio.create_task(product.ScanNativeImage(
+        async with OwnedTaskAtReadiness(product.ScanNativeImage(
             authority.root, "native-unit", "actor:unit", selected.selection,
             lambda: authority.context.policy, approve_safe_image=True,
-            clock=lambda: AT))
-        await selected.state.started.wait()
-        task.cancel()
-        return await task
+            clock=lambda: AT), selected.state.started) as task:
+            task.cancel()
+
+            return await task
 
     summary = selected.run(Cancel())
     assert selected.state.cleanup and summary.snapshot.state is JobState.CANCELLED, (
@@ -443,6 +444,37 @@ def test_CallerCancellationWaitsForOwnedWireAndRetainsOriginalAcquisitions(autho
     )
     assert len(summary.retained_records) == 3 and len(selected.state.calls) == 1, (
         "Cancelled VERSION originals remain available while SCAN never starts."
+    )
+
+
+def test_EarlyFailedSdkSummaryImmediatelyRefusesReadinessWithoutTaskLeaks(authority):
+    """Real native policy refusal returns its original failed summary before a worker signal."""
+
+    selected = authority.collector
+    LocalModelStore(authority.root).Create()
+
+    async def Run():
+        """Race the canonical denied SDK with readiness without waiting for an impossible signal."""
+
+        before = asyncio.all_tasks()
+        with pytest.raises(EarlyOperationCompletion) as caught:
+            async with OwnedTaskAtReadiness(product.ScanNativeImage(
+                authority.root, "native-unit", "actor:unit", selected.selection,
+                lambda: ImpactPolicy("denied"), approve_safe_image=True,
+                clock=lambda: AT), selected.state.started):
+                pytest.fail("A denied native SDK operation cannot supply provider readiness")
+        summary = caught.value.result
+        assert summary.snapshot.state is JobState.FAILED and summary.ExitCode() == 3, (
+            "The barrier must retain the actual authorization-failed SDK summary immediately."
+        )
+        assert "authorization" in str(caught.value), (
+            "Terminal failure must be visible in diagnostics."
+        )
+        assert asyncio.all_tasks() == before, "Early SDK refusal must settle every owned waiter."
+
+    selected.run(Run())
+    assert not selected.state.calls and not selected.state.started.is_set(), (
+        "The original authority refusal must start no selected provider or fake readiness."
     )
 
 

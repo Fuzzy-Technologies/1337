@@ -24,6 +24,7 @@ from fuzzy1337.artifact_inputs import (
     ArtifactPathInfo,
     ArtifactProfile,
     ArtifactRole,
+    MatchesArtifactReadIdentity,
     PhysicalIdentity,
 )
 from fuzzy1337.artifact_policy import (
@@ -654,7 +655,7 @@ def ReadControl(path: Path, expected: bytes, identity: tuple[int, ...]) -> None:
     Args:
         path: Original private reservation or full-request binding.
         expected: Original complete canonical bytes retained by the issuing engine.
-        identity: Original device/inode/size/mtime/ctime identity after its exclusive creation.
+        identity: Original full path-view identity after exclusive creation and handle closure.
     """
 
     before = ArtifactPathInfo(path)
@@ -666,7 +667,9 @@ def ReadControl(path: Path, expected: bytes, identity: tuple[int, ...]) -> None:
                          getattr(os, "O_BINARY", 0))
 
     try:
-        if PhysicalIdentity(ArtifactHandleInfo(descriptor)) != identity:
+        opened = ArtifactHandleInfo(descriptor)
+
+        if not MatchesArtifactReadIdentity(before, opened):
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
         raw = bytearray()
@@ -679,7 +682,9 @@ def ReadControl(path: Path, expected: bytes, identity: tuple[int, ...]) -> None:
 
             raw.extend(chunk)
 
-        if raw != expected or PhysicalIdentity(ArtifactHandleInfo(descriptor)) != identity:
+        if raw != expected or PhysicalIdentity(ArtifactHandleInfo(descriptor)) != (
+            PhysicalIdentity(opened)
+        ):
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
     finally:
@@ -697,7 +702,7 @@ def WriteControl(path: Path, value: object) -> tuple[bytes, tuple[int, ...]]:
         value: Fixed native reservation or complete original request binding.
 
     Returns:
-        Original canonical bytes and their physical identity after fsync and full readback.
+        Original canonical bytes and full path-view identity after fsync and full readback.
     """
 
     raw = EncodeBounded(value, NATIVE_IMAGE_CONTROL_BYTES)
@@ -717,12 +722,21 @@ def WriteControl(path: Path, value: object) -> tuple[bytes, tuple[int, ...]]:
             offset += written
 
         os.fsync(descriptor)
-        identity = PhysicalIdentity(ArtifactHandleInfo(descriptor))
+        opened = ArtifactHandleInfo(descriptor)
+
+        if PhysicalIdentity(ArtifactHandleInfo(descriptor)) != PhysicalIdentity(opened):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
     finally:
         os.close(descriptor)
 
     SyncDirectory(path.parent)
+    path_info = ArtifactPathInfo(path)
+
+    if not MatchesArtifactReadIdentity(path_info, opened):
+        raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+    identity = PhysicalIdentity(path_info)
     ReadControl(path, raw, identity)
 
     return raw, identity

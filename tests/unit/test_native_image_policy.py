@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from fuzzy1337 import artifact_inputs
 from fuzzy1337 import native_image_policy as native
 from fuzzy1337.adapters import ImpactLevel
 from fuzzy1337.artifact_policy import (
@@ -34,6 +35,157 @@ from tests.unit.test_native_image_observation import observation_runner as obser
 from tests.unit.test_native_image_observation import simulated_observer as simulated_observer
 
 AT = datetime(2026, 10, 23, 12, tzinfo=timezone.utc)
+
+
+def ControlIdentityView(info, **changes):
+    """Retain a real owned metadata observation with explicitly selected unit-view changes."""
+
+    fields = {name: getattr(info, name) for name in (
+        "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns", "st_mode", "st_nlink",
+    )}
+    fields.update(changes)
+
+    return SimpleNamespace(**fields)
+
+
+@pytest.fixture
+def private_control(tmp_path, monkeypatch):
+    """Prepare inert private controls before applying any isolated cross-view matching seam."""
+
+    path = tmp_path / "control.json"
+
+    if os.name == "nt":
+        selected_os = SimpleNamespace(**vars(os))
+        selected_os.fchmod = lambda descriptor, mode: None
+        monkeypatch.setattr(native, "os", selected_os)
+        monkeypatch.setattr(native, "stat", SimpleNamespace(S_IMODE=lambda mode: 0o600))
+        monkeypatch.setattr(native, "SyncDirectory", lambda directory: None)
+
+    return path
+
+
+def ControlMatcher(monkeypatch, windows):
+    """Apply canonical view compatibility only while this policy read matches its own views."""
+
+    original = native.MatchesArtifactReadIdentity
+
+    def Match(path_info, handle_info):
+        """Keep preparatory filesystem reads outside the unit's selected platform seam."""
+
+        with monkeypatch.context() as selected:
+            selected.setattr(artifact_inputs, "_WINDOWS_STAT_VIEWS", windows)
+
+            return original(path_info, handle_info)
+
+    monkeypatch.setattr(native, "MatchesArtifactReadIdentity", Match)
+
+
+@pytest.mark.parametrize("operation", ["read", "write"])
+@pytest.mark.parametrize("windows", [False, True], ids=["strict-posix", "windows-views"])
+def test_PrivateControlRetainsPathIdentityAcrossSeparateStableCtimeViews(
+    private_control, monkeypatch, operation, windows,
+):
+    """Only canonical Windows cross-API matching accepts two stable distinct ctime views."""
+
+    path = private_control
+    raw = b'{"owned":true}'
+
+    if operation == "read":
+        path.write_bytes(raw)
+        path.chmod(0o600)
+
+    original_handle = native.ArtifactHandleInfo
+
+    def Handle(descriptor):
+        """Expose a stable distinct handle ctime without changing the original path observation."""
+
+        info = original_handle(descriptor)
+
+        return ControlIdentityView(info, st_ctime_ns=info.st_ctime_ns + 1)
+
+    monkeypatch.setattr(native, "ArtifactHandleInfo", Handle)
+    ControlMatcher(monkeypatch, windows)
+
+    def Exercise():
+        """Read or create this exact control through the original owner without another payload."""
+
+        if operation == "read":
+            native.ReadControl(path, raw, native.PhysicalIdentity(native.ArtifactPathInfo(path)))
+
+            return
+
+        actual, identity = native.WriteControl(path, {"owned": True})
+        assert actual == raw and identity == native.PhysicalIdentity(
+            native.ArtifactPathInfo(path)), (
+            "Immutable control identity must retain all original path fields, never handle ctime"
+        )
+
+    if not windows:
+        with pytest.raises(ArtifactDeniedError):
+            Exercise()
+
+        return
+
+    Exercise()
+
+
+@pytest.mark.parametrize("operation", ["read", "write"])
+@pytest.mark.parametrize("view", ["path", "handle"])
+@pytest.mark.parametrize("field", ["st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns"])
+def test_PrivateControlRejectsEverySameApiIdentityMutation(
+    private_control, monkeypatch, operation, view, field,
+):
+    """Windows cross-view compatibility never accepts a mutation in either API's five fields."""
+
+    path = private_control
+    raw = b'{"owned":true}'
+
+    if operation == "read":
+        path.write_bytes(raw)
+        path.chmod(0o600)
+
+    original_path = native.ArtifactPathInfo
+    original_handle = native.ArtifactHandleInfo
+    identity = None if operation == "write" else native.PhysicalIdentity(original_path(path))
+    calls = {"path": 0, "handle": 0}
+
+    def Handle(descriptor):
+        """Change only the selected second handle observation after a stable initial view."""
+
+        info = original_handle(descriptor)
+        info = ControlIdentityView(info, st_ctime_ns=info.st_ctime_ns + 1)
+        calls["handle"] += 1
+
+        return ControlIdentityView(info, **{field: getattr(info, field) + 1}) if (
+            view == "handle" and calls["handle"] == 2) else info
+
+    def PathInfo(selected_path, **options):
+        """Change only the selected second path observation, without touching owned disk bytes."""
+
+        info = original_path(selected_path, **options)
+
+        if selected_path == path:
+            calls["path"] += 1
+
+            if view == "path" and calls["path"] == 2:
+                return ControlIdentityView(info, **{field: getattr(info, field) + 1})
+
+        return info
+
+    monkeypatch.setattr(native, "ArtifactPathInfo", PathInfo)
+    monkeypatch.setattr(native, "ArtifactHandleInfo", Handle)
+    ControlMatcher(monkeypatch, True)
+
+    with pytest.raises(ArtifactDeniedError):
+        if operation == "write":
+            native.WriteControl(path, {"owned": True})
+
+        else:
+            native.ReadControl(path, raw, identity)
+
+    assert calls[view] == 2 and path.read_bytes() == raw, (
+        "Full same-API mutation refusal must preserve the immutable original control bytes"
+    )
 
 
 @pytest.fixture

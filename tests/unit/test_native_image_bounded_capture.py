@@ -38,6 +38,7 @@ from fuzzy1337.native_image_admission import (
 )
 from fuzzy1337.native_image_observation import NativeImageObservationError
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
+from tests.contract.native_image_task_barriers import OwnedTaskAtReadiness
 from tests.unit.test_native_image_admission import REPORT
 from tests.unit.test_native_image_material_worker import material_control as material_control
 from tests.unit.test_native_image_observation import (
@@ -399,23 +400,24 @@ def test_OuterCancellationAwaitsOwnedCleanupAndDurableOriginalFinalization(colle
     async def Run():
         """Cancel only after the controlled provider or post-run read is actually active."""
 
-        task = asyncio.create_task(collector.Capture())
         barrier = collector.state.started if phase == "provider" else collector.wire.started
-        await asyncio.wait_for(barrier.wait(), 1)
+        async with OwnedTaskAtReadiness(collector.Capture(), barrier) as task:
 
-        if phase == "post-observation":
-            paths = tuple(collector.selection.workspace_root.glob(
-                "native-image-bounded-*/outcome.journal"))
-            assert len(paths) == 1 and Frames(paths[0])[-1]["state"] == "complete", (
-                "Complete original custody must precede the first post-observation await"
+            if phase == "post-observation":
+                paths = tuple(collector.selection.workspace_root.glob(
+                    "native-image-bounded-*/outcome.journal"))
+                assert len(paths) == 1 and Frames(paths[0])[-1]["state"] == "complete", (
+                    "Complete original custody must precede the first post-observation await"
+                )
+
+            task.cancel()
+
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+            assert task.done() and collector.state.cleanup, (
+                "An owned task outlived its capture owner."
             )
-
-        task.cancel()
-
-        with pytest.raises(asyncio.CancelledError):
-            await task
-
-        assert task.done() and collector.state.cleanup, "An owned task outlived its capture owner."
 
     collector.run(Run())
     manifests = tuple(collector.store.root.glob("records/*.json"))
