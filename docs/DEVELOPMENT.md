@@ -212,7 +212,7 @@ The runner accepts these controlled diagnostics:
 ```bash
 uv run --locked 1337-dev unit --jobs auto --timeout 120
 uv run --locked 1337-dev test --timeout 120 --suite-timeout 600
-uv run --locked 1337-dev check --suite-timeout 900
+uv run --locked 1337-dev check --suite-timeout 900 --fail-fast
 uv run --locked 1337-dev unit --jobs 4 --fail-fast
 uv run --locked 1337-dev unit --serial
 ```
@@ -223,10 +223,12 @@ invocation (default 600 seconds); it is not derived from the number of per-test
 deadlines. Both accept only integers in the supported 1–3600-second range, enforced
 by `MAX_TIMEOUT_SECONDS` before dispatch, report deletion or child startup. This
 keeps operating-system wait/timer conversion bounded and rejects oversized values
-through fixed configuration diagnostics. The full `check` command permits only
-the suite-budget override; nondefault worker counts, per-test timeouts, serial-only
-selection and fail-fast behavior remain rejected. All quality phases and test
-layers still execute, with unchanged coverage requirements and no retries.
+through fixed configuration diagnostics. The full `check` command permits the
+suite-budget override and `--fail-fast`; nondefault worker counts, per-test
+timeouts and serial-only selection remain rejected. Ready Python-matrix and
+container CI checks stop on the first test failure, leaving subsequent work
+unassessed. Successful checks retain every quality phase, test layer and coverage
+requirement, with unchanged worker/per-test defaults and no retries.
 
 The Windows CI profile uses a 900-second suite budget and a 20-minute job limit.
 Recent successful Windows suites took 529–540 seconds; a larger invocation reached

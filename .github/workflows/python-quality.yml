@@ -104,7 +104,7 @@ jobs:
           FUZZY1337_RUN_DESCENDANT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
           FUZZY1337_RUN_OWNED_RESPONSE_PRODUCT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
         run: >-
-          uv run --locked --extra dev 1337-dev check
+          uv run --locked --extra dev 1337-dev check --fail-fast
           --suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}
       - name: Preserve test and package evidence
         if: always()
@@ -269,7 +269,9 @@ jobs:
       - name: Build locked development image
         run: docker compose build
       - name: Run container quality gate
-        run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile quality run --rm quality
+        run: >-
+          LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
+          docker compose --profile quality run --rm quality 1337-dev check --fail-fast
 
   synthetic-lab:
     if: >-

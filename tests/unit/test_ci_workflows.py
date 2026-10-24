@@ -121,6 +121,39 @@ def test_DocumentationTestsUseParallelWorkersAndKeepBranchCoverage() -> None:
     assert "fuzzy1337.coverage_gate" in command, "Parallel documentation lost its per-tool gate."
 
 
+def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> None:
+    """Fail-fast changes failure latency while complete selection and existing budgets remain."""
+
+    jobs = Workflow("python-quality.yml")["jobs"]
+    full = next(step for step in jobs["quality"]["steps"]
+        if step.get("name") == "Run repository quality gate")
+    assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
+        "Only existing Ready/push integration events may start the full Python check."
+    )
+    assert " ".join(full["run"].split()) == (
+        "uv run --locked --extra dev 1337-dev check --fail-fast "
+        "--suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}"
+    ), "The full matrix must preserve its complete gate and original platform suite budget."
+    container = jobs["container-quality"]
+    assert " ".join(container["if"].split()) == INTEGRATION_CONDITION, (
+        "The complete container gate must retain its original Ready/push condition."
+    )
+    command = next(step["run"] for step in container["steps"]
+        if step.get("name") == "Run container quality gate")
+    assert " ".join(command.split()) == (
+        'LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" '
+        "docker compose --profile quality run --rm quality 1337-dev check --fail-fast"
+    ), "Container CI must keep mapped ownership and run the same complete supported check."
+
+    for selected in (full["run"], command):
+        assert not any(option in selected for option in (
+            "--jobs", "--timeout", "--serial", "--no-cov", "tests/",
+        )), (
+            "Fail-fast cannot select a partial suite or change worker, deadline "
+            "or coverage defaults."
+        )
+
+
 @pytest.mark.parametrize("job_id", sorted(NATIVE_CRAWL_PORTABILITY_JOBS))
 def test_CrawlPortabilityJobsRequireDraftMarkerAndRetainTheirOwnEvidence(job_id: str) -> None:
     """Parallel focused portability diagnostics cannot replace a final ready integration job."""
