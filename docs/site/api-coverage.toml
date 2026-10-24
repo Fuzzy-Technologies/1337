@@ -1,6 +1,41 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Experimental public crawl limits and first-party provider/authority composition.
+module = "fuzzy1337.native_crawl"
+source = "src/fuzzy1337/native_crawl.py"
+mode = "authored"
+page = "api/fuzzy1337.native_crawl.md"
+
+[[surfaces]]
+# Experimental public planning, execution and truthful source-only SDK summaries.
+module = "fuzzy1337.native_crawl_workflow"
+source = "src/fuzzy1337/native_crawl_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_crawl_workflow.md"
+
+[[surfaces]]
+# Internal fixed CLI/shell enrollment; documented statically, not an extension contract.
+module = "fuzzy1337.native_crawl_commands"
+source = "src/fuzzy1337/native_crawl_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.native_crawl_commands.md"
+
+[[surfaces]]
+# Internal installed wire worker; direct invocation never grants acquisition authority.
+module = "fuzzy1337.native_crawl_worker"
+source = "src/fuzzy1337/native_crawl_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_crawl_worker.md"
+
+[[surfaces]]
+# Internal closed input/record and invocation boundary for the first-party provider.
+module = "fuzzy1337.adapters.native_crawl"
+source = "src/fuzzy1337/adapters/native_crawl.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.native_crawl.md"
+
+[[surfaces]]
 module = "fuzzy1337.portscan"
 source = "src/fuzzy1337/portscan.py"
 mode = "authored"

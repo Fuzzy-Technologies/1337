@@ -303,6 +303,11 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         create.add_argument("--valid-until")
 
     elif command == "scan":
+        from fuzzy1337.native_crawl_commands import AddCrawlArguments
+
+        crawl = actions.add_parser("crawl",
+                                   help="Plan/run an explicitly selected SAFE native crawl.")
+        AddCrawlArguments(crawl)
         quick = actions.add_parser("quick", help="Run bounded approved SAFE endpoint discovery.")
         quick.add_argument("path", type=Path)
         quick.add_argument("--scope", required=True)
@@ -442,6 +447,14 @@ def RunCommands(
 
     if command == "scan" and arguments.events_json and json_output:
         parser.error("choose --json or --events-json")
+
+    if command == "scan" and arguments.action == "crawl":
+        if arguments.plan and arguments.events_json:
+            parser.error("planning emits one descriptive document without events")
+
+        from fuzzy1337.native_crawl_commands import RunCrawlCommand
+
+        return RunCrawlCommand(arguments, output, json_output=json_output)
 
     if command == "scan" and arguments.action in {"image", "config"} and (
         (arguments.report_format is None) != (arguments.report_output is None)

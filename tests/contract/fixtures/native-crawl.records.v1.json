@@ -1,0 +1,159 @@
+{
+  "description": "Contract shape examples only; not an independent detector oracle, actual worker output or production body catalog.",
+  "input": {
+    "schema_version": 1,
+    "profile": "owned-loopback-content-crawl.v1",
+    "workspace_id": "crawl-contract",
+    "seed_url": "http://127.0.0.1:32123/index",
+    "source_url": "http://127.0.0.1:32123/index",
+    "selected_urls": [
+      "http://127.0.0.1:32123/index",
+      "http://127.0.0.1:32123/leaf"
+    ],
+    "max_body_bytes": 16384,
+    "request_timeout_ms": 3000
+  },
+  "records": {
+    "html": {
+      "schema_version": 1,
+      "profile": "owned-loopback-content-crawl.v1",
+      "outcome": "html",
+      "input_sha256": "50bba759f661aa508a79af0fc85fd255110cf25bf7e1a8b7e7f7d0cca21eb90f",
+      "selected_urls_sha256": "6a72fb917ac23d547f13aa074ee91e755ab24d89cde9df19232a07585f6890d6",
+      "source": {
+        "url": "http://127.0.0.1:32123/index",
+        "address": "127.0.0.1",
+        "port": 32123,
+        "request_reference": "request:def32ca41ebf7839d15d56c11e60d9359fb9ee624956d97c38cca945319eb56e",
+        "endpoint_reference": "object:9d4f14d307d5680a211edf67d4f0bf00976efc3e93e93a0cce5cc1e553cc8295",
+        "request_size_bytes": 149,
+        "request_sha256": "316cf4b3f002cb0f4f89b1f7828d75c22bfe9bc30f038700114ef262a1bfee5b"
+      },
+      "response": {
+        "http_version": "HTTP/1.1",
+        "status": 200,
+        "media_type": "text/html",
+        "header_bytes": 64,
+        "header_fields": 2,
+        "body_bytes": 25,
+        "body_sha256": "d4f459228ec1511550abe04921ce5ac0d7bfc03914cc17332b69f1aaa9a3c5ff"
+      },
+      "frontier": {
+        "complete": true,
+        "anchor_count": 1,
+        "entries": [
+          {
+            "url": "http://127.0.0.1:32123/leaf",
+            "request_reference": "request:6bc67322925791d6ffb6c780aa7e98a5e955f3f823c6773b1680716f6c51b6bd",
+            "endpoint_reference": "object:43de72e9d987aef8036c2bb0009b5dcdac74cb158c20e20c4d5307328439d8bd",
+            "ordinals": [
+              1
+            ]
+          }
+        ],
+        "exclusion_counts": {
+          "missing-href": 0,
+          "invalid-url": 0,
+          "fragment-only": 0,
+          "non-http": 0,
+          "credentials": 0,
+          "query": 0,
+          "off-origin": 0,
+          "unsupported-path": 0,
+          "source-target": 0,
+          "not-admitted": 0
+        }
+      }
+    },
+    "non-html": {
+      "schema_version": 1,
+      "profile": "owned-loopback-content-crawl.v1",
+      "outcome": "non-html",
+      "input_sha256": "50bba759f661aa508a79af0fc85fd255110cf25bf7e1a8b7e7f7d0cca21eb90f",
+      "selected_urls_sha256": "6a72fb917ac23d547f13aa074ee91e755ab24d89cde9df19232a07585f6890d6",
+      "source": {
+        "url": "http://127.0.0.1:32123/index",
+        "address": "127.0.0.1",
+        "port": 32123,
+        "request_reference": "request:def32ca41ebf7839d15d56c11e60d9359fb9ee624956d97c38cca945319eb56e",
+        "endpoint_reference": "object:9d4f14d307d5680a211edf67d4f0bf00976efc3e93e93a0cce5cc1e553cc8295",
+        "request_size_bytes": 149,
+        "request_sha256": "316cf4b3f002cb0f4f89b1f7828d75c22bfe9bc30f038700114ef262a1bfee5b"
+      },
+      "response": {
+        "http_version": "HTTP/1.1",
+        "status": 200,
+        "media_type": "text/plain",
+        "header_bytes": 64,
+        "header_fields": 2,
+        "body_bytes": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "frontier": {
+        "complete": true,
+        "anchor_count": 0,
+        "entries": [],
+        "exclusion_counts": {
+          "missing-href": 0,
+          "invalid-url": 0,
+          "fragment-only": 0,
+          "non-http": 0,
+          "credentials": 0,
+          "query": 0,
+          "off-origin": 0,
+          "unsupported-path": 0,
+          "source-target": 0,
+          "not-admitted": 0
+        }
+      }
+    },
+    "client-error": {
+      "schema_version": 1,
+      "profile": "owned-loopback-content-crawl.v1",
+      "outcome": "client-error",
+      "input_sha256": "50bba759f661aa508a79af0fc85fd255110cf25bf7e1a8b7e7f7d0cca21eb90f",
+      "selected_urls_sha256": "6a72fb917ac23d547f13aa074ee91e755ab24d89cde9df19232a07585f6890d6",
+      "source": {
+        "url": "http://127.0.0.1:32123/index",
+        "address": "127.0.0.1",
+        "port": 32123,
+        "request_reference": "request:def32ca41ebf7839d15d56c11e60d9359fb9ee624956d97c38cca945319eb56e",
+        "endpoint_reference": "object:9d4f14d307d5680a211edf67d4f0bf00976efc3e93e93a0cce5cc1e553cc8295",
+        "request_size_bytes": 149,
+        "request_sha256": "316cf4b3f002cb0f4f89b1f7828d75c22bfe9bc30f038700114ef262a1bfee5b"
+      },
+      "response": {
+        "http_version": "HTTP/1.1",
+        "status": 404,
+        "media_type": "text/html",
+        "header_bytes": 70,
+        "header_fields": 2,
+        "body_bytes": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "frontier": {
+        "complete": true,
+        "anchor_count": 0,
+        "entries": [],
+        "exclusion_counts": {
+          "missing-href": 0,
+          "invalid-url": 0,
+          "fragment-only": 0,
+          "non-http": 0,
+          "credentials": 0,
+          "query": 0,
+          "off-origin": 0,
+          "unsupported-path": 0,
+          "source-target": 0,
+          "not-admitted": 0
+        }
+      }
+    },
+    "refused": {
+      "schema_version": 1,
+      "profile": "owned-loopback-content-crawl.v1",
+      "outcome": "refused",
+      "error": "html-policy"
+    }
+  }
+}

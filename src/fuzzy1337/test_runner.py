@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import math
 import os
+import re
 import subprocess
 import sys
 import time
@@ -18,6 +20,11 @@ DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_SUITE_TIMEOUT_SECONDS = 600
 DEFAULT_MAX_WORKERS = 12
 MAX_TIMEOUT_SECONDS = 3600
+# pytest-timeout 2.4.0 raises this exact pytest.fail diagnostic; traceback text is not evidence.
+_PYTEST_TIMEOUT_FAILURE = re.compile(
+    r"Failed: Timeout \(>(?P<seconds>[0-9]+(?:\.[0-9]+)?(?:e[+-]?[0-9]+)?)s\)"
+    r" from pytest-timeout\."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,13 +195,28 @@ def ReadJunitSummary(report_path: Path) -> TestSummary:
     )
     skipped = sum(int(suite.attrib.get("skipped", 0)) for suite in suites)
     duration = sum(float(suite.attrib.get("time", 0.0)) for suite in suites)
-    timeout = sum(
-        1
-        for case in root.findall(".//testcase")
-        for failure in (*case.findall("failure"), *case.findall("error"))
-        if "timeout" in (failure.text or "").lower()
-        or "timeout" in failure.attrib.get("message", "").lower()
-    )
+    timeout = 0
+
+    for case in root.findall(".//testcase"):
+        for failure in (*case.findall("failure"), *case.findall("error")):
+            message = failure.attrib.get("message", "")
+
+            if failure.tag == "error":
+                for phase in ("setup", "teardown"):
+                    prefix = f'failed on {phase} with "'
+
+                    if message.startswith(prefix) and message.endswith('"'):
+                        message = message[len(prefix):-1]
+                        break
+
+            match = _PYTEST_TIMEOUT_FAILURE.fullmatch(message)
+
+            if match is not None:
+                seconds = float(match.group("seconds"))
+
+                if math.isfinite(seconds) and seconds > 0:
+                    timeout += 1
+
     return TestSummary(
         total=total,
         passed=total - failed - skipped,

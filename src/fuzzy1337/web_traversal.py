@@ -286,9 +286,13 @@ class LocalWebTraversalProvider:
             """Rate-limit actual launch and order the final synchronous owner commit phase."""
 
             async with start_lock:
-                remaining = next_start[0] - asyncio.get_running_loop().time()
+                while True:
+                    context.CheckCancellation()
+                    remaining = next_start[0] - asyncio.get_running_loop().time()
 
-                if remaining > 0:
+                    if remaining <= 0:
+                        break
+
                     await asyncio.sleep(remaining)
 
                 context.CheckCancellation()

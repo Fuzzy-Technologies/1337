@@ -61,10 +61,28 @@ record its actual execution/recovery evidence and do not claim uninterrupted
 platform operation or recovery until observed. Resume from the published state
 without duplicating an active owner or an already accepted full gate.
 
+Synchronize the actual source branch to the connected Git repository promptly
+after a tested handoff, before starting another long phase. A local commit hash
+in a message does not preserve its Git objects. Keep unfinished checkpoints in
+draft and state failing or unexecuted checks honestly; publication is not approval.
+After an execution environment reconnects, compare actual checkout heads/trees
+and owner proofs with the published checkpoint before editing or resuming tests.
+Preserve an unexpected older checkout and create a new worktree from the verified
+published ref instead of resetting it or assuming the latest local work survived.
+
 `uv.lock` records exact dependency versions and artifact hashes. `--locked`
 rejects stale dependency metadata instead of rewriting the lock. Build backend
 constraints also pin the editable-build environment. Update dependency pins and
 the lock together in a reviewed change; do not regenerate them during CI.
+
+When adding a production module, update the explicit API inventory, authored
+canonical reference and locale units before final readiness. Run this focused
+preflight without the full suite:
+
+```bash
+uv run --locked --extra dev pytest -o addopts='' --no-cov \
+  tests/unit/test_api_reference.py::test_InventoryCoversEverySourceModule
+```
 
 `1337-dev setup` is the repeatable CLI entry point for the locked development
 environment. It invokes `uv sync --locked --extra dev` with `shell=False` and
@@ -86,6 +104,11 @@ required for its bounded Git HEAD exposure predicate.
 The [original-response capture and replay](OWNED_RESPONSE_CAPTURE.md) commands use
 the `response` namespace, explicit SAFE approval and the reviewed closed wire
 profile to preserve source facts for later assessment.
+The [owned-loopback native content crawl](NATIVE_CONTENT_CRAWL.md) uses `scan crawl`
+with an exact sorted selected URL set, current scope/policy and separate SAFE
+approval. It preserves source-only observations. Focused independent installed
+worker/SDK/CLI cases have passed; final shared integration and portability
+acceptance remain required.
 
 | Command                                | Behavior                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -144,8 +167,25 @@ Explicit draft feature markers may run only their declared browser, Trivy, nativ
 image or owned-response protocol checks. Portable protocol checkpoints use two
 workers across the existing OS matrix, a 30-second per-case deadline and a
 five-minute step limit. They retain JUnit without claiming complete coverage.
+The explicit `[native-crawl-portability-checkpoint]` runs two parallel draft-only
+jobs: Windows Python 3.12 checks the crawl workflow/command units and one actual
+SDK cancellation case; the existing development container runs one installed
+worker seed case through the quality service command override. Both keep finite
+timeouts, original UID/GID mapping where applicable and retained JUnit/original
+case evidence. Missing required prerequisites fail; these focused results never
+satisfy final full integration or platform acceptance.
 Remove its marker before final publication/readiness to avoid an extra diagnostic
 run; feature success never substitutes for the final complete integration gate.
+
+The separate `[owned-traversal-rate-checkpoint]` selects one independent draft-only
+Windows 2022/Python 3.12 job. It runs only the six new controlled rate/deadline
+cases and 21 timeout-classifier cases with two workers, then the two affected
+actual traversal cases serially. The eight-minute job keeps 30/90-second per-case
+and two/four-minute step ceilings, disables partial coverage and always uploads
+its JUnit and original native-crawl evidence. It does not rerun the earlier
+portability cohorts or satisfy the final Ready integration gate. Remove this
+marker before final readiness; the existing portability marker stays independent.
+
 Do not repeat the full gate locally, in individual development agents or after
 the accepted merge into `develop`. Protected `master` pushes retain stable-branch
 checks and master-only documentation deployment.
@@ -182,7 +222,7 @@ The runner accepts these controlled diagnostics:
 ```bash
 uv run --locked 1337-dev unit --jobs auto --timeout 120
 uv run --locked 1337-dev test --timeout 120 --suite-timeout 600
-uv run --locked 1337-dev check --suite-timeout 900
+uv run --locked 1337-dev check --suite-timeout 900 --fail-fast
 uv run --locked 1337-dev unit --jobs 4 --fail-fast
 uv run --locked 1337-dev unit --serial
 ```
@@ -193,10 +233,12 @@ invocation (default 600 seconds); it is not derived from the number of per-test
 deadlines. Both accept only integers in the supported 1–3600-second range, enforced
 by `MAX_TIMEOUT_SECONDS` before dispatch, report deletion or child startup. This
 keeps operating-system wait/timer conversion bounded and rejects oversized values
-through fixed configuration diagnostics. The full `check` command permits only
-the suite-budget override; nondefault worker counts, per-test timeouts, serial-only
-selection and fail-fast behavior remain rejected. All quality phases and test
-layers still execute, with unchanged coverage requirements and no retries.
+through fixed configuration diagnostics. The full `check` command permits the
+suite-budget override and `--fail-fast`; nondefault worker counts, per-test
+timeouts and serial-only selection remain rejected. Ready Python-matrix and
+container CI checks stop on the first test failure, leaving subsequent work
+unassessed. Successful checks retain every quality phase, test layer and coverage
+requirement, with unchanged worker/per-test defaults and no retries.
 
 The Windows CI profile uses a 900-second suite budget and a 20-minute job limit.
 Recent successful Windows suites took 529–540 seconds; a larger invocation reached
