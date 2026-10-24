@@ -22,7 +22,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   SDK and explicit `scan crawl` enrollment over a sorted admitted URL set. Current
   SAFE authority, bounded concurrent acquisition, original report custody and
   ordered source-only model commits preserve partial/CAS/cancellation truth.
-  Independent installed execution, portability and shared integration acceptance
+  Independent installed worker/SDK/CLI cases cover live content, scope refusal,
+  cancellation and relocated reopen. Final shared integration and portability
   remain required; discovery creates no Finding or automatic check grant.
 
 - Added explicit governed original-response planning, SDK capture and installed

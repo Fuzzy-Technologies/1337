@@ -6,10 +6,11 @@ links from complete admitted responses, without a production body catalog.
 It stores source observations and structural request templates. It creates no
 security Finding and grants no permission to run a discovered check.
 
-This guide describes the reviewed source interface, not a released capability or
-completed runtime acceptance. Independent installed worker/SDK/CLI verification,
-portability checks and the shared integration gate remain required at this
-documentation checkpoint. See the [contract](NATIVE_CONTENT_CRAWL_CONTRACT.md)
+This guide describes the Experimental development interface. All 31 independent
+owned-target worker/SDK/CLI cases have passed across focused verification runs,
+including actual cancellation and relocated offline reopen. The exact final
+shared integration gate and platform matrix remain required; this capability
+has not been released. See the [contract](NATIVE_CONTENT_CRAWL_CONTRACT.md)
 and [ADR0097](adr/0097-owned-loopback-content-crawl.md).
 
 ## Select current authority

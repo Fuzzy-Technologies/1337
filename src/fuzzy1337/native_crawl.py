@@ -511,6 +511,7 @@ class NativeCrawlProvider:
                                          at=self.clock())
         request = LocalExecutionRequest(invocation, self.capability, grant.authorization,
             resources=ExecutionResources(MAX_RECORD_BYTES, 1, 0.1))
+        cancellation = asyncio.Event()
 
         def Current() -> PolicyContext:
             """Bind the full fixed request and reread actor/selection at final governed launch.
@@ -521,6 +522,9 @@ class NativeCrawlProvider:
 
             self.CheckBudget()
             context.CheckCancellation()
+
+            if cancellation.is_set():
+                raise PermissionError("native crawl original page launch was cancelled")
 
             if request != LocalExecutionRequest(invocation, self.capability, grant.authorization,
                 resources=ExecutionResources(MAX_RECORD_BYTES, 1, 0.1)):
@@ -542,11 +546,30 @@ class NativeCrawlProvider:
                 context.Heartbeat()
 
         started_at = self.clock().isoformat()
+        interrupted = False
 
         try:
-            result = await GovernedLocalExecutor(self.root, clock=self.clock).Execute(request,
-                grant=grant, context_provider=Current, on_event=OnEvent,
-                cancellation=context.Cancellation)
+            executor = GovernedLocalExecutor(self.root, clock=self.clock)
+            original = asyncio.create_task(executor.Execute(
+                request, grant=grant, context_provider=Current, on_event=OnEvent,
+                cancellation=cancellation))
+
+            try:
+                result = await asyncio.shield(original)
+
+            except asyncio.CancelledError:
+                interrupted = True
+                cancellation.set()
+
+                try:
+                    result = await SettleCrawlTask(original)
+
+                except RuntimeError:
+                    if original.cancelled():
+                        raise LocalExecutionError(
+                            "native crawl original executor ended without an outcome") from None
+
+                    raise
 
         except PermissionError:
             raise JobError(JobFailure(JobFailureCode.AUTHORIZATION,
@@ -629,6 +652,9 @@ class NativeCrawlProvider:
             code = (JobFailureCode.TIMEOUT if result.termination is ExecutionTermination.TIMEOUT
                     else JobFailureCode.OUTPUT_LIMIT)
             raise JobError(JobFailure(code, "Native crawl original execution did not complete"))
+
+        if interrupted:
+            raise asyncio.CancelledError
 
         if publication_error is not None:
             raise publication_error

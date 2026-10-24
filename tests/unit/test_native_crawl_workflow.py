@@ -415,7 +415,7 @@ def test_RepeatedCallerCancelSettlesOriginalCleanupAndPreservesFirstFailure(
             started.set()
 
             try:
-                await asyncio.Event().wait()
+                await kwargs["cancellation"].wait()
 
             finally:
                 cleaning.set()
@@ -423,6 +423,8 @@ def test_RepeatedCallerCancelSettlesOriginalCleanupAndPreservesFirstFailure(
                 await release.wait()
 
                 cleaned.set()
+
+            return Result(b"", exit_code=-15, termination=ExecutionTermination.CANCELLATION)
 
         def Present(event):
             """Fail presentation once acquisition actually entered its controlled wait."""
@@ -901,4 +903,192 @@ def test_CancelledFailureRetentionCannotReplaceTheOriginalStorageFailure(owned, 
     )
     assert LocalWorkspaceStore(owned.root).Open() == owned.workspace, (
         "An optional denied finalizer must preserve actual unchanged canonical workspace state."
+    )
+
+
+@pytest.mark.parametrize("late_success", (False, True))
+def test_OwnedPageCancellationRetainsOnlyTheOriginalReturnedExecutorOutcome(
+    owned, monkeypatch, late_success,
+):
+    """Direct task cancellation re-raises; cooperative signaling returns actual cleanup facts."""
+
+    async def Scenario():
+        """Reproduce the actual LocalExecutor distinction through the public SDK and real job."""
+
+        started, cleaning, release, cleaned = (asyncio.Event() for _ in range(4))
+        original_acquire = parent.NativeCrawlProvider.Acquire
+        page_task, executor_tasks, actual_results, direct_cancels = [], [], [], []
+
+        async def Acquire(self, context, url):
+            """Identify only the exact owned page task that the original scheduler may cancel."""
+
+            page_task.append(asyncio.current_task())
+
+            return await original_acquire(self, context, url)
+
+        async def Execute(_self, request, **kwargs):
+            """Mirror LocalExecutor abort/re-raise versus signal/return without a process."""
+
+            executor_tasks.append(asyncio.current_task())
+            kwargs["context_provider"]()
+            started.set()
+
+            try:
+                await kwargs["cancellation"].wait()
+                cleaning.set()
+
+                await release.wait()
+
+            except asyncio.CancelledError:
+                direct_cancels.append(True)
+                cleaning.set()
+
+                await release.wait()
+
+                cleaned.set()
+                raise
+
+            cleaned.set()
+            document = ParseCrawlInput(request.invocation.argv[-1].encode("ascii"))
+            result = (Result(CanonicalRecord(Record(document, ()))) if late_success else
+                Result(b"", exit_code=-15, termination=ExecutionTermination.CANCELLATION))
+            actual_results.append(result)
+
+            return result
+
+        monkeypatch.setattr(parent.NativeCrawlProvider, "Acquire", Acquire)
+        monkeypatch.setattr(GovernedLocalExecutor, "Execute", Execute)
+        task = asyncio.create_task(product.RunNativeCrawl(owned.root, "local", SEED, URLS,
+            "actor:operator", lambda: owned.policy, approve_safe_crawl=True, clock=lambda: AT))
+
+        try:
+            await asyncio.wait_for(started.wait(), 1)
+
+            # Force the exact scheduler abort before a shared job signal can hide the defect.
+            page_task[0].cancel()
+
+            await asyncio.wait_for(cleaning.wait(), 1)
+
+            task.cancel()
+
+            await asyncio.sleep(0)
+
+            task.cancel()
+
+            await asyncio.sleep(0)
+
+            assert not task.done() and not cleaned.is_set(), (
+                "Repeated caller cancellation must retain the original pending executor owner."
+            )
+            release.set()
+            summary = await asyncio.wait_for(asyncio.shield(task), 2)
+            assert summary.snapshot.state is JobState.CANCELLED, summary.ToDict()
+            assert cleaned.is_set() and len(actual_results) == 1 and not direct_cancels, (
+                "Only cooperative execution returns an actual result; direct abort returns none."
+            )
+            assert executor_tasks[0] is not page_task[0] and executor_tasks[0].done(), (
+                "A distinct original executor task must remain owned until its actual result."
+            )
+            control = next(item for item in summary.records
+                           if item.reference.role == "native-crawl-control")
+            value = json.loads((owned.root / "evidence" / control.reference.locator).read_bytes())
+            assert value["execution"] == json.loads(SerializeContract(
+                actual_results[0].execution)), (
+                "Control custody must preserve actual returned state/exit, including late success."
+            )
+            assert value["termination"] == actual_results[0].termination.value, (
+                "Parent cancellation must not fabricate an executor termination or event stream."
+            )
+            assert not summary.completed_urls and LocalModelStore(owned.root).Open() == (
+                owned.model
+            ), (
+                "An interrupted page cannot turn even a late real success into model completion."
+            )
+
+        finally:
+            release.set()
+
+            if not task.done():
+                task.cancel()
+
+            await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(Scenario())
+
+
+def test_SelfCancelledOriginalExecutorRemainsUnknownWithoutFabricatedCustody(owned, monkeypatch):
+    """A terminal self-cancelled original execution has no returned result or cleanup proof."""
+
+    async def Execute(_self, request, **kwargs):
+        """Model the original executor itself ending cancelled without any actual result."""
+
+        kwargs["context_provider"]()
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(GovernedLocalExecutor, "Execute", Execute)
+    summary = Run(owned)
+    assert summary.snapshot.state is JobState.FAILED and (
+        summary.snapshot.failure.code.value == "provider"
+    ), "An unknown original task outcome must remain an explicit provider error."
+    assert not summary.records and summary.custody_status == "incomplete", (
+        "No genuine result means no fabricated stdout, events, parent control or terminal success."
+    )
+
+
+def test_SiblingAbortUsesPrivateSignalWithoutReplacingTheOriginalFailure(owned, monkeypatch):
+    """One refused page drains a sibling through its original executor, keeping the first error."""
+
+    original_execute = GovernedLocalExecutor.Execute
+    observed = []
+
+    async def Scenario():
+        """Coordinate only known executor doubles on the actual public SDK's owning loop."""
+
+        sibling_started = asyncio.Event()
+
+        async def Execute(self, request, **kwargs):
+            """Hold the sibling until its private signal, then return its exact actual outcome."""
+
+            document = ParseCrawlInput(request.invocation.argv[-1].encode("ascii"))
+
+            if document["source_url"] == URLS[0]:
+                kwargs["context_provider"]()
+
+                await sibling_started.wait()
+
+                return Result(CanonicalRecord({"schema_version": 1,
+                    "profile": NATIVE_CRAWL_PROFILE, "outcome": "refused",
+                    "error": "html-policy"}), exit_code=2)
+
+            if document["source_url"] == URLS[1]:
+                kwargs["context_provider"]()
+                sibling_started.set()
+
+                await kwargs["cancellation"].wait()
+
+                actual = Result(b"", exit_code=-15, termination=ExecutionTermination.CANCELLATION)
+                observed.append(actual)
+
+                return actual
+
+            return await original_execute(self, request, **kwargs)
+
+        monkeypatch.setattr(GovernedLocalExecutor, "Execute", Execute)
+
+        return await product.RunNativeCrawl(owned.root, "local", SEED, URLS, "actor:operator",
+            lambda: owned.policy, approve_safe_crawl=True, clock=lambda: AT)
+
+    summary = asyncio.run(Scenario())
+    assert summary.snapshot.state is JobState.FAILED and (
+        summary.snapshot.failure.message == "Native crawl worker refused this page"
+    ), "Sibling cleanup must preserve the original page refusal instead of changing it to cancel."
+    assert not summary.snapshot.cancellation_requested and len(observed) == 1, (
+        "Stopping one sibling may signal only its own executor, never global job cancellation."
+    )
+    assert summary.completed_urls == (SEED,), "The earlier actual seed commit remains acknowledged."
+    controls = [json.loads((owned.root / "evidence" / item.reference.locator).read_bytes())
+                for item in summary.records if item.reference.role == "native-crawl-control"]
+    assert any(item["execution"] == json.loads(SerializeContract(observed[0].execution))
+               and item["termination"] == "cancellation" for item in controls), (
+        "The sibling's real returned cancellation remains an original distinct control receipt."
     )

@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import ast
+import errno
+import json
 import socket
 from collections.abc import Callable
 from pathlib import Path
@@ -670,3 +672,140 @@ def test_SentinelOriginalPartialContactsRemainDistinctFromMainZeroContact() -> N
     assert response.status == 404 and b"href" not in response.body and len(response.Wire()) < 256, (
         "The owned sentinel must serve only finite terminal bytes without traversal or forwarding."
     )
+
+
+def test_CompletedOriginalResponseClosesWithoutRedundantFullShutdown() -> None:
+    """A completed original send/SHUT_WR needs physical close without a second full shutdown."""
+
+    state = CrawlGraphState(MutableCrawlGraph("http://127.0.0.1:49152"))
+    server = PureGraphServer(state)
+    connection = FakeGraphSocket()
+    original_shutdown = connection.shutdown
+
+    def Shutdown(mode: int) -> None:
+        """Model a completed connection refusing only the redundant full-shutdown operation."""
+
+        original_shutdown(mode)
+
+        if mode == socket.SHUT_RDWR:
+            raise OSError(errno.ENOTCONN, "private simulated shutdown diagnostic")
+
+    connection.shutdown = Shutdown
+    state.Accept(connection)
+    assert server.slots.acquire(blocking=False), "The original modeled dispatch must own one slot."
+
+    with state.lock:
+        state.dispatch_owners.add(connection)
+        state.UpdateIdleLocked()
+
+    state.BeginHandler(connection)
+    response, _ = state.BeginResponse(connection, "/leaf/.git/HEAD")
+    state.RecordSent(connection, connection.send(response))
+    connection.shutdown(socket.SHUT_WR)
+    state.CompleteResponse(connection, "/leaf/.git/HEAD")
+    state.EndHandler(connection)
+    state.CloseConnection(connection)
+    assert state.Errors() == (), "Completed response cleanup must not repeat full shutdown."
+    assert connection.closed and state.Observe()[0].socket_closed and connection.shutdowns == [
+        socket.SHUT_WR], "Physical closure must preserve actual complete-send and half-close facts."
+    assert state.Counters()["active_dispatches"] == 1 and not state.WaitIdle(0), (
+        "Physical closure must not release the original dispatch slot or expose false idleness."
+    )
+    server.ReleaseDispatch(connection)
+    assert state.WaitIdle(0), "Only original slot release may complete cleanup idleness."
+
+
+@pytest.mark.parametrize("shutdown_fails", [False, True])
+def test_IncompleteOriginalSocketStillRequiresFullShutdownAndPhysicalClose(
+    shutdown_fails: bool,
+) -> None:
+    """Incomplete teardown must unblock the original socket and retain actual errno."""
+
+    state = CrawlGraphState(MutableCrawlGraph("http://127.0.0.1:49152"))
+    server = PureGraphServer(state)
+    connection = FakeGraphSocket()
+    original_shutdown = connection.shutdown
+
+    def Shutdown(mode: int) -> None:
+        """Observe required full shutdown and optionally model its actual failure."""
+
+        original_shutdown(mode)
+
+        if shutdown_fails:
+            raise OSError(errno.EIO, "private mock shutdown detail must not survive")
+
+    connection.shutdown = Shutdown
+    state.Accept(connection)
+    assert server.slots.acquire(blocking=False), "Original dispatch must acquire its slot."
+
+    with state.lock:
+        state.dispatch_owners.add(connection)
+        state.UpdateIdleLocked()
+
+    state.BeginHandler(connection)
+    state.RecordRequest(connection, b"GET /leaf/.git/HEAD ")
+    state.CloseAdmission()
+    state.CloseConnection(connection)
+    record = state.Observe()[0]
+    assert connection.shutdowns == [socket.SHUT_RDWR] and (
+        connection.closed and record.socket_closed
+    ), (
+        "Incomplete original work must attempt full shutdown and still physically close its socket."
+    )
+    assert record.completion_sequence is None and record.failure == "owned-contact-interrupted", (
+        "Interrupted original work must preserve its real incomplete response state."
+    )
+    assert record.shutdown_error is shutdown_fails and record.shutdown_errno == (
+        errno.EIO if shutdown_fails else None), "Only observed required-shutdown errno survives."
+    assert ("owned-socket-shutdown-failure" in state.Errors()) is shutdown_fails and (
+        "private mock shutdown" not in json.dumps(record.ToDict())
+    ), "Required shutdown failures must remain errors without retaining exception text or paths."
+    assert not state.WaitIdle(0), "Physical close must retain running/dispatch owners."
+    state.EndHandler(connection)
+    assert not state.WaitIdle(0), "Dispatch keeps its semaphore after handler exit."
+    server.ReleaseDispatch(connection)
+    assert state.WaitIdle(0), "Only original dispatch-slot release exposes idle cleanup."
+
+
+@pytest.mark.parametrize("actual_errno,retained_errno", [
+    (errno.EBADF, errno.EBADF), (None, None), (True, None), (999999, None),
+])
+def test_PhysicalCloseFailureRetainsOriginalOwnerAndBoundedFirstErrno(
+    actual_errno: int | None, retained_errno: int | None,
+) -> None:
+    """A failed physical close keeps original ownership and first bounded errno."""
+
+    state = CrawlGraphState(MutableCrawlGraph("http://127.0.0.1:49152"))
+    connection = FakeGraphSocket()
+    original_close = connection.close
+
+    def Close() -> None:
+        """Model only one original close failure without opening or reading any real descriptor."""
+
+        raise OSError(actual_errno, "private mock close path and diagnostic must not survive")
+
+    connection.close = Close
+    state.Accept(connection)
+    state.BeginHandler(connection)
+    response, _ = state.BeginResponse(connection, "/leaf/.git/HEAD")
+    state.RecordSent(connection, connection.send(response))
+    connection.shutdown(socket.SHUT_WR)
+    state.CompleteResponse(connection, "/leaf/.git/HEAD")
+    state.EndHandler(connection)
+    state.CloseConnection(connection)
+    record = state.Observe()[0]
+    assert state.Errors() == ("owned-socket-close-failure",) and not record.socket_closed and (
+        connection in state.connections and not state.WaitIdle(0)
+    ), "A failed actual close must remain an error with unsettled original socket ownership."
+    assert record.close_error is True and record.close_errno == retained_errno and (
+        "private mock close" not in json.dumps(record.ToDict())
+    ), "Only known original integer errno survives; unsupported values stay unknown."
+    connection.close = original_close
+    state.CloseConnection(connection)
+    retried = state.Observe()[0]
+    assert connection.closed and retried.socket_closed and state.WaitIdle(0), (
+        "Only a successful actual physical retry may release the original socket owner."
+    )
+    assert connection.shutdowns == [socket.SHUT_WR] and retried.close_error and (
+        retried.close_errno == retained_errno and state.Errors() == ("owned-socket-close-failure",)
+    ), "Actual close success must preserve first-failure errno without adding redundant shutdown."

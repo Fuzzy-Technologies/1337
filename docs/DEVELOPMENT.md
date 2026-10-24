@@ -88,8 +88,9 @@ the `response` namespace, explicit SAFE approval and the reviewed closed wire
 profile to preserve source facts for later assessment.
 The [owned-loopback native content crawl](NATIVE_CONTENT_CRAWL.md) uses `scan crawl`
 with an exact sorted selected URL set, current scope/policy and separate SAFE
-approval. It preserves source-only observations; installed runtime and portability
-acceptance remain required at this development checkpoint.
+approval. It preserves source-only observations. Focused independent installed
+worker/SDK/CLI cases have passed; final shared integration and portability
+acceptance remain required.
 
 | Command                                | Behavior                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |

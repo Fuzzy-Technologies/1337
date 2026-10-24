@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
+import shutil
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -32,8 +32,14 @@ from tests.native_crawl_acceptance_helpers import (
     NativeConfig,
     NativeConsumer,
     NativeEnvironment,
+    NativeGet,
+    NativeHeldCancellation,
+    NativeInstallation,
+    NativeProcess,
 )
 from tests.native_crawl_acceptance_helpers import installed_native_crawl as installed_native_crawl
+from tests.native_crawl_acceptance_helpers import native_acceptance_run as native_acceptance_run
+from tests.native_crawl_acceptance_helpers import native_case_evidence as native_case_evidence
 from tests.native_crawl_graph_helpers import CrawlGraphOracle
 
 
@@ -180,14 +186,14 @@ def AssertNativeSaves(output: dict, expected_urls: list[str]) -> None:
 
 @pytest.mark.integration
 def test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState(
-    installed_native_crawl, tmp_path,
+    installed_native_crawl, tmp_path, native_case_evidence,
 ) -> None:
     """Changing only target bytes changes actual traversal, with measured inverted sibling
     overlap."""
 
     oracle = CrawlGraphOracle()
 
-    with NativeAcceptanceGraph() as target:
+    with NativeAcceptanceGraph(native_case_evidence) as target:
         original_seed = target.graph.Url("/entry")
 
         for variant in ("positive", "fixed", "decoy", "redirect"):
@@ -199,12 +205,14 @@ def test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState(
 
             directory = tmp_path / variant
             config = NativeConfig(target, directory / "workspace")
-            setup = NativeConsumer(installed_native_crawl, directory, "setup", config)
+            setup = NativeConsumer(installed_native_crawl, directory, "setup", config,
+                evidence=native_case_evidence)
             assert setup["crawl_attester"] != setup["selected_owner"], (
                 "Crawl attestation must differ from execution attribution."
             )
             before = len(target.state.Observe())
-            output = NativeConsumer(installed_native_crawl, directory, "crawl", config)
+            output = NativeConsumer(installed_native_crawl, directory, "crawl", config,
+                evidence=native_case_evidence)
             assert target.state.WaitIdle(), "The actual SDK left original target owners active."
             contacts = target.state.Observe()[before:]
             PersistNativeAcceptance(directory / "evidence", output, target)
@@ -242,7 +250,8 @@ def test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState(
                     by_path["/branch-a"].completion_sequence
                 ), "Actual two-handler overlap and B-before-A completion must both be measured."
 
-            reopened = NativeConsumer(installed_native_crawl, directory, "inspect", config)
+            reopened = NativeConsumer(installed_native_crawl, directory, "inspect", config,
+                evidence=native_case_evidence)
             assert reopened["state"] == output["state"], (
                 "Canonical model, complete request collections and originals must durably reopen."
             )
@@ -252,15 +261,19 @@ def test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState(
 @pytest.mark.integration
 @pytest.mark.parametrize("negative", ["unregistered", "ip-denied", "excluded", "revoked",
     "policy-denied", "owner-after-plan", "owner-grant-launch", "approval-missing"])
-def test_ActualSdkFreshDenialMakesZeroOriginalContact(installed_native_crawl, tmp_path, negative):
+def test_ActualSdkFreshDenialMakesZeroOriginalContact(
+    installed_native_crawl, tmp_path, negative, native_case_evidence,
+):
     """Current registration/scope/consent/policy/actor/approval denial precedes every real
     request."""
 
-    with NativeAcceptanceGraph() as target:
+    with NativeAcceptanceGraph(native_case_evidence) as target:
         config = NativeConfig(target, tmp_path / "workspace", negative=negative,
                               approve=negative != "approval-missing")
-        setup = NativeConsumer(installed_native_crawl, tmp_path, "setup", config)
-        output = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config)
+        setup = NativeConsumer(installed_native_crawl, tmp_path, "setup", config,
+            evidence=native_case_evidence)
+        output = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config,
+            evidence=native_case_evidence)
         PersistNativeAcceptance(tmp_path / "evidence", output, target)
         AssertZeroNativeContact(target)
         assert output["executions"] == [] and output["actual_model_saves"] == [], (
@@ -275,15 +288,17 @@ def test_ActualSdkFreshDenialMakesZeroOriginalContact(installed_native_crawl, tm
 @pytest.mark.integration
 @pytest.mark.parametrize("negative", ["owner-before-save", "lost-model-ack"])
 def test_ActualSdkRetainsOriginalAcquisitionAndTruthfulUnacknowledgedModelState(
-    installed_native_crawl, tmp_path, negative,
+    installed_native_crawl, tmp_path, negative, native_case_evidence,
 ):
     """Actual original worker success cannot override fresh owner denial or a real lost Save ACK."""
 
-    with NativeAcceptanceGraph() as target:
+    with NativeAcceptanceGraph(native_case_evidence) as target:
         target.state.SetVariant("fixed")
         config = NativeConfig(target, tmp_path / "workspace", negative=negative)
-        setup = NativeConsumer(installed_native_crawl, tmp_path, "setup", config)
-        output = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config)
+        setup = NativeConsumer(installed_native_crawl, tmp_path, "setup", config,
+            evidence=native_case_evidence)
+        output = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config,
+            evidence=native_case_evidence)
         assert target.state.WaitIdle(), "Failed SDK work must settle original owners."
         PersistNativeAcceptance(tmp_path / "evidence", output, target)
         assert output["summary"]["state"] == "failed" and output["executions"], (
@@ -309,7 +324,7 @@ def test_ActualSdkRetainsOriginalAcquisitionAndTruthfulUnacknowledgedModelState(
 
 @pytest.mark.integration
 def test_DiscoveredTargetsRequireSeparateGitConfirmationAndPersistFiniteFindings(
-    installed_native_crawl, tmp_path,
+    installed_native_crawl, tmp_path, native_case_evidence,
 ) -> None:
     """Score actual saved Git TP1/TN3, preserve operator triage and keep Endpoint owners
     separate."""
@@ -317,16 +332,19 @@ def test_DiscoveredTargetsRequireSeparateGitConfirmationAndPersistFiniteFindings
     oracle = CrawlGraphOracle()
     scenarios, runs = [], []
 
-    with NativeAcceptanceGraph() as target:
+    with NativeAcceptanceGraph(native_case_evidence) as target:
         config = NativeConfig(target, tmp_path / "workspace")
-        NativeConsumer(installed_native_crawl, tmp_path, "setup", config)
-        positive = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config)
+        NativeConsumer(installed_native_crawl, tmp_path, "setup", config,
+            evidence=native_case_evidence)
+        positive = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config,
+            evidence=native_case_evidence)
         assert positive["summary"]["state"] == "completed", (
             "Separate Git acceptance requires actual successful positive graph discovery first."
         )
         assert target.state.WaitIdle(), "Original graph owners must settle before byte mutation."
         target.state.SetVariant("redirect")
-        redirect = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config)
+        redirect = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config,
+            evidence=native_case_evidence)
         assert redirect["summary"]["state"] == "failed", (
             "The explicit redirect crawl variant must remain refused/unassessed."
         )
@@ -338,12 +356,14 @@ def test_DiscoveredTargetsRequireSeparateGitConfirmationAndPersistFiniteFindings
             assert url in discovered, "Git selection needs actual discovery provenance."
             before = target.state.Counters()["contacts"]
             denied = NativeConsumer(installed_native_crawl, tmp_path, "git",
-                                   {**config, "git_url": url, "confirm": False})
+                                   {**config, "git_url": url, "confirm": False},
+                evidence=native_case_evidence)
             assert denied["summary"]["state"] == "failed" and (
                 target.state.Counters()["contacts"] == before
             ), "Crawl approval must not confirm a STANDARD Git plan."
             output = NativeConsumer(installed_native_crawl, tmp_path, "git",
-                                    {**config, "git_url": url})
+                                    {**config, "git_url": url},
+                evidence=native_case_evidence)
             assert target.state.WaitIdle(), "The actual Git check must settle its original request."
             current = [item for item in output["state"]["findings"]
                        if item["location_key"] == url
@@ -364,13 +384,16 @@ def test_DiscoveredTargetsRequireSeparateGitConfirmationAndPersistFiniteFindings
                     raw.append(RawEvidence(reference["role"], reference["media_type"],
                                            bytes.fromhex(original["data_hex"]).decode()))
 
-            runs.append(FunctionalRun(case["id"], "native.web-check",
-                "installed-contract-1", status,
+            runs.append(FunctionalRun(case["id"], output["plan"]["invocation"]["adapter_id"],
+                output["provider_version"], status,
                 summary["duration_seconds"], (case["id"],) if current else (), evidence=tuple(raw)))
             report = BuildReport(tuple(scenarios), tuple(runs))
             output_directory = tmp_path / "git-evidence" / case["id"]
             PersistNativeAcceptance(output_directory, output, target)
             (tmp_path / "git-matrix.json").write_text(SerializeReport(report), encoding="utf-8")
+            native_case_evidence.Write("git-matrix.json", SerializeReport(report).encode("utf-8"))
+            native_case_evidence.Write("git-matrix.md", RenderMarkdown(report).encode("utf-8"))
+            native_case_evidence.Write("git-matrix.html", RenderHtml(report).encode("utf-8"))
             (tmp_path / "git-matrix.md").write_text(RenderMarkdown(report), encoding="utf-8")
             (tmp_path / "git-matrix.html").write_text(RenderHtml(report), encoding="utf-8")
             assert completed, "Failed/unexecuted real Git work must never count as a true negative."
@@ -390,9 +413,11 @@ def test_DiscoveredTargetsRequireSeparateGitConfirmationAndPersistFiniteFindings
                 assert current[0]["subject_reference"] not in structural, (
                     "Legacy Git and structural crawl Endpoints must stay distinct."
                 )
-                triaged = NativeConsumer(installed_native_crawl, tmp_path, "triage", config)
+                triaged = NativeConsumer(installed_native_crawl, tmp_path, "triage", config,
+                    evidence=native_case_evidence)
                 rerun = NativeConsumer(installed_native_crawl, tmp_path, "git",
-                                      {**config, "git_url": url})
+                                      {**config, "git_url": url},
+                    evidence=native_case_evidence)
                 assert rerun["summary"]["state"] == "completed" and any(
                     finding["reference"] == current[0]["reference"]
                     and finding["status"] == "confirmed"
@@ -405,36 +430,39 @@ def test_DiscoveredTargetsRequireSeparateGitConfirmationAndPersistFiniteFindings
         assert {key: sum(item[key] for item in metrics) for key in ("tp", "tn", "fp", "fn")} == (
             oracle["git_handoff"]["expected_metrics"]
         ), "The genuine persisted finite matrix must score exactly TP1/TN3/FP0/FN0."
-        reopened = NativeConsumer(installed_native_crawl, tmp_path, "inspect", config)
+        reopened = NativeConsumer(installed_native_crawl, tmp_path, "inspect", config,
+            evidence=native_case_evidence)
         assert len(reopened["state"]["findings"]) == 1 and reopened["state"]["findings"][0][
             "status"] == "confirmed", "Finding and triage must survive reopen."
         assert not target.state.Errors(), "Target failures invalidate Git acceptance."
 
 
-def NativeCli(python: Path, directory: Path, arguments: list[str]):
+def NativeCli(python: Path, directory: Path, arguments: list[str], *, evidence):
     """Run the actual installed entry point with isolated owned state and original byte streams."""
 
-    return subprocess.run((str(python), "-I", "-B", "-m", "fuzzy1337", "--json", *arguments),
-        cwd=directory, env=NativeEnvironment(directory / "cli-state"), stdin=subprocess.DEVNULL,
-        capture_output=True, timeout=45, check=False)
+    return NativeProcess(evidence, "cli",
+        (str(python), "-I", "-B", "-m", "fuzzy1337", "--json", *arguments),
+        cwd=directory, environment=NativeEnvironment(directory / "cli-state"), timeout=45,
+        installation=NativeInstallation(python))
 
 
 @pytest.mark.integration
 def test_InstalledCliPlansApprovesTraversesAndReopensTruthfulRefusedWork(
-    installed_native_crawl, tmp_path,
+    installed_native_crawl, tmp_path, native_case_evidence,
 ) -> None:
     """Use actual scan crawl/json commands; default selected attribution claims no external
     reader."""
 
     oracle = CrawlGraphOracle()
 
-    with NativeAcceptanceGraph() as target:
+    with NativeAcceptanceGraph(native_case_evidence) as target:
         for variant in ("positive", "fixed", "decoy", "redirect"):
             assert target.state.WaitIdle(), "CLI mutation requires idle original owners."
             target.state.SetVariant(variant)
             directory = tmp_path / ("cli-" + variant)
             config = NativeConfig(target, directory / "workspace")
-            NativeConsumer(installed_native_crawl, directory, "setup", config)
+            NativeConsumer(installed_native_crawl, directory, "setup", config,
+                evidence=native_case_evidence)
             policy = directory / "policy.json"
             policy.write_bytes(CanonicalNative({
                 "policy_id": "independent-native-crawl", "revision": 0,
@@ -450,15 +478,18 @@ def test_InstalledCliPlansApprovesTraversesAndReopensTruthfulRefusedWork(
             arguments.extend(("--scope", "crawl", "--owner", "actor:independent-crawl-operator",
                               "--policy", str(policy)))
             before = target.state.Counters()["contacts"]
-            planned = NativeCli(installed_native_crawl, directory, [*arguments, "--plan"])
-            denied = NativeCli(installed_native_crawl, directory, arguments)
+            planned = NativeCli(installed_native_crawl, directory, [*arguments, "--plan"],
+                evidence=native_case_evidence)
+            denied = NativeCli(installed_native_crawl, directory, arguments,
+                evidence=native_case_evidence)
             assert planned.returncode == 0 and json.loads(planned.stdout)["profile"] == (
                 oracle["profile"]), "Installed CLI must expose read-only crawl planning."
             assert denied.returncode == 3 and json.loads(denied.stdout)["state"] == "failed" and (
                 target.state.Counters()["contacts"] == before
             ), "Installed CLI planning/missing approval must cause zero original contact."
             result = NativeCli(installed_native_crawl, directory,
-                               [*arguments, "--approve-safe-crawl"])
+                               [*arguments, "--approve-safe-crawl"],
+                evidence=native_case_evidence)
             assert target.state.WaitIdle(), "CLI must settle every original owner."
             summary = json.loads(result.stdout)
             expected_completed = oracle["variants"][variant]["expected_completed"]
@@ -468,7 +499,8 @@ def test_InstalledCliPlansApprovesTraversesAndReopensTruthfulRefusedWork(
             contacts = target.state.Observe()[before:]
             AssertNativeContactWaves(contacts, oracle["variants"][variant]["expected_waves"])
             reopened = NativeCli(installed_native_crawl, directory,
-                                 ["workspace", "open", config["workspace"]])
+                                 ["workspace", "open", config["workspace"]],
+                evidence=native_case_evidence)
             assert reopened.returncode == 0 and json.loads(reopened.stdout)[
                 "verified_evidence_records"] >= 3 * len(contacts), (
                     "CLI reopen must verify original worker/control records."
@@ -481,3 +513,75 @@ def test_InstalledCliPlansApprovesTraversesAndReopensTruthfulRefusedWork(
 
             PersistNativeAcceptance(directory / "evidence", {"summary": summary}, target)
             assert not target.state.Errors(), "Target mechanism failure invalidates CLI acceptance."
+
+
+@pytest.mark.integration
+def test_ActualSdkRelocatedOriginalsReopenOfflineAfterOriginalRootRemoval(
+    installed_native_crawl, tmp_path, native_case_evidence,
+) -> None:
+    """Relocate actual canonical originals and verify them without HTTP or writes."""
+
+    with NativeAcceptanceGraph(native_case_evidence) as target:
+        original_root = tmp_path / "original-workspace"
+        config = NativeConfig(target, original_root)
+        NativeConsumer(installed_native_crawl, tmp_path, "setup", config, native_case_evidence)
+        output = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config,
+                                native_case_evidence)
+        assert output["summary"]["state"] == "completed" and target.state.WaitIdle(), (
+            "Relocation requires actual completed acquisition and settled original target owners."
+        )
+        prior_contacts = target.state.Counters()["contacts"]
+        relocated_root = tmp_path / "relocated-workspace"
+        shutil.copytree(original_root, relocated_root)
+        shutil.rmtree(original_root)
+        relocated = NativeConsumer(installed_native_crawl, tmp_path, "inspect-offline",
+            {**config, "workspace": str(relocated_root)}, native_case_evidence)
+        native_case_evidence.Json("relocation.json", {
+            "original_root_removed": not original_root.exists(),
+            "relocated_root": str(relocated_root), "original_contacts": prior_contacts,
+            "contacts_after_offline_reopen": target.state.Counters()["contacts"],
+            "same_canonical_originals": relocated["state"] == output["state"]})
+        assert not original_root.exists() and relocated["state"] == output["state"] and (
+            target.state.Counters()["contacts"] == prior_contacts
+        ), "Relocated originals must reopen unchanged with zero new contacts."
+
+
+@pytest.mark.integration
+def test_ActualSdkCallerCancellationSettlesOriginalWorkerAndSocket(
+    installed_native_crawl, tmp_path, native_case_evidence,
+) -> None:
+    """Cancel after real GET readiness; require peer EOF and incomplete custody."""
+
+    readiness = tmp_path / "actual-get-ready"
+
+    with NativeHeldCancellation(native_case_evidence, readiness) as listener:
+        url = listener.origin + "/native-crawl-held"
+        config = {"workspace": str(tmp_path / "workspace"), "seed_url": url,
+                  "selected_urls": [url], "request_ready": str(readiness)}
+        setup = NativeConsumer(installed_native_crawl, tmp_path, "setup", config,
+                               native_case_evidence)
+        output = NativeConsumer(installed_native_crawl, tmp_path, "cancel", config,
+                                native_case_evidence)
+        summary = output["summary"]
+        assert summary["state"] == "cancelled" and output["sdk_task_settled"] is True and (
+            output["caller_cancel_requests"] >= 1 and output["executions"]
+        ), "Actual caller cancellation must settle the same SDK task and original execution."
+        assert summary["custody_status"] == "incomplete" and summary["completed_urls"] == [] and (
+            output["actual_model_saves"] == [] and
+            output["state"]["model"] == setup["state"]["model"]
+        ), "Cancelled work must stay incomplete with no model Save or completed-page fiction."
+        assert any(item["termination"] == "cancellation" for item in output["executions"]), (
+            "At least one actual original executor result must attest the requested cancellation."
+        )
+        originals = output["state"]["originals"]
+        controls = [json.loads(bytes.fromhex(originals[identity]["data_hex"]))
+            for identity in summary["original_record_ids"]
+            if originals[identity]["manifest"]["reference"]["role"] == "native-crawl-control"]
+        assert controls and controls[0]["termination"] == "cancellation" and all(
+            control["original_job_id"] == summary["original_job_id"] for control in controls
+        ), "Original cancelled control evidence must bind the same job without fabricated success."
+
+    assert listener.accepted == 1 and listener.requests == [NativeGet(listener.origin,
+        "/native-crawl-held")] and listener.peer_closed and not listener.hold_expired and (
+            not listener.thread.is_alive()
+        ), "The cancelled worker must reach actual peer EOF and the listener must join."

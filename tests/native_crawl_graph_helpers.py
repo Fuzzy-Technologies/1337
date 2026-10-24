@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import socket
 from collections.abc import Callable, Iterator
@@ -234,6 +235,10 @@ class GraphRequestObservation:
     admission_state: str = "accepted"
     failure: str | None = None
     socket_closed: bool = False
+    shutdown_error: bool = False
+    shutdown_errno: int | None = None
+    close_error: bool = False
+    close_errno: int | None = None
 
     def ToDict(self) -> dict[str, Any]:
         """Preserve bounded original binary prefixes and distinguish completion from settlement."""
@@ -246,7 +251,9 @@ class GraphRequestObservation:
                 "response_hex": self.response_bytes.hex(), "sent_bytes": self.sent_bytes,
                 "completion_sequence": self.completion_sequence,
                 "admission_state": self.admission_state, "failure": self.failure,
-                "socket_closed": self.socket_closed}
+                "socket_closed": self.socket_closed, "shutdown_error": self.shutdown_error,
+                "shutdown_errno": self.shutdown_errno, "close_error": self.close_error,
+                "close_errno": self.close_errno}
 
 
 @dataclass(slots=True)
@@ -559,6 +566,33 @@ class CrawlGraphState:
             self.branch_a_entered.set()
             self.branch_b_completed.set()
 
+    def RecordSocketFailure(
+        self, connection: socket.socket, operation: str, error: OSError,
+    ) -> None:
+        """Retain first bounded actual errno without messages or diagnostic I/O."""
+
+        if operation not in ("shutdown", "close"):
+            raise ValueError("Owned socket failure requires a fixed operation")
+
+        code = error.errno
+
+        if type(code) is not int or code not in errno.errorcode:
+            code = None
+
+        with self.lock:
+            self.RecordErrorLocked("owned-socket-" + operation + "-failure")
+            owner = self.connections.get(connection) or self.settled_handler_owners.get(connection)
+
+            if owner is not None and owner.index is not None:
+                record = self.requests[owner.index]
+
+                if operation == "shutdown" and not record.shutdown_error:
+                    self.requests[owner.index] = replace(record, shutdown_error=True,
+                                                        shutdown_errno=code)
+
+                elif operation == "close" and not record.close_error:
+                    self.requests[owner.index] = replace(record, close_error=True, close_errno=code)
+
     def CloseConnection(self, connection: socket.socket) -> None:
         """Actively close an original socket before releasing its ownership or evidence facts."""
 
@@ -569,24 +603,30 @@ class CrawlGraphState:
                 return
 
             owner.closing = True
+            completed_response = False
 
             if owner.index is not None:
                 record = self.requests[owner.index]
+                completed_response = record.completion_sequence is not None and (
+                    bool(record.response_bytes) and record.sent_bytes == len(record.response_bytes)
+                    and record.failure is None
+                )
 
                 if record.completion_sequence is None and record.failure is None:
                     self.FailLocked(connection, "owned-contact-interrupted")
 
-        try:
-            connection.shutdown(socket.SHUT_RDWR)
+        if not completed_response:
+            try:
+                connection.shutdown(socket.SHUT_RDWR)
 
-        except OSError:
-            self.RecordError("owned-socket-shutdown-failure")
+            except OSError as error:
+                self.RecordSocketFailure(connection, "shutdown", error)
 
         try:
             connection.close()
 
-        except OSError:
-            self.RecordError("owned-socket-close-failure")
+        except OSError as error:
+            self.RecordSocketFailure(connection, "close", error)
 
             with self.lock:
                 owner.closing = False

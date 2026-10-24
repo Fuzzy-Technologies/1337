@@ -7,8 +7,14 @@ success."""
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import importlib
+import importlib.metadata
+import importlib.util
 import json
+import socket
 import sys
+import time
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -41,7 +47,7 @@ from fuzzy1337.scope import (
     Target,
     TargetKind,
 )
-from fuzzy1337.workspace import LocalWorkspaceStore
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceBusyError, WorkspaceConflictError
 
 OWNER = "actor:independent-crawl-operator"
 ATTESTER = "attester:independent-crawl-consent"
@@ -112,7 +118,7 @@ def Setup(config: dict) -> dict:
     proposed, _ = model.Apply(objects=(prior_endpoint,))
     model_store.Save(proposed, expected_revision=model.revision)
     selected = tuple(Target(TargetKind.URL, url) for url in config["selected_urls"])
-    address = Target(TargetKind.IP, "127.0.0.1")
+    address = Target(TargetKind.IP, seed.hostname)
     targets = (*selected, address)
     allowed = targets
     excluded = ()
@@ -244,17 +250,69 @@ def Crawl(config: dict) -> dict:
 
 
 def Git(config: dict) -> dict:
-    """Explicitly plan and separately confirm the unchanged actual STANDARD Git checker."""
+    """Observe original Save failures without changing actual STANDARD job outcomes."""
 
+    spec = importlib.util.spec_from_file_location("native_crawl_git_diagnostics",
+        Path(__file__).with_name("native_crawl_git_diagnostics.py"))
+    assert spec is not None and spec.loader is not None, "Fixed Git diagnostics must be present."
+    diagnostic = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(diagnostic)
     root = Path(config["workspace"])
     target = Target(TargetKind.URL, config["git_url"])
     plan = PlanNativeWebScan(root, "git-check", target, OWNER, lambda: Policy(config, git=True))
     confirmation = None if config.get("confirm") is False else PolicyConfirmation(
         plan.policy_plan.intent_sha256, "approval:separate-native-git")
-    summary = asyncio.run(RunNativeWebScan(root, "git-check", target, OWNER,
-        lambda: Policy(config, git=True), confirmation=confirmation))
+    original_save = LocalModelStore.Save
+    own_codes = {original_save.__code__: "model-save",
+        LocalModelStore.Open.__code__: "model-open",
+        LocalModelStore.ValidatePaths.__code__: "model-validate-paths",
+        LocalModelStore.WriteState.__code__: "model-write-state"}
+    sync = original_save.__globals__.get("SyncStorageDirectory")
 
-    return {"summary": summary.ToDict(), "plan": plan.ToDict(), "state": Inspect(root)}
+    if callable(sync) and hasattr(sync, "__code__"):
+        own_codes[sync.__code__] = "sync-storage-directory"
+
+    failures = []
+    overflow = 0
+
+    def ObserveGitSave(store, proposed, *, expected_revision):
+        """Delegate the original Save unchanged and bare-raise its same original exception."""
+
+        nonlocal overflow
+
+        try:
+            return original_save(store, proposed, expected_revision=expected_revision)
+
+        except Exception as error:
+            if len(failures) < 4:
+                try:
+                    metadata = diagnostic.OriginalGitSaveFailure(error, own_codes, {
+                        WorkspaceBusyError: "WorkspaceBusyError",
+                        WorkspaceConflictError: "WorkspaceConflictError"})
+
+                except Exception:
+                    metadata = {"phase": "git-model-save", "diagnostic_state": "unavailable"}
+
+                failures.append(metadata)
+
+            else:
+                overflow += 1
+
+            raise
+
+    own_codes[ObserveGitSave.__code__] = "observe-git-save"
+    LocalModelStore.Save = ObserveGitSave
+
+    try:
+        summary = asyncio.run(RunNativeWebScan(root, "git-check", target, OWNER,
+            lambda: Policy(config, git=True), confirmation=confirmation))
+
+    finally:
+        LocalModelStore.Save = original_save
+
+    return {"summary": summary.ToDict(), "plan": plan.ToDict(), "state": Inspect(root),
+            "provider_version": plan.invocation.provider_version,
+            "git_save_diagnostics": failures, "git_save_diagnostic_overflow": overflow}
 
 
 def Triage(config: dict) -> dict:
@@ -275,6 +333,107 @@ def Triage(config: dict) -> dict:
     return {"state": Inspect(root)}
 
 
+def OfflineInspect(root: Path) -> dict:
+    """Reopen relocated originals while forbidding online work, grants and writes."""
+
+    def Forbidden(*args, **kwargs):
+        """Refuse online work or persistence instead of fabricating offline success."""
+
+        raise AssertionError("Offline relocated inspection attempted an online or write operation")
+
+    socket.create_connection = Forbidden
+    socket.socket.connect = Forbidden
+    LocalExecutor.Execute = Forbidden
+    PolicyEngine.Plan = Forbidden
+    PolicyEngine.Authorize = Forbidden
+    LocalModelStore.Save = Forbidden
+    LocalWorkspaceStore.Save = Forbidden
+    LocalEvidenceStore.Put = Forbidden
+
+    return {"state": Inspect(root), "reopen": OpenWorkspace(root)}
+
+
+def Cancel(config: dict) -> dict:
+    """Cancel only after actual original GET readiness and await the same real SDK owner cleanup."""
+
+    root = Path(config["workspace"])
+    readiness = Path(config["request_ready"])
+    executions, saves = [], []
+    original_execute = LocalExecutor.Execute
+    original_save = LocalModelStore.Save
+
+    async def ObserveExecution(executor, request, **options):
+        """Return the actual original terminal result unchanged after real worker/socket cleanup."""
+
+        result = await original_execute(executor, request, **options)
+        executions.append({"request": Detached(request), "execution": Detached(result.execution),
+            "termination": result.termination.value, "stdout_hex": result.stdout.hex(),
+            "stderr_hex": result.stderr.hex()})
+
+        return result
+
+    def ObserveSave(store, proposed, *, expected_revision):
+        """Observe actual model writes; no fabricated ACK can satisfy a cancellation assertion."""
+
+        result = original_save(store, proposed, expected_revision=expected_revision)
+        saves.append({"expected_revision": expected_revision, "actual_revision": result.revision})
+
+        return result
+
+    async def Run():
+        """Keep one original task through readiness, repeated cancel and settlement."""
+
+        task = asyncio.create_task(RunNativeCrawl(root, "crawl", config["seed_url"],
+            tuple(config["selected_urls"]), OWNER, lambda: Policy(config), approve_safe_crawl=True))
+        deadline = time.monotonic() + 3
+        cancel_requests = 0
+
+        try:
+            while not readiness.exists():
+                if task.done():
+                    raise AssertionError("Actual SDK ended before owned original GET readiness")
+
+                if time.monotonic() >= deadline:
+                    raise AssertionError("Actual owned GET did not become ready within its bound")
+
+                await asyncio.sleep(0.01)
+
+            task.cancel()
+            cancel_requests += 1
+
+            await asyncio.sleep(0)
+
+            if not task.done():
+                task.cancel()
+                cancel_requests += 1
+
+            summary = await asyncio.wait_for(asyncio.shield(task), timeout=3)
+
+            return summary, task.done(), cancel_requests
+
+        finally:
+            if not task.done():
+                task.cancel()
+
+                await asyncio.gather(task, return_exceptions=True)
+
+    LocalExecutor.Execute = ObserveExecution
+    LocalModelStore.Save = ObserveSave
+
+    try:
+        summary, settled, cancel_requests = asyncio.run(Run())
+
+    finally:
+        LocalExecutor.Execute = original_execute
+        LocalModelStore.Save = original_save
+
+    identities = tuple(item.evidence_id for item in summary.records)
+
+    return {"summary": summary.ToDict(), "state": Inspect(root, identities),
+        "executions": executions, "actual_model_saves": saves,
+        "sdk_task_settled": settled, "caller_cancel_requests": cancel_requests}
+
+
 def Main() -> int:
     """Execute one fixed consumer operation and emit genuine results without acceptance
     fabrication."""
@@ -283,7 +442,10 @@ def Main() -> int:
     config = json.loads(Path(config_path).read_bytes())
     root = Path(config["workspace"])
 
-    if mode == "setup":
+    if mode == "identity":
+        output = {}
+
+    elif mode == "setup":
         output = Setup(config)
 
     elif mode == "crawl":
@@ -298,11 +460,26 @@ def Main() -> int:
     elif mode == "inspect":
         output = {"state": Inspect(root), "reopen": OpenWorkspace(root)}
 
+    elif mode == "inspect-offline":
+        output = OfflineInspect(root)
+
+    elif mode == "cancel":
+        output = Cancel(config)
+
     else:
         raise ValueError("Unknown fixed independent consumer operation")
 
     output["installed_module"] = fuzzy1337.__file__
     output["installed_python"] = sys.executable
+    output["distribution_version"] = importlib.metadata.version("1337")
+    output["installed_sources"] = {}
+
+    for name in ("adapters/native_crawl.py", "native_crawl_worker.py", "native_crawl.py",
+                 "native_crawl_workflow.py", "native_crawl_commands.py", "native_web.py"):
+        module = importlib.import_module("fuzzy1337." + name[:-3].replace("/", "."))
+        source_path = Path(module.__file__)
+        output["installed_sources"][name] = {"path": str(source_path),
+            "sha256": hashlib.sha256(source_path.read_bytes()).hexdigest()}
     sys.stdout.buffer.write(json.dumps(output, sort_keys=True, separators=(",", ":"),
                                       ensure_ascii=True, allow_nan=False).encode("ascii"))
 
