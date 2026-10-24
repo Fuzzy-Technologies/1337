@@ -182,11 +182,41 @@ def LoadConsumer(raw: bytes) -> ModuleType:
     return module
 
 
+def ControlSources() -> tuple[dict, bytes]:
+    """Bind the fixed controls, approved setup and original seed independently of wheel modules."""
+
+    directory = Path(__file__).resolve().parent
+    records = {}
+    control = b""
+
+    for name in ("owned_content_response_sdk_controls.py", "owned_content_response_sdk_setup.py",
+        "owned_response_product_runner.py"):
+        path = directory / name
+        raw = BoundedRead(path, MAX_SOURCE_BYTES)
+        records[name] = {"path": str(path), "sha256": hashlib.sha256(raw).hexdigest()}
+
+        if name == "owned_content_response_sdk_controls.py":
+            control = raw
+
+    return records, control
+
+
+def LoadControls(raw: bytes) -> ModuleType:
+    """Execute the exact observed fixed controls source, without a configurable import path."""
+
+    path = Path(__file__).resolve().with_name("owned_content_response_sdk_controls.py")
+    module = ModuleType("owned_content_response_sdk_controls")
+    module.__file__ = str(path)
+    exec(compile(raw, str(path), "exec"), module.__dict__)
+
+    return module
+
+
 def Main(argv: list[str] | None = None) -> int:
     """Dispatch only identity or one explicitly opted-in installed consumer operation.
 
     Args:
-        argv: Identity, or capture/analyze/replay + absolute input + --execute.
+        argv: Identity, or setup/inspect/capture/analyze/replay + absolute input + --execute.
 
     Returns:
         Zero after preserving one actual canonical consumer result; unexpected failures propagate.
@@ -200,7 +230,7 @@ def Main(argv: list[str] | None = None) -> int:
     identity_only = arguments == ["identity"]
 
     if not identity_only and not (len(arguments) == 3 and arguments[0] in (
-        "capture", "analyze", "replay") and arguments[2] == "--execute"):
+        "setup", "inspect", "capture", "analyze", "replay") and arguments[2] == "--execute"):
         raise ValueError("Unsupported fixed installed consumer operation")
 
     config = None if identity_only else ReadInput(Path(arguments[1]))
@@ -209,17 +239,25 @@ def Main(argv: list[str] | None = None) -> int:
     output = {"installed_identity": identity, "consumer_sources": sources}
 
     if not identity_only:
-        consumer = LoadConsumer(raw)
         selection, observations = config["selection"], Path(config["observations"])
 
-        if arguments[0] == "capture":
-            summary = asyncio.run(consumer.Capture(selection, observations, enabled=True))
-
-        elif arguments[0] == "analyze":
-            summary = consumer.Analyze(selection, observations, enabled=True)
+        if arguments[0] in ("setup", "inspect"):
+            records, control = ControlSources()
+            output["consumer_sources"].update(records)
+            controls = LoadControls(control)
+            summary = controls.Dispatch(arguments[0], selection, observations, enabled=True)
 
         else:
-            summary = consumer.Replay(selection, observations, enabled=True)
+            consumer = LoadConsumer(raw)
+
+            if arguments[0] == "capture":
+                summary = asyncio.run(consumer.Capture(selection, observations, enabled=True))
+
+            elif arguments[0] == "analyze":
+                summary = consumer.Analyze(selection, observations, enabled=True)
+
+            else:
+                summary = consumer.Replay(selection, observations, enabled=True)
 
         output.update(operation=arguments[0], summary=summary)
 
