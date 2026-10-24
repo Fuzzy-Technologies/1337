@@ -23,7 +23,6 @@ jobs:
     timeout-minutes: 8
     env:
       FUZZY1337_RUN_ZAP_INERT_ACCEPTANCE: "1"
-      FUZZY1337_ZAP_INERT_MATERIAL: ${{ runner.temp }}/zap-inert-build/runtime
     steps:
       - name: Check out reviewed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,6 +47,8 @@ jobs:
         run: uv run python tests/fixtures/zap_inert/build.py "$RUNNER_TEMP/zap-inert-build"
       - name: First serial genuine capability case
         timeout-minutes: 1
+        env:
+          FUZZY1337_ZAP_INERT_MATERIAL: ${{ runner.temp }}/zap-inert-build/runtime
         run: >-
           uv run pytest tests/integration/test_zap_inert_isolation.py
           -q -n0 -k NormalGenuineCapabilityCase --no-cov --timeout=40
@@ -55,6 +56,8 @@ jobs:
           --junitxml=functional-evidence/zap-inert-capability.xml
       - name: Remaining independent genuine cases
         timeout-minutes: 3
+        env:
+          FUZZY1337_ZAP_INERT_MATERIAL: ${{ runner.temp }}/zap-inert-build/runtime
         run: >-
           uv run pytest tests/integration/test_zap_inert_isolation.py
           -q -n2 --dist=load -k GenuineClosedFailureAndQuotaCases --no-cov

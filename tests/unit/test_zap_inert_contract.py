@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import re
 import struct
 import sys
 import tarfile
@@ -14,6 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "tests/fixtures/zap_inert"
@@ -1082,3 +1084,27 @@ def test_OriginalPeerExitRequiresReadableIdentityWithoutErrorFlags(
                     "Invalid readiness must retain original ownership without late report access")
 
     asyncio.run(Scenario())
+
+
+def test_WorkflowRunnerContextStaysInGenuineStepEnvironment():
+    """Prevent unsupported runner expressions in job env while binding both genuine test steps."""
+
+    workflow = yaml.safe_load((ROOT / ".github/workflows/zap-inert-acceptance.yml").read_text())
+    context_reference = re.compile(r"\brunner\s*(?:\.|\[)")
+    test_steps = []
+
+    for job in workflow["jobs"].values():
+        assert all(context_reference.search(str(value)) is None
+            for value in job.get("env", {}).values()), (
+            "GitHub runner context is unavailable in jobs.<job>.env")
+
+        for step in job.get("steps", []):
+            if "tests/integration/test_zap_inert_isolation.py" in step.get("run", ""):
+                test_steps.append(step)
+
+    assert len(test_steps) == 2, "Both serial and parallel genuine proof steps require material"
+
+    for step in test_steps:
+        assert step.get("env", {}).get("FUZZY1337_ZAP_INERT_MATERIAL") == (
+            "${{ runner.temp }}/zap-inert-build/runtime"
+        ), "Genuine test material must use runner context only in the supported step env"
