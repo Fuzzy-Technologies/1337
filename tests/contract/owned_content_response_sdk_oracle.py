@@ -83,7 +83,7 @@ def AssertContentParts(name: str, url: str, receipt_id: str, originals: dict,
             "size_bytes": len(raw), "media_type": media}, "Original role bytes/metadata differ"
         assert manifest["provenance"]["source_id"] == "native.loopback-content-response", (
             "A catalog or foreign source cannot establish content custody")
-        assert manifest["provenance"] == provenance, (
+        assert Canonical(manifest["provenance"]) == Canonical(provenance), (
             "All seven original roles must retain the same actual collection provenance")
 
         if role != RECEIPT_ROLE:
@@ -108,16 +108,17 @@ def AssertContentParts(name: str, url: str, receipt_id: str, originals: dict,
         receipt["execution"]["state"] == "succeeded") and type(
         receipt["execution"]["exit_code"]) is int and receipt["execution"]["exit_code"] == 0, (
             "Refused or incomplete original execution cannot establish complete content custody")
-    assert receipt["execution"] == provenance["execution"] and all(
+    assert Canonical(receipt["execution"]) == Canonical(provenance["execution"]) and all(
         receipt[key] == provenance[key] for key in ("workspace_id", "started_at", "finished_at")), (
             "Receipt execution and collection identity must match all original part manifests")
     invocation = receipt["request"]["invocation"]
     target_reference = "target:" + hashlib.sha256(Canonical({"kind": "url",
         "value": url})).hexdigest()
     assert invocation["adapter_id"] == "native.loopback-content-response" and invocation[
-        "request"] == {"capability": "http.owned-content-response-capture",
+        "request"]["parameters"]["retain_response"] is True and Canonical(invocation[
+            "request"]) == Canonical({"capability": "http.owned-content-response-capture",
             "target_reference": target_reference, "impact": "SAFE", "parameters": {
-                "url": url, "retain_response": True}, "credential_references": []}, (
+                "url": url, "retain_response": True}, "credential_references": []}), (
                     "Original receipt must select this exact content provider and URL")
     assert invocation["argv"][1:] == ["-I", "-B", "-m", (
         "fuzzy1337.owned_content_response_worker"), url], "Original source recipe must match"

@@ -125,7 +125,8 @@ def test_OriginalCustodyRejectsRebindingAndEqualValueBooleanClaims(mutation):
 
 
 @pytest.mark.parametrize("mutation", ["exit-bool", "failed", "catalog", "role-rebind",
-    "receipt-extra", "receipt-missing", "receipt-refusal", "foreign-url", "foreign-provider"])
+    "receipt-extra", "receipt-missing", "receipt-refusal", "foreign-url", "foreign-provider",
+    "retain-integer"])
 def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(mutation):
     """A self-consistent new manifest hash cannot validate false underlying custody facts."""
 
@@ -157,8 +158,11 @@ def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(
     elif mutation == "foreign-url":
         receipt["request"]["invocation"]["request"]["parameters"]["url"] += "/foreign"
 
-    else:
+    elif mutation == "foreign-provider":
         receipt["request"]["invocation"]["adapter_id"] = "native.loopback-response"
+
+    else:
+        receipt["request"]["invocation"]["request"]["parameters"]["retain_response"] = 1
 
     raw = json.dumps(receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
         allow_nan=False).encode("ascii")
@@ -176,13 +180,18 @@ def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(
             job_id="job:synthetic-unit-only")
 
 
-def test_ResignedPartCannotMixForeignScopeIntoOneOtherwiseConsistentCapture():
+@pytest.mark.parametrize("mutation", ["scope", "exit-bool"])
+def test_ResignedPartCannotMixForeignScopeIntoOneOtherwiseConsistentCapture(mutation):
     """Equal bytes and freshly consistent IDs cannot replace original collection provenance."""
 
     url, receipt_id, originals, attrs = Bundle("missing")
     body_id = attrs["original_role_ids"]["owned-response-body"]
     body = originals.pop(body_id)
-    body["manifest"]["provenance"]["scope_reference"] = "scope:foreign"
+    if mutation == "scope":
+        body["manifest"]["provenance"]["scope_reference"] = "scope:foreign"
+
+    else:
+        body["manifest"]["provenance"]["execution"]["exit_code"] = False
     new_body_id = "sha256:" + hashlib.sha256(Encode(body["manifest"])).hexdigest()
     originals[new_body_id] = body
     attrs["original_role_ids"]["owned-response-body"] = new_body_id
