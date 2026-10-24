@@ -14,7 +14,7 @@ candidate commit `ccade599cab92c08a21f6a4eeefc2fe3f4ff7e3e` and source tree
 `20261012.322.1`, kernel `6.8.0-1064-azure`, with original host UID 1001.
 
 | Case        | Actual termination / state | Exit | Original late-file custody |
-|-------------|----------------------------|------|----------------------------|
+| ----------- | -------------------------- | ---- | -------------------------- |
 | Normal      | process_exit / succeeded   | 0    | Complete                   |
 | Byte quota  | process_exit / succeeded   | 0    | Complete                   |
 | Inode quota | process_exit / succeeded   | 0    | Complete                   |
