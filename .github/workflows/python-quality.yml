@@ -119,6 +119,88 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  native-crawl-windows-portability:
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]')
+    name: Native crawl Windows feature checks
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.12
+      - name: Run focused Windows crawl units
+        timeout-minutes: 3
+        run: >-
+          uv run --locked --extra dev pytest -q -x
+          tests/unit/test_native_crawl_workflow.py tests/unit/test_native_crawl_commands.py
+          -n 2 --dist=loadscope --max-worker-restart=0 -o addopts='' --no-cov
+          --timeout=30 --timeout-method=thread
+          --junitxml=functional-evidence/native-crawl-portability/windows-unit.xml
+      - name: Run one genuine Windows crawl cancellation case
+        timeout-minutes: 2
+        run: >-
+          uv run --locked --extra dev pytest -q -x
+          tests/functional/test_native_crawl_product.py::test_ActualSdkCallerCancellationSettlesOriginalWorkerAndSocket
+          -n 0 -o addopts='' --no-cov --timeout=60 --timeout-method=thread
+          --junitxml=functional-evidence/native-crawl-portability/windows-cancellation.xml
+      - name: Preserve focused Windows crawl evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-crawl-windows-feature
+          path: |
+            functional-evidence/native-crawl-portability/
+            functional-evidence/native-crawl/
+          retention-days: 7
+          if-no-files-found: warn
+
+  native-crawl-container-portability:
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[native-crawl-portability-checkpoint]')
+    name: Native crawl container feature check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build existing development image
+        timeout-minutes: 6
+        run: docker compose --profile quality build quality
+      - name: Run one genuine crawl worker through quality override
+        timeout-minutes: 2
+        run: >-
+          LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
+          docker compose --profile quality run --rm quality pytest -q -x
+          'tests/integration/test_native_crawl_worker_execution.py::test_InstalledWorkerBindsActualGetBodyAndHandwrittenFrontier[positive-/entry]'
+          -n 0 -o addopts='' --no-cov --timeout=60 --timeout-method=thread
+          --junitxml=functional-evidence/native-crawl-portability/container-worker.xml
+      - name: Preserve focused container crawl evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-crawl-container-feature
+          path: |
+            functional-evidence/native-crawl-portability/
+            functional-evidence/native-crawl/
+          retention-days: 7
+          if-no-files-found: warn
+
   browser-page-quality:
     if: >-
       github.event_name == 'push' || (github.event_name == 'pull_request'

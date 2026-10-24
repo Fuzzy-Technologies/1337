@@ -158,6 +158,13 @@ Explicit draft feature markers may run only their declared browser, Trivy, nativ
 image or owned-response protocol checks. Portable protocol checkpoints use two
 workers across the existing OS matrix, a 30-second per-case deadline and a
 five-minute step limit. They retain JUnit without claiming complete coverage.
+The explicit `[native-crawl-portability-checkpoint]` runs two parallel draft-only
+jobs: Windows Python 3.12 checks the crawl workflow/command units and one actual
+SDK cancellation case; the existing development container runs one installed
+worker seed case through the quality service command override. Both keep finite
+timeouts, original UID/GID mapping where applicable and retained JUnit/original
+case evidence. Missing required prerequisites fail; these focused results never
+satisfy final full integration or platform acceptance.
 Remove its marker before final publication/readiness to avoid an extra diagnostic
 run; feature success never substitutes for the final complete integration gate.
 Do not repeat the full gate locally, in individual development agents or after
