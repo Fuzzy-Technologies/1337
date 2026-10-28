@@ -3,6 +3,7 @@
 
 """Protect draft feedback, final integration triggers and required full-job execution."""
 
+import ast
 import shlex
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,12 @@ NATIVE_IMAGE_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[native-image-feature-checkpoint]'))"
+)
+NATIVE_CONFIGURATION_FEATURE_CONDITION = (
+    NATIVE_IMAGE_FEATURE_CONDITION + " || (github.event_name == 'pull_request' "
+    "&& github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, "
+    "'[native-configuration-compatibility-checkpoint]'))"
 )
 NATIVE_PROTOCOL_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
@@ -111,7 +118,7 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
             EXTERNAL_NATIVE_FEATURE_CONDITION if job_id == "external-targets"
             else BROWSER_FEATURE_CONDITION if job_id == "browser-page-quality"
             else PORTABLE_PROTOCOL_FEATURE_CONDITION if job_id == "quality"
-            else NATIVE_IMAGE_FEATURE_CONDITION if name == "trivy-acceptance.yml"
+            else NATIVE_CONFIGURATION_FEATURE_CONDITION if name == "trivy-acceptance.yml"
             else INTEGRATION_CONDITION)
         assert condition == expected_condition, (
             f"{name}/{job_id} lost its final gate or explicit feature checkpoint."
@@ -502,3 +509,58 @@ def test_PortableProtocolCheckpointRunsFocusedParallelCasesBeforeTheFinalGate(
     assert full["env"]["FUZZY1337_RUN_OWNED_RESPONSE_PRODUCT_ACCEPTANCE"] == (
         "${{ runner.os == 'Linux' && '1' || '0' }}"
     ), "Linux final product acceptance must fail on unavailable acquisition prerequisites."
+
+
+def test_NativeConfigurationCheckpointPreservesFullReadyGateAndSkipsImageDatabase() -> None:
+    """The draft-only five-case proof stays separate from full native acceptance and DB material."""
+
+    job = Workflow("trivy-acceptance.yml")["jobs"]["owned-offline"]
+    environment = {key: " ".join(value.split()) for key, value in job["env"].items()}
+    assert environment["CONFIGURATION_CHECKPOINT"] == (
+        "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        "&& contains(github.event.pull_request.body, "
+        "'[native-configuration-compatibility-checkpoint]') && '1' || '0' }}"
+    ), "Only an explicit draft config checkpoint may omit image acceptance and its database"
+    assert environment["FULL_ACCEPTANCE"] == (
+        "${{ (github.event_name == 'push' || github.event.pull_request.draft == false) "
+        "&& '1' || '0' }}"
+    ), "Ready and stable-push events must select every required native acceptance cohort"
+    steps = {step["name"]: step for step in job["steps"]}
+    provision = steps["Provision checksum-pinned Trivy and digest-pinned official database"]["run"]
+    tree = ast.parse(provision.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0])
+    database_calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "subprocess" and node.func.attr == "run"]
+    guarded_calls = [node for statement in tree.body if isinstance(statement, ast.If)
+        and ast.unparse(statement.test) == "not configuration_only" for node in ast.walk(statement)
+        if node in database_calls]
+    assert len(database_calls) == len(guarded_calls) == 1 and (
+        "--download-db-only" in ast.unparse(database_calls[0])
+    ), "Config-only proof cannot download an image DB; full acceptance must retain provisioning"
+    run = steps["Run genuine adapter acceptance with no external network interface or route"]["run"]
+    assert 'if [[ "$CONFIGURATION_CHECKPOINT" == "1" ]]; then\n' in run and (
+        'selected_tests=("${configuration_tests[@]}")' in run
+        and 'elif [[ "$FULL_ACCEPTANCE" == "1" ]]; then\n' in run
+        and 'selected_tests=("${original_tests[@]}" "${configuration_tests[@]}")' in run
+        and 'selected_tests=("${original_tests[@]}")' in run
+    ), "Draft config, full acceptance and existing image checkpoints lost their distinct selections"
+    assert "configuration_tests=(tests/integration/test_trivy_native_configuration.py)" in run and (
+        all(path in run for path in ("tests/integration/test_trivy_native.py",
+            "tests/functional/test_native_image_product.py",
+            "tests/functional/test_ci_native_image_product.py"))
+    ), "The complete required native cohort cannot lose any original or new product interface"
+    assert "FUZZY1337_RUN_NATIVE_CONFIGURATION_COMPATIBILITY=1" in run and (
+        "--junitxml=functional-evidence/native-configuration-compatibility/pytest.xml" in run
+        and "--no-cov -q -n 2 --dist=load" in run and "sudo unshare --net -- setpriv" in run
+    ), "Genuine config proof requires declared prerequisites, actual JUnit and original no-egress"
+    verify = steps["Require executed native configuration compatibility evidence"]
+    assert verify["if"] == (
+        "env.CONFIGURATION_CHECKPOINT == '1' || env.FULL_ACCEPTANCE == '1'"
+    ) and all(token in verify["run"] for token in (
+        'len(cases) != 5', '{"skipped", "failure", "error"}',
+        '"selected-compatibility-assertions-passed"', '"embedded_loader"',
+    )), "A successful process alone cannot hide skipped cases or missing original native evidence"
+    upload = steps["Preserve actual native provider evidence"]
+    assert upload["if"] == "always()" and (
+        "functional-evidence/native-configuration-compatibility/" in upload["with"]["path"]
+    ), "Native compatibility diagnostics must survive failed or incomplete genuine execution"

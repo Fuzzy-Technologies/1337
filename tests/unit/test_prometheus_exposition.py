@@ -94,7 +94,8 @@ def test_CompleteSupportedFamiliesMatch(body: bytes) -> None:
     b'a_bucket{le="1"} 1\n# HELP a Description\n# TYPE a histogram\na_count 1\n',
     b'a_sum 1\n# HELP a Description\n# TYPE a summary\na_count 1\n',
     DOCUMENT + b"#" + b"x" * MAX_PROMETHEUS_LINE_BYTES + b"\n",
-    DOCUMENT + b"# padding\n" * (MAX_PROMETHEUS_BODY_BYTES // 10),
+    pytest.param(DOCUMENT + b"# padding\n" * (MAX_PROMETHEUS_BODY_BYTES // 10),
+                 id="oversized-body"),
 ])
 def test_InvalidIncompleteOrUnassociatedDocumentsDoNotMatch(body: bytes) -> None:
     """Embedded fragments, malformed labels and unrelated declarations never establish exposure."""
