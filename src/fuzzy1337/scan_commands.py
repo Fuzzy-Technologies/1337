@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 from fuzzy1337.adapters import SerializeContract
 from fuzzy1337.adapters.native_web import (
     NATIVE_FILE_CANARY_CHECK_ID,
+    NATIVE_PROMETHEUS_CHECK_ID,
     NATIVE_WEB_CHECK_ID,
     NativeWebEndpoint,
 )
@@ -348,7 +349,8 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         nuclei.add_argument("--events-json", action="store_true")
         web = actions.add_parser("web", help="Plan/run a first-party STANDARD web check.")
         web.add_argument("path", type=Path)
-        web.add_argument("--check", choices=("git-head-exposure", "file-canary-disclosure"),
+        web.add_argument("--check", choices=("git-head-exposure", "file-canary-disclosure",
+                                           "prometheus-exposition"),
                          required=True)
         web.add_argument("--scope", required=True)
         web.add_argument("--owner", required=True)
@@ -538,6 +540,10 @@ def RunCommands(
                     NATIVE_FILE_CANARY_CHECK_ID if arguments.action == "web"
                     and arguments.check == "file-canary-disclosure" else NATIVE_WEB_CHECK_ID
                 )
+
+                if arguments.action == "web" and arguments.check == "prometheus-exposition":
+                    check_id = NATIVE_PROMETHEUS_CHECK_ID
+
                 if arguments.action == "ports":
                     target = Target(TargetKind.IP, arguments.target)
 

@@ -8,15 +8,18 @@ from __future__ import annotations
 import hashlib
 import io
 import ssl
+from dataclasses import replace
 
 import pytest
 
 from fuzzy1337 import native_web_worker as worker
 from fuzzy1337.adapters.native_web import (
     NATIVE_FILE_CANARY_CHECK_ID,
+    NATIVE_PROMETHEUS_CHECK_ID,
     CanonicalRecord,
     NativeFileCanaryTemplate,
 )
+from tests.unit.test_prometheus_exposition import DOCUMENT
 
 BODY = b"ref: refs/heads/owned\n"
 HEADER = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 22\r\n\r\n"
@@ -86,6 +89,21 @@ def Header(body: bytes = BODY) -> bytes:
 
     return (b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
             + str(len(body)).encode() + b"\r\n\r\n")
+
+
+def MetricsWire(framing: str, body: bytes = DOCUMENT) -> bytes:
+    """Build an independent plain response for each explicit metrics-only framing profile."""
+
+    header = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4; charset=utf-8\r\n"
+
+    if framing == "length":
+        return header + b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n" + body
+
+    if framing == "chunked":
+        return (header + b"Transfer-Encoding: chunked\r\n\r\n"
+                + f"{len(body):x}\r\n".encode() + body + b"\r\n0\r\n\r\n")
+
+    return header + b"\r\n" + body
 
 
 @pytest.mark.parametrize("raw", [
@@ -402,3 +420,133 @@ def test_OwnedCanaryWorkerRejectsUnreviewedInputBeforeSocket(monkeypatch, url, w
 
     with pytest.raises(ValueError):
         worker.Probe(url, 1.0, check_id=NATIVE_FILE_CANARY_CHECK_ID, workspace_id=workspace_id)
+
+
+@pytest.mark.parametrize("framing", ["length", "chunked", "eof"])
+@pytest.mark.parametrize("body", [DOCUMENT, DOCUMENT + b"# padding\n" * 600, b"not metrics\n"])
+def test_MetricsOnlyFramingRetainsNoMetricValues(monkeypatch, framing, body):
+    """All admitted metrics transports consume complete bodies and retain only safe metadata."""
+
+    wire = MetricsWire(framing, body)
+    transport = FakeSocket([wire[:11], wire[11:97], wire[97:]])
+    monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
+    record = worker.Probe("http://127.0.0.1:8080/metrics", 1.0,
+                          check_id=NATIVE_PROMETHEUS_CHECK_ID)
+    assert record["matched"] is body.startswith(DOCUMENT), "Complete metrics verdict changed."
+    assert record["body_bytes"] == len(body), "Decoded-body length changed with framing."
+    assert record["body_sha256"] == hashlib.sha256(body).hexdigest(), "Body hash drifted."
+    assert "active_jobs" not in CanonicalRecord(record).decode(), "Metric names leaked."
+    assert b"Accept-Encoding: identity\r\n" in transport.sent, "Identity encoding was omitted."
+    assert transport.closed and len(transport.sent.split(b"GET ")) == 2, "Request/cleanup drifted."
+
+
+@pytest.mark.parametrize("wire", [
+    b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: gzip, chunked\r\n\r\n",
+    b"HTTP/1.1 200 OK\r\nContent-Length: 262145\r\n\r\n",
+    b"HTTP/1.1 200 OK\r\nContent-Length: 9999999\r\n\r\n",
+    b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\nx",
+    b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nx",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1;extension=yes\r\nx\r\n0\r\n\r\n",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nTrailer: x\r\n\r\n",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nxXX0\r\n\r\n",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nx\r\n",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n40001\r\n",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" + b"0" * 33,
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nextra",
+    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" + b"1\r\nx\r\n" * 4097
+    + b"0\r\n\r\n",
+    MetricsWire("eof", b"x" * 262145),
+], ids=[
+    "ambiguous-length-and-chunked", "unsupported-transfer-coding", "decoded-length-over-bound",
+    "declared-length-over-wire-bound", "zero-length-with-extra-byte", "truncated-content-length",
+    "chunk-extension", "chunk-trailer", "invalid-chunk-delimiter", "truncated-chunk",
+    "chunk-size-over-bound", "chunk-line-over-bound", "bytes-after-final-chunk",
+    "chunk-count-over-bound", "eof-body-over-bound",
+])
+def test_MetricsFramingRefusesAmbiguityTruncationAndIndependentBounds(monkeypatch, wire):
+    """Malformed, ambiguous, overlong and excessive-chunk responses remain unassessed failures."""
+
+    transport = FakeSocket([wire])
+    monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
+
+    with pytest.raises(worker.NativeWebProtocolError):
+        worker.Probe("http://127.0.0.1:8080/metrics", 1.0,
+                     check_id=NATIVE_PROMETHEUS_CHECK_ID)
+
+    assert transport.closed, "A rejected metrics wire leaked its socket."
+
+
+@pytest.mark.parametrize("framing", ["length", "chunked", "eof"])
+def test_MetricsWireBudgetIsIndependentOfDecodedBody(monkeypatch, framing):
+    """A small body cannot hide a separately exhausted total wire-byte budget."""
+
+    transport = FakeSocket([MetricsWire(framing)[:80], MetricsWire(framing)[80:]])
+    monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
+    monkeypatch.setattr(worker, "MAX_PROMETHEUS_WIRE_BYTES", 80)
+
+    with pytest.raises(worker.NativeWebProtocolError):
+        worker.Probe("http://127.0.0.1:8080/metrics", 1.0,
+                     check_id=NATIVE_PROMETHEUS_CHECK_ID)
+
+    assert transport.closed, "Wire-budget exhaustion leaked its socket."
+
+
+@pytest.mark.parametrize("framing", ["length", "chunked", "eof"])
+@pytest.mark.parametrize("late_phase", ["header", "body", "eof", "predicate"])
+def test_MetricsProgressNeverRenewsDeadlineIncludingFinalEof(monkeypatch, framing, late_phase):
+    """Late returning reads and predicate parsing cannot finish after the original deadline."""
+
+    wire = MetricsWire(framing)
+    boundary = wire.index(b"\r\n\r\n") + 4
+    transport = FakeSocket([wire[:boundary], wire[boundary:]])
+    now = [0.0]
+    original_receive = transport.recv
+
+    def Receive(maximum):
+        """Advance a deterministic shared clock on one selected actual I/O boundary."""
+
+        before = len(transport.parts)
+        part = original_receive(maximum)
+
+        if (late_phase == "header" and before == 2 or
+            late_phase == "body" and before == 1 or late_phase == "eof" and not part):
+            now[0] = 1.1
+
+        return part
+
+    monkeypatch.setattr(transport, "recv", Receive)
+    monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
+    monkeypatch.setattr(worker.time, "monotonic", lambda: now[0])
+
+    if late_phase == "predicate":
+        original_check = worker.NativeWebCheckFor(NATIVE_PROMETHEUS_CHECK_ID)
+
+        def Predicate(*_args):
+            """Model bounded interpretation returning after the same original deadline."""
+
+            now[0] = 1.1
+
+            return True
+
+        monkeypatch.setattr(worker, "NativeWebCheckFor",
+                            lambda _: replace(original_check, predicate=Predicate))
+
+    with pytest.raises(TimeoutError):
+        worker.Probe("http://127.0.0.1:8080/metrics", 1.0,
+                     check_id=NATIVE_PROMETHEUS_CHECK_ID)
+
+    assert transport.closed, "Total-deadline exhaustion leaked its metrics socket."
+
+
+def test_MetricsMainSelectsExplicitCheckAndStillUsesCanonicalOutput(monkeypatch, capsys):
+    """The new worker argv adds an exact check identity without changing old default invocations."""
+
+    transport = FakeSocket([MetricsWire("chunked")])
+    monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
+    assert worker.Main(["http://127.0.0.1:8080/metrics", "1", NATIVE_PROMETHEUS_CHECK_ID]) == 0, (
+        "The selected metrics worker must return successful canonical completion."
+    )
+    captured = capsys.readouterr()
+    assert '"check_id":"native.prometheus-exposition"' in captured.out, "Check identity drifted."
+    assert "active_jobs" not in captured.out and not captured.err, "Transient metrics leaked."

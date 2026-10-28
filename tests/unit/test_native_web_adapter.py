@@ -22,6 +22,8 @@ from fuzzy1337.adapters.native_web import (
     NATIVE_FILE_CANARY_CAPABILITY,
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_FILE_CANARY_PROFILE,
+    NATIVE_PROMETHEUS_CAPABILITY,
+    NATIVE_PROMETHEUS_CHECK_ID,
     NATIVE_WEB_CAPABILITY,
     NATIVE_WEB_CHECK_ID,
     CanonicalRecord,
@@ -29,6 +31,7 @@ from fuzzy1337.adapters.native_web import (
     MatchesGitHead,
     NativeFileCanaryTemplate,
     NativeWebAdapter,
+    NativeWebCheckFor,
     NativeWebEndpoint,
     NativeWebParameters,
     NativeWebRecordError,
@@ -291,7 +294,7 @@ def test_DescriptorRequiresOnlyItsDeclaredStandardChecks() -> None:
 
     adapter, _ = Report()
     assert adapter.Descriptor.capabilities == (
-        NATIVE_WEB_CAPABILITY, NATIVE_FILE_CANARY_CAPABILITY,
+        NATIVE_WEB_CAPABILITY, NATIVE_FILE_CANARY_CAPABILITY, NATIVE_PROMETHEUS_CAPABILITY,
     ), (
         "The native descriptor silently added a hidden execution capability."
     )
@@ -424,3 +427,83 @@ def test_CanaryRecordRejectsForgedBindingsAndPredicateFacts(field, value) -> Non
     with pytest.raises(NativeWebRecordError):
         ParseNativeWebRecord(CanonicalRecord(record), url, check_id=NATIVE_FILE_CANARY_CHECK_ID,
                              workspace_id="owned-canary")
+
+
+def PrometheusReport(*, body_bytes=5000, matched=True):
+    """Construct exact synthetic original metrics metadata without claiming an actual HTTP scan."""
+
+    url = "http://127.0.0.1:8080/metrics"
+    record = {**Record(), "check_id": NATIVE_PROMETHEUS_CHECK_ID, "url": url,
+              "body_bytes": body_bytes, "matched": matched}
+    raw = CanonicalRecord(record)
+    streams = {"stdout": raw, "stderr": b""}
+    adapter = NativeWebAdapter(lambda reference: streams[reference.role])
+    request = AdapterRequest(NATIVE_PROMETHEUS_CAPABILITY,
+        NativeWebEndpoint(url, check_id=NATIVE_PROMETHEUS_CHECK_ID)[0].Reference(),
+        ImpactLevel.STANDARD, NativeWebParameters(url, 1.0, check_id=NATIVE_PROMETHEUS_CHECK_ID))
+    invocation = adapter.PrepareInvocation(request)
+    references = tuple(EvidenceReference(role, "blobs/" + role, hashlib.sha256(value).hexdigest(),
+        "application/octet-stream", len(value)) for role, value in streams.items())
+
+    return adapter, AdapterReport(invocation,
+        AdapterExecution(ExecutionState.SUCCEEDED, 0, 0.1), references)
+
+
+def test_PrometheusSelectionBindsExactNewCheckWithoutChangingGitDefault():
+    """The additive capability cannot be selected implicitly through a Git invocation."""
+
+    adapter, report = PrometheusReport()
+    assert report.invocation.argv[-3:] == (
+        "http://127.0.0.1:8080/metrics", "1.0", NATIVE_PROMETHEUS_CHECK_ID,
+    ), "The metrics process lost its exact explicit check identity."
+    assert set(report.invocation.request.parameters) == {"url", "timeout_seconds", "check_id"}, (
+        "Metrics intent gained unrelated request/session parameters."
+    )
+    assert NativeWebParameters(URL, 1.0) == {"url": URL, "timeout_seconds": 1.0}, (
+        "Existing Git invocation parameters changed."
+    )
+    assert NativeWebCheckFor(NATIVE_WEB_CHECK_ID).max_body_bytes == 4096, "Git cap widened."
+    assert NativeWebCheckFor(NATIVE_FILE_CANARY_CHECK_ID).max_body_bytes == 4096, (
+        "Canary cap widened."
+    )
+    assert NativeWebCheckFor(NATIVE_PROMETHEUS_CHECK_ID).max_body_bytes == 262144, (
+        "Metrics body cap differs from its declared contract."
+    )
+
+    with pytest.raises(ValueError):
+        adapter.PrepareInvocation(replace(report.invocation.request,
+                                          capability=NATIVE_WEB_CAPABILITY))
+
+    with pytest.raises(ValueError):
+        adapter.PrepareInvocation(replace(report.invocation.request, parameters={
+            "url": "http://127.0.0.1:8080/metrics", "timeout_seconds": 1.0,
+        }))
+
+
+@pytest.mark.parametrize("body_bytes", [4097, 262144])
+def test_OriginalMetricsRecordsUseTheirOwnCapAndDescriptiveFinding(body_bytes):
+    """Metadata attests the larger profile without reconstructing absent response bytes."""
+
+    adapter, report = PrometheusReport(body_bytes=body_bytes)
+    result = adapter.NormalizeReport(report)
+    assert result.findings[0].kind == "prometheus-exposition", "Finding identity drifted."
+    assert result.findings[0].attributes == {
+        "check_id": NATIVE_PROMETHEUS_CHECK_ID, "severity": "low",
+    }, "A metrics exposure claimed unsupported severity or exploitability."
+    assert result.observations[0].attributes["body_bytes"] == body_bytes, "Body cap drifted."
+
+
+@pytest.mark.parametrize("key,value", [("body_bytes", 262145), ("body_bytes", -1),
+    ("status", 403), ("media_type", "application/octet-stream"), ("body_bytes", 0),
+    ("check_id", NATIVE_WEB_CHECK_ID), ("profile_version", "2")])
+def test_MetricsReplayRefusesForeignOrImpossiblePositiveFacts(key, value):
+    """A positive record must bind its original check/version and possible response dimensions."""
+
+    _, report = PrometheusReport()
+    record = {**Record(), "check_id": NATIVE_PROMETHEUS_CHECK_ID,
+              "url": "http://127.0.0.1:8080/metrics", "body_bytes": 5000, key: value}
+
+    with pytest.raises(NativeWebRecordError):
+        ParseNativeWebRecord(CanonicalRecord(record),
+                             str(report.invocation.request.parameters["url"]),
+                             check_id=NATIVE_PROMETHEUS_CHECK_ID)
