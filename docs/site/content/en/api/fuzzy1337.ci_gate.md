@@ -23,6 +23,14 @@ finding count or detached operation summary does not establish this proof. Only
 current original SCAN detections enter the predicate, with saved operator triage;
 processed no-findings inventory neither selects nor resolves historical facts.
 
+The Internal `EvaluateNativeImageCriterion` consumer additionally verifies the
+existing native Trivy candidate proof and the exact original in-process
+`NativeImageAcceptance` handle. Persisted replay alone supplies no current
+authority. The complete current saved native inventory and detections are
+required, and saved status/reason remain authoritative. The unchanged result
+shape accepts the precise original `native-scan:<64 lowercase hexadecimal>` run
+identity alongside the existing `artifact-run:<32 lowercase hexadecimal>` form.
+
 Zero matching findings cannot substitute for missing original processing proof.
 The result describes selected-profile predicate satisfaction or violation, with
 `scan_completeness: not-assessed`. This profile adds no reachable-risk rule,

@@ -1,7 +1,8 @@
 # fuzzy1337.ci_commands
 
 This Internal command adapter exposes `1337 ci scan` through the existing closed
-synthetic Dockerfile/Kubernetes or separate image VERSION/SCAN workflow, selected
+synthetic Dockerfile/Kubernetes, synthetic image, or explicit governed native Trivy
+VERSION/SCAN workflow, selected
 finding predicate and saved report owners. `CiParser` and `RunCiCommands` are
 implementation entry points; their import paths are not a Stable extension
 contract.
@@ -29,5 +30,13 @@ acceptance is checked again after publication. The complete saved-model digest
 is distinct from the JSON payload SHA-256/size checked against the original
 publication outcome. Storage/export failures and uncertain acknowledgements
 remain nonzero; triage and unrelated retained full-report facts remain intact.
+
+`native-trivy` requires explicit workspace-relative archive/cache, absolute trusted
+executable/policy, independent read consent and image SAFE approval. It excludes
+synthetic producer/material/source inputs; synthetic profiles exclude native
+policy/cache arguments. Native gating reuses the original six acquisitions and
+the original in-process acceptance association before the predicate and after
+exports. No new grant, material observation or database update extends success.
+The handle never enters the command's machine output or report artifacts.
 
 ::: fuzzy1337.ci_commands

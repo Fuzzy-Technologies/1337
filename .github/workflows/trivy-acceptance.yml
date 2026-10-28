@@ -140,6 +140,7 @@ jobs:
             FUZZY1337_RUN_NATIVE_IMAGE_PRODUCT_ACCEPTANCE=1 \
             .venv/bin/python -m pytest \
             tests/integration/test_trivy_native.py tests/functional/test_native_image_product.py \
+            tests/functional/test_ci_native_image_product.py \
             -o addopts='' --no-cov -q -n 2 --dist=load
       - name: Preserve actual native provider evidence
         if: always()
@@ -149,5 +150,6 @@ jobs:
           path: |
             functional-evidence/trivy-native/
             functional-evidence/native-image-product/
+            functional-evidence/native-image-ci/
           if-no-files-found: warn
           retention-days: 14

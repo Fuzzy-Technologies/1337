@@ -253,7 +253,13 @@ container CI checks stop on the first test failure, leaving subsequent work
 unassessed. Successful checks retain every quality phase, test layer and coverage
 requirement, with unchanged worker/per-test defaults and no retries.
 
-The Windows CI profile uses a 900-second suite budget and a 20-minute job limit.
+The Windows and container CI profiles use a 900-second suite budget and a
+20-minute job limit. Container CI runs the same complete check explicitly as
+`docker compose --profile quality run --rm quality 1337-dev check --fail-fast --suite-timeout 900`
+with the existing local UID/GID mapping. Its previous 600-second aggregate budget
+expired after 9,980 of 9,997 collected tests completed; no assertion failure was
+identified in that incomplete invocation. Per-test deadlines, automatic workers,
+test selection and coverage requirements remain unchanged.
 Recent successful Windows suites took 529–540 seconds; a larger invocation reached
 the previous 600-second bound near completion. Other quality-matrix
 platforms retain the 600-second suite budget and 15-minute job limit. These finite
