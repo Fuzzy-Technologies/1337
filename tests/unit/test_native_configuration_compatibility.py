@@ -166,7 +166,7 @@ def test_ControlledExceptionalCleanupRetainsAvailableEventsWithoutInventedResult
     )
 
 
-@pytest.mark.parametrize("mutation", ["missing", "zero", "disk", "readers", "check-fs", "data-fs"])
+@pytest.mark.parametrize("mutation", ["missing", "zero", "disk", "readers", "check-fs"])
 def test_EmbeddedProofRefusesMissingZeroOrOverriddenCheckSources(mutation):
     """Controlled loader messages cannot establish embedded provenance after any override."""
 
@@ -181,11 +181,44 @@ def test_EmbeddedProofRefusesMissingZeroOrOverriddenCheckSources(mutation):
     else:
         raw += {"disk": b"Checks from disk are loaded count=1",
             "readers": b"Checks from readers are loaded count=1",
-            "check-fs": b"Overriding filesystem for checks",
-            "data-fs": b"Overriding filesystem for data"}[mutation]
+            "check-fs": b"Overriding filesystem for checks"}[mutation]
 
     with pytest.raises(ValueError):
         harness.VerifyEmbeddedChecks(raw)
+
+
+def test_PinnedInternalDefaultDataFilesystemPreservesEmbeddedCheckProof(tmp_path):
+    """Trivy's virtual system/k8s-version.json data is distinct from caller check/data paths."""
+
+    raw = (b"Embedded libraries are loaded count=4\nEmbedded checks are loaded count=100\n"
+           b"Overriding filesystem for data\n")
+    assert harness.VerifyEmbeddedChecks(raw) == {"libraries": 4, "checks": 100}, (
+        "Pinned ordinary virtual data must not be misclassified as an external checks source"
+    )
+    arguments = harness.OriginalArguments(tmp_path / "trivy", tmp_path / "cache",
+                                          tmp_path / "inputs", "kubernetes", "config")
+    assert not {"--config-data", "--config-check", "--config-file-schemas"}.intersection(
+        arguments
+    ), "Internal default data cannot admit any caller-selected data, policy or schema path"
+
+
+@pytest.mark.parametrize("field,value", [("fixture", "../unselected-file"),
+    ("fixture", "kubernetes/other.yaml"), ("logicalPath", "../unselected-file"),
+    ("scanner", "helm"), ("caseId", "unselected-case")])
+def test_OriginalSpecimenClosureRejectsPathAndScannerExpansion(field, value):
+    """Even changed oracle routing cannot read or stage beyond the five original fixed files."""
+
+    case = {"caseId": "kubernetes.second-document", "scanner": "kubernetes",
+        "inputs": [{"fixture": "kubernetes/multi.yaml", "logicalPath": "multi.yaml"}]}
+
+    if field in {"scanner", "caseId"}:
+        case[field] = value
+
+    else:
+        case["inputs"][0][field] = value
+
+    with pytest.raises(ValueError, match="five original owned"):
+        harness.RequireOwnedSpecimen(case)
 
 
 @pytest.mark.parametrize("mutation", ["valid", "missing", "duplicate", "unknown", "type",

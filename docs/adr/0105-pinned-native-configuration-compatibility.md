@@ -77,6 +77,11 @@ cache, controlled environment and actual no-egress execution establish the
 candidate embedded-check selection together. Retain original debug evidence of
 embedded checks and libraries loading. Refuse a disk/reader policy filesystem or
 other check override; a version/hash alone cannot satisfy this proof.
+The pinned scanner internally supplies virtual default data, including
+`system/k8s-version.json`, and logs `Overriding filesystem for data` for that
+ordinary path. This message alone is not an external-data override. Fixed argv,
+the empty material selection and fresh environment exclude caller data/schema
+paths; policy-disk/reader/check-filesystem overrides remain refused.
 
 Each selected path must appear as a successfully processed result of the declared
 configuration type. Included nonfailure results must provide positive evidence

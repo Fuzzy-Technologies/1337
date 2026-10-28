@@ -28,6 +28,25 @@ VERSION_TIMEOUT_SECONDS = 10
 MAX_CONFIG_STDOUT_BYTES = 1024 * 1024
 MAX_STDERR_BYTES = 64 * 1024
 MAX_VERSION_STDOUT_BYTES = 16 * 1024
+OWNED_SPECIMENS = {
+    "dockerfile.root-user": ("dockerfile/unsafe/Dockerfile", "Dockerfile", "dockerfile"),
+    "dockerfile.non-root-user": ("dockerfile/safe/Dockerfile", "Dockerfile", "dockerfile"),
+    "kubernetes.privileged-container": ("kubernetes/unsafe.yaml", "unsafe.yaml", "kubernetes"),
+    "kubernetes.non-privileged-container": ("kubernetes/safe.yaml", "safe.yaml", "kubernetes"),
+    "kubernetes.second-document": ("kubernetes/multi.yaml", "multi.yaml", "kubernetes"),
+}
+
+
+def RequireOwnedSpecimen(case: dict) -> None:
+    """Refuse any catalog path/type expansion before reading or staging the owned specimen."""
+
+    selected = OWNED_SPECIMENS.get(case.get("caseId"))
+    inputs = case.get("inputs")
+
+    if selected is None or type(inputs) is not list or len(inputs) != 1 or (
+        type(inputs[0]) is not dict
+    ) or (inputs[0].get("fixture"), inputs[0].get("logicalPath"), case.get("scanner")) != selected:
+        raise ValueError("native compatibility accepts only the five original owned specimens")
 
 
 def VerifyEmbeddedChecks(stderr: bytes) -> dict[str, int]:
@@ -35,7 +54,7 @@ def VerifyEmbeddedChecks(stderr: bytes) -> dict[str, int]:
 
     text = stderr.decode("utf-8")
     blocked = ("Checks from disk are loaded", "Checks from readers are loaded",
-               "Overriding filesystem for checks", "Overriding filesystem for data")
+               "Overriding filesystem for checks")
 
     if any(message in text for message in blocked):
         raise ValueError("native configuration used an unselected check/data source")

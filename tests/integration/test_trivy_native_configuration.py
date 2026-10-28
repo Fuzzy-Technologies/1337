@@ -23,6 +23,7 @@ from fuzzy1337.executors.owned_process import RequireLinuxOwnership
 from tests.fixtures.trivy.native_configuration import (
     MAX_VERSION_STDOUT_BYTES,
     CaptureOriginal,
+    RequireOwnedSpecimen,
     VerifyEmbeddedChecks,
     VerifyNativeInterpretation,
 )
@@ -118,6 +119,7 @@ def test_GenuinePinnedConfigurationProcessesOriginalSourcesWithEmbeddedChecks(
     """Real VERSION/config retain original custody and independent native file/rule facts."""
 
     original_binary, provisioning, network = native_configuration_runtime
+    RequireOwnedSpecimen(case)
     assert len(case["inputs"]) == 1 and case["scanner"] in {"dockerfile", "kubernetes"}, (
         "The independent compatibility catalog must retain its closed one-file selections"
     )
