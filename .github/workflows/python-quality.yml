@@ -326,6 +326,7 @@ jobs:
         run: >-
           LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
           docker compose --profile quality run --rm quality 1337-dev check --fail-fast
+          --suite-timeout 900
 
   synthetic-lab:
     if: >-
