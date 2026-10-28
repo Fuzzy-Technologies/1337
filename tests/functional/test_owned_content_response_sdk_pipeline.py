@@ -116,3 +116,24 @@ def test_InstalledFreshActorDriftContentHeaderPipelinePreservesAcquiredStateWith
     assert result == {"state": "checked-authority-refusal", "expected_findings": 0,
         "runtime_acceptance": "passed", "source_delivery": "normal-eof"}, (
             "Actor mismatch must remain unassessed without modifying acquired owner state")
+
+
+def test_InstalledFreshBodyDecoyContentHeaderPipelineRetainsFindingAndRelocatedReplay(
+    installed_content_header_pipeline, tmp_path,
+):
+    """Header-like body text cannot suppress the Finding from an absent actual HTTP field."""
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence", retained / "body-decoy-positive")
+    evidence.Json("case.json", {"schema_version": 1,
+        "identity": "content-sdk:ipv4:body-decoy:positive:relocated-header-replay",
+        "expected_findings": 1, "runtime_acceptance": "unassessed-until-original-checks"})
+    result = RunInstalled(installed, tmp_path / "pipeline", evidence,
+        fixture_id="body-decoy-" + uuid4().hex, case="body-decoy", scenario="positive",
+        enabled=True)
+    assert result["runtime_acceptance"] == "passed" and result["state"] == (
+        "checked-header-replay"), "The actual body-decoy sequence must finish relocated replay"
+    assert result["expected_findings"] == 1 and result["identities"]["finding_reference"], (
+        "Text in the original body must not replace a real HTTP response header")
+    assert result["identities"]["condition_observed"] is True, (
+        "The persisted positive assessment must derive from original HTTP header names")
