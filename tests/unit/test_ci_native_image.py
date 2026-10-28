@@ -14,6 +14,8 @@ from xml.etree import ElementTree
 import pytest
 
 import fuzzy1337.ci_commands as commands
+import fuzzy1337.native_image_bounded_capture as native_capture
+import fuzzy1337.native_image_observation as native_observation
 from fuzzy1337.adapters import SerializeContract
 from fuzzy1337.ci_gate import CiFindingCriterion, EvaluateNativeImageCriterion
 from fuzzy1337.findings import (
@@ -73,6 +75,16 @@ def native_ci(authority, monkeypatch):
     monkeypatch.setattr(commands, "ScanNativeImage", Scan)
 
     return authority, policy
+
+
+@pytest.fixture
+def controlled_native_ci_clock(native_ci, monkeypatch) -> list[float]:
+    """Isolate the doubled pair's ledger clock after original authority/material fixture setup."""
+
+    clock = [native_observation.monotonic()]
+    monkeypatch.setattr(native_observation, "monotonic", lambda: clock[0])
+
+    return clock
 
 
 @pytest.fixture
@@ -143,7 +155,7 @@ def Revoke(root: Path) -> None:
 
 @pytest.mark.parametrize("limit,expected", [(0, 1), (1, 0)])
 def test_ControlledNativePairPublishesOneSavedSnapshotAndExplicitPredicate(
-    native_ci, tmp_path, limit, expected, native_ci_budget_diagnostic,
+    native_ci, tmp_path, limit, expected, native_ci_budget_diagnostic, controlled_native_ci_clock,
 ):
     """Real report files and canonical model agree under explicitly doubled engine execution."""
 
@@ -200,6 +212,44 @@ def test_ControlledNativePairPublishesOneSavedSnapshotAndExplicitPredicate(
             report["report_sha256"] == hashlib.sha256(
                 (tmp_path / filename).read_bytes()).hexdigest()
         ), "Per-artifact facts must match independently reopened actually published bytes"
+
+
+def test_ControlledNativePairBudgetOverrunRemainsFailedAndIndeterminate(
+    native_ci, tmp_path, monkeypatch, controlled_native_ci_clock, native_ci_budget_diagnostic,
+):
+    """An explicit ledger overrun preserves original refusal truth across the public CI boundary."""
+
+    authority, policy = native_ci
+    append = native_capture.OutcomeJournal.Append
+    injected = False
+
+    def Append(owner, value, **options):
+        """Charge ten explicit seconds only after the original prepared journal was retained."""
+
+        nonlocal injected
+        append(owner, value, **options)
+
+        if not injected:
+            controlled_native_ci_clock[0] += 10.0
+            injected = True
+
+    monkeypatch.setattr(native_capture.OutcomeJournal, "Append", Append)
+    status, outcome = InvokeCi(NativeArguments(authority.root, policy, tmp_path))
+    assert status == outcome["exit_code"] == 4 and outcome["failure"] == "storage", outcome
+    assert outcome["criterion"]["status"] == "indeterminate" and (
+        outcome["scan"]["custody_uncertain"] is True
+    ), "Exhausted original custody cannot become a satisfied or violated finding predicate"
+    assert injected and not authority.collector.state.calls, (
+        "The charged first journal must refuse before either controlled provider operation"
+    )
+    assert all(report["output_published"] is False for report in outcome["reports"].values()), (
+        "An exhausted original capture cannot publish a successful report"
+    )
+    assert any(item["exception_message"] == "native material phase exceeded its allowance" and (
+        item["finalization_seconds"] == 10.0 and item["failed"] is True
+    ) for item in native_ci_budget_diagnostic), (
+        "The original ledger must account for the injected overrun and retain its refusal"
+    )
 
 
 @pytest.mark.parametrize("mode", ["dismissed", "absent"])
