@@ -9,7 +9,8 @@ import copy
 import hashlib
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -17,6 +18,7 @@ from jsonschema import ValidationError
 
 from fuzzy1337.adapters import AdapterRequest, ImpactLevel
 from fuzzy1337.adapters.nuclei import NucleiAdapter, NucleiProfile, NucleiTemplate
+from tests.functional import external_benchmark
 from tests.functional.external_benchmark import (
     CONTRACT_DIRECTORY,
     BuildComparison,
@@ -292,16 +294,40 @@ def test_ManualInapplicableAndUnknownTruthRemainUnscored(
     )
 
 
-@pytest.mark.parametrize("path", ["../escaped.json", "/tmp/escaped.json"])
+@pytest.mark.parametrize("path", [
+    "../escaped.json", "/tmp/escaped.json", pytest.param(None, id="native-absolute"),
+])
 def test_EvidenceCannotEscapeItsOwnedDirectory(available_contract_pack, tmp_path, path):
-    """Relative traversal and absolute paths fail before artifact bytes are opened."""
+    """Traversal, rooted paths, and native absolute paths fail before artifact reads."""
 
     pack, target = available_contract_pack
     observation = ContractObservation(pack, target, tmp_path)
+
+    if path is None:
+        path = str(tmp_path.parent / "escaped.json")
+
     observation["execution"]["evidence"][0]["path"] = path
 
     with pytest.raises(ValueError, match="beneath"):
         ValidateObservation(pack, target, observation, tmp_path)
+
+
+@pytest.mark.parametrize("path", [
+    "/tmp/escaped.json", r"\tmp\escaped.json", r"C:escaped.json",
+    r"C:\tmp\escaped.json", r"\\server\share\escaped.json",
+])
+def test_WindowsAnchoredEvidenceFailsBeforeFilesystemAccess(monkeypatch, path):
+    """Windows root, drive, and UNC paths cannot reset the owned evidence prefix."""
+
+    evidence_root = MagicMock(spec=Path)
+    monkeypatch.setattr(external_benchmark, "Path", PureWindowsPath)
+
+    with pytest.raises(ValueError, match="beneath"):
+        external_benchmark.VerifiedEvidence({"evidence": [{"path": path}]}, evidence_root)
+
+    assert evidence_root.mock_calls == [], (
+        "Anchored evidence must fail before the evidence root is joined or accessed."
+    )
 
 
 def test_ConsistentHashesCannotHideChangedAcquisitionMetadata(available_contract_pack, tmp_path):

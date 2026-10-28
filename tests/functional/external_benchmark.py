@@ -113,7 +113,7 @@ def VerifiedEvidence(execution: dict, evidence_root: Path) -> dict[str, bytes]:
     for record in execution["evidence"]:
         relative = Path(record["path"])
 
-        if relative.is_absolute() or any(part in {".", ".."} for part in relative.parts):
+        if relative.anchor or any(part in {".", ".."} for part in relative.parts):
             raise ValueError("Benchmark evidence must remain beneath its evidence directory")
 
         path = evidence_root / relative
