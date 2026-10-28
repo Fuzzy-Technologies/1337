@@ -23,7 +23,7 @@ _PRODUCT_DENOMINATOR = _WEIGHT_SCALE ** 3
 _IMPACT_DENOMINATOR = 100 * _PRODUCT_DENOMINATOR
 
 
-def _BaseScoreTenths(assessment: CveCvss2Assessment) -> int:
+def BaseScoreTenths(assessment: CveCvss2Assessment) -> int:
     """Evaluate FIRST equation 2.10 exactly, rounding only the final number of tenths.
 
     Args:
@@ -60,7 +60,7 @@ def _BaseScoreTenths(assessment: CveCvss2Assessment) -> int:
 
 
 @dataclass(frozen=True, slots=True)
-class _BaseCalculation:
+class BaseCalculation:
     """Keep one internally derived value linked only by its source assessment position."""
 
     assessment_index: int
@@ -104,7 +104,7 @@ class CveCvss2BaseCalculations:
     """
 
     statements: CveCvss2Statements
-    calculations: tuple[_BaseCalculation, ...] = field(init=False)
+    calculations: tuple[BaseCalculation, ...] = field(init=False)
 
     def __post_init__(self) -> None:
         """Require typed statements and derive one immutable value per assessment in order."""
@@ -113,7 +113,7 @@ class CveCvss2BaseCalculations:
             raise ValueError("CVSS 2 base calculation requires typed source statements")
 
         calculations = tuple(
-            _BaseCalculation(index, _BaseScoreTenths(assessment))
+            BaseCalculation(index, BaseScoreTenths(assessment))
             for index, assessment in enumerate(self.statements.assessments)
         )
         object.__setattr__(self, "calculations", calculations)

@@ -272,7 +272,11 @@ def test_SourceAndOrderedCalculationsAreFrozenAndComputedFieldsCannotBeReplaced(
     with pytest.raises(TypeError):
         result.calculations[0] = calculation
 
-    with pytest.raises(ValueError, match="init=False"):
+    with pytest.raises(
+        (ValueError, TypeError),
+        match=(r"^field calculations is declared with init=False, "
+               r"it cannot be specified with replace\(\)$"),
+    ):
         replace(result, calculations=())
 
     assert result.statements is statements, "Calculation replaced original source inspection"

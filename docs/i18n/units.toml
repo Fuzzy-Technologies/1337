@@ -21661,7 +21661,7 @@ state = "missing"
 id = "symbol:fuzzy1337.intelligence_cvss2_base.CveCvss2BaseCalculations"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence_cvss2_base.py"
-sourceHash = "sha256:e78e91b3d77977bdf0c755ae8f2c00d658adbcb9067ea2095105fff73a51914c"
+sourceHash = "sha256:60f3f6c52f8c0ae72aaa553f5074a426afc0c41b084c829d2741c9002f18ca13"
 reviewClass = "technical"
 
 [units.translations.ru]
