@@ -155,7 +155,7 @@ def Revoke(root: Path) -> None:
 
 @pytest.mark.parametrize("limit,expected", [(0, 1), (1, 0)])
 def test_ControlledNativePairPublishesOneSavedSnapshotAndExplicitPredicate(
-    native_ci, tmp_path, limit, expected, native_ci_budget_diagnostic, controlled_native_ci_clock,
+    native_ci, tmp_path, limit, expected, native_ci_budget_diagnostic,
 ):
     """Real report files and canonical model agree under explicitly doubled engine execution."""
 
