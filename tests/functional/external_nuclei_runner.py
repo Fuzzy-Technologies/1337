@@ -1,20 +1,26 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Preflight and independent projection contracts; no scanner or container execution."""
+"""Preflight, owned standalone execution, and independent finite Nuclei projection."""
 
 from __future__ import annotations
 
 import hashlib
 import importlib
 import importlib.metadata
+import os
 import re
+import selectors
+import shutil
+import signal
 import stat
+import subprocess
 import sys
+import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .external_native_runner import MAX_FILE_BYTES, StrictJson
+from .external_native_runner import MAX_FILE_BYTES, ExportBundle, StrictJson, WriteJson
 
 VERSION = "3.4.10"
 UPSTREAM_REVISION = "5bff7a2a90965a0ed8b03f2ff557f3220624dd57"
@@ -39,6 +45,8 @@ WRAPPER_TIMEOUT_SECONDS = 8
 MAX_LINE_BYTES = 128 * 1024
 MAX_RECORDS = 4096
 ATTEMPT_BASIS = "approved-single-configured-nuclei-invocation"
+TARGET_INDEX_DIGEST = "sha256:8739101ade29358abb5469ee66ae78e582c97ed0a5543a4ad102e5fa5193526b"
+TARGET_PLATFORM_DIGEST = "sha256:7f7539921b046863f2fc48b84061f957e50b3aa4652ae0a62014a2fc25654d0b"
 
 
 def ExactUrl(path: str) -> str:
@@ -202,6 +210,238 @@ def AttemptProvenance(path: str) -> dict:
     return {"basis": ATTEMPT_BASIS, "approved_attempt_count": 1,
             "independent_server_contact_count": None,
             "configured_requests": [{"method": "GET", "url": ExactUrl(path)}]}
+
+
+def RequireStandaloneAuthorization(authorization: dict, path: str) -> None:
+    """Require the fixture's explicit owned-instance claim, never a product policy grant."""
+
+    # Actual Docker isolation readback belongs to the host fixture, not this manifest check.
+    expected = {"basis", "authorization_reference", "owner", "target_url", "target_instance",
+                "image_index_digest", "platform_digest", "network_internal", "published_ports"}
+
+    if not isinstance(authorization, dict) or set(authorization) != expected or (
+        authorization["basis"] != "owned-pinned-external-target-fixture"
+        or authorization["target_url"] != ExactUrl(path)
+        or authorization["image_index_digest"] != TARGET_INDEX_DIGEST
+        or authorization["platform_digest"] != TARGET_PLATFORM_DIGEST
+        or authorization["network_internal"] is not True
+        or type(authorization["published_ports"]) is not int
+        or authorization["published_ports"] != 0
+        or type(authorization["target_instance"]) is not str
+        or re.fullmatch("[a-f0-9]{64}", authorization["target_instance"]) is None
+        or type(authorization["owner"]) is not str
+        or re.fullmatch("operator:[a-z0-9-]{1,64}", authorization["owner"]) is None
+        or type(authorization["authorization_reference"]) is not str
+        or re.fullmatch("[A-Za-z0-9:.-]{1,256}", authorization["authorization_reference"]) is None
+    ):
+        raise ValueError("Standalone execution requires exact pinned owned-fixture authorization")
+
+
+def OwnStandaloneProcess(root: Path, argv: tuple[str, ...], environment: dict[str, str]) -> dict:
+    """Own one Linux process group, finite original captures, deadline, and unconditional reap."""
+
+    RequireStandalonePlatform()
+    started = time.monotonic()
+    result = {"exit_code": None, "timed_out": False, "capture_exhausted": None,
+              "launch_error": None, "capture_error": None, "interrupted": None,
+              "cleanup_error": None, "streams_complete": False}
+    process = None
+
+    with (root / "stdout.raw").open("xb") as stdout, (
+        root / "stderr.raw"
+    ).open("xb") as stderr, selectors.DefaultSelector() as selector:
+        try:
+            process = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, shell=False, bufsize=0, start_new_session=True,
+                cwd=environment["HOME"], env=environment)
+            selector.register(process.stdout, selectors.EVENT_READ,
+                              (stdout, STDOUT_BYTES, "stdout"))
+            selector.register(process.stderr, selectors.EVENT_READ,
+                              (stderr, STDERR_BYTES, "stderr"))
+            counts = {"stdout": 0, "stderr": 0}
+            deadline = started + PROVIDER_TIMEOUT_SECONDS
+
+            while selector.get_map():
+                remaining = deadline - time.monotonic()
+
+                if remaining <= 0:
+                    result["timed_out"] = True
+
+                    break
+
+                for key, _ in selector.select(min(remaining, 0.05)):
+                    destination, limit, role = key.data
+                    raw = os.read(key.fileobj.fileno(), min(65536, limit - counts[role] + 1))
+
+                    if not raw:
+                        selector.unregister(key.fileobj)
+
+                        continue
+
+                    destination.write(raw)
+                    counts[role] += len(raw)
+
+                    if counts[role] > limit:
+                        result["capture_exhausted"] = role
+
+                        break
+
+                if result["capture_exhausted"] is not None:
+                    break
+
+            if not result["timed_out"] and result["capture_exhausted"] is None:
+                while True:
+                    remaining = deadline - time.monotonic()
+
+                    if remaining <= 0:
+                        result["timed_out"] = True
+
+                        break
+
+                    # Keep the group leader unreaped until group cleanup prevents PID reuse.
+                    observed = os.waitid(os.P_PID, process.pid,
+                                         os.WEXITED | os.WNOHANG | os.WNOWAIT)
+
+                    if observed is not None:
+                        result["streams_complete"] = True
+
+                        break
+
+                    time.sleep(min(remaining, 0.01))
+
+        except Exception as error:
+            result["launch_error" if process is None else "capture_error"] = type(error).__name__
+
+        except BaseException as error:
+            result["interrupted"] = type(error).__name__
+
+            raise
+
+        finally:
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+
+                except ProcessLookupError:
+                    pass
+
+                except OSError as error:
+                    result["cleanup_error"] = type(error).__name__
+
+                try:
+                    result["exit_code"] = process.wait(timeout=1)
+
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    result["cleanup_error"] = type(error).__name__
+
+                finally:
+                    for stream in (process.stdout, process.stderr):
+                        if stream is not None:
+                            stream.close()
+
+            result["duration_seconds"] = time.monotonic() - started
+            WriteJson(root / "process.json", result)
+
+    return result
+
+
+def RunStandalone(root: Path, path: str, executable: Path, template: Path, configuration: Path,
+                  expected_sha256: str, observed_version: str, authorization: dict) -> dict:
+    """Execute one explicitly authorized standalone attempt and retain unscored failure bytes."""
+
+    RequireStandalonePlatform()
+    RequireStandaloneAuthorization(authorization, path)
+    # Runtime must supply an immutable read-only image executable: path preflight alone
+    # does not prove that the same bytes remained at that path when Popen launched it.
+    binary = VerifyBinary(executable, expected_sha256, observed_version)
+    ProfileDocument(template, configuration)
+
+    if not root.is_absolute() or any(part == ".." for part in root.parts):
+        raise ValueError("Standalone workspace requires a new absolute owned directory")
+
+    for component in reversed(root.parents):
+        if component.is_symlink():
+            raise ValueError("Standalone workspace cannot traverse symbolic links")
+
+    root.mkdir(mode=0o700)
+    copied_template = root / "prometheus-exposition.yaml"
+    copied_configuration = root / "operator-config.yaml"
+    shutil.copyfile(template, copied_template)
+    shutil.copyfile(configuration, copied_configuration)
+    profile = ProfileDocument(copied_template, copied_configuration)
+    argv = StandaloneArguments(executable, path, copied_template, copied_configuration)
+    home = root / "runtime-home"
+    home.mkdir(mode=0o700)
+
+    for directory in ("config", "cache", "tmp"):
+        (home / directory).mkdir(mode=0o700)
+
+    environment = {"HOME": str(home), "XDG_CONFIG_HOME": str(home / "config"),
+                   "XDG_CACHE_HOME": str(home / "cache"), "TMPDIR": str(home / "tmp")}
+    WriteJson(root / "authorization.json", authorization)
+    WriteJson(root / "profile.json", profile)
+    WriteJson(root / "attempt-provenance.json", AttemptProvenance(path))
+    WriteJson(root / "requests.json", AttemptProvenance(path)["configured_requests"])
+    WriteJson(root / "invocation.json", {"argv": list(argv), "scanner_id": "nuclei",
+        "scanner_version": VERSION, "scanner_sha256": binary["sha256"],
+        "rule_sha256": TEMPLATE_SHA256, "product_revision": None,
+        "provider_timeout_seconds": PROVIDER_TIMEOUT_SECONDS,
+        "stdout_capture_bytes": STDOUT_BYTES, "stderr_capture_bytes": STDERR_BYTES,
+        "original_file_ceiling_bytes": MAX_FILE_BYTES, "environment": environment})
+    process = OwnStandaloneProcess(root, argv, environment)
+    findings = []
+    invalid_output = False
+    oversized = (root / "stdout.raw").stat().st_size > MAX_FILE_BYTES
+
+    if not oversized:
+        raw = (root / "stdout.raw").read_bytes()
+        lines = raw.splitlines()
+        invalid_output = len(lines) > MAX_RECORDS
+
+        for line in lines[:MAX_RECORDS]:
+            try:
+                findings.extend(ProjectStandaloneMatches(line + b"\n"))
+
+            except (ValueError, UnicodeError):
+                invalid_output = True
+
+    failed = oversized or invalid_output or process["exit_code"] != 0 or (
+        process["timed_out"] or process["capture_exhausted"] is not None
+        or process["launch_error"] is not None or process["capture_error"] is not None
+        or process["cleanup_error"] is not None
+        or not process["streams_complete"]
+    )
+    mapped = any(item["rule_id"] == TEMPLATE_ID and item["target_url"] == ExactUrl(path)
+                 for item in findings)
+    status = "failed" if failed else "completed" if mapped else "unproven"
+    outcome = {"status": status, "exit_code": process["exit_code"],
+               "duration_seconds": process["duration_seconds"], "target_url": ExactUrl(path),
+               "invalid_output": invalid_output, "oversized_original": oversized,
+               "findings": findings,
+               "reason": "Execution failed; retained bytes receive no score" if failed else (
+                   "Explicit exact-input rule match" if mapped else
+                   "Invocation completed without a mapped match; response and contacts unproven")}
+    WriteJson(root / "findings.json", findings)
+    WriteJson(root / "outcome.json", outcome)
+
+    try:
+        ExportBundle(root, outcome)
+
+    except ValueError:
+        outcome.update(status="failed",
+                       reason="Original-byte bundle refused; retained files are unscored")
+        WriteJson(root / "outcome.json", outcome)
+
+    return outcome
+
+
+def RequireStandalonePlatform() -> None:
+    """Refuse unsupported process ownership semantics before any workspace or process creation."""
+
+    if sys.platform != "linux" or any(not hasattr(os, name) for name in (
+        "killpg", "waitid", "P_PID", "WEXITED", "WNOHANG", "WNOWAIT",
+    )) or not hasattr(signal, "SIGKILL"):
+        raise ValueError("Standalone execution requires Linux process-group and WNOWAIT support")
 
 
 def InstalledInventory(source_revision: str, wheel: Path) -> dict:
