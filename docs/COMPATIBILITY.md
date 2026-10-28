@@ -334,6 +334,16 @@ refusal. Existing Git defaults, invocation arguments and original report fields
 remain unchanged. The canary report additionally binds its anonymous request
 template and query injection references; response bodies remain transient.
 
+ADR 0103 adds Experimental `native.prometheus-exposition` and explicit CLI
+`--check prometheus-exposition` at profile version `1`. Its distinct capability
+uses the existing STANDARD exact-plan/current-authority workflow. Only this
+profile supports bounded length, chunked and EOF response framing, with a 256 KiB
+transient body limit. `fuzzy1337.adapters.prometheus_exposition` is Internal.
+A LOW descriptive Finding records supported anonymous Prometheus exposition;
+it does not establish exploitability or intended privacy. Original metadata/hash
+records preserve predicate provenance without a retained response body. Git and
+canary defaults, framing limits and schema-one records remain unchanged.
+
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 ADR 0091 adds the explicit Linux-only `own_descendants=False` execution keyword

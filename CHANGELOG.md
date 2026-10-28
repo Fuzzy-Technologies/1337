@@ -23,6 +23,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Grammar and explicit field agreement are validated without calculating scores;
   original intelligence schema-one snapshots and replay remain unchanged.
 
+- Added explicit first-party Prometheus exposition checks through the governed
+  SDK and `scan web --check prometheus-exposition`, with bounded transient UTF-8
+  parsing, length/chunked/EOF framing and descriptive source-linked Findings.
+  Eleven actual owned-target SDK/CLI cases passed; independent Juice Shop
+  scanner acceptance is tracked separately from application health checks.
+
 - Added an explicit native Trivy CI profile using the original current image run,
   independently revalidated source records and operator-selected finding limits.
   JSON/SARIF/JUnit exports share one saved snapshot and preserve late refusal;
