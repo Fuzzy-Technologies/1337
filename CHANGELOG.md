@@ -30,6 +30,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   SDK/CLI or evidence acceptance; actual installed-helper acceptance remains
   pending.
 
+- Subsequent installed-wheel verification established owned material creation
+  and reverification, invalid UTF-8 refusal, scratch replacement refusal and
+  cancellation settlement. These helper observations grant no provider
+  execution or product SDK/CLI authority.
+
 ### Patch 2 — v0.2.2 — 2026-10-11
 
 #### Digest
@@ -39,6 +44,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Package installation examples continue to use the immutable v0.2.1 baseline.
 
 #### Added
+
+- Added a separate Experimental pure CVSS 2 base calculation API with exact
+  integer arithmetic, immutable ordered results and unchanged original source
+  assertions. Calculated base scores remain separate from publisher statements;
+  temporal and environmental metrics do not alter the base calculation.
 
 - Added Experimental read-only CVSS 2 inspection of explicit CVE 5.2 source
   assessments, preserving ordered provider/scenario context and asserted scores.
