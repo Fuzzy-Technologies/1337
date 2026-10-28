@@ -1,0 +1,48 @@
+name: Native CI diagnostic
+
+on:
+  pull_request:
+    branches: [develop, master]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ci-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  controlled-native-pair:
+    if: ${{ false }}
+    name: Controlled native CI Windows diagnostic
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.12
+      - name: Run the exact controlled native CI selection
+        timeout-minutes: 2
+        run: >-
+          uv run --locked --extra dev pytest
+          'tests/unit/test_ci_native_image.py::test_ControlledNativePairPublishesOneSavedSnapshotAndExplicitPredicate[0-1]'
+          -n 0 -o addopts='' --no-cov -q -x --timeout=30 --timeout-method=thread
+          --junitxml=functional-evidence/native-ci-diagnostic/selection.xml
+      - name: Preserve the controlled diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: controlled-native-ci-windows-diagnostic
+          path: functional-evidence/native-ci-diagnostic/
+          if-no-files-found: warn
+          retention-days: 7
