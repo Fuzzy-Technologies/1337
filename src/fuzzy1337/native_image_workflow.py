@@ -14,6 +14,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
+from weakref import WeakKeyDictionary
 
 from fuzzy1337.adapters import (
     AdapterInvocation,
@@ -327,6 +328,54 @@ class NativeJobEvidenceStore(LocalEvidenceStore):
         return expected
 
 
+class NativeImageAcceptance:
+    """Internal original-pair handle; replay, construction and copies issue no authority."""
+
+    __slots__ = ("__weakref__",)
+
+    def __new__(cls) -> NativeImageAcceptance:
+        """Refuse caller construction; only a completed original workflow issues this handle.
+
+        Raises:
+            TypeError: This internal association cannot be constructed by a consumer.
+        """
+
+        raise TypeError("native acceptance requires its original completed workflow")
+
+    def Validate(self, captures: tuple[NativeTrivyOperationCapture, ...],
+                 workspace_root: Path) -> None:
+        """Revalidate the exact original pair using its unchanged issuer, context and clock.
+
+        Args:
+            captures: Exact original immutable VERSION and SCAN objects from this workflow.
+            workspace_root: Original owning workspace, never a relocated replay destination.
+
+        Raises:
+            ValueError: The handle, workspace or capture association is not original.
+            ArtifactDeniedError: Original grant, claim, current authority or material is refused.
+            EvidenceError: Original retained evidence no longer verifies.
+            OSError: Original authority or control storage cannot be read.
+        """
+
+        if type(self) is not NativeImageAcceptance or self not in _NATIVE_IMAGE_ACCEPTANCES:
+            raise ValueError("native acceptance requires its original issued handle")
+
+        original, root, validate = _NATIVE_IMAGE_ACCEPTANCES[self]
+
+        if type(captures) is not tuple or len(captures) != 2 or workspace_root != root or any(
+            actual is not expected for actual, expected in zip(captures, original, strict=True)
+        ):
+            raise ValueError("native acceptance requires its exact original capture pair")
+
+        validate()
+
+
+_NATIVE_IMAGE_ACCEPTANCES: WeakKeyDictionary[
+    NativeImageAcceptance,
+    tuple[tuple[NativeTrivyOperationCapture, ...], Path, Callable[[], None]],
+] = WeakKeyDictionary()
+
+
 @dataclass(frozen=True, slots=True)
 class NativeImageScanSummary:
     """Actual native job, saved-model, original acquisition and separate export truth."""
@@ -343,6 +392,7 @@ class NativeImageScanSummary:
     retained_records: tuple[EvidenceRecord, ...]
     custody_uncertain: bool = False
     report: ImageReportOutcome | None = None
+    acceptance: NativeImageAcceptance | None = field(default=None, repr=False, compare=False)
 
     def ToDict(self) -> dict[str, object]:
         """Render native facts without raw bytes, selected paths or private recovery locations.
@@ -410,6 +460,7 @@ class NativeImageWorkflow:
     saved_model: ModelState | None = field(default=None, init=False)
     workspace_attempted: bool = field(default=False, init=False)
     custody_uncertain: bool = field(default=False, init=False)
+    acceptance_validator: Callable[[], None] | None = field(default=None, init=False, repr=False)
 
     def Context(self) -> ArtifactPolicyContext:
         """Reopen the current complete typed authority context.
@@ -645,6 +696,7 @@ class NativeImageWorkflow:
                 self.saved_model = LocalModelStore(self.workspace_root).Save(proposal,
                     expected_revision=original.revision)
                 self.PersistReferences(context, validate_success=ValidatePair)
+                self.acceptance_validator = ValidatePair
         except ArtifactDeniedError as error:
             code = JobFailureCode.STORAGE if error.reason is ArtifactDenialReason.STORAGE else (
                 JobFailureCode.AUTHORIZATION)
@@ -785,8 +837,19 @@ async def ScanNativeImage(
             if snapshot.state is JobState.COMPLETED and workflow.saved_model is not None else
             ImageReportOutcome("not-run", report_format, model_revision=actual.revision,
                                failure="scan-not-completed"))
+    acceptance = None
+
+    if snapshot.state is JobState.COMPLETED and not workflow.custody_uncertain and (
+        workflow.bridge is not None and not workflow.bridge.publication_uncertain
+        and workflow.acceptance_validator is not None
+    ):
+        acceptance = object.__new__(NativeImageAcceptance)
+        _NATIVE_IMAGE_ACCEPTANCES[acceptance] = (
+            tuple(workflow.captures), workspace_root, workflow.acceptance_validator)
+
     return NativeImageScanSummary(snapshot, started_at, datetime.now(UTC).isoformat(),
         time.monotonic() - started, first_update, actual.revision,
         tuple((kind.value, len(actual.Objects(kind))) for kind in ObjectKind), job.EventsSince(),
         tuple(workflow.captures), workflow.Records(), workflow.custody_uncertain or (
-            workflow.bridge is not None and workflow.bridge.publication_uncertain), export)
+            workflow.bridge is not None and workflow.bridge.publication_uncertain), export,
+        acceptance)

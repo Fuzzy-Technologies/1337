@@ -127,7 +127,7 @@ def test_DocumentationTestsUseParallelWorkersAndKeepBranchCoverage() -> None:
 
 
 def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> None:
-    """Fail-fast changes failure latency while complete selection and existing budgets remain."""
+    """Full gates retain all checks and finite profile budgets with fail-fast execution."""
 
     jobs = Workflow("python-quality.yml")["jobs"]
     full = next(step for step in jobs["quality"]["steps"]
@@ -147,8 +147,10 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
         if step.get("name") == "Run container quality gate")
     assert " ".join(command.split()) == (
         'LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" '
-        "docker compose --profile quality run --rm quality 1337-dev check --fail-fast"
+        "docker compose --profile quality run --rm quality 1337-dev check --fail-fast "
+        "--suite-timeout 900"
     ), "Container CI must keep mapped ownership and run the same complete supported check."
+    assert container["timeout-minutes"] == 20, "Container CI must retain its finite job ceiling."
 
     for selected in (full["run"], command):
         assert not any(option in selected for option in (
