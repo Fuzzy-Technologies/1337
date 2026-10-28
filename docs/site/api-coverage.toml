@@ -694,3 +694,10 @@ module = "fuzzy1337.browser_page_worker"
 source = "src/fuzzy1337/browser_page_worker.py"
 mode = "authored"
 page = "api/fuzzy1337.browser_page_worker.md"
+
+[[surfaces]]
+# Experimental pure base calculation; original attributed source assertions stay unchanged.
+module = "fuzzy1337.intelligence_cvss2_base"
+source = "src/fuzzy1337/intelligence_cvss2_base.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cvss2_base.md"

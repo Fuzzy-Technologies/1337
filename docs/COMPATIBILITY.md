@@ -802,3 +802,27 @@ mutation. Original schema-one snapshots still report `cvssV2_0` as unsupported;
 their serialization, reparse and replay remain unchanged. See
 [the profile](INTELLIGENCE_CVSS2.md) and
 [ADR 0104](adr/0104-source-attributed-cvss2-statements.md).
+
+
+## Separate CVSS 2 base calculations
+
+`fuzzy1337.intelligence_cvss2_base` is a separate Experimental pure base-only
+calculation profile under ADR 0107. Its sole public constructor,
+`CveCvss2BaseCalculations(statements: CveCvss2Statements)`, retains the unchanged
+typed source inspection once and derives immutable ordered results internally.
+Each result contains its original `assessment_index`, algorithm identifier
+`cvss2-base-2.10`, and integer `base_score_tenths` in `0..100`; calculated fields
+are not constructor arguments. `DisplayScore()` renders one exact decimal digit.
+`ToDict()` detaches the original `statements` once and a separate `calculations`
+array, without creating a persisted decoder or replacement snapshot schema.
+
+Exact integer arithmetic rounds only the final base expression, without
+intermediate rounding or impact clamping. Temporal/environmental metrics do not
+enter the equation or create additional calculated scores. Source profile-one
+vectors, asserted scores, provider/scenario context and snapshot serialization,
+references and replay remain unchanged. A difference between an asserted and a
+derived score does not correct, reject or prefer the publisher's statement.
+The API performs no CVSS version conversion, target matching, network activity,
+publisher authentication or Finding/severity/risk mutation. See
+[the base calculation profile](INTELLIGENCE_CVSS2_BASE.md) and
+[ADR 0107](adr/0107-separate-cvss2-base-calculations.md).
