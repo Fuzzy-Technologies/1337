@@ -212,6 +212,76 @@ def test_StageWireRoundtripPreservesExactPhysicalAndManifestFacts(tmp_path, owne
         worker.StageFromPayload(detached, owned_material, stage.root)
 
 
+@pytest.mark.parametrize("role", ["input", "scanner", "original"])
+def test_VerifierRejectsChangedBytesDespiteRefreshedDescriptiveIdentity(
+    tmp_path, owned_material, role,
+):
+    """Detached physical metadata cannot replace exact captured source or executable hashes."""
+
+    stage = worker.CreateStage(StageRoot(tmp_path), owned_material)
+
+    if role == "original":
+        target = owned_material.executable
+
+    else:
+        snapshot = getattr(stage, role)
+        target = snapshot.directory / snapshot.manifest.files[0].name
+
+    target.chmod(0o600)
+    target.write_bytes(b"x" * target.stat().st_size)
+    identity = PhysicalIdentity(target.stat())
+
+    if role == "original":
+        detached = replace(stage, executable_identity=identity)
+
+    else:
+        changed = replace(snapshot, identities=((snapshot.manifest.files[0].name, identity),))
+        detached = replace(stage, **{role: changed})
+
+    worker.CheckStageMetadata(detached, owned_material)
+
+    with pytest.raises(ValueError, match="copied bytes"):
+        worker.VerifyStage(detached, owned_material)
+
+
+@pytest.mark.parametrize("field", ["schema", "nonce", "stage", "selection", "consent"])
+def test_PrivateSelectionCannotBroadenItsClosedSchemaOrReadOwner(
+    tmp_path, owned_material, field,
+):
+    """Malformed request associations reject before a private child can read selected bytes."""
+
+    _, control = Control(tmp_path, owned_material)
+
+    if field == "schema":
+        control["schema_version"] = True
+
+    elif field == "nonce":
+        control["nonce"] = "not-an-original-nonce"
+
+    elif field == "stage":
+        control["stage"] = {}
+
+    elif field == "selection":
+        control["selection"]["extra"] = "caller-extension"
+
+    else:
+        control["selection"]["read_consent"]["actor_ref"] = "owner:foreign"
+
+    with pytest.raises(ValueError):
+        worker.SelectionFromControl(control)
+
+
+def test_StageWireRejectsExpandedPartitionFields(tmp_path, owned_material):
+    """A detached stage cannot smuggle an extra partition field past fixed wire decoding."""
+
+    stage = worker.CreateStage(StageRoot(tmp_path), owned_material)
+    detached = json.loads(worker.CanonicalControl(worker.StagePayload(stage)))
+    detached["partitions"]["input"]["extra"] = "caller-extension"
+
+    with pytest.raises(ValueError, match="partition fields"):
+        worker.StageFromPayload(detached, owned_material, stage.root)
+
+
 @pytest.mark.parametrize("raw", [b'{"x":1,"x":2}', b'{"x":NaN}', b'{"x":1} ',
                                  b" " * 65537, b"[]", b"\xff"])
 def test_PrivateControlRequiresStrictBoundedCanonicalJson(raw):
@@ -239,6 +309,27 @@ def test_PrivateRequestBindsOriginalPathDigestIdentityAndParents(tmp_path, owned
         worker.ReadControl(path, "0" * 64, identity)
 
     path.chmod(0o644)
+
+    with pytest.raises(ValueError):
+        worker.ReadControl(path, digest, PhysicalIdentity(path.stat()))
+
+
+@pytest.mark.parametrize("association", ["filename", "digest", "directory", "workspace"])
+def test_PrivateRequestRejectsRehashedForeignParentAssociations(
+    tmp_path, owned_material, association,
+):
+    """A new valid content hash cannot rebind control to a different physical owner context."""
+
+    directory, control = Control(tmp_path, owned_material)
+
+    if association in {"directory", "workspace"}:
+        control[association + "_identity"][1] += 1
+
+    raw = worker.CanonicalControl(control)
+    path = directory / ("foreign.json" if association == "filename" else "request.json")
+    path.write_bytes(raw)
+    path.chmod(0o600)
+    digest = "not-a-sha256" if association == "digest" else hashlib.sha256(raw).hexdigest()
 
     with pytest.raises(ValueError):
         worker.ReadControl(path, digest, PhysicalIdentity(path.stat()))
@@ -620,6 +711,44 @@ def test_SimulatedUnknownCleanupRetainsPrivateStateAndBlocksRetry(simulated_obse
     assert budget.ObservationCount == 1, "An unconfirmed helper cannot consume a replacement slot"
 
 
+def test_UnknownTerminalOwnershipCannotCleanExactPrivateRequest(simulated_observer):
+    """Even an unchanged known control remains retained while helper termination is unknown."""
+
+    observer, controls = simulated_observer
+    controls["mode"] = "unknown"
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(NativeImageObservationBudget(),
+            operation_reference="operation:material"))
+
+    path = controls["calls"][0][1]
+
+    with pytest.raises(material.NativeConfigurationMaterialError, match="cleanup is unknown"):
+        observer.CleanPrivate(path)
+
+    assert path in observer._private and path.is_file(), (
+        "Unknown terminal ownership must retain exact private state without any unlink")
+
+
+def test_SettlingAnAlreadyCancelledOriginalTaskPropagatesCancellation():
+    """A terminal cancelled original task cannot trap the ownership settlement loop."""
+
+    async def Scenario():
+        """Cancel the original owned future and require prompt cancellation propagation."""
+
+        task = asyncio.get_running_loop().create_future()
+        task.cancel()
+        stop = asyncio.Event()
+
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(material.Settle(task, stop), timeout=1)
+
+        assert task.cancelled() and stop.is_set(), (
+            "Original terminal cancellation must signal stop without replacing owned work")
+
+    asyncio.run(Scenario())
+
+
 def test_SimulatedRepeatedOuterCancellationSettlesOriginalHelperAndMonitors(simulated_observer):
     """Repeated cancellation waits for the original terminal owner and never abandons monitors."""
 
@@ -962,6 +1091,45 @@ def test_WorkerMainUsesOnlyFixedArgumentsAndSanitizedRefusal(monkeypatch, capsys
     assert worker.Main([]) == 2, "The fixed installed helper requires exact private arguments"
     assert capsys.readouterr().err == "native-configuration-material-refused\n", (
         "A private request refusal must expose only a bounded fixed diagnostic")
+
+
+def test_InProcessWorkerEntryPointRechecksOriginalControlBeforeMetadataOutput(
+    tmp_path, owned_material, monkeypatch, capsysbinary,
+):
+    """Tiny in-process entry mechanics revalidate control twice and emit bounded metadata only."""
+
+    directory, control = Control(tmp_path, owned_material)
+    raw = worker.CanonicalControl(control)
+    path = directory / "request.json"
+    path.write_bytes(raw)
+    path.chmod(0o600)
+    digest = hashlib.sha256(raw).hexdigest()
+    identity = PhysicalIdentity(path.stat())
+    original_read = worker.ReadControl
+    reads = []
+
+    def Read(path, digest, identity):
+        """Observe both actual guarded reads without substituting request or stage bytes."""
+
+        reads.append((path, digest, identity))
+
+        return original_read(path, digest, identity)
+
+    monkeypatch.setattr(worker, "RequirePlatform", lambda: None)
+    monkeypatch.setattr(worker, "ReadControl", Read)
+    monkeypatch.setattr(worker.sys, "argv", ["in-process-worker", str(path), digest,
+        ",".join(str(item) for item in identity)])
+    assert worker.Main() == 0, "In-process mechanics must complete the fixed metadata response"
+    output = capsysbinary.readouterr()
+    response = worker.ParseControl(output.out)
+    assert reads == [(path, digest, identity)] * 2, (
+        "The entry point must recheck original control after selected stage observation")
+    assert not output.err and response["control"] == control and (
+        response["request_sha256"] == digest
+        and response["request_identity"] == list(identity)
+        and owned_material.source.read_bytes() not in output.out
+        and owned_material.executable.read_bytes() not in output.out
+    ), "Bounded successful output must preserve private associations without selected contents"
 
 
 def test_ScratchReplacementDuringWorkerVerificationRefusesAndRetainsStage(
