@@ -100,6 +100,11 @@ def Fixture(case="missing", include_detection=True):
             "provenance": [provenance]})
         after["workspace"]["revision"] += 1
         after["workspace"]["object_references"].append(finding_reference)
+        update = {"kind": "object-update", "subject_reference": finding_reference,
+            "attributes": copy.deepcopy(after["model"]["objects"][-1]["attributes"]),
+            "provenance": provenance}
+        update["reference"] = oracle.Reference("observation", copy.deepcopy(update))
+        after["model"]["observations"].insert(-1, update)
 
         if include_detection:
             detection = {"kind": "finding-detection", "subject_reference": finding_reference,
@@ -275,6 +280,45 @@ def test_ReviewGuardDetectionMustRetainOriginalUntriagedAttributesAndAttribution
             detection["provenance"] = {**detection["provenance"], "run_reference": "job:foreign"}
         detection["reference"] = oracle.Reference("observation", {key: value for key, value in
             detection.items() if key != "reference"})
+
+    with pytest.raises(AssertionError):
+        oracle.AssertContentHeaderV2(before, after, summary, Saves(before, after), **options)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "foreign-subject", "foreign-analysis",
+    "changed-attributes", "bool-schema", "hash", "extra-update"])
+def test_ActualFindingPatchCannotBeMissingForeignOrAnUnrelatedAddition(mutation):
+    """The demonstrated runtime patch has one exact subject, current attributes and attribution."""
+
+    before, after, summary, saves, options = Fixture()
+    update = next(row for row in after["model"]["observations"] if row["kind"] == "object-update")
+
+    if mutation == "missing":
+        after["model"]["observations"].remove(update)
+
+    elif mutation == "foreign-subject":
+        update["subject_reference"] = before["model"]["objects"][0]["reference"]
+
+    elif mutation == "foreign-analysis":
+        update["provenance"] = {**update["provenance"], "run_reference": "analysis:foreign"}
+
+    elif mutation in ("changed-attributes", "bool-schema"):
+        update["attributes"]["schema_version" if mutation == "bool-schema" else "status"] = (
+            True if mutation == "bool-schema" else "confirmed")
+
+    elif mutation == "extra-update":
+        extra = copy.deepcopy(update)
+        extra["attributes"]["summary"] = "Unrelated patch must remain forbidden"
+        extra["reference"] = oracle.Reference("observation", {
+            key: value for key, value in extra.items() if key != "reference"})
+        after["model"]["observations"].append(extra)
+
+    if mutation != "hash":
+        update["reference"] = oracle.Reference("observation", {
+            key: value for key, value in update.items() if key != "reference"})
+
+    else:
+        update["reference"] = "observation:" + "0" * 64
 
     with pytest.raises(AssertionError):
         oracle.AssertContentHeaderV2(before, after, summary, Saves(before, after), **options)

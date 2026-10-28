@@ -192,10 +192,15 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
     assert len(finding_rows) == int(absent), "Count persisted Findings, never producer counts"
     finding_reference = None
     detection_reference = None
+    update_reference = None
     detections = [row for row in after["model"]["observations"] if row["kind"] == (
         "finding-detection") and row["provenance"]["source_id"] == PROVIDER and row[
             "provenance"]["run_reference"] == analysis]
     assert len(detections) == int(absent), "Original detector fact count differs"
+    updates = [row for row in after["model"]["observations"] if row["kind"] == (
+        "object-update") and row["provenance"]["source_id"] == PROVIDER and row[
+            "provenance"]["run_reference"] == analysis]
+    assert len(updates) == int(absent), "One attributable Finding patch must accompany detection"
 
     if absent:
         finding = finding_rows[0]
@@ -237,6 +242,16 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
         detection_reference = Reference("observation", {
             key: value for key, value in detection.items() if key != "reference"})
         assert detection["reference"] == detection_reference, "Original detector fact hash differs"
+        update = updates[0]
+        assert set(update) == {"reference", "kind", "subject_reference", "attributes",
+            "provenance"}, "The Finding patch must retain its complete observation schema"
+        assert update["subject_reference"] == finding_reference and Canonical(
+            update["attributes"]) == Canonical(finding_attrs) and Canonical(
+            update["provenance"]) == Canonical(provenance), (
+                "The original Finding patch must match the current attributed Finding")
+        update_reference = Reference("observation", {
+            key: value for key, value in update.items() if key != "reference"})
+        assert update["reference"] == update_reference, "Original Finding patch hash differs"
 
     expected_owners = ["model"] + (["workspace"] if finding_reference is not None and (
         finding_reference not in before["workspace"]["object_references"]) else [])
@@ -274,7 +289,7 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
             Canonical(new[key]))) for key, value in old.items()), (
                 "Existing source, native state and triage cannot disappear")
         additions = ({fact["reference"], *(
-            [] if detection_reference is None else [detection_reference])}
+            [] if detection_reference is None else [detection_reference, update_reference])}
             if field == "observations" else
             {finding_reference} if field == "objects" and finding_reference is not None else set())
         assert set(new) == set(old) | additions, "No unrelated model identities may appear"
