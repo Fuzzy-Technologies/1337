@@ -21539,3 +21539,107 @@ state = "missing"
 
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.intelligence-cvss2"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_cvss2.md"
+sourceHash = "sha256:4dc62896330e792189c64ffd6f666c3ac4df07366b1abcd7a364d2a6a9b18a88"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2.CveCvss2Assessment"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2.py"
+sourceHash = "sha256:7a97bfe697dde890c23954645fdd931f69f83a77c0755877897fdf1bfc74aba0"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2.CveCvss2Assessment.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2.py"
+sourceHash = "sha256:e8505ff7b041a13fe22d195e45f61b2298900510c4eecef636b6d288096cf08a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2.CveCvss2Statements"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2.py"
+sourceHash = "sha256:17ff404bad746c32f7cc1a43077b4c3873adeb21592f4829a50dc8b53c342d8c"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2.CveCvss2Statements.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2.py"
+sourceHash = "sha256:2ee486e18db57b165ddcfa546bf7319ccb6e5c4c6cd4984c1b950c25741c0eb2"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2.Cvss2Context"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2.py"
+sourceHash = "sha256:634a7808c7dfc4697fea2cc45cef8d9a0f47b08fa791e7f639401546c9f1b59c"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2.ParseCveCvss2Statements"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2.py"
+sourceHash = "sha256:6eb7e29a01fb01bc64bf05ad9e59a2cade8861bf528bbaecfea0ad6cd3c63ab1"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2.ValidateCvss2"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2.py"
+sourceHash = "sha256:14dffff2c13dc5bd1820ae866a83796eb7c97c7a592e3c87804cca1c7095f1ab"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"

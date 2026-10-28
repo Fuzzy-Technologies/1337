@@ -799,3 +799,16 @@ matching, version comparison, scoring, publisher authentication, network activit
 or Finding mutation. Existing intelligence schema-one snapshots and replay remain
 unchanged. See [the profile](INTELLIGENCE_APPLICABILITY.md) and
 [ADR 0100](adr/0100-source-attributed-cve-applicability-statements.md).
+
+
+## CVSS 2 source statements
+
+`fuzzy1337.intelligence_cvss2` is an additive Experimental profile-one inspection
+API for explicit CVE Record 5.2/5.2.0 bytes and their source/evidence binding. It
+retains ordered CNA/ADP legacy assessments, complete provider/metric context and
+asserted source scores. It validates consumed CVSS 2 grammar and explicit field
+agreement, without score calculation, conversion, target matching or Finding
+mutation. Original schema-one snapshots still report `cvssV2_0` as unsupported;
+their serialization, reparse and replay remain unchanged. See
+[the profile](INTELLIGENCE_CVSS2.md) and
+[ADR 0104](adr/0104-source-attributed-cvss2-statements.md).
