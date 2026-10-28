@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+"""One genuine installed content capture/header-v2/relocated replay identity on owned loopback."""
+
+from __future__ import annotations
+
+import os
+import sys
+from uuid import uuid4
+
+import pytest
+
+from fuzzy1337.executors.owned_process import RequireLinuxOwnership
+from tests.contract.native_response_header_evidence import AdmitHeaderPlatform
+from tests.contract.owned_content_response_sdk_pipeline import RunInstalled
+from tests.contract.owned_content_response_worker_launcher import REPOSITORY, Build
+from tests.native_crawl_acceptance_helpers import (
+    NativeCaseEvidence,
+    NativeEnvironment,
+    NativeProcess,
+)
+
+pytestmark = [pytest.mark.integration, pytest.mark.serial]
+
+
+@pytest.fixture(scope="module")
+def installed_content_header_pipeline(tmp_path_factory):
+    """Check advertised Linux ownership, then reuse the exact clean offline wheel build owner."""
+
+    AdmitHeaderPlatform(sys.platform,
+        os.environ.get("FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE"))
+    RequireLinuxOwnership()
+    root = tmp_path_factory.mktemp("installed-content-header")
+    retained = REPOSITORY / "functional-evidence/owned-content-sdk" / ("run-" + uuid4().hex)
+    evidence = NativeCaseEvidence(root / "build-evidence", retained / "installation")
+    checkpoint = NativeProcess(evidence, "selected-checkpoint",
+        ("git", "rev-parse", "HEAD", "HEAD^{tree}"), cwd=REPOSITORY,
+        environment=NativeEnvironment(root / "selection-state"), timeout=5)
+    assert checkpoint.returncode == 0, "The source checkpoint must be observed before build"
+    commit, tree = checkpoint.stdout.decode("ascii").split()
+    installed = Build(REPOSITORY, root / "installation", evidence,
+        commit=commit, tree=tree, enabled=True)
+
+    return installed, retained
+
+
+def test_InstalledFreshContentHeaderPipelineRetainsAcknowledgedFindingAndRelocatedReplay(
+    installed_content_header_pipeline, tmp_path,
+):
+    """A newly authorized missing-header source yields one actual durable replayable Finding."""
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence", retained / "missing-positive")
+    evidence.Json("case.json", {"schema_version": 1,
+        "identity": "content-sdk:ipv4:missing:positive:relocated-header-replay",
+        "expected_findings": 1, "runtime_acceptance": "unassessed-until-original-checks"})
+    result = RunInstalled(installed, tmp_path / "pipeline", evidence,
+        fixture_id="missing-" + uuid4().hex, case="missing", scenario="positive", enabled=True)
+    assert result["runtime_acceptance"] == "passed" and result["state"] == (
+        "checked-header-replay"), "A failed or unexecuted stage cannot satisfy genuine acceptance"
+    assert result["expected_findings"] == 1 and result["identities"]["finding_reference"]

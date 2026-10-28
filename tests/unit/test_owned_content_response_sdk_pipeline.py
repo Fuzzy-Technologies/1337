@@ -5,8 +5,12 @@
 
 from __future__ import annotations
 
+import json
+from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
+from subprocess import CompletedProcess
+from types import SimpleNamespace
 
 import pytest
 
@@ -266,7 +270,7 @@ def test_SequenceDefaultDenialPrecedesPlanReadsAndHandoffs(enabled):
 
 
 @pytest.mark.parametrize("mutation", ["extra", "identity", "relative", "overlap", "external",
-    "query", "case", "scenario", "naive", "backward", "long-window"])
+    "query", "case", "scenario", "naive", "backward", "long-window", "identity-separator"])
 def test_PlanRejectsAmbiguousTargetsIdentitiesAndConsentWindowsBeforeEffects(tmp_path, mutation):
     """Malformed declarations never rely on product-returned truth or implicit clock renewal."""
 
@@ -277,6 +281,7 @@ def test_PlanRejectsAmbiguousTargetsIdentitiesAndConsentWindowsBeforeEffects(tmp
 
     else:
         key, value = {"identity": ("fixture_id", "old"),
+            "identity-separator": ("fixture_id", "fresh--invalid"),
             "relative": ("workspace", "relative/product"),
             "overlap": ("observations", str(tmp_path / "original" / "observations")),
             "external": ("url", "http://example.com:15432/research/content"),
@@ -322,3 +327,221 @@ def test_CanonicalObservationAliasRefusesBeforeFreshSetup(tmp_path):
 
     with pytest.raises(ValueError):
         pipeline.Run(pipeline.Plan(selection), None, enabled=True)
+
+
+@pytest.mark.parametrize("enabled", [False, None, 1, "yes"])
+def test_InstalledRuntimeDefaultDenialPrecedesAnyPrerequisiteOrTransport(enabled):
+    """No build identity, target, process or current-time input is consulted by default."""
+
+    with pytest.raises(PermissionError):
+        pipeline.RunInstalled(None, None, None, fixture_id=None, case=None, scenario=None,
+            enabled=enabled)
+
+
+@pytest.mark.parametrize("mutation", [None, "helper-hash", "returncode", "capture-original",
+    "guard-original", "guard-failure"])
+def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFacts(
+    tmp_path, monkeypatch, mutation,
+):
+    """Fake process/source owners exercise transport wiring only; no process, socket or SDK runs."""
+
+    from fuzzy1337.executors import owned_process
+    from tests import native_crawl_acceptance_helpers as primitives
+    from tests.contract import owned_content_response_product_runner as oracles
+    from tests.contract import owned_content_response_sdk_entrypoint as entrypoint
+    from tests.contract import owned_content_response_target as targets
+    from tests.native_crawl_acceptance_helpers import CanonicalNative, NativeCaseEvidence
+
+    installed = SimpleNamespace(python=Path("/mock-only/environment/bin/python"),
+        installation={"identity": {"mock_installation": True}}, commit="1" * 40, tree="2" * 40)
+    evidence = NativeCaseEvidence(tmp_path / "originals", tmp_path / "retained")
+    calls = []
+    origins = []
+    monkeypatch.setattr(owned_process, "RequireLinuxOwnership", lambda: None)
+    monkeypatch.setattr(primitives, "NativeInstallation", lambda python: installed.installation)
+
+    def Installation(identity, imported, **selected):
+        """Observe exact original installed envelope and selected immutable source identities."""
+
+        assert identity is installed.installation["identity"]
+        assert imported["python"] == str(installed.python) and selected == {
+            "commit": installed.commit, "tree": installed.tree}
+
+    def Terminal(process, stdout, stderr, *, argv):
+        """Observe the selected fixed isolated command without authenticating fake terminal data."""
+
+        assert argv[1:3] == ("-I", "-B") and argv[-1] == "--execute"
+
+    monkeypatch.setattr(oracles, "AssertContentInstallation", Installation)
+    monkeypatch.setattr(oracles, "AssertOriginalTerminalProcess", Terminal)
+
+    def Process(owner, label, argv, **options):
+        """Write marked mocked process facts in the existing owner layout; never launch argv."""
+
+        calls.append(label)
+        prefix = owner.NextProcess(label)
+        owner.Json(prefix + "/invocation.json", {"schema_version": 1, "argv": list(argv),
+            "cwd": str(options["cwd"]), "timeout_seconds": options["timeout"],
+            "stdin": "closed-devnull", "state": "not-launched", "returncode": None,
+            "terminal_return_observed": False, "installation": options.get("installation")})
+        code = 0
+
+        if label == "pipeline-source-status":
+            raw = b""
+
+        elif label == "pipeline-checkpoint":
+            raw = (installed.commit + "\n" + installed.tree + "\n").encode()
+
+        else:
+            operation = argv[4]
+            envelope = json.loads(Path(argv[5]).read_bytes())
+            observations = Path(envelope["observations"])
+            sources, _ = entrypoint.Sources()
+            summary = {"mock_summary": operation}
+            document = {"operation": operation, "installed_identity": {
+                "python": str(installed.python), "prefix": str(installed.python.parents[1])},
+                "summary": summary, "consumer_sources": sources}
+
+            if operation in ("fresh-setup", "inspect"):
+                extra, _ = entrypoint.ControlSources()
+                sources.update(extra)
+
+            if operation == "inspect":
+                document["summary"] = {"original_inspection": summary}
+
+            if operation.endswith("-offline"):
+                extra, _ = entrypoint.GuardSource()
+                sources.update(extra)
+                actual = {"guard": {"mock_guard": True}, "owner_reads": 0,
+                    "authority_scenario": None}
+                document.update(actual)
+                observations.mkdir(parents=True)
+
+                if mutation == "guard-original":
+                    actual = {**actual, "owner_reads": 1}
+
+                (observations / "offline-guard.json").write_bytes(CanonicalNative(actual))
+
+            if operation == "capture":
+                observations.mkdir(parents=True)
+                original = {"summary": summary, "exception_type": None,
+                    "store_saves": [], "executions": []}
+
+                if mutation == "capture-original":
+                    original["summary"] = {"foreign_mock_summary": True}
+
+                (observations / "capture.json").write_bytes(CanonicalNative(original))
+
+            if mutation == "helper-hash":
+                sources["owned_content_response_sdk_entrypoint.py"]["sha256"] = "0" * 64
+
+            if mutation == "returncode" or mutation == "guard-failure" and operation.endswith(
+                "-offline"):
+                code = 1
+
+            raw = CanonicalNative(document)
+
+        owner.Json(prefix + "/process.json", {"cwd": str(options["cwd"]),
+            "timeout_seconds": options["timeout"], "installation": options.get("installation"),
+            "mock_terminal_only": True})
+        owner.Write(prefix + "/stdout.bin", raw)
+        owner.Write(prefix + "/stderr.bin", b"")
+
+        return CompletedProcess(argv, code, raw, b"")
+
+    monkeypatch.setattr(primitives, "NativeProcess", Process)
+
+    @contextmanager
+    def Target(owner, *, address, case):
+        """Yield a fake source identity and retain explicit mock final facts without a listener."""
+
+        assert address == "127.0.0.1"
+        origin = "http://127.0.0.1:" + str(15432 + len(origins))
+        origins.append(origin)
+
+        try:
+            yield SimpleNamespace(graph=SimpleNamespace(origin=origin,
+                Url=lambda path: origin + path))
+
+        finally:
+            owner.Json("content-source-final.json", {"mock_origin": origin})
+
+    def Sources(case, url, main, sentinel, *, sentinel_origin):
+        """Observe retained fake owner records without authenticating any real source contacts."""
+
+        assert case == "missing" and url == origins[0] + "/research/content"
+        assert main == {"mock_origin": origins[0]} and sentinel == {"mock_origin": origins[1]}
+        assert sentinel_origin == origins[1]
+
+        return "mock-original-delivery"
+
+    monkeypatch.setattr(targets, "OwnedContentResponseTarget", Target)
+    monkeypatch.setattr(oracles, "AssertContentSourceFacts", Sources)
+
+    def Run(plan, handoff, *, enabled):
+        """Exercise only transport conversions; genuine pipeline/oracle behavior is not run."""
+
+        selected = plan["selection"]
+        root = Path(selected["workspace"])
+        observations = Path(selected["observations"])
+        assert enabled is True and plan["expected_findings"] == 1
+        assert handoff("fresh-setup", {"workspace": str(root)}, observations / "setup") == {
+            "mock_summary": "fresh-setup"}
+        root.mkdir()
+        assert handoff("inspect", {"workspace": str(root)}, observations / "inspect") == {
+            "state": {"mock_summary": "inspect"}}
+        assert handoff("capture", {"workspace": str(root)}, observations / "capture")[
+            "summary"] == {"mock_summary": "capture"}
+        assert handoff("analyze-offline", {"workspace": str(root)}, observations / "analyze")[
+            "guard"] == {"mock_guard": True}
+        moved = handoff("relocate", {"workspace": str(root), "relocated_workspace": selected[
+            "relocated_workspace"]}, observations / "relocate")
+        assert moved == {"original_root_absent": True, "relocated_root_present": True}
+        assert handoff("replay-offline", {"workspace": selected["relocated_workspace"]},
+            observations / "replay")["guard"] == {"mock_guard": True}
+
+        return {"state": "mock-sequence-only", "expected_findings": 1}
+
+    monkeypatch.setattr(pipeline, "Run", Run)
+
+    if mutation is not None:
+        with pytest.raises(AssertionError):
+            pipeline.RunInstalled(installed, tmp_path / "runtime", evidence,
+                fixture_id="fresh-transport-0001", case="missing", scenario="positive",
+                enabled=True)
+
+        assert (evidence.retained / "main-source-final.json").exists()
+        assert not (evidence.retained / "pipeline-result.json").exists()
+
+        if mutation == "guard-failure":
+            assert (evidence.retained / "sdk-analyze-offline-guard.json").is_file(), (
+                "Original guard observations must survive a nonzero consumer terminal")
+
+        return
+
+    result = pipeline.RunInstalled(installed, tmp_path / "runtime", evidence,
+        fixture_id="fresh-transport-0001", case="missing", scenario="positive", enabled=True)
+    assert result["source_delivery"] == "mock-original-delivery"
+    assert calls == ["pipeline-source-status", "pipeline-checkpoint", "sdk-fresh-setup",
+        "sdk-inspect", "sdk-capture", "sdk-analyze-offline", "sdk-replay-offline"]
+    assert (evidence.retained / "physical-relocation.json").exists()
+
+
+def test_InstalledPrerequisiteFailureStopsBeforeAnyProcessOrTarget(tmp_path, monkeypatch):
+    """An unavailable advertised ownership prerequisite is terminal, with no fallback launch."""
+
+    from fuzzy1337.executors import owned_process
+    from fuzzy1337.executors.local import LocalExecutionError
+
+    def Unavailable():
+        """Expose a deterministic prerequisite failure without probing any real OS feature."""
+
+        raise LocalExecutionError("mock unavailable Linux ownership")
+
+    monkeypatch.setattr(owned_process, "RequireLinuxOwnership", Unavailable)
+
+    with pytest.raises(LocalExecutionError, match="mock unavailable Linux ownership"):
+        pipeline.RunInstalled(None, tmp_path / "runtime", None,
+            fixture_id="fresh-unavailable-0001", case="missing", scenario="positive", enabled=True)
+
+    assert not (tmp_path / "runtime").exists(), "No fixture or process owner was created"

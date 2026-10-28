@@ -252,3 +252,13 @@ def test_NewSetupUsesDistinctConsentAndPreservesNativeTriageWithoutStoreIo(tmp_p
     finding = next(row for row in states["model"].objects if row.identity.kind.value == "finding")
     assert finding.attributes["status"] == "confirmed" and finding.attributes["status_reason"]
     assert states["workspace"].job_references == ("job:unrelated-" + identity,)
+
+
+def test_NewFixtureCannotUseRepeatedIdentifierSeparators(tmp_path):
+    """Reject malformed derived scope/policy identities before constructing a store owner."""
+
+    config = FreshConfig(tmp_path)
+    config["fixture_id"] = "fresh--invalid"
+
+    with pytest.raises(ValueError):
+        setup.FreshSelection(config, datetime(2030, 1, 1, 0, 1, tzinfo=timezone.utc))

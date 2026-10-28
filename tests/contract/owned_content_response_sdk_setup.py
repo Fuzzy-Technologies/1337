@@ -114,8 +114,10 @@ def FreshSelection(config: dict, now: datetime) -> dict:
 
     fixture = config["fixture_id"]
 
-    if re.fullmatch(r"[a-z0-9][a-z0-9-]{7,63}", fixture) is None or fixture in (
-        WORKSPACE, SCOPE, "historical", "unit-only", "mock-run-0001"):
+    if not 8 <= len(fixture) <= 64 or re.fullmatch(
+        r"[a-z0-9]+(?:-[a-z0-9]+)*", fixture) is None or fixture in (
+            WORKSPACE, SCOPE, "historical", "unit-only", "mock-run-0001"
+    ):
         raise ValueError("Historical and source-only mock identities cannot authorize fresh setup")
 
     root = Path(config["workspace"])

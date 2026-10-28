@@ -3,15 +3,17 @@
 
 """Finite content capture/header-v2 sequence using existing consumers and independent oracles.
 
-This coordinator launches nothing. Its explicit handoff must retain original installed-process
-and target-owner evidence separately; mocked handoffs never establish runtime acceptance.
-Fresh setup is a distinct operation, never the old fixed-identity SDK seed or renewed consent.
+Plan/Run use explicit handoffs; RunInstalled separately opts into the existing installed-process
+and owned-target evidence owners. Mocked handoffs never establish runtime acceptance. Fresh
+setup is distinct from the old fixed-identity SDK seed and never renews original consent.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -46,7 +48,8 @@ def Plan(selection: dict) -> dict:
     ):
         raise ValueError("Pipeline selection requires every explicit text input")
 
-    if re.fullmatch(r"[a-z0-9][a-z0-9-]{7,63}", selection["fixture_id"]) is None or (
+    if not 8 <= len(selection["fixture_id"]) <= 64 or re.fullmatch(
+        r"[a-z0-9]+(?:-[a-z0-9]+)*", selection["fixture_id"]) is None or (
         selection["case"] not in EXPECTATIONS or selection["scenario"] not in SCENARIOS
     ):
         raise ValueError("Pipeline identity, case and authority scenario must be predeclared")
@@ -221,3 +224,186 @@ def Run(plan: dict, handoff, *, enabled: bool = False) -> dict:
 
     return {"state": "checked-header-replay", "expected_findings": plan["expected_findings"],
         "identities": identities}
+
+
+def RunInstalled(installed, directory: Path, evidence, *, fixture_id: str, case: str,
+    scenario: str, enabled: bool = False) -> dict:
+    """Execute this one finite sequence with existing installed-process and owned-target owners.
+
+    Args:
+        installed: Unchanged actual Build result from owned_content_response_worker_launcher.
+        directory: New absolute test-owned root, separate from retained original evidence.
+        evidence: Original NativeCaseEvidence owner; all subprocess and source finals are retained.
+        fixture_id: New independently selected identity, never a historical or mock fixture.
+        case: Independently served missing/fixed/body-decoy variant.
+        scenario: Explicit positive or authority-refusal scenario; no implicit retries.
+        enabled: Exact independent genuine runtime opt-in; false performs no imports or work.
+
+    Returns:
+        Genuine acceptance only after installed/process/source, Save, header and replay checks.
+        An unavailable prerequisite or failed actual stage raises with original evidence retained.
+    """
+
+    if enabled is not True:
+        raise PermissionError("Installed integrated SDK execution requires explicit runtime opt-in")
+
+    from fuzzy1337.executors.owned_process import RequireLinuxOwnership
+    from tests.contract.owned_content_response_product_runner import (
+        AssertContentInstallation,
+        AssertContentSourceFacts,
+        AssertOriginalTerminalProcess,
+    )
+    from tests.contract.owned_content_response_target import OwnedContentResponseTarget
+    from tests.contract.owned_content_response_worker_launcher import (
+        REPOSITORY,
+        ChildEvidence,
+        RetainSourceFinal,
+    )
+    from tests.native_crawl_acceptance_helpers import (
+        CanonicalNative,
+        NativeEnvironment,
+        NativeInstallation,
+        NativeProcess,
+    )
+
+    RequireLinuxOwnership()
+    assert directory.is_absolute() and NativeInstallation(installed.python) == (
+        installed.installation), "The selected original installed identity must remain unchanged"
+    directory.mkdir(parents=True, exist_ok=False)
+    environment = NativeEnvironment(directory / "owned-state")
+    source_status = NativeProcess(evidence, "pipeline-source-status",
+        ("git", "status", "--porcelain"), cwd=REPOSITORY, environment=environment, timeout=5)
+    checkpoint = NativeProcess(evidence, "pipeline-checkpoint",
+        ("git", "rev-parse", "HEAD", "HEAD^{tree}"), cwd=REPOSITORY,
+        environment=environment, timeout=5)
+    assert source_status.returncode == checkpoint.returncode == 0 and (
+        source_status.stdout == b"" and checkpoint.stdout.decode("ascii").split() == [
+            installed.commit, installed.tree]), "Runtime requires the exact clean installed tree"
+    from tests.contract import owned_content_response_sdk_entrypoint as entrypoint
+
+    names = ("owned_content_response_sdk_entrypoint.py", "owned_content_response_sdk_consumer.py",
+        "owned_content_response_sdk_controls.py", "owned_content_response_sdk_setup.py",
+        "owned_response_product_runner.py", "owned_content_response_sdk_offline_guard.py")
+    sources = {}
+
+    for name in names:
+        path = Path(__file__).resolve().with_name(name)
+        sources[name] = {"path": str(path), "sha256": hashlib.sha256(
+            entrypoint.BoundedRead(path, entrypoint.MAX_SOURCE_BYTES)).hexdigest()}
+
+    evidence.Json("pipeline-helper-sources.json", sources)
+    main, sentinel = (ChildEvidence(evidence, name) for name in ("main", "sentinel"))
+    calls = 0
+
+    def Handoff(operation, selection, observations):
+        """Use only the fixed installed entrypoint, or one physical same-parent relocation."""
+
+        nonlocal calls
+        calls += 1
+        envelope = {"selection": selection, "observations": str(observations)}
+        evidence.Json(f"stage-{calls:02d}-input.json", envelope)
+
+        if operation == "relocate":
+            observations.mkdir(parents=True, exist_ok=False)
+            original, destination = Path(selection["workspace"]), Path(
+                selection["relocated_workspace"])
+            original.rename(destination)
+            actual = {"original_root_absent": not original.exists() and not original.is_symlink(),
+                "relocated_root_present": destination.is_dir()}
+            evidence.Json("physical-relocation.json", actual)
+
+            return actual
+
+        assert operation in ("fresh-setup", "capture", "inspect", "analyze-offline",
+            "replay-offline"), "There is no arbitrary installed command dispatch"
+        input_path = directory / f"stage-{calls:02d}-input.json"
+
+        with input_path.open("xb") as output:
+            output.write(CanonicalNative(envelope))
+
+        argv = (str(installed.python), "-I", "-B", sources[names[0]]["path"], operation,
+            str(input_path), "--execute")
+        assert NativeInstallation(installed.python) == installed.installation
+        retained_names = (("offline-guard.json", "guard"),
+            ("consumer/" + operation.removesuffix("-offline") + ".json", "consumer")) if (
+                operation.endswith("-offline")) else ((operation + ".json", "original"),)
+
+        try:
+            process = NativeProcess(evidence, "sdk-" + operation, argv, cwd=directory,
+                environment=environment, timeout=35, maximum=1024 * 1024,
+                installation=installed.installation)
+
+        finally:
+            for name, role in retained_names:
+                path = observations / name
+                label = "sdk-" + operation + "-" + role
+                evidence.Json(label + "-retention.json", {"observation_present": path.is_file()})
+
+                if path.is_file():
+                    evidence.Write(label + ".json", entrypoint.BoundedRead(path, 16 * 1024 * 1024))
+
+        prefix = evidence.local / f"process-{evidence.sequence:03d}-sdk-{operation}"
+        invocation = json.loads((prefix / "invocation.json").read_bytes())
+        terminal = json.loads((prefix / "process.json").read_bytes())
+        assert invocation == {"schema_version": 1, "argv": list(argv), "cwd": str(directory),
+            "timeout_seconds": 35, "stdin": "closed-devnull", "state": "not-launched",
+            "returncode": None, "terminal_return_observed": False,
+            "installation": installed.installation}, "Original prelaunch selection must reconcile"
+        AssertOriginalTerminalProcess(terminal, process.stdout, process.stderr, argv=argv)
+        assert process.returncode == 0 and process.stderr == b"" and terminal["cwd"] == (
+            str(directory)) and terminal["timeout_seconds"] == 35 and terminal[
+                "installation"] == installed.installation, "Actual SDK child failed"
+        observed = json.loads(process.stdout)
+        assert CanonicalNative(observed) == process.stdout and observed["operation"] == operation
+        AssertContentInstallation(installed.installation["identity"],
+            observed["installed_identity"], commit=installed.commit, tree=installed.tree)
+        assert observed["installed_identity"]["python"] == str(installed.python) and observed[
+            "installed_identity"]["prefix"] == str(installed.python.parents[1].resolve())
+        required = set(names[:2]) | (set(names[2:5]) if operation in (
+            "fresh-setup", "inspect") else {names[5]} if operation.endswith("-offline") else set())
+        assert observed["consumer_sources"] == {name: sources[name] for name in required}, (
+            "Each actual child must bind its exact reviewed helper sources")
+
+        if operation == "capture":
+            retained = json.loads(entrypoint.BoundedRead(observations / "capture.json",
+                16 * 1024 * 1024))
+            assert retained["exception_type"] is None and Canonical(retained["summary"]) == (
+                Canonical(observed["summary"])), "Original capture observation must reconcile"
+            return retained
+
+        if operation == "inspect":
+            return {"state": observed["summary"]["original_inspection"]}
+
+        if operation.endswith("-offline"):
+            retained = json.loads(entrypoint.BoundedRead(observations / "offline-guard.json",
+                16 * 1024 * 1024))
+            assert all(retained[key] == observed[key] for key in (
+                "guard", "owner_reads", "authority_scenario")), "Original guard facts differ"
+            return {"summary": observed["summary"], "guard": observed["guard"]}
+
+        return observed["summary"]
+
+    try:
+        with OwnedContentResponseTarget(main, address="127.0.0.1", case=case) as source:
+            with OwnedContentResponseTarget(sentinel, address="127.0.0.1", case="missing") as other:
+                now = datetime.now(timezone.utc)
+                plan = Plan({"fixture_id": fixture_id, "workspace": str(directory / "workspace"),
+                    "relocated_workspace": str(directory / "relocated"),
+                    "observations": str(directory / "observations"),
+                    "url": source.graph.Url("/research/content"), "case": case,
+                    "scenario": scenario,
+                    "consent_valid_from": now.isoformat(),
+                    "consent_valid_until": (now + timedelta(seconds=300)).isoformat()})
+                evidence.Json("pipeline-plan.json", plan)
+                sentinel_origin = other.graph.origin
+                result = Run(plan, Handoff, enabled=True)
+
+    finally:
+        finals = RetainSourceFinal(evidence, {"main": main, "sentinel": sentinel})
+
+    delivery = AssertContentSourceFacts(case, plan["selection"]["url"], finals["main"],
+        finals["sentinel"], sentinel_origin=sentinel_origin)
+    result.update(runtime_acceptance="passed", source_delivery=delivery)
+    evidence.Json("pipeline-result.json", result)
+
+    return result
