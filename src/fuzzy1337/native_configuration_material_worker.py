@@ -160,8 +160,9 @@ def SelectionFromControl(value: dict[str, Any]) -> NativeConfigurationSelection:
         ArtifactReadConsent(consent["actor_ref"], Text(consent["record_ref"])))
 
 
-def StagePayload(stage: ArtifactStage) -> dict[str, object]:
-    """Describe exact original snapshots and physical facts without copying selected bodies."""
+def StagePayload(stage: ArtifactStage, *,
+                 scratch_identity: tuple[int, ...] | None = None) -> dict[str, object]:
+    """Describe original facts, refusing a changed expected scratch before serialization."""
 
     partitions = {}
 
@@ -169,7 +170,17 @@ def StagePayload(stage: ArtifactStage) -> dict[str, object]:
         partitions[snapshot.manifest.role.value] = {"manifest": snapshot.manifest.ToDict(),
             "identities": snapshot.identities, "directory_identity": snapshot.directory_identity}
 
+    scratch = ArtifactPathInfo(stage.root / "scratch", directory=True)
+    observed_scratch_identity = scratch.st_dev, scratch.st_ino
+
+    if scratch_identity is None:
+        scratch_identity = observed_scratch_identity
+
+    elif observed_scratch_identity != scratch_identity:
+        raise ValueError("configuration material scratch identity changed")
+
     return {"lease_id": stage.lease_id, "root_identity": stage.root_identity,
+        "scratch_identity": scratch_identity,
         "executable_identity": stage.executable_identity, "partitions": partitions}
 
 
@@ -178,11 +189,16 @@ def StageFromPayload(value: object, selection: NativeConfigurationSelection,
     """Decode only the original fixed stage shape without selected-file content reads."""
 
     if type(value) is not dict or set(value) != {
-        "lease_id", "root_identity", "executable_identity", "partitions"
+        "lease_id", "root_identity", "scratch_identity", "executable_identity", "partitions"
     } or type(value["partitions"]) is not dict or set(value["partitions"]) != {
         "input", "scanner", "material"
     }:
         raise ValueError("configuration material stage fields differ")
+
+    scratch = ArtifactPathInfo(stage_root / "scratch", directory=True)
+
+    if (scratch.st_dev, scratch.st_ino) != Identity(value["scratch_identity"], 2):
+        raise ValueError("configuration material scratch identity changed")
 
     snapshots = []
 
@@ -355,17 +371,19 @@ def ObserveControl(value: dict[str, Any], digest: str,
     RequirePlatform()
     selection = SelectionFromControl(value)
     stage_root = Path(value["stage_root"])
+    scratch_identity = None
 
     if value["action"] == "create":
         stage = CreateStage(stage_root, selection)
 
     else:
         stage = StageFromPayload(value["stage"], selection, stage_root)
+        scratch_identity = Identity(value["stage"]["scratch_identity"], 2)
         VerifyStage(stage, selection)
 
     return CanonicalControl({"schema_version": 1, "control": value,
         "request_sha256": digest, "request_identity": request_identity,
-        "stage": StagePayload(stage)})
+        "stage": StagePayload(stage, scratch_identity=scratch_identity)})
 
 
 def Main(argv: list[str] | None = None) -> int:

@@ -5,8 +5,8 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
-import io
 import json
 import os
 from dataclasses import replace
@@ -16,7 +16,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from fuzzy1337 import artifact_inputs
+from fuzzy1337 import native_configuration_material as material
 from fuzzy1337 import native_configuration_material_worker as worker
+from fuzzy1337 import native_image_observation as budget_module
+from fuzzy1337.adapters import AdapterExecution, ExecutionState
 from fuzzy1337.artifact_inputs import (
     ArtifactProfile,
     ArtifactReadConsent,
@@ -25,7 +28,16 @@ from fuzzy1337.artifact_inputs import (
     ArtifactStage,
     PhysicalIdentity,
 )
+from fuzzy1337.executors import (
+    ExecutionEvent,
+    ExecutionEventKind,
+    ExecutionTermination,
+    LocalExecutionError,
+    LocalExecutionResult,
+    LocalExecutor,
+)
 from fuzzy1337.native_configuration import NativeConfigurationSelection
+from fuzzy1337.native_image_observation import NativeImageObservationBudget
 
 
 @pytest.fixture
@@ -232,21 +244,23 @@ def test_PrivateRequestBindsOriginalPathDigestIdentityAndParents(tmp_path, owned
         worker.ReadControl(path, digest, PhysicalIdentity(path.stat()))
 
 
-def test_ActualOverlimitReadChunkIsRefusedBeforeHashOrCopy(tmp_path, monkeypatch):
-    """A concurrent-growth double can read one 64-KiB chunk, but none is admitted past 4 KiB."""
+@pytest.mark.parametrize("maximum", [4096, 256 * 1024**2])
+def test_ActualOverlimitReadChunkIsRefusedBeforeHashOrCopy(tmp_path, monkeypatch, maximum):
+    """Growth may read one extra bounded buffer, but no overlimit buffer is hashed or copied."""
 
     source = tmp_path / "growing"
     source.write_bytes(b"x")
     original_fdopen = os.fdopen
     opened = 0
     requested = []
+    chunk = b"x" * (64 * 1024)
 
-    def Read(maximum):
+    def Read(read_maximum):
         """Supply one bounded overlimit buffer after real descriptor metadata checks."""
 
-        requested.append(maximum)
+        requested.append(read_maximum)
 
-        return b"x" * maximum
+        return chunk
 
     def Open(*args, **kwargs):
         """Replace only the selected read stream, retaining the independent witness handle."""
@@ -267,14 +281,19 @@ def test_ActualOverlimitReadChunkIsRefusedBeforeHashOrCopy(tmp_path, monkeypatch
         return simulated
 
     monkeypatch.setattr(artifact_inputs.os, "fdopen", Open)
-    destination = io.BytesIO()
+    destination = MagicMock()
+    digest = MagicMock()
+    monkeypatch.setattr(artifact_inputs.hashlib, "sha256", lambda: digest)
 
     with pytest.raises(ValueError, match="grew beyond"):
-        artifact_inputs.ReadArtifactFile(source, "source", destination, max_bytes=4096)
+        artifact_inputs.ReadArtifactFile(source, "source", destination, max_bytes=maximum)
 
-    assert requested == [64 * 1024] and destination.getvalue() == b"", (
-        "One bounded overlimit read may occur, but those bytes must not be copied or admitted"
-    )
+    admitted_chunks = maximum // len(chunk)
+    assert requested == [64 * 1024] * (admitted_chunks + 1), (
+        "Growth may read at most one extra fixed 64-KiB buffer before refusing the selected file")
+    assert digest.update.call_count == admitted_chunks and (
+        destination.write.call_count == admitted_chunks
+    ), "The overlimit chunk must never be hashed, copied or admitted to either role budget"
 
 
 def test_StagePayloadCannotBroadenManifestSizeWithoutPhysicalAgreement(tmp_path, owned_material):
@@ -286,3 +305,768 @@ def test_StagePayloadCannotBroadenManifestSizeWithoutPhysicalAgreement(tmp_path,
 
     with pytest.raises(ValueError):
         worker.CheckStageMetadata(replace(stage, input=snapshot), owned_material)
+
+
+@pytest.fixture
+def simulated_observer(tmp_path, owned_material, monkeypatch):
+    """Simulate owned helper terminal results with tiny in-process worker mechanics, never Trivy."""
+
+    monkeypatch.setattr(material, "RequirePlatform", lambda: None)
+    monkeypatch.setattr(worker, "RequirePlatform", lambda: None)
+    observer = material.NativeConfigurationMaterialObserver(owned_material, tmp_path,
+        "workspace:material", "owner:mechanics")
+    controls = {"calls": [], "mode": "success", "stdout": None, "after_worker": None,
+                "event": None, "started": asyncio.Event(), "released": asyncio.Event()}
+
+    async def Execute(executor, request, **options):
+        """Exercise exact closed wire under an explicitly simulated terminal executor boundary."""
+
+        argv = request.invocation.argv
+        assert argv[:4] == (os.sys.executable, "-I", "-m",
+            "fuzzy1337.native_configuration_material_worker") and len(argv) == 7, (
+            "The observer may launch only the fixed installed isolated read helper")
+        assert options["own_descendants"] is True, "Read helpers need actual descendant ownership"
+        assert request.invocation.timeout_seconds == 6 and (
+            request.resources.max_stdout_bytes == 65536
+            and request.resources.max_stderr_bytes == 4096
+            and request.resources.terminate_grace_seconds == 3.0
+        ), "The fixed worker and output/cleanup budgets must remain explicit"
+        assert all(request.environment[name] == "" for name in (
+            "PATH", "PATHEXT", "COMSPEC", "SYSTEMROOT", "WINDIR")), (
+            "Caller executable paths and host shell locations cannot enter the helper environment")
+        path = Path(argv[4])
+        identity = tuple(int(item) for item in argv[6].split(","))
+        control = worker.ReadControl(path, argv[5], identity)
+        controls["calls"].append((request, path, control))
+        controls["started"].set()
+        options["pre_launch"](request)
+
+        if controls.get("before_second") is not None:
+            controls["before_second"](path)
+
+        options["pre_launch"](request)
+
+        if controls["event"] is not None:
+            options["on_event"](controls["event"])
+
+        if controls["mode"] == "unknown":
+            raise LocalExecutionError("simulated unconfirmed terminal cleanup")
+
+        if controls["mode"] in {"cancel", "hold"}:
+            await options["cancellation"].wait()
+
+            if controls["mode"] == "hold":
+                await controls["released"].wait()
+
+            return LocalExecutionResult(AdapterExecution(ExecutionState.CANCELLED, None, 0.01),
+                ExecutionTermination.CANCELLATION, b"", b"", (ExecutionEvent(0,
+                    ExecutionEventKind.COMPLETED, termination=ExecutionTermination.CANCELLATION),))
+
+        raw = worker.ObserveControl(control, argv[5], identity)
+
+        if controls["after_worker"] is not None:
+            controls["after_worker"](path, control)
+
+        if controls["stdout"] is not None:
+            raw = controls["stdout"](raw)
+
+        termination = ExecutionTermination.OUTPUT_LIMIT if controls["mode"] == "overflow" else (
+            ExecutionTermination.PROCESS_EXIT)
+        events = (ExecutionEvent(0, ExecutionEventKind.STARTED),
+            ExecutionEvent(1, ExecutionEventKind.STDOUT, raw),
+            ExecutionEvent(2, ExecutionEventKind.COMPLETED,
+                termination=termination))
+
+        for event in events:
+            options["on_event"](event)
+
+        state = ExecutionState.FAILED if controls["mode"] == "nonzero" else ExecutionState.SUCCEEDED
+
+        return LocalExecutionResult(AdapterExecution(state, 2 if state is ExecutionState.FAILED
+            else 0, 0.01), termination, raw, b"refused" if controls["mode"] == "stderr" else b"",
+            events)
+
+    monkeypatch.setattr(LocalExecutor, "Execute", Execute)
+
+    return observer, controls
+
+
+def test_SimulatedOriginalProofBindsStageOwnerAndLedgerAndCloseRevokes(
+    tmp_path, owned_material, simulated_observer,
+):
+    """Simulated terminal cleanup precedes exact issuance; clones and other issuers refuse."""
+
+    observer, controls = simulated_observer
+    budget = NativeImageObservationBudget()
+    proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+    request, path, control = controls["calls"][0]
+    assert not path.exists() and not path.parent.exists(), (
+        "Proof issuance must follow removal of the exact terminal private request")
+    assert proof.observation_id == control["nonce"] and (
+        proof.control_sha256 == request.invocation.argv[5]
+        and proof.operation_reference == "operation:material"
+        and proof.workspace_id == "workspace:material"
+        and proof.owner_reference == "owner:mechanics"
+    ), "Proof must retain the original nonce, control, operation, workspace and read owner"
+    assert budget.ObservationCount == 1 and not budget.Failed, (
+        "The existing caller ledger must charge one actual successful observation")
+    observer.CheckCurrent(proof, operation_reference="operation:material")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.CheckCurrent(replace(proof), operation_reference="operation:material")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.CheckCurrent(proof, operation_reference="operation:foreign")
+
+    other = material.NativeConfigurationMaterialObserver(owned_material, tmp_path,
+        "workspace:material", "owner:mechanics")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        other.CheckCurrent(proof, operation_reference="operation:material")
+
+    owned_material.source.unlink()
+    verified = asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+    assert verified.stage is proof.stage and budget.ObservationCount == 2, (
+        "Verify must reobserve the same original stage with the same caller budget")
+    assert controls["calls"][1][2]["action"] == "verify", "Verification is a fixed distinct action"
+    observer.Close()
+    observer.Close()
+    assert not proof.stage.root.exists() and not owned_material.source.exists(), (
+        "Close must remove only known generated material without reopening the original source")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.CheckCurrent(verified, operation_reference="operation:material")
+
+
+def test_SimulatedEmptyScratchReplacementRevokesOriginalProof(simulated_observer):
+    """An empty scratch replacement cannot keep the original config-owned partition identity."""
+
+    observer, _ = simulated_observer
+    budget = NativeImageObservationBudget()
+    proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+    scratch = proof.stage.root / "scratch"
+    scratch.rename(proof.stage.root.parent / "retained-original-scratch")
+    scratch.mkdir()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.CheckCurrent(proof, operation_reference="operation:material")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+
+    with pytest.raises(ValueError):
+        observer.Close()
+
+    assert scratch.exists(), "A replaced or unknown tree must be retained without recursive cleanup"
+
+
+@pytest.mark.parametrize("mode", ["nonzero", "stderr", "overflow"])
+def test_SimulatedTerminalFailureCannotIssueProof(simulated_observer, mode):
+    """Nonzero, diagnostic or output-limit results consume and fail the one observation slot."""
+
+    observer, controls = simulated_observer
+    controls["mode"] = mode
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert not observer._proofs and budget.Failed and budget.ObservationCount == 1, (
+        "A failed terminal result must not leave any usable original material proof")
+    assert not controls["calls"][0][1].exists(), "Confirmed terminal control must be cleaned"
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.Close()
+
+
+@pytest.mark.parametrize("raw", [b'{"x":1,"x":2}', b'{"x":NaN}', b'{} ', b'[]',
+                                 b"x" * 65537])
+def test_SimulatedMalformedOrOverflowWireCannotIssueProof(simulated_observer, raw):
+    """Bounded strict canonical response validation precedes any original proof registration."""
+
+    observer, controls = simulated_observer
+    controls["stdout"] = lambda original: raw
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert budget.Failed and not observer._proofs, "Malformed private wire cannot prove material"
+
+
+@pytest.mark.parametrize("field", ["nonce", "operation_reference", "workspace_id",
+    "owner_reference", "workspace_identity", "directory_identity", "selection", "stage_root"])
+def test_SimulatedCrossAssociatedResponseRefuses(simulated_observer, field):
+    """No detached child response may substitute another request's control associations."""
+
+    observer, controls = simulated_observer
+
+    def Change(raw):
+        """Change a single association while retaining syntactically canonical private wire."""
+
+        value = worker.ParseControl(raw)
+        value["control"][field] = "foreign"
+
+        return worker.CanonicalControl(value)
+
+    controls["stdout"] = Change
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert budget.Failed and not observer._proofs, "Substituted association cannot issue proof"
+
+
+@pytest.mark.parametrize("change", ["request", "private-extra", "source", "scanner", "scratch"])
+def test_SimulatedPostWorkerMutationRefusesAndRetainsUnverifiedState(
+    simulated_observer, change,
+):
+    """Result validation and terminal cleanup cannot accept changed control or staged identities."""
+
+    observer, controls = simulated_observer
+
+    def Change(path, control):
+        """Alter only one selected owned test file after the simulated worker terminates."""
+
+        root = Path(control["stage_root"])
+
+        if change == "request":
+            path.write_bytes(b"{}")
+
+        elif change == "private-extra":
+            (path.parent / "unknown").write_bytes(b"unselected")
+
+        elif change == "scratch":
+            (root / "scratch").rename(root.parent / "original-scratch")
+            (root / "scratch").mkdir()
+
+        else:
+            target = root / ("input/Dockerfile" if change == "source" else "scanner/executable")
+            target.chmod(0o600)
+            target.write_bytes(b"changed")
+
+    controls["after_worker"] = Change
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert budget.Failed and not observer._proofs, "Post-worker mutation must refuse issuance"
+
+    if change in {"request", "private-extra"}:
+        assert controls["calls"][0][1].exists(), "Unverified private state must remain available"
+
+
+@pytest.mark.parametrize("event", [ExecutionEvent(0, ExecutionEventKind.STDOUT, b"x" * 131073),
+                                   ExecutionEvent(0, ExecutionEventKind.STARTED)])
+def test_SimulatedEventEnvelopeOrCountFailureRetainsUnknownCleanup(
+    simulated_observer, monkeypatch, event,
+):
+    """Acquisition overflow propagates through the owner without inventing terminal cleanup."""
+
+    observer, controls = simulated_observer
+
+    if not event.data:
+        original = LocalExecutor.Execute
+
+        async def TooMany(executor, request, **options):
+            """Exhaust the exact fixed event-count ceiling before any result is delivered."""
+
+            for _ in range(1025):
+                options["on_event"](event)
+
+            return await original(executor, request, **options)
+
+        monkeypatch.setattr(LocalExecutor, "Execute", TooMany)
+
+    else:
+        controls["event"] = event
+
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert budget.Failed and not observer._terminal and not observer._proofs, (
+        "An exception without the original owned terminal result must retain unknown cleanup")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.Close()
+
+    assert observer._private, "Unknown cleanup must retain its private control identity"
+
+
+def test_SimulatedUnknownCleanupRetainsPrivateStateAndBlocksRetry(simulated_observer):
+    """An executor exception never substitutes for the required original owned cleanup result."""
+
+    observer, controls = simulated_observer
+    controls["mode"] = "unknown"
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    path = controls["calls"][0][1]
+    assert path.exists() and not observer._terminal and not observer._proofs, (
+        "Unknown child cleanup must preserve exact private controls and withhold proof")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.Close()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert budget.ObservationCount == 1, "An unconfirmed helper cannot consume a replacement slot"
+
+
+def test_SimulatedRepeatedOuterCancellationSettlesOriginalHelperAndMonitors(simulated_observer):
+    """Repeated cancellation waits for the original terminal owner and never abandons monitors."""
+
+    observer, controls = simulated_observer
+    controls["mode"] = "hold"
+    budget = NativeImageObservationBudget()
+
+    async def Scenario():
+        """Hold terminal cleanup after cooperative stop to inspect ownership before releasing it."""
+
+        task = asyncio.create_task(observer.Create(
+            budget, operation_reference="operation:material"))
+
+        await controls["started"].wait()
+        task.cancel()
+
+        await asyncio.sleep(0)
+        task.cancel()
+
+        await asyncio.sleep(0)
+        assert not task.done() and observer._busy and not observer._terminal, (
+            "Outer cancellation cannot finish while the original helper still owns cleanup")
+        assert controls["calls"][0][1].exists(), "Live helper private controls must be retained"
+        controls["released"].set()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert not [active for active in asyncio.all_tasks()
+            if active is not asyncio.current_task()], (
+            "Original executor, deadline and cancellation tasks must all be settled")
+
+    asyncio.run(Scenario())
+    assert observer._terminal and not observer._busy and budget.Failed and not observer._proofs, (
+        "Cancellation can confirm cleanup but can never issue material proof")
+    assert not controls["calls"][0][1].exists(), "Confirmed cancelled control must be removed"
+    observer.Close()
+
+
+def test_SimulatedCallerCancellationBridgeSettlesOwnedHelper(simulated_observer):
+    """A cooperative event stops the owned executor and its bridge without replacing its task."""
+
+    observer, controls = simulated_observer
+    controls["mode"] = "cancel"
+    budget = NativeImageObservationBudget()
+
+    async def Scenario():
+        """Deliver the caller event only after actual simulated launch checks have completed."""
+
+        cancellation = asyncio.Event()
+        task = asyncio.create_task(observer.Create(budget, operation_reference="operation:material",
+            cancellation=cancellation))
+
+        await controls["started"].wait()
+        cancellation.set()
+
+        with pytest.raises(material.NativeConfigurationMaterialError):
+            await task
+
+        assert not [active for active in asyncio.all_tasks()
+            if active is not asyncio.current_task()], (
+            "Cooperative cancellation must settle both the helper and the bridge")
+
+    asyncio.run(Scenario())
+    assert budget.Failed and observer._terminal and not observer._proofs, (
+        "Caller cancellation must consume a failed observation after confirmed cleanup")
+
+
+def test_SimulatedWorkingDeadlineStopsBeforeCleanupReserve(simulated_observer, monkeypatch):
+    """A shortened issued test window exercises the real watchdog without waiting twelve seconds."""
+
+    observer, controls = simulated_observer
+    controls["mode"] = "cancel"
+    budget = NativeImageObservationBudget()
+    original = budget.BeginObservation
+
+    def Begin():
+        """Shorten the same active ledger window solely for deterministic timeout mechanics."""
+
+        issued = original()
+        issued = replace(issued, deadline=issued.started_at + 0.2,
+            working_deadline=issued.started_at + 0.02)
+        budget._active = issued
+
+        return issued
+
+    monkeypatch.setattr(budget, "BeginObservation", Begin)
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert budget.Failed and observer._terminal and not observer._proofs, (
+        "Working deadline must stop the helper while preserving terminal cleanup ownership")
+
+
+def test_SimulatedResultAndCleanupTimeRemainChargedToSameWindow(simulated_observer, monkeypatch):
+    """Even successful worker bytes cannot issue proof after result/cleanup exceeds the slot."""
+
+    observer, controls = simulated_observer
+    budget = NativeImageObservationBudget()
+
+    def Exhaust(path, control):
+        """Move only the existing ledger clock past its issued inclusive deadline."""
+
+        deadline = budget._active.deadline
+        monkeypatch.setattr(budget_module, "monotonic", lambda: deadline + 0.01)
+
+    controls["after_worker"] = Exhaust
+
+    with pytest.raises(ValueError, match="exceeded"):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert budget.Failed and not observer._proofs and budget.ObservationCount == 1, (
+        "Control, response and cleanup overhead cannot escape the original inclusive slot")
+    observer.Close()
+
+
+def test_ReadConsentPlatformAndCancelledPreflightDoNotStartHelpers(
+    tmp_path, owned_material, simulated_observer, monkeypatch,
+):
+    """Missing owner consent, unsupported ownership or prior cancellation refuses before reads."""
+
+    observer, controls = simulated_observer
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        material.NativeConfigurationMaterialObserver(owned_material, tmp_path,
+            "workspace:material", "owner:foreign")
+
+    budget = NativeImageObservationBudget()
+    cancellation = asyncio.Event()
+    cancellation.set()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material",
+            cancellation=cancellation))
+
+    def Unsupported():
+        """Represent absent platform ownership before any selected material is opened."""
+
+        raise ValueError("unsupported owned-child interface")
+
+    monkeypatch.setattr(material, "RequirePlatform", Unsupported)
+
+    with pytest.raises(ValueError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert not controls["calls"] and budget.ObservationCount == 0, (
+        "Preflight refusals must not launch helpers or claim an observation slot")
+
+
+def test_SameLedgerHasExactlyThreeObservationsAndNoImplicitFinalization(simulated_observer):
+    """Create and both verifications share the original three slots; no fresh ledger is created."""
+
+    observer, _ = simulated_observer
+    budget = NativeImageObservationBudget()
+    proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    for _ in range(2):
+        proof = asyncio.run(observer.Verify(
+            proof, budget, operation_reference="operation:material"))
+
+    with pytest.raises(ValueError, match="retried"):
+        asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+
+    assert budget.ObservationCount == 3 and budget.FinalizationSeconds == 0, (
+        "Read helpers cannot reset the caller ledger or spend its finalization reserve")
+    observer.Close()
+
+
+def test_WorkerWireRetainsOriginalEmptyScratchPhysicalIdentity(tmp_path, owned_material):
+    """A detached original stage wire cannot accept a different newly empty scratch directory."""
+
+    stage = worker.CreateStage(StageRoot(tmp_path), owned_material)
+    payload = worker.StagePayload(stage)
+    scratch = stage.root / "scratch"
+    scratch.rename(stage.root.parent / "retained-original-scratch")
+    scratch.mkdir()
+
+    with pytest.raises(ValueError, match="scratch identity"):
+        worker.StageFromPayload(payload, owned_material, stage.root)
+
+
+def test_SnapshotConsentAssociationCannotBeReplaced(tmp_path, owned_material):
+    """Typed snapshot construction does not allow a stage to substitute another read consent."""
+
+    stage = worker.CreateStage(StageRoot(tmp_path), owned_material)
+    snapshot = replace(stage.input, consent=ArtifactReadConsent("owner:other", "read:other"))
+
+    with pytest.raises(ValueError):
+        worker.CheckStageMetadata(replace(stage, input=snapshot), owned_material)
+
+
+@pytest.mark.parametrize("proof", [None, object()])
+def test_MissingVerificationProofCannotBecomeCreate(simulated_observer, proof):
+    """Verify requires an original proof even when no stage has yet been created."""
+
+    observer, controls = simulated_observer
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+
+    assert not controls["calls"] and budget.ObservationCount == 0, (
+        "Missing proof cannot select create action or acquire any selected source bytes")
+
+
+def test_FailedReverificationRevokesPreviouslyIssuedProof(simulated_observer):
+    """An original earlier receipt cannot survive an unknown active reobservation owner."""
+
+    observer, controls = simulated_observer
+    budget = NativeImageObservationBudget()
+    proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+    controls["mode"] = "unknown"
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.CheckCurrent(proof, operation_reference="operation:material")
+
+    assert not observer._proofs and not observer._terminal, (
+        "An unconfirmed verification owner must withhold every previous original proof")
+
+
+@pytest.mark.parametrize("change", ["consent", "control"])
+def test_LaunchRechecksSelectedConsentAndExactControlAfterReadiness(
+    simulated_observer, monkeypatch, change,
+):
+    """A mutation between real launch checks refuses before the worker reads selected material."""
+
+    observer, controls = simulated_observer
+
+    def Change(path):
+        """Change the original owner association or exclusive request after the first check."""
+
+        if change == "consent":
+            observer.selection = replace(observer.selection,
+                read_consent=ArtifactReadConsent("owner:mechanics", "read:changed"))
+
+        else:
+            path.write_bytes(b"{}")
+
+    def Forbidden(*args, **kwargs):
+        """Refuse any selected capture after the second launch boundary must have denied it."""
+
+        pytest.fail("Changed selected consent/control must refuse before selected worker reads")
+
+    controls["before_second"] = Change
+    monkeypatch.setattr(worker, "CreateStage", Forbidden)
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert budget.Failed and not observer._proofs and controls["calls"][0][1].exists(), (
+        "A refused final launch cannot issue proof or discard unconfirmed control")
+
+
+@pytest.mark.parametrize("change", ["root", "partition", "file", "unknown"])
+def test_CloseRefusesChangedKnownStageBeforeAnyUnlink(simulated_observer, change):
+    """Close validates finite original metadata and known names before unlinking owned children."""
+
+    observer, _ = simulated_observer
+    proof = asyncio.run(observer.Create(NativeImageObservationBudget(),
+        operation_reference="operation:material"))
+    root = proof.stage.root
+
+    if change == "root":
+        root.rename(root.parent / "original-stage")
+        root.mkdir()
+
+    elif change == "partition":
+        (root / "material").rename(root.parent / "original-material")
+        (root / "material").mkdir()
+
+    elif change == "file":
+        selected = root / "input" / "Dockerfile"
+        selected.chmod(0o600)
+        selected.write_bytes(b"changed")
+
+    else:
+        (root / "material" / "unknown").write_bytes(b"unselected")
+
+    with pytest.raises(ValueError):
+        observer.Close()
+
+    assert root.exists() and not observer._proofs, (
+        "Changed stage must retain its tree and revoke proof without recursive or partial deletion")
+
+
+def test_ChangedStageLeaseInVerificationResponseRefuses(simulated_observer):
+    """A response cannot keep physical paths while swapping the original stage association."""
+
+    observer, controls = simulated_observer
+    budget = NativeImageObservationBudget()
+    proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    def Change(raw):
+        """Substitute a syntactically valid lease in the reobserved descriptive stage wire."""
+
+        value = worker.ParseControl(raw)
+        value["stage"]["lease_id"] = "0" * 32
+
+        return worker.CanonicalControl(value)
+
+    controls["stdout"] = Change
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+
+    assert budget.Failed and not observer._proofs, "Reverification must retain original stage facts"
+
+
+def test_WorkerPlatformRefusesBeforeAnySelectedRead(monkeypatch):
+    """Unsupported machine or Linux ownership cannot enter either child read action."""
+
+    monkeypatch.setattr(worker.platform, "machine", lambda: "unsupported")
+
+    with pytest.raises(ValueError, match="platform"):
+        worker.RequirePlatform()
+
+    monkeypatch.setattr(worker.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(worker.sys, "platform", "linux")
+
+    def Unsupported():
+        """Represent unavailable owned Linux primitives without probing unrelated process state."""
+
+        raise LocalExecutionError("unsupported ownership")
+
+    monkeypatch.setattr(worker, "RequireLinuxOwnership", Unsupported)
+
+    with pytest.raises(ValueError, match="ownership"):
+        worker.RequirePlatform()
+
+
+def test_WorkerMainUsesOnlyFixedArgumentsAndSanitizedRefusal(monkeypatch, capsys):
+    """The installed child entry point rejects invalid control without leaking selected paths."""
+
+    monkeypatch.setattr(worker, "RequirePlatform", lambda: None)
+    assert worker.Main([]) == 2, "The fixed installed helper requires exact private arguments"
+    assert capsys.readouterr().err == "native-configuration-material-refused\n", (
+        "A private request refusal must expose only a bounded fixed diagnostic")
+
+
+def test_ScratchReplacementDuringWorkerVerificationRefusesAndRetainsStage(
+    simulated_observer, monkeypatch,
+):
+    """Replacing empty scratch after request decoding cannot issue a renewed original proof."""
+
+    observer, controls = simulated_observer
+    budget = NativeImageObservationBudget()
+    proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+    original_read = worker.ReadArtifactFile
+    original_execute = LocalExecutor.Execute
+    replaced = False
+    refusal = []
+
+    def Read(path, name, destination=None, *, max_bytes):
+        """Replace scratch during the first bounded source read after original wire admission."""
+
+        nonlocal replaced
+
+        if path == proof.stage.input.directory / "Dockerfile" and not replaced:
+            scratch = proof.stage.root / "scratch"
+            scratch.rename(proof.stage.root.parent / "scratch-replaced-during-verification")
+            scratch.mkdir()
+            replaced = True
+
+        return original_read(path, name, destination, max_bytes=max_bytes)
+
+    async def Execute(executor, request, **options):
+        """Represent sanitized child refusal with a confirmed simulated terminal result."""
+
+        try:
+            return await original_execute(executor, request, **options)
+
+        except ValueError as error:
+            if "scratch identity" not in str(error):
+                raise
+
+            refusal.append(error)
+
+            return LocalExecutionResult(AdapterExecution(ExecutionState.FAILED, 2, 0.01),
+                ExecutionTermination.PROCESS_EXIT, b"", b"native-configuration-material-refused\n",
+                (ExecutionEvent(0, ExecutionEventKind.COMPLETED,
+                    termination=ExecutionTermination.PROCESS_EXIT),))
+
+    monkeypatch.setattr(worker, "ReadArtifactFile", Read)
+    monkeypatch.setattr(LocalExecutor, "Execute", Execute)
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+
+    assert replaced and refusal, "The worker must refuse the replacement detected after decoding"
+    assert budget.Failed and not observer._proofs and observer._scratch_identity == (
+        proof.scratch_identity
+    ), "Failed reobservation must revoke prior proof and retain only its original scratch identity"
+    assert observer._terminal and not controls["calls"][-1][1].exists(), (
+        "Confirmed simulated child refusal permits cleanup of exact private control only")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.CheckCurrent(proof, operation_reference="operation:material")
+
+    with pytest.raises(material.NativeConfigurationMaterialError, match="scratch identity"):
+        observer.Close()
+
+    assert (proof.stage.root / "scratch").exists(), (
+        "Changed staged material must remain retained without being rebound or recursively removed")
+
+
+def test_ChangedReturnedScratchIdentityCannotRebindOriginalProof(simulated_observer):
+    """Parent refusal preserves the original identity even if child wire describes a replacement."""
+
+    observer, controls = simulated_observer
+    budget = NativeImageObservationBudget()
+    proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+    returned = []
+
+    def Change(raw):
+        """Provide otherwise valid same-stage wire matching newly replaced actual empty scratch."""
+
+        value = worker.ParseControl(raw)
+        scratch = proof.stage.root / "scratch"
+        scratch.rename(proof.stage.root.parent / "scratch-replaced-before-response")
+        scratch.mkdir()
+        info = scratch.stat()
+        returned.append((info.st_dev, info.st_ino))
+        value["stage"]["scratch_identity"] = returned[-1]
+
+        return worker.CanonicalControl(value)
+
+    controls["stdout"] = Change
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+
+    assert returned and returned[-1] != proof.scratch_identity, (
+        "The causal response must match actual replacement while differing from the original proof")
+    assert observer._scratch_identity == proof.scratch_identity and not observer._proofs, (
+        "Parent must refuse to renew or rebind proof even without a child-side late identity check")
+    assert budget.Failed and observer._terminal and not controls["calls"][-1][1].exists(), (
+        "Known terminal response permits exact private cleanup while changed staged facts refuse")
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        observer.CheckCurrent(proof, operation_reference="operation:material")
+
+    with pytest.raises(material.NativeConfigurationMaterialError, match="scratch identity"):
+        observer.Close()
+
+    assert (proof.stage.root / "scratch").exists(), "Unverified replacement must remain retained"
