@@ -1,8 +1,9 @@
 # Finite real-application scanner comparison
 
 This is the finite oracle and execution contract for
-[ADR 0102](../../../docs/adr/0102-independent-app-scanner-benchmark.md) and Task
-#40. Actual scanner evidence is separate from the existing target health smoke;
+[ADR 0102](../../../docs/adr/0102-independent-app-scanner-benchmark.md),
+[ADR 0106](../../../docs/adr/0106-comparative-nuclei-external-benchmark.md) and
+Task #40. Actual scanner evidence is separate from the existing target health smoke;
 the declared response cases do not establish whole-application accuracy.
 
 | Case              | Exact path                        | Expected bounded property |
@@ -56,6 +57,24 @@ files alongside the envelope; normalized JSON cannot replace source custody.
 Finite completed TP/FP/FN/TN counts cover only the declared response cases.
 `whole_application_accuracy` is always null.
 
+`result.schema.json` preserves native/v1 observation semantics. The additive
+Nuclei-only `result.v2.schema.json` distinguishes a successful invocation from a
+proven case outcome. Exit zero with empty JSONL is executed `unproven`; it receives
+no TN, FN, response-success or completed-case credit. Only an explicit raw match
+bound to the exact case URL and declared rule can produce a completed TP or FP.
+V2 Findings retain `target_url` as well as `rule_id` and `path`; unknown/off-case
+records stay visible and unscored. Failed execution retains available bytes and
+partial matches. Mixed reports preserve the original native v1 observations.
+
+The v2 consumer checks retained stdout match identities against the acquired
+Findings projection; it does not establish genuine execution or product custody.
+Its required `attempt-provenance` role identifies the approved single configured
+invocation and leaves independent server contacts unknown. Artifact reads enforce
+the unchanged 2 MiB per-file ceiling and reject oversize bytes without truncation
+or splitting. These schema and inert contract fixtures do not enable either
+Nuclei runner: both tracks remain candidates with runtime **UNRUN**, pending a
+later reviewed runner and actual six-case shared CI evidence.
+
 The native-only runner source builds the current wheel into a clean venv in a
 repo-built image, then joins each fresh owned target's exact network namespace.
 It runs nonroot with a read-only root filesystem, bounded tmpfs/CPU/memory/PIDs,
@@ -96,7 +115,8 @@ retained in
 [artifact 12830144211](https://github.com/Fuzzy-Technologies/1337/actions/runs/40723123569/artifacts/12830144211)
 with archive SHA-256
 `cb01d7f040c14802143396adb6561093c51a63b5f49cfff1b498c22cfcb0e281`.
-Final shared integration acceptance remains required.
+PR #371 subsequently merged as `503ff06a` after final shared integration
+acceptance. This earlier checkpoint archive remains separately identified.
 
 The original false negative is preserved separately in
 [artifact 12828328221](https://github.com/Fuzzy-Technologies/1337/actions/runs/40717160124/artifacts/12828328221).
