@@ -26,6 +26,7 @@ from tests.contract.owned_content_response_sdk_state_oracle import AssertSdkSave
 
 EXPECTATIONS = {"missing": 1, "fixed": 0, "body-decoy": 1}
 SCENARIOS = ("positive", "approval-denied", "policy-denied", "owner-drift")
+REVISION_SCENARIO = "stale-model-revision"
 FIELDS = {"fixture_id", "workspace", "relocated_workspace", "observations", "url", "case",
     "scenario", "consent_valid_from", "consent_valid_until"}
 
@@ -50,7 +51,8 @@ def Plan(selection: dict) -> dict:
 
     if not 8 <= len(selection["fixture_id"]) <= 64 or re.fullmatch(
         r"[a-z0-9]+(?:-[a-z0-9]+)*", selection["fixture_id"]) is None or (
-        selection["case"] not in EXPECTATIONS or selection["scenario"] not in SCENARIOS
+        selection["case"] not in EXPECTATIONS or selection["scenario"] not in (
+            *SCENARIOS, REVISION_SCENARIO)
     ):
         raise ValueError("Pipeline identity, case and authority scenario must be predeclared")
 
@@ -84,7 +86,8 @@ def Plan(selection: dict) -> dict:
         "scope_id": identity, "owner_reference": "actor:" + identity,
         "attester_reference": "attester:" + identity, "consent_reference": "consent:" + identity,
         "analysis_reference": "analysis:" + identity,
-        "expected_state": "completed" if selection["scenario"] == "positive" else "denied",
+        "expected_state": "failed" if selection["scenario"] == REVISION_SCENARIO else (
+            "completed" if selection["scenario"] == "positive" else "denied"),
         "expected_findings": EXPECTATIONS[selection["case"]] if selection["scenario"] == (
             "positive") else 0}
 
@@ -181,17 +184,43 @@ def Run(plan: dict, handoff, *, enabled: bool = False) -> dict:
         summary["source_facts"], job_id=summary["original_job_id"])
     analysis_policy = setup["policies"]["analysis-denied" if selected["scenario"] == (
         "policy-denied") else "analysis"]
+    model_revision = acquired["model"]["revision"]
+
+    if selected["scenario"] == REVISION_SCENARIO:
+        assert type(model_revision) is int and model_revision > 0, (
+            "A stale CAS selection requires an observed positive acquired model revision")
+        model_revision -= 1
+
     analysis = Call("analyze-offline", {"workspace": root, "url": selected["url"],
         "scope_id": plan["scope_id"], "owner_reference": plan["owner_reference"],
         "policy": analysis_policy["path"], "original_receipt_id": receipt,
         "analysis_reference": plan["analysis_reference"],
-        "expected_model_revision": acquired["model"]["revision"],
+        "expected_model_revision": model_revision,
         "expected_workspace_revision": acquired["workspace"]["revision"],
         "approve_passive_header_check": selected["scenario"] != "approval-denied",
-        "authority_scenario": selected["scenario"]})
+        "authority_scenario": "positive" if selected["scenario"] == REVISION_SCENARIO else (
+            selected["scenario"])})
     AssertOffline(analysis["guard"], historical=False)
     interpreted = Call("inspect", {"workspace": root})["state"]
     actual = analysis["summary"]
+
+    if selected["scenario"] == REVISION_SCENARIO:
+        assert actual["state"] == "failed" and actual["failure"] == "revision-conflict", (
+            "The unchanged installed SDK must refuse the explicitly stale original model basis")
+        assert all(actual[key] is None for key in (
+            "condition_observed", "assessment_reference", "finding_reference")), (
+                "A pre-admission revision conflict must remain unassessed without a Finding")
+        assert all(actual[owner + "_commit"] == "not-attempted" and type(actual[
+            owner + "_revision"]) is int and actual[owner + "_revision"] == acquired[owner][
+                "revision"] for owner in ("model", "workspace")), (
+                    "A pre-admission revision conflict cannot invent a Save acknowledgement")
+        assert type(analysis["owner_reads"]) is int and analysis["owner_reads"] == 0 and (
+            analysis["authority_scenario"] == "positive"), (
+                "Revision checking precedes fresh analysis admission and actor reads")
+        assert analysis["guard"]["saves"] == [] and Canonical(acquired) == Canonical(interpreted), (
+            "The original-basis conflict must preserve acquired state without any analysis Save")
+
+        return {"state": "checked-revision-conflict", "expected_findings": 0}
 
     if plan["expected_state"] == "denied":
         assert actual["state"] == "denied" and actual["failure"] == "authorization"
@@ -379,7 +408,9 @@ def RunInstalled(installed, directory: Path, evidence, *, fixture_id: str, case:
                 16 * 1024 * 1024))
             assert all(retained[key] == observed[key] for key in (
                 "guard", "owner_reads", "authority_scenario")), "Original guard facts differ"
-            return {"summary": observed["summary"], "guard": observed["guard"]}
+            return {"summary": observed["summary"], "guard": observed["guard"],
+                "owner_reads": observed["owner_reads"],
+                "authority_scenario": observed["authority_scenario"]}
 
         return observed["summary"]
 

@@ -185,6 +185,75 @@ def test_MockedAuthorityRefusalLeavesOriginalsUnchangedAndStopsBeforeRelocation(
         "policy-denied") else "analysis"]["path"], "A denied fixture is an actual typed policy"
 
 
+@pytest.mark.parametrize("mutation", [None, "zero-basis", "bool-basis", "wrong-state",
+    "wrong-failure", "condition", "assessment", "finding", "save", "changed-state",
+    "model-ack", "workspace-ack", "changed-revision", "actor-read", "bool-actor-read"])
+def test_MockedStaleModelRevisionPreservesActualBasisAndStopsBeforeAdmission(
+    tmp_path, monkeypatch, mutation,
+):
+    """Only an observed positive basis may select one stale revision without a retry or Save."""
+
+    plan = pipeline.Plan(Selection(tmp_path, scenario=pipeline.REVISION_SCENARIO))
+    mock = MockSequence(plan, monkeypatch)
+    mock.analysis.update(owner_reads=0, authority_scenario="positive")
+    summary = mock.analysis["summary"]
+    summary.update(failure="revision-conflict", model_commit="not-attempted",
+        workspace_commit="not-attempted", model_revision=3, workspace_revision=2)
+
+    if mutation in ("zero-basis", "bool-basis"):
+        mock.acquired["model"]["revision"] = 0 if mutation == "zero-basis" else True
+
+    elif mutation == "wrong-state":
+        summary["state"] = "denied"
+
+    elif mutation == "wrong-failure":
+        summary["failure"] = "authorization"
+
+    elif mutation in ("condition", "assessment", "finding"):
+        field = "condition_observed" if mutation == "condition" else mutation + "_reference"
+        summary[field] = False if mutation == "condition" else "unexpected:interpretation"
+
+    elif mutation == "save":
+        mock.analysis["guard"]["saves"] = [{"owner": "model"}]
+
+    elif mutation == "changed-state":
+        mock.interpreted["model"]["revision"] += 1
+
+    elif mutation in ("model-ack", "workspace-ack"):
+        summary[mutation.removesuffix("-ack") + "_commit"] = "acknowledged"
+
+    elif mutation == "changed-revision":
+        summary["model_revision"] = 2
+
+    elif mutation in ("actor-read", "bool-actor-read"):
+        mock.analysis["owner_reads"] = 1 if mutation == "actor-read" else False
+
+    if mutation is not None:
+        with pytest.raises(AssertionError):
+            pipeline.Run(plan, mock.Handoff, enabled=True)
+
+        assert len(mock.calls) == (3 if mutation in ("zero-basis", "bool-basis") else 5), (
+            "A failed original-basis assertion must stop without retry or later stages")
+
+        return
+
+    assert pipeline.Run(plan, mock.Handoff, enabled=True) == {
+        "state": "checked-revision-conflict", "expected_findings": 0}, (
+            "Only the explicit stale-basis failure may satisfy this mock sequence")
+    assert plan["expected_state"] == "failed" and plan["expected_findings"] == 0, (
+        "The independent plan must expect conflict without an interpretation")
+    assert mock.oracles == ["capture", "parts"] and len(mock.calls) == 5, (
+        "Valid acquired originals must precede one analysis attempt and one unchanged inspection")
+    selected = mock.calls[3][1]
+    assert selected["expected_model_revision"] == mock.acquired["model"]["revision"] - 1, (
+        "The explicit CAS input must be exactly the acquired model revision minus one")
+    assert selected["expected_workspace_revision"] == mock.acquired["workspace"]["revision"], (
+        "The independent workspace CAS input must retain its actual acquired revision")
+    assert selected["authority_scenario"] == "positive" and selected[
+        "approve_passive_header_check"] is True and selected["policy"] == mock.policies[
+            "analysis"]["path"], "Valid selected authority inputs are never claimed to be checked"
+
+
 @pytest.mark.parametrize("mutation", ["consent", "offline-call", "missing-tripwire",
     "lost-probe", "wrong-finding", "old-root-remains", "relocation-claim",
     "relocation-repairs", "replay-write"])

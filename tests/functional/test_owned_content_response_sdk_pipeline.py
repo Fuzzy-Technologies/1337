@@ -156,3 +156,22 @@ def test_InstalledFreshApprovalDeniedContentHeaderPipelinePreservesAcquiredState
     assert result == {"state": "checked-authority-refusal", "expected_findings": 0,
         "runtime_acceptance": "passed", "source_delivery": "normal-eof"}, (
             "Explicitly unapproved analysis must preserve acquired state without interpretation")
+
+
+def test_InstalledFreshStaleModelRevisionContentHeaderPipelinePreservesAcquiredState(
+    installed_content_header_pipeline, tmp_path,
+):
+    """An explicit stale model basis fails before fresh analysis admission or either Save."""
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence", retained / "stale-model-revision")
+    evidence.Json("case.json", {"schema_version": 1,
+        "identity": "content-sdk:ipv4:missing:stale-model-revision:no-analysis-save",
+        "expected_findings": 0, "assessment": "unassessed",
+        "runtime_acceptance": "unassessed-until-original-checks"})
+    result = RunInstalled(installed, tmp_path / "pipeline", evidence,
+        fixture_id="revision-" + uuid4().hex, case="missing", scenario="stale-model-revision",
+        enabled=True)
+    assert result == {"state": "checked-revision-conflict", "expected_findings": 0,
+        "runtime_acceptance": "passed", "source_delivery": "normal-eof"}, (
+            "Stale CAS must preserve acquired state without reaching fresh analysis admission")
