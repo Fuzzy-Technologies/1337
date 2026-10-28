@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Experimental attributed CVE product statements; no applicability or scoring verdict.
+module = "fuzzy1337.intelligence_applicability"
+source = "src/fuzzy1337/intelligence_applicability.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_applicability.md"
+
+[[surfaces]]
 # Experimental public offline original-header apply/replay SDK and explicit summaries.
 module = "fuzzy1337.native_response_header_workflow"
 source = "src/fuzzy1337/native_response_header_workflow.py"
