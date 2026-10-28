@@ -137,3 +137,22 @@ def test_InstalledFreshBodyDecoyContentHeaderPipelineRetainsFindingAndRelocatedR
         "Text in the original body must not replace a real HTTP response header")
     assert result["identities"]["condition_observed"] is True, (
         "The persisted positive assessment must derive from original HTTP header names")
+
+
+def test_InstalledFreshApprovalDeniedContentHeaderPipelinePreservesAcquiredStateWithoutAssessment(
+    installed_content_header_pipeline, tmp_path,
+):
+    """Granted capture and PASSIVE permission cannot replace separate explicit analysis approval."""
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence", retained / "approval-denied")
+    evidence.Json("case.json", {"schema_version": 1,
+        "identity": "content-sdk:ipv4:missing:approval-denied:no-analysis-save",
+        "expected_findings": 0, "assessment": "unassessed",
+        "runtime_acceptance": "unassessed-until-original-checks"})
+    result = RunInstalled(installed, tmp_path / "pipeline", evidence,
+        fixture_id="approval-" + uuid4().hex, case="missing", scenario="approval-denied",
+        enabled=True)
+    assert result == {"state": "checked-authority-refusal", "expected_findings": 0,
+        "runtime_acceptance": "passed", "source_delivery": "normal-eof"}, (
+            "Explicitly unapproved analysis must preserve acquired state without interpretation")
