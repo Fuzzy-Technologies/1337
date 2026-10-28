@@ -21459,3 +21459,136 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.intelligence-applicability"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_applicability.md"
+sourceHash = "sha256:c6eeae5c0b26e20753d57a758b53447acad79b639a7f2e3f560b58763e039c3a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.CveAffectedContainer"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:40a6aed10809ae3b384a7ab6eca400fa0042d02532776391b9d8b4aff86e0e03"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.CveAffectedContainer.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:54b6644a4a04b6aa8d7e381025a783c90e1afb7504b3d3e4dc0330eee8e2384b"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.CveAffectedStatements"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:ce3573967d35ba80dad96699c8f6a5a24cc9fe381ea43c74fa9995f7d5df3b04"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.CveAffectedStatements.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:44d20a447c2c6929c14cada1aaaac30378db7dd90967b6942dc716ed91ae1ef0"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.DeclarationArray"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:c393c53a521b06c8339c90b76b6f24e1078b8844d006701cd53a75ccb4b3d1ca"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.DeclarationObject"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:563071d556d135354feff6c8fec2daf156cc050822813345a25f05c4e0dafe44"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.DeclarationStatus"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:bf32e9c09d324b7fc9bc21cf1a4fc846119a56316b82a84ba343d8ec3f8b4b9a"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.ParseCveAffectedStatements"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:937bf8c8792bbae22ddd086ecc1e38e3a4d9bc5fb1ae7b14808d362e89d929cd"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.ValidateProduct"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:0a77031ff6e67cf97d96902fb8ecf931c7a433d30892ad5e44ae48e966225fb7"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.intelligence_applicability.ValidateVersion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_applicability.py"
+sourceHash = "sha256:12f38d5adaa63be9c6ac8defcc83c9e274b0ac8dcfc1d1d26255811cd38c2840"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"

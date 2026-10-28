@@ -763,3 +763,15 @@ Current versioned public contracts:
 | Captured web frontier  | `1`            | `fuzzy1337.captured_web`; `docs/CAPTURED_WEB.md`                     | Experimental |
 
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
+
+
+## CVE affected-product source statements
+
+`fuzzy1337.intelligence_applicability` is an additive Experimental profile-one
+inspection API for explicitly supplied CVE Record 5.2/5.2.0 bytes and their exact
+source/evidence binding. It preserves ordered CNA/ADP affected-product and version
+status declarations as immutable source statements. It performs no applicability
+matching, version comparison, scoring, publisher authentication, network activity
+or Finding mutation. Existing intelligence schema-one snapshots and replay remain
+unchanged. See [the profile](INTELLIGENCE_APPLICABILITY.md) and
+[ADR 0100](adr/0100-source-attributed-cve-applicability-statements.md).
