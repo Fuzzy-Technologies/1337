@@ -93,3 +93,85 @@ def test_ContentCiOwnsOnlyTheRequiredSerialCaseAndOriginalEvidence():
     assert upload["with"]["path"].splitlines() == [
         "functional-evidence/owned-content-header.xml", "functional-evidence/owned-content-sdk/"], (
             "Upload only original evidence, excluding runtime and product workspace trees")
+
+
+@pytest.mark.parametrize("mutation", [None, "wrong-case", "wrong-owner", "finding",
+    "true-assessment", "integer-false", "bool-count", "no-assessment", "missing-finding",
+    "skipped"])
+def test_FixedCiRequiresItsOwnActualNegativeAssessmentAndNoFinding(tmp_path, mutation):
+    """The new fixed gate cannot inherit a positive pass or coerce zero/false from booleans."""
+
+    junit = tmp_path / "fixed.xml"
+    name = evidence.CASE_NAME if mutation == "wrong-case" else evidence.FIXED_CASE_NAME
+    skipped = "1" if mutation == "skipped" else "0"
+    junit.write_text('<testsuites><testsuite tests="1" failures="0" errors="0" '
+        f'skipped="{skipped}"><testcase classname="{evidence.CASE_CLASS}" '
+        f'name="{name}"/></testsuite></testsuites>')
+    result = {"runtime_acceptance": "passed", "state": "checked-header-replay",
+        "expected_findings": 0, "source_delivery": "normal-eof",
+        "identities": {"finding_reference": None, "condition_observed": False,
+            "assessment_reference": "assessment:mock-fixed-only",
+            "original_receipt_id": "receipt:mock-fixed-only",
+            "analysis_reference": "analysis:mock-fixed-only"}}
+
+    if mutation == "finding":
+        result["identities"]["finding_reference"] = "finding:unexpected"
+
+    elif mutation in ("true-assessment", "integer-false"):
+        result["identities"]["condition_observed"] = True if mutation == "true-assessment" else 0
+
+    elif mutation == "bool-count":
+        result["expected_findings"] = False
+
+    elif mutation == "no-assessment":
+        result["identities"]["assessment_reference"] = None
+
+    elif mutation == "missing-finding":
+        del result["identities"]["finding_reference"]
+
+    retained = tmp_path / "retained"
+    owner = "missing-positive" if mutation == "wrong-owner" else "fixed-positive"
+    destination = retained / "run-mock-only" / owner / "pipeline-result.json"
+    destination.parent.mkdir(parents=True)
+    destination.write_text(json.dumps(result))
+
+    if mutation is None:
+        assert evidence.RequireOutcome(junit, retained, fixed=True) == result, (
+            "The explicit fixed identity must admit its own actual negative assessment")
+        assert evidence.Main([str(junit), str(retained), "fixed"]) == 0, (
+            "The fixed workflow entrypoint must preserve the explicitly selected negative gate")
+
+        with pytest.raises(ValueError):
+            evidence.Main([str(junit), str(retained)])
+
+    else:
+        with pytest.raises(ValueError):
+            evidence.RequireOutcome(junit, retained, fixed=True)
+
+
+def test_FixedCheckpointSelectsOnlyItsNewSerialCaseAndPreservesThePositiveGate():
+    """Distinct draft markers cannot rerun the accepted positive when selecting the fixed case."""
+
+    path = Path(__file__).resolve().parents[2] / (
+        ".github/workflows/owned-content-header-acceptance.yml")
+    jobs = yaml.safe_load(path.read_text())["jobs"]
+    fixed, positive = jobs["fixed-content-header"], jobs["installed-content-header"]
+    assert fixed["runs-on"] == positive["runs-on"] == "ubuntu-24.04" and fixed["env"] == (
+        positive["env"]), "Both required identities need the same supported Linux ownership gate"
+    assert "[owned-content-header-fixed-checkpoint]" in fixed["if"] and (
+        "[owned-content-header-checkpoint]" not in fixed["if"] and
+        "[owned-content-header-fixed-checkpoint]" not in positive["if"]), (
+            "The fixed draft checkpoint must not activate the accepted positive job")
+    assert "github.event.pull_request.draft == false" in fixed["if"], (
+        "Final ready revisions must retain the separate fixed-source acceptance")
+    executions = [step for step in fixed["steps"] if "pytest" in step.get("run", "")]
+    assert len(executions) == 1 and "::" + evidence.FIXED_CASE_NAME in executions[0]["run"], (
+        "The fixed checkpoint must select exactly its newly declared genuine identity")
+    assert all(option in executions[0]["run"] for option in (
+        "-n0", "--no-cov", "--timeout=150")), "The new shared-resource case remains bounded serial"
+    check = next(step for step in fixed["steps"] if (
+        "tests.contract.owned_content_response_ci_evidence" in step.get("run", "")))
+    assert check["run"].endswith("fixed") and "if" not in check, (
+        "A fixed JUnit pass must also admit its own retained negative result")
+    assert fixed["steps"][-1]["with"]["name"] != positive["steps"][-1]["with"]["name"], (
+        "Independent jobs must never overwrite each other's original evidence")

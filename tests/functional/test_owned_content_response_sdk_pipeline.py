@@ -60,3 +60,23 @@ def test_InstalledFreshContentHeaderPipelineRetainsAcknowledgedFindingAndRelocat
     assert result["runtime_acceptance"] == "passed" and result["state"] == (
         "checked-header-replay"), "A failed or unexecuted stage cannot satisfy genuine acceptance"
     assert result["expected_findings"] == 1 and result["identities"]["finding_reference"]
+
+
+def test_InstalledFreshFixedContentHeaderPipelineRetainsNegativeAssessmentAndRelocatedReplay(
+    installed_content_header_pipeline, tmp_path,
+):
+    """A new actual fixed-header source yields a durable negative assessment without a Finding."""
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence", retained / "fixed-positive")
+    evidence.Json("case.json", {"schema_version": 1,
+        "identity": "content-sdk:ipv4:fixed:positive:relocated-header-replay",
+        "expected_findings": 0, "runtime_acceptance": "unassessed-until-original-checks"})
+    result = RunInstalled(installed, tmp_path / "pipeline", evidence,
+        fixture_id="fixed-" + uuid4().hex, case="fixed", scenario="positive", enabled=True)
+    assert result["runtime_acceptance"] == "passed" and result["state"] == (
+        "checked-header-replay"), "A failed fixed-source stage cannot establish negative acceptance"
+    assert result["expected_findings"] == 0 and result["identities"]["finding_reference"] is None, (
+        "An actual fixed header must not create a Finding")
+    assert result["identities"]["condition_observed"] is False, (
+        "The persisted negative assessment must derive from the original fixed header")
