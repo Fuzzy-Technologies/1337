@@ -176,9 +176,11 @@ def Run(plan: dict, handoff, *, enabled: bool = False) -> dict:
     receipt = summary["original_receipt_id"]
     AssertContentParts(selected["case"], selected["url"], receipt, acquired["originals"],
         summary["source_facts"], job_id=summary["original_job_id"])
+    analysis_policy = setup["policies"]["analysis-denied" if selected["scenario"] == (
+        "policy-denied") else "analysis"]
     analysis = Call("analyze-offline", {"workspace": root, "url": selected["url"],
         "scope_id": plan["scope_id"], "owner_reference": plan["owner_reference"],
-        "policy": setup["policies"]["analysis"]["path"], "original_receipt_id": receipt,
+        "policy": analysis_policy["path"], "original_receipt_id": receipt,
         "analysis_reference": plan["analysis_reference"],
         "expected_model_revision": acquired["model"]["revision"],
         "expected_workspace_revision": acquired["workspace"]["revision"],

@@ -9,6 +9,7 @@ import asyncio
 import hashlib
 import io
 import json
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
@@ -169,7 +170,7 @@ def test_IsolationAndFixedGrammarRefuseBeforeInputOrInstalledImports(flags, argv
         entrypoint.Main(argv)
 
 
-@pytest.mark.parametrize("operation", ["setup", "inspect"])
+@pytest.mark.parametrize("operation", ["setup", "fresh-setup", "inspect"])
 def test_FixedSetupInspectionHookReportsAllControlSourcesWithoutCapture(
     operation, tmp_path, monkeypatch,
 ):
@@ -215,3 +216,153 @@ def test_FixedSetupInspectionHookReportsAllControlSourcesWithoutCapture(
     observed = json.loads(output.getvalue())
     assert observed["consumer_sources"]["mock_fixed_setup_seed_controls"] == "b" * 64, (
         "Caller independently reconciles control/setup/seed source identities")
+
+
+@pytest.mark.parametrize("scenario", [
+    "positive", "approval-denied", "policy-denied", "owner-drift"])
+@pytest.mark.parametrize("failure", [False, True])
+def test_OfflineAnalysisUsesGuardAndTrustedActorWithoutChangingConsumerSelection(
+    tmp_path, scenario, failure,
+):
+    """Mock guard observations survive success and exception; no real SDK/guard/store runs."""
+
+    selected = {"workspace": str(tmp_path / "workspace"), "owner_reference": "actor:fresh-only",
+        "policy": "/mock-only/denied.json" if scenario == "policy-denied" else "/mock-only/passive",
+        "approve_passive_header_check": scenario != "approval-denied",
+        "authority_scenario": scenario}
+    expected = {key: value for key, value in selected.items() if key != "authority_scenario"}
+    record = {"mock_original_guard": True}
+    active = []
+    actors = []
+    summary = {"state": "mock-actual-result"}
+    observations = tmp_path / "observations"
+
+    @contextmanager
+    def OfflineGuard(*, historical, enabled):
+        """Yield original mock telemetry only for the explicitly selected analysis guard."""
+
+        assert historical is False and enabled is True
+        active.append(True)
+
+        try:
+            yield record
+
+        finally:
+            active.pop()
+
+    def Analyze(selection, owner, *, enabled, current_owner_provider):
+        """Read actual supplied actor callbacks while the mock guard is active; never call SDK."""
+
+        assert active == [True] and selection == expected and enabled is True
+        assert owner == observations / "consumer", "Consumer owns a distinct fresh child attempt"
+        actors.extend((current_owner_provider(), current_owner_provider()))
+
+        if failure:
+            raise RuntimeError("original mocked analysis failure")
+
+        return summary
+
+    consumer = SimpleNamespace(Analyze=Analyze, MAX_OBSERVATION_BYTES=1024 * 1024)
+    guard = SimpleNamespace(OfflineGuard=OfflineGuard, DetachedGuard=lambda actual: actual)
+
+    if failure:
+        with pytest.raises(RuntimeError, match="original mocked analysis failure"):
+            entrypoint.Offline("analyze-offline", selected, observations, consumer, guard)
+
+    else:
+        result = entrypoint.Offline("analyze-offline", selected, observations, consumer, guard)
+        assert result["summary"] is summary and result["guard"] is record
+
+    assert actors == [selected["owner_reference"], "actor:explicit-fixture-owner-drift" if (
+        scenario == "owner-drift") else selected["owner_reference"]]
+    retained = json.loads((observations / "offline-guard.json").read_bytes())
+    assert retained == {"guard": record, "owner_reads": 2, "authority_scenario": scenario}
+    assert active == [] and selected["authority_scenario"] == scenario, "No caller input mutation"
+
+
+def test_OfflineReplayHasHistoricalGuardAndNoCurrentActorReader(tmp_path):
+    """Historical transport passes only the original selected receipt/assessment and workspace."""
+
+    selection = {"workspace": str(tmp_path / "workspace"), "kind": "header",
+        "reference": "assessment:mock-only"}
+    record = {"mock_replay_guard": True}
+    calls = []
+
+    @contextmanager
+    def OfflineGuard(**options):
+        """Observe replay-only guard selection without invoking any real tripwire implementation."""
+
+        assert options == {"historical": True, "enabled": True}
+
+        yield record
+
+    def Replay(selected, owner, *, enabled):
+        """Accept no actor or policy callback on this mocked historical handoff."""
+
+        calls.append((selected, owner, enabled))
+
+        return {"state": "mock-historical-result"}
+
+    observations = tmp_path / "observations"
+    result = entrypoint.Offline("replay-offline", selection, observations,
+        SimpleNamespace(Replay=Replay, MAX_OBSERVATION_BYTES=1024 * 1024),
+        SimpleNamespace(OfflineGuard=OfflineGuard, DetachedGuard=lambda actual: actual))
+    assert calls == [(selection, observations / "consumer", True)]
+    assert result["owner_reads"] == 0 and result["authority_scenario"] is None
+
+
+def test_OfflineGuardLoaderExecutesTheSameBoundedObservedSibling(tmp_path, monkeypatch):
+    """A changed sibling after observation cannot replace the exact reviewed guard bytes."""
+
+    current = tmp_path / "owned_content_response_sdk_entrypoint.py"
+    current.write_bytes(b"# mock entrypoint")
+    sibling = current.with_name("owned_content_response_sdk_offline_guard.py")
+    raw = b"observed_guard = 'original mock guard'\n"
+    sibling.write_bytes(raw)
+    monkeypatch.setattr(entrypoint, "__file__", str(current))
+    records, observed = entrypoint.GuardSource()
+    sibling.write_bytes(b"raise AssertionError('replacement guard')")
+    loaded = entrypoint.LoadGuard(observed)
+    assert loaded.observed_guard == "original mock guard"
+    assert records[sibling.name]["sha256"] == hashlib.sha256(raw).hexdigest()
+
+
+@pytest.mark.parametrize("operation", ["analyze-offline", "replay-offline"])
+def test_FixedOfflineDispatchRetainsGuardSourcesAndActualDetachedValues(
+    tmp_path, monkeypatch, operation,
+):
+    """Main selects only the reviewed offline wrapper and preserves its original observations."""
+
+    selection = {"mock_explicit_selection": True}
+    observations = tmp_path / "observations"
+    config = tmp_path / "input.json"
+    config.write_text(json.dumps({"selection": selection, "observations": str(observations)}))
+    output = io.BytesIO()
+    consumer = SimpleNamespace(mock_fixed_consumer=True)
+    guard = SimpleNamespace(mock_fixed_guard=True)
+    actual = {"summary": {"mock_original_summary": True}, "guard": {"mock_original_saves": []},
+        "owner_reads": 2, "authority_scenario": "mock-fixture"}
+    monkeypatch.setattr(entrypoint.sys, "flags", SimpleNamespace(isolated=1, dont_write_bytecode=1))
+    monkeypatch.setattr(entrypoint.sys, "stdout", SimpleNamespace(buffer=output))
+    monkeypatch.setattr(entrypoint, "Identity", lambda: {"mock_installed_identity": True})
+    monkeypatch.setattr(entrypoint, "Sources", lambda: (
+        {"mock_consumer_source": "a" * 64}, b"mock"))
+    monkeypatch.setattr(entrypoint, "LoadConsumer", lambda raw: consumer)
+    monkeypatch.setattr(entrypoint, "GuardSource", lambda: (
+        {"mock_guard_source": "b" * 64}, b"guard"))
+    monkeypatch.setattr(entrypoint, "LoadGuard", lambda raw: guard)
+
+    def Offline(selected_operation, selected, owner, original_consumer, original_guard):
+        """Observe fixed source/selection wiring without constructing SDK or guard contexts."""
+
+        assert (selected_operation, selected, owner) == (operation, selection, observations)
+        assert original_consumer is consumer and original_guard is guard
+
+        return dict(actual)
+
+    monkeypatch.setattr(entrypoint, "Offline", Offline)
+    assert entrypoint.Main([operation, str(config), "--execute"]) == 0
+    observed = json.loads(output.getvalue())
+    assert all(observed[key] == value for key, value in actual.items())
+    assert observed["consumer_sources"] == {"mock_consumer_source": "a" * 64,
+        "mock_guard_source": "b" * 64}, "Guard bytes must bind independently of wheel imports"

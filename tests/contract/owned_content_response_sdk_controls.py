@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
 
@@ -67,7 +68,7 @@ def Dispatch(operation: str, selection: dict, observations: Path, *, enabled: bo
     """Run exactly one fresh setup or read-only inspection with exclusive original observations.
 
     Args:
-        operation: Setup or inspect; no acquisition, interpretation or general command dispatch.
+        operation: Setup, fresh-setup or inspect; no acquisition or general command dispatch.
         selection: Explicit approved setup selection, or only an absolute inspection workspace.
         observations: Fresh absolute operation directory, canonically separate from workspace.
         enabled: Exact independent operation opt-in; false performs no helper/store activity.
@@ -80,8 +81,8 @@ def Dispatch(operation: str, selection: dict, observations: Path, *, enabled: bo
     if enabled is not True:
         raise PermissionError("SDK controls require separate explicit operation opt-in")
 
-    if operation not in ("setup", "inspect") or not isinstance(observations, Path) or (
-        not observations.is_absolute()
+    if operation not in ("setup", "fresh-setup", "inspect") or (
+        not isinstance(observations, Path) or not observations.is_absolute()
     ):
         raise ValueError("Fixed SDK control operation and fresh observation owner are required")
 
@@ -117,13 +118,24 @@ def Dispatch(operation: str, selection: dict, observations: Path, *, enabled: bo
     exception_type = None
 
     try:
-        if operation == "setup":
+        if operation in ("setup", "fresh-setup"):
             helper, source = LoadFixed(SETUP_SOURCE)
-            actual = helper.Setup(selection, enabled=True)
-            result = {"original_setup": actual, "helper_source": source, "policies": {}}
+            actual = (helper.Setup(selection, enabled=True) if operation == "setup" else
+                helper.FreshSetup(selection, enabled=True))
+            result = ({"original_setup": actual} if operation == "setup" else actual)
+            result.update(helper_source=source, policies={})
             from fuzzy1337.adapters import SerializeContract
 
-            for role, policy in Policies().items():
+            policies = Policies()
+
+            if operation == "fresh-setup":
+                identity = actual["state"]["workspace"]["workspace_id"]
+                policies = {role: replace(policy, policy_id=identity + "-" + role)
+                    for role, policy in policies.items()}
+                policies["analysis-denied"] = replace(policies["analysis"],
+                    policy_id=identity + "-analysis-denied", permissions=())
+
+            for role, policy in policies.items():
                 raw = SerializeContract(policy).encode("ascii")
                 path = observations / (role + "-policy.json")
 
@@ -132,6 +144,9 @@ def Dispatch(operation: str, selection: dict, observations: Path, *, enabled: bo
 
                 result["policies"][role] = {"path": str(path), "sha256":
                     hashlib.sha256(raw).hexdigest()}
+
+                if operation == "fresh-setup":
+                    result["policies"][role]["document"] = json.loads(raw)
 
         else:
             helper, source = LoadFixed(SEED_SOURCE)

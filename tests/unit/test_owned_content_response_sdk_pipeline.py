@@ -71,7 +71,7 @@ class MockSequence:
                 "valid_from": plan["selection"]["consent_valid_from"],
                 "valid_until": plan["selection"]["consent_valid_until"]}}
         self.policies = {role: {"path": f"/mock-only/{role}.json", "document": {
-            "mock_policy": role}} for role in ("acquisition", "analysis")}
+            "mock_policy": role}} for role in ("acquisition", "analysis", "analysis-denied")}
 
         def CaptureOracle(*args, **kwargs):
             """Observe unmodified SDK-save input wiring; no acquisition is asserted here."""
@@ -177,6 +177,8 @@ def test_MockedAuthorityRefusalLeavesOriginalsUnchangedAndStopsBeforeRelocation(
     selected = mock.calls[3][1]
     assert selected["authority_scenario"] == scenario and selected[
         "approve_passive_header_check"] is (scenario != "approval-denied")
+    assert selected["policy"] == mock.policies["analysis-denied" if scenario == (
+        "policy-denied") else "analysis"]["path"], "A denied fixture is an actual typed policy"
 
 
 @pytest.mark.parametrize("mutation", ["consent", "offline-call", "missing-tripwire",

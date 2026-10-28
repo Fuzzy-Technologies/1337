@@ -212,11 +212,103 @@ def LoadControls(raw: bytes) -> ModuleType:
     return module
 
 
+def GuardSource() -> tuple[dict, bytes]:
+    """Observe only the fixed offline guard sibling before executing the same bounded bytes."""
+
+    path = Path(__file__).resolve().with_name("owned_content_response_sdk_offline_guard.py")
+    raw = BoundedRead(path, MAX_SOURCE_BYTES)
+
+    return {path.name: {"path": str(path), "sha256": hashlib.sha256(raw).hexdigest()}}, raw
+
+
+def LoadGuard(raw: bytes) -> ModuleType:
+    """Load the exact observed offline guard; no input can select a different guard module."""
+
+    path = Path(__file__).resolve().with_name("owned_content_response_sdk_offline_guard.py")
+    module = ModuleType("owned_content_response_sdk_offline_guard")
+    module.__file__ = str(path)
+    exec(compile(raw, str(path), "exec"), module.__dict__)
+
+    return module
+
+
+def Offline(operation: str, selection: dict, observations: Path, consumer, guard) -> dict:
+    """Run unchanged analysis/replay inside existing tripwires, retaining failures independently.
+
+    Args:
+        operation: Fixed analyze-offline or replay-offline operation.
+        selection: Original explicit consumer inputs and closed analysis authority scenario.
+        observations: Fresh outer owner, separate from workspace; consumer owns a fresh child.
+        consumer: Exact observed fixed consumer module, not a replacement SDK.
+        guard: Exact observed fixed guard module, never substituted in genuine execution.
+
+    Returns:
+        Actual summary, original detached guard observations and trusted-reader count.
+    """
+
+    if operation not in ("analyze-offline", "replay-offline") or type(selection) is not dict:
+        raise ValueError("Unsupported fixed offline operation")
+
+    selected = dict(selection)
+    scenario = selected.pop("authority_scenario", None)
+
+    if (operation == "analyze-offline" and scenario not in (
+        "positive", "approval-denied", "policy-denied", "owner-drift")) or (
+            operation == "replay-offline" and scenario is not None):
+        raise ValueError("Offline authority scenario must be separately and explicitly selected")
+
+    root = Path(selected["workspace"])
+
+    if not root.is_absolute() or not observations.is_absolute() or any(
+        ".." in path.parts for path in (root, observations)
+    ) or root.resolve().is_relative_to(observations.resolve()) or (
+        observations.resolve().is_relative_to(root.resolve())):
+        raise ValueError("Offline observation owner must remain separate from product workspace")
+
+    observations.mkdir(parents=True, exist_ok=False)
+    (observations / "offline-attempt.json").write_text(json.dumps({"schema_version": 1,
+        "operation": operation, "authority_scenario": scenario}, sort_keys=True), encoding="ascii")
+    owner_reads = 0
+    record = None
+    detached = None
+
+    def CurrentOwner():
+        """Return the original selected actor, or explicit fixture drift after its first read."""
+
+        nonlocal owner_reads
+        owner_reads += 1
+
+        return "actor:explicit-fixture-owner-drift" if scenario == "owner-drift" and (
+            owner_reads > 1) else selected["owner_reference"]
+
+    try:
+        with guard.OfflineGuard(historical=operation == "replay-offline", enabled=True) as record:
+            summary = (consumer.Analyze(selected, observations / "consumer", enabled=True,
+                current_owner_provider=CurrentOwner) if operation == "analyze-offline" else
+                consumer.Replay(selected, observations / "consumer", enabled=True))
+
+    finally:
+        if record is not None:
+            detached = guard.DetachedGuard(record)
+            raw = json.dumps({"guard": detached, "owner_reads": owner_reads,
+                "authority_scenario": scenario}, sort_keys=True, separators=(",", ":"),
+                ensure_ascii=True, allow_nan=False).encode("ascii")
+
+            if len(raw) > consumer.MAX_OBSERVATION_BYTES:
+                raise ValueError("Original offline observations exceed their retention bound")
+
+            with (observations / "offline-guard.json").open("xb") as output:
+                output.write(raw)
+
+    return {"summary": summary, "guard": detached, "owner_reads": owner_reads,
+        "authority_scenario": scenario}
+
+
 def Main(argv: list[str] | None = None) -> int:
     """Dispatch only identity or one explicitly opted-in installed consumer operation.
 
     Args:
-        argv: Identity, or setup/inspect/capture/analyze/replay + absolute input + --execute.
+        argv: Identity, or one fixed control/consumer/offline operation + input + --execute.
 
     Returns:
         Zero after preserving one actual canonical consumer result; unexpected failures propagate.
@@ -230,7 +322,8 @@ def Main(argv: list[str] | None = None) -> int:
     identity_only = arguments == ["identity"]
 
     if not identity_only and not (len(arguments) == 3 and arguments[0] in (
-        "setup", "inspect", "capture", "analyze", "replay") and arguments[2] == "--execute"):
+        "setup", "fresh-setup", "inspect", "capture", "analyze", "replay", "analyze-offline",
+        "replay-offline") and arguments[2] == "--execute"):
         raise ValueError("Unsupported fixed installed consumer operation")
 
     config = None if identity_only else ReadInput(Path(arguments[1]))
@@ -241,7 +334,7 @@ def Main(argv: list[str] | None = None) -> int:
     if not identity_only:
         selection, observations = config["selection"], Path(config["observations"])
 
-        if arguments[0] in ("setup", "inspect"):
+        if arguments[0] in ("setup", "fresh-setup", "inspect"):
             records, control = ControlSources()
             output["consumer_sources"].update(records)
             controls = LoadControls(control)
@@ -250,7 +343,15 @@ def Main(argv: list[str] | None = None) -> int:
         else:
             consumer = LoadConsumer(raw)
 
-            if arguments[0] == "capture":
+            if arguments[0] in ("analyze-offline", "replay-offline"):
+                records, guard = GuardSource()
+                output["consumer_sources"].update(records)
+                observed = Offline(arguments[0], selection, observations, consumer,
+                    LoadGuard(guard))
+                summary = observed.pop("summary")
+                output.update(observed)
+
+            elif arguments[0] == "capture":
                 summary = asyncio.run(consumer.Capture(selection, observations, enabled=True))
 
             elif arguments[0] == "analyze":

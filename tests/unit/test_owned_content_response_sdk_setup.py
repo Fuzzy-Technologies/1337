@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -116,3 +118,137 @@ def test_FixedSeedSourceHashDescribesTheExactBytesExecuted(tmp_path, monkeypatch
         "Only the fixed sibling's original bytes execute")
     assert source == {"path": str(sibling), "sha256": hashlib.sha256(raw).hexdigest()}, (
         "The caller can independently bind exactly executed reviewed seed source bytes")
+
+
+def FreshConfig(tmp_path):
+    """Select a new synthetic fixture and original fixed time window; perform no setup."""
+
+    return {"fixture_id": "fresh-run-0001", "workspace": str(tmp_path / "new-owner"),
+        "url": "http://127.0.0.1:15432/research/content",
+        "consent_valid_from": "2030-01-01T00:00:00+00:00",
+        "consent_valid_until": "2030-01-01T00:05:00+00:00"}
+
+
+@pytest.mark.parametrize("mutation", [None, "expired", "future", "naive", "long-window",
+    "historical", "unit-fixture", "relative", "foreign", "noncanonical-time"])
+def test_NewFixtureSelectionRequiresItsOriginalCurrentlyValidAuthority(tmp_path, mutation):
+    """Pure input checks never renew a delayed consent window or reuse old fixture identities."""
+
+    config = FreshConfig(tmp_path)
+    now = datetime(2030, 1, 1, 0, 1, tzinfo=timezone.utc)
+
+    if mutation is None:
+        selected = setup.FreshSelection(config, now)
+        assert selected["workspace_id"] == selected["scope_id"] == (
+            "owned-content-header-fresh-run-0001")
+        assert len(set(selected.values())) == 4, "Only workspace/scope intentionally share identity"
+        assert selected["owner_reference"] != selected["attester_reference"]
+
+        return
+
+    if mutation in ("expired", "future", "naive"):
+        now = {"expired": datetime(2030, 1, 1, 0, 5, tzinfo=timezone.utc),
+            "future": datetime(2029, 12, 31, 23, 59, tzinfo=timezone.utc),
+            "naive": datetime(2030, 1, 1, 0, 1)}[mutation]
+
+    else:
+        key, value = {"long-window": ("consent_valid_until", "2030-01-01T00:20:00+00:00"),
+            "historical": ("fixture_id", setup.WORKSPACE),
+            "unit-fixture": ("fixture_id", "mock-run-0001"),
+            "relative": ("workspace", "relative/owner"),
+            "foreign": ("url", "http://localhost:15432/research/content"),
+            "noncanonical-time": ("consent_valid_from", "2030-01-01T00:00:00Z")}[mutation]
+        config[key] = value
+
+    with pytest.raises((PermissionError, ValueError)):
+        setup.FreshSelection(config, now)
+
+
+@pytest.mark.parametrize("enabled", [False, None, 1, "yes"])
+def test_NewSetupDefaultDenialPrecedesClockAndStorage(enabled):
+    """An old setup opt-in or truthy value cannot authorize the distinct fresh fixture owner."""
+
+    def Unexpected():
+        """Detect any attempted time read before exact independent setup approval."""
+
+        raise AssertionError("Default denial precedes even fixture clock reads")
+
+    with pytest.raises(PermissionError):
+        setup.FreshSetup(None, enabled=enabled, current_time_provider=Unexpected)
+
+
+def test_NewSetupUsesDistinctConsentAndPreservesNativeTriageWithoutStoreIo(tmp_path, monkeypatch):
+    """Real immutable contracts flow through mocked storage methods; no SDK or store I/O runs."""
+
+    from fuzzy1337 import evidence, model, scope, workspace
+    from fuzzy1337.adapters import EvidenceReference
+
+    config = FreshConfig(tmp_path)
+    identity = "owned-content-header-" + config["fixture_id"]
+    states = {}
+    calls = []
+
+    def CreateWorkspace(store, configuration, workspace_id):
+        """Retain a typed synthetic workspace only in memory, without a directory creation."""
+
+        assert workspace_id == identity and not store.root.exists()
+        states["workspace"] = workspace.WorkspaceState(workspace_id, configuration)
+
+        return states["workspace"]
+
+    def CreateScope(store, snapshot):
+        """Retain the exact newly declared scope and independent consent in memory."""
+
+        states["scope"] = snapshot
+
+        return snapshot
+
+    def Put(store, raw, role, media, provenance):
+        """Return a typed synthetic original record without publishing any bytes."""
+
+        calls.append("Put")
+        digest = hashlib.sha256(raw).hexdigest()
+
+        return evidence.EvidenceRecord(EvidenceReference(role, "blobs/sha256/" + digest,
+            digest, media, len(raw)), provenance)
+
+    def SaveModel(store, proposed, *, expected_revision):
+        """Observe the original CAS proposal without acknowledging a real storage operation."""
+
+        assert expected_revision == states.get("model", model.ModelState(identity)).revision
+        assert proposed.workspace_id == identity and proposed.revision == expected_revision + 1
+        states["model"] = proposed
+        calls.append("model-Save")
+
+        return proposed
+
+    def SaveWorkspace(store, proposed):
+        """Observe fresh native associations without mutating any canonical owner on disk."""
+
+        states["workspace"] = replace(proposed, revision=proposed.revision + 1)
+        calls.append("workspace-Save")
+
+        return states["workspace"]
+
+    monkeypatch.setattr(workspace.LocalWorkspaceStore, "Create", CreateWorkspace)
+    monkeypatch.setattr(workspace.LocalWorkspaceStore, "Open", lambda store: states["workspace"])
+    monkeypatch.setattr(workspace.LocalWorkspaceStore, "Save", SaveWorkspace)
+    monkeypatch.setattr(model.LocalModelStore, "Create", lambda store: model.ModelState(identity))
+    monkeypatch.setattr(model.LocalModelStore, "Save", SaveModel)
+    monkeypatch.setattr(scope.LocalScopeStore, "Create", CreateScope)
+    monkeypatch.setattr(scope.LocalScopeStore, "Open", lambda store, scope_id: states["scope"])
+    monkeypatch.setattr(evidence.LocalEvidenceStore, "Put", Put)
+    inspection = {"mock_original_inspection": True}
+    monkeypatch.setattr(setup, "LoadSeed", lambda: (
+        SimpleNamespace(Inspect=lambda root: inspection), {"mock_fixed_reader_hash": "a" * 64}))
+    result = setup.FreshSetup(config, enabled=True,
+        current_time_provider=lambda: datetime(2030, 1, 1, 0, 1, tzinfo=timezone.utc))
+    assert result["state"] is inspection and calls == [
+        "Put", "model-Save", "model-Save", "workspace-Save"]
+    assert not (tmp_path / "new-owner").exists(), "Mocked methods performed no storage I/O"
+    assert result["scope"]["authorization"] == {"state": "granted",
+        "authority_reference": "attester:" + identity, "record_reference": "consent:" + identity,
+        "valid_from": config["consent_valid_from"], "valid_until": config["consent_valid_until"]}
+    finding = next(row for row in states["model"].objects if row.identity.kind.value == "finding")
+    assert finding.attributes["status"] == "confirmed" and finding.attributes["status_reason"]
+    assert states["workspace"].job_references == ("job:unrelated-" + identity,)

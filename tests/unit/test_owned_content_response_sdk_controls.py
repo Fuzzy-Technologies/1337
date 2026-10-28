@@ -190,3 +190,42 @@ def test_CanonicalAliasSeparationPrecedesEffectsAndPreservesOriginalSelection(
 
         assert calls == [] and not observations.exists(), (
             "Alias overlap must refuse before observation mkdir or product reader effects")
+
+
+def test_FreshSetupControlKeepsFixtureAuthorityAndDeniedPolicyIndependent(tmp_path, monkeypatch):
+    """Fresh control calls only the distinct mocked seed and emits actual typed policy variants."""
+
+    identity = "owned-content-header-fresh-control-0001"
+    actual = {"state": {"workspace": {"workspace_id": identity}},
+        "scope": {"mock_new_consent": True}}
+    calls = []
+
+    def FreshSetup(selection, *, enabled):
+        """Observe the distinct fresh fixture call without creating any product stores."""
+
+        calls.append((selection, enabled))
+
+        return actual
+
+    def Unexpected(*args, **kwargs):
+        """Refuse any attempt to reuse the old fixed-identity setup for this operation."""
+
+        raise AssertionError("Fresh setup cannot dispatch to historical identity setup")
+
+    monkeypatch.setattr(controls, "LoadFixed", lambda name: (SimpleNamespace(
+        FreshSetup=FreshSetup, Setup=Unexpected), {"mock_source": name}))
+    selection = {"workspace": str(tmp_path / "workspace"), "fixture_id": "fresh-control-0001"}
+    result = controls.Dispatch("fresh-setup", selection, tmp_path / "observations", enabled=True)
+    assert calls == [(selection, True)] and result["scope"] is actual["scope"]
+    policies = result["policies"]
+    assert set(policies) == {"acquisition", "analysis", "analysis-denied"}
+
+    for role, observed in policies.items():
+        path = tmp_path / "observations" / (role + "-policy.json")
+        parsed = ReadNucleiPolicy(path)
+        assert parsed.policy_id == identity + "-" + role
+        assert json.loads(path.read_bytes()) == observed["document"]
+
+    assert policies["analysis"]["document"]["permissions"]
+    assert policies["analysis-denied"]["document"]["permissions"] == [], (
+        "Denial is a separate typed fixture, not a permission patched during analysis")
