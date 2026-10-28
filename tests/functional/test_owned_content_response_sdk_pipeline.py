@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""One genuine installed content capture/header-v2/relocated replay identity on owned loopback."""
+"""Finite genuine installed content/header-v2 and authority controls on owned literal loopback."""
 
 from __future__ import annotations
 
@@ -98,3 +98,21 @@ def test_InstalledFreshPolicyDeniedContentHeaderPipelinePreservesAcquiredStateWi
     assert result == {"state": "checked-authority-refusal", "expected_findings": 0,
         "runtime_acceptance": "passed", "source_delivery": "normal-eof"}, (
             "Denied analysis must remain unassessed without writing an assessment or Finding")
+
+
+def test_InstalledFreshActorDriftContentHeaderPipelinePreservesAcquiredStateWithoutAssessment(
+    installed_content_header_pipeline, tmp_path,
+):
+    """The controlled trusted actor reader must be revalidated despite valid policy and approval."""
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence", retained / "actor-denied")
+    evidence.Json("case.json", {"schema_version": 1,
+        "identity": "content-sdk:ipv4:missing:owner-drift:no-analysis-save",
+        "expected_findings": 0, "assessment": "unassessed",
+        "runtime_acceptance": "unassessed-until-original-checks"})
+    result = RunInstalled(installed, tmp_path / "pipeline", evidence,
+        fixture_id="actor-" + uuid4().hex, case="missing", scenario="owner-drift", enabled=True)
+    assert result == {"state": "checked-authority-refusal", "expected_findings": 0,
+        "runtime_acceptance": "passed", "source_delivery": "normal-eof"}, (
+            "Actor mismatch must remain unassessed without modifying acquired owner state")
