@@ -74,7 +74,20 @@ class NativeConfigurationMaterialProof:
 
 
 async def Settle(task: asyncio.Future[_RESULT], stop: asyncio.Event) -> tuple[_RESULT, bool]:
-    """Retain ownership across repeated cancellation until the original task settles."""
+    """Retain ownership across repeated cancellation until the original task settles.
+
+    Args:
+        task: Original future to shield until it returns or raises.
+        stop: Cooperative stop signal set whenever this waiter is cancelled.
+
+    Returns:
+        Original result and whether cancellation interrupted the waiter. The flag
+        lets the owner defer cancellation until its cleanup obligations settle.
+
+    Raises:
+        asyncio.CancelledError: The original future itself was cancelled. Other
+            original-future exceptions propagate unchanged.
+    """
 
     cancelled = False
 
@@ -120,7 +133,12 @@ class NativeConfigurationMaterialObserver:
         self._closed = False
 
     def SelectionDigest(self) -> str:
-        """Bind exact current selection, read consent and owning context without file reads."""
+        """Bind exact current selection, read consent and owning context without file reads.
+
+        Returns:
+            Lowercase SHA-256 hex digest of canonical selection, workspace and
+            owner metadata. The digest is descriptive and grants no authority.
+        """
 
         return hashlib.sha256(CanonicalControl({"selection": SelectionPayload(self.selection),
             "workspace_root": str(self.workspace_root), "workspace_id": self.workspace_id,
@@ -128,7 +146,18 @@ class NativeConfigurationMaterialObserver:
 
     def CheckCurrent(self, proof: NativeConfigurationMaterialProof, *,
                      operation_reference: str) -> None:
-        """Check exact issuer/object/stage and finite physical metadata without content reads."""
+        """Check exact issuer/object/stage and finite physical metadata without content reads.
+
+        Args:
+            proof: Exact original proof object currently registered by this observer.
+            operation_reference: Operation reference that must equal the issued proof's.
+
+        Raises:
+            NativeConfigurationMaterialError: Proof, observer state or workspace/scratch
+                association changed; copied and detached proofs are refused.
+            ValueError: Platform ownership or staged physical metadata is invalid.
+            OSError: Required physical metadata cannot be observed.
+        """
 
         if self._closed or not self._terminal or type(proof) is not (
             NativeConfigurationMaterialProof
@@ -157,14 +186,47 @@ class NativeConfigurationMaterialObserver:
 
     async def Create(self, budget: NativeImageObservationBudget, *, operation_reference: str,
                      cancellation: asyncio.Event | None = None) -> NativeConfigurationMaterialProof:
-        """Capture one stage through the installed helper using the existing caller ledger."""
+        """Capture one stage through the installed helper using the existing caller ledger.
+
+        Args:
+            budget: Existing caller ledger charged one inclusive 12-second observation slot.
+            operation_reference: Nonempty single-line operation reference, at most 4096 characters.
+            cancellation: Optional cooperative caller stop event; a set event refuses work.
+
+        Returns:
+            Original instance-bound material proof after successful installed capture
+            and confirmed terminal private cleanup; it grants no provider authority.
+
+        Raises:
+            NativeConfigurationMaterialError: Observer, material or owned helper is unverified.
+                Failed or uncertain stage state is retained rather than claimed as proof.
+            ValueError: Operation reference, platform ownership or ledger admission is invalid.
+            asyncio.CancelledError: Caller cancellation propagates after owned task settlement.
+        """
 
         return await self.Observe(budget, operation_reference, None, cancellation)
 
     async def Verify(self, proof: NativeConfigurationMaterialProof,
                      budget: NativeImageObservationBudget, *, operation_reference: str,
                      cancellation: asyncio.Event | None = None) -> NativeConfigurationMaterialProof:
-        """Reobserve only the exact issued stage; no original source is opened after capture."""
+        """Reobserve only the exact issued stage; no original source is opened after capture.
+
+        Args:
+            proof: Exact current proof issued by this observer for the selected stage.
+            budget: Existing caller ledger charged one inclusive 12-second observation slot.
+            operation_reference: Bounded operation reference matching the original proof.
+            cancellation: Optional cooperative caller stop event; a set event refuses work.
+
+        Returns:
+            Newly issued proof for the same original stage after copied-byte and
+            selected-executable verification and terminal private cleanup. The prior
+            proof is revoked once the current-proof preflight succeeds.
+
+        Raises:
+            NativeConfigurationMaterialError: Proof, material, association or cleanup is invalid.
+            ValueError: Operation reference, platform ownership or ledger admission is invalid.
+            asyncio.CancelledError: Caller cancellation propagates after owned task settlement.
+        """
 
         if type(proof) is not NativeConfigurationMaterialProof:
             raise NativeConfigurationMaterialError("configuration verification requires proof")
@@ -174,7 +236,25 @@ class NativeConfigurationMaterialObserver:
     async def Observe(self, budget: NativeImageObservationBudget, operation_reference: str,
                       prior: NativeConfigurationMaterialProof | None,
                       cancellation: asyncio.Event | None) -> NativeConfigurationMaterialProof:
-        """Issue proof within one observation slot only after terminal private cleanup."""
+        """Issue proof within one observation slot only after terminal private cleanup.
+
+        Args:
+            budget: Existing caller ledger providing and recording one observation slot.
+            operation_reference: Nonempty single-line operation reference, at most 4096 characters.
+            prior: Exact current proof for verification, or None for the first capture.
+            cancellation: Optional cooperative caller stop event checked before and during work.
+
+        Returns:
+            Original proof registered only after successful owned observation. The
+            same slot records success or failure; no replacement ledger is created.
+            Verification revokes the prior proof after its current-proof preflight succeeds.
+
+        Raises:
+            NativeConfigurationMaterialError: Observer is unavailable or material/helper
+                validation fails.
+            ValueError: Operation reference, platform ownership or slot admission is invalid.
+            asyncio.CancelledError: Cancellation propagates after helper/monitor settlement.
+        """
 
         Text(operation_reference)
 
@@ -219,7 +299,27 @@ class NativeConfigurationMaterialObserver:
     async def ObserveOwned(self, window: NativeImageObservationWindow, operation_reference: str,
                            prior: NativeConfigurationMaterialProof | None,
                            cancellation: asyncio.Event | None) -> NativeConfigurationMaterialProof:
-        """Own exact control and tasks; retain state on unknown child cleanup."""
+        """Own exact control and tasks; retain state on unknown child cleanup.
+
+        Args:
+            window: Caller-owned observation window sharing worker and cleanup deadlines.
+            operation_reference: Operation reference already admitted by Observe.
+            prior: Original stage proof for verification, or None for initial capture.
+            cancellation: Optional caller stop event bridged to the owned executor.
+
+        Returns:
+            Unregistered material proof bound to the exact control, owner, workspace,
+            stage and scratch identities after successful child termination and
+            private cleanup. Observe registers it only after this method returns.
+
+        Raises:
+            NativeConfigurationMaterialError: Worker outcome, bounded response, physical
+                association or cleanup cannot be verified. Unknown owned state is retained.
+            OSError: Private control or material metadata I/O fails.
+            ValueError: Control or stage validation fails.
+            LocalExecutionError: The owned executor cannot complete its contract.
+            asyncio.CancelledError: Cancellation propagates after helper/monitor settlement.
+        """
 
         workspace = ArtifactPathInfo(self.workspace_root, directory=True)
         workspace_identity = workspace.st_dev, workspace.st_ino
@@ -361,7 +461,24 @@ class NativeConfigurationMaterialObserver:
 
     def Request(self, directory: Path, path: Path, digest: str, identity: tuple[int, ...],
                 nonce: str) -> LocalExecutionRequest:
-        """Build the fixed isolated read worker with bounded streams and empty host paths."""
+        """Build the fixed isolated read worker with bounded streams and empty host paths.
+
+        Args:
+            directory: Observer-owned private request directory beneath the workspace root.
+            path: Exact request.json path passed to the installed isolated reader.
+            digest: Lowercase SHA-256 hex digest of the canonical request bytes.
+            identity: Original request file's physical identity tuple.
+            nonce: Original control nonce used to bind the read invocation and authorization.
+
+        Returns:
+            Fixed six-second reader request with 64-KiB stdout, 4096-byte stderr and
+            three-second cleanup limits. Host search/config paths are cleared or
+            redirected to the private directory; the scanner is never launched.
+
+        Raises:
+            ValueError: The private directory is outside the bound workspace or a
+                constructed invocation/authorization field violates its contract.
+        """
 
         invocation = AdapterInvocation("native.configuration-material", AdapterRequest(
             "config.material-observation", "material:" + nonce, ImpactLevel.SAFE,
@@ -382,7 +499,17 @@ class NativeConfigurationMaterialObserver:
             environment=environment, resources=ExecutionResources(CONTROL_BYTES, 4096, 3.0))
 
     def CleanPrivate(self, path: Path) -> None:
-        """Unlink exact unchanged control only after confirmed terminal ownership."""
+        """Unlink exact unchanged control only after confirmed terminal ownership.
+
+        Args:
+            path: Original request.json path registered in this observer's private controls.
+
+        Raises:
+            NativeConfigurationMaterialError: Helper terminal ownership is unknown.
+            KeyError: The path is not registered with this observer.
+            ValueError: Request bytes, identities or exact private tree shape changed.
+            OSError: Metadata checks or removal of the exact control/directory fails.
+        """
 
         if not self._terminal:
             raise NativeConfigurationMaterialError("configuration child cleanup is unknown")

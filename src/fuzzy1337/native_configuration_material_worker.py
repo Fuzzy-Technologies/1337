@@ -51,7 +51,17 @@ _CONTROL_FIELDS = {"schema_version", "action", "nonce", "operation_reference", "
 
 
 def CanonicalControl(value: object) -> bytes:
-    """Encode only finite internal control with an inclusive 64-KiB ceiling."""
+    """Encode only finite internal control with an inclusive 64-KiB ceiling.
+
+    Args:
+        value: Internal contract value supported by the strict JSON serializer.
+
+    Returns:
+        Deterministic compact UTF-8 JSON bytes with sorted keys, at most 65536 bytes.
+
+    Raises:
+        ValueError: The value is outside the finite JSON contract or exceeds the byte limit.
+    """
 
     raw = SerializeContract(value).encode("utf-8")
 
@@ -62,7 +72,19 @@ def CanonicalControl(value: object) -> bytes:
 
 
 def ParseControl(raw: bytes) -> dict[str, Any]:
-    """Require bounded duplicate-free exact canonical JSON without selected contents."""
+    """Require bounded duplicate-free exact canonical JSON without selected contents.
+
+    Args:
+        raw: Complete private JSON object bytes, at most 65536 bytes including encoding.
+
+    Returns:
+        Decoded object only when reserialization exactly matches the original bytes.
+        Request/response field semantics require their separate validators.
+
+    Raises:
+        ValueError: Encoding, JSON shape, duplicate keys, finite/structural limits or
+            canonical byte equality fails.
+    """
 
     value = ParseJson(raw, CONTROL_BYTES)
 
@@ -73,7 +95,17 @@ def ParseControl(raw: bytes) -> dict[str, Any]:
 
 
 def Text(value: object) -> str:
-    """Require bounded single-line non-secret private references and path declarations."""
+    """Require bounded single-line non-secret private references and path declarations.
+
+    Args:
+        value: Caller-supplied non-secret reference or path text; secrets are not detected.
+
+    Returns:
+        Original string of 1 through 4096 characters without NUL or line breaks.
+
+    Raises:
+        ValueError: The value is not a string or violates the length/character bounds.
+    """
 
     if not isinstance(value, str) or not 1 <= len(value) <= 4096 or any(
         character in value for character in ("\x00", "\n", "\r")
@@ -84,7 +116,19 @@ def Text(value: object) -> str:
 
 
 def Identity(value: object, length: int = 5) -> tuple[int, ...]:
-    """Validate complete finite private physical identities without normalizing them."""
+    """Validate complete finite private physical identities without normalizing them.
+
+    Args:
+        value: List or tuple containing only nonnegative exact integers, excluding bool.
+        length: Required number of identity components; defaults to five for files,
+            while callers use two for device/inode directory identities.
+
+    Returns:
+        Tuple preserving every validated component in its original order.
+
+    Raises:
+        ValueError: Container type, component count or integer domain is invalid.
+    """
 
     if not isinstance(value, (list, tuple)) or len(value) != length or any(
         type(item) is not int or item < 0 for item in value
@@ -108,7 +152,15 @@ def RequirePlatform() -> None:
 
 
 def SelectionPayload(selection: NativeConfigurationSelection) -> dict[str, object]:
-    """Detach the exact syntax-only selection and explicit selected-read consent."""
+    """Detach the exact syntax-only selection and explicit selected-read consent.
+
+    Args:
+        selection: Native profile, logical source name, paths and explicit read consent.
+
+    Returns:
+        New descriptive dictionary with the profile value, paths and consent references.
+        No selected file is read and no provider authority is issued.
+    """
 
     return {"profile": selection.profile.value, "logical_path": selection.logical_path,
         "source": str(selection.source), "executable": str(selection.executable),
@@ -117,7 +169,20 @@ def SelectionPayload(selection: NativeConfigurationSelection) -> dict[str, objec
 
 
 def SelectionFromControl(value: dict[str, Any]) -> NativeConfigurationSelection:
-    """Validate exact private request fields and same-owner selected read authority."""
+    """Validate exact private request fields and same-owner selected read authority.
+
+    Args:
+        value: Decoded schema-one create/verify request with the fixed field set,
+            generated stage path, physical identity declarations and owner consent.
+
+    Returns:
+        Syntax-validated native selection whose consent actor equals the declared owner.
+        This validates declarations without reading source or executing the scanner.
+
+    Raises:
+        ValueError: Schema, nonce, bounded text, paths, identities, profile or consent differs.
+        TypeError: Malformed nested values cannot be interpreted as the required fields.
+    """
 
     if set(value) != _CONTROL_FIELDS or type(value["schema_version"]) is not int or (
         value["schema_version"] != 1 or value["action"] not in {"create", "verify"}
@@ -162,7 +227,21 @@ def SelectionFromControl(value: dict[str, Any]) -> NativeConfigurationSelection:
 
 def StagePayload(stage: ArtifactStage, *,
                  scratch_identity: tuple[int, ...] | None = None) -> dict[str, object]:
-    """Describe original facts, refusing a changed expected scratch before serialization."""
+    """Describe original facts, refusing a changed expected scratch before serialization.
+
+    Args:
+        stage: Original stage whose manifests and recorded physical identities are described.
+        scratch_identity: Expected scratch device/inode tuple, or None to record the
+            current directory identity. A supplied identity must match exactly.
+
+    Returns:
+        Detached lease, root, scratch, executable and partition metadata. This does
+        not verify copied file contents or issue a parent observer's material proof.
+
+    Raises:
+        ValueError: Scratch physical path guards fail or its expected identity changed.
+        OSError: Scratch directory metadata cannot be observed.
+    """
 
     partitions = {}
 
@@ -186,7 +265,21 @@ def StagePayload(stage: ArtifactStage, *,
 
 def StageFromPayload(value: object, selection: NativeConfigurationSelection,
                      stage_root: Path) -> ArtifactStage:
-    """Decode only the original fixed stage shape without selected-file content reads."""
+    """Decode only the original fixed stage shape without selected-file content reads.
+
+    Args:
+        value: Fixed stage payload containing three partition manifests and identities.
+        selection: Original native selection supplying profile, executable and read consent.
+        stage_root: Generated stage root already associated with the original request.
+
+    Returns:
+        Reconstructed stage with matching scratch identity and declared partition
+        domains. Content verification and original parent proof issuance remain separate.
+
+    Raises:
+        ValueError: Payload shape, identities, manifest domain or scratch association fails.
+        OSError: Scratch metadata cannot be observed.
+    """
 
     if type(value) is not dict or set(value) != {
         "lease_id", "root_identity", "scratch_identity", "executable_identity", "partitions"
@@ -225,7 +318,16 @@ def StageFromPayload(value: object, selection: NativeConfigurationSelection,
 
 
 def ExactChildren(directory: Path, expected: set[str]) -> None:
-    """Refuse unexpected directory entries after at most one excess metadata entry."""
+    """Refuse unexpected directory entries after at most one excess metadata entry.
+
+    Args:
+        directory: Directory to enumerate for exact immediate child names, without recursion.
+        expected: Complete allowed child-name set; empty requires an empty directory.
+
+    Raises:
+        ValueError: An unexpected/duplicate entry appears or an expected entry is missing.
+        OSError: Directory entries cannot be enumerated.
+    """
 
     names: set[str] = set()
 
@@ -241,7 +343,17 @@ def ExactChildren(directory: Path, expected: set[str]) -> None:
 
 
 def CheckStageMetadata(stage: ArtifactStage, selection: NativeConfigurationSelection) -> None:
-    """Check only fixed finite no-follow identities and tree shape, never selected contents."""
+    """Check only fixed finite no-follow identities and tree shape, never selected contents.
+
+    Args:
+        stage: Stage with original root, selected executable and partition identities.
+        selection: Original selected input, native profile and explicit read consent.
+
+    Raises:
+        ValueError: Manifest, association, physical identity, exact child set or candidate
+            executable pin differs. Declared scanner size must be 1 byte through 256 MiB.
+        OSError: Required directory/file metadata cannot be observed.
+    """
 
     ConfigurationManifest(selection, stage.input.manifest)
     root = ArtifactPathInfo(stage.root, directory=True)
@@ -286,7 +398,20 @@ def CheckStageMetadata(stage: ArtifactStage, selection: NativeConfigurationSelec
 
 
 def VerifyStage(stage: ArtifactStage, selection: NativeConfigurationSelection) -> None:
-    """Verify copied bytes with per-role admission limits and decode the exact verified source."""
+    """Verify copied bytes with per-role admission limits and decode the exact verified source.
+
+    Args:
+        stage: Original stage whose copied input/scanner and selected executable are reread.
+        selection: Original profile, logical name and selected executable association.
+
+    Raises:
+        ValueError: Metadata, manifests, content hashes, UTF-8 or bounded reads fail.
+            Input admission is capped at 4096 bytes and executable admission at 256 MiB.
+        OSError: Required metadata or bounded file reads fail.
+
+    UTF-8 is decoded from the same copied source bytes used for manifest agreement.
+    The original selected source is not reopened and the scanner is never executed.
+    """
 
     CheckStageMetadata(stage, selection)
     source_bytes = io.BytesIO()
@@ -307,7 +432,22 @@ def VerifyStage(stage: ArtifactStage, selection: NativeConfigurationSelection) -
 
 
 def CreateStage(stage_root: Path, selection: NativeConfigurationSelection) -> ArtifactStage:
-    """Compose bounded actual streaming copies rather than broader global stage capture."""
+    """Compose bounded actual streaming copies rather than broader global stage capture.
+
+    Args:
+        stage_root: New generated stage path; creation is exclusive and uses mode 0700.
+        selection: Explicit read-authorized source and pinned native executable selection.
+
+    Returns:
+        Verified stage with captured input, scanner, empty material and empty scratch.
+        Streaming admission caps are 4096 source bytes, 256 MiB executable bytes and
+        zero material bytes; no provider process is launched.
+
+    Raises:
+        ValueError: Read consent, streaming limits, UTF-8, pin or stage verification fails.
+        OSError: Stage creation, copying or metadata observation fails. A partial tree
+            is retained on failure for the owning observer to assess.
+    """
 
     executable_identity = PhysicalIdentity(ArtifactPathInfo(selection.executable))
     stage_root.mkdir(mode=0o700)
@@ -330,7 +470,21 @@ def CreateStage(stage_root: Path, selection: NativeConfigurationSelection) -> Ar
 
 
 def ReadControl(path: Path, digest: str, identity: tuple[int, ...]) -> dict[str, Any]:
-    """Read exact private control through existing bounded before/open/after path guards."""
+    """Read exact private control through existing bounded before/open/after path guards.
+
+    Args:
+        path: Original request.json in the generated mode-0700 private request directory.
+        digest: Expected lowercase SHA-256 hex digest of the canonical request bytes.
+        identity: Original request file's physical identity, requiring unchanged mode 0600.
+
+    Returns:
+        Canonical request object after a read capped at 65536 bytes, matching digest,
+        physical file guards, selected consent and private/workspace associations.
+
+    Raises:
+        ValueError: Request name, digest, bytes, identity, permissions or association differs.
+        OSError: Physical metadata or bounded private control reading fails.
+    """
 
     if path.name != "request.json" or not _DIGEST.fullmatch(digest):
         raise ValueError("configuration material private request differs")
@@ -366,7 +520,22 @@ def ReadControl(path: Path, digest: str, identity: tuple[int, ...]) -> dict[str,
 
 def ObserveControl(value: dict[str, Any], digest: str,
                    request_identity: tuple[int, ...]) -> bytes:
-    """Create or verify only the read-authorized fixed selected snapshots inside this child."""
+    """Create or verify only the read-authorized fixed selected snapshots inside this child.
+
+    Args:
+        value: Original canonical request already read through private control guards.
+        digest: Original request's lowercase SHA-256 hex digest echoed in the response.
+        request_identity: Original physical request identity echoed for parent comparison.
+
+    Returns:
+        Canonical response bytes capped at 65536 bytes, binding original control and
+        request identity to created or reverified stage metadata. This child response
+        cannot itself issue the parent observer's material proof.
+
+    Raises:
+        ValueError: Platform ownership, request, bounded material or response validation fails.
+        OSError: Selected capture, verification or stage metadata observation fails.
+    """
 
     RequirePlatform()
     selection = SelectionFromControl(value)
@@ -387,7 +556,17 @@ def ObserveControl(value: dict[str, Any], digest: str,
 
 
 def Main(argv: list[str] | None = None) -> int:
-    """Run only the fixed installed reader; all refusals use a bounded sanitized diagnostic."""
+    """Run only the fixed installed reader; all refusals use a bounded sanitized diagnostic.
+
+    Args:
+        argv: Three explicit arguments: request path, SHA-256 digest and comma-separated
+            physical identity integers. None reads process arguments after the executable.
+
+    Returns:
+        Zero after rechecking unchanged control and writing the bounded canonical
+        response to stdout; two after a handled I/O, validation, type or key refusal,
+        with the fixed sanitized refusal line on stderr. No scanner is executed.
+    """
 
     arguments = sys.argv[1:] if argv is None else argv
 

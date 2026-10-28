@@ -36,7 +36,15 @@ _CONTROL_NAMES = frozenset({
 
 
 def ConfigurationPath(path: Path) -> None:
-    """Require explicit bounded absolute path syntax without resolving or reading it."""
+    """Require explicit bounded absolute path syntax without resolving or reading it.
+
+    Args:
+        path: Absolute Path with no parent traversal, NUL or line breaks, at most
+            4096 characters long. Existence and physical ownership are not checked.
+
+    Raises:
+        ValueError: The value is not a Path or violates the path syntax bounds.
+    """
 
     if not isinstance(path, Path) or not path.is_absolute() or ".." in path.parts or (
         len(str(path)) > 4096 or any(character in str(path) for character in ("\x00", "\n", "\r"))
@@ -78,19 +86,36 @@ class NativeConfigurationSelection:
         ConfigurationPath(self.executable)
 
     def Scanner(self) -> str:
-        """Return the fixed native scanner selector, without registering a capability."""
+        """Return the fixed native scanner selector, without registering a capability.
+
+        Returns:
+            ``dockerfile`` or ``kubernetes`` for the selected profile.
+        """
 
         return "dockerfile" if self.profile is ArtifactProfile.DOCKERFILE else "kubernetes"
 
     def Capability(self) -> str:
-        """Describe this profile's capability without issuing execution permission."""
+        """Describe this profile's capability without issuing execution permission.
+
+        Returns:
+            The profile's ``config.<scanner>-misconfigurations`` capability name.
+        """
 
         return "config." + self.Scanner() + "-misconfigurations"
 
 
 def ConfigurationManifest(selection: NativeConfigurationSelection,
                           manifest: ArtifactManifest) -> None:
-    """Check descriptive selected input metadata without accepting its observed bytes."""
+    """Check descriptive selected input metadata without accepting its observed bytes.
+
+    Args:
+        selection: Exact native selection whose profile and logical name must match.
+        manifest: INPUT manifest containing one matching file of 1 through 4096 bytes.
+
+    Raises:
+        ValueError: Types, profile, role, file count, name or declared byte size differ
+            from the selected-file contract. No file contents are read here.
+    """
 
     if type(selection) is not NativeConfigurationSelection or type(manifest) is not (
         ArtifactManifest
@@ -115,6 +140,18 @@ def PrepareNativeConfigurationVersion(
 
     The later material and authority owners must independently verify the selected bytes,
     fresh cache and original execution. This pure factory cannot supply those facts.
+
+    Args:
+        selection: Native profile, selected executable path and selected-read consent.
+        input_manifest: Matching one-file INPUT metadata, validated without content reads.
+        cache_directory: Explicit absolute cache path syntax; freshness is not observed.
+
+    Returns:
+        Fixed native Trivy VERSION invocation with a 10-second timeout and unknown
+        observed provider version. It grants no permission to launch a process.
+
+    Raises:
+        ValueError: Selected input metadata or cache path syntax is invalid.
     """
 
     ConfigurationManifest(selection, input_manifest)
@@ -156,7 +193,13 @@ class NativeConfigurationScanRecipe:
             raise ValueError("native configuration scan deadline requires an integer1..60")
 
     def Arguments(self) -> tuple[str, ...]:
-        """Return fixed embedded-check argv; current material and authority remain unproved."""
+        """Return fixed embedded-check argv; current material and authority remain unproved.
+
+        Returns:
+            Config-only Trivy argument tuple using the selected profile, separate
+            input/cache paths and validated timeout of 1 through 60 seconds. It
+            disables external check updates and supplies no execution authority.
+        """
 
         return (str(self.selection.executable), "--cache-dir", str(self.cache_directory),
             "--config=", "--debug", "config", "--cache-backend", "memory",
