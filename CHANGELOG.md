@@ -23,6 +23,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   JSON/SARIF/JUnit exports share one saved snapshot and preserve late refusal;
   existing synthetic CI profiles remain compatible.
 
+- Added Experimental read-only CVE 5.2 affected-product inspection with ordered
+  attributed CNA/ADP version/status declarations and exact raw-source evidence
+  binding. Existing intelligence snapshot/replay contracts remain unchanged;
+  source declarations do not establish applicability or a risk score.
+
 - Added Experimental native offline assessment of acknowledged original response
   headers, with separate PASSIVE admission, a fixed original window and source-linked
   missing-field Findings. Independent model/workspace CAS, ACK and historical replay

@@ -777,3 +777,15 @@ and published files do not turn a later refusal into a successful gate. Syntheti
 profiles and serialized native workflow summaries retain their existing shapes.
 See [CI scanning](CI_SCAN.md) and
 [ADR 0101](adr/0101-native-trivy-ci-predicate.md).
+
+
+## CVE affected-product source statements
+
+`fuzzy1337.intelligence_applicability` is an additive Experimental profile-one
+inspection API for explicitly supplied CVE Record 5.2/5.2.0 bytes and their exact
+source/evidence binding. It preserves ordered CNA/ADP affected-product and version
+status declarations as immutable source statements. It performs no applicability
+matching, version comparison, scoring, publisher authentication, network activity
+or Finding mutation. Existing intelligence schema-one snapshots and replay remain
+unchanged. See [the profile](INTELLIGENCE_APPLICABILITY.md) and
+[ADR 0100](adr/0100-source-attributed-cve-applicability-statements.md).
