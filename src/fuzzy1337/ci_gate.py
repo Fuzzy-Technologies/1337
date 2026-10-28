@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Explicit finding predicates over verified current synthetic configuration/image acquisitions."""
+"""Explicit finding predicates over verified current configuration and image acquisitions."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ from fuzzy1337.executors import (
 )
 from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus
 from fuzzy1337.image_evidence import ImageOperationCapture
-from fuzzy1337.images import SyntheticTrivyCandidates
+from fuzzy1337.images import Record, SyntheticTrivyCandidates, TrivyCandidates
 from fuzzy1337.model import (
     LocalModelStore,
     ModelProvenance,
@@ -65,6 +65,9 @@ from fuzzy1337.model import (
     RequireModelReference,
     SecurityObject,
 )
+from fuzzy1337.native_image_admission import VerifyRecords as VerifyNativeRecords
+from fuzzy1337.native_image_capture import NativeTrivyOperation, NativeTrivyOperationCapture
+from fuzzy1337.native_image_workflow import NativeImageAcceptance
 from fuzzy1337.policy import RequireDigest
 from fuzzy1337.reporting import ReportSnapshot
 from fuzzy1337.synthetic_images import VerifyRecords
@@ -144,7 +147,8 @@ class CiPredicateResult:
         RequireDigest(self.snapshot_sha256)
         RequireWorkspaceText(self.run_reference, "CI run reference")
 
-        if not re.fullmatch(r"artifact-run:[0-9a-f]{32}", self.run_reference):
+        if not re.fullmatch(r"(?:artifact-run:[0-9a-f]{32}|native-scan:[0-9a-f]{64})",
+                            self.run_reference):
             raise ValueError("CI result requires an original run identity")
 
         for values in (self.selected_finding_references, self.matched_finding_references):
@@ -186,7 +190,7 @@ def EvaluatePredicate(
         selected: Current saved interpretations whose original source/run proof was verified.
         criterion: Exact caller-selected severity/status conjunction and count limit.
         snapshot_sha256: Full verified model pin, not a revision-only assertion.
-        run_reference: Original executed configuration run whose detections form the selection.
+        run_reference: Original executed artifact/native run whose detections form the selection.
 
     Returns:
         Criterion satisfaction only; zero matching facts makes no universal discovery claim.
@@ -570,3 +574,117 @@ def EvaluateImageCriterion(
 
     return EvaluatePredicate(rebuilt_model, tuple(selected), criterion, expected_snapshot_sha256,
                              scan.outcome.run_id)
+
+
+def EvaluateNativeImageCriterion(
+    model: ModelState, captures: tuple[NativeTrivyOperationCapture, ...],
+    records: tuple[EvidenceRecord, ...], workspace_root: Path, *,
+    expected_snapshot_sha256: str, criterion: CiFindingCriterion,
+    acceptance: NativeImageAcceptance,
+) -> CiPredicateResult:
+    """Verify original native acceptance and persisted current-source facts before selection.
+
+    Args:
+        model: Exact complete current saved model matching the original JSON export digest.
+        captures: Exact original successful VERSION and SCAN from the owning native workflow.
+        records: Six original immutable owning-job evidence acquisitions.
+        workspace_root: Original workspace owning the live acceptance and saved model/evidence.
+        expected_snapshot_sha256: Complete saved snapshot digest, never revision alone.
+        criterion: Explicit severity/status conjunction, finite limit and acknowledgement.
+        acceptance: Original in-process issued handle; replay cannot reconstruct authority.
+
+    Returns:
+        Predicate truth for only original current native detections, retaining saved triage.
+
+    Raises:
+        ValueError: Original types, pair, snapshot or saved source/detection proof differs.
+        ArtifactDeniedError: Current original pair authority or material acceptance is refused.
+        EvidenceError: Original immutable owning acquisitions cannot be verified.
+        OSError: Original model, evidence or authority storage cannot be read.
+    """
+
+    if type(model) is not ModelState or type(captures) is not tuple or len(captures) != 2 or (
+        any(type(item) is not NativeTrivyOperationCapture for item in captures)
+        or type(criterion) is not CiFindingCriterion or type(expected_snapshot_sha256) is not str
+        or type(acceptance) is not NativeImageAcceptance
+    ):
+        raise ValueError("CI native gate requires exact original paired contracts")
+
+    criterion.__post_init__()
+    RequireDigest(expected_snapshot_sha256)
+    acceptance.Validate(captures, workspace_root)
+    version, scan = captures
+
+    if (version.operation, scan.operation) != (
+        NativeTrivyOperation.VERSION, NativeTrivyOperation.SCAN
+    ) or type(records) is not tuple or records != (*version.records, *scan.records):
+        raise ValueError("CI native gate requires the original pair and its six acquisitions")
+
+    RequireModelContracts(model)
+    rebuilt_model = ModelState.FromDict(model.ToDict())
+
+    if rebuilt_model != model or ReportSnapshot(rebuilt_model).SnapshotDigest() != (
+        expected_snapshot_sha256
+    ) or LocalModelStore(workspace_root).Open() != rebuilt_model:
+        raise ValueError("CI native gate requires the complete exact current saved snapshot")
+
+    facts, original_version, original_scan = VerifyNativeRecords(records, workspace_root)
+
+    if facts.workspace_id != rebuilt_model.workspace_id or facts.scan_refusal is not None:
+        raise ValueError("CI native gate requires its successful original owned SCAN")
+
+    for capture, original in ((version, original_version), (scan, original_scan)):
+        if capture.Envelope() != original.envelope or capture.request != original.request or (
+            capture.outcome != original.outcome
+        ):
+            raise ValueError("CI native acquisitions differ from these original captures")
+
+    wire = ParseJson(original_version.outcome.stdout, 16 * 1024)
+    candidates = TrivyCandidates(rebuilt_model.workspace_id,
+        ParseJson(original_scan.outcome.stdout, 4 * 1024 * 1024), wire,
+        Record(wire["VulnerabilityDB"]), facts.provenance)
+    objects, relations, observations, findings = candidates
+    saved_objects = {item.Reference(): item for item in rebuilt_model.objects}
+    saved_relations = {item.Reference(): item for item in rebuilt_model.relations}
+    entities: tuple[SecurityObject | Relation, ...] = (*objects, *relations)
+
+    for entity in entities:
+        saved: SecurityObject | Relation | None = saved_objects.get(entity.Reference()) if (
+            type(entity) is SecurityObject
+        ) else saved_relations.get(entity.Reference())
+
+        if saved is None or saved.attributes != entity.attributes or (
+            facts.provenance not in saved.provenance
+        ):
+            raise ValueError("CI native gate has no exact saved current inventory proof")
+
+    if any(item not in rebuilt_model.observations for item in observations):
+        raise ValueError("CI native gate has no exact saved current source observation")
+
+    selected = []
+
+    for candidate in findings:
+        reference = candidate.ToObject(rebuilt_model.workspace_id).Reference()
+        saved_finding = saved_objects.get(reference)
+        detection = Observation("finding-detection", reference, candidate.ToAttributes(),
+                                facts.provenance)
+
+        if saved_finding is None or facts.provenance not in saved_finding.provenance or (
+            detection not in rebuilt_model.observations
+        ):
+            raise ValueError("CI native gate has no exact saved current detection proof")
+
+        current = Finding.FromObject(saved_finding)
+        attributes, expected = current.ToAttributes(), candidate.ToAttributes()
+
+        for field_name in ("status", "status_reason"):
+            attributes.pop(field_name)
+            expected.pop(field_name)
+
+        if attributes != expected:
+            raise ValueError("CI saved native interpretation differs from original source facts")
+
+        selected.append(current)
+
+    return EvaluatePredicate(rebuilt_model, tuple(selected), criterion, expected_snapshot_sha256,
+                             facts.provenance.run_reference)

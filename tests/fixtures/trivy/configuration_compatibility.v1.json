@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "classification": "independent-native-compatibility-oracle",
+  "providerVersion": "0.75.0",
+  "runtimeAcceptance": "UNRUN",
+  "nativeProductAcceptance": false,
+  "scanCompleteness": "not-assessed",
+  "expectationsBasis": "Unchanged owned source bytes and independently inspected pinned upstream rules, parser metadata, result conversion, and per-input success behavior; no scanner execution or harness output was used.",
+  "checksSource": {
+    "module": "github.com/aquasecurity/trivy-checks",
+    "moduleVersion": "v1.12.2-0.20260908095928-2d1b9bec7d6f",
+    "pinnedCommit": "2d1b9bec7d6f6805bcca4268d2ca28cab347d643",
+    "license": "MIT",
+    "licenseGitBlobSha": "f6fa90a243e70bce48133ae334c3049b52f99540",
+    "sourceFiles": [
+      {
+        "path": "checks/docker/root_user.rego",
+        "gitBlobSha": "dd2ee23b74a8d1d8f5ad6af3933369107a6a1e4b",
+        "sourceUrl": "https://github.com/aquasecurity/trivy-checks/blob/2d1b9bec7d6f6805bcca4268d2ca28cab347d643/checks/docker/root_user.rego"
+      },
+      {
+        "path": "checks/kubernetes/privileged.rego",
+        "gitBlobSha": "298a2d0e4d01c4c90103e0d2605778bcdbbb71e2",
+        "sourceUrl": "https://github.com/aquasecurity/trivy-checks/blob/2d1b9bec7d6f6805bcca4268d2ca28cab347d643/checks/kubernetes/privileged.rego"
+      },
+      {
+        "path": "internal/rego/result.go",
+        "gitBlobSha": "f2c277e5faf26d3450c359f340a2cda89aaab97e",
+        "sourceUrl": "https://github.com/aquasecurity/trivy-checks/blob/2d1b9bec7d6f6805bcca4268d2ca28cab347d643/internal/rego/result.go"
+      },
+      {
+        "path": "lib/docker/docker.rego",
+        "gitBlobSha": "2b7b5144cadee101a98cb6e91ea17b7b199c3fae",
+        "sourceUrl": "https://github.com/aquasecurity/trivy-checks/blob/2d1b9bec7d6f6805bcca4268d2ca28cab347d643/lib/docker/docker.rego"
+      },
+      {
+        "path": "lib/kubernetes/kubernetes.rego",
+        "gitBlobSha": "2ad5e5784f1a41aa9743b6846f1664c0067d5622",
+        "sourceUrl": "https://github.com/aquasecurity/trivy-checks/blob/2d1b9bec7d6f6805bcca4268d2ca28cab347d643/lib/kubernetes/kubernetes.rego"
+      },
+      {
+        "path": "lib/kubernetes/security_context.rego",
+        "gitBlobSha": "8271a6e9de03e5c604b8af88823ce42d82c6e0c0",
+        "sourceUrl": "https://github.com/aquasecurity/trivy-checks/blob/2d1b9bec7d6f6805bcca4268d2ca28cab347d643/lib/kubernetes/security_context.rego"
+      },
+      {
+        "path": "embed.go",
+        "gitBlobSha": "b2fe69b978cc64cd8267e2b9a398265c9221be5b",
+        "sourceUrl": "https://github.com/aquasecurity/trivy-checks/blob/2d1b9bec7d6f6805bcca4268d2ca28cab347d643/embed.go"
+      }
+    ]
+  },
+  "trivySource": {
+    "repository": "aquasecurity/trivy",
+    "ref": "v0.75.0",
+    "license": "Apache-2.0",
+    "licenseGitBlobSha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+    "goModGitBlobSha": "84d7d685fa0d696c5a0d633bf8aa877742eb31c2",
+    "sourceFiles": [
+      {
+        "path": "pkg/iac/rego/embed.go",
+        "gitBlobSha": "d702b9a1e835ad798548bd354b5f1b65313e4365",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/rego/embed.go"
+      },
+      {
+        "path": "pkg/iac/rego/load.go",
+        "gitBlobSha": "ae0b712e063cf8429f44ccb110fa2c8a32316979",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/rego/load.go"
+      },
+      {
+        "path": "pkg/iac/rego/metadata.go",
+        "gitBlobSha": "049771bca1ef8159aab9ab66161bcd4b0a8630fe",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/rego/metadata.go"
+      },
+      {
+        "path": "pkg/iac/rego/result.go",
+        "gitBlobSha": "7418937062987b3981377af2dd931c2c80b24076",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/rego/result.go"
+      },
+      {
+        "path": "pkg/iac/rego/scanner.go",
+        "gitBlobSha": "6a642d8b1ddf27913f1d2213bdf8a82d06bba2f1",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/rego/scanner.go"
+      },
+      {
+        "path": "pkg/misconf/scanner.go",
+        "gitBlobSha": "6533338b3cc81d4ac0a87475f799573637b848d2",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/misconf/scanner.go"
+      },
+      {
+        "path": "pkg/fanal/types/const.go",
+        "gitBlobSha": "63cba158858d76ae7840503d1de3e48b0f687feb",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/fanal/types/const.go"
+      },
+      {
+        "path": "pkg/iac/scanners/kubernetes/parser/parser.go",
+        "gitBlobSha": "06f19cfea6d0ce05706b810796db7c67ea2b81e9",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/scanners/kubernetes/parser/parser.go"
+      },
+      {
+        "path": "pkg/iac/scanners/kubernetes/parser/manifest_node.go",
+        "gitBlobSha": "c825a732cf34c03604f975f824de12b8a8a9a0d7",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/scanners/kubernetes/parser/manifest_node.go"
+      },
+      {
+        "path": "pkg/iac/scanners/dockerfile/parser/parser.go",
+        "gitBlobSha": "d3f56a903fa68016659a881aa5e4bd9e4fb68f65",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/scanners/dockerfile/parser/parser.go"
+      },
+      {
+        "path": "pkg/iac/providers/dockerfile/dockerfile.go",
+        "gitBlobSha": "84b10c42fb7eef836484da7409c32a9cac38d053",
+        "sourceUrl": "https://github.com/aquasecurity/trivy/blob/v0.75.0/pkg/iac/providers/dockerfile/dockerfile.go"
+      }
+    ]
+  },
+  "interpretation": {
+    "requiredCheckIdField": "ID",
+    "ruleIds": {
+      "dockerRootUser": "DS-0002",
+      "kubernetesPrivilegedContainer": "KSV-0017"
+    },
+    "ruleAliases": {
+      "DS-0002": [
+        "AVD-DS-0002",
+        "DS002",
+        "least-privilege-user",
+        "docker-least-privilege-user"
+      ],
+      "KSV-0017": [
+        "AVD-KSV-0017",
+        "KSV017",
+        "no-privileged-containers",
+        "kubernetes-no-privileged-containers"
+      ]
+    },
+    "aliasesAreSourceMetadata": true,
+    "processingProof": "Each exact selected file must occur once as a processed result with its declared result type. Include nonfailures and require the specified PASS rows; an empty list is insufficient.",
+    "unrelatedResults": "Retain every other native row without asserting a whole-file clean result or a total finding count.",
+    "failureCoordinateBasis": "result.new inherits the complete failing cause object's location. Docker USER has its command range; Kubernetes privileged uses the entire container mapping, not the privileged scalar line.",
+    "successCoordinates": "Omitted deliberately. The per-input no-deny path emits a passed result with the input filename and no source range; no synthetic success location or selector is inferred.",
+    "multiDocumentBasis": "The Kubernetes parser offsets every document's node metadata into the original file. The safe first document must supply a selected-rule PASS, and the unsafe second document a selected-rule FAIL at its container range."
+  },
+  "cases": [
+    {
+      "caseId": "dockerfile.root-user",
+      "scanner": "dockerfile",
+      "inputs": [
+        {
+          "fixture": "dockerfile/unsafe/Dockerfile",
+          "logicalPath": "Dockerfile",
+          "sizeBytes": 264,
+          "sha256": "3f0114052cfa7d826abf315fededac339851d4c1991b5c2447bfdf01882323b7",
+          "resultType": "dockerfile"
+        }
+      ],
+      "requiredChecks": [
+        {
+          "id": "DS-0002",
+          "status": "FAIL",
+          "severity": "HIGH",
+          "nativeStartLine": 7,
+          "nativeEndLine": 7
+        }
+      ],
+      "sourceFacts": {
+        "documentCount": 1,
+        "userLine": 7,
+        "userValue": "root"
+      }
+    },
+    {
+      "caseId": "dockerfile.non-root-user",
+      "scanner": "dockerfile",
+      "inputs": [
+        {
+          "fixture": "dockerfile/safe/Dockerfile",
+          "logicalPath": "Dockerfile",
+          "sizeBytes": 271,
+          "sha256": "1712d2480103b5881b6df078d5471d12a2c9e0d1d7f6cb96270aa7751943231c",
+          "resultType": "dockerfile"
+        }
+      ],
+      "requiredChecks": [
+        {
+          "id": "DS-0002",
+          "status": "PASS"
+        }
+      ],
+      "sourceFacts": {
+        "documentCount": 1,
+        "userLine": 7,
+        "userValue": "10001:10001"
+      }
+    },
+    {
+      "caseId": "kubernetes.privileged-container",
+      "scanner": "kubernetes",
+      "inputs": [
+        {
+          "fixture": "kubernetes/unsafe.yaml",
+          "logicalPath": "unsafe.yaml",
+          "sizeBytes": 410,
+          "sha256": "63b77e1703ab126b9f5283daa5091f750af8ddab3e3b8e24eed63ea36888dd1d",
+          "resultType": "kubernetes"
+        }
+      ],
+      "requiredChecks": [
+        {
+          "id": "KSV-0017",
+          "status": "FAIL",
+          "severity": "HIGH",
+          "nativeStartLine": 12,
+          "nativeEndLine": 15
+        }
+      ],
+      "sourceFacts": {
+        "documentCount": 1,
+        "documents": [
+          {
+            "documentIndex": 0,
+            "resourceName": "owned-unsafe",
+            "containerName": "app",
+            "containerStartLine": 12,
+            "containerEndLine": 15,
+            "privilegedLine": 15,
+            "privileged": true
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "kubernetes.non-privileged-container",
+      "scanner": "kubernetes",
+      "inputs": [
+        {
+          "fixture": "kubernetes/safe.yaml",
+          "logicalPath": "safe.yaml",
+          "sizeBytes": 409,
+          "sha256": "52e45b63f8aec99934dcfddd90d1f3b417111ccabe4514c262e3e8cf443f729f",
+          "resultType": "kubernetes"
+        }
+      ],
+      "requiredChecks": [
+        {
+          "id": "KSV-0017",
+          "status": "PASS"
+        }
+      ],
+      "sourceFacts": {
+        "documentCount": 1,
+        "documents": [
+          {
+            "documentIndex": 0,
+            "resourceName": "owned-safe",
+            "containerName": "app",
+            "containerStartLine": 12,
+            "containerEndLine": 15,
+            "privilegedLine": 15,
+            "privileged": false
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "kubernetes.second-document",
+      "scanner": "kubernetes",
+      "inputs": [
+        {
+          "fixture": "kubernetes/multi.yaml",
+          "logicalPath": "multi.yaml",
+          "sizeBytes": 823,
+          "sha256": "8cd7163a754dc1a0c29ce1e54fc29cb68a5a0a2b71c79d03a3c54d9caf363b1f",
+          "resultType": "kubernetes"
+        }
+      ],
+      "requiredChecks": [
+        {
+          "id": "KSV-0017",
+          "status": "PASS"
+        },
+        {
+          "id": "KSV-0017",
+          "status": "FAIL",
+          "severity": "HIGH",
+          "nativeStartLine": 28,
+          "nativeEndLine": 31
+        }
+      ],
+      "sourceFacts": {
+        "documentCount": 2,
+        "separatorLine": 16,
+        "documents": [
+          {
+            "documentIndex": 0,
+            "resourceName": "owned-safe",
+            "containerName": "app",
+            "containerStartLine": 12,
+            "containerEndLine": 15,
+            "privilegedLine": 15,
+            "privileged": false
+          },
+          {
+            "documentIndex": 1,
+            "resourceName": "owned-unsafe",
+            "containerName": "app",
+            "containerStartLine": 28,
+            "containerEndLine": 31,
+            "privilegedLine": 31,
+            "privileged": true
+          }
+        ]
+      }
+    }
+  ]
+}

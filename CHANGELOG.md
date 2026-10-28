@@ -23,6 +23,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   Grammar and explicit field agreement are validated without calculating scores;
   original intelligence schema-one snapshots and replay remain unchanged.
 
+- Added an explicit native Trivy CI profile using the original current image run,
+  independently revalidated source records and operator-selected finding limits.
+  JSON/SARIF/JUnit exports share one saved snapshot and preserve late refusal;
+  existing synthetic CI profiles remain compatible.
+
 - Added Experimental read-only CVE 5.2 affected-product inspection with ordered
   attributed CNA/ADP version/status declarations and exact raw-source evidence
   binding. Existing intelligence snapshot/replay contracts remain unchanged;
