@@ -42,6 +42,11 @@ BROWSER_FEATURE_CONDITION = (
     "&& github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[browser-feature-checkpoint]'))"
 )
+EXTERNAL_NATIVE_FEATURE_CONDITION = (
+    INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
+    "&& github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, '[native-external-checkpoint]'))"
+)
 NATIVE_CRAWL_PORTABILITY_JOBS = {
     "native-crawl-windows-portability", "native-crawl-container-portability",
 }
@@ -103,7 +108,8 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
         job = jobs[job_id]
         condition = " ".join(str(job.get("if", "")).split())
         expected_condition = (
-            BROWSER_FEATURE_CONDITION if job_id == "browser-page-quality"
+            EXTERNAL_NATIVE_FEATURE_CONDITION if job_id == "external-targets"
+            else BROWSER_FEATURE_CONDITION if job_id == "browser-page-quality"
             else PORTABLE_PROTOCOL_FEATURE_CONDITION if job_id == "quality"
             else NATIVE_IMAGE_FEATURE_CONDITION if name == "trivy-acceptance.yml"
             else INTEGRATION_CONDITION)

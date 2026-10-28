@@ -98,6 +98,12 @@ The smoke result does not substitute for scanner acceptance. Local Docker is
 unavailable in the implementation environment; source and offline tests do not
 establish runtime acceptance.
 
+The explicit draft marker `[native-external-checkpoint]` enables only this
+job's installed native three-case step for supported-runtime diagnosis. The
+already separate target smoke and other complete integration jobs wait for
+final readiness. This checkpoint preserves original evidence and JUnit; it
+does not establish final integration acceptance.
+
 Focused offline contract checks:
 
 ```bash

@@ -8,11 +8,11 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 from tests.functional import external_native_runner as bundle_owner
 from tests.functional import external_native_runtime as runtime_owner
@@ -326,6 +326,16 @@ def test_FailedScannerExportStillRemovesRunnerAndTarget(tmp_path, monkeypatch, c
         def __init__(self, *arguments):
             """Ignore fixture construction arguments without creating resources."""
 
+        def Start(self):
+            """Enter the actual generator owner without starting a real target."""
+
+            operations.append(("synthetic-target-start",))
+
+        def Stop(self):
+            """Expose the actual generator owner's unconditional teardown."""
+
+            operations.append(("synthetic-target-cleanup",))
+
         def Run(self, *argv, timeout_seconds):
             """Record the requested finite lifecycle operation with fixed synthetic output."""
 
@@ -344,18 +354,7 @@ def test_FailedScannerExportStillRemovesRunnerAndTarget(tmp_path, monkeypatch, c
 
             runtime_owner.ComposeLab.RequireSuccess(result, operation)
 
-    @contextmanager
-    def Own(lab):
-        """Expose no resources while proving target cleanup after the consumer fails."""
-
-        try:
-            yield lab
-
-        finally:
-            operations.append(("synthetic-target-cleanup",))
-
     monkeypatch.setattr(runtime_owner, "ExternalTargetLab", Lab)
-    monkeypatch.setattr(runtime_owner, "OwnExternalTarget", Own)
     monkeypatch.setattr(runtime_owner, "Attach", lambda *arguments: (
         CommandResult(("docker", "start"), 4, "not-json", "synthetic-failure"), b"not-json"))
 
@@ -363,4 +362,71 @@ def test_FailedScannerExportStillRemovesRunnerAndTarget(tmp_path, monkeypatch, c
         runtime.RunCase(pack["cases"][0])
 
     assert any(argv[:2] == ("docker", "rm") for argv in operations)
+    assert operations[0] == ("synthetic-target-start",)
     assert operations[-1] == ("synthetic-target-cleanup",)
+
+
+def test_ActualTargetGeneratorOwnerCleansUpAfterStartupFailure(tmp_path, monkeypatch):
+    """The native caller adapts the fixture generator and retains its pre-yield teardown."""
+
+    pack, target = LoadPack()
+    runtime = NativeBenchmarkRuntime(Path(__file__).resolve().parents[2], tmp_path, pack, target)
+    operations = []
+
+    class Lab:
+        """Fail before yielding a synthetic lifecycle while retaining the real owner."""
+
+        def __init__(self, *arguments):
+            """Ignore construction arguments without acquiring resources."""
+
+        def Start(self):
+            """Represent a bounded startup refusal before any scanner can start."""
+
+            operations.append("start")
+
+            raise RuntimeError("synthetic startup refusal")
+
+        def Stop(self):
+            """Prove the existing generator finalizer runs after startup refusal."""
+
+            operations.append("cleanup")
+
+    monkeypatch.setattr(runtime_owner, "ExternalTargetLab", Lab)
+
+    with pytest.raises(RuntimeError, match="startup refusal"):
+        runtime.RunCase(pack["cases"][0])
+
+    assert operations == ["start", "cleanup"]
+
+
+def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
+    """One explicit draft marker exercises native cases without repeating the full matrix."""
+
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.safe_load((root / ".github/workflows/python-quality.yml").read_text())
+    jobs = workflow["jobs"]
+    marker = "[native-external-checkpoint]"
+    final = ("github.event_name == 'push' || (github.event_name == 'pull_request' "
+             "&& github.event.pull_request.draft == false)")
+    checkpoint = (final + " || (github.event_name == 'pull_request' "
+                  "&& github.event.pull_request.draft == true "
+                  "&& contains(github.event.pull_request.body, '" + marker + "'))")
+    lane = jobs["external-targets"]
+    assert " ".join(lane["if"].split()) == checkpoint
+    assert lane["env"]["FUZZY1337_EXTERNAL_NATIVE_BENCHMARK"] == "juice-shop"
+    assert lane.get("continue-on-error", False) is False
+    assert all(marker not in job.get("if", "") for name, job in jobs.items()
+               if name != "external-targets")
+    steps = {step["name"]: step for step in lane["steps"]}
+    assert " ".join(steps["Execute pinned target through pytest"]["if"].split()) == final
+    native = steps["Execute installed native scanner against three fresh pinned targets"]
+    assert "tests/functional/test_external_native_benchmark.py" in native["run"]
+    assert "--no-cov -n 0" in native["run"] and "--junitxml=" in native["run"]
+    assert native["timeout-minutes"] == 15 and lane["timeout-minutes"] == 20
+    upload = steps["Preserve external target evidence"]
+    assert upload["if"] == "always()" and (
+        "functional-evidence/external-native-benchmark/" in upload["with"]["path"]
+    )
+    container = next(step["run"] for step in jobs["container-quality"]["steps"]
+                     if step.get("name") == "Run container quality gate")
+    assert "--suite-timeout 900" in container

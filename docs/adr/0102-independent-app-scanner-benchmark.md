@@ -138,3 +138,10 @@ Enabled missing prerequisites fail. The job keeps its original check/artifact
 identity, bounded execution, and unconditional evidence retention. Actual
 Docker acceptance remains unrun until the final proposed revision executes
 successfully in shared CI; the other two scanner tracks remain candidates.
+
+An explicit draft-only `[native-external-checkpoint]` marker can run the existing
+external job's installed native three cases for supported-runtime diagnosis.
+The previous target smoke and all other complete integration jobs remain
+readiness-gated for this marker. Preserve the same finite execution, original
+evidence and JUnit. A checkpoint is separate from final integration acceptance;
+the stable proposed revision must still pass the full shared readiness gate.

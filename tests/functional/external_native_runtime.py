@@ -10,6 +10,7 @@ import json
 import re
 import subprocess
 import time
+from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 from uuid import uuid4
@@ -213,7 +214,7 @@ class NativeBenchmarkRuntime(ComposeLab):
         lab = ExternalTargetLab(self.repository_root, directory / "target",
                                 LoadTarget(self.repository_root))
 
-        with OwnExternalTarget(lab) as target_lab:
+        with contextmanager(OwnExternalTarget)(lab) as target_lab:
             control_sha256 = self.Control(case, target_lab)
             target_id = target_lab.provenance["container_id"]
             name = target_lab.project_name + "-native"

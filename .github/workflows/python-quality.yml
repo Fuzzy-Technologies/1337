@@ -366,6 +366,8 @@ jobs:
     if: >-
       github.event_name == 'push' || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == false)
+      || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[native-external-checkpoint]'))
     name: Pinned external target regression
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -386,6 +388,9 @@ jobs:
       - name: Synchronize locked environment
         run: uv sync --locked --extra dev --python 3.14
       - name: Execute pinned target through pytest
+        if: >-
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
         run: >-
           uv run --locked --extra dev pytest tests/functional/test_external_targets.py
           -o addopts='' --no-cov -n 0 -v
