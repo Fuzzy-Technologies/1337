@@ -80,3 +80,21 @@ def test_InstalledFreshFixedContentHeaderPipelineRetainsNegativeAssessmentAndRel
         "An actual fixed header must not create a Finding")
     assert result["identities"]["condition_observed"] is False, (
         "The persisted negative assessment must derive from the original fixed header")
+
+
+def test_InstalledFreshPolicyDeniedContentHeaderPipelinePreservesAcquiredStateWithoutAssessment(
+    installed_content_header_pipeline, tmp_path,
+):
+    """Valid SAFE capture does not grant offline analysis permission or permit an analysis Save."""
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence", retained / "policy-denied")
+    evidence.Json("case.json", {"schema_version": 1,
+        "identity": "content-sdk:ipv4:missing:policy-denied:no-analysis-save",
+        "expected_findings": 0, "assessment": "unassessed",
+        "runtime_acceptance": "unassessed-until-original-checks"})
+    result = RunInstalled(installed, tmp_path / "pipeline", evidence,
+        fixture_id="policy-" + uuid4().hex, case="missing", scenario="policy-denied", enabled=True)
+    assert result == {"state": "checked-authority-refusal", "expected_findings": 0,
+        "runtime_acceptance": "passed", "source_delivery": "normal-eof"}, (
+            "Denied analysis must remain unassessed without writing an assessment or Finding")

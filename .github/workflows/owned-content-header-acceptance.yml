@@ -59,6 +59,53 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+  policy-denied-content-header:
+    if: >-
+      github.event_name == 'pull_request' &&
+      (github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.body, '[owned-content-header-policy-denied-checkpoint]'))
+    name: Installed content analysis policy refusal without Save
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE: "1"
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned environment tool
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked development tools
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Execute the one fresh content policy refusal
+        timeout-minutes: 3
+        run: >-
+          uv run --locked --extra dev pytest
+          tests/functional/test_owned_content_response_sdk_pipeline.py::test_InstalledFreshPolicyDeniedContentHeaderPipelinePreservesAcquiredStateWithoutAssessment
+          -q -x -n0 --no-cov --timeout=150 --timeout-method=thread
+          --junitxml=functional-evidence/owned-content-header-policy-denied.xml
+      - name: Require one genuine refusal without interpretation or Save
+        run: >-
+          uv run --locked --extra dev python
+          -m tests.contract.owned_content_response_ci_denial_evidence
+          functional-evidence/owned-content-header-policy-denied.xml functional-evidence/owned-content-sdk
+      - name: Preserve original policy refusal and acquired state evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owned-content-header-policy-denied-original-evidence
+          path: |
+            functional-evidence/owned-content-header-policy-denied.xml
+            functional-evidence/owned-content-sdk/
+          retention-days: 14
+          if-no-files-found: error
+
   fixed-content-header:
     if: >-
       github.event_name == 'pull_request' &&
