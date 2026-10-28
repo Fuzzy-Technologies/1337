@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   controlled-native-pair:
-    if: ${{ false }}
+    if: ${{ github.event.pull_request.draft && contains(github.event.pull_request.body, '<!-- native-ci-diagnostic-2115 -->') }}
     name: Controlled native CI Windows diagnostic
     runs-on: windows-2022
     timeout-minutes: 5
