@@ -775,6 +775,20 @@ Current versioned public contracts:
 Examples are illustrative and live under `contracts/examples/`. An example does not create a new contract beyond the schema and this policy.
 
 
+## Native Trivy CI profile
+
+The Experimental `ci scan --profile native-trivy` selection adds the existing
+governed native image workflow to CI finding predicates. Native run references
+use `native-scan:<sha256>` alongside the unchanged synthetic `artifact-run:<uuid>`
+form. An internal nonserialized original-pair handle revalidates current authority
+before the predicate and after report publication; historical receipts alone do
+not establish current permission. JSON/SARIF/JUnit share one exact saved model,
+and published files do not turn a later refusal into a successful gate. Synthetic
+profiles and serialized native workflow summaries retain their existing shapes.
+See [CI scanning](CI_SCAN.md) and
+[ADR 0101](adr/0101-native-trivy-ci-predicate.md).
+
+
 ## CVE affected-product source statements
 
 `fuzzy1337.intelligence_applicability` is an additive Experimental profile-one
