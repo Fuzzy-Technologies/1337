@@ -1,8 +1,9 @@
 # Finite real-application scanner comparison
 
-This is the source contract for [ADR 0102](../../../docs/adr/0102-independent-app-scanner-benchmark.md)
-and Task #40. It complements the existing external target health smoke. It
-does not start Docker, execute a scanner, or claim vulnerability acceptance.
+This is the finite oracle and execution contract for
+[ADR 0102](../../../docs/adr/0102-independent-app-scanner-benchmark.md) and Task
+#40. Actual scanner evidence is separate from the existing target health smoke;
+the declared response cases do not establish whole-application accuracy.
 
 | Case              | Exact path                        | Expected bounded property |
 | ----------------- | --------------------------------- | ------------------------- |
@@ -27,11 +28,11 @@ version/root controls reuse the existing target contract. Source inspection
 does not prove what the running image returns; preserve actual status, media,
 body attribution, and transfer framing in the eventual scanner evidence.
 
-| Track           | Mapping                                       | Current state                   |
-| --------------- | --------------------------------------------- | ------------------------------- |
-| Native engine   | `native.prometheus-exposition`                | Available; native checkpoint FN |
-| Whole 1337      | Governed Nuclei workflow + candidate template | Candidate                       |
-| External Nuclei | Standalone real binary + same template        | Candidate                       |
+| Track           | Mapping                                       | Current state                 |
+| --------------- | --------------------------------------------- | ----------------------------- |
+| Native engine   | `native.prometheus-exposition`                | Available; three cases passed |
+| Whole 1337      | Governed Nuclei workflow + candidate template | Candidate                     |
+| External Nuclei | Standalone real binary + same template        | Candidate                     |
 
 The candidate checks a standard process CPU metric family; the native detector
 associates generic HELP/TYPE/sample names. They assess the same application
@@ -86,14 +87,22 @@ Effective budgets must be measured honestly. Nuclei currently fixes a 1 MiB
 response ceiling and couples its request/process timeout; native metrics uses
 separate request/job limits and a 256 KiB body ceiling. The comparison
 retains budget deviations and refuses to imply identical performance inputs.
-The genuine native checkpoint at PR head `84311559` completed these finite
-cases with **TP 0 / FP 0 / FN 1 / TN 2**. The metrics response was HTTP 200,
-text/plain and 25,982 bytes, but the installed detector returned false. The
-JSON and HTML controls passed. Native acceptance remains unmet, and the
-positive oracle is unchanged. Original evidence is retained in
-[artifact 12828328221](https://github.com/Fuzzy-Technologies/1337/actions/runs/40717160124/artifacts/12828328221)
+The verified native checkpoint at PR head `f22e3c29` completed these finite
+cases with **TP 1 / FP 0 / FN 0 / TN 2** and zero skipped cases. Each case used
+a distinct fresh target with the same reset contract. The metrics response was
+HTTP 200, text/plain and 25,986 bytes; the installed detector created the expected
+Finding, and both real negative controls produced no exposition Finding. Original evidence is
+retained in
+[artifact 12830144211](https://github.com/Fuzzy-Technologies/1337/actions/runs/40723123569/artifacts/12830144211)
 with archive SHA-256
-`64718e982b7d9fa6b959e6cfd9d088695cdb5ce4b2bfe09948ef5662d107e1b8`.
+`cb01d7f040c14802143396adb6561093c51a63b5f49cfff1b498c22cfcb0e281`.
+Final shared integration acceptance remains required.
+
+The original false negative is preserved separately in
+[artifact 12828328221](https://github.com/Fuzzy-Technologies/1337/actions/runs/40717160124/artifacts/12828328221).
+The corrected predicate admits valid unsigned NaN casing, including `Nan`;
+the original oracle and prior evidence are unchanged. The two candidate Nuclei
+tracks still have no runtime acceptance.
 
 The existing `external-targets` job in `.github/workflows/python-quality.yml`
 runs the original target smoke followed by these three installed native cases
@@ -101,9 +110,9 @@ on final PR readiness. Each native case restores a fresh pinned application.
 The job preserves both evidence directories, including the native JUnit result,
 raw Docker streams, original product workspace, and finite comparison report.
 It fails on missing enabled prerequisites and retains evidence on failures.
-The smoke result does not substitute for scanner acceptance. Local Docker is
-unavailable in the implementation environment; source and offline tests do not
-establish runtime acceptance.
+The smoke result does not substitute for scanner acceptance. Local implementation
+preflight found no Docker; the genuine shared checkpoint supplies the separate
+runtime evidence. Source and offline tests alone do not establish that result.
 
 The explicit draft marker `[native-external-checkpoint]` enables only this
 job's installed native three-case step for supported-runtime diagnosis. The

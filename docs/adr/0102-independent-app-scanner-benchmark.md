@@ -131,13 +131,13 @@ performance aggregation.
 
 After independent source review accepted ADR 0103's detector, the native track
 is marked available alongside that integrated implementation. This does not
-change any runtime outcome. The existing ready-only `external-targets` job in
+change any runtime outcome. The existing `external-targets` job in
 `python-quality.yml` retains its target smoke and adds a separate native
 three-case pytest step, JUnit result, and original scanner evidence directory.
 Enabled missing prerequisites fail. The job keeps its original check/artifact
-identity, bounded execution, and unconditional evidence retention. Actual
-Docker acceptance remains unrun until the final proposed revision executes
-successfully in shared CI; the other two scanner tracks remain candidates.
+identity, bounded execution, and unconditional evidence retention. Final
+integration acceptance requires the proposed revision to execute successfully
+in shared CI; the other two scanner tracks remain candidates.
 
 An explicit draft-only `[native-external-checkpoint]` marker can run the existing
 external job's installed native three cases for supported-runtime diagnosis.
@@ -153,3 +153,10 @@ diagnostic bytes/hash and target provenance; never attribute that later response
 to the original scanner or silently change production response retention. Final
 readiness still requires native execution, and the original false negative and
 oracle stay intact.
+
+The native checkpoint has genuine evidence for all three declared cases:
+one TP and two TNs, with zero FPs, FNs or skips, after correcting unsigned NaN
+casing. The prior false negative remains preserved independently. The
+[benchmark evidence record](../../labs/external/benchmark/README.md) identifies
+the exact checkpoint and original archive. This is finite native acceptance;
+comparative scanner and whole-application acceptance remain unestablished.

@@ -59,9 +59,11 @@ profile version `1` under its distinct identity; older check records are unchang
 Require direct grammar, transport-budget, ambiguity, total-deadline, error and
 cleanup tests, old-profile regressions, exact adapter/CLI contracts, and real
 installed-worker governed SDK positive and negative local responses. An owned
-synthetic target proves this product path, not a Juice Shop scan. Pinned external
-target execution and comparative acceptance remain UNRUN until the independent
-benchmark can run its actual isolated runtime and preserve genuine evidence.
+synthetic target proves this product path, not a Juice Shop scan. Genuine
+three-case pinned external native evidence is retained separately by the
+[independent benchmark](../../labs/external/benchmark/README.md). Comparative
+scanner acceptance remains unrun, and final shared integration acceptance is
+still required.
 
 Primary format reference:
 https://prometheus.io/docs/instrumenting/exposition_formats/
