@@ -18,6 +18,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added a separate Experimental pure CVSS 2 base calculation API with exact
+  integer arithmetic, immutable ordered results and unchanged original source
+  assertions. Calculated base scores remain separate from publisher statements;
+  temporal and environmental metrics do not alter the base calculation.
+
 - Added Experimental read-only CVSS 2 inspection of explicit CVE 5.2 source
   assessments, preserving ordered provider/scenario context and asserted scores.
   Grammar and explicit field agreement are validated without calculating scores;

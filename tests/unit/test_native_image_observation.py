@@ -6,12 +6,14 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 
 from fuzzy1337 import native_image_observation as observation
+from fuzzy1337 import native_image_workflow as workflow
 from fuzzy1337.adapters import AdapterExecution, ExecutionState
 from fuzzy1337.executors import (
     ExecutionEvent,
@@ -34,6 +36,30 @@ from fuzzy1337.native_image_observation import (
 from tests.contract.native_image_task_barriers import OwnedTaskAtReadiness
 from tests.unit.test_native_image_material_worker import material_control as material_control
 
+REAL_MONOTONIC = time.monotonic
+
+
+class SimulatedClock:
+    """Charge fixed logical reads only for explicit native material/provider protocol doubles."""
+
+    def __init__(self, started_at: float) -> None:
+        """Retain a coherent monotonic origin without borrowing later host I/O time."""
+
+        self.value = started_at
+
+    def __call__(self) -> float:
+        """Return one logical instant and charge a positive synthetic millisecond."""
+
+        value = self.value
+        self.value += 0.001
+
+        return value
+
+    def Advance(self, seconds: float) -> None:
+        """Charge explicit elapsed time for deterministic original-budget failure scenarios."""
+
+        self.value += seconds
+
 
 @pytest.fixture(scope="module")
 def observation_runner():
@@ -52,8 +78,10 @@ def simulated_observer(material_control, monkeypatch):
     path, digest, identity, _ = material_control
     selection = SelectionFromControl(ReadControl(path, digest, identity))
     owner = NativeImageMaterialObserver(selection, "workspace:unit", "actor:unit")
+    clock = SimulatedClock(REAL_MONOTONIC())
+    monkeypatch.setattr(observation, "monotonic", clock)
     state = SimpleNamespace(calls=[], change=None, before_launch=None,
-                            mode="success", started=asyncio.Event())
+                            mode="success", started=asyncio.Event(), clock=clock)
     monkeypatch.setattr(observation, "RequireLinuxOwnership", lambda: None)
 
     async def Execute(executor, request, **options):
@@ -106,6 +134,43 @@ def simulated_observer(material_control, monkeypatch):
     monkeypatch.setattr(observation.LocalExecutor, "Execute", Execute)
 
     return owner, state
+
+
+def test_SimulatedClockUsesLogicalReadsAndLeavesActualClockOwnersUntouched(simulated_observer):
+    """Only the explicitly doubled material path uses synthetic elapsed time."""
+
+    _, state = simulated_observer
+    first = observation.monotonic()
+    second = observation.monotonic()
+    state.clock.Advance(2.0)
+    third = observation.monotonic()
+    assert second - first == pytest.approx(0.001, abs=1e-6) and (
+        third - second == pytest.approx(2.001, abs=1e-6)
+    ), (
+        "Logical reads and explicit advancement must be independent of elapsed host I/O"
+    )
+    assert observation.monotonic is state.clock and time.monotonic is REAL_MONOTONIC and (
+        workflow.time.monotonic is REAL_MONOTONIC
+    ), "Simulated material time must not replace actual workflow or global monotonic clocks"
+
+
+def test_SimulatedClockAdvanceExhaustsOriginalFinalizationReserve(simulated_observer):
+    """Mutable simulated time still makes the unchanged original ledger fail closed."""
+
+    _, state = simulated_observer
+    budget = NativeImageObservationBudget()
+    window = budget.BeginFinalization()
+    state.clock.Advance(10.0)
+
+    with pytest.raises(NativeImageObservationError, match="phase exceeded its allowance"):
+        budget.FinishFinalization(window)
+
+    assert budget.Failed and budget.FinalizationSeconds > 9 and budget.SpentSeconds > 9, (
+        "Explicit elapsed time must debit and exhaust the original shared reserve"
+    )
+
+    with pytest.raises(NativeImageObservationError):
+        budget.BeginObservation()
 
 
 def test_SimulatedWorkerProofAndCheapCurrentChecksUseNoSelectedContent(

@@ -701,3 +701,26 @@ module = "fuzzy1337.browser_page_worker"
 source = "src/fuzzy1337/browser_page_worker.py"
 mode = "authored"
 page = "api/fuzzy1337.browser_page_worker.md"
+
+[[surfaces]]
+# Experimental pure base calculation; original attributed source assertions stay unchanged.
+module = "fuzzy1337.intelligence_cvss2_base"
+source = "src/fuzzy1337/intelligence_cvss2_base.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cvss2_base.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseScoreTenths"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation.DisplayScore"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation.ToDict"
+reason = "Internal implementation detail excluded from module __all__; not a public API."

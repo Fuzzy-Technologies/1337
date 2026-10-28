@@ -21643,3 +21643,42 @@ state = "missing"
 
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.intelligence-cvss2-base"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_cvss2_base.md"
+sourceHash = "sha256:e9f38018ee36ab769104b2c0763a9e8dd1aa3794364c0a289ba09fb60d7b8228"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2_base.CveCvss2BaseCalculations"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2_base.py"
+sourceHash = "sha256:60f3f6c52f8c0ae72aaa553f5074a426afc0c41b084c829d2741c9002f18ca13"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cvss2_base.CveCvss2BaseCalculations.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cvss2_base.py"
+sourceHash = "sha256:2d344c18338c67456f4b300c8d5da45bac37ff789d9759a5ab64bcedfb7372e0"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
