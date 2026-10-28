@@ -192,3 +192,23 @@ def test_ResultReconstructionRejectsForeignOrInconsistentFields(changes):
 
     with pytest.raises(ValueError):
         valid.ToDict()
+
+
+@pytest.mark.parametrize("reference", ["artifact-run:" + "a" * 32, "native-scan:" + "b" * 64])
+def test_OriginalArtifactAndNativeRunGrammarsPreserveCriterionShape(reference):
+    """Only the two explicit original source identities enter unchanged result serialization."""
+
+    document = CiPredicateResult(True, "a" * 64, reference, (), ()).ToDict()
+    assert document["run_reference"] == reference and document["selected_count"] == 0 and (
+        document["scan_completeness"] == "not-assessed"
+    ), "Native source identity is additive and cannot change predicate or completeness semantics"
+
+
+@pytest.mark.parametrize("reference", ["native-scan:" + "a" * 63, "native-scan:" + "A" * 64,
+    "native-scan:" + "a" * 65, "native-scan:" + "z" * 64, "artifact-run:" + "a" * 64,
+    "native-scan:" + "a" * 64 + "\n", "run:" + "a" * 64])
+def test_NativeRunGrammarRejectsAmbiguousOrCoercedIdentities(reference):
+    """No generic prefix, alternate width, uppercase digest or trailing data is accepted."""
+
+    with pytest.raises(ValueError):
+        CiPredicateResult(True, "a" * 64, reference, (), ())

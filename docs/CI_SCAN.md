@@ -1,16 +1,17 @@
-# Explicit synthetic CI scan
+# Explicit governed CI scan
 
-`1337 ci scan` runs one explicitly selected accepted synthetic configuration or image
+`1337 ci scan` runs one explicitly selected governed configuration or image
 profile, saves its canonical model and evidence, evaluates a caller-selected
 finding predicate, and publishes JSON, SARIF and JUnit from the same saved
-snapshot. Profiles are `synthetic-dockerfile`, `synthetic-kubernetes` and
-`synthetic-image`. They use reviewed closed fixture families; they do not
-provide native configuration or reachable-risk acceptance.
+snapshot. Profiles are `synthetic-dockerfile`, `synthetic-kubernetes`,
+`synthetic-image`, and the explicit `native-trivy` image profile. Synthetic
+profiles use reviewed closed fixture families. Native configuration and
+reachable-risk acceptance remain outside these profiles.
 
 The workspace and artifact scope must already exist. The current recorded owner,
 selected input-manifest target, scope consent and SAFE capability opt-in are
-verified by the existing artifact workflow. Select the original source, trusted
-current CPython executable, reviewed first-party configuration worker and exact
+verified by the existing artifact workflow. For synthetic profiles select the
+original source, trusted current CPython executable, reviewed first-party configuration worker and exact
 closed material policy explicitly. Paths for these selected inputs are absolute.
 The command performs no source discovery, Dockerfile build, Kubernetes workload
 creation or remote contact.
@@ -61,8 +62,62 @@ six original execution acquisitions, exact original VERSION prerequisite, and
 current paired grant acceptance. Detached operation summaries cannot substitute
 for this proof. Exact source-derived image inventory, relationships and
 observations must exist in the complete saved model. No image build, daemon,
-registry contact, native scan, implicit database update or reachability rule is
+registry contact, implicit database update or reachability rule is
 introduced. The final output barrier verifies current paired acceptance again.
+
+The native profile reuses the existing governed Trivy VERSION/SCAN workflow over
+one explicitly selected owned local archive. Its archive and cache spellings are
+canonical workspace-relative paths; the trusted executable and strict policy
+file are explicitly selected absolute paths. The policy permits the existing
+`native.trivy` / `image.archive-vulnerabilities` SAFE capability. Recorded scope
+consent, executing-owner read consent, policy permission and
+`--approve-safe-image` remain independent requirements. The exact input manifest
+target must already be registered in the selected scope.
+
+```bash
+1337 ci scan /owned/workspace \
+  --profile native-trivy --archive inputs/image.tar \
+  --executable /owned/pinned/trivy --cache-directory pinned/trivy-cache \
+  --policy /owned/policies/image.json \
+  --scope native-image-scope --owner actor:local \
+  --read-consent-reference read:native-image --approve-safe-image \
+  --severity high --severity critical --status open --status confirmed \
+  --max-matches 0 --acknowledge-unassessed-completeness \
+  --report-json /owned/reports/native-image.json \
+  --report-sarif /owned/reports/native-image.sarif \
+  --report-junit /owned/reports/native-image.xml --json
+```
+
+Native selection excludes synthetic `--producer`, `--material`, `--source`,
+`--logical-path` and configuration approval. Synthetic selection excludes native
+`--cache-directory` and `--policy`. CI retains its existing one-through-sixty
+second selected scan timeout; the native workflow's bounded observation,
+VERSION and owned cleanup allowances remain separate and unchanged. Executable,
+archive and selected database/metadata identities are bound by that workflow;
+provisioning the trusted pinned binary and database remains the operator's task.
+No installation, executable discovery, download or database update is performed.
+
+Native gating verifies the original six owning acquisitions and candidate
+inventory/detections in the saved snapshot. It also requires the original
+in-process identity-bound acceptance handle before the predicate and after the
+actual exports. This handle invokes the original pair's existing fresh
+scope/policy, expiry, claim, control and material checks with the original clock.
+It cannot be reconstructed from saved receipts and is never serialized. Report
+publication does not renew grants or start another material observation. A late
+authority or source-proof failure returns nonzero while retaining actual scan
+facts and already published report files. The native result's original run
+reference is `native-scan:<receipt SHA256>`; synthetic run identities are unchanged.
+
+The implementation decision and required genuine acceptance boundary are recorded
+in [ADR 0101](adr/0101-native-trivy-ci-predicate.md). Deterministic provider and
+observer doubles verify CI contracts; they do not establish genuine Trivy
+execution, native scanner accuracy or required isolated acceptance.
+The required assembled acceptance target is
+`tests/functional/test_ci_native_image_product.py`, run in the existing pinned
+no-egress native runtime with `FUZZY1337_RUN_NATIVE_IMAGE_PRODUCT_ACCEPTANCE=1`.
+It exercises the installed isolated CLI, both unchanged inert archive cases,
+no-opt-in refusal, three real artifacts and a deliberately injected late policy
+refusal after publication. Missing required runtime prerequisites fail this lane.
 
 The severity and disposition sets are required, nonempty and unique. Their
 conjunction selects matching current source findings. `--max-matches` explicitly
