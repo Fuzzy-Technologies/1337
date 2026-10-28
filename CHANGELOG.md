@@ -18,6 +18,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added Experimental read-only CVSS 2 inspection of explicit CVE 5.2 source
+  assessments, preserving ordered provider/scenario context and asserted scores.
+  Grammar and explicit field agreement are validated without calculating scores;
+  original intelligence schema-one snapshots and replay remain unchanged.
+
 - Added Experimental read-only CVE 5.2 affected-product inspection with ordered
   attributed CNA/ADP version/status declarations and exact raw-source evidence
   binding. Existing intelligence snapshot/replay contracts remain unchanged;

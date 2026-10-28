@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Experimental attributed CVSS 2 source inspection; scores are never calculated.
+module = "fuzzy1337.intelligence_cvss2"
+source = "src/fuzzy1337/intelligence_cvss2.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cvss2.md"
+
+[[surfaces]]
 # Experimental attributed CVE product statements; no applicability or scoring verdict.
 module = "fuzzy1337.intelligence_applicability"
 source = "src/fuzzy1337/intelligence_applicability.py"
