@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Internal bounded predicate; direct use establishes neither custody nor permission.
+module = "fuzzy1337.adapters.prometheus_exposition"
+source = "src/fuzzy1337/adapters/prometheus_exposition.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.prometheus_exposition.md"
+
+[[surfaces]]
 # Experimental attributed CVE product statements; no applicability or scoring verdict.
 module = "fuzzy1337.intelligence_applicability"
 source = "src/fuzzy1337/intelligence_applicability.py"

@@ -18,6 +18,12 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added explicit first-party Prometheus exposition checks through the governed
+  SDK and `scan web --check prometheus-exposition`, with bounded transient UTF-8
+  parsing, length/chunked/EOF framing and descriptive source-linked Findings.
+  Eleven actual owned-target SDK/CLI cases passed; independent Juice Shop
+  scanner acceptance is tracked separately from application health checks.
+
 - Added Experimental read-only CVE 5.2 affected-product inspection with ordered
   attributed CNA/ADP version/status declarations and exact raw-source evidence
   binding. Existing intelligence snapshot/replay contracts remain unchanged;

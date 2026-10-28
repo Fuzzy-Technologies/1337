@@ -1,6 +1,7 @@
 # First-party native web checks
 
 The development checkout provides `1337 scan web --check git-head-exposure`.
+Explicit file-canary and Prometheus exposition selections are described below.
 The first-party Python worker performs the HTTP request and response check;
 Nuclei and other external scanners are optional separate workflows. This
 Experimental version-1 interface is defined by
@@ -151,3 +152,65 @@ cannot reconstruct the discarded body. Actual worker acceptance in
 denied/mismatched authority, durable reopening and independent file-content
 changes that prove detection follows actual bytes rather than route labels.
 This finite local acceptance does not establish general file traversal coverage.
+
+## Prometheus exposition profile
+
+`1337 scan web --check prometheus-exposition` adds the Experimental version-1
+check `native.prometheus-exposition` in
+[ADR 0103](adr/0103-native-prometheus-exposition-check.md). Select one complete
+canonical, query-free literal-IP HTTP(S) URL. The check does not discover a metrics
+path, expand scope, follow redirects or attach credentials. Set the explicit
+STANDARD policy permission to `web.prometheus-exposition-check`, with adapter
+`native.web-check`, and use the same separate plan/confirmation workflow:
+
+```bash
+1337 scan web owned-workspace --check prometheus-exposition \
+  --scope local --owner operator:demo \
+  --target http://127.0.0.1:8000/operator-selected-path \
+  --policy native-web-policy.json --plan
+```
+
+The SDK selection is `check_id="native.prometheus-exposition"` on
+`PlanNativeWebScan` and `RunNativeWebScan`. Omitted selection retains Git behavior.
+Each selected check binds its exact capability and confirmation intent; current
+operator, consent, URL/IP scope and policy are rechecked through the same owners.
+
+A positive requires an anonymous HTTP 200 `text/plain` response containing a
+supported complete legacy Prometheus exposition document, including associated
+HELP, TYPE and sample lines for at least one family. HELP and TYPE may appear in
+either order before the family's samples. Every line and label is checked; metric
+and label names use the legacy ASCII grammar. Escaped backslash, quote and newline
+labels are supported. Counter, gauge and untyped families use their exact sample
+names; histogram `_bucket`/`_sum`/`_count` and summary quantile/`_sum`/`_count`
+forms are explicit. Other syntactically valid untyped samples do not establish a
+positive alone. Quoted UTF-8 metric names, OpenMetrics/exemplars and lines over
+16 KiB are outside this conservative detection profile. It is not a full ingestion
+validator. NaN and infinities are recognized as text only.
+
+Only this check admits a decoded body up to 256 KiB and bounded Content-Length,
+chunked or connection-EOF framing. Wire bytes are separately limited to 512 KiB,
+with at most 4096 nonterminal chunks and 32-byte chunk-size lines. Chunk extensions,
+trailers, ambiguous Transfer-Encoding plus Content-Length, encoded, incomplete or
+oversized responses fail as unassessed work. The original complete-request
+monotonic deadline applies to every read, interpretation and final EOF. Git and
+file-canary framing and their 4096-byte limits remain unchanged.
+
+A match creates one LOW, OPEN, unknown-confidence descriptive Finding: the selected
+anonymous response contains supported Prometheus exposition. It does not assert
+exploitability or that the deployment intended to keep metrics private. Raw metric
+names, label values and numbers remain transient. Original evidence contains only
+the existing bounded metadata, decoded-body hash and boolean; replay verifies that
+record, without reconstructing the discarded response. A successful nonmatch is
+limited to this predicate and selected response.
+
+Focused actual-worker SDK and CLI acceptance, including positive, negative,
+redirect and failed framing cases, is reproducible with:
+
+```bash
+uv run --locked --extra dev pytest --no-cov -q -n 2 \
+  tests/functional/test_native_prometheus.py
+```
+
+These owned synthetic responses establish the local product path. They do not
+establish Juice Shop, DVWA, OWASP Benchmark or comparative-scanner acceptance;
+each external target requires its own actual pinned runtime and preserved evidence.

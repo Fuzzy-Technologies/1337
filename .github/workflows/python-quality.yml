@@ -367,9 +367,10 @@ jobs:
       && github.event.pull_request.draft == false)
     name: Pinned external target regression
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       FUZZY1337_EXTERNAL_TARGETS: juice-shop
+      FUZZY1337_EXTERNAL_NATIVE_BENCHMARK: juice-shop
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -386,12 +387,20 @@ jobs:
       - name: Execute pinned target through pytest
         run: >-
           uv run --locked --extra dev pytest tests/functional/test_external_targets.py
-          -o addopts='' -v
+          -o addopts='' --no-cov -n 0 -v
+      - name: Execute installed native scanner against three fresh pinned targets
+        timeout-minutes: 15
+        run: >-
+          uv run --locked --extra dev pytest tests/functional/test_external_native_benchmark.py
+          -o addopts='' --no-cov -n 0 -v
+          --junitxml=functional-evidence/external-native-benchmark/pytest.xml
       - name: Preserve external target evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: external-juice-shop
-          path: functional-evidence/external-juice-shop/
+          path: |
+            functional-evidence/external-juice-shop/
+            functional-evidence/external-native-benchmark/
           if-no-files-found: error
           retention-days: 14

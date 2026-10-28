@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "External benchmark observation v1, never an execution attestation",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "pack_id", "case_id", "scanner_track", "status", "reason", "execution"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "pack_id": {"$ref": "#/$defs/text"}, "case_id": {"$ref": "#/$defs/text"},
+    "scanner_track": {"enum": ["native-engine", "whole1337", "external-nuclei"]},
+    "status": {"enum": ["not-run", "prerequisite-failed", "unsupported", "completed", "crashed", "timed-out", "manual", "not-applicable"]},
+    "reason": {"$ref": "#/$defs/text"},
+    "execution": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/execution"}]}
+  },
+  "allOf": [
+    {"if": {"properties": {"status": {"enum": ["completed", "crashed", "timed-out"]}}}, "then": {"properties": {"execution": {"$ref": "#/$defs/execution"}}}, "else": {"properties": {"execution": {"type": "null"}}}}
+  ],
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "execution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scanner_id", "scanner_version", "scanner_sha256", "product_revision", "rule_sha256", "source_revision", "image_index_digest", "platform_digest", "target_url", "target_instance", "reset_contract_sha256", "network_internal", "published_ports", "argv", "exit_code", "duration_seconds", "request_count", "effective_budget", "findings", "evidence"],
+      "properties": {
+        "scanner_id": {"$ref": "#/$defs/text"}, "scanner_version": {"$ref": "#/$defs/text"},
+        "scanner_sha256": {"$ref": "#/$defs/sha256"}, "rule_sha256": {"$ref": "#/$defs/sha256"},
+        "product_revision": {"type": ["string", "null"], "pattern": "^[a-f0-9]{40}$"},
+        "source_revision": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "image_index_digest": {"$ref": "#/$defs/digest"}, "platform_digest": {"$ref": "#/$defs/digest"},
+        "target_url": {"$ref": "#/$defs/text"}, "target_instance": {"$ref": "#/$defs/text"},
+        "reset_contract_sha256": {"$ref": "#/$defs/sha256"}, "network_internal": {"const": true}, "published_ports": {"const": 0},
+        "argv": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/text"}},
+        "exit_code": {"type": "integer"}, "duration_seconds": {"type": "number", "minimum": 0},
+        "request_count": {"type": "integer", "minimum": 0, "maximum": 1},
+        "effective_budget": {"$ref": "case-pack.schema.json#/$defs/budget"},
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["rule_id", "path"],
+            "properties": {"rule_id": {"$ref": "#/$defs/text"}, "path": {"type": "string"}}
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["role", "path", "sha256", "size_bytes"],
+            "properties": {
+              "role": {"$ref": "#/$defs/text"}, "path": {"$ref": "#/$defs/text"},
+              "sha256": {"$ref": "#/$defs/sha256"}, "size_bytes": {"type": "integer", "minimum": 0, "maximum": 2097152}
+            }
+          }
+        }
+      }
+    }
+  }
+}
