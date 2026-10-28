@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import copy
 import json
+import shlex
+from pathlib import Path
 
 import pytest
+import yaml
 
 from tests.contract import owned_content_response_ci_body_decoy_evidence as evidence
 from tests.contract.owned_content_response_ci_evidence import CASE_NAME as MISSING_CASE_NAME
@@ -161,3 +164,104 @@ def test_BodyDecoyEntrypointAcceptsOnlyItsTwoOriginalEvidencePaths(arguments):
 
     with pytest.raises(ValueError):
         evidence.Main(arguments)
+
+
+def AssertBodyDecoyCheckpoint(jobs):
+    """Require one isolated bounded new identity and its strict original-evidence admission."""
+
+    job = jobs["body-decoy-content-header"]
+    marker = "[owned-content-header-body-decoy-checkpoint]"
+    assert marker in job["if"] and "github.event.pull_request.draft == false" in job["if"], (
+        "The new identity requires its own explicit draft checkpoint or final ready revision")
+    assert all(marker not in jobs[name]["if"] for name in (
+        "installed-content-header", "fixed-content-header", "policy-denied-content-header",
+        "actor-denied-content-header")), "The new draft marker must not repeat accepted cohorts"
+    assert all(prior not in job["if"] for prior in ("[owned-content-header-checkpoint]",
+        "[owned-content-header-fixed-checkpoint]",
+        "[owned-content-header-policy-denied-checkpoint]",
+        "[owned-content-header-actor-denied-checkpoint]")), (
+            "Earlier checkpoint markers must not select the body-decoy job")
+    assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6 and job["env"] == {
+        "FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}, (
+            "Required body-decoy acceptance needs the bounded supported ownership environment")
+    steps = job["steps"]
+    assert steps[0]["with"] == {"ref": "${{ github.event.pull_request.head.sha }}",
+        "persist-credentials": False}, "The actual installation must bind the reviewed head"
+    executions = [step for step in steps if "pytest" in step.get("run", "")]
+    junit = "functional-evidence/owned-content-header-body-decoy.xml"
+    assert len(executions) == 1 and executions[0]["timeout-minutes"] == 3 and shlex.split(
+        executions[0]["run"]) == ["uv", "run", "--locked", "--extra", "dev", "pytest",
+            "tests/functional/test_owned_content_response_sdk_pipeline.py::" + evidence.CASE_NAME,
+            "-q", "-x", "-n0", "--no-cov", "--timeout=150", "--timeout-method=thread",
+            "--junitxml=" + junit], "Execute only the new serial bounded body-decoy identity"
+    checkers = [step for step in steps if (
+        "tests.contract.owned_content_response_ci_body_decoy_evidence" in step.get("run", ""))]
+    assert len(checkers) == 1 and "if" not in checkers[0] and shlex.split(checkers[0]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "python", "-m",
+        "tests.contract.owned_content_response_ci_body_decoy_evidence", junit,
+        "functional-evidence/owned-content-sdk"], "Admit the exact retained original result"
+    assert steps.index(checkers[0]) == steps.index(executions[0]) + 1 and not any(
+        step.get("continue-on-error", False) for step in steps), (
+            "Actual execution and strict admission must fail the job on any failure")
+    upload = steps[-1]
+    assert upload["if"] == "always()" and upload["with"]["if-no-files-found"] == "error" and (
+        upload["with"]["name"] == "owned-content-header-body-decoy-original-evidence" and
+        upload["with"]["path"].splitlines() == [junit, "functional-evidence/owned-content-sdk/"]
+    ), "Always retain the distinct body-decoy JUnit and original evidence on failure"
+    assert all(upload["with"]["name"] != prior["steps"][-1]["with"]["name"]
+        for name, prior in jobs.items() if name != "body-decoy-content-header"), (
+            "The new original artifact must not overwrite an accepted cohort's artifact")
+
+
+@pytest.mark.parametrize("mutation", [None, "old-marker", "accepted-cohort-marker", "platform",
+    "missing-prerequisite", "credentials", "wrong-case", "parallel", "wrong-junit",
+    "skipped-checker", "continue-on-error", "overwrite-artifact", "missing-failure-evidence"])
+def test_BodyDecoyCheckpointRequiresItsOwnSerialCaseAndOriginalEvidence(mutation):
+    """Workflow tampering cannot select an accepted cohort or bypass original-evidence admission."""
+
+    path = Path(__file__).resolve().parents[2] / (
+        ".github/workflows/owned-content-header-acceptance.yml")
+    jobs = yaml.safe_load(path.read_text())["jobs"]
+    job = jobs["body-decoy-content-header"]
+    executions = [step for step in job["steps"] if "pytest" in step.get("run", "")]
+
+    if mutation == "old-marker":
+        job["if"] += " || contains(body, '[owned-content-header-checkpoint]')"
+
+    elif mutation == "accepted-cohort-marker":
+        jobs["installed-content-header"]["if"] = job["if"]
+
+    elif mutation == "platform":
+        job["runs-on"] = "windows-latest"
+
+    elif mutation == "missing-prerequisite":
+        job["env"] = {}
+
+    elif mutation == "credentials":
+        job["steps"][0]["with"]["persist-credentials"] = True
+
+    elif mutation in ("wrong-case", "parallel", "wrong-junit"):
+        old, new = {"wrong-case": (evidence.CASE_NAME, MISSING_CASE_NAME),
+            "parallel": ("-n0", "-n2"), "wrong-junit": (
+                "owned-content-header-body-decoy.xml", "owned-content-header.xml")}[mutation]
+        executions[0]["run"] = executions[0]["run"].replace(old, new)
+
+    elif mutation == "skipped-checker":
+        job["steps"][-2]["if"] = "false"
+
+    elif mutation == "continue-on-error":
+        executions[0]["continue-on-error"] = True
+
+    elif mutation == "overwrite-artifact":
+        job["steps"][-1]["with"]["name"] = jobs["installed-content-header"]["steps"][-1][
+            "with"]["name"]
+
+    elif mutation == "missing-failure-evidence":
+        job["steps"][-1]["if"] = "success()"
+
+    if mutation is None:
+        AssertBodyDecoyCheckpoint(jobs)
+
+    else:
+        with pytest.raises(AssertionError):
+            AssertBodyDecoyCheckpoint(jobs)
