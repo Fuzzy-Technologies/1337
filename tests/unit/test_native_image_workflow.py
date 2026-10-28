@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
+import pickle
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -302,6 +304,77 @@ def test_PairedSdkUsesCanonicalAuthorityCustodyAndModelWithControlledWire(author
     assert summary.ToDict()["workflow"] == "native-image" and summary.ExitCode() == 0, (
         "Native results must retain their own workflow identity rather than synthetic summary wire."
     )
+    assert type(summary.acceptance) is product.NativeImageAcceptance, (
+        "Only original completed certain custody may retain the internal acceptance association."
+    )
+    summary.acceptance.Validate(summary.captures, authority.root)
+    assert "acceptance" not in summary.ToDict(), (
+        "The in-process acceptance association must never leak into detached native summaries."
+    )
+
+
+@pytest.mark.parametrize("mode", ["construct", "unissued", "copy", "deepcopy", "pickle",
+    "equal-captures", "root", "policy", "scope", "material", "expired"])
+def test_NativeAcceptanceCannotBeReconstructedOrOutliveOriginalAuthority(authority, mode):
+    """Controlled provider doubles prove handle origin and unchanged original freshness checks."""
+
+    selected = authority.collector
+    LocalModelStore(authority.root).Create()
+    now = [AT]
+    summary = selected.run(product.ScanNativeImage(authority.root, "native-unit", "actor:unit",
+        selected.selection, lambda: authority.context.policy, approve_safe_image=True,
+        clock=lambda: now[0]))
+    assert summary.ExitCode() == 0 and summary.acceptance is not None, summary.ToDict()
+    acceptance, captures, root = summary.acceptance, summary.captures, authority.root
+    original_calls = (len(selected.state.calls), len(selected.wire.calls))
+
+    if mode == "construct":
+        with pytest.raises(TypeError):
+            product.NativeImageAcceptance()
+
+        return
+
+    if mode in {"copy", "deepcopy", "pickle"}:
+        with pytest.raises(TypeError):
+            if mode == "pickle":
+                pickle.loads(pickle.dumps(acceptance))
+
+            else:
+                getattr(copy, mode)(acceptance)
+
+        return
+
+    if mode == "unissued":
+        acceptance = object.__new__(product.NativeImageAcceptance)
+
+    elif mode == "equal-captures":
+        captures = tuple(replace(item) for item in captures)
+
+    elif mode == "root":
+        root = root.parent
+
+    elif mode == "policy":
+        authority.context = replace(authority.context,
+            policy=replace(authority.context.policy, max_authorization_seconds=200))
+
+    elif mode == "scope":
+        store = LocalScopeStore(root)
+        scope = store.Open("native-unit")
+        store.Save(replace(scope,
+            authorization=replace(scope.authorization, state=AuthorizationState.REVOKED)))
+
+    elif mode == "expired":
+        now[0] += timedelta(hours=2)
+
+    else:
+        selected.selection.executable.write_bytes(b"changed explicitly owned unit material")
+
+    with pytest.raises((ValueError, PermissionError)):
+        acceptance.Validate(captures, root)
+
+    assert (len(selected.state.calls), len(selected.wire.calls)) == original_calls, (
+        "Refused original acceptance cannot execute, reobserve material or extend its lifetime."
+    )
 
 
 @pytest.mark.parametrize("failure", ["failed", "unknown", "post-observation"])
@@ -319,6 +392,9 @@ def test_FailedOriginalVersionRetainsAvailableCustodyAndNeverStartsScan(authorit
         clock=lambda: AT))
     assert summary.snapshot.state is JobState.FAILED and summary.ExitCode() == 4, (
         "An actual refused original operation must remain a failed unassessed product result."
+    )
+    assert summary.acceptance is None, (
+        "Failed or uncertain native custody cannot issue an original acceptance handle."
     )
     assert len(selected.state.calls) == 1 and summary.model_revision == 0, (
         "No failed or unverified VERSION may start SCAN or change canonical inventory."

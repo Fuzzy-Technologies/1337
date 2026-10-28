@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Closed synthetic CI profiles with explicit predicates and saved-snapshot report artifacts."""
+"""Explicit governed CI profiles with selected predicates and saved-snapshot report artifacts."""
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from fuzzy1337.ci_gate import (
     CiFindingCriterion,
     EvaluateConfigurationCriterion,
     EvaluateImageCriterion,
+    EvaluateNativeImageCriterion,
 )
 from fuzzy1337.configuration_evidence import ConfigurationOperationCapture
 from fuzzy1337.configuration_workflow import (
@@ -52,6 +53,14 @@ from fuzzy1337.jobs import (
     JobSpec,
     JobState,
 )
+from fuzzy1337.native_image_capture import NativeTrivyOperationCapture, NativeTrivySelection
+from fuzzy1337.native_image_workflow import (
+    NativeImageAcceptance,
+    NativeImageScanSummary,
+    ScanNativeImage,
+    ValidateSelection,
+)
+from fuzzy1337.nucleiscan import ReadNucleiPolicy
 from fuzzy1337.policy import CapabilityPermission, ImpactPolicy, RequireDigest
 from fuzzy1337.report_commands import (
     CheckReportSnapshot,
@@ -71,7 +80,7 @@ __all__ = ["CiParser", "RunCiCommands"]
 
 
 def CiParser() -> argparse.ArgumentParser:
-    """Declare explicit closed CI profiles without launching or discovering a scanner.
+    """Declare explicit governed CI profiles without launching or discovering a scanner.
 
     Returns:
         Parser requiring selected source, policy, predicate, acknowledgement and all artifacts.
@@ -82,13 +91,15 @@ def CiParser() -> argparse.ArgumentParser:
     parser.add_argument("action", choices=("scan",))
     parser.add_argument("workspace", type=Path)
     parser.add_argument("--profile", choices=("synthetic-dockerfile", "synthetic-kubernetes",
-                                             "synthetic-image"), required=True)
+                                             "synthetic-image", "native-trivy"), required=True)
     parser.add_argument("--logical-path")
     parser.add_argument("--source", type=Path)
-    parser.add_argument("--archive", type=Path)
+    parser.add_argument("--archive")
     parser.add_argument("--executable", type=Path, required=True)
-    parser.add_argument("--producer", type=Path, required=True)
-    parser.add_argument("--material", type=Path, required=True)
+    parser.add_argument("--producer", type=Path)
+    parser.add_argument("--material", type=Path)
+    parser.add_argument("--cache-directory")
+    parser.add_argument("--policy", type=Path)
     parser.add_argument("--scope", required=True)
     parser.add_argument("--owner", required=True)
     parser.add_argument("--read-consent-reference", required=True)
@@ -108,7 +119,9 @@ def CiParser() -> argparse.ArgumentParser:
     return parser
 
 
-def RequireSummary(summary: ConfigurationScanSummary | ImageScanSummary) -> None:
+def RequireSummary(
+    summary: ConfigurationScanSummary | ImageScanSummary | NativeImageScanSummary,
+) -> None:
     """Refuse foreign wrappers and uncertain terminal facts before presentation or gating.
 
     Args:
@@ -118,16 +131,17 @@ def RequireSummary(summary: ConfigurationScanSummary | ImageScanSummary) -> None
         ValueError: Exact owning record types, terminal state or finite fields are unsupported.
     """
 
-    if type(summary) not in {ConfigurationScanSummary, ImageScanSummary} or (
-        type(summary.snapshot) is not JobSnapshot
-    ):
+    if type(summary) not in {
+        ConfigurationScanSummary, ImageScanSummary, NativeImageScanSummary
+    } or type(summary.snapshot) is not JobSnapshot:
         raise ValueError("CI requires the exact owning workflow summary")
 
     snapshot = summary.snapshot
-    capture_type = ImageOperationCapture if type(summary) is ImageScanSummary else (
+    capture_type = NativeTrivyOperationCapture if type(summary) is NativeImageScanSummary else (
+        ImageOperationCapture if type(summary) is ImageScanSummary else
         ConfigurationOperationCapture)
-    report_type = ImageReportOutcome if type(summary) is ImageScanSummary else (
-        ConfigurationReportOutcome)
+    report_type = ConfigurationReportOutcome if type(summary) is ConfigurationScanSummary else (
+        ImageReportOutcome)
 
     if type(snapshot.spec) is not JobSpec or type(snapshot.state) is not JobState or (
         snapshot.state not in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
@@ -148,6 +162,14 @@ def RequireSummary(summary: ConfigurationScanSummary | ImageScanSummary) -> None
         raise ValueError("CI workflow terminal facts use an unsupported contract")
 
     snapshot.spec.__post_init__()
+
+    if type(summary) is NativeImageScanSummary and (
+        type(summary.custody_uncertain) is not bool
+        or type(summary.retained_records) is not tuple
+        or any(type(item) is not EvidenceRecord for item in summary.retained_records)
+        or summary.acceptance is not None and type(summary.acceptance) is not NativeImageAcceptance
+    ):
+        raise ValueError("CI native summary requires exact acquisition and acceptance contracts")
 
     if snapshot.failure is not None:
         if type(snapshot.failure.code) is not JobFailureCode:
@@ -201,7 +223,7 @@ def ArtifactOutcome(report: ConfigurationReportOutcome | ImageReportOutcome) -> 
 def RunCiCommands(
     arguments: Sequence[str], output: TextIO, *, json_output: bool = False,
 ) -> int:
-    """Run an existing owned synthetic workflow, explicit predicate and three actual exports.
+    """Run an existing owned workflow, explicit predicate and three actual exports.
 
     Args:
         arguments: Explicit CI scan arguments without the global JSON presentation option.
@@ -246,29 +268,65 @@ def RunCiCommands(
         if type(options.timeout) is not int or not 1 <= options.timeout <= 60:
             raise ReportFailure("configuration", 2)
 
+        native = options.profile == "native-trivy"
         image = options.profile == "synthetic-image"
+
+        if native:
+            if options.archive is None or options.cache_directory is None or (
+                options.policy is None or not options.policy.is_absolute()
+                or options.producer is not None or options.material is not None
+                or options.source is not None or options.logical_path is not None
+                or options.approve_safe_configuration
+            ):
+                raise ReportFailure("configuration", 2)
+
+        elif options.producer is None or options.material is None or (
+            options.cache_directory is not None or options.policy is not None
+        ):
+            raise ReportFailure("configuration", 2)
 
         if image and (options.archive is None or options.source is not None or (
             options.logical_path is not None or options.approve_safe_configuration
-        )) or not image and (options.source is None or options.logical_path is None or (
-            options.archive is not None or options.approve_safe_image
+        )) or not image and not native and (options.source is None or (
+            options.logical_path is None or options.archive is not None
+            or options.approve_safe_image
         )):
             raise ReportFailure("configuration", 2)
 
         consent = ArtifactReadConsent(options.owner, options.read_consent_reference)
-        profile = ArtifactProfile.SYNTHETIC_IMAGE if image else (
-            ArtifactProfile.SYNTHETIC_DOCKERFILE if options.profile == "synthetic-dockerfile"
-            else ArtifactProfile.SYNTHETIC_KUBERNETES)
-        configuration_selection = None if image else ConfigurationScanSelection(profile,
-            options.logical_path, options.source, options.executable, options.producer,
-            options.material, consent)
-        image_selection = ImageScanSelection(options.archive, options.executable,
-            options.producer, options.material, consent) if image else None
+        profile = ArtifactProfile.IMAGE if native else (
+            ArtifactProfile.SYNTHETIC_IMAGE if image else ArtifactProfile.SYNTHETIC_DOCKERFILE
+            if options.profile == "synthetic-dockerfile" else ArtifactProfile.SYNTHETIC_KUBERNETES)
+        configuration_selection = None
+        image_selection = None
+
+        if not native:
+            assert options.producer is not None and options.material is not None, (
+                "Synthetic preflight requires its explicit producer and material"
+            )
+
+            if image:
+                image_selection = ImageScanSelection(Path(options.archive), options.executable,
+                    options.producer, options.material, consent)
+
+            else:
+                configuration_selection = ConfigurationScanSelection(profile,
+                    options.logical_path, options.source, options.executable, options.producer,
+                    options.material, consent)
+
         root = RequireReportPath(options.workspace)
         metadata = StoragePathInfo(root)
 
         if metadata is None or not stat.S_ISDIR(metadata.st_mode):
             raise ReportFailure("configuration", 2)
+
+        native_selection = None
+
+        if native:
+            assert options.cache_directory is not None, "Native preflight requires explicit cache"
+            native_selection = NativeTrivySelection(root, options.executable, options.archive,
+                options.cache_directory, consent)
+            ValidateSelection(root, options.owner, native_selection, options.timeout)
 
         destinations = {name: ReportOutputPath(getattr(options, "report_" + name), root)
                         for name in reports}
@@ -277,9 +335,20 @@ def RunCiCommands(
             raise ReportFailure("configuration", 2)
 
         phase = "scan"
-        summary: ConfigurationScanSummary | ImageScanSummary
+        summary: ConfigurationScanSummary | ImageScanSummary | NativeImageScanSummary
 
-        if image_selection is not None:
+        if native_selection is not None:
+            def NativePolicy() -> ImpactPolicy:
+                """Reopen the explicit strict policy at every original native authority check."""
+
+                return ReadNucleiPolicy(options.policy)
+
+            summary = asyncio.run(ScanNativeImage(root, options.scope, options.owner,
+                native_selection, NativePolicy, approve_safe_image=options.approve_safe_image,
+                timeout_seconds=options.timeout, report_format="json",
+                report_output=destinations["json"]))
+
+        elif image_selection is not None:
             summary = asyncio.run(RunSyntheticImageScan(root, options.scope, options.owner,
                 image_selection, approve_safe_image=options.approve_safe_image,
                 timeout_seconds=options.timeout, report_format="json",
@@ -295,7 +364,10 @@ def RunCiCommands(
 
         RequireSummary(summary)
 
-        if type(summary) is not (ImageScanSummary if image else ConfigurationScanSummary):
+        expected_summary = NativeImageScanSummary if native else (
+            ImageScanSummary if image else ConfigurationScanSummary)
+
+        if type(summary) is not expected_summary:
             raise ReportFailure("scan-proof")
 
         outcome["scan"] = summary.ToDict()
@@ -317,8 +389,13 @@ def RunCiCommands(
             or type(summary.report.model_revision) is not int
             or summary.report.model_revision != summary.model_revision
             or type(summary.report.snapshot_sha256) is not str
-            or len(summary.captures) != (2 if image else 1)
-            or len(summary.snapshot.artifacts) != (12 if image else 4)
+            or len(summary.captures) != (2 if image or native else 1)
+            or len(summary.snapshot.artifacts) != (6 if native else 12 if image else 4)
+            or type(summary) is NativeImageScanSummary and (
+                summary.custody_uncertain or summary.acceptance is None
+                or len(summary.retained_records) != 6
+                or tuple(item.evidence for item in summary.snapshot.artifacts) != (
+                    summary.retained_records))
         ):
             raise ReportFailure("scan-proof")
 
@@ -338,10 +415,11 @@ def RunCiCommands(
         ):
             raise ReportFailure("json-export-proof")
 
-        capability = ProfileCapability(profile)
-        policy = ImpactPolicy("synthetic-image-safe-v1" if image else (
-            "synthetic-configuration-safe-v1"), permissions=(CapabilityPermission(
-            capability.identifier, capability.adapter_id, ImpactLevel.SAFE),))
+        if not native:
+            capability = ProfileCapability(profile)
+            policy = ImpactPolicy("synthetic-image-safe-v1" if image else (
+                "synthetic-configuration-safe-v1"), permissions=(CapabilityPermission(
+                capability.identifier, capability.adapter_id, ImpactLevel.SAFE),))
 
         def CurrentContext() -> ArtifactPolicyContext:
             """Reopen current same-store scope/owner facts without issuing execution permission.
@@ -361,7 +439,14 @@ def RunCiCommands(
 
             return ArtifactPolicyContext(scope, policy, options.owner)
 
-        if type(summary) is ImageScanSummary:
+        if type(summary) is NativeImageScanSummary:
+            assert summary.acceptance is not None, "Native success retains original acceptance"
+            result = EvaluateNativeImageCriterion(original.report.state, summary.captures,
+                summary.retained_records, root,
+                expected_snapshot_sha256=summary.report.snapshot_sha256, criterion=criterion,
+                acceptance=summary.acceptance)
+
+        elif type(summary) is ImageScanSummary:
             roles = {"provider-version", "provider-version-stderr", "artifact-version-receipt",
                      "stdout", "stderr", "artifact-scan-receipt"}
             records = tuple(item.evidence for item in summary.snapshot.artifacts
@@ -399,7 +484,11 @@ def RunCiCommands(
         CheckReportSnapshot(root, original)
         executor = GovernedArtifactExecutor(root)
 
-        if type(summary) is ImageScanSummary:
+        if type(summary) is NativeImageScanSummary:
+            assert summary.acceptance is not None, "Native success retains original acceptance"
+            summary.acceptance.Validate(summary.captures, root)
+
+        elif type(summary) is ImageScanSummary:
             version, scan = summary.captures
             executor.ValidatePairAcceptanceFresh((version.outcome, version.prepared, version.stage),
                 (scan.outcome, scan.prepared, scan.stage), CurrentContext)
