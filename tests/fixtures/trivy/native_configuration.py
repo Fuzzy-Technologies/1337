@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ImpactLevel, SerializeContract
+from fuzzy1337.adapters.trivy import ParseJson
 from fuzzy1337.executors import (
     CapabilityDescriptor,
     ExecutionAuthorization,
@@ -26,6 +28,104 @@ VERSION_TIMEOUT_SECONDS = 10
 MAX_CONFIG_STDOUT_BYTES = 1024 * 1024
 MAX_STDERR_BYTES = 64 * 1024
 MAX_VERSION_STDOUT_BYTES = 16 * 1024
+
+
+def VerifyEmbeddedChecks(stderr: bytes) -> dict[str, int]:
+    """Require positive original embedded loader diagnostics without disk/data/reader overrides."""
+
+    text = stderr.decode("utf-8")
+    blocked = ("Checks from disk are loaded", "Checks from readers are loaded",
+               "Overriding filesystem for checks", "Overriding filesystem for data")
+
+    if any(message in text for message in blocked):
+        raise ValueError("native configuration used an unselected check/data source")
+
+    counts = {}
+
+    for kind in ("libraries", "checks"):
+        matches = re.findall(r"Embedded " + kind + r" are loaded[^\n]*\bcount=([1-9][0-9]*)\b",
+                             text)
+
+        if not matches:
+            raise ValueError("native embedded loader did not establish positive " + kind)
+
+        counts[kind] = int(matches[-1])
+
+    return counts
+
+
+def VerifyNativeInterpretation(raw: bytes, case: dict) -> dict:
+    """Check independent selected native rows and exact file processing, without total/clean claims.
+
+    All native rows remain in raw evidence. Expected values come only from the separately
+    authored source oracle; source locations are compared only where it establishes them.
+    """
+
+    payload = ParseJson(raw, max_bytes=MAX_CONFIG_STDOUT_BYTES)
+
+    if type(payload.get("SchemaVersion")) is not int or payload["SchemaVersion"] != 2:
+        raise ValueError("native config output requires the pinned schema-two envelope")
+
+    results = payload.get("Results")
+
+    if type(results) is not list or len(results) != len(case["inputs"]):
+        raise ValueError("native config output omitted or expanded selected file processing")
+
+    observed = {}
+
+    for result in results:
+        if type(result) is not dict or type(result.get("Target")) is not str:
+            raise ValueError("native config result lacks its selected file identity")
+
+        target = result["Target"]
+
+        if target in observed:
+            raise ValueError("native config output duplicated a selected file")
+
+        observed[target] = result
+
+    selected = {}
+
+    for item in case["inputs"]:
+        result = observed.get(item["logicalPath"])
+
+        if result is None or result.get("Class") != "config" or result.get("Type") != (
+            item["resultType"]
+        ) or type(result.get("Misconfigurations")) is not list:
+            raise ValueError("native config did not positively process the exact selected type")
+
+        rows = result["Misconfigurations"]
+        matched = []
+
+        for expected in case["requiredChecks"]:
+            candidates = [row for row in rows if type(row) is dict
+                          and row.get("ID") == expected["id"]
+                          and row.get("Status") == expected["status"]]
+
+            if len(candidates) != 1:
+                raise ValueError("native output lacks one independently expected check/status")
+
+            candidate = candidates[0]
+
+            if "severity" in expected and candidate.get("Severity") != expected["severity"]:
+                raise ValueError("native check severity differs from its pinned source")
+
+            for expected_name, native_name in (("nativeStartLine", "StartLine"),
+                                                ("nativeEndLine", "EndLine")):
+                if expected_name in expected:
+                    cause = candidate.get("CauseMetadata")
+
+                    if type(cause) is not dict or type(cause.get(native_name)) is not int or (
+                        cause[native_name] != expected[expected_name]
+                    ):
+                        raise ValueError("native cause location differs from its original source")
+
+            matched.append({"id": expected["id"], "status": expected["status"]})
+
+        selected[item["logicalPath"]] = matched
+
+    return {"selected_native_checks": selected, "native_product_acceptance": False,
+            "scan_completeness": "not-assessed"}
 
 
 def OriginalArguments(
@@ -104,6 +204,8 @@ async def CaptureOriginal(
             if operation == "version" else MAX_CONFIG_STDOUT_BYTES),
             max_stderr_bytes=MAX_STDERR_BYTES, terminate_grace_seconds=1.0))
     evidence.mkdir(parents=True, exist_ok=True)
+    environment_before = {name: sorted(path.name for path in (environment_root / name).iterdir())
+                          for name in ("home", "config", "cache", "tmp", "cwd")}
     events = []
     result = None
     failure = None
@@ -128,6 +230,7 @@ async def CaptureOriginal(
         receipt = {"schema_version": 1, "classification": "test-only-native-compatibility",
             "product_authorization": False, "request": json.loads(SerializeContract(
                 original_request)), "original_failure": failure,
+            "environment_before": environment_before,
             "execution": json.loads(SerializeContract(result.execution))
                 if result is not None else None,
             "termination": result.termination.value if result is not None else None,

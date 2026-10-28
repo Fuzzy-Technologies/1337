@@ -164,3 +164,94 @@ def test_ControlledExceptionalCleanupRetainsAvailableEventsWithoutInventedResult
     assert (evidence / "config.stdout").read_bytes() == b"partial original stdout", (
         "Cleanup refusal must retain the available bounded original event fragment"
     )
+
+
+@pytest.mark.parametrize("mutation", ["missing", "zero", "disk", "readers", "check-fs", "data-fs"])
+def test_EmbeddedProofRefusesMissingZeroOrOverriddenCheckSources(mutation):
+    """Controlled loader messages cannot establish embedded provenance after any override."""
+
+    raw = b"Embedded libraries are loaded count=4\nEmbedded checks are loaded count=100\n"
+
+    if mutation == "missing":
+        raw = b"Embedded checks are loaded count=100\n"
+
+    elif mutation == "zero":
+        raw = raw.replace(b"count=4", b"count=0")
+
+    else:
+        raw += {"disk": b"Checks from disk are loaded count=1",
+            "readers": b"Checks from readers are loaded count=1",
+            "check-fs": b"Overriding filesystem for checks",
+            "data-fs": b"Overriding filesystem for data"}[mutation]
+
+    with pytest.raises(ValueError):
+        harness.VerifyEmbeddedChecks(raw)
+
+
+@pytest.mark.parametrize("mutation", ["valid", "missing", "duplicate", "unknown", "type",
+    "class", "empty", "status", "severity", "start", "end", "bool-line"])
+def test_ControlledConfigProofRequiresCompleteProcessingAndNativeSourceRows(mutation):
+    """Explicit fixture JSON proves interpretation refusal behavior, never actual compatibility."""
+
+    case = {"inputs": [{"logicalPath": "Dockerfile", "resultType": "dockerfile"}],
+        "requiredChecks": [{"id": "DS-0002", "status": "FAIL", "severity": "HIGH",
+                             "nativeStartLine": 7, "nativeEndLine": 7}]}
+    row = {"ID": "DS-0002", "Status": "FAIL", "Severity": "HIGH",
+           "CauseMetadata": {"StartLine": 7, "EndLine": 7}}
+    result = {"Target": "Dockerfile", "Class": "config", "Type": "dockerfile",
+              "Misconfigurations": [row, {"ID": "unrelated-retained-rule", "Status": "PASS"}]}
+    payload = {"SchemaVersion": 2, "Results": [result]}
+
+    if mutation == "missing":
+        payload["Results"] = []
+
+    elif mutation == "duplicate":
+        payload["Results"].append(result.copy())
+
+    elif mutation in {"unknown", "type", "class"}:
+        field = {"unknown": "Target", "type": "Type", "class": "Class"}[mutation]
+        result[field] = "unselected-value"
+
+    elif mutation == "empty":
+        result["Misconfigurations"] = []
+
+    elif mutation in {"status", "severity"}:
+        row[mutation.capitalize()] = "unselected-value"
+
+    elif mutation in {"start", "end", "bool-line"}:
+        field = "EndLine" if mutation == "end" else "StartLine"
+        row["CauseMetadata"][field] = True if mutation == "bool-line" else 8
+
+    raw = json.dumps(payload).encode()
+
+    if mutation == "valid":
+        summary = harness.VerifyNativeInterpretation(raw, case)
+        assert summary["selected_native_checks"] == {
+            "Dockerfile": [{"id": "DS-0002", "status": "FAIL"}]
+        } and summary["native_product_acceptance"] is False and (
+            summary["scan_completeness"] == "not-assessed"
+        ), "Selected compatibility facts cannot include unrelated rows or imply product acceptance"
+
+    else:
+        with pytest.raises(ValueError):
+            harness.VerifyNativeInterpretation(raw, case)
+
+
+@pytest.mark.parametrize("required", [False, True])
+def test_RequiredConfigurationLaneRefusesMissingPrerequisitesInsteadOfSkipping(
+    monkeypatch, required,
+):
+    """Only optional local absence can skip; declared required mode fails before any launch."""
+
+    from tests.integration import test_trivy_native_configuration as genuine
+
+    monkeypatch.setenv(genuine.REQUIRED, "1" if required else "0")
+
+    for name in ("FUZZY1337_TRIVY_BINARY", "FUZZY1337_TRIVY_PROVISIONING",
+                 "FUZZY1337_TRIVY_HOST_NETNS"):
+        monkeypatch.delenv(name, raising=False)
+
+    expected = AssertionError if required else pytest.skip.Exception
+
+    with pytest.raises(expected):
+        genuine.native_configuration_runtime.__wrapped__()
