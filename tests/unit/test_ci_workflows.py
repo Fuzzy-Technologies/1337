@@ -35,6 +35,11 @@ NATIVE_CONFIGURATION_FEATURE_CONDITION = (
     "&& contains(github.event.pull_request.body, "
     "'[native-configuration-compatibility-checkpoint]'))"
 )
+INSTALLED_CONFIGURATION_MATERIAL_CONDITION = (
+    INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
+    "&& github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, '<!-- native-config-material-2115 -->'))"
+)
 NATIVE_PROTOCOL_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
@@ -561,16 +566,16 @@ def test_NativeConfigurationCheckpointPreservesFullReadyGateAndSkipsImageDatabas
     ), "Native compatibility diagnostics must survive failed or incomplete genuine execution"
 
 
-def test_InstalledConfigurationMaterialWorkflowRemainsDormantAndDedicated() -> None:
-    """Keep the four-case installed read-helper source separate from enrollment and providers."""
+def test_InstalledConfigurationMaterialWorkflowRequiresExplicitAdmission() -> None:
+    """Keep the dedicated helper cohort limited to readiness and its explicit draft marker."""
 
     workflow = Workflow("native-configuration-material.yml")
     assert set(workflow["jobs"]) == {"installed-read-helper"}, (
         "Installed configuration source must declare exactly its one dedicated read-helper job"
     )
     job = workflow["jobs"]["installed-read-helper"]
-    assert job["if"] == "${{ false }}", (
-        "Installed helper job must stay disabled until independent review and root enrollment"
+    assert " ".join(job["if"].split()) == INSTALLED_CONFIGURATION_MATERIAL_CONDITION, (
+        "Installed helper job must require readiness or its exact dedicated draft marker"
     )
     assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 15, (
         "Installed helper source must retain one bounded ordinary Linux x86_64 lane"
@@ -598,7 +603,7 @@ def test_InstalledConfigurationMaterialWorkflowRemainsDormantAndDedicated() -> N
               "native-configuration-material.yml").read_text()
     assert all(token not in source for token in ("checkpoint]", "--version", "--download-db-only",
         "test_trivy_native", "1337-dev check", "FUZZY1337_RUN_NATIVE_")), (
-        "Held source cannot enroll a checkpoint, provider command, database or previous cohort"
+        "Dedicated lane must exclude legacy checkpoints, providers, databases and previous cohorts"
     )
     verify = steps["Require four executed cases and original bounded receipts"]["run"]
     assert "native_configuration_material_acceptance.py verify" in verify, (
@@ -608,6 +613,61 @@ def test_InstalledConfigurationMaterialWorkflowRemainsDormantAndDedicated() -> N
     assert upload["if"] == "always()" and upload["with"]["path"] == (
         "${{ runner.temp }}/native-configuration-material/evidence/"
     ), "Only bounded original metadata and streams may upload, including failed-case diagnostics"
+
+
+@pytest.mark.parametrize("draft,body,expected", (
+    (True, "Ordinary draft work", False),
+    (True, "<!-- native-config-material-2115 -->", True),
+    (False, "Ready for review", True),
+), ids=("draft-without-marker", "draft-with-exact-marker", "ready"))
+def test_InstalledConfigurationAdmissionUsesActualWorkflowCondition(draft, body, expected) -> None:
+    """Interpret only the real condition's closed grammar to prove its three PR admission states."""
+
+    condition = Workflow("native-configuration-material.yml")["jobs"]["installed-read-helper"]["if"]
+    tree = ast.parse(condition.replace("||", " or ").replace("&&", " and "), mode="eval")
+    context = {"github.event_name": "pull_request", "github.event.pull_request.draft": draft,
+               "github.event.pull_request.body": body}
+
+    def Admit(node):
+        """Interpret only equality, boolean composition and substring checks without execution."""
+
+        if isinstance(node, ast.Expression):
+            return Admit(node.body)
+
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, (ast.And, ast.Or)):
+            values = [Admit(value) for value in node.values]
+
+            return all(values) if isinstance(node.op, ast.And) else any(values)
+
+        if isinstance(node, ast.Compare) and len(node.ops) == len(node.comparators) == 1 and (
+            isinstance(node.ops[0], ast.Eq)
+        ):
+            return Admit(node.left) == Admit(node.comparators[0])
+
+        if isinstance(node, ast.Attribute) and ast.unparse(node) in context:
+            return context[ast.unparse(node)]
+
+        if isinstance(node, ast.Name) and node.id in {"true", "false"}:
+            return node.id == "true"
+
+        if isinstance(node, ast.Constant) and type(node.value) is str:
+            return node.value
+
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and (
+            node.func.id == "contains" and len(node.args) == 2 and not node.keywords
+        ):
+            haystack, needle = (Admit(argument) for argument in node.args)
+
+            if type(haystack) is not str or type(needle) is not str:
+                raise ValueError("Admission contains requires two literal or contextual strings")
+
+            return needle in haystack
+
+        raise ValueError("Workflow admission escaped its closed test grammar")
+
+    assert Admit(tree) is expected, (
+        "Actual dedicated workflow admission must match the explicit draft/readiness state"
+    )
 
 
 def test_InstalledConfigurationWorkersRegisterRealIsolationAndPreserveFixedSelection() -> None:
