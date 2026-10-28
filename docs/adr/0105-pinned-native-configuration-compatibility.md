@@ -105,6 +105,14 @@ fixtures, their synthetic oracle and synthetic production behavior remain
 unchanged. Shared pinned Trivy CI enrollment and its new evidence path require
 the coordinator's accepted-base integration, with no concurrent workflow writer.
 
+An explicit draft-only `[native-configuration-compatibility-checkpoint]` runs
+only the five new cases, provisioning the pinned binary without an image database.
+Ready/push acceptance retains all nine existing native/image/CI cases and adds the
+five configuration cases. The existing image draft checkpoint retains its original
+selection. Actual JUnit must contain all five config cases without skipped,
+failed or errored outcomes, and every case must retain original successful
+compatibility evidence. Failed runs preserve the same bounded artifact directory.
+
 Focused tests cover the new harness's input, provenance, processing and failure
 boundaries. Genuine provider execution occurs only against the closed owned
 specimens in the pinned no-egress lane. Missing required prerequisites fail;

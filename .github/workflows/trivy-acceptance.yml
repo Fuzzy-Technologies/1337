@@ -21,9 +21,18 @@ jobs:
       && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == true
       && contains(github.event.pull_request.body, '[native-image-feature-checkpoint]'))
+      || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[native-configuration-compatibility-checkpoint]'))
     name: Trivy 0.75.0 / owned offline archive
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      CONFIGURATION_CHECKPOINT: >-
+        ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true
+        && contains(github.event.pull_request.body, '[native-configuration-compatibility-checkpoint]')
+        && '1' || '0' }}
+      FULL_ACCEPTANCE: >-
+        ${{ (github.event_name == 'push' || github.event.pull_request.draft == false) && '1' || '0' }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -101,34 +110,55 @@ jobs:
           executable.chmod(0o700)
           cache = root / "cache"
           cache.mkdir(mode=0o700)
-          subprocess.run([str(executable), "--cache-dir", str(cache), "--config=", "image",
-              "--download-db-only", "--db-repository", oracle["database_repository"],
-              "--skip-java-db-update", "--skip-check-update", "--skip-version-check",
-              "--skip-vex-repo-update", "--disable-telemetry", "--no-progress", "--timeout", "120s"],
-              env={"PATH": "/usr/bin:/bin", "HOME": str(root)}, check=True, timeout=180)
           database_files = {}
+          configuration_only = os.environ["CONFIGURATION_CHECKPOINT"] == "1"
 
-          for name in ("metadata.json", "trivy.db"):
-              path = cache / "db" / name
+          if not configuration_only:
+              subprocess.run([str(executable), "--cache-dir", str(cache), "--config=", "image",
+                  "--download-db-only", "--db-repository", oracle["database_repository"],
+                  "--skip-java-db-update", "--skip-check-update", "--skip-version-check",
+                  "--skip-vex-repo-update", "--disable-telemetry", "--no-progress",
+                  "--timeout", "120s"],
+                  env={"PATH": "/usr/bin:/bin", "HOME": str(root)}, check=True, timeout=180)
 
-              if path.is_symlink() or not path.is_file() or path.stat().st_size > 2 * 1024**3:
-                  raise ValueError("Provisioned database is not an explicit bounded regular file")
+              for name in ("metadata.json", "trivy.db"):
+                  path = cache / "db" / name
 
-              with path.open("rb") as source:
-                  database_files[name] = hashlib.file_digest(source, "sha256").hexdigest()
+                  if path.is_symlink() or not path.is_file() or path.stat().st_size > 2 * 1024**3:
+                      raise ValueError("Provisioned database is not an explicit bounded regular file")
+
+                  with path.open("rb") as source:
+                      database_files[name] = hashlib.file_digest(source, "sha256").hexdigest()
 
           with executable.open("rb") as source:
               executable_sha256 = hashlib.file_digest(source, "sha256").hexdigest()
 
           receipt = {"schema_version": 1, "release_asset": oracle["release_asset"],
               "release_asset_sha256": oracle["release_asset_sha256"],
-              "executable_sha256": executable_sha256,
-              "database_repository": oracle["database_repository"], "database_files": database_files}
+              "executable_sha256": executable_sha256}
+
+          if not configuration_only:
+              receipt.update(database_repository=oracle["database_repository"],
+                  database_files=database_files)
+
           (root / "provisioning.json").write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
           PY
       - name: Run genuine adapter acceptance with no external network interface or route
         shell: bash
         run: |
+          configuration_tests=(tests/integration/test_trivy_native_configuration.py)
+          original_tests=(tests/integration/test_trivy_native.py
+            tests/functional/test_native_image_product.py
+            tests/functional/test_ci_native_image_product.py)
+
+          if [[ "$CONFIGURATION_CHECKPOINT" == "1" ]]; then
+            selected_tests=("${configuration_tests[@]}")
+          elif [[ "$FULL_ACCEPTANCE" == "1" ]]; then
+            selected_tests=("${original_tests[@]}" "${configuration_tests[@]}")
+          else
+            selected_tests=("${original_tests[@]}")
+          fi
+
           host_netns="$(readlink /proc/self/ns/net)"
           sudo unshare --net -- setpriv \
             --reuid="$(id -u)" --regid="$(id -g)" --clear-groups \
@@ -138,10 +168,45 @@ jobs:
             FUZZY1337_TRIVY_CACHE="$RUNNER_TEMP/trivy-native-0.75.0/cache" \
             FUZZY1337_TRIVY_PROVISIONING="$RUNNER_TEMP/trivy-native-0.75.0/provisioning.json" \
             FUZZY1337_RUN_NATIVE_IMAGE_PRODUCT_ACCEPTANCE=1 \
+            FUZZY1337_RUN_NATIVE_CONFIGURATION_COMPATIBILITY=1 \
             .venv/bin/python -m pytest \
-            tests/integration/test_trivy_native.py tests/functional/test_native_image_product.py \
-            tests/functional/test_ci_native_image_product.py \
-            -o addopts='' --no-cov -q -n 2 --dist=load
+            "${selected_tests[@]}" -o addopts='' --no-cov -q -n 2 --dist=load \
+            --junitxml=functional-evidence/native-configuration-compatibility/pytest.xml
+      - name: Require executed native configuration compatibility evidence
+        if: env.CONFIGURATION_CHECKPOINT == '1' || env.FULL_ACCEPTANCE == '1'
+        shell: bash
+        run: |
+          .venv/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          root = Path("functional-evidence/native-configuration-compatibility")
+          oracle = json.loads(Path("tests/fixtures/trivy/configuration_compatibility.v1.json").read_bytes())
+          expected = {case["caseId"] for case in oracle["cases"]}
+          junit = ElementTree.parse(root / "pytest.xml").getroot()
+          prefix = "test_GenuinePinnedConfigurationProcessesOriginalSourcesWithEmbeddedChecks["
+          cases = [item for item in junit.iter("testcase") if item.attrib["name"].startswith(prefix)]
+          observed = {item.attrib["name"][len(prefix):-1] for item in cases}
+
+          if observed != expected or len(cases) != 5 or any(
+              child.tag in {"skipped", "failure", "error"} for item in cases for child in item
+          ):
+              raise ValueError("Required five native config cases did not execute without skips/errors")
+
+          for case in oracle["cases"]:
+              facts = json.loads((root / case["caseId"] / "compatibility.json").read_bytes())
+
+              if facts["outcome"] != "selected-compatibility-assertions-passed" or (
+                  facts["native_product_acceptance"] is not False
+                  or facts["scan_completeness"] != "not-assessed"
+                  or facts["checks_source"] != oracle["checksSource"]
+                  or facts["loader_source"] != oracle["trivySource"]
+                  or set(facts["embedded_loader"]) != {"libraries", "checks"}
+                  or not all(count > 0 for count in facts["embedded_loader"].values())
+              ):
+                  raise ValueError("Native config original compatibility evidence is incomplete")
+          PY
       - name: Preserve actual native provider evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -151,5 +216,6 @@ jobs:
             functional-evidence/trivy-native/
             functional-evidence/native-image-product/
             functional-evidence/native-image-ci/
+            functional-evidence/native-configuration-compatibility/
           if-no-files-found: warn
           retention-days: 14
