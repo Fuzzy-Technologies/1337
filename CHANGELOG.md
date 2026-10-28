@@ -18,6 +18,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Added an explicit native Trivy CI profile using the original current image run,
+  independently revalidated source records and operator-selected finding limits.
+  JSON/SARIF/JUnit exports share one saved snapshot and preserve late refusal;
+  existing synthetic CI profiles remain compatible.
+
 - Added Experimental native offline assessment of acknowledged original response
   headers, with separate PASSIVE admission, a fixed original window and source-linked
   missing-field Findings. Independent model/workspace CAS, ACK and historical replay
