@@ -11,7 +11,7 @@ MAX_PROMETHEUS_BODY_BYTES = 256 * 1024
 MAX_PROMETHEUS_LINE_BYTES = 16 * 1024
 _NAME = re.compile(r"[a-zA-Z_:][a-zA-Z0-9_:]*")
 _LABEL = re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
-_VALUE = r"(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|NaN|[+-]?Inf)"
+_VALUE = r"(?:[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|(?i:NaN)|[+-]?Inf)"
 _SAMPLE_END = re.compile(r"[ \t]+" + _VALUE + r"(?:[ \t]+[+-]?[0-9]+)?[ \t]*")
 _TYPES = frozenset({"counter", "gauge", "histogram", "summary", "untyped"})
 

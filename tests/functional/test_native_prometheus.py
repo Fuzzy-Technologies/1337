@@ -37,6 +37,11 @@ EXPOSITION = (b"# HELP accepted_requests_total Number of accepted requests\n"
               b"# TYPE accepted_requests_total counter\n"
               b'accepted_requests_total{component="owned-fixture"} 7\n')
 PADDED_EXPOSITION = EXPOSITION + b"# bounded padding\n" * 400
+NAN_EXPOSITION = (b"# HELP observed_accuracy Current diagnostic ratio\n"
+                  b"# TYPE observed_accuracy gauge\n"
+                  b'observed_accuracy{phase="find it"} Nan\n'
+                  b'observed_accuracy{phase="fix it"} Nan\n'
+                  + b"# bounded padding\n" * 400)
 OUTPUT = Path("_build/native-prometheus/acceptance")
 
 
@@ -65,6 +70,7 @@ CASES = {
     "length-positive": (Response(framing="length"), True, True),
     "chunked-positive": (Response(), True, True),
     "eof-positive": (Response(framing="eof"), True, True),
+    "nan-spelling-positive": (Response(NAN_EXPOSITION), True, True),
     "plain-prose-decoy": (Response(b"This page describes Prometheus metrics\n"), False, True),
     "html-decoy": (Response(b"<html>\n" + EXPOSITION + b"</html>\n", media="text/html"),
                    False, True),
@@ -171,6 +177,7 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
                for item in summary.snapshot.artifacts}
     assert streams["stderr"] == b"", "Worker emitted unexpected private error material."
     assert b"accepted_requests_total" not in streams["stdout"], "Metric names were retained."
+    assert b"observed_accuracy" not in streams["stdout"], "Diagnostic metric names were retained."
     worker = json.loads(streams["stdout"])
 
     if assessed:
@@ -178,8 +185,9 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
         assert worker["check_id"] == NATIVE_PROMETHEUS_CHECK_ID, "Wrong worker code ran."
 
         if expected_match:
-            assert worker["body_bytes"] == len(PADDED_EXPOSITION) > 4096, "New cap was not used."
-            assert worker["body_sha256"] == hashlib.sha256(PADDED_EXPOSITION).hexdigest(), (
+            expected_body = NAN_EXPOSITION if case == "nan-spelling-positive" else PADDED_EXPOSITION
+            assert worker["body_bytes"] == len(expected_body) > 4096, "New cap was not used."
+            assert worker["body_sha256"] == hashlib.sha256(expected_body).hexdigest(), (
                 "Actual decoded response hash differs from the independent fixture."
             )
 

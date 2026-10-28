@@ -185,7 +185,8 @@ names; histogram `_bucket`/`_sum`/`_count` and summary quantile/`_sum`/`_count`
 forms are explicit. Other syntactically valid untyped samples do not establish a
 positive alone. Quoted UTF-8 metric names, OpenMetrics/exemplars and lines over
 16 KiB are outside this conservative detection profile. It is not a full ingestion
-validator. NaN and infinities are recognized as text only.
+validator. Unsigned NaN spellings ignore alphabetic case, including `Nan`;
+NaN and infinities are recognized as text only.
 
 Only this check admits a decoded body up to 256 KiB and bounded Content-Length,
 chunked or connection-EOF framing. Wire bytes are separately limited to 512 KiB,

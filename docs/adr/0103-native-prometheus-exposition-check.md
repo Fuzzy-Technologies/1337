@@ -39,7 +39,9 @@ metadata line, ASCII metric/label names, unique label names and supported escape
 backslash, quote and newline. Counter/gauge/untyped samples use exact family names;
 histograms explicitly admit `_bucket`, `_sum`, `_count`, and summaries admit their
 base quantiles, `_sum`, `_count`. Values and optional integer timestamps are checked
-lexically; NaN and infinities never become nonfinite JSON. Unknown metadata,
+lexically; the unsigned NaN token ignores alphabetic case as required by the
+referenced Go `ParseFloat` syntax, including client-emitted `Nan`. NaN and
+infinities never become nonfinite JSON. Unknown metadata,
 OpenMetrics/exemplars, modern quoted UTF-8 names, incomplete documents and trailing
 junk are outside this intentionally conservative v1 predicate. This is detection,
 not complete Prometheus ingestion validation.
@@ -63,3 +65,6 @@ benchmark can run its actual isolated runtime and preserve genuine evidence.
 
 Primary format reference:
 https://prometheus.io/docs/instrumenting/exposition_formats/
+
+The referenced float parser explicitly ignores case for NaN:
+https://pkg.go.dev/strconv#ParseFloat

@@ -15,6 +15,27 @@ from fuzzy1337.adapters.prometheus_exposition import (
 DOCUMENT = b"# HELP active_jobs Current active jobs\n# TYPE active_jobs gauge\nactive_jobs 3\n"
 
 
+@pytest.mark.parametrize("value", ["NaN", "Nan", "NAN", "NAn", "nan", "naN", "nAn", "nAN"])
+def test_CaseInsensitiveNaNSampleDoesNotInvalidateACompleteExposition(value: str) -> None:
+    """The legacy Go float lexeme includes Nan from ordinary client-generated gauges."""
+
+    body = (DOCUMENT + b"# HELP observed_accuracy Current diagnostic ratio\n"
+            b"# TYPE observed_accuracy gauge\n"
+            + f'observed_accuracy{{phase="find it"}} {value}\n'.encode("ascii"))
+    assert SupportedExposition(body), "A valid NaN spelling invalidated a complete document."
+    assert MatchesPrometheus(200, "text/plain", body), "The HTTP predicate lost valid NaN text."
+
+
+@pytest.mark.parametrize("value", ["+Nan", "-nAn", "Nanx", "N a N", "nan(payload)"])
+def test_NaNCaseSupportKeepsSignedAndMalformedTokensOutsideTheProfile(value: str) -> None:
+    """Case folding applies only to the complete unsigned NaN lexeme."""
+
+    body = (DOCUMENT + b"# HELP observed_accuracy Current diagnostic ratio\n"
+            b"# TYPE observed_accuracy gauge\n"
+            + f'observed_accuracy{{phase="find it"}} {value}\n'.encode("ascii"))
+    assert not SupportedExposition(body), "Malformed sample text bypassed whole-document checks."
+
+
 @pytest.mark.parametrize("body", [
     DOCUMENT,
     b"# TYPE active_jobs gauge\n# HELP active_jobs Current active jobs\nactive_jobs 3\n",
