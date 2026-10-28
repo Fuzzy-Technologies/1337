@@ -27,11 +27,11 @@ version/root controls reuse the existing target contract. Source inspection
 does not prove what the running image returns; preserve actual status, media,
 body attribution, and transfer framing in the eventual scanner evidence.
 
-| Track           | Mapping                                       | Current state            |
-| --------------- | --------------------------------------------- | ------------------------ |
-| Native engine   | `native.prometheus-exposition`                | Available; runtime UNRUN |
-| Whole 1337      | Governed Nuclei workflow + candidate template | Candidate                |
-| External Nuclei | Standalone real binary + same template        | Candidate                |
+| Track           | Mapping                                       | Current state                   |
+| --------------- | --------------------------------------------- | ------------------------------- |
+| Native engine   | `native.prometheus-exposition`                | Available; native checkpoint FN |
+| Whole 1337      | Governed Nuclei workflow + candidate template | Candidate                       |
+| External Nuclei | Standalone real binary + same template        | Candidate                       |
 
 The candidate checks a standard process CPU metric family; the native detector
 associates generic HELP/TYPE/sample names. They assess the same application
@@ -86,7 +86,14 @@ Effective budgets must be measured honestly. Nuclei currently fixes a 1 MiB
 response ceiling and couples its request/process timeout; native metrics uses
 separate request/job limits and a 256 KiB body ceiling. The comparison
 retains budget deviations and refuses to imply identical performance inputs.
-Actual target/scanner acceptance is **UNRUN** until real evidence is retained.
+The genuine native checkpoint at PR head `84311559` completed these finite
+cases with **TP 0 / FP 0 / FN 1 / TN 2**. The metrics response was HTTP 200,
+text/plain and 25,982 bytes, but the installed detector returned false. The
+JSON and HTML controls passed. Native acceptance remains unmet, and the
+positive oracle is unchanged. Original evidence is retained in
+[artifact 12828328221](https://github.com/Fuzzy-Technologies/1337/actions/runs/40717160124/artifacts/12828328221)
+with archive SHA-256
+`64718e982b7d9fa6b959e6cfd9d088695cdb5ce4b2bfe09948ef5662d107e1b8`.
 
 The existing `external-targets` job in `.github/workflows/python-quality.yml`
 runs the original target smoke followed by these three installed native cases
@@ -103,6 +110,14 @@ job's installed native three-case step for supported-runtime diagnosis. The
 already separate target smoke and other complete integration jobs wait for
 final readiness. This checkpoint preserves original evidence and JUnit; it
 does not establish final integration acceptance.
+
+The additional draft-only marker `[native-external-metrics-diagnostic]` selects
+one separately authorized GET of `/metrics` on a fresh pinned target. It
+requests identity encoding and retains returned bytes with their own hash, headers,
+provenance and finite 256 KiB/2.25-second child/3-second exec bounds. This later
+body is independent of the earlier scanner response. The diagnostic skips
+native case execution; final readiness always requires the actual native lane.
+Production response-retention behavior is unchanged.
 
 Focused offline contract checks:
 

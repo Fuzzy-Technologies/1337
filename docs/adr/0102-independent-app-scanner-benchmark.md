@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted architecture — 2026-10-28, Task #40. Runtime acceptance remains unrun.
+Accepted architecture — 2026-10-28, Task #40. Runtime acceptance remains separate.
 
 ## Context
 
@@ -145,3 +145,11 @@ The previous target smoke and all other complete integration jobs remain
 readiness-gated for this marker. Preserve the same finite execution, original
 evidence and JUnit. A checkpoint is separate from final integration acceptance;
 the stable proposed revision must still pass the full shared readiness gate.
+
+A known-positive miss may be diagnosed through one separately labeled bounded
+GET on a fresh identical pinned target. A second explicit draft diagnostic
+marker selects this acquisition instead of native case execution. Preserve raw
+diagnostic bytes/hash and target provenance; never attribute that later response
+to the original scanner or silently change production response retention. Final
+readiness still requires native execution, and the original false negative and
+oracle stay intact.

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import subprocess
@@ -16,6 +17,7 @@ import yaml
 
 from tests.functional import external_native_runner as bundle_owner
 from tests.functional import external_native_runtime as runtime_owner
+from tests.functional import test_external_metrics_diagnostic as diagnostic_owner
 from tests.functional import test_external_native_benchmark as functional_owner
 from tests.functional.conftest import CommandResult
 from tests.functional.external_benchmark import LoadPack
@@ -423,6 +425,20 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
     assert "tests/functional/test_external_native_benchmark.py" in native["run"]
     assert "--no-cov -n 0" in native["run"] and "--junitxml=" in native["run"]
     assert native["timeout-minutes"] == 15 and lane["timeout-minutes"] == 20
+    diagnostic_marker = "[native-external-metrics-diagnostic]"
+    assert " ".join(native["if"].split()) == (
+        "github.event_name != 'pull_request' || github.event.pull_request.draft == false "
+        "|| !contains(github.event.pull_request.body, '" + diagnostic_marker + "')"
+    )
+    diagnostic = steps["Capture one separate fresh-target metrics diagnostic"]
+    assert " ".join(diagnostic["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        "&& contains(github.event.pull_request.body, '" + diagnostic_marker + "')"
+    )
+    assert diagnostic["env"] == {"FUZZY1337_EXTERNAL_METRICS_DIAGNOSTIC": "juice-shop"}
+    assert "tests/functional/test_external_metrics_diagnostic.py" in diagnostic["run"]
+    assert "test_external_native_benchmark.py" not in diagnostic["run"]
+    assert "--no-cov -n 0" in diagnostic["run"] and diagnostic["timeout-minutes"] == 3
     upload = steps["Preserve external target evidence"]
     assert upload["if"] == "always()" and (
         "functional-evidence/external-native-benchmark/" in upload["with"]["path"]
@@ -430,3 +446,64 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
     container = next(step["run"] for step in jobs["container-quality"]["steps"]
                      if step.get("name") == "Run container quality gate")
     assert "--suite-timeout 900" in container
+
+
+def test_SeparateDiagnosticSkipsBeforeAnyTargetIsCreated(monkeypatch):
+    """Ordinary collection cannot acquire a target for the separately authorized diagnostic."""
+
+    monkeypatch.delenv("FUZZY1337_EXTERNAL_METRICS_DIAGNOSTIC", raising=False)
+
+    def Forbidden(name):
+        """Fail if a disabled diagnostic attempts even fixture discovery."""
+
+        raise AssertionError("Disabled diagnostic created a target")
+
+    with pytest.raises(pytest.skip.Exception, match="UNRUN"):
+        diagnostic_owner.test_OneFreshTargetMetricsDiagnostic(
+            SimpleNamespace(getfixturevalue=Forbidden))
+
+
+@pytest.mark.parametrize("mutation", [None, "length", "limit", "base64"])
+def test_DiagnosticCapturePreservesNewRawBytesAndRefusesInvalidLengths(tmp_path, mutation):
+    """Binary fixture bytes stay exact and explicitly separate from the earlier scanner body."""
+
+    body = b"\x00\xff\r\n"
+    payload = {"status": 200, "headers": [["Content-Type", "text/plain"]],
+        "body_base64": base64.b64encode(body).decode("ascii"),
+        "body_bytes": len(body), "error": ""}
+
+    if mutation == "length":
+        payload["body_bytes"] -= 1
+
+    elif mutation == "limit":
+        payload["body_bytes"] = diagnostic_owner.MAX_BODY_BYTES + 1
+
+    elif mutation == "base64":
+        payload["body_base64"] = "***"
+
+    def Compose(*arguments, timeout_seconds):
+        """Return an inert JSON/base64 producer without Node, Docker or HTTP execution."""
+
+        assert arguments[:5] == ("exec", "-T", "external-juice-shop", "/nodejs/bin/node", "-e")
+        assert timeout_seconds == 3
+
+        return CommandResult(("contract-fixture-not-executed",), 0, json.dumps(payload), "")
+
+    lab = SimpleNamespace(repository_root=Path(__file__).resolve().parents[2],
+        target=SimpleNamespace(Service="external-juice-shop"),
+        provenance={"fixture": "synthetic-contract-only"}, Compose=Compose,
+        RequireSuccess=runtime_owner.ComposeLab.RequireSuccess)
+
+    if mutation is not None:
+        with pytest.raises(ValueError):
+            diagnostic_owner.CaptureDiagnostic(lab, tmp_path)
+
+        assert not (tmp_path / "response.body.bin").exists()
+
+        return
+
+    receipt = diagnostic_owner.CaptureDiagnostic(lab, tmp_path)
+    assert (tmp_path / "response.body.bin").read_bytes() == body
+    assert receipt["body_sha256"] == hashlib.sha256(body).hexdigest()
+    assert receipt["purpose"] == "independent-fresh-target-metrics-diagnostic"
+    assert receipt["original_scan_response"] is False
