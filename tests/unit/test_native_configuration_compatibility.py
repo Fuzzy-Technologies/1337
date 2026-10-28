@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import socket
 
 import pytest
 
@@ -20,6 +21,16 @@ from fuzzy1337.executors import (
     LocalExecutionResult,
 )
 from tests.fixtures.trivy import native_configuration as harness
+
+
+@pytest.fixture(scope="module")
+def native_configuration_runner():
+    """Initialize portable loop resources before the unchanged per-test network guard."""
+
+    with asyncio.Runner() as runner:
+        runner.get_loop()
+
+        yield runner
 
 
 @pytest.mark.parametrize("scanner,operation", [
@@ -78,7 +89,7 @@ def test_CompatibilityProcessRootsAreWhollyFreshAndRefuseReuse(tmp_path):
     (ExecutionState.TIMED_OUT, ExecutionTermination.TIMEOUT, -15),
 ])
 def test_ControlledOriginalResultsPreserveActualStreamsAndTerminalTruth(
-    tmp_path, monkeypatch, state, termination, exit_code,
+    tmp_path, monkeypatch, native_configuration_runner, state, termination, exit_code,
 ):
     """Explicit executor doubles retain failure/overflow/timeout facts without native acceptance."""
 
@@ -114,7 +125,7 @@ def test_ControlledOriginalResultsPreserveActualStreamsAndTerminalTruth(
 
     monkeypatch.setattr(harness, "LocalExecutor", ControlledExecutor)
     evidence = tmp_path / "evidence"
-    observed = asyncio.run(harness.CaptureOriginal(tmp_path, tmp_path / "trivy",
+    observed = native_configuration_runner.run(harness.CaptureOriginal(tmp_path, tmp_path / "trivy",
         tmp_path / "cache", tmp_path / "inputs", "dockerfile", "config",
         tmp_path / "process", evidence))
     receipt = json.loads((evidence / "config.receipt.json").read_bytes())
@@ -130,7 +141,7 @@ def test_ControlledOriginalResultsPreserveActualStreamsAndTerminalTruth(
 
 
 def test_ControlledExceptionalCleanupRetainsAvailableEventsWithoutInventedResult(
-    tmp_path, monkeypatch,
+    tmp_path, monkeypatch, native_configuration_runner,
 ):
     """An explicit cleanup-error double leaves partial evidence and no successful process facts."""
 
@@ -154,7 +165,8 @@ def test_ControlledExceptionalCleanupRetainsAvailableEventsWithoutInventedResult
     evidence = tmp_path / "evidence"
 
     with pytest.raises(LocalExecutionError, match="Controlled cleanup"):
-        asyncio.run(harness.CaptureOriginal(tmp_path, tmp_path / "trivy", tmp_path / "cache",
+        native_configuration_runner.run(harness.CaptureOriginal(tmp_path, tmp_path / "trivy",
+            tmp_path / "cache",
             tmp_path / "inputs", "kubernetes", "config", tmp_path / "process", evidence))
 
     receipt = json.loads((evidence / "config.receipt.json").read_bytes())
@@ -164,6 +176,17 @@ def test_ControlledExceptionalCleanupRetainsAvailableEventsWithoutInventedResult
     assert (evidence / "config.stdout").read_bytes() == b"partial original stdout", (
         "Cleanup refusal must retain the available bounded original event fragment"
     )
+
+
+def test_PreinitializedLoopPreservesTheUnitNetworkGuard(native_configuration_runner):
+    """Module-scoped Windows loop setup cannot grant network access to a unit-test body."""
+
+    assert native_configuration_runner.get_loop().is_closed() is False, (
+        "The original module-scoped event loop must remain available for controlled async tests"
+    )
+
+    with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+        socket.create_connection(("127.0.0.1", 9), timeout=1)
 
 
 @pytest.mark.parametrize("mutation", ["missing", "zero", "disk", "readers", "check-fs"])
