@@ -4,6 +4,7 @@
 """Protect draft feedback, final integration triggers and required full-job execution."""
 
 import ast
+import json
 import shlex
 from pathlib import Path
 from typing import Any
@@ -558,3 +559,114 @@ def test_NativeConfigurationCheckpointPreservesFullReadyGateAndSkipsImageDatabas
     assert upload["if"] == "always()" and (
         "functional-evidence/native-configuration-compatibility/" in upload["with"]["path"]
     ), "Native compatibility diagnostics must survive failed or incomplete genuine execution"
+
+
+def test_InstalledConfigurationMaterialWorkflowRemainsDormantAndDedicated() -> None:
+    """Keep the four-case installed read-helper source separate from enrollment and providers."""
+
+    workflow = Workflow("native-configuration-material.yml")
+    assert set(workflow["jobs"]) == {"installed-read-helper"}, (
+        "Installed configuration source must declare exactly its one dedicated read-helper job"
+    )
+    job = workflow["jobs"]["installed-read-helper"]
+    assert job["if"] == "${{ false }}", (
+        "Installed helper job must stay disabled until independent review and root enrollment"
+    )
+    assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 15, (
+        "Installed helper source must retain one bounded ordinary Linux x86_64 lane"
+    )
+    steps = {step["name"]: step for step in job["steps"]}
+    assert steps["Check out exact source"]["with"]["ref"] == job["env"]["MATERIAL_SOURCE_SHA"] == (
+        "${{ github.event.pull_request.head.sha || github.sha }}"
+    ), "Installed acceptance must build the exact proposed head rather than an unrelated revision"
+    assert all(1 <= step["timeout-minutes"] <= 5 for step in steps.values()), (
+        "Each installed helper preparation, execution and retention step needs its finite deadline"
+    )
+    prepare = steps["Build installed wheel and provision read-only pinned input"]["run"]
+    assert "native_configuration_material_acceptance.py prepare" in prepare and (
+        '--repository "$GITHUB_WORKSPACE"' in prepare
+        and '--root "$RUNNER_TEMP/native-configuration-material"' in prepare
+    ), "Installed helper preparation must build the exact checkout into a fresh outside environment"
+    run = steps["Run four installed helper cases with loopback only"]["run"]
+    assert "sudo unshare --net -- setpriv" in run and "env -i" in run and (
+        'cd "$lane/run"' in run
+        and '"$lane/environment/bin/python" -I "$lane/run/material_acceptance.py"' in run
+        and 'FUZZY1337_CONFIGURATION_MATERIAL_CONTEXT="$lane/context.json"' in run
+        and "--clear-groups" in run
+    ), "Installed cases must retain the isolated interpreter and ordinary loopback-only owner"
+    source = (Path(__file__).resolve().parents[2] / ".github/workflows/"
+              "native-configuration-material.yml").read_text()
+    assert all(token not in source for token in ("checkpoint]", "--version", "--download-db-only",
+        "test_trivy_native", "1337-dev check", "FUZZY1337_RUN_NATIVE_")), (
+        "Held source cannot enroll a checkpoint, provider command, database or previous cohort"
+    )
+    verify = steps["Require four executed cases and original bounded receipts"]["run"]
+    assert "native_configuration_material_acceptance.py verify" in verify, (
+        "Dedicated source must require the exact four-case original receipt verifier"
+    )
+    upload = steps["Preserve bounded helper metadata and original streams"]
+    assert upload["if"] == "always()" and upload["with"]["path"] == (
+        "${{ runner.temp }}/native-configuration-material/evidence/"
+    ), "Only bounded original metadata and streams may upload, including failed-case diagnostics"
+
+
+def test_InstalledConfigurationWorkersRegisterRealIsolationAndPreserveFixedSelection() -> None:
+    """Register the actual pytest hook and inspect real execnet argv without starting workers."""
+
+    import execnet
+    import xdist.newhooks
+    from _pytest.config import PytestPluginManager
+    from execnet.gateway_io import popen_args
+
+    from tests.fixtures.trivy import native_configuration_material_acceptance as helper
+
+    interpreter = "/owned installed/environment/bin/python"
+    plugin = helper.InstalledWorkers(interpreter)
+    manager = PytestPluginManager()
+    manager.add_hookspecs(xdist.newhooks)
+    manager.register(plugin)
+    specs = [execnet.XSpec("popen"), execnet.XSpec("popen")]
+    manager.hook.pytest_xdist_setupnodes(config=None, specs=specs)
+    assert all(popen_args(spec)[:3] == [interpreter, "-I", "-u"] for spec in specs), (
+        "The actual registered callback must isolate both genuine execnet interpreter commands"
+    )
+
+    with pytest.raises(ValueError, match="exactly two fresh local workers"):
+        manager.hook.pytest_xdist_setupnodes(config=None, specs=[execnet.XSpec("popen")])
+
+    tree = ast.parse(Path(helper.__file__).read_text())
+    run = next(node for node in tree.body
+               if isinstance(node, ast.FunctionDef) and node.name == "Run")
+    tokens = ast.unparse(run)
+    assert all(token in tokens for token in ("test_native_configuration_material_execution.py",
+        "--no-cov", "'2'", "--dist=loadscope", "--timeout=120", "--max-worker-restart=0",
+        "--junitxml=")), (
+        "Installed source must preserve the four-case module, bounded workers and actual JUnit"
+    )
+    assert len(helper.CASE_IDS) == 4 and len(set(helper.CASE_IDS)) == 4, (
+        "Required installed helper report identities must remain exactly four unique cases"
+    )
+
+
+@pytest.mark.parametrize("mutation", ("missing-case", "skipped", "error", "stale-head"))
+def test_InstalledConfigurationReportGateRejectsIncompleteOrUnexecutedCases(
+    tmp_path, monkeypatch, mutation,
+) -> None:
+    """Reject synthetic missing, skipped, errored and stale JUnit before any acceptance claim."""
+
+    from tests.fixtures.trivy import native_configuration_material_acceptance as helper
+
+    root = tmp_path / "report"
+    evidence = root / "evidence"
+    evidence.mkdir(parents=True)
+    (root / "context.json").write_text(json.dumps({"commit": "a" * 40}))
+    monkeypatch.setenv("MATERIAL_SOURCE_SHA", "b" * 40 if mutation == "stale-head" else "a" * 40)
+    cases = helper.CASE_IDS[:-1] if mutation == "missing-case" else helper.CASE_IDS
+    child = "<skipped/>" if mutation == "skipped" else "<error/>" if mutation == "error" else ""
+    xml = "<testsuites><testsuite>" + "".join(
+        f'<testcase name="test_InstalledMaterialLifecycle[{case_id}]">{child}</testcase>'
+        for case_id in cases) + "</testsuite></testsuites>"
+    (evidence / "pytest.xml").write_text(xml)
+
+    with pytest.raises(ValueError, match="current workflow revision|without skips/errors"):
+        helper.Verify(root)
