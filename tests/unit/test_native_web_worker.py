@@ -457,6 +457,12 @@ def test_MetricsOnlyFramingRetainsNoMetricValues(monkeypatch, framing, body):
     b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" + b"1\r\nx\r\n" * 4097
     + b"0\r\n\r\n",
     MetricsWire("eof", b"x" * 262145),
+], ids=[
+    "ambiguous-length-and-chunked", "unsupported-transfer-coding", "decoded-length-over-bound",
+    "declared-length-over-wire-bound", "zero-length-with-extra-byte", "truncated-content-length",
+    "chunk-extension", "chunk-trailer", "invalid-chunk-delimiter", "truncated-chunk",
+    "chunk-size-over-bound", "chunk-line-over-bound", "bytes-after-final-chunk",
+    "chunk-count-over-bound", "eof-body-over-bound",
 ])
 def test_MetricsFramingRefusesAmbiguityTruncationAndIndependentBounds(monkeypatch, wire):
     """Malformed, ambiguous, overlong and excessive-chunk responses remain unassessed failures."""
@@ -538,7 +544,9 @@ def test_MetricsMainSelectsExplicitCheckAndStillUsesCanonicalOutput(monkeypatch,
 
     transport = FakeSocket([MetricsWire("chunked")])
     monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
-    assert worker.Main(["http://127.0.0.1:8080/metrics", "1", NATIVE_PROMETHEUS_CHECK_ID]) == 0
+    assert worker.Main(["http://127.0.0.1:8080/metrics", "1", NATIVE_PROMETHEUS_CHECK_ID]) == 0, (
+        "The selected metrics worker must return successful canonical completion."
+    )
     captured = capsys.readouterr()
     assert '"check_id":"native.prometheus-exposition"' in captured.out, "Check identity drifted."
     assert "active_jobs" not in captured.out and not captured.err, "Transient metrics leaked."

@@ -76,4 +76,6 @@ def test_OneFreshTargetMetricsDiagnostic(request):
     directory = lab.repository_root / "functional-evidence/external-native-benchmark/diagnostic"
     directory = directory / ("run-" + uuid4().hex[:12])
     receipt = CaptureDiagnostic(lab, directory)
-    assert receipt["status"] == 200 and receipt["error"] == ""
+    assert receipt["status"] == 200 and receipt["error"] == "", (
+        "The independent diagnostic must complete its one authorized HTTP request."
+    )

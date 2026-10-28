@@ -104,11 +104,19 @@ def test_SourceOnlyInventoryKeepsAllNineCellsUnrun(tmp_path):
 
     pack, target = LoadPack()
     report = BuildComparison(pack, target, [], tmp_path)
-    assert len(report["cells"]) == 9
-    assert {item["status"] for item in report["cells"]} == {"not-run"}
-    assert all(item["score"] is None for item in report["cells"])
-    assert report["whole_application_accuracy"] is None and report["observations"] == []
-    assert {item["expected"] for item in pack["cases"]} == {True, False}
+    assert len(report["cells"]) == 9, "The unexecuted matrix must retain all nine declared cells."
+    assert {item["status"] for item in report["cells"]} == {"not-run"}, (
+        "Unexecuted cells must remain explicitly not run."
+    )
+    assert all(item["score"] is None for item in report["cells"]), (
+        "Unexecuted cells must not receive detection scores."
+    )
+    assert report["whole_application_accuracy"] is None and report["observations"] == [], (
+        "An empty run must not invent observations or whole-application accuracy."
+    )
+    assert {item["expected"] for item in pack["cases"]} == {True, False}, (
+        "The finite oracle must retain both positive and negative cases."
+    )
 
 
 def test_PlannedDetectorCannotClaimCompletedAcceptance(tmp_path):
@@ -136,9 +144,15 @@ def test_ExactFiniteCasesHaveDeterministicClassifications(
     report = BuildComparison(pack, target, [observation], tmp_path)
     cell = next(item for item in report["cells"]
                 if item["case_id"] == case_id and item["scanner_track"] == "native-engine")
-    assert cell["score"] == score
-    assert report["finite_completed_case_counts"]["native-engine"][score] == 1
-    assert report["whole_application_accuracy"] is None
+    assert cell["score"] == score, (
+        "The completed observation must receive its declared finite classification."
+    )
+    assert report["finite_completed_case_counts"]["native-engine"][score] == 1, (
+        "The finite count must include exactly one classified observation."
+    )
+    assert report["whole_application_accuracy"] is None, (
+        "Finite case classification must not imply whole-application accuracy."
+    )
 
 
 @pytest.mark.parametrize("status", ["not-run", "prerequisite-failed", "unsupported"])
@@ -151,8 +165,12 @@ def test_PrerequisitesAndUnsupportedCapabilitiesNeverBecomeApplicationNegatives(
                    "status": status, "reason": "Explicit prerequisite or capability gap",
                    "execution": None}
     cell = BuildComparison(pack, target, [observation], tmp_path)["cells"][0]
-    assert cell["status"] == status and cell["score"] is None
-    assert cell["applicability"] == "applicable" and cell["expected"] is True
+    assert cell["status"] == status and cell["score"] is None, (
+        "Incomplete execution must retain its status without a detection score."
+    )
+    assert cell["applicability"] == "applicable" and cell["expected"] is True, (
+        "Execution failure must not rewrite case applicability or expected truth."
+    )
     observation["status"] = "not-applicable"
 
     with pytest.raises(ValueError, match="applicability"):
@@ -170,8 +188,10 @@ def test_FailedExecutionRetainsPartialFindingsWithoutScores(
     observation["status"] = status
     observation["execution"]["exit_code"] = 124 if status == "timed-out" else 1
     report = BuildComparison(pack, target, [observation], tmp_path)
-    assert report["cells"][0]["score"] is None
-    assert report["observations"][0]["execution"]["findings"]
+    assert report["cells"][0]["score"] is None, "Unadjudicated execution must remain unscored."
+    assert report["observations"][0]["execution"]["findings"], (
+        "Unscored execution must preserve its original Findings."
+    )
 
 
 def test_UnmappedAndOffRouteFindingsNeedAdjudication(available_contract_pack, tmp_path):
@@ -185,9 +205,15 @@ def test_UnmappedAndOffRouteFindingsNeedAdjudication(available_contract_pack, tm
     ]
     WriteContractEvidence(observation["execution"], tmp_path)
     report = BuildComparison(pack, target, [observation], tmp_path)
-    assert report["cells"][0]["score"] == "fn"
-    assert len(report["cells"][0]["unadjudicated_findings"]) == 2
-    assert report["finite_completed_case_counts"]["native-engine"]["fp"] == 0
+    assert report["cells"][0]["score"] == "fn", (
+        "An unmatched expected-positive case must remain a false negative."
+    )
+    assert len(report["cells"][0]["unadjudicated_findings"]) == 2, (
+        "Unrelated Findings must remain visible for independent adjudication."
+    )
+    assert report["finite_completed_case_counts"]["native-engine"]["fp"] == 0, (
+        "Unrelated Findings must not silently become adjudicated false positives."
+    )
 
 
 def test_EvidenceMutationAndMissingRecordsCannotEstablishCompletion(
@@ -239,8 +265,12 @@ def test_BudgetAndResetDifferencesStayVisible(available_contract_pack, tmp_path)
     external["execution"]["effective_budget"]["max_response_bytes"] = 1048576
     WriteContractEvidence(external["execution"], tmp_path)
     report = BuildComparison(pack, target, [native, external], tmp_path)
-    assert report["pairwise_conditions"][0]["differences"] == ["effective-budgets-differ"]
-    assert any(item["budget_deviation"] for item in report["cells"])
+    assert report["pairwise_conditions"][0]["differences"] == ["effective-budgets-differ"], (
+        "Pairwise conditions must disclose differing effective budgets."
+    )
+    assert any(item["budget_deviation"] for item in report["cells"]), (
+        "The matrix must expose at least one declared budget deviation."
+    )
 
 
 @pytest.mark.parametrize("applicability", ["manual", "not-applicable", "applicable"])
@@ -257,7 +287,9 @@ def test_ManualInapplicableAndUnknownTruthRemainUnscored(
         observation.update(status=applicability, execution=None)
 
     cell = BuildComparison(pack, target, [observation], tmp_path)["cells"][0]
-    assert cell["score"] is None and cell["expected"] is None
+    assert cell["score"] is None and cell["expected"] is None, (
+        "A case without declared truth must remain unscored."
+    )
 
 
 @pytest.mark.parametrize("path", ["../escaped.json", "/tmp/escaped.json"])
@@ -326,15 +358,27 @@ def test_CandidateTemplateUsesRealAdapterPreparationWithoutExecution(tmp_path):
     raw = path.read_bytes()
     template = yaml.safe_load(raw)
     request = template["http"][0]
-    assert set(template) == {"id", "info", "http"}
-    assert set(request) == {"method", "path", "redirects", "matchers-condition", "matchers"}
-    assert request["method"] == "GET" and request["path"] == ["{{BaseURL}}"]
-    assert request["redirects"] is False and request["matchers-condition"] == "and"
+    assert set(template) == {"id", "info", "http"}, (
+        "The pinned template must retain its closed top-level shape."
+    )
+    assert set(request) == {"method", "path", "redirects", "matchers-condition", "matchers"}, (
+        "The pinned request must retain its closed execution and matcher fields."
+    )
+    assert request["method"] == "GET" and request["path"] == ["{{BaseURL}}"], (
+        "The template must issue only the selected exact GET."
+    )
+    assert request["redirects"] is False and request["matchers-condition"] == "and", (
+        "The template must disable redirects and require all matchers."
+    )
     predicate = request["matchers"][2]["regex"][0]
     assert re.search(predicate, "# HELP process_cpu_user_seconds_total User CPU\n"
                      "# TYPE process_cpu_user_seconds_total counter\n"
-                     'process_cpu_user_seconds_total{app="示例"} 1.2e-3\n')
-    assert not re.search(predicate, '<html>process_cpu_user_seconds_total</html>')
+                     'process_cpu_user_seconds_total{app="示例"} 1.2e-3\n'), (
+        "The pinned predicate must recognize the declared valid exposition sample."
+    )
+    assert not re.search(predicate, '<html>process_cpu_user_seconds_total</html>'), (
+        "An HTML identifier mention must not satisfy the exposition predicate."
+    )
     configuration = tmp_path / "empty.yaml"
     configuration.write_bytes(b"{}\n")
     selected = NucleiTemplate(template["id"], str(path), hashlib.sha256(raw).hexdigest(),
@@ -346,7 +390,9 @@ def test_CandidateTemplateUsesRealAdapterPreparationWithoutExecution(tmp_path):
         AdapterRequest("web.http-template-check", "target:contract-fixture", ImpactLevel.STANDARD,
                        {"url": "http://172.20.0.2:3000/metrics", "profile_sha256": profile.Digest,
                         "timeout_seconds": 3, "rate_limit": 1}))
-    assert "-no-stdin" in invocation.argv and "-ni" in invocation.argv
+    assert "-no-stdin" in invocation.argv and "-ni" in invocation.argv, (
+        "The candidate invocation must disable stdin and interaction."
+    )
 
 
 def test_ObservationSchemaRejectsUnknownFieldsAndAmbiguousJson(tmp_path):

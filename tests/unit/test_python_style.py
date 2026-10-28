@@ -23,6 +23,8 @@ FRAMEWORK_FUNCTIONS = {
     "default",
     # StringIO/TextIO owns these callbacks; DemoEventOutput implements their exact interface.
     "flush",
+    # socketserver.BaseRequestHandler owns the request-dispatch callback spelling.
+    "handle",
     "handle_starttag",
     "log_message",
     "onecmd",
@@ -103,6 +105,24 @@ def test_TextIoOverridesRetainFrameworkNamesWithoutExemptingOwnedHelpers():
     helper = ast.parse("def retain_events():\n    pass\n").body[0]
     assert isinstance(helper, ast.FunctionDef) and not IsFrameworkFunction(helper), (
         "Adding TextIO callbacks must not exempt unrelated lowercase project-owned helpers."
+    )
+
+
+def test_SocketServerOverridesRetainFrameworkNamesWithoutExemptingOwnedHelpers():
+    """Preserve the actual StreamRequestHandler callback without renaming its dispatch boundary."""
+
+    source = REPOSITORY_ROOT / "tests/functional/test_native_prometheus.py"
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    handler = next(node for node in ast.walk(tree)
+                   if isinstance(node, ast.ClassDef) and node.name == "Handler")
+    assert any(isinstance(base, ast.Attribute) and base.attr == "StreamRequestHandler"
+               for base in handler.bases), "The owned fixture must use the real server boundary."
+    callback = next(node for node in handler.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "handle")
+    assert IsFrameworkFunction(callback), "The server callback must retain its external name."
+    helper = ast.parse("def serve_request():\n    pass\n").body[0]
+    assert isinstance(helper, ast.FunctionDef) and not IsFrameworkFunction(helper), (
+        "Recognizing the server callback must not exempt ordinary project-owned helpers."
     )
 
 

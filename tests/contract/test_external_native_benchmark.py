@@ -64,9 +64,13 @@ def test_BoundedBundlePreservesExactOriginalBytes(tmp_path):
 
     raw = BundleFixture(tmp_path)
     value = ImportBundle(raw, tmp_path / "output")
-    assert (tmp_path / "output/original.bin").read_bytes() == b"\x00\xff\r\n"
-    assert value["outcome"]["status"] == "contract-fixture-not-executed"
-    assert len(value["files"]) == 2
+    assert (tmp_path / "output/original.bin").read_bytes() == b"\x00\xff\r\n", (
+        "Bundle import must preserve the exact original binary bytes."
+    )
+    assert value["outcome"]["status"] == "contract-fixture-not-executed", (
+        "A contract fixture must not be mislabeled as an executed scanner result."
+    )
+    assert len(value["files"]) == 2, "The imported bundle must retain both declared files."
 
 
 @pytest.mark.parametrize("path", ["../escape", "/escape", "a/../escape", "a//b", "a\\b", "C:x"])
@@ -79,7 +83,9 @@ def test_BundleRejectsUnsafePathsBeforeWriting(tmp_path, path):
     with pytest.raises(ValueError):
         ImportBundle(json.dumps(bundle).encode(), tmp_path / "output")
 
-    assert not (tmp_path / "output").exists()
+    assert not (tmp_path / "output").exists(), (
+        "Refused bundle import must not create an output directory."
+    )
 
 
 @pytest.mark.parametrize("field,value", [
@@ -136,11 +142,19 @@ def test_ContainerArgumentsHaveNoHostEscapeOrEnvironmentForwarding():
 
     arguments = RunnerArguments("fuzzy-1337-external-123456abcdef-native", TARGET_ID,
                                 IMAGE_ID, "/metrics")
-    assert arguments[arguments.index("--network") + 1] == "container:" + TARGET_ID
-    assert arguments[arguments.index("--user") + 1] == "1337:1337"
-    assert "--read-only" in arguments and "--init" in arguments
+    assert arguments[arguments.index("--network") + 1] == "container:" + TARGET_ID, (
+        "The runner must join only the selected target container network."
+    )
+    assert arguments[arguments.index("--user") + 1] == "1337:1337", (
+        "The installed runner must use its fixed unprivileged identity."
+    )
+    assert "--read-only" in arguments and "--init" in arguments, (
+        "The runner must retain its read-only root and init process."
+    )
     assert not {"--privileged", "--volume", "-v", "--mount", "--publish", "-p",
-                "--env", "-e", "--env-file", "--pid"} & set(arguments)
+                "--env", "-e", "--env-file", "--pid"} & set(arguments), (
+        "The runner must not acquire host mounts, published ports or extra authority."
+    )
     ValidateRunner(InspectFixture(), TARGET_ID, IMAGE_ID)
 
 
@@ -202,7 +216,9 @@ def test_EnabledMissingDockerFailsRatherThanSkips(monkeypatch):
 def test_UnknownSelectionIsAnError():
     """A typo cannot silently disable required functional acceptance."""
 
-    assert not Enabled(None)
+    assert not Enabled(None), (
+        "The real Docker lane must remain disabled without explicit enrollment."
+    )
 
     with pytest.raises(ValueError, match="must be unset"):
         Enabled("juice-shop-candidate")
@@ -218,7 +234,9 @@ def test_CausalControlsAreProbedIndependentlyOfScannerAttempts(tmp_path, path, b
     pack, target = LoadPack()
     runtime = NativeBenchmarkRuntime(Path(__file__).resolve().parents[2], tmp_path, pack, target)
     lab = SimpleNamespace(Request=lambda selected: SimpleNamespace(status=200, error="", body=body))
-    assert runtime.Control({"path": path}, lab) == hashlib.sha256(body.encode()).hexdigest()
+    assert runtime.Control({"path": path}, lab) == hashlib.sha256(body.encode()).hexdigest(), (
+        "The causal control must hash the exact received body."
+    )
     lab.Request = lambda selected: SimpleNamespace(status=200, error="", body="unrelated")
 
     with pytest.raises((ValueError, RuntimeError)):
@@ -277,8 +295,12 @@ def test_SyntheticTransportProducerFitsTheExistingComparisonConsumer(tmp_path):
     observation = runtime.Observation(case, directory, lab, outcome, control_sha256=control_hash)
     runtime_owner.ValidateObservation(pack, target, observation, runtime.output)
     accounting = json.loads((directory / "attempt-provenance.json").read_text())
-    assert accounting["independent_server_contact_count"] is None
-    assert accounting["approved_attempt_count"] == 1
+    assert accounting["independent_server_contact_count"] is None, (
+        "Attempt evidence must not invent an independently observed contact count."
+    )
+    assert accounting["approved_attempt_count"] == 1, (
+        "The accounting must retain exactly one approved attempt."
+    )
     provisioning["wheel"]["filename"] = "../outside.whl"
     (scanner / "provisioning.json").write_text(json.dumps(provisioning))
 
@@ -293,7 +315,7 @@ def test_DockerAttachmentRetainsOriginalBytesAndExit(tmp_path, monkeypatch, time
     def Execute(argv, **options):
         """Return synthetic binary streams without starting Docker or any scanner."""
 
-        assert options["shell"] is False
+        assert options["shell"] is False, "Docker command execution must not invoke a shell."
 
         if timed_out:
             raise subprocess.TimeoutExpired(argv, 40, output=b"\xff\r\n", stderr=b"\xfe\r\n")
@@ -304,10 +326,16 @@ def test_DockerAttachmentRetainsOriginalBytesAndExit(tmp_path, monkeypatch, time
     records = []
     lab = SimpleNamespace(repository_root=tmp_path, WriteEvidence=records.append)
     result, raw = Attach(lab, RUNNER_ID, tmp_path)
-    assert raw == (tmp_path / "docker.stdout").read_bytes() == b"\xff\r\n"
-    assert (tmp_path / "docker.stderr").read_bytes() == b"\xfe\r\n"
-    assert result.returncode == (124 if timed_out else 4) and result.timed_out is timed_out
-    assert records == [result]
+    assert raw == (tmp_path / "docker.stdout").read_bytes() == b"\xff\r\n", (
+        "Command capture must preserve the original stdout bytes."
+    )
+    assert (tmp_path / "docker.stderr").read_bytes() == b"\xfe\r\n", (
+        "Command capture must preserve the original stderr bytes."
+    )
+    assert result.returncode == (124 if timed_out else 4) and result.timed_out is timed_out, (
+        "Command capture must preserve actual timeout and exit status."
+    )
+    assert records == [result], "The command record must retain the exact completed result."
 
 
 @pytest.mark.parametrize("cleanup_fails", [False, True])
@@ -363,9 +391,15 @@ def test_FailedScannerExportStillRemovesRunnerAndTarget(tmp_path, monkeypatch, c
     with pytest.raises(RuntimeError if cleanup_fails else ValueError):
         runtime.RunCase(pack["cases"][0])
 
-    assert any(argv[:2] == ("docker", "rm") for argv in operations)
-    assert operations[0] == ("synthetic-target-start",)
-    assert operations[-1] == ("synthetic-target-cleanup",)
+    assert any(argv[:2] == ("docker", "rm") for argv in operations), (
+        "The runner container must be removed after consumer failure."
+    )
+    assert operations[0] == ("synthetic-target-start",), (
+        "Target startup must precede runner execution."
+    )
+    assert operations[-1] == ("synthetic-target-cleanup",), (
+        "Target cleanup must remain the final lifecycle action."
+    )
 
 
 def test_ActualTargetGeneratorOwnerCleansUpAfterStartupFailure(tmp_path, monkeypatch):
@@ -398,7 +432,9 @@ def test_ActualTargetGeneratorOwnerCleansUpAfterStartupFailure(tmp_path, monkeyp
     with pytest.raises(RuntimeError, match="startup refusal"):
         runtime.RunCase(pack["cases"][0])
 
-    assert operations == ["start", "cleanup"]
+    assert operations == ["start", "cleanup"], (
+        "A refused startup must still execute the real owner cleanup boundary."
+    )
 
 
 def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
@@ -414,38 +450,64 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
                   "&& github.event.pull_request.draft == true "
                   "&& contains(github.event.pull_request.body, '" + marker + "'))")
     lane = jobs["external-targets"]
-    assert " ".join(lane["if"].split()) == checkpoint
-    assert lane["env"]["FUZZY1337_EXTERNAL_NATIVE_BENCHMARK"] == "juice-shop"
-    assert lane.get("continue-on-error", False) is False
+    assert " ".join(lane["if"].split()) == checkpoint, (
+        "Only the existing external lane may accept its explicit draft checkpoint."
+    )
+    assert lane["env"]["FUZZY1337_EXTERNAL_NATIVE_BENCHMARK"] == "juice-shop", (
+        "The native lane must remain enrolled only for the pinned Juice Shop pack."
+    )
+    assert lane.get("continue-on-error", False) is False, (
+        "The native lane must fail the workflow when execution fails."
+    )
     assert all(marker not in job.get("if", "") for name, job in jobs.items()
-               if name != "external-targets")
+               if name != "external-targets"), (
+        "The external draft marker must not enable other full-gate jobs."
+    )
     steps = {step["name"]: step for step in lane["steps"]}
-    assert " ".join(steps["Execute pinned target through pytest"]["if"].split()) == final
+    assert " ".join(steps["Execute pinned target through pytest"]["if"].split()) == final, (
+        "Target smoke must wait for final readiness."
+    )
     native = steps["Execute installed native scanner against three fresh pinned targets"]
-    assert "tests/functional/test_external_native_benchmark.py" in native["run"]
-    assert "--no-cov -n 0" in native["run"] and "--junitxml=" in native["run"]
-    assert native["timeout-minutes"] == 15 and lane["timeout-minutes"] == 20
+    assert "tests/functional/test_external_native_benchmark.py" in native["run"], (
+        "The native step must select the actual installed scanner acceptance suite."
+    )
+    assert "--no-cov -n 0" in native["run"] and "--junitxml=" in native["run"], (
+        "The native step must stay serial and retain JUnit without partial coverage."
+    )
+    assert native["timeout-minutes"] == 15 and lane["timeout-minutes"] == 20, (
+        "The native lane and step must retain their finite runtime budgets."
+    )
     diagnostic_marker = "[native-external-metrics-diagnostic]"
     assert " ".join(native["if"].split()) == (
         "github.event_name != 'pull_request' || github.event.pull_request.draft == false "
         "|| !contains(github.event.pull_request.body, '" + diagnostic_marker + "')"
-    )
+    ), "Only the explicit draft diagnostic may replace the native acceptance step."
     diagnostic = steps["Capture one separate fresh-target metrics diagnostic"]
     assert " ".join(diagnostic["if"].split()) == (
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
         "&& contains(github.event.pull_request.body, '" + diagnostic_marker + "')"
+    ), "The diagnostic step must require both draft state and its explicit marker."
+    assert diagnostic["env"] == {"FUZZY1337_EXTERNAL_METRICS_DIAGNOSTIC": "juice-shop"}, (
+        "The diagnostic must retain its exact separate enrollment variable."
     )
-    assert diagnostic["env"] == {"FUZZY1337_EXTERNAL_METRICS_DIAGNOSTIC": "juice-shop"}
-    assert "tests/functional/test_external_metrics_diagnostic.py" in diagnostic["run"]
-    assert "test_external_native_benchmark.py" not in diagnostic["run"]
-    assert "--no-cov -n 0" in diagnostic["run"] and diagnostic["timeout-minutes"] == 3
+    assert "tests/functional/test_external_metrics_diagnostic.py" in diagnostic["run"], (
+        "The diagnostic step must select only its owned single-GET suite."
+    )
+    assert "test_external_native_benchmark.py" not in diagnostic["run"], (
+        "The diagnostic step must not repeat native scanner acceptance."
+    )
+    assert "--no-cov -n 0" in diagnostic["run"] and diagnostic["timeout-minutes"] == 3, (
+        "The diagnostic must remain serial with its finite three-minute budget."
+    )
     upload = steps["Preserve external target evidence"]
     assert upload["if"] == "always()" and (
         "functional-evidence/external-native-benchmark/" in upload["with"]["path"]
-    )
+    ), "Original native evidence must upload even when the lane fails."
     container = next(step["run"] for step in jobs["container-quality"]["steps"]
                      if step.get("name") == "Run container quality gate")
-    assert "--suite-timeout 900" in container
+    assert "--suite-timeout 900" in container, (
+        "The accepted container full-suite budget must remain 900 seconds."
+    )
 
 
 def test_SeparateDiagnosticSkipsBeforeAnyTargetIsCreated(monkeypatch):
@@ -484,8 +546,12 @@ def test_DiagnosticCapturePreservesNewRawBytesAndRefusesInvalidLengths(tmp_path,
     def Compose(*arguments, timeout_seconds):
         """Return an inert JSON/base64 producer without Node, Docker or HTTP execution."""
 
-        assert arguments[:5] == ("exec", "-T", "external-juice-shop", "/nodejs/bin/node", "-e")
-        assert timeout_seconds == 3
+        assert arguments[:5] == ("exec", "-T", "external-juice-shop", "/nodejs/bin/node", "-e"), (
+            "The diagnostic must use the exact selected target and Node entry point."
+        )
+        assert timeout_seconds == 3, (
+            "The diagnostic container command must retain its three-second timeout."
+        )
 
         return CommandResult(("contract-fixture-not-executed",), 0, json.dumps(payload), "")
 
@@ -498,12 +564,22 @@ def test_DiagnosticCapturePreservesNewRawBytesAndRefusesInvalidLengths(tmp_path,
         with pytest.raises(ValueError):
             diagnostic_owner.CaptureDiagnostic(lab, tmp_path)
 
-        assert not (tmp_path / "response.body.bin").exists()
+        assert not (tmp_path / "response.body.bin").exists(), (
+            "Failed diagnostic validation must not retain an attributed response body."
+        )
 
         return
 
     receipt = diagnostic_owner.CaptureDiagnostic(lab, tmp_path)
-    assert (tmp_path / "response.body.bin").read_bytes() == body
-    assert receipt["body_sha256"] == hashlib.sha256(body).hexdigest()
-    assert receipt["purpose"] == "independent-fresh-target-metrics-diagnostic"
-    assert receipt["original_scan_response"] is False
+    assert (tmp_path / "response.body.bin").read_bytes() == body, (
+        "The diagnostic must retain the original decoded response body bytes."
+    )
+    assert receipt["body_sha256"] == hashlib.sha256(body).hexdigest(), (
+        "The diagnostic receipt must hash those exact retained response bytes."
+    )
+    assert receipt["purpose"] == "independent-fresh-target-metrics-diagnostic", (
+        "The diagnostic must retain its separate fresh-target purpose."
+    )
+    assert receipt["original_scan_response"] is False, (
+        "A later diagnostic must never claim to be the original scan response."
+    )
