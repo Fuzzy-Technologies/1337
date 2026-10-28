@@ -32,6 +32,10 @@ from fuzzy1337.adapters import (
 )
 from fuzzy1337.adapters.contracts import JsonValue
 from fuzzy1337.adapters.native_http import Endpoint, RequestTimeout
+from fuzzy1337.adapters.prometheus_exposition import (
+    MAX_PROMETHEUS_BODY_BYTES,
+    SupportedExposition,
+)
 from fuzzy1337.requests import Endpoint as RequestEndpoint
 from fuzzy1337.requests import InjectionLocation, InjectionPoint, RequestTemplate, ValueBinding
 from fuzzy1337.scope import Target, TargetKind
@@ -43,6 +47,8 @@ NATIVE_WEB_CHECK_ID = "native.git-head-exposure"
 NATIVE_FILE_CANARY_CHECK_ID = "native.file-canary-disclosure"
 NATIVE_FILE_CANARY_CAPABILITY = "web.file-canary-check"
 NATIVE_FILE_CANARY_PROFILE = "owned-loopback-file-canary-query-v1"
+NATIVE_PROMETHEUS_CHECK_ID = "native.prometheus-exposition"
+NATIVE_PROMETHEUS_CAPABILITY = "web.prometheus-exposition-check"
 MAX_NATIVE_WEB_RECORD_BYTES = 4096
 MAX_NATIVE_WEB_BODY_BYTES = 4096
 NATIVE_WEB_MEDIA_TYPES = frozenset({"text/plain", "application/octet-stream", "other"})
@@ -71,6 +77,7 @@ class NativeWebCheck:
     title: str
     predicate: Callable[[int, str, bytes], bool]
     request_profile: str | None = None
+    max_body_bytes: int = MAX_NATIVE_WEB_BODY_BYTES
 
 
 class NativeWebRecordError(ValueError):
@@ -171,12 +178,32 @@ def MatchesFileCanary(status: int, media_type: str, body: bytes) -> bool:
     } and type(body) is bytes and body == _FILE_CANARY)
 
 
+def MatchesPrometheus(status: int, media_type: str, body: bytes) -> bool:
+    """Recognize a complete anonymous plain-text supported exposition without retaining values.
+
+    Args:
+        status: Actual complete HTTP response status, requiring integer 200.
+        media_type: Fixed normalized response category, requiring text/plain.
+        body: Transient complete decoded response bytes, never retained by the check.
+
+    Returns:
+        Whether the status, media category and complete bounded exposition match together.
+    """
+
+    return (type(status) is int and status == 200 and media_type == "text/plain"
+            and SupportedExposition(body))
+
+
 _CHECKS = MappingProxyType({
     NATIVE_WEB_CHECK_ID: NativeWebCheck(NATIVE_WEB_CHECK_ID, NATIVE_WEB_CAPABILITY,
         "git-head-exposure", "Exposed supported Git HEAD symbolic reference", MatchesGitHead),
     NATIVE_FILE_CANARY_CHECK_ID: NativeWebCheck(NATIVE_FILE_CANARY_CHECK_ID,
         NATIVE_FILE_CANARY_CAPABILITY, "file-canary-disclosure",
         "Owned non-secret file canary disclosed", MatchesFileCanary, NATIVE_FILE_CANARY_PROFILE),
+    NATIVE_PROMETHEUS_CHECK_ID: NativeWebCheck(NATIVE_PROMETHEUS_CHECK_ID,
+        NATIVE_PROMETHEUS_CAPABILITY, "prometheus-exposition",
+        "Anonymous response contains supported Prometheus exposition", MatchesPrometheus,
+        max_body_bytes=MAX_PROMETHEUS_BODY_BYTES),
 })
 _DESCRIPTOR = AdapterDescriptor(
     NATIVE_WEB_PROVIDER_ID, "Native bounded response checks", NATIVE_WEB_VERSION,
@@ -239,6 +266,9 @@ def NativeWebParameters(
     NativeWebEndpoint(url, check_id=check_id)
     parameters: dict[str, object] = {"url": url,
                                    "timeout_seconds": RequestTimeout(timeout_seconds)}
+
+    if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+        parameters["check_id"] = check_id
 
     if check_id == NATIVE_FILE_CANARY_CHECK_ID:
         if type(workspace_id) is not str:
@@ -318,7 +348,7 @@ def ParseNativeWebRecord(
             or record["scheme"] != scheme or type(record["status"]) is not int
             or not 200 <= record["status"] <= 499
             or type(record["body_bytes"]) is not int
-            or not 0 <= record["body_bytes"] <= MAX_NATIVE_WEB_BODY_BYTES
+            or not 0 <= record["body_bytes"] <= check.max_body_bytes
             or type(record["media_type"]) is not str
             or record["media_type"] not in NATIVE_WEB_MEDIA_TYPES
             or type(record["body_sha256"]) is not str
@@ -336,6 +366,12 @@ def ParseNativeWebRecord(
             record["status"] == 200 and record["media_type"] != "other"
             and record["body_bytes"] == len(_FILE_CANARY)
             and record["body_sha256"] == hashlib.sha256(_FILE_CANARY).hexdigest()
+        ):
+            raise ValueError
+
+        if check_id == NATIVE_PROMETHEUS_CHECK_ID and record["matched"] and (
+            record["status"] != 200 or record["media_type"] != "text/plain"
+            or record["body_bytes"] == 0
         ):
             raise ValueError
 
@@ -406,6 +442,9 @@ class NativeWebAdapter:
 
         expected = {"url", "timeout_seconds"}
 
+        if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+            expected.add("check_id")
+
         if check_id == NATIVE_FILE_CANARY_CHECK_ID:
             expected.update({"check_id", "request_profile", "request_template",
                              "injection_reference"})
@@ -417,6 +456,9 @@ class NativeWebAdapter:
         timeout = RequestTimeout(request.parameters["timeout_seconds"])
         suffix: tuple[str, ...] = ()
         workspace_id = None
+
+        if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+            suffix = (check_id,)
 
         if check_id == NATIVE_FILE_CANARY_CHECK_ID:
             template = RequestTemplate.FromDict(JsonValue(

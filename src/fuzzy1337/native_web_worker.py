@@ -17,9 +17,9 @@ from urllib.parse import urlsplit
 
 from fuzzy1337.adapters.native_http import RequestTimeout
 from fuzzy1337.adapters.native_web import (
-    MAX_NATIVE_WEB_BODY_BYTES,
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_FILE_CANARY_PROFILE,
+    NATIVE_PROMETHEUS_CHECK_ID,
     NATIVE_WEB_CHECK_ID,
     NATIVE_WEB_ERROR_EXITS,
     NATIVE_WEB_VERSION,
@@ -33,6 +33,9 @@ from fuzzy1337.native_http_worker import Remaining
 MAX_HEADER_BYTES = 16384
 MAX_HEADER_FIELDS = 64
 MAX_LINE_BYTES = 4096
+MAX_PROMETHEUS_WIRE_BYTES = 512 * 1024
+MAX_PROMETHEUS_CHUNKS = 4096
+MAX_CHUNK_LINE_BYTES = 32
 _STATUS = re.compile(rb"HTTP/1\.[01] ([2-5][0-9]{2}) [\x20-\x7e]*")
 _FIELD = re.compile(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
 _LENGTH = re.compile(rb"(?:0|[1-9][0-9]{0,3})")
@@ -46,18 +49,21 @@ class NativeWebResponseError(ValueError):
     """Response status or encoding is explicitly unassessed rather than clean."""
 
 
-def Headers(raw: bytes) -> tuple[int, str, int]:
+def Headers(
+    raw: bytes, *, check_id: str = NATIVE_WEB_CHECK_ID,
+) -> tuple[int, str, int | str]:
     """Parse bounded strict response framing and discard all unneeded header values.
 
     Args:
         raw: Complete header section including its final CRLFCRLF.
+        check_id: Explicit predicate; only metrics admits bounded streaming framing.
 
     Returns:
-        Actual status, fixed normalized media category and bounded content length.
+        Actual status, fixed media category and bounded length or explicit streaming mode.
 
     Raises:
         NativeWebProtocolError: Header syntax, duplication, count or length is unsupported.
-        NativeWebResponseError: HTTP5xx or encoded/chunked responses remain unassessed.
+        NativeWebResponseError: HTTP5xx, encoded or old-profile streaming remains unassessed.
     """
 
     lines = raw[:-4].split(b"\r\n")
@@ -86,24 +92,209 @@ def Headers(raw: bytes) -> tuple[int, str, int]:
 
         values[name.lower()] = value.strip(b" \t")
 
-    if status >= 500 or b"content-encoding" in values or b"transfer-encoding" in values:
+    streaming = check_id == NATIVE_PROMETHEUS_CHECK_ID
+
+    if status >= 500 or b"content-encoding" in values or (
+        not streaming and b"transfer-encoding" in values
+    ):
         raise NativeWebResponseError
 
     length_text = values.get(b"content-length", b"")
 
-    if _LENGTH.fullmatch(length_text) is None:
-        raise NativeWebProtocolError
+    if streaming and b"transfer-encoding" in values:
+        if b"content-length" in values or values[b"transfer-encoding"].lower() != b"chunked":
+            raise NativeWebProtocolError
 
-    size = int(length_text)
+        size: int | str = "chunked"
 
-    if size > MAX_NATIVE_WEB_BODY_BYTES:
-        raise NativeWebProtocolError
+    elif streaming and b"content-length" not in values:
+        size = "eof"
+
+    else:
+        length_pattern = rb"(?:0|[1-9][0-9]{0,5})" if streaming else _LENGTH
+
+        if re.fullmatch(length_pattern, length_text) is None:
+            raise NativeWebProtocolError
+
+        size = int(length_text)
+
+        if size > NativeWebCheckFor(check_id).max_body_bytes:
+            raise NativeWebProtocolError
 
     media = values.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
     category = media.decode("ascii") if media in {b"text/plain", b"application/octet-stream"} \
         else "other"
 
     return status, category, size
+
+
+class PrometheusBodyReader:
+    """Own one finite metrics wire buffer and shared deadline, including terminal EOF."""
+
+    def __init__(
+        self, connection: socket.socket, deadline: float, initial: bytes, header_bytes: int,
+    ) -> None:
+        """Bind already received bytes without resetting the original request budget.
+
+        Args:
+            connection: Existing exact-peer socket; Probe retains cleanup ownership.
+            deadline: Original shared monotonic request deadline, never renewed here.
+            initial: Prefetched response bytes following the validated bounded headers.
+            header_bytes: Already consumed header bytes charged to the wire budget.
+        """
+
+        self.connection = connection
+        self.deadline = deadline
+        self.buffer = bytearray(initial)
+        self.wire_bytes = header_bytes + len(initial)
+
+    def Receive(self, maximum: int) -> bytes:
+        """Check the original deadline before and after every actual bounded receive.
+
+        Args:
+            maximum: Maximum remaining fragment bytes; each actual read is at most 1024.
+
+        Returns:
+            Actual bounded bytes, including empty bytes only for observed connection EOF.
+
+        Raises:
+            TimeoutError: The original deadline expired before or after receive.
+            NativeWebProtocolError: The independent total wire-byte budget was exhausted.
+        """
+
+        self.connection.settimeout(Remaining(self.deadline))
+        part = self.connection.recv(min(maximum, 1024))
+        Remaining(self.deadline)
+        self.wire_bytes += len(part)
+
+        if self.wire_bytes > MAX_PROMETHEUS_WIRE_BYTES:
+            raise NativeWebProtocolError
+
+        return part
+
+    def Take(self, size: int) -> bytes:
+        """Read exactly one independently bounded wire fragment or refuse truncation.
+
+        Args:
+            size: Exact admitted fragment length, bounded by its framing/body owner.
+
+        Returns:
+            Exactly the selected number of bytes from prefetched and actual receives.
+
+        Raises:
+            NativeWebProtocolError: Connection EOF truncates the required fragment.
+            TimeoutError: The original request deadline expires.
+        """
+
+        Remaining(self.deadline)
+
+        while len(self.buffer) < size:
+            part = self.Receive(size - len(self.buffer))
+
+            if not part:
+                raise NativeWebProtocolError
+
+            self.buffer.extend(part)
+
+        result = bytes(self.buffer[:size])
+        del self.buffer[:size]
+        Remaining(self.deadline)
+
+        return result
+
+    def Line(self) -> bytes:
+        """Read a finite CRLF chunk-size line with no extension or trailer expansion.
+
+        Returns:
+            Complete bounded size-line bytes without CRLF, for lexical validation.
+
+        Raises:
+            NativeWebProtocolError: The size line exceeds its independent byte limit.
+            TimeoutError: The original request deadline expires.
+        """
+
+        line = bytearray()
+
+        while len(line) < MAX_CHUNK_LINE_BYTES:
+            line.extend(self.Take(1))
+
+            if line.endswith(b"\r\n"):
+                return bytes(line[:-2])
+
+        raise NativeWebProtocolError
+
+    def Body(self, framing: int | str) -> bytes:
+        """Decode only the admitted identity framing within body/chunk/wire/time budgets.
+
+        Args:
+            framing: Validated bounded integer length or the exact chunked/eof mode.
+
+        Returns:
+            Complete transient decoded body after actual final connection EOF.
+
+        Raises:
+            NativeWebProtocolError: Framing, completeness or any independent bound fails.
+            TimeoutError: The original request deadline expires, including at final EOF.
+        """
+
+        maximum = NativeWebCheckFor(NATIVE_PROMETHEUS_CHECK_ID).max_body_bytes
+        body = bytearray()
+
+        if type(framing) is int:
+            if len(self.buffer) > framing:
+                raise NativeWebProtocolError
+
+            body.extend(self.Take(framing))
+
+        elif framing == "chunked":
+            for _ in range(MAX_PROMETHEUS_CHUNKS + 1):
+                line = self.Line()
+
+                if re.fullmatch(rb"[0-9A-Fa-f]{1,8}", line) is None:
+                    raise NativeWebProtocolError
+
+                size = int(line, 16)
+
+                if not size:
+                    if self.Take(2) != b"\r\n":
+                        raise NativeWebProtocolError
+
+                    break
+
+                if _ == MAX_PROMETHEUS_CHUNKS or len(body) + size > maximum:
+                    raise NativeWebProtocolError
+
+                body.extend(self.Take(size))
+
+                if self.Take(2) != b"\r\n":
+                    raise NativeWebProtocolError
+
+            else:
+                raise NativeWebProtocolError
+
+        elif framing == "eof":
+            body.extend(self.buffer)
+            self.buffer.clear()
+
+            while len(body) <= maximum:
+                part = self.Receive(min(1024, maximum + 1 - len(body)))
+
+                if not part:
+                    return bytes(body)
+
+                body.extend(part)
+
+            raise NativeWebProtocolError
+
+        else:
+            raise NativeWebProtocolError
+
+        if self.buffer or self.Receive(1):
+            raise NativeWebProtocolError
+
+        Remaining(self.deadline)
+
+        return bytes(body)
 
 
 def Probe(
@@ -171,40 +362,55 @@ def Probe(
             connection.settimeout(Remaining(deadline))
             part = connection.recv(min(1024, MAX_HEADER_BYTES - len(incoming)))
 
+            if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+                Remaining(deadline)
+
             if not part:
                 raise NativeWebProtocolError
 
             incoming.extend(part)
 
         boundary = incoming.index(b"\r\n\r\n") + 4
-        status, media_type, length = Headers(bytes(incoming[:boundary]))
+        status, media_type, length = Headers(bytes(incoming[:boundary]), check_id=check_id)
         body = incoming[boundary:]
 
-        if len(body) > length:
-            raise NativeWebProtocolError
+        if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+            Remaining(deadline)
+            reader = PrometheusBodyReader(connection, deadline, bytes(body), boundary)
+            raw_body = reader.Body(length)
+            Remaining(deadline)
 
-        while len(body) < length:
-            connection.settimeout(Remaining(deadline))
-            part = connection.recv(min(1024, length - len(body)))
-
-            if not part:
+        else:
+            if type(length) is not int or len(body) > length:
                 raise NativeWebProtocolError
 
-            body.extend(part)
+            while len(body) < length:
+                connection.settimeout(Remaining(deadline))
+                part = connection.recv(min(1024, length - len(body)))
 
-        connection.settimeout(Remaining(deadline))
+                if not part:
+                    raise NativeWebProtocolError
 
-        if connection.recv(1):
-            raise NativeWebProtocolError
+                body.extend(part)
 
-        raw_body = bytes(body)
+            connection.settimeout(Remaining(deadline))
+
+            if connection.recv(1):
+                raise NativeWebProtocolError
+
+            raw_body = bytes(body)
+
+        matched = check.predicate(status, media_type, raw_body)
+
+        if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+            Remaining(deadline)
 
         record: dict[str, object] = {
             "schema_version": 1, "check_id": check.check_id,
             "profile_version": NATIVE_WEB_VERSION, "url": target.value, "address": peer,
             "port": port, "scheme": scheme, "status": status, "media_type": media_type,
             "body_bytes": len(raw_body), "body_sha256": hashlib.sha256(raw_body).hexdigest(),
-            "matched": check.predicate(status, media_type, raw_body),
+            "matched": matched,
         }
 
         if template is not None:
@@ -212,6 +418,9 @@ def Probe(
                 "request_reference": template.Reference(),
                 "injection_reference": template.injection_points[0].Reference(
                     template.Reference())})
+
+        if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+            Remaining(deadline)
 
         return record
 
@@ -235,6 +444,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
     try:
         if len(arguments) == 2:
             record = Probe(arguments[0], float(arguments[1]))
+
+        elif len(arguments) == 3 and arguments[2] == NATIVE_PROMETHEUS_CHECK_ID:
+            record = Probe(arguments[0], float(arguments[1]), check_id=arguments[2])
 
         elif len(arguments) == 4 and arguments[2] == NATIVE_FILE_CANARY_CHECK_ID:
             record = Probe(arguments[0], float(arguments[1]), check_id=arguments[2],

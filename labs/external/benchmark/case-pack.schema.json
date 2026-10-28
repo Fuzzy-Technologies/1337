@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Finite external application comparison cases v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pack_id", "target_manifest", "source_revision", "whole_application_oracle_complete", "property", "requested_budget", "sources", "cases", "scanner_tracks", "deferred_inventory"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "pack_id": {"type": "string", "minLength": 1},
+    "target_manifest": {"const": "juice-shop.v1.json"},
+    "source_revision": {"$ref": "#/$defs/git_sha"},
+    "whole_application_oracle_complete": {"const": false},
+    "property": {"$ref": "#/$defs/text"},
+    "requested_budget": {"$ref": "#/$defs/budget"},
+    "sources": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "path", "blob_sha", "facts"],
+        "properties": {
+          "id": {"$ref": "#/$defs/text"}, "path": {"$ref": "#/$defs/text"},
+          "blob_sha": {"$ref": "#/$defs/git_sha"}, "facts": {"$ref": "#/$defs/text"}
+        }
+      }
+    },
+    "cases": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "capability", "path", "applicability", "expected", "source_ids", "reason"],
+        "properties": {
+          "id": {"$ref": "#/$defs/text"}, "capability": {"$ref": "#/$defs/text"},
+          "path": {"$ref": "#/$defs/path"},
+          "applicability": {"enum": ["applicable", "not-applicable", "manual"]},
+          "expected": {"type": ["boolean", "null"]},
+          "source_ids": {"$ref": "#/$defs/source_ids"}, "reason": {"$ref": "#/$defs/text"}
+        },
+        "allOf": [{"if": {"properties": {"applicability": {"enum": ["not-applicable", "manual"]}}}, "then": {"properties": {"expected": {"type": "null"}}}}]
+      }
+    },
+    "scanner_tracks": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "scanner_id", "rule_ids", "implementation", "artifact", "predicate"],
+        "properties": {
+          "id": {"enum": ["native-engine", "whole1337", "external-nuclei"]},
+          "scanner_id": {"$ref": "#/$defs/text"},
+          "rule_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/text"}},
+          "implementation": {"enum": ["planned", "candidate", "available"]},
+          "artifact": {
+            "oneOf": [
+              {"type": "null"},
+              {
+                "type": "object", "additionalProperties": false,
+                "required": ["path", "sha256", "size_bytes"],
+                "properties": {
+                  "path": {"type": "string", "pattern": "^templates/[A-Za-z0-9][A-Za-z0-9._-]*\\.yaml$"},
+                  "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+                  "size_bytes": {"type": "integer", "minimum": 1, "maximum": 65536}
+                }
+              }
+            ]
+          },
+          "predicate": {"$ref": "#/$defs/text"}
+        }
+      }
+    },
+    "deferred_inventory": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "path", "source_ids", "reason"],
+        "properties": {
+          "id": {"$ref": "#/$defs/text"}, "path": {"$ref": "#/$defs/path"},
+          "source_ids": {"$ref": "#/$defs/source_ids"}, "reason": {"$ref": "#/$defs/text"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "git_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "path": {"type": "string", "pattern": "^/[^?#\\r\\n]*$"},
+    "source_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/text"}},
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["request_timeout_seconds", "operation_timeout_seconds", "max_requests", "max_response_bytes", "rate_limit"],
+      "properties": {
+        "request_timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 30},
+        "operation_timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 60},
+        "max_requests": {"const": 1},
+        "max_response_bytes": {"type": "integer", "minimum": 4096, "maximum": 1048576},
+        "rate_limit": {"const": 1}
+      }
+    }
+  }
+}

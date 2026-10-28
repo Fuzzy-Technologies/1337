@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+id: fuzzy1337-prometheus-process-exposition
+info:
+  name: Unauthenticated standard Prometheus process metric exposition
+  author: fuzzy-technologies
+  severity: low
+  description: >-
+    One explicitly selected endpoint returned Prometheus text with a standard
+    process CPU counter. This candidate baseline recognizes a narrower predicate
+    than the generic native HELP/TYPE/sample association check. Sensitivity and
+    authorization consequences require application-specific adjudication.
+  tags: exposure,prometheus
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    redirects: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: header
+        regex:
+          - '(?im)^content-type:\s*text/plain(?:;[^\r\n]*)?\r?$'
+      - type: regex
+        part: body
+        regex:
+          - '(?m)^# HELP process_cpu_user_seconds_total [^\r\n]+\r?\n# TYPE process_cpu_user_seconds_total counter\r?\nprocess_cpu_user_seconds_total(?:\{[^\r\n]*\})? (?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?(?: [0-9]+)?\r?$'
