@@ -283,7 +283,9 @@ def test_StageWireRejectsExpandedPartitionFields(tmp_path, owned_material):
 
 
 @pytest.mark.parametrize("raw", [b'{"x":1,"x":2}', b'{"x":NaN}', b'{"x":1} ',
-                                 b" " * 65537, b"[]", b"\xff"])
+                                 b" " * 65537, b"[]", b"\xff"],
+                         ids=["duplicate-key", "nonfinite", "noncanonical", "oversized",
+                              "non-object", "invalid-utf8"])
 def test_PrivateControlRequiresStrictBoundedCanonicalJson(raw):
     """Duplicate, nonfinite, malformed or noncanonical control cannot describe selected reads."""
 
@@ -571,7 +573,9 @@ def test_SimulatedTerminalFailureCannotIssueProof(simulated_observer, mode):
 
 
 @pytest.mark.parametrize("raw", [b'{"x":1,"x":2}', b'{"x":NaN}', b'{} ', b'[]',
-                                 b"x" * 65537])
+                                 b"x" * 65537],
+                         ids=["duplicate-key", "nonfinite", "noncanonical", "non-object",
+                              "oversized"])
 def test_SimulatedMalformedOrOverflowWireCannotIssueProof(simulated_observer, raw):
     """Bounded strict canonical response validation precedes any original proof registration."""
 
