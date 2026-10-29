@@ -97,6 +97,7 @@ def PrepareResponseInvocation(url: str, *,
 
     Args:
         url: Exact closed literal source URL.
+        _family: Immutable catalog or content binding; selects the fixed worker and recipe.
 
     Returns:
         Original fixed recipe suitable for canonical descriptive policy planning.

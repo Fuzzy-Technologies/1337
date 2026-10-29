@@ -109,7 +109,17 @@ _CONTENT_FAMILY = ResponseFamily(
 
 
 def RequireResponseFamily(family: ResponseFamily) -> ResponseFamily:
-    """Accept only the two immutable first-party bindings by object identity."""
+    """Accept only the two immutable first-party bindings by object identity.
+
+    Args:
+        family: The original catalog or content singleton, never a caller-created copy.
+
+    Returns:
+        The same admitted immutable first-party binding.
+
+    Raises:
+        ValueError: The object is neither first-party family singleton.
+    """
 
     if family is not _CATALOG_FAMILY and family is not _CONTENT_FAMILY:
         raise ValueError("owned response family is unadmitted")
@@ -119,7 +129,18 @@ def RequireResponseFamily(family: ResponseFamily) -> ResponseFamily:
 
 def ResponseDestination(url: object, family: ResponseFamily = _CATALOG_FAMILY
                  ) -> tuple[str, int, str, str]:
-    """Validate an explicitly selected original family without profile guessing."""
+    """Validate an explicitly selected original family without profile guessing.
+
+    Args:
+        url: Exact original URL, subject to the selected family's closed grammar.
+        family: Immutable catalog or content singleton; defaults to the catalog family.
+
+    Returns:
+        Literal address, explicit port, original path and exact Host authority.
+
+    Raises:
+        ValueError: The family or original URL is unadmitted.
+    """
 
     if RequireResponseFamily(family) is _CATALOG_FAMILY:
         address, port, path, authority, _ = Destination(url)
@@ -133,7 +154,19 @@ def ResponseDestination(url: object, family: ResponseFamily = _CATALOG_FAMILY
 
 def ParseResponseRecord(raw: bytes, url: str, family: ResponseFamily = _CATALOG_FAMILY
                  ) -> dict[str, object]:
-    """Run only the explicitly selected strict original-record parser."""
+    """Run only the explicitly selected strict original-record parser.
+
+    Args:
+        raw: Bounded original worker-output bytes to parse as the selected record profile.
+        url: Independently selected original URL that must match the record.
+        family: Immutable catalog or content singleton; defaults to the catalog family.
+
+    Returns:
+        A validated captured record or the selected parser's closed safe refusal record.
+
+    Raises:
+        ValueError: The family, record encoding, shape or original-byte association differs.
+    """
 
     if RequireResponseFamily(family) is _CATALOG_FAMILY:
         return ParseOwnedResponseCapture(raw, url)
@@ -145,7 +178,16 @@ def ParseResponseRecord(raw: bytes, url: str, family: ResponseFamily = _CATALOG_
 
 def ResponseParts(record: dict[str, object], url: str, family: ResponseFamily
            ) -> dict[str, bytes]:
-    """Project admitted original wire parts without catalog substitution for content."""
+    """Project admitted original wire parts without catalog substitution for content.
+
+    Args:
+        record: Already admitted captured record with verified content byte parts.
+        url: Original selected URL used to select the catalog request/response when applicable.
+        family: Explicit immutable catalog or content singleton, checked by identity.
+
+    Returns:
+        Exact request, headers, body and concatenated response bytes for the selected family.
+    """
 
     if RequireResponseFamily(family) is _CATALOG_FAMILY:
         headers, body = ReviewedResponse(Destination(url)[4])
@@ -304,7 +346,14 @@ class OwnedResponseEvidenceStore(LocalEvidenceStore):
         super().__init__(root)
 
     def Maximum(self, role: str) -> int:
-        """Return the selected fixed role ceiling before any original blob read."""
+        """Return the selected fixed role ceiling before any original blob read.
+
+        Args:
+            role: Original evidence role whose family-specific read limit is requested.
+
+        Returns:
+            Maximum admitted bytes, including zero for stderr, or -1 for an unknown role.
+        """
 
         if role == "stdout":
             return self._family.stdout_bytes
@@ -315,12 +364,26 @@ class OwnedResponseEvidenceStore(LocalEvidenceStore):
         return _MAXIMUM.get(role, -1)
 
     def Media(self, role: str) -> str | None:
-        """Return the selected fixed role media without inspecting payload bytes."""
+        """Return the selected fixed role media without inspecting payload bytes.
+
+        Args:
+            role: Original evidence role whose fixed media type is requested.
+
+        Returns:
+            The selected family's body media or the fixed role media; None for unknown roles.
+        """
 
         return self._family.body_media if role == "owned-response-body" else _MEDIA.get(role)
 
     def Receipt(self, evidence_id: str) -> EvidenceRecord:
-        """Preflight a known receipt manifest before inherited eager blob verification."""
+        """Preflight a known receipt manifest before inherited eager blob verification.
+
+        Args:
+            evidence_id: Exact original evidence manifest ID to reopen within this store.
+
+        Returns:
+            The stored record after applicable family preflight and original blob verification.
+        """
 
         if self._family is _CATALOG_FAMILY:
             return self.Get(evidence_id)
@@ -378,6 +441,7 @@ def ValidateRequest(value: dict[str, object], url: str, *,
     Args:
         value: Canonical existing LocalExecutionRequest projection.
         url: Exact original selected URL.
+        _family: Immutable catalog or content binding whose exact request recipe is required.
     """
 
     ResponseDestination(url, _family)
@@ -478,6 +542,7 @@ def ValidateControlResult(result: LocalExecutionResult, *,
 
     Args:
         result: Original executor return, never a reconstructed successful result.
+        _family: Immutable catalog or content binding selecting the original stdout ceiling.
     """
 
     if (
@@ -551,6 +616,7 @@ def ValidateResult(result: LocalExecutionResult, url: str, *,
     Args:
         result: Actual terminal executor return.
         url: Original selected URL.
+        _family: Immutable catalog or content binding selecting the record parser and limits.
 
     Returns:
         Fully admitted success or closed safe refusal record.
@@ -804,6 +870,7 @@ def Receipt(
         ids: Real original acknowledgements or all-null control association.
         refusal: Fixed owner or worker classification.
         complete: Full admitted record/result association, independent of product persistence.
+        _family: Immutable catalog or content binding selecting the receipt profile.
 
     Returns:
         Closed canonical receipt projection.

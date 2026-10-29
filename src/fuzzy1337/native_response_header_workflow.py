@@ -84,7 +84,17 @@ _CONTENT_HEADER_PROFILE = "owned-response-header-absence.v2"
 
 
 def HeaderFamilyForProfile(profile: str) -> ResponseFamily:
-    """Select exactly one declared source family, never trial parsing or downgrade."""
+    """Select exactly one declared source family, never trial parsing or downgrade.
+
+    Args:
+        profile: Exact catalog or content capture profile recorded by the source.
+
+    Returns:
+        The matching immutable first-party source family.
+
+    Raises:
+        NativeResponseHeaderError: The profile is not an admitted exact string.
+    """
 
     if type(profile) is str:
         if profile == _CATALOG_FAMILY.profile:
@@ -97,7 +107,17 @@ def HeaderFamilyForProfile(profile: str) -> ResponseFamily:
 
 
 def HeaderAssessmentFamily(attributes: Mapping[str, object]) -> ResponseFamily:
-    """Require the strict recorded assessment version before reopening original sources."""
+    """Require the strict recorded assessment version before reopening original sources.
+
+    Args:
+        attributes: Recorded assessment fields, including exact schema and profile bindings.
+
+    Returns:
+        The catalog family for schema 1 or content family for its schema-2 profile.
+
+    Raises:
+        NativeResponseHeaderError: The schema/profile/source-profile binding is unadmitted.
+    """
 
     schema = attributes.get("schema_version")
 
@@ -116,7 +136,18 @@ def HeaderAssessmentFamily(attributes: Mapping[str, object]) -> ResponseFamily:
 
 
 def HeaderSourceDestination(url: str, family: ResponseFamily) -> tuple[str, int, str, str]:
-    """Keep the old source route separate from the explicitly selected content grammar."""
+    """Keep the old source route separate from the explicitly selected content grammar.
+
+    Args:
+        url: Exact original URL to validate against the selected source grammar.
+        family: One immutable first-party catalog or content binding, checked by identity.
+
+    Returns:
+        Literal address, explicit port, original path and Host authority for that family.
+
+    Raises:
+        ValueError: The family or original URL is unadmitted.
+    """
 
     if RequireResponseFamily(family) is _CATALOG_FAMILY:
         return Destination(url)[:4]
@@ -377,6 +408,7 @@ def ReadHeaderSource(root: Path, workspace: WorkspaceState, model: ModelState, r
         target: Exact original URL Target.
         scope_reference: Selected original scope for a new analysis, absent for replay.
         admission: Fixed-window authority for a new analysis, absent for replay.
+        _family: Immutable catalog or content source binding; defaults to catalog replay.
 
     Returns:
         Original role bytes and source association after complete successful verification.
@@ -720,6 +752,7 @@ def RequireHeaderConfiguration(root: Path, scope_id: str, receipt_id: str, targe
         approved: Exact separate opt-in boolean.
         actor: Optional trusted synchronous actor reader.
         clock: Aware receiver clock reader.
+        _family: Immutable catalog or content binding selecting the original URL grammar.
     """
 
     try:

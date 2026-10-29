@@ -164,6 +164,20 @@ mode = "authored"
 page = "api/fuzzy1337.native_image_workflow.md"
 
 [[surfaces]]
+# Internal pure content-record admission; direct use establishes no custody or authority.
+module = "fuzzy1337.adapters.owned_content_response"
+source = "src/fuzzy1337/adapters/owned_content_response.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.owned_content_response.md"
+
+[[surfaces]]
+# Internal installed content worker; acquisition authority remains with the governed workflow.
+module = "fuzzy1337.owned_content_response_worker"
+source = "src/fuzzy1337/owned_content_response_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_content_response_worker.md"
+
+[[surfaces]]
 module = "fuzzy1337.adapters.owned_response_capture"
 source = "src/fuzzy1337/adapters/owned_response_capture.py"
 mode = "authored"

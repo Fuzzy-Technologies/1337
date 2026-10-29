@@ -90,6 +90,8 @@ def CurrentAuthority(root: Path, scope_id: str, url: str, owner: str,
         policy_provider: Fresh synchronous reader of the actual selected policy.
         approved: Exact independent workflow approval, never a derived permission.
         current_owner_provider: Optional trusted fresh actor attribution, not authentication.
+        _family: Immutable catalog or content binding selecting the source URL grammar.
+        retain_response: Explicit retention selection passed into current authority; defaults false.
 
     Returns:
         Current complete original URL and literal destination authority.
@@ -158,6 +160,7 @@ def PlanResponseCapture(
         policy_provider: Fresh typed acquisition policy reader.
         clock: Aware current policy decision clock.
         current_owner_provider: Optional fresh trusted actor attribution; default is selected actor.
+        _family: Immutable catalog or content binding; defaults to the catalog plan.
 
     Returns:
         Exact installed invocation, descriptive policy plan and observed revision bases.
@@ -194,6 +197,7 @@ def SourceFact(workspace_id: str, record: dict[str, object], records: tuple[Evid
         records: Actual independently verified original complete role records.
         receipt_id: Actual original receipt manifest identifier.
         job_id: Actual owning ScanJob identifier, never guessed from receipt fields.
+        _family: Immutable catalog or content binding selecting source identity and metadata.
 
     Returns:
         Content-addressed source fact with original execution provenance and no assessment.
@@ -555,6 +559,9 @@ async def RunResponseCapture(
         on_event: Optional synchronous presentation sink for original safe job events.
         clock: Aware current policy/evidence clock, without renewing monotonic budgets.
         current_owner_provider: Trusted fresh attribution, not an identity authentication mechanism.
+        _family: Immutable catalog or content binding selecting acquisition and custody.
+        _retain_response: Explicit response-retention opt-in; defaults false and is required
+            for content.
 
     Returns:
         Actual original terminal snapshot and reopened persistence facts; stage remains retained.
@@ -726,6 +733,8 @@ def ReplayResponse(
     Args:
         workspace_root: Explicit relocated existing canonical workspace boundary.
         original_receipt_id: Actual original receipt manifest ID already retained by this workspace.
+        _family: Immutable catalog or content binding required for original custody and
+            source facts.
 
     Returns:
         Independently verified original job/role IDs and immutable source facts.
