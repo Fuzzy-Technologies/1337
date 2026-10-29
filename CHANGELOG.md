@@ -8,6 +8,33 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.2
 
+### Patch 3 — v0.2.3 — 2026-10-28
+
+#### Digest
+
+- Added internal native configuration prerequisites for selected-file material
+  observation. This is a development candidate; no v0.2.3 release is published.
+
+#### Added
+
+- Added syntax-only Dockerfile/Kubernetes selections, fixed VERSION/config
+  recipes and owned bounded snapshot create/verify helpers with original
+  instance-bound material proofs. Canonical API pages and explicit untranslated
+  locale states document the internal prerequisite boundary.
+
+#### Security
+
+- Native material observation preserves per-role streaming admission limits,
+  exact copied-byte and scratch-identity binding, cancellation settlement and
+  terminal cleanup checks. Material proofs grant no provider execution, product
+  SDK/CLI or evidence acceptance; actual installed-helper acceptance remains
+  pending.
+
+- Subsequent installed-wheel verification established owned material creation
+  and reverification, invalid UTF-8 refusal, scratch replacement refusal and
+  cancellation settlement. These helper observations grant no provider
+  execution or product SDK/CLI authority.
+
 ### Patch 2 — v0.2.2 — 2026-10-11
 
 #### Digest
