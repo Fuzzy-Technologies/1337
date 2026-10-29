@@ -9,6 +9,9 @@ import asyncio
 import copy
 import hashlib
 import json
+import os
+import stat
+from pathlib import Path
 
 import pytest
 from jsonschema.exceptions import ValidationError
@@ -18,6 +21,7 @@ from tests.contract.test_external_benchmark import (
     WriteNucleiContractEvidence,
 )
 from tests.contract.test_external_nuclei_benchmark import (
+    DeclareInertBinaryModes,
     InertProcess,
     Match,
     StandaloneMaterial,
@@ -253,6 +257,7 @@ def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False):
 
     source = tmp_path / "source"
     source.mkdir()
+    DeclareInertBinaryModes(source, monkeypatch)
     root = tmp_path / "original"
     root.mkdir()
     arguments = list(WholeMaterial(source, monkeypatch, mode="empty" if empty else "match")[0]) if (
@@ -285,6 +290,34 @@ def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False):
     monkeypatch.setattr(originals, "SCAN", root / "scan")
 
     return root, manifest_raw, outcome
+
+
+@pytest.mark.parametrize("track", ["whole1337", "external-nuclei"])
+def test_NestedInertProducerDeclaresOnlySelectedExecutableMode(tmp_path, monkeypatch, track):
+    """Nested material models POSIX bits even when the host exposes no execute permissions."""
+
+    binary = tmp_path / "source/inert-never-executed"
+    original = Path.lstat
+
+    def NonExecutableView(path):
+        """Simulate the actual Windows mode limit only for the explicit never-executed binary."""
+
+        metadata = original(path)
+
+        if path == binary and stat.S_ISREG(metadata.st_mode):
+            return os.stat_result((metadata.st_mode & ~0o111, *metadata[1:]))
+
+        return metadata
+
+    monkeypatch.setattr(Path, "lstat", NonExecutableView)
+    _, _, outcome = ProducedBundle(tmp_path, monkeypatch, track)
+    native, projected = NonExecutableView(binary), binary.lstat()
+    assert outcome["status"] == "completed" and native.st_mode & 0o111 == 0 and (
+        stat.S_IMODE(projected.st_mode) == 0o700
+    ), "Only the explicit inert declaration may add modeled execute bits to nested material."
+    assert tuple(native)[1:] == tuple(projected)[1:] and (
+        stat.S_IFMT(native.st_mode) == stat.S_IFMT(projected.st_mode)
+    ), "Nested mode projection must preserve real file kind, link count, size and identity."
 
 
 @pytest.mark.parametrize("track", ["whole1337", "external-nuclei"])

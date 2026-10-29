@@ -83,8 +83,7 @@ CONTAINER_TEMPLATE = PurePosixPath("/opt/benchmark/prometheus.yaml")
 CONTAINER_CONFIGURATION = PurePosixPath("/opt/benchmark/operator-config.yaml")
 
 
-@pytest.fixture(name="inert_binary_modes", autouse=True)
-def InertBinaryModeView(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[Path, int]:
+def DeclareInertBinaryModes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[Path, int]:
     """Declare POSIX permissions for only the two inert executable fixture paths.
 
     Windows chmod does not model Linux execute bits. The original file kind,
@@ -115,6 +114,21 @@ def InertBinaryModeView(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict
     monkeypatch.setattr(Path, "lstat", Lstat)
 
     return modes
+
+
+@pytest.fixture(name="inert_binary_modes", autouse=True)
+def InertBinaryModeView(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[Path, int]:
+    """Apply the explicit mode declaration to this module's root-level inert material owner.
+
+    Args:
+        tmp_path: Exact owner of the two never-executed fixture binary names.
+        monkeypatch: Restore this test's private metadata view after completion.
+
+    Returns:
+        Original mutable declarations used by the negative permission controls.
+    """
+
+    return DeclareInertBinaryModes(tmp_path, monkeypatch)
 
 
 def Material(tmp_path):
@@ -265,10 +279,16 @@ def test_PreflightSeparatesArchiveBinaryAndVersionFacts(tmp_path):
 @pytest.mark.parametrize("fault", [
     "none", "nonexecutable", "hardlink", "oversize", "symlink", "directory",
 ])
+@pytest.mark.parametrize("nested", [False, True])
 def test_InertExecutableModeViewPreservesActualIdentityRefusals(
-    tmp_path, inert_binary_modes, fault,
+    tmp_path, inert_binary_modes, monkeypatch, fault, nested,
 ):
     """Exercise the real executable guard with explicit modes and real kind/link/size faults."""
+
+    if nested:
+        tmp_path = tmp_path / "source"
+        tmp_path.mkdir()
+        inert_binary_modes = DeclareInertBinaryModes(tmp_path, monkeypatch)
 
     binary = tmp_path / "inert-binary-not-executed"
     binary.write_bytes(b"inert")
@@ -308,8 +328,14 @@ def test_InertExecutableModeViewPreservesActualIdentityRefusals(
             RegularIdentity(binary, maximum=16, executable=True)
 
 
-def test_InertExecutableModeViewLeavesUnselectedPathsUntouched(tmp_path):
+@pytest.mark.parametrize("nested", [False, True])
+def test_InertExecutableModeViewLeavesUnselectedPathsUntouched(tmp_path, monkeypatch, nested):
     """Permission modeling never broadens to another file or arbitrary executable location."""
+
+    if nested:
+        tmp_path = tmp_path / "source"
+        tmp_path.mkdir()
+        DeclareInertBinaryModes(tmp_path, monkeypatch)
 
     unselected = tmp_path / "unselected-binary"
     unselected.write_bytes(b"ordinary unselected bytes")
