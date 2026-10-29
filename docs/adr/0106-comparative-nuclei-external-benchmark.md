@@ -9,10 +9,19 @@ PR #371 subsequently merged as `503ff06a` after actual final shared CI and
 three-case native acceptance. This decision preserves the approved design;
 those prerequisites are satisfied.
 
-The first implementation adds only the lab v2 observation schema and consumer
-contracts. Both Nuclei tracks remain candidates and their runtime is **UNRUN**.
-Provisioning, the reviewed runner, genuine template validation and six new case
-invocations require later source review and shared CI acceptance.
+The current implementation supplies the lab v2 observation schema/consumer,
+bounded standalone and governed producer sources, verified material preparation,
+and an owned target-free Docker prerequisite. The genuine pinned Nuclei 3.4.10
+version probe and strict Go template validation passed in the inspected offline
+image with an explicit private HOME. Original artifact review accepted that
+prerequisite boundary; it establishes no application case or scanner comparison.
+
+Both application tracks remain candidates with runtime **UNRUN**. Fresh target
+orchestration, complete v2 observation assembly, governed initialization without
+HOME, and the six comparative application invocations remain future Task #40
+work. This implementation is the comparison groundwork, not completion of the
+whole decision. Final readiness enrolls the implemented target-free prerequisite
+alongside the existing native application acceptance in shared CI.
 
 ## Context
 

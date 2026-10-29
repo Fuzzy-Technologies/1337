@@ -71,9 +71,48 @@ Findings projection; it does not establish genuine execution or product custody.
 Its required `attempt-provenance` role identifies the approved single configured
 invocation and leaves independent server contacts unknown. Artifact reads enforce
 the unchanged 2 MiB per-file ceiling and reject oversize bytes without truncation
-or splitting. These schema and inert contract fixtures do not enable either
-Nuclei runner: both tracks remain candidates with runtime **UNRUN**, pending a
-later reviewed runner and actual six-case shared CI evidence.
+or splitting. These schema and inert contract fixtures do not establish
+application execution. The bounded standalone and governed producer sources
+are present, but the fresh target host loop and complete v2 observation assembly
+remain unimplemented. Both tracks remain candidates with application runtime
+**UNRUN**; six-case shared CI acceptance remains future Task #40 work.
+
+## Installed Nuclei image prerequisite
+
+The implemented prerequisite is independently usable before application
+comparison: it copies a clean committed source tree, builds the current wheel
+and pinned official binary into an inspected image, then runs only the exact
+3.4.10 version probe and Go validation of the one candidate template. The
+nonroot runtime has a read-only root filesystem, no network, bounded private
+tmpfs and an explicit private HOME. Original process streams, source/installed
+inventories, image/container readbacks and separate daemon cleanup facts are
+retained. Wrong identities, overflow, incomplete execution and unconfirmed
+cleanup refuse acceptance. No application target is configured.
+
+```bash
+FUZZY1337_EXTERNAL_NUCLEI_PREREQUISITES=linux-amd64 uv run --locked --extra dev pytest \
+  tests/functional/test_external_nuclei_prerequisites.py --no-cov -n 0
+```
+
+With the variable unset, this test skips before Docker discovery. An enabled
+unsupported platform or missing Docker fails. The source must be clean and
+include the accepted base in its history. Final ready-PR CI checks out its exact
+head with full history, executes this prerequisite and requires one genuine
+pass with the original evidence gate; stable pushes use their exact revision.
+The draft marker admits only this prerequisite and suppresses the older target
+smoke, native cases and metrics diagnostic in that mode.
+
+The original target-free checkpoint on head `3a8285b2` completed with one pass,
+zero skips in 35.11 seconds. Its
+[original artifact](https://github.com/Fuzzy-Technologies/1337/actions/runs/40826818942/artifacts/12877415385)
+has SHA-256
+`952e2325fc4279a72a359f29654663361b57c84091a12bfa7846ac880b6f4044`.
+Independent original-byte review accepted version/Go validation with explicit
+HOME only. This does not prove governed no-HOME initialization, application
+contacts, Findings, six-case comparison or final integration. The earlier failed
+checkpoint remains separate failure evidence.
+
+## Native application acceptance
 
 The native-only runner source builds the current wheel into a clean venv in a
 repo-built image, then joins each fresh owned target's exact network namespace.

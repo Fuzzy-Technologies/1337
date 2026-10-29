@@ -372,7 +372,7 @@ jobs:
       && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]'))
     name: Pinned external target regression
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     env:
       FUZZY1337_EXTERNAL_TARGETS: juice-shop
       FUZZY1337_EXTERNAL_NATIVE_BENCHMARK: juice-shop
@@ -381,8 +381,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]') && github.event.pull_request.head.sha || '' }}
-          fetch-depth: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]') && '0' || '1' }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
       - name: Select Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -423,8 +423,10 @@ jobs:
           --junitxml=functional-evidence/external-native-benchmark/diagnostic/pytest.xml
       - name: Execute one target-free installed Nuclei prerequisite
         if: >-
-          github.event_name == 'pull_request' && github.event.pull_request.draft == true
-          && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
+          || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
+          && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]'))
         timeout-minutes: 17
         env:
           FUZZY1337_EXTERNAL_NUCLEI_PREREQUISITES: linux-amd64
@@ -435,11 +437,13 @@ jobs:
           --junitxml=functional-evidence/nuclei-prerequisites.xml
       - name: Require original target-free Nuclei prerequisite evidence
         if: >-
-          github.event_name == 'pull_request' && github.event.pull_request.draft == true
-          && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
+          || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
+          && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]'))
         timeout-minutes: 1
         env:
-          NUCLEI_PREREQUISITE_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+          NUCLEI_PREREQUISITE_SOURCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           source_identity="$(git rev-parse HEAD HEAD^{tree})"
           python - "$NUCLEI_PREREQUISITE_SOURCE_HEAD" "$source_identity" <<'PY'

@@ -8,6 +8,52 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.2
 
+### Patch 5 — v0.2.5 — 2026-10-29
+
+#### Digest
+
+- Added finite Nuclei comparison infrastructure and verified offline installed
+  image prerequisites. This is a development candidate; no v0.2.5 release is
+  published and application-level comparative results are not yet available.
+
+#### Added
+
+- Added strict version-two comparison observations, bounded standalone and
+  governed producer helpers, pinned archive/current-wheel preparation and an
+  isolated Docker lifecycle. Final integration verifies the installed Nuclei
+  version and exact Go-template validation with retained original evidence.
+
+#### Security
+
+- Preserve failed or empty scanner outcomes as unproven, retain bounded raw
+  process evidence and enforce explicit image, path and cleanup checks. The
+  six application comparisons and governed provider initialization remain
+  follow-on work under the scanner acceptance task; these prerequisites
+  establish no scanner-effectiveness score or comparative ranking.
+
+### Patch 4 — v0.2.4 — 2026-10-29
+
+#### Digest
+
+- Added an explicit content-response SDK profile with retained original HTTP
+  evidence and separately approved offline header assessment. This is a
+  development candidate; no v0.2.4 release is published.
+
+#### Added
+
+- Added content capture planning, original-response custody and historical
+  replay through the governed SDK. Eight installed SDK scenarios cover the
+  missing/fixed/body-decoy header cases, actor/policy/approval refusal, stale
+  model revision and expiry after an acknowledged model Save. A separate
+  installed IPv6 worker scenario verifies literal-loopback wire handling.
+
+#### Security
+
+- Keep acquisition and offline assessment approvals separate. Original source
+  associations, exact model/workspace revision checks, acknowledged partial
+  persistence and relocated replay retain their distinct outcomes. The
+  content-family CLI and broader task-level acceptance remain future work.
+
 ### Patch 3 — v0.2.3 — 2026-10-28
 
 #### Digest
