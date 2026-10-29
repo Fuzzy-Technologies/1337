@@ -8,6 +8,29 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.2
 
+### Patch 5 — v0.2.5 — 2026-10-29
+
+#### Digest
+
+- Added finite Nuclei comparison infrastructure and verified offline installed
+  image prerequisites. This is a development candidate; no v0.2.5 release is
+  published and application-level comparative results are not yet available.
+
+#### Added
+
+- Added strict version-two comparison observations, bounded standalone and
+  governed producer helpers, pinned archive/current-wheel preparation and an
+  isolated Docker lifecycle. Final integration verifies the installed Nuclei
+  version and exact Go-template validation with retained original evidence.
+
+#### Security
+
+- Preserve failed or empty scanner outcomes as unproven, retain bounded raw
+  process evidence and enforce explicit image, path and cleanup checks. The
+  six application comparisons and governed provider initialization remain
+  follow-on work under the scanner acceptance task; these prerequisites
+  establish no scanner-effectiveness score or comparative ranking.
+
 ### Patch 4 — v0.2.4 — 2026-10-29
 
 #### Digest

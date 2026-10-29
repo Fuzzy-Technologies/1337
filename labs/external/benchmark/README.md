@@ -1,8 +1,9 @@
 # Finite real-application scanner comparison
 
 This is the finite oracle and execution contract for
-[ADR 0102](../../../docs/adr/0102-independent-app-scanner-benchmark.md) and Task
-#40. Actual scanner evidence is separate from the existing target health smoke;
+[ADR 0102](../../../docs/adr/0102-independent-app-scanner-benchmark.md),
+[ADR 0106](../../../docs/adr/0106-comparative-nuclei-external-benchmark.md) and
+Task #40. Actual scanner evidence is separate from the existing target health smoke;
 the declared response cases do not establish whole-application accuracy.
 
 | Case              | Exact path                        | Expected bounded property |
@@ -56,6 +57,63 @@ files alongside the envelope; normalized JSON cannot replace source custody.
 Finite completed TP/FP/FN/TN counts cover only the declared response cases.
 `whole_application_accuracy` is always null.
 
+`result.schema.json` preserves native/v1 observation semantics. The additive
+Nuclei-only `result.v2.schema.json` distinguishes a successful invocation from a
+proven case outcome. Exit zero with empty JSONL is executed `unproven`; it receives
+no TN, FN, response-success or completed-case credit. Only an explicit raw match
+bound to the exact case URL and declared rule can produce a completed TP or FP.
+V2 Findings retain `target_url` as well as `rule_id` and `path`; unknown/off-case
+records stay visible and unscored. Failed execution retains available bytes and
+partial matches. Mixed reports preserve the original native v1 observations.
+
+The v2 consumer checks retained stdout match identities against the acquired
+Findings projection; it does not establish genuine execution or product custody.
+Its required `attempt-provenance` role identifies the approved single configured
+invocation and leaves independent server contacts unknown. Artifact reads enforce
+the unchanged 2 MiB per-file ceiling and reject oversize bytes without truncation
+or splitting. These schema and inert contract fixtures do not establish
+application execution. The bounded standalone and governed producer sources
+are present, but the fresh target host loop and complete v2 observation assembly
+remain unimplemented. Both tracks remain candidates with application runtime
+**UNRUN**; six-case shared CI acceptance remains future Task #40 work.
+
+## Installed Nuclei image prerequisite
+
+The implemented prerequisite is independently usable before application
+comparison: it copies a clean committed source tree, builds the current wheel
+and pinned official binary into an inspected image, then runs only the exact
+3.4.10 version probe and Go validation of the one candidate template. The
+nonroot runtime has a read-only root filesystem, no network, bounded private
+tmpfs and an explicit private HOME. Original process streams, source/installed
+inventories, image/container readbacks and separate daemon cleanup facts are
+retained. Wrong identities, overflow, incomplete execution and unconfirmed
+cleanup refuse acceptance. No application target is configured.
+
+```bash
+FUZZY1337_EXTERNAL_NUCLEI_PREREQUISITES=linux-amd64 uv run --locked --extra dev pytest \
+  tests/functional/test_external_nuclei_prerequisites.py --no-cov -n 0
+```
+
+With the variable unset, this test skips before Docker discovery. An enabled
+unsupported platform or missing Docker fails. The source must be clean and
+include the accepted base in its history. Final ready-PR CI checks out its exact
+head with full history, executes this prerequisite and requires one genuine
+pass with the original evidence gate; stable pushes use their exact revision.
+The draft marker admits only this prerequisite and suppresses the older target
+smoke, native cases and metrics diagnostic in that mode.
+
+The original target-free checkpoint on head `3a8285b2` completed with one pass,
+zero skips in 35.11 seconds. Its
+[original artifact](https://github.com/Fuzzy-Technologies/1337/actions/runs/40826818942/artifacts/12877415385)
+has SHA-256
+`952e2325fc4279a72a359f29654663361b57c84091a12bfa7846ac880b6f4044`.
+Independent original-byte review accepted version/Go validation with explicit
+HOME only. This does not prove governed no-HOME initialization, application
+contacts, Findings, six-case comparison or final integration. The earlier failed
+checkpoint remains separate failure evidence.
+
+## Native application acceptance
+
 The native-only runner source builds the current wheel into a clean venv in a
 repo-built image, then joins each fresh owned target's exact network namespace.
 It runs nonroot with a read-only root filesystem, bounded tmpfs/CPU/memory/PIDs,
@@ -96,7 +154,8 @@ retained in
 [artifact 12830144211](https://github.com/Fuzzy-Technologies/1337/actions/runs/40723123569/artifacts/12830144211)
 with archive SHA-256
 `cb01d7f040c14802143396adb6561093c51a63b5f49cfff1b498c22cfcb0e281`.
-Final shared integration acceptance remains required.
+PR #371 subsequently merged as `503ff06a` after final shared integration
+acceptance. This earlier checkpoint archive remains separately identified.
 
 The original false negative is preserved separately in
 [artifact 12828328221](https://github.com/Fuzzy-Technologies/1337/actions/runs/40717160124/artifacts/12828328221).

@@ -20,7 +20,10 @@ CONTRACT_DIRECTORY = Path(__file__).resolve().parents[2] / "labs/external/benchm
 REQUIRED_ROLES = frozenset({
     "stdout", "stderr", "invocation", "findings", "target-provenance", "requests",
 })
-EXECUTED_STATUSES = frozenset({"completed", "crashed", "timed-out"})
+EXECUTED_STATUSES = frozenset({"completed", "unproven", "failed", "crashed", "timed-out"})
+MAX_EVIDENCE_BYTES = 2 * 1024 * 1024
+NUCLEI_RULE_PREFIXES = {"whole1337": "nuclei.", "external-nuclei": ""}
+NUCLEI_ATTEMPT_BASIS = "approved-single-configured-nuclei-invocation"
 ISOLATED_IPV4_NETWORKS = tuple(ipaddress.ip_network(value) for value in (
     "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
 ))
@@ -116,6 +119,11 @@ def VerifiedEvidence(execution: dict, evidence_root: Path) -> dict[str, bytes]:
         if relative.anchor or any(part in {".", ".."} for part in relative.parts):
             raise ValueError("Benchmark evidence must remain beneath its evidence directory")
 
+        size = record["size_bytes"]
+
+        if type(size) is not int or not 0 <= size <= MAX_EVIDENCE_BYTES:
+            raise ValueError("Benchmark evidence exceeds the 2 MiB per-file ceiling")
+
         path = evidence_root / relative
 
         for component in (evidence_root, *(
@@ -139,10 +147,60 @@ def VerifiedEvidence(execution: dict, evidence_root: Path) -> dict[str, bytes]:
     return evidence
 
 
+def ProjectNucleiMatches(raw: bytes, scanner_track: str) -> list[dict]:
+    """Project explicit raw match identities without invoking product normalization or a scanner."""
+
+    if len(raw) > MAX_EVIDENCE_BYTES:
+        raise ValueError("Benchmark Nuclei stdout exceeds the 2 MiB per-file ceiling")
+
+    findings = []
+
+    for line in raw.splitlines():
+        record = DecodeJson(line)
+
+        if not isinstance(record, dict) or record.get("type") != "http" or (
+            not isinstance(record.get("template-id"), str) or not record["template-id"]
+            or not isinstance(record.get("matched-at"), str) or not record["matched-at"]
+            or ("matcher-status" in record and record["matcher-status"] is not True)
+        ):
+            raise ValueError("Benchmark Nuclei output requires explicit HTTP match identities")
+
+        parsed = urlsplit(record["matched-at"])
+
+        if parsed.scheme != "http" or not parsed.netloc:
+            raise ValueError("Benchmark Nuclei match requires an explicit HTTP URL")
+
+        findings.append({"rule_id": NUCLEI_RULE_PREFIXES[scanner_track] + record["template-id"],
+                         "path": parsed.path, "target_url": record["matched-at"]})
+
+    return findings
+
+
+def PartitionFindings(observation: dict, case: dict, track: dict) -> tuple[list, list]:
+    """Keep unknown identities visible and require exact v2 input binding before adjudication."""
+
+    execution = observation["execution"]
+    mapped, unadjudicated = [], []
+
+    for finding in execution["findings"] if execution else ():
+        exact_input = observation["schema_version"] == 1 or (
+            finding["target_url"] == execution["target_url"]
+        )
+        destination = mapped if exact_input and finding["path"] == case["path"] and (
+            finding["rule_id"] in track["rule_ids"]
+        ) else unadjudicated
+        destination.append(finding)
+
+    return mapped, unadjudicated
+
+
 def ValidateObservation(pack: dict, target: dict, observation: dict, evidence_root: Path) -> None:
     """Reject invented completion, widened targets, mismatched inputs, or unsupported scoring."""
 
-    schema = ReadJson(CONTRACT_DIRECTORY / "result.schema.json")
+    version = observation.get("schema_version")
+    schema = ReadJson(CONTRACT_DIRECTORY / (
+        "result.v2.schema.json" if version == 2 else "result.schema.json"
+    ))
     json.dumps(observation, allow_nan=False)
     resource = Resource.from_contents(ReadJson(CONTRACT_DIRECTORY / "case-pack.schema.json"))
     registry = Registry().with_resource("case-pack.schema.json", resource)
@@ -198,7 +256,7 @@ def ValidateObservation(pack: dict, target: dict, observation: dict, evidence_ro
 
     evidence = VerifiedEvidence(execution, evidence_root)
 
-    if status == "completed":
+    if status in {"completed", "unproven"}:
         if track["implementation"] != "available" or case["applicability"] != "applicable":
             raise ValueError("Planned detectors and manual cases cannot establish completion")
 
@@ -244,6 +302,32 @@ def ValidateObservation(pack: dict, target: dict, observation: dict, evidence_ro
         if requests != [{"method": "GET", "url": execution["target_url"]}]:
             raise ValueError("A completed case requires the exact single unauthenticated GET")
 
+        if version == 2:
+            if "attempt-provenance" not in evidence:
+                raise ValueError("Nuclei observations require explicit attempt provenance")
+
+            attempt = DecodeJson(evidence["attempt-provenance"])
+
+            if not isinstance(attempt, dict) or attempt.get("basis") != NUCLEI_ATTEMPT_BASIS or (
+                type(attempt.get("approved_attempt_count")) is not int
+                or attempt["approved_attempt_count"] != 1
+                or "independent_server_contact_count" not in attempt
+                or attempt["independent_server_contact_count"] is not None
+            ):
+                raise ValueError("Nuclei invocation does not establish independent server contacts")
+
+            projected = ProjectNucleiMatches(evidence["stdout"], observation["scanner_track"])
+
+            if projected != execution["findings"]:
+                raise ValueError("Nuclei findings differ from explicit raw match identities")
+
+            mapped, _ = PartitionFindings(observation, case, track)
+
+            if (status == "completed") != bool(mapped):
+                raise ValueError(
+                    "Nuclei completion requires a mapped match; absence stays unproven"
+                )
+
 
 def BuildComparison(pack: dict, target: dict, observations: list[dict],
                     evidence_root: Path) -> dict:
@@ -272,14 +356,9 @@ def BuildComparison(pack: dict, target: dict, observations: list[dict],
                 case["applicability"] if case["applicability"] != "applicable" else "not-run"
             )
             execution = observation["execution"] if observation else None
-            mapped = []
-            unadjudicated = []
-
-            for finding in execution["findings"] if execution else ():
-                destination = mapped if finding["path"] == case["path"] and (
-                    finding["rule_id"] in track["rule_ids"]
-                ) else unadjudicated
-                destination.append(finding)
+            mapped, unadjudicated = (
+                PartitionFindings(observation, case, track) if observation else ([], [])
+            )
 
             score = None
 
@@ -331,6 +410,8 @@ def BuildComparison(pack: dict, target: dict, observations: list[dict],
                           "scanner_tracks": [left["scanner_track"], right["scanner_track"]],
                           "equal_budget_and_reset": not reasons, "differences": reasons})
 
-    return {"schema_version": 1, "pack_id": pack["pack_id"], "cells": cells,
+    version = 2 if any(item["schema_version"] == 2 for item in observations) else 1
+
+    return {"schema_version": version, "pack_id": pack["pack_id"], "cells": cells,
             "finite_completed_case_counts": counts, "whole_application_accuracy": None,
             "pairwise_conditions": pairs, "observations": observations}

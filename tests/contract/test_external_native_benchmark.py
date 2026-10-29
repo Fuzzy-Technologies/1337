@@ -449,6 +449,10 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
     checkpoint = (final + " || (github.event_name == 'pull_request' "
                   "&& github.event.pull_request.draft == true "
                   "&& contains(github.event.pull_request.body, '" + marker + "'))")
+    prerequisite = ("github.event_name == 'pull_request' "
+        "&& github.event.pull_request.draft == true "
+        "&& contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')")
+    checkpoint += " || (" + prerequisite + ")"
     lane = jobs["external-targets"]
     assert " ".join(lane["if"].split()) == checkpoint, (
         "Only the existing external lane may accept its explicit draft checkpoint."
@@ -464,8 +468,9 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
         "The external draft marker must not enable other full-gate jobs."
     )
     steps = {step["name"]: step for step in lane["steps"]}
-    assert " ".join(steps["Execute pinned target through pytest"]["if"].split()) == final, (
-        "Target smoke must wait for final readiness."
+    assert " ".join(steps["Execute pinned target through pytest"]["if"].split()) == (
+        f"!({prerequisite}) && ({final})"), (
+        "Target smoke must wait for final readiness and refuse the draft prerequisite mode."
     )
     native = steps["Execute installed native scanner against three fresh pinned targets"]
     assert "tests/functional/test_external_native_benchmark.py" in native["run"], (
@@ -474,19 +479,25 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
     assert "--no-cov -n 0" in native["run"] and "--junitxml=" in native["run"], (
         "The native step must stay serial and retain JUnit without partial coverage."
     )
-    assert native["timeout-minutes"] == 15 and lane["timeout-minutes"] == 20, (
-        "The native lane and step must retain their finite runtime budgets."
+    assert native["timeout-minutes"] == 15 and lane["timeout-minutes"] == 40, (
+        "The native step keeps its budget while the lane also budgets the installed prerequisite."
     )
     diagnostic_marker = "[native-external-metrics-diagnostic]"
     assert " ".join(native["if"].split()) == (
-        "github.event_name != 'pull_request' || github.event.pull_request.draft == false "
-        "|| !contains(github.event.pull_request.body, '" + diagnostic_marker + "')"
-    ), "Only the explicit draft diagnostic may replace the native acceptance step."
+        f"!({prerequisite}) && (github.event_name != 'pull_request' "
+        "|| github.event.pull_request.draft == false "
+        "|| !contains(github.event.pull_request.body, '" + diagnostic_marker + "'))"
+    ), "Only explicit diagnostic or prerequisite enrollment may suppress native acceptance."
     diagnostic = steps["Capture one separate fresh-target metrics diagnostic"]
     assert " ".join(diagnostic["if"].split()) == (
-        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
-        "&& contains(github.event.pull_request.body, '" + diagnostic_marker + "')"
-    ), "The diagnostic step must require both draft state and its explicit marker."
+        f"!({prerequisite}) && (github.event_name == 'pull_request' "
+        "&& github.event.pull_request.draft == true "
+        "&& contains(github.event.pull_request.body, '" + diagnostic_marker + "'))"
+    ), "Diagnostics require their own draft marker and refuse prerequisite-mode overlap."
+    for name in ("Execute one target-free installed Nuclei prerequisite",
+        "Require original target-free Nuclei prerequisite evidence"):
+        assert " ".join(steps[name]["if"].split()) == final + " || (" + prerequisite + ")", (
+            "Prerequisite execution and evidence verification require exact final or draft mode")
     assert diagnostic["env"] == {"FUZZY1337_EXTERNAL_METRICS_DIAGNOSTIC": "juice-shop"}, (
         "The diagnostic must retain its exact separate enrollment variable."
     )

@@ -57,10 +57,18 @@ BROWSER_FEATURE_CONDITION = (
     "&& github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[browser-feature-checkpoint]'))"
 )
+NUCLEI_PREREQUISITE_CONDITION = (
+    "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+    "&& contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')"
+)
+NUCLEI_PREREQUISITE_EXECUTION_CONDITION = (
+    INTEGRATION_CONDITION + " || (" + NUCLEI_PREREQUISITE_CONDITION + ")"
+)
 EXTERNAL_NATIVE_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[native-external-checkpoint]'))"
+    + " || (" + NUCLEI_PREREQUISITE_CONDITION + ")"
 )
 NATIVE_CRAWL_PORTABILITY_JOBS = {
     "native-crawl-windows-portability", "native-crawl-container-portability",
@@ -74,6 +82,7 @@ OWNED_TRAVERSAL_RATE_CONDITION = (
     "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]')"
 )
+NUCLEI_CONTRACT_WINDOWS_JOB = "nuclei-contract-windows-checkpoint"
 
 
 def Workflow(name: str) -> dict[str, Any]:
@@ -114,7 +123,8 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     expected = WORKFLOWS[name] | ({"deploy-pages"} if name == "documentation.yml" else set())
 
     if name == "python-quality.yml":
-        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {OWNED_TRAVERSAL_RATE_JOB}
+        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {
+            OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB}
 
     assert set(jobs) == expected, "The integration job inventory changed unexpectedly."
     assert workflow["permissions"] == {"contents": "read"}, "PR authority expanded."
@@ -1033,3 +1043,313 @@ def test_InstalledConfigurationReportGateRejectsIncompleteOrUnexecutedCases(
 
     with pytest.raises(ValueError, match="current workflow revision|without skips/errors"):
         helper.Verify(root)
+
+
+def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
+    """Keep draft prerequisite-only admission separate even when legacy markers are combined."""
+
+    workflow = Workflow("python-quality.yml")
+    job = workflow["jobs"]["external-targets"]
+    mode = NUCLEI_PREREQUISITE_CONDITION
+    assert " ".join(job["if"].split()) == EXTERNAL_NATIVE_FEATURE_CONDITION, (
+        "Only the original final/native admission and explicit prerequisite mode may run."
+    )
+    assert job["timeout-minutes"] == 40 and job["runs-on"] == "ubuntu-24.04" and (
+        job["env"] == {"FUZZY1337_EXTERNAL_TARGETS": "juice-shop",
+            "FUZZY1337_EXTERNAL_NATIVE_BENCHMARK": "juice-shop"}
+        and "strategy" not in job and not job.get("continue-on-error", False)
+    ), "Final external acceptance must budget both native and installed prerequisite steps."
+    steps = {step["name"]: step for step in job["steps"]}
+    assert len(steps) == len(job["steps"]) == 10, "Only two prerequisite steps may be added."
+    checkout = steps["Check out source"]
+    assert checkout["with"] == {"persist-credentials": False,
+        "ref": ("${{ github.event_name == 'pull_request' "
+            "&& github.event.pull_request.head.sha || github.sha }}"),
+        "fetch-depth": 0}, (
+        "Final and draft prerequisite acceptance require exact source and accepted-base ancestry."
+    )
+    old = {
+        "Execute pinned target through pytest": INTEGRATION_CONDITION,
+        "Execute installed native scanner against three fresh pinned targets": (
+            "github.event_name != 'pull_request' || github.event.pull_request.draft == false "
+            "|| !contains(github.event.pull_request.body, '[native-external-metrics-diagnostic]')"),
+        "Capture one separate fresh-target metrics diagnostic": (
+            "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+            "&& contains(github.event.pull_request.body, '[native-external-metrics-diagnostic]')"),
+    }
+
+    for name, condition in old.items():
+        assert " ".join(steps[name]["if"].split()) == f"!({mode}) && ({condition})", (
+            "Prerequisite mode must suppress all old work, including mixed-marker bodies."
+        )
+
+    selected = steps["Execute one target-free installed Nuclei prerequisite"]
+    gate = steps["Require original target-free Nuclei prerequisite evidence"]
+    assert all(" ".join(step["if"].split()) == NUCLEI_PREREQUISITE_EXECUTION_CONDITION
+        and not step.get(
+        "continue-on-error", False) for step in (selected, gate)), (
+        "Final readiness must execute and verify prerequisites; "
+        "draft-only enrollment stays explicit."
+    )
+    selector = ("tests/functional/test_external_nuclei_prerequisites.py::"
+        "test_InstalledImageRunsOfflineExactNucleiPrerequisites")
+    assert shlex.split(selected["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", selector,
+        "-o", "addopts=", "--no-cov", "-n0", "-v", "--timeout=600",
+        "--timeout-method=signal", "--junitxml=functional-evidence/nuclei-prerequisites.xml",
+    ] and selected["env"] == {"FUZZY1337_EXTERNAL_NUCLEI_PREREQUISITES": "linux-amd64"}, (
+        "Exactly one serial explicit prerequisite may run; no target/case matrix is enrolled."
+    )
+    assert selected["timeout-minutes"] == 17 and gate["timeout-minutes"] == 1, (
+        "A ten-minute signal timeout leaves seven minutes for host cleanup within its step."
+    )
+    assert gate["env"] == {"NUCLEI_PREREQUISITE_SOURCE_HEAD": (
+        "${{ github.event_name == 'pull_request' "
+        "&& github.event.pull_request.head.sha || github.sha }}")}, (
+        "Gate must bind the exact PR head or stable push revision."
+    )
+    assert gate["run"].startswith('source_identity="$(git rev-parse HEAD HEAD^{tree})"\n'), (
+        "Only read-only checkout metadata may supplement the original source receipt."
+    )
+    upload = steps["Preserve external target evidence"]
+    assert upload["if"] == "always()" and upload["with"] == {
+        "name": "external-juice-shop", "path": "functional-evidence/external-juice-shop/\n"
+            "functional-evidence/external-native-benchmark/\n"
+            "functional-evidence/external-nuclei-prerequisites/\n"
+            "functional-evidence/nuclei-prerequisites.xml\n",
+        "if-no-files-found": "error", "retention-days": 14,
+    }, "The existing always upload must retain both old evidence paths and new originals."
+
+
+def test_NucleiContractWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> None:
+    """Keep inert Windows contracts separate from real prerequisites, targets and full gates."""
+
+    workflow = Workflow("python-quality.yml")
+    jobs = workflow["jobs"]
+    job = jobs[NUCLEI_CONTRACT_WINDOWS_JOB]
+    marker = "[nuclei-contract-windows-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only the explicit draft contract marker may launch this Windows checkpoint."
+    assert all(marker not in other.get("if", "") for name, other in jobs.items()
+        if name != NUCLEI_CONTRACT_WINDOWS_JOB), (
+        "The contract checkpoint must not enroll any target, installed prerequisite or full gate")
+    assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "steps"} and (
+        job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8
+    ), "The Windows contract checkpoint must retain one bounded non-advisory job."
+    steps = job["steps"]
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "Exactly one contract execution, its original-result gate and evidence upload are required")
+    original = jobs["quality"]["steps"]
+    assert steps[0]["uses"] == original[0]["uses"] and steps[0]["with"] == {
+        "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False,
+    }, "Contract results must bind the exact PR head through pinned credential-free checkout."
+    assert steps[1]["uses"] == original[1]["uses"] and steps[1]["with"] == {
+        "python-version": "3.12"} and steps[2] == original[2] and steps[3]["run"] == (
+        "uv sync --locked --extra dev --python 3.12"
+    ), "The checkpoint must retain pinned Python provisioning and the locked development extra."
+    junit = "functional-evidence/nuclei-contract-windows.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", "tests/contract", "-k",
+        "external_nuclei or external_native_benchmark or external_benchmark or external_targets",
+        "-q", "-n2", "--no-cov", "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3 and "if" not in steps[4], (
+        "One bounded contract selection must report every failure without fail-fast or fullsuite")
+    assert steps[5]["shell"] == "python" and "if" not in steps[5], (
+        "The original JUnit gate must run with the selected Python after successful execution")
+    assert steps[6]["if"] == "always()" and steps[6]["uses"] == original[-1]["uses"] and (
+        steps[6]["with"] == {"name": "nuclei-contract-windows-original-evidence",
+            "path": junit, "retention-days": 14, "if-no-files-found": "error"}
+    ), "Original Windows contract results must survive both success and failed execution."
+
+
+@pytest.mark.parametrize("case_xml, accepted", [
+    ('<testcase name="passed"/>', True),
+    ('<testcase name="passed"/><testcase name="skip"><skipped/></testcase>', True),
+    ("", False),
+    ('<testcase name="skip"><skipped/></testcase>', False),
+    ('<testcase name="failed"><failure/></testcase>', False),
+    ('<testcase name="errored"><error/></testcase>', False),
+    (None, False),
+], ids=["executed", "executed-with-skip", "empty", "only-skips", "failure", "error", "missing"])
+def test_NucleiContractWindowsGateRequiresExecutedOriginalCasesWithoutFailure(
+    tmp_path: Path, case_xml: str | None, accepted: bool,
+) -> None:
+    """Exercise the exact read-only gate against marked synthetic JUnit results only.
+
+    Args:
+        tmp_path: Explicit test-owned evidence directory without a target or scanner.
+        case_xml: Synthetic original-shaped testcase fragments, or None for missing evidence.
+        accepted: Whether actual successful case execution exists without failures or errors.
+    """
+
+    job = Workflow("python-quality.yml")["jobs"][NUCLEI_CONTRACT_WINDOWS_JOB]
+    path = tmp_path / "functional-evidence/nuclei-contract-windows.xml"
+
+    if case_xml is not None:
+        path.parent.mkdir()
+        path.write_text("<testsuites><testsuite>" + case_xml + "</testsuite></testsuites>",
+            encoding="utf-8")
+
+    result = subprocess.run([sys.executable, "-c", job["steps"][5]["run"]], cwd=tmp_path,
+        capture_output=True, text=True, timeout=10, check=False)
+    assert (result.returncode == 0) is accepted, (
+        "Only original-shaped executed contract cases without failures/errors may satisfy the gate")
+
+
+@pytest.mark.parametrize("mutation", [None, "junit-missing", "skip", "hidden-skip", "wrong-case",
+    "wrong-class", "failed-case", "multiple-cases", "no-run", "multiple-runs", "host-missing",
+    "host-failed", "head", "tree", "checkout", "image", "iid", "container", "cleanup",
+    "tag", "target", "home-claim", "imported-target", "imported-head", "version-argv",
+    "validation-argv", "process", "empty-version", "wrong-version", "empty-validation",
+    "stderr-missing"], ids=lambda value: "complete" if value is None else value)
+def test_NucleiPrerequisiteGateRejectsSyntheticIncompleteOrForeignEvidence(
+    tmp_path: Path, mutation: str | None,
+) -> None:
+    """Execute only the read-only stdlib gate against labeled synthetic original-shaped files.
+
+    Args:
+        tmp_path: Disposable unit root with no Docker, Git harness or provider activity.
+        mutation: Short explicit identifier for one rejected metadata/original substitution.
+    """
+
+    job = Workflow("python-quality.yml")["jobs"]["external-targets"]
+    step = next(row for row in job["steps"] if row["name"] == (
+        "Require original target-free Nuclei prerequisite evidence"))
+    script = step["run"].split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+    tree = ast.parse(script)
+    imports = {node.names[0].name if isinstance(node, ast.Import) else node.module
+        for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))}
+    assert imports == {"json", "re", "sys", "pathlib", "xml.etree"}, (
+        "Evidence gate may only read originals with stdlib; no host/helper/runtime imports."
+    )
+    script_path = tmp_path / "read_only_gate.py"
+    script_path.write_text(script)
+    head, source_tree, owner = "a" * 40, "b" * 40, "c" * 32
+    base_id, image_id, container_id = "sha256:" + "d" * 64, "sha256:" + "e" * 64, "f" * 64
+    run = "functional-evidence/external-nuclei-prerequisites/run-" + owner[:12] + "/"
+    host = {"status": "completed-prerequisites", "source_revision": head,
+        "source_tree": source_tree, "image_id": image_id, "container_id": container_id,
+        "configured_target_inputs": [], "governed_no_home_compatibility": "not-established",
+        "cleanup": [{"container_absent": True},
+            {"tag": "fuzzy1337-nuclei-runner-" + owner, "absent": True},
+            {"tag": "fuzzy1337-nuclei-base-" + owner, "absent": True}]}
+    outcome = {"status": "completed-prerequisites", "version_probe": "completed",
+        "go_template_validation": "completed", "governed_no_home_compatibility": "not-established",
+        "configured_target_inputs": [], "independent_server_contact_count": None}
+    documents = {run + "host.json": host, run + "base.iid": (base_id + "\n").encode(),
+        run + "runner.iid": (image_id + "\n").encode(), run + "context-inventory.json": {
+            "revision": head, "tree": source_tree}, run + "imported/prerequisites.json": outcome,
+        run + "imported/image-provisioning.json": {"source_revision": head,
+            "installed": {"installed": {"source_revision": head}}}}
+    arguments = {"version": ["/opt/benchmark-material/nuclei", "-version", "-duc"],
+        "validate": ["/opt/benchmark-material/nuclei", "-validate", "-t",
+            "/opt/benchmark-material/prometheus-exposition.yaml", "-config",
+            "/opt/benchmark-material/operator-config.yaml", "-duc", "-ni", "-no-stdin",
+            "-pt", "http", "-nc"]}
+
+    for name, argv in arguments.items():
+        prefix = run + "imported/" + name + "/"
+        documents[prefix + "invocation.json"] = {"argv": argv,
+            "basis": "target-free-explicit-home-prerequisite"}
+        documents[prefix + "process.json"] = {"exit_code": 0, "streams_complete": True,
+            "timed_out": False, "capture_exhausted": None, "launch_error": None,
+            "capture_error": None, "interrupted": None, "cleanup_error": None}
+        documents[prefix + "stdout.raw"] = b"Nuclei Engine Version: v3.4.10" if (
+            name == "version") else b"All templates validated successfully"
+        documents[prefix + "stderr.raw"] = b""
+
+    junit = ('<testsuites><testsuite tests="1" failures="0" errors="0" skipped="0">'
+        '<testcase classname="tests.functional.test_external_nuclei_prerequisites" '
+        'name="test_InstalledImageRunsOfflineExactNucleiPrerequisites"/>'
+        '</testsuite></testsuites>')
+    actual_identity = head + "\n" + source_tree
+
+    if mutation == "skip":
+        junit = junit.replace('skipped="0"', 'skipped="1"')
+
+    elif mutation == "hidden-skip":
+        junit = junit.replace('/>', '><skipped/></testcase>')
+
+    elif mutation in {"wrong-case", "wrong-class"}:
+        junit = junit.replace('test_InstalledImageRunsOfflineExactNucleiPrerequisites' if (
+            mutation == "wrong-case") else 'tests.functional.test_external_nuclei_prerequisites',
+            'unrelated')
+
+    elif mutation == "failed-case":
+        junit = junit.replace('failures="0"', 'failures="1"')
+
+    elif mutation == "multiple-cases":
+        junit = junit.replace('</testsuite>', '<testcase name="foreign"/></testsuite>')
+
+    elif mutation == "multiple-runs":
+        documents[run.replace(owner[:12], "0" * 12) + "host.json"] = host
+
+    elif mutation in {"no-run", "host-missing"}:
+        del documents[run + "host.json"]
+
+        if mutation == "no-run":
+            documents = {}
+
+    elif mutation == "host-failed":
+        host["status"] = "failed"
+
+    elif mutation in {"head", "tree", "image", "container"}:
+        host[{"head": "source_revision", "tree": "source_tree", "image": "image_id",
+            "container": "container_id"}[mutation]] = "0" * 40
+
+    elif mutation == "checkout":
+        actual_identity = "0" * 40 + "\n" + source_tree
+
+    elif mutation == "iid":
+        documents[run + "runner.iid"] = (base_id + "\n").encode()
+
+    elif mutation == "cleanup":
+        host["cleanup"][0]["container_absent"] = False
+
+    elif mutation == "tag":
+        host["cleanup"][2]["tag"] = "foreign"
+
+    elif mutation == "target":
+        host["configured_target_inputs"] = ["https://not-a-prerequisite.invalid"]
+
+    elif mutation == "home-claim":
+        host["governed_no_home_compatibility"] = "established"
+
+    elif mutation == "imported-target":
+        outcome["configured_target_inputs"] = ["foreign"]
+
+    elif mutation == "imported-head":
+        documents[run + "imported/image-provisioning.json"]["source_revision"] = "0" * 40
+
+    elif mutation in {"version-argv", "validation-argv"}:
+        name = "version" if mutation == "version-argv" else "validate"
+        documents[run + "imported/" + name + "/invocation.json"]["argv"].append("-u")
+
+    elif mutation == "process":
+        documents[run + "imported/validate/process.json"]["streams_complete"] = False
+
+    elif mutation in {"empty-version", "wrong-version", "empty-validation"}:
+        name = "validate" if mutation == "empty-validation" else "version"
+        documents[run + "imported/" + name + "/stdout.raw"] = (
+            b"Nuclei Engine Version: v0.0.0" if mutation == "wrong-version" else b"")
+
+    elif mutation == "stderr-missing":
+        del documents[run + "imported/validate/stderr.raw"]
+
+    for name, value in documents.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(value if type(value) is bytes else json.dumps(value).encode())
+
+    if mutation != "junit-missing":
+        path = tmp_path / "functional-evidence/nuclei-prerequisites.xml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(junit)
+
+    result = subprocess.run([sys.executable, "-I", "-B", str(script_path), head, actual_identity],
+        cwd=tmp_path, capture_output=True, timeout=5, check=False)
+    assert (result.returncode == 0) is (mutation is None), (
+        "Only complete synthetic prerequisite facts may pass the inert gate predicate."
+    )
