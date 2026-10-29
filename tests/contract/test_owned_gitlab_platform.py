@@ -483,6 +483,11 @@ def test_PlatformWorkflowUsesSameOrdinaryCohortAndStrictGate():
     gate = steps["Require executed GitLab cohort and original platform evidence"]
     assert workflow["permissions"] == {"contents": "read"}, (
         "The owned GitLab cohort must never receive publishing or repository-write permission")
+    assert all("runner." not in str(value) for value in job.get("env", {}).values()), (
+        "GitHub cannot evaluate runner context in job-level env; the cohort would never start")
+    assert execute["env"] == gate["env"] == {
+        "FUZZY1337_GITLAB_EVIDENCE": "${{ runner.temp }}/owned-gitlab-original-evidence"
+    }, "Execution and original verification must share one runtime-scoped evidence directory"
     assert "draft == false" in job["if"] and "owned-gitlab-product-checkpoint" in job["if"], (
         "The same source path must serve final ready CI and explicitly selected Draft diagnosis")
     assert "tests/functional/test_owned_gitlab_product.py" in execute["run"] and (

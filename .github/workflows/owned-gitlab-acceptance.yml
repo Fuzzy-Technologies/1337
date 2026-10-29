@@ -26,7 +26,6 @@ jobs:
     timeout-minutes: 40
     env:
       FUZZY1337_RUN_OWNED_GITLAB_ACCEPTANCE: "1"
-      FUZZY1337_GITLAB_EVIDENCE: ${{ runner.temp }}/owned-gitlab-original-evidence
     steps:
       - name: Check out exact source
         timeout-minutes: 2
@@ -47,11 +46,15 @@ jobs:
         run: uv sync --locked --extra dev --python 3.14
       - name: Execute actual owned GitLab approval cohort
         timeout-minutes: 29
+        env:
+          FUZZY1337_GITLAB_EVIDENCE: ${{ runner.temp }}/owned-gitlab-original-evidence
         run: >-
           .venv/bin/python -m pytest -q tests/functional/test_owned_gitlab_product.py
           --no-cov -n 0 --junitxml="$RUNNER_TEMP/owned-gitlab-junit.xml"
       - name: Require executed GitLab cohort and original platform evidence
         timeout-minutes: 1
+        env:
+          FUZZY1337_GITLAB_EVIDENCE: ${{ runner.temp }}/owned-gitlab-original-evidence
         run: >-
           .venv/bin/python -m tests.functional.owned_gitlab_platform --verify
           --source "$GITHUB_WORKSPACE" --output "$FUZZY1337_GITLAB_EVIDENCE"
