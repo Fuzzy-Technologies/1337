@@ -21,9 +21,13 @@ from tests.contract.test_external_benchmark import (
     WriteNucleiContractEvidence,
 )
 from tests.contract.test_external_nuclei_benchmark import (
+    CONTAINER_CONFIGURATION,
+    CONTAINER_EXECUTABLE,
+    CONTAINER_TEMPLATE,
     DeclareInertBinaryModes,
     InertProcess,
     Match,
+    StandaloneArguments,
     StandaloneMaterial,
     WholeMaterial,
 )
@@ -252,7 +256,7 @@ def test_CancellationCannotInterruptIndependentCleanup():
     asyncio.run(Scenario())
 
 
-def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False):
+def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False, container_paths=False):
     """Run actual lab producers with labeled inert execution, keeping actual saved core custody."""
 
     source = tmp_path / "source"
@@ -260,9 +264,31 @@ def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False):
     DeclareInertBinaryModes(source, monkeypatch)
     root = tmp_path / "original"
     root.mkdir()
-    arguments = list(WholeMaterial(source, monkeypatch, mode="empty" if empty else "match")[0]) if (
-        track == "whole1337") else list(StandaloneMaterial(source))
-    arguments[0] = root / "scan"
+    scan = root / "scan"
+    arguments = list(WholeMaterial(source, monkeypatch, mode="empty" if empty else "match",
+                                  container_paths=container_paths, run_root=scan)[0]) if (
+        track == "whole1337") else list(StandaloneMaterial(source, run_root=scan))
+
+    def ExpectedContainerArguments(executable, path, template, configuration):
+        """Bind only declared fixture artifact slots to an independent fixed Linux argv oracle."""
+
+        expected_files = (arguments[2], scan / "prometheus-exposition.yaml",
+                          scan / "operator-config.yaml")
+
+        if (executable, template, configuration) != expected_files or path != "/metrics":
+            raise ValueError("Inert application argv requires exact selected fixture paths")
+
+        expected = list(StandaloneArguments(CONTAINER_EXECUTABLE, path,
+            CONTAINER_TEMPLATE, CONTAINER_CONFIGURATION))
+
+        if track == "whole1337":
+            expected[0], expected[-1], expected[4] = map(str, expected_files)
+
+        return tuple(expected)
+
+    if os.name == "nt" or container_paths:
+        monkeypatch.setattr(originals, "StandaloneArguments", ExpectedContainerArguments)
+
     selected = CaseSelection(track, "/metrics", "d" * 64, OWNER)
     arguments[7] = selected["authorization"]
 
@@ -270,11 +296,12 @@ def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False):
         outcome = RunWhole1337(*arguments)
 
     else:
-        InertProcess(monkeypatch, stdout=b"" if empty else Match())
+        InertProcess(monkeypatch, stdout=b"" if empty else Match(), container_paths=container_paths)
         outcome = RunStandalone(*arguments)
 
     assert outcome["status"] == ("unproven" if empty else "completed"), (
-        "The source fixture must first exercise actual producer behavior with inert execution only"
+        "The source fixture must first exercise actual producer behavior with inert execution "
+        f"only; observed status={outcome['status']}: {outcome['reason']}"
     )
     inventory = originals.Json(root, "scan/installed-inventory.json") if (
         track == "whole1337") else {}
@@ -293,7 +320,10 @@ def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False):
 
 
 @pytest.mark.parametrize("track", ["whole1337", "external-nuclei"])
-def test_NestedInertProducerDeclaresOnlySelectedExecutableMode(tmp_path, monkeypatch, track):
+@pytest.mark.parametrize("container_paths", [False, True], ids=["host-spelling", "linux-container"])
+def test_NestedInertProducerDeclaresOnlySelectedExecutableMode(
+    tmp_path, monkeypatch, track, container_paths,
+):
     """Nested material models POSIX bits even when the host exposes no execute permissions."""
 
     binary = tmp_path / "source/inert-never-executed"
@@ -310,7 +340,7 @@ def test_NestedInertProducerDeclaresOnlySelectedExecutableMode(tmp_path, monkeyp
         return metadata
 
     monkeypatch.setattr(Path, "lstat", NonExecutableView)
-    _, _, outcome = ProducedBundle(tmp_path, monkeypatch, track)
+    _, _, outcome = ProducedBundle(tmp_path, monkeypatch, track, container_paths=container_paths)
     native, projected = NonExecutableView(binary), binary.lstat()
     assert outcome["status"] == "completed" and native.st_mode & 0o111 == 0 and (
         stat.S_IMODE(projected.st_mode) == 0o700
@@ -322,12 +352,14 @@ def test_NestedInertProducerDeclaresOnlySelectedExecutableMode(tmp_path, monkeyp
 
 @pytest.mark.parametrize("track", ["whole1337", "external-nuclei"])
 @pytest.mark.parametrize("empty", [False, True], ids=["matching", "empty-unproven"])
+@pytest.mark.parametrize("container_paths", [False, True], ids=["host-spelling", "linux-container"])
 def test_ActualProducerOriginalsBindThroughV2WithoutInvocationRewriting(
-    tmp_path, monkeypatch, track, empty
+    tmp_path, monkeypatch, track, empty, container_paths
 ):
     """Real producer/model/evidence paths preserve originals under inert execution."""
 
-    root, manifest_raw, outcome = ProducedBundle(tmp_path, monkeypatch, track, empty=empty)
+    root, manifest_raw, outcome = ProducedBundle(tmp_path, monkeypatch, track, empty=empty,
+                                                container_paths=container_paths)
     original = (root / "scan/invocation.json").read_bytes()
     imported = tmp_path / "imported"
     bundle = originals.BindApplicationBundle(ExportBundle(root, outcome).encode(), imported,
@@ -355,13 +387,15 @@ def test_ActualProducerOriginalsBindThroughV2WithoutInvocationRewriting(
     )
 
 
-@pytest.mark.parametrize("mutation", ["kind", "budget", "raw", "source"])
+@pytest.mark.parametrize("mutation", ["kind", "budget", "raw", "source", "flag", "template-path"])
+@pytest.mark.parametrize("container_paths", [False, True], ids=["host-spelling", "linux-container"])
 def test_OriginalAssemblyRejectsConsistentlyRehashedButContradictoryClaims(
-    tmp_path, monkeypatch, mutation
+    tmp_path, monkeypatch, mutation, container_paths
 ):
     """Valid transport hashes cannot replace exact case/source/flags or original raw identities."""
 
-    root, manifest_raw, outcome = ProducedBundle(tmp_path, monkeypatch, "external-nuclei")
+    root, manifest_raw, outcome = ProducedBundle(tmp_path, monkeypatch, "external-nuclei",
+                                                container_paths=container_paths)
 
     if mutation == "kind":
         selected = originals.Json(root, "case-selection.json")
@@ -380,6 +414,18 @@ def test_OriginalAssemblyRejectsConsistentlyRehashedButContradictoryClaims(
         manifest = json.loads(manifest_raw)
         manifest["source_revision"] = "0" * 40
         (root / "image-provisioning.json").write_text(json.dumps(manifest))
+
+    elif mutation in {"flag", "template-path"}:
+        invocation = originals.Json(root, "scan/invocation.json")
+        argv = invocation["argv"]
+
+        if mutation == "flag":
+            argv[argv.index("-rl") + 1] = "2"
+
+        else:
+            argv[argv.index("-t") + 1] += ".wrong"
+
+        WriteJson(root / "scan/invocation.json", invocation)
 
     with pytest.raises(ValueError):
         originals.BindApplicationBundle(ExportBundle(root, outcome).encode(), tmp_path / "imported",

@@ -495,7 +495,7 @@ def test_RegularIdentityRejectsSymlinksWithoutReadingTheTarget(tmp_path):
         RegularIdentity(alias, maximum=16)
 
 
-def StandaloneMaterial(tmp_path, path="/metrics"):
+def StandaloneMaterial(tmp_path, path="/metrics", *, run_root=None):
     """Prepare inert executable bytes and an explicit synthetic fixture authorization claim."""
 
     template, configuration = Material(tmp_path)
@@ -508,7 +508,8 @@ def StandaloneMaterial(tmp_path, path="/metrics"):
         "image_index_digest": TARGET_INDEX_DIGEST, "platform_digest": TARGET_PLATFORM_DIGEST,
         "network_internal": True, "published_ports": 0}
 
-    return (tmp_path / "run", path, executable, template, configuration,
+    return (tmp_path / "run" if run_root is None else run_root,
+            path, executable, template, configuration,
             hashlib.sha256(executable.read_bytes()).hexdigest(), VERSION, authorization)
 
 
@@ -988,10 +989,11 @@ def test_StandaloneRuntimeContainerPathSpellingStaysInsideInertMock(tmp_path, mo
     )
 
 
-def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match", container_paths=False):
+def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match", container_paths=False,
+                  run_root=None):
     """Prepare inert source contracts while replacing every provider/process entry point."""
 
-    arguments = StandaloneMaterial(tmp_path, path)
+    arguments = StandaloneMaterial(tmp_path, path, run_root=run_root)
     wheel = tmp_path / "inert-not-installed.whl"
     wheel.write_bytes(b"inert wheel identity fixture, never installed")
     probe = {"calls": [], "health": [], "before_launch": 0}
@@ -1096,12 +1098,14 @@ def test_WholeRuntimeOriginalArgumentGuardRejectsWindowsSpellingWithoutIo():
 
 
 @pytest.mark.parametrize("mutation", ["none", "flag", "template-path"])
+@pytest.mark.parametrize("relocated", [False, True])
 def test_WholeRuntimeInertContainerProjectionPreservesStrictPlanComparison(
-    tmp_path, monkeypatch, mutation,
+    tmp_path, monkeypatch, mutation, relocated,
 ):
     """Explicit Linux exercise keeps artifact modeling narrow and refuses actual plan drift."""
 
-    arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch, container_paths=True)
+    arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch, container_paths=True,
+        run_root=tmp_path / "selected-run" if relocated else None)
     original = NucleiAdapter.BuildInvocation
 
     def BuildInvocation(adapter, request):
