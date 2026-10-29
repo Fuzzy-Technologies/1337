@@ -22802,10 +22802,10 @@ state = "missing"
 state = "missing"
 
 [[units]]
-id = "symbol:fuzzy1337.native_configuration_capture.NativeConfigurationOperationCapture.operation"
+id = "symbol:fuzzy1337.native_configuration_capture.NativeConfigurationOperationCapture.Operation"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/native_configuration_capture.py"
-sourceHash = "sha256:71bb37ecca60cefee68c741b4d4f10c422c4b4304f2472d6c52c3954e32d72a2"
+sourceHash = "sha256:457461812be44a93e5729b55460ce578f373f500e9f57e2a8bf8e3b047a78679"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

@@ -9,11 +9,11 @@ import hashlib
 import os
 import re
 import stat
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ImpactLevel, SerializeContract
@@ -584,10 +584,11 @@ def WriteControl(path: Path, value: object) -> tuple[Path, bytes, tuple[int, ...
     """
 
     raw = BoundedControl(value)
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+        getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
 
     try:
-        os.fchmod(descriptor, 0o600)
+        cast(Callable[[int, int], None], getattr(os, "fchmod"))(descriptor, 0o600)
         written = 0
 
         while written < len(raw):
@@ -623,7 +624,8 @@ def SyncDirectory(path: Path) -> None:
         path: Explicit original private control directory on the supported Linux owner.
     """
 
-    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) |
+                         getattr(os, "O_NOFOLLOW", 0))
 
     try:
         os.fsync(descriptor)
@@ -645,7 +647,8 @@ def ReadControl(control: tuple[Path, bytes, tuple[int, ...]]) -> None:
     if PhysicalIdentity(before) != identity or stat.S_IMODE(before.st_mode) != 0o600:
         raise ValueError("Native configuration claim identity changed")
 
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) |
+                         getattr(os, "O_BINARY", 0))
 
     try:
         opened = ArtifactHandleInfo(descriptor)

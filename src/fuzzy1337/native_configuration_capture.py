@@ -89,7 +89,7 @@ class NativeConfigurationOperationCapture:
     records: tuple[EvidenceRecord, ...] = ()
 
     @property
-    def operation(self) -> str:
+    def Operation(self) -> str:
         """Return the exact closed operation name from the original prepared recipe.
 
         Returns:
@@ -145,7 +145,7 @@ def PublishCapture(capture: NativeConfigurationOperationCapture,
     """
 
     provenance = capture.Provenance()
-    prefix = "native-configuration-" + capture.operation
+    prefix = "native-configuration-" + capture.Operation
     records = []
 
     for suffix, raw in (("stdout", capture.outcome.stdout), ("stderr", capture.outcome.stderr),

@@ -403,7 +403,7 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
             ), "SDK captures must retain exact independently observed actual executor originals"
             AssertOriginalPair(root, summary.retained_records, case, source)
             AssertSelectedFindings(root, case)
-            facts["original_operations"] = [item.operation for item in summary.captures]
+            facts["original_operations"] = [item.Operation for item in summary.captures]
             facts["sdk_evidence_ids"] = [item.evidence_id for item in summary.retained_records]
             policy = root / "policy.json"
             policy.write_text(SerializeContract(Policy(case["scanner"])))

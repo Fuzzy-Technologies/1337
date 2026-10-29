@@ -303,7 +303,7 @@ class NativeConfigurationScanSummary:
             Distinct native-configuration schema-one job summary.
         """
 
-        operations = [{"operation": item.operation, "capture_sha256": item.Digest(),
+        operations = [{"operation": item.Operation, "capture_sha256": item.Digest(),
             "execution": item.outcome.execution, "termination": item.outcome.termination,
             "acceptance_refusal": item.refusal, "started_at": item.started_at,
             "finished_at": item.finished_at} for item in self.captures]
