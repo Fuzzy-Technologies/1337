@@ -141,7 +141,7 @@ jobs:
           .venv/bin/python -c 'import json,os; from pathlib import Path; value=json.loads((Path(os.environ["RUNNER_TEMP"])/"release-inputs/seal.json").read_text()); Path(os.environ["GITHUB_OUTPUT"]).write_text("version="+value["version"]+"\nchecksums_sha256="+value["checksums_sha256"]+"\n")'
       - name: Retain the immutable same-run publication handoff
         id: handoff
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-distributions
           path: ${{ runner.temp }}/release-bundle/
@@ -218,7 +218,7 @@ jobs:
             --smoke "$RUNNER_TEMP/pypi-install.json" --checksums-sha256 "$EXPECTED_CHECKSUMS_SHA256"
       - name: Preserve original postpublication verification
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pypi-install-evidence
           path: |

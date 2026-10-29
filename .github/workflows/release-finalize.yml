@@ -72,7 +72,7 @@ jobs:
           python -c 'import json,os; from pathlib import Path; value=json.loads((Path(os.environ["RUNNER_TEMP"])/"finalized-source.json").read_text()); assert value["version"]=="0.3.0" and value["tag"]=="v0.3.0" and value["commit"]==os.environ["EXPECTED_MASTER_SHA"]; Path(os.environ["GITHUB_OUTPUT"]).write_text("commit="+value["commit"]+"\n")'
       - name: Preserve original finalizer acknowledgement
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: finalized-source-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/finalized-source.json
