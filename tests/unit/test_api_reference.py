@@ -6,6 +6,7 @@
 import importlib.util
 import json
 import shutil
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -40,6 +41,27 @@ def test_DocumentationDirectRequirementMatchesHashedLock(requirement: str) -> No
     )
 
 
+
+def test_ReferenceBrandingRetainsApprovedArtworkAndThemeControls() -> None:
+    """Bind header/favicon to unchanged product art and preserve theme controls."""
+
+    import yaml
+
+    config = yaml.safe_load((ROOT / "docs/site/mkdocs.yml").read_text())
+    theme = config["theme"]
+    asset = "assets/images/1337-logo.png"
+    assert theme["logo"] == theme["favicon"] == asset
+    canonical = (ROOT / "static/images/1337-logo.png").read_bytes()
+    assert (ROOT / "docs/site/content/en" / asset).read_bytes() == canonical
+    assert canonical[:8] == b"\x89PNG\r\n\x1a\n"
+    width, height = struct.unpack(">II", canonical[16:24])
+    assert width > height > 0, "Use the existing natural landscape aspect ratio without cropping"
+    assert theme["palette"][0]["scheme"] == "slate", "Dark appearance must remain the default"
+    assert {palette["scheme"] for palette in theme["palette"]} == {"slate", "default"}
+    assert all("toggle" in palette for palette in theme["palette"])
+    assert {item["lang"] for item in config["extra"]["alternate"]} == {"en", "ru", "zh"}
+
+
 def SmallProject(parent: Path) -> tuple[Path, Path]:
     """Create a minimal static source and matching installed-wheel layout fixture."""
 
@@ -61,6 +83,9 @@ def SmallProject(parent: Path) -> tuple[Path, Path]:
     (docs / "i18n").mkdir(parents=True)
     content = docs / "site/content/en"
     (content / "assets/mathjax").mkdir(parents=True)
+    (content / "assets/images").mkdir()
+    shutil.copyfile(ROOT / "static/images/1337-logo.png",
+                    content / "assets/images/1337-logo.png")
     (content / "index.md").write_text("# Static fixture\n\n$value$\n")
     (content / "api.md").write_text("# Fixture contract\n\n::: docfixture\n")
     (content / "assets/mathjax/tex-mml-svg.js").write_text("/* Formula renderer fixture. */\n")
@@ -284,6 +309,16 @@ def test_StaticRenderNeverImportsAndKeepsFallbackExplicit(
     assert evidence["runtimeImported"] is False, "Import-raising fixture must remain unexecuted"
     assert set(evidence["locales"]) == {"en", "ru", "zh-cn"}, "All locale routes must be generated"
 
+    for locale in ("en", "ru", "zh-cn"):
+        output = root / f"_build/api-reference/{locale}"
+        rendered = (output / "index.html").read_text()
+        assert rendered.count("assets/images/1337-logo.png") >= 2, (
+            "Every locale must render both the branded header and favicon"
+        )
+        assert (output / "assets/images/1337-logo.png").read_bytes() == (
+            ROOT / "static/images/1337-logo.png"
+        ).read_bytes(), "Every locale must contain the unchanged approved artwork"
+
     for locale in ("ru", "zh-cn"):
         rendered = (root / f"_build/api-reference/{locale}/api/index.html").read_text()
         assert "English fallback" in rendered, "Missing translations must expose fallback visibly"
@@ -506,6 +541,7 @@ else:
 import json
 import os
 import shutil
+import struct
 import sys
 from pathlib import Path
 

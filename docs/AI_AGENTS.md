@@ -2,12 +2,17 @@
 
 This document describes how AI systems are intended to use 1337 Security Workbench.
 
-For a runnable first task through the accepted development checkout's existing
-CLI, use the [agent quickstart](AGENT_QUICKSTART.md) and its EN/RU/zh-cn prompt
-resources. The command-owned local demo requires explicit approval for the actual
-plan, preserves ordinary workspace/evidence state and does not require MCP.
-It is absent from immutable v0.2.1; this development recipe is not release or
-published-package acceptance. Translation drafts are marked in their resources.
+For a runnable first task with a CLI-capable external agent, use the
+[0.3.0 candidate agent quickstart](AGENT_QUICKSTART.md) and its EN/RU/zh-cn prompt
+resources. Install the reviewed wheel, preview the actual owned local plan, obtain
+explicit operator approval, execute it, then reopen and export the saved state.
+The [human](QUICKSTART.md) and [CI](CI_QUICKSTART.md) paths use the same product
+contracts. No MCP or paid model is required by 1337. The immutable v0.2.1 lacks
+the local demo; candidate documentation does not establish published-release
+acceptance. Translation candidates are visibly marked drafts.
+
+The CLI workflows linked above exist now. The broader API operations and
+integrations below are architectural direction unless identified as implemented.
 
 ## Project identity
 

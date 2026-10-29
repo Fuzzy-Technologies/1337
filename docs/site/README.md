@@ -35,6 +35,14 @@ the reader's explicit choice. Its language selector links English, Russian and
 Simplified Chinese routes and keeps the current page when switching languages.
 Missing translations continue to show the explicit English fallback notice.
 
+The header logo and PNG favicon reuse the exact approved
+`static/images/1337-logo.png` artwork, copied under the locale's own
+`assets/images/` path. Material bounds the header image height and retains its
+natural width/aspect ratio. The source is the existing illustrated landscape art;
+no separate icon, wordmark, crop or redesign is claimed. Verify legibility at
+narrow widths and both palettes in the final rendered artifact. All three locale
+builds include the same bytes; the theme/language controls remain available.
+
 ## Extend the reference
 
 Add each source module to `api-coverage.toml` and its authored English page to

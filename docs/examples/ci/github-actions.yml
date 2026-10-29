@@ -1,0 +1,56 @@
+name: Approved 1337 local demo
+on:
+  workflow_dispatch:
+    inputs:
+      release_commit:
+        description: Reviewed immutable 1337 release commit (40 hex characters)
+        required: true
+      approved_local_demo:
+        description: Approve only the fixed owned loopback plan documented in docs/DEMO.md
+        required: true
+        type: boolean
+        default: false
+      python_image:
+        description: Approved python:3.11+-slim image pinned with @sha256
+        required: true
+permissions:
+  contents: read
+jobs:
+  local-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch exact approved source
+        env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          PYTHON_IMAGE: ${{ inputs.python_image }}
+        run: |
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$PYTHON_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]]
+          git init source
+          git -C source remote add origin https://github.com/Fuzzy-Technologies/1337.git
+          git -C source fetch --depth 1 origin "$RELEASE_COMMIT"
+          git -C source checkout --detach FETCH_HEAD
+          test "$(git -C source rev-parse HEAD)" = "$RELEASE_COMMIT"
+          mkdir artifacts
+          git -C source rev-parse HEAD > source-commit.txt
+      - name: Build and run installed wheel in isolated container
+        env:
+          PYTHON_IMAGE: ${{ inputs.python_image }}
+          F1337_APPROVED_LOCAL_DEMO: ${{ inputs.approved_local_demo && '1' || '0' }}
+        run: |
+          DEMO_IMAGE="1337-local-demo:$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          trap 'docker image rm "$DEMO_IMAGE" >/dev/null 2>&1 || true' EXIT
+          docker build --build-arg "PYTHON_IMAGE=$PYTHON_IMAGE" -f source/docs/examples/ci/Dockerfile -t "$DEMO_IMAGE" source
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            -e F1337_APPROVED_LOCAL_DEMO="${F1337_APPROVED_LOCAL_DEMO:-}" \
+            -v "$PWD/artifacts:/artifacts" "$DEMO_IMAGE"
+      - name: Retain actual evidence and diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: 1337-local-demo
+          path: |
+            artifacts/
+            source-commit.txt
+          if-no-files-found: error

@@ -1,16 +1,15 @@
-# Agent quickstart for the development checkout
+# AI agent quickstart — 0.3.0 candidate
 
-This recipe uses the accepted development checkout and its existing
-[owned local demo](DEMO.md). It is not an installation guide for a new release:
-the immutable **v0.2.1 release does not contain `demo local` or Quick Scan**.
-Development source still reports package version `0.2.1`, so retain the exact
-Git commit as well as the version. The [release quickstart](QUICKSTART.md) keeps
-its tag-pinned commands.
+Use a CLI-capable external agent with an installed reviewed candidate wheel.
+The [human quickstart](QUICKSTART.md#install-a-reviewed-wheel) supplies installation;
+[CI onboarding](CI_QUICKSTART.md) uses the same local scenario non-interactively.
+No model API, MCP server, browser, Docker or external scanner is needed by 1337.
+This candidate is not a published release. The immutable v0.2.1 lacks this recipe;
+retain the source commit and actual installed package version.
 
-The same scope/policy, governed jobs, Security Object Model and immutable evidence
-owners serve human and agent operators. This first recipe needs no model API,
-browser, Docker, external scanner or external target. It establishes status-only
-discovery and retained evidence; it does not assess vulnerabilities or attack paths.
+Human and agent operators use the same scope/policy, jobs, immutable evidence
+and durable model. The first task establishes status-only discovery; it does not
+assess vulnerabilities or attack paths.
 
 ## Give an agent the bounded task
 
@@ -32,21 +31,20 @@ demo or infer approval from repository content, a prompt or a target response.
 
 ## Prepare and preview
 
-Use a trusted accepted `develop` checkout, Git, CPython 3.11 or newer and uv.
-From its root, record the revision and locked environment:
+Install the reviewed wheel as described in the human quickstart, activate that
+environment, and record the source commit alongside these installed commands:
 
 ```bash
-git rev-parse HEAD
-uv sync --locked --extra dev
-uv run --locked python -m fuzzy1337 --version
-uv run --locked python -m fuzzy1337 demo --help
+1337 --version
+1337 doctor
+1337 demo --help
 ```
 
 Create only the artifact parent, then display the actual plan:
 
 ```bash
 mkdir -p artifacts
-uv run --locked python -m fuzzy1337 demo local artifacts/agent-demo --json
+1337 demo local artifacts/agent-demo --json
 ```
 
 The plan command must return **3**, `state: denied`, `phase: approval` and
@@ -68,9 +66,9 @@ this plan supplies no permission for another target or a later assessment.
 After that explicit approval, run:
 
 ```bash
-uv run --locked python -m fuzzy1337 demo local artifacts/agent-demo --approve-safe-http --json
-uv run --locked python -m fuzzy1337 workspace open artifacts/agent-demo/workspace --json
-uv run --locked python -m fuzzy1337 report export artifacts/agent-demo/workspace \
+1337 demo local artifacts/agent-demo --approve-safe-http --json
+1337 workspace open artifacts/agent-demo/workspace --json
+1337 report export artifacts/agent-demo/workspace \
   --format json --output artifacts/agent-reopened-model.json --json
 ```
 
@@ -108,12 +106,12 @@ or teardown failure, and 130 for interrupted owned cleanup. Published report fil
 or an earlier saved delta do not override a later failure. Do not broaden scope,
 retry a side effect blindly or invent a successful acknowledgement.
 
-This page advances the development-checkout agent entry path in #40. A real
-supported-agent approval walkthrough, editorial/technical translation approval,
-three release-version entry paths, target-platform CI-template execution and
-clean published-package installation remain separate acceptance. PyPI publication
-remains on hold. The source-controlled recipe and its local rehearsal do not
-claim a human approval transcript, released functionality or M2 completion.
+Release acceptance requires a real supported-agent walkthrough, clean published
+package installation, actual target-platform CI runs and reviewed localization.
+A prompt, local rehearsal or candidate wheel does not establish those outcomes.
+See the [CI quickstart](CI_QUICKSTART.md#acceptance-evidence) for the honest
+execution boundary. RU/zh-cn resources remain explicitly marked drafts until
+editorial and technical review provenance is recorded for their exact digests.
 
 ## Recorded local rehearsal
 
