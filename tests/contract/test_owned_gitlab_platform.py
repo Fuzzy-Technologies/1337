@@ -198,7 +198,7 @@ def test_PrivateRunnerConfigurationKeepsTokensOutOfCommandArguments(tmp_path):
     path = tmp_path / "config.toml"
     api = platform.Api(8929, "bootstrap-test-only")
     platform.RunnerConfig(path, api, "runner-test-only", tmp_path)
-    value = tomllib.loads(path.read_text())["runners"][0]
+    value = tomllib.loads(path.read_text(encoding="utf-8"))["runners"][0]
     assert value["executor"] == "shell" and value["token"] == "runner-test-only", (
         "The private real-runner config must bind its actual shell executor and auth token")
 
@@ -483,7 +483,7 @@ def test_PlatformWorkflowUsesSameOrdinaryCohortAndStrictGate():
     import yaml
 
     path = Path(__file__).resolve().parents[2] / ".github/workflows/owned-gitlab-acceptance.yml"
-    workflow = yaml.safe_load(path.read_text())
+    workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
     job = workflow["jobs"]["owned-gitlab"]
     steps = {step["name"]: step for step in job["steps"]}
     execute = steps["Execute actual owned GitLab approval cohort"]

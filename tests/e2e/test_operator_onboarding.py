@@ -78,7 +78,8 @@ def test_InstalledRecipePreservesRealApprovalAndEvidence(
         'The actual CI recipe state must agree with the separately supplied approval input'
     )
     runtime = json.loads((artifacts / "runtime.json").read_bytes())
-    version = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text(
+        encoding="utf-8"))["project"]["version"]
     assert runtime["package_version"] == f"1337 {version}", (
         'The clean installed recipe must report this source package version, not an older '
         'distribution'

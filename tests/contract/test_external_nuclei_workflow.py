@@ -199,7 +199,8 @@ def test_ComparisonFinalReadyEnrollmentPreservesSeparateOriginalCohorts():
 def test_ApplicationCheckpointEnrollsOnlySixCasesAndTheSameOriginalGate():
     """One explicit draft job exercises product cases without enrolling older proof cohorts."""
 
-    workflow = yaml.safe_load((REPOSITORY / ".github/workflows/python-quality.yml").read_text())
+    workflow = yaml.safe_load((REPOSITORY / ".github/workflows/python-quality.yml").read_text(
+        encoding="utf-8"))
     jobs = workflow["jobs"]
     name = "nuclei-application-product-checkpoint"
     marker = "[nuclei-application-product-checkpoint]"

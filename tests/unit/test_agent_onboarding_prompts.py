@@ -17,7 +17,7 @@ PROMPTS = ROOT / "docs/i18n/agent-onboarding"
 def test_OnboardingPromptProvenanceAndMachineInterfaceParity() -> None:
     """Fail on stale source/content digests, omitted locales or translated CLI identifiers."""
 
-    manifest = tomllib.loads((PROMPTS / "units.toml").read_text())
+    manifest = tomllib.loads((PROMPTS / "units.toml").read_text(encoding="utf-8"))
     assert manifest["schemaVersion"] == 1 and len(manifest["units"]) == 1, (
         'The standalone prompt manifest must retain schema one and exactly one canonical source '
         'unit'

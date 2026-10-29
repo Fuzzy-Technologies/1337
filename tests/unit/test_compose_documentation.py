@@ -810,7 +810,7 @@ def RetainedFixture(tmp_path, module):
     TransferManifest(original, archive, transfer)
     root = tmp_path / "project"
     (root / "_build/docs").mkdir(parents=True)
-    (root / "pyproject.toml").write_text('[project]\nversion = "0.3.0"\n')
+    (root / "pyproject.toml").write_text('[project]\nversion = "0.3.0"\n', encoding="utf-8")
     bodies = {module.RELEASE_ARCHIVE: archive.read_bytes(),
               module.RELEASE_TRANSFER: transfer.read_bytes()}
     metadata = {
@@ -909,7 +909,7 @@ def test_OnlyOriginalTagNotFoundCanSelectInitialGeneration(tmp_path, monkeypatch
     calls = []
 
     if mode == "legacy":
-        (root / "pyproject.toml").write_text('[project]\nversion = "0.2.1"\n')
+        (root / "pyproject.toml").write_text('[project]\nversion = "0.2.1"\n', encoding="utf-8")
 
     def Fetch(kind, url, deadline, token=None):
         """Provide independent original statuses and reject undeclared source expansion."""

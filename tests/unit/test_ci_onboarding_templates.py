@@ -48,7 +48,7 @@ def test_GitHubTeardownReadbackRequiresActualAbsenceOfExactOwnedResources(
 ) -> None:
     """Execute the copied verification shell against causal owned-resource observations."""
 
-    template = yaml.safe_load((TEMPLATES / "github-actions.yml").read_text())
+    template = yaml.safe_load((TEMPLATES / "github-actions.yml").read_text(encoding="utf-8"))
     step, = [step for step in template["jobs"]["local-demo"]["steps"] if step["name"] == (
         "Verify owned container/image teardown")]
     recorder = tmp_path / "docker"
@@ -70,7 +70,7 @@ def test_GitHubTeardownReadbackRequiresActualAbsenceOfExactOwnedResources(
     assert (result.returncode == 0) is (mode == "empty"), (
         "Teardown may pass only after successful Docker queries observe both owned resources absent"
     )
-    calls = (tmp_path / "calls").read_text().splitlines()
+    calls = (tmp_path / "calls").read_text(encoding="utf-8").splitlines()
     assert calls[0] == "container ls --all --filter name=^/1337-demo-123-2$ --format {{.Names}}", (
         "Container readback must select only the current run and attempt's exact owned name"
     )
@@ -99,7 +99,7 @@ def test_GitHubExecutionTrapPreservesOriginalApprovedOrDeniedStatus(
 ) -> None:
     """Prove cleanup cannot turn an original installed-command denial into workflow success."""
 
-    template = yaml.safe_load((TEMPLATES / "github-actions.yml").read_text())
+    template = yaml.safe_load((TEMPLATES / "github-actions.yml").read_text(encoding="utf-8"))
     step, = [step for step in template["jobs"]["local-demo"]["steps"] if step["name"] == (
         "Build and run installed wheel in isolated container")]
     recorder = tmp_path / "docker"
@@ -119,7 +119,7 @@ def test_GitHubExecutionTrapPreservesOriginalApprovedOrDeniedStatus(
     assert result.returncode == status, (
         "The shell must preserve the original execution status, including expected denial three"
     )
-    assert (tmp_path / "calls").read_text().splitlines()[-2:] == [
+    assert (tmp_path / "calls").read_text(encoding="utf-8").splitlines()[-2:] == [
         "rm --force --volumes 1337-demo-123-2", "image rm 1337-local-demo:123-2",
     ], "Both original execution outcomes must attempt cleanup of only their known owned resources"
 
@@ -132,7 +132,7 @@ def test_TemplateDockerInvocationPropagatesOnlyExplicitCallerApproval(
 ) -> None:
     """Execute actual template Docker shell lines against an approval argv recorder."""
 
-    template = yaml.safe_load((TEMPLATES / f"{platform}.yml").read_text())
+    template = yaml.safe_load((TEMPLATES / f"{platform}.yml").read_text(encoding="utf-8"))
 
     if platform == "github-actions":
         dispatch = template.get("on", template.get(True))["workflow_dispatch"]["inputs"]

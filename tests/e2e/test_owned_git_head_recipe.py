@@ -170,7 +170,7 @@ def test_CopiedRecipeCreatesOneFindingAndExportsOfflineFromInstalledWheel(
         assert len(sarif["runs"][0]["results"]) == 1, (
             'SARIF must contain exactly the one attributable positive Finding'
         )
-        assert "native.git-head-exposure" in (parent / "model.html").read_text(), (
+        assert "native.git-head-exposure" in (parent / "model.html").read_text(encoding="utf-8"), (
             'HTML must render the same native Git HEAD check represented in JSON and SARIF'
         )
 

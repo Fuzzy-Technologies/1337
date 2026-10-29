@@ -16,7 +16,8 @@ HEAD = "1" * 40
 def Workflow():
     """Read the dedicated ordinary workflow without launching any runtime or provider."""
 
-    return yaml.safe_load((REPOSITORY / ".github/workflows/local-image-product.yml").read_text())
+    return yaml.safe_load((REPOSITORY / ".github/workflows/local-image-product.yml").read_text(
+        encoding="utf-8"))
 
 
 def test_LocalImageWorkflowBindsExactHeadInstalledWheelAndPinnedPrerequisites():
@@ -50,7 +51,8 @@ def test_LocalImageWorkflowBindsExactHeadInstalledWheelAndPinnedPrerequisites():
     assert "uv sync --locked" in install and "uv build --wheel --no-sources" in install and (
         "--no-deps --reinstall dist/*.whl" in install and "-I -c" in install
     ), "The genuine installed boundary must replace editable source with the built wheel."
-    existing = yaml.safe_load((REPOSITORY / ".github/workflows/trivy-acceptance.yml").read_text())
+    existing = yaml.safe_load((REPOSITORY / ".github/workflows/trivy-acceptance.yml").read_text(
+        encoding="utf-8"))
     original = next(step["run"] for step in existing["jobs"]["owned-offline"]["steps"]
                     if step["name"].startswith("Provision checksum"))
     proposed = next(step["run"] for step in steps if step["name"].startswith("Provision checksum"))

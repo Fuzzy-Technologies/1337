@@ -47,7 +47,7 @@ def test_ReferenceBrandingRetainsApprovedArtworkAndThemeControls() -> None:
 
     import yaml
 
-    config = yaml.safe_load((ROOT / "docs/site/mkdocs.yml").read_text())
+    config = yaml.safe_load((ROOT / "docs/site/mkdocs.yml").read_text(encoding="utf-8"))
     theme = config["theme"]
     asset = "assets/images/1337-logo.png"
     assert theme["logo"] == theme["favicon"] == asset, (
@@ -323,7 +323,7 @@ def test_StaticRenderNeverImportsAndKeepsFallbackExplicit(
 
     for locale in ("en", "ru", "zh-cn"):
         output = root / f"_build/api-reference/{locale}"
-        rendered = (output / "index.html").read_text()
+        rendered = (output / "index.html").read_text(encoding="utf-8")
         assert rendered.count("assets/images/1337-logo.png") >= 2, (
             "Every locale must render both the branded header and favicon"
         )
@@ -332,7 +332,8 @@ def test_StaticRenderNeverImportsAndKeepsFallbackExplicit(
         ).read_bytes(), "Every locale must contain the unchanged approved artwork"
 
     for locale in ("ru", "zh-cn"):
-        rendered = (root / f"_build/api-reference/{locale}/api/index.html").read_text()
+        rendered = (root / f"_build/api-reference/{locale}/api/index.html").read_text(
+            encoding="utf-8")
         assert "English fallback" in rendered, "Missing translations must expose fallback visibly"
         assert "docfixture.Execute" in rendered, "Static renderer must expose public symbol anchors"
 
@@ -373,7 +374,8 @@ def test_RenderRequiresExplicitStaticInspectionContract(
     config = root / "docs/site/mkdocs.yml"
     declaration = f"            {option}: false\n"
     replacement = f"            {option}: true\n" if value == "true" else ""
-    config.write_text(config.read_text().replace(declaration, replacement))
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(declaration, replacement), encoding="utf-8")
     monkeypatch.setattr(sys, "meta_path", list(sys.meta_path))
 
     with pytest.raises(ValueError, match="explicitly disable both inspection options"):
@@ -754,7 +756,7 @@ def test_ImmutableRouteRequiresCanonicalMatchingPackageVersion(
 
     root = tmp_path / "project"
     root.mkdir()
-    (root / "pyproject.toml").write_text('[project]\nversion = "0.3.0"\n')
+    (root / "pyproject.toml").write_text('[project]\nversion = "0.3.0"\n', encoding="utf-8")
 
     with pytest.raises(ValueError, match="canonical"):
         API.ReleaseVersion(root, version)
@@ -774,12 +776,12 @@ def test_ImmutableRenderPinsUrlsLanguagesSearchSitemapSourceAndArchive(
 
     pytest.importorskip("mkdocs", reason="Strict rendering requires the separate docs tooling lock")
     root, installed = SmallProject(tmp_path)
-    (root / "pyproject.toml").write_text('[project]\nversion = "0.3.0"\n')
+    (root / "pyproject.toml").write_text('[project]\nversion = "0.3.0"\n', encoding="utf-8")
     overview = root / "docs/site/content/en/index.md"
-    overview.write_text(overview.read_text() + (
+    overview.write_text(overview.read_text(encoding="utf-8") + (
         '\n[Source](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/SBOM_IMPORT.md)\n'
         '[API](/1337/api/latest/en/)\n'
-    ))
+    ), encoding="utf-8")
     InitializeTrackedFixture(root)
     subprocess.run(["git", "add", "pyproject.toml"], cwd=root, check=True)
     subprocess.run([
@@ -805,8 +807,8 @@ def test_ImmutableRenderPinsUrlsLanguagesSearchSitemapSourceAndArchive(
     )
 
     for locale in ("en", "ru", "zh-cn"):
-        latest = (root / f"_build/api-reference/{locale}/index.html").read_text()
-        immutable = (version_root / locale / "index.html").read_text()
+        latest = (root / f"_build/api-reference/{locale}/index.html").read_text(encoding="utf-8")
+        immutable = (version_root / locale / "index.html").read_text(encoding="utf-8")
         assert f"/1337/api/latest/{locale}/" in latest, (
             'The latest API rendering must retain its own locale-specific latest base route'
         )
@@ -822,7 +824,7 @@ def test_ImmutableRenderPinsUrlsLanguagesSearchSitemapSourceAndArchive(
         )
         assert f"/1337/api/0.3.0/{locale}/" in (
             version_root / locale / "sitemap.xml"
-        ).read_text(), (
+        ).read_text(encoding="utf-8"), (
             'Each immutable locale sitemap must contain its release-specific route'
         )
         search = json.loads((version_root / locale / "search/search_index.json").read_bytes())
@@ -846,7 +848,8 @@ def test_ImmutableRenderPinsUrlsLanguagesSearchSitemapSourceAndArchive(
     assert manifest["size_bytes"] == first.stat().st_size, (
         'The transfer manifest byte count must equal the actual sealed archive size'
     )
-    overview.write_text(overview.read_text() + "\nChanged source\n")
+    overview.write_text(
+        overview.read_text(encoding="utf-8") + "\nChanged source\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="committed reviewed"):
         API.VersionProvenance(root, "0.3.0", {})

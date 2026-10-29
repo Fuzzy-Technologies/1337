@@ -160,7 +160,8 @@ def WorkflowSteps() -> list[dict]:
     import yaml
 
     path = Path(__file__).resolve().parents[2] / ".github/workflows/documentation.yml"
-    return yaml.safe_load(path.read_text())["jobs"]["deterministic-documentation"]["steps"]
+    return yaml.safe_load(path.read_text(
+        encoding="utf-8"))["jobs"]["deterministic-documentation"]["steps"]
 
 
 def WorkflowRecorder(root: Path) -> dict[str, str]:
@@ -229,14 +230,16 @@ def test_FiniteVersionWorkflowSelectsOnlyAbsentTagOrVerifiedOriginalAsset(
     environment = WorkflowRecorder(tmp_path)
     environment["API_TEST_MODE"] = mode
     version = "0.2.1" if mode == "legacy" else "0.3.0"
-    (tmp_path / "pyproject.toml").write_text(f'[project]\nversion = "{version}"\n')
+    (tmp_path / "pyproject.toml").write_text(
+        f'[project]\nversion = "{version}"\n', encoding="utf-8")
     process = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", step["run"]], cwd=tmp_path,
                              env=environment, text=True, capture_output=True,
                              timeout=10, check=False)
     output = tmp_path / "outputs"
-    values = (dict(line.split("=", 1) for line in output.read_text().splitlines())
+    values = (dict(line.split("=", 1) for line in output.read_text(encoding="utf-8").splitlines())
               if output.exists() else {})
-    calls = [json.loads(line) for line in (tmp_path / "calls.jsonl").read_text().splitlines()]
+    calls = [json.loads(line) for line in (tmp_path / "calls.jsonl").read_text(
+        encoding="utf-8").splitlines()]
 
     if mode in {"broken", "missing-asset"}:
         assert process.returncode != 0, (
@@ -306,7 +309,8 @@ def test_ReleaseToolCoverageSelectionRequiresItsTestsWhenComposed(
         )
     else:
         assert process.returncode == 0, process.stderr
-        calls = [json.loads(line) for line in (tmp_path / "calls.jsonl").read_text().splitlines()]
+        calls = [json.loads(line) for line in (tmp_path / "calls.jsonl").read_text(
+            encoding="utf-8").splitlines()]
         assert (f"tests/unit/test_{tool}.py" in calls[0]) is (state == "present"), (
             'The release-delivery unit selection must be enrolled exactly when its source '
             'module exists'
