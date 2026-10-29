@@ -29,6 +29,7 @@ from fuzzy1337.findings import (
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.native_image_observation import (
     NativeImageObservationBudget,
+    NativeImageObservationError,
     NativeImageObservationWindow,
 )
 from fuzzy1337.native_image_workflow import ScanNativeImage
@@ -81,10 +82,31 @@ def native_ci(authority, monkeypatch):
 def controlled_native_ci_clock(native_ci, monkeypatch) -> list[float]:
     """Isolate the doubled pair's ledger clock after original authority/material fixture setup."""
 
-    clock = [native_observation.monotonic()]
+    # The negative injects exact elapsed seconds; a host epoch can round their subtraction.
+    clock = [0.0]
     monkeypatch.setattr(native_observation, "monotonic", lambda: clock[0])
 
     return clock
+
+
+@pytest.mark.parametrize("host_origin", [250.1, 255.9])
+def test_ControlledOverrunClockRetainsExactChargeAcrossFractionalHostOrigins(
+    native_ci, monkeypatch, host_origin,
+):
+    """A controlled negative must charge exactly ten seconds independently of host clock phase."""
+
+    monkeypatch.setattr(native_observation, "monotonic", lambda: host_origin)
+    clock = controlled_native_ci_clock.__wrapped__(native_ci, monkeypatch)
+    budget = NativeImageObservationBudget()
+    window = budget.BeginFinalization()
+    clock[0] += 10.0
+
+    with pytest.raises(NativeImageObservationError,
+                       match="native material phase exceeded its allowance"):
+        budget.FinishFinalization(window)
+
+    assert budget.FinalizationSeconds == 10.0 and budget.Failed, (
+        "The explicit overrun must retain exact accounting and the original permanent refusal")
 
 
 @pytest.fixture
