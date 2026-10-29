@@ -1170,8 +1170,15 @@ def test_NucleiContractWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> 
     ), "The checkpoint must retain pinned Python provisioning and the locked development extra."
     junit = "functional-evidence/nuclei-contract-windows.xml"
     assert shlex.split(steps[4]["run"]) == [
-        "uv", "run", "--locked", "--extra", "dev", "pytest", "tests/contract", "-k",
-        "external_nuclei or external_native_benchmark or external_benchmark or external_targets",
+        "uv", "run", "--locked", "--extra", "dev", "pytest", "tests/contract",
+        "tests/unit/test_raw_cli.py", "tests/unit/test_raw_cli_workflow.py",
+        "tests/unit/test_raw_commands.py", "tests/unit/test_local_image_archive.py",
+        "tests/unit/test_local_image_lane_lifecycle.py", "tests/unit/test_local_image_material.py",
+        "tests/unit/test_local_image_policy.py", "tests/unit/test_local_image_reference.py",
+        "tests/unit/test_local_image_workflow.py", "tests/unit/test_ci_local_image_product.py",
+        "-k",
+        "external_nuclei or external_native_benchmark or external_benchmark or external_targets "
+        "or raw_cli or raw_commands or local_image",
         "-q", "-n2", "--no-cov", "--junitxml=" + junit,
     ] and steps[4]["timeout-minutes"] == 3 and "if" not in steps[4], (
         "One bounded contract selection must report every failure without fail-fast or fullsuite")

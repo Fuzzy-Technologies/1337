@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import shlex
+import socket
 from io import BytesIO, StringIO, TextIOWrapper
 from types import SimpleNamespace
 
@@ -19,6 +21,41 @@ from tests.unit.test_raw_cli import TCP
 
 PREFIX = ["run", "/owned/workspace", "--tool", "nmap", "--scope", "local",
     "--owner", "operator:owned", "--policy", "/owned/policy.json", "--executable", "/nmap"]
+
+
+@pytest.fixture(scope="module")
+def owned_raw_command_loop():
+    """Initialize the Windows loop's owned self-pipe before per-test network denial."""
+
+    with asyncio.Runner() as runner:
+        yield runner
+
+
+@pytest.fixture(autouse=True)
+def reuse_raw_command_loop(owned_raw_command_loop, monkeypatch):
+    """Dispatch inert coroutines on the initialized loop without relaxing network denial."""
+
+    monkeypatch.setattr(commands.asyncio, "run", owned_raw_command_loop.run)
+
+
+@pytest.mark.parametrize("operation", ["create_connection", "connect", "connect_ex"])
+def test_RawCommandCoroutineRetainsEveryUnitNetworkDenial(monkeypatch, operation):
+    """The reused loop cannot allow a mocked provider to open any actual connection."""
+
+    async def Run(*_arguments, **_keywords):
+        """Attempt only the unit guard's explicit blocked entrypoint, never a real target."""
+
+        if operation == "create_connection":
+            socket.create_connection(("127.0.0.1", 9))
+
+        else:
+            with socket.socket() as connection:
+                getattr(connection, operation)(("127.0.0.1", 9))
+
+    monkeypatch.setattr(commands, "RunRawCli", Run)
+
+    with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+        commands.RunRawCommands([*PREFIX, "--", *TCP], StringIO(), error=StringIO())
 
 
 def test_ActualOriginalTailAndSeparateStreamsRemainExact(monkeypatch):
