@@ -16,7 +16,6 @@ from datetime import datetime
 from pathlib import Path
 
 from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ExecutionState, ImpactLevel
-from fuzzy1337.adapters.owned_response_capture import Destination
 from fuzzy1337.artifact_inputs import ArtifactPathInfo, PhysicalIdentity
 from fuzzy1337.evidence import EvidenceProvenance
 from fuzzy1337.executors import (
@@ -29,6 +28,8 @@ from fuzzy1337.executors import (
 from fuzzy1337.executors.contracts import ExecutionEvent, ExecutionEventKind, ExecutionTermination
 from fuzzy1337.jobs import JobContext, JobError, JobFailure, JobFailureCode
 from fuzzy1337.owned_response_custody import (
+    _CATALOG_FAMILY,
+    _CONTENT_FAMILY,
     CAPABILITY_ID,
     PROVIDER_ID,
     Canonical,
@@ -36,6 +37,9 @@ from fuzzy1337.owned_response_custody import (
     OwnedResponseCapture,
     OwnedResponseEvidenceStore,
     PublishCapture,
+    RequireResponseFamily,
+    ResponseDestination,
+    ResponseFamily,
     ValidateControlResult,
     ValidateRequest,
     ValidateResult,
@@ -86,24 +90,28 @@ def RuntimeExecutable() -> str:
     return sys.executable
 
 
-def PrepareOwnedResponseInvocation(url: str) -> AdapterInvocation:
+def PrepareResponseInvocation(url: str, *,
+                                   _family: ResponseFamily = _CATALOG_FAMILY
+                                   ) -> AdapterInvocation:
     """Describe the exact installed SAFE invocation without private files, contact or grant.
 
     Args:
         url: Exact closed literal source URL.
+        _family: Immutable catalog or content binding; selects the fixed worker and recipe.
 
     Returns:
         Original fixed recipe suitable for canonical descriptive policy planning.
     """
 
-    Destination(url)
+    ResponseDestination(url, _family)
 
     return AdapterInvocation(
-        PROVIDER_ID,
+        _family.provider_id,
         AdapterRequest(
-            CAPABILITY_ID, Target(TargetKind.URL, url).Reference(), ImpactLevel.SAFE, {"url": url}
+            _family.capability_id, Target(TargetKind.URL, url).Reference(), ImpactLevel.SAFE,
+            {"url": url} if _family is _CATALOG_FAMILY else {"url": url, "retain_response": True}
         ),
-        (RuntimeExecutable(), "-I", "-B", "-m", "fuzzy1337.owned_response_capture_worker", url),
+        (RuntimeExecutable(), "-I", "-B", "-m", _family.worker_module, url),
         10,
         "1",
     )
@@ -116,6 +124,7 @@ class OwnedResponseAuthority:
     context: PolicyContext
     owner_reference: str
     workflow_approved: bool
+    retain_response: bool = False
 
     def __post_init__(self) -> None:
         """Reject ambiguous owner/approval inputs without equating consent attester and actor."""
@@ -127,6 +136,7 @@ class OwnedResponseAuthority:
                 not 1 <= len(self.owner_reference) <= 512
                 or any(c in self.owner_reference for c in "\r\n\x00")
                 or type(self.workflow_approved) is not bool
+                or type(self.retain_response) is not bool
             )
         ):
             raise ValueError("owned response requires exact current authority inputs")
@@ -155,6 +165,8 @@ class OwnedResponseCaptureProvider:
         authority_provider: Callable[[], OwnedResponseAuthority],
         *,
         approve_workflow: bool,
+        retain_response: bool = False,
+        _family: ResponseFamily = _CATALOG_FAMILY,
         clock: Callable[[], datetime] = UtcNow,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -169,11 +181,13 @@ class OwnedResponseCaptureProvider:
             monotonic: Current process monotonic budget clock.
         """
 
-        Destination(url)
+        ResponseDestination(url, _family)
 
         if (
             type(approve_workflow) is not bool
             or not approve_workflow
+            or type(retain_response) is not bool
+            or (_family is _CONTENT_FAMILY and not retain_response)
             or (not callable(authority_provider) or not callable(clock) or not callable(monotonic))
         ):
             raise ValueError("owned response requires explicit workflow approval")
@@ -182,6 +196,8 @@ class OwnedResponseCaptureProvider:
         info = ArtifactPathInfo(root, directory=True)
         self.root = root
         self.url = url
+        self._family = RequireResponseFamily(_family)
+        self._retained = retain_response
         self._authority = authority_provider
         self._clock = clock
         self._monotonic = monotonic
@@ -190,7 +206,7 @@ class OwnedResponseCaptureProvider:
         self._approved = approve_workflow
         self.prepared: PreparedOwnedResponseCapture | None = None
         self.capture: OwnedResponseCapture | None = None
-        self.store = OwnedResponseEvidenceStore(root / "evidence")
+        self.store = OwnedResponseEvidenceStore(root / "evidence", _family=self._family)
         self._used = False
         self._interrupted = False
         self._timed_out = False
@@ -253,7 +269,7 @@ class OwnedResponseCaptureProvider:
         """
 
         authority = self._authority()
-        address = Target(TargetKind.IP, Destination(self.url)[0])
+        address = Target(TargetKind.IP, ResponseDestination(self.url, self._family)[0])
         target = Target(TargetKind.URL, self.url)
 
         if (
@@ -261,6 +277,8 @@ class OwnedResponseCaptureProvider:
             or not self._approved
             or (
                 not authority.workflow_approved
+                or (self._family is _CONTENT_FAMILY
+                    and (not self._retained or not authority.retain_response))
                 or authority.owner_reference != context.Spec.owner_reference
                 or authority.context.scope.workspace_id != context.Spec.workspace_id
                 or authority.context.scope.Reference() != context.Spec.scope_reference
@@ -284,15 +302,18 @@ class OwnedResponseCaptureProvider:
 
         if (
             not SupportedPlatform()
-            or context.Spec.provider_id != PROVIDER_ID
+            or context.Spec.provider_id != self._family.provider_id
             or (context.Spec.timeout_seconds != 30)
         ):
             raise ValueError("owned response parent requires its Linux fixed job profile")
 
         current = self.Current(context)
         operation = self.root / ("owned-response-" + uuid.uuid4().hex)
-        invocation = PrepareOwnedResponseInvocation(self.url)
-        capability = OWNED_RESPONSE_CAPABILITY
+        invocation = (PrepareOwnedResponseInvocation(self.url)
+                      if self._family is _CATALOG_FAMILY else
+                      PrepareResponseInvocation(self.url, _family=self._family))
+        capability = CapabilityDescriptor(self._family.capability_id, self._family.provider_id,
+                                          ImpactLevel.SAFE)
         grant = PolicyEngine().Authorize(invocation, capability, current, at=self.Now())
 
         if grant.authorization.granted_privileges:
@@ -313,12 +334,12 @@ class OwnedResponseCaptureProvider:
             grant.authorization,
             work.relative_to(self.root).as_posix(),
             environment,
-            ExecutionResources(8192, 1, 0.5),
+            ExecutionResources(self._family.stdout_bytes, 1, 0.5),
         )
         projection = Canonical(request)
         from fuzzy1337.owned_response_custody import ParseCanonical
 
-        ValidateRequest(ParseCanonical(projection, 16384), self.url)
+        ValidateRequest(ParseCanonical(projection, 16384), self.url, _family=self._family)
 
         return PreparedOwnedResponseCapture(
             request,
@@ -617,14 +638,14 @@ class OwnedResponseCaptureProvider:
             started = self.Now().isoformat()
             result = await self.Execute(prepared, context, origin)
             custody_started = self.Tick()
-            ValidateControlResult(result)
+            ValidateControlResult(result, _family=self._family)
 
             if Canonical(prepared.request) != prepared.projection:
                 raise PermissionError("owned response actual full request changed")
             refusal: str | None = None
 
             try:
-                admitted = ValidateResult(result, self.url)
+                admitted = ValidateResult(result, self.url, _family=self._family)
                 refusal = str(admitted["error"]) if admitted["outcome"] == "refused" else None
 
             except ValueError:
@@ -643,7 +664,7 @@ class OwnedResponseCaptureProvider:
             provenance = EvidenceProvenance(
                 context.Spec.workspace_id,
                 context.Spec.scope_reference,
-                PROVIDER_ID,
+                self._family.provider_id,
                 "1",
                 "1",
                 started,
@@ -752,3 +773,16 @@ class OwnedResponseCaptureProvider:
                             "Owned response private work cleanup is unverified",
                         )
                     ) from None
+
+
+def PrepareOwnedResponseInvocation(url: str) -> AdapterInvocation:
+    """Describe the exact installed SAFE invocation without private files, contact or grant.
+
+    Args:
+        url: Exact closed literal source URL.
+
+    Returns:
+        Original fixed recipe suitable for canonical descriptive policy planning.
+    """
+
+    return PrepareResponseInvocation(url)

@@ -6,6 +6,8 @@
 import ast
 import json
 import shlex
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -570,6 +572,301 @@ def test_NativeConfigurationCheckpointPreservesFullReadyGateAndSkipsImageDatabas
     assert upload["if"] == "always()" and (
         "functional-evidence/native-configuration-compatibility/" in upload["with"]["path"]
     ), "Native compatibility diagnostics must survive failed or incomplete genuine execution"
+
+
+def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> None:
+    """The draft-only CAS checkpoint retains one exact installed case and its original evidence."""
+
+    workflow = Workflow("owned-content-header-acceptance.yml")
+    jobs = workflow["jobs"]
+    old_jobs = {"installed-content-header", "actor-denied-content-header",
+        "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
+        "approval-denied-content-header"}
+    assert set(jobs) == old_jobs | {"stale-model-cas-content-header",
+        "post-model-ack-expiry-content-header", "ipv6-worker-content-header",
+        "content-unit-windows-checkpoint"}, (
+        "The finite workflow must retain six original jobs and separate CAS/expiry cases."
+    )
+    job = jobs["stale-model-cas-content-header"]
+    marker = "[owned-content-header-stale-model-cas-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only the explicit draft CAS marker may launch this one genuine case."
+    assert all(marker not in jobs[name]["if"] for name in old_jobs), (
+        "The CAS marker cannot enroll an already accepted cohort."
+    )
+    events = workflow.get("on", workflow.get(True))
+    assert workflow["permissions"] == {"contents": "read"} and set(events) == {"pull_request"}, (
+        "The checkpoint must retain read-only PR authority without unrelated triggers."
+    )
+    assert events["pull_request"] == {
+        "branches": ["develop"],
+        "types": ["opened", "reopened", "synchronize", "ready_for_review",
+            "converted_to_draft", "edited"],
+    }, "Body-marker edits must trigger the checkpoint while retaining every existing PR event."
+    assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6 and (
+        job["env"] == {"FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}
+        and "strategy" not in job and not job.get("continue-on-error", False)
+    ), "The one installed Linux case requires its opt-in and finite non-advisory job."
+    steps = job["steps"]
+    assert steps[:4] == jobs["installed-content-header"]["steps"][:4], (
+        "The CAS job must reuse the reviewed head checkout and pinned locked provisioning."
+    )
+    checkout = steps[0]["with"]
+    assert checkout["ref"] == "${{ github.event.pull_request.head.sha }}" and (
+        checkout["persist-credentials"] is False
+    ), "Only the selected original PR head may enter the installed-source proof."
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "The finite checkpoint must not acquire extra execution or advisory evidence checks."
+    )
+    selector = (
+        "tests/functional/test_owned_content_response_sdk_pipeline.py::"
+        "test_InstalledFreshStaleModelRevisionContentHeaderPipelinePreservesAcquiredState"
+    )
+    junit = "functional-evidence/owned-content-header-stale-model-cas.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", selector,
+        "-q", "-x", "-n0", "--no-cov", "--timeout=150", "--timeout-method=thread",
+        "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3, (
+        "Exactly one serial installed CAS case must run with fail-fast, JUnit and fixed bounds."
+    )
+    assert shlex.split(steps[5]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "python", "-m",
+        "tests.contract.owned_content_response_ci_revision_evidence",
+        junit, "functional-evidence/owned-content-sdk",
+    ] and "if" not in steps[5], (
+        "The existing original-evidence checker must reject missing, skipped or unbound CAS proof."
+    )
+    upload = steps[6]
+    assert upload["if"] == "always()" and (
+        upload["uses"] == jobs["installed-content-header"]["steps"][-1]["uses"]
+        and upload["with"] == {
+            "name": "owned-content-header-stale-model-cas-original-evidence",
+            "path": junit + "\nfunctional-evidence/owned-content-sdk/\n",
+            "retention-days": 14, "if-no-files-found": "error",
+        }
+    ), "The separate CAS artifact must retain original JUnit and pipeline bytes even on failure."
+
+
+def test_ContentHeaderPostModelAckExpiryCheckpointSelectsOnlyItsInstalledPartialCase() -> None:
+    """The separate draft-only expiry checkpoint proves only its one original partial outcome."""
+
+    workflow = Workflow("owned-content-header-acceptance.yml")
+    jobs = workflow["jobs"]
+    job_id = "post-model-ack-expiry-content-header"
+    old_jobs = {"installed-content-header", "actor-denied-content-header",
+        "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
+        "approval-denied-content-header", "stale-model-cas-content-header"}
+    assert set(jobs) == old_jobs | {job_id, "ipv6-worker-content-header",
+        "content-unit-windows-checkpoint"}, (
+        "Only one expiry job may extend the seven existing jobs."
+    )
+    job = jobs[job_id]
+    marker = "[owned-content-header-post-model-ack-expiry-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only the explicit draft expiry marker may launch this one installed partial-state case."
+    assert all(marker not in jobs[name]["if"] for name in old_jobs), (
+        "The expiry marker cannot reenroll an already accepted case."
+    )
+    events = workflow.get("on", workflow.get(True))
+    assert workflow["permissions"] == {"contents": "read"} and set(events) == {"pull_request"}, (
+        "Expiry enrollment must retain read-only PR authority without unrelated triggers."
+    )
+    assert events["pull_request"] == {"branches": ["develop"], "types": [
+        "opened", "reopened", "synchronize", "ready_for_review", "converted_to_draft", "edited",
+    ]}, "The expiry marker must retain supported body-edit admission and all original PR events."
+    assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6 and (
+        job["env"] == {"FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}
+        and "strategy" not in job and not job.get("continue-on-error", False)
+    ), "The single installed expiry fixture requires bounded, opted-in, non-advisory Linux work."
+    steps = job["steps"]
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "Expiry execution cannot acquire extra children or advisory evidence checks."
+    )
+    assert steps[:4] == jobs["installed-content-header"]["steps"][:4], (
+        "Expiry must reuse the original exact-head checkout and pinned locked provisioning."
+    )
+    assert steps[0]["with"] == {"ref": "${{ github.event.pull_request.head.sha }}",
+        "persist-credentials": False}, "Only the selected PR head may enter the installed proof."
+    selector = (
+        "tests/functional/test_owned_content_response_sdk_pipeline.py::"
+        "test_InstalledFreshPostModelAckExpiryContentHeaderPipelinePreservesPartialState"
+    )
+    junit = "functional-evidence/owned-content-header-post-model-ack-expiry.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", selector,
+        "-q", "-x", "-n0", "--no-cov", "--timeout=150", "--timeout-method=thread",
+        "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3, (
+        "Exactly one serial expiry case must run with fail-fast, original JUnit and fixed limits."
+    )
+    assert shlex.split(steps[5]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "python", "-m",
+        "tests.contract.owned_content_response_ci_expiry_evidence",
+        junit, "functional-evidence/owned-content-sdk",
+    ] and "if" not in steps[5], (
+        "The unchanged strict checker must require original ACK/expiry and exact partial state."
+    )
+    upload = steps[6]
+    assert upload["if"] == "always()" and (
+        upload["uses"] == jobs["installed-content-header"]["steps"][-1]["uses"]
+        and upload["with"] == {
+            "name": "owned-content-header-post-model-ack-expiry-original-evidence",
+            "path": junit + "\nfunctional-evidence/owned-content-sdk/\n",
+            "retention-days": 14, "if-no-files-found": "error",
+        }
+    ), "Original expiry JUnit, installation, raw processes and custody must survive failed checks."
+
+
+def test_ContentHeaderIpv6WorkerCheckpointSelectsOnlyItsInstalledWorkerCase() -> None:
+    """Keep one draft-only IPv6 installed-worker case separate from SDK and Finding acceptance."""
+
+    workflow = Workflow("owned-content-header-acceptance.yml")
+    jobs = workflow["jobs"]
+    job_id = "ipv6-worker-content-header"
+    old_jobs = {"installed-content-header", "actor-denied-content-header",
+        "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
+        "approval-denied-content-header", "stale-model-cas-content-header",
+        "post-model-ack-expiry-content-header"}
+    assert set(jobs) == old_jobs | {job_id, "content-unit-windows-checkpoint"}, (
+        "Only one worker-only IPv6 job may extend the eight existing finite cases."
+    )
+    job = jobs[job_id]
+    marker = "[owned-content-header-ipv6-worker-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only this draft worker marker may enroll IPv6; ready behavior stays exact."
+    assert all(marker not in jobs[name]["if"] for name in old_jobs), (
+        "The worker-only IPv6 marker cannot reenroll any accepted case."
+    )
+    events = workflow.get("on", workflow.get(True))
+    assert workflow["permissions"] == {"contents": "read"} and set(events) == {"pull_request"}, (
+        "IPv6 worker enrollment must preserve read-only PR authority and existing triggers."
+    )
+    assert events["pull_request"] == {"branches": ["develop"], "types": [
+        "opened", "reopened", "synchronize", "ready_for_review", "converted_to_draft", "edited",
+    ]}, "The worker marker requires supported body-edit admission and every original PR event."
+    assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "env", "steps"} and (
+        job["name"] == "Installed IPv6 content worker only with original wire and settled owners"
+        and job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6
+        and job["env"] == {"FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}
+    ), "The installed worker needs bounded opted-in Linux work without extra job controls."
+    steps = job["steps"]
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "Worker enrollment cannot add runtime children or advisory checks."
+    )
+    assert steps[:4] == jobs["installed-content-header"]["steps"][:4], (
+        "The worker must reuse original exact-head checkout and pinned locked provisioning."
+    )
+    assert steps[0]["with"] == {"ref": "${{ github.event.pull_request.head.sha }}",
+        "persist-credentials": False}, "Only the selected reviewed PR head enters installed proof."
+    selector = (
+        "tests/functional/test_owned_content_response_sdk_pipeline.py::"
+        "test_InstalledMissingHeaderContentWorkerIpv6RetainsOriginalsAndSettledOwners"
+    )
+    junit = "functional-evidence/owned-content-header-ipv6-worker.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", selector,
+        "-q", "-x", "-n0", "--no-cov", "--timeout=150", "--timeout-method=thread",
+        "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3 and "if" not in steps[4], (
+        "Exactly one serial IPv6 worker must run with fixed limits and original JUnit; no skips."
+    )
+    assert shlex.split(steps[5]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "python", "-m",
+        "tests.contract.owned_content_response_ci_ipv6_worker_evidence",
+        junit, "functional-evidence/owned-content-sdk",
+    ] and "if" not in steps[5], (
+        "The unchanged original checker must require installation wire peer and cleanup facts only."
+    )
+    upload = steps[6]
+    assert upload["if"] == "always()" and (
+        upload["uses"] == jobs["installed-content-header"]["steps"][-1]["uses"]
+        and upload["with"] == {
+            "name": "owned-content-header-ipv6-worker-original-evidence",
+            "path": junit + "\nfunctional-evidence/owned-content-sdk/\n",
+            "retention-days": 14, "if-no-files-found": "error",
+        }
+    ), "Original IPv6 worker JUnit streams and source owners must survive failed execution/checks."
+
+
+def test_ContentUnitWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> None:
+    """Keep focused Windows diagnostics separate from installed cases and final full gates."""
+
+    workflow = Workflow("owned-content-header-acceptance.yml")
+    job_id = "content-unit-windows-checkpoint"
+    job = workflow["jobs"][job_id]
+    marker = "[owned-content-unit-windows-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only the explicit draft Windows marker may launch focused unit diagnostics."
+    assert all(marker not in value["if"] for name, value in workflow["jobs"].items()
+        if name != job_id), "The Windows marker cannot reenroll any installed acceptance case."
+    assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "steps"} and (
+        job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8
+    ), "Focused Windows diagnostics require one bounded non-advisory runner without opt-in effects."
+    steps = job["steps"]
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "Focused units require setup, one execution, a strict gate and always-retained JUnit."
+    )
+    original = workflow["jobs"]["installed-content-header"]["steps"]
+    assert steps[0] == original[0] and steps[1]["uses"] == original[1]["uses"] and (
+        steps[1]["with"] == {"python-version": "3.12"} and steps[2] == original[2]
+        and steps[3]["run"] == "uv sync --locked --extra dev --python 3.12"
+    ), "Windows diagnostics must keep exact-head checkout and pinned locked Python provisioning."
+    junit = "functional-evidence/owned-content-unit-windows.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", "tests/unit", "-k",
+        "owned_content_response or native_content_response_header_workflow",
+        "-q", "-n2", "--no-cov", "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3 and "if" not in steps[4], (
+        "The bounded unit selection must report every failure without fail-fast or fullgate."
+    )
+    assert steps[5]["shell"] == "python" and "if" not in steps[5], (
+        "The original JUnit gate must run in the selected Python without a platform shell."
+    )
+    assert steps[6]["if"] == "always()" and steps[6]["uses"] == original[-1]["uses"] and (
+        steps[6]["with"] == {"name": "owned-content-unit-windows-original-evidence",
+            "path": junit, "retention-days": 14, "if-no-files-found": "error"}
+    ), "Original Windows unit results must survive both success and failure."
+
+
+@pytest.mark.parametrize("case_xml, accepted", [
+    ('<testcase name="passed"/>', True),
+    ('<testcase name="passed"/><testcase name="skip"><skipped/></testcase>', True),
+    ("", False),
+    ('<testcase name="skip"><skipped/></testcase>', False),
+    ('<testcase name="failed"><failure/></testcase>', False),
+    ('<testcase name="errored"><error/></testcase>', False),
+], ids=("executed", "executed-with-skip", "empty", "only-skips", "failure", "error"))
+def test_ContentUnitWindowsGateRejectsMissingExecutionAndFailedCases(
+    tmp_path: Path, case_xml: str, accepted: bool,
+) -> None:
+    """Exercise the actual read-only JUnit gate with labeled synthetic unit outcomes.
+
+    Args:
+        tmp_path: Isolated pytest-owned result directory; no scanner or external tool runs.
+        case_xml: Explicit synthetic testcase fragments with completed or refused outcomes.
+        accepted: Whether actual successful execution exists without failures or errors.
+    """
+
+    job = Workflow("owned-content-header-acceptance.yml")["jobs"]["content-unit-windows-checkpoint"]
+    script = job["steps"][5]["run"]
+    path = tmp_path / "functional-evidence/owned-content-unit-windows.xml"
+    path.parent.mkdir()
+    path.write_text("<testsuites><testsuite>" + case_xml + "</testsuite></testsuites>",
+                    encoding="utf-8")
+    result = subprocess.run([sys.executable, "-c", script], cwd=tmp_path,
+                            capture_output=True, text=True, timeout=10, check=False)
+    assert (result.returncode == 0) is accepted, (
+        "Only original-shaped JUnit with actual executed cases and no failures/errors may pass."
+    )
 
 
 def test_InstalledConfigurationMaterialWorkflowRequiresExplicitAdmission() -> None:

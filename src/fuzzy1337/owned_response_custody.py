@@ -80,6 +80,130 @@ _ROLES = (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class ResponseFamily:
+    """Fixed first-party identities, never caller-supplied executable or adapter authority."""
+
+    provider_id: str
+    capability_id: str
+    profile: str
+    receipt_profile: str
+    worker_module: str
+    source_kind: str
+    stdout_bytes: int
+    request_bytes: int
+    body_media: str
+
+
+_CATALOG_FAMILY = ResponseFamily(
+    PROVIDER_ID, CAPABILITY_ID, "owned-response-capture.v1", RECEIPT_PROFILE,
+    "fuzzy1337.owned_response_capture_worker", "owned-response-source",
+    8192, 1024, "text/html; charset=utf-8",
+)
+_CONTENT_FAMILY = ResponseFamily(
+    "native.loopback-content-response", "http.owned-content-response-capture",
+    "owned-content-response-capture.v1", "owned-content-response-receipt.v1",
+    "fuzzy1337.owned_content_response_worker", "owned-content-response-source",
+    131072, 2048, "application/octet-stream",
+)
+
+
+def RequireResponseFamily(family: ResponseFamily) -> ResponseFamily:
+    """Accept only the two immutable first-party bindings by object identity.
+
+    Args:
+        family: The original catalog or content singleton, never a caller-created copy.
+
+    Returns:
+        The same admitted immutable first-party binding.
+
+    Raises:
+        ValueError: The object is neither first-party family singleton.
+    """
+
+    if family is not _CATALOG_FAMILY and family is not _CONTENT_FAMILY:
+        raise ValueError("owned response family is unadmitted")
+
+    return family
+
+
+def ResponseDestination(url: object, family: ResponseFamily = _CATALOG_FAMILY
+                 ) -> tuple[str, int, str, str]:
+    """Validate an explicitly selected original family without profile guessing.
+
+    Args:
+        url: Exact original URL, subject to the selected family's closed grammar.
+        family: Immutable catalog or content singleton; defaults to the catalog family.
+
+    Returns:
+        Literal address, explicit port, original path and exact Host authority.
+
+    Raises:
+        ValueError: The family or original URL is unadmitted.
+    """
+
+    if RequireResponseFamily(family) is _CATALOG_FAMILY:
+        address, port, path, authority, _ = Destination(url)
+
+        return address, port, path, authority
+
+    from fuzzy1337.adapters.owned_content_response import Destination as ContentDestination
+
+    return ContentDestination(url)
+
+
+def ParseResponseRecord(raw: bytes, url: str, family: ResponseFamily = _CATALOG_FAMILY
+                 ) -> dict[str, object]:
+    """Run only the explicitly selected strict original-record parser.
+
+    Args:
+        raw: Bounded original worker-output bytes to parse as the selected record profile.
+        url: Independently selected original URL that must match the record.
+        family: Immutable catalog or content singleton; defaults to the catalog family.
+
+    Returns:
+        A validated captured record or the selected parser's closed safe refusal record.
+
+    Raises:
+        ValueError: The family, record encoding, shape or original-byte association differs.
+    """
+
+    if RequireResponseFamily(family) is _CATALOG_FAMILY:
+        return ParseOwnedResponseCapture(raw, url)
+
+    from fuzzy1337.adapters.owned_content_response import ParseOwnedContentResponseRecord
+
+    return ParseOwnedContentResponseRecord(raw, url)
+
+
+def ResponseParts(record: dict[str, object], url: str, family: ResponseFamily
+           ) -> dict[str, bytes]:
+    """Project admitted original wire parts without catalog substitution for content.
+
+    Args:
+        record: Already admitted captured record with verified content byte parts.
+        url: Original selected URL used to select the catalog request/response when applicable.
+        family: Explicit immutable catalog or content singleton, checked by identity.
+
+    Returns:
+        Exact request, headers, body and concatenated response bytes for the selected family.
+    """
+
+    if RequireResponseFamily(family) is _CATALOG_FAMILY:
+        headers, body = ReviewedResponse(Destination(url)[4])
+        request = RequestBytes(url)
+
+    else:
+        request, headers, body = (
+            base64.b64decode(cast(str, cast(dict[str, object], record[key])["base64"]),
+                             validate=True)
+            for key in ("request", "response_headers", "response_body")
+        )
+
+    return {"request": request, "headers": headers, "body": body,
+            "response": headers + body}
+
+
 def Canonical(value: object) -> bytes:
     """Encode finite canonical contract JSON without automatic secret collection.
 
@@ -215,6 +339,77 @@ def ReadPrivate(path: Path, maximum: int) -> bytes:
 class OwnedResponseEvidenceStore(LocalEvidenceStore):
     """Apply closed role/media/byte admission before the inherited Get performs a blob read."""
 
+    def __init__(self, root: Path, *, _family: ResponseFamily = _CATALOG_FAMILY) -> None:
+        """Bind one existing evidence owner to exactly one closed source family."""
+
+        self._family = RequireResponseFamily(_family)
+        super().__init__(root)
+
+    def Maximum(self, role: str) -> int:
+        """Return the selected fixed role ceiling before any original blob read.
+
+        Args:
+            role: Original evidence role whose family-specific read limit is requested.
+
+        Returns:
+            Maximum admitted bytes, including zero for stderr, or -1 for an unknown role.
+        """
+
+        if role == "stdout":
+            return self._family.stdout_bytes
+
+        if role == "owned-response-request":
+            return self._family.request_bytes
+
+        return _MAXIMUM.get(role, -1)
+
+    def Media(self, role: str) -> str | None:
+        """Return the selected fixed role media without inspecting payload bytes.
+
+        Args:
+            role: Original evidence role whose fixed media type is requested.
+
+        Returns:
+            The selected family's body media or the fixed role media; None for unknown roles.
+        """
+
+        return self._family.body_media if role == "owned-response-body" else _MEDIA.get(role)
+
+    def Receipt(self, evidence_id: str) -> EvidenceRecord:
+        """Preflight a known receipt manifest before inherited eager blob verification.
+
+        Args:
+            evidence_id: Exact original evidence manifest ID to reopen within this store.
+
+        Returns:
+            The stored record after applicable family preflight and original blob verification.
+        """
+
+        if self._family is _CATALOG_FAMILY:
+            return self.Get(evidence_id)
+
+        from fuzzy1337.evidence import EVIDENCE_MANIFEST_MAX_BYTES, ParseEvidenceManifest
+
+        if type(evidence_id) is not str or (
+            re.fullmatch(r"sha256:[0-9a-f]{64}", evidence_id) is None
+        ):
+            raise ValueError("owned response receipt identity differs")
+
+        raw = self.ReadStoredBytes(("records", evidence_id[7:] + ".json"),
+                                   EVIDENCE_MANIFEST_MAX_BYTES)
+        record = ParseEvidenceManifest(raw)
+
+        if (record.evidence_id != evidence_id
+            or record.reference.role != "owned-response-receipt"
+            or record.reference.media_type != "application/json"
+            or record.reference.size_bytes > MAX_RECEIPT_BYTES
+            or record.provenance.source_id != self._family.provider_id):
+            raise ValueError("owned response original receipt family differs")
+
+        self.Read(record.reference)
+
+        return record
+
     def Read(self, reference: EvidenceReference) -> bytes:
         """Read exact permitted original evidence through the existing immutable owner.
 
@@ -229,9 +424,9 @@ class OwnedResponseEvidenceStore(LocalEvidenceStore):
             type(reference) is not EvidenceReference
             or reference.role not in _MEDIA
             or (
-                reference.media_type != _MEDIA[reference.role]
+                reference.media_type != self.Media(reference.role)
                 or type(reference.size_bytes) is not int
-                or not 0 <= reference.size_bytes <= _MAXIMUM[reference.role]
+                or not 0 <= reference.size_bytes <= self.Maximum(reference.role)
             )
         ):
             raise ValueError("owned response evidence role or bound differs")
@@ -239,15 +434,17 @@ class OwnedResponseEvidenceStore(LocalEvidenceStore):
         return super().Read(reference)
 
 
-def ValidateRequest(value: dict[str, object], url: str) -> None:
+def ValidateRequest(value: dict[str, object], url: str, *,
+                    _family: ResponseFamily = _CATALOG_FAMILY) -> None:
     """Validate historical full fixed-request structure without consulting launch authority.
 
     Args:
         value: Canonical existing LocalExecutionRequest projection.
         url: Exact original selected URL.
+        _family: Immutable catalog or content binding whose exact request recipe is required.
     """
 
-    Destination(url)
+    ResponseDestination(url, _family)
     invocation = cast(dict[str, object], value.get("invocation"))
     authorization = cast(dict[str, object], value.get("authorization"))
     workspace = value.get("workspace")
@@ -277,26 +474,27 @@ def ValidateRequest(value: dict[str, object], url: str) -> None:
         raise ValueError("owned response installed recipe differs")
 
     expected_invocation = {
-        "adapter_id": PROVIDER_ID,
+        "adapter_id": _family.provider_id,
         "request": {
-            "capability": CAPABILITY_ID,
+            "capability": _family.capability_id,
             "target_reference": Target(TargetKind.URL, url).Reference(),
             "impact": "SAFE",
-            "parameters": {"url": url},
+            "parameters": ({"url": url} if _family is _CATALOG_FAMILY else
+                           {"url": url, "retain_response": True}),
             "credential_references": [],
         },
-        "argv": [argv[0], "-I", "-B", "-m", "fuzzy1337.owned_response_capture_worker", url],
+        "argv": [argv[0], "-I", "-B", "-m", _family.worker_module, url],
         "timeout_seconds": 10,
         "provider_version": "1",
     }
     expected_capability = {
-        "identifier": CAPABILITY_ID,
-        "adapter_id": PROVIDER_ID,
+        "identifier": _family.capability_id,
+        "adapter_id": _family.provider_id,
         "maximum_impact": "SAFE",
         "required_privileges": [],
     }
     expected_resources = {
-        "max_stdout_bytes": 8192,
+        "max_stdout_bytes": _family.stdout_bytes,
         "max_stderr_bytes": 1,
         "terminate_grace_seconds": 0.5,
     }
@@ -338,11 +536,13 @@ def ValidateRequest(value: dict[str, object], url: str) -> None:
             raise ValueError("owned response authorization attribution differs")
 
 
-def ValidateControlResult(result: LocalExecutionResult) -> None:
+def ValidateControlResult(result: LocalExecutionResult, *,
+                          _family: ResponseFamily = _CATALOG_FAMILY) -> None:
     """Verify finite actual terminal controls without retaining unadmitted stream content.
 
     Args:
         result: Original executor return, never a reconstructed successful result.
+        _family: Immutable catalog or content binding selecting the original stdout ceiling.
     """
 
     if (
@@ -351,7 +551,7 @@ def ValidateControlResult(result: LocalExecutionResult) -> None:
         or (
             type(result.stdout) is not bytes
             or type(result.stderr) is not bytes
-            or len(result.stdout) > 8192
+            or len(result.stdout) > RequireResponseFamily(_family).stdout_bytes
             or len(result.stderr) > 1
             or type(result.events) is not tuple
             or not 1 <= len(result.events) <= 8195
@@ -409,12 +609,14 @@ def ValidateControlResult(result: LocalExecutionResult) -> None:
         raise ValueError("owned response original control association differs")
 
 
-def ValidateResult(result: LocalExecutionResult, url: str) -> dict[str, object]:
+def ValidateResult(result: LocalExecutionResult, url: str, *,
+                   _family: ResponseFamily = _CATALOG_FAMILY) -> dict[str, object]:
     """Admit actual original event fragments and terminal record before content publication.
 
     Args:
         result: Actual terminal executor return.
         url: Original selected URL.
+        _family: Immutable catalog or content binding selecting the record parser and limits.
 
     Returns:
         Fully admitted success or closed safe refusal record.
@@ -426,7 +628,7 @@ def ValidateResult(result: LocalExecutionResult, url: str) -> dict[str, object]:
         or (
             type(result.stderr) is not bytes
             or result.stderr
-            or len(result.stdout) > 8192
+            or len(result.stdout) > RequireResponseFamily(_family).stdout_bytes
             or type(result.events) is not tuple
             or not 2 <= len(result.events) <= 8195
             or result.termination is not ExecutionTermination.PROCESS_EXIT
@@ -467,7 +669,7 @@ def ValidateResult(result: LocalExecutionResult, url: str) -> dict[str, object]:
     ):
         raise ValueError("owned response actual stream association differs")
 
-    record = ParseOwnedResponseCapture(result.stdout, url)
+    record = ParseResponseRecord(result.stdout, url, _family)
     refused = record["outcome"] == "refused"
 
     if result.execution.exit_code != (2 if refused else 0) or (
@@ -636,7 +838,7 @@ def VerifyEvidence(
         or record.reference.role != role
         or (
             record.provenance != provenance
-            or record.reference.media_type != _MEDIA[role]
+            or record.reference.media_type != store.Media(role)
             or record.reference.sha256 != hashlib.sha256(expected).hexdigest()
             or record.reference.size_bytes != len(expected)
             or EvidenceRecord(record.reference, record.provenance) != record
@@ -656,6 +858,7 @@ def Receipt(
     refusal: str | None,
     *,
     complete: bool,
+    _family: ResponseFamily = _CATALOG_FAMILY,
 ) -> dict[str, object]:
     """Project actual admitted bytes or safe control only, never rejected content hashes.
 
@@ -667,6 +870,7 @@ def Receipt(
         ids: Real original acknowledgements or all-null control association.
         refusal: Fixed owner or worker classification.
         complete: Full admitted record/result association, independent of product persistence.
+        _family: Immutable catalog or content binding selecting the receipt profile.
 
     Returns:
         Closed canonical receipt projection.
@@ -689,7 +893,7 @@ def Receipt(
         Canonical(
             {
                 "schema_version": 1,
-                "profile": RECEIPT_PROFILE,
+                "profile": RequireResponseFamily(_family).receipt_profile,
                 "custody": "complete" if complete else "control-only",
                 "workspace_id": provenance.workspace_id,
                 "owner_reference": owner,
@@ -742,13 +946,11 @@ def PublishCapture(
 
         if admitted["outcome"] == "captured":
             url = cast(str, admitted["url"])
-            headers, body = ReviewedResponse(Destination(url)[4])
-            pieces += [
-                ("owned-response-request", RequestBytes(url)),
-                ("owned-response-headers", headers),
-                ("owned-response-body", body),
-                ("owned-response-wire", headers + body),
-            ]
+            if ParseResponseRecord(result.stdout, url, store._family) != admitted:
+                raise ValueError("owned response staged record differs from original output")
+
+            parts = ResponseParts(admitted, url, store._family)
+            pieces += list(zip(_ROLES[2:], parts.values(), strict=True))
 
     candidates = []
 
@@ -758,7 +960,7 @@ def PublishCapture(
                 role,
                 "blobs/sha256/" + hashlib.sha256(raw).hexdigest(),
                 hashlib.sha256(raw).hexdigest(),
-                _MEDIA[role],
+                cast(str, store.Media(role)),
                 len(raw),
             ),
             provenance,
@@ -780,6 +982,7 @@ def PublishCapture(
         ids,
         refusal,
         complete=admitted is not None,
+        _family=store._family,
     )
     receipt_raw = Canonical(planned)
     total = sum(len(raw) for _, raw in pieces) + len(receipt_raw)
@@ -823,7 +1026,8 @@ def PublishCapture(
             role = cast(str, reference["role"])
             raw = base64.b64decode(cast(str, item["base64"]), validate=True)
             stage.Append({"kind": "intent", "role": role, "candidate_id": item["candidate_id"]})
-            original = context.CaptureEvidence(raw, role, _MEDIA[role], provenance).evidence
+            original = context.CaptureEvidence(
+                raw, role, cast(str, store.Media(role)), provenance).evidence
             VerifyEvidence(store, original, raw, provenance, role)
 
             if original.evidence_id != item["candidate_id"]:
@@ -953,8 +1157,8 @@ def ReconcileOwnedResponse(
         ):
             raise ValueError("owned response staged original bytes differ")
 
-        if candidate_id != expected.evidence_id or len(original) > _MAXIMUM.get(
-            expected.reference.role, -1
+        if candidate_id != expected.evidence_id or (
+            len(original) > store.Maximum(expected.reference.role)
         ):
             raise ValueError("owned response staged original bound differs")
 
@@ -1002,7 +1206,7 @@ def ReconcileOwnedResponse(
             and (
                 snapshot.spec.workspace_id == source["workspace_id"]
                 and snapshot.spec.job_id == source["job_id"]
-                and snapshot.spec.provider_id == PROVIDER_ID
+                and snapshot.spec.provider_id == store._family.provider_id
                 and any(artifact.evidence == expected for artifact in snapshot.artifacts)
             )
         ):
@@ -1048,7 +1252,7 @@ def ReplayOwnedResponseCapture(
     # Actual original IDs remain required; Reconcile.stored_ids cannot upgrade that precondition.
     from fuzzy1337.adapters import AdapterExecution
 
-    receipt = store.Get(receipt_id)
+    receipt = store.Receipt(receipt_id)
 
     if receipt.reference.role != "owned-response-receipt":
         raise ValueError("owned response original receipt role differs")
@@ -1075,7 +1279,7 @@ def ReplayOwnedResponseCapture(
         or type(value["schema_version"]) is not int
         or (
             value["schema_version"] != 1
-            or value["profile"] != RECEIPT_PROFILE
+            or value["profile"] != store._family.receipt_profile
             or value["custody"] != "complete"
             or type(value["request"]) is not dict
             or type(value["events"]) is not list
@@ -1092,7 +1296,7 @@ def ReplayOwnedResponseCapture(
 
     args = cast(list[object], invocation.get("argv", []))
     url = cast(str, args[-1]) if args else ""
-    ValidateRequest(request, url)
+    ValidateRequest(request, url, _family=store._family)
     ids = cast(dict[str, object], value["evidence_ids"])
 
     if set(ids) != set(_KEYS):
@@ -1163,12 +1367,12 @@ def ReplayOwnedResponseCapture(
         content["stderr"],
         tuple(events),
     )
-    record = ValidateResult(result, url)
+    record = ValidateResult(result, url, _family=store._family)
     provenance = receipt.provenance
     expected_provenance = EvidenceProvenance(
         cast(str, value["workspace_id"]),
         cast(str, cast(dict[str, object], request["authorization"])["scope_reference"]),
-        PROVIDER_ID,
+        store._family.provider_id,
         "1",
         "1",
         cast(str, value["started_at"]),
@@ -1181,13 +1385,7 @@ def ReplayOwnedResponseCapture(
         raise ValueError("owned response receipt attribution or refusal differs")
 
     if record["outcome"] == "captured":
-        headers, body = ReviewedResponse(Destination(url)[4])
-        expected_parts = {
-            "request": RequestBytes(url),
-            "headers": headers,
-            "body": body,
-            "response": headers + body,
-        }
+        expected_parts = ResponseParts(record, url, store._family)
 
         if any(content.get(key) != expected for key, expected in expected_parts.items()):
             raise ValueError("owned response original wire evidence differs")

@@ -1,0 +1,373 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+"""Fixed isolated installed consumer entrypoint; no setup, targets or acceptance verdict."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import importlib
+import importlib.metadata
+import json
+import sys
+from pathlib import Path
+from types import ModuleType
+
+MAX_INPUT_BYTES = 8192
+MAX_SOURCE_BYTES = 1024 * 1024
+SOURCE_MODULES = ("adapters/owned_content_response.py", "owned_content_response_worker.py",
+    "adapters/owned_response_capture.py", "owned_response_capture.py",
+    "owned_response_capture_worker.py", "owned_response_custody.py", "owned_response_workflow.py",
+    "native_response_headers.py", "native_response_header_workflow.py")
+
+
+def BoundedRead(path: Path, maximum: int) -> bytes:
+    """Read only a finite original prefix before parsing or executing any source.
+
+    Args:
+        path: Explicit input or fixed local source file.
+        maximum: Inclusive original byte ceiling.
+
+    Returns:
+        Complete original bytes only if the read stayed within the fixed ceiling.
+    """
+
+    with path.open("rb") as stream:
+        raw = stream.read(maximum + 1)
+
+    if len(raw) > maximum:
+        raise ValueError("Fixed consumer input/source exceeds its byte ceiling")
+
+    return raw
+
+
+def UniqueObject(pairs):
+    """Reject duplicate JSON members at every depth, without last-key-wins selection."""
+
+    result = {}
+
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate fixed consumer input member")
+
+        result[key] = value
+
+    return result
+
+
+def RejectNumber(value):
+    """Refuse all floating/nonfinite values; the fixed consumer needs only integer CAS bases."""
+
+    raise ValueError("Non-integer fixed consumer input number")
+
+
+def ReadInput(path: Path) -> dict:
+    """Admit one bounded closed selection/observation envelope before installed SDK imports.
+
+    Args:
+        path: Explicit absolute input path supplied to the fixed entrypoint.
+
+    Returns:
+        Exact caller selection and fresh observation owner, without defaults or SDK activity.
+    """
+
+    if not path.is_absolute():
+        raise ValueError("Fixed consumer input path must be absolute")
+
+    raw = BoundedRead(path, MAX_INPUT_BYTES)
+    value = json.loads(raw.decode("utf-8"), object_pairs_hook=UniqueObject,
+        parse_float=RejectNumber, parse_constant=RejectNumber)
+    pending = [(value, 1)]
+    nodes = 0
+
+    while pending:
+        item, depth = pending.pop()
+        nodes += 1
+
+        if nodes > 128 or depth > 8 or type(item) not in (dict, list, str, int, bool, type(None)):
+            raise ValueError("Fixed consumer input exceeds its structural bound")
+
+        if type(item) is dict:
+            pending.extend((child, depth + 1) for child in item.values())
+
+        elif type(item) is list:
+            pending.extend((child, depth + 1) for child in item)
+
+        elif type(item) is str:
+            item.encode("utf-8", errors="strict")
+
+    if type(value) is not dict or set(value) != {"selection", "observations"} or (
+        type(value["selection"]) is not dict or type(value["observations"]) is not str or
+        not Path(value["observations"]).is_absolute()
+    ):
+        raise ValueError("Consumer envelope requires explicit selection and observation owner")
+
+    return value
+
+
+def Identity() -> dict:
+    """Observe nine real installed module identities inside this selected isolated environment.
+
+    Returns:
+        Actual distribution, interpreter/prefix and imported paths/hashes; the parent must
+        independently reconcile these observations with its original wheel/checkpoint record.
+    """
+
+    prefix = Path(sys.prefix).resolve()
+    if prefix == Path(sys.base_prefix).resolve():
+        raise ValueError("Installed consumer requires a distinct selected clean environment")
+
+    result = {"distribution_version": importlib.metadata.version("1337"),
+        "python": sys.executable, "prefix": str(prefix), "installed_sources": {}}
+    roots = set()
+
+    for name in SOURCE_MODULES:
+        module = importlib.import_module("fuzzy1337." + name[:-3].replace("/", "."))
+        path = Path(module.__file__).resolve()
+        parts = tuple(name.split("/"))
+        suffix = ("site-packages", "fuzzy1337", *parts)
+
+        if not path.is_relative_to(prefix) or path.parts[-len(suffix):] != suffix:
+            raise ValueError("Consumer imports must belong to the selected installed environment")
+
+        raw = BoundedRead(path, MAX_SOURCE_BYTES)
+        roots.add(path.parents[len(parts) - 1])
+        result["installed_sources"][name] = {"path": str(path),
+            "sha256": hashlib.sha256(raw).hexdigest()}
+
+    if len(roots) != 1:
+        raise ValueError("Consumer modules must share one original installed package root")
+
+    return result
+
+
+def Sources() -> tuple[dict, bytes]:
+    """Observe this entrypoint and its only fixed reviewed sibling independently of wheel modules.
+
+    Returns:
+        Exact original helper path/hash facts and the same bounded consumer bytes to be executed.
+    """
+
+    current = Path(__file__).resolve()
+    sibling = current.with_name("owned_content_response_sdk_consumer.py")
+    records = {}
+    consumer = b""
+
+    for path in (current, sibling):
+        raw = BoundedRead(path, MAX_SOURCE_BYTES)
+        records[path.name] = {"path": str(path), "sha256": hashlib.sha256(raw).hexdigest()}
+
+        if path == sibling:
+            consumer = raw
+
+    return records, consumer
+
+
+def LoadConsumer(raw: bytes) -> ModuleType:
+    """Execute only the fixed bounded reviewed sibling bytes, without import-path fallback.
+
+    Args:
+        raw: Same original consumer source bytes observed by Sources.
+
+    Returns:
+        Isolated fixed helper namespace; product imports occur only inside its selected operation.
+    """
+
+    path = Path(__file__).resolve().with_name("owned_content_response_sdk_consumer.py")
+    module = ModuleType("owned_content_response_sdk_consumer")
+    module.__file__ = str(path)
+    exec(compile(raw, str(path), "exec"), module.__dict__)
+
+    return module
+
+
+def ControlSources() -> tuple[dict, bytes]:
+    """Bind the fixed controls, approved setup and original seed independently of wheel modules."""
+
+    directory = Path(__file__).resolve().parent
+    records = {}
+    control = b""
+
+    for name in ("owned_content_response_sdk_controls.py", "owned_content_response_sdk_setup.py",
+        "owned_response_product_runner.py"):
+        path = directory / name
+        raw = BoundedRead(path, MAX_SOURCE_BYTES)
+        records[name] = {"path": str(path), "sha256": hashlib.sha256(raw).hexdigest()}
+
+        if name == "owned_content_response_sdk_controls.py":
+            control = raw
+
+    return records, control
+
+
+def LoadControls(raw: bytes) -> ModuleType:
+    """Execute the exact observed fixed controls source, without a configurable import path."""
+
+    path = Path(__file__).resolve().with_name("owned_content_response_sdk_controls.py")
+    module = ModuleType("owned_content_response_sdk_controls")
+    module.__file__ = str(path)
+    exec(compile(raw, str(path), "exec"), module.__dict__)
+
+    return module
+
+
+def GuardSource() -> tuple[dict, bytes]:
+    """Observe only the fixed offline guard sibling before executing the same bounded bytes."""
+
+    path = Path(__file__).resolve().with_name("owned_content_response_sdk_offline_guard.py")
+    raw = BoundedRead(path, MAX_SOURCE_BYTES)
+
+    return {path.name: {"path": str(path), "sha256": hashlib.sha256(raw).hexdigest()}}, raw
+
+
+def LoadGuard(raw: bytes) -> ModuleType:
+    """Load the exact observed offline guard; no input can select a different guard module."""
+
+    path = Path(__file__).resolve().with_name("owned_content_response_sdk_offline_guard.py")
+    module = ModuleType("owned_content_response_sdk_offline_guard")
+    module.__file__ = str(path)
+    exec(compile(raw, str(path), "exec"), module.__dict__)
+
+    return module
+
+
+def Offline(operation: str, selection: dict, observations: Path, consumer, guard) -> dict:
+    """Run unchanged analysis/replay inside existing tripwires, retaining failures independently.
+
+    Args:
+        operation: Fixed analyze-offline or replay-offline operation.
+        selection: Original explicit consumer inputs and closed analysis authority scenario.
+        observations: Fresh outer owner, separate from workspace; consumer owns a fresh child.
+        consumer: Exact observed fixed consumer module, not a replacement SDK.
+        guard: Exact observed fixed guard module, never substituted in genuine execution.
+
+    Returns:
+        Actual summary, original detached guard observations and trusted-reader count.
+    """
+
+    if operation not in ("analyze-offline", "replay-offline") or type(selection) is not dict:
+        raise ValueError("Unsupported fixed offline operation")
+
+    selected = dict(selection)
+    scenario = selected.pop("authority_scenario", None)
+
+    if (operation == "analyze-offline" and scenario not in (
+        "positive", "approval-denied", "policy-denied", "owner-drift")) or (
+            operation == "replay-offline" and scenario is not None):
+        raise ValueError("Offline authority scenario must be separately and explicitly selected")
+
+    root = Path(selected["workspace"])
+
+    if not root.is_absolute() or not observations.is_absolute() or any(
+        ".." in path.parts for path in (root, observations)
+    ) or root.resolve().is_relative_to(observations.resolve()) or (
+        observations.resolve().is_relative_to(root.resolve())):
+        raise ValueError("Offline observation owner must remain separate from product workspace")
+
+    observations.mkdir(parents=True, exist_ok=False)
+    (observations / "offline-attempt.json").write_text(json.dumps({"schema_version": 1,
+        "operation": operation, "authority_scenario": scenario}, sort_keys=True), encoding="ascii")
+    owner_reads = 0
+    record = None
+    detached = None
+
+    def CurrentOwner():
+        """Return the original selected actor, or explicit fixture drift after its first read."""
+
+        nonlocal owner_reads
+        owner_reads += 1
+
+        return "actor:explicit-fixture-owner-drift" if scenario == "owner-drift" and (
+            owner_reads > 1) else selected["owner_reference"]
+
+    try:
+        with guard.OfflineGuard(historical=operation == "replay-offline", enabled=True) as record:
+            summary = (consumer.Analyze(selected, observations / "consumer", enabled=True,
+                current_owner_provider=CurrentOwner) if operation == "analyze-offline" else
+                consumer.Replay(selected, observations / "consumer", enabled=True))
+
+    finally:
+        if record is not None:
+            detached = guard.DetachedGuard(record)
+            raw = json.dumps({"guard": detached, "owner_reads": owner_reads,
+                "authority_scenario": scenario}, sort_keys=True, separators=(",", ":"),
+                ensure_ascii=True, allow_nan=False).encode("ascii")
+
+            if len(raw) > consumer.MAX_OBSERVATION_BYTES:
+                raise ValueError("Original offline observations exceed their retention bound")
+
+            with (observations / "offline-guard.json").open("xb") as output:
+                output.write(raw)
+
+    return {"summary": summary, "guard": detached, "owner_reads": owner_reads,
+        "authority_scenario": scenario}
+
+
+def Main(argv: list[str] | None = None) -> int:
+    """Dispatch only identity or one explicitly opted-in installed consumer operation.
+
+    Args:
+        argv: Identity, or one fixed control/consumer/offline operation + input + --execute.
+
+    Returns:
+        Zero after preserving one actual canonical consumer result; unexpected failures propagate.
+    """
+
+    arguments = sys.argv[1:] if argv is None else argv
+
+    if not sys.flags.isolated or not sys.flags.dont_write_bytecode:
+        raise ValueError("Installed consumer requires the selected -I -B interpreter invocation")
+
+    identity_only = arguments == ["identity"]
+
+    if not identity_only and not (len(arguments) == 3 and arguments[0] in (
+        "setup", "fresh-setup", "inspect", "capture", "analyze", "replay", "analyze-offline",
+        "replay-offline") and arguments[2] == "--execute"):
+        raise ValueError("Unsupported fixed installed consumer operation")
+
+    config = None if identity_only else ReadInput(Path(arguments[1]))
+    identity = Identity()
+    sources, raw = Sources()
+    output = {"installed_identity": identity, "consumer_sources": sources}
+
+    if not identity_only:
+        selection, observations = config["selection"], Path(config["observations"])
+
+        if arguments[0] in ("setup", "fresh-setup", "inspect"):
+            records, control = ControlSources()
+            output["consumer_sources"].update(records)
+            controls = LoadControls(control)
+            summary = controls.Dispatch(arguments[0], selection, observations, enabled=True)
+
+        else:
+            consumer = LoadConsumer(raw)
+
+            if arguments[0] in ("analyze-offline", "replay-offline"):
+                records, guard = GuardSource()
+                output["consumer_sources"].update(records)
+                observed = Offline(arguments[0], selection, observations, consumer,
+                    LoadGuard(guard))
+                summary = observed.pop("summary")
+                output.update(observed)
+
+            elif arguments[0] == "capture":
+                summary = asyncio.run(consumer.Capture(selection, observations, enabled=True))
+
+            elif arguments[0] == "analyze":
+                summary = consumer.Analyze(selection, observations, enabled=True)
+
+            else:
+                summary = consumer.Replay(selection, observations, enabled=True)
+
+        output.update(operation=arguments[0], summary=summary)
+
+    sys.stdout.buffer.write(json.dumps(output, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=True, allow_nan=False).encode("ascii"))
+    sys.stdout.buffer.flush()
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(Main())

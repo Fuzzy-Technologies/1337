@@ -14,14 +14,12 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-from fuzzy1337.adapters import AdapterInvocation, SerializeContract
+from fuzzy1337.adapters import AdapterInvocation, ImpactLevel, SerializeContract
 from fuzzy1337.adapters.owned_response_capture import (
     ERROR_CODES,
-    OWNED_RESPONSE_PROFILE,
-    Destination,
-    ParseOwnedResponseCapture,
 )
 from fuzzy1337.evidence import EvidenceError, EvidenceRecord, LocalEvidenceStore
+from fuzzy1337.executors import CapabilityDescriptor
 from fuzzy1337.jobs import (
     JobContext,
     JobError,
@@ -43,16 +41,20 @@ from fuzzy1337.model import (
     SecurityObject,
 )
 from fuzzy1337.owned_response_capture import (
-    OWNED_RESPONSE_CAPABILITY,
     OwnedResponseAuthority,
     OwnedResponseCaptureProvider,
     PrepareOwnedResponseInvocation,
+    PrepareResponseInvocation,
 )
 from fuzzy1337.owned_response_custody import (
-    CAPABILITY_ID,
-    PROVIDER_ID,
+    _CATALOG_FAMILY,
+    _CONTENT_FAMILY,
     OwnedResponseEvidenceStore,
+    ParseResponseRecord,
     ReplayOwnedResponseCapture,
+    RequireResponseFamily,
+    ResponseDestination,
+    ResponseFamily,
 )
 from fuzzy1337.policy import ImpactPolicy, PolicyContext, PolicyEngine, PolicyPlan, UtcNow
 from fuzzy1337.quickscan import VerifyWorkspaceEvidence
@@ -75,6 +77,8 @@ class OwnedResponseAuthorityDeniedError(PermissionError):
 def CurrentAuthority(root: Path, scope_id: str, url: str, owner: str,
                      policy_provider: Callable[[], ImpactPolicy], approved: bool,
                      current_owner_provider: Callable[[], str] | None = None,
+                     *, _family: ResponseFamily = _CATALOG_FAMILY,
+                     retain_response: bool = False,
                      ) -> OwnedResponseAuthority:
     """Read complete current source authority without replacing independent consent attestation.
 
@@ -86,12 +90,14 @@ def CurrentAuthority(root: Path, scope_id: str, url: str, owner: str,
         policy_provider: Fresh synchronous reader of the actual selected policy.
         approved: Exact independent workflow approval, never a derived permission.
         current_owner_provider: Optional trusted fresh actor attribution, not authentication.
+        _family: Immutable catalog or content binding selecting the source URL grammar.
+        retain_response: Explicit retention selection passed into current authority; defaults false.
 
     Returns:
         Current complete original URL and literal destination authority.
     """
 
-    address = Destination(url)[0]
+    address = ResponseDestination(url, _family)[0]
     RequireWorkspaceText(owner, "owner_reference")
     current_owner = owner if current_owner_provider is None else current_owner_provider()
 
@@ -107,7 +113,7 @@ def CurrentAuthority(root: Path, scope_id: str, url: str, owner: str,
     context = PolicyContext(LocalScopeStore(root).Open(scope_id), policy, target,
                             (target, Target(TargetKind.IP, address)))
 
-    return OwnedResponseAuthority(context, owner, approved)
+    return OwnedResponseAuthority(context, owner, approved, retain_response)
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +124,7 @@ class OwnedResponseCapturePlan:
     policy_plan: PolicyPlan
     model_revision: int
     workspace_revision: int
+    _family: ResponseFamily = _CATALOG_FAMILY
 
     def ToDict(self) -> dict[str, object]:
         """Return exact nonexecuting intent without private work or response bytes.
@@ -126,18 +133,22 @@ class OwnedResponseCapturePlan:
             Schema-one descriptive SAFE acquisition plan.
         """
 
-        return {"schema_version": 1, "workflow": "owned-response-capture", "state": "planned",
-            "execution_authorized": False, "source_id": PROVIDER_ID,
-            "capability": CAPABILITY_ID, "profile": OWNED_RESPONSE_PROFILE,
+        return {"schema_version": 1, "workflow": ("owned-response-capture"
+                          if self._family is _CATALOG_FAMILY else
+                          "owned-content-response-capture"), "state": "planned",
+            "execution_authorized": False, "source_id": self._family.provider_id,
+            "capability": self._family.capability_id, "profile": self._family.profile,
             "model_revision": self.model_revision, "workspace_revision": self.workspace_revision,
             "invocation": json.loads(SerializeContract(self.invocation)),
-            "policy_plan": json.loads(SerializeContract(self.policy_plan))}
+            "policy_plan": json.loads(SerializeContract(self.policy_plan)),
+            **({"retention_required": True} if self._family is _CONTENT_FAMILY else {})}
 
 
-def PlanOwnedResponseCapture(
+def PlanResponseCapture(
     workspace_root: Path, scope_id: str, url: str, owner_reference: str,
     policy_provider: Callable[[], ImpactPolicy], *, clock: Callable[[], datetime] = UtcNow,
     current_owner_provider: Callable[[], str] | None = None,
+    _family: ResponseFamily = _CATALOG_FAMILY,
 ) -> OwnedResponseCapturePlan:
     """Plan one current consented source operation without grant, work directory or contact.
 
@@ -149,31 +160,35 @@ def PlanOwnedResponseCapture(
         policy_provider: Fresh typed acquisition policy reader.
         clock: Aware current policy decision clock.
         current_owner_provider: Optional fresh trusted actor attribution; default is selected actor.
+        _family: Immutable catalog or content binding; defaults to the catalog plan.
 
     Returns:
         Exact installed invocation, descriptive policy plan and observed revision bases.
     """
 
-    invocation = PrepareOwnedResponseInvocation(url)
+    invocation = (PrepareOwnedResponseInvocation(url) if _family is _CATALOG_FAMILY else
+                  PrepareResponseInvocation(url, _family=_family))
     store = LocalWorkspaceStore(workspace_root)
     workspace = store.Open()
     model = LocalModelStore(store.root).Open()
     VerifyWorkspaceEvidence(workspace, LocalEvidenceStore(store.root / "evidence"))
     authority = CurrentAuthority(store.root, scope_id, url, owner_reference, policy_provider, False,
-                                 current_owner_provider)
+                                 current_owner_provider, _family=_family)
 
     if authority.context.scope.workspace_id != workspace.workspace_id or (
         model.workspace_id != workspace.workspace_id
     ):
         raise PermissionError("owned response source belongs to another workspace")
 
-    plan = PolicyEngine().Plan(invocation, OWNED_RESPONSE_CAPABILITY, authority.context, at=clock())
+    plan = PolicyEngine().Plan(invocation, CapabilityDescriptor(_family.capability_id,
+        _family.provider_id, ImpactLevel.SAFE), authority.context, at=clock())
 
-    return OwnedResponseCapturePlan(invocation, plan, model.revision, workspace.revision)
+    return OwnedResponseCapturePlan(invocation, plan, model.revision, workspace.revision, _family)
 
 
 def SourceFact(workspace_id: str, record: dict[str, object], records: tuple[EvidenceRecord, ...],
-               receipt_id: str, job_id: str) -> Observation:
+               receipt_id: str, job_id: str, *,
+               _family: ResponseFamily = _CATALOG_FAMILY) -> Observation:
     """Bind a source-only immutable observation to actual original receipt, job and role IDs.
 
     Args:
@@ -182,6 +197,7 @@ def SourceFact(workspace_id: str, record: dict[str, object], records: tuple[Evid
         records: Actual independently verified original complete role records.
         receipt_id: Actual original receipt manifest identifier.
         job_id: Actual owning ScanJob identifier, never guessed from receipt fields.
+        _family: Immutable catalog or content binding selecting source identity and metadata.
 
     Returns:
         Content-addressed source fact with original execution provenance and no assessment.
@@ -192,7 +208,8 @@ def SourceFact(workspace_id: str, record: dict[str, object], records: tuple[Evid
     url = str(record["url"])
     subject = ObjectIdentity(workspace_id, ObjectKind.ENDPOINT, url)
     original = receipt.provenance
-    provenance = ModelProvenance(PROVIDER_ID, job_id, original.finished_at,
+    provenance = ModelProvenance(RequireResponseFamily(_family).provider_id, job_id,
+        original.finished_at,
         original.scope_reference, Target(TargetKind.URL, url).Reference(), "1",
         tuple(item.reference for item in sorted(records, key=lambda item: item.reference.role)),
         original.execution)
@@ -206,13 +223,20 @@ def SourceFact(workspace_id: str, record: dict[str, object], records: tuple[Evid
     ):
         raise ValueError("owned response original parts are unverified")
 
-    return Observation(SOURCE_KIND, subject.Reference(), {
-        "profile": OWNED_RESPONSE_PROFILE, "catalog_sha256": record["catalog_sha256"],
-        "case_id": record["case_id"], "original_job_id": job_id,
+    attributes = {
+        "profile": _family.profile, "original_job_id": job_id,
         "original_receipt_id": receipt_id, "original_role_ids": roles,
         "request_sha256": request["sha256"], "response_sha256": response["sha256"],
         "header_size_bytes": headers["size_bytes"], "body_size_bytes": body["size_bytes"],
-    }, provenance)
+    }
+
+    if _family is _CATALOG_FAMILY:
+        attributes.update(catalog_sha256=record["catalog_sha256"], case_id=record["case_id"])
+
+    else:
+        attributes.update(schema_version=1, media_type=record["media_type"])
+
+    return Observation(_family.source_kind, subject.Reference(), attributes, provenance)
 
 
 class OwnedResponseWorkflow:
@@ -256,7 +280,7 @@ class OwnedResponseWorkflow:
                 artifact.workspace_id != self.workspace.workspace_id
                 or record.provenance.workspace_id != self.workspace.workspace_id
                 or record.provenance.scope_reference != snapshot.spec.scope_reference
-                or record.provenance.source_id != PROVIDER_ID
+                or record.provenance.source_id != self.provider._family.provider_id
                 or self.provider.store.Get(record.evidence_id) != record
             ):
                 raise ValueError("owned response original attachment differs")
@@ -344,9 +368,11 @@ class OwnedResponseWorkflow:
             if {*replay.original_ids, replay.receipt_id} != {item.evidence_id for item in records}:
                 raise ValueError("owned response original role association differs")
 
-            record = ParseOwnedResponseCapture(replay.record_json, self.provider.url)
+            record = ParseResponseRecord(replay.record_json, self.provider.url,
+                                         self.provider._family)
             self.source_fact = SourceFact(self.model.workspace_id, record, records,
-                                           capture.receipt_id, context.Spec.job_id)
+                                           capture.receipt_id, context.Spec.job_id,
+                                           _family=self.provider._family)
             identity = ObjectIdentity(self.model.workspace_id, ObjectKind.ENDPOINT,
                                       self.provider.url)
             existing = next((item for item in self.model.objects if item.identity == identity),
@@ -439,6 +465,7 @@ class OwnedResponseCaptureSummary:
     stage_retained: bool
     events: tuple[JobEvent, ...]
     duration_seconds: float
+    _family: ResponseFamily = _CATALOG_FAMILY
 
     def ToDict(self) -> dict[str, object]:
         """Return only safe original IDs/source facts and truthful durable execution state.
@@ -447,8 +474,10 @@ class OwnedResponseCaptureSummary:
             Schema-one acquisition summary without raw wire, staging path or assessment fields.
         """
 
-        return {"schema_version": 1, "workflow": "owned-response-capture",
-            "source_id": PROVIDER_ID, "state": self.snapshot.state.value,
+        return {"schema_version": 1, "workflow": ("owned-response-capture"
+                          if self._family is _CATALOG_FAMILY else
+                          "owned-content-response-capture"),
+            "source_id": self._family.provider_id, "state": self.snapshot.state.value,
             "original_job_id": self.snapshot.spec.job_id,
             "original_receipt_id": self.original_receipt_id,
             "original_role_ids": {item.reference.role: item.evidence_id for item in self.records},
@@ -509,12 +538,14 @@ async def SettleOwnedResponseCleanup(task: asyncio.Task[JobSnapshot]) -> JobSnap
     return task.result()
 
 
-async def RunOwnedResponseCapture(
+async def RunResponseCapture(
     workspace_root: Path, scope_id: str, url: str, owner_reference: str,
     policy_provider: Callable[[], ImpactPolicy], *, approve_safe_response_capture: bool = False,
     on_event: Callable[[JobEvent], None] | None = None,
     clock: Callable[[], datetime] = UtcNow,
     current_owner_provider: Callable[[], str] | None = None,
+    _family: ResponseFamily = _CATALOG_FAMILY,
+    _retain_response: bool = False,
 ) -> OwnedResponseCaptureSummary:
     """Compose one original capture and guarded source persistence inside the same active job.
 
@@ -528,6 +559,9 @@ async def RunOwnedResponseCapture(
         on_event: Optional synchronous presentation sink for original safe job events.
         clock: Aware current policy/evidence clock, without renewing monotonic budgets.
         current_owner_provider: Trusted fresh attribution, not an identity authentication mechanism.
+        _family: Immutable catalog or content binding selecting acquisition and custody.
+        _retain_response: Explicit response-retention opt-in; defaults false and is required
+            for content.
 
     Returns:
         Actual original terminal snapshot and reopened persistence facts; stage remains retained.
@@ -537,12 +571,15 @@ async def RunOwnedResponseCapture(
         ValueError: Inputs or initial canonical state are invalid before a job starts.
     """
 
-    Destination(url)
+    ResponseDestination(url, _family)
 
     if type(approve_safe_response_capture) is not bool:
         raise ValueError("owned response approval requires an exact boolean")
 
-    if not approve_safe_response_capture:
+    if type(_retain_response) is not bool:
+        raise ValueError("owned response retention requires an exact boolean")
+
+    if not approve_safe_response_capture or (_family is _CONTENT_FAMILY and not _retain_response):
         raise OwnedResponseAuthorityDeniedError("owned response requires explicit SAFE approval")
 
     store = LocalWorkspaceStore(workspace_root)
@@ -552,15 +589,17 @@ async def RunOwnedResponseCapture(
     evidence = LocalEvidenceStore(store.root / "evidence")
     VerifyWorkspaceEvidence(workspace, evidence)
     authority = CurrentAuthority(store.root, scope_id, url, owner_reference, policy_provider, True,
-                                 current_owner_provider)
+                                 current_owner_provider, _family=_family,
+                                 retain_response=_retain_response)
 
     if model.workspace_id != workspace.workspace_id:
         raise ValueError("owned response canonical model belongs to another workspace")
 
     provider = OwnedResponseCaptureProvider(store.root, url,
         lambda: CurrentAuthority(store.root, scope_id, url, owner_reference, policy_provider, True,
-                                 current_owner_provider),
-        approve_workflow=True, clock=clock)
+                                 current_owner_provider, _family=_family,
+                                 retain_response=_retain_response),
+        approve_workflow=True, retain_response=_retain_response, _family=_family, clock=clock)
 
     def Snapshot() -> JobSnapshot:
         """Return only the actual original owning coordinator snapshot."""
@@ -569,7 +608,7 @@ async def RunOwnedResponseCapture(
 
     workflow = OwnedResponseWorkflow(store.root, workspace, model, provider, Snapshot)
     spec = JobSpec("job:owned-response-" + uuid4().hex, workspace.workspace_id,
-        authority.context.scope.Reference(), owner_reference, PROVIDER_ID, 30)
+        authority.context.scope.Reference(), owner_reference, _family.provider_id, 30)
     job = ScanJob(spec, workflow, evidence_store=evidence, max_events=32)
     started = time.monotonic()
     cursor = -1
@@ -653,7 +692,7 @@ async def RunOwnedResponseCapture(
                           workflow.workspace_attempted, workflow.workspace_acknowledged), facts,
         outcome,
         "complete" if complete else "incomplete", provider.prepared is not None,
-        job.EventsSince(), time.monotonic() - started)
+        job.EventsSince(), time.monotonic() - started, _family)
 
 
 @dataclass(frozen=True, slots=True)
@@ -666,6 +705,7 @@ class OwnedResponseReplaySummary:
     source_facts: dict[str, object]
     model_revision: int
     workspace_revision: int
+    _family: ResponseFamily = _CATALOG_FAMILY
 
     def ToDict(self) -> dict[str, object]:
         """Return verified source facts and original IDs without a fabricated replay job.
@@ -674,12 +714,211 @@ class OwnedResponseReplaySummary:
             Safe schema-one historical verification result without runtime or persistence.
         """
 
-        return {"schema_version": 1, "workflow": "owned-response-replay", "state": "verified",
-            "source_id": PROVIDER_ID, "original_job_id": self.original_job_id,
+        return {"schema_version": 1, "workflow": ("owned-response-replay"
+                          if self._family is _CATALOG_FAMILY else
+                          "owned-content-response-replay"), "state": "verified",
+            "source_id": self._family.provider_id, "original_job_id": self.original_job_id,
             "original_receipt_id": self.original_receipt_id,
             "original_role_ids": {item.reference.role: item.evidence_id for item in self.records},
             "source_facts": self.source_facts, "model_revision": self.model_revision,
             "workspace_revision": self.workspace_revision}
+
+
+def ReplayResponse(
+    workspace_root: Path, original_receipt_id: str, *,
+    _family: ResponseFamily = _CATALOG_FAMILY,
+) -> OwnedResponseReplaySummary:
+    """Verify known successful original source association without current scope or target access.
+
+    Args:
+        workspace_root: Explicit relocated existing canonical workspace boundary.
+        original_receipt_id: Actual original receipt manifest ID already retained by this workspace.
+        _family: Immutable catalog or content binding required for original custody and
+            source facts.
+
+    Returns:
+        Independently verified original job/role IDs and immutable source facts.
+
+    Raises:
+        ValueError: Original custody or durable source/job association is absent or inconsistent.
+    """
+
+    RequireResponseFamily(_family)
+    workspace_store = LocalWorkspaceStore(workspace_root)
+    workspace = workspace_store.Open()
+    model = LocalModelStore(workspace_store.root).Open()
+
+    if original_receipt_id not in workspace.evidence_record_references:
+        raise ValueError("owned response original receipt association is unknown")
+
+    store = OwnedResponseEvidenceStore(workspace_store.root / "evidence", _family=_family)
+    replay = ReplayOwnedResponseCapture(store, original_receipt_id)
+
+    original_ids = (*replay.original_ids, replay.receipt_id)
+
+    if any(identity not in workspace.evidence_record_references for identity in original_ids):
+        raise ValueError("owned response original role association is unknown")
+
+    records = tuple(store.Get(identity) for identity in original_ids)
+    receipt = next(item for item in records if item.evidence_id == original_receipt_id)
+    facts = tuple(item for item in model.observations if item.kind == _family.source_kind and
+                  item.attributes.get("original_receipt_id") == original_receipt_id)
+
+    if len(facts) != 1 or receipt.provenance.workspace_id != workspace.workspace_id:
+        raise ValueError("owned response original source/job association is unknown")
+
+    fact = facts[0]
+    job_id = fact.provenance.run_reference
+
+    if job_id not in workspace.job_references:
+        raise ValueError("owned response original job association is unknown")
+
+    request = json.loads(replay.record_json)
+    record = ParseResponseRecord(replay.record_json, request.get("url"), _family)
+
+    if record["outcome"] != "captured":
+        raise ValueError("owned response historical acquisition was refused")
+
+    expected = SourceFact(workspace.workspace_id, record, records, original_receipt_id, job_id,
+                          _family=_family)
+    endpoint = next((item for item in model.objects if item.Reference() == fact.subject_reference),
+                    None)
+
+    if fact != expected or endpoint is None or fact.provenance not in endpoint.provenance:
+        raise ValueError("owned response original source fact differs")
+
+    return OwnedResponseReplaySummary(job_id, original_receipt_id, records,
+        json.loads(SerializeContract(fact.attributes)), model.revision, workspace.revision, _family)
+
+
+
+def PlanOwnedContentResponseCapture(
+    workspace_root: Path, scope_id: str, url: str, owner_reference: str,
+    policy_provider: Callable[[], ImpactPolicy], *, clock: Callable[[], datetime] = UtcNow,
+    current_owner_provider: Callable[[], str] | None = None,
+) -> OwnedResponseCapturePlan:
+    """Describe explicit content retention and SAFE intent without grant, work or contact.
+
+    Args:
+        workspace_root: Existing canonical workspace root.
+        scope_id: Existing selected complete URL and literal-IP consent scope.
+        url: Exact anonymous literal-loopback content URL.
+        owner_reference: Explicit executing actor, independent from the attester.
+        policy_provider: Fresh typed acquisition policy reader.
+        clock: Aware current policy decision clock.
+        current_owner_provider: Optional fresh trusted actor attribution.
+
+    Returns:
+        Nonexecuting content-family plan with retention_required true.
+    """
+
+    return PlanResponseCapture(workspace_root, scope_id, url, owner_reference,
+        policy_provider, clock=clock, current_owner_provider=current_owner_provider,
+        _family=_CONTENT_FAMILY)
+
+
+async def RunOwnedContentResponseCapture(
+    workspace_root: Path, scope_id: str, url: str, owner_reference: str,
+    policy_provider: Callable[[], ImpactPolicy], *,
+    approve_safe_content_response_capture: bool = False, retain_response: bool = False,
+    on_event: Callable[[JobEvent], None] | None = None,
+    clock: Callable[[], datetime] = UtcNow,
+    current_owner_provider: Callable[[], str] | None = None,
+) -> OwnedResponseCaptureSummary:
+    """Acquire one selected content response with separate explicit SAFE and retention consent.
+
+    Args:
+        workspace_root: Existing owning canonical workspace.
+        scope_id: Existing complete source consent scope.
+        url: Exact anonymous literal-loopback content URL.
+        owner_reference: Explicit executing actor, independent from attestation.
+        policy_provider: Fresh typed current acquisition policy reader.
+        approve_safe_content_response_capture: Exact independent SAFE workflow opt-in.
+        retain_response: Exact separate response-byte retention opt-in.
+        on_event: Optional synchronous presentation sink for safe original job events.
+        clock: Aware current policy/evidence clock, without renewing budgets.
+        current_owner_provider: Optional fresh trusted actor attribution.
+
+    Returns:
+        Actual original terminal job, custody and separate persistence outcomes.
+    """
+
+    return await RunResponseCapture(workspace_root, scope_id, url, owner_reference,
+        policy_provider, approve_safe_response_capture=approve_safe_content_response_capture,
+        on_event=on_event, clock=clock, current_owner_provider=current_owner_provider,
+        _family=_CONTENT_FAMILY, _retain_response=retain_response)
+
+
+def ReplayOwnedContentResponse(workspace_root: Path,
+                               original_receipt_id: str) -> OwnedResponseReplaySummary:
+    """Verify retained content-family originals offline without a job, Put, Save or contact.
+
+    Args:
+        workspace_root: Existing or relocated canonical workspace boundary.
+        original_receipt_id: Actual original acknowledged receipt retained by this workspace.
+
+    Returns:
+        Independently verified original job, seven role IDs and immutable source fact.
+    """
+
+    return ReplayResponse(workspace_root, original_receipt_id, _family=_CONTENT_FAMILY)
+
+
+def PlanOwnedResponseCapture(
+    workspace_root: Path, scope_id: str, url: str, owner_reference: str,
+    policy_provider: Callable[[], ImpactPolicy], *, clock: Callable[[], datetime] = UtcNow,
+    current_owner_provider: Callable[[], str] | None = None,
+) -> OwnedResponseCapturePlan:
+    """Plan one current consented source operation without grant, work directory or contact.
+
+    Args:
+        workspace_root: Explicit existing workspace containing initialized canonical state.
+        scope_id: Already registered complete source URL/literal consent scope.
+        url: Exact original canonical catalog URL.
+        owner_reference: Explicit executing actor, without attester substitution.
+        policy_provider: Fresh typed acquisition policy reader.
+        clock: Aware current policy decision clock.
+        current_owner_provider: Optional fresh trusted actor attribution; default is selected actor.
+
+    Returns:
+        Exact installed invocation, descriptive policy plan and observed revision bases.
+    """
+
+    return PlanResponseCapture(workspace_root, scope_id, url, owner_reference,
+        policy_provider, clock=clock, current_owner_provider=current_owner_provider)
+
+
+async def RunOwnedResponseCapture(
+    workspace_root: Path, scope_id: str, url: str, owner_reference: str,
+    policy_provider: Callable[[], ImpactPolicy], *, approve_safe_response_capture: bool = False,
+    on_event: Callable[[JobEvent], None] | None = None,
+    clock: Callable[[], datetime] = UtcNow,
+    current_owner_provider: Callable[[], str] | None = None,
+) -> OwnedResponseCaptureSummary:
+    """Compose one original capture and guarded source persistence inside the same active job.
+
+    Args:
+        workspace_root: Explicit existing owning workspace with initialized shared model.
+        scope_id: Existing source consent scope; no target is registered automatically.
+        url: Exact canonical catalog URL, never normalized into another spelling.
+        owner_reference: Explicit executing actor, distinct from independent attestation metadata.
+        policy_provider: Fresh synchronous current acquisition policy reader.
+        approve_safe_response_capture: Exact independent SAFE workflow approval.
+        on_event: Optional synchronous presentation sink for original safe job events.
+        clock: Aware current policy/evidence clock, without renewing monotonic budgets.
+        current_owner_provider: Trusted fresh attribution, not an identity authentication mechanism.
+
+    Returns:
+        Actual original terminal snapshot and reopened persistence facts; stage remains retained.
+
+    Raises:
+        PermissionError: Explicit workflow approval is absent.
+        ValueError: Inputs or initial canonical state are invalid before a job starts.
+    """
+
+    return await RunResponseCapture(workspace_root, scope_id, url, owner_reference,
+        policy_provider, approve_safe_response_capture=approve_safe_response_capture,
+        on_event=on_event, clock=clock, current_owner_provider=current_owner_provider)
 
 
 def ReplayOwnedResponse(
@@ -698,47 +937,4 @@ def ReplayOwnedResponse(
         ValueError: Original custody or durable source/job association is absent or inconsistent.
     """
 
-    workspace_store = LocalWorkspaceStore(workspace_root)
-    workspace = workspace_store.Open()
-    model = LocalModelStore(workspace_store.root).Open()
-
-    if original_receipt_id not in workspace.evidence_record_references:
-        raise ValueError("owned response original receipt association is unknown")
-
-    store = OwnedResponseEvidenceStore(workspace_store.root / "evidence")
-    replay = ReplayOwnedResponseCapture(store, original_receipt_id)
-
-    original_ids = (*replay.original_ids, replay.receipt_id)
-
-    if any(identity not in workspace.evidence_record_references for identity in original_ids):
-        raise ValueError("owned response original role association is unknown")
-
-    records = tuple(store.Get(identity) for identity in original_ids)
-    receipt = next(item for item in records if item.evidence_id == original_receipt_id)
-    facts = tuple(item for item in model.observations if item.kind == SOURCE_KIND and
-                  item.attributes.get("original_receipt_id") == original_receipt_id)
-
-    if len(facts) != 1 or receipt.provenance.workspace_id != workspace.workspace_id:
-        raise ValueError("owned response original source/job association is unknown")
-
-    fact = facts[0]
-    job_id = fact.provenance.run_reference
-
-    if job_id not in workspace.job_references:
-        raise ValueError("owned response original job association is unknown")
-
-    request = json.loads(replay.record_json)
-    record = ParseOwnedResponseCapture(replay.record_json, request.get("url"))
-
-    if record["outcome"] != "captured":
-        raise ValueError("owned response historical acquisition was refused")
-
-    expected = SourceFact(workspace.workspace_id, record, records, original_receipt_id, job_id)
-    endpoint = next((item for item in model.objects if item.Reference() == fact.subject_reference),
-                    None)
-
-    if fact != expected or endpoint is None or fact.provenance not in endpoint.provenance:
-        raise ValueError("owned response original source fact differs")
-
-    return OwnedResponseReplaySummary(job_id, original_receipt_id, records,
-        json.loads(SerializeContract(fact.attributes)), model.revision, workspace.revision)
+    return ReplayResponse(workspace_root, original_receipt_id)
