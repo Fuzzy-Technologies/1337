@@ -564,3 +564,71 @@ def test_NativeConfigurationCheckpointPreservesFullReadyGateAndSkipsImageDatabas
     assert upload["if"] == "always()" and (
         "functional-evidence/native-configuration-compatibility/" in upload["with"]["path"]
     ), "Native compatibility diagnostics must survive failed or incomplete genuine execution"
+
+
+def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> None:
+    """The draft-only CAS checkpoint retains one exact installed case and its original evidence."""
+
+    workflow = Workflow("owned-content-header-acceptance.yml")
+    jobs = workflow["jobs"]
+    old_jobs = {"installed-content-header", "actor-denied-content-header",
+        "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
+        "approval-denied-content-header"}
+    assert set(jobs) == old_jobs | {"stale-model-cas-content-header"}, (
+        "The finite content workflow must retain six original jobs and one separate CAS case."
+    )
+    job = jobs["stale-model-cas-content-header"]
+    marker = "[owned-content-header-stale-model-cas-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only the explicit draft CAS marker may launch this one genuine case."
+    assert all(marker not in jobs[name]["if"] for name in old_jobs), (
+        "The CAS marker cannot enroll an already accepted cohort."
+    )
+    assert workflow["permissions"] == {"contents": "read"} and (
+        workflow.get("on", workflow.get(True))["pull_request"]["branches"] == ["develop"]
+    ), "The checkpoint must retain read-only PR authority and the integration target."
+    assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6 and (
+        job["env"] == {"FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}
+        and "strategy" not in job and not job.get("continue-on-error", False)
+    ), "The one installed Linux case requires its opt-in and finite non-advisory job."
+    steps = job["steps"]
+    assert steps[:4] == jobs["installed-content-header"]["steps"][:4], (
+        "The CAS job must reuse the reviewed head checkout and pinned locked provisioning."
+    )
+    checkout = steps[0]["with"]
+    assert checkout["ref"] == "${{ github.event.pull_request.head.sha }}" and (
+        checkout["persist-credentials"] is False
+    ), "Only the selected original PR head may enter the installed-source proof."
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "The finite checkpoint must not acquire extra execution or advisory evidence checks."
+    )
+    selector = (
+        "tests/functional/test_owned_content_response_sdk_pipeline.py::"
+        "test_InstalledFreshStaleModelRevisionContentHeaderPipelinePreservesAcquiredState"
+    )
+    junit = "functional-evidence/owned-content-header-stale-model-cas.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", selector,
+        "-q", "-x", "-n0", "--no-cov", "--timeout=150", "--timeout-method=thread",
+        "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3, (
+        "Exactly one serial installed CAS case must run with fail-fast, JUnit and fixed bounds."
+    )
+    assert shlex.split(steps[5]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "python", "-m",
+        "tests.contract.owned_content_response_ci_revision_evidence",
+        junit, "functional-evidence/owned-content-sdk",
+    ] and "if" not in steps[5], (
+        "The existing original-evidence checker must reject missing, skipped or unbound CAS proof."
+    )
+    upload = steps[6]
+    assert upload["if"] == "always()" and (
+        upload["uses"] == jobs["installed-content-header"]["steps"][-1]["uses"]
+        and upload["with"] == {
+            "name": "owned-content-header-stale-model-cas-original-evidence",
+            "path": junit + "\nfunctional-evidence/owned-content-sdk/\n",
+            "retention-days": 14, "if-no-files-found": "error",
+        }
+    ), "The separate CAS artifact must retain original JUnit and pipeline bytes even on failure."
