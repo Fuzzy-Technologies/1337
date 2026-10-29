@@ -581,7 +581,7 @@ def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> No
         "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
         "approval-denied-content-header"}
     assert set(jobs) == old_jobs | {"stale-model-cas-content-header",
-        "post-model-ack-expiry-content-header"}, (
+        "post-model-ack-expiry-content-header", "ipv6-worker-content-header"}, (
         "The finite workflow must retain six original jobs and separate CAS/expiry cases."
     )
     job = jobs["stale-model-cas-content-header"]
@@ -656,7 +656,7 @@ def test_ContentHeaderPostModelAckExpiryCheckpointSelectsOnlyItsInstalledPartial
     old_jobs = {"installed-content-header", "actor-denied-content-header",
         "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
         "approval-denied-content-header", "stale-model-cas-content-header"}
-    assert set(jobs) == old_jobs | {job_id}, (
+    assert set(jobs) == old_jobs | {job_id, "ipv6-worker-content-header"}, (
         "Only one expiry job may extend the seven existing jobs."
     )
     job = jobs[job_id]
@@ -716,6 +716,79 @@ def test_ContentHeaderPostModelAckExpiryCheckpointSelectsOnlyItsInstalledPartial
             "retention-days": 14, "if-no-files-found": "error",
         }
     ), "Original expiry JUnit, installation, raw processes and custody must survive failed checks."
+
+
+def test_ContentHeaderIpv6WorkerCheckpointSelectsOnlyItsInstalledWorkerCase() -> None:
+    """Keep one draft-only IPv6 installed-worker case separate from SDK and Finding acceptance."""
+
+    workflow = Workflow("owned-content-header-acceptance.yml")
+    jobs = workflow["jobs"]
+    job_id = "ipv6-worker-content-header"
+    old_jobs = {"installed-content-header", "actor-denied-content-header",
+        "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
+        "approval-denied-content-header", "stale-model-cas-content-header",
+        "post-model-ack-expiry-content-header"}
+    assert set(jobs) == old_jobs | {job_id}, (
+        "Only one worker-only IPv6 job may extend the eight existing finite cases."
+    )
+    job = jobs[job_id]
+    marker = "[owned-content-header-ipv6-worker-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only this draft worker marker may enroll IPv6; ready behavior stays exact."
+    assert all(marker not in jobs[name]["if"] for name in old_jobs), (
+        "The worker-only IPv6 marker cannot reenroll any accepted case."
+    )
+    events = workflow.get("on", workflow.get(True))
+    assert workflow["permissions"] == {"contents": "read"} and set(events) == {"pull_request"}, (
+        "IPv6 worker enrollment must preserve read-only PR authority and existing triggers."
+    )
+    assert events["pull_request"] == {"branches": ["develop"], "types": [
+        "opened", "reopened", "synchronize", "ready_for_review", "converted_to_draft", "edited",
+    ]}, "The worker marker requires supported body-edit admission and every original PR event."
+    assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "env", "steps"} and (
+        job["name"] == "Installed IPv6 content worker only with original wire and settled owners"
+        and job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6
+        and job["env"] == {"FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}
+    ), "The installed worker needs bounded opted-in Linux work without extra job controls."
+    steps = job["steps"]
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "Worker enrollment cannot add runtime children or advisory checks."
+    )
+    assert steps[:4] == jobs["installed-content-header"]["steps"][:4], (
+        "The worker must reuse original exact-head checkout and pinned locked provisioning."
+    )
+    assert steps[0]["with"] == {"ref": "${{ github.event.pull_request.head.sha }}",
+        "persist-credentials": False}, "Only the selected reviewed PR head enters installed proof."
+    selector = (
+        "tests/functional/test_owned_content_response_sdk_pipeline.py::"
+        "test_InstalledMissingHeaderContentWorkerIpv6RetainsOriginalsAndSettledOwners"
+    )
+    junit = "functional-evidence/owned-content-header-ipv6-worker.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", selector,
+        "-q", "-x", "-n0", "--no-cov", "--timeout=150", "--timeout-method=thread",
+        "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3 and "if" not in steps[4], (
+        "Exactly one serial IPv6 worker must run with fixed limits and original JUnit; no skips."
+    )
+    assert shlex.split(steps[5]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "python", "-m",
+        "tests.contract.owned_content_response_ci_ipv6_worker_evidence",
+        junit, "functional-evidence/owned-content-sdk",
+    ] and "if" not in steps[5], (
+        "The unchanged original checker must require installation wire peer and cleanup facts only."
+    )
+    upload = steps[6]
+    assert upload["if"] == "always()" and (
+        upload["uses"] == jobs["installed-content-header"]["steps"][-1]["uses"]
+        and upload["with"] == {
+            "name": "owned-content-header-ipv6-worker-original-evidence",
+            "path": junit + "\nfunctional-evidence/owned-content-sdk/\n",
+            "retention-days": 14, "if-no-files-found": "error",
+        }
+    ), "Original IPv6 worker JUnit streams and source owners must survive failed execution/checks."
 
 
 def test_InstalledConfigurationMaterialWorkflowRequiresExplicitAdmission() -> None:
