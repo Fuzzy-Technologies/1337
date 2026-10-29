@@ -11,6 +11,7 @@ import hashlib
 import subprocess
 import sys
 import urllib.request
+from types import SimpleNamespace
 
 import pytest
 
@@ -591,6 +592,35 @@ def test_HostCommandDeadlineSeparatesCleanupFromCompletion(tmp_path, monkeypatch
 
 
 @LINUX_CONTEXT
+def test_HostCommandLogicalDeadlinePressureStillRefusesWithCleanup(tmp_path, monkeypatch):
+    """An explicitly exhausted logical budget still refuses before accepting fake completion."""
+
+    readings = iter((100.0, 102.0, 102.0))
+
+    def Monotonic() -> float:
+        """Advance only this helper's admission clock beyond its unchanged one-second budget."""
+
+        return next(readings, 102.0)
+
+    monkeypatch.setattr(host, "time", SimpleNamespace(monotonic=Monotonic))
+
+    with pytest.raises(TimeoutError, match="deadline exhausted"):
+        asyncio.run(CaptureInert(tmp_path, monkeypatch, blocked=True))
+
+    directory = next(host.REPOSITORY.glob("functional-evidence/*/run-*/command"))
+    result = host.StrictJson((directory / "command.json").read_bytes())
+    assert result["timeout_seconds"] == 1 and result["duration_seconds"] == 2.0, (
+        "The explicit pressure control must exhaust the original budget without real waiting."
+    )
+    assert result["timed_out"] is True and result["cleanup_confirmed"] is True, (
+        "Logical deadline expiry must remain a timeout even after confirmed owner cleanup."
+    )
+    assert result["streams_complete"] is False and result["interrupted"] is None, (
+        "An exhausted command cannot become completed capture or caller cancellation."
+    )
+
+
+@LINUX_CONTEXT
 def test_HostCommandCleanupRefusalPreservesCaptureFailure(tmp_path, monkeypatch):
     """The overflow remains primary while failed private cleanup is separately recorded."""
 
@@ -708,7 +738,14 @@ def test_HostCommandRepeatedCancellationStillClosesAndRetains(tmp_path, monkeypa
 
         _, context, _ = OwnedContext(tmp_path, monkeypatch)
         fake = InertExecution(blocked=True)
-        started, finalizing, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        waiting, finalizing, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+        def Monotonic() -> float:
+            """Keep the helper's admission clock fixed while cancellation handoffs are driven."""
+
+            return 100.0
+
+        monkeypatch.setattr(host, "time", SimpleNamespace(monotonic=Monotonic))
 
         def Stop():
             """Delay fake exit so a second cancellation intersects finalization."""
@@ -718,6 +755,7 @@ def test_HostCommandRepeatedCancellationStillClosesAndRetains(tmp_path, monkeypa
         async def Wait():
             """Wait for a controlled inert cleanup release."""
 
+            waiting.set()
             await release.wait()
             fake.returncode = 0
             fake.Verify()
@@ -725,9 +763,7 @@ def test_HostCommandRepeatedCancellationStillClosesAndRetains(tmp_path, monkeypa
             return 0
 
         async def Start(*arguments):
-            """Signal ownership handoff to the synthetic cancellation driver."""
-
-            started.set()
+            """Return the fake owner; its actual Wait entry signals the cancellation driver."""
 
             return fake
 
@@ -735,12 +771,16 @@ def test_HostCommandRepeatedCancellationStillClosesAndRetains(tmp_path, monkeypa
         monkeypatch.setattr(host, "StartOwnedExecution", Start)
         task = asyncio.create_task(host.CaptureCommand(context.parent / "command", ("inert",),
             host.REPOSITORY, {}, 1, 1024, 1024))
-        await started.wait()
-        await asyncio.sleep(0)
+        await waiting.wait()
         task.cancel()
         await finalizing.wait()
         task.cancel()
-        await asyncio.sleep(0)
+        delivered = asyncio.Event()
+        asyncio.get_running_loop().call_soon(delivered.set)
+        await delivered.wait()
+        assert task.cancelling() == 2 and not task.done(), (
+            "Both caller cancellations must occur while original cleanup remains held."
+        )
         release.set()
 
         with pytest.raises(asyncio.CancelledError):
@@ -752,6 +792,9 @@ def test_HostCommandRepeatedCancellationStillClosesAndRetains(tmp_path, monkeypa
         )
         assert result["interrupted"] == "CancelledError", (
             'Flow-control/cancellation cleanup must drain, close and retain its original receipt.'
+        )
+        assert result["timed_out"] is False and result["timeout_seconds"] == 1, (
+            "Cancellation handoffs must not depend on host load or alter the real timeout budget."
         )
 
     asyncio.run(Scenario())

@@ -119,6 +119,58 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  nuclei-contract-windows-checkpoint:
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[nuclei-contract-windows-checkpoint]')
+    name: Focused Windows external Nuclei contract portability
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.12
+      - name: Execute focused Windows Nuclei contract cases
+        timeout-minutes: 3
+        run: >-
+          uv run --locked --extra dev pytest tests/contract
+          -k 'external_nuclei or external_native_benchmark or external_benchmark or external_targets'
+          -q -n2 --no-cov
+          --junitxml=functional-evidence/nuclei-contract-windows.xml
+      - name: Require executed successful contract cases
+        shell: python
+        run: |
+          """Require original executed contract results without missing or failed cases."""
+
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          path = Path("functional-evidence/nuclei-contract-windows.xml")
+          document = ElementTree.parse(path)
+          cases = list(document.iter("testcase"))
+          executed = [case for case in cases if case.find("skipped") is None]
+          if not executed or any(list(document.iter(kind)) for kind in ("failure", "error")):
+              raise SystemExit("Require executed Nuclei contract cases without failures or errors")
+          print(f"Executed {len(executed)} Nuclei contract cases; {len(cases) - len(executed)} skipped")
+      - name: Preserve original Windows Nuclei contract evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nuclei-contract-windows-original-evidence
+          path: functional-evidence/nuclei-contract-windows.xml
+          retention-days: 14
+          if-no-files-found: error
+
   owned-traversal-rate-checkpoint:
     if: >-
       github.event_name == 'pull_request' && github.event.pull_request.draft == true

@@ -82,6 +82,7 @@ OWNED_TRAVERSAL_RATE_CONDITION = (
     "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]')"
 )
+NUCLEI_CONTRACT_WINDOWS_JOB = "nuclei-contract-windows-checkpoint"
 
 
 def Workflow(name: str) -> dict[str, Any]:
@@ -122,7 +123,8 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     expected = WORKFLOWS[name] | ({"deploy-pages"} if name == "documentation.yml" else set())
 
     if name == "python-quality.yml":
-        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {OWNED_TRAVERSAL_RATE_JOB}
+        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {
+            OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB}
 
     assert set(jobs) == expected, "The integration job inventory changed unexpectedly."
     assert workflow["permissions"] == {"contents": "read"}, "PR authority expanded."
@@ -1117,6 +1119,83 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
             "functional-evidence/nuclei-prerequisites.xml\n",
         "if-no-files-found": "error", "retention-days": 14,
     }, "The existing always upload must retain both old evidence paths and new originals."
+
+
+def test_NucleiContractWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> None:
+    """Keep inert Windows contracts separate from real prerequisites, targets and full gates."""
+
+    workflow = Workflow("python-quality.yml")
+    jobs = workflow["jobs"]
+    job = jobs[NUCLEI_CONTRACT_WINDOWS_JOB]
+    marker = "[nuclei-contract-windows-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only the explicit draft contract marker may launch this Windows checkpoint."
+    assert all(marker not in other.get("if", "") for name, other in jobs.items()
+        if name != NUCLEI_CONTRACT_WINDOWS_JOB), (
+        "The contract checkpoint must not enroll any target, installed prerequisite or full gate")
+    assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "steps"} and (
+        job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8
+    ), "The Windows contract checkpoint must retain one bounded non-advisory job."
+    steps = job["steps"]
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "Exactly one contract execution, its original-result gate and evidence upload are required")
+    original = jobs["quality"]["steps"]
+    assert steps[0]["uses"] == original[0]["uses"] and steps[0]["with"] == {
+        "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False,
+    }, "Contract results must bind the exact PR head through pinned credential-free checkout."
+    assert steps[1]["uses"] == original[1]["uses"] and steps[1]["with"] == {
+        "python-version": "3.12"} and steps[2] == original[2] and steps[3]["run"] == (
+        "uv sync --locked --extra dev --python 3.12"
+    ), "The checkpoint must retain pinned Python provisioning and the locked development extra."
+    junit = "functional-evidence/nuclei-contract-windows.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", "tests/contract", "-k",
+        "external_nuclei or external_native_benchmark or external_benchmark or external_targets",
+        "-q", "-n2", "--no-cov", "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3 and "if" not in steps[4], (
+        "One bounded contract selection must report every failure without fail-fast or fullsuite")
+    assert steps[5]["shell"] == "python" and "if" not in steps[5], (
+        "The original JUnit gate must run with the selected Python after successful execution")
+    assert steps[6]["if"] == "always()" and steps[6]["uses"] == original[-1]["uses"] and (
+        steps[6]["with"] == {"name": "nuclei-contract-windows-original-evidence",
+            "path": junit, "retention-days": 14, "if-no-files-found": "error"}
+    ), "Original Windows contract results must survive both success and failed execution."
+
+
+@pytest.mark.parametrize("case_xml, accepted", [
+    ('<testcase name="passed"/>', True),
+    ('<testcase name="passed"/><testcase name="skip"><skipped/></testcase>', True),
+    ("", False),
+    ('<testcase name="skip"><skipped/></testcase>', False),
+    ('<testcase name="failed"><failure/></testcase>', False),
+    ('<testcase name="errored"><error/></testcase>', False),
+    (None, False),
+], ids=["executed", "executed-with-skip", "empty", "only-skips", "failure", "error", "missing"])
+def test_NucleiContractWindowsGateRequiresExecutedOriginalCasesWithoutFailure(
+    tmp_path: Path, case_xml: str | None, accepted: bool,
+) -> None:
+    """Exercise the exact read-only gate against marked synthetic JUnit results only.
+
+    Args:
+        tmp_path: Explicit test-owned evidence directory without a target or scanner.
+        case_xml: Synthetic original-shaped testcase fragments, or None for missing evidence.
+        accepted: Whether actual successful case execution exists without failures or errors.
+    """
+
+    job = Workflow("python-quality.yml")["jobs"][NUCLEI_CONTRACT_WINDOWS_JOB]
+    path = tmp_path / "functional-evidence/nuclei-contract-windows.xml"
+
+    if case_xml is not None:
+        path.parent.mkdir()
+        path.write_text("<testsuites><testsuite>" + case_xml + "</testsuite></testsuites>",
+            encoding="utf-8")
+
+    result = subprocess.run([sys.executable, "-c", job["steps"][5]["run"]], cwd=tmp_path,
+        capture_output=True, text=True, timeout=10, check=False)
+    assert (result.returncode == 0) is accepted, (
+        "Only original-shaped executed contract cases without failures/errors may satisfy the gate")
 
 
 @pytest.mark.parametrize("mutation", [None, "junit-missing", "skip", "hidden-skip", "wrong-case",
