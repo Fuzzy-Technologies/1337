@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Internal verified read-only joined inventory, not a Python extension contract.
+module = "fuzzy1337.image_sbom_view"
+source = "src/fuzzy1337/image_sbom_view.py"
+mode = "authored"
+page = "api/fuzzy1337.image_sbom_view.md"
+
+[[surfaces]]
 # Experimental attributed CVSS 2 source inspection; scores are never calculated.
 module = "fuzzy1337.intelligence_cvss2"
 source = "src/fuzzy1337/intelligence_cvss2.py"
