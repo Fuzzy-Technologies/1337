@@ -169,6 +169,40 @@ def test_InertGovernedPrerequisiteNeverAddsHomeOrClaimsCaseExecution(
     )
 
 
+@pytest.mark.parametrize("missing", [None, "--path", "--target-instance", "--owner-token"])
+def test_FiniteImageEntryDispatchesOnlyCompleteExplicitApplicationSelection(monkeypatch, missing):
+    """The actual image entry forwards only the finite selected tuple; no provider runs here."""
+
+    from tests.functional import external_nuclei_application as application
+
+    calls = []
+
+    def Export(*arguments):
+        """Record explicit dispatch instead of starting any actual image-side application work."""
+
+        calls.append(arguments)
+
+        return 7
+
+    monkeypatch.setattr(application, "ExportApplication", Export)
+    arguments = ["--track", "whole1337", "--path", "/metrics", "--target-instance", "d" * 64,
+                 "--owner-token", "a" * 32]
+
+    if missing is not None:
+        position = arguments.index(missing)
+        del arguments[position:position + 2]
+
+        with pytest.raises(SystemExit):
+            image.Main(arguments)
+
+        assert not calls, "Incomplete image selection cannot dispatch or choose a default"
+
+    else:
+        assert image.Main(arguments) == 7 and calls == [(
+            "whole1337", "/metrics", "d" * 64, "a" * 32)
+        ], "The actual entry must preserve explicit selection and the real result status"
+
+
 def test_ImageRecipeFreezesAssetAndInstalledWheelBeforeRuntime():
     """The new recipe pins acquisition and performs no engine probe during image construction."""
 

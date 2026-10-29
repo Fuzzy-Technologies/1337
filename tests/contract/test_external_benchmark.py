@@ -662,11 +662,16 @@ def test_V2NormalizedMatchCannotReplaceMissingRawMatch(available_contract_pack, 
         ValidateObservation(pack, target, observation, tmp_path)
 
 
-def test_V2CandidateTrackCannotAttestSuccessfulInvocation(tmp_path):
+@pytest.mark.parametrize("track", ["whole1337", "external-nuclei"])
+def test_V2CandidateTrackCannotAttestSuccessfulInvocation(tmp_path, track):
     """Versioning the observation cannot bypass source acceptance of the actual runner."""
 
     pack, target = LoadPack()
-    observation = ContractNucleiObservation(pack, target, tmp_path)
+    for selected in pack["scanner_tracks"]:
+        if selected["id"] == track:
+            selected["implementation"] = "candidate"
+
+    observation = ContractNucleiObservation(pack, target, tmp_path, track=track)
 
     with pytest.raises(ValueError, match="Planned detectors"):
         ValidateObservation(pack, target, observation, tmp_path)

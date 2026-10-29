@@ -1319,3 +1319,15 @@ def test_WholeRuntimeCopiedWheelMismatchRefusesBeforeProductWorkspace(tmp_path, 
         "The refused original local copy must remain available without an invented matching digest."
     )
     forbidden.assert_not_called()
+
+
+def test_WholeRuntimeKeepsUnknownProviderExitSeparateFromProductFailure(tmp_path, monkeypatch):
+    """A product timeout status cannot substitute for the unobserved original provider exit code."""
+
+    arguments, _, forbidden = WholeMaterial(tmp_path, monkeypatch, mode="timeout")
+    outcome = whole_runtime.RunWhole1337(*arguments)
+    assert outcome["status"] == "failed" and outcome["exit_code"] is None and (
+        type(outcome["product_exit_code"]) is int and outcome["product_exit_code"] != 0
+        and outcome["duration_seconds"] == 0.01
+    ), "Original provider exit/duration and whole-product outcome must retain distinct meanings"
+    forbidden.assert_not_called()

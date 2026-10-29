@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Prepare an installed lab image and own target-free explicit-HOME prerequisites.
+"""Prepare an installed image, own exact local prerequisites and dispatch finite application modes.
 
 No image build or engine success is implied by this source. The host must inspect
 the later network-none container before launch. Explicit-HOME Go validation does
@@ -50,7 +50,8 @@ ARCHIVE = Path("/opt/benchmark-download") / ARCHIVE_NAME
 ASSET_URL = ("https://github.com/projectdiscovery/nuclei/releases/download/v"
              + VERSION + "/" + ARCHIVE_NAME)
 SUPPORT_FILES = ("external_native_runner.py", "external_nuclei_runner.py",
-                 "external_nuclei_provisioning.py", "external_nuclei_image.py")
+                 "external_nuclei_provisioning.py", "external_nuclei_image.py",
+                 "external_nuclei_application.py", "external_nuclei_runtime.py")
 TMPFS_BYTES = 64 * 1024 * 1024
 VERSION_CAPTURE_BYTES = 16 * 1024
 
@@ -150,11 +151,15 @@ def PrepareImage(source_revision: str) -> dict:
     return manifest
 
 
-def RequireImageRuntime() -> None:
-    """Refuse unisolated, root, writable-root or unbounded/networked prerequisite launches.
+def RequireImageRuntime(*, networked: bool = False) -> None:
+    """Refuse unisolated, root, writable-root or unbounded image launches.
 
     Host Docker inspection remains required; these local checks do not prove the
     image ID, absence of host mounts, resource limits or actual Docker enforcement.
+
+    Args:
+        networked: Admit only the expected lo/eth0 target namespace; host inspection separately
+            proves the exact target, internal network and absence of host ports or mounts.
 
     Raises:
         ValueError: The explicit Linux/nonroot/read-only/private-tmp/network boundary differs.
@@ -174,7 +179,8 @@ def RequireImageRuntime() -> None:
         not 0 < temporary.f_blocks * temporary.f_frsize <= TMPFS_BYTES
         or metadata.st_uid != 1337 or metadata.st_gid != 1337
         or stat.S_IMODE(metadata.st_mode) != 0o700
-        or {path.name for path in Path("/sys/class/net").iterdir()} != {"lo"}
+        or {path.name for path in Path("/sys/class/net").iterdir()} != (
+            {"lo", "eth0"} if networked else {"lo"})
     ):
         raise ValueError("Nuclei prerequisites require read-only root, bounded private tmp "
                          "and no egress")
@@ -347,14 +353,14 @@ def RunPrerequisites(*, governed_no_home: bool = False) -> dict:
 
 
 def Main(arguments: list[str] | None = None) -> int:
-    """Prepare material at build time or export offline prerequisites after host admission.
+    """Prepare material or dispatch one finite prerequisite/application mode after host admission.
 
     Args:
         arguments: Explicit CLI selection for inert tests; defaults to actual process arguments.
 
     Returns:
         Zero only for successful material preparation or completed local prerequisites;
-        four for failed prerequisites. This entry has no target/case execution mode.
+        four for failed prerequisites/application execution, and 130 for retained cancellation.
 
     Raises:
         SystemExit: CLI selection is missing, ambiguous or outside the finite interface.
@@ -367,8 +373,28 @@ def Main(arguments: list[str] | None = None) -> int:
     mode.add_argument("--prepare", action="store_true")
     mode.add_argument("--prerequisites", action="store_true")
     mode.add_argument("--governed-prerequisites", action="store_true")
+    mode.add_argument("--track", choices=("whole1337", "external-nuclei"))
+    parser.add_argument("--path", choices=("/metrics", "/rest/admin/application-version", "/"))
+    parser.add_argument("--target-instance")
+    parser.add_argument("--owner-token")
     parser.add_argument("--source-revision")
     options = parser.parse_args(arguments)
+
+    if options.track is not None:
+        if any(value is None for value in (options.path, options.target_instance,
+                                           options.owner_token)) or (
+            options.source_revision is not None
+        ):
+            parser.error("Application mode requires only the finite path/target/owner selection")
+
+        from .external_nuclei_application import ExportApplication
+
+        return ExportApplication(options.track, options.path, options.target_instance,
+                                 options.owner_token)
+
+    if any(value is not None for value in (options.path, options.target_instance,
+                                           options.owner_token)):
+        parser.error("Path/target/owner selections are restricted to application mode")
 
     if options.prepare:
         if options.source_revision is None:

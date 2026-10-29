@@ -310,6 +310,55 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  nuclei-application-product-checkpoint:
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[nuclei-application-product-checkpoint]')
+    name: Genuine Nuclei application comparison / six fresh targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact application source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Execute six fresh comparative Nuclei application cases
+        timeout-minutes: 20
+        env:
+          FUZZY1337_EXTERNAL_NUCLEI_BENCHMARK: juice-shop
+        run: >-
+          uv run --locked --extra dev pytest tests/functional/test_external_nuclei_benchmark.py
+          -o addopts='' --no-cov -n0 -v --timeout=900 --timeout-method=signal
+          --junitxml=functional-evidence/nuclei-comparison.xml
+      - name: Require six original Nuclei application observations
+        timeout-minutes: 1
+        env:
+          NUCLEI_COMPARISON_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          source_identity="$(git rev-parse HEAD HEAD^{tree})"
+          uv run --locked --extra dev python -m tests.functional.external_nuclei_comparison_gate \
+            --head "$NUCLEI_COMPARISON_SOURCE_HEAD" --identity "$source_identity"
+      - name: Preserve original six-case application evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nuclei-application-product-original-evidence
+          path: |
+            functional-evidence/external-nuclei-prerequisites/
+            functional-evidence/nuclei-comparison.xml
+          if-no-files-found: error
+          retention-days: 14
+
   nuclei-contract-windows-checkpoint:
     if: >-
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
@@ -615,7 +664,7 @@ jobs:
       && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]'))
     name: Pinned external target regression
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 61
     env:
       FUZZY1337_EXTERNAL_TARGETS: juice-shop
       FUZZY1337_EXTERNAL_NATIVE_BENCHMARK: juice-shop
@@ -830,6 +879,28 @@ jobs:
 
           print('One installed-image Nuclei prerequisite passed; no target, case or governed-HOME credit')
           PY
+      - name: Execute six fresh comparative Nuclei application cases
+        if: >-
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
+        timeout-minutes: 20
+        env:
+          FUZZY1337_EXTERNAL_NUCLEI_BENCHMARK: juice-shop
+        run: >-
+          uv run --locked --extra dev pytest tests/functional/test_external_nuclei_benchmark.py
+          -o addopts='' --no-cov -n0 -v --timeout=900 --timeout-method=signal
+          --junitxml=functional-evidence/nuclei-comparison.xml
+      - name: Require six original Nuclei application observations
+        if: >-
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
+        timeout-minutes: 1
+        env:
+          NUCLEI_COMPARISON_SOURCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          source_identity="$(git rev-parse HEAD HEAD^{tree})"
+          uv run --locked --extra dev python -m tests.functional.external_nuclei_comparison_gate \
+            --head "$NUCLEI_COMPARISON_SOURCE_HEAD" --identity "$source_identity"
       - name: Preserve external target evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -840,5 +911,6 @@ jobs:
             functional-evidence/external-native-benchmark/
             functional-evidence/external-nuclei-prerequisites/
             functional-evidence/nuclei-prerequisites.xml
+            functional-evidence/nuclei-comparison.xml
           if-no-files-found: error
           retention-days: 14

@@ -84,6 +84,7 @@ OWNED_TRAVERSAL_RATE_CONDITION = (
 )
 NUCLEI_CONTRACT_WINDOWS_JOB = "nuclei-contract-windows-checkpoint"
 NUCLEI_GOVERNED_PREREQUISITE_JOB = "nuclei-governed-prerequisite-checkpoint"
+NUCLEI_APPLICATION_PRODUCT_JOB = "nuclei-application-product-checkpoint"
 
 
 def Workflow(name: str) -> dict[str, Any]:
@@ -126,7 +127,7 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     if name == "python-quality.yml":
         expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {
             OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB,
-            NUCLEI_GOVERNED_PREREQUISITE_JOB}
+            NUCLEI_GOVERNED_PREREQUISITE_JOB, NUCLEI_APPLICATION_PRODUCT_JOB}
 
     assert set(jobs) == expected, "The integration job inventory changed unexpectedly."
     assert workflow["permissions"] == {"contents": "read"}, "PR authority expanded."
@@ -1056,13 +1057,15 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
     assert " ".join(job["if"].split()) == EXTERNAL_NATIVE_FEATURE_CONDITION, (
         "Only the original final/native admission and explicit prerequisite mode may run."
     )
-    assert job["timeout-minutes"] == 40 and job["runs-on"] == "ubuntu-24.04" and (
+    assert job["timeout-minutes"] == 61 and job["runs-on"] == "ubuntu-24.04" and (
         job["env"] == {"FUZZY1337_EXTERNAL_TARGETS": "juice-shop",
             "FUZZY1337_EXTERNAL_NATIVE_BENCHMARK": "juice-shop"}
         and "strategy" not in job and not job.get("continue-on-error", False)
-    ), "Final external acceptance must budget both native and installed prerequisite steps."
+    ), "Final external acceptance must retain prior windows plus the bounded new six-case step."
     steps = {step["name"]: step for step in job["steps"]}
-    assert len(steps) == len(job["steps"]) == 10, "Only two prerequisite steps may be added."
+    assert len(steps) == len(job["steps"]) == 12, (
+        "The prior ten steps must remain alongside the two final comparative steps."
+    )
     checkout = steps["Check out source"]
     assert checkout["with"] == {"persist-credentials": False,
         "ref": ("${{ github.event_name == 'pull_request' "
@@ -1118,7 +1121,8 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
         "name": "external-juice-shop", "path": "functional-evidence/external-juice-shop/\n"
             "functional-evidence/external-native-benchmark/\n"
             "functional-evidence/external-nuclei-prerequisites/\n"
-            "functional-evidence/nuclei-prerequisites.xml\n",
+            "functional-evidence/nuclei-prerequisites.xml\n"
+            "functional-evidence/nuclei-comparison.xml\n",
         "if-no-files-found": "error", "retention-days": 14,
     }, "The existing always upload must retain both old evidence paths and new originals."
 

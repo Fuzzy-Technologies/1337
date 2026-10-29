@@ -187,7 +187,7 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
         })
         summary = asyncio.run(RunNucleiScan(workspace, "local", target, owner, profile,
             str(executable), Policy, limits=limits, confirmation=confirmation))
-        outcome["exit_code"] = summary.ExitCode()
+        outcome["product_exit_code"] = summary.ExitCode()
         WriteJson(root / "summary.json", summary.ToDict())
         WriteJson(root / "events.json", json.loads(SerializeContract(summary.events)))
         records = tuple(artifact.evidence for artifact in summary.snapshot.artifacts)
@@ -273,6 +273,7 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
         WriteJson(root / "saved-finding-references.json", saved_references)
         execution = records[0].provenance.execution
         outcome["provider_duration_seconds"] = execution.duration_seconds if execution else None
+        outcome["exit_code"] = execution.exit_code if execution else None
         successful = summary.snapshot.state is JobState.COMPLETED and summary.ExitCode() == 0
 
         if successful and (execution is None or execution.state is not ExecutionState.SUCCEEDED

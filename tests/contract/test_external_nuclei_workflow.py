@@ -152,3 +152,93 @@ def test_GovernedWorkflowGateRequiresExactExecutedOriginals(tmp_path, mutation):
     assert (result.returncode == 0) is (mutation is None), (
         "Only one exact executed no-HOME prerequisite with complete source/cleanup may pass"
     )
+
+
+def test_ComparisonFinalReadyEnrollmentPreservesSeparateOriginalCohorts():
+    """Six new application cases stay separate from the prior native and target-free commands."""
+
+    proposed = os.environ.get("FUZZY1337_NUCLEI_COMPARISON_WORKFLOW_PROPOSAL") == "1"
+    path = REPOSITORY / ("_build/nuclei-comparison/proposed.yml" if proposed else
+                         ".github/workflows/python-quality.yml")
+    workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+    job = workflow["jobs"]["external-targets"]
+    steps = {step["name"]: step for step in job["steps"]}
+    selected = steps["Execute six fresh comparative Nuclei application cases"]
+    gate = steps["Require six original Nuclei application observations"]
+    condition = ("github.event_name == 'push' || (github.event_name == 'pull_request' "
+                 "&& github.event.pull_request.draft == false)")
+    assert all(" ".join(step["if"].split()) == condition for step in (selected, gate)), (
+        "The six invocations require final readiness; draft prerequisite proof stays separate"
+    )
+    assert selected["timeout-minutes"] == 20 and job["timeout-minutes"] == 61 and (
+        gate["timeout-minutes"] == 1
+    ), "The new bounded application step must preserve the prior cohort's wall budget"
+    assert shlex.split(selected["run"]) == ["uv", "run", "--locked", "--extra", "dev", "pytest",
+        "tests/functional/test_external_nuclei_benchmark.py", "-o", "addopts=", "--no-cov", "-n0",
+        "-v", "--timeout=900", "--timeout-method=signal",
+        "--junitxml=functional-evidence/nuclei-comparison.xml",
+    ] and selected["env"] == {"FUZZY1337_EXTERNAL_NUCLEI_BENCHMARK": "juice-shop"}, (
+        "Only the unchanged target's six serial track/case slots may execute in this new step"
+    )
+    assert "tests.functional.external_nuclei_comparison_gate" in gate["run"] and (
+        gate["env"] == {"NUCLEI_COMPARISON_SOURCE_HEAD": "${{ github.event_name == 'pull_request' "
+            "&& github.event.pull_request.head.sha || github.sha }}"}
+        and gate["run"].startswith('source_identity="$(git rev-parse HEAD HEAD^{tree})"\n')
+    ), "Read-only original acceptance must bind the actual current workflow source and tree"
+    assert "tests/functional/test_external_native_benchmark.py" in steps[
+        "Execute installed native scanner against three fresh pinned targets"]["run"] and (
+        "tests/functional/test_external_nuclei_prerequisites.py" in steps[
+            "Execute one target-free installed Nuclei prerequisite"]["run"]
+    ), "The three native cases and original target-free prerequisite remain separately selected"
+    upload = steps["Preserve external target evidence"]
+    assert upload["if"] == "always()" and "functional-evidence/nuclei-comparison.xml\n" in (
+        upload["with"]["path"]
+    ), "Successful and failed new cases must retain original JUnit and host/image evidence"
+
+
+def test_ApplicationCheckpointEnrollsOnlySixCasesAndTheSameOriginalGate():
+    """One explicit draft job exercises product cases without enrolling older proof cohorts."""
+
+    workflow = yaml.safe_load((REPOSITORY / ".github/workflows/python-quality.yml").read_text())
+    jobs = workflow["jobs"]
+    name = "nuclei-application-product-checkpoint"
+    marker = "[nuclei-application-product-checkpoint]"
+    job = jobs[name]
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ) and all(marker not in str(value) for key, value in jobs.items() if key != name), (
+        "The exact draft marker must not launch any legacy target, prerequisite or full-gate job"
+    )
+    assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "steps"} and (
+        job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 25
+    ), "One finite Linux job must leave setup, evidence verification and cleanup time"
+    steps = job["steps"]
+    reference = jobs["external-targets"]["steps"]
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "The checkpoint requires one six-case selection, its original gate and always evidence"
+    )
+    assert steps[0]["uses"] == reference[0]["uses"] and steps[0]["with"] == {
+        "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False,
+        "fetch-depth": 0,
+    } and steps[1:4] == reference[1:4], (
+        "Exact current source ancestry, pinned Python/uv and locked provisioning must be reused"
+    )
+    final = {step["name"]: step for step in reference}
+    assert steps[4] == {key: value for key, value in final[
+        "Execute six fresh comparative Nuclei application cases"].items() if key != "if"}, (
+        "Draft diagnosis must execute the same six ordinary installed product cases as final CI"
+    )
+    gate = steps[5]
+    final_gate = final["Require six original Nuclei application observations"]
+    assert gate["run"] == final_gate["run"] and gate["timeout-minutes"] == 1 and (
+        gate["env"] == {"NUCLEI_COMPARISON_SOURCE_HEAD": (
+            "${{ github.event.pull_request.head.sha }}")}
+        and "if" not in gate
+    ), "The same read-only six-original gate must bind this actual exact draft head and tree"
+    assert steps[6]["if"] == "always()" and steps[6]["uses"] == reference[-1]["uses"] and (
+        steps[6]["with"] == {"name": "nuclei-application-product-original-evidence",
+            "path": "functional-evidence/external-nuclei-prerequisites/\n"
+                    "functional-evidence/nuclei-comparison.xml\n",
+            "if-no-files-found": "error", "retention-days": 14}
+    ), "Original host/image/target/provider bytes and six-case JUnit must survive failures"

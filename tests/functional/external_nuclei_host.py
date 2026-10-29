@@ -926,7 +926,8 @@ class PrerequisiteHost:
 
     Construction performs no discovery. Run creates a private repository evidence
     run and retains original command streams/inspect/bundle artifacts. No target,
-    application case or governed-provider environment is configured here.
+    application target is configured here. The explicit no-HOME option selects a separate
+    target-free governed-environment prerequisite.
     """
 
     def __init__(self, *, governed_no_home: bool = False):
@@ -1129,15 +1130,8 @@ class PrerequisiteHost:
         ):
             raise ValueError("Nuclei cleanup cannot establish exact owned container identity")
 
-    async def Close(self) -> None:
-        """Unconditionally reconcile and remove only proven owned IDs/tags, retaining failures.
-
-        Raises:
-            BaseExceptionGroup: Cleanup/backend state is unknown or an owned resource survives.
-
-        CLI descendant cleanup never substitutes for these daemon readbacks.
-        A failed ambiguous create remains failed even if its owned ID is recovered.
-        """
+    async def CloseContainer(self) -> None:
+        """Reconcile one known-owned container through stopped/removal/absence readbacks."""
 
         failures = []
 
@@ -1185,10 +1179,33 @@ class PrerequisiteHost:
                 raise ValueError("Nuclei owned container remains after removal")
 
             self.receipt["cleanup"].append({"container_absent": True})
+            self.container = None
+            self.created = False
 
         except BaseException as error:
             failures.append(error)
             self.receipt["cleanup"].append({"container_error": type(error).__name__})
+
+        if failures:
+            raise BaseExceptionGroup("Nuclei owned container cleanup unconfirmed", failures)
+
+    async def Close(self) -> None:
+        """Unconditionally reconcile and remove only proven owned IDs/tags, retaining failures.
+
+        Raises:
+            BaseExceptionGroup: Cleanup/backend state is unknown or an owned resource survives.
+
+        CLI descendant cleanup never substitutes for these daemon readbacks.
+        A failed ambiguous create remains failed even if its owned ID is recovered.
+        """
+
+        failures = []
+
+        try:
+            await self.CloseContainer()
+
+        except BaseException as error:
+            failures.append(error)
 
         for tag in reversed(self.tags):
             try:
@@ -1305,6 +1322,58 @@ class PrerequisiteHost:
 
         return source, runner, image
 
+    async def RunPrepared(self, source: dict, runner: dict, image: dict, output: Path) -> None:
+        """Attach and bind one prepared target-free container, leaving its cleanup to the owner."""
+
+        arguments = PrerequisiteArguments(self.name, runner["Id"],
+                                          governed_no_home=self.governed_no_home)
+        create = (*arguments[1:-2], "--label", OWNER_LABEL + "=" + self.owner,
+                  *arguments[-2:])
+        self.created = True
+        _, raw = await self.Command("create", create, seconds=20)
+        identifier = raw.decode("ascii").strip()
+
+        if re.fullmatch("[a-f0-9]{64}", identifier) is None:
+            raise ValueError("Nuclei create did not return one exact container ID")
+
+        self.container = identifier
+        before = await self.Inspect("container", identifier, "container-before")
+        self.OwnedContainer(before, identifier)
+        projection = ContainerProjection(before)
+        AdmitContainer(projection, image, self.owner, self.revision,
+                       governed_no_home=self.governed_no_home)
+        _, original = await self.Command("attach", (
+            "container", "start", "--attach", identifier),
+            seconds=40, limit=12 * 1024 * 1024, stderr=65536)
+        after = await self.Inspect("container", identifier, "container-after")
+        self.OwnedContainer(after, identifier)
+        final = ContainerProjection(after)
+
+        if Canonical({key: value for key, value in final.items()
+                      if key not in ("state", "restart_count")}) != Canonical({
+            key: value for key, value in projection.items()
+            if key not in ("state", "restart_count")
+        }):
+            raise ValueError("Nuclei container configuration changed after attachment")
+
+        AdmitTermination(after["State"], after["RestartCount"])
+
+        if self.governed_no_home:
+            BindBundle(original, output, source, self.revision,
+                       governed_no_home=True)
+
+        else:
+            BindBundle(original, output, source, self.revision)
+
+        self.receipt.update(status="completed-governed-prerequisites" if (
+            self.governed_no_home) else "completed-prerequisites",
+                            source_revision=self.revision, source_tree=self.tree,
+                            image_id=runner["Id"],
+                            container_id=identifier)
+
+        if self.governed_no_home:
+            self.receipt["governed_no_home_compatibility"] = "established"
+
     async def Run(self) -> dict:
         """Build/inspect the committed image and attach one offline prerequisite invocation.
 
@@ -1322,52 +1391,7 @@ class PrerequisiteHost:
 
         try:
             source, runner, image = await self.Prepare()
-            arguments = PrerequisiteArguments(self.name, runner["Id"],
-                                              governed_no_home=self.governed_no_home)
-            create = (*arguments[1:-2], "--label", OWNER_LABEL + "=" + self.owner,
-                      *arguments[-2:])
-            self.created = True
-            _, raw = await self.Command("create", create, seconds=20)
-            identifier = raw.decode("ascii").strip()
-
-            if re.fullmatch("[a-f0-9]{64}", identifier) is None:
-                raise ValueError("Nuclei create did not return one exact container ID")
-
-            self.container = identifier
-            before = await self.Inspect("container", identifier, "container-before")
-            self.OwnedContainer(before, identifier)
-            projection = ContainerProjection(before)
-            AdmitContainer(projection, image, self.owner, self.revision,
-                           governed_no_home=self.governed_no_home)
-            _, original = await self.Command("attach", (
-                "container", "start", "--attach", identifier),
-                seconds=40, limit=12 * 1024 * 1024, stderr=65536)
-            after = await self.Inspect("container", identifier, "container-after")
-            self.OwnedContainer(after, identifier)
-            final = ContainerProjection(after)
-
-            if Canonical({key: value for key, value in final.items()
-                          if key not in ("state", "restart_count")}) != Canonical({
-                key: value for key, value in projection.items()
-                if key not in ("state", "restart_count")
-            }):
-                raise ValueError("Nuclei container configuration changed after attachment")
-
-            AdmitTermination(after["State"], after["RestartCount"])
-            if self.governed_no_home:
-                BindBundle(original, self.root / "imported", source, self.revision,
-                           governed_no_home=True)
-
-            else:
-                BindBundle(original, self.root / "imported", source, self.revision)
-            self.receipt.update(status="completed-governed-prerequisites" if (
-                self.governed_no_home) else "completed-prerequisites",
-                                source_revision=self.revision, source_tree=self.tree,
-                                image_id=runner["Id"],
-                                container_id=identifier)
-
-            if self.governed_no_home:
-                self.receipt["governed_no_home_compatibility"] = "established"
+            await self.RunPrepared(source, runner, image, self.root / "imported")
 
         except BaseException as error:
             primary = error
