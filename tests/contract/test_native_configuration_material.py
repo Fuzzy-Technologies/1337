@@ -1005,6 +1005,9 @@ def test_SimulatedWorkingDeadlineStopsBeforeCleanupReserve(simulated_observer, m
 
     observer, controls = simulated_observer
     controls["mode"] = "cancel"
+    observed_base = material.monotonic()
+    monkeypatch.setattr(material, "monotonic", lambda: observed_base)
+    monkeypatch.setattr(budget_module, "monotonic", lambda: observed_base)
     budget = NativeImageObservationBudget()
     original = budget.BeginObservation
 
@@ -1025,6 +1028,9 @@ def test_SimulatedWorkingDeadlineStopsBeforeCleanupReserve(simulated_observer, m
 
     assert budget.Failed and observer._terminal and not observer._proofs, (
         "Working deadline must stop the helper while preserving terminal cleanup ownership")
+    assert len(controls["calls"]) == 1 and budget.ObservationCount == 1 and (
+        not controls["calls"][0][1].exists() and not observer._private
+    ), "Watchdog cancellation must settle one admitted helper and clean its exact private control"
 
 
 def test_SimulatedResultAndCleanupTimeRemainChargedToSameWindow(simulated_observer, monkeypatch):
