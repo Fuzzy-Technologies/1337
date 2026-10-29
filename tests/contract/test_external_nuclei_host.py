@@ -396,3 +396,31 @@ def test_TerminationRequiresOriginalZeroIntegerRestartCount(restart_count):
 
     with pytest.raises(ValueError, match="terminate successfully"):
         host.AdmitTermination(Termination(), restart_count)
+
+
+@pytest.mark.parametrize("started,finished,accepted", [
+    ("00:00:00.000000002Z", "00:00:00.000000001Z", False),
+    ("00:00:00.000000001Z", "00:00:00.000000001Z", True),
+    ("00:00:00.000000001Z", "00:00:00.000000002Z", True),
+    ("00:00:00.123456789Z", "00:00:00.123456788Z", False),
+    ("00:00:00.123456Z", "00:00:00.123456001Z", True),
+    ("00:00:00.1Z", "00:00:00.100000000Z", True),
+    ("00:00:00.999999999Z", "00:00:01Z", True),
+    ("01:00:00.000000001+01:00", "00:00:00.000000002Z", True),
+    ("01:00:00.000000002+01:00", "00:00:00.000000001Z", False),
+    ("00:00:00.0000000001Z", "00:00:01Z", False),
+], ids=["reversed-nanos", "equal-nanos", "ordered-nanos", "reversed-submicro",
+    "six-to-nine", "equal-padding", "second-boundary", "ordered-offset",
+    "reversed-offset", "unsupported-precision"])
+def test_TerminationComparesOriginalNanosecondsWithoutTruncation(started, finished, accepted):
+    """Synthetic Docker times preserve exact fractional order without claiming a real run."""
+
+    state = Termination()
+    state.update(StartedAt="2026-10-29T" + started, FinishedAt="2026-10-29T" + finished)
+
+    if accepted:
+        host.AdmitTermination(state, 0)
+
+    else:
+        with pytest.raises(ValueError, match="ordered aware timestamps"):
+            host.AdmitTermination(state, 0)

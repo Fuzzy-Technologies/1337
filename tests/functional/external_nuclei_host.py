@@ -325,6 +325,9 @@ def AdmitContainer(value: dict, image: dict, owner: str, revision: str) -> None:
 def AdmitTermination(state: dict, restart_count: int) -> None:
     """Require actual successful stopped state before accepting a prerequisite bundle.
 
+    Original RFC3339 fractions through nine digits remain integer nanoseconds;
+    aware whole seconds handle offsets without floating-point or microsecond loss.
+
     Args:
         state: Original post-exit Docker State object, independently read before removal.
         restart_count: Original Docker restart count; no restarted run receives acceptance.
@@ -342,8 +345,24 @@ def AdmitTermination(state: dict, restart_count: int) -> None:
     ):
         raise ValueError("Nuclei prerequisite container did not terminate successfully")
 
-    started = datetime.fromisoformat(state["StartedAt"].replace("Z", "+00:00"))
-    finished = datetime.fromisoformat(state["FinishedAt"].replace("Z", "+00:00"))
+    moments: list[tuple[datetime, int]] = []
 
-    if started.tzinfo is None or finished.tzinfo is None or started.year == 1 or finished < started:
+    for field in ("StartedAt", "FinishedAt"):
+        match = re.fullmatch(
+            r"([0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2})"
+            r"(?:\.([0-9]{1,9}))?(Z|[+-][0-9]{2}:[0-9]{2})", state[field])
+
+        if match is None:
+            raise ValueError("Nuclei container termination requires actual "
+                             "ordered aware timestamps")
+
+        whole = datetime.fromisoformat(match[1] + match[3].replace("Z", "+00:00"))
+
+        if whole.tzinfo is None or (field == "StartedAt" and whole.year == 1):
+            raise ValueError("Nuclei container termination requires actual "
+                             "ordered aware timestamps")
+
+        moments.append((whole, int((match[2] or "").ljust(9, "0"))))
+
+    if moments[1] < moments[0]:
         raise ValueError("Nuclei container termination requires actual ordered aware timestamps")
