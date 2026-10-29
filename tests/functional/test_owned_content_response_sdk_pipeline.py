@@ -204,3 +204,28 @@ def test_InstalledFreshPostModelAckExpiryContentHeaderPipelinePreservesPartialSt
         and result["expected_findings"] == 1 and result["identities"]["condition_observed"] is True
         and result["identities"]["finding_reference"]
     ), "Only original partial persistence and exclusive expiry can satisfy this finite fixture"
+
+
+def test_InstalledMissingHeaderContentWorkerIpv6RetainsOriginalsAndSettledOwners(
+    installed_content_header_pipeline: tuple, tmp_path: object,
+) -> None:
+    """Verify only one installed IPv6 worker exchange, without SDK or Finding acceptance.
+
+    Args:
+        installed_content_header_pipeline: Unchanged clean installed fixture and original owner.
+        tmp_path: Explicit new test-owned Path for original worker/source observations.
+    """
+
+    from tests.contract.owned_content_response_worker_launcher import Run as RunWorker
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence", retained / "ipv6-worker-missing")
+    evidence.Json("worker-selection.json", {"schema_version": 1, "worker_case": "missing",
+        "address": "::1", "credit": "installed-worker-only", "source_commit": installed.commit,
+        "source_tree": installed.tree, "python": str(installed.python)})
+    result = RunWorker(installed, name="missing", address="::1", evidence=evidence, enabled=True)
+    evidence.Json("worker-result.json", {"schema_version": 1, "credit": "installed-worker-only",
+        "state": "checked-ipv6-worker-original", "result": result})
+    assert result["worker_case"] == "missing" and result["address"] == "::1" and (
+        result["source_delivery"] == "normal-eof"
+    ), "Only the selected IPv6 worker and completely settled original source may satisfy this case"
