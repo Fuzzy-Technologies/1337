@@ -1,24 +1,27 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Bound committed-context custody and pure offline Docker admission for the lab.
+"""Bound committed-context custody and offline Docker prerequisite ownership for the lab.
 
-This first host slice starts no process and implements no build/container owner.
-The later owner must record actual Git/Docker outputs, retain complete inspect
-records, own termination/cleanup, and verify the original prerequisite bundle.
+Commands run only through explicit host-owner calls. CLI descendant cleanup does
+not prove Docker daemon/container termination; those require separate readback.
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
 import stat
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
-from .external_native_runner import SafePath, StrictJson
+from fuzzy1337.executors.owned_process import StartOwnedExecution
+
+from .external_native_runner import SafePath, StrictJson, WriteJson
 
 REPOSITORY = Path(__file__).absolute().parents[2]
 CONTEXT_FILES = 2048
@@ -366,3 +369,198 @@ def AdmitTermination(state: dict, restart_count: int) -> None:
 
     if moments[1] < moments[0]:
         raise ValueError("Nuclei container termination requires actual ordered aware timestamps")
+
+
+async def CaptureCommand(directory: Path, argv: tuple[str, ...], cwd: Path,
+                         environment: dict[str, str], seconds: int,
+                         stdout_bytes: int, stderr_bytes: int) -> dict:
+    """Reuse Linux owned descendants with one finite binary command capture/deadline.
+
+    Args:
+        directory: New private command directory beneath the owned repository evidence run.
+        argv: Internally authorized noninteractive Git or fixed-local Docker arguments.
+        cwd: Existing owning repository/context directory; never a caller home path.
+        environment: Explicit newly owned HOME/fixed PATH and declared Git isolation values.
+        seconds: Whole command deadline, including supervisor startup, at most300 seconds.
+        stdout_bytes: Original stdout budget, at most16MiB; one overflow witness is retained.
+        stderr_bytes: Original stderr budget, at most16MiB; one overflow witness is retained.
+
+    Returns:
+        Actual worker exit, separate capture/deadline flags and verified private cleanup receipt.
+
+    Raises:
+        ValueError: Linux/path/budgets refuse, or an original capture exceeds its finite ceiling.
+        OSError: Private evidence or the owned process cannot be accessed.
+        Exception: Original launch/capture/cleanup failures propagate after evidence retention.
+        BaseException: Cancellation propagates after shielded bounded owned cleanup.
+
+    All original bytes remain separate files. Failure cleanup never replaces the
+    primary exception. A confirmed CLI cleanup receipt says nothing about backend
+    build work or a container: the host lifecycle must inspect those independently.
+    """
+
+    prefix = REPOSITORY / "functional-evidence/external-nuclei-prerequisites"
+
+    if sys.platform != "linux" or not directory.is_absolute() or (
+        not directory.is_relative_to(prefix) or not cwd.is_relative_to(REPOSITORY)
+        or any(type(limit) is not int or not 0 < limit <= 16 * 1024 * 1024
+               for limit in (stdout_bytes, stderr_bytes))
+        or type(seconds) is not int or not 0 < seconds <= 300
+    ):
+        raise ValueError("Nuclei host commands require Linux owned paths and finite budgets")
+
+    for path in (directory.parent, cwd):
+        for component in (*reversed(path.parents), path):
+            if component.is_relative_to(REPOSITORY) and component.is_symlink():
+                raise ValueError("Nuclei host command paths cannot traverse symbolic aliases")
+
+    directory.mkdir(mode=0o700)
+    started = time.monotonic()
+    result = {"argv": list(argv), "cwd": str(cwd), "environment": environment,
+        "timeout_seconds": seconds, "stdout_limit_bytes": stdout_bytes,
+        "stderr_limit_bytes": stderr_bytes, "exit_code": None, "timed_out": False,
+        "capture_exhausted": None, "launch_error": None, "capture_error": None,
+        "cleanup_error": None, "interrupted": None, "streams_complete": False,
+        "cleanup_receipt": None, "cleanup_confirmed": False}
+    owned = None
+    tasks = []
+    joined = None
+    primary = None
+
+    with (directory / "stdout.raw").open("xb") as stdout, (
+        directory / "stderr.raw"
+    ).open("xb") as stderr:
+        async def Pump(reader, output, limit, role):
+            """Retain finite original stream bytes plus one explicit overflow witness.
+
+            Args:
+                reader: Binary stream owned by the existing Linux supervisor.
+                output: Newly created original-byte evidence file.
+                limit: Declared retained-byte ceiling before overflow refusal.
+                role: Fixed stdout/stderr role for machine-readable refusal attribution.
+
+            Raises:
+                ValueError: The role exceeds its finite byte budget.
+                OSError: Original evidence cannot be written or read.
+            """
+
+            count = 0
+
+            while raw := await reader.read(min(65536, limit - count + 1)):
+                output.write(raw)
+                count += len(raw)
+
+                if count > limit:
+                    result["capture_exhausted"] = role
+
+                    raise ValueError("Nuclei host " + role + " original capture exhausted")
+
+        try:
+            owned = await asyncio.wait_for(StartOwnedExecution(argv, cwd, environment, environment),
+                                            timeout=seconds)
+            process = owned.process
+            tasks = [asyncio.create_task(Pump(process.stdout, stdout, stdout_bytes, "stdout")),
+                     asyncio.create_task(Pump(process.stderr, stderr, stderr_bytes, "stderr")),
+                     asyncio.create_task(owned.Wait())]
+            joined = asyncio.gather(*tasks)
+
+            await asyncio.wait_for(asyncio.shield(joined),
+                                   timeout=max(0.0, seconds - (time.monotonic() - started)))
+            result["streams_complete"] = True
+
+        except BaseException as error:
+            primary = error
+
+            if isinstance(error, TimeoutError):
+                result["timed_out"] = True
+
+            elif isinstance(error, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                result["interrupted"] = type(error).__name__
+
+            else:
+                result["launch_error" if owned is None else "capture_error"] = type(error).__name__
+
+        finally:
+            if owned is not None:
+                async def Cleanup():
+                    """Stop the existing supervisor, join bounded streams and verify its receipt.
+
+                    Raises:
+                        Exception: Supervisor exit or descendant cleanup remains unconfirmed.
+                    """
+
+                    if owned.process.returncode is None:
+                        owned.process.terminate()
+
+                    await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True),
+                                           timeout=5)
+
+                    if not owned.verified:
+                        owned.Verify()
+
+                cleanup = asyncio.create_task(Cleanup())
+
+                try:
+                    while not cleanup.done():
+                        try:
+                            await asyncio.shield(cleanup)
+
+                        except asyncio.CancelledError as error:
+                            if primary is None:
+                                primary = error
+                                result["interrupted"] = type(error).__name__
+
+                    cleanup.result()
+                    result["cleanup_confirmed"] = True
+
+                except Exception as error:
+                    result["cleanup_error"] = type(error).__name__
+
+                    try:
+                        if owned.process.returncode is None:
+                            owned.process.kill()
+                            await asyncio.wait_for(owned.process.wait(), timeout=3)
+
+                    except Exception as forced_error:
+                        error.add_note("Forced supervisor exit unconfirmed: "
+                                       + type(forced_error).__name__)
+
+                    if primary is None:
+                        primary = error
+
+                    else:
+                        primary.add_note("Host command cleanup unconfirmed: "
+                                         + type(error).__name__)
+
+                finally:
+                    for task in tasks:
+                        if not task.done():
+                            task.cancel()
+
+                    await asyncio.gather(*tasks, return_exceptions=True)
+
+                    if joined is not None:
+                        await asyncio.gather(joined, return_exceptions=True)
+
+                    result["exit_code"] = owned.worker_returncode
+                    result["cleanup_receipt"] = owned.receipt
+                    owned.Close()
+
+            result["duration_seconds"] = time.monotonic() - started
+
+            try:
+                stdout.flush()
+                stderr.flush()
+                WriteJson(directory / "command.json", result)
+
+            except OSError as error:
+                if primary is None:
+                    primary = error
+
+                else:
+                    primary.add_note("Original host evidence write failed: " + type(error).__name__)
+
+    if primary is not None:
+        raise primary
+
+    return result

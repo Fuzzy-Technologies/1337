@@ -424,3 +424,173 @@ def test_TerminationComparesOriginalNanosecondsWithoutTruncation(started, finish
     else:
         with pytest.raises(ValueError, match="ordered aware timestamps"):
             host.AdmitTermination(state, 0)
+
+
+class InertExecution:
+    """Mimic only the existing process-owner protocol, with no child or daemon.
+
+    Args:
+        stdout: Original synthetic binary stdout.
+        stderr: Original synthetic binary stderr.
+        code: Labeled worker status.
+        blocked: Wait for termination instead of immediate completion.
+        refuse: Refuse private cleanup verification.
+    """
+
+    def __init__(self, stdout=b"\xfforiginal\x00", stderr=b"", code=0, blocked=False, refuse=False):
+        """Initialize finite stream readers and a synthetic termination event."""
+
+        self.process = self
+        self.stdout = asyncio.StreamReader()
+        self.stderr = asyncio.StreamReader()
+        self.stdout.feed_data(stdout)
+        self.stderr.feed_data(stderr)
+        self.stdout.feed_eof()
+        self.stderr.feed_eof()
+        self.returncode = None
+        self.worker_returncode = None
+        self.verified = False
+        self.receipt = None
+        self.closed = False
+        self.stopped = False
+        self.blocked = blocked
+        self.refuse = refuse
+        self.code = code
+        self.event = asyncio.Event()
+
+    async def wait(self):
+        """Return the synthetic status after any declared termination dependency."""
+
+        if self.blocked:
+            await self.event.wait()
+
+        self.returncode = self.code
+
+        return self.code
+
+    async def Wait(self):
+        """Simulate the reused owner's exit-and-private-receipt protocol."""
+
+        await self.wait()
+        self.Verify()
+
+        return self.worker_returncode
+
+    def Verify(self):
+        """Refuse or bind the explicitly labeled synthetic cleanup receipt."""
+
+        if self.refuse:
+            raise ValueError("inert cleanup refusal")
+
+        self.worker_returncode = self.code
+        self.verified = True
+        self.receipt = {"inert": True}
+
+    def terminate(self):
+        """Release a blocked fake worker without signaling any process."""
+
+        self.stopped = True
+        self.event.set()
+
+    def kill(self):
+        """Release the same synthetic event for forced-exit contracts."""
+
+        self.terminate()
+
+    def Close(self):
+        """Record protocol closure without operating on a descriptor."""
+
+        self.closed = True
+
+
+async def CaptureInert(tmp_path, monkeypatch, **options):
+    """Run bounded capture with a fake owner and synthetic repository only.
+
+    Args:
+        tmp_path: New pytest-owned directory.
+        monkeypatch: Scoped replacement of the process-owner handoff.
+        options: Fake-owner fields; optional stdout_limit selects a small byte cap.
+
+    Returns:
+        Original capture result, fake owner and command directory.
+    """
+
+    _, context, _ = OwnedContext(tmp_path, monkeypatch)
+    limit = options.pop("stdout_limit", 1024)
+    fake = InertExecution(**options)
+
+    async def Start(*arguments):
+        """Return the fake protocol object without creating a process."""
+
+        return fake
+
+    monkeypatch.setattr(host, "StartOwnedExecution", Start)
+    directory = context.parent / "command"
+    result = await host.CaptureCommand(directory, ("inert",), host.REPOSITORY,
+                                       {"HOME": "inert"}, 1, limit, 1024)
+
+    return result, fake, directory
+
+
+@LINUX_CONTEXT
+@pytest.mark.parametrize("code", [0, 7], ids=["zero", "nonzero"])
+def test_HostCommandOriginalBinaryAndWorkerStatus(tmp_path, monkeypatch, code):
+    """Keep binary originals and worker status without text decoding or success invention."""
+
+    result, fake, directory = asyncio.run(CaptureInert(tmp_path, monkeypatch, code=code))
+    assert (directory / "stdout.raw").read_bytes() == b"\xfforiginal\x00"
+    assert result["exit_code"] == code and result["streams_complete"] is True
+    assert result["cleanup_confirmed"] is True and fake.closed
+
+
+@LINUX_CONTEXT
+@pytest.mark.parametrize("role", ["stdout", "stderr"], ids=["stdout", "stderr"])
+def test_HostCommandOverflowKeepsOneWitnessAndStops(tmp_path, monkeypatch, role):
+    """The first over-budget byte is retained and overflow cannot become completed capture."""
+
+    with pytest.raises(ValueError, match="capture exhausted"):
+        asyncio.run(CaptureInert(tmp_path, monkeypatch, **{role: b"x" * 1025}))
+
+    directory = next(host.REPOSITORY.glob("functional-evidence/*/run-*/command"))
+    result = host.StrictJson((directory / "command.json").read_bytes())
+    assert len((directory / (role + ".raw")).read_bytes()) == 1025
+    assert result["capture_exhausted"] == role and result["streams_complete"] is False
+    assert result["cleanup_confirmed"] is True
+
+
+@LINUX_CONTEXT
+def test_HostCommandDeadlineSeparatesCleanupFromCompletion(tmp_path, monkeypatch):
+    """A terminated fake command retains its deadline refusal even after confirmed CLI cleanup."""
+
+    with pytest.raises(TimeoutError):
+        asyncio.run(CaptureInert(tmp_path, monkeypatch, blocked=True))
+
+    directory = next(host.REPOSITORY.glob("functional-evidence/*/run-*/command"))
+    result = host.StrictJson((directory / "command.json").read_bytes())
+    assert result["timed_out"] is True and result["cleanup_confirmed"] is True
+    assert result["streams_complete"] is False
+
+
+@LINUX_CONTEXT
+def test_HostCommandCleanupRefusalPreservesCaptureFailure(tmp_path, monkeypatch):
+    """The overflow remains primary while failed private cleanup is separately recorded."""
+
+    with pytest.raises(ValueError, match="capture exhausted") as failure:
+        asyncio.run(CaptureInert(tmp_path, monkeypatch, stdout=b"x" * 1025, refuse=True))
+
+    directory = next(host.REPOSITORY.glob("functional-evidence/*/run-*/command"))
+    result = host.StrictJson((directory / "command.json").read_bytes())
+    assert result["cleanup_confirmed"] is False and result["cleanup_error"] == "ValueError"
+    assert any("cleanup unconfirmed" in note for note in failure.value.__notes__)
+
+
+@pytest.mark.parametrize("platform", ["win32", "darwin"], ids=["windows", "macos"])
+def test_HostCommandUnsupportedBeforeWrites(tmp_path, monkeypatch, platform):
+    """Unsupported host ownership refuses before opening original capture files."""
+
+    monkeypatch.setattr(host.sys, "platform", platform)
+
+    with pytest.raises(ValueError, match="require Linux"):
+        asyncio.run(host.CaptureCommand(tmp_path / "unwritten", ("inert",), tmp_path, {}, 1, 1, 1))
+
+    assert list(tmp_path.iterdir()) == []
