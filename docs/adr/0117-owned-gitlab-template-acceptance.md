@@ -66,3 +66,59 @@ changes, verification or launch. No extra `HEAD` request is needed during each
 cohort. The 60-second acquisition allowance, single 1500-second cohort allowance,
 32-MiB API/trace/artifact cap and cleanup bounds remain unchanged. Deterministic
 inert controls cover missing/wrong headers, truncation, overrun and checksum drift.
+
+
+## Private bootstrap transport
+
+GitLab's Rails runner uses its `git` account, so it cannot read the host's
+owner-only runner-control directory. Keep that directory at mode 0700 and remove
+the whole-private read-only server bind mount and bootstrap credential/script
+files. Send the fixed bootstrap Ruby program only through private process input
+using `docker exec -i <owned-server> gitlab-rails runner -`. The generated token
+must match the existing twenty-character lowercase hexadecimal grammar before
+being encoded as one Ruby string literal. It never enters argv, environment,
+public output or an authentication-bearing host file. Command failures retain
+only the existing generic refusal, and public originals retain the existing
+credential screening.
+
+GitLab documents the non-root Rails runner and its file-access requirement in its
+[operations guide](https://gitlab.com/gitlab-org/gitlab/-/blob/7c942a985f91fcd2c3ad1004d54f98a3c6d6acf6/doc/administration/operations/rails_console.md).
+Rails documents `runner -` as its platform-independent standard-input interface
+in the [Rails 5.2 release notes](https://guides.rubyonrails.org/v6.1/5_2_release_notes.html#railties).
+This transport correction changes no scope, resource budget or bootstrap command
+allowance and makes no actual platform acceptance claim.
+
+
+On readiness failure, retain a fixed phase/category/elapsed-time record and
+request only the original server's exact ID/name plus Docker status, running
+flag, OOM flag, exit code and restart count. Validate identity and the finite
+safe field set before publishing unchanged selected metadata. Never acquire
+aggregate configuration/state, environment, health output, GitLab logs or an
+initial root password. Diagnosis uses the remaining existing cohort allowance;
+a failed diagnostic cannot manufacture readiness or replace the original
+failure, and owned cleanup still runs.
+
+
+## Container-local dependency readiness
+
+The host-published monitoring route timed out in an actual checkpoint. GitLab's
+[health-check documentation](https://docs.gitlab.com/administration/monitoring/health_check/)
+and [monitoring IP allowlist](https://docs.gitlab.com/administration/monitoring/ip_allowlist/)
+make a Docker bridge source address an unsuitable assumption for a localhost-only
+monitoring route. This is a source-based explanation, not evidence that the
+previous run observed HTTP 403; that run retained no status receipt.
+
+Probe `http://127.0.0.1/-/readiness?all=1` **inside the original server container**
+without widening the monitoring allowlist. The pinned package's own
+[health-check implementation](https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/fix-geo-ci-setup/config/software/gitlab-healthcheck.rb)
+uses `/opt/gitlab/embedded/bin/curl`; use that explicit vendor path. Bind the
+original server ID, existing explicit daemon and private Docker configuration.
+The private bootstrap and published-port observation bind that same created ID,
+so neither can resolve a replacement container through its mutable name.
+Disable curl configuration/proxies, follow no redirects, discard the body, and
+retain only its exact three-digit status. Require 200; only 000 transport startup,
+502 and 503 remain pending. Other statuses, missing curl and Docker execution
+failures are terminal. Admit a nonzero curl transport exit only for its exact
+reviewed invocation and an original `000` status; generic command failures remain
+refusals. Keep the existing 900-second boot and 1500-second cohort deadlines,
+five-second outer probe, four-second transfer and one-second connection limits.

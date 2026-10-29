@@ -17,6 +17,113 @@ ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = ROOT / "docs/examples/ci"
 
 
+def test_GitHubPlatformWorkflowIsAnExactReadOnlyManualTemplateCopy() -> None:
+    """Require the actual platform gate to execute exactly the public example."""
+
+    public = (TEMPLATES / "github-actions.yml").read_bytes()
+    actual = (ROOT / ".github/workflows/ci-onboarding-demo.yml").read_bytes()
+    assert actual == public, "The real GitHub workflow must preserve every public template byte"
+    template = yaml.safe_load(public)
+    events = template.get("on", template.get(True))
+    assert set(events) == {"workflow_dispatch"}, (
+        "The owned platform demonstration must not run automatically on pushes or pull requests"
+    )
+    assert template["permissions"] == {"contents": "read"}, (
+        "The public demonstration must not receive publication or repository write authority"
+    )
+    steps = template["jobs"]["local-demo"]["steps"]
+    verification, = [step for step in steps if step["name"] == (
+        "Verify owned container/image teardown")]
+    retention, = [step for step in steps if step["name"] == (
+        "Retain actual evidence and diagnostics")]
+    assert verification["if"] == retention["if"] == "always()", (
+        "Denied and failed runs must still verify teardown and retain available originals"
+    )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="The platform template uses the Linux Bash runner")
+@pytest.mark.parametrize("mode", ["empty", "container", "image", "query-error"])
+def test_GitHubTeardownReadbackRequiresActualAbsenceOfExactOwnedResources(
+    tmp_path: Path, mode: str,
+) -> None:
+    """Execute the copied verification shell against causal owned-resource observations."""
+
+    template = yaml.safe_load((TEMPLATES / "github-actions.yml").read_text())
+    step, = [step for step in template["jobs"]["local-demo"]["steps"] if step["name"] == (
+        "Verify owned container/image teardown")]
+    recorder = tmp_path / "docker"
+    recorder.write_text(
+        '#!/bin/bash\nset -eu\nprintf "%s\\n" "$*" >> "$CALLS"\n'
+        'if test "$MODE" = query-error; then exit 9; fi\n'
+        'if test "$MODE" = container && test "$1" = container; then '
+        'printf "%s\\n" 1337-demo-123-2; fi\n'
+        'if test "$MODE" = image && test "$1" = image; then printf "%s\\n" image-id; fi\n',
+        encoding="utf-8",
+    )
+    recorder.chmod(0o755)
+    environment = os.environ.copy()
+    environment.update({"PATH": str(tmp_path) + os.pathsep + environment["PATH"],
+        "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2", "MODE": mode,
+        "CALLS": str(tmp_path / "calls")})
+    result = subprocess.run(["bash", "-eu", "-c", step["run"]], cwd=tmp_path,
+        env=environment, capture_output=True, text=True, timeout=10, check=False)
+    assert (result.returncode == 0) is (mode == "empty"), (
+        "Teardown may pass only after successful Docker queries observe both owned resources absent"
+    )
+    calls = (tmp_path / "calls").read_text().splitlines()
+    assert calls[0] == "container ls --all --filter name=^/1337-demo-123-2$ --format {{.Names}}", (
+        "Container readback must select only the current run and attempt's exact owned name"
+    )
+
+    if mode != "query-error":
+        assert calls[1] == (
+            "image ls --filter reference=1337-local-demo:123-2 --format {{.ID}}"
+        ), "Image readback must select only the exact run and attempt's owned image tag"
+
+    proof = tmp_path / "artifacts/owned-teardown.json"
+    assert proof.exists() is (mode == "empty"), (
+        "Failed readback must not manufacture a successful owned-resource teardown receipt"
+    )
+
+    if mode == "empty":
+        assert json.loads(proof.read_bytes()) == {
+            "schema_version": 1, "owned_resources_removed": True,
+            "container": "1337-demo-123-2", "image": "1337-local-demo:123-2",
+        }, "Successful teardown must retain the exact original owned-resource selection"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="The platform template uses the Linux Bash runner")
+@pytest.mark.parametrize("status", [0, 3])
+def test_GitHubExecutionTrapPreservesOriginalApprovedOrDeniedStatus(
+    tmp_path: Path, status: int,
+) -> None:
+    """Prove cleanup cannot turn an original installed-command denial into workflow success."""
+
+    template = yaml.safe_load((TEMPLATES / "github-actions.yml").read_text())
+    step, = [step for step in template["jobs"]["local-demo"]["steps"] if step["name"] == (
+        "Build and run installed wheel in isolated container")]
+    recorder = tmp_path / "docker"
+    recorder.write_text(
+        '#!/bin/bash\nset -eu\nprintf "%s\\n" "$*" >> "$CALLS"\n'
+        'if test "$1" = run; then exit "$ORIGINAL_STATUS"; fi\n',
+        encoding="utf-8",
+    )
+    recorder.chmod(0o755)
+    environment = os.environ.copy()
+    environment.update({"PATH": str(tmp_path) + os.pathsep + environment["PATH"],
+        "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2", "PYTHON_IMAGE": "owned:base",
+        "F1337_APPROVED_LOCAL_DEMO": "1" if status == 0 else "0",
+        "ORIGINAL_STATUS": str(status), "CALLS": str(tmp_path / "calls")})
+    result = subprocess.run(["bash", "-eu", "-c", step["run"]], cwd=tmp_path,
+        env=environment, capture_output=True, text=True, timeout=10, check=False)
+    assert result.returncode == status, (
+        "The shell must preserve the original execution status, including expected denial three"
+    )
+    assert (tmp_path / "calls").read_text().splitlines()[-2:] == [
+        "rm --force --volumes 1337-demo-123-2", "image rm 1337-local-demo:123-2",
+    ], "Both original execution outcomes must attempt cleanup of only their known owned resources"
+
+
 @pytest.mark.skipif(os.name == "nt", reason="Templates target the documented Linux shell runners")
 @pytest.mark.parametrize("platform", ["github-actions", "gitlab-ci"])
 @pytest.mark.parametrize("approval", [None, "0", "1"])

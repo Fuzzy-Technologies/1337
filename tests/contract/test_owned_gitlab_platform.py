@@ -24,7 +24,7 @@ MODEL = json.dumps({"model": json.loads(CANONICAL_MODEL), "model_revision": 3,
 
 
 @pytest.fixture(autouse=True)
-def ForbidRuntime(monkeypatch):
+def forbid_runtime(monkeypatch):
     """Forbid every platform acquisition/launch in this deterministic contract cohort."""
 
     def Forbidden(*arguments, **options):
@@ -32,11 +32,14 @@ def ForbidRuntime(monkeypatch):
 
         raise AssertionError("Inert GitLab contracts cannot launch processes or contact services")
 
+    command = platform.Command
     monkeypatch.setattr(platform, "Command", Forbidden)
     monkeypatch.setattr(platform.urllib.request, "urlopen", Forbidden)
     monkeypatch.setattr(platform.urllib.request.OpenerDirector, "open", Forbidden)
     monkeypatch.setattr(platform.subprocess, "run", Forbidden)
     monkeypatch.setattr(platform.subprocess, "Popen", Forbidden)
+
+    return command
 
 
 def Artifacts(approved, *, fault=None):
@@ -651,83 +654,261 @@ def test_NetworkCleanupBindsFullOriginalIdentityAndObservedOwnership(tmp_path, m
             "A foreign, shortened, renamed or mismatched network must never be removed")
 
 
-@pytest.mark.parametrize("failure", [ConnectionResetError, ConnectionAbortedError,
-    ConnectionRefusedError, TimeoutError, platform.urllib.error.URLError])
-def test_OwnedStartupTransportFailureCanBecomeReadyWithinOriginalAllowance(monkeypatch, failure):
-    """Owned startup tolerates transport initialization without masking API failures."""
+@pytest.mark.parametrize("pending", [b"000", b"502", b"503"])
+def test_OwnedStartupTransportFailureCanBecomeReadyWithinOriginalAllowance(monkeypatch, pending):
+    """A fixed container-loopback probe can become ready after an observed pending status."""
 
     observed = []
     sleeps = []
+    identity = "a" * 64
 
-    def Read(request, limit, deadline):
-        """Reset the first inert startup response and then expose an original-shaped success."""
+    def Command(arguments, timeout, **options):
+        """Expose only synthetic status receipts without Docker or a network request."""
 
-        observed.append((request, limit, deadline))
+        observed.append((arguments, timeout, options))
 
-        if len(observed) == 1:
-            raise failure("marked inert startup transport failure")
+        return pending if len(observed) == 1 else b"200"
 
-        return b"ready"
-
-    monkeypatch.setattr(platform, "ReadBounded", Read)
     monkeypatch.setattr(platform.time, "monotonic", lambda: 10.0)
     monkeypatch.setattr(platform.time, "sleep", lambda value: sleeps.append(value))
-    platform.WaitReady(8929, 900.0)
+    platform.WaitReady(identity, 900.0, Command)
     assert len(observed) == 2 and sleeps == [1], (
-        "Only the failed startup observation may consume the existing bounded poll interval")
-    assert all(item == ("http://127.0.0.1:8929/-/readiness", 65536, 15.0)
-               for item in observed), "Startup cannot change origin, response cap or read allowance"
+        "Only a pending startup status may consume the existing bounded poll interval")
+    assert all(item == (("docker", "exec", identity, *platform.READINESS_ARGUMENTS),
+        5, {"readiness_probe": True}) for item in observed), (
+        "Readiness must use the original container, fixed arguments and five-second outer bound")
+    assert platform.READINESS_ARGUMENTS == (
+        "/opt/gitlab/embedded/bin/curl", "--disable", "--silent", "--noproxy", "*", "--proxy", "",
+        "--proto", "=http", "--connect-timeout", "1", "--max-time", "4", "--max-redirs", "0",
+        "--output", "/dev/null", "--write-out", "%{http_code}", "--url",
+        "http://127.0.0.1/-/readiness?all=1"), (
+        "Probe must disable curl config/proxies, discard bodies and require all dependency checks")
 
 
-@pytest.mark.parametrize("fault", ["deadline", "validation"])
+@pytest.mark.parametrize("fault", ["deadline", "validation", "forbidden", "redirect", "malformed"])
 def test_StartupPollingDoesNotMaskValidationOrExtendExpiredAllowance(monkeypatch, fault):
-    """Expired deadlines and non-transport validation failures remain terminal."""
+    """Expired deadlines and non-pending status/command failures remain terminal."""
 
     reads = []
     sleeps = []
 
-    def Read(*arguments):
-        """Represent a non-transport validation refusal without opening any connection."""
+    def Command(*arguments, **options):
+        """Expose an inert terminal command refusal or one unexpected status-only receipt."""
 
         reads.append(arguments)
-        raise ValueError("marked original admission failure")
 
-    monkeypatch.setattr(platform, "ReadBounded", Read)
+        if fault == "validation":
+            raise ValueError("marked original admission failure")
+
+        return {"forbidden": b"403", "redirect": b"302", "malformed": b"200\n"}[fault]
+
     monkeypatch.setattr(platform.time, "monotonic", lambda: 10.0)
     monkeypatch.setattr(platform.time, "sleep", lambda value: sleeps.append(value))
+    pattern = {"deadline": "fixed boot deadline", "validation": "original admission failure",
+        "forbidden": "unexpected HTTP status 403", "redirect": "unexpected HTTP status 302",
+        "malformed": "status-only receipt"}[fault]
 
-    with pytest.raises(ValueError, match="fixed boot deadline" if fault == "deadline" else
-                       "original admission failure"):
-        platform.WaitReady(8929, 9.0 if fault == "deadline" else 900.0)
+    with pytest.raises(ValueError, match=pattern):
+        platform.WaitReady("a" * 64, 9.0 if fault == "deadline" else 900.0, Command)
 
     assert not sleeps and len(reads) == (0 if fault == "deadline" else 1), (
-        "A terminal validation or expired budget must never create another startup attempt")
-
+        "Expired budgets, terminal validation or unexpected status cannot create another attempt")
 
 
 def test_PersistentStartupResetCannotRenewTheOriginalBootDeadline(monkeypatch):
-    """Repeated transport initialization failures stop at the original shared cohort deadline."""
+    """Repeated original-shaped transport receipts stop at the original shared cohort deadline."""
 
     clock = [0.0]
     reads = []
 
-    def Read(request, limit, deadline):
-        """Represent a persistent inert reset while retaining every selected read deadline."""
+    def Command(arguments, timeout, **options):
+        """Retain each outer bound while representing an inert pending transport status."""
 
-        reads.append(deadline)
-        raise ConnectionResetError("marked inert permanent startup reset")
+        reads.append(timeout)
+
+        return b"000"
 
     def Sleep(value):
         """Advance only the deterministic logical clock, without a real delay."""
 
         clock[0] += value
 
-    monkeypatch.setattr(platform, "ReadBounded", Read)
     monkeypatch.setattr(platform.time, "monotonic", lambda: clock[0])
     monkeypatch.setattr(platform.time, "sleep", Sleep)
 
-    with pytest.raises(ValueError, match="fixed boot deadline"):
-        platform.WaitReady(8929, 2.0)
+    with pytest.raises(ValueError, match="fixed boot deadline; last HTTP status 000"):
+        platform.WaitReady("a" * 64, 2.0, Command)
 
-    assert reads == [2.0, 2.0] and clock[0] == 2.0, (
-        "Startup resets cannot renew the original allowance or trigger another expired read")
+    assert reads == [2.0, 1.0] and clock[0] == 2.0, (
+        "Pending transport cannot renew the original allowance or trigger another expired probe")
+
+
+def test_BootstrapTransportsMarkedCredentialOnlyThroughPrivateStandardInput(tmp_path, capsys):
+    """The root-only private directory is neither mounted nor relaxed for GitLab's git account."""
+
+    token = "0123456789abcdef0123"
+    observed = []
+
+    def Command(arguments, timeout, **options):
+        """Record inert transport arguments without creating a process or a credential file."""
+
+        observed.append((arguments, timeout, options))
+
+        return b"marked private return stream that must not be published"
+
+    result = platform.Bootstrap("a" * 64, token, Command)
+    assert result is None and len(observed) == 1, (
+        "Bootstrap must publish neither private command output nor authentication state")
+    arguments, timeout, options = observed[0]
+    assert arguments == ("docker", "exec", "-i", "a" * 64, "gitlab-rails", "runner", "-"), (
+        "The owned Rails program must come from standard input, never a host-private script file")
+    assert token not in " ".join(arguments) and timeout == 120 and set(options) == {"data"}, (
+        "The generated bootstrap value cannot enter argv, environment or a changed time allowance")
+    program = options["data"].decode()
+    assignment = next(line for line in program.splitlines() if line.startswith("token.set_token("))
+    assert json.loads(assignment.removeprefix("token.set_token(").removesuffix(")")) == token, (
+        "The validated hexadecimal token must retain one exact properly quoted Ruby string value")
+    assert "File.read" not in program and "puts" not in program and "print" not in program, (
+        "The private program must not need a readable host file or echo its authentication value")
+    captured = capsys.readouterr()
+    assert not captured.out and not captured.err and list(tmp_path.iterdir()) == [], (
+        "Bootstrap transport must produce neither public stream bytes nor credential files")
+
+
+@pytest.mark.parametrize("token", [None, "", "a" * 19, "a" * 21, "A" * 20,
+    '"; puts 1; "', "#{puts 1}" + "a" * 11, "a" * 19 + "\n"])
+def test_BootstrapRejectsMalformedOrInterpolatedValuesBeforePrivateTransport(token):
+    """Only the exact generated grammar may become a Ruby string inside private standard input."""
+
+    with pytest.raises(ValueError, match="twenty-character hex"):
+        platform.Bootstrap("a" * 64, token, platform.Command)
+
+
+def test_ServerBootstrapNeverMountsOrRelaxesRunnerPrivateControls():
+    """Source enrollment must retain stdin bootstrapping instead of a git-readable host mount."""
+
+    import inspect
+
+    source = inspect.getsource(platform.Run)
+    assert 'Bootstrap(server_identity, token, Checked)' in source, (
+        "The real owned cohort must use its validated private-stdin bootstrap boundary")
+    assert '("docker", "port", server_identity, "80/tcp")' in source, (
+        "Published-port observation must bind the created ID instead of its mutable name")
+    assert all(value not in source for value in (
+        "bootstrap-token", "bootstrap.rb", "/owned-private", "chmod(0o755)", "chmod(0o777)"
+    )), "The actual server cannot receive a whole-private bind mount or widened private permissions"
+
+
+
+@pytest.mark.parametrize("fault", [None, "foreign-id", "foreign-name", "unexpected-field",
+    "nonboolean", "credential", "inspection-failure"])
+def test_StartupFailureRetainsOnlyExactOwnedSafeOriginalState(tmp_path, fault):
+    """No raw GitLab logs, configuration or health output may enter retained startup diagnostics."""
+
+    identity = "a" * 64
+    token = b"0123456789abcdef0123"
+    state = {"Id": "b" * 64 if fault == "foreign-id" else identity,
+        "Name": "/foreign" if fault == "foreign-name" else "/owned-fixture",
+        "Status": "running", "Running": "true" if fault == "nonboolean" else True,
+        "OOMKilled": False, "ExitCode": 0, "RestartCount": 0}
+    observed = []
+
+    if fault == "unexpected-field":
+        state["Health"] = {"Log": "unadmitted raw health output"}
+
+    elif fault == "credential":
+        state["Status"] = token.decode()
+
+    raw = json.dumps(state, sort_keys=True).encode()
+
+    def Command(arguments, timeout):
+        """Return inert safe-shaped inspect output without Docker, server logs or secret reads."""
+
+        observed.append(arguments)
+
+        if fault == "inspection-failure":
+            raise ValueError("marked unavailable inert diagnosis")
+
+        return raw
+
+    if fault is None:
+        platform.StartupFailure("owned-fixture", identity, tmp_path, 900.0, Command, (token,))
+        assert (tmp_path / "startup-server-state.json").read_bytes() == raw, (
+            "Safe startup state must retain the exact originally selected Docker output bytes")
+
+    else:
+        with pytest.raises(ValueError):
+            platform.StartupFailure("owned-fixture", identity, tmp_path, 900.0, Command, (token,))
+
+        assert not (tmp_path / "startup-server-state.json").exists(), (
+            "Unknown identity, credentials or unsafe state must never become published metadata")
+
+    phase = json.loads((tmp_path / "startup-failure.json").read_bytes())
+    assert phase == {"phase": "server-readiness", "category": "readiness-failed",
+        "elapsed_seconds": 900.0, "state_diagnostic": "not-established"}, (
+        "Fixed phase metadata must survive even when no safe original state can be established")
+    assert len(observed) == 1 and observed[0][-1] == identity, (
+        "Startup diagnosis must inspect only the original server, never enumerate other containers")
+    template = observed[0][-2]
+    assert all(value not in template
+               for value in (".Config", ".Env", ".Health", "Log", "Password")), (
+        "Inspect must never acquire configuration, health logs or credential files")
+    assert '{{json .State}}' not in template, (
+        "An aggregate State read could accidentally acquire authentication-bearing health output")
+
+
+
+@pytest.mark.parametrize("exit_code,stdout,accepted", [(value, b"000", True)
+    for value in (7, 28, 52, 55, 56)] + [(7, b"200", False), (7, b"malformed", False),
+        (125, b"000", False), (126, b"000", False), (127, b"000", False), (0, b"200", True)])
+def test_OnlyExactOwnedCurlTransportCanProducePendingStatus(
+    tmp_path, monkeypatch, exit_code, stdout, accepted, forbid_runtime
+):
+    """Docker errors and nonzero partial responses cannot masquerade as ready or pending."""
+
+    arguments = ("docker", "--host", platform.LOCAL_DOCKER_HOST, "--config", str(tmp_path),
+        "exec", "a" * 64, *platform.READINESS_ARGUMENTS)
+    monkeypatch.setattr(platform.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
+        returncode=exit_code, stdout=stdout))
+
+    if accepted:
+        assert forbid_runtime(arguments, 5, readiness_probe=True) == stdout, (
+            "Only exact original curl status receipts may pass the scoped transport boundary")
+
+    else:
+        with pytest.raises(ValueError, match="did not complete"):
+            forbid_runtime(arguments, 5, readiness_probe=True)
+
+    if exit_code != 0:
+        with pytest.raises(ValueError, match="did not complete"):
+            forbid_runtime(arguments, 5)
+
+
+@pytest.mark.parametrize("fault", ["identity", "endpoint", "ambient-daemon", "stdin"])
+def test_ReadinessTransportCannotWaiveAnUnrelatedCommand(tmp_path, fault, forbid_runtime):
+    """The transport-specific admission cannot weaken generic Docker or other command failures."""
+
+    arguments = ("docker", "--host", platform.LOCAL_DOCKER_HOST, "--config", str(tmp_path),
+        "exec", "a" * 64, *platform.READINESS_ARGUMENTS)
+
+    if fault == "identity":
+        arguments = (*arguments[:6], "owned-name", *arguments[7:])
+
+    elif fault == "endpoint":
+        arguments = (*arguments[:-1], "http://foreign.invalid/")
+
+    elif fault == "ambient-daemon":
+        arguments = ("docker", *arguments[5:])
+
+    with pytest.raises(ValueError, match="exact owned curl invocation"):
+        forbid_runtime(arguments, 5, readiness_probe=True,
+            data=b"unadmitted" if fault == "stdin" else None)
+
+
+
+@pytest.mark.parametrize("identity", ["owned-fixture", "a" * 12, "g" * 64])
+def test_BootstrapRejectsMutableNamesAndUnadmittedServerIdentity(identity):
+    """Privileged Rails bootstrap cannot select a mutable container name or shortened identifier."""
+
+    with pytest.raises(ValueError, match="exact original owned server identity"):
+        platform.Bootstrap(identity, "0123456789abcdef0123", platform.Command)

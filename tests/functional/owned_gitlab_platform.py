@@ -57,6 +57,11 @@ LOCAL_DOCKER_HOST = "unix:///var/run/docker.sock"
 PYTHON_IMAGE = ("python:3.12-slim-bookworm@sha256:"
     "623674a14ef93d052bb9b0de4dbf5f28eb578a35263838941cc8aa43213c1487")
 
+READINESS_ARGUMENTS = ("/opt/gitlab/embedded/bin/curl", "--disable", "--silent",
+    "--noproxy", "*", "--proxy", "", "--proto", "=http", "--connect-timeout", "1",
+    "--max-time", "4", "--max-redirs", "0", "--output", "/dev/null", "--write-out",
+    "%{http_code}", "--url", "http://127.0.0.1/-/readiness?all=1")
+
 
 class RunnerSession:
     """Keep canonical descendant ownership responsive while synchronous API polling runs."""
@@ -205,15 +210,26 @@ def Resources(directory: Path) -> dict:
 
 
 def Command(arguments: tuple[str, ...], timeout: float, *, data: bytes | None = None,
-            cwd: Path | None = None) -> bytes:
+            cwd: Path | None = None, readiness_probe: bool = False) -> bytes:
     """Run one literal bounded private command without printing streams or credential state."""
+
+    if readiness_probe and (
+        len(arguments) != 7 + len(READINESS_ARGUMENTS)
+        or arguments[:4] != ("docker", "--host", LOCAL_DOCKER_HOST, "--config")
+        or arguments[5] != "exec" or re.fullmatch(r"[a-f0-9]{64}", arguments[6]) is None
+        or arguments[7:] != READINESS_ARGUMENTS or data is not None
+    ):
+        raise ValueError("Readiness transport admission requires the exact owned curl invocation")
 
     result = subprocess.run(arguments, cwd=cwd, input=data, capture_output=True,
         timeout=timeout, check=False, env={"PATH": "/usr/local/bin:/usr/bin:/bin",
             "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
             "GIT_TERMINAL_PROMPT": "0"})
 
-    if result.returncode != 0 or len(result.stdout) > MAX_RESPONSE:
+    transport_pending = (readiness_probe and result.returncode in {7, 28, 52, 55, 56}
+        and result.stdout == b"000")
+
+    if (result.returncode != 0 and not transport_pending) or len(result.stdout) > MAX_RESPONSE:
         raise ValueError("An owned GitLab platform operation did not complete successfully")
 
     return result.stdout
@@ -274,22 +290,65 @@ def ReadBounded(request, limit: int, deadline: float, *,
     return b"".join(chunks)
 
 
-def WaitReady(port: int, deadline: float) -> None:
-    """Poll only owned startup transport failures within the original finite boot allowance."""
+def WaitReady(identity: str, deadline: float, command) -> None:
+    """Require container-loopback dependency readiness without widening monitoring access."""
+
+    if re.fullmatch(r"[a-f0-9]{64}", identity) is None:
+        raise ValueError("Readiness requires the exact original owned server identity")
 
     boot_end = min(deadline, time.monotonic() + 900)
+    last_status = "unobserved"
 
     while time.monotonic() < boot_end:
-        try:
-            ReadBounded(f"http://127.0.0.1:{port}/-/readiness", 65536,
-                min(boot_end, time.monotonic() + 5))
+        raw = command(("docker", "exec", identity, *READINESS_ARGUMENTS),
+            min(5, boot_end - time.monotonic()), readiness_probe=True)
 
+        if re.fullmatch(rb"[0-9]{3}", raw) is None:
+            raise ValueError("Owned readiness did not return one exact status-only receipt")
+
+        last_status = raw.decode("ascii")
+
+        if raw == b"200":
             return
 
-        except (urllib.error.URLError, TimeoutError, ConnectionError):
-            time.sleep(1)
+        if raw not in {b"000", b"502", b"503"}:
+            raise ValueError("Owned readiness returned unexpected HTTP status " + last_status)
 
-    raise ValueError("Real GitLab did not become ready within its fixed boot deadline")
+        time.sleep(min(1, max(0, boot_end - time.monotonic())))
+
+    raise ValueError("GitLab exceeded its fixed boot deadline; last HTTP status " + last_status)
+
+
+def StartupFailure(owner: str, identity: str, output: Path, elapsed: float,
+                   command, forbidden: tuple[bytes, ...]) -> None:
+    """Retain selected safe original state before owned cleanup removes the server."""
+
+    Publish(output / "startup-failure.json", json.dumps({"phase": "server-readiness",
+        "category": "readiness-failed", "elapsed_seconds": elapsed,
+        "state_diagnostic": "not-established"}, sort_keys=True, allow_nan=False).encode(),
+        forbidden)
+
+    if re.fullmatch(r"[a-f0-9]{64}", identity) is None:
+        raise ValueError("Startup diagnosis requires the original owned server identity")
+
+    selected = ('{"Id":{{json .Id}},"Name":{{json .Name}},'
+        '"Status":{{json .State.Status}},"Running":{{json .State.Running}},'
+        '"OOMKilled":{{json .State.OOMKilled}},"ExitCode":{{json .State.ExitCode}},'
+        '"RestartCount":{{json .RestartCount}}}')
+    raw = command(("docker", "inspect", "--format", selected, identity), 10)
+    state = Json(raw)
+
+    if (set(state) != {"Id", "Name", "Status", "Running", "OOMKilled", "ExitCode", "RestartCount"}
+        or state["Id"] != identity or state["Name"] != "/" + owner
+        or state["Status"] not in {"created", "running", "paused", "restarting", "removing",
+            "exited", "dead"} or type(state["Running"]) is not bool
+        or type(state["OOMKilled"]) is not bool or type(state["ExitCode"]) is not int
+        or not 0 <= state["ExitCode"] <= 255 or type(state["RestartCount"]) is not int
+        or state["RestartCount"] < 0
+    ):
+        raise ValueError("Startup state differs from its owned server or safe metadata contract")
+
+    Publish(output / "startup-server-state.json", raw, forbidden)
 
 
 def RunnerBytes(deadline: float) -> bytes:
@@ -420,6 +479,24 @@ def Artifact(raw: bytes, source: str, approved: bool, forbidden: tuple[bytes, ..
         raise ValueError("Actual unapproved GitLab job did not refuse before target/root creation")
 
     return result
+
+
+def Bootstrap(identity: str, token: str, command) -> None:
+    """Create only the owned synthetic API token through private Rails standard input."""
+
+    if re.fullmatch(r"[a-f0-9]{64}", identity) is None:
+        raise ValueError("Bootstrap requires the exact original owned server identity")
+
+    if not isinstance(token, str) or re.fullmatch(r"[a-f0-9]{20}", token) is None:
+        raise ValueError("Owned bootstrap token must be one generated twenty-character hex value")
+
+    script = ("user = User.find_by_username('root')\n"
+        "token = user.personal_access_tokens.create!(name: 'Owned acceptance', "
+        "scopes: ['api', 'create_runner'], expires_at: 1.day.from_now)\n"
+        "token.set_token(" + json.dumps(token) + ")\n"
+        "token.save!\n")
+    command(("docker", "exec", "-i", identity, "gitlab-rails", "runner", "-"), 120,
+        data=script.encode())
 
 
 def RunnerConfig(path: Path, api: Api, token: str, private: Path) -> None:
@@ -700,36 +777,44 @@ def Run(source: Path, output: Path, image: str) -> dict:
             Checked(("docker", "volume", "create", "--label", "1337.owner=" + owner,
                      owner + "-" + suffix), 30)
 
-        (private / "bootstrap-token").write_text(token)
-        (private / "bootstrap-token").chmod(0o600)
-        script = ("user = User.find_by_username('root')\n"
-            "token = user.personal_access_tokens.create!(name: 'Owned acceptance', "
-            "scopes: ['api', 'create_runner'], expires_at: 1.day.from_now)\n"
-            "token.set_token(File.read('/owned-private/bootstrap-token'))\n"
-            "token.save!\n")
-        (private / "bootstrap.rb").write_text(script)
         settings = ("external_url 'http://gitlab.1337.test'; letsencrypt['enable']=false; "
             "puma['worker_processes']=0; sidekiq['concurrency']=5; "
             "prometheus_monitoring['enable']=false; gitlab_kas['enable']=false; "
             "gitlab_rails['usage_ping_enabled']=false; gitlab_rails['gitlab_email_enabled']=false")
-        Checked(("docker", "run", "-d", "--name", owner, "--network", owner,
+        server_identity = Checked(("docker", "run", "-d", "--name", owner, "--network", owner,
             "--hostname", "gitlab.1337.test", "--label", "1337.owner=" + owner,
             "--publish", "127.0.0.1::80", "--shm-size", "256m", "--cpus", "3",
             "--memory", "10g", "--memory-swap", "10g", "--pids-limit", "2048",
             "--env", "GITLAB_OMNIBUS_CONFIG=" + settings,
             "--volume", owner + "-config:/etc/gitlab", "--volume", owner + "-logs:/var/log/gitlab",
-            "--volume", owner + "-data:/var/opt/gitlab",
-            "--volume", str(private) + ":/owned-private:ro", SERVER), 60)
-        ports = Checked(("docker", "port", owner, "80/tcp"), 30).decode().strip()
+            "--volume", owner + "-data:/var/opt/gitlab", SERVER), 60).decode().strip()
+
+        if re.fullmatch(r"[a-f0-9]{64}", server_identity) is None:
+            raise ValueError("Created GitLab server did not retain its full original identity")
+
+        ports = Checked(("docker", "port", server_identity, "80/tcp"), 30).decode().strip()
 
         if re.fullmatch(r"127\.0\.0\.1:[0-9]+", ports) is None:
             raise ValueError("Real GitLab must publish only one owned loopback HTTP port")
 
         port = int(ports.rsplit(":", 1)[1])
-        WaitReady(port, deadline)
+        boot_started = time.monotonic()
 
-        Checked(("docker", "exec", owner, "gitlab-rails", "runner",
-                 "/owned-private/bootstrap.rb"), 120)
+        try:
+            WaitReady(server_identity, deadline, Checked)
+
+        except Exception:
+            # Optional diagnosis cannot replace the original readiness failure.
+            try:
+                StartupFailure(owner, server_identity, output,
+                    time.monotonic() - boot_started, Checked, forbidden)
+
+            except Exception:
+                pass
+
+            raise
+
+        Bootstrap(server_identity, token, Checked)
         api = Api(port, token, deadline)
         project = api.Object("/projects", "POST", {"name": "owned-1337", "visibility": "private",
             "shared_runners_enabled": False, "auto_devops_enabled": False,

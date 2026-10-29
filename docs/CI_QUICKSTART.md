@@ -65,6 +65,13 @@ The original command status remains in each `*-process.json`. Invalid harness
 arguments return 2. A runner/container failure can prevent a final summary;
 missing summary is never success.
 
+The GitHub template runs an unconditional teardown readback after its bounded
+owned cleanup trap. It queries only the exact run-ID/attempt container name and
+image tag; either remaining resource or a failed Docker query fails that step.
+Only successful readback writes `artifacts/owned-teardown.json`. Retain that
+original alongside the product receipts; a best-effort cleanup trap or green
+workflow header alone does not prove teardown.
+
 ## Optional finding thresholds
 
 The demo creates no Findings and has no vulnerability threshold. For a selected
@@ -81,7 +88,41 @@ Candidate wheel rehearsals and deterministic tests validate the product/harness
 contracts. They do not establish GitHub-hosted or GitLab runner acceptance.
 The release gate must run each copied YAML on its named platform with a digest-
 pinned image and final release commit, retain job URLs/artifacts and validate the
-approved and missing-approval cases. This environment currently has no Docker
-binary or configured GitLab runner; platform execution remains an explicit gate.
+approved and missing-approval cases. Platform execution remains an explicit gate.
 The later PyPI smoke must install the published artifact rather than this source
 build. Unexecuted YAML is not completed M2 onboarding acceptance.
+
+### GitHub pre-tag platform gate
+
+The repository carries an [exact workflow copy](../.github/workflows/ci-onboarding-demo.yml)
+of the public GitHub template. Its only trigger is `workflow_dispatch`, with
+read-only contents permission. GitHub requires that manual workflow to exist on
+the default branch before it can be dispatched. Complete normal release-branch
+review, merge to `master` and pass the actual master CI first; do not bypass that
+flow with a temporary branch, workflow or tag.
+
+Before creating the annotated release tag, dispatch **two fresh runs** on that
+same accepted `master` SHA. Set `release_commit` to the full SHA and `python_image`
+to the same reviewed official Linux amd64 base in both runs:
+
+```text
+python:3.12-slim-bookworm@sha256:623674a14ef93d052bb9b0de4dbf5f28eb578a35263838941cc8aa43213c1487
+```
+
+Set `approved_local_demo` to false in the first run and true in the second. The
+unapproved run must **fail** at the installed-wheel execution step with actual
+exit **3**; its original artifact must prove approval refusal before target/demo
+root creation. Do not turn this expected negative workflow into green. The
+approved run must succeed and retain the actual demo, offline reopen/export,
+unchanged-root refusal and three verified acquisitions. Both runs must execute
+and pass `Verify owned container/image teardown`, retain the exact source commit
+and original `owned-teardown.json`, and upload their available receipts even if
+execution fails. Download and independently reopen the approved artifact's saved
+workspace; verify its original evidence and snapshot digest rather than accepting
+the workflow conclusion alone.
+
+Record both run/job URLs, exact source and Python image identities, artifact
+identities/hashes and independently observed outcomes before dispatching the
+release finalizer. Its ordinary master-check selector does not establish these
+manual positive/negative platform outcomes. This paragraph is a required
+pre-tag acceptance procedure, not evidence that either run has occurred.

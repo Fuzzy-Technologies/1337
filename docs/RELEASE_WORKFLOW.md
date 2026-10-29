@@ -161,6 +161,13 @@ Release procedure:
 8. Wait for the actual required `master` push jobs to finish successfully on the
    exact resulting release SHA, including the deployed documentation. A skipped
    job, PR run or workflow summary alone does not satisfy this requirement.
+   For v0.3.0, also complete the [GitHub CI onboarding pre-tag platform gate](CI_QUICKSTART.md#github-pre-tag-platform-gate):
+   dispatch the exact public-template workflow twice on the same accepted master
+   SHA and fixed reviewed Python image, with approval false then true. Inspect
+   original artifacts, denied-before-target behavior, successful offline reopen
+   and explicit owned-resource teardown. The denied workflow must fail with
+   actual exit 3. Hold finalizer/tag dispatch until both observed outcomes are
+   accepted; ordinary master checks alone do not establish this manual gate.
    In a trusted local Git checkout, create the annotated tag **`vX.Y.Z` on the
    resulting `master` release commit**, then push that tag. Do not use the GitHub
    Release UI to create the tag.

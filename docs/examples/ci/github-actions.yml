@@ -47,6 +47,21 @@ jobs:
           docker run --rm --name "$DEMO_CONTAINER" --user "$(id -u):$(id -g)" --network none --cap-drop ALL --security-opt no-new-privileges \
             -e F1337_APPROVED_LOCAL_DEMO="${F1337_APPROVED_LOCAL_DEMO:-}" \
             -v "$PWD/artifacts:/artifacts" "$DEMO_IMAGE"
+      - name: Verify owned container/image teardown
+        if: always()
+        run: |
+          set -euo pipefail
+          DEMO_IMAGE="1337-local-demo:$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          DEMO_CONTAINER="1337-demo-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          CONTAINERS="$(docker container ls --all --filter "name=^/${DEMO_CONTAINER}$" --format '{{.Names}}')"
+          IMAGES="$(docker image ls --filter "reference=$DEMO_IMAGE" --format '{{.ID}}')"
+          if test -n "$CONTAINERS" || test -n "$IMAGES"; then
+            echo "Owned demo container or image remains after cleanup" >&2
+            exit 1
+          fi
+          mkdir -p artifacts
+          printf '{"schema_version":1,"owned_resources_removed":true,"container":"%s","image":"%s"}\n' \
+            "$DEMO_CONTAINER" "$DEMO_IMAGE" > artifacts/owned-teardown.json
       - name: Retain actual evidence and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
