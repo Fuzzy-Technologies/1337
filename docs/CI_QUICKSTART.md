@@ -1,4 +1,4 @@
-# CI quickstart — 0.3.0 candidate
+# CI quickstart — 0.3.0
 
 Run the same [owned local demo](DEMO.md) as the [human](QUICKSTART.md) and
 [agent](AGENT_QUICKSTART.md) paths. Build a wheel from one immutable reviewed
@@ -13,8 +13,10 @@ own explicit scope, consent, policy and limits.
 - [GitLab CI YAML](examples/ci/gitlab-ci.yml): copy/include in `.gitlab-ci.yml`; use a trusted Linux shell runner tagged `docker-shell`, with Git, Python 3 and Docker available. Start an authenticated manual web/API pipeline.
 
 Select `RELEASE_COMMIT` / `release_commit` as the reviewed full 40-character commit
-for the intended release. The candidate has no published 0.3.0 tag yet; do not
-substitute an assumed tag or moving `develop`. Fetch verifies the exact commit.
+for the intended release. Resolve `v0.3.0` to its full commit before configuring
+the template; do not substitute a moving `develop` or an unverified tag string.
+For development builds use the full reviewed source commit. Fetch verifies that
+exact commit.
 Select `PYTHON_IMAGE` / `python_image` as an approved Python 3.11-or-newer slim
 image pinned by `@sha256:<64 hex>`. Do not use an unpinned image tag. Keep these
 non-secret inputs in pipeline configuration; add no credential to the demo bundle.
@@ -84,12 +86,12 @@ failure counts and the selected source predicate are separate facts.
 
 ## Acceptance evidence
 
-Candidate wheel rehearsals and deterministic tests validate the product/harness
+Source-wheel rehearsals and deterministic tests validate the product/harness
 contracts. They do not establish GitHub-hosted or GitLab runner acceptance.
 The release gate must run each copied YAML on its named platform with a digest-
 pinned image and final release commit, retain job URLs/artifacts and validate the
-approved and missing-approval cases. Platform execution remains an explicit gate.
-The later PyPI smoke must install the published artifact rather than this source
+approved and missing-approval cases. Platform execution is an explicit gate.
+The PyPI smoke must install the published artifact rather than this source
 build. Unexecuted YAML is not completed M2 onboarding acceptance.
 
 ### GitHub pre-tag platform gate
@@ -125,4 +127,5 @@ Record both run/job URLs, exact source and Python image identities, artifact
 identities/hashes and independently observed outcomes before dispatching the
 release finalizer. Its ordinary master-check selector does not establish these
 manual positive/negative platform outcomes. This paragraph is a required
-pre-tag acceptance procedure, not evidence that either run has occurred.
+pre-tag acceptance procedure; its required original results must be recorded
+separately from these instructions.

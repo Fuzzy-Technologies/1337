@@ -7,15 +7,15 @@ schemaVersion = 1
 id = "page:agent-onboarding.prompt"
 kind = "page"
 sourcePath = "docs/i18n/agent-onboarding/en.md"
-sourceHash = "sha256:2d01be7236e8f523b7bbe4bbfa623df6b349597fc9993d3c1101f9271bb19b97"
+sourceHash = "sha256:0ca0b4e39d9a5605e17f3922e559dc482669e06fef6904c42fb23f40adbf4612"
 reviewClass = "technical"
 
 [units.translations.ru]
 state = "draft"
 path = "docs/i18n/agent-onboarding/ru.md"
-contentHash = "sha256:394574b11d6b5cb2c76ded65590cd220af8897dea69460a08aefc8181377646b"
+contentHash = "sha256:4066b5a8da2b73d73066f346f90e2408e81b6ba5d5c2476f36a3150b0a6553f5"
 
 [units.translations.zh-cn]
 state = "draft"
 path = "docs/i18n/agent-onboarding/zh-cn.md"
-contentHash = "sha256:85c9f922ac89fa8c33cb21dd14376a5e0e6dac64582a53fc7786b07ded1837a4"
+contentHash = "sha256:348c7dc7182ffb04f1dcbfca2330c0c21b4f5e3110eb3a0698e379b19d7522b8"
