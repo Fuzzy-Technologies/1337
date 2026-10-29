@@ -713,7 +713,9 @@ def test_OriginalHttpBodyCapAppliesBeforePersistenceAndAdmission(monkeypatch, de
 
 
 @pytest.mark.parametrize("kind", ["metadata", "archive"])
-def test_OriginalHttpCredentialsNeverReachAssetOrRedirectRequests(monkeypatch, kind):
+@pytest.mark.parametrize("token", ["ghs_synthetic", "opaque-header.payload-signature.tail",
+                                  "A-._~+/9==", "a" * 1024, "a" + "=" * 1023])
+def test_OriginalHttpCredentialsNeverReachAssetOrRedirectRequests(monkeypatch, kind, token):
     """The original API token stays in API headers and automatic redirects remain disabled."""
 
     module = Composer()
@@ -736,11 +738,11 @@ def test_OriginalHttpCredentialsNeverReachAssetOrRedirectRequests(monkeypatch, k
                         lambda *args: SimpleNamespace(open=Open))
     url = module.RELEASE_API + "/git/ref/tags/v0.3.0" if kind == "metadata" else (
         module.RELEASE_DOWNLOAD + module.RELEASE_ARCHIVE)
-    assert module.ReadReleaseHttp(kind, url, 1, "ghs_synthetic") == (200, None, b"ok"), (
+    assert module.ReadReleaseHttp(kind, url, 1, token) == (200, None, b"ok"), (
         'The bounded release reader must return the original admitted HTTP status and body'
     )
     assert requests[0].get_header("Authorization") == (
-        "Bearer ghs_synthetic" if kind == "metadata" else None
+        "Bearer " + token if kind == "metadata" else None
     ), "Public asset requests must contain no inherited GitHub credential"
     assert module.NoReleaseRedirect().RedirectRequest(None, None, 302, None, None, None) is None, (
         'The release HTTP handler must refuse implicit redirects that could forward credentials'
@@ -999,7 +1001,10 @@ def test_MalformedOriginalWorkerControlReturnsNoBytes(monkeypatch, control):
     )
 
 
-def test_ValidatedChildSuccessRetainsOriginalStatusAndBody(monkeypatch):
+@pytest.mark.parametrize("token", ["ghs_synthetic", "opaque-header.payload-signature.tail",
+                                  "A-._~+/9==", "a" * 1024, "a" + "=" * 1023])
+@pytest.mark.parametrize("kind", ["metadata", "archive"])
+def test_ValidatedChildSuccessRetainsOriginalStatusAndBody(monkeypatch, token, kind):
     """A successful framed original response keeps finite deadlines and API token off argv/env."""
 
     module = Composer()
@@ -1009,7 +1014,7 @@ def test_ValidatedChildSuccessRetainsOriginalStatusAndBody(monkeypatch):
         """Observe the actual private original-control serialization without executing HTTP."""
 
         calls.append(json.loads(options["input"]))
-        assert "ghs_synthetic" not in repr(argv) and "GH_TOKEN" not in options["env"], (
+        assert token not in repr(argv) and set(options["env"]) == {"PATH", "LANG", "LC_ALL"}, (
             'The isolated release worker must not expose its credential through argv or ambient '
             'environment'
         )
@@ -1018,9 +1023,40 @@ def test_ValidatedChildSuccessRetainsOriginalStatusAndBody(monkeypatch):
             stdout=json.dumps({"status": 200, "location": None}).encode() + b"\noriginal")
 
     monkeypatch.setattr(module.subprocess, "run", Run)
-    status, raw = module.FetchRelease("metadata", module.RELEASE_API + "/git/ref/tags/v0.3.0",
-        module.time.monotonic() + 120, "ghs_synthetic")
-    assert (status, raw) == (200, b"original") and calls[0]["token"] == "ghs_synthetic", (
+    url = module.RELEASE_API + "/git/ref/tags/v0.3.0" if kind == "metadata" else (
+        module.RELEASE_DOWNLOAD + module.RELEASE_ARCHIVE)
+    status, raw = module.FetchRelease(kind, url, module.time.monotonic() + 120, token)
+    assert (status, raw) == (200, b"original") and calls[0]["token"] == (
+        token if kind == "metadata" else None
+    ), (
         'The worker must preserve the original successful body and receive only the explicit '
         'private credential'
     )
+
+
+@pytest.mark.parametrize("token", ["", "=", "==", "a=b", "a==b", "a b", " a", "a ",
+                                  "a\r\nb", "a\tb", "é", "a\u00a0b", "a" * 1025,
+                                  "a" + "=" * 1024,
+                                  *("a" + chr(code) + "b" for code in range(33)),
+                                  "a\x7fb", 1, b"opaque"])
+@pytest.mark.parametrize("boundary", ["reader", "parent"])
+def test_InvalidBearerEnvelopeRefusesBeforeAnyHttpOrChild(monkeypatch, token, boundary):
+    """Whitespace, controls, non-ASCII and misplaced padding cannot reach a transport seam."""
+
+    module = Composer()
+    url = module.RELEASE_API + "/git/ref/tags/v0.3.0"
+
+    def Unexpected(*args, **kwargs):
+        """Detect an attempted network opener or child before invalid control is refused."""
+
+        pytest.fail("Invalid Bearer syntax must refuse before HTTP or child construction")
+
+    monkeypatch.setattr(module.urllib.request, "build_opener", Unexpected)
+    monkeypatch.setattr(module.subprocess, "run", Unexpected)
+
+    with pytest.raises(module.DocumentationError, match="credential syntax"):
+        if boundary == "reader":
+            module.ReadReleaseHttp("metadata", url, 1, token)
+
+        else:
+            module.FetchRelease("metadata", url, module.time.monotonic() + 120, token)

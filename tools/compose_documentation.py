@@ -156,8 +156,9 @@ def ReadReleaseHttp(kind: str, url: str, timeout_seconds: float,
     if type(timeout_seconds) not in {int, float} or not 0 < timeout_seconds <= RELEASE_CALL_SECONDS:
         raise DocumentationError("Invalid retained API call allowance")
 
-    if token is not None and (type(token) is not str or not re.fullmatch(r"[A-Za-z0-9_]{1,1024}",
-                                                                       token)):
+    if token is not None and (type(token) is not str or len(token) > 1024 or not re.fullmatch(
+        r"[A-Za-z0-9\-._~+/]+=*", token,
+    )):
         raise DocumentationError("Invalid retained API credential syntax")
 
     headers = {"User-Agent": "1337-retained-api/1", "Accept": "application/octet-stream"}
@@ -255,8 +256,8 @@ def FetchRelease(kind: str, url: str, deadline: float,
         if remaining <= 0:
             raise DocumentationError("Retained API acquisition deadline exhausted")
 
-        if token is not None and (type(token) is not str or not re.fullmatch(
-            r"[A-Za-z0-9_]{1,1024}", token,
+        if token is not None and (type(token) is not str or len(token) > 1024 or not re.fullmatch(
+            r"[A-Za-z0-9\-._~+/]+=*", token,
         )):
             raise DocumentationError("Invalid retained API credential syntax")
 

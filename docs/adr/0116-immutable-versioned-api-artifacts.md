@@ -67,6 +67,14 @@ and commit/tree/epoch come from the original fixed GitHub Git-object API, avoidi
 an unconstrained repository fetch. The old package-version branch performs no
 GitHub operation.
 
+API credentials are opaque bounded Bearer values. Their envelope follows
+[RFC 6750 section 2.1](https://www.rfc-editor.org/rfc/rfc6750#section-2.1)
+(`b64token`), including its punctuation and trailing padding, rather than a
+provider-specific token format. The existing 1024-character ceiling remains;
+whitespace, control/non-ASCII characters and interior padding refuse before
+transport. Credentials still travel only through private child stdin to the
+fixed API request header and never to asset/CDN requests or child argv/environment.
+
 ## Consequences
 
 - The release freeze prevents another master publication between first tag
