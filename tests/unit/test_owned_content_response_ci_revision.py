@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.parse import urlsplit
 
 import pytest
@@ -21,7 +22,7 @@ from tests.unit.test_owned_content_response_product_runner import Installation, 
 from tests.unit.test_owned_content_response_sdk_pipeline import Guard
 
 
-def Fixture(tmp_path):
+def Fixture(tmp_path, *, runtime_path=Path):
     """Build marked synthetic originals with real fixture hashes and detached original CAS bases."""
 
     acquired, _, _, _, options = HeaderFixture()
@@ -103,7 +104,8 @@ def Fixture(tmp_path):
 
         prefix = f"process-{index:03d}-sdk-{operation}"
         argv = [identity["python"], "-I", "-B", helpers[evidence.ACTOR_HELPER]["path"],
-            operation, f"/mock-only/pipeline/stage-{index - 2:02d}-input.json", "--execute"]
+            operation, str(runtime_path("/mock-only/pipeline") /
+                f"stage-{index - 2:02d}-input.json"), "--execute"]
         terminal = Process(Canonical(child), options["url"], 0)
         terminal.update(argv=argv, cwd="/mock-only/pipeline", timeout_seconds=35,
             installation={"identity": {**copy.deepcopy(installation), "installed_sources": (
@@ -138,6 +140,42 @@ def Fixture(tmp_path):
         for key in ("schema_version", "source_commit", "source_tree", "source_modules_sha256")}))
 
     return junit, retained, case, documents
+
+
+@pytest.mark.parametrize("runtime_path", [PurePosixPath, PureWindowsPath], ids=["posix", "windows"])
+def test_SyntheticCasArgumentsPreserveExactRecordedPathFlavor(tmp_path, monkeypatch, runtime_path):
+    """Bind exact arguments in both path flavors and reject self-consistent foreign separators."""
+
+    junit, retained, case, documents = Fixture(tmp_path, runtime_path=runtime_path)
+    original_path = evidence.Path
+
+    def RecordedPath(value):
+        """Model only the recorded runtime cwd; actual artifact I/O retains the host Path owner."""
+
+        return runtime_path(value) if value == "/mock-only/pipeline" else original_path(value)
+
+    monkeypatch.setattr(evidence, "Path", RecordedPath)
+
+    for name, document in documents.items():
+        destination = case / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(Canonical(document))
+
+        if destination.name == "stdout.bin":
+            destination.with_name("stderr.bin").write_bytes(b"")
+
+    assert evidence.RequireOutcome(junit, retained)["state"] == "checked-revision-conflict", (
+        "Each explicit runtime path flavor must preserve exact original child argv admission")
+    other_path = PureWindowsPath if runtime_path is PurePosixPath else PurePosixPath
+    changed = documents["process-006-sdk-analyze-offline/process.json"]
+    changed["argv"][5] = str(other_path(changed["cwd"]) / "stage-04-input.json")
+
+    for name in ("process.json", "invocation.json"):
+        key = "process-006-sdk-analyze-offline/" + name
+        (case / key).write_bytes(Canonical(documents[key]))
+
+    with pytest.raises(AssertionError, match="No timeout or absent terminal is success"):
+        evidence.RequireOutcome(junit, retained)
 
 
 @pytest.mark.parametrize("mutation", [None, "wrong-case", "wrong-class", "skip", "hidden-skip",

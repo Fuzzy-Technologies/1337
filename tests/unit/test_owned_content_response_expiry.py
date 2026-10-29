@@ -11,7 +11,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import SimpleNamespace
 
 import pytest
@@ -378,17 +378,18 @@ def test_ExecutionOptInsRefuseBeforeProductBuildOrSourceWork(enabled: object) ->
         child.Analyze(None, None, None, enabled=enabled)
 
 
-def Artifact(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
+def Artifact(tmp_path: Path, *, runtime_path=Path) -> tuple[Path, Path, Path, dict]:
     """Create marked synthetic CI documents and process envelopes; nothing was executed.
 
     Args:
         tmp_path: Explicit disposable unit-test root for mocked original JSON/XML files.
+        runtime_path: Explicit lexical path flavor for inert original runtime arguments.
 
     Returns:
         Synthetic JUnit, retained root, case directory and mutable document mapping.
     """
 
-    _, retained, old_case, documents = RevisionFixture(tmp_path)
+    _, retained, old_case, documents = RevisionFixture(tmp_path, runtime_path=runtime_path)
     before, after, summary, _, options, control = Partial()
     setup = copy.deepcopy(documents["process-003-sdk-fresh-setup/stdout.bin"]["summary"])
     captured = documents["sdk-capture-original.json"]
@@ -446,7 +447,7 @@ def Artifact(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
             "owned_content_response_sdk_entrypoint.py")
         terminal = copy.deepcopy(terminal_template)
         argv = [identity["python"], "-I", "-B", helpers[helper]["path"], operation,
-            terminal["cwd"] + f"/stage-{index - 2:02d}-input.json", "--execute"]
+            str(runtime_path(terminal["cwd"]) / f"stage-{index - 2:02d}-input.json"), "--execute"]
         terminal["argv"] = argv
         raw = Canonical(output)
         terminal["stdout"].update(observed_size_bytes=len(raw), retained_size_bytes=len(raw),
@@ -465,6 +466,45 @@ def Artifact(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
         '</testsuite></testsuites>')
 
     return junit, retained, old_case.with_name(checker.SCENARIO), documents
+
+
+@pytest.mark.parametrize("runtime_path", [PurePosixPath, PureWindowsPath], ids=["posix", "windows"])
+def test_SyntheticExpiryArgumentsPreserveExactRecordedPathFlavor(
+    tmp_path: Path, monkeypatch, runtime_path,
+) -> None:
+    """Both runtime path flavors pass unchanged strict checks; foreign separators still refuse."""
+
+    junit, retained, case, documents = Artifact(tmp_path, runtime_path=runtime_path)
+    original_path = checker.Path
+
+    def RecordedPath(value):
+        """Select the synthetic cwd flavor while retaining the actual artifact filesystem owner."""
+
+        return runtime_path(value) if value == "/mock-only/pipeline" else original_path(value)
+
+    monkeypatch.setattr(checker, "Path", RecordedPath)
+
+    for name, document in documents.items():
+        destination = case / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(Canonical(document))
+
+        if destination.name == "stdout.bin":
+            destination.with_name("stderr.bin").write_bytes(b"")
+
+    assert checker.RequireOutcome(junit, retained)["state"] == (
+        "checked-post-model-ack-expiry-partial"), (
+        "Explicit runtime path flavor must retain exact child argv and partial-state admission")
+    other_path = PureWindowsPath if runtime_path is PurePosixPath else PurePosixPath
+    changed = documents["process-006-sdk-analyze-expiry-offline/process.json"]
+    changed["argv"][5] = str(other_path(changed["cwd"]) / "stage-04-input.json")
+
+    for name in ("process.json", "invocation.json"):
+        key = "process-006-sdk-analyze-expiry-offline/" + name
+        (case / key).write_bytes(Canonical(documents[key]))
+
+    with pytest.raises(AssertionError, match="No timeout or absent terminal is success"):
+        checker.RequireOutcome(junit, retained)
 
 
 @pytest.mark.parametrize("mutation", [None, "skip", "wrong-case", "old-helper", "new-helper",

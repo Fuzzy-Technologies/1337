@@ -6,6 +6,8 @@
 import ast
 import json
 import shlex
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -581,7 +583,8 @@ def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> No
         "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
         "approval-denied-content-header"}
     assert set(jobs) == old_jobs | {"stale-model-cas-content-header",
-        "post-model-ack-expiry-content-header", "ipv6-worker-content-header"}, (
+        "post-model-ack-expiry-content-header", "ipv6-worker-content-header",
+        "content-unit-windows-checkpoint"}, (
         "The finite workflow must retain six original jobs and separate CAS/expiry cases."
     )
     job = jobs["stale-model-cas-content-header"]
@@ -656,7 +659,8 @@ def test_ContentHeaderPostModelAckExpiryCheckpointSelectsOnlyItsInstalledPartial
     old_jobs = {"installed-content-header", "actor-denied-content-header",
         "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
         "approval-denied-content-header", "stale-model-cas-content-header"}
-    assert set(jobs) == old_jobs | {job_id, "ipv6-worker-content-header"}, (
+    assert set(jobs) == old_jobs | {job_id, "ipv6-worker-content-header",
+        "content-unit-windows-checkpoint"}, (
         "Only one expiry job may extend the seven existing jobs."
     )
     job = jobs[job_id]
@@ -728,7 +732,7 @@ def test_ContentHeaderIpv6WorkerCheckpointSelectsOnlyItsInstalledWorkerCase() ->
         "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
         "approval-denied-content-header", "stale-model-cas-content-header",
         "post-model-ack-expiry-content-header"}
-    assert set(jobs) == old_jobs | {job_id}, (
+    assert set(jobs) == old_jobs | {job_id, "content-unit-windows-checkpoint"}, (
         "Only one worker-only IPv6 job may extend the eight existing finite cases."
     )
     job = jobs[job_id]
@@ -789,6 +793,80 @@ def test_ContentHeaderIpv6WorkerCheckpointSelectsOnlyItsInstalledWorkerCase() ->
             "retention-days": 14, "if-no-files-found": "error",
         }
     ), "Original IPv6 worker JUnit streams and source owners must survive failed execution/checks."
+
+
+def test_ContentUnitWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> None:
+    """Keep focused Windows diagnostics separate from installed cases and final full gates."""
+
+    workflow = Workflow("owned-content-header-acceptance.yml")
+    job_id = "content-unit-windows-checkpoint"
+    job = workflow["jobs"][job_id]
+    marker = "[owned-content-unit-windows-checkpoint]"
+    assert " ".join(job["if"].split()) == (
+        "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
+        f"&& contains(github.event.pull_request.body, '{marker}')"
+    ), "Only the explicit draft Windows marker may launch focused unit diagnostics."
+    assert all(marker not in value["if"] for name, value in workflow["jobs"].items()
+        if name != job_id), "The Windows marker cannot reenroll any installed acceptance case."
+    assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "steps"} and (
+        job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8
+    ), "Focused Windows diagnostics require one bounded non-advisory runner without opt-in effects."
+    steps = job["steps"]
+    assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
+        "Focused units require setup, one execution, a strict gate and always-retained JUnit."
+    )
+    original = workflow["jobs"]["installed-content-header"]["steps"]
+    assert steps[0] == original[0] and steps[1]["uses"] == original[1]["uses"] and (
+        steps[1]["with"] == {"python-version": "3.12"} and steps[2] == original[2]
+        and steps[3]["run"] == "uv sync --locked --extra dev --python 3.12"
+    ), "Windows diagnostics must keep exact-head checkout and pinned locked Python provisioning."
+    junit = "functional-evidence/owned-content-unit-windows.xml"
+    assert shlex.split(steps[4]["run"]) == [
+        "uv", "run", "--locked", "--extra", "dev", "pytest", "tests/unit", "-k",
+        "owned_content_response or native_content_response_header_workflow",
+        "-q", "-n2", "--no-cov", "--junitxml=" + junit,
+    ] and steps[4]["timeout-minutes"] == 3 and "if" not in steps[4], (
+        "The bounded unit selection must report every failure without fail-fast or fullgate."
+    )
+    assert steps[5]["shell"] == "python" and "if" not in steps[5], (
+        "The original JUnit gate must run in the selected Python without a platform shell."
+    )
+    assert steps[6]["if"] == "always()" and steps[6]["uses"] == original[-1]["uses"] and (
+        steps[6]["with"] == {"name": "owned-content-unit-windows-original-evidence",
+            "path": junit, "retention-days": 14, "if-no-files-found": "error"}
+    ), "Original Windows unit results must survive both success and failure."
+
+
+@pytest.mark.parametrize("case_xml, accepted", [
+    ('<testcase name="passed"/>', True),
+    ('<testcase name="passed"/><testcase name="skip"><skipped/></testcase>', True),
+    ("", False),
+    ('<testcase name="skip"><skipped/></testcase>', False),
+    ('<testcase name="failed"><failure/></testcase>', False),
+    ('<testcase name="errored"><error/></testcase>', False),
+], ids=("executed", "executed-with-skip", "empty", "only-skips", "failure", "error"))
+def test_ContentUnitWindowsGateRejectsMissingExecutionAndFailedCases(
+    tmp_path: Path, case_xml: str, accepted: bool,
+) -> None:
+    """Exercise the actual read-only JUnit gate with labeled synthetic unit outcomes.
+
+    Args:
+        tmp_path: Isolated pytest-owned result directory; no scanner or external tool runs.
+        case_xml: Explicit synthetic testcase fragments with completed or refused outcomes.
+        accepted: Whether actual successful execution exists without failures or errors.
+    """
+
+    job = Workflow("owned-content-header-acceptance.yml")["jobs"]["content-unit-windows-checkpoint"]
+    script = job["steps"][5]["run"]
+    path = tmp_path / "functional-evidence/owned-content-unit-windows.xml"
+    path.parent.mkdir()
+    path.write_text("<testsuites><testsuite>" + case_xml + "</testsuite></testsuites>",
+                    encoding="utf-8")
+    result = subprocess.run([sys.executable, "-c", script], cwd=tmp_path,
+                            capture_output=True, text=True, timeout=10, check=False)
+    assert (result.returncode == 0) is accepted, (
+        "Only original-shaped JUnit with actual executed cases and no failures/errors may pass."
+    )
 
 
 def test_InstalledConfigurationMaterialWorkflowRequiresExplicitAdmission() -> None:
