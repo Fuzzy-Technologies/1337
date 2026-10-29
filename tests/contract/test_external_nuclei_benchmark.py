@@ -584,6 +584,11 @@ def test_StandaloneRuntimeEmptyInvocationRemainsUnprovenThroughV2(tmp_path, monk
     outcome = RunStandalone(*arguments)
     root = arguments[0]
     invocation = json.loads((root / "invocation.json").read_bytes())
+    assert invocation["effective_budget"] == {"request_timeout_seconds": 3,
+        "operation_timeout_seconds": 3, "max_requests": 1,
+        "max_response_bytes": 1048576, "rate_limit": 1}, (
+        "The original producer must preserve effective Nuclei limits before execution"
+    )
     assert outcome["status"] == "unproven" and outcome["findings"] == [], (
         "Empty exit-zero output must remain unproven for positive and negative controls."
     )

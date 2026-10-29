@@ -26,7 +26,12 @@ from uuid import uuid4
 from fuzzy1337.executors.owned_process import StartOwnedExecution
 
 from .external_native_runner import ImportBundle, SafePath, StrictJson, WriteJson
-from .external_nuclei_image import ASSET_URL, SUPPORT_FILES, PrerequisiteArguments
+from .external_nuclei_image import (
+    ASSET_URL,
+    GOVERNED_ENVIRONMENT,
+    SUPPORT_FILES,
+    PrerequisiteArguments,
+)
 from .external_nuclei_runner import (
     ARCHIVE_BYTES,
     ARCHIVE_NAME,
@@ -285,7 +290,8 @@ def AdmitImage(base: dict, image: dict, revision: str, base_id: str, image_id: s
         raise ValueError("Nuclei runner image differs from its immutable base/entrypoint boundary")
 
 
-def AdmitContainer(value: dict, image: dict, owner: str, revision: str) -> None:
+def AdmitContainer(value: dict, image: dict, owner: str, revision: str, *,
+                   governed_no_home: bool = False) -> None:
     """Require the complete declared pre-start projection, never permissive Docker defaults.
 
     Args:
@@ -306,7 +312,8 @@ def AdmitContainer(value: dict, image: dict, owner: str, revision: str) -> None:
         or value["image_id"] != image["id"] or value["source_revision"] != revision
         or image["labels"].get(SOURCE_LABEL) != revision
         or value["owner"] != owner or value["user"] != "1337:1337"
-        or value["entrypoint"] != image["entrypoint"] or value["cmd"] != ["--prerequisites"]
+        or value["entrypoint"] != image["entrypoint"] or value["cmd"] != [
+            "--governed-prerequisites" if governed_no_home else "--prerequisites"]
         or value["env"] != image["env"]
     ):
         raise ValueError("Nuclei container identity/source/owner/config is incompatible")
@@ -737,7 +744,8 @@ def ContainerProjection(raw: dict) -> dict:
         "state": raw["State"], "restart_count": raw["RestartCount"]}
 
 
-def BindBundle(raw: bytes, output: Path, source: dict, revision: str) -> dict:
+def BindBundle(raw: bytes, output: Path, source: dict, revision: str, *,
+               governed_no_home: bool = False) -> dict:
     """Import original bounded evidence and bind the prerequisite to this committed context.
 
     Args:
@@ -761,14 +769,20 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str) -> dict:
         for field in ("invocation.json", "process.json", "stdout.raw", "stderr.raw"))}
     exported = {record["path"] for record in bundle["files"]}
 
+    generated_prefixes = ("home/", "version/", "validate/") if governed_no_home else ("home/",)
+
     if not required <= exported or any(
-        name not in required and not name.startswith("home/") for name in exported
+        name not in required and not name.startswith(generated_prefixes) for name in exported
     ):
         raise ValueError("Nuclei original bundle contains missing or undeclared prerequisite files")
 
     expected = {"status": "completed-prerequisites", "version_probe": "completed",
         "go_template_validation": "completed", "governed_no_home_compatibility": "not-established",
         "configured_target_inputs": [], "independent_server_contact_count": None}
+    if governed_no_home:
+        expected.update(status="completed-governed-prerequisites",
+                        governed_no_home_compatibility="established")
+
     outcome = StrictJson((output / "prerequisites.json").read_bytes())
 
     if Canonical(bundle["outcome"]) != Canonical(expected) or Canonical(outcome) != (
@@ -846,6 +860,9 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str) -> dict:
         "XDG_CONFIG_HOME": "/tmp/nuclei-prerequisites/home/config",
         "XDG_CACHE_HOME": "/tmp/nuclei-prerequisites/home/cache",
         "TMPDIR": "/tmp/nuclei-prerequisites/home/tmp"}
+    if governed_no_home:
+        environment = dict(GOVERNED_ENVIRONMENT)
+
     arguments = {"version": [binary["path"], "-version", "-duc"], "validate": [binary["path"],
         "-validate", "-t", template[0]["path"], "-config", profile["configuration_path"],
         "-duc", "-ni", "-no-stdin", "-pt", "http", "-nc"]}
@@ -858,7 +875,12 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str) -> dict:
             "provider_timeout_seconds": 3, "stdout_capture_bytes": 4 * 1024 * 1024,
             "stderr_capture_bytes": 65536, "stdout_interpretation_bytes": maximum,
             "stderr_interpretation_bytes": 16384, "original_file_ceiling_bytes": 2 * 1024 * 1024,
-            "basis": "target-free-explicit-home-prerequisite"}
+            "basis": "target-free-governed-no-home-prerequisite" if governed_no_home else
+                     "target-free-explicit-home-prerequisite"}
+
+        if governed_no_home:
+            expected_invocation["cwd"] = "/tmp/nuclei-governed-prerequisites/" + name
+
         stdout = (output / name / "stdout.raw").read_bytes()
         stderr = (output / name / "stderr.raw").read_bytes()
 
@@ -885,10 +907,11 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str) -> dict:
         if name == "validate" and b"All templates validated successfully" not in combined:
             raise ValueError("Nuclei original exact-template validation receipt is absent")
 
-    generated = [record for record in bundle["files"] if record["path"].startswith("home/")]
+    generated = [record for record in bundle["files"] if record["path"] not in required]
     WriteJson(output.parent / "bundle-inventory.json", {"files": [{key: value for key, value
         in record.items() if key != "data_base64"} for record in bundle["files"]],
         "generated_home_files": [record["path"] for record in generated],
+        "governed_no_home_environment": environment if governed_no_home else None,
         "wheel_identity_basis": "image-local original wheel; installed package/import bytes bound "
                                 "by reviewed image inventory, wheel bytes not exported",
         "binary_identity_basis": "checksum-verified archive extraction in inspected image; "
@@ -906,9 +929,10 @@ class PrerequisiteHost:
     application case or governed-provider environment is configured here.
     """
 
-    def __init__(self):
+    def __init__(self, *, governed_no_home: bool = False):
         """Assign private identities without reading environment or contacting a daemon."""
 
+        self.governed_no_home = governed_no_home
         self.owner = uuid4().hex
         self.root = (REPOSITORY / "functional-evidence/external-nuclei-prerequisites"
                      / ("run-" + self.owner[:12]))
@@ -1213,17 +1237,8 @@ class PrerequisiteHost:
         if failures:
             raise BaseExceptionGroup("Nuclei prerequisite cleanup unconfirmed", failures)
 
-    async def Run(self) -> dict:
-        """Build/inspect the committed image and attach one offline prerequisite invocation.
-
-        Returns:
-            Successful prerequisite-only host receipt after verified daemon cleanup.
-
-        Raises:
-            ValueError: Enabled host/source/image/container/bundle requirements refuse.
-            OSError: Fixed local tools or private original evidence are unavailable.
-            BaseException: Primary failure propagates with separate retained cleanup facts.
-        """
+    def Initialize(self) -> None:
+        """Create the explicit private host owners after fixed native tooling admission."""
 
         if sys.platform != "linux" or platform.machine().lower() not in ("x86_64", "amd64"):
             raise ValueError("Enabled Nuclei prerequisites require native Linux/amd64")
@@ -1246,47 +1261,69 @@ class PrerequisiteHost:
         self.environment = {"HOME": str(self.root / "home"), "PATH": "/usr/local/bin:/usr/bin:/bin",
             "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
             "GIT_TERMINAL_PROMPT": "0"}
+
+    async def Prepare(self) -> tuple[dict, dict, dict]:
+        """Build and inspect one exact committed image before any target or case starts."""
+
+        _, info = await self.Command("daemon", ("info", "--format",
+            '{"os":{{json .OSType}},"architecture":{{json .Architecture}}}'))
+        daemon = StrictJson(info)
+
+        if daemon not in ({"os": "linux", "architecture": "x86_64"},
+                           {"os": "linux", "architecture": "amd64"}):
+            raise ValueError("Nuclei fixed local daemon must be native Linux/amd64")
+
+        self.revision, self.tree = await self.Source("before")
+        _, inventory = await self.Command("source-inventory", ("ls-tree", "-r", "-l", "-z",
+            self.revision), docker=False, limit=INVENTORY_BYTES)
+        declared = SourceInventory(inventory)
+        WriteJson(self.root / "context-declaration.json", {"revision": self.revision,
+            "tree": self.tree, "file_count": len(declared),
+            "size_bytes": sum(record["size_bytes"] for record in declared.values()),
+            "file_limit": CONTEXT_FILES, "byte_limit": CONTEXT_BYTES,
+            "file_byte_limit": CONTEXT_FILE_BYTES, "basis": "validated before copying"})
+        source = SnapshotContext(self.context, inventory)
+        WriteJson(self.root / "context-inventory.json", {"revision": self.revision,
+            "tree": self.tree, "files": source, "file_limit": CONTEXT_FILES,
+            "byte_limit": CONTEXT_BYTES, "file_byte_limit": CONTEXT_FILE_BYTES})
+        base = await self.Build(self.tags[0], "base", ("--target", "development"), 300)
+        runner = await self.Build(self.tags[1], "runner", (
+            "--file", str(self.context / RECIPE_PATH),
+            "--build-arg", "WORKBENCH_IMAGE=" + self.tags[0], "--build-arg",
+            "SOURCE_REVISION=" + self.revision), 180)
+        base_after = await self.Inspect("image", self.tags[0], "base-tag-after")
+        runner_after = await self.Inspect("image", self.tags[1], "runner-tag-after")
+
+        if base_after["Id"] != base["Id"] or runner_after["Id"] != runner["Id"] or (
+            await self.Source("after") != (self.revision, self.tree)
+        ):
+            raise ValueError("Nuclei source/base/runner transport tag changed during build")
+
+        image = ImageProjection(runner)
+        AdmitImage(ImageProjection(base), image, self.revision, base["Id"], runner["Id"],
+                   (self.context / RECIPE_PATH).read_bytes())
+
+        return source, runner, image
+
+    async def Run(self) -> dict:
+        """Build/inspect the committed image and attach one offline prerequisite invocation.
+
+        Returns:
+            Successful prerequisite-only host receipt after verified daemon cleanup.
+
+        Raises:
+            ValueError: Enabled host/source/image/container/bundle requirements refuse.
+            OSError: Fixed local tools or private original evidence are unavailable.
+            BaseException: Primary failure propagates with separate retained cleanup facts.
+        """
+
+        self.Initialize()
         primary = None
 
         try:
-            _, info = await self.Command("daemon", ("info", "--format",
-                '{"os":{{json .OSType}},"architecture":{{json .Architecture}}}'))
-            daemon = StrictJson(info)
-
-            if daemon not in ({"os": "linux", "architecture": "x86_64"},
-                               {"os": "linux", "architecture": "amd64"}):
-                raise ValueError("Nuclei fixed local daemon must be native Linux/amd64")
-
-            self.revision, self.tree = await self.Source("before")
-            _, inventory = await self.Command("source-inventory", ("ls-tree", "-r", "-l", "-z",
-                self.revision), docker=False, limit=INVENTORY_BYTES)
-            declared = SourceInventory(inventory)
-            WriteJson(self.root / "context-declaration.json", {"revision": self.revision,
-                "tree": self.tree, "file_count": len(declared),
-                "size_bytes": sum(record["size_bytes"] for record in declared.values()),
-                "file_limit": CONTEXT_FILES, "byte_limit": CONTEXT_BYTES,
-                "file_byte_limit": CONTEXT_FILE_BYTES, "basis": "validated before copying"})
-            source = SnapshotContext(self.context, inventory)
-            WriteJson(self.root / "context-inventory.json", {"revision": self.revision,
-                "tree": self.tree, "files": source, "file_limit": CONTEXT_FILES,
-                "byte_limit": CONTEXT_BYTES, "file_byte_limit": CONTEXT_FILE_BYTES})
-            base = await self.Build(self.tags[0], "base", ("--target", "development"), 300)
-            runner = await self.Build(self.tags[1], "runner", (
-                "--file", str(self.context / RECIPE_PATH),
-                "--build-arg", "WORKBENCH_IMAGE=" + self.tags[0], "--build-arg",
-                "SOURCE_REVISION=" + self.revision), 180)
-            base_after = await self.Inspect("image", self.tags[0], "base-tag-after")
-            runner_after = await self.Inspect("image", self.tags[1], "runner-tag-after")
-
-            if base_after["Id"] != base["Id"] or runner_after["Id"] != runner["Id"] or (
-                await self.Source("after") != (self.revision, self.tree)
-            ):
-                raise ValueError("Nuclei source/base/runner transport tag changed during build")
-
-            image = ImageProjection(runner)
-            AdmitImage(ImageProjection(base), image, self.revision, base["Id"], runner["Id"],
-                       (self.context / RECIPE_PATH).read_bytes())
-            arguments = PrerequisiteArguments(self.name, runner["Id"])
+            source, runner, image = await self.Prepare()
+            arguments = PrerequisiteArguments(self.name, runner["Id"],
+                                              governed_no_home=self.governed_no_home)
             create = (*arguments[1:-2], "--label", OWNER_LABEL + "=" + self.owner,
                       *arguments[-2:])
             self.created = True
@@ -1300,7 +1337,8 @@ class PrerequisiteHost:
             before = await self.Inspect("container", identifier, "container-before")
             self.OwnedContainer(before, identifier)
             projection = ContainerProjection(before)
-            AdmitContainer(projection, image, self.owner, self.revision)
+            AdmitContainer(projection, image, self.owner, self.revision,
+                           governed_no_home=self.governed_no_home)
             _, original = await self.Command("attach", (
                 "container", "start", "--attach", identifier),
                 seconds=40, limit=12 * 1024 * 1024, stderr=65536)
@@ -1316,10 +1354,20 @@ class PrerequisiteHost:
                 raise ValueError("Nuclei container configuration changed after attachment")
 
             AdmitTermination(after["State"], after["RestartCount"])
-            BindBundle(original, self.root / "imported", source, self.revision)
-            self.receipt.update(status="completed-prerequisites", source_revision=self.revision,
-                                source_tree=self.tree, image_id=runner["Id"],
+            if self.governed_no_home:
+                BindBundle(original, self.root / "imported", source, self.revision,
+                           governed_no_home=True)
+
+            else:
+                BindBundle(original, self.root / "imported", source, self.revision)
+            self.receipt.update(status="completed-governed-prerequisites" if (
+                self.governed_no_home) else "completed-prerequisites",
+                                source_revision=self.revision, source_tree=self.tree,
+                                image_id=runner["Id"],
                                 container_id=identifier)
+
+            if self.governed_no_home:
+                self.receipt["governed_no_home_compatibility"] = "established"
 
         except BaseException as error:
             primary = error

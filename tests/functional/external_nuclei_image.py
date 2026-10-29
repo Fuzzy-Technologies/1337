@@ -44,6 +44,8 @@ WHEELS = Path("/opt/benchmark-wheel")
 SOURCE = Path("/workspace/src/fuzzy1337")
 MANIFEST = Path("/opt/benchmark-provisioning.json")
 ROOT = Path("/tmp/nuclei-prerequisites")
+GOVERNED_ROOT = Path("/tmp/nuclei-governed-prerequisites")
+GOVERNED_ENVIRONMENT = {"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
 ARCHIVE = Path("/opt/benchmark-download") / ARCHIVE_NAME
 ASSET_URL = ("https://github.com/projectdiscovery/nuclei/releases/download/v"
              + VERSION + "/" + ARCHIVE_NAME)
@@ -53,12 +55,14 @@ TMPFS_BYTES = 64 * 1024 * 1024
 VERSION_CAPTURE_BYTES = 16 * 1024
 
 
-def PrerequisiteArguments(name: str, image_id: str) -> tuple[str, ...]:
+def PrerequisiteArguments(name: str, image_id: str, *, governed_no_home: bool = False
+                          ) -> tuple[str, ...]:
     """Declare the later finite offline container without starting Docker.
 
     Args:
         name: Unique owned prerequisite-container name with twelve lowercase hex digits.
         image_id: Actual immutable image ID, never a mutable image tag.
+        governed_no_home: Select the distinct target-free unchanged-provider environment gate.
 
     Returns:
         Mount-free, nonroot, read-only, bounded network-none Docker create arguments.
@@ -76,7 +80,8 @@ def PrerequisiteArguments(name: str, image_id: str) -> tuple[str, ...]:
             "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m,uid=1337,gid=1337,mode=0700",
             "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--cpus", "1",
             "--memory", "256m", "--pids-limit", "64", "--init", "--stop-timeout", "5",
-            "--network", "none", image_id, "--prerequisites")
+            "--network", "none", image_id,
+            "--governed-prerequisites" if governed_no_home else "--prerequisites")
 
 
 def CurrentWheel() -> Path:
@@ -208,7 +213,7 @@ def RunStage(root: Path, name: str, argv: tuple[str, ...], environment: dict[str
         root: New owned prerequisite workspace.
         name: Fixed stage name, either version or validate.
         argv: Exact local prerequisite arguments, without target or discovery inputs.
-        environment: Only newly owned explicit HOME/config/cache/temp paths.
+        environment: Explicit private HOME paths or exactly the unchanged PATH/LANG gate.
         maximum: Original stdout interpretation ceiling; stderr interpretation is
             limited to 16 KiB, separately from the reused owner's raw capture ceiling.
 
@@ -223,13 +228,19 @@ def RunStage(root: Path, name: str, argv: tuple[str, ...], environment: dict[str
 
     stage = root / name
     stage.mkdir(mode=0o700)
-    WriteJson(stage / "invocation.json", {"argv": list(argv), "environment": environment,
+    invocation = {"argv": list(argv), "environment": environment,
         "provider_timeout_seconds": PROVIDER_TIMEOUT_SECONDS,
         "stdout_capture_bytes": STDOUT_BYTES, "stderr_capture_bytes": STDERR_BYTES,
         "stdout_interpretation_bytes": maximum,
         "stderr_interpretation_bytes": VERSION_CAPTURE_BYTES,
         "original_file_ceiling_bytes": MAX_FILE_BYTES,
-        "basis": "target-free-explicit-home-prerequisite"})
+        "basis": "target-free-explicit-home-prerequisite" if "HOME" in environment else
+                 "target-free-governed-no-home-prerequisite"}
+
+    if "HOME" not in environment:
+        invocation["cwd"] = str(stage)
+
+    WriteJson(stage / "invocation.json", invocation)
     result = OwnStandaloneProcess(stage, argv, environment)
 
     if result["exit_code"] != 0 or result["streams_complete"] is not True or any(
@@ -242,8 +253,11 @@ def RunStage(root: Path, name: str, argv: tuple[str, ...], environment: dict[str
         stage, "stderr", VERSION_CAPTURE_BYTES)
 
 
-def RunPrerequisites() -> dict:
+def RunPrerequisites(*, governed_no_home: bool = False) -> dict:
     """Own target-free version and strict exact-template validation, preserving failure bytes.
+
+    Args:
+        governed_no_home: Probe with exactly PATH/LANG and private cwd, without HOME or XDG values.
 
     Returns:
         Internal prerequisite outcome; never a case observation or scanner-accuracy result.
@@ -255,14 +269,19 @@ def RunPrerequisites() -> dict:
     """
 
     RequireImageRuntime()
-    ROOT.mkdir(mode=0o700)
-    home = ROOT / "home"
+    root = GOVERNED_ROOT if governed_no_home else ROOT
+    root.mkdir(mode=0o700)
+    home = root / "home"
 
     for directory in (home, home / "config", home / "cache", home / "tmp"):
         directory.mkdir(mode=0o700)
 
     environment = {"HOME": str(home), "XDG_CONFIG_HOME": str(home / "config"),
                    "XDG_CACHE_HOME": str(home / "cache"), "TMPDIR": str(home / "tmp")}
+
+    if governed_no_home:
+        environment = dict(GOVERNED_ENVIRONMENT)
+
     outcome = {"status": "failed", "version_probe": "not-run", "go_template_validation": "not-run",
                "governed_no_home_compatibility": "not-established", "configured_target_inputs": [],
                "independent_server_contact_count": None}
@@ -293,9 +312,9 @@ def RunPrerequisites() -> dict:
         if binary["sha256"] != expected:
             raise ValueError("Nuclei image executable differs from acquired material identity")
 
-        WriteJson(ROOT / "image-provisioning.json", manifest)
+        WriteJson(root / "image-provisioning.json", manifest)
         outcome["version_probe"] = "failed"
-        raw = RunStage(ROOT, "version", (str(executable), "-version", "-duc"), environment,
+        raw = RunStage(root, "version", (str(executable), "-version", "-duc"), environment,
                        VERSION_CAPTURE_BYTES)
         versions = re.findall(rb"Nuclei Engine Version:\s*v?([0-9A-Za-z.+-]+)", raw)
 
@@ -305,7 +324,7 @@ def RunPrerequisites() -> dict:
         VerifyBinary(executable, expected, VERSION)
         outcome["version_probe"] = "completed"
         outcome["go_template_validation"] = "failed"
-        raw = RunStage(ROOT, "validate", (str(executable), "-validate", "-t", str(template),
+        raw = RunStage(root, "validate", (str(executable), "-validate", "-t", str(template),
             "-config", str(configuration), "-duc", "-ni", "-no-stdin", "-pt", "http", "-nc"),
             environment, MAX_FILE_BYTES)
 
@@ -314,11 +333,15 @@ def RunPrerequisites() -> dict:
 
         outcome.update(status="completed-prerequisites", go_template_validation="completed")
 
+        if governed_no_home:
+            outcome.update(status="completed-governed-prerequisites",
+                           governed_no_home_compatibility="established")
+
     except Exception as error:
-        WriteJson(ROOT / "failure.json", {"exception_type": type(error).__name__,
+        WriteJson(root / "failure.json", {"exception_type": type(error).__name__,
                                          "basis": "failed-prerequisite-not-a-case-result"})
 
-    WriteJson(ROOT / "prerequisites.json", outcome)
+    WriteJson(root / "prerequisites.json", outcome)
 
     return outcome
 
@@ -343,6 +366,7 @@ def Main(arguments: list[str] | None = None) -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--prepare", action="store_true")
     mode.add_argument("--prerequisites", action="store_true")
+    mode.add_argument("--governed-prerequisites", action="store_true")
     parser.add_argument("--source-revision")
     options = parser.parse_args(arguments)
 
@@ -357,17 +381,20 @@ def Main(arguments: list[str] | None = None) -> int:
     if options.source_revision is not None:
         parser.error("--source-revision is restricted to image preparation")
 
-    outcome = RunPrerequisites()
+    outcome = RunPrerequisites(governed_no_home=True) if (
+        options.governed_prerequisites) else RunPrerequisites()
+    root = GOVERNED_ROOT if options.governed_prerequisites else ROOT
 
     try:
-        bundle = ExportBundle(ROOT, outcome)
+        bundle = ExportBundle(root, outcome)
 
     except ValueError:
         outcome["status"] = "failed"
-        WriteJson(ROOT / "prerequisites.json", outcome)
+        WriteJson(root / "prerequisites.json", outcome)
 
         raise
 
     print(bundle)
 
-    return 0 if outcome["status"] == "completed-prerequisites" else 4
+    return 0 if outcome["status"] in {"completed-prerequisites",
+                                       "completed-governed-prerequisites"} else 4

@@ -122,6 +122,53 @@ def InertImage(tmp_path, monkeypatch, mode="success"):
     return calls, manifest
 
 
+@LINUX_IMAGE
+@pytest.mark.parametrize("refusal", [False, True], ids=["completed", "failed-validation"])
+def test_InertGovernedPrerequisiteNeverAddsHomeOrClaimsCaseExecution(
+    tmp_path, monkeypatch, refusal
+):
+    """Inert no-HOME probe retains exact environment, strict validation and unknown contacts."""
+
+    _, _ = InertImage(tmp_path, monkeypatch)
+    monkeypatch.setattr(image, "GOVERNED_ROOT", tmp_path / "governed")
+    calls = []
+
+    def Process(root, argv, environment):
+        """Record explicit source contracts instead of launching the inert provider bytes."""
+
+        calls.append((argv, dict(environment)))
+        stdout = b"Nuclei Engine Version: v3.4.10\n" if root.name == "version" else (
+            b"validation refused\n" if refusal else b"All templates validated successfully\n")
+        (root / "stdout.raw").write_bytes(stdout)
+        (root / "stderr.raw").write_bytes(b"")
+        result = {"exit_code": 0, "timed_out": False, "capture_exhausted": None,
+            "launch_error": None, "capture_error": None, "interrupted": None,
+            "cleanup_error": None, "streams_complete": True, "duration_seconds": 0.01}
+        WriteJson(root / "process.json", result)
+
+        return result
+
+    monkeypatch.setattr(image, "OwnStandaloneProcess", Process)
+    outcome = image.RunPrerequisites(governed_no_home=True)
+    assert len(calls) == 2 and all(environment == {
+        "PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"
+    } for _, environment in calls), (
+        "The governed initialization probe must never add HOME, XDG, config routing or host values"
+    )
+    assert outcome["governed_no_home_compatibility"] == (
+        "not-established" if refusal else "established"
+    ) and outcome["configured_target_inputs"] == [] and (
+        outcome["independent_server_contact_count"] is None
+    ), "A failed no-HOME probe cannot borrow explicit-HOME evidence or become a target observation"
+    assert all("-u" not in argv for argv, _ in calls), (
+        "No target contact or additional endpoint probe belongs to the no-HOME prerequisite"
+    )
+    invocation = json.loads((image.GOVERNED_ROOT / "validate/invocation.json").read_bytes())
+    assert invocation["basis"] == "target-free-governed-no-home-prerequisite", (
+        "Original invocation evidence must distinguish the new gate from earlier HOME evidence"
+    )
+
+
 def test_ImageRecipeFreezesAssetAndInstalledWheelBeforeRuntime():
     """The new recipe pins acquisition and performs no engine probe during image construction."""
 

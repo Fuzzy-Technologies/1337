@@ -266,3 +266,23 @@ No production source, public API, capability registry, provider flag/default,
 dependency/lock file, release or PyPI change is proposed. Architecture review
 accepted v2 unproven semantics and the honest incomplete matrix. The existing
 native acceptance remains separate from both unrun Nuclei tracks.
+
+## Governed environment checkpoint
+
+The separate target-free `--governed-prerequisites` image mode probes the genuine
+pinned version and strict template validation with exactly PATH/LANG, no HOME or
+XDG variables, and a private writable stage working directory. Original streams,
+process receipts, cwd, generated initialization files, image/source/installed
+material identities and daemon cleanup remain independently bound. This mode
+changes no production environment allowlist and makes no passwd-home assumption.
+The earlier explicit-HOME prerequisite is unchanged and cannot establish this
+new gate. The new source and inert contracts alone leave compatibility **UNRUN**.
+
+The ordinary selected test is
+`FUZZY1337_EXTERNAL_NUCLEI_GOVERNED_PREREQUISITES=linux-amd64 uv run --locked
+--extra dev pytest tests/functional/test_external_nuclei_governed_prerequisites.py
+--no-cov -n 0`. Missing enabled Docker prerequisites fail; unset selection skips
+before host discovery. No application targets may start until genuine no-HOME
+validation is accepted. The two lab producers now write their actual Nuclei
+effective budgets before launch; whole-product wall time remains separate from
+the original provider duration used for the three-second provider window.

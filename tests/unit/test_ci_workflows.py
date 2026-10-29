@@ -83,6 +83,7 @@ OWNED_TRAVERSAL_RATE_CONDITION = (
     "&& contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]')"
 )
 NUCLEI_CONTRACT_WINDOWS_JOB = "nuclei-contract-windows-checkpoint"
+NUCLEI_GOVERNED_PREREQUISITE_JOB = "nuclei-governed-prerequisite-checkpoint"
 
 
 def Workflow(name: str) -> dict[str, Any]:
@@ -124,7 +125,8 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
 
     if name == "python-quality.yml":
         expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {
-            OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB}
+            OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB,
+            NUCLEI_GOVERNED_PREREQUISITE_JOB}
 
     assert set(jobs) == expected, "The integration job inventory changed unexpectedly."
     assert workflow["permissions"] == {"contents": "read"}, "PR authority expanded."

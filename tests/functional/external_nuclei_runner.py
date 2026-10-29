@@ -204,6 +204,13 @@ def ProjectStandaloneMatches(raw: bytes) -> list[dict]:
     return findings
 
 
+def EffectiveBudget() -> dict:
+    """Declare actual fixed Nuclei limits separately from wrapper and container wall time."""
+
+    return {"request_timeout_seconds": 3, "operation_timeout_seconds": 3,
+            "max_requests": 1, "max_response_bytes": 1048576, "rate_limit": 1}
+
+
 def AttemptProvenance(path: str) -> dict:
     """Describe one configured invocation while explicitly leaving actual contacts unknown."""
 
@@ -253,7 +260,7 @@ def OwnStandaloneProcess(root: Path, argv: tuple[str, ...], environment: dict[st
         try:
             process = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, shell=False, bufsize=0, start_new_session=True,
-                cwd=environment["HOME"], env=environment)
+                cwd=environment.get("HOME", str(root)), env=environment)
             selector.register(process.stdout, selectors.EVENT_READ,
                               (stdout, STDOUT_BYTES, "stdout"))
             selector.register(process.stderr, selectors.EVENT_READ,
@@ -385,6 +392,7 @@ def RunStandalone(root: Path, path: str, executable: Path, template: Path, confi
     WriteJson(root / "invocation.json", {"argv": list(argv), "scanner_id": "nuclei",
         "scanner_version": VERSION, "scanner_sha256": binary["sha256"],
         "rule_sha256": TEMPLATE_SHA256, "product_revision": None,
+        "effective_budget": EffectiveBudget(),
         "provider_timeout_seconds": PROVIDER_TIMEOUT_SECONDS,
         "stdout_capture_bytes": STDOUT_BYTES, "stderr_capture_bytes": STDERR_BYTES,
         "original_file_ceiling_bytes": MAX_FILE_BYTES, "environment": environment})
