@@ -14,6 +14,8 @@ from xml.etree import ElementTree
 import pytest
 
 import fuzzy1337.ci_commands as commands
+import fuzzy1337.native_image_bounded_capture as native_capture
+import fuzzy1337.native_image_observation as native_observation
 from fuzzy1337.adapters import SerializeContract
 from fuzzy1337.ci_gate import CiFindingCriterion, EvaluateNativeImageCriterion
 from fuzzy1337.findings import (
@@ -25,6 +27,10 @@ from fuzzy1337.findings import (
     TransitionFinding,
 )
 from fuzzy1337.model import LocalModelStore
+from fuzzy1337.native_image_observation import (
+    NativeImageObservationBudget,
+    NativeImageObservationWindow,
+)
 from fuzzy1337.native_image_workflow import ScanNativeImage
 from fuzzy1337.report_commands import ReportFailure
 from fuzzy1337.reporting import ReportSnapshot
@@ -71,6 +77,73 @@ def native_ci(authority, monkeypatch):
     return authority, policy
 
 
+@pytest.fixture
+def controlled_native_ci_clock(native_ci, monkeypatch) -> list[float]:
+    """Isolate the doubled pair's ledger clock after original authority/material fixture setup."""
+
+    clock = [native_observation.monotonic()]
+    monkeypatch.setattr(native_observation, "monotonic", lambda: clock[0])
+
+    return clock
+
+
+@pytest.fixture
+def native_ci_budget_diagnostic(monkeypatch) -> list[dict[str, object]]:
+    """Observe original budget transitions without replacing their clocks or decisions."""
+
+    records: list[dict[str, object]] = []
+    begin = NativeImageObservationBudget.BeginWindow
+    finish = NativeImageObservationBudget.FinishWindow
+
+    def Record(budget: NativeImageObservationBudget, transition: str, finalizing: bool,
+               window: NativeImageObservationWindow | None,
+               failure: BaseException | None) -> None:
+        """Detach finite ledger observations and the original fixed exception category."""
+
+        records.append({"transition": transition, "finalizing": finalizing,
+            "spent_seconds": budget.SpentSeconds,
+            "finalization_seconds": budget.FinalizationSeconds,
+            "observation_count": budget.ObservationCount, "failed": budget.Failed,
+            "window_seconds": None if window is None else window.deadline - window.started_at,
+            "exception_type": None if failure is None else type(failure).__name__,
+            "exception_message": None if failure is None else str(failure)})
+
+    def BeginWindow(budget: NativeImageObservationBudget, maximum: float, reserve: float, *,
+                    finalizing: bool) -> NativeImageObservationWindow:
+        """Call the original issuer unchanged and retain its actual result or refusal."""
+
+        try:
+            window = begin(budget, maximum, reserve, finalizing=finalizing)
+
+        except BaseException as failure:
+            Record(budget, "begin", finalizing, None, failure)
+
+            raise
+
+        Record(budget, "begin", finalizing, window, None)
+
+        return window
+
+    def FinishWindow(budget: NativeImageObservationBudget,
+                     window: NativeImageObservationWindow, *, finalizing: bool) -> None:
+        """Call the original accounting unchanged and retain its actual result or refusal."""
+
+        try:
+            finish(budget, window, finalizing=finalizing)
+
+        except BaseException as failure:
+            Record(budget, "finish", finalizing, window, failure)
+
+            raise
+
+        Record(budget, "finish", finalizing, window, None)
+
+    monkeypatch.setattr(NativeImageObservationBudget, "BeginWindow", BeginWindow)
+    monkeypatch.setattr(NativeImageObservationBudget, "FinishWindow", FinishWindow)
+
+    return records
+
+
 def Revoke(root: Path) -> None:
     """Change the existing recorded scope, without manufacturing another authority record."""
 
@@ -82,7 +155,7 @@ def Revoke(root: Path) -> None:
 
 @pytest.mark.parametrize("limit,expected", [(0, 1), (1, 0)])
 def test_ControlledNativePairPublishesOneSavedSnapshotAndExplicitPredicate(
-    native_ci, tmp_path, limit, expected,
+    native_ci, tmp_path, limit, expected, native_ci_budget_diagnostic,
 ):
     """Real report files and canonical model agree under explicitly doubled engine execution."""
 
@@ -90,7 +163,22 @@ def test_ControlledNativePairPublishesOneSavedSnapshotAndExplicitPredicate(
     arguments = NativeArguments(authority.root, policy, tmp_path)
     arguments[arguments.index("--max-matches") + 1] = str(limit)
     status, outcome = InvokeCi(arguments)
-    assert status == expected == outcome["exit_code"], outcome
+    diagnostic = {"outcome": outcome, "budget_observations": native_ci_budget_diagnostic}
+
+    if not status == expected == outcome["exit_code"]:
+        destination = Path("functional-evidence/native-ci-diagnostic") / (
+            f"controlled-native-pair-{limit}-{expected}.json")
+
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(json.dumps(diagnostic, indent=2, sort_keys=True) + "\n",
+                                   encoding="utf-8")
+
+        except OSError as failure:
+            diagnostic["retention_failure"] = type(failure).__name__
+
+    assert status == expected == outcome["exit_code"], json.dumps(diagnostic, sort_keys=True)
+
     assert outcome["scan"]["workflow"] == "native-image" and (
         outcome["scan"]["state"] == "completed" and not outcome["scan"]["custody_uncertain"]
     ), "CI must preserve the actual native workflow and certain original custody"
@@ -124,6 +212,44 @@ def test_ControlledNativePairPublishesOneSavedSnapshotAndExplicitPredicate(
             report["report_sha256"] == hashlib.sha256(
                 (tmp_path / filename).read_bytes()).hexdigest()
         ), "Per-artifact facts must match independently reopened actually published bytes"
+
+
+def test_ControlledNativePairBudgetOverrunRemainsFailedAndIndeterminate(
+    native_ci, tmp_path, monkeypatch, controlled_native_ci_clock, native_ci_budget_diagnostic,
+):
+    """An explicit ledger overrun preserves original refusal truth across the public CI boundary."""
+
+    authority, policy = native_ci
+    append = native_capture.OutcomeJournal.Append
+    injected = False
+
+    def Append(owner, value, **options):
+        """Charge ten explicit seconds only after the original prepared journal was retained."""
+
+        nonlocal injected
+        append(owner, value, **options)
+
+        if not injected:
+            controlled_native_ci_clock[0] += 10.0
+            injected = True
+
+    monkeypatch.setattr(native_capture.OutcomeJournal, "Append", Append)
+    status, outcome = InvokeCi(NativeArguments(authority.root, policy, tmp_path))
+    assert status == outcome["exit_code"] == 4 and outcome["failure"] == "storage", outcome
+    assert outcome["criterion"]["status"] == "indeterminate" and (
+        outcome["scan"]["custody_uncertain"] is True
+    ), "Exhausted original custody cannot become a satisfied or violated finding predicate"
+    assert injected and not authority.collector.state.calls, (
+        "The charged first journal must refuse before either controlled provider operation"
+    )
+    assert all(report["output_published"] is False for report in outcome["reports"].values()), (
+        "An exhausted original capture cannot publish a successful report"
+    )
+    assert any(item["exception_message"] == "native material phase exceeded its allowance" and (
+        item["finalization_seconds"] == 10.0 and item["failed"] is True
+    ) for item in native_ci_budget_diagnostic), (
+        "The original ledger must account for the injected overrun and retain its refusal"
+    )
 
 
 @pytest.mark.parametrize("mode", ["dismissed", "absent"])
