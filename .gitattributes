@@ -16,3 +16,6 @@ src/fuzzy1337/data/nuclei/* text eol=lf
 tests/fixtures/nuclei/native-encoded-result.jsonl -text
 tests/contract/fixtures/zap-passive.oracle.v1.json text eol=lf
 labs/external/benchmark/templates/prometheus-exposition.yaml text eol=lf
+# Installed acceptance authenticates these helpers by their original source bytes.
+tests/contract/owned_content_response*.py text eol=lf
+tests/contract/owned_response_product_runner.py text eol=lf

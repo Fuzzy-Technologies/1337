@@ -455,8 +455,8 @@ def test_InstalledRuntimeDefaultDenialPrecedesAnyPrerequisiteOrTransport(enabled
             enabled=enabled)
 
 
-@pytest.mark.parametrize("mutation", [None, "helper-hash", "returncode", "capture-original",
-    "guard-original", "guard-failure"])
+@pytest.mark.parametrize("mutation", [None, "helper-hash", "prefix", "returncode",
+    "capture-original", "guard-original", "guard-failure"])
 def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFacts(
     tmp_path, monkeypatch, mutation,
 ):
@@ -524,8 +524,13 @@ def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFact
             sources, _ = entrypoint.Sources()
             summary = {"mock_summary": operation}
             document = {"operation": operation, "installed_identity": {
-                "python": str(installed.python), "prefix": str(installed.python.parents[1])},
+                "python": str(installed.python), "prefix": str(
+                    installed.python.parents[1].resolve())},
                 "summary": summary, "consumer_sources": sources}
+
+            if mutation == "prefix":
+                document["installed_identity"]["prefix"] = str(
+                    installed.python.parents[2].resolve())
 
             if operation in ("fresh-setup", "inspect"):
                 extra, _ = entrypoint.ControlSources()
