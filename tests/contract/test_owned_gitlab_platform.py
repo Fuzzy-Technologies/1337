@@ -496,7 +496,8 @@ def test_PlatformWorkflowUsesSameOrdinaryCohortAndStrictGate():
         "The same source path must serve final ready CI and explicitly selected Draft diagnosis")
     assert "tests/functional/test_owned_gitlab_product.py" in execute["run"] and (
         "--no-cov -n 0" in execute["run"] and "--junitxml" in execute["run"]
-    ), "The genuine platform must run as ordinary serial pytest with original JUnit"
+        and "--tb=short" in execute["run"]
+    ), "Ordinary serial pytest must retain JUnit without dumping private fixture arguments"
     assert "--verify" in gate["run"] and "--junit" in gate["run"], (
         "Workflow success must require independently reopened originals and zero skipped cohorts")
     assert "if" not in execute and "if" not in gate, (
@@ -582,3 +583,151 @@ def test_RunnerSpecificSizeDoesNotRelaxOtherAcquisitionOrArtifactBudgets():
     ), "The original vendor checksum must remain unchanged when binding its correct byte length"
     assert platform.MAX_RESPONSE == 32 * 1024 * 1024, (
         "Runner-specific admission cannot enlarge API, trace or uploaded artifact budgets")
+
+
+
+@pytest.mark.parametrize("fault", [None, "foreign-name", "foreign-label", "changed-id",
+    "name-instead-of-id", "truncated-id", "missing-labels", "replacement-id"])
+def test_NetworkCleanupBindsFullOriginalIdentityAndObservedOwnership(tmp_path, monkeypatch, fault):
+    """Actual-shaped network IDs require independent exact-name/label/identity confirmation."""
+
+    owner = "owned-fixture"
+    identity = "a" * 64
+    private = tmp_path / "private"
+    private.mkdir()
+    observed = private.stat()
+    commands = []
+    reads = []
+    network = {"Id": "b" * 64 if fault == "changed-id" else identity,
+        "Name": "foreign" if fault == "foreign-name" else owner,
+        "Labels": {"1337.owner": "foreign" if fault == "foreign-label" else owner}}
+
+    if fault == "missing-labels":
+        network["Labels"] = None
+
+    def Command(arguments, timeout):
+        """Supply inert original-shaped network metadata without any Docker operation."""
+
+        commands.append(arguments)
+        suffix = arguments[5:]
+
+        if suffix[:2] == ("network", "ls"):
+            assert "--no-trunc" in suffix, (
+                "Cleanup must enumerate the full original network identity")
+            reads.append(True)
+
+            if len(reads) == 1:
+                selected = owner if fault == "name-instead-of-id" else (
+                    identity[:12] if fault == "truncated-id" else
+                    "b" * 64 if fault == "replacement-id" else identity)
+
+                return (selected + "\n").encode()
+
+        if suffix[:2] == ("network", "inspect"):
+            assert suffix[-1] == identity, (
+                "Inspection must use the observed original full network ID")
+
+            return json.dumps(network).encode()
+
+        return b""
+
+    monkeypatch.setattr(platform, "Command", Command)
+
+    if fault is None:
+        proof = platform.Cleanup(owner, [], private, None,
+            (observed.st_dev, observed.st_ino), identity)
+        assert proof["private_controls_removed"] is True and not private.exists(), (
+            "Exact owned-network removal and empty readback permit private cleanup")
+        assert any(command[5:] == ("network", "rm", identity) for command in commands), (
+            "Cleanup must remove only the original inspected network ID")
+
+    else:
+        with pytest.raises(ValueError, match="network"):
+            platform.Cleanup(owner, [], private, None,
+            (observed.st_dev, observed.st_ino), identity)
+
+        assert private.exists(), "Unknown network ownership must retain private controls"
+        assert not any("rm" in command for command in commands), (
+            "A foreign, shortened, renamed or mismatched network must never be removed")
+
+
+@pytest.mark.parametrize("failure", [ConnectionResetError, ConnectionAbortedError,
+    ConnectionRefusedError, TimeoutError, platform.urllib.error.URLError])
+def test_OwnedStartupTransportFailureCanBecomeReadyWithinOriginalAllowance(monkeypatch, failure):
+    """Owned startup tolerates transport initialization without masking API failures."""
+
+    observed = []
+    sleeps = []
+
+    def Read(request, limit, deadline):
+        """Reset the first inert startup response and then expose an original-shaped success."""
+
+        observed.append((request, limit, deadline))
+
+        if len(observed) == 1:
+            raise failure("marked inert startup transport failure")
+
+        return b"ready"
+
+    monkeypatch.setattr(platform, "ReadBounded", Read)
+    monkeypatch.setattr(platform.time, "monotonic", lambda: 10.0)
+    monkeypatch.setattr(platform.time, "sleep", lambda value: sleeps.append(value))
+    platform.WaitReady(8929, 900.0)
+    assert len(observed) == 2 and sleeps == [1], (
+        "Only the failed startup observation may consume the existing bounded poll interval")
+    assert all(item == ("http://127.0.0.1:8929/-/readiness", 65536, 15.0)
+               for item in observed), "Startup cannot change origin, response cap or read allowance"
+
+
+@pytest.mark.parametrize("fault", ["deadline", "validation"])
+def test_StartupPollingDoesNotMaskValidationOrExtendExpiredAllowance(monkeypatch, fault):
+    """Expired deadlines and non-transport validation failures remain terminal."""
+
+    reads = []
+    sleeps = []
+
+    def Read(*arguments):
+        """Represent a non-transport validation refusal without opening any connection."""
+
+        reads.append(arguments)
+        raise ValueError("marked original admission failure")
+
+    monkeypatch.setattr(platform, "ReadBounded", Read)
+    monkeypatch.setattr(platform.time, "monotonic", lambda: 10.0)
+    monkeypatch.setattr(platform.time, "sleep", lambda value: sleeps.append(value))
+
+    with pytest.raises(ValueError, match="fixed boot deadline" if fault == "deadline" else
+                       "original admission failure"):
+        platform.WaitReady(8929, 9.0 if fault == "deadline" else 900.0)
+
+    assert not sleeps and len(reads) == (0 if fault == "deadline" else 1), (
+        "A terminal validation or expired budget must never create another startup attempt")
+
+
+
+def test_PersistentStartupResetCannotRenewTheOriginalBootDeadline(monkeypatch):
+    """Repeated transport initialization failures stop at the original shared cohort deadline."""
+
+    clock = [0.0]
+    reads = []
+
+    def Read(request, limit, deadline):
+        """Represent a persistent inert reset while retaining every selected read deadline."""
+
+        reads.append(deadline)
+        raise ConnectionResetError("marked inert permanent startup reset")
+
+    def Sleep(value):
+        """Advance only the deterministic logical clock, without a real delay."""
+
+        clock[0] += value
+
+    monkeypatch.setattr(platform, "ReadBounded", Read)
+    monkeypatch.setattr(platform.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(platform.time, "sleep", Sleep)
+
+    with pytest.raises(ValueError, match="fixed boot deadline"):
+        platform.WaitReady(8929, 2.0)
+
+    assert reads == [2.0, 2.0] and clock[0] == 2.0, (
+        "Startup resets cannot renew the original allowance or trigger another expired read")

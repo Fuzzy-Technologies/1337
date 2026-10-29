@@ -274,6 +274,24 @@ def ReadBounded(request, limit: int, deadline: float, *,
     return b"".join(chunks)
 
 
+def WaitReady(port: int, deadline: float) -> None:
+    """Poll only owned startup transport failures within the original finite boot allowance."""
+
+    boot_end = min(deadline, time.monotonic() + 900)
+
+    while time.monotonic() < boot_end:
+        try:
+            ReadBounded(f"http://127.0.0.1:{port}/-/readiness", 65536,
+                min(boot_end, time.monotonic() + 5))
+
+            return
+
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            time.sleep(1)
+
+    raise ValueError("Real GitLab did not become ready within its fixed boot deadline")
+
+
 def RunnerBytes(deadline: float) -> bytes:
     """Admit only the exact original provider length and unchanged vendor checksum before writes."""
 
@@ -419,7 +437,8 @@ def RunnerConfig(path: Path, api: Api, token: str, private: Path) -> None:
 
 
 def Cleanup(owner: str, jobs: list[int], private: Path, session,
-            expected_identity: tuple[int, int] | None = None) -> dict:
+            expected_identity: tuple[int, int] | None = None,
+            network_identity: str | None = None) -> dict:
     """Retain private controls until the canonical owner and every scoped resource stop."""
 
     deadline = time.monotonic() + 120
@@ -476,6 +495,9 @@ def Cleanup(owner: str, jobs: list[int], private: Path, session,
     for family in ("ps", "volume", "network"):
         arguments = (("docker", "ps", "-aq") if family == "ps" else
                      ("docker", family, "ls", "-q"))
+        if family == "network":
+            arguments = (*arguments, "--no-trunc")
+
         found = Checked((*arguments, "--filter", "label=1337.owner=" + owner), 15)
 
         for name in found.decode().splitlines():
@@ -488,9 +510,23 @@ def Cleanup(owner: str, jobs: list[int], private: Path, session,
 
                 selected = ("docker", "rm", "--force", "--volumes", name)
 
+            elif family == "network":
+                if re.fullmatch(r"[a-f0-9]{64}", name) is None or name != network_identity:
+                    raise ValueError("GitLab cleanup encountered an unadmitted network identity")
+
+                network = Json(Checked(("docker", "network", "inspect", "--format",
+                    "{{json .}}", name), 15))
+
+                if network.get("Id") != name or network.get("Name") != owner or (
+                    type(network.get("Labels")) is not dict
+                    or network["Labels"].get("1337.owner") != owner
+                ):
+                    raise ValueError("GitLab cleanup network identity, name or ownership changed")
+
+                selected = ("docker", "network", "rm", name)
+
             else:
-                allowed = {owner} if family == "network" else {
-                    owner + "-" + suffix for suffix in ("config", "logs", "data")}
+                allowed = {owner + "-" + suffix for suffix in ("config", "logs", "data")}
 
                 if name not in allowed:
                     raise ValueError("GitLab cleanup encountered an unadmitted named resource")
@@ -618,6 +654,7 @@ def Run(source: Path, output: Path, image: str) -> dict:
     token = secrets.token_hex(10)
     forbidden = (token.encode(),)
     session = None
+    network_identity = None
     owned_jobs = []
     successful = False
 
@@ -653,7 +690,11 @@ def Run(source: Path, output: Path, image: str) -> dict:
         runner.write_bytes(binary)
         runner.chmod(0o700)
         Checked(("docker", "pull", SERVER), 180)
-        Checked(("docker", "network", "create", "--label", "1337.owner=" + owner, owner), 30)
+        network_identity = Checked(("docker", "network", "create", "--label",
+            "1337.owner=" + owner, owner), 30).decode().strip()
+
+        if re.fullmatch(r"[a-f0-9]{64}", network_identity) is None:
+            raise ValueError("Created GitLab network did not retain its full original identity")
 
         for suffix in ("config", "logs", "data"):
             Checked(("docker", "volume", "create", "--label", "1337.owner=" + owner,
@@ -685,19 +726,7 @@ def Run(source: Path, output: Path, image: str) -> dict:
             raise ValueError("Real GitLab must publish only one owned loopback HTTP port")
 
         port = int(ports.rsplit(":", 1)[1])
-        boot_end = min(deadline, time.monotonic() + 900)
-
-        while time.monotonic() < boot_end:
-            try:
-                ReadBounded(f"http://127.0.0.1:{port}/-/readiness", 65536,
-                    min(boot_end, time.monotonic() + 5))
-                break
-
-            except (urllib.error.URLError, TimeoutError):
-                time.sleep(1)
-
-        else:
-            raise ValueError("Real GitLab did not become ready within its fixed boot deadline")
+        WaitReady(port, deadline)
 
         Checked(("docker", "exec", owner, "gitlab-rails", "runner",
                  "/owned-private/bootstrap.rb"), 120)
@@ -728,7 +757,7 @@ def Run(source: Path, output: Path, image: str) -> dict:
         successful = True
 
     finally:
-        cleanup = Cleanup(owner, owned_jobs, private, session, private_identity)
+        cleanup = Cleanup(owner, owned_jobs, private, session, private_identity, network_identity)
 
         if output.is_dir():
             Publish(output / "cleanup.json",
