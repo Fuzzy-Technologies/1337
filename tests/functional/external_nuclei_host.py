@@ -689,6 +689,7 @@ def ContainerProjection(raw: dict) -> dict:
 
     Returns:
         Explicit identity/config/host/state projection for the reviewed predicates.
+        Only optional Sysctls/StorageOpt omission uses the existing None-neutral checks.
 
     Raises:
         KeyError: Required Docker readback is absent.
@@ -703,7 +704,8 @@ def ContainerProjection(raw: dict) -> dict:
     if any(config[name] is not False for name in ("OpenStdin", "StdinOnce", "Tty")) or (
         config.get("Healthcheck") is not None
         or type(config["StopTimeout"]) is not int or config["StopTimeout"] != 5
-        or any(settings[name] not in accepted for name, accepted in neutral.items())
+        or any((settings.get(name) if name in ("Sysctls", "StorageOpt") else settings[name])
+               not in accepted for name, accepted in neutral.items())
         or set(raw["NetworkSettings"]["Networks"]) != {"none"}
     ):
         raise ValueError("Nuclei container has unsupported input, initialization "

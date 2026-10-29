@@ -1494,3 +1494,65 @@ def test_ImageOptionalPortsDoesNotRelaxRequiredInspectFields(path):
 
     with pytest.raises(KeyError):
         host.ImageProjection(raw)
+
+
+@pytest.mark.parametrize("sysctls,storage", [
+    ("missing", "missing"), ("missing", "null"), ("missing", "empty"),
+    ("null", "missing"), ("null", "null"), ("null", "empty"),
+    ("empty", "missing"), ("empty", "null"), ("empty", "empty"),
+], ids=["omit-omit", "omit-null", "omit-empty", "null-omit", "null-null", "null-empty",
+        "empty-omit", "empty-null", "empty-empty"])
+def test_ContainerOptionalMapRepresentationsPreserveAdmission(sysctls, storage):
+    """Sysctls/StorageOpt omission, null and empty maps retain the existing neutral policy."""
+
+    raw = RawContainer()
+
+    for field, representation in (("Sysctls", sysctls), ("StorageOpt", storage)):
+        if representation == "missing":
+            del raw["HostConfig"][field]
+
+        else:
+            raw["HostConfig"][field] = None if representation == "null" else {}
+
+    before = copy.deepcopy(raw)
+    projection = host.ContainerProjection(raw)
+    host.AdmitContainer(projection, Images()[1], OWNER, REVISION)
+    assert raw == before, "Optional map handling must not mutate retained original JSON."
+
+
+@pytest.mark.parametrize("field", ["Sysctls", "StorageOpt"], ids=["sysctls", "storage"])
+@pytest.mark.parametrize("value", [{"inert-setting": "inert-value"}, [], "", 0, False, 42],
+                         ids=["nonempty", "list", "empty-string", "zero", "boolean", "number"])
+def test_ContainerOptionalMapExplicitInvalidValuesRefuse(field, value):
+    """Only absence uses None; explicit nonempty or malformed neutral-map values still refuse."""
+
+    raw = RawContainer()
+    del raw["HostConfig"]["Sysctls"]
+    del raw["HostConfig"]["StorageOpt"]
+    raw["HostConfig"][field] = value
+
+    with pytest.raises(ValueError, match="unsupported input, initialization or daemon defaults"):
+        host.ContainerProjection(raw)
+
+    assert raw["HostConfig"][field] is value, (
+        "An explicit invalid map value must remain unchanged rather than defaulting to neutral."
+    )
+
+
+@pytest.mark.parametrize("path", [("HostConfig", "Dns"), ("HostConfig", "DnsOptions"),
+    ("HostConfig", "DnsSearch"), ("HostConfig", "CgroupParent"), ("HostConfig", "ContainerIDFile"),
+    ("HostConfig", "Runtime"), ("HostConfig", "CgroupnsMode"), ("HostConfig", "Init"),
+    ("HostConfig", "SecurityOpt"), ("HostConfig", "Memory"), ("HostConfig", "NanoCpus"),
+    ("HostConfig", "PidsLimit"), ("Config", "StopTimeout"), ("NetworkSettings", "Networks")],
+    ids=["dns", "dns-options", "dns-search", "cgroup-parent", "idfile", "runtime", "cgroupns",
+         "init", "security", "memory", "cpu", "pids", "stop-timeout", "network"])
+def test_ContainerOptionalMapKeepsOtherReadbacksRequired(path):
+    """Every other neutral default and explicit security/resource/network read remains required."""
+
+    raw = RawContainer()
+    del raw["HostConfig"]["Sysctls"]
+    del raw["HostConfig"]["StorageOpt"]
+    del raw[path[0]][path[1]]
+
+    with pytest.raises(KeyError):
+        host.ContainerProjection(raw)
