@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import errno
 import hashlib
+import math
 
 import pytest
 
@@ -286,6 +287,50 @@ def test_SourceFactsKeepNormalHeldAndRefusalDeliveryDistinct(name, address):
     observed = AssertContentSourceFacts(name, url, main, sentinel, sentinel_origin=other)
     assert observed == ("held-peer-ended" if name == "held-eof" else "normal-eof"), (
         "Original source-delivery classification must remain distinct from worker admission")
+
+
+def test_SourceFactsPreserveExactForwardDeadlineArithmetic() -> None:
+    """Accept the exact recorded deadline when float subtraction loses the seven-second delta."""
+
+    name, url, main, sentinel, other = SourceFacts()
+    record = main["contacts"][0]
+    record["accepted_at"] = 31.277030088
+    record["deadline_at"] = record["accepted_at"] + 7
+    assert record["deadline_at"] - record["accepted_at"] != 7, (
+        "The causal fixture must retain the original subtraction-cancellation counterexample")
+    assert AssertContentSourceFacts(name, url, main, sentinel, sentinel_origin=other) == (
+        "normal-eof"), "The exact forward deadline must match the source's original construction"
+
+
+@pytest.mark.parametrize("mutation", ["earlier", "later", "bool-accepted", "bool-deadline",
+    "text-accepted", "text-deadline", "nan-accepted", "nan-deadline", "infinite-accepted",
+    "infinite-deadline", "negative-accepted"])
+def test_SourceFactsRejectAlteredOrUnboundedDeadlineArithmetic(mutation: str) -> None:
+    """Keep exact deadline, type, finite-clock and nonnegative-origin refusals.
+
+    Args:
+        mutation: One changed clock fact that must refuse before delivery classification.
+    """
+
+    name, url, main, sentinel, other = SourceFacts()
+    record = main["contacts"][0]
+    accepted_at = 31.277030088
+    record.update(accepted_at=accepted_at, deadline_at=accepted_at + 7)
+
+    if mutation in {"earlier", "later"}:
+        record["deadline_at"] = math.nextafter(record["deadline_at"],
+            -math.inf if mutation == "earlier" else math.inf)
+
+    elif mutation == "negative-accepted":
+        record.update(accepted_at=-1.0, deadline_at=6.0)
+
+    else:
+        kind, clock_name = mutation.split("-")
+        record[clock_name + "_at"] = {"bool": True, "text": "31.277030088",
+            "nan": math.nan, "infinite": math.inf}[kind]
+
+    with pytest.raises(AssertionError, match="Original source deadline is immutable"):
+        AssertContentSourceFacts(name, url, main, sentinel, sentinel_origin=other)
 
 
 @pytest.mark.parametrize("mutation", ["absent-sentinel", "foreign-owner", "contact-overflow",

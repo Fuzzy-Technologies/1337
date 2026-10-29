@@ -315,7 +315,7 @@ def AssertContentSourceFacts(name: str, url: str, main: dict, sentinel: dict, *,
             "Original accept and handler ownership must join exactly once")
     assert all(type(record[key]) in (int, float) and math.isfinite(record[key]) for key in (
         "accepted_at", "deadline_at")) and record["accepted_at"] >= 0 and (
-        record["deadline_at"] - record["accepted_at"] == 7), "Original source deadline is immutable"
+        record["deadline_at"] == record["accepted_at"] + 7), "Original source deadline is immutable"
     assert record["socket_closed"] is True and record["close_error"] is False and (
         record["close_errno"] is None), "An unconfirmed original close cannot establish cleanup"
     endpoints = main["accepted_endpoints"]
