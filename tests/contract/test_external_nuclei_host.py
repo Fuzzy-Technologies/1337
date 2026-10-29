@@ -457,8 +457,11 @@ class InertExecution:
         self.refuse = refuse
         self.code = code
         self.event = asyncio.Event()
+        self.wait = self.WaitProcess
+        self.terminate = self.Terminate
+        self.kill = self.Kill
 
-    async def wait(self):
+    async def WaitProcess(self):
         """Return the synthetic status after any declared termination dependency."""
 
         if self.blocked:
@@ -486,13 +489,13 @@ class InertExecution:
         self.verified = True
         self.receipt = {"inert": True}
 
-    def terminate(self):
+    def Terminate(self):
         """Release a blocked fake worker without signaling any process."""
 
         self.stopped = True
         self.event.set()
 
-    def kill(self):
+    def Kill(self):
         """Release the same synthetic event for forced-exit contracts."""
 
         self.terminate()
@@ -538,9 +541,15 @@ def test_HostCommandOriginalBinaryAndWorkerStatus(tmp_path, monkeypatch, code):
     """Keep binary originals and worker status without text decoding or success invention."""
 
     result, fake, directory = asyncio.run(CaptureInert(tmp_path, monkeypatch, code=code))
-    assert (directory / "stdout.raw").read_bytes() == b"\xfforiginal\x00"
-    assert result["exit_code"] == code and result["streams_complete"] is True
-    assert result["cleanup_confirmed"] is True and fake.closed
+    assert (directory / "stdout.raw").read_bytes() == b"\xfforiginal\x00", (
+        'Original bytes, worker status and private cleanup must remain independently truthful.'
+    )
+    assert result["exit_code"] == code and result["streams_complete"] is True, (
+        'Original bytes, worker status and private cleanup must remain independently truthful.'
+    )
+    assert result["cleanup_confirmed"] is True and fake.closed, (
+        'Original bytes, worker status and private cleanup must remain independently truthful.'
+    )
 
 
 @LINUX_CONTEXT
@@ -553,9 +562,15 @@ def test_HostCommandOverflowKeepsOneWitnessAndStops(tmp_path, monkeypatch, role)
 
     directory = next(host.REPOSITORY.glob("functional-evidence/*/run-*/command"))
     result = host.StrictJson((directory / "command.json").read_bytes())
-    assert len((directory / (role + ".raw")).read_bytes()) == 1025
-    assert result["capture_exhausted"] == role and result["streams_complete"] is False
-    assert result["cleanup_confirmed"] is True
+    assert len((directory / (role + ".raw")).read_bytes()) == 1025, (
+        'Overflow must retain exactly one witness and refuse successful capture.'
+    )
+    assert result["capture_exhausted"] == role and result["streams_complete"] is False, (
+        'Overflow must retain exactly one witness and refuse successful capture.'
+    )
+    assert result["cleanup_confirmed"] is True, (
+        'Overflow must retain exactly one witness and refuse successful capture.'
+    )
 
 
 @LINUX_CONTEXT
@@ -567,8 +582,12 @@ def test_HostCommandDeadlineSeparatesCleanupFromCompletion(tmp_path, monkeypatch
 
     directory = next(host.REPOSITORY.glob("functional-evidence/*/run-*/command"))
     result = host.StrictJson((directory / "command.json").read_bytes())
-    assert result["timed_out"] is True and result["cleanup_confirmed"] is True
-    assert result["streams_complete"] is False
+    assert result["timed_out"] is True and result["cleanup_confirmed"] is True, (
+        'Deadline refusal must survive confirmed CLI cleanup.'
+    )
+    assert result["streams_complete"] is False, (
+        'Deadline refusal must survive confirmed CLI cleanup.'
+    )
 
 
 @LINUX_CONTEXT
@@ -580,8 +599,12 @@ def test_HostCommandCleanupRefusalPreservesCaptureFailure(tmp_path, monkeypatch)
 
     directory = next(host.REPOSITORY.glob("functional-evidence/*/run-*/command"))
     result = host.StrictJson((directory / "command.json").read_bytes())
-    assert result["cleanup_confirmed"] is False and result["cleanup_error"] == "ValueError"
-    assert any("cleanup unconfirmed" in note for note in failure.value.__notes__)
+    assert result["cleanup_confirmed"] is False and result["cleanup_error"] == "ValueError", (
+        'Keep the capture error primary and retain separate cleanup refusal.'
+    )
+    assert any("cleanup unconfirmed" in note for note in failure.value.__notes__), (
+        'Keep the capture error primary and retain separate cleanup refusal.'
+    )
 
 
 @pytest.mark.parametrize("platform", ["win32", "darwin"], ids=["windows", "macos"])
@@ -593,4 +616,753 @@ def test_HostCommandUnsupportedBeforeWrites(tmp_path, monkeypatch, platform):
     with pytest.raises(ValueError, match="require Linux"):
         asyncio.run(host.CaptureCommand(tmp_path / "unwritten", ("inert",), tmp_path, {}, 1, 1, 1))
 
-    assert list(tmp_path.iterdir()) == []
+    assert list(tmp_path.iterdir()) == [], (
+        'Unsupported ownership must refuse before any output write.'
+    )
+
+
+@LINUX_CONTEXT
+@pytest.mark.parametrize("field", ["directory", "cwd"], ids=["output-parent", "cwd-parent"])
+def test_HostCommandRejectsParentTraversalBeforeWrites(tmp_path, monkeypatch, field):
+    """Lexically prefixed parent paths cannot escape the owner boundary."""
+
+    _, context, _ = OwnedContext(tmp_path, monkeypatch)
+    directory, cwd = context.parent / "command", host.REPOSITORY
+
+    if field == "directory":
+        directory = context.parent / ".." / ".." / "escaped"
+
+    else:
+        cwd = host.REPOSITORY / ".." / "escaped"
+
+    with pytest.raises(ValueError, match="owned paths"):
+        asyncio.run(host.CaptureCommand(directory, ("inert",), cwd, {}, 1, 8, 8))
+
+    assert not (context.parent / "command").exists(), (
+        'Parent traversal must refuse before opening capture files.'
+    )
+
+
+@LINUX_CONTEXT
+def test_HostCommandOverflowContinuesFlowControlledDrain(tmp_path, monkeypatch):
+    """Require post-overflow draining before the fake supervisor can complete its pipe wait."""
+
+    async def Scenario():
+        """Require drain-after-witness before the fake supervisor can verify its receipt."""
+
+        _, context, _ = OwnedContext(tmp_path, monkeypatch)
+        fake = InertExecution(blocked=True)
+        drained = asyncio.Event()
+
+        class FlowReader:
+            """Expose overflow then EOF only while the reader continues draining."""
+
+            def __init__(self):
+                """Begin with an unread over-budget chunk."""
+
+                self.reads = 0
+                self.read = self.Read
+
+            async def Read(self, maximum):
+                """Advance finite synthetic flow control without a transport or process."""
+
+                self.reads += 1
+
+                if self.reads == 1:
+                    return b"x" * 70000
+
+                drained.set()
+                fake.event.set()
+
+                return b""
+
+        fake.stdout = FlowReader()
+
+        async def Start(*arguments):
+            """Return the flow-dependent fake owner."""
+
+            return fake
+
+        monkeypatch.setattr(host, "StartOwnedExecution", Start)
+
+        with pytest.raises(ValueError, match="capture exhausted"):
+            await host.CaptureCommand(context.parent / "command", ("inert",), host.REPOSITORY,
+                                      {}, 1, 8, 8)
+
+        assert drained.is_set() and fake.closed and fake.verified, (
+            'Flow-control/cancellation cleanup must drain, close and retain its original receipt.'
+        )
+        assert (context.parent / "command/stdout.raw").read_bytes() == b"x" * 9, (
+            'Flow-control/cancellation cleanup must drain, close and retain its original receipt.'
+        )
+
+    asyncio.run(Scenario())
+
+
+@LINUX_CONTEXT
+def test_HostCommandRepeatedCancellationStillClosesAndRetains(tmp_path, monkeypatch):
+    """Repeated caller cancellation cannot interrupt the finalizer's joins or original receipt."""
+
+    async def Scenario():
+        """Cancel during command wait and again during delayed synthetic cleanup."""
+
+        _, context, _ = OwnedContext(tmp_path, monkeypatch)
+        fake = InertExecution(blocked=True)
+        started, finalizing, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+        def Stop():
+            """Delay fake exit so a second cancellation intersects finalization."""
+
+            finalizing.set()
+
+        async def Wait():
+            """Wait for a controlled inert cleanup release."""
+
+            await release.wait()
+            fake.returncode = 0
+            fake.Verify()
+
+            return 0
+
+        async def Start(*arguments):
+            """Signal ownership handoff to the synthetic cancellation driver."""
+
+            started.set()
+
+            return fake
+
+        fake.terminate, fake.Wait = Stop, Wait
+        monkeypatch.setattr(host, "StartOwnedExecution", Start)
+        task = asyncio.create_task(host.CaptureCommand(context.parent / "command", ("inert",),
+            host.REPOSITORY, {}, 1, 1024, 1024))
+        await started.wait()
+        await asyncio.sleep(0)
+        task.cancel()
+        await finalizing.wait()
+        task.cancel()
+        await asyncio.sleep(0)
+        release.set()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        result = host.StrictJson((context.parent / "command/command.json").read_bytes())
+        assert fake.closed and result["cleanup_confirmed"] is True, (
+            'Flow-control/cancellation cleanup must drain, close and retain its original receipt.'
+        )
+        assert result["interrupted"] == "CancelledError", (
+            'Flow-control/cancellation cleanup must drain, close and retain its original receipt.'
+        )
+
+    asyncio.run(Scenario())
+
+
+def RawImage(image, owner=OWNER):
+    """Express labeled synthetic image projections as Docker-shaped original JSON."""
+
+    return {"Id": image["id"], "Os": image["os"], "Architecture": image["architecture"],
+        "RootFS": {"Layers": image["layers"]}, "Config": {"Labels": {
+            **image["labels"], host.OWNER_LABEL: owner}, "Env": image["env"],
+            "User": image.get("user", "workbench"), "Entrypoint": image.get("entrypoint"),
+            "Cmd": image.get("cmd"), "Volumes": image.get("volumes"),
+            "ExposedPorts": image.get("ports"), "OnBuild": None, "Healthcheck": None}}
+
+
+def RawContainer():
+    """Return complete declared Docker-shaped fixture data without consulting a daemon."""
+
+    value = Container()
+    fields = {"network": "NetworkMode", "readonly": "ReadonlyRootfs", "privileged": "Privileged",
+        "init": "Init", "binds": "Binds", "ports": "PortBindings", "cap_drop": "CapDrop",
+        "cap_add": "CapAdd", "devices": "Devices", "device_requests": "DeviceRequests",
+        "volumes_from": "VolumesFrom", "security": "SecurityOpt", "memory": "Memory",
+        "cpu": "NanoCpus", "pids": "PidsLimit", "tmpfs": "Tmpfs", "pid_mode": "PidMode",
+        "ipc_mode": "IpcMode", "uts_mode": "UTSMode", "userns_mode": "UsernsMode",
+        "auto_remove": "AutoRemove", "restart": "RestartPolicy", "publish_all": "PublishAllPorts",
+        "extra_hosts": "ExtraHosts", "links": "Links", "groups": "GroupAdd"}
+    settings = {fields[key]: item for key, item in value["host"].items()}
+    settings.update(Dns=[], DnsOptions=[], DnsSearch=[], Sysctls={}, StorageOpt={},
+        CgroupParent="", ContainerIDFile="", Runtime="runc", CgroupnsMode="private")
+
+    return {"Id": value["id"], "Name": value["name"], "Image": IMAGE_ID,
+        "Config": {"Labels": {host.OWNER_LABEL: OWNER, host.SOURCE_LABEL: REVISION},
+            "Image": IMAGE_ID, "User": value["user"], "Entrypoint": value["entrypoint"],
+            "Cmd": value["cmd"], "Env": value["env"], "OpenStdin": False, "StdinOnce": False,
+            "Tty": False, "StopTimeout": 5, "Healthcheck": None}, "HostConfig": settings,
+        "Mounts": [], "State": value["state"], "RestartCount": 0,
+        "NetworkSettings": {"Networks": {"none": {"IPAddress": "", "GlobalIPv6Address": "",
+                                                    "Gateway": "", "IPv6Gateway": ""}}}}
+
+
+class InertHost(host.PrerequisiteHost):
+    """Exercise the actual lifecycle against finite labeled command replies only.
+
+    Args:
+        inventory: Synthetic Git metadata for pytest-owned source files.
+        fault: One bounded causal failure selected by a short explicit identifier.
+    """
+
+    def __init__(self, inventory, fault=None):
+        """Initialize fake daemon resources and retain every internally requested command."""
+
+        super().__init__()
+        self.inventory = inventory
+        self.fault = fault
+        base, image = Images()
+        self.raw_images = {BASE_ID: RawImage(base), IMAGE_ID: RawImage(image)}
+        self.raw_container = RawContainer()
+        self.present_tags = {}
+        self.container_present = False
+        self.calls = []
+
+    def Command(self, role, arguments, **options):
+        """Return synthetic originals and record fixed lifecycle arguments, never invoke capture."""
+
+        self.calls.append((role, arguments, options))
+        raw = b""
+
+        if role.endswith("-identity"):
+            raw = (REVISION + "\n" + "e" * 40 + "\n").encode()
+
+        elif role == "source-inventory":
+            raw = self.inventory
+
+        elif role == "daemon":
+            raw = b'{"os":"linux","architecture":"amd64"}'
+
+        elif role.endswith("-build"):
+            identifier = BASE_ID if role == "base-build" else IMAGE_ID
+            tag = self.tags[0 if role == "base-build" else 1]
+            self.present_tags[tag] = identifier
+            (self.root / (role.removesuffix("-build") + ".iid")).write_text(identifier + "\n")
+
+        elif role == "create":
+            self.container_present = True
+            raw = (self.raw_container["Id"] + "\n").encode()
+
+        elif role == "attach":
+            self.raw_container["State"] = Termination()
+            raw = b"inert-original-bundle"
+
+            if self.fault == "attach-running":
+                self.raw_container["State"].update(Status="running", Running=True, Pid=77)
+
+                raise ValueError("inert attach left an owned running container")
+
+        elif "inspect" in arguments:
+            identifier = arguments[-1]
+            value = self.raw_container if arguments[0] == "container" else self.raw_images[
+                self.present_tags.get(identifier, identifier)]
+            raw = host.Canonical(value).encode()
+
+        elif role in ("cleanup-owner-list", "cleanup-absence"):
+            raw = (self.raw_container["Id"] + "\n").encode() if self.container_present else b""
+
+        elif role in ("cleanup-tag-list", "cleanup-tag-absence"):
+            tag = arguments[-1].removeprefix("reference=")
+            raw = (self.present_tags[tag] + "\n").encode() if tag in self.present_tags else b""
+
+        elif role == "cleanup-remove":
+            self.container_present = False
+
+        elif role == "cleanup-tag-remove":
+            self.present_tags.pop(arguments[-1])
+
+        elif role == "cleanup-kill":
+            self.raw_container["State"].update(Status="exited", Running=False, Pid=0)
+
+        if self.fault == role:
+            raise ValueError("inert causal fault: " + role)
+
+        if self.fault == "oom" and role == "container-after":
+            value = host.StrictJson(raw)
+            value["State"]["OOMKilled"] = True
+            raw = host.Canonical(value).encode()
+
+        if self.fault == "owner" and role == "container-before":
+            self.raw_container["Config"]["Labels"][host.OWNER_LABEL] = "f" * 32
+            raw = host.Canonical(self.raw_container).encode()
+
+        if self.fault == "network" and role == "container-before":
+            self.raw_container["HostConfig"]["NetworkMode"] = "bridge"
+            raw = host.Canonical(self.raw_container).encode()
+
+        if self.fault == "tag-drift" and role == "base-tag-after":
+            value = host.StrictJson(raw)
+            value["Id"] = IMAGE_ID
+            raw = host.Canonical(value).encode()
+
+        return {"exit_code": 0}, raw
+
+
+@pytest.fixture
+def inert_lifecycle(tmp_path, monkeypatch):
+    """Replace only actual host/process discovery; retain the real lifecycle/state predicates."""
+
+    files = {"Dockerfile": b"inert development recipe", host.RECIPE_PATH: RECIPE,
+             "src/fuzzy1337/inert.py": b"inert package"}
+    _, context, inventory = OwnedContext(tmp_path, monkeypatch, files)
+    monkeypatch.setattr(host, "uuid4", lambda: type("Identity", (), {"hex": OWNER})())
+    original = host.Path.is_file
+    monkeypatch.setattr(host.Path, "is_file", lambda path: path.as_posix() in (
+        "/usr/bin/docker", "/usr/bin/git") or original(path))
+    monkeypatch.setattr(host.os, "access", lambda *arguments: True)
+    monkeypatch.setattr(host.platform, "machine", lambda: "x86_64")
+    context.parent.rmdir()
+
+    def Bundle(raw, output, source, revision):
+        """Record isolated bundle admission after requiring the synthetic original/source."""
+
+        assert raw == b"inert-original-bundle" and revision == REVISION, (
+            'Bundle admission must receive the exact original bytes and committed source.'
+        )
+        assert source[host.RECIPE_PATH]["sha256"] == hashlib.sha256(RECIPE).hexdigest(), (
+            'Bundle admission must receive the exact original bytes and committed source.'
+        )
+
+        return {"inert": True}
+
+    monkeypatch.setattr(host, "BindBundle", Bundle)
+
+    return inventory
+
+
+@LINUX_CONTEXT
+def test_HostLifecycleOneBuildPairAndOneOfflineAttach(inert_lifecycle):
+    """Successful synthetic source exercises ordered admission, one attach and verified cleanup."""
+
+    runtime = InertHost(inert_lifecycle)
+    receipt = runtime.Run()
+    roles = [role for role, _, _ in runtime.calls]
+    assert receipt["status"] == "completed-prerequisites", (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    assert roles.count("base-build") == roles.count("runner-build") == roles.count("attach") == 1, (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    assert roles.index("container-before") < roles.index("attach") < (
+        roles.index("container-after")
+    ), (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    assert roles.index("container-after") < roles.index("cleanup-remove"), (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    assert not runtime.container_present and not runtime.present_tags and (
+        not runtime.context.exists()
+    ), (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    create = next(arguments for role, arguments, _ in runtime.calls if role == "create")
+    assert create[-2:] == (IMAGE_ID, "--prerequisites") and "--network" in create, (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    assert create[create.index("--network") + 1] == "none", (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    assert ("--label", host.OWNER_LABEL + "=" + OWNER) == create[-4:-2], (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    runner = next(arguments for role, arguments, _ in runtime.calls if role == "runner-build")
+    assert "WORKBENCH_IMAGE=" + runtime.tags[0] in runner and "--pull=false" in runner, (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+    assert runtime.environment == {"HOME": str(runtime.root / "home"),
+        "PATH": "/usr/local/bin:/usr/bin:/bin", "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_TERMINAL_PROMPT": "0"}, (
+        'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
+    )
+
+
+@LINUX_CONTEXT
+@pytest.mark.parametrize("fault", ["network", "owner", "tag-drift", "oom", "create", "attach",
+    "cleanup-remove", "cleanup-absence", "runner-build", "attach-running"],
+    ids=["pre-network", "pre-owner", "base-drift", "post-oom", "ambiguous-create", "attach-fail",
+         "remove-fail", "absence-unknown", "backend-unknown", "running-cleanup"])
+def test_HostLifecycleFailuresNeverBecomeAcceptance(inert_lifecycle, fault):
+    """Each isolated failure stays failed while finally attempts only verified owned cleanup."""
+
+    runtime = InertHost(inert_lifecycle, fault)
+
+    with pytest.raises((ValueError, ExceptionGroup)):
+        runtime.Run()
+
+    receipt = host.StrictJson((runtime.root / "host.json").read_bytes())
+    assert receipt["status"] == "failed" and receipt["cleanup"], (
+        'A refused lifecycle must fail and clean only its proven owned resources.'
+    )
+    roles = [role for role, _, _ in runtime.calls]
+    assert "cleanup-tag-list" in roles, (
+        'A refused lifecycle must fail and clean only its proven owned resources.'
+    )
+
+    if fault in ("network", "owner", "tag-drift", "runner-build"):
+        assert "attach" not in roles, (
+            'A refused lifecycle must fail and clean only its proven owned resources.'
+        )
+
+    if fault == "owner":
+        assert "cleanup-remove" not in roles, (
+            'A refused lifecycle must fail and clean only its proven owned resources.'
+        )
+
+    if fault == "create":
+        assert "cleanup-remove" in roles, (
+            'A refused lifecycle must fail and clean only its proven owned resources.'
+        )
+
+    if fault == "attach-running":
+        assert roles.index("cleanup-kill") < roles.index("cleanup-wait") < (
+            roles.index("cleanup-stopped")
+        ) < roles.index("cleanup-remove"), (
+            "Owned running containers require kill/wait and independent stopped readback before rm."
+        )
+
+    if fault in ("cleanup-remove", "cleanup-absence", "runner-build"):
+        assert receipt["cleanup_failure"] == "ExceptionGroup", (
+            'A refused lifecycle must fail and clean only its proven owned resources.'
+        )
+
+
+@pytest.mark.parametrize("value,expected", [(None, False), ("", False), ("linux-amd64", True)],
+                         ids=["absent", "empty", "enabled"])
+def test_HostLifecycleSelectionIsExplicit(value, expected):
+    """Selection is a pure explicit gate and never discovers Docker."""
+
+    assert host.Enabled(value) is expected, (
+        'Only the exact enabled value may discover local tooling.'
+    )
+
+
+def test_HostLifecycleInvalidSelectionRefuses():
+    """A mistyped opt-in is an enabled setup failure rather than a passing skip."""
+
+    with pytest.raises(ValueError, match="explicit"):
+        host.Enabled("true")
+
+
+def BundleFixture(directory):
+    """Write labeled finite stage originals and matching synthetic source/provisioning inventories.
+
+    Args:
+        directory: New pytest-owned bundle root; no image, wheel or binary is materialized.
+
+    Returns:
+        Synthetic source inventory and mutable original manifest for causal refusal oracles.
+    """
+
+    directory.mkdir()
+    source = {}
+
+    for name in (*host.SUPPORT_FILES,):
+        source["tests/functional/" + name] = {"sha256": hashlib.sha256(name.encode()).hexdigest(),
+                                               "size_bytes": len(name)}
+
+    source[host.RECIPE_PATH] = {"sha256": hashlib.sha256(RECIPE).hexdigest(), "size_bytes": 1}
+    source["labs/external/benchmark/templates/prometheus-exposition.yaml"] = {
+        "sha256": host.TEMPLATE_SHA256, "size_bytes": host.TEMPLATE_BYTES}
+    package = {}
+
+    for name in host.MODULES:
+        relative = name.replace(".", "/") + ".py"
+        package[relative] = {"sha256": hashlib.sha256(name.encode()).hexdigest(),
+                             "size_bytes": len(name)}
+        source["src/fuzzy1337/" + relative] = package[relative]
+
+    outcome = {"status": "completed-prerequisites", "version_probe": "completed",
+        "go_template_validation": "completed", "governed_no_home_compatibility": "not-established",
+        "configured_target_inputs": [], "independent_server_contact_count": None}
+    manifest = {"schema_version": 1, "source_revision": REVISION,
+        "status": "material-prepared-prerequisites-not-run", "asset_url": host.ASSET_URL,
+        "recipe_sha256": source[host.RECIPE_PATH]["sha256"],
+        "support_sha256": {name: source["tests/functional/" + name]["sha256"]
+                           for name in host.SUPPORT_FILES},
+        "installed": {"installed": {"source_revision": REVISION,
+            "package_path": "/opt/benchmark-runtime/lib/python3.11/site-packages/fuzzy1337",
+            "distribution_version": "inert", "runner_sha256": source[
+                "tests/functional/external_nuclei_runner.py"]["sha256"],
+            "wheel": {"path": "/opt/benchmark-wheel/inert.whl", "size_bytes": 1,
+                       "sha256": "a" * 64},
+            "module_sha256": {name: package[name.replace(".", "/") + ".py"]["sha256"]
+                              for name in host.MODULES}},
+            "package_files": package, "coverage": {
+                "package_content": "all ordinary fuzzy1337 files",
+                "actual_import_modules": list(host.MODULES),
+                "excluded_generated": ["__pycache__/**", "*.pyc"],
+                "excluded_content": ["distribution metadata", "dependencies"]}},
+        "material": {"archive": {"sha256": host.ARCHIVE_SHA256, "size_bytes": host.ARCHIVE_BYTES,
+            "path": "/opt/benchmark-download/" + host.ARCHIVE_NAME},
+            "version_probe": "not-run", "go_template_validation": "not-run",
+            "release_inventory": [{"name": "nuclei", "size_bytes": 1,
+                                    "crc_verified": True, "crc32": "aaaaaaaa"}],
+            "executable": {"path": "/opt/benchmark-material/nuclei", "sha256": "b" * 64,
+                           "size_bytes": 1},
+            "profile": {"templates": [{"path": "/opt/benchmark-material/prometheus-exposition.yaml",
+                "sha256": host.TEMPLATE_SHA256, "size_bytes": host.TEMPLATE_BYTES}],
+                "configuration_path": "/opt/benchmark-material/operator-config.yaml"}}}
+    host.WriteJson(directory / "image-provisioning.json", manifest)
+    host.WriteJson(directory / "prerequisites.json", outcome)
+    environment = {"HOME": "/tmp/nuclei-prerequisites/home",
+        "XDG_CONFIG_HOME": "/tmp/nuclei-prerequisites/home/config",
+        "XDG_CACHE_HOME": "/tmp/nuclei-prerequisites/home/cache",
+        "TMPDIR": "/tmp/nuclei-prerequisites/home/tmp"}
+    arguments = {"version": ["/opt/benchmark-material/nuclei", "-version", "-duc"],
+        "validate": ["/opt/benchmark-material/nuclei", "-validate", "-t",
+            "/opt/benchmark-material/prometheus-exposition.yaml", "-config",
+            "/opt/benchmark-material/operator-config.yaml", "-duc", "-ni", "-no-stdin", "-pt",
+            "http", "-nc"]}
+
+    for name, argv in arguments.items():
+        stage = directory / name
+        stage.mkdir()
+        host.WriteJson(stage / "invocation.json", {"argv": argv, "environment": environment,
+            "provider_timeout_seconds": 3, "stdout_capture_bytes": 4 * 1024 * 1024,
+            "stderr_capture_bytes": 65536, "stdout_interpretation_bytes": 16384
+                if name == "version" else 2 * 1024 * 1024,
+            "stderr_interpretation_bytes": 16384, "original_file_ceiling_bytes": 2 * 1024 * 1024,
+            "basis": "target-free-explicit-home-prerequisite"})
+        host.WriteJson(stage / "process.json", {"exit_code": 0, "streams_complete": True,
+            "timed_out": False, "capture_exhausted": None, "launch_error": None,
+            "capture_error": None, "interrupted": None, "cleanup_error": None,
+            "duration_seconds": 0.1})
+        (stage / "stdout.raw").write_bytes(b"Nuclei Engine Version: v3.4.10" if name == "version"
+                                          else b"All templates validated successfully")
+        (stage / "stderr.raw").write_bytes(b"")
+
+    return source, manifest
+
+
+@pytest.mark.parametrize("fault", [None, "source", "support", "recipe", "archive", "wheel",
+    "module", "binary", "template", "target", "timeout", "output", "version", "outcome"],
+    ids=["bound", "source", "support", "recipe", "archive", "wheel", "module", "binary",
+         "template", "target-argv", "timeout", "validation-bytes", "version-bytes", "outcome"])
+def test_HostBundleOriginalEvidenceAndSourceBinding(tmp_path, fault):
+    """Only exact synthetic source/material and original stage evidence pass bundle admission."""
+
+    from tests.functional.external_native_runner import ExportBundle
+
+    directory = tmp_path / "bundle"
+    source, manifest = BundleFixture(directory)
+
+    if fault in ("source", "support", "recipe", "archive", "wheel", "module", "binary",
+                 "template"):
+        paths = {"source": ("source_revision",),
+            "support": ("support_sha256", host.SUPPORT_FILES[0]),
+            "recipe": ("recipe_sha256",), "archive": ("material", "archive", "sha256"),
+            "wheel": ("installed", "installed", "wheel", "path"),
+            "module": ("installed", "installed", "module_sha256", host.MODULES[0]),
+            "binary": ("material", "executable", "sha256"),
+            "template": ("material", "profile", "configuration_path")}
+        value = manifest
+
+        for key in paths[fault][:-1]:
+            value = value[key]
+
+        value[paths[fault][-1]] = "inert changed identity"
+        host.WriteJson(directory / "image-provisioning.json", manifest)
+
+    if fault in ("target", "timeout", "outcome"):
+        relative = {"target": "validate/invocation.json", "timeout": "validate/process.json",
+                    "outcome": "prerequisites.json"}[fault]
+        value = host.StrictJson((directory / relative).read_bytes())
+
+        if fault == "target":
+            value["argv"].extend(["-u", "http://inert.invalid"])
+
+        elif fault == "timeout":
+            value["timed_out"] = True
+
+        else:
+            value["status"] = "failed"
+
+        host.WriteJson(directory / relative, value)
+
+    if fault in ("output", "version"):
+        (directory / ("validate" if fault == "output" else "version") / "stdout.raw").write_bytes(
+            b"labeled fixture without required success receipt")
+
+    outcome = host.StrictJson((directory / "prerequisites.json").read_bytes())
+    raw = ExportBundle(directory, outcome).encode()
+
+    if fault is None:
+        bundle = host.BindBundle(raw, tmp_path / "imported", source, REVISION)
+        assert len(bundle["files"]) == 10, (
+            'Bound original bundle files and their hash inventory must survive admission.'
+        )
+        assert (tmp_path / "bundle-inventory.json").exists(), (
+            'Bound original bundle files and their hash inventory must survive admission.'
+        )
+
+    else:
+        with pytest.raises(ValueError):
+            host.BindBundle(raw, tmp_path / "imported", source, REVISION)
+
+
+@pytest.mark.parametrize("field", ["OpenStdin", "Tty", "Healthcheck"],
+                         ids=["stdin", "tty", "healthcheck"])
+def test_HostProjectionRefusesAdditionalInitialization(field):
+    """Unknown interactive or healthcheck initialization cannot reach pre-start admission."""
+
+    raw = RawContainer()
+    raw["Config"][field] = True
+
+    with pytest.raises(ValueError):
+        host.ContainerProjection(raw)
+
+
+def test_HostProjectionMissingDaemonDefaultRefuses():
+    """Absent runtime readback cannot silently become an accepted neutral default."""
+
+    raw = RawContainer()
+    del raw["HostConfig"]["Runtime"]
+
+    with pytest.raises(KeyError):
+        host.ContainerProjection(raw)
+
+
+def test_HostFunctionalDisabledSkipsBeforeOwnerConstruction(monkeypatch):
+    """Invoke only the disabled fixture function; no functional pytest or Docker discovery runs."""
+
+    from tests.functional import test_external_nuclei_prerequisites as functional
+
+    def Forbidden():
+        """Reject owner construction if disabled selection crosses its boundary."""
+
+        raise AssertionError("Disabled fixture attempted host discovery")
+
+    monkeypatch.delenv(host.SELECTION, raising=False)
+    monkeypatch.setattr(functional, "PrerequisiteHost", Forbidden)
+
+    with pytest.raises(pytest.skip.Exception, match="UNRUN"):
+        functional.nuclei_prerequisite.__wrapped__()
+
+
+@LINUX_CONTEXT
+def test_HostLifecyclePrimaryFailureSurvivesCleanupRefusal(inert_lifecycle, monkeypatch):
+    """A separate removal failure annotates the original attach failure without replacing it."""
+
+    runtime = InertHost(inert_lifecycle, "attach")
+    command = runtime.Command
+
+    def RefuseRemoval(role, arguments, **options):
+        """Inject a second independent daemon-cleanup failure after the primary refusal."""
+
+        if role == "cleanup-remove":
+            raise OSError("inert removal refused")
+
+        return command(role, arguments, **options)
+
+    monkeypatch.setattr(runtime, "Command", RefuseRemoval)
+
+    with pytest.raises(ValueError, match="inert causal fault: attach") as failure:
+        runtime.Run()
+
+    assert any("Independent Docker cleanup failed" in note for note in failure.value.__notes__), (
+        "The primary attach refusal must retain its separate cleanup failure annotation."
+    )
+    receipt = host.StrictJson((runtime.root / "host.json").read_bytes())
+    assert receipt["failure"]["exception_type"] == "ValueError" and (
+        receipt["cleanup_failure"] == "ExceptionGroup"
+    ), "The host receipt must keep primary and cleanup failures separate."
+
+
+@pytest.mark.parametrize("platform", ["win32", "darwin"], ids=["windows", "macos"])
+def test_HostFunctionalEnabledIncompatibleFailsBeforeDiscovery(monkeypatch, platform):
+    """An enabled incompatible host fails setup instead of becoming a passing skip."""
+
+    from tests.functional import test_external_nuclei_prerequisites as functional
+
+    monkeypatch.setenv(host.SELECTION, "linux-amd64")
+    monkeypatch.setattr(host.sys, "platform", platform)
+
+    with pytest.raises(ValueError, match="native Linux/amd64"):
+        functional.nuclei_prerequisite.__wrapped__()
+
+
+@LINUX_CONTEXT
+def test_HostLifecycleCommandBindsLocalAuthorityAndOriginalBytes(tmp_path, monkeypatch):
+    """The command adapter passes fixed routing and explicit environment to the reused owner."""
+
+    OwnedContext(tmp_path, monkeypatch)
+    runtime = host.PrerequisiteHost()
+    (runtime.root / "commands").mkdir(parents=True)
+    runtime.environment = {"HOME": str(runtime.root / "home"), "PATH": "/usr/bin:/bin"}
+    captured = []
+
+    async def Capture(directory, argv, cwd, environment, seconds, stdout_bytes, stderr_bytes):
+        """Return labeled protocol success while retaining only synthetic original bytes."""
+
+        captured.append((argv, environment, seconds, stdout_bytes, stderr_bytes))
+        directory.mkdir()
+        (directory / "stdout.raw").write_bytes(b"\xffinert")
+
+        return {"exit_code": 0, "cleanup_confirmed": True, "streams_complete": True,
+            "timed_out": False, "capture_exhausted": None, "launch_error": None,
+            "capture_error": None, "cleanup_error": None, "interrupted": None}
+
+    monkeypatch.setattr(host, "CaptureCommand", Capture)
+    monkeypatch.setenv("DOCKER_HOST", "tcp://inert.invalid:2375")
+    monkeypatch.setenv("DOCKER_CONTEXT", "inert-foreign")
+    _, raw = runtime.Command("metadata", ("version",))
+    argv, environment, seconds, stdout_bytes, stderr_bytes = captured[0]
+    assert argv == ("/usr/bin/docker", "--host", host.LOCAL_DOCKER, "--config",
+                    str(runtime.config), "version"), (
+        "Inherited remote Docker routing must never replace the explicit local endpoint."
+    )
+    assert environment == runtime.environment and "DOCKER_HOST" not in environment, (
+        "Only the explicit owned process environment may cross the supervisor boundary."
+    )
+    assert raw == b"\xffinert" and (seconds, stdout_bytes, stderr_bytes) == (15, 262144, 262144), (
+        "Metadata capture must retain original binary bytes within its declared finite budgets."
+    )
+
+
+@LINUX_CONTEXT
+@pytest.mark.parametrize("kind", ["size", "alias"], ids=["oversized", "symbolic-alias"])
+def test_HostLifecycleIidIsBoundedOrdinaryMaterial(inert_lifecycle, monkeypatch, kind):
+    """Completed build output cannot make the owner read an unbounded or aliased iid file."""
+
+    runtime = InertHost(inert_lifecycle)
+    command = runtime.Command
+
+    def ChangeIid(role, arguments, **options):
+        """Replace only synthetic build-written material before its ordinary-file admission."""
+
+        result = command(role, arguments, **options)
+
+        if role == "base-build":
+            iid = runtime.root / "base.iid"
+
+            if kind == "size":
+                iid.write_bytes(b"x" * 81)
+
+            else:
+                iid.unlink()
+                iid.symlink_to(runtime.root / "not-an-image-id")
+
+        return result
+
+    monkeypatch.setattr(runtime, "Command", ChangeIid)
+
+    with pytest.raises(ValueError, match="ordinary bounded private file"):
+        runtime.Run()
+
+    assert "create" not in [role for role, _, _ in runtime.calls], (
+        "Invalid iid custody must refuse before any container is created."
+    )
+
+
+@LINUX_CONTEXT
+def test_HostFunctionalEnabledMissingDockerFails(monkeypatch):
+    """An explicitly enabled missing local Docker binary fails rather than silently skipping."""
+
+    from tests.functional import test_external_nuclei_prerequisites as functional
+
+    original = host.Path.is_file
+    monkeypatch.setenv(host.SELECTION, "linux-amd64")
+    monkeypatch.setattr(host.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(host.Path, "is_file", lambda path: False
+        if path.as_posix() == "/usr/bin/docker" else original(path))
+
+    with pytest.raises(ValueError, match="fixed local Docker and Git"):
+        functional.nuclei_prerequisite.__wrapped__()
