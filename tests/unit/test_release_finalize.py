@@ -38,10 +38,10 @@ def owned(tmp_path, monkeypatch):
     Git(root, "config", "user.email", "owned@example.invalid")
     (root / "docs/releases").mkdir(parents=True)
     (root / "pyproject.toml").write_text(
-        '[project]\nname="1337"\nversion="0.3.0"\nrequires-python=">=3.11"\n')
-    (root / "uv.lock").write_text('[[package]]\nname="1337"\nversion="0.3.0"\n')
-    (root / "CHANGELOG.md").write_text("### Patch 0 — v0.3.0\n")
-    (root / "docs/releases/v0.3.0.md").write_text(CARD)
+        '[project]\nname="1337"\nversion="0.3.0"\nrequires-python=">=3.11"\n', encoding="utf-8")
+    (root / "uv.lock").write_text('[[package]]\nname="1337"\nversion="0.3.0"\n', encoding="utf-8")
+    (root / "CHANGELOG.md").write_text("### Patch 0 — v0.3.0\n", encoding="utf-8")
+    (root / "docs/releases/v0.3.0.md").write_text(CARD, encoding="utf-8")
     Git(root, "add", ".")
     Git(root, "commit", "-m", "Owned exact release metadata")
     head = Git(root, "rev-parse", "HEAD")
@@ -81,13 +81,15 @@ def test_IndependentActualGitSourceFailuresNeverReachTagCreation(owned, fault):
     elif fault == "branch":
         Git(root, "switch", "-c", "feature/owned")
     elif fault == "dirty":
-        (root / "untracked").write_text("Owned uncommitted input")
+        (root / "untracked").write_text("Owned uncommitted input", encoding="utf-8")
     elif fault == "tracking":
         Git(root, "update-ref", "-d", "refs/remotes/origin/master")
     elif fault in {"metadata", "card"}:
         path = root / ("pyproject.toml" if fault == "metadata" else "docs/releases/v0.3.0.md")
-        path.write_text(path.read_text().replace("0.3.0", "0.3.1") if fault == "metadata" else
-            path.read_text().replace(delivery.VALIDATION_MARKER, ""))
+        path.write_text(
+            path.read_text(encoding="utf-8").replace("0.3.0", "0.3.1") if fault == "metadata" else
+            path.read_text(encoding="utf-8").replace(delivery.VALIDATION_MARKER, ""),
+            encoding="utf-8")
         Git(root, "add", ".")
         Git(root, "commit", "-m", "Owned causal metadata refusal")
         expected = Git(root, "rev-parse", "HEAD")
@@ -255,7 +257,7 @@ def Workflow(name):
 
     path = Path(__file__).resolve().parents[2] / ".github/workflows" / name
 
-    return yaml.safe_load(path.read_text())
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("field,value", [("GITHUB_EVENT_NAME", "push"),

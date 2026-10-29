@@ -36,10 +36,10 @@ def SourceInputs(root, monkeypatch):
 
     (root / "docs/releases").mkdir(parents=True)
     (root / "pyproject.toml").write_text(
-        '[project]\nname="1337"\nversion="0.3.0"\nrequires-python=">=3.11"\n')
-    (root / "uv.lock").write_text('[[package]]\nname="1337"\nversion="0.3.0"\n')
-    (root / "CHANGELOG.md").write_text("### Patch 0 — v0.3.0\n")
-    (root / "docs/releases/v0.3.0.md").write_text(CARD)
+        '[project]\nname="1337"\nversion="0.3.0"\nrequires-python=">=3.11"\n', encoding="utf-8")
+    (root / "uv.lock").write_text('[[package]]\nname="1337"\nversion="0.3.0"\n', encoding="utf-8")
+    (root / "CHANGELOG.md").write_text("### Patch 0 — v0.3.0\n", encoding="utf-8")
+    (root / "docs/releases/v0.3.0.md").write_text(CARD, encoding="utf-8")
     facts = {("rev-parse", "HEAD"): SHA, ("cat-file", "-t", "refs/tags/v0.3.0"): "tag",
         ("rev-parse", "refs/tags/v0.3.0^{commit}"): SHA,
         ("rev-parse", SHA + "^{commit}"): SHA,
@@ -86,12 +86,12 @@ def test_SourceIdentityAndPublicationMetadataDriftRefuse(tmp_path, monkeypatch, 
         path = tmp_path / {"package-name": "pyproject.toml", "package-version": "pyproject.toml",
             "lock-version": "uv.lock", "card-marker": "docs/releases/v0.3.0.md",
             "card-section": "docs/releases/v0.3.0.md", "changelog": "CHANGELOG.md"}[key]
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         text = (text.replace('name="1337"', 'name="foreign"') if key == "package-name" else
             text.replace("0.3.0", "0.3.1") if "version" in key or key == "changelog" else
             text.replace(delivery.VALIDATION_MARKER, "") if key == "card-marker" else
             text.replace("## Digest", "## Summary"))
-        path.write_text(text)
+        path.write_text(text, encoding="utf-8")
 
     with pytest.raises(ValueError):
         delivery.SourceFacts(tmp_path, "v0.3.0", SHA)
@@ -371,7 +371,7 @@ def test_OriginalDocumentationRejectsUnlistedTransferFilesBeforeVerifier(tmp_pat
     """A downloaded artifact cannot smuggle extra release assets beyond the declared pair."""
 
     directory, _ = DocumentationInputs(tmp_path / "docs")
-    (directory / "unlisted.txt").write_text("marked extra")
+    (directory / "unlisted.txt").write_text("marked extra", encoding="utf-8")
 
     with pytest.raises(ValueError, match="exact original archive/manifest pair"):
         delivery.VerifyDocumentationTransfer(directory, SOURCE)
@@ -495,9 +495,11 @@ def test_ReleaseHandoffKeepsOriginalDistributionMetadataAndByteDigests(tmp_path)
     manifest = delivery.Verify(root, receipt["checksums_sha256"])
     assert manifest["source"] == SOURCE and len(manifest["files"]) == 9, (
         "The manifest must retain exact distributions, source, installed and validation evidence")
-    assert delivery.VALIDATION_MARKER not in (root / "RELEASE_NOTES.md").read_text(), (
+    assert delivery.VALIDATION_MARKER not in (root / "RELEASE_NOTES.md").read_text(
+        encoding="utf-8"), (
         "Published notes must contain actual master validation links rather than a draft marker")
-    assert "named execution jobs passed" in (root / "RELEASE_NOTES.md").read_text(), (
+    assert "named execution jobs passed" in (root / "RELEASE_NOTES.md").read_text(
+        encoding="utf-8"), (
         "The release card must name the exact accepted master workflow evidence")
 
 
@@ -513,16 +515,17 @@ def test_HandoffVerificationRefusesTamperAndUnlistedMaterial(tmp_path, fault):
         (root / "dist/1337-0.3.0-py3-none-any.whl").write_bytes(b"changed")
 
     elif fault in {"extra", "hidden"}:
-        (root / ("extra.txt" if fault == "extra" else ".hidden")).write_text("unlisted")
+        (root / ("extra.txt" if fault == "extra" else ".hidden")).write_text(
+            "unlisted", encoding="utf-8")
 
     elif fault == "missing":
         (root / "source.json").unlink()
 
     elif fault == "checksums":
-        (root / "SHA256SUMS").write_text("foreign checksum list")
+        (root / "SHA256SUMS").write_text("foreign checksum list", encoding="utf-8")
 
     elif fault == "manifest":
-        (root / "release-manifest.json").write_text("{}")
+        (root / "release-manifest.json").write_text("{}", encoding="utf-8")
 
     elif fault == "symlink":
         (root / "linked").symlink_to(root / "source.json")
@@ -637,7 +640,7 @@ def test_WriteAndInvokeRetainNoClobberAndActualExitStatus(tmp_path, monkeypatch)
     with pytest.raises(ValueError, match="unexpected exit"):
         delivery.Invoke(("inert",), tmp_path)
 
-    retained = json.loads((tmp_path / "commands.jsonl").read_text())
+    retained = json.loads((tmp_path / "commands.jsonl").read_text(encoding="utf-8"))
     assert retained["argv"] == ["inert"] and retained["exit_code"] == 4, (
         "Even a rejected command must retain its exact invocation and actual exit status")
 
@@ -738,7 +741,7 @@ def test_ReleaseWorkflowSeparatesBuildRegistryAndGitHubAuthority():
     """The actual workflow never publishes from PRs, rebuilds after approval or shares OIDC."""
 
     root = Path(__file__).resolve().parents[2]
-    workflow = yaml.safe_load((root / ".github/workflows/release.yml").read_text())
+    workflow = yaml.safe_load((root / ".github/workflows/release.yml").read_text(encoding="utf-8"))
     events = workflow.get("on", workflow.get(True))
     assert events["push"] == {"tags": ["v*"]} and set(events) == {
         "push", "workflow_dispatch"}, "Only existing-tag push or explicit continuation may publish"
@@ -796,7 +799,7 @@ def test_ReleaseCliDispatchKeepsExplicitOwnedInputs(tmp_path, monkeypatch, comma
     for name in ("source", "checks", "smoke"):
         delivery.WriteJson(tmp_path / (name + ".json"), {"inert": True})
 
-    (tmp_path / "card.md").write_text(CARD)
+    (tmp_path / "card.md").write_text(CARD, encoding="utf-8")
     expected = {"observed": command}
     monkeypatch.setattr(delivery, "SourceFacts", lambda *args: expected)
     monkeypatch.setattr(delivery, "MasterChecks", lambda *args: expected)

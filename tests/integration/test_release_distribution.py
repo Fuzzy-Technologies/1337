@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_ReleaseCleanWheelInstallRunsOwnedDemoAndReopensOriginalModel(tmp_path):
     """Build a real wheel and run the release coordinator outside the source checkout."""
 
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     version = project["version"]
     distributions = tmp_path / "dist"
     result = subprocess.run((sys.executable, "-m", "build", "--no-isolation", "--outdir",
@@ -32,7 +32,7 @@ def test_ReleaseCleanWheelInstallRunsOwnedDemoAndReopensOriginalModel(tmp_path):
     delivery.VerifyLocalInstall(receipt,
         distributions / f"1337-{version}-py3-none-any.whl", version)
     commands = [json.loads(line) for line in
-        (tmp_path / "installed/commands.jsonl").read_text().splitlines()]
+        (tmp_path / "installed/commands.jsonl").read_text(encoding="utf-8").splitlines()]
     assert metadata["artifacts"] == ["sdist", "wheel"], (
         "Both original archives must retain their actual package metadata")
     assert receipt["state"] == "verified-installed-demo" and receipt["source"] == "local-wheel", (
@@ -53,12 +53,12 @@ def test_ActualGitTagMustBeAnnotatedCleanAndOnCurrentMaster(tmp_path):
     root = tmp_path / "fixture-source"
     (root / "docs/releases").mkdir(parents=True)
     (root / "pyproject.toml").write_text(
-        '[project]\nname="1337"\nversion="0.3.0"\nrequires-python=">=3.11"\n')
-    (root / "uv.lock").write_text('[[package]]\nname="1337"\nversion="0.3.0"\n')
-    (root / "CHANGELOG.md").write_text("### Patch 0 — v0.3.0\n")
+        '[project]\nname="1337"\nversion="0.3.0"\nrequires-python=">=3.11"\n', encoding="utf-8")
+    (root / "uv.lock").write_text('[[package]]\nname="1337"\nversion="0.3.0"\n', encoding="utf-8")
+    (root / "CHANGELOG.md").write_text("### Patch 0 — v0.3.0\n", encoding="utf-8")
     card = "\n".join(("## Digest", "## What's Changed", "## Validation",
         delivery.VALIDATION_MARKER, "## Breaking Changes", "## Try it from source", "## Notes"))
-    (root / "docs/releases/v0.3.0.md").write_text(card)
+    (root / "docs/releases/v0.3.0.md").write_text(card, encoding="utf-8")
     arguments = ("git", "-c", "user.name=Release Fixture", "-c",
         "user.email=release-fixture@example.invalid", "-c", "commit.gpgsign=false", "-c",
         "tag.gpgsign=false", "-c", "core.hooksPath=" + str(tmp_path / "no-hooks"))
@@ -78,7 +78,7 @@ def test_ActualGitTagMustBeAnnotatedCleanAndOnCurrentMaster(tmp_path):
     facts = delivery.SourceFacts(root, "v0.3.0", commit)
     assert facts["commit"] == commit and facts["tag_type"] == "tag", (
         "Actual annotated objects, clean tracked source and exact master must agree")
-    (root / "untracked.txt").write_text("Marked dirty source")
+    (root / "untracked.txt").write_text("Marked dirty source", encoding="utf-8")
 
     with pytest.raises(ValueError, match="clean checkout"):
         delivery.SourceFacts(root, "v0.3.0", commit)
