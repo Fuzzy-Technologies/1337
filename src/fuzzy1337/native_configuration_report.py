@@ -142,6 +142,10 @@ def ParseNativeConfigurationReport(
             raise ValueError("Native configuration check must be an object")
 
         check_id = BoundedText(row.get("ID"), 128, "check ID")
+
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*", check_id):
+            raise ValueError("Native configuration check ID is not a canonical provider identifier")
+
         status = row.get("Status")
         severity = row.get("Severity")
 
