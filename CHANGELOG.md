@@ -18,6 +18,14 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Added
 
+- Add governed native Dockerfile and already-rendered Kubernetes scanning through
+  the SDK, console and foreground shell. Exact manifest previews, original
+  VERSION/SCAN evidence, native source-linked Findings, relocated replay and
+  optional saved JSON/SARIF exports preserve each operation's source and outcome.
+- Verify five unchanged owned specimens through the real installed pinned
+  provider and installed CLI, five pre-provider refusal cases and one actual
+  owned executor case. All eleven required installed cases passed; the final
+  shared integration and release gates remain separate.
 - Add `sbom image` to inspect one saved image's nested package inventory and
   explicit configured Docker uses through the installed console and shell.
   Exact config/manifest digest selection, original evidence verification and
@@ -25,6 +33,13 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 #### Security
 
+- Keep selected-read consent, current scope, independent operator policy and
+  SAFE approval separate. Configuration-domain original grants and persistent
+  one-use claims bind current material, both launch checks and original VERSION
+  prerequisites. Seven immutable evidence roles, bounded custody and exact
+  model/workspace acknowledgements prevent replay or uncertain work from
+  manufacturing successful model events. No configuration renderer is supplied;
+  scan completeness remains unassessed.
 - Keep the joined inventory read-only and bounded. Missing inventory and runtime
   reachability remain unknown, original corruption or changed saved bases refuse,
   and license declarations establish no compliance result. Broader SBOM/license

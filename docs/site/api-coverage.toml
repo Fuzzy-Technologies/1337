@@ -242,6 +242,41 @@ mode = "authored"
 page = "api/fuzzy1337.native_configuration_material_worker.md"
 
 [[surfaces]]
+# Internal bounded original native report interpretation; never an execution grant.
+module = "fuzzy1337.native_configuration_report"
+source = "src/fuzzy1337/native_configuration_report.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_report.md"
+
+[[surfaces]]
+# Internal original configuration-domain grants, claims and current authority checks.
+module = "fuzzy1337.native_configuration_policy"
+source = "src/fuzzy1337/native_configuration_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_policy.md"
+
+[[surfaces]]
+# Internal original VERSION/SCAN process custody and fixed seven-role evidence producer.
+module = "fuzzy1337.native_configuration_capture"
+source = "src/fuzzy1337/native_configuration_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_capture.md"
+
+[[surfaces]]
+# Experimental read-only native replay; fresh model-application helpers remain Internal.
+module = "fuzzy1337.native_configuration_evidence"
+source = "src/fuzzy1337/native_configuration_evidence.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_evidence.md"
+
+[[surfaces]]
+# Experimental exported native SDK planning/scanning; provider implementation remains Internal.
+module = "fuzzy1337.native_configuration_workflow"
+source = "src/fuzzy1337/native_configuration_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_workflow.md"
+
+[[surfaces]]
 module = "fuzzy1337.configuration_evidence"
 source = "src/fuzzy1337/configuration_evidence.py"
 mode = "authored"

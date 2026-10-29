@@ -68,6 +68,18 @@ from fuzzy1337.scope import LocalScopeStore, NormalizeTime, ScopeSnapshot
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceFields
 
 if TYPE_CHECKING:
+    from fuzzy1337.native_configuration_capture import NativeConfigurationOperationCapture
+    from fuzzy1337.native_configuration_material import (
+        NativeConfigurationMaterialObserver,
+        NativeConfigurationMaterialProof,
+    )
+    from fuzzy1337.native_configuration_policy import (
+        NativeConfigurationExecutionClaim,
+        NativeConfigurationOperationGrant,
+        NativeConfigurationOperationPlan,
+        NativeConfigurationVersionPrerequisite,
+        PreparedNativeConfigurationOperation,
+    )
     from fuzzy1337.native_image_capture import NativeTrivyOperationCapture
     from fuzzy1337.native_image_observation import (
         NativeImageMaterialObserver,
@@ -1309,6 +1321,285 @@ class ArtifactPolicyEngine:
         ValidateNativeImagePairFresh(self, version_prerequisite, scan_prepared, scan_grant,
             scan_claim, scan_capture, context, observer=observer, material_proof=material_proof,
             at=at)
+
+    def PlanNativeConfigurationOperation(
+        self, prepared: PreparedNativeConfigurationOperation,
+        context: ArtifactPolicyContext, *, observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof, at: datetime,
+    ) -> NativeConfigurationOperationPlan:
+        """Describe current exact artifact authority without issuing a grant or launching a process.
+
+        Args:
+            prepared: Exact fixed native configuration recipe.
+            context: Current same-store scope, operator policy and executing owner.
+            observer: Original material owner.
+            material_proof: Current original same-stage material proof.
+            at: Explicit aware authority decision time.
+
+        Returns:
+            Current scope/policy/material/invocation binding in the configuration domain.
+        """
+
+        from fuzzy1337.native_configuration_policy import PlanNativeConfigurationOperation
+
+        return PlanNativeConfigurationOperation(
+            self,
+            prepared,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+        )
+
+    def AuthorizeNativeConfigurationOperation(
+        self, prepared: PreparedNativeConfigurationOperation,
+        context: ArtifactPolicyContext, *, observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof, at: datetime,
+        approve_safe_configuration: bool = False,
+    ) -> NativeConfigurationOperationGrant:
+        """Issue separate original authority after explicit SAFE approval and factual policy checks.
+
+        Args:
+            prepared: Exact native recipe.
+            context: Fresh current factual authority context.
+            observer: Original material owner.
+            material_proof: Current original proof.
+            at: Aware current decision time.
+            approve_safe_configuration: Explicit SAFE workflow opt-in, separate from permission.
+
+        Returns:
+            Engine-retained original configuration grant.
+        """
+
+        from fuzzy1337.native_configuration_policy import AuthorizeNativeConfigurationOperation
+
+        return AuthorizeNativeConfigurationOperation(
+            self,
+            prepared,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+            approve_safe_configuration=approve_safe_configuration,
+        )
+
+    def ValidateNativeConfigurationOperation(
+        self, grant: NativeConfigurationOperationGrant,
+        prepared: PreparedNativeConfigurationOperation, context: ArtifactPolicyContext, *,
+        observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof,
+        at: datetime,
+    ) -> None:
+        """Require exact original grant identity and revalidate every current authority binding.
+
+        Args:
+            grant: Exact original grant object.
+            prepared: Exact prepared operation.
+            context: Fresh same-store current authority.
+            observer: Original material owner.
+            material_proof: Latest original same-stage proof.
+            at: Aware launch or acceptance time.
+        """
+
+        from fuzzy1337.native_configuration_policy import ValidateNativeConfigurationOperation
+
+        ValidateNativeConfigurationOperation(
+            self,
+            grant,
+            prepared,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+        )
+
+    def ClaimNativeConfigurationExecution(
+        self, grant: NativeConfigurationOperationGrant,
+        prepared: PreparedNativeConfigurationOperation, context: ArtifactPolicyContext, *,
+        observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof,
+        at: datetime,
+    ) -> NativeConfigurationExecutionClaim:
+        """Consume operation/observation once and issue an original persistent opaque claim.
+
+        Args:
+            grant: Original current native grant.
+            prepared: Original fixed recipe.
+            context: Fresh same-store current authority.
+            observer: Original material owner.
+            material_proof: Current original proof to consume once.
+            at: Aware reservation time.
+
+        Returns:
+            Original one-use claim; partial reservations remain consumed after failure.
+        """
+
+        from fuzzy1337.native_configuration_policy import ClaimNativeConfigurationExecution
+
+        return ClaimNativeConfigurationExecution(
+            self,
+            grant,
+            prepared,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+        )
+
+    def BindNativeConfigurationRequest(
+        self, claim: NativeConfigurationExecutionClaim,
+        request: LocalExecutionRequest, context: ArtifactPolicyContext, *,
+        observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof,
+        at: datetime,
+    ) -> None:
+        """Bind exactly one fixed full request and fresh private scratch to an original claim.
+
+        Args:
+            claim: Original unbound execution claim.
+            request: Exact complete request to be launched.
+            context: Fresh authority context.
+            observer: Original material owner.
+            material_proof: Original proof consumed by this claim.
+            at: Aware binding time.
+        """
+
+        from fuzzy1337.native_configuration_policy import BindNativeConfigurationRequest
+
+        BindNativeConfigurationRequest(
+            self,
+            claim,
+            request,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+        )
+
+    def ValidateNativeConfigurationClaim(
+        self, claim: NativeConfigurationExecutionClaim,
+        request: LocalExecutionRequest, context: ArtifactPolicyContext, *,
+        observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof,
+        at: datetime,
+    ) -> None:
+        """Revalidate exact original full-request identity and current authority before launch.
+
+        Args:
+            claim: Original bound claim.
+            request: Exact original request object, never a reconstructed equivalent.
+            context: Fresh factual authority context.
+            observer: Original material owner.
+            material_proof: Current same-stage proof; post-run proof may replace consumed proof.
+            at: Aware launch or acceptance time.
+        """
+
+        from fuzzy1337.native_configuration_policy import ValidateNativeConfigurationClaim
+
+        ValidateNativeConfigurationClaim(
+            self,
+            claim,
+            request,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+        )
+
+    def ValidateNativeConfigurationCapture(
+        self, claim: NativeConfigurationExecutionClaim,
+        capture: NativeConfigurationOperationCapture, context: ArtifactPolicyContext, *,
+        observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof,
+        at: datetime,
+    ) -> None:
+        """Accept only this original successful captured process and original consumed claim.
+
+        Args:
+            claim: Original bound execution claim.
+            capture: Exact original capture registered by its collector.
+            context: Fresh factual authority context.
+            observer: Original material owner.
+            material_proof: Latest exact original same-stage proof.
+            at: Aware acceptance time.
+        """
+
+        from fuzzy1337.native_configuration_policy import ValidateNativeConfigurationCapture
+
+        ValidateNativeConfigurationCapture(
+            self,
+            claim,
+            capture,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+        )
+
+    def AcceptNativeConfigurationVersion(
+        self, claim: NativeConfigurationExecutionClaim,
+        capture: NativeConfigurationOperationCapture, context: ArtifactPolicyContext, *,
+        observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof,
+        at: datetime,
+    ) -> NativeConfigurationVersionPrerequisite:
+        """Issue an original VERSION prerequisite after successful collection and verification.
+
+        Args:
+            claim: Original VERSION claim.
+            capture: Original successful VERSION capture.
+            context: Fresh current authority context.
+            observer: Original material owner.
+            material_proof: Fresh proof after original VERSION termination.
+            at: Aware acceptance time.
+
+        Returns:
+            Original engine-retained VERSION prerequisite; replay cannot recreate it.
+        """
+
+        from fuzzy1337.native_configuration_policy import AcceptNativeConfigurationVersion
+
+        return AcceptNativeConfigurationVersion(
+            self,
+            claim,
+            capture,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+        )
+
+    def ValidateNativeConfigurationPairFresh(
+        self, version: NativeConfigurationVersionPrerequisite,
+        scan_claim: NativeConfigurationExecutionClaim,
+        scan_capture: NativeConfigurationOperationCapture,
+        context: ArtifactPolicyContext, *, observer: NativeConfigurationMaterialObserver,
+        material_proof: NativeConfigurationMaterialProof, at: datetime,
+    ) -> None:
+        """Require original VERSION/SCAN association and current authority before model application.
+
+        Args:
+            version: Original accepted VERSION prerequisite.
+            scan_claim: Original SCAN claim.
+            scan_capture: Original successful SCAN capture.
+            context: Fresh same-store authority context.
+            observer: Original same-pair material owner.
+            material_proof: Latest original post-SCAN material proof.
+            at: Aware application time.
+        """
+
+        from fuzzy1337.native_configuration_policy import ValidateNativeConfigurationPairFresh
+
+        ValidateNativeConfigurationPairFresh(
+            self,
+            version,
+            scan_claim,
+            scan_capture,
+            context,
+            observer=observer,
+            material_proof=material_proof,
+            at=at,
+        )
 
     def Plan(
         self,
