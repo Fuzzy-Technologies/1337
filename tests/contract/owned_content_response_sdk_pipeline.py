@@ -223,10 +223,18 @@ def Run(plan: dict, handoff, *, enabled: bool = False) -> dict:
         return {"state": "checked-revision-conflict", "expected_findings": 0}
 
     if plan["expected_state"] == "denied":
-        assert actual["state"] == "denied" and actual["failure"] == "authorization"
+        assert actual["state"] == "denied" and actual["failure"] == "authorization", (
+            "Denied analysis must report an authorization refusal rather than a completed "
+            "interpretation."
+        )
         assert all(actual[key] is None for key in (
-            "condition_observed", "assessment_reference", "finding_reference"))
-        assert analysis["guard"]["saves"] == [] and Canonical(acquired) == Canonical(interpreted)
+            "condition_observed", "assessment_reference", "finding_reference")), (
+            "Denied analysis must not invent a condition, assessment reference or Finding "
+            "reference."
+        )
+        assert analysis["guard"]["saves"] == [] and Canonical(acquired) == Canonical(interpreted), (
+            "Denied analysis must perform no Save and preserve the complete acquired state."
+        )
 
         return {"state": "checked-authority-refusal", "expected_findings": 0}
 
@@ -352,7 +360,10 @@ def RunInstalled(installed, directory: Path, evidence, *, fixture_id: str, case:
 
         argv = (str(installed.python), "-I", "-B", sources[names[0]]["path"], operation,
             str(input_path), "--execute")
-        assert NativeInstallation(installed.python) == installed.installation
+        assert NativeInstallation(installed.python) == installed.installation, (
+            "The actual installed runtime identity must remain equal to the original installation "
+            "receipt."
+        )
         retained_names = (("offline-guard.json", "guard"),
             ("consumer/" + operation.removesuffix("-offline") + ".json", "consumer")) if (
                 operation.endswith("-offline")) else ((operation + ".json", "original"),)
@@ -383,11 +394,16 @@ def RunInstalled(installed, directory: Path, evidence, *, fixture_id: str, case:
             str(directory)) and terminal["timeout_seconds"] == 35 and terminal[
                 "installation"] == installed.installation, "Actual SDK child failed"
         observed = json.loads(process.stdout)
-        assert CanonicalNative(observed) == process.stdout and observed["operation"] == operation
+        assert CanonicalNative(observed) == process.stdout and observed["operation"] == operation, (
+            "The handoff must return canonical original JSON for the exact selected operation."
+        )
         AssertContentInstallation(installed.installation["identity"],
             observed["installed_identity"], commit=installed.commit, tree=installed.tree)
         assert observed["installed_identity"]["python"] == str(installed.python) and observed[
-            "installed_identity"]["prefix"] == str(installed.python.parents[1].resolve())
+            "installed_identity"]["prefix"] == str(installed.python.parents[1].resolve()), (
+            "Handoff identity must retain the selected installed interpreter and its actual "
+            "environment prefix."
+        )
         required = set(names[:2]) | (set(names[2:5]) if operation in (
             "fresh-setup", "inspect") else {names[5]} if operation.endswith("-offline") else set())
         assert observed["consumer_sources"] == {name: sources[name] for name in required}, (

@@ -59,7 +59,9 @@ def test_InstalledFreshContentHeaderPipelineRetainsAcknowledgedFindingAndRelocat
         fixture_id="missing-" + uuid4().hex, case="missing", scenario="positive", enabled=True)
     assert result["runtime_acceptance"] == "passed" and result["state"] == (
         "checked-header-replay"), "A failed or unexecuted stage cannot satisfy genuine acceptance"
-    assert result["expected_findings"] == 1 and result["identities"]["finding_reference"]
+    assert result["expected_findings"] == 1 and result["identities"]["finding_reference"], (
+        "The completed missing-header pipeline must retain its one actual Finding reference."
+    )
 
 
 def test_InstalledFreshFixedContentHeaderPipelineRetainsNegativeAssessmentAndRelocatedReplay(

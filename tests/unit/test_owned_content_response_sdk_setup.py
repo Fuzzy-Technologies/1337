@@ -140,9 +140,13 @@ def test_NewFixtureSelectionRequiresItsOriginalCurrentlyValidAuthority(tmp_path,
     if mutation is None:
         selected = setup.FreshSelection(config, now)
         assert selected["workspace_id"] == selected["scope_id"] == (
-            "owned-content-header-fresh-run-0001")
+            "owned-content-header-fresh-run-0001"), (
+            "Fresh setup must retain the selected unique workspace and scope identity."
+        )
         assert len(set(selected.values())) == 4, "Only workspace/scope intentionally share identity"
-        assert selected["owner_reference"] != selected["attester_reference"]
+        assert selected["owner_reference"] != selected["attester_reference"], (
+            "The executing owner must remain distinct from the independent consent attester."
+        )
 
         return
 
@@ -191,7 +195,9 @@ def test_NewSetupUsesDistinctConsentAndPreservesNativeTriageWithoutStoreIo(tmp_p
     def CreateWorkspace(store, configuration, workspace_id):
         """Retain a typed synthetic workspace only in memory, without a directory creation."""
 
-        assert workspace_id == identity and not store.root.exists()
+        assert workspace_id == identity and not store.root.exists(), (
+            "Source setup must select the original workspace before the model root exists."
+        )
         states["workspace"] = workspace.WorkspaceState(workspace_id, configuration)
 
         return states["workspace"]
@@ -215,8 +221,13 @@ def test_NewSetupUsesDistinctConsentAndPreservesNativeTriageWithoutStoreIo(tmp_p
     def SaveModel(store, proposed, *, expected_revision):
         """Observe the original CAS proposal without acknowledging a real storage operation."""
 
-        assert expected_revision == states.get("model", model.ModelState(identity)).revision
-        assert proposed.workspace_id == identity and proposed.revision == expected_revision + 1
+        assert expected_revision == states.get("model", model.ModelState(identity)).revision, (
+            "Each model Save must use the exact current original revision as its CAS basis."
+        )
+        assert proposed.workspace_id == identity and proposed.revision == expected_revision + 1, (
+            "Each model proposal must retain this workspace and advance its basis by exactly one "
+            "revision."
+        )
         states["model"] = proposed
         calls.append("model-Save")
 
@@ -244,14 +255,24 @@ def test_NewSetupUsesDistinctConsentAndPreservesNativeTriageWithoutStoreIo(tmp_p
     result = setup.FreshSetup(config, enabled=True,
         current_time_provider=lambda: datetime(2030, 1, 1, 0, 1, tzinfo=timezone.utc))
     assert result["state"] is inspection and calls == [
-        "Put", "model-Save", "model-Save", "workspace-Save"]
+        "Put", "model-Save", "model-Save", "workspace-Save"], (
+        "Setup must return the actual inspection and preserve original Put/model/workspace Save "
+        "ordering."
+    )
     assert not (tmp_path / "new-owner").exists(), "Mocked methods performed no storage I/O"
     assert result["scope"]["authorization"] == {"state": "granted",
         "authority_reference": "attester:" + identity, "record_reference": "consent:" + identity,
-        "valid_from": config["consent_valid_from"], "valid_until": config["consent_valid_until"]}
+        "valid_from": config["consent_valid_from"], "valid_until": config["consent_valid_until"]}, (
+        "Fresh consent must retain the selected attester, record and exact original validity "
+        "interval."
+    )
     finding = next(row for row in states["model"].objects if row.identity.kind.value == "finding")
-    assert finding.attributes["status"] == "confirmed" and finding.attributes["status_reason"]
-    assert states["workspace"].job_references == ("job:unrelated-" + identity,)
+    assert finding.attributes["status"] == "confirmed" and finding.attributes["status_reason"], (
+        "Previously confirmed Finding triage and its reason must survive fresh setup unchanged."
+    )
+    assert states["workspace"].job_references == ("job:unrelated-" + identity,), (
+        "Fresh setup must retain the unrelated original workspace job reference."
+    )
 
 
 def test_NewFixtureCannotUseRepeatedIdentifierSeparators(tmp_path):

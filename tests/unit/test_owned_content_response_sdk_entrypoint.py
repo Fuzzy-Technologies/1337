@@ -210,7 +210,10 @@ def test_FixedSetupInspectionHookReportsAllControlSourcesWithoutCapture(
 
     monkeypatch.setattr(entrypoint, "LoadControls", Load)
     monkeypatch.setattr(entrypoint, "LoadConsumer", Unexpected)
-    assert entrypoint.Main([operation, str(config), "--execute"]) == 0
+    assert entrypoint.Main([operation, str(config), "--execute"]) == 0, (
+        "The selected inert entrypoint operation must complete with its actual successful exit "
+        "code."
+    )
     assert calls == [(operation, selection, tmp_path / "fresh-observations", True)], (
         "Only the explicit selected control executes")
     observed = json.loads(output.getvalue())
@@ -241,7 +244,9 @@ def test_OfflineAnalysisUsesGuardAndTrustedActorWithoutChangingConsumerSelection
     def OfflineGuard(*, historical, enabled):
         """Yield original mock telemetry only for the explicitly selected analysis guard."""
 
-        assert historical is False and enabled is True
+        assert historical is False and enabled is True, (
+            "The active analysis fixture must request enabled nonhistorical guarding."
+        )
         active.append(True)
 
         try:
@@ -253,7 +258,10 @@ def test_OfflineAnalysisUsesGuardAndTrustedActorWithoutChangingConsumerSelection
     def Analyze(selection, owner, *, enabled, current_owner_provider):
         """Read actual supplied actor callbacks while the mock guard is active; never call SDK."""
 
-        assert active == [True] and selection == expected and enabled is True
+        assert active == [True] and selection == expected and enabled is True, (
+            "The active guard must execute once using the exact selected configuration and enabled "
+            "flag."
+        )
         assert owner == observations / "consumer", "Consumer owns a distinct fresh child attempt"
         actors.extend((current_owner_provider(), current_owner_provider()))
 
@@ -271,12 +279,20 @@ def test_OfflineAnalysisUsesGuardAndTrustedActorWithoutChangingConsumerSelection
 
     else:
         result = entrypoint.Offline("analyze-offline", selected, observations, consumer, guard)
-        assert result["summary"] is summary and result["guard"] is record
+        assert result["summary"] is summary and result["guard"] is record, (
+            "Analysis result must retain the actual summary and original guard record objects."
+        )
 
     assert actors == [selected["owner_reference"], "actor:explicit-fixture-owner-drift" if (
-        scenario == "owner-drift") else selected["owner_reference"]]
+        scenario == "owner-drift") else selected["owner_reference"]], (
+        "Trusted actor reads must preserve the selected owner and only the explicitly requested "
+        "drift."
+    )
     retained = json.loads((observations / "offline-guard.json").read_bytes())
-    assert retained == {"guard": record, "owner_reads": 2, "authority_scenario": scenario}
+    assert retained == {"guard": record, "owner_reads": 2, "authority_scenario": scenario}, (
+        "Retained analysis metadata must preserve the original guard, exact read count and "
+        "scenario."
+    )
     assert active == [] and selected["authority_scenario"] == scenario, "No caller input mutation"
 
 
@@ -292,7 +308,9 @@ def test_OfflineReplayHasHistoricalGuardAndNoCurrentActorReader(tmp_path):
     def OfflineGuard(**options):
         """Observe replay-only guard selection without invoking any real tripwire implementation."""
 
-        assert options == {"historical": True, "enabled": True}
+        assert options == {"historical": True, "enabled": True}, (
+            "Historical replay must request the explicitly enabled historical guard configuration."
+        )
 
         yield record
 
@@ -307,8 +325,13 @@ def test_OfflineReplayHasHistoricalGuardAndNoCurrentActorReader(tmp_path):
     result = entrypoint.Offline("replay-offline", selection, observations,
         SimpleNamespace(Replay=Replay, MAX_OBSERVATION_BYTES=1024 * 1024),
         SimpleNamespace(OfflineGuard=OfflineGuard, DetachedGuard=lambda actual: actual))
-    assert calls == [(selection, observations / "consumer", True)]
-    assert result["owner_reads"] == 0 and result["authority_scenario"] is None
+    assert calls == [(selection, observations / "consumer", True)], (
+        "The CLI entrypoint must pass the selected config and exact consumer observation root "
+        "once."
+    )
+    assert result["owner_reads"] == 0 and result["authority_scenario"] is None, (
+        "Historical replay must not claim current owner reads or an authority scenario."
+    )
 
 
 def test_OfflineGuardLoaderExecutesTheSameBoundedObservedSibling(tmp_path, monkeypatch):
@@ -323,8 +346,12 @@ def test_OfflineGuardLoaderExecutesTheSameBoundedObservedSibling(tmp_path, monke
     records, observed = entrypoint.GuardSource()
     sibling.write_bytes(b"raise AssertionError('replacement guard')")
     loaded = entrypoint.LoadGuard(observed)
-    assert loaded.observed_guard == "original mock guard"
-    assert records[sibling.name]["sha256"] == hashlib.sha256(raw).hexdigest()
+    assert loaded.observed_guard == "original mock guard", (
+        "Module loading must retain the explicitly installed original mock guard binding."
+    )
+    assert records[sibling.name]["sha256"] == hashlib.sha256(raw).hexdigest(), (
+        "Sibling helper receipt must bind the exact original helper bytes by SHA-256."
+    )
 
 
 @pytest.mark.parametrize("operation", ["analyze-offline", "replay-offline"])
@@ -355,14 +382,25 @@ def test_FixedOfflineDispatchRetainsGuardSourcesAndActualDetachedValues(
     def Offline(selected_operation, selected, owner, original_consumer, original_guard):
         """Observe fixed source/selection wiring without constructing SDK or guard contexts."""
 
-        assert (selected_operation, selected, owner) == (operation, selection, observations)
-        assert original_consumer is consumer and original_guard is guard
+        assert (selected_operation, selected, owner) == (operation, selection, observations), (
+            "The active operation must preserve the selected operation, configuration and "
+            "observation owner."
+        )
+        assert original_consumer is consumer and original_guard is guard, (
+            "Entrypoint dispatch must retain the exact original consumer and offline guard "
+            "objects."
+        )
 
         return dict(actual)
 
     monkeypatch.setattr(entrypoint, "Offline", Offline)
-    assert entrypoint.Main([operation, str(config), "--execute"]) == 0
+    assert entrypoint.Main([operation, str(config), "--execute"]) == 0, (
+        "The selected original consumer operation must return the actual successful entrypoint "
+        "exit."
+    )
     observed = json.loads(output.getvalue())
-    assert all(observed[key] == value for key, value in actual.items())
+    assert all(observed[key] == value for key, value in actual.items()), (
+        "The emitted canonical result must preserve every actual consumer outcome field."
+    )
     assert observed["consumer_sources"] == {"mock_consumer_source": "a" * 64,
         "mock_guard_source": "b" * 64}, "Guard bytes must bind independently of wheel imports"

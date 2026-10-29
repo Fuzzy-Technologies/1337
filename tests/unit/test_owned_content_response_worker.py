@@ -117,7 +117,8 @@ def RunMain(monkeypatch, arguments, explicit=False):
 
 
 @pytest.mark.parametrize("address", ["127.0.0.1", "[::1]"])
-@pytest.mark.parametrize("body", [b"", b"new content", "\ufeffUTF-8 é".encode(), b"x" * 65536])
+@pytest.mark.parametrize("body", [b"", b"new content", "\ufeffUTF-8 é".encode(), b"x" * 65536],
+    ids=["empty", "ordinary", "utf8-bom", "maximum"])
 def test_ActualSentBufferAndCompleteOriginalsNeedTimelyEof(wire, monkeypatch, address, body):
     """Both literal families admit arbitrary content and explicitly probe EOF at the body cap."""
 

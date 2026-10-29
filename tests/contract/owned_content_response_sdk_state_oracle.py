@@ -43,26 +43,43 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
     documents came from a real SDK, durable storage, or actual Save calls by itself.
     """
 
-    assert type(summary["schema_version"]) is int and summary["schema_version"] == 1
-    assert type(url) is str and url and type(workspace_id) is str and workspace_id
-    assert type(scope_reference) is str and scope_reference
+    assert type(summary["schema_version"]) is int and summary["schema_version"] == 1, (
+        "Capture summary must retain exact integer schema version one."
+    )
+    assert type(url) is str and url and type(workspace_id) is str and workspace_id, (
+        "Selected source URL and workspace ID must both be nonempty exact strings."
+    )
+    assert type(scope_reference) is str and scope_reference, (
+        "The selected original source scope must be a nonempty exact string."
+    )
     assert all(state[owner]["workspace_id"] == workspace_id for state in (before, after)
         for owner in ("model", "workspace")), (
             "Both canonical owners must belong to selected workspace")
     assert summary["workflow"] == "owned-content-response-capture" and summary[
-        "source_id"] == "native.loopback-content-response"
-    assert summary["state"] == "completed" and summary["acquisition_outcome"] == "captured"
-    assert summary["custody_status"] == "complete" and summary["stage_retained"] is True
+        "source_id"] == "native.loopback-content-response", (
+        "Capture summary must identify the explicit content workflow and its first-party provider."
+    )
+    assert summary["state"] == "completed" and summary["acquisition_outcome"] == "captured", (
+        "Successful source projection requires both a completed job and an actually captured "
+        "acquisition."
+    )
+    assert summary["custody_status"] == "complete" and summary["stage_retained"] is True, (
+        "Successful capture must retain complete custody and the original retained stage."
+    )
     assert type(saves) is list and [row["owner"] for row in saves] == ["model", "workspace"], (
         "Exactly one original model Save and one original workspace Save are required")
 
     for row in saves:
         owner = row["owner"]
         prior, actual = before[owner], after[owner]
-        assert type(prior["revision"]) is int and type(actual["revision"]) is int
+        assert type(prior["revision"]) is int and type(actual["revision"]) is int, (
+            "Both original and reopened persistence revisions must be exact integers."
+        )
         assert type(row["expected_revision"]) is int and row["expected_revision"] == (
             prior["revision"]), "Original Save must retain the exact original CAS basis"
-        assert actual["revision"] == prior["revision"] + 1
+        assert actual["revision"] == prior["revision"] + 1, (
+            "An acknowledged capture Save must advance its owner revision exactly once."
+        )
         assert row["exception_type"] is None and row["returned"] is not None, (
             "Observed commits or missing Save returns cannot establish acknowledgement")
         expected_proposal = {**actual, "revision": prior["revision"]} if owner == (
@@ -70,10 +87,17 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         assert Canonical(row["proposal"]) == Canonical(expected_proposal) and Canonical(
             row["returned"]) == Canonical(actual), (
                 "Original proposal and returned/reopened state must retain actual owner semantics")
-        assert summary[owner + "_persistence_status"] == "acknowledged"
+        assert summary[owner + "_persistence_status"] == "acknowledged", (
+            "Capture persistence status must reflect the actual original acknowledgement."
+        )
         assert type(summary[owner + "_revision"]) is int and summary[owner + "_revision"] == (
-            actual["revision"])
-        assert prior["workspace_id"] == actual["workspace_id"]
+            actual["revision"]), (
+            "Capture summary revision must be an exact integer equal to the reopened owner "
+            "revision."
+        )
+        assert prior["workspace_id"] == actual["workspace_id"], (
+            "Capture persistence must not change the original workspace identity."
+        )
 
     for field in ("objects", "relations", "observations"):
         prior = ByReference(before["model"][field])
@@ -113,17 +137,32 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
             "Original workspace associations cannot disappear or duplicate")
 
     job_id, receipt_id = summary["original_job_id"], summary["original_receipt_id"]
-    assert type(job_id) is str and job_id and job_id in workspace["job_references"]
+    assert type(job_id) is str and job_id and job_id in workspace["job_references"], (
+        "The actual nonempty capture job ID must already be attached to the acknowledged "
+        "workspace."
+    )
     job = summary["job"]
-    assert job["spec"]["workspace_id"] == workspace_id
-    assert job["spec"]["scope_reference"] == scope_reference
+    assert job["spec"]["workspace_id"] == workspace_id, (
+        "The original job specification must belong to the selected workspace."
+    )
+    assert job["spec"]["scope_reference"] == scope_reference, (
+        "The original job specification must retain the independently selected source scope."
+    )
     assert set(workspace["scope_references"]) == {
-        *before["workspace"]["scope_references"], scope_reference}
+        *before["workspace"]["scope_references"], scope_reference}, (
+        "Capture must add only its exact selected scope while preserving all prior scope "
+        "references."
+    )
     assert job["spec"]["job_id"] == job_id and job["state"] == "completed" and (
-        job["failure"] is None and job["cancellation_requested"] is False)
+        job["failure"] is None and job["cancellation_requested"] is False), (
+        "Original capture job must be completed without failure or a cancellation request."
+    )
     roles = summary["original_role_ids"]
     assert len(roles) == len(set(roles.values())) == 7 and roles[
-        "owned-response-receipt"] == receipt_id
+        "owned-response-receipt"] == receipt_id, (
+        "Complete source custody requires seven distinct original role IDs including the exact "
+        "receipt."
+    )
     references = [after["originals"][identity]["manifest"]["reference"]
         for identity in roles.values()]
     assert all(after["originals"][identity]["manifest"]["provenance"]["workspace_id"] == (
@@ -131,22 +170,46 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
     assert all(after["originals"][identity]["manifest"]["provenance"]["scope_reference"] == (
         scope_reference) for identity in roles.values()), (
             "All original parts must join selected scope")
-    assert set(roles.values()) <= set(workspace["evidence_record_references"])
+    assert set(roles.values()) <= set(workspace["evidence_record_references"]), (
+        "Every original captured role ID must be acknowledged by the reopened workspace."
+    )
     assert {Canonical(value) for value in references} <= {
-        Canonical(value) for value in workspace["evidence_references"]}
+        Canonical(value) for value in workspace["evidence_references"]}, (
+        "Every original evidence reference must remain attached to the reopened workspace."
+    )
     facts = [row for row in after["model"]["observations"] if row["kind"] == (
         "owned-content-response-source") and row["attributes"]["original_receipt_id"] == receipt_id]
     assert len(facts) == 1, "One durable original content source association is required"
     fact = facts[0]
-    assert Canonical(fact["attributes"]) == Canonical(summary["source_facts"])
-    assert Canonical(fact["attributes"]["original_role_ids"]) == Canonical(roles)
-    assert fact["attributes"]["original_job_id"] == fact["provenance"]["run_reference"] == job_id
-    assert fact["provenance"]["source_id"] == "native.loopback-content-response"
-    assert fact["provenance"]["scope_reference"] == scope_reference
+    assert Canonical(fact["attributes"]) == Canonical(summary["source_facts"]), (
+        "Persisted source attributes must exactly match the actual capture summary source facts."
+    )
+    assert Canonical(fact["attributes"]["original_role_ids"]) == Canonical(roles), (
+        "Persisted source role IDs must equal the independently verified original custody mapping."
+    )
+    assert fact["attributes"]["original_job_id"] == fact["provenance"]["run_reference"] == job_id, (
+        "Source attributes and provenance must retain the same actual capture job ID."
+    )
+    assert fact["provenance"]["source_id"] == "native.loopback-content-response", (
+        "Source provenance must identify the explicit first-party content capture provider."
+    )
+    assert fact["provenance"]["scope_reference"] == scope_reference, (
+        "Source provenance must retain the independently selected original scope reference."
+    )
     assert fact["provenance"]["target_reference"] == "target:" + hashlib.sha256(Canonical({
-        "kind": "url", "value": url})).hexdigest()
+        "kind": "url", "value": url})).hexdigest(), (
+        "Source target reference must derive from the exact selected original URL."
+    )
     assert {Canonical(value) for value in fact["provenance"]["evidence_references"]} == {
-        Canonical(value) for value in references}
+        Canonical(value) for value in references}, (
+        "Source provenance must retain exactly the independently verified original evidence "
+        "references."
+    )
     assert fact["subject_reference"] in workspace["object_references"] and fact[
-        "subject_reference"] in ByReference(after["model"]["objects"])
-    assert fact["subject_reference"] == added_objects[0]["reference"]
+        "subject_reference"] in ByReference(after["model"]["objects"]), (
+        "The source endpoint must remain present in both reopened model and workspace references."
+    )
+    assert fact["subject_reference"] == added_objects[0]["reference"], (
+        "Capture must project the source fact onto the exact independently identified new "
+        "endpoint."
+    )

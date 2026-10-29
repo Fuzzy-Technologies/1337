@@ -44,16 +44,25 @@ def HeaderAbsent(raw: bytes) -> bool:
     """Read only original complete header names; body text, values and case names are irrelevant."""
 
     assert type(raw) is bytes and 0 < len(raw) <= 16384 and raw.startswith(
-        b"HTTP/1.1 200 OK\r\n") and raw.find(b"\r\n\r\n") == len(raw) - 4
+        b"HTTP/1.1 200 OK\r\n") and raw.find(b"\r\n\r\n") == len(raw) - 4, (
+        "Original headers must be bounded bytes with the exact status and terminal header "
+        "delimiter."
+    )
     lines = raw[:-4].split(b"\r\n")
-    assert 2 <= len(lines) <= 65 and all(len(line) + 2 <= 4096 for line in lines)
+    assert 2 <= len(lines) <= 65 and all(len(line) + 2 <= 4096 for line in lines), (
+        "Original header count and individual line lengths must remain within the admitted "
+        "ceilings."
+    )
     names = []
 
     for line in lines[1:]:
         name, colon, value = line.partition(b":")
         assert colon and name and all(byte in (
             b"!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-        ) for byte in name) and all(byte == 9 or 32 <= byte <= 126 for byte in value)
+        ) for byte in name) and all(byte == 9 or 32 <= byte <= 126 for byte in value), (
+            "Every original header must preserve token names and only admitted ASCII or HTAB "
+            "values."
+        )
         names.append(name.lower())
 
     assert len(set(names)) == len(names), "Ambiguous original fields cannot establish header truth"
@@ -89,7 +98,10 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
 
     workspace_id = before["workspace"]["workspace_id"]
     assert before["model"]["workspace_id"] == after["model"]["workspace_id"] == (
-        after["workspace"]["workspace_id"]) == workspace_id
+        after["workspace"]["workspace_id"]) == workspace_id, (
+        "Analysis must preserve the selected workspace identity across model and workspace "
+        "snapshots."
+    )
     sources = [row for row in before["model"]["observations"] if row["kind"] == (
         "owned-content-response-source") and row["attributes"]["original_receipt_id"] == receipt_id]
     assert len(sources) == 1, "One original content source association is required"
@@ -99,7 +111,9 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
         before["workspace"]["job_references"]), "Acquisition job is not analysis provenance"
     ids = AssertContentParts(case, url, receipt_id, before["originals"], source["attributes"],
         job_id=job)
-    assert set(ids.values()) <= set(before["workspace"]["evidence_record_references"])
+    assert set(ids.values()) <= set(before["workspace"]["evidence_record_references"]), (
+        "Every analysis source role must already be acknowledged in the acquired workspace."
+    )
     assert source["reference"] == Reference("observation", {
         key: value for key, value in source.items() if key != "reference"}), (
             "The actual original source identity must remain content-addressed")
@@ -116,29 +130,51 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
     assert set(attrs) == FIELDS and type(attrs["schema_version"]) is int and attrs[
         "schema_version"] == 2 and attrs["profile"] == PROFILE and attrs["source_profile"] == (
         SOURCE_PROFILE), "Catalog v1 cannot substitute for content-family v2"
-    assert attrs["check_id"] == CHECK and attrs["condition_observed"] is absent
+    assert attrs["check_id"] == CHECK and attrs["condition_observed"] is absent, (
+        "The assessment must retain the fixed check identity and independently computed absence "
+        "result."
+    )
     assert attrs["original_receipt_id"] == receipt_id and attrs["original_job_id"] == job and (
         attrs["source_observation_reference"] == source["reference"] and
-        attrs["original_role_ids"] == ids and attrs["analysis_reference"] == analysis)
-    assert attrs["header_sha256"] == hashlib.sha256(headers).hexdigest()
+        attrs["original_role_ids"] == ids and attrs["analysis_reference"] == analysis), (
+        "The assessment must join the exact original receipt, job, source, role IDs and analysis "
+        "attempt."
+    )
+    assert attrs["header_sha256"] == hashlib.sha256(headers).hexdigest(), (
+        "The recorded header digest must bind the complete original header bytes."
+    )
     assert fact["subject_reference"] == endpoint and fact["reference"] == Reference("observation",
-        {key: value for key, value in fact.items() if key != "reference"})
+        {key: value for key, value in fact.items() if key != "reference"}), (
+        "The assessment subject and content-addressed reference must match the original endpoint "
+        "and fields."
+    )
     originals = [before["originals"][identity]["manifest"]["reference"]
         for identity in ids.values()]
     assert provenance["source_id"] == PROVIDER and provenance["provider_version"] == "1" and (
-        provenance["run_reference"] == analysis and provenance["execution"] is None)
+        provenance["run_reference"] == analysis and provenance["execution"] is None), (
+        "Offline assessment provenance must retain its provider, version and analysis without an "
+        "execution."
+    )
     assert sorted(map(Canonical, provenance["evidence_references"])) == sorted(
-        map(Canonical, originals))
+        map(Canonical, originals)), (
+        "Assessment provenance must contain exactly the original source evidence references."
+    )
     scope, policy = authority["scope"], authority["policy"]
     scope_reference = "scope:" + scope["scope_id"]
     target = "target:" + hashlib.sha256(Canonical({"kind": "url", "value": url})).hexdigest()
     literal_ip = "target:" + hashlib.sha256(Canonical({"kind": "ip",
         "value": urlsplit(url).hostname})).hexdigest()
     assert provenance["scope_reference"] == source["provenance"]["scope_reference"] == (
-        scope_reference)
-    assert provenance["target_reference"] == source["provenance"]["target_reference"] == target
+        scope_reference), (
+        "Assessment scope must equal both the selected scope and the original source scope."
+    )
+    assert provenance["target_reference"] == source["provenance"]["target_reference"] == target, (
+        "Assessment target must equal both the selected target and the original source target."
+    )
     basis = attrs["authority_basis"]
-    assert set(basis) == BASIS and basis["source_profile"] == SOURCE_PROFILE
+    assert set(basis) == BASIS and basis["source_profile"] == SOURCE_PROFILE, (
+        "Authority basis must have the closed field set and explicit content source profile."
+    )
     expected = {"workspace_id": workspace_id, "analysis_reference": analysis,
         "original_receipt_id": receipt_id, "source_target_reference": target,
         "literal_ip_reference": literal_ip, "scope_reference": scope_reference,
@@ -147,37 +183,64 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
         "policy_sha256": ContractDigest(policy), "owner_reference": authority["owner_reference"],
         "owner_attribution": authority["owner_attribution"], "capability": CAPABILITY,
         "impact": "PASSIVE", "workflow_approved": True}
-    assert all(basis[key] == value for key, value in expected.items())
+    assert all(basis[key] == value for key, value in expected.items()), (
+        "Every frozen authority basis value must match the independently selected source and "
+        "revisions."
+    )
     assert basis["workflow_approved"] is True and authority["owner_attribution"] in (
-        "selected", "trusted-reader")
-    assert type(authority["owner_reference"]) is str and authority["owner_reference"]
+        "selected", "trusted-reader"), (
+        "Recorded explicit approval and owner attribution must remain independently admissible."
+    )
+    assert type(authority["owner_reference"]) is str and authority["owner_reference"], (
+        "The executing owner reference must be a nonempty exact string."
+    )
     for owner in ("model", "workspace"):
         assert type(basis[owner + "_revision"]) is int and basis[owner + "_revision"] == (
             before[owner]["revision"]), "Immutable original CAS bases must be exact integers"
-    assert all(type(basis[key]) is int for key in ("scope_revision", "policy_revision"))
+    assert all(type(basis[key]) is int for key in ("scope_revision", "policy_revision")), (
+        "Scope and policy revisions must be exact integers rather than boolean or coerced values."
+    )
     issued, expires, checked = [datetime.fromisoformat(basis[key]) for key in (
         "issued_at", "expires_at", "checked_at")]
     observed = datetime.fromisoformat(provenance["observed_at"])
     assert all(time.tzinfo is not None and time.utcoffset() is not None for time in (
-        issued, expires, checked, observed)) and issued <= observed <= checked < expires
+        issued, expires, checked, observed)) and issued <= observed <= checked < expires, (
+        "All authority times must be aware and the observed assessment must precede exclusive "
+        "expiry."
+    )
     impacts = {"PASSIVE", "SAFE", "STANDARD", "ACTIVE", "INTRUSIVE"}
-    assert policy["maximum_impact"] in impacts and type(policy["max_authorization_seconds"]) is int
-    assert 1 <= policy["max_authorization_seconds"] <= 3600
+    assert policy["maximum_impact"] in impacts and type(policy[
+        "max_authorization_seconds"]) is int, (
+        "Analysis policy must declare an admitted impact and an exact integer authorization "
+        "duration."
+    )
+    assert 1 <= policy["max_authorization_seconds"] <= 3600, (
+        "The original policy duration must remain within the one-to-3600-second authorization "
+        "bounds."
+    )
     permissions = [item for item in policy["permissions"] if item["capability_id"] == CAPABILITY
         and item["adapter_id"] == PROVIDER]
     assert len(permissions) == 1 and permissions[0]["maximum_impact"] in impacts and (
         permissions[0]["granted_privileges"] == []), "An explicit PASSIVE permission is required"
-    assert (expires - issued).total_seconds() <= policy["max_authorization_seconds"]
+    assert (expires - issued).total_seconds() <= policy["max_authorization_seconds"], (
+        "The fixed admission window must not exceed the original policy authorization duration."
+    )
     consent = scope["authorization"]
     assert scope["workspace_id"] == workspace_id and consent["state"] == "granted" and (
         type(consent["authority_reference"]) is str and consent["authority_reference"] and
         consent["authority_reference"] != authority["owner_reference"] and
-        type(consent["record_reference"]) is str and consent["record_reference"])
+        type(consent["record_reference"]) is str and consent[
+            "record_reference"]), (
+        "Independent granted consent must bind this workspace and a distinct attester with a "
+        "record ID."
+    )
     selected = [{"kind": "url", "value": url}, {"kind": "ip", "value": urlsplit(url).hostname}]
     for field in ("targets", "allow"):
         declarations = scope[field]
         assert type(declarations) is list and len(declarations) == len(
-            set(map(Canonical, declarations)))
+            set(map(Canonical, declarations))), (
+            "Consent target declarations must remain a list without duplicated canonical entries."
+        )
         assert all(Canonical(target) in set(map(Canonical, declarations)) for target in selected), (
             "The exact original URL and literal IP must both be registered and allowed")
     assert scope["deny"] == [] and scope["exclusions"] == [], (
@@ -185,7 +248,10 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
     for key, comparison in (("valid_from", lambda value: value <= checked),
         ("valid_until", lambda value: checked < value)):
         if consent[key] is not None:
-            assert comparison(datetime.fromisoformat(consent[key]))
+            assert comparison(datetime.fromisoformat(consent[key])), (
+                "The original consent interval must admit the independently checked analysis "
+                "timestamp."
+            )
     finding_rows = [row for row in after["model"]["objects"] if row["identity"]["kind"] == "finding"
         and row["attributes"].get("check_id") == CHECK and any(item["source_id"] == PROVIDER and
             item["run_reference"] == analysis for item in row["provenance"])]
@@ -209,31 +275,57 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
             "subject_reference": endpoint, "check_id": CHECK,
             "location_key": url + "#response-header:x-content-type-options"})).hexdigest()
         assert finding["identity"] == {"workspace_id": workspace_id, "kind": "finding",
-            "key": fingerprint}
+            "key": fingerprint}, (
+            "Finding identity must retain this workspace, finding kind and independently computed "
+            "fingerprint."
+        )
         finding_reference = Reference("object", finding["identity"])
         assert finding["reference"] == finding_reference and finding_reference in after[
-            "workspace"]["object_references"]
-        assert finding_attrs["schema_version"] == 1 and type(finding_attrs["schema_version"]) is int
+            "workspace"]["object_references"], (
+            "The exact positive Finding reference must remain attached to the acknowledged "
+            "workspace."
+        )
+        assert finding_attrs["schema_version"] == 1 and type(finding_attrs[
+            "schema_version"]) is int, (
+            "Finding attributes must retain exact integer schema version one."
+        )
         assert set(finding_attrs) == {"schema_version", "fingerprint", "subject_reference",
             "check_id", "location_key", "summary", "severity", "confidence", "status",
             "status_reason", "remediation"}, "A persisted Finding has its complete closed schema"
         assert finding_attrs["fingerprint"] == fingerprint and finding_attrs[
-            "subject_reference"] == endpoint
-        assert finding_attrs["location_key"] == url + "#response-header:x-content-type-options"
-        assert finding_attrs["summary"] == "Captured response omitted X-Content-Type-Options"
+            "subject_reference"] == endpoint, (
+            "Finding fingerprint and subject must bind the selected original endpoint."
+        )
+        assert finding_attrs["location_key"] == url + "#response-header:x-content-type-options", (
+            "Finding location must retain the selected URL and the fixed missing-header "
+            "coordinate."
+        )
+        assert finding_attrs["summary"] == "Captured response omitted X-Content-Type-Options", (
+            "Finding summary must describe the fixed X-Content-Type-Options absence predicate."
+        )
         assert finding_attrs["severity"] == "low" and type(
-            finding_attrs["confidence"]) is float and finding_attrs["confidence"] == 0.0
-        assert Canonical(provenance) in [Canonical(item) for item in finding["provenance"]]
+            finding_attrs["confidence"]) is float and finding_attrs["confidence"] == 0.0, (
+            "This bounded absence check must remain low severity with explicitly unknown numeric "
+            "confidence."
+        )
+        assert Canonical(provenance) in [Canonical(item) for item in finding["provenance"]], (
+            "The positive Finding must retain the exact offline assessment provenance."
+        )
         prior = ByReference(before["model"]["objects"]).get(finding_reference)
         if prior is None:
-            assert finding_attrs["status"] == "open" and finding_attrs["status_reason"] is None
+            assert finding_attrs["status"] == "open" and finding_attrs["status_reason"] is None, (
+                "A newly created Finding must retain open triage without an invented status "
+                "reason."
+            )
         else:
             assert all(finding_attrs[key] == prior["attributes"][key] for key in (
                 "status", "status_reason", "remediation")), "Original operator triage must survive"
 
         detection = detections[0]
         assert set(detection) == {"reference", "kind", "subject_reference", "attributes",
-            "provenance"}
+            "provenance"}, (
+            "Detection observations must preserve the complete closed observation schema."
+        )
         assert detection["subject_reference"] == finding_reference and Canonical(
             detection["provenance"]) == Canonical(provenance), "Detector attribution differs"
         assert Canonical(detection["attributes"]) == Canonical({**finding_attrs, "status": "open",
@@ -259,24 +351,44 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
     for row in saves:
         owner = row["owner"]
         assert type(row["expected_revision"]) is int and row["expected_revision"] == (
-            before[owner]["revision"])
+            before[owner]["revision"]), (
+            "Each Save attempt must use the exact integer original owner revision as its CAS "
+            "basis."
+        )
         assert row["exception_type"] is None and Canonical(row["returned"]) == Canonical(
-            after[owner])
+            after[owner]), (
+            "An acknowledged Save must have no exception and return the exact independently "
+            "reopened state."
+        )
         assert type(after[owner]["revision"]) is int and after[owner]["revision"] == (
-            before[owner]["revision"] + 1)
+            before[owner]["revision"] + 1), (
+            "Each acknowledged owner revision must advance exactly once from its original basis."
+        )
         proposal = ({**after[owner], "revision": before[owner]["revision"]}
             if owner == "workspace" else after[owner])
-        assert Canonical(row["proposal"]) == Canonical(proposal)
+        assert Canonical(row["proposal"]) == Canonical(proposal), (
+            "The actual Save proposal must match the independently reconstructed intended state."
+        )
     for owner in ("model", "workspace"):
         assert summary[owner + "_commit"] == (
-            "acknowledged" if owner in expected_owners else "not-attempted")
+            "acknowledged" if owner in expected_owners else "not-attempted"), (
+            "Persistence summary must distinguish actual acknowledged owners from unattempted "
+            "owners."
+        )
         assert type(summary[owner + "_revision"]) is int and summary[owner + "_revision"] == (
-            after[owner]["revision"])
+            after[owner]["revision"]), (
+            "Reported owner revisions must be exact integers matching the independently reopened "
+            "state."
+        )
         if owner not in expected_owners:
-            assert Canonical(before[owner]) == Canonical(after[owner])
+            assert Canonical(before[owner]) == Canonical(after[owner]), (
+                "An owner without a Save must retain its complete original state unchanged."
+            )
     for field in ("job_references", "scope_references", "evidence_references",
         "evidence_record_references"):
-        assert Canonical(before["workspace"][field]) == Canonical(after["workspace"][field])
+        assert Canonical(before["workspace"][field]) == Canonical(after["workspace"][field]), (
+            "Analysis must preserve every unrelated original workspace field."
+        )
     assert Canonical(before["originals"]) == Canonical(after["originals"]), (
         "Offline analysis cannot add or replace original evidence")
     attached = after["workspace"]["object_references"]
@@ -295,11 +407,17 @@ def AssertContentHeaderV2(before: dict, after: dict, summary: dict, saves: list[
         assert set(new) == set(old) | additions, "No unrelated model identities may appear"
     assert summary["schema_version"] == 1 and type(summary["schema_version"]) is int and (
         summary["state"] == "completed" and summary["profile"] == PROFILE and
-        summary["source_profile"] == SOURCE_PROFILE and summary["condition_observed"] is absent)
+        summary["source_profile"] == SOURCE_PROFILE and summary["condition_observed"] is absent), (
+        "Completed analysis summary must retain exact schema, content profiles and independent "
+        "absence truth."
+    )
     identities = {"original_receipt_id": receipt_id, "analysis_reference": analysis,
         "assessment_reference": fact["reference"], "finding_reference": finding_reference,
         "condition_observed": absent}
-    assert all(summary[key] == value for key, value in identities.items())
+    assert all(summary[key] == value for key, value in identities.items()), (
+        "Summary identities must match the independently reconstructed assessment and Finding "
+        "references."
+    )
 
     return identities
 
@@ -312,6 +430,9 @@ def AssertHistoricalContentHeaderReplay(before: dict, after: dict, replay: dict,
     assert set(identities) == {"original_receipt_id", "analysis_reference", "assessment_reference",
         "finding_reference", "condition_observed"}, "Missing original historical identities"
     assert replay["state"] == "verified" and replay["profile"] == PROFILE and replay[
-        "source_profile"] == SOURCE_PROFILE
+        "source_profile"] == SOURCE_PROFILE, (
+        "Historical replay must remain verified under the explicit content-family assessment "
+        "profile."
+    )
     assert type(replay["condition_observed"]) is bool and all(replay[key] == value
         for key, value in identities.items()), "Replay preserves original assessment/Finding IDs"

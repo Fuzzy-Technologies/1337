@@ -84,7 +84,9 @@ def test_IndependentOriginalPartsAllowEmptyBlobSharingButRequireDistinctRoleIds(
 
     url, receipt, originals, attrs = Bundle(name)
     assert oracle.AssertContentParts(name, url, receipt, originals, attrs,
-        job_id="job:synthetic-unit-only") == attrs["original_role_ids"]
+        job_id="job:synthetic-unit-only") == attrs["original_role_ids"], (
+        "The independent parts oracle must return exactly the original content-role ID mapping."
+    )
 
 
 @pytest.mark.parametrize("mutation", ["bytes", "manifest", "role-alias", "receipt-selection",

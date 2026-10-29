@@ -21,11 +21,20 @@ def test_TypedPoliciesKeepSafeAcquisitionAndPassiveAnalysisPermissionsIndependen
 
     policies = controls.Policies()
     safe, passive = policies["acquisition"], policies["analysis"]
-    assert safe.maximum_impact is ImpactLevel.SAFE and passive.maximum_impact is ImpactLevel.PASSIVE
+    assert safe.maximum_impact is ImpactLevel.SAFE and passive.maximum_impact is (
+        ImpactLevel.PASSIVE), (
+        "Acquisition and analysis must retain separate SAFE and PASSIVE impact levels."
+    )
     assert [(item.capability_id, item.adapter_id) for item in safe.permissions] == [(
-        "http.owned-content-response-capture", "native.loopback-content-response")]
+        "http.owned-content-response-capture", "native.loopback-content-response")], (
+        "SAFE acquisition policy must grant only the explicit content capture capability and "
+        "provider."
+    )
     assert [(item.capability_id, item.adapter_id) for item in passive.permissions] == [(
-        "http.owned-response-header-check", "native.response-passive")]
+        "http.owned-response-header-check", "native.response-passive")], (
+        "PASSIVE analysis policy must grant only the fixed original-header check capability and "
+        "provider."
+    )
     assert all(not item.granted_privileges for policy in policies.values()
         for item in policy.permissions), "No credential or execution privilege is fabricated"
 
@@ -216,16 +225,29 @@ def test_FreshSetupControlKeepsFixtureAuthorityAndDeniedPolicyIndependent(tmp_pa
         FreshSetup=FreshSetup, Setup=Unexpected), {"mock_source": name}))
     selection = {"workspace": str(tmp_path / "workspace"), "fixture_id": "fresh-control-0001"}
     result = controls.Dispatch("fresh-setup", selection, tmp_path / "observations", enabled=True)
-    assert calls == [(selection, True)] and result["scope"] is actual["scope"]
+    assert calls == [(selection, True)] and result["scope"] is actual["scope"], (
+        "Fresh setup must receive the selected configuration once and return its actual scope "
+        "object."
+    )
     policies = result["policies"]
-    assert set(policies) == {"acquisition", "analysis", "analysis-denied"}
+    assert set(policies) == {"acquisition", "analysis", "analysis-denied"}, (
+        "Setup must retain distinct acquisition, allowed-analysis and denied-analysis policy "
+        "documents."
+    )
 
     for role, observed in policies.items():
         path = tmp_path / "observations" / (role + "-policy.json")
         parsed = ReadNucleiPolicy(path)
-        assert parsed.policy_id == identity + "-" + role
-        assert json.loads(path.read_bytes()) == observed["document"]
+        assert parsed.policy_id == identity + "-" + role, (
+            "Each persisted policy must retain its own selected identity and role suffix."
+        )
+        assert json.loads(path.read_bytes()) == observed["document"], (
+            "The persisted policy bytes must equal the independently observed original document."
+        )
 
-    assert policies["analysis"]["document"]["permissions"]
+    assert policies["analysis"]["document"]["permissions"], (
+        "Allowed analysis policy must retain an explicit permission rather than an empty grant "
+        "set."
+    )
     assert policies["analysis-denied"]["document"]["permissions"] == [], (
         "Denial is a separate typed fixture, not a permission patched during analysis")

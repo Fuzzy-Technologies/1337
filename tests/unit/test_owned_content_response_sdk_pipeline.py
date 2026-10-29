@@ -80,25 +80,43 @@ class MockSequence:
         def CaptureOracle(*args, **kwargs):
             """Observe unmodified SDK-save input wiring; no acquisition is asserted here."""
 
-            assert args == (self.before, self.acquired, self.summary, [])
-            assert kwargs["workspace_id"] == plan["workspace_id"]
+            assert args == (self.before, self.acquired, self.summary, []), (
+                "Capture oracle must receive original before/after states, the actual summary and "
+                "Save trace."
+            )
+            assert kwargs["workspace_id"] == plan["workspace_id"], (
+                "Capture oracle must retain the independently selected workspace identity."
+            )
             self.oracles.append("capture")
 
         def PartsOracle(*args, **kwargs):
             """Observe selected original receipt/case wiring without manufacturing any parts."""
 
             assert args == (plan["selection"]["case"], plan["selection"]["url"],
-                "receipt:mock-only", {}, self.summary["source_facts"])
-            assert kwargs == {"job_id": "job:mock-only"}
+                "receipt:mock-only", {}, self.summary["source_facts"]), (
+                "Parts oracle must receive the exact selected case, URL, receipt and source facts."
+            )
+            assert kwargs == {"job_id": "job:mock-only"}, (
+                "Parts oracle must bind the actual original capture job rather than a guessed job "
+                "ID."
+            )
             self.oracles.append("parts")
 
         def HeaderOracle(*args, **kwargs):
             """Observe original state/guard Save wiring and independently selected authority."""
 
-            assert args == (self.acquired, self.interpreted, self.analysis["summary"], [])
+            assert args == (self.acquired, self.interpreted, self.analysis["summary"], []), (
+                "Header oracle must receive acquired and interpreted states with the actual "
+                "analysis summary."
+            )
             assert kwargs["analysis"] == plan["analysis_reference"] and (
-                kwargs["authority"]["scope"] is self.scope)
-            assert kwargs["authority"]["owner_attribution"] == "trusted-reader"
+                kwargs["authority"]["scope"] is self.scope), (
+                "Header oracle must retain the selected analysis reference and original authority "
+                "scope object."
+            )
+            assert kwargs["authority"]["owner_attribution"] == "trusted-reader", (
+                "The active analysis oracle must retain trusted-reader owner attribution."
+            )
             self.oracles.append("header")
 
             return self.identities
@@ -107,7 +125,10 @@ class MockSequence:
             """Observe the same persisted identities and relocated snapshots, never replay."""
 
             assert args == (self.interpreted, self.interpreted,
-                self.replay["summary"], self.identities)
+                self.replay["summary"], self.identities), (
+                "Replay oracle must receive unchanged interpreted state and the exact original "
+                "result identities."
+            )
             self.oracles.append("replay")
 
         monkeypatch.setattr(pipeline, "AssertSdkSaveTransition", CaptureOracle)
@@ -151,20 +172,39 @@ def test_MockedSequenceKeepsIndependentFindingTruthAndRelocatedHeaderReplay(
     plan = pipeline.Plan(Selection(tmp_path, case=case))
     mock = MockSequence(plan, monkeypatch)
     result = pipeline.Run(plan, mock.Handoff, enabled=True)
-    assert result["state"] == "checked-header-replay" and result["expected_findings"] == expected
-    assert mock.oracles == ["capture", "parts", "header", "replay"]
+    assert result["state"] == "checked-header-replay" and result["expected_findings"] == expected, (
+        "The completed inert pipeline must retain the expected replay state and exact Finding "
+        "count."
+    )
+    assert mock.oracles == ["capture", "parts", "header", "replay"], (
+        "The pipeline must invoke capture, parts, header and replay oracles in their original "
+        "order."
+    )
     assert [item[0] for item in mock.calls] == ["fresh-setup", "capture", "inspect",
-        "analyze-offline", "inspect", "relocate", "inspect", "replay-offline", "inspect"]
+        "analyze-offline", "inspect", "relocate", "inspect", "replay-offline", "inspect"], (
+        "Product handoffs must preserve setup, capture, analysis, relocation and replay ordering."
+    )
     owners = [item[2] for item in mock.calls]
     assert len(set(owners)) == len(owners) and all(owner.parent == tmp_path / "observations"
         for owner in owners), "Every operation has a fresh independent observation owner"
     capture, analyze, replay = [mock.calls[index][1] for index in (1, 3, 7)]
     assert capture["approve_safe_content_response_capture"] is True and capture[
-        "retain_response"] is True and analyze["approve_passive_header_check"] is True
-    assert analyze["original_receipt_id"] == mock.summary["original_receipt_id"]
-    assert analyze["expected_model_revision"] == 3 and analyze["expected_workspace_revision"] == 2
+        "retain_response"] is True and analyze["approve_passive_header_check"] is True, (
+        "Capture approval, byte retention and analysis approval must remain separate explicit "
+        "booleans."
+    )
+    assert analyze["original_receipt_id"] == mock.summary["original_receipt_id"], (
+        "Analysis must use the actual capture receipt rather than a synthesized source reference."
+    )
+    assert analyze["expected_model_revision"] == 3 and analyze[
+        "expected_workspace_revision"] == 2, (
+        "Analysis must receive the original acquired model and workspace CAS bases."
+    )
     assert replay == {"workspace": str(tmp_path / "relocated"), "kind": "header",
-        "reference": mock.identities["assessment_reference"]}
+        "reference": mock.identities["assessment_reference"]}, (
+        "Historical replay must select the relocated workspace and exact original assessment "
+        "reference."
+    )
 
 
 @pytest.mark.parametrize("scenario", pipeline.SCENARIOS[1:])
@@ -176,11 +216,19 @@ def test_MockedAuthorityRefusalLeavesOriginalsUnchangedAndStopsBeforeRelocation(
     plan = pipeline.Plan(Selection(tmp_path, scenario=scenario))
     mock = MockSequence(plan, monkeypatch)
     assert pipeline.Run(plan, mock.Handoff, enabled=True) == {
-        "state": "checked-authority-refusal", "expected_findings": 0}
-    assert mock.oracles == ["capture", "parts"] and len(mock.calls) == 5
+        "state": "checked-authority-refusal", "expected_findings": 0}, (
+        "The denied inert pipeline must return only an authority refusal and zero expected "
+        "Findings."
+    )
+    assert mock.oracles == ["capture", "parts"] and len(mock.calls) == 5, (
+        "Denied analysis must stop after source oracles and the five required product handoffs."
+    )
     selected = mock.calls[3][1]
     assert selected["authority_scenario"] == scenario and selected[
-        "approve_passive_header_check"] is (scenario != "approval-denied")
+        "approve_passive_header_check"] is (scenario != "approval-denied"), (
+        "The authority fixture must preserve its selected scenario and independent analysis "
+        "approval."
+    )
     assert selected["policy"] == mock.policies["analysis-denied" if scenario == (
         "policy-denied") else "analysis"]["path"], "A denied fixture is an actual typed policy"
 
@@ -432,14 +480,22 @@ def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFact
     def Installation(identity, imported, **selected):
         """Observe exact original installed envelope and selected immutable source identities."""
 
-        assert identity is installed.installation["identity"]
+        assert identity is installed.installation["identity"], (
+            "Installation validation must receive the exact original installation identity object."
+        )
         assert imported["python"] == str(installed.python) and selected == {
-            "commit": installed.commit, "tree": installed.tree}
+            "commit": installed.commit, "tree": installed.tree}, (
+            "Installation validation must retain the actual selected interpreter, commit and "
+            "source tree."
+        )
 
     def Terminal(process, stdout, stderr, *, argv):
         """Observe the selected fixed isolated command without authenticating fake terminal data."""
 
-        assert argv[1:3] == ("-I", "-B") and argv[-1] == "--execute"
+        assert argv[1:3] == ("-I", "-B") and argv[-1] == "--execute", (
+            "Each installed handoff must use isolated no-bytecode execution with explicit execute "
+            "selection."
+        )
 
     monkeypatch.setattr(oracles, "AssertContentInstallation", Installation)
     monkeypatch.setattr(oracles, "AssertOriginalTerminalProcess", Terminal)
@@ -524,7 +580,10 @@ def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFact
     def Target(owner, *, address, case):
         """Yield a fake source identity and retain explicit mock final facts without a listener."""
 
-        assert address == "127.0.0.1"
+        assert address == "127.0.0.1", (
+            "The owned source fixture must bind only the independently selected IPv4 loopback "
+            "address."
+        )
         origin = "http://127.0.0.1:" + str(15432 + len(origins))
         origins.append(origin)
 
@@ -538,9 +597,18 @@ def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFact
     def Sources(case, url, main, sentinel, *, sentinel_origin):
         """Observe retained fake owner records without authenticating any real source contacts."""
 
-        assert case == "missing" and url == origins[0] + "/research/content"
-        assert main == {"mock_origin": origins[0]} and sentinel == {"mock_origin": origins[1]}
-        assert sentinel_origin == origins[1]
+        assert case == "missing" and url == origins[0] + "/research/content", (
+            "Source delivery validation must retain the exact missing-header case and selected "
+            "concrete URL."
+        )
+        assert main == {"mock_origin": origins[0]} and sentinel == {"mock_origin": origins[1]}, (
+            "Source delivery validation must receive both independently retained original owner "
+            "facts."
+        )
+        assert sentinel_origin == origins[1], (
+            "Source delivery validation must retain the distinct independently selected sentinel "
+            "origin."
+        )
 
         return "mock-original-delivery"
 
@@ -553,21 +621,37 @@ def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFact
         selected = plan["selection"]
         root = Path(selected["workspace"])
         observations = Path(selected["observations"])
-        assert enabled is True and plan["expected_findings"] == 1
+        assert enabled is True and plan["expected_findings"] == 1, (
+            "The joined pipeline must be explicitly enabled with the fixed expected positive "
+            "Finding count."
+        )
         assert handoff("fresh-setup", {"workspace": str(root)}, observations / "setup") == {
-            "mock_summary": "fresh-setup"}
+            "mock_summary": "fresh-setup"}, (
+            "Fresh setup handoff must return the original controlled setup summary."
+        )
         root.mkdir()
         assert handoff("inspect", {"workspace": str(root)}, observations / "inspect") == {
-            "state": {"mock_summary": "inspect"}}
+            "state": {"mock_summary": "inspect"}}, (
+            "Inspect handoff must return the original controlled canonical state."
+        )
         assert handoff("capture", {"workspace": str(root)}, observations / "capture")[
-            "summary"] == {"mock_summary": "capture"}
+            "summary"] == {"mock_summary": "capture"}, (
+            "Capture handoff must return its actual controlled capture summary."
+        )
         assert handoff("analyze-offline", {"workspace": str(root)}, observations / "analyze")[
-            "guard"] == {"mock_guard": True}
+            "guard"] == {"mock_guard": True}, (
+            "Offline analysis handoff must retain its original guard observations."
+        )
         moved = handoff("relocate", {"workspace": str(root), "relocated_workspace": selected[
             "relocated_workspace"]}, observations / "relocate")
-        assert moved == {"original_root_absent": True, "relocated_root_present": True}
+        assert moved == {"original_root_absent": True, "relocated_root_present": True}, (
+            "Physical relocation must remove the original root and retain the relocated root."
+        )
         assert handoff("replay-offline", {"workspace": selected["relocated_workspace"]},
-            observations / "replay")["guard"] == {"mock_guard": True}
+            observations / "replay")["guard"] == {"mock_guard": True}, (
+            "Offline replay handoff must preserve the original guard observations after "
+            "relocation."
+        )
 
         return {"state": "mock-sequence-only", "expected_findings": 1}
 
@@ -579,8 +663,12 @@ def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFact
                 fixture_id="fresh-transport-0001", case="missing", scenario="positive",
                 enabled=True)
 
-        assert (evidence.retained / "main-source-final.json").exists()
-        assert not (evidence.retained / "pipeline-result.json").exists()
+        assert (evidence.retained / "main-source-final.json").exists(), (
+            "A failed pipeline must retain the original main-source final facts for diagnosis."
+        )
+        assert not (evidence.retained / "pipeline-result.json").exists(), (
+            "A failed pipeline must not publish a successful pipeline result artifact."
+        )
 
         if mutation == "guard-failure":
             assert (evidence.retained / "sdk-analyze-offline-guard.json").is_file(), (
@@ -590,10 +678,18 @@ def test_MockedInstalledTransportRetainsOriginalAdaptersAndStopsOnMismatchedFact
 
     result = pipeline.RunInstalled(installed, tmp_path / "runtime", evidence,
         fixture_id="fresh-transport-0001", case="missing", scenario="positive", enabled=True)
-    assert result["source_delivery"] == "mock-original-delivery"
+    assert result["source_delivery"] == "mock-original-delivery", (
+        "The final result must preserve the independently observed original source-delivery "
+        "classification."
+    )
     assert calls == ["pipeline-source-status", "pipeline-checkpoint", "sdk-fresh-setup",
-        "sdk-inspect", "sdk-capture", "sdk-analyze-offline", "sdk-replay-offline"]
-    assert (evidence.retained / "physical-relocation.json").exists()
+        "sdk-inspect", "sdk-capture", "sdk-analyze-offline", "sdk-replay-offline"], (
+        "Installed pipeline process records must retain their original source and product-stage "
+        "ordering."
+    )
+    assert (evidence.retained / "physical-relocation.json").exists(), (
+        "The installed pipeline must retain its original physical-relocation receipt."
+    )
 
 
 def test_InstalledPrerequisiteFailureStopsBeforeAnyProcessOrTarget(tmp_path, monkeypatch):

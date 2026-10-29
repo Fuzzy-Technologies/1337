@@ -216,7 +216,9 @@ def test_RehashedTamperedOriginalsStillRequireCompleteWireAndRequestAssociation(
 
 @pytest.mark.parametrize("raw", [b"", b"x" * 131073, b"\xff", b"\xef\xbb\xbf{}", b"{}\n",
     b'{"a":1,"a":2}', b'{"a":NaN}', b'{"a":Infinity}', b'{"a":1.5}',
-    b"[" * 10 + b"0" + b"]" * 10, json.dumps(list(range(129))).encode(), b'"\\ud800"'])
+    b"[" * 10 + b"0" + b"]" * 10, json.dumps(list(range(129))).encode(), b'"\\ud800"'],
+    ids=["empty", "oversized", "invalid-utf8", "bom", "trailing-newline", "duplicate-key",
+        "nan", "infinity", "fraction", "deep-tree", "wide-tree", "surrogate"])
 def test_NoncanonicalOrExcessiveJsonIsNeverRenderedAsAnOriginal(raw):
     """Byte bounds, unique keys, finite primitives and tree bounds precede canonical output."""
 
