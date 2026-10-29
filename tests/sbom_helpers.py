@@ -107,3 +107,9 @@ def Value(arguments: list[str], flag: str, value: object) -> list[str]:
     updated[updated.index(flag) + 1] = str(value)
 
     return updated
+
+
+def ViewArguments(owned, *, digest=IMAGE_DIGEST, kind="config"):
+    """Select the explicit immutable image without source acquisition or persistence options."""
+
+    return ["image", str(owned.root), "--image-digest", digest, "--image-digest-kind", kind]

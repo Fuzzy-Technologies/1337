@@ -99,3 +99,7 @@ acknowledgements remain nonzero even if an original manifest or saved revision
 is present. Reopen the owning stores before deciding how to recover. The command
 claims no atomic cross-store transaction, implicit rollback, scanner execution,
 remote retrieval, inferred score or license compliance result.
+
+Inspect saved accepted image packages and explicit configured Docker use with
+[`1337 sbom image`](IMAGE_SBOM_VIEW.md). The read-only view keeps config/manifest
+identity distinct and runtime reachability unknown.
