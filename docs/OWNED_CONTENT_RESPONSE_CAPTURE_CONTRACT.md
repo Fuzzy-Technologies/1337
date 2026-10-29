@@ -2,9 +2,13 @@
 
 ## Status and identities
 
-**UNIMPLEMENTED; runtime, installed acceptance and integration UNRUN.** This design
-extends the first-party source acquisition boundary reviewed at `fd2b7838`, not
-its target scope or any external engine. Implementation needs independent review.
+**Experimental SDK implemented; bounded installed acceptance verified.** This
+profile extends the first-party source acquisition boundary reviewed at `fd2b7838`,
+not its target scope or any external engine. Eight installed SDK scenarios cover
+positive/negative header assessment, body-decoy handling, denied policy, changed
+actor, missing analysis approval, stale model revision and post-model-ACK expiry.
+One separate installed IPv6 scenario verifies the worker boundary only. Final
+shared integration is required before merge; this profile has no CLI enrollment.
 The old [closed catalog contract](OWNED_RESPONSE_CAPTURE_CONTRACT.md), worker,
 parser, schema, catalog bytes/hash, defaults and historical replay remain unchanged.
 An original body is never inferred from a crawl digest or a matching fixture name.
@@ -305,9 +309,10 @@ keeping native_response_headers.HeaderFieldAbsent and its PASSIVE authority fixe
 Later CLI enrollment must expose the family and both independent execution/retention
 selections explicitly; this document implements no command or enrollment.
 
-An independent handwritten mutable owned source freezes the following matrix;
+An independent handwritten mutable owned source freezes the following wider matrix;
 its arbitrary new paths/headers/body variants are test expectations, never runtime
-admission data. No Java/helper/engine, target probe or runtime is run by this design.
+admission data. The matrix describes the family acceptance objectives, rather than
+claiming that every row has executed as an installed scenario in this SDK slice.
 
 | Independent case                                                               | Required observation                                                                                                 |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
@@ -323,8 +328,21 @@ admission data. No Java/helper/engine, target probe or runtime is run by this de
 | Runtime/listener/operation removed; workspace relocated; parts/source tampered | New capture/header replay fully offline, exact old IDs preserved; unknown association/tamper refuses without writes  |
 | Old catalog positives/refusals/replays and wrong-family cross-feed             | Old identities/bytes/defaults unchanged; both dispatchers reject foreign profile/receipt/provider/media bindings     |
 
-Pure/mock/schema checks are insufficient for genuine acceptance. Later acceptance
-must prove actual installed SDK and CLI capture-to-offline-header-to-relocated-replay
-behavior, full source custody/authority/CAS boundaries and unchanged old replay,
-followed by independent review and the shared final gate. No general scanner,
-all-engine completion, privacy attestation or clean-target conclusion follows.
+Pure/mock/schema checks are insufficient for genuine acceptance. This SDK slice
+has actual installed capture-to-offline-header-to-relocated-replay evidence for
+missing, present and body-decoy headers, plus separate installed refusal, CAS and
+partial-persistence cases. The original post-model-ACK expiry case is retained in
+[run 40813429726](https://github.com/Fuzzy-Technologies/1337/actions/runs/40813429726);
+the separate worker-only IPv6 case is retained in
+[run 40819203715](https://github.com/Fuzzy-Technologies/1337/actions/runs/40819203715).
+Their independent original-artifact reviews are recorded in
+[PR 368](https://github.com/Fuzzy-Technologies/1337/pull/368).
+
+The implemented interface is the explicit SDK above. CLI enrollment, wider
+installed custody/lost-ACK/concurrency cases and complete Task 59 acceptance remain
+separate work. The IPv6 worker case does not establish IPv6 SDK authority or a
+Finding. The expiry case uses a controlled receiver clock after an actual Save
+acknowledgement; it does not measure elapsed real time. Final source review and
+shared integration remain the merge gate for this bounded slice. No general
+scanner, all-engine completion, privacy attestation or clean-target conclusion
+follows.

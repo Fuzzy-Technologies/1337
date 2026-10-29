@@ -114,8 +114,12 @@ cases passed in 15.47 seconds with no failures/errors/skips; final shared CI and
 platform acceptance remain pending. Prior SDK/crawler passing cohorts were not repeated.
 
 The [content-response capture contract](OWNED_CONTENT_RESPONSE_CAPTURE_CONTRACT.md)
-proposes a separate bounded retention profile beyond the closed catalog. It is
-unimplemented; its worker, SDK/CLI enrollment and runtime acceptance are unrun.
+defines the implemented Experimental SDK retention profile beyond the closed
+catalog. Eight actual installed SDK cases cover original capture, explicit
+header-v2 analysis, relocated replay, authority refusals, stale CAS and controlled
+post-model-ACK expiry. A separate installed IPv6 case verifies only the worker
+boundary. CLI enrollment and wider Task 59 acceptance remain separate work;
+the final shared integration gate is still required before merge.
 
 The [owned-loopback native content crawl](NATIVE_CONTENT_CRAWL.md) uses `scan crawl`
 with an exact sorted selected URL set, current scope/policy and separate SAFE

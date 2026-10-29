@@ -8,6 +8,29 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.2
 
+### Patch 4 — v0.2.4 — 2026-10-29
+
+#### Digest
+
+- Added an explicit content-response SDK profile with retained original HTTP
+  evidence and separately approved offline header assessment. This is a
+  development candidate; no v0.2.4 release is published.
+
+#### Added
+
+- Added content capture planning, original-response custody and historical
+  replay through the governed SDK. Eight installed SDK scenarios cover the
+  missing/fixed/body-decoy header cases, actor/policy/approval refusal, stale
+  model revision and expiry after an acknowledged model Save. A separate
+  installed IPv6 worker scenario verifies literal-loopback wire handling.
+
+#### Security
+
+- Keep acquisition and offline assessment approvals separate. Original source
+  associations, exact model/workspace revision checks, acknowledged partial
+  persistence and relocated replay retain their distinct outcomes. The
+  content-family CLI and broader task-level acceptance remain future work.
+
 ### Patch 3 — v0.2.3 — 2026-10-28
 
 #### Digest

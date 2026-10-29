@@ -1,8 +1,10 @@
 # Independent mutable content-response source
 
-Phase 1 is **source-only**. No real constructor, bound socket, listener, thread,
-worker, SDK, CLI, installed wheel, build, CI or security runtime has executed.
-No producer implementation supplies expected bytes, detections or record values.
+The original Phase 1 checkpoint was **source-only**. Subsequent installed
+acceptance now covers eight SDK scenarios and one distinct IPv6 worker scenario;
+see the current [capture contract](../../../docs/OWNED_CONTENT_RESPONSE_CAPTURE_CONTRACT.md).
+This fixture oracle still supplies independently handwritten expectations: no
+producer implementation supplies expected bytes, detections or record values.
 
 `tests/contract/owned_content_response_oracle.py` handwrites 59 response cases:
 18 admitted and 41 refused. Twenty raw URL spellings additionally require the
@@ -77,8 +79,8 @@ normal EOF versus held peer EOF, false-idle socket/handler/dispatch owners,
 nonrenewing deadline waits and constructor/body/wait/cleanup failures. They prove
 source invariants, not a working worker or scanner.
 
-The next phase requires frozen producer interfaces and root review/authorization.
-Use a small real installed cohort for live mutable bytes, IPv6, empty/BOM/boundary
+The wider acceptance objective uses frozen producer interfaces and source review.
+Separate installed cohorts must cover live mutable bytes, IPv6, empty/BOM/boundary
 framing and held EOF; do not repeat whole passing SDK/crawler cohorts. Then bind
 actual worker execution and seven acknowledged roles through the new explicit
 SAFE plus retention selection. A separately approved PASSIVE v2 header attempt
@@ -89,4 +91,5 @@ root, relocate canonical workspace/evidence, and replay/report offline without
 Put/Save/contact. Cross-family tests need actual independently acknowledged old
 and new receipts and must refuse foreign profile/receipt/provider/media bindings.
 Missing capabilities fail required acceptance; failed or unexecuted work stays
-unassessed. CLI enrollment itself still needs its own frozen reviewed contract.
+unassessed. This wider objective is not a claim that every matrix row has already
+executed. CLI enrollment itself still needs its own frozen reviewed contract.
