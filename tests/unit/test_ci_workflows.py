@@ -586,9 +586,15 @@ def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> No
     assert all(marker not in jobs[name]["if"] for name in old_jobs), (
         "The CAS marker cannot enroll an already accepted cohort."
     )
-    assert workflow["permissions"] == {"contents": "read"} and (
-        workflow.get("on", workflow.get(True))["pull_request"]["branches"] == ["develop"]
-    ), "The checkpoint must retain read-only PR authority and the integration target."
+    events = workflow.get("on", workflow.get(True))
+    assert workflow["permissions"] == {"contents": "read"} and set(events) == {"pull_request"}, (
+        "The checkpoint must retain read-only PR authority without unrelated triggers."
+    )
+    assert events["pull_request"] == {
+        "branches": ["develop"],
+        "types": ["opened", "reopened", "synchronize", "ready_for_review",
+            "converted_to_draft", "edited"],
+    }, "Body-marker edits must trigger the checkpoint while retaining every existing PR event."
     assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6 and (
         job["env"] == {"FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}
         and "strategy" not in job and not job.get("continue-on-error", False)

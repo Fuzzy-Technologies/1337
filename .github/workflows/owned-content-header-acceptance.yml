@@ -3,7 +3,7 @@ name: Genuine owned content header pipeline
 on:
   pull_request:
     branches: [develop]
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited]
 
 permissions:
   contents: read
