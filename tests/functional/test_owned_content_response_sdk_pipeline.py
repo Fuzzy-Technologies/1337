@@ -175,3 +175,32 @@ def test_InstalledFreshStaleModelRevisionContentHeaderPipelinePreservesAcquiredS
     assert result == {"state": "checked-revision-conflict", "expected_findings": 0,
         "runtime_acceptance": "passed", "source_delivery": "normal-eof"}, (
             "Stale CAS must preserve acquired state without reaching fresh analysis admission")
+
+
+def test_InstalledFreshPostModelAckExpiryContentHeaderPipelinePreservesPartialState(
+    installed_content_header_pipeline: tuple, tmp_path: object,
+) -> None:
+    """Retain a real model ACK and prevent workspace Save at controlled exclusive expiry.
+
+    Args:
+        installed_content_header_pipeline: Actual unchanged isolated installation and
+            original evidence retention owner.
+        tmp_path: Explicit new test-owned Path for this one independently selected pipeline.
+    """
+
+    from tests.contract.owned_content_response_expiry_pipeline import RunInstalled as RunExpiry
+
+    installed, retained = installed_content_header_pipeline
+    evidence = NativeCaseEvidence(tmp_path / "original-evidence",
+        retained / "post-model-ack-expiry")
+    evidence.Json("case.json", {"schema_version": 1,
+        "identity": "content-sdk:ipv4:missing:post-model-ack-expiry:partial-model-only",
+        "expected_findings": 1, "elapsed_wall_clock_claimed": False,
+        "runtime_acceptance": "unassessed-until-original-checks"})
+    result = RunExpiry(installed, tmp_path / "pipeline", evidence,
+        fixture_id="expiry-" + uuid4().hex, enabled=True)
+    assert result["state"] == "checked-post-model-ack-expiry-partial" and (
+        result["runtime_acceptance"] == "passed" and result["source_delivery"] == "normal-eof"
+        and result["expected_findings"] == 1 and result["identities"]["condition_observed"] is True
+        and result["identities"]["finding_reference"]
+    ), "Only original partial persistence and exclusive expiry can satisfy this finite fixture"
