@@ -9,8 +9,10 @@ import asyncio
 import hashlib
 import json
 import os
+import stat
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -293,7 +295,9 @@ def test_PrivateControlRequiresStrictBoundedCanonicalJson(raw):
         worker.ParseControl(raw)
 
 
-def test_PrivateRequestBindsOriginalPathDigestIdentityAndParents(tmp_path, owned_material):
+def test_PrivateRequestBindsOriginalPathDigestIdentityAndParents(
+    tmp_path, owned_material, monkeypatch,
+):
     """The child reads only the original exclusive owner request beneath its exact workspace."""
 
     directory, control = Control(tmp_path, owned_material)
@@ -303,6 +307,19 @@ def test_PrivateRequestBindsOriginalPathDigestIdentityAndParents(tmp_path, owned
     path.chmod(0o600)
     digest = hashlib.sha256(raw).hexdigest()
     identity = PhysicalIdentity(path.stat())
+
+    if os.name == "nt":
+        read = MagicMock(side_effect=AssertionError("Unsupported private modes must refuse reads"))
+        monkeypatch.setattr(worker, "ReadArtifactFile", read)
+
+        with pytest.raises(ValueError, match="private ownership differs"):
+            worker.ReadControl(path, digest, identity)
+
+        assert not read.called, (
+            "Windows private modes must refuse before any control bytes are read")
+
+        return
+
     assert worker.ReadControl(path, digest, identity) == control, (
         "The exact private request must retain its original hash and physical parent binding"
     )
@@ -400,9 +417,105 @@ def test_StagePayloadCannotBroadenManifestSizeWithoutPhysicalAgreement(tmp_path,
         worker.CheckStageMetadata(replace(stage, input=snapshot), owned_material)
 
 
+def InstallPrivatePosixModel(observer, monkeypatch):
+    """Model declared private modes and owned snapshot unlink for protocol units only."""
+
+    original_info = worker.ArtifactPathInfo
+    original_mkdir, original_chmod, original_unlink = Path.mkdir, Path.chmod, Path.unlink
+    original_open = os.open
+    model = SimpleNamespace(modes={}, declarations=[], views=[], unlinked=[])
+
+    def Remember(path, mode, *, directory):
+        """Retain declared permissions alongside the original guarded physical entry identity."""
+
+        info = original_info(path, directory=directory)
+        model.modes[path] = ((info.st_dev, info.st_ino), mode, directory)
+        model.declarations.append((path, mode))
+
+    def Mkdir(path, mode=0o777, parents=False, exist_ok=False):
+        """Observe only successful generated private directories inside the active workspace."""
+
+        original_mkdir(path, mode=mode, parents=parents, exist_ok=exist_ok)
+        prefix = "native-configuration-read-"
+        suffix = path.name.removeprefix(prefix)
+
+        if observer._busy and path.parent == observer.workspace_root and (
+            path.name.startswith(prefix) and len(suffix) == 32
+            and set(suffix) <= set("0123456789abcdef")
+        ):
+            Remember(path, mode, directory=True)
+
+    def Open(path, flags, mode=0o777, *, dir_fd=None):
+        """Delegate actual exclusive creation and record only an owned private request's mode."""
+
+        descriptor = original_open(path, flags, mode, dir_fd=dir_fd)
+        path = Path(path)
+
+        if path.parent in model.modes and path.name == "request.json" and observer._busy:
+            Remember(path, mode, directory=False)
+
+        return descriptor
+
+    def Chmod(path, mode, *, follow_symlinks=True):
+        """Keep deliberate permission changes visible instead of normalizing them away."""
+
+        entry = model.modes.get(path)
+        info = original_info(path, directory=entry[2]) if entry is not None else None
+        original_chmod(path, mode, follow_symlinks=follow_symlinks)
+
+        if entry is not None and (info.st_dev, info.st_ino) == entry[0]:
+            Remember(path, mode, directory=entry[2])
+
+    def Info(path, *, directory=False):
+        """Run physical guards first; change only modes of exact registered private entries."""
+
+        info = original_info(path, directory=directory)
+        entry = model.modes.get(path)
+        registered = path in observer._private or any(
+            path == request.parent for request in observer._private)
+
+        if entry is None or not registered or (info.st_dev, info.st_ino) != entry[0]:
+            return info
+
+        fields = {name: getattr(info, name) for name in dir(info) if name.startswith("st_")}
+        fields["st_mode"] = stat.S_IFMT(info.st_mode) | entry[1]
+        model.views.append((path, entry[1], PhysicalIdentity(info)))
+
+        return SimpleNamespace(**fields)
+
+    def Unlink(path, missing_ok=False):
+        """Model POSIX unlink only after guards reach an original known snapshot file."""
+
+        stage = observer._stage
+        known = {} if stage is None else {snapshot.directory / name: identity
+            for snapshot in (stage.input, stage.scanner, stage.material)
+            for name, identity in snapshot.identities}
+
+        if path in known:
+            info = original_info(path)
+            assert PhysicalIdentity(info) == known[path] and (
+                stage.root == observer._stage_root and observer._terminal and not observer._busy
+            ), "Only unchanged terminal observer snapshots may use modeled POSIX unlink"
+
+            if not info.st_mode & stat.S_IWUSR:
+                original_chmod(path, stat.S_IMODE(info.st_mode) | stat.S_IWUSR)
+
+            model.unlinked.append(path)
+
+        return original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "mkdir", Mkdir)
+    monkeypatch.setattr(Path, "chmod", Chmod)
+    monkeypatch.setattr(Path, "unlink", Unlink)
+    monkeypatch.setattr(material, "os", SimpleNamespace(**{**vars(os), "open": Open}))
+    monkeypatch.setattr(worker, "ArtifactPathInfo", Info)
+
+    return model
+
+
 @pytest.fixture
-def simulated_observer(tmp_path, owned_material, monkeypatch):
-    """Simulate owned helper terminal results with tiny in-process worker mechanics, never Trivy."""
+def simulated_observer(tmp_path, owned_material, monkeypatch, request):
+    """Simulate terminal helpers; optional declared POSIX mechanics are never OS admission proof."""
 
     monkeypatch.setattr(material, "RequirePlatform", lambda: None)
     monkeypatch.setattr(worker, "RequirePlatform", lambda: None)
@@ -410,6 +523,9 @@ def simulated_observer(tmp_path, owned_material, monkeypatch):
         "workspace:material", "owner:mechanics")
     controls = {"calls": [], "mode": "success", "stdout": None, "after_worker": None,
                 "event": None, "started": asyncio.Event(), "released": asyncio.Event()}
+
+    if os.name == "nt" or getattr(request, "param", False):
+        controls["posix_model"] = InstallPrivatePosixModel(observer, monkeypatch)
 
     async def Execute(executor, request, **options):
         """Exercise exact closed wire under an explicitly simulated terminal executor boundary."""
@@ -482,6 +598,69 @@ def simulated_observer(tmp_path, owned_material, monkeypatch):
     monkeypatch.setattr(LocalExecutor, "Execute", Execute)
 
     return observer, controls
+
+
+@pytest.mark.parametrize("simulated_observer", [True], indirect=True, ids=["posix-model"])
+def test_PortablePrivateModeModelRetainsOriginalReadsAndKnownSnapshotCleanup(simulated_observer):
+    """Forced portable mechanics retain real control guards through create, verify and close."""
+
+    observer, controls = simulated_observer
+    model = controls["posix_model"]
+    budget = NativeImageObservationBudget()
+    proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+    proof = asyncio.run(observer.Verify(proof, budget, operation_reference="operation:material"))
+    known = {snapshot.directory / name for snapshot in (
+        proof.stage.input, proof.stage.scanner, proof.stage.material)
+        for name, _ in snapshot.identities}
+    assert [mode for _, mode in model.declarations] == [0o700, 0o600] * 2, (
+        "Private logical modes must come from each actual mkdir and exclusive open declaration")
+    assert {mode for _, mode, _ in model.views} == {0o600, 0o700} and (
+        material.ReadControl is worker.ReadControl and len(controls["calls"]) == 2
+        and budget.ObservationCount == 2 and not budget.Failed
+        and not observer._private
+    ), "Portable mechanics must keep original guarded request reads and terminal cleanup active"
+    observer.Close()
+    assert set(model.unlinked) == known and len(model.unlinked) == 2 and (
+        not proof.stage.root.exists() and observer.selection.source.exists()
+        and observer.selection.executable.exists()
+    ), "Modeled unlink may remove only the exact original owned snapshots after their guards"
+
+
+@pytest.mark.parametrize("simulated_observer", [True], indirect=True, ids=["posix-model"])
+@pytest.mark.parametrize(("target", "mode"), [("request", 0o644), ("directory", 0o755)])
+def test_PortablePrivateModeModelCannotHideDeclaredPermissionMutation(
+    simulated_observer, target, mode,
+):
+    """Refreshed physical identity cannot hide deliberately broadened private logical modes."""
+
+    observer, controls = simulated_observer
+    denied = []
+
+    def Change(path):
+        """Broaden exactly one private mode between the actual original launch checks."""
+
+        selected = path if target == "request" else path.parent
+        selected.chmod(mode)
+        digest, _ = observer._private[path]
+        refreshed = PhysicalIdentity(path.stat())
+        assert controls["posix_model"].modes[selected][1] == mode, (
+            "Mode tracking must retain the deliberate chmod instead of restoring private defaults")
+
+        with pytest.raises(ValueError, match="private ownership differs"):
+            worker.ReadControl(path, digest, refreshed)
+
+        denied.append(path)
+
+    controls["before_second"] = Change
+    budget = NativeImageObservationBudget()
+
+    with pytest.raises(material.NativeConfigurationMaterialError):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert denied and denied[0].exists() and observer._private and not observer._proofs and (
+        budget.Failed and budget.ObservationCount == 1 and not observer._terminal
+        and not observer._stage_root.exists()
+    ), "Changed private modes must refuse launch, retain uncertain control and withhold every proof"
 
 
 def test_SimulatedOriginalProofBindsStageOwnerAndLedgerAndCloseRevokes(
@@ -1088,6 +1267,52 @@ def test_WorkerPlatformRefusesBeforeAnySelectedRead(monkeypatch):
         worker.RequirePlatform()
 
 
+@pytest.mark.parametrize(("system", "machine"), [
+    ("win32", "x86_64"), ("darwin", "x86_64"), ("linux", "aarch64"),
+])
+def test_UnsupportedPlatformRefusesWorkerAndParentBeforeReadsOrHelperAdmission(
+    tmp_path, owned_material, monkeypatch, capsys, system, machine,
+):
+    """Actual unsupported entry paths refuse without reads, helper launch or ledger admission."""
+
+    observer = material.NativeConfigurationMaterialObserver(owned_material, tmp_path,
+        "workspace:material", "owner:mechanics")
+    budget = NativeImageObservationBudget()
+    original_children = set(tmp_path.iterdir())
+    forbidden = MagicMock(side_effect=AssertionError("Unsupported platforms must refuse admission"))
+    monkeypatch.setattr(worker, "sys", SimpleNamespace(platform=system, stderr=worker.sys.stderr))
+    monkeypatch.setattr(worker.platform, "machine", lambda: machine)
+    monkeypatch.setattr(worker, "RequireLinuxOwnership", forbidden)
+    monkeypatch.setattr(worker, "ReadControl", forbidden)
+    monkeypatch.setattr(worker, "SelectionFromControl", forbidden)
+    monkeypatch.setattr(worker, "ReadArtifactFile", forbidden)
+    monkeypatch.setattr(worker, "CreateStage", forbidden)
+    monkeypatch.setattr(worker, "VerifyStage", forbidden)
+    monkeypatch.setattr(material, "ArtifactPathInfo", forbidden)
+    monkeypatch.setattr(material, "ReadControl", forbidden)
+    monkeypatch.setattr(LocalExecutor, "Execute", forbidden)
+
+    with pytest.raises(ValueError, match="platform is unsupported"):
+        worker.ObserveControl({}, "0" * 64, (0,) * 5)
+
+    assert worker.Main([str(tmp_path / "request.json"), "0" * 64, "0,0,0,0,0"]) == 2, (
+        "Unsupported installed entry paths must return only the fixed refusal status")
+    output = capsys.readouterr()
+    assert not output.out and output.err == "native-configuration-material-refused\n", (
+        "Unsupported platforms must emit no material metadata or selected path diagnostics")
+
+    with pytest.raises(ValueError, match="platform is unsupported"):
+        asyncio.run(observer.Create(budget, operation_reference="operation:material"))
+
+    assert not forbidden.called and set(tmp_path.iterdir()) == original_children, (
+        "Unsupported platform refusal must precede reads, helper launch and workspace mutation")
+    assert budget.ObservationCount == 0 and not budget.Failed, (
+        "Platform preflight must refuse before the caller ledger admits an observation")
+    assert not observer._private and not observer._proofs and observer._stage_root is None and (
+        observer._stage is None and observer._terminal and not observer._busy
+    ), "Unsupported entry paths cannot create private control, stage or material proof"
+
+
 def test_WorkerMainUsesOnlyFixedArgumentsAndSanitizedRefusal(monkeypatch, capsys):
     """The installed child entry point rejects invalid control without leaking selected paths."""
 
@@ -1109,6 +1334,21 @@ def test_InProcessWorkerEntryPointRechecksOriginalControlBeforeMetadataOutput(
     path.chmod(0o600)
     digest = hashlib.sha256(raw).hexdigest()
     identity = PhysicalIdentity(path.stat())
+
+    if os.name == "nt":
+        read = MagicMock(side_effect=AssertionError(
+            "Unsupported workers must refuse control reads"))
+        monkeypatch.setattr(worker, "ReadControl", read)
+        assert worker.Main([str(path), digest, ",".join(str(item) for item in identity)]) == 2, (
+            "The actual Windows entry path must refuse unsupported platform ownership")
+        output = capsysbinary.readouterr()
+        assert not read.called and not StageRoot(tmp_path).exists(), (
+            "Unsupported Windows workers must refuse before control reads or selected capture")
+        assert not output.out and output.err == b"native-configuration-material-refused\n", (
+            "Unsupported worker refusal must retain its fixed bounded diagnostic")
+
+        return
+
     original_read = worker.ReadControl
     reads = []
 
