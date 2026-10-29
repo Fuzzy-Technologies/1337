@@ -479,8 +479,9 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
     assert "--no-cov -n 0" in native["run"] and "--junitxml=" in native["run"], (
         "The native step must stay serial and retain JUnit without partial coverage."
     )
-    assert native["timeout-minutes"] == 15 and lane["timeout-minutes"] == 40, (
-        "The native step keeps its budget while the lane also budgets the installed prerequisite."
+    assert native["timeout-minutes"] == 15 and lane["timeout-minutes"] == 61, (
+        "The native step keeps its budget; the lane reserves the original 40 minutes "
+        "plus 20 minutes for the six application cases and one for their original-result gate."
     )
     diagnostic_marker = "[native-external-metrics-diagnostic]"
     assert " ".join(native["if"].split()) == (
