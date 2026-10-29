@@ -72,10 +72,10 @@ Its required `attempt-provenance` role identifies the approved single configured
 invocation and leaves independent server contacts unknown. Artifact reads enforce
 the unchanged 2 MiB per-file ceiling and reject oversize bytes without truncation
 or splitting. These schema and inert contract fixtures do not establish
-application execution. The bounded standalone and governed producer sources
-are present, but the fresh target host loop and complete v2 observation assembly
-remain unimplemented. Both tracks remain candidates with application runtime
-**UNRUN**; six-case shared CI acceptance remains future Task #40 work.
+application execution. The bounded standalone and governed producers, fresh
+target host loop and complete original v2 assembly now have reviewed source.
+Both track implementations are available for explicit selection; application
+runtime remains **UNRUN** until the six actual comparative cases execute.
 
 ## Installed Nuclei image prerequisite
 
@@ -192,3 +192,59 @@ Focused offline contract checks:
 ```bash
 uv run --locked --extra dev pytest tests/contract/test_external_benchmark.py --no-cov -n 2
 ```
+
+## Finite two-track Nuclei application source
+
+The installed image now has a finite application mode for the existing
+`whole1337` and `external-nuclei` tracks, over the same three unchanged cases.
+[ADR 0106](../../../docs/adr/0106-comparative-nuclei-external-benchmark.md) and
+[nuclei-provider.v1.json](nuclei-provider.v1.json) retain the official binary,
+reviewed rule, empty configuration and effective-limit provenance. Track
+availability records source acceptance; it never supplies runtime acceptance.
+
+The separate genuine no-HOME prerequisite passed on source `5887666f`, tree
+`9079e87f`, in [run 40879355362](https://github.com/Fuzzy-Technologies/1337/actions/runs/40879355362).
+It establishes exact version/Go validation with unchanged PATH/LANG and a private
+working directory. The earlier explicit-HOME prerequisite and native three-case
+results remain independently identified above. Neither supplies new application
+case credit. The six application invocations remain UNRUN until supported-runtime
+CI executes their exact final source.
+
+After independent source acceptance, select only the six new cases with:
+
+```bash
+FUZZY1337_EXTERNAL_NUCLEI_BENCHMARK=juice-shop uv run --locked --extra dev pytest \
+  tests/functional/test_external_nuclei_benchmark.py --no-cov -n 0
+```
+
+Each track/case owns a fresh unchanged target. Before any target starts, the
+shared immutable current-wheel image must pass its genuine target-free no-HOME
+probe. Original target/image/container readback, internal network, fixed-local
+Docker routing, original process streams and independent cleanup remain retained.
+The owned runner is removed before its target namespace/network teardown.
+
+Original evidence and the v2 comparison are beneath
+`functional-evidence/external-nuclei-prerequisites/run-*/`; a comparison host is
+identified by `kind: finite-nuclei-application-comparison`. Each source invocation
+remains byte-exact. Whole-product provider duration and whole-product/image wall
+time remain separate. A valid mapped match may score TP/FP for the selected case;
+empty matching output stays `unproven`, with no TN/FN, successful-response or
+independent server-contact credit.
+
+Actual launch/capture/timeout/cancellation/export failures stay unscored. If
+provider custody is unavailable, a failed v2 row requires original hashed host
+start/capture/source/case/target/cleanup proof and retains null provider execution;
+before-start errors remain prerequisite-failed. Unknown cleanup never becomes
+confirmed termination. The original bundle limits remain 128 files, two MiB per
+file and eight MiB total; failed export never truncates originals into a passing
+comparison. Existing native and target-free selections remain separate from this
+new six-case step.
+
+The focused draft marker `[nuclei-application-product-checkpoint]` selects only
+the same six ordinary product cases and their read-only original-evidence gate.
+It enrolls no older smoke, native three-case or standalone prerequisite test.
+Its own current-image initialization still precedes target creation. The case
+step has a twenty-minute bound with a 900-second pytest signal deadline, followed
+by a one-minute gate; the twenty-five-minute job includes setup and evidence
+retention. Final readiness runs these six cases inside the original external job
+with its prior forty-minute allocation plus twenty-one minutes for the new work.

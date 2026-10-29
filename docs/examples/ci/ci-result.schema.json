@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "1337 local-demo CI recipe result (not a product scan contract)",
+  "type": "object",
+  "required": ["schema_version", "state", "exit_status"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "state": {"enum": ["completed", "denied", "failed"]},
+    "exit_status": {"enum": [0, 3, 4]},
+    "model_revision": {"const": 3},
+    "verified_evidence_records": {"const": 3},
+    "object_counts": {
+      "const": {"host": 1, "port": 1, "service": 1, "endpoint": 3, "finding": 0}
+    },
+    "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "scan_completeness": {"const": "not-assessed"},
+    "target_teardown_completed": {"const": true},
+    "no_clobber_verified": {"const": true},
+    "failure": {"type": "string"},
+    "detail": {"type": "string"}
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "completed"}}},
+      "then": {
+        "properties": {"exit_status": {"const": 0}},
+        "required": ["model_revision", "verified_evidence_records", "object_counts",
+          "snapshot_sha256", "scan_completeness", "target_teardown_completed", "no_clobber_verified"]
+      }
+    },
+    {
+      "if": {"properties": {"state": {"const": "denied"}}},
+      "then": {"properties": {"exit_status": {"const": 3}}, "required": ["failure"]}
+    },
+    {
+      "if": {"properties": {"state": {"const": "failed"}}},
+      "then": {"properties": {"exit_status": {"const": 4}}, "required": ["failure", "detail"]}
+    }
+  ]
+}

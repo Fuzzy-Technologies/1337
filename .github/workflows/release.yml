@@ -1,0 +1,282 @@
+name: Release distributions
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Continue only the already existing annotated v0.3.0 tag
+        type: choice
+        options: ["0.3.0"]
+        default: "0.3.0"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Refuse branch publication before source execution
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    steps:
+      - name: Require an existing-tag event before checkout or source execution
+        env:
+          SELECTED_VERSION: ${{ inputs.version }}
+        run: |
+          test "$GITHUB_REPOSITORY" = Fuzzy-Technologies/1337
+          case "$GITHUB_EVENT_NAME" in
+            push) [[ "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]] ;;
+            workflow_dispatch)
+              test "$GITHUB_REF" = refs/tags/v0.3.0
+              test "$SELECTED_VERSION" = 0.3.0 ;;
+            *) exit 1 ;;
+          esac
+      - name: Check out only the selected existing tag with master history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require annotated current-master identity before source execution
+        run: |
+          test "$(git cat-file -t "$GITHUB_REF")" = tag
+          test "$(git rev-parse "$GITHUB_REF^{commit}")" = "$(git rev-parse HEAD)"
+          test "$(git rev-parse refs/remotes/origin/master)" = "$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+
+  build:
+    needs: preflight
+    name: Validate annotated release and build distributions once
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact_id: ${{ steps.handoff.outputs.artifact-id }}
+      checksums_sha256: ${{ steps.seal.outputs.checksums_sha256 }}
+      version: ${{ steps.seal.outputs.version }}
+    steps:
+      - name: Check out the exact existing tag with master history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned tools
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize the locked build environment
+        run: uv sync --locked --extra dev --python 3.12
+      - name: Require annotated current-master source and matching release metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_EVENT_SHA: ${{ github.sha }}
+        run: |
+          mkdir "$RUNNER_TEMP/release-inputs"
+          mkdir -p "$RUNNER_TEMP/release-bundle/dist"
+          .venv/bin/python tools/release_delivery.py source --root "$GITHUB_WORKSPACE" \
+            --tag "$RELEASE_TAG" --sha "$RELEASE_EVENT_SHA" \
+            --output "$RUNNER_TEMP/release-inputs/source.json"
+      - name: Require actual named master workflow jobs before publication
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          source_commit="$(git rev-parse HEAD)"
+          .venv/bin/python tools/release_delivery.py gates --root "$GITHUB_WORKSPACE" \
+            --sha "$source_commit" --output "$RUNNER_TEMP/release-inputs/master-checks.json"
+      - name: Build the release sdist and its wheel once
+        run: >-
+          .venv/bin/python -m build --no-isolation
+          --outdir "$RUNNER_TEMP/release-bundle/dist"
+      - name: Select the original accepted master API documentation artifact
+        id: documentation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          .venv/bin/python tools/release_delivery.py docs-artifact --root "$GITHUB_WORKSPACE" \
+            --source "$RUNNER_TEMP/release-inputs/source.json" \
+            --checks "$RUNNER_TEMP/release-inputs/master-checks.json" \
+            --output "$RUNNER_TEMP/release-inputs/documentation-artifact.json"
+          .venv/bin/python -c 'import json,os; from pathlib import Path; value=json.loads((Path(os.environ["RUNNER_TEMP"])/"release-inputs/documentation-artifact.json").read_text()); Path(os.environ["GITHUB_OUTPUT"]).write_text("artifact_id="+str(value["artifact_id"])+"\nrun_id="+str(value["run_id"])+"\n")'
+      - name: Download only that exact original documentation attempt
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ steps.documentation.outputs.artifact_id }}
+          run-id: ${{ steps.documentation.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/release-documentation
+          digest-mismatch: error
+      - name: Verify a clean installed wheel through the actual owned demo
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          .venv/bin/python tools/release_delivery.py smoke --root "$RUNNER_TEMP/wheel-install" \
+            --version "$version" \
+            --wheel "$RUNNER_TEMP/release-bundle/dist/1337-$version-py3-none-any.whl" \
+            --output "$RUNNER_TEMP/release-inputs/clean-install.json"
+      - name: Seal exact distributions card and evidence
+        id: seal
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          .venv/bin/python tools/release_delivery.py seal --root "$RUNNER_TEMP/release-bundle" \
+            --source "$RUNNER_TEMP/release-inputs/source.json" \
+            --checks "$RUNNER_TEMP/release-inputs/master-checks.json" \
+            --smoke "$RUNNER_TEMP/release-inputs/clean-install.json" \
+            --documentation "$RUNNER_TEMP/release-documentation" \
+            --card "docs/releases/$RELEASE_TAG.md" --output "$RUNNER_TEMP/release-inputs/seal.json"
+          .venv/bin/python -c 'import json,os; from pathlib import Path; value=json.loads((Path(os.environ["RUNNER_TEMP"])/"release-inputs/seal.json").read_text()); Path(os.environ["GITHUB_OUTPUT"]).write_text("version="+value["version"]+"\nchecksums_sha256="+value["checksums_sha256"]+"\n")'
+      - name: Retain the immutable same-run publication handoff
+        id: handoff
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-distributions
+          path: ${{ runner.temp }}/release-bundle/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-pypi:
+    name: Publish the validated distributions through Trusted Publishing
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/p/1337
+    permissions:
+      id-token: write
+    steps:
+      - name: Download only the exact producer artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: release-bundle
+          digest-mismatch: error
+      - name: Require the original distribution checksum handoff
+        working-directory: release-bundle
+        env:
+          EXPECTED_CHECKSUMS_SHA256: ${{ needs.build.outputs.checksums_sha256 }}
+        run: |
+          printf '%s  SHA256SUMS\n' "$EXPECTED_CHECKSUMS_SHA256" | sha256sum --strict --check -
+          sha256sum --strict --check SHA256SUMS
+          test "$(find dist -mindepth 1 -maxdepth 1 -type f | wc -l)" -eq 2
+          test -z "$(find . -type l -print -quit)"
+      - name: Publish both original artifacts with PEP 740 attestations
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        with:
+          packages-dir: release-bundle/dist/
+          attestations: true
+          skip-existing: false
+          verify-metadata: true
+
+  verify-pypi:
+    name: Verify the actual clean PyPI installation
+    needs: [build, publish-pypi]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the same reviewed tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Download the unchanged original handoff
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: release-bundle
+          digest-mismatch: error
+      - name: Install from PyPI and verify installed bytes and actual product outcomes
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          EXPECTED_CHECKSUMS_SHA256: ${{ needs.build.outputs.checksums_sha256 }}
+        run: |
+          python tools/release_delivery.py verify --root release-bundle \
+            --checksums-sha256 "$EXPECTED_CHECKSUMS_SHA256"
+          python tools/release_delivery.py smoke --root "$RUNNER_TEMP/pypi-install" \
+            --version "$RELEASE_VERSION" --output "$RUNNER_TEMP/pypi-install.json"
+          python tools/release_delivery.py verify-index --root release-bundle \
+            --smoke "$RUNNER_TEMP/pypi-install.json" --checksums-sha256 "$EXPECTED_CHECKSUMS_SHA256"
+      - name: Preserve original postpublication verification
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pypi-install-evidence
+          path: |
+            ${{ runner.temp }}/pypi-install.json
+            ${{ runner.temp }}/pypi-install/pip-install.json
+            ${{ runner.temp }}/pypi-install/commands.jsonl
+            ${{ runner.temp }}/pypi-install/demo/
+            ${{ runner.temp }}/pypi-install/reopened.json
+          if-no-files-found: error
+          retention-days: 30
+
+  github-release:
+    name: Publish the existing-tag release card and exact assets
+    needs: [build, verify-pypi]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the existing annotated tag with master history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download exact original release assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: ${{ runner.temp }}/release-bundle
+          digest-mismatch: error
+      - name: Verify original assets and existing master tag again
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_EVENT_SHA: ${{ github.sha }}
+          EXPECTED_CHECKSUMS_SHA256: ${{ needs.build.outputs.checksums_sha256 }}
+        run: |
+          python tools/release_delivery.py source --root "$GITHUB_WORKSPACE" \
+            --tag "$RELEASE_TAG" --sha "$RELEASE_EVENT_SHA"
+          python tools/release_delivery.py verify --root "$RUNNER_TEMP/release-bundle" \
+            --checksums-sha256 "$EXPECTED_CHECKSUMS_SHA256"
+      - name: Create the release from the existing tag without replacing an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: >-
+          gh release create "$RELEASE_TAG" --verify-tag --latest
+          --title "1337 Security Workbench $RELEASE_TAG"
+          --notes-file "$RUNNER_TEMP/release-bundle/RELEASE_NOTES.md"
+          "$RUNNER_TEMP/release-bundle/dist/"*
+          "$RUNNER_TEMP/release-bundle/SHA256SUMS"
+          "$RUNNER_TEMP/release-bundle/RELEASE_NOTES.md"
+          "$RUNNER_TEMP/release-bundle/release-manifest.json"
+          "$RUNNER_TEMP/release-bundle/source.json"
+          "$RUNNER_TEMP/release-bundle/master-checks.json"
+          "$RUNNER_TEMP/release-bundle/clean-install.json"
+          "$RUNNER_TEMP/release-bundle/distribution-metadata.json"
+          "$RUNNER_TEMP/release-bundle/api-docs/1337-$RELEASE_VERSION-api-docs.tar.gz"
+          "$RUNNER_TEMP/release-bundle/api-docs/1337-$RELEASE_VERSION-api-docs.manifest.json"

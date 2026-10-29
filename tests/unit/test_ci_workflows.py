@@ -83,6 +83,8 @@ OWNED_TRAVERSAL_RATE_CONDITION = (
     "&& contains(github.event.pull_request.body, '[owned-traversal-rate-checkpoint]')"
 )
 NUCLEI_CONTRACT_WINDOWS_JOB = "nuclei-contract-windows-checkpoint"
+NUCLEI_GOVERNED_PREREQUISITE_JOB = "nuclei-governed-prerequisite-checkpoint"
+NUCLEI_APPLICATION_PRODUCT_JOB = "nuclei-application-product-checkpoint"
 
 
 def Workflow(name: str) -> dict[str, Any]:
@@ -124,7 +126,8 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
 
     if name == "python-quality.yml":
         expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {
-            OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB}
+            OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB,
+            NUCLEI_GOVERNED_PREREQUISITE_JOB, NUCLEI_APPLICATION_PRODUCT_JOB}
 
     assert set(jobs) == expected, "The integration job inventory changed unexpectedly."
     assert workflow["permissions"] == {"contents": "read"}, "PR authority expanded."
@@ -607,11 +610,12 @@ def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> No
         "The CAS marker cannot enroll an already accepted cohort."
     )
     events = workflow.get("on", workflow.get(True))
-    assert workflow["permissions"] == {"contents": "read"} and set(events) == {"pull_request"}, (
-        "The checkpoint must retain read-only PR authority without unrelated triggers."
+    assert workflow["permissions"] == {"contents": "read"} and set(events) == {
+        "pull_request", "push"} and events["push"] == {"branches": ["master"]}, (
+        "Master jobs remain read-only; this checkpoint's exact draft condition is unchanged."
     )
     assert events["pull_request"] == {
-        "branches": ["develop"],
+        "branches": ["develop", "master"],
         "types": ["opened", "reopened", "synchronize", "ready_for_review",
             "converted_to_draft", "edited"],
     }, "Body-marker edits must trigger the checkpoint while retaining every existing PR event."
@@ -620,7 +624,11 @@ def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> No
         and "strategy" not in job and not job.get("continue-on-error", False)
     ), "The one installed Linux case requires its opt-in and finite non-advisory job."
     steps = job["steps"]
-    assert steps[:4] == jobs["installed-content-header"]["steps"][:4], (
+    assert steps[0] == {**jobs["installed-content-header"]["steps"][0], "with": {
+        "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False
+    }} and (
+        steps[1:4] == jobs["installed-content-header"]["steps"][1:4]
+    ), (
         "The CAS job must reuse the reviewed head checkout and pinned locked provisioning."
     )
     checkout = steps[0]["with"]
@@ -683,10 +691,11 @@ def test_ContentHeaderPostModelAckExpiryCheckpointSelectsOnlyItsInstalledPartial
         "The expiry marker cannot reenroll an already accepted case."
     )
     events = workflow.get("on", workflow.get(True))
-    assert workflow["permissions"] == {"contents": "read"} and set(events) == {"pull_request"}, (
-        "Expiry enrollment must retain read-only PR authority without unrelated triggers."
+    assert workflow["permissions"] == {"contents": "read"} and set(events) == {
+        "pull_request", "push"} and events["push"] == {"branches": ["master"]}, (
+        "Canonical master jobs remain read-only; this expiry job remains behind its draft guard."
     )
-    assert events["pull_request"] == {"branches": ["develop"], "types": [
+    assert events["pull_request"] == {"branches": ["develop", "master"], "types": [
         "opened", "reopened", "synchronize", "ready_for_review", "converted_to_draft", "edited",
     ]}, "The expiry marker must retain supported body-edit admission and all original PR events."
     assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6 and (
@@ -697,7 +706,9 @@ def test_ContentHeaderPostModelAckExpiryCheckpointSelectsOnlyItsInstalledPartial
     assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
         "Expiry execution cannot acquire extra children or advisory evidence checks."
     )
-    assert steps[:4] == jobs["installed-content-header"]["steps"][:4], (
+    assert steps[0] == {**jobs["installed-content-header"]["steps"][0], "with": {
+        "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False
+    }} and steps[1:4] == jobs["installed-content-header"]["steps"][1:4], (
         "Expiry must reuse the original exact-head checkout and pinned locked provisioning."
     )
     assert steps[0]["with"] == {"ref": "${{ github.event.pull_request.head.sha }}",
@@ -755,10 +766,11 @@ def test_ContentHeaderIpv6WorkerCheckpointSelectsOnlyItsInstalledWorkerCase() ->
         "The worker-only IPv6 marker cannot reenroll any accepted case."
     )
     events = workflow.get("on", workflow.get(True))
-    assert workflow["permissions"] == {"contents": "read"} and set(events) == {"pull_request"}, (
-        "IPv6 worker enrollment must preserve read-only PR authority and existing triggers."
+    assert workflow["permissions"] == {"contents": "read"} and set(events) == {
+        "pull_request", "push"} and events["push"] == {"branches": ["master"]}, (
+        "Canonical master jobs remain read-only; this IPv6 worker remains behind its draft guard."
     )
-    assert events["pull_request"] == {"branches": ["develop"], "types": [
+    assert events["pull_request"] == {"branches": ["develop", "master"], "types": [
         "opened", "reopened", "synchronize", "ready_for_review", "converted_to_draft", "edited",
     ]}, "The worker marker requires supported body-edit admission and every original PR event."
     assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "env", "steps"} and (
@@ -770,7 +782,9 @@ def test_ContentHeaderIpv6WorkerCheckpointSelectsOnlyItsInstalledWorkerCase() ->
     assert len(steps) == 7 and all(not step.get("continue-on-error", False) for step in steps), (
         "Worker enrollment cannot add runtime children or advisory checks."
     )
-    assert steps[:4] == jobs["installed-content-header"]["steps"][:4], (
+    assert steps[0] == {**jobs["installed-content-header"]["steps"][0], "with": {
+        "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False
+    }} and steps[1:4] == jobs["installed-content-header"]["steps"][1:4], (
         "The worker must reuse original exact-head checkout and pinned locked provisioning."
     )
     assert steps[0]["with"] == {"ref": "${{ github.event.pull_request.head.sha }}",
@@ -826,7 +840,9 @@ def test_ContentUnitWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> Non
         "Focused units require setup, one execution, a strict gate and always-retained JUnit."
     )
     original = workflow["jobs"]["installed-content-header"]["steps"]
-    assert steps[0] == original[0] and steps[1]["uses"] == original[1]["uses"] and (
+    assert steps[0] == {**original[0], "with": {
+        "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False
+    }} and steps[1]["uses"] == original[1]["uses"] and (
         steps[1]["with"] == {"python-version": "3.12"} and steps[2] == original[2]
         and steps[3]["run"] == "uv sync --locked --extra dev --python 3.12"
     ), "Windows diagnostics must keep exact-head checkout and pinned locked Python provisioning."
@@ -1054,13 +1070,15 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
     assert " ".join(job["if"].split()) == EXTERNAL_NATIVE_FEATURE_CONDITION, (
         "Only the original final/native admission and explicit prerequisite mode may run."
     )
-    assert job["timeout-minutes"] == 40 and job["runs-on"] == "ubuntu-24.04" and (
+    assert job["timeout-minutes"] == 61 and job["runs-on"] == "ubuntu-24.04" and (
         job["env"] == {"FUZZY1337_EXTERNAL_TARGETS": "juice-shop",
             "FUZZY1337_EXTERNAL_NATIVE_BENCHMARK": "juice-shop"}
         and "strategy" not in job and not job.get("continue-on-error", False)
-    ), "Final external acceptance must budget both native and installed prerequisite steps."
+    ), "Final external acceptance must retain prior windows plus the bounded new six-case step."
     steps = {step["name"]: step for step in job["steps"]}
-    assert len(steps) == len(job["steps"]) == 10, "Only two prerequisite steps may be added."
+    assert len(steps) == len(job["steps"]) == 12, (
+        "The prior ten steps must remain alongside the two final comparative steps."
+    )
     checkout = steps["Check out source"]
     assert checkout["with"] == {"persist-credentials": False,
         "ref": ("${{ github.event_name == 'pull_request' "
@@ -1116,7 +1134,8 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
         "name": "external-juice-shop", "path": "functional-evidence/external-juice-shop/\n"
             "functional-evidence/external-native-benchmark/\n"
             "functional-evidence/external-nuclei-prerequisites/\n"
-            "functional-evidence/nuclei-prerequisites.xml\n",
+            "functional-evidence/nuclei-prerequisites.xml\n"
+            "functional-evidence/nuclei-comparison.xml\n",
         "if-no-files-found": "error", "retention-days": 14,
     }, "The existing always upload must retain both old evidence paths and new originals."
 

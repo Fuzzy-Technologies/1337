@@ -30,6 +30,30 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   explicit configured Docker uses through the installed console and shell.
   Exact config/manifest digest selection, original evidence verification and
   pinned model/snapshot references preserve the source of each observation.
+- Add exact native Nmap TCP-connect and light service-discovery profiles through
+  the SDK and `raw plan|run|replay` console/shell interface. Original argv and
+  bounded collected stdout/stderr retain provider attribution and native status;
+  offline receipt replay verifies original custody after workspace relocation.
+- Preserve existing canonical Host/Port/Service normalization, one-attempt
+  persistence acknowledgement and independently reported wrapper outcomes.
+  Synthetic installed CLI and deterministic regressions passed; the two genuine
+  pinned Nmap profile cases remain required in their dedicated acceptance lane.
+- Prepare numeric package version `0.3.0` without changing dependency pins, and
+  document the exact PyPI install path conditional on completed publication.
+  Human, AI-agent and CI quickstarts share the owned local discovery recipe;
+  the core-only Git HEAD recipe demonstrates one attributable Finding, a fixed
+  negative control and offline JSON/HTML/SARIF exports.
+- Add a structured v0.3.0 release card with copyable installed examples, selected
+  provider capabilities, prerequisites, known limitations and a reserved marker
+  for actual accepted master/release validation links. Version-specific agent
+  prompts retain explicit approval and honest RU/zh-cn translation draft states.
+
+- Add `image export-local` with pure planning, exact selected executable/socket
+  and local reference, bounded inspect/export/recheck, original evidence, and
+  a verified archive/config identity for a separately scoped native scan.
+- Add `scan image --expected-config-id`; fresh original Trivy report identity
+  must match before projection or model Save. Existing archive-only behavior
+  remains available when no expected pin is selected.
 
 #### Security
 
@@ -44,6 +68,19 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   reachability remain unknown, original corruption or changed saved bases refuse,
   and license declarations establish no compliance result. Broader SBOM/license
   semantics and live runtime correlation remain tracked separately under M4.
+- Require current scope and operator policy plus separate exact-plan
+  confirmation. The literal native-argument delimiter prevents wrapper-option
+  reinterpretation. Only the finite unprivileged Nmap matrix is admitted;
+  unknown flags, scripts, shell commands, credentials and caller environment or
+  output paths are refused. Native zero cannot hide failed custody or missing
+  persistence acknowledgement, and failed/partial output creates no positive
+  model facts or invented vulnerability Findings.
+
+- Require independent source grants and one-use claims, current authority and
+  material checks, exact typed workspace acknowledgement/readback and no
+  accepted archive pin on uncertain persistence. Export does not pull, start,
+  load or build images, select ambient Docker settings, or register archive
+  scope. Portable logical tests do not count as native runtime acceptance.
 
 ## Minor 0.2
 

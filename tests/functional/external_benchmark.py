@@ -9,6 +9,7 @@ import hashlib
 import ipaddress
 import json
 import math
+import re
 from itertools import combinations
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -20,7 +21,8 @@ CONTRACT_DIRECTORY = Path(__file__).resolve().parents[2] / "labs/external/benchm
 REQUIRED_ROLES = frozenset({
     "stdout", "stderr", "invocation", "findings", "target-provenance", "requests",
 })
-EXECUTED_STATUSES = frozenset({"completed", "unproven", "failed", "crashed", "timed-out"})
+EXECUTED_STATUSES = frozenset({"completed", "unproven", "failed", "crashed", "timed-out",
+                               "cancelled"})
 MAX_EVIDENCE_BYTES = 2 * 1024 * 1024
 NUCLEI_RULE_PREFIXES = {"whole1337": "nuclei.", "external-nuclei": ""}
 NUCLEI_ATTEMPT_BASIS = "approved-single-configured-nuclei-invocation"
@@ -108,7 +110,8 @@ def LoadPack() -> tuple[dict, dict]:
     return pack, target
 
 
-def VerifiedEvidence(execution: dict, evidence_root: Path) -> dict[str, bytes]:
+def VerifiedEvidence(execution: dict, evidence_root: Path, *,
+                     maximum: int = MAX_EVIDENCE_BYTES) -> dict[str, bytes]:
     """Verify bounded local artifact bytes; metadata alone cannot establish execution."""
 
     evidence = {}
@@ -121,7 +124,7 @@ def VerifiedEvidence(execution: dict, evidence_root: Path) -> dict[str, bytes]:
 
         size = record["size_bytes"]
 
-        if type(size) is not int or not 0 <= size <= MAX_EVIDENCE_BYTES:
+        if type(size) is not int or not 0 <= size <= maximum:
             raise ValueError("Benchmark evidence exceeds the 2 MiB per-file ceiling")
 
         path = evidence_root / relative
@@ -194,6 +197,90 @@ def PartitionFindings(observation: dict, case: dict, track: dict) -> tuple[list,
     return mapped, unadjudicated
 
 
+def ValidateHostAttempt(observation: dict, target: dict, case: dict, evidence_root: Path) -> None:
+    """Require original source-bound start/capture/cleanup facts for failed null-provider rows."""
+
+    if observation["schema_version"] != 2 or observation["status"] not in {
+        "failed", "crashed", "timed-out", "cancelled",
+    }:
+        raise ValueError("Only failed v2 attempts may omit unavailable provider execution facts")
+
+    attempt = observation["host_attempt"]
+    evidence = {}
+
+    for record in attempt["evidence"]:
+        if record["role"] in evidence:
+            raise ValueError("Host attempt repeats an original evidence role")
+
+        maximum = 12 * 1024 * 1024 if record["role"] == "host-start-stdout" else MAX_EVIDENCE_BYTES
+        evidence.update(VerifiedEvidence({"evidence": [record]}, evidence_root, maximum=maximum))
+
+    required = {"host-attempt", "host-start-stdout", "host-start-stderr", "host-cleanup",
+                "target-provenance", "source-provenance", "host-start-command"}
+
+    if not required <= evidence.keys() or attempt["case_id"] != observation["case_id"] or (
+        attempt["scanner_track"] != observation["scanner_track"]
+        or attempt["start_attempted"] is not True
+    ):
+        raise ValueError("Failed host attempt lost its exact original case/track/start facts")
+
+    original = DecodeJson(evidence["host-attempt"])
+    command = DecodeJson(evidence["host-start-command"])
+    cleanup = DecodeJson(evidence["host-cleanup"])
+    source = DecodeJson(evidence["source-provenance"])
+    provenance = DecodeJson(evidence["target-provenance"])
+
+    if any(not isinstance(value, dict) for value in (
+        original, command, cleanup, source, provenance
+    )):
+        raise ValueError("Original host attempt evidence requires explicit structured records")
+
+    if type(original.get("start_attempted")) is not bool:
+        raise ValueError("Original host attempt requires an exact recorded start boolean")
+
+    required_command = {"exit_code", "cleanup_confirmed", "streams_complete", "timed_out",
+                        "launch_error", "capture_error", "interrupted", "duration_seconds"}
+
+    if not required_command <= command.keys() or any(type(command[key]) is not bool for key in (
+        "cleanup_confirmed", "streams_complete", "timed_out"
+    )) or (command["exit_code"] is not None and type(command["exit_code"]) is not int):
+        raise ValueError("Failed host attempt requires its original explicit capture lifecycle")
+
+    for role in ("stdout", "stderr"):
+        raw = evidence["host-start-" + role]
+
+        if command.get(role) != {"size_bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}:
+            raise ValueError("Failed host raw bytes differ from original command custody")
+
+    if any(original.get(key) != attempt[key] for key in (
+        "source_revision", "case_id", "scanner_track", "target_instance", "start_attempted",
+    )) or source.get("revision") != attempt["source_revision"] or (
+        original.get("source_tree") != source.get("tree")
+        or provenance.get("target_instance") != attempt["target_instance"]
+        or provenance.get("target_url") != "http://127.0.0.1:" + str(
+            target["http_port"]) + case["path"]
+        or provenance.get("source_revision") != target["source_revision"]
+        or provenance.get("image_index_digest") != target["index_digest"]
+        or provenance.get("platform_digest") not in target["platform_digests"].values()
+        or provenance.get("network_internal") is not True
+        or type(provenance.get("published_ports")) is not int
+        or provenance.get("published_ports") != 0
+        or command.get("argv") != original.get("start_argv")
+        or not isinstance(command.get("argv"), list)
+        or len(command["argv"]) != 9
+        or command["argv"][:4] != ["/usr/bin/docker", "--host",
+                                    "unix:///var/run/docker.sock", "--config"]
+        or re.fullmatch("[a-f0-9]{40}", str(original.get("source_tree"))) is None
+        or re.fullmatch("[a-f0-9]{64}", str(original.get("runner_container_id"))) is None
+        or command["argv"][-4:] != ["container", "start", "--attach",
+                                    original.get("runner_container_id")]
+        or "container_absent" not in cleanup or "target_absent" not in cleanup
+        or any(cleanup[key] is not None and type(cleanup[key]) is not bool
+               for key in ("container_absent", "target_absent"))
+    ):
+        raise ValueError("Failed host attempt lost its source/target/capture/cleanup binding")
+
+
 def ValidateObservation(pack: dict, target: dict, observation: dict, evidence_root: Path) -> None:
     """Reject invented completion, widened targets, mismatched inputs, or unsupported scoring."""
 
@@ -222,6 +309,12 @@ def ValidateObservation(pack: dict, target: dict, observation: dict, evidence_ro
         return
 
     execution = observation["execution"]
+
+    if execution is None:
+        ValidateHostAttempt(observation, target, case, evidence_root)
+
+        return
+
     parsed = urlsplit(execution["target_url"])
 
     try:
@@ -267,7 +360,8 @@ def ValidateObservation(pack: dict, target: dict, observation: dict, evidence_ro
 
         operation_budget = execution["effective_budget"]["operation_timeout_seconds"]
 
-        if execution["exit_code"] != 0 or execution["request_count"] != 1 or (
+        if type(execution["exit_code"]) is not int or execution["exit_code"] != 0 or (
+            execution["request_count"] != 1 or
             execution["duration_seconds"] > operation_budget
             or not REQUIRED_ROLES <= evidence.keys()
         ):

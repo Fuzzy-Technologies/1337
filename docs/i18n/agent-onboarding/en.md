@@ -1,13 +1,16 @@
-# Development-checkout agent prompt
+# 0.3.0 candidate agent prompt
 
 Canonical English source. Read the [agent quickstart](../../AGENT_QUICKSTART.md)
-from the same accepted development checkout. Copy the single text block below;
+from the same reviewed candidate revision. Install its wheel using the human
+quickstart. Copy the single text block below;
 it is a task description and does not itself approve execution. The immutable
 v0.2.1 release does not provide this recipe.
 
 ```text
-Use this accepted 1337 checkout and read docs/AGENT_QUICKSTART.md. Record its Git
-commit and actual package version. Ask me for targets (IPs/CIDRs/URLs/services),
+Use installed 1337 0.3.0 and read docs/AGENT_QUICKSTART.md from the same release
+or reviewed candidate revision. After publication install 1337==0.3.0; before
+publication use its reviewed wheel, never substitute an older version. Record
+the Git commit, wheel identity and actual installed version. Ask me for targets (IPs/CIDRs/URLs/services),
 exclusions, assessment authority, allowed impact and time/rate limits. Explain
 that this recipe supports only its command-owned loopback demo; stop if my
 requirements do not fit it. Display the actual demo local plan without

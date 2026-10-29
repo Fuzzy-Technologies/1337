@@ -33,6 +33,7 @@ from fuzzy1337.artifact_policy import (
 from fuzzy1337.evidence import EvidenceError, EvidenceProvenance, EvidenceRecord, LocalEvidenceStore
 from fuzzy1337.executors import ExecutionTermination, LocalExecutionRequest
 from fuzzy1337.image_workflow import ExportImageReport, ImageReportOutcome
+from fuzzy1337.images import ImageIdentity
 from fuzzy1337.jobs import (
     JobContext,
     JobError,
@@ -140,6 +141,22 @@ def CurrentContext(root: Path, scope_id: str, owner_reference: str,
 
 
 @dataclass(frozen=True, slots=True)
+class NativeImageAdmissionIntent:
+    """Immutable selected config expectation retained independently of any existing model asset."""
+
+    expected_image_identity: ImageIdentity | None = None
+
+    def __post_init__(self) -> None:
+        """Reject manifest identities or untyped expectations before workflow approval."""
+
+        expected = self.expected_image_identity
+        if expected is not None and (
+            type(expected) is not ImageIdentity or expected.digest_kind != "config"
+        ):
+            raise ValueError("native image expectation must be an exact config identity")
+
+
+@dataclass(frozen=True, slots=True)
 class NativeImageScanPlan:
     """Descriptive material preview or scoped VERSION plan; neither permits execution."""
 
@@ -148,6 +165,7 @@ class NativeImageScanPlan:
     scan_timeout_seconds: int
     authority_plan: NativeImageOperationPlan | None = None
     version_invocation: AdapterInvocation | None = None
+    admission_intent: NativeImageAdmissionIntent = NativeImageAdmissionIntent()
 
     @property
     def Target(self) -> Target:
@@ -168,6 +186,8 @@ class NativeImageScanPlan:
 
         return {"schema_version": 1, "workflow": "native-image", "phase": self.phase,
             "execution_authorized": False, "input_manifest": self.input_manifest.ToDict(),
+            "expected_image_identity": None if self.admission_intent.expected_image_identity
+                is None else self.admission_intent.expected_image_identity.digest,
             "target": json.loads(SerializeContract(self.Target)),
             "version_invocation": None if self.version_invocation is None else (
                 json.loads(SerializeContract(self.version_invocation))),
@@ -179,6 +199,7 @@ async def PlanNativeImageScan(
     workspace_root: Path, owner_reference: str, selection: NativeTrivySelection,
     *, scope_id: str | None = None, policy_provider: Callable[[], ImpactPolicy] | None = None,
     timeout_seconds: int = 30, clock: Callable[[], datetime] = UtcNow,
+    expected_image_identity: ImageIdentity | None = None,
 ) -> NativeImageScanPlan:
     """Observe material once, then optionally plan strictly registered VERSION without Trivy.
 
@@ -190,6 +211,7 @@ async def PlanNativeImageScan(
         policy_provider: Absent with scope_id, or fresh typed policy for a scoped plan.
         timeout_seconds: Deferred native scan deadline from one through 3600 seconds.
         clock: Trusted aware authority clock.
+        expected_image_identity: Explicit selected config pin retained in this immutable plan.
 
     Returns:
         Material preview when both authority arguments are absent; otherwise a strict scoped
@@ -201,6 +223,7 @@ async def PlanNativeImageScan(
         NativeImageObservationError: The bounded read/cleanup could not supply original proof.
     """
 
+    intent = NativeImageAdmissionIntent(expected_image_identity)
     ValidateSelection(workspace_root, owner_reference, selection, timeout_seconds)
     if (scope_id is None) != (policy_provider is None):
         raise ValueError("native image scoped planning requires scope and policy together")
@@ -216,7 +239,8 @@ async def PlanNativeImageScan(
     manifest = ArtifactManifest(ArtifactProfile.IMAGE, ArtifactRole.INPUT,
                                 (ArtifactFile("image.tar", archive.size_bytes, archive.sha256),))
     if scope_id is None or policy_provider is None:
-        return NativeImageScanPlan(manifest, "material-preview", timeout_seconds)
+        return NativeImageScanPlan(manifest, "material-preview", timeout_seconds,
+                                   admission_intent=intent)
     prepared = PrepareNativeImageOperation(NativeTrivyOperation.VERSION, selection,
         LocalEvidenceStore(workspace_root / "evidence"), observer=observer,
         material_proof=proof, operation_reference=pair, timeout_seconds=timeout_seconds)
@@ -224,7 +248,7 @@ async def PlanNativeImageScan(
         CurrentContext(workspace_root, scope_id, owner_reference, policy_provider),
         observer=observer, material_proof=proof, at=clock())
     return NativeImageScanPlan(manifest, "scoped-version-plan", timeout_seconds,
-                               plan, prepared.invocation)
+                               plan, prepared.invocation, intent)
 
 
 class NativeJobEvidenceStore(LocalEvidenceStore):
@@ -454,6 +478,7 @@ class NativeImageWorkflow:
     initial_model: ModelState
     snapshot: Callable[[], JobSnapshot]
     clock: Callable[[], datetime]
+    admission_intent: NativeImageAdmissionIntent = NativeImageAdmissionIntent()
     captures: list[NativeTrivyOperationCapture] = field(default_factory=list, init=False)
     engine: ArtifactPolicyEngine = field(default_factory=ArtifactPolicyEngine, init=False)
     bridge: NativeJobEvidenceStore | None = field(default=None, init=False)
@@ -689,7 +714,8 @@ class NativeImageWorkflow:
                     raise WorkspaceConflictError("native image original model snapshot changed")
                 phase = JobFailureCode.NORMALIZATION
                 proposal, delta = ApplyVerifiedNativeTrivyImages(original,
-                    self.captures[0], self.captures[1], self.workspace_root)
+                    self.captures[0], self.captures[1], self.workspace_root,
+                    expected_image_identity=self.admission_intent.expected_image_identity)
                 phase = JobFailureCode.AUTHORIZATION
                 ValidatePair()
                 phase = JobFailureCode.STORAGE
@@ -748,7 +774,7 @@ async def ScanNativeImage(
     policy_provider: Callable[[], ImpactPolicy], *, approve_safe_image: bool = False,
     timeout_seconds: int = 30, on_event: Callable[[JobEvent], None] | None = None,
     clock: Callable[[], datetime] = UtcNow, report_format: str | None = None,
-    report_output: Path | None = None,
+    report_output: Path | None = None, expected_image_identity: ImageIdentity | None = None,
 ) -> NativeImageScanSummary:
     """Run one explicit native paired job and expose actual original and saved-state truth.
 
@@ -764,6 +790,7 @@ async def ScanNativeImage(
         clock: Trusted aware authority clock.
         report_format: Optional existing json/sarif export request.
         report_output: Explicit new destination paired with report_format.
+        expected_image_identity: Explicit selected config pin bound before execution approval.
 
     Returns:
         Measured native terminal job, original acquisitions, actual model and separate export truth.
@@ -773,6 +800,7 @@ async def ScanNativeImage(
         OSError: Initial canonical workspace/model/scope cannot be opened.
     """
 
+    intent = NativeImageAdmissionIntent(expected_image_identity)
     ValidateSelection(workspace_root, owner_reference, selection, timeout_seconds)
     if not callable(policy_provider) or type(approve_safe_image) is not bool or (
         (report_format is None) != (report_output is None)
@@ -792,7 +820,7 @@ async def ScanNativeImage(
         return job.Snapshot()
 
     workflow = NativeImageWorkflow(workspace_root, scope_id, owner_reference, selection,
-        policy_provider, timeout_seconds, workspace, model, Snapshot, clock)
+        policy_provider, timeout_seconds, workspace, model, Snapshot, clock, intent)
     job = ScanJob(spec, workflow, evidence_store=LocalEvidenceStore(workspace_root / "evidence"))
     started_at = datetime.now(UTC).isoformat()
     started = time.monotonic()

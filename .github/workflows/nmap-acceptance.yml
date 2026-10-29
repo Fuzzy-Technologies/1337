@@ -144,8 +144,29 @@ jobs:
           F1337_NMAP_TEST_EXECUTABLE: ${{ runner.temp }}/nmap-7.992/install/bin/nmap
         run: >-
           uv run --locked --extra dev pytest tests/functional/test_nmap_product_loopback.py
+          tests/functional/test_raw_cli_nmap.py
           --no-cov -n 2 --dist=load --timeout=120 -q
           --junitxml=functional-evidence/nmap-product/junit.xml
+      - name: Require every genuine SDK and raw profile case to execute
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          document = ElementTree.parse(Path("functional-evidence/nmap-product/junit.xml"))
+          cases = tuple(document.getroot().iter("testcase"))
+          expected = {
+              "test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReopen",
+              "test_GenuineRawProfilesRetainExactArgvCustodyAndRelocatedOfflineReplay[tcp-connect]",
+              "test_GenuineRawProfilesRetainExactArgvCustodyAndRelocatedOfflineReplay[light-services]",
+          }
+          if len(cases) != len(expected) or {case.attrib["name"] for case in cases} != expected:
+              raise ValueError("Genuine Nmap SDK/raw case inventory differs")
+          if any(case.find(kind) is not None for case in cases
+                 for kind in ("failure", "error", "skipped")):
+              raise ValueError("Every genuine Nmap SDK/raw profile case must pass without skips")
+          PY
       - name: Preserve actual native provider and product evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -153,4 +174,12 @@ jobs:
           name: genuine-nmap-7.992-owned-tcp-connect-product
           path: functional-evidence/nmap-product/
           if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve original genuine native raw profile evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: genuine-nmap-7.992-owned-raw-profiles
+          path: functional-evidence/nmap-raw/
+          if-no-files-found: error
           retention-days: 14

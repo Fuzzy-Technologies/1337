@@ -1,0 +1,122 @@
+name: Finalize reviewed v0.3.0 master
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Fixed reviewed release version
+        type: choice
+        options: ["0.3.0"]
+        default: "0.3.0"
+        required: true
+      expected_master_sha:
+        description: Exact reviewed master commit after its actual required gates passed
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-finalize-v0.3.0
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    name: Require reviewed current master and create one annotated tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      commit: ${{ steps.finalize.outputs.commit }}
+    steps:
+      - name: Refuse foreign or retried dispatch before source execution
+        env:
+          SELECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_MASTER_SHA: ${{ inputs.expected_master_sha }}
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = Fuzzy-Technologies/1337
+          test "$GITHUB_REF" = refs/heads/master
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$SELECTED_VERSION" = 0.3.0
+          [[ "$EXPECTED_MASTER_SHA" =~ ^[a-f0-9]{40}$ ]]
+      - name: Check out only current master with complete tag history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/master
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Check exact master before invoking the reviewed source tool
+        env:
+          EXPECTED_MASTER_SHA: ${{ inputs.expected_master_sha }}
+        run: |
+          test "$(git symbolic-ref --short HEAD)" = master
+          test "$(git rev-parse HEAD)" = "$EXPECTED_MASTER_SHA"
+          test "$(git rev-parse refs/remotes/origin/master)" = "$EXPECTED_MASTER_SHA"
+          test -z "$(git status --porcelain)"
+      - name: Require original named master gates and acknowledge only a new tag push
+        id: finalize
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPECTED_MASTER_SHA: ${{ inputs.expected_master_sha }}
+        run: |
+          python tools/release_finalize.py --root "$GITHUB_WORKSPACE" --version 0.3.0 \
+            --expected-master-sha "$EXPECTED_MASTER_SHA" --output "$RUNNER_TEMP/finalized-source.json"
+          python -c 'import json,os; from pathlib import Path; value=json.loads((Path(os.environ["RUNNER_TEMP"])/"finalized-source.json").read_text()); assert value["version"]=="0.3.0" and value["tag"]=="v0.3.0" and value["commit"]==os.environ["EXPECTED_MASTER_SHA"]; Path(os.environ["GITHUB_OUTPUT"]).write_text("commit="+value["commit"]+"\n")'
+      - name: Preserve original finalizer acknowledgement
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finalized-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/finalized-source.json
+          if-no-files-found: warn
+
+  dispatch-existing-tag:
+    name: Dispatch the separate publisher only on the existing annotated release tag
+    needs: finalize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Refuse unconfirmed dispatch before checking out existing tag
+        env:
+          EXPECTED_MASTER_SHA: ${{ inputs.expected_master_sha }}
+          FINALIZED_COMMIT: ${{ needs.finalize.outputs.commit }}
+          SELECTED_VERSION: ${{ inputs.version }}
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = Fuzzy-Technologies/1337
+          test "$GITHUB_REF" = refs/heads/master
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$SELECTED_VERSION" = 0.3.0
+          [[ "$EXPECTED_MASTER_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$FINALIZED_COMMIT" = "$EXPECTED_MASTER_SHA"
+      - name: Check out the existing release tag without publication authority
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v0.3.0
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify annotated current-master tag and explicitly dispatch continuation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_MASTER_SHA: ${{ inputs.expected_master_sha }}
+        run: |
+          test "$(git cat-file -t refs/tags/v0.3.0)" = tag
+          test "$(git rev-parse 'refs/tags/v0.3.0^{commit}')" = "$EXPECTED_MASTER_SHA"
+          test "$(git rev-parse refs/remotes/origin/master)" = "$EXPECTED_MASTER_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_MASTER_SHA"
+          test -z "$(git status --porcelain)"
+          observed="$(git ls-remote --refs origin refs/heads/master refs/tags/v0.3.0)"
+          expected="$(printf '%s\trefs/heads/master\n%s\trefs/tags/v0.3.0' "$EXPECTED_MASTER_SHA" "$(git rev-parse refs/tags/v0.3.0)")"
+          test "$observed" = "$expected"
+          gh workflow run release.yml --repo Fuzzy-Technologies/1337 --ref v0.3.0 -f version=0.3.0

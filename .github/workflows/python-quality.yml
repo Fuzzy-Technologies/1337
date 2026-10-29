@@ -119,6 +119,246 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  nuclei-governed-prerequisite-checkpoint:
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[nuclei-governed-prerequisite-checkpoint]')
+    name: Target-free Nuclei governed no-HOME prerequisite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Execute one target-free governed no-HOME Nuclei prerequisite
+        timeout-minutes: 17
+        env:
+          FUZZY1337_EXTERNAL_NUCLEI_GOVERNED_PREREQUISITES: linux-amd64
+        run: >-
+          uv run --locked --extra dev pytest
+          tests/functional/test_external_nuclei_governed_prerequisites.py::test_InstalledImageRunsExactGovernedEnvironmentWithoutHome
+          -o addopts='' --no-cov -n0 -v --timeout=600 --timeout-method=signal
+          --junitxml=functional-evidence/nuclei-governed-prerequisites.xml
+      - name: Require original no-HOME prerequisite evidence
+        timeout-minutes: 1
+        env:
+          NUCLEI_GOVERNED_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          source_identity="$(git rev-parse HEAD HEAD^{tree})"
+          python - "$NUCLEI_GOVERNED_SOURCE_HEAD" "$source_identity" <<'PY'
+          # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+          # SPDX-License-Identifier: Apache-2.0
+
+          """Read original prerequisite-only receipts; the host owns deep admission and Docker cleanup."""
+
+          import json
+          import re
+          import sys
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+
+          def Require(condition: bool, message: str) -> None:
+              """Refuse missing original proof without launching or repairing anything.
+
+              Args:
+                  condition: Exact predicate over retained original facts.
+                  message: Fixed scope-specific failure diagnostic.
+
+              Raises:
+                  SystemExit: The required original fact is absent or differs.
+              """
+
+              if not condition:
+                  raise SystemExit(message)
+
+
+          def Read(path: Path, maximum: int = 2 * 1024 * 1024) -> bytes:
+              """Read one bounded original file without accepting a symbolic alias.
+
+              Args:
+                  path: Fixed file beneath the original prerequisite evidence owner.
+                  maximum: Inclusive byte ceiling for this one original record.
+
+              Returns:
+                  Complete original bytes, including an empty recorded stderr stream.
+
+              Raises:
+                  SystemExit: The file is aliased, not regular or oversized.
+                  OSError: The original file is absent or cannot be read.
+              """
+
+              Require(not path.is_symlink() and path.is_file() and path.stat().st_size <= maximum,
+                  "Missing, aliased or oversized prerequisite original")
+              raw = path.read_bytes()
+              Require(len(raw) <= maximum, "Prerequisite original grew beyond its bound")
+
+              return raw
+
+
+          def Json(path: Path) -> object:
+              """Decode one original JSON document without importing the host or image helper.
+
+              Args:
+                  path: Fixed retained metadata path.
+
+              Returns:
+                  Parsed original document; no absent values are synthesized.
+              """
+
+              return json.loads(Read(path))
+
+
+          expected = sys.argv[1]
+          identity = sys.argv[2].splitlines()
+          Require(len(identity) == 2 and expected == identity[0] and all(
+              re.fullmatch('[a-f0-9]{40}', value) for value in identity),
+              'Prerequisite source must be the exact checked-out PR head and tree')
+          junit = ElementTree.fromstring(Read(Path('functional-evidence/nuclei-governed-prerequisites.xml')))
+          suites, cases = list(junit.iter('testsuite')), list(junit.iter('testcase'))
+          Require(len(suites) == len(cases) == 1 and all(suites[0].get(key) == value for key, value in (
+              ('tests', '1'), ('failures', '0'), ('errors', '0'), ('skipped', '0'))) and (
+              cases[0].get('classname') == 'tests.functional.test_external_nuclei_governed_prerequisites'
+              and cases[0].get('name') == 'test_InstalledImageRunsExactGovernedEnvironmentWithoutHome'
+              and not any(list(junit.iter(kind)) for kind in ('failure', 'error', 'skipped'))),
+              'Require exactly one original prerequisite pass without skip/error/failure')
+          runs = list(Path('functional-evidence/external-nuclei-prerequisites').glob('run-*'))
+          Require(len(runs) == 1 and re.fullmatch('run-[a-f0-9]{12}', runs[0].name) is not None
+              and runs[0].is_dir() and not runs[0].is_symlink(),
+              'Require one fresh prerequisite evidence owner; stale or multiple runs refuse')
+          root = runs[0]
+          host = Json(root / 'host.json')
+          Require(host['status'] == 'completed-governed-prerequisites' and host['source_revision'] == expected
+              and host['source_tree'] == identity[1] and host['configured_target_inputs'] == []
+              and host['governed_no_home_compatibility'] == 'established'
+              and not any(key in host for key in ('failure', 'cleanup_failure',
+                  'caller_cancellations_during_cleanup')),
+              'Original completed host/source receipt or target-free scope differs')
+          for field in ('image_id', 'container_id'):
+              Require(re.fullmatch('sha256:[a-f0-9]{64}' if field == 'image_id' else '[a-f0-9]{64}',
+                  host[field]) is not None, 'Host must retain actual immutable image/container IDs')
+
+          base_id = Read(root / 'base.iid', 80).decode('ascii').strip()
+          Require(re.fullmatch('sha256:[a-f0-9]{64}', base_id) is not None and base_id != host['image_id']
+              and Read(root / 'runner.iid', 80).decode('ascii').strip() == host['image_id'],
+              'Original base/runner image IDs must reconcile')
+          cleanup = host['cleanup']
+          Require(len(cleanup) == 3 and cleanup[0] == {'container_absent': True}
+              and all(set(row) == {'tag', 'absent'} and row['absent'] is True for row in cleanup[1:]),
+              'Completed host requires independent container and both image-tag absence receipts')
+          owner = cleanup[1]['tag'].removeprefix('fuzzy1337-nuclei-runner-')
+          Require(re.fullmatch('[a-f0-9]{32}', owner) is not None and root.name == 'run-' + owner[:12]
+              and cleanup[1]['tag'] == 'fuzzy1337-nuclei-runner-' + owner
+              and cleanup[2]['tag'] == 'fuzzy1337-nuclei-base-' + owner,
+              'Cleanup receipts must belong to the one original run')
+          context = Json(root / 'context-inventory.json')
+          Require(context['revision'] == expected and context['tree'] == identity[1],
+              'Original committed context must bind the selected source/tree')
+          imported = root / 'imported'
+          Require(Json(imported / 'prerequisites.json') == {
+              'status': 'completed-governed-prerequisites', 'version_probe': 'completed',
+              'go_template_validation': 'completed', 'governed_no_home_compatibility': 'established',
+              'configured_target_inputs': [], 'independent_server_contact_count': None}
+              and not (imported / 'failure.json').exists(),
+              'Imported result must retain target-free prerequisite-only uncertainty')
+          manifest = Json(imported / 'image-provisioning.json')
+          Require(manifest['source_revision'] == expected and manifest['installed']['installed'][
+              'source_revision'] == expected, 'Imported installed source must match the actual PR head')
+          ARGUMENTS = {'version': ['/opt/benchmark-material/nuclei', '-version', '-duc'],
+              'validate': ['/opt/benchmark-material/nuclei', '-validate', '-t',
+                  '/opt/benchmark-material/prometheus-exposition.yaml', '-config',
+                  '/opt/benchmark-material/operator-config.yaml', '-duc', '-ni', '-no-stdin',
+                  '-pt', 'http', '-nc']}
+          for name, argv in ARGUMENTS.items():
+              stage = imported / name
+              invocation, process = Json(stage / 'invocation.json'), Json(stage / 'process.json')
+              Require(invocation['argv'] == argv and invocation['basis'] == (
+                  'target-free-governed-no-home-prerequisite') and process['exit_code'] == 0
+                  and type(process['exit_code']) is int and process['streams_complete'] is True
+                  and invocation['environment'] == {'PATH': '/usr/local/bin:/usr/bin:/bin', 'LANG': 'C.UTF-8'}
+                  and invocation['cwd'] == '/tmp/nuclei-governed-prerequisites/' + name
+                  and process['timed_out'] is False and all(process[key] is None for key in (
+                      'capture_exhausted', 'launch_error', 'capture_error', 'interrupted', 'cleanup_error')),
+                  'Original prerequisite command or clean terminal receipt differs')
+              combined = Read(stage / 'stdout.raw', 16384 if name == 'version' else 2 * 1024 * 1024)
+              combined += Read(stage / 'stderr.raw', 16384)
+              Require(re.findall(rb'Nuclei Engine Version:\s*v?([0-9A-Za-z.+-]+)', combined) == [b'3.4.10']
+                  if name == 'version' else b'All templates validated successfully' in combined,
+                  'Original exact-version/Go-validation bytes are missing or incompatible')
+
+          print('One genuine no-HOME initialization passed; no target or application case credit')
+          PY
+      - name: Preserve original no-HOME prerequisite evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nuclei-governed-prerequisite-original-evidence
+          path: |
+            functional-evidence/external-nuclei-prerequisites/
+            functional-evidence/nuclei-governed-prerequisites.xml
+          if-no-files-found: error
+          retention-days: 14
+
+  nuclei-application-product-checkpoint:
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[nuclei-application-product-checkpoint]')
+    name: Genuine Nuclei application comparison / six fresh targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact application source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Execute six fresh comparative Nuclei application cases
+        timeout-minutes: 20
+        env:
+          FUZZY1337_EXTERNAL_NUCLEI_BENCHMARK: juice-shop
+        run: >-
+          uv run --locked --extra dev pytest tests/functional/test_external_nuclei_benchmark.py
+          -o addopts='' --no-cov -n0 -v --timeout=900 --timeout-method=signal
+          --junitxml=functional-evidence/nuclei-comparison.xml
+      - name: Require six original Nuclei application observations
+        timeout-minutes: 1
+        env:
+          NUCLEI_COMPARISON_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          source_identity="$(git rev-parse HEAD HEAD^{tree})"
+          uv run --locked --extra dev python -m tests.functional.external_nuclei_comparison_gate \
+            --head "$NUCLEI_COMPARISON_SOURCE_HEAD" --identity "$source_identity"
+      - name: Preserve original six-case application evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nuclei-application-product-original-evidence
+          path: |
+            functional-evidence/external-nuclei-prerequisites/
+            functional-evidence/nuclei-comparison.xml
+          if-no-files-found: error
+          retention-days: 14
+
   nuclei-contract-windows-checkpoint:
     if: >-
       github.event_name == 'pull_request' && github.event.pull_request.draft == true
@@ -424,7 +664,7 @@ jobs:
       && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]'))
     name: Pinned external target regression
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 61
     env:
       FUZZY1337_EXTERNAL_TARGETS: juice-shop
       FUZZY1337_EXTERNAL_NATIVE_BENCHMARK: juice-shop
@@ -639,6 +879,28 @@ jobs:
 
           print('One installed-image Nuclei prerequisite passed; no target, case or governed-HOME credit')
           PY
+      - name: Execute six fresh comparative Nuclei application cases
+        if: >-
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
+        timeout-minutes: 20
+        env:
+          FUZZY1337_EXTERNAL_NUCLEI_BENCHMARK: juice-shop
+        run: >-
+          uv run --locked --extra dev pytest tests/functional/test_external_nuclei_benchmark.py
+          -o addopts='' --no-cov -n0 -v --timeout=900 --timeout-method=signal
+          --junitxml=functional-evidence/nuclei-comparison.xml
+      - name: Require six original Nuclei application observations
+        if: >-
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
+        timeout-minutes: 1
+        env:
+          NUCLEI_COMPARISON_SOURCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          source_identity="$(git rev-parse HEAD HEAD^{tree})"
+          uv run --locked --extra dev python -m tests.functional.external_nuclei_comparison_gate \
+            --head "$NUCLEI_COMPARISON_SOURCE_HEAD" --identity "$source_identity"
       - name: Preserve external target evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -649,5 +911,6 @@ jobs:
             functional-evidence/external-native-benchmark/
             functional-evidence/external-nuclei-prerequisites/
             functional-evidence/nuclei-prerequisites.xml
+            functional-evidence/nuclei-comparison.xml
           if-no-files-found: error
           retention-days: 14

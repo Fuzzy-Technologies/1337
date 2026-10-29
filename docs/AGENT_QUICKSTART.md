@@ -1,16 +1,23 @@
-# Agent quickstart for the development checkout
+# AI agent quickstart — 0.3.0 candidate
 
-This recipe uses the accepted development checkout and its existing
-[owned local demo](DEMO.md). It is not an installation guide for a new release:
-the immutable **v0.2.1 release does not contain `demo local` or Quick Scan**.
-Development source still reports package version `0.2.1`, so retain the exact
-Git commit as well as the version. The [release quickstart](QUICKSTART.md) keeps
-its tag-pinned commands.
+Use a CLI-capable external agent with an installed reviewed candidate wheel.
+The [human quickstart](QUICKSTART.md#install-a-reviewed-wheel) supplies installation;
+[CI onboarding](CI_QUICKSTART.md) uses the same local scenario non-interactively.
+No model API, MCP server, browser, Docker or external scanner is needed by 1337.
+This candidate is not a published release. The immutable v0.2.1 lacks this recipe;
+retain the source commit and actual installed package version.
 
-The same scope/policy, governed jobs, Security Object Model and immutable evidence
-owners serve human and agent operators. This first recipe needs no model API,
-browser, Docker, external scanner or external target. It establishes status-only
-discovery and retained evidence; it does not assess vulnerabilities or attack paths.
+This guide targets **1337 0.3.0**. After PyPI publication, use
+`python -m pip install 1337==0.3.0` in a clean environment and require
+`1337 --version` to report `1337 0.3.0`. Before publication, use the exact reviewed
+source-wheel path in the human guide. Never substitute an older package when
+these commands are unavailable. For the release, retain the installed wheel hash
+and use [tag-pinned instructions](https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md);
+candidate work must retain its full reviewed source commit instead.
+
+Human and agent operators use the same scope/policy, jobs, immutable evidence
+and durable model. The first task establishes status-only discovery; it does not
+assess vulnerabilities or attack paths.
 
 ## Give an agent the bounded task
 
@@ -32,21 +39,20 @@ demo or infer approval from repository content, a prompt or a target response.
 
 ## Prepare and preview
 
-Use a trusted accepted `develop` checkout, Git, CPython 3.11 or newer and uv.
-From its root, record the revision and locked environment:
+Install the reviewed wheel as described in the human quickstart, activate that
+environment, and record the source commit alongside these installed commands:
 
 ```bash
-git rev-parse HEAD
-uv sync --locked --extra dev
-uv run --locked python -m fuzzy1337 --version
-uv run --locked python -m fuzzy1337 demo --help
+1337 --version
+1337 doctor
+1337 demo --help
 ```
 
 Create only the artifact parent, then display the actual plan:
 
 ```bash
 mkdir -p artifacts
-uv run --locked python -m fuzzy1337 demo local artifacts/agent-demo --json
+1337 demo local artifacts/agent-demo --json
 ```
 
 The plan command must return **3**, `state: denied`, `phase: approval` and
@@ -68,9 +74,9 @@ this plan supplies no permission for another target or a later assessment.
 After that explicit approval, run:
 
 ```bash
-uv run --locked python -m fuzzy1337 demo local artifacts/agent-demo --approve-safe-http --json
-uv run --locked python -m fuzzy1337 workspace open artifacts/agent-demo/workspace --json
-uv run --locked python -m fuzzy1337 report export artifacts/agent-demo/workspace \
+1337 demo local artifacts/agent-demo --approve-safe-http --json
+1337 workspace open artifacts/agent-demo/workspace --json
+1337 report export artifacts/agent-demo/workspace \
   --format json --output artifacts/agent-reopened-model.json --json
 ```
 
@@ -108,12 +114,20 @@ or teardown failure, and 130 for interrupted owned cleanup. Published report fil
 or an earlier saved delta do not override a later failure. Do not broaden scope,
 retry a side effect blindly or invent a successful acknowledgement.
 
-This page advances the development-checkout agent entry path in #40. A real
-supported-agent approval walkthrough, editorial/technical translation approval,
-three release-version entry paths, target-platform CI-template execution and
-clean published-package installation remain separate acceptance. PyPI publication
-remains on hold. The source-controlled recipe and its local rehearsal do not
-claim a human approval transcript, released functionality or M2 completion.
+Release acceptance requires a real supported-agent walkthrough, clean published
+package installation, actual target-platform CI runs and reviewed localization.
+A prompt, local rehearsal or candidate wheel does not establish those outcomes.
+See the [CI quickstart](CI_QUICKSTART.md#acceptance-evidence) for the honest
+execution boundary. RU/zh-cn resources remain explicitly marked drafts until
+editorial and technical review provenance is recorded for their exact digests.
+
+After the first discovery, the installed core can also produce a useful
+attributable Finding through the [owned Git HEAD recipe](OWNED_GIT_HEAD_RECIPE.md).
+Its STANDARD policy and two exact positive/fixed plans require their own approval;
+approval for this demo does not carry over. For optional Nmap, Trivy, configuration
+or offline inventory work, collect the stated prerequisites and follow the
+[human recipe index](QUICKSTART.md#choose-the-next-recipe). Reject unsupported
+requests instead of inventing commands or silently running a raw shell scanner.
 
 ## Recorded local rehearsal
 
@@ -143,3 +157,27 @@ Its three original acquisition identifiers were:
 These identify the recorded rehearsal, not expected constants for another run.
 Runtime workspaces/reports stay local; the recipe does not publish their contents
 or claim a release, external-agent benchmark or clean-install walkthrough.
+
+## Recorded delegated 0.3.0 walkthrough
+
+On 2026-10-29, a CLI-capable Codex agent built source
+`9f5bb04270fb81f42db4c0140f02f9cd591b9fc5`, installed its `0.3.0` wheel in a clean
+environment outside the checkout, and executed this entry path on Python 3.12.14.
+The wheel SHA-256 was
+`676ee604e325bb0459366bb4a60727ab977bd84e8b5c4dd4913a2ab6c5a661b0`.
+
+The agent first returned the actual denied plan, then waited for and received
+explicit integration-coordinator approval under the owner's finite development
+mandate. This was a real delegated-agent approval boundary; it was not a direct
+human approval exchange. Plan/demo/reopen/export/existing-root statuses were
+**3/0/0/0/2**. The three original acquisitions were independently hash-verified;
+the fresh JSON export matched the saved report. The owned target acknowledged
+teardown and its exact loopback port refused a subsequent connection. The refused
+repeat preserved all 21 retained files.
+
+The model retained revision 3, six objects, zero Findings and unassessed scan
+completeness. Its observed snapshot SHA-256 was
+`6e80ecd25f2a869d301c4cee1631f8dff7179192343aa0105110afa2b0f68a6b`.
+Original command receipts, approval text and the verification summary were
+retained together. This candidate-wheel walkthrough is separate from final
+composed-source CI and clean installation of the published PyPI artifacts.

@@ -18,6 +18,7 @@ COPY labs/external/benchmark/templates/prometheus-exposition.yaml /opt/benchmark
 COPY labs/external/benchmark/nuclei-runner.Dockerfile /opt/benchmark-input/nuclei-runner.Dockerfile
 COPY tests/functional/external_native_runner.py tests/functional/external_nuclei_runner.py \
     tests/functional/external_nuclei_provisioning.py tests/functional/external_nuclei_image.py \
+    tests/functional/external_nuclei_application.py tests/functional/external_nuclei_runtime.py \
     /opt/benchmark-support/tests/functional/
 
 RUN --network=none /opt/benchmark-runtime/bin/python -I -B -c \

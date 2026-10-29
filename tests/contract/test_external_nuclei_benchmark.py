@@ -584,6 +584,11 @@ def test_StandaloneRuntimeEmptyInvocationRemainsUnprovenThroughV2(tmp_path, monk
     outcome = RunStandalone(*arguments)
     root = arguments[0]
     invocation = json.loads((root / "invocation.json").read_bytes())
+    assert invocation["effective_budget"] == {"request_timeout_seconds": 3,
+        "operation_timeout_seconds": 3, "max_requests": 1,
+        "max_response_bytes": 1048576, "rate_limit": 1}, (
+        "The original producer must preserve effective Nuclei limits before execution"
+    )
     assert outcome["status"] == "unproven" and outcome["findings"] == [], (
         "Empty exit-zero output must remain unproven for positive and negative controls."
     )
@@ -1313,4 +1318,16 @@ def test_WholeRuntimeCopiedWheelMismatchRefusesBeforeProductWorkspace(tmp_path, 
     assert (arguments[0] / "installed.whl").read_bytes() == b"changed inert wheel copy", (
         "The refused original local copy must remain available without an invented matching digest."
     )
+    forbidden.assert_not_called()
+
+
+def test_WholeRuntimeKeepsUnknownProviderExitSeparateFromProductFailure(tmp_path, monkeypatch):
+    """A product timeout status cannot substitute for the unobserved original provider exit code."""
+
+    arguments, _, forbidden = WholeMaterial(tmp_path, monkeypatch, mode="timeout")
+    outcome = whole_runtime.RunWhole1337(*arguments)
+    assert outcome["status"] == "failed" and outcome["exit_code"] is None and (
+        type(outcome["product_exit_code"]) is int and outcome["product_exit_code"] != 0
+        and outcome["duration_seconds"] == 0.01
+    ), "Original provider exit/duration and whole-product outcome must retain distinct meanings"
     forbidden.assert_not_called()

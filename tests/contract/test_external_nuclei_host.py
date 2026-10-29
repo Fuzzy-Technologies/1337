@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 from tests.functional import external_nuclei_host as host
+from tests.functional.external_native_runner import ExportBundle
 
 LINUX_CONTEXT = pytest.mark.skipif(sys.platform != "linux", reason="Context modes require Linux")
 OWNER = "a" * 32
@@ -1173,6 +1174,43 @@ def BundleFixture(directory):
         (stage / "stderr.raw").write_bytes(b"")
 
     return source, manifest
+
+
+@pytest.mark.parametrize("inject_home", [False, True], ids=["exact-no-home", "hidden-home"])
+def test_GovernedPrerequisiteBundleRequiresOriginalNoHomeEnvironment(tmp_path, inject_home):
+    """Inert no-HOME custody cannot borrow the original explicit-HOME probe's success receipt."""
+
+    root = tmp_path / "original"
+    source, _ = BundleFixture(root)
+    outcome = host.StrictJson((root / "prerequisites.json").read_bytes())
+    outcome.update(status="completed-governed-prerequisites",
+                   governed_no_home_compatibility="established")
+    host.WriteJson(root / "prerequisites.json", outcome)
+
+    for name in ("version", "validate"):
+        path = root / name / "invocation.json"
+        invocation = host.StrictJson(path.read_bytes())
+        invocation.update(environment=dict(host.GOVERNED_ENVIRONMENT),
+            basis="target-free-governed-no-home-prerequisite",
+            cwd="/tmp/nuclei-governed-prerequisites/" + name)
+
+        if inject_home:
+            invocation["environment"]["HOME"] = "/tmp/hidden-home"
+
+        host.WriteJson(path, invocation)
+
+    raw = ExportBundle(root, outcome).encode()
+
+    if inject_home:
+        with pytest.raises(ValueError, match="process receipt"):
+            host.BindBundle(raw, tmp_path / "imported", source, REVISION, governed_no_home=True)
+
+    else:
+        bundle = host.BindBundle(raw, tmp_path / "imported", source, REVISION,
+                                 governed_no_home=True)
+        assert bundle["outcome"] == outcome, (
+            "Exact no-HOME original custody must retain its distinct synthetic prerequisite outcome"
+        )
 
 
 @pytest.mark.parametrize("fault", [None, "source", "support", "recipe", "archive", "wheel",

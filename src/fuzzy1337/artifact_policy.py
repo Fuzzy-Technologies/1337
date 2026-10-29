@@ -68,6 +68,14 @@ from fuzzy1337.scope import LocalScopeStore, NormalizeTime, ScopeSnapshot
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceFields
 
 if TYPE_CHECKING:
+    from fuzzy1337.local_image_archive import LocalImageArchivePin
+    from fuzzy1337.local_image_policy import (
+        LocalImageExecutionClaim,
+        LocalImageOperationGrant,
+        LocalImageOperationPlan,
+        LocalImageResolution,
+        PreparedLocalImageOperation,
+    )
     from fuzzy1337.native_configuration_capture import NativeConfigurationOperationCapture
     from fuzzy1337.native_configuration_material import (
         NativeConfigurationMaterialObserver,
@@ -1115,6 +1123,138 @@ class ArtifactGrant:
 
 class ArtifactPolicyEngine:
     """Fresh same-store artifact authority with no fake destination or native launch bypass."""
+
+    def PlanLocalImageOperation(
+        self, prepared: PreparedLocalImageOperation, context: ArtifactPolicyContext,
+        *, at: datetime,
+    ) -> LocalImageOperationPlan:
+        """Describe current local source authority without approving or launching Docker.
+
+        Args:
+            prepared: Original fixed local operation and selected material.
+            context: Fresh same-store scope, policy and executing actor.
+            at: Explicit aware current decision time.
+
+        Returns:
+            Descriptive local source plan without a claim.
+        """
+
+        from fuzzy1337.local_image_policy import PlanLocalImageOperation
+
+        return PlanLocalImageOperation(self, prepared, context, at=at)
+
+    def AuthorizeLocalImageOperation(
+        self, prepared: PreparedLocalImageOperation, context: ArtifactPolicyContext,
+        *, at: datetime, approve_local_image: bool = False,
+    ) -> LocalImageOperationGrant:
+        """Issue original local source authority after explicit approval and policy permission.
+
+        Args:
+            prepared: Original fixed local operation and selected material.
+            context: Fresh same-store scope, policy and executing actor.
+            at: Explicit aware issuance time.
+            approve_local_image: Exact explicit workflow approval; never a policy permission.
+
+        Returns:
+            Original local operation grant retained by this engine.
+        """
+
+        from fuzzy1337.local_image_policy import AuthorizeLocalImageOperation
+
+        return AuthorizeLocalImageOperation(self, prepared, context, at=at,
+            approve_local_image=approve_local_image)
+
+    def ValidateLocalImageOperation(
+        self, grant: LocalImageOperationGrant, prepared: PreparedLocalImageOperation,
+        context: ArtifactPolicyContext, *, at: datetime,
+    ) -> None:
+        """Recheck original local authority, material and exclusive expiry.
+
+        Args:
+            grant: Exact original grant issued by this engine.
+            prepared: Original fixed local operation.
+            context: Fresh same-store scope, policy and executing actor.
+            at: Explicit aware current decision time.
+        """
+
+        from fuzzy1337.local_image_policy import ValidateLocalImageOperation
+
+        ValidateLocalImageOperation(self, grant, prepared, context, at=at)
+
+    def ClaimLocalImageExecution(
+        self, grant: LocalImageOperationGrant, prepared: PreparedLocalImageOperation,
+        context: ArtifactPolicyContext, *, at: datetime,
+    ) -> tuple[LocalImageExecutionClaim, LocalExecutionRequest]:
+        """Reserve one original local operation before process startup.
+
+        Args:
+            grant: Exact original explicit-approval local grant.
+            prepared: Original fixed local operation.
+            context: Fresh same-store scope, policy and executing actor.
+            at: Explicit aware reservation time.
+
+        Returns:
+            Opaque original claim and its full fixed execution request.
+        """
+
+        from fuzzy1337.local_image_policy import ClaimLocalImageExecution
+
+        return ClaimLocalImageExecution(self, grant, prepared, context, at=at)
+
+    def BindLocalImageExecution(
+        self, claim: LocalImageExecutionClaim, request: LocalExecutionRequest,
+        context: ArtifactPolicyContext, *, at: datetime,
+    ) -> None:
+        """Exclusively bind the original local request before executor entry.
+
+        Args:
+            claim: Original consumed execution claim.
+            request: Same complete actual request from claim issuance.
+            context: Fresh same-store scope, policy and executing actor.
+            at: Explicit aware first-launch time.
+        """
+
+        from fuzzy1337.local_image_policy import BindLocalImageExecution
+
+        BindLocalImageExecution(self, claim, request, context, at=at)
+
+    def ValidateLocalImageClaim(
+        self, claim: LocalImageExecutionClaim, request: LocalExecutionRequest,
+        context: ArtifactPolicyContext, *, at: datetime,
+    ) -> None:
+        """Revalidate original bound local custody; an unbound claim is always refused.
+
+        Args:
+            claim: Exact original consumed and bound claim.
+            request: Same complete actual request from first binding.
+            context: Fresh same-store scope, policy and executing actor.
+            at: Explicit aware current decision time.
+        """
+
+        from fuzzy1337.local_image_policy import ValidateLocalImageClaim
+
+        ValidateLocalImageClaim(self, claim, request, context, at=at)
+
+    def AcceptLocalImageExecution(
+        self, claim: LocalImageExecutionClaim, request: LocalExecutionRequest,
+        result: LocalExecutionResult, context: ArtifactPolicyContext, *, at: datetime,
+    ) -> LocalImageResolution | LocalImageArchivePin | None:
+        """Consume one original result and validate inspect, archive or reference reassignment.
+
+        Args:
+            claim: Exact original bound claim.
+            request: Same complete actual request from first binding.
+            result: Actual returned local executor result.
+            context: Fresh same-store scope, policy and executing actor.
+            at: Explicit aware acceptance time.
+
+        Returns:
+            Original inspect association, verified archive pin, or successful recheck None.
+        """
+
+        from fuzzy1337.local_image_policy import AcceptLocalImageExecution
+
+        return AcceptLocalImageExecution(self, claim, request, result, context, at=at)
 
     def PlanNativeImageOperation(
         self, prepared: PreparedNativeImageOperation, context: ArtifactPolicyContext,

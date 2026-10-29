@@ -158,7 +158,10 @@ Release procedure:
 5. Open a PR from `release/X.Y.Z` to `master`.
 6. Review the exact release diff and evidence.
 7. Merge to `master` without bypassing required checks.
-8. In a trusted local Git checkout, create the annotated tag **`vX.Y.Z` on the
+8. Wait for the actual required `master` push jobs to finish successfully on the
+   exact resulting release SHA, including the deployed documentation. A skipped
+   job, PR run or workflow summary alone does not satisfy this requirement.
+   In a trusted local Git checkout, create the annotated tag **`vX.Y.Z` on the
    resulting `master` release commit**, then push that tag. Do not use the GitHub
    Release UI to create the tag.
 
@@ -177,12 +180,85 @@ Release procedure:
    The first command must print `tag`; the second must print the exact resulting
    `master` release SHA. A `commit` result is a lightweight tag and fails this
    release requirement.
-10. Create the GitHub Release from the already-pushed tag; select the existing
-    `vX.Y.Z` tag rather than creating one in the Release UI.
-11. Publish the release card from the accepted changelog/release evidence and
-    the template below.
+10. The tag-triggered `release.yml` workflow validates the annotated source and
+    actual master job evidence, builds the sdist and wheel once, and verifies the
+    clean installed wheel before any upload. Its protected `pypi` environment
+    gates publication of those same bytes through Trusted Publishing.
+11. The workflow performs a new clean install of the exact version from PyPI,
+    verifies the downloaded wheel hash against the original build, and exercises
+    the installed owned demo, target teardown and offline reopen/export. Only
+    after that succeeds does it create the GitHub Release from the existing tag,
+    with the accepted release card, distributions, checksums and original build
+    evidence. Do not create another tag or release through the UI.
 12. Propagate the released `master` state back to `develop` through a PR so release-only fixes/metadata cannot be lost.
 13. Delete the release branch after the back-merge is complete unless a specific support reason requires retaining it.
+
+### PyPI publisher setup and immutable delivery
+
+Before pushing the first final release tag, the project owner must configure the
+PyPI Trusted Publisher (or Pending Publisher for an uncreated project):
+
+| Setting            | Required value       |
+| ------------------ | -------------------- |
+| PyPI project       | `1337`               |
+| GitHub owner       | `Fuzzy-Technologies` |
+| Repository         | `1337`               |
+| Workflow filename  | `release.yml`        |
+| GitHub environment | `pypi`               |
+
+Protect the GitHub `pypi` environment with the designated release reviewer and
+restrict it to release tags. PyPI account creation, project/name ownership,
+two-factor authentication and publisher registration are owner-side account
+operations. A public project lookup returning 404 does not prove name
+availability, ownership or reservation; Pending Publishers do not reserve names.
+No long-lived PyPI password or API token belongs in repository secrets.
+
+The release tool rejects lightweight tags, source/version drift, stale or skipped
+master gates, changed artifacts and an index wheel whose hash differs from the
+original build. The allowlist in `tools/release_delivery.py` binds actual named
+jobs and steps from the latest exact-SHA master push attempt, rather than counting
+unrelated diagnostic jobs. When canonical job names change, update this contract
+and its tests before tagging.
+
+`SHA256SUMS` covers both distributions, the rendered card and evidence; its own
+SHA-256 is passed independently between jobs. Every consumer revalidates the
+handoff. The publisher has no source checkout or build/install step and receives
+OIDC authority only within `pypi`. It uploads the wheel and sdist with PEP 740
+attestations. Its `skip-existing: false` setting intentionally refuses a version
+that is already present. GitHub release publication has separate contents-write
+authority and uses `gh release create --verify-tag`; it cannot create the tag as
+a side effect.
+
+The GitHub assets include the exact wheel and sdist, `SHA256SUMS`,
+`release-manifest.json`, `source.json`, `master-checks.json`, `clean-install.json`
+and `distribution-metadata.json`, plus `1337-X.Y.Z-api-docs.tar.gz` and its
+`1337-X.Y.Z-api-docs.manifest.json`. The API pair is downloaded by immutable
+artifact ID from the accepted master documentation run and its exact attempt's
+`api-docs-COMMIT-ATTEMPT` artifact. The shared strict archive verifier binds its
+original bytes, complete locale inventory, commit, tree, version and timestamp
+before the copied pair enters the sealed bundle. No documentation rebuild or
+render runs in the release workflow, and no documentation archive enters PyPI.
+The original post-PyPI install report and demo
+evidence remain attached to the same Actions run as `pypi-install-evidence`.
+`docs/releases/vX.Y.Z.md` is the reviewed card source; its validation marker is
+replaced only by the actual accepted gate links and installed-wheel result.
+
+Release publication is not an atomic transaction across services. If upload or
+postpublication verification fails, retain the failed run and original artifacts,
+inspect which immutable files actually reached PyPI, and resolve the failure
+before marking delivery complete. Do not silently retry the whole release,
+enable `skip-existing`, overwrite/move a tag, or rebuild different bytes under
+the same version. If a published artifact is defective, document the outcome and
+cut an owner-approved corrective version. A transport-only publication recovery
+must reuse the independently verified original artifact and require a reviewed,
+explicit recovery procedure.
+
+M2 acceptance that requires installation from PyPI is complete only after the
+actual public-index installation and installed product checks pass. Source CI,
+local wheel installation and a successful upload alone are separate evidence.
+Pages publication remains independent; release-version documentation is prepared
+and validated before the release merge, then the exact master deployment must
+pass before tagging.
 
 ## Published release notes
 

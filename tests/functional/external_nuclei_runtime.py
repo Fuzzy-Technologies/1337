@@ -29,6 +29,7 @@ from .external_nuclei_runner import (
     VERSION,
     WRAPPER_TIMEOUT_SECONDS,
     AttemptProvenance,
+    EffectiveBudget,
     ExactUrl,
     InstalledInventory,
     ProfileDocument,
@@ -178,6 +179,7 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
             "scanner_version": plan.invocation.provider_version,
             "scanner_sha256": binary["sha256"], "rule_sha256": TEMPLATE_SHA256,
             "product_revision": source_revision, "profile_sha256": profile.Digest,
+            "effective_budget": EffectiveBudget(),
             "provider_timeout_seconds": plan.invocation.timeout_seconds,
             "wrapper_timeout_seconds": WRAPPER_TIMEOUT_SECONDS,
             "stdout_capture_bytes": STDOUT_BYTES, "stderr_capture_bytes": STDERR_BYTES,
@@ -185,7 +187,7 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
         })
         summary = asyncio.run(RunNucleiScan(workspace, "local", target, owner, profile,
             str(executable), Policy, limits=limits, confirmation=confirmation))
-        outcome["exit_code"] = summary.ExitCode()
+        outcome["product_exit_code"] = summary.ExitCode()
         WriteJson(root / "summary.json", summary.ToDict())
         WriteJson(root / "events.json", json.loads(SerializeContract(summary.events)))
         records = tuple(artifact.evidence for artifact in summary.snapshot.artifacts)
@@ -270,6 +272,8 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
 
         WriteJson(root / "saved-finding-references.json", saved_references)
         execution = records[0].provenance.execution
+        outcome["provider_duration_seconds"] = execution.duration_seconds if execution else None
+        outcome["exit_code"] = execution.exit_code if execution else None
         successful = summary.snapshot.state is JobState.COMPLETED and summary.ExitCode() == 0
 
         if successful and (execution is None or execution.state is not ExecutionState.SUCCEEDED
@@ -291,7 +295,8 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
         WriteJson(root / "failure.json", {"exception_type": type(error).__name__,
                                          "scanner_completion_claimed": False})
 
-    outcome["duration_seconds"] = time.monotonic() - started
+    outcome["whole_product_duration_seconds"] = time.monotonic() - started
+    outcome["duration_seconds"] = outcome.get("provider_duration_seconds") or 0.0
     WriteJson(root / "findings.json", outcome["findings"])
     WriteJson(root / "outcome.json", outcome)
 

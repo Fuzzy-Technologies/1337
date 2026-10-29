@@ -297,6 +297,36 @@ and canonical Host/Port/Service owners. Existing adapter argv/profiles remain
 unchanged; grouped/omitted ports remain unassessed individually. No service
 probe, arbitrary flags or automatic permission is added.
 
+ADR 0111 adds the separate Experimental `raw plan|run|replay` console and shell
+interface at `raw-nmap.v1`, with one literal IP and explicit finite TCP ports.
+Only native Nmap TCP connect and light service discovery are admitted. Original
+native token order, argv digest, bounded stdout/stderr, exit status and source
+provenance remain separate from wrapper usage, denial, failure and cancellation
+outcomes. A literal `--` protects native arguments from wrapper option parsing.
+Existing adapter and `scan ports` profiles are unchanged.
+
+`RawNmapSelection`, `SelectRawNmap` and `RawNmapAdapter` in `fuzzy1337.raw_cli`
+are Experimental SDK interfaces; other selection/parser helpers remain Internal.
+`PlanRawCli`, `RunRawCli`, `ReplayRawCli`, `RawCliPlan` and `RawCliSummary` in
+`fuzzy1337.raw_cli_workflow` are Experimental. Planning checks current scope and
+policy before bounded local health/version metadata; that observation grants no
+target authority or original version-probe stream custody. Execution requires
+fresh current authority and separate confirmation of the exact native intent.
+
+The schema-one `raw-cli-receipt` and original stdout/stderr retain actual
+invocation, execution and context without changing global evidence/model
+schemas. Historical replay verifies attached original records after relocation
+without a current policy reader, executable, network request or Save. Failed or
+partial native XML cannot create positive model facts; grouped counts never
+invent individual ports, and discovery does not become a vulnerability Finding.
+Model/workspace saves retain separate one-attempt acknowledgement truth; native
+status is returned only after complete custody and required persistence.
+`RawCliWorkflow`, `ReadRawRecord`, other workflow helpers and all of
+`fuzzy1337.raw_commands` remain Internal implementations, rather than extension
+or execution-authority interfaces. Unknown flags, scripts, credentials, shell
+commands and caller environment/output paths remain outside the closed matrix.
+See [governed native Nmap CLI](RAW_CLI.md) for exact grammar and status meanings.
+
 `fuzzy1337.adapters.nuclei` is an Experimental Python library at contract version `1`.
 ADR 0030 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.
@@ -882,3 +912,34 @@ The API performs no CVSS version conversion, target matching, network activity,
 publisher authentication or Finding/severity/risk mutation. See
 [the base calculation profile](INTELLIGENCE_CVSS2_BASE.md) and
 [ADR 0107](adr/0107-separate-cvss2-base-calculations.md).
+
+
+## Local Docker reference export
+
+The additive Experimental product command `image export-local` exports one exact
+local tagged reference or full config ID on Linux through an explicitly selected
+trusted Docker executable and physical Unix socket. The source descriptor is
+`docker-local-reference.v1`, schema one. Planning is pure and grants no authority.
+Export and subsequent native archive scanning require independent scope, policy,
+read consent and explicit workflow approval. Existing artifact profile values
+and serialized native image summaries remain unchanged.
+
+The Experimental Python surface consists of `LocalImageSelection` and its pure
+`Manifest`/`Target` methods, `LocalImageExportPlan`, `PlanLocalImageExport`,
+`LocalImageExportSummary` and `ExportLocalImage`. Helpers in `local_image_archive`,
+`local_image_commands`, `local_image_material`, `local_image_policy` and
+`local_image_reference`, low-level `LocalImageExportWorkflow`, original opaque
+proof/grant/claim objects and the additive `ArtifactPolicyEngine` local-export
+delegates remain Internal. Their visibility does not authorize direct execution
+or promise an extension compatibility boundary.
+
+An accepted summary requires exact typed workspace acknowledgement and readback
+of the proposed state at the next revision. Unknown persistence exposes no
+accepted archive pin. Export retains evidence but does not mutate Findings. The
+optional native archive `expected_image_identity` argument defaults to `None`;
+`scan image --expected-config-id` binds the fresh verified Trivy report's config
+identity before candidate projection and model Save. Existing archive-only and
+synthetic profiles retain their prior behavior when the pin is absent. This does
+not add runtime container discovery or a registry/image mutation API. See
+[the operator recipe](LOCAL_IMAGE_REFERENCE.md) and
+[ADR 0114](adr/0114-governed-local-image-reference-export.md).

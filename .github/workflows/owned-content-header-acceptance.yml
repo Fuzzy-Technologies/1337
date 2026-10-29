@@ -2,8 +2,10 @@ name: Genuine owned content header pipeline
 
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, master]
     types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited]
+  push:
+    branches: [master]
 
 permissions:
   contents: read
@@ -15,9 +17,9 @@ concurrency:
 jobs:
   installed-content-header:
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-checkpoint]'))
+      contains(github.event.pull_request.body, '[owned-content-header-checkpoint]')))
     name: Installed fresh content header and relocated replay
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -27,7 +29,7 @@ jobs:
       - name: Check out reviewed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -118,9 +120,9 @@ jobs:
 
   actor-denied-content-header:
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-actor-denied-checkpoint]'))
+      contains(github.event.pull_request.body, '[owned-content-header-actor-denied-checkpoint]')))
     name: Installed controlled actor mismatch without analysis Save
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -130,7 +132,7 @@ jobs:
       - name: Check out reviewed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -165,9 +167,9 @@ jobs:
 
   policy-denied-content-header:
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-policy-denied-checkpoint]'))
+      contains(github.event.pull_request.body, '[owned-content-header-policy-denied-checkpoint]')))
     name: Installed content analysis policy refusal without Save
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -177,7 +179,7 @@ jobs:
       - name: Check out reviewed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -212,9 +214,9 @@ jobs:
 
   fixed-content-header:
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-fixed-checkpoint]'))
+      contains(github.event.pull_request.body, '[owned-content-header-fixed-checkpoint]')))
     name: Installed fixed content header and relocated negative replay
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -224,7 +226,7 @@ jobs:
       - name: Check out reviewed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -258,9 +260,9 @@ jobs:
 
   body-decoy-content-header:
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-body-decoy-checkpoint]'))
+      contains(github.event.pull_request.body, '[owned-content-header-body-decoy-checkpoint]')))
     name: Installed body-decoy content header and relocated replay
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -270,7 +272,7 @@ jobs:
       - name: Check out reviewed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -305,9 +307,9 @@ jobs:
 
   approval-denied-content-header:
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-approval-denied-checkpoint]'))
+      contains(github.event.pull_request.body, '[owned-content-header-approval-denied-checkpoint]')))
     name: Installed content analysis approval refusal without Save
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -317,7 +319,7 @@ jobs:
       - name: Check out reviewed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0

@@ -104,7 +104,7 @@
       "id": "whole1337",
       "scanner_id": "native.nuclei",
       "rule_ids": ["nuclei.fuzzy1337-prometheus-process-exposition"],
-      "implementation": "candidate",
+      "implementation": "available",
       "artifact": {
         "path": "templates/prometheus-exposition.yaml",
         "sha256": "dff3e6ea0821ba769cf63575ad685b8c1def939ed24f790f42d2fde924d55c74",
@@ -116,7 +116,7 @@
       "id": "external-nuclei",
       "scanner_id": "nuclei",
       "rule_ids": ["fuzzy1337-prometheus-process-exposition"],
-      "implementation": "candidate",
+      "implementation": "available",
       "artifact": {
         "path": "templates/prometheus-exposition.yaml",
         "sha256": "dff3e6ea0821ba769cf63575ad685b8c1def939ed24f790f42d2fde924d55c74",
