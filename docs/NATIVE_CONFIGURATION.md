@@ -128,6 +128,17 @@ external route. Five cases each exercise SDK, CLI, raw native rule/location
 assertions, seven-role custody, saved Findings, JSON export and relocated replay.
 Five more cases refuse missing approval, missing scope allowance, invalid UTF-8,
 oversized source and an unsupported executable before provider execution.
+An eleventh installed case executes a harmless owned Python producer and requires
+both real initial and READY-to-worker executor checkpoints. The SDK product cases
+independently observe the same two checks for both actual native operations.
+
+The dedicated `Installed native configuration product` workflow runs the eleven
+cases on ready pull requests targeting `develop`/`master` and pushes to `master`.
+A draft-only focused
+checkpoint uses the exact marker `[native-config-product-checkpoint]`. It builds
+and installs the exact reviewed revision, executes outside the checkout in a
+separate no-egress namespace, requires every JUnit case without skips, and retains
+original bounded streams and module/source hashes even after a failed case.
 
 Absent optional local context is explicitly unexecuted acceptance. Required CI
 preparation/execution/verification fails on missing prerequisites, skipped cases,

@@ -20,10 +20,19 @@ from pathlib import Path
 
 import pytest
 
-from fuzzy1337.adapters import ImpactLevel, SerializeContract
+from fuzzy1337.adapters import AdapterInvocation, AdapterRequest, ImpactLevel, SerializeContract
 from fuzzy1337.artifact_inputs import ArtifactProfile, ArtifactReadConsent
 from fuzzy1337.artifact_policy import ArtifactDeniedError
 from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.executors import (
+    CapabilityDescriptor,
+    ExecutionAuthorization,
+    ExecutionResources,
+    ExecutionTermination,
+    InvocationDigest,
+    LocalExecutionRequest,
+    LocalExecutor,
+)
 from fuzzy1337.executors.owned_process import RequireLinuxOwnership
 from fuzzy1337.findings import Findings
 from fuzzy1337.jobs import JobEventKind, JobState
@@ -318,7 +327,7 @@ def AssertSelectedFindings(root: Path, case: dict) -> None:
 
 
 @pytest.mark.parametrize("case_id", CASE_IDS)
-def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_id):
+def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_id, monkeypatch):
     """Exercise actual installed SDK/CLI originals and meaningful native refusal paths."""
 
     context = installed_product
@@ -334,6 +343,36 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
         "network_namespace": context["network_namespace"],
         "outcome": "unassessed", "native_product_acceptance": False,
         "original_operations": [], "sdk_evidence_ids": [], "cli_evidence_ids": []}
+    original_execute = LocalExecutor.Execute
+    provider_results = []
+    provider_checkpoints = []
+
+    async def Audit(self, request, **options):
+        """Observe actual provider returns and both authority checkpoints without replacing IO."""
+
+        provider = request.invocation.adapter_id == "native.trivy"
+
+        if provider:
+            assert options["own_descendants"] is True, "Actual native provider must own descendants"
+            original_check = options["pre_launch"]
+
+            def Check(actual):
+                """Retain the real executor checkpoint and delegate unchanged current authority."""
+
+                provider_checkpoints.append(request.invocation.request.parameters["operation"])
+
+                return original_check(actual)
+
+            options["pre_launch"] = Check
+
+        outcome = await original_execute(self, request, **options)
+
+        if provider:
+            provider_results.append((request, outcome))
+
+        return outcome
+
+    monkeypatch.setattr(LocalExecutor, "Execute", Audit)
 
     try:
         if case_id in CASE_IDS[:5]:
@@ -354,6 +393,14 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
             assert len([item for item in events if item.kind is JobEventKind.MODEL_DELTA]) == 1, (
                 "Actual SDK model delta must follow the acknowledged durable save"
             )
+            assert provider_checkpoints == ["version", "version", "scan", "scan"], (
+                "Actual original native processes must pass both initial and READY authority checks"
+            )
+            assert len(provider_results) == 2 and all(
+                actual is captured.outcome and request is captured.request
+                for (request, actual), captured in zip(provider_results, summary.captures,
+                                                       strict=True)
+            ), "SDK captures must retain exact independently observed actual executor originals"
             AssertOriginalPair(root, summary.retained_records, case, source)
             AssertSelectedFindings(root, case)
             facts["original_operations"] = [item.operation for item in summary.captures]
@@ -421,6 +468,9 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
             assert LocalModelStore(root).Open().revision == 0, (
                 "Refused native inputs must never save canonical model success"
             )
+            assert provider_results == [] and provider_checkpoints == [], (
+                "Refused inputs must have no independently observed actual native provider launch"
+            )
 
         facts["outcome"] = "installed-product-assertions-passed"
 
@@ -432,4 +482,66 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
             shutil.copytree(controls, output / "original-private-controls", dirs_exist_ok=True)
 
         facts["installed_module_hashes"] = InstalledModuleHashes(context)
+        facts["provider_authority_checkpoints"] = provider_checkpoints
+        facts["observed_provider_operations"] = [request.invocation.request.parameters["operation"]
+                                                   for request, _ in provider_results]
+        (output / "case.json").write_bytes(Canonical(facts))
+
+
+def test_InstalledOwnedHarmlessExecutor(installed_product, tmp_path):
+    """Execute a harmless installed producer through actual initial and READY ownership checks."""
+
+    context = installed_product
+    assert os.environ.get("FUZZY1337_REQUIRE_OWNED_CONFIGURATION_EXECUTION") == "1", (
+        "The installed owned executor case must be required rather than optionally skipped"
+    )
+    root = tmp_path / "owned-harmless-producer"
+    root.mkdir(mode=0o700)
+    invocation = AdapterInvocation("owned.configuration-probe", AdapterRequest(
+        "config.owned-executor-probe", "owned:harmless-local-producer", ImpactLevel.SAFE),
+        (sys.executable, "-I", "-c", "print('owned-configuration-probe')"), 5)
+    authorization = ExecutionAuthorization("owned:explicit-local-producer", "scope:owned-producer",
+        "policy:owned-producer", InvocationDigest(invocation))
+    request = LocalExecutionRequest(invocation, CapabilityDescriptor(
+        "config.owned-executor-probe", "owned.configuration-probe", ImpactLevel.SAFE),
+        authorization, environment={"PATH": "", "HOME": str(root), "LANG": "C", "LC_ALL": "C"},
+        resources=ExecutionResources(max_stdout_bytes=1024, max_stderr_bytes=1024))
+    checks = []
+
+    def Check(actual):
+        """Observe both real callbacks and retain exact original full-request identity."""
+
+        assert actual is request, "Actual owned checkpoint cannot replace the original request"
+        checks.append(InvocationDigest(actual.invocation))
+
+    outcome = asyncio.run(LocalExecutor(root).Execute(request, pre_launch=Check,
+                                                      own_descendants=True))
+    output = Path(context["evidence"]) / "owned-executor-checkpoints"
+    output.mkdir(mode=0o700)
+    (output / "original-stdout.bin").write_bytes(outcome.stdout)
+    (output / "original-stderr.bin").write_bytes(outcome.stderr)
+    facts = {"case_id": "owned-executor-checkpoints", "commit": context["commit"],
+        "tree": context["tree"], "wheel_sha256": context["wheel"]["sha256"],
+        "installed_module_hashes": InstalledModuleHashes(context),
+        "outcome": "unassessed", "native_product_acceptance": False,
+        "original_operations": ["owned-harmless-producer"], "sdk_evidence_ids": [],
+        "cli_evidence_ids": [], "observed_provider_operations": [],
+        "provider_authority_checkpoints": [], "actual_checkpoints": checks,
+        "request": json.loads(SerializeContract(request)),
+        "execution": json.loads(SerializeContract(outcome.execution)),
+        "termination": outcome.termination.value,
+        "stdout_sha256": hashlib.sha256(outcome.stdout).hexdigest(),
+        "stderr_sha256": hashlib.sha256(outcome.stderr).hexdigest()}
+
+    try:
+        assert checks == [InvocationDigest(invocation)] * 2, (
+            "Actual Linux ownership must invoke both initial and READY-to-worker current checks"
+        )
+        assert outcome.termination is ExecutionTermination.PROCESS_EXIT and (
+            outcome.execution.exit_code == 0 and outcome.stdout == b"owned-configuration-probe\n"
+            and outcome.stderr == b""
+        ), "Actual harmless owned producer must return its exact original output and terminal facts"
+        facts["outcome"] = "installed-product-assertions-passed"
+
+    finally:
         (output / "case.json").write_bytes(Canonical(facts))

@@ -60,7 +60,6 @@ from fuzzy1337.native_configuration_policy import (
     NativeConfigurationExecutionClaim,
     NativeConfigurationOperationPlan,
     NativeConfigurationVersionPrerequisite,
-    ValidateNativeConfigurationPairFresh,
 )
 from fuzzy1337.native_configuration_report import (
     NATIVE_CONFIGURATION_FAMILY,
@@ -599,7 +598,7 @@ def ApplyVerifiedNativeConfiguration(
         facts.provenance)
     from fuzzy1337.policy import UtcNow
 
-    ValidateNativeConfigurationPairFresh(engine, version_prerequisite, scan_claim, capture,
+    engine.ValidateNativeConfigurationPairFresh(version_prerequisite, scan_claim, capture,
         context_provider(), observer=observer, material_proof=material_proof, at=UtcNow())
     updated, inventory = state.Apply(objects=(asset,), observations=(observation,))
     updated, detections = ApplyFindings(updated, tuple(findings))

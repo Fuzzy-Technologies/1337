@@ -10,14 +10,18 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 
 from fuzzy1337 import native_configuration_evidence as replay_module
 from fuzzy1337 import native_configuration_material_worker as worker
+from fuzzy1337 import native_configuration_policy as policy_module
 from fuzzy1337.adapters import AdapterExecution, ExecutionState, ImpactLevel
 from fuzzy1337.artifact_inputs import (
     ArtifactFile,
@@ -25,6 +29,7 @@ from fuzzy1337.artifact_inputs import (
     ArtifactProfile,
     ArtifactReadConsent,
     ArtifactRole,
+    PhysicalIdentity,
 )
 from fuzzy1337.artifact_policy import (
     ArtifactDeniedError,
@@ -74,11 +79,8 @@ def configuration_runner():
 
 
 @pytest.fixture
-def controlled_runtime(tmp_path, monkeypatch):
+def controlled_runtime(tmp_path, monkeypatch, request):
     """Supply tiny explicitly doubled material/provider facts without native execution."""
-
-    if os.name != "posix":
-        pytest.skip("Configuration product authority requires Linux ownership")
 
     root = tmp_path / "workspace"
     LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Configuration unit owner"),
@@ -96,6 +98,36 @@ def controlled_runtime(tmp_path, monkeypatch):
     import fuzzy1337.native_configuration_material as material_module
 
     monkeypatch.setattr(material_module, "RequirePlatform", lambda: None)
+    stages = []
+
+    if os.name == "nt" or getattr(request, "param", False):
+        selected_os = SimpleNamespace(**vars(os))
+        selected_os.O_NOFOLLOW = 0
+        selected_os.O_DIRECTORY = 0
+        selected_os.fchmod = lambda descriptor, mode: None
+        monkeypatch.setattr(policy_module, "os", selected_os)
+        monkeypatch.setattr(policy_module, "stat", SimpleNamespace(S_IMODE=lambda mode:
+            0o700 if stat.S_ISDIR(mode) else 0o600))
+        monkeypatch.setattr(policy_module, "SyncDirectory", lambda path: None)
+        original_unlink = Path.unlink
+
+        def Unlink(path, missing_ok=False):
+            """Model POSIX unlink only after the real owner reaches exact known snapshot bytes."""
+
+            known = {snapshot.directory / name: identity for stage in stages for snapshot in
+                (stage.input, stage.scanner, stage.material)
+                for name, identity in snapshot.identities}
+
+            if path in known:
+                assert PhysicalIdentity(worker.ArtifactPathInfo(path)) == known[path], (
+                    "Portable unit unlink may remove only unchanged original staged bytes"
+                )
+                path.chmod(0o600)
+
+            return original_unlink(path, missing_ok=missing_ok)
+
+        monkeypatch.setattr(Path, "unlink", Unlink)
+
     selection = NativeConfigurationSelection(ArtifactProfile.DOCKERFILE, "Dockerfile", source,
         executable, ArtifactReadConsent("owner:unit", "read:unit"))
     manifest = ArtifactManifest(selection.profile, ArtifactRole.INPUT,
@@ -117,6 +149,7 @@ def controlled_runtime(tmp_path, monkeypatch):
 
         stage_root = self.workspace_root / ("native-configuration-stage-" + uuid4().hex)
         stage = worker.CreateStage(stage_root, self.selection)
+        stages.append(stage)
         self._stage = stage
         self._stage_root = stage_root
         scratch = (stage.root / "scratch").stat()
@@ -150,6 +183,7 @@ def controlled_runtime(tmp_path, monkeypatch):
         """Return declared provider rows through the actual collector callback path."""
 
         assert own_descendants, "Native configuration must explicitly own Linux descendants"
+        pre_launch(request)
         pre_launch(request)
         operation = request.invocation.request.parameters["operation"]
         settings["calls"].append(operation)
@@ -280,6 +314,13 @@ def test_PreviewDoesNotRunProviderOrRegisterTarget(controlled_runtime, configura
         "Material preview must remain descriptive without launching VERSION"
     )
     assert preview.ToDict()["execution_authorized"] is False, "Planning cannot grant execution"
+    scoped = configuration_runner.run(PlanNativeConfigurationScan(root, "owner:unit", selection,
+        scope_id="native-scope", policy_provider=lambda: context.policy))
+    assert scoped.authority_plan.scope_reference == context.scope.Reference() and (
+        not settings["calls"]
+    ), (
+        "The canonical facade may describe VERSION authority without launching a provider"
+    )
 
 
 def test_CopiedForeignExpiredAndRepeatedAuthorityIsRefused(
@@ -418,3 +459,82 @@ def test_OriginalCaptureRecipeHasNoMutableStageAliases(controlled_runtime, confi
     assert summary.captures[-1].Digest() == original_digest, (
         "Original receipt identity must remain stable after a caller attempts metadata mutation"
     )
+
+
+@pytest.mark.parametrize("owner", ["model", "workspace"])
+@pytest.mark.parametrize("failure", ["suppressed", "lost-ack", "changed-ack"])
+def test_UnacknowledgedWritesNeverEmitSuccessfulModelDelta(
+    controlled_runtime, configuration_runner, monkeypatch, owner, failure
+):
+    """Suppressed writes and changed/lost acknowledgements cannot publish proposed success."""
+
+    root, selection, context, settings = controlled_runtime
+    store = LocalModelStore if owner == "model" else LocalWorkspaceStore
+    original_save = store.Save
+    calls = []
+
+    def Save(self, proposal, **options):
+        """Model a causal storage failure at the actual irreversible save/ACK boundary."""
+
+        calls.append(proposal)
+
+        if failure == "suppressed":
+            return None
+
+        committed = original_save(self, proposal, **options)
+
+        return None if failure == "lost-ack" else replace(committed,
+                                                         revision=committed.revision + 1)
+
+    monkeypatch.setattr(store, "Save", Save)
+    summary = Run(configuration_runner, controlled_runtime)
+    assert summary.snapshot.state is JobState.FAILED and summary.snapshot.failure.code is (
+        JobFailureCode.STORAGE
+    ), "Unconfirmed writes must remain storage failures after successful provider execution"
+    assert len(calls) == 1 and not any(
+        item.kind is JobEventKind.MODEL_DELTA for item in summary.events
+    ), (
+        "One irreversible save attempt cannot be retried or advertised as an acknowledged delta"
+    )
+    expected_revision = 0 if owner == "model" and failure == "suppressed" else 1
+    assert summary.model_revision == expected_revision and len(summary.retained_records) == 7, (
+        "Actual saved model and retained original acquisitions remain separate truthful facts"
+    )
+
+
+@pytest.mark.parametrize("controlled_runtime", [True], indirect=True, ids=["portable-posix-model"])
+def test_PortableLogicalControlsRetainCanonicalOrchestration(
+    controlled_runtime, configuration_runner
+):
+    """Declared mode/fsync/unlink projections exercise units without native platform claims."""
+
+    summary = Run(configuration_runner, controlled_runtime)
+    assert summary.ExitCode() == 0 and len(summary.retained_records) == 7, (
+        "Portable protocol projections must preserve real first-party state-machine guards"
+    )
+
+
+def test_UnsupportedPlatformRefusesSelectedReadsBeforeHelperStart(
+    tmp_path, monkeypatch, configuration_runner
+):
+    """Real unsupported-platform admission must remain separate from every portable proof double."""
+
+    root = tmp_path / "workspace"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Unsupported platform unit"),
+                                     "unsupported-native")
+    LocalModelStore(root).Create()
+    selection = NativeConfigurationSelection(ArtifactProfile.DOCKERFILE, "Dockerfile",
+        tmp_path / "must-not-read-source", tmp_path / "must-not-read-executable",
+        ArtifactReadConsent("owner:unit", "read:explicit-unit"))
+
+    def Forbidden(*args, **options):
+        """Expose any selected-byte read or owned process reached after platform refusal."""
+
+        pytest.fail("Unsupported native platform reached selected IO or helper execution")
+
+    monkeypatch.setattr(worker, "NATIVE_CONFIGURATION_PLATFORM", ("unsupported", "unsupported"))
+    monkeypatch.setattr(worker, "ReadArtifactFile", Forbidden)
+    monkeypatch.setattr(LocalExecutor, "Execute", Forbidden)
+
+    with pytest.raises(ValueError, match="platform is unsupported"):
+        configuration_runner.run(PlanNativeConfigurationScan(root, "owner:unit", selection))

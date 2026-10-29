@@ -604,14 +604,7 @@ def WriteControl(path: Path, value: object) -> tuple[Path, bytes, tuple[int, ...
     finally:
         os.close(descriptor)
 
-    parent = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-
-    try:
-        os.fsync(parent)
-
-    finally:
-        os.close(parent)
-
+    SyncDirectory(path.parent)
     info = ArtifactPathInfo(path)
 
     if not MatchesArtifactReadIdentity(info, opened):
@@ -621,6 +614,22 @@ def WriteControl(path: Path, value: object) -> tuple[Path, bytes, tuple[int, ...
     ReadControl(result)
 
     return result
+
+
+def SyncDirectory(path: Path) -> None:
+    """Acknowledge an original private directory entry through a no-follow directory handle.
+
+    Args:
+        path: Explicit original private control directory on the supported Linux owner.
+    """
+
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+
+    try:
+        os.fsync(descriptor)
+
+    finally:
+        os.close(descriptor)
 
 
 def ReadControl(control: tuple[Path, bytes, tuple[int, ...]]) -> None:
@@ -687,7 +696,7 @@ def ClaimNativeConfigurationExecution(
         Original one-use claim; partial reservations remain consumed after failure.
     """
 
-    ValidateNativeConfigurationOperation(engine, grant, prepared, context, observer=observer,
+    engine.ValidateNativeConfigurationOperation(grant, prepared, context, observer=observer,
                                         material_proof=material_proof, at=at)
     namespace = prepared.workspace_root / ".native-configuration-claims"
 
@@ -793,7 +802,7 @@ def BindNativeConfigurationRequest(
     ):
         raise ValueError("Native configuration claim cannot bind another request")
 
-    ValidateNativeConfigurationOperation(engine, state.grant, prepared, context,
+    engine.ValidateNativeConfigurationOperation(state.grant, prepared, context,
         observer=observer, material_proof=material_proof, at=at)
     expected = LocalExecutionRequest(prepared.invocation,
         CapabilityDescriptor(prepared.selection.Capability(), "native.trivy", ImpactLevel.SAFE),
@@ -834,7 +843,7 @@ def ValidateNativeConfigurationClaim(
     if state.request is not request or state.observer is not observer:
         raise ValueError("Native configuration bound request is not original")
 
-    ValidateNativeConfigurationOperation(engine, state.grant, state.prepared, context,
+    engine.ValidateNativeConfigurationOperation(state.grant, state.prepared, context,
         observer=observer, material_proof=material_proof, at=at)
 
 
@@ -863,7 +872,7 @@ def ValidateNativeConfigurationCapture(
     ):
         raise ValueError("Native configuration capture is not an accepted original process")
 
-    ValidateNativeConfigurationClaim(engine, claim, capture.request, context, observer=observer,
+    engine.ValidateNativeConfigurationClaim(claim, capture.request, context, observer=observer,
                                     material_proof=material_proof, at=at)
 
 
@@ -888,7 +897,7 @@ def AcceptNativeConfigurationVersion(
         Original engine-retained VERSION prerequisite; replay cannot recreate it.
     """
 
-    ValidateNativeConfigurationCapture(engine, claim, capture, context, observer=observer,
+    engine.ValidateNativeConfigurationCapture(claim, capture, context, observer=observer,
                                       material_proof=material_proof, at=at)
     state = OriginalClaim(engine, claim)
 
@@ -930,7 +939,7 @@ def ValidateVersionPrerequisite(
     ):
         raise ValueError("Native configuration VERSION prerequisite is not original")
 
-    ValidateNativeConfigurationCapture(engine, prerequisite.claim, prerequisite.capture, context,
+    engine.ValidateNativeConfigurationCapture(prerequisite.claim, prerequisite.capture, context,
         observer=observer, material_proof=material_proof, at=at)
 
 
@@ -956,7 +965,7 @@ def ValidateNativeConfigurationPairFresh(
 
     ValidateVersionPrerequisite(engine, version, context, observer=observer,
                                material_proof=material_proof, at=at)
-    ValidateNativeConfigurationCapture(engine, scan_claim, scan_capture, context,
+    engine.ValidateNativeConfigurationCapture(scan_claim, scan_capture, context,
         observer=observer, material_proof=material_proof, at=at)
 
     if scan_capture.prepared.version_prerequisite is not version or (

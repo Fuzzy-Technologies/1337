@@ -89,8 +89,10 @@ def test_ConfigurationHelpAndRegistryExposeOnlyImplementedClosedProfiles(capsys)
 
     assert caught.value.code == 0, "Config help must be usable without an existing workspace"
     output = capsys.readouterr().out
-    assert "--profile {synthetic}" in output and "--type {dockerfile,kubernetes}" in output, (
-        "Help must expose only the actually implemented synthetic source profiles"
+    assert "--profile {synthetic,native}" in output and (
+        "--type {dockerfile,kubernetes}" in output
+    ), (
+        "Help must expose both implemented native and synthetic source profiles"
     )
     assert "--approve-safe-configuration" in output, "SAFE execution approval stays explicit"
     command = COMMAND_REGISTRY.Resolve("scan")

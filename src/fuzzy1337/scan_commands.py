@@ -76,6 +76,7 @@ from fuzzy1337.workspace import (
 )
 
 if TYPE_CHECKING:
+    from fuzzy1337.native_configuration_workflow import NativeConfigurationScanSummary
     from fuzzy1337.native_image_workflow import NativeImageScanSummary
 
 
@@ -389,24 +390,28 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         image.add_argument("--report-output", type=Path)
         image.add_argument("--events-json", action="store_true")
         config = actions.add_parser("config",
-                                    help="Run the closed synthetic configuration workflow.")
+                                    help="Run an explicit native or synthetic configuration scan.")
         config.add_argument("path", type=Path)
-        config.add_argument("--profile", choices=("synthetic",), required=True,
-                            help="Explicitly select reviewed synthetic source interpretation.")
-        config.add_argument("--type", choices=("dockerfile", "kubernetes"), required=True,
-                            help="Select the closed Dockerfile or Kubernetes source profile.")
+        config.add_argument("--profile", choices=("synthetic", "native"), required=True,
+                            help="Explicitly select synthetic or pinned native interpretation.")
+        config.add_argument("--type", "--kind", choices=("dockerfile", "kubernetes"), required=True,
+                            help="Select Dockerfile or already-rendered Kubernetes source.")
         config.add_argument("--logical-path", required=True,
                             help="Exact selected source name in the reviewed input manifest.")
         config.add_argument("--source", type=Path, required=True,
-                            help="Absolute selected reviewed synthetic source file.")
-        config.add_argument("--scope", required=True)
+                            help="Absolute explicitly selected configuration source file.")
+        config.add_argument("--scope")
         config.add_argument("--owner", required=True)
         config.add_argument("--executable", type=Path, required=True,
-                            help="Absolute selected current trusted CPython executable.")
-        config.add_argument("--producer", type=Path, required=True,
-                            help="Absolute selected reviewed first-party configuration worker.")
-        config.add_argument("--material", type=Path, required=True,
-                            help="Absolute selected synthetic material policy.")
+                            help="Absolute selected trusted executable for the declared profile.")
+        config.add_argument("--producer", type=Path,
+                            help="Required synthetic-only reviewed first-party worker.")
+        config.add_argument("--material", type=Path,
+                            help="Required synthetic-only material policy.")
+        config.add_argument("--policy", type=Path,
+                            help="Explicit native policy, reread before each authority decision.")
+        config.add_argument("--plan", action="store_true",
+                            help="Native target preview or scoped VERSION plan without execution.")
         config.add_argument("--read-consent-reference", required=True)
         config.add_argument("--approve-safe-configuration", action="store_true")
         config.add_argument("--timeout", type=int, default=30)
@@ -486,6 +491,26 @@ def RunCommands(
                                        arguments.approve_safe_image)):
                 parser.error("planning emits one descriptive document without execution approval")
 
+    if command == "scan" and arguments.action == "config":
+        if arguments.profile == "synthetic":
+            if not all((arguments.scope, arguments.producer, arguments.material)) or any((
+                arguments.policy is not None, arguments.plan,
+            )):
+                parser.error("synthetic configuration requires scope, producer and material only")
+
+        else:
+            if arguments.producer is not None or arguments.material is not None:
+                parser.error("native configuration excludes synthetic producer and material")
+
+            if (arguments.scope is None) != (arguments.policy is None) or (
+                not arguments.plan and arguments.scope is None
+            ):
+                parser.error("native configuration execution requires both scope and policy")
+
+            if arguments.plan and any((arguments.events_json, arguments.report_format,
+                                       arguments.approve_safe_configuration)):
+                parser.error("native planning excludes execution approval, events and reports")
+
     if command == "scan" and arguments.action in {"nuclei", "web", "ports"}:
         if bool(arguments.confirm_plan) != bool(arguments.confirmation_reference):
             parser.error("supply both exact plan digest and confirmation record reference")
@@ -502,6 +527,48 @@ def RunCommands(
             document = CreateScope(arguments.path, arguments)
 
         else:
+            if arguments.action == "config" and arguments.profile == "native":
+                from fuzzy1337.native_configuration import NativeConfigurationSelection
+                from fuzzy1337.native_configuration_material import NativeConfigurationMaterialError
+                from fuzzy1337.native_configuration_workflow import (
+                    PlanNativeConfigurationScan,
+                    ScanNativeConfiguration,
+                    ValidateSelection,
+                )
+
+                native_configuration_selection = NativeConfigurationSelection(
+                    ArtifactProfile.DOCKERFILE if arguments.type == "dockerfile" else
+                    ArtifactProfile.KUBERNETES, arguments.logical_path, arguments.source,
+                    arguments.executable,
+                    ArtifactReadConsent(arguments.owner, arguments.read_consent_reference))
+                configuration_root = LocalWorkspaceStore(arguments.path).root
+                ValidateSelection(configuration_root, arguments.owner,
+                                  native_configuration_selection, arguments.timeout)
+
+                def NativeConfigurationReadPolicy() -> ImpactPolicy:
+                    """Reread native policy independently of source consent and approval."""
+
+                    return ReadNucleiPolicy(arguments.policy)
+
+                if arguments.plan:
+                    try:
+                        configuration_plan = asyncio.run(PlanNativeConfigurationScan(
+                            configuration_root, arguments.owner, native_configuration_selection,
+                            scope_id=arguments.scope, policy_provider=NativeConfigurationReadPolicy
+                            if arguments.policy is not None else None,
+                            timeout_seconds=arguments.timeout))
+
+                    except NativeConfigurationMaterialError:
+                        WriteJson(output, {"schema_version": 1, "state": "failed",
+                            "failure": {"code": "provider",
+                                "message": "Selected native configuration material is unverified"}})
+
+                        return 4
+
+                    WriteJson(output, configuration_plan.ToDict())
+
+                    return 0
+
             if arguments.action == "image" and arguments.profile == "native":
                 from fuzzy1337.native_image_capture import NativeTrivySelection
                 from fuzzy1337.native_image_observation import NativeImageObservationError
@@ -608,7 +675,7 @@ def RunCommands(
             if arguments.action == "ports":
                 summary: (PortScanSummary | NativeWebScanSummary | NucleiScanSummary
                           | QuickScanSummary | ImageScanSummary | ConfigurationScanSummary
-                          | NativeImageScanSummary) = (
+                          | NativeImageScanSummary | NativeConfigurationScanSummary) = (
                     asyncio.run(RunPortScan(arguments.path, arguments.scope, target,
                         arguments.owner, arguments.ports, arguments.executable, ReadPolicy,
                         confirmation=PolicyConfirmation(arguments.confirm_plan,
@@ -655,6 +722,13 @@ def RunCommands(
                     report_format=arguments.report_format, report_output=arguments.report_output,
                 ))
 
+            elif arguments.action == "config" and arguments.profile == "native":
+                summary = asyncio.run(ScanNativeConfiguration(configuration_root, arguments.scope,
+                    arguments.owner, native_configuration_selection, NativeConfigurationReadPolicy,
+                    approve_safe_configuration=arguments.approve_safe_configuration,
+                    timeout_seconds=arguments.timeout, on_event=OnEvent,
+                    report_format=arguments.report_format, report_output=arguments.report_output))
+
             elif arguments.action == "config":
                 configuration_selection = ConfigurationScanSelection(
                     ArtifactProfile.SYNTHETIC_DOCKERFILE if arguments.type == "dockerfile" else
@@ -695,7 +769,9 @@ def RunCommands(
                          "image": ("Native Image Scan" if arguments.action == "image"
                                    and arguments.profile == "native" else
                                    "Synthetic Image Scan"),
-                         "config": "Synthetic Configuration Scan",
+                         "config": ("Native Configuration Scan" if arguments.action == "config"
+                                    and arguments.profile == "native" else
+                                    "Synthetic Configuration Scan"),
                          "quick": "Quick Scan"}[arguments.action]
                 output.write(f"{label} {summary.snapshot.state.value}; "
                              f"model revision {summary.model_revision}; "
@@ -707,10 +783,11 @@ def RunCommands(
 
     except ArtifactDeniedError as error:
         storage_failure = error.reason is ArtifactDenialReason.STORAGE
+        domain = "configuration" if arguments.action == "config" else "image"
         WriteJson(output, {"schema_version": 1, "state": "failed", "failure": {
             "code": "storage" if storage_failure else "authorization",
-            "message": "Native image storage is unverified" if storage_failure else
-                       "Current native image authority denied execution"}})
+            "message": "Native " + domain + " storage is unverified" if storage_failure else
+                       "Current native " + domain + " authority denied execution"}})
 
         return 4 if storage_failure else 3
 

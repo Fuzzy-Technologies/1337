@@ -55,13 +55,8 @@ from fuzzy1337.native_configuration_evidence import (
 )
 from fuzzy1337.native_configuration_material import NativeConfigurationMaterialObserver, Settle
 from fuzzy1337.native_configuration_policy import (
-    AcceptNativeConfigurationVersion,
-    AuthorizeNativeConfigurationOperation,
-    ClaimNativeConfigurationExecution,
     NativeConfigurationOperationPlan,
-    PlanNativeConfigurationOperation,
     PrepareNativeConfigurationOperation,
-    ValidateNativeConfigurationPairFresh,
 )
 from fuzzy1337.native_configuration_report import NATIVE_CONFIGURATION_ROLES
 from fuzzy1337.native_image_bounded_capture import Finalization
@@ -194,7 +189,7 @@ async def PlanNativeConfigurationScan(
         if scope_id is not None and policy_provider is not None:
             prepared = PrepareNativeConfigurationOperation("version", selection,
                 observer=observer, material_proof=proof, operation_reference=pair)
-            plan = PlanNativeConfigurationOperation(ArtifactPolicyEngine(), prepared,
+            plan = ArtifactPolicyEngine().PlanNativeConfigurationOperation(prepared,
                 CurrentContext(workspace_root, scope_id, owner_reference, policy_provider),
                 observer=observer, material_proof=proof, at=UtcNow())
 
@@ -428,13 +423,20 @@ class NativeConfigurationWorkflow:
             raise ValueError("Native configuration prior object reference is missing")
 
         self.workspace_attempted = True
-        store.Save(replace(workspace,
+        proposal = replace(workspace,
             scope_references=tuple(sorted({*workspace.scope_references,
                                            context.Spec.scope_reference})),
             object_references=tuple(sorted(objects)),
             job_references=tuple(sorted({*workspace.job_references, context.Spec.job_id})),
             evidence_references=tuple(references[key] for key in sorted(references)),
-            evidence_record_references=tuple(sorted(records))))
+            evidence_record_references=tuple(sorted(records)))
+        acknowledged = store.Save(proposal)
+        committed = replace(proposal, revision=proposal.revision + 1)
+
+        if type(acknowledged) is not WorkspaceState or acknowledged != committed or (
+            store.Open() != committed
+        ):
+            raise WorkspaceConflictError("Native configuration workspace acknowledgement differs")
 
     def RequireSuccess(self, capture: NativeConfigurationOperationCapture) -> None:
         """Preserve timeout/output/provider classifications after retaining original raw facts.
@@ -484,14 +486,16 @@ class NativeConfigurationWorkflow:
 
             proof = await observer.Create(budget, operation_reference=pair,
                                           cancellation=context.Cancellation)
-            version_prepared = PrepareNativeConfigurationOperation("version", self.selection,
-                observer=observer, material_proof=proof, operation_reference=pair)
-            version_grant = AuthorizeNativeConfigurationOperation(engine, version_prepared,
-                self.Context(), observer=observer, material_proof=proof, at=self.clock(),
-                approve_safe_configuration=True)
-            version_claim = ClaimNativeConfigurationExecution(engine, version_grant,
-                version_prepared, self.Context(), observer=observer, material_proof=proof,
-                at=self.clock())
+
+            with Finalization(budget):
+                version_prepared = PrepareNativeConfigurationOperation("version", self.selection,
+                    observer=observer, material_proof=proof, operation_reference=pair)
+                version_grant = engine.AuthorizeNativeConfigurationOperation(version_prepared,
+                    self.Context(), observer=observer, material_proof=proof, at=self.clock(),
+                    approve_safe_configuration=True)
+                version_claim = engine.ClaimNativeConfigurationExecution(version_grant,
+                    version_prepared, self.Context(), observer=observer, material_proof=proof,
+                    at=self.clock())
 
             version_capture, latest = await CaptureNativeConfigurationOperation(engine,
                 version_prepared, version_grant, version_claim, self.bridge, self.Context,
@@ -504,16 +508,19 @@ class NativeConfigurationWorkflow:
                 raise ValueError("Native configuration original VERSION has no verified material")
 
             proof = latest
-            prerequisite = AcceptNativeConfigurationVersion(engine, version_claim, version_capture,
-                self.Context(), observer=observer, material_proof=proof, at=self.clock())
-            prepared = PrepareNativeConfigurationOperation("scan", self.selection,
-                observer=observer, material_proof=proof, operation_reference=pair,
-                timeout_seconds=self.timeout_seconds, version_prerequisite=prerequisite)
-            grant = AuthorizeNativeConfigurationOperation(engine, prepared, self.Context(),
-                observer=observer, material_proof=proof, at=self.clock(),
-                approve_safe_configuration=True)
-            claim = ClaimNativeConfigurationExecution(engine, grant, prepared, self.Context(),
-                observer=observer, material_proof=proof, at=self.clock())
+
+            with Finalization(budget):
+                prerequisite = engine.AcceptNativeConfigurationVersion(version_claim,
+                    version_capture, self.Context(), observer=observer, material_proof=proof,
+                    at=self.clock())
+                prepared = PrepareNativeConfigurationOperation("scan", self.selection,
+                    observer=observer, material_proof=proof, operation_reference=pair,
+                    timeout_seconds=self.timeout_seconds, version_prerequisite=prerequisite)
+                grant = engine.AuthorizeNativeConfigurationOperation(prepared, self.Context(),
+                    observer=observer, material_proof=proof, at=self.clock(),
+                    approve_safe_configuration=True)
+                claim = engine.ClaimNativeConfigurationExecution(grant, prepared, self.Context(),
+                    observer=observer, material_proof=proof, at=self.clock())
 
             capture, latest = await CaptureNativeConfigurationOperation(engine, prepared,
                 grant, claim, self.bridge, self.Context, observer=observer, material_proof=proof,
@@ -550,12 +557,17 @@ class NativeConfigurationWorkflow:
                     context_provider=self.Context)
                 context.CheckCancellation()
                 phase = JobFailureCode.AUTHORIZATION
-                ValidateNativeConfigurationPairFresh(engine, prerequisite, claim, capture,
+                engine.ValidateNativeConfigurationPairFresh(prerequisite, claim, capture,
                     self.Context(), observer=observer, material_proof=proof, at=self.clock())
                 observer.Close()
                 phase = JobFailureCode.STORAGE
-                self.saved_model = LocalModelStore(self.workspace_root).Save(proposal,
+                acknowledged = LocalModelStore(self.workspace_root).Save(proposal,
                     expected_revision=original.revision)
+
+                if type(acknowledged) is not ModelState or acknowledged != proposal:
+                    raise WorkspaceConflictError("Native configuration model ACK differs")
+
+                self.saved_model = acknowledged
                 self.PersistReferences(context)
 
         except ArtifactDeniedError:

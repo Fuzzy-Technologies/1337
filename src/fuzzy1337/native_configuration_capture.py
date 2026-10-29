@@ -32,7 +32,6 @@ from fuzzy1337.native_configuration_material import (
     Settle,
 )
 from fuzzy1337.native_configuration_policy import (
-    BindNativeConfigurationRequest,
     BoundedControl,
     ConfigurationEnvironment,
     NativeConfigurationExecutionClaim,
@@ -40,7 +39,6 @@ from fuzzy1337.native_configuration_policy import (
     OriginalClaim,
     PreparedNativeConfigurationOperation,
     PrivateDirectory,
-    ValidateNativeConfigurationClaim,
     WriteControl,
 )
 from fuzzy1337.native_configuration_report import (
@@ -213,7 +211,7 @@ async def CaptureNativeConfigurationOperation(
                                   prepared.invocation.request.impact),
             grant.authorization, prepared.scratch.relative_to(prepared.workspace_root).as_posix(),
             ConfigurationEnvironment(prepared.scratch), prepared.resources)
-        BindNativeConfigurationRequest(engine, claim, request, context_provider(),
+        engine.BindNativeConfigurationRequest(claim, request, context_provider(),
             observer=observer, material_proof=material_proof, at=clock())
         directory = state.directories[-2][0]
 
@@ -221,14 +219,11 @@ async def CaptureNativeConfigurationOperation(
     sizes = {ExecutionEventKind.STDOUT: 0, ExecutionEventKind.STDERR: 0}
 
     def Validate(actual: LocalExecutionRequest) -> None:
-        """Consume actual launch once after exact request and fresh current authority checks."""
+        """Recheck the original request at both initial and owned READY-to-worker checkpoints."""
 
-        if state.launched:
-            raise ValueError("Native configuration execution claim was already launched")
-
-        ValidateNativeConfigurationClaim(engine, claim, actual, context_provider(),
-            observer=observer, material_proof=material_proof, at=clock())
-        state.launched = True
+        with Finalization(budget):
+            engine.ValidateNativeConfigurationClaim(claim, actual, context_provider(),
+                observer=observer, material_proof=material_proof, at=clock())
 
     def Observe(event: ExecutionEvent) -> None:
         """Durably retain each bounded original event before continuing process observation."""
@@ -254,6 +249,7 @@ async def CaptureNativeConfigurationOperation(
             events.append(event)
 
     started = datetime.now(UTC).isoformat()
+    state.launched = True
     task = asyncio.create_task(LocalExecutor(prepared.workspace_root).Execute(request,
         cancellation=cancellation, pre_launch=Validate, on_event=Observe, own_descendants=True))
 
@@ -312,8 +308,10 @@ async def CaptureNativeConfigurationOperation(
     try:
         proof = await observer.Verify(material_proof, budget,
             operation_reference=prepared.operation_reference, cancellation=cancellation)
-        ValidateNativeConfigurationClaim(engine, claim, request, context_provider(),
-            observer=observer, material_proof=proof, at=clock())
+
+        with Finalization(budget):
+            engine.ValidateNativeConfigurationClaim(claim, request, context_provider(),
+                observer=observer, material_proof=proof, at=clock())
 
     except (OSError, ValueError):
         refusal = "material-or-authority-unverified"

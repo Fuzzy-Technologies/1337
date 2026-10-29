@@ -31,6 +31,7 @@ CASE_IDS = (
     "kubernetes.non-privileged-container", "kubernetes.second-document",
     "approval-refused", "scope-refused", "invalid-utf8-refused", "oversized-source-refused",
     "unsupported-executable-refused",
+    "owned-executor-checkpoints",
 )
 
 
@@ -147,7 +148,7 @@ def Prepare(repository: Path, root: Path) -> None:
 
 
 def Run(root: Path) -> int:
-    """Run only the fixed ten ordinary pytest cases with isolated installed worker interpreters.
+    """Run ten product cases and one owned-executor case with isolated installed interpreters.
 
     Args:
         root: Prepared outside-checkout lane root.
@@ -193,7 +194,9 @@ def Verify(root: Path) -> None:
 
     document = ElementTree.parse(junit).getroot()
     cases = list(document.iter("testcase"))
-    wanted = {"test_InstalledNativeConfigurationProduct[" + identity + "]" for identity in CASE_IDS}
+    wanted = {"test_InstalledNativeConfigurationProduct[" + identity + "]"
+              for identity in CASE_IDS[:10]}
+    wanted.add("test_InstalledOwnedHarmlessExecutor")
 
     if len(cases) != len(wanted) or {item.attrib["name"] for item in cases} != wanted or any(
         child.tag in {"skipped", "failure", "error"} for item in document.iter() for child in item
@@ -213,8 +216,28 @@ def Verify(root: Path) -> None:
 
         if identity in CASE_IDS[:5] and (facts["original_operations"] != ["version", "scan"] or
             len(facts["sdk_evidence_ids"]) != 7 or len(facts["cli_evidence_ids"]) != 7
-            or facts["native_product_acceptance"] is not True):
+            or facts["native_product_acceptance"] is not True
+            or facts["observed_provider_operations"] != ["version", "scan"]
+            or facts["provider_authority_checkpoints"] != ["version", "version", "scan", "scan"]):
             raise ValueError("Genuine product case lacks its original SDK/CLI seven-role pairs")
+
+        if identity in CASE_IDS[5:] and (facts["observed_provider_operations"] or
+            facts["provider_authority_checkpoints"]):
+            raise ValueError("Refused native product case reached an actual provider launch")
+
+        if identity == CASE_IDS[-1]:
+            directory = root / "evidence" / identity
+
+            if len(facts["actual_checkpoints"]) != 2 or facts["actual_checkpoints"][0] != (
+                facts["actual_checkpoints"][1]
+            ) or facts["termination"] != "process_exit" or facts["execution"]["exit_code"] != 0:
+                raise ValueError("Installed owned producer lacks its original two launch checks")
+
+            for stream in ("stdout", "stderr"):
+                if shared.Digest(directory / ("original-" + stream + ".bin")) != (
+                    facts[stream + "_sha256"]
+                ):
+                    raise ValueError("Installed owned producer original stream identity differs")
 
 
 def Main() -> None:
