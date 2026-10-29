@@ -662,7 +662,8 @@ def ImageProjection(raw: dict) -> dict:
         raw: Original single-image inspect object retained by the command owner.
 
     Returns:
-        The fields required by the unchanged immutable-image admission predicate.
+        The unchanged admission fields; omitted optional ExposedPorts maps to None.
+        Explicit port values remain unchanged for the admission predicate.
 
     Raises:
         KeyError: A required original field is absent.
@@ -677,7 +678,7 @@ def ImageProjection(raw: dict) -> dict:
     return {"id": raw["Id"], "os": raw["Os"], "architecture": raw["Architecture"],
         "labels": config["Labels"], "layers": raw["RootFS"]["Layers"], "env": config["Env"],
         "user": config["User"], "entrypoint": config["Entrypoint"], "cmd": config["Cmd"],
-        "volumes": config["Volumes"], "ports": config["ExposedPorts"]}
+        "volumes": config["Volumes"], "ports": config.get("ExposedPorts")}
 
 
 def ContainerProjection(raw: dict) -> dict:

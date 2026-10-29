@@ -1429,3 +1429,68 @@ def test_HostLifecycleRepeatedCancellationShieldsOwnedCleanup(
         ), "The first failure must distinguish original attach refusal from caller cancellation."
 
     asyncio.run(Scenario())
+
+
+@pytest.mark.parametrize("representation", ["missing", "null", "empty"],
+                         ids=["omitted", "explicit-null", "explicit-empty"])
+def test_ImageOptionalPortsRepresentationPreservesEmptyAdmission(representation):
+    """Docker may omit an empty ExposedPorts field in either image's retained inspect object."""
+
+    base, image = Images()
+    originals = [RawImage(base), RawImage(image)]
+
+    for raw in originals:
+        if representation == "missing":
+            del raw["Config"]["ExposedPorts"]
+
+        else:
+            raw["Config"]["ExposedPorts"] = None if representation == "null" else {}
+
+    before = copy.deepcopy(originals)
+    projected = [host.ImageProjection(raw) for raw in originals]
+    expected = {} if representation == "empty" else None
+    assert all(host.Canonical(value["ports"]) == host.Canonical(expected) for value in projected), (
+        "Only omitted/explicit-null ports may map to None; explicit empty dictionaries stay intact."
+    )
+    host.AdmitImage(projected[0], projected[1], REVISION, BASE_ID, IMAGE_ID, RECIPE)
+    assert originals == before, "Projection and admission must not mutate original inspect objects."
+
+
+@pytest.mark.parametrize("ports", [{"80/tcp": {}}, [], "", 0, False, "80/tcp"],
+                         ids=["exposed", "list", "empty-string", "zero", "boolean", "string"])
+def test_ImageOptionalPortsExplicitInvalidValuesStillRefuse(ports):
+    """Explicit nonempty or malformed port declarations survive projection and fail admission."""
+
+    base, image = Images()
+    originals = [RawImage(base), RawImage(image)]
+
+    for raw in originals:
+        raw["Config"]["ExposedPorts"] = ports
+
+    projected = [host.ImageProjection(raw) for raw in originals]
+    assert all(value["ports"] is ports for value in projected), (
+        "Explicit port values must not be normalized into an accepted empty representation."
+    )
+
+    with pytest.raises(ValueError, match="immutable base/entrypoint boundary"):
+        host.AdmitImage(projected[0], projected[1], REVISION, BASE_ID, IMAGE_ID, RECIPE)
+
+
+@pytest.mark.parametrize("path", [("Config", "Volumes"), ("Config", "Env"), ("Config", "User"),
+    ("Config", "Entrypoint"), ("Config", "Cmd"), ("Config", "Labels"), ("RootFS", "Layers"),
+    ("Id",), ("Os",), ("Architecture",), ("Config",), ("RootFS",)],
+    ids=["volumes", "environment", "user", "entrypoint", "command", "labels", "layers",
+         "identity", "os", "architecture", "config", "rootfs"])
+def test_ImageOptionalPortsDoesNotRelaxRequiredInspectFields(path):
+    """Omitted-empty ExposedPorts compatibility leaves every other required inspect read strict."""
+
+    raw = RawImage(Images()[1])
+    value = raw
+
+    for field in path[:-1]:
+        value = value[field]
+
+    del value[path[-1]]
+
+    with pytest.raises(KeyError):
+        host.ImageProjection(raw)
