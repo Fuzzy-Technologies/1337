@@ -389,7 +389,7 @@ def test_RealGitLabJUnitRejectsUnexecutedOrFailedCases(tmp_path, fault):
 
 
 @pytest.mark.parametrize("fault", [None, "cleanup", "source", "resource", "duplicate-job",
-    "pipeline", "artifact", "skipped"])
+    "pipeline", "artifact", "skipped", "runner-size"])
 def test_FinalPlatformGateReopensActualShapedOriginals(tmp_path, monkeypatch, fault):
     """Synthetic causals prove the verifier refuses custody drift without launching a platform."""
 
@@ -402,7 +402,8 @@ def test_FinalPlatformGateReopensActualShapedOriginals(tmp_path, monkeypatch, fa
     result = {"schema_version": 1, "state": "verified-real-gitlab", "source_commit": COMMIT,
         "source_tree": "b" * 40, "server": platform.SERVER,
         "runner_version": platform.RUNNER_VERSION,
-        "runner_sha256": platform.RUNNER_SHA256, "executor": "shell", "job_ids": [101, 102],
+        "runner_sha256": platform.RUNNER_SHA256, "runner_size_bytes": platform.RUNNER_SIZE_BYTES,
+        "executor": "shell", "job_ids": [101, 102],
         "owned_resources_removed": True, "template_sha256": hashlib.sha256(
             template.read_bytes()).hexdigest()}
     cleanup = {"owned_resources_removed": True, "private_controls_removed": True,
@@ -420,6 +421,9 @@ def test_FinalPlatformGateReopensActualShapedOriginals(tmp_path, monkeypatch, fa
 
     elif fault == "resource":
         resources["docker_free_bytes"] = 20 * 1024**3
+
+    elif fault == "runner-size":
+        result["runner_size_bytes"] -= 1
 
     for name, value in (("result", result), ("cleanup", cleanup), ("resources", resources)):
         (output / (name + ".json")).write_text(json.dumps(value))
@@ -503,3 +507,78 @@ def test_PlatformWorkflowUsesSameOrdinaryCohortAndStrictGate():
                if "uses" in step), "Every external action requires an immutable reviewed commit pin"
     assert steps["Preserve original GitLab jobs and cleanup evidence"]["if"] == "always()", (
         "Available partial original diagnostics must survive an actual platform failure")
+
+
+
+@pytest.mark.parametrize("fault", [None, "missing-length", "wrong-length", "truncated",
+    "overrun", "checksum"])
+def test_OfficialRunnerRequiresExactOriginalLengthAndUnchangedChecksum(monkeypatch, fault):
+    """An inert transport proves admission before any runner bytes can be written or executed."""
+
+    payload = b"inert-provider-binary"
+    expected_size = len(payload)
+    observed = []
+
+    class Response(io.BytesIO):
+        """Expose explicitly synthetic original response metadata and bounded stream reads."""
+
+        def __init__(self, raw, headers):
+            """Bind an inert body and the original-shaped response length header."""
+
+            super().__init__(raw)
+            self.headers = headers
+
+        def ReadOne(self, amount):
+            """Read only requested inert fixture bytes without network or filesystem access."""
+
+            observed.append(amount)
+
+            return self.read(amount)
+
+        read1 = ReadOne
+
+    class Opener:
+        """Return one explicitly inert provider response with one selected admission fault."""
+
+        def Open(self, request, timeout):
+            """Expose the literal selected URL without making an actual request."""
+
+            assert request == platform.RUNNER_URL, (
+                "Acquisition cannot change the pinned provider URL")
+            header = {} if fault == "missing-length" else {"Content-Length": str(
+                expected_size + (1 if fault == "wrong-length" else 0))}
+            body = payload[:-1] if fault == "truncated" else payload + (
+                b"X" if fault == "overrun" else b"")
+
+            return Response(body, header)
+
+        open = Open
+
+    monkeypatch.setattr(platform, "RUNNER_SIZE_BYTES", expected_size)
+    monkeypatch.setattr(platform, "RUNNER_SHA256", "0" * 64 if fault == "checksum" else
+        hashlib.sha256(payload).hexdigest())
+    monkeypatch.setattr(platform.urllib.request, "build_opener", lambda *handlers: Opener())
+
+    if fault is None:
+        assert platform.RunnerBytes(platform.time.monotonic() + 1) == payload, (
+            "Only exact original-sized and checksum-bound bytes may reach private installation")
+
+    else:
+        with pytest.raises(ValueError):
+            platform.RunnerBytes(platform.time.monotonic() + 1)
+
+        if fault in {"missing-length", "wrong-length"}:
+            assert not observed, (
+                "Header mismatch must refuse before reading any provider body bytes")
+
+
+def test_RunnerSpecificSizeDoesNotRelaxOtherAcquisitionOrArtifactBudgets():
+    """The vendor's original byte length is a fixed provider contract, never a generic cap bump."""
+
+    assert platform.RUNNER_VERSION == "19.5.1" and platform.RUNNER_SIZE_BYTES == 141918698, (
+        "The exact runner artifact must remain tied to its observed official version and length")
+    assert platform.RUNNER_SHA256 == (
+        "0e11e71404352e67d286269aee397ec8e2825e0fc91a12f60c04cef0b85edb85"
+    ), "The original vendor checksum must remain unchanged when binding its correct byte length"
+    assert platform.MAX_RESPONSE == 32 * 1024 * 1024, (
+        "Runner-specific admission cannot enlarge API, trace or uploaded artifact budgets")

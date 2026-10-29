@@ -45,6 +45,7 @@ from fuzzy1337.executors import (
 SERVER = ("gitlab/gitlab-ce:19.5.1-ce.0@sha256:"
           "939572df24c6517d0408d7355cafef3f7c6defa9d248201151a88361fc411242")
 RUNNER_VERSION = "19.5.1"
+RUNNER_SIZE_BYTES = 141918698
 RUNNER_SHA256 = "0e11e71404352e67d286269aee397ec8e2825e0fc91a12f60c04cef0b85edb85"
 RUNNER_URL = ("https://gitlab-runner-downloads.s3.amazonaws.com/v" + RUNNER_VERSION
               + "/binaries/gitlab-runner-linux-amd64")
@@ -232,7 +233,8 @@ def NoRedirect():
     return handler
 
 
-def ReadBounded(request, limit: int, deadline: float) -> bytes:
+def ReadBounded(request, limit: int, deadline: float, *,
+                expected_size: int | None = None) -> bytes:
     """Read original response bytes within one allowance without ambient proxies or redirects."""
 
     remaining = deadline - time.monotonic()
@@ -245,6 +247,11 @@ def ReadBounded(request, limit: int, deadline: float) -> bytes:
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
 
     with opener.open(request, timeout=min(30, remaining)) as response:
+        if expected_size is not None and (
+            expected_size != limit or response.headers.get("Content-Length") != str(expected_size)
+        ):
+            raise ValueError("Official runner response length differs from its pinned byte count")
+
         while True:
             if time.monotonic() >= deadline:
                 raise ValueError("Owned HTTP acquisition deadline expired")
@@ -261,7 +268,22 @@ def ReadBounded(request, limit: int, deadline: float) -> bytes:
 
             chunks.append(chunk)
 
+    if expected_size is not None and count != expected_size:
+        raise ValueError("Official runner response is truncated before its pinned byte count")
+
     return b"".join(chunks)
+
+
+def RunnerBytes(deadline: float) -> bytes:
+    """Admit only the exact original provider length and unchanged vendor checksum before writes."""
+
+    binary = ReadBounded(RUNNER_URL, RUNNER_SIZE_BYTES, deadline,
+        expected_size=RUNNER_SIZE_BYTES)
+
+    if len(binary) != RUNNER_SIZE_BYTES or hashlib.sha256(binary).hexdigest() != RUNNER_SHA256:
+        raise ValueError("Official real GitLab runner binary failed its fixed size and checksum")
+
+    return binary
 
 
 class Api:
@@ -625,11 +647,7 @@ def Run(source: Path, output: Path, image: str) -> dict:
         output.mkdir(parents=True)
         Publish(output / "resources.json", json.dumps(resources, sort_keys=True).encode(), ())
 
-        binary = ReadBounded(RUNNER_URL, 128 * 1024 * 1024,
-            min(deadline, time.monotonic() + 60))
-
-        if len(binary) > 128 * 1024 * 1024 or hashlib.sha256(binary).hexdigest() != RUNNER_SHA256:
-            raise ValueError("Official real GitLab runner binary failed its fixed checksum")
+        binary = RunnerBytes(min(deadline, time.monotonic() + 60))
 
         runner = private / "gitlab-runner"
         runner.write_bytes(binary)
@@ -723,6 +741,7 @@ def Run(source: Path, output: Path, image: str) -> dict:
         "source_tree": tree, "template_sha256": hashlib.sha256(template).hexdigest(),
         "server": SERVER,
         "runner_version": RUNNER_VERSION, "runner_sha256": RUNNER_SHA256,
+        "runner_size_bytes": len(binary),
         "executor": "shell", "job_ids": owned_jobs, "owned_resources_removed": True}
     Publish(output / "result.json", json.dumps(result, sort_keys=True).encode(), forbidden)
 
@@ -743,7 +762,8 @@ def Verify(output: Path, source: Path) -> dict:
     if (result.get("state") != "verified-real-gitlab" or result.get("schema_version") != 1
         or result.get("source_commit") != commit or result.get("source_tree") != tree
         or result.get("server") != SERVER or result.get("runner_version") != RUNNER_VERSION
-        or result.get("runner_sha256") != RUNNER_SHA256 or result.get("executor") != "shell"
+        or result.get("runner_sha256") != RUNNER_SHA256
+        or result.get("runner_size_bytes") != RUNNER_SIZE_BYTES or result.get("executor") != "shell"
         or result.get("template_sha256") != template_sha256
         or result.get("owned_resources_removed") is not True
         or cleanup.get("owned_resources_removed") is not True
