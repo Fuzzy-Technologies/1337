@@ -5,26 +5,44 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
 import signal
 import subprocess
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
-from fuzzy1337.adapters import AdapterRequest, ImpactLevel, SerializeContract
+from fuzzy1337.adapters import (
+    AdapterExecution,
+    AdapterHealth,
+    AdapterHealthState,
+    AdapterRequest,
+    ExecutionState,
+    ImpactLevel,
+    SerializeContract,
+)
 from fuzzy1337.adapters import nuclei as nuclei_adapter
 from fuzzy1337.adapters.nuclei import NucleiAdapter
+from fuzzy1337.executors import (
+    ExecutionEvent,
+    ExecutionEventKind,
+    ExecutionTermination,
+    LocalExecutionResult,
+    LocalExecutor,
+)
 from fuzzy1337.nucleiscan import NucleiScanLimits, ReadNucleiProfile
 from tests.contract.test_external_benchmark import (
     ContractNucleiObservation,
     WriteNucleiContractEvidence,
 )
 from tests.functional import external_nuclei_runner as runner
+from tests.functional import external_nuclei_runtime as whole_runtime
 from tests.functional.external_benchmark import BuildComparison, LoadPack, ProjectNucleiMatches
 from tests.functional.external_native_runner import ExportBundle, ImportBundle
 from tests.functional.external_nuclei_runner import (
@@ -845,3 +863,282 @@ def test_StandaloneRuntimeContainerPathSpellingStaysInsideInertMock(tmp_path, mo
     assert copied.read_bytes() == arguments[3].read_bytes(), (
         "The host workspace must still retain the exact independently verified template copy."
     )
+
+
+def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match"):
+    """Prepare inert source contracts while replacing every provider/process entry point."""
+
+    arguments = StandaloneMaterial(tmp_path, path)
+    wheel = tmp_path / "inert-not-installed.whl"
+    wheel.write_bytes(b"inert wheel identity fixture, never installed")
+    probe = {"calls": [], "health": [], "before_launch": 0}
+
+    def Inventory(revision, selected_wheel):
+        """Label the replaced installed-wheel check explicitly as inert contract data."""
+
+        return {"source_revision": revision, "contract_only": True,
+                "wheel": RegularIdentity(selected_wheel, maximum=MAX_FILE_BYTES)}
+
+    def Health(self):
+        """Replace the local version process with a clearly inert observed-version fixture."""
+
+        probe["health"].append(self)
+
+        return AdapterHealth(self.Descriptor.adapter_id, AdapterHealthState.AVAILABLE,
+                             "3.4.11" if mode == "version" else VERSION)
+
+    async def Execute(self, request, *, on_event, cancellation, pre_launch):
+        """Call the real governed launch check and return no-process deterministic streams."""
+
+        from fuzzy1337.scope import AuthorizationState, LocalScopeStore
+
+        probe["calls"].append(request)
+
+        if mode == "revoked":
+            scope_store = LocalScopeStore(arguments[0] / "workspace")
+            scope = scope_store.Open("local")
+            scope_store.Save(replace(scope, authorization=replace(
+                scope.authorization, state=AuthorizationState.REVOKED)))
+
+        pre_launch(request)
+        probe["before_launch"] += 1
+        state, code, termination = (ExecutionState.SUCCEEDED, 0,
+                                   ExecutionTermination.PROCESS_EXIT)
+
+        if mode == "timeout":
+            state, code, termination = (ExecutionState.TIMED_OUT, None,
+                                       ExecutionTermination.TIMEOUT)
+
+        elif mode == "limit":
+            state, code, termination = (ExecutionState.FAILED, 7,
+                                       ExecutionTermination.OUTPUT_LIMIT)
+
+        elif mode == "exit":
+            state, code = ExecutionState.FAILED, 7
+
+        raw = Match(**{"matched-at": ExactUrl(path),
+                       "info": {"name": "Inert contract marker", "severity": "info"}})
+
+        if mode == "empty":
+            raw = b""
+
+        elif mode == "invalid":
+            raw += b"invalid-source-contract-json\n"
+
+        elif mode == "offcase":
+            raw = Match(**{"matched-at": "http://127.0.0.1:3000/other",
+                           "info": {"name": "Off-case contract marker", "severity": "info"}})
+
+        return LocalExecutionResult(AdapterExecution(state, code, 0.01), termination,
+            raw, b"inert transport; no process or target contact\n",
+            (ExecutionEvent(0, ExecutionEventKind.STARTED),
+             ExecutionEvent(1, ExecutionEventKind.COMPLETED, termination=termination)))
+
+    forbidden = MagicMock(side_effect=AssertionError("Inert whole contracts must not launch tools"))
+    monkeypatch.setattr(whole_runtime, "InstalledInventory", Inventory)
+    monkeypatch.setattr(NucleiAdapter, "CheckHealth", Health)
+    monkeypatch.setattr(LocalExecutor, "Execute", Execute)
+    monkeypatch.setattr(subprocess, "Popen", forbidden)
+    monkeypatch.setattr(subprocess, "run", forbidden)
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", forbidden)
+
+    return (*arguments, "a" * 40, wheel), probe, forbidden
+
+
+@pytest.mark.parametrize("path", PATHS, ids=["metrics", "json", "html"])
+def test_WholeRuntimeSavedFindingsKeepOriginalPairAndVerifiedReopen(tmp_path, monkeypatch, path):
+    """Real product policy/model/evidence code uses only an explicitly inert execution result."""
+
+    from fuzzy1337.evidence import LocalEvidenceStore
+    from fuzzy1337.findings import Findings
+    from fuzzy1337.model import LocalModelStore
+    from fuzzy1337.scope import LocalScopeStore, TargetKind
+
+    arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch, path=path)
+    outcome = whole_runtime.RunWhole1337(*arguments)
+    root = arguments[0]
+    assert outcome["status"] == "completed", (
+        "An inert matching result must exercise the actual saved-Finding source projection."
+    )
+    assert outcome["findings"] == [{"rule_id": "nuclei." + TEMPLATE_ID,
+                                    "path": path, "target_url": ExactUrl(path)}], (
+        "Whole-product rule prefix and exact input must come from persisted Findings and subjects."
+    )
+    scope = LocalScopeStore(root / "workspace").Open("local")
+    assert {(item.kind, item.value) for item in scope.allow} == {
+        (TargetKind.URL, ExactUrl(path)), (TargetKind.IP, "127.0.0.1")}, (
+        "Only the exact URL and its explicit loopback address may enter current scope."
+    )
+    assert scope.authorization.authority_reference == arguments[7]["owner"], (
+        "Product consent must retain the explicitly declared fixture owner."
+    )
+    assert (root / "installed.whl").read_bytes() == arguments[9].read_bytes(), (
+        "The retained wheel must preserve exactly the source bytes of the preflight inventory."
+    )
+    policy = json.loads((root / "policy.json").read_text())
+    assert policy["maximum_impact"] == "STANDARD" and policy["permissions"] == [{
+        "capability_id": "web.http-template-check", "adapter_id": "native.nuclei",
+        "maximum_impact": "STANDARD", "granted_privileges": []}], (
+        "The compared property must never substitute for explicit STANDARD Nuclei permission."
+    )
+    plan = json.loads((root / "plan.json").read_text())
+    confirmation = json.loads((root / "confirmation.json").read_text())
+    assert confirmation["intent_sha256"] == plan["intent_sha256"], (
+        "The actual product run must receive confirmation for the exact saved plan."
+    )
+    assert probe["before_launch"] == 1 and len(probe["health"]) == 2, (
+        "Both real plans must use inert health data and the governed final launch check runs once."
+    )
+    request = probe["calls"][0]
+    assert request.invocation.timeout_seconds == 3 and request.resources.max_stdout_bytes == (
+        STDOUT_BYTES), "The source must preserve the real provider deadline and stdout ceiling."
+    assert json.loads((root / "summary.json").read_text())["job"]["spec"][
+        "timeout_seconds"] == 8, "The wrapper deadline must remain separately visible."
+    state = LocalModelStore(root / "workspace").Open()
+    saved = Findings(state)
+    evidence = LocalEvidenceStore(root / "workspace/evidence")
+    references = json.loads((root / "saved-finding-references.json").read_text())
+    assert references[0]["finding_reference"] == saved[0].ToObject(
+        state.workspace_id).Reference(), (
+        "Projection must retain the actual persisted Finding reference, not a fabricated wrapper."
+    )
+
+    for acquisition_id in references[0]["acquisition_ids"]:
+        record = evidence.Get(acquisition_id)
+        assert evidence.Read(record.reference) == (root / (
+            record.reference.role + ".raw")).read_bytes(), (
+            "Exported raw streams must be exact unchanged bytes of the enclosing acquisitions."
+        )
+        assert record.reference in saved[0].provenance[0].evidence_references, (
+            "Saved Finding provenance must preserve both original acquisition references."
+        )
+
+    reopen = json.loads((root / "reopen.json").read_text())
+    assert reopen["verified_evidence_records"] == 2 and (
+        reopen["model_revision"] == state.revision), (
+        "Verified workspace reopen must agree with the actual saved model and original pair."
+    )
+    assert json.loads((root / "attempt-provenance.json").read_text())[
+        "independent_server_contact_count"] is None, (
+        "Inert execution establishes no server contacts."
+    )
+    forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("path", PATHS, ids=["metrics", "json", "html"])
+def test_WholeRuntimeEmptyOutputRemainsUnproven(tmp_path, monkeypatch, path):
+    """A completed real product job with inert empty streams cannot gain TN/FN credit."""
+
+    arguments, _, forbidden = WholeMaterial(tmp_path, monkeypatch, path=path, mode="empty")
+    outcome = whole_runtime.RunWhole1337(*arguments)
+    assert outcome["status"] == "unproven" and outcome["exit_code"] == 0, (
+        "Exit-zero empty output remains executed unproven for positive and negative controls."
+    )
+    assert outcome["findings"] == [] and (arguments[0] / "stdout.raw").read_bytes() == b"", (
+        "Empty original bytes must survive without an invented saved Finding or absence score."
+    )
+    assert "contacts unproven" in outcome["reason"], (
+        "The outcome must preserve the unknown response/contact boundary explicitly."
+    )
+    forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("mode", ["invalid", "offcase", "timeout", "limit", "exit", "revoked",
+                                 "version"], ids=["badjson", "offcase", "time", "limit", "exit",
+                                                 "revoke", "version"])
+def test_WholeRuntimeFailureStatesStayUnscored(tmp_path, monkeypatch, mode):
+    """Malformed/denied/nonzero/timeout/pin failures never become completed-case evidence."""
+
+    arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch, mode=mode)
+    outcome = whole_runtime.RunWhole1337(*arguments)
+    assert outcome["status"] == "failed" and outcome["findings"] == [], (
+        "Every terminal failure must stay unscored without fabricating a canonical saved match."
+    )
+
+    if mode in {"invalid", "offcase", "timeout", "limit", "exit"}:
+        assert (arguments[0] / "stdout.raw").read_bytes(), (
+            "Failed product jobs must retain available exact original raw output."
+        )
+
+    if mode == "offcase":
+        assert outcome["raw_matches"][0]["target_url"] == "http://127.0.0.1:3000/other", (
+            "Off-case identities remain visible diagnostically after product normalization refuses."
+        )
+
+    if mode == "version":
+        assert not probe["calls"], "A changed observed version must refuse before execution."
+
+    forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("boundary", ["reopen", "export"], ids=["reopen", "export"])
+def test_WholeRuntimeCustodyFailurePreservesOriginalFiles(tmp_path, monkeypatch, boundary):
+    """A failed verified reopen or bounded bundle must invalidate otherwise matching source data."""
+
+    from fuzzy1337 import scan_commands
+
+    arguments, _, forbidden = WholeMaterial(tmp_path, monkeypatch)
+    refusal = MagicMock(side_effect=ValueError("inert custody refusal"))
+
+    if boundary == "reopen":
+        monkeypatch.setattr(scan_commands, "OpenWorkspace", refusal)
+
+    else:
+        monkeypatch.setattr(whole_runtime, "ExportBundle", refusal)
+
+    outcome = whole_runtime.RunWhole1337(*arguments)
+    assert outcome["status"] == "failed", (
+        "Matching output cannot establish completion after verified custody or export fails."
+    )
+    assert (arguments[0] / "stdout.raw").read_bytes() and (
+        arguments[0] / "workspace/state/model/model.json").exists(), (
+        "Unscored custody failures must preserve original output and the actual saved workspace."
+    )
+    refusal.assert_called_once()
+    forbidden.assert_not_called()
+
+
+def test_WholeRuntimeMissingInstalledWheelRefusesBeforeWorkspace(tmp_path, monkeypatch):
+    """The real installed-wheel preflight cannot be replaced by source-checkout importability."""
+
+    arguments = StandaloneMaterial(tmp_path)
+    forbidden = MagicMock(side_effect=AssertionError("Preflight cannot execute a provider"))
+    monkeypatch.setattr(NucleiAdapter, "CheckHealth", forbidden)
+
+    with pytest.raises(ValueError, match="isolated current-wheel"):
+        whole_runtime.RunWhole1337(*arguments, "a" * 40, tmp_path / "missing.whl")
+
+    assert not arguments[0].exists(), (
+        "Missing genuine installation must refuse before writing runtime state."
+    )
+    forbidden.assert_not_called()
+
+
+def test_WholeRuntimeCopiedWheelMismatchRefusesBeforeProductWorkspace(tmp_path, monkeypatch):
+    """A changed retained wheel copy cannot inherit the original installed inventory identity."""
+
+    arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch)
+    original_copy = whole_runtime.shutil.copyfile
+
+    def Copy(source, destination):
+        """Change only the inert copied wheel after an otherwise ordinary local copy."""
+
+        copied = original_copy(source, destination)
+
+        if destination.name == "installed.whl":
+            destination.write_bytes(b"changed inert wheel copy")
+
+        return copied
+
+    monkeypatch.setattr(whole_runtime.shutil, "copyfile", Copy)
+
+    with pytest.raises(ValueError, match="copied wheel differs"):
+        whole_runtime.RunWhole1337(*arguments)
+
+    assert not (arguments[0] / "workspace").exists() and not probe["health"], (
+        "Copy mismatch must refuse before product workspace creation, planning, or provider health."
+    )
+    assert (arguments[0] / "installed.whl").read_bytes() == b"changed inert wheel copy", (
+        "The refused original local copy must remain available without an invented matching digest."
+    )
+    forbidden.assert_not_called()
