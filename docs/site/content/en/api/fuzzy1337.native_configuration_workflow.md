@@ -5,6 +5,9 @@ manifest target or describes current VERSION authority without executing Trivy.
 `ScanNativeConfiguration` requires separate explicit SAFE approval and current
 operator policy, then owns original VERSION/SCAN execution, seven-role evidence,
 fresh native Finding proposals and one-attempt durable persistence.
+These functions and `NativeConfigurationScanPlan`/`NativeConfigurationScanSummary`
+are the Experimental SDK interfaces exported by this module. Provider, evidence
+bridge and authority-context helpers remain Internal.
 
 Exact model and workspace save acknowledgements precede successful model-delta
 events. JSON/SARIF export uses the acknowledged saved snapshot and exposes a

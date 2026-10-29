@@ -1,7 +1,8 @@
 # fuzzy1337.sbom_commands
 
 The installed CLI and interactive shell expose Experimental contract-version-one
-`sbom import spdx-graph`. This module is its Internal implementation. All classes,
+`sbom import spdx-graph` and the verified read-only `sbom image` view. This module
+is their Internal implementation. All classes,
 functions, methods and helpers, including `SbomParser`, `RunSbomCommands`,
 `SbomFailure`, `SbomArgumentParser`, `SbomEvidenceStore`, `SbomPath`,
 `ReadOwnedSbom`, `CheckBases`, `CheckKnownSbomSources`, `SourceFact`,
@@ -34,14 +35,17 @@ same-byte different acquisitions and changed context cannot borrow original
 custody. File-mode overrides and unknown SDK raw-only acquisitions fail before
 selected raw reads. A different image kind needs its own original file acquisition.
 
-Before generic owning evidence reads in either mode, `CheckKnownSbomSources`
+Before generic owning evidence reads in either import mode or the saved image
+view, `CheckKnownSbomSources`
 preflights every known original SBOM blob's four-MiB ceiling and physical size.
 All same-SHA or same-locator aliases in workspace/model references and original
 manifests retain the original role, media type and size. Known custody originals
 present only in the model remain independently verified after a prior workspace
 save failed. Older originals retain their own source/provider/scope context and
 their scopes validate through the existing owner. Unrelated larger non-SBOM
-evidence keeps its own existing generic owner budgets.
+evidence keeps its own existing generic owner budgets. Its optional incoming
+reference is absent only for a saved-state view; all known original custody is
+still checked before the unchanged report owner verifies the saved snapshot.
 
 The unchanged graph transition and original custody observation compose one
 in-memory model revision, followed by the existing model CAS and independent

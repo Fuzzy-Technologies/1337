@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Internal bounded offline SPDX graph import with original custody and independent CAS outcomes."""
+"""Internal original SPDX graph import and read-only verified image inventory commands."""
 
 from __future__ import annotations
 
@@ -255,10 +255,10 @@ def ReadOwnedSbom(path: Path, consent: ArtifactReadConsent,
 
 
 def SbomParser() -> argparse.ArgumentParser:
-    """Declare explicit first acquisition or known original product-custody replay.
+    """Declare explicit original acquisition, known custody replay and saved image viewing.
 
     Returns:
-        Internal parser requiring explicit image semantics, offline scope and both revision bases.
+        Internal parser requiring explicit image semantics and action-specific owner selections.
     """
 
     parser = SbomArgumentParser(prog="1337 sbom", add_help=False,
@@ -270,6 +270,7 @@ def SbomParser() -> argparse.ArgumentParser:
      | --evidence sha256:ORIGINAL_MANIFEST)
     --image-digest sha256:DIGEST --image-digest-kind {config,manifest}
     --scope SCOPE --run RUN --expected-revision MODEL --expected-workspace-revision WORKSPACE
+  image WORKSPACE --image-digest sha256:DIGEST --image-digest-kind {config,manifest}
 Retained replay requires known original product custody.
 It accepts no context or read overrides.""")
     actions = parser.add_subparsers(dest="action", required=True, parser_class=SbomArgumentParser)
@@ -291,6 +292,11 @@ It accepts no context or read overrides.""")
     for name in ("owner", "read-consent-reference", "source-id", "source-version",
                  "provider-version"):
         importer.add_argument("--" + name)
+
+    viewer = actions.add_parser("image", add_help=False)
+    viewer.add_argument("workspace", type=Path)
+    viewer.add_argument("--image-digest", required=True)
+    viewer.add_argument("--image-digest-kind", choices=("config", "manifest"), required=True)
 
     return parser
 
@@ -316,13 +322,13 @@ def CheckBases(root: Path, workspace: WorkspaceState, model: ModelState,
         raise SbomFailure("scope-conflict")
 
 
-def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference,
+def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference | None,
                          workspace: WorkspaceState, model: ModelState) -> None:
     """Guard every known original SBOM blob and all aliases before generic raw verification.
 
     Args:
         store: Existing owning evidence metadata reader, not a retrieval mechanism.
-        reference: Exact selected original SBOM role/media/size/content reference.
+        reference: Exact incoming original SBOM reference, or None for a saved-state view.
         workspace: Current selected workspace metadata before any generic owning raw read.
         model: Complete current model including old originals in their own attribution contexts.
 
@@ -331,7 +337,9 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
         EvidenceError: Original manifest metadata or physical owning paths cannot verify.
     """
 
-    store.CheckReference(reference)
+    if reference is not None:
+        store.CheckReference(reference)
+
     record_ids = set(workspace.evidence_record_references)
     custody = [item for item in model.observations if item.kind == "sbom-import-source"]
 
@@ -394,7 +402,7 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
 
         LocalScopeStore(store.root.parent).Open(scope[6:])
 
-    protected = {reference.sha256: reference}
+    protected = {} if reference is None else {reference.sha256: reference}
     known = set()
 
     for original_reference in references:
@@ -559,7 +567,7 @@ def ReferenceProposal(workspace: WorkspaceState, model: ModelState, record: Evid
 
 def RunSbomCommands(arguments: Sequence[str], output: TextIO, *, json_output: bool = False,
                     clock: Callable[[], datetime] = UtcNow) -> int:
-    """Compose bounded original acquisition, unchanged SPDX graph interpretation and CAS saves.
+    """Dispatch saved image viewing or bounded original graph acquisition and independent CAS saves.
 
     Args:
         arguments: Explicit source, image semantics, offline scope/run and both revision bases.
@@ -579,6 +587,11 @@ def RunSbomCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
         parser.print_help(file=output)
 
         return 0
+
+    if arguments and arguments[0] == "image":
+        from fuzzy1337.image_sbom_view import RunImageSbomView
+
+        return RunImageSbomView(arguments, output, json_output=json_output)
 
     outcome: dict[str, object] = {"schema_version": 1, "command": "sbom.import.spdx-graph",
         "status": "failed", "source_selection": None, "evidence_id": None,

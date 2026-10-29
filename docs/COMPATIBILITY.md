@@ -585,6 +585,17 @@ verification, triage preservation and honest save uncertainty. The command
 implementation remains Internal; no remote scheduling or automatic refresh is
 introduced.
 
+### Read-only saved image inventory
+
+The Experimental `sbom image` console and shell command selects an exact saved
+config or manifest image identity. It verifies original custody and the pinned
+saved report before projecting nested packages and explicit configured Docker
+uses. Equal digest bytes do not merge digest kinds. Missing inventory and
+runtime reachability remain unknown; source corruption, changed bases and
+exhausted bounds refuse. No scan, acquisition or Save is performed. The
+`fuzzy1337.image_sbom_view` module and its helpers remain Internal; the command
+adds no supported Python extension interface or persisted-model schema.
+
 ### Repository releases
 
 Before `1.0.0`:
@@ -671,7 +682,9 @@ Compatibility is never a reason to weaken security.
 
 `fuzzy1337.artifact_inputs` and `fuzzy1337.artifact_policy` are Experimental
 contract-version-1 selected-byte staging and same-store artifact authorization
-surfaces. Native profile IDs are metadata-only and cannot obtain execution grants.
+surfaces. Their original generic preparation/authorization path keeps native
+profile IDs metadata-only; separate original native-domain facades own any
+explicit native execution grants.
 Synthetic execution is limited to the trusted running CPython runtime and a closed
 reviewed producer SHA allowlist. `fuzzy1337.artifact_fixture_worker` remains
 Internal fixture code, not a scanner API. Role-separated manifest identities and
@@ -680,7 +693,8 @@ Selected-byte manifests remain schema 1; new execution metadata uses schema 2
 with explicit operation/family and original VERSION prerequisite bindings.
 Strict read-only schema-1 replay retains its original field shapes and digests.
 Only the reviewed richer synthetic image family admits VERSION and proof-bound
-SCAN; lifecycle SCAN remains compatible and native profiles remain unavailable.
+SCAN; lifecycle SCAN remains compatible. Native profiles cannot use this
+synthetic family.
 The reviewed configuration family admits only SCAN for synthetic Dockerfile and
 Kubernetes profiles, with exact selected-source/material bindings and 16 KiB
 stream ceilings. Its VERSION prerequisite fields are null; configuration cannot
@@ -705,9 +719,41 @@ namespace, and typed source-position Finding re-detection preserves operator tri
 The job uses the existing evidence, model, scope and workspace stores and revision
 checks; model/workspace saves are distinct, with honest storage-failure outcomes
 rather than a claimed transaction spanning both stores. JSON/SARIF export projects
-the exact saved snapshot. Native configuration and arbitrary-source detection remain
-unavailable; scan completeness is unassessed. See [the workflow](CONFIGURATION_WORKFLOW.md)
+the exact saved snapshot. This synthetic family does not admit arbitrary sources
+or native execution; scan completeness is unassessed. See [the workflow](CONFIGURATION_WORKFLOW.md)
 and [ADR 0068](adr/0068-configuration-evidence-workflow.md).
+
+The Experimental `scan config --profile native` console and foreground-shell
+command under ADR 0110 adds selected Dockerfile and already-rendered Kubernetes
+scanning without changing that synthetic family. `--type` remains compatible;
+`--kind` is an alias. `NativeConfigurationSelection` in
+`fuzzy1337.native_configuration` is its Experimental syntax-only input type.
+The four exported interfaces in `fuzzy1337.native_configuration_workflow` are
+Experimental SDK planning, scanning and terminal plan/summary interfaces.
+Explicit selected-read consent, current registered target/scope, independent
+operator policy and separate SAFE workflow approval remain required.
+
+`NativeConfigurationReplay` and `VerifyNativeConfigurationReplay` in
+`fuzzy1337.native_configuration_evidence` are Experimental read-only historical
+interfaces for the native schema-one seven-role capture: original VERSION and
+SCAN stdout/stderr/receipt, plus exact source. They verify original provenance,
+source bytes and VERSION association after relocation without reviving launch
+or model-write authority. Other evidence/model-proposal helpers remain Internal.
+`fuzzy1337.native_configuration_policy`, `fuzzy1337.native_configuration_capture`
+and `fuzzy1337.native_configuration_report`, including their typed grants,
+claims, factories, collectors and parsers, are Internal implementations rather
+than Python extension contracts. Original configuration-domain authority cannot
+be reconstructed from receipts or borrowed from image/synthetic grants.
+
+The native profile consumes one explicit UTF-8 source of at most 4096 bytes and
+the pinned Linux x86_64 Trivy 0.75.0 provider with embedded checks. It supplies no
+Helm/Kustomize/YAML renderer, custom checks or source discovery. Native failed
+checks map to existing canonical Finding types and preserve exact original IDs
+and supplied source coordinates in evidence/location metadata. Existing model,
+evidence-store, scope and synthetic capture schemas remain unchanged. Exact
+typed model/workspace acknowledgements precede successful model events; report
+publication remains separate. Scan completeness remains unassessed. See
+[native configuration scans](NATIVE_CONFIGURATION.md).
 
 `fuzzy1337.synthetic_images` is a separate Experimental version-1 consumer of the
 closed schema-2 synthetic image operations. Its live import requires actual
