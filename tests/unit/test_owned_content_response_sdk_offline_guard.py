@@ -19,6 +19,60 @@ from tests.contract import owned_content_response_sdk_offline_guard as guard
 from tests.contract.owned_content_response_sdk_offline_guard import DetachedGuard, OfflineGuard
 
 
+@pytest.fixture(autouse=True)
+def isolated_socket_inventory(monkeypatch):
+    """Select a private GC double so unrelated test-runner sockets cannot enter unit scenarios."""
+
+    def InstallInventory():
+        """Reapply this unit boundary without replacing or mutating the actual gc module."""
+
+        monkeypatch.setattr(guard, "gc", SimpleNamespace(get_objects=lambda: ()))
+
+    InstallInventory()
+
+    return InstallInventory
+
+
+def test_UnitSocketInventoryIsolatesPriorProcessSocketsWithoutWeakeningRefusal(
+    monkeypatch, isolated_socket_inventory,
+):
+    """An injected prior socket refuses before isolation and cannot leak into the unit fixture."""
+
+    class ExistingSocket:
+        """Represent an unrelated prior socket without creating a file descriptor or listener."""
+
+    prior_socket = ExistingSocket()
+    observed = []
+
+    def ProcessInventory():
+        """Expose the injected unrelated socket and record any inspection of that inventory."""
+
+        observed.append(True)
+
+        return (prior_socket,)
+
+    monkeypatch.setattr(guard, "_SOCKET_TYPE", ExistingSocket)
+    monkeypatch.setattr(guard, "gc", SimpleNamespace(get_objects=ProcessInventory))
+    original = socket.socket
+
+    with pytest.raises(PermissionError, match="existing sockets"):
+        with OfflineGuard(enabled=True):
+            raise AssertionError("The injected prior socket must refuse before unit isolation")
+
+    assert observed == [True] and socket.socket is original and guard._audit_owner is None, (
+        "The original guard must reject the injected socket before changing boundary owners")
+    isolated_socket_inventory()
+
+    with OfflineGuard(enabled=True) as record:
+        with pytest.raises(AssertionError, match="socket.socket"):
+            socket.socket()
+
+    assert observed == [True] and record["calls"]["socket.socket"] == 1, (
+        "The private unit inventory must ignore unrelated sockets while preserving socket refusal")
+    assert socket.socket is original and guard._audit_owner is None, (
+        "Isolated unit execution must restore the constructor and release audit ownership")
+
+
 @pytest.mark.parametrize("enabled", [False, None, 1, "yes"])
 def test_ExactOptInPrecedesGuardInstallation(enabled):
     """Truthiness must not enroll or change the process's existing boundary owners."""
