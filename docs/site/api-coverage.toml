@@ -200,6 +200,27 @@ mode = "authored"
 page = "api/fuzzy1337.response_commands.md"
 
 [[surfaces]]
+# Internal syntax-only native configuration selections and fixed nonauthority recipes.
+module = "fuzzy1337.native_configuration"
+source = "src/fuzzy1337/native_configuration.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration.md"
+
+[[surfaces]]
+# Internal owned selected-read observer; material proofs grant no provider authority.
+module = "fuzzy1337.native_configuration_material"
+source = "src/fuzzy1337/native_configuration_material.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_material.md"
+
+[[surfaces]]
+# Internal installed create/verify reader; never executes the selected scanner.
+module = "fuzzy1337.native_configuration_material_worker"
+source = "src/fuzzy1337/native_configuration_material_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_material_worker.md"
+
+[[surfaces]]
 module = "fuzzy1337.configuration_evidence"
 source = "src/fuzzy1337/configuration_evidence.py"
 mode = "authored"
