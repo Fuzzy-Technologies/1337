@@ -1,0 +1,42 @@
+{
+  "algorithm": "cvss2-base-2.10",
+  "fixture_origin": "Original hand-authored assertions of published primary score/vector pairs; no source corpus or explanatory prose is bundled.",
+  "retrieved_on": "2026-10-28",
+  "cases": [
+    {
+      "id": "first-guide-3.3.1",
+      "vector": "AV:N/AC:L/Au:N/C:N/I:N/A:C",
+      "base_score_tenths": 78,
+      "reference": "https://www.first.org/cvss/v2/guide",
+      "authority": "FIRST CVSS 2 guide section 3.3.1, CVE-2002-0392; directly read published example"
+    },
+    {
+      "id": "first-guide-3.3.2",
+      "vector": "AV:N/AC:L/Au:N/C:C/I:C/A:C",
+      "base_score_tenths": 100,
+      "reference": "https://www.first.org/cvss/v2/guide",
+      "authority": "FIRST CVSS 2 guide section 3.3.2, CVE-2003-0818; directly read published example"
+    },
+    {
+      "id": "first-guide-3.3.3",
+      "vector": "AV:L/AC:H/Au:N/C:C/I:C/A:C",
+      "base_score_tenths": 62,
+      "reference": "https://www.first.org/cvss/v2/guide",
+      "authority": "FIRST CVSS 2 guide section 3.3.3, CVE-2003-0062; directly read published example"
+    },
+    {
+      "id": "nvd-zero-impact",
+      "vector": "AV:N/AC:L/Au:N/C:N/I:N/A:N",
+      "base_score_tenths": 0,
+      "reference": "https://nvd.nist.gov/vuln/detail/CVE-1999-0637",
+      "authority": "NVD primary indexed score/vector; direct page opening exposed no readable content"
+    },
+    {
+      "id": "nvd-full-impact-boundary",
+      "vector": "AV:L/AC:L/Au:N/C:C/I:C/A:C",
+      "base_score_tenths": 72,
+      "reference": "https://nvd.nist.gov/vuln/detail/CVE-2020-11271",
+      "authority": "NVD primary indexed score/vector; also linked by the NVD v2 calculator vector URL; live calculator execution was not performed"
+    }
+  ]
+}

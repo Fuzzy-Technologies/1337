@@ -334,6 +334,16 @@ refusal. Existing Git defaults, invocation arguments and original report fields
 remain unchanged. The canary report additionally binds its anonymous request
 template and query injection references; response bodies remain transient.
 
+ADR 0103 adds Experimental `native.prometheus-exposition` and explicit CLI
+`--check prometheus-exposition` at profile version `1`. Its distinct capability
+uses the existing STANDARD exact-plan/current-authority workflow. Only this
+profile supports bounded length, chunked and EOF response framing, with a 256 KiB
+transient body limit. `fuzzy1337.adapters.prometheus_exposition` is Internal.
+A LOW descriptive Finding records supported anonymous Prometheus exposition;
+it does not establish exploitability or intended privacy. Original metadata/hash
+records preserve predicate provenance without a retained response body. Git and
+canary defaults, framing limits and schema-one records remain unchanged.
+
 `fuzzy1337.executors` is an Experimental Python SDK namespace at executor
 contract version `1`. ADR 0015 defines its governed local execution boundary.
 ADR 0091 adds the explicit Linux-only `own_descendants=False` execution keyword
@@ -789,3 +799,40 @@ matching, version comparison, scoring, publisher authentication, network activit
 or Finding mutation. Existing intelligence schema-one snapshots and replay remain
 unchanged. See [the profile](INTELLIGENCE_APPLICABILITY.md) and
 [ADR 0100](adr/0100-source-attributed-cve-applicability-statements.md).
+
+
+## CVSS 2 source statements
+
+`fuzzy1337.intelligence_cvss2` is an additive Experimental profile-one inspection
+API for explicit CVE Record 5.2/5.2.0 bytes and their source/evidence binding. It
+retains ordered CNA/ADP legacy assessments, complete provider/metric context and
+asserted source scores. It validates consumed CVSS 2 grammar and explicit field
+agreement, without score calculation, conversion, target matching or Finding
+mutation. Original schema-one snapshots still report `cvssV2_0` as unsupported;
+their serialization, reparse and replay remain unchanged. See
+[the profile](INTELLIGENCE_CVSS2.md) and
+[ADR 0104](adr/0104-source-attributed-cvss2-statements.md).
+
+
+## Separate CVSS 2 base calculations
+
+`fuzzy1337.intelligence_cvss2_base` is a separate Experimental pure base-only
+calculation profile under ADR 0107. Its sole public constructor,
+`CveCvss2BaseCalculations(statements: CveCvss2Statements)`, retains the unchanged
+typed source inspection once and derives immutable ordered results internally.
+Each result contains its original `assessment_index`, algorithm identifier
+`cvss2-base-2.10`, and integer `base_score_tenths` in `0..100`; calculated fields
+are not constructor arguments. `DisplayScore()` renders one exact decimal digit.
+`ToDict()` detaches the original `statements` once and a separate `calculations`
+array, without creating a persisted decoder or replacement snapshot schema.
+
+Exact integer arithmetic rounds only the final base expression, without
+intermediate rounding or impact clamping. Temporal/environmental metrics do not
+enter the equation or create additional calculated scores. Source profile-one
+vectors, asserted scores, provider/scenario context and snapshot serialization,
+references and replay remain unchanged. A difference between an asserted and a
+derived score does not correct, reject or prefer the publisher's statement.
+The API performs no CVSS version conversion, target matching, network activity,
+publisher authentication or Finding/severity/risk mutation. See
+[the base calculation profile](INTELLIGENCE_CVSS2_BASE.md) and
+[ADR 0107](adr/0107-separate-cvss2-base-calculations.md).

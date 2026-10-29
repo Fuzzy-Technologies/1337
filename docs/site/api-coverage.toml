@@ -1,6 +1,20 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Experimental attributed CVSS 2 source inspection; scores are never calculated.
+module = "fuzzy1337.intelligence_cvss2"
+source = "src/fuzzy1337/intelligence_cvss2.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cvss2.md"
+
+[[surfaces]]
+# Internal bounded predicate; direct use establishes neither custody nor permission.
+module = "fuzzy1337.adapters.prometheus_exposition"
+source = "src/fuzzy1337/adapters/prometheus_exposition.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.prometheus_exposition.md"
+
+[[surfaces]]
 # Experimental attributed CVE product statements; no applicability or scoring verdict.
 module = "fuzzy1337.intelligence_applicability"
 source = "src/fuzzy1337/intelligence_applicability.py"
@@ -687,3 +701,26 @@ module = "fuzzy1337.browser_page_worker"
 source = "src/fuzzy1337/browser_page_worker.py"
 mode = "authored"
 page = "api/fuzzy1337.browser_page_worker.md"
+
+[[surfaces]]
+# Experimental pure base calculation; original attributed source assertions stay unchanged.
+module = "fuzzy1337.intelligence_cvss2_base"
+source = "src/fuzzy1337/intelligence_cvss2_base.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cvss2_base.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseScoreTenths"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation.DisplayScore"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation.ToDict"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
