@@ -193,6 +193,12 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("workbench.scope",),
         ),
         CommandDescriptor(
+            identifier="image",
+            summary="Plan or export an explicitly governed local Docker image reference.",
+            usage="1337 image export-local <workspace>",
+            capabilities=("image.local-reference-export",),
+        ),
+        CommandDescriptor(
             identifier="scan",
             summary=("Run governed discovery, owned content crawl, checks, "
                      "synthetic/native images or configurations."),
@@ -203,6 +209,12 @@ COMMAND_REGISTRY = CommandRegistry(
                           "image.archive-vulnerabilities",
                           "config.dockerfile-misconfigurations",
                           "config.kubernetes-misconfigurations"),
+        ),
+        CommandDescriptor(
+            identifier="raw",
+            summary="Plan, confirm or replay exact governed native Nmap profiles.",
+            usage="1337 raw <plan|run|replay> <workspace>",
+            capabilities=("network.tcp-connect", "network.service-discovery"),
         ),
         CommandDescriptor(
             identifier="report",
@@ -242,8 +254,8 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="sbom",
-            summary="Import an explicit owned offline SPDX package graph.",
-            usage="1337 sbom import spdx-graph <workspace>",
+            summary="Inspect verified saved image inventory or import an owned SPDX graph.",
+            usage="1337 sbom <image|import spdx-graph> <workspace>",
             capabilities=("image.owned-spdx-graph-import",),
         ),
         CommandDescriptor(

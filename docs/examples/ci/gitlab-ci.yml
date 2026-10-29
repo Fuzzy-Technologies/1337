@@ -1,0 +1,30 @@
+# Run on a trusted Linux shell runner with Docker installed; no privileged DinD.
+# Set protected RELEASE_COMMIT (40 lowercase hex), PYTHON_IMAGE (@sha256 digest),
+# and F1337_APPROVED_LOCAL_DEMO=1 only after approving the documented finite plan.
+stages: [verify]
+1337-local-demo:
+  stage: verify
+  tags: [docker-shell]
+  timeout: 15m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'
+  script:
+    - test "${#RELEASE_COMMIT}" -eq 40
+    - case "$RELEASE_COMMIT" in *[!0-9a-f]*) exit 2 ;; esac
+    - echo "$PYTHON_IMAGE" | python3 -c 'import re,sys; sys.exit(0 if re.fullmatch(r"[^\s]+@sha256:[0-9a-f]{64}\n?", sys.stdin.read()) else 2)'
+    - git init source
+    - git -C source remote add origin https://github.com/Fuzzy-Technologies/1337.git
+    - git -C source fetch --depth 1 origin "$RELEASE_COMMIT"
+    - git -C source checkout --detach FETCH_HEAD
+    - test "$(git -C source rev-parse HEAD)" = "$RELEASE_COMMIT"
+    - mkdir artifacts
+    - git -C source rev-parse HEAD > source-commit.txt
+    - docker build --build-arg "PYTHON_IMAGE=$PYTHON_IMAGE" -f source/docs/examples/ci/Dockerfile -t "1337-demo:$CI_JOB_ID" source
+    - docker run --rm --name "1337-demo-$CI_JOB_ID" --user "$(id -u):$(id -g)" --network none --cap-drop ALL --security-opt no-new-privileges -e F1337_APPROVED_LOCAL_DEMO="${F1337_APPROVED_LOCAL_DEMO:-}" -v "$PWD/artifacts:/artifacts" "1337-demo:$CI_JOB_ID"
+  after_script:
+    - docker rm --force --volumes "1337-demo-$CI_JOB_ID" || true
+    - docker image rm "1337-demo:$CI_JOB_ID" || true
+  artifacts:
+    when: always
+    paths: [artifacts/, source-commit.txt]
+    expire_in: 7 days

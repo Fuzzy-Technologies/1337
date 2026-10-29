@@ -42,17 +42,46 @@ jobs:
           .venv/bin/python tools/locale_documentation.py validate --output _build/docs/locales.json
       - name: Exercise documentation boundaries and enforce per-tool branch coverage
         run: |
+          release_tests=()
+          for tool in release_delivery release_finalize; do
+            if test -f "tools/$tool.py"; then
+              test -f "tests/unit/test_$tool.py"
+              release_tests+=("tests/unit/test_$tool.py")
+            fi
+          done
           .venv/bin/python -m pytest -q -n auto --dist=loadscope -o addopts='' \
             tests/unit/test_api_reference.py tests/unit/test_locale_documentation.py \
             tests/unit/test_compose_documentation.py tests/unit/test_source_documentation_audit.py \
             tests/unit/test_product_site_preparation.py tests/unit/test_documentation_publication_policy.py \
             tests/unit/test_documentation_render.py tests/unit/test_markdown_tables.py \
             tests/unit/test_feature_completion.py tests/unit/test_pytest_progress_bootstrap.py \
-            --cov=tools --cov-branch --cov-config=/dev/null \
+            "${release_tests[@]}" --cov=tools --cov-branch --cov-config=/dev/null \
             --cov-report=term-missing --cov-report=json:_build/docs/tool-coverage.json
           .venv/bin/python -m fuzzy1337.coverage_gate _build/docs/tool-coverage.json tools
+      - name: Select the finite 0.3 API publication source
+        id: api-mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .venv/bin/python tools/compose_documentation.py --select-version-source . \
+            > _build/docs/api-selection.json
+          .venv/bin/python -c 'import json,os; value=json.load(open("_build/docs/api-selection.json")); assert set(value)=={"release_version","retained_archive","retained_sha256"}; stream=open(os.environ["GITHUB_OUTPUT"],"a"); stream.write("".join(key+"="+value[key]+"\n" for key in ("release_version","retained_archive","retained_sha256")))'
       - name: Build a reproducible static reference from a clean installed wheel
-        run: .venv/bin/python tools/build_api_reference.py
+        env:
+          RELEASE_VERSION: ${{ steps.api-mode.outputs.release_version }}
+        run: |
+          version_args=()
+          if test -n "$RELEASE_VERSION"; then
+            version_args+=(--release-version "$RELEASE_VERSION")
+          fi
+          .venv/bin/python tools/build_api_reference.py "${version_args[@]}"
+          if test -n "$RELEASE_VERSION"; then
+            .venv/bin/python tools/compose_documentation.py \
+              --verify-version-archive "_build/docs/1337-$RELEASE_VERSION-api-docs.tar.gz" \
+              --archive-manifest "_build/docs/1337-$RELEASE_VERSION-api-docs.manifest.json" \
+              --expected-revision "$GITHUB_SHA" --expected-tree "$(git rev-parse 'HEAD^{tree}')" \
+              --expected-version "$RELEASE_VERSION" --expected-epoch "$(git show -s --format=%ct HEAD)"
+          fi
       - name: Prove real offline formula rendering
         # Browser proof is publication-only; development gates are deterministic code/tests.
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -65,11 +94,31 @@ jobs:
           source: _build/product-source
           destination: _build/product-site
       - name: Compose and verify the single Pages artifact
+        env:
+          RELEASE_VERSION: ${{ steps.api-mode.outputs.release_version }}
+          RETAINED_ARCHIVE: ${{ steps.api-mode.outputs.retained_archive }}
+          RETAINED_SHA256: ${{ steps.api-mode.outputs.retained_sha256 }}
         run: |
           mkdir -p _build/pages
+          version_args=()
+          if test -n "$RELEASE_VERSION"; then
+            version_args+=(--version-root "_build/api-versions/$RELEASE_VERSION")
+          fi
+          if test -n "$RETAINED_ARCHIVE"; then
+            version_args+=(--retained-api-archive "$RETAINED_ARCHIVE" --retained-api-sha256 "$RETAINED_SHA256")
+          fi
           .venv/bin/python tools/compose_documentation.py \
             --product-site _build/product-site --api-root _build/api-reference \
-            --output _build/pages/site --base-path /1337 --revision "${GITHUB_SHA}"
+            --output _build/pages/site --base-path /1337 --revision "${GITHUB_SHA}" "${version_args[@]}"
+      - name: Retain exact master-render transfer bytes for release delivery
+        if: steps.api-mode.outputs.release_version == '0.3.0'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: api-docs-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            _build/docs/1337-0.3.0-api-docs.tar.gz
+            _build/docs/1337-0.3.0-api-docs.manifest.json
+          if-no-files-found: error
       - name: Preserve reproducible gate evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

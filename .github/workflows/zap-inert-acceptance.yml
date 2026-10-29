@@ -2,8 +2,10 @@ name: Genuine closed inert isolation
 
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, master]
     types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  push:
+    branches: [master]
 
 permissions:
   contents: read
@@ -15,9 +17,9 @@ concurrency:
 jobs:
   closed-inert:
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[zap-inert-owner-checkpoint]'))
+      contains(github.event.pull_request.body, '[zap-inert-owner-checkpoint]')))
     name: Rootless static inert prerequisite
     runs-on: ubuntu-22.04
     timeout-minutes: 8

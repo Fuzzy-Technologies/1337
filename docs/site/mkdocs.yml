@@ -8,6 +8,8 @@ use_directory_urls: true
 theme:
   name: material
   language: en
+  logo: assets/images/1337-logo.png
+  favicon: assets/images/1337-logo.png
   palette:
     - scheme: slate
       primary: black

@@ -16,12 +16,13 @@ version probe and strict Go template validation passed in the inspected offline
 image with an explicit private HOME. Original artifact review accepted that
 prerequisite boundary; it establishes no application case or scanner comparison.
 
-Both application tracks remain candidates with runtime **UNRUN**. Fresh target
-orchestration, complete v2 observation assembly, governed initialization without
-HOME, and the six comparative application invocations remain future Task #40
-work. This implementation is the comparison groundwork, not completion of the
-whole decision. Final readiness enrolls the implemented target-free prerequisite
-alongside the existing native application acceptance in shared CI.
+Both application tracks have reviewed source available; application runtime is **UNRUN**.
+Fresh target orchestration, complete original v2 assembly and finite image modes
+are implemented behind explicit selection. Genuine governed initialization
+without HOME passed at its separately identified checkpoint below. The six final
+comparative application invocations and final shared integration remain
+required for Task #40 completion. Existing native application acceptance and the
+original target-free prerequisite remain separate shared CI selections.
 
 ## Context
 
@@ -266,3 +267,71 @@ No production source, public API, capability registry, provider flag/default,
 dependency/lock file, release or PyPI change is proposed. Architecture review
 accepted v2 unproven semantics and the honest incomplete matrix. The existing
 native acceptance remains separate from both unrun Nuclei tracks.
+
+## Governed environment checkpoint
+
+The separate target-free `--governed-prerequisites` image mode probes the genuine
+pinned version and strict template validation with exactly PATH/LANG, no HOME or
+XDG variables, and a private writable stage working directory. Original streams,
+process receipts, cwd, generated initialization files, image/source/installed
+material identities and daemon cleanup remain independently bound. This mode
+changes no production environment allowlist and makes no passwd-home assumption.
+The earlier explicit-HOME prerequisite is unchanged and cannot establish this
+new gate. The new source and inert contracts alone leave compatibility **UNRUN**.
+
+The ordinary selected test is
+`FUZZY1337_EXTERNAL_NUCLEI_GOVERNED_PREREQUISITES=linux-amd64 uv run --locked
+--extra dev pytest tests/functional/test_external_nuclei_governed_prerequisites.py
+--no-cov -n 0`. Missing enabled Docker prerequisites fail; unset selection skips
+before host discovery. No application targets may start until genuine no-HOME
+validation is accepted. The two lab producers now write their actual Nuclei
+effective budgets before launch; whole-product wall time remains separate from
+the original provider duration used for the three-second provider window.
+
+## Original failure observations
+
+The additive lab v2 failure family includes `cancelled`. An executed failed,
+crashed, timed-out or cancelled attempt may retain a null observed provider exit
+code. Completed/unproven rows still require an exact integer zero; neither null
+nor a boolean supplies success. v1 and its native interpretation remain unchanged.
+
+When original provider custody cannot verify, a failed-family row may retain
+`execution: null` only with a hashed original host attempt binding the actual
+source/tree, case, track, target instance, fixed-local Docker start/attach argv,
+original stdout/stderr/command receipt and independent cleanup facts. Missing or
+cross-case/source/start evidence refuses the row. Before-start failures remain
+prerequisite-failed. Unknown cleanup stays unknown; it does not erase a proven
+failed attempt or become successful termination. Such rows remain unscored and
+supply no provider duration, completed response, TN, FN or server-contact credit.
+Original host attachment stdout keeps its existing separate twelve-MiB capture
+ceiling; provider/bundle evidence keeps its unchanged two-MiB per-file ceiling.
+
+Application image dispatch, six fresh-target source orchestration and strict
+original-bundle assembly are implemented behind the explicit selection.
+They have not received genuine runtime acceptance at this source checkpoint.
+The earlier native three-case and target-free explicit-HOME results remain
+separate; no source-only test establishes any new application execution.
+
+The focused draft marker `[nuclei-application-product-checkpoint]` enrolls only
+the six ordinary application pytest cases and the same read-only original gate
+used on final readiness. It does not rerun older pytest cohorts. Product-owned
+initialization still requires the actual current image's no-HOME compatibility
+before creating any target. The case step is bounded to twenty minutes with a
+900-second pytest signal deadline, the gate to one minute, and the whole focused
+job to twenty-five minutes. Final external acceptance preserves its prior
+forty-minute allocation and adds twenty-one minutes for the new case step/gate.
+Successful original provider output cannot override a failed enclosing attach
+or inspected container termination; such attempts retain provider facts but
+remain failed and unscored after independent cleanup.
+
+The separate genuine no-HOME checkpoint passed on published source
+`5887666f` / tree `9079e87f` (the local checkpoint is `1abbeb3`, with the same
+source tree). Workflow run
+[40879355362](https://github.com/Fuzzy-Technologies/1337/actions/runs/40879355362),
+job `123466411302`, executed exactly one test in 36.22 seconds with no skips and
+passed its original-evidence gate.
+[Artifact 12899532343](https://github.com/Fuzzy-Technologies/1337/actions/runs/40879355362/artifacts/12899532343)
+has archive SHA-256
+`edfe3ba8dd90b8ab740454ad3f8541ee4707d8b2ef9fe962e6bbc986a37917a8`.
+This is genuine initialization evidence for that exact inspected image/source;
+it supplies no application case or scanner-comparison result.

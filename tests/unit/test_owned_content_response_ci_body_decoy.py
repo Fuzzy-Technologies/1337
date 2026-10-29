@@ -185,8 +185,8 @@ def AssertBodyDecoyCheckpoint(jobs):
         "FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}, (
             "Required body-decoy acceptance needs the bounded supported ownership environment")
     steps = job["steps"]
-    assert steps[0]["with"] == {"ref": "${{ github.event.pull_request.head.sha }}",
-        "persist-credentials": False}, "The actual installation must bind the reviewed head"
+    assert steps[0]["with"] == {"ref": "${{ github.event.pull_request.head.sha || github.sha }}",
+        "persist-credentials": False}, "Installation must bind the reviewed PR or master head"
     executions = [step for step in steps if "pytest" in step.get("run", "")]
     junit = "functional-evidence/owned-content-header-body-decoy.xml"
     assert len(executions) == 1 and executions[0]["timeout-minutes"] == 3 and shlex.split(

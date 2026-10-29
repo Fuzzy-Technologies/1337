@@ -83,8 +83,7 @@ CONTAINER_TEMPLATE = PurePosixPath("/opt/benchmark/prometheus.yaml")
 CONTAINER_CONFIGURATION = PurePosixPath("/opt/benchmark/operator-config.yaml")
 
 
-@pytest.fixture(name="inert_binary_modes", autouse=True)
-def InertBinaryModeView(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[Path, int]:
+def DeclareInertBinaryModes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[Path, int]:
     """Declare POSIX permissions for only the two inert executable fixture paths.
 
     Windows chmod does not model Linux execute bits. The original file kind,
@@ -115,6 +114,21 @@ def InertBinaryModeView(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict
     monkeypatch.setattr(Path, "lstat", Lstat)
 
     return modes
+
+
+@pytest.fixture(name="inert_binary_modes", autouse=True)
+def InertBinaryModeView(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[Path, int]:
+    """Apply the explicit mode declaration to this module's root-level inert material owner.
+
+    Args:
+        tmp_path: Exact owner of the two never-executed fixture binary names.
+        monkeypatch: Restore this test's private metadata view after completion.
+
+    Returns:
+        Original mutable declarations used by the negative permission controls.
+    """
+
+    return DeclareInertBinaryModes(tmp_path, monkeypatch)
 
 
 def Material(tmp_path):
@@ -265,10 +279,16 @@ def test_PreflightSeparatesArchiveBinaryAndVersionFacts(tmp_path):
 @pytest.mark.parametrize("fault", [
     "none", "nonexecutable", "hardlink", "oversize", "symlink", "directory",
 ])
+@pytest.mark.parametrize("nested", [False, True])
 def test_InertExecutableModeViewPreservesActualIdentityRefusals(
-    tmp_path, inert_binary_modes, fault,
+    tmp_path, inert_binary_modes, monkeypatch, fault, nested,
 ):
     """Exercise the real executable guard with explicit modes and real kind/link/size faults."""
+
+    if nested:
+        tmp_path = tmp_path / "source"
+        tmp_path.mkdir()
+        inert_binary_modes = DeclareInertBinaryModes(tmp_path, monkeypatch)
 
     binary = tmp_path / "inert-binary-not-executed"
     binary.write_bytes(b"inert")
@@ -308,8 +328,14 @@ def test_InertExecutableModeViewPreservesActualIdentityRefusals(
             RegularIdentity(binary, maximum=16, executable=True)
 
 
-def test_InertExecutableModeViewLeavesUnselectedPathsUntouched(tmp_path):
+@pytest.mark.parametrize("nested", [False, True])
+def test_InertExecutableModeViewLeavesUnselectedPathsUntouched(tmp_path, monkeypatch, nested):
     """Permission modeling never broadens to another file or arbitrary executable location."""
+
+    if nested:
+        tmp_path = tmp_path / "source"
+        tmp_path.mkdir()
+        DeclareInertBinaryModes(tmp_path, monkeypatch)
 
     unselected = tmp_path / "unselected-binary"
     unselected.write_bytes(b"ordinary unselected bytes")
@@ -469,7 +495,7 @@ def test_RegularIdentityRejectsSymlinksWithoutReadingTheTarget(tmp_path):
         RegularIdentity(alias, maximum=16)
 
 
-def StandaloneMaterial(tmp_path, path="/metrics"):
+def StandaloneMaterial(tmp_path, path="/metrics", *, run_root=None):
     """Prepare inert executable bytes and an explicit synthetic fixture authorization claim."""
 
     template, configuration = Material(tmp_path)
@@ -482,7 +508,8 @@ def StandaloneMaterial(tmp_path, path="/metrics"):
         "image_index_digest": TARGET_INDEX_DIGEST, "platform_digest": TARGET_PLATFORM_DIGEST,
         "network_internal": True, "published_ports": 0}
 
-    return (tmp_path / "run", path, executable, template, configuration,
+    return (tmp_path / "run" if run_root is None else run_root,
+            path, executable, template, configuration,
             hashlib.sha256(executable.read_bytes()).hexdigest(), VERSION, authorization)
 
 
@@ -584,6 +611,11 @@ def test_StandaloneRuntimeEmptyInvocationRemainsUnprovenThroughV2(tmp_path, monk
     outcome = RunStandalone(*arguments)
     root = arguments[0]
     invocation = json.loads((root / "invocation.json").read_bytes())
+    assert invocation["effective_budget"] == {"request_timeout_seconds": 3,
+        "operation_timeout_seconds": 3, "max_requests": 1,
+        "max_response_bytes": 1048576, "rate_limit": 1}, (
+        "The original producer must preserve effective Nuclei limits before execution"
+    )
     assert outcome["status"] == "unproven" and outcome["findings"] == [], (
         "Empty exit-zero output must remain unproven for positive and negative controls."
     )
@@ -957,10 +989,11 @@ def test_StandaloneRuntimeContainerPathSpellingStaysInsideInertMock(tmp_path, mo
     )
 
 
-def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match", container_paths=False):
+def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match", container_paths=False,
+                  run_root=None):
     """Prepare inert source contracts while replacing every provider/process entry point."""
 
-    arguments = StandaloneMaterial(tmp_path, path)
+    arguments = StandaloneMaterial(tmp_path, path, run_root=run_root)
     wheel = tmp_path / "inert-not-installed.whl"
     wheel.write_bytes(b"inert wheel identity fixture, never installed")
     probe = {"calls": [], "health": [], "before_launch": 0}
@@ -1065,12 +1098,14 @@ def test_WholeRuntimeOriginalArgumentGuardRejectsWindowsSpellingWithoutIo():
 
 
 @pytest.mark.parametrize("mutation", ["none", "flag", "template-path"])
+@pytest.mark.parametrize("relocated", [False, True])
 def test_WholeRuntimeInertContainerProjectionPreservesStrictPlanComparison(
-    tmp_path, monkeypatch, mutation,
+    tmp_path, monkeypatch, mutation, relocated,
 ):
     """Explicit Linux exercise keeps artifact modeling narrow and refuses actual plan drift."""
 
-    arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch, container_paths=True)
+    arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch, container_paths=True,
+        run_root=tmp_path / "selected-run" if relocated else None)
     original = NucleiAdapter.BuildInvocation
 
     def BuildInvocation(adapter, request):
@@ -1313,4 +1348,16 @@ def test_WholeRuntimeCopiedWheelMismatchRefusesBeforeProductWorkspace(tmp_path, 
     assert (arguments[0] / "installed.whl").read_bytes() == b"changed inert wheel copy", (
         "The refused original local copy must remain available without an invented matching digest."
     )
+    forbidden.assert_not_called()
+
+
+def test_WholeRuntimeKeepsUnknownProviderExitSeparateFromProductFailure(tmp_path, monkeypatch):
+    """A product timeout status cannot substitute for the unobserved original provider exit code."""
+
+    arguments, _, forbidden = WholeMaterial(tmp_path, monkeypatch, mode="timeout")
+    outcome = whole_runtime.RunWhole1337(*arguments)
+    assert outcome["status"] == "failed" and outcome["exit_code"] is None and (
+        type(outcome["product_exit_code"]) is int and outcome["product_exit_code"] != 0
+        and outcome["duration_seconds"] == 0.01
+    ), "Original provider exit/duration and whole-product outcome must retain distinct meanings"
     forbidden.assert_not_called()

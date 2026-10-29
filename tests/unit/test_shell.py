@@ -146,9 +146,11 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: shell",
         "cli: update",
         "cli: scan",
+        "cli: raw",
         "cli: intel",
         "cli: ci",
         "cli: paths",
+        "cli: sbom",
         "cli: api",
         "cli: runtime",
         "cli: trace",
@@ -218,12 +220,12 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
 
     assert output.getvalue().splitlines() == [
         (
-            "Interactive commands: api, ci, commands, context, demo, help, history, intel, lens, "
-            "model, palette, paths, quit, report, runtime, sbom, scan, scope, select, trace, "
-            "update, updates, view, workspace"
+            "Interactive commands: api, ci, commands, context, demo, help, history, image, "
+            "intel, lens, model, palette, paths, quit, raw, report, runtime, sbom, scan, scope, "
+            "select, trace, update, updates, view, workspace"
         ),
-        ("CLI commands: doctor, help, version, shell, update, workspace, scope, scan, report, "
-         "intel, demo, ci, paths, sbom, api, response, runtime, trace"),
+        ("CLI commands: doctor, help, version, shell, update, workspace, scope, image, "
+         "scan, raw, report, intel, demo, ci, paths, sbom, api, response, runtime, trace"),
         "[model] asset changed",
         "usage: quit",
         "",
@@ -485,7 +487,7 @@ def test_ShellNeverRetainsRejectedProductCredentialsOrMalformedArguments(capsys)
 
 @pytest.mark.parametrize("namespace", [
     "workspace", "scope", "scan", "report", "demo", "ci", "runtime", "paths", "sbom", "api",
-    "trace",
+    "trace", "raw",
 ])
 @pytest.mark.parametrize("separator", [";", "--format=", "/", ":"])
 def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace, separator):
@@ -568,7 +570,7 @@ def NativeEditor(entries):
 
 
 @pytest.mark.parametrize("namespace", [
-    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace",
+    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace", "raw",
 ])
 def test_NativeHistoryOwnershipHandlesAdvancedCappedIndicesAndOnlyNewInput(namespace):
     """A native cap advances absolute base; matching prior/command-time entries remain unowned."""
@@ -774,7 +776,7 @@ def test_CommandExceptionCannotClaimCallerNativeAdditionsDuringLoopCleanup(monke
 
 
 @pytest.mark.parametrize("namespace", [
-    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace",
+    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace", "raw",
 ])
 def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, namespace):
     """Stream/queued inputs have no native auto-history ownership and preserve preexisting state."""
@@ -801,7 +803,7 @@ def test_NonrawLoopAndDirectCommandsNeverClaimGlobalNativeHistory(monkeypatch, n
 
 
 @pytest.mark.parametrize("namespace", [
-    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace",
+    "report", "demo", "ci", "runtime", "paths", "sbom", "api", "trace", "raw",
 ])
 def test_QueuedLoopPreservesUnownedNativeEntryAndCallerCompleter(monkeypatch, namespace):
     """Even a matching queued string cannot claim an unchanged preexisting native history item."""

@@ -244,3 +244,44 @@ def test_ImageHelpDescribesBothExplicitProfilesWithoutImplicitProvider(capsys):
     assert "synthetic/native images" in COMMAND_REGISTRY.Resolve("scan").summary, (
         "The shared command descriptor must describe both actual image routes."
     )
+
+
+@pytest.mark.parametrize("matches", (True, False))
+def test_NativeCliBindsExpectedConfigBeforeSave(native_cli, capsys, matches):
+    """The explicit config pin applies to the fresh report before durable model admission."""
+
+    from tests.unit.test_native_image_admission import REPORT
+
+    authority, policy = native_cli
+    expected = REPORT["Metadata"]["ImageID"] if matches else "sha256:" + "f" * 64
+    arguments = [*NativeArguments(authority.root), "--scope", "native-unit", "--policy",
+        str(policy), "--expected-config-id", expected]
+    assert Main([*arguments, "--plan", "--json"]) == 0, (
+        "A selected config expectation must remain available in the strict descriptive plan."
+    )
+    assert json.loads(capsys.readouterr().out)["expected_image_identity"] == expected, (
+        "The native plan must expose the exact immutable config selected before approval."
+    )
+    assert Main([*arguments, "--approve-safe-image", "--json"]) == (0 if matches else 4), (
+        "Only a matching fresh native report may proceed to the model save."
+    )
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["state"] == ("completed" if matches else "failed") and (
+        LocalModelStore(authority.root).Open().revision == (1 if matches else 0)
+    ), "A config mismatch must retain original evidence while leaving the model revision unchanged."
+
+
+
+def test_SyntheticProfileCannotAcceptNativeConfigExpectation(tmp_path):
+    """A native correlation expectation never changes the synthetic profile contract."""
+
+    root = tmp_path / "absent"
+    arguments = NativeArguments(root)
+    arguments[arguments.index("native")] = "synthetic"
+    with pytest.raises(SystemExit) as caught:
+        Main([*arguments, "--scope", "local", "--producer", str(tmp_path / "producer.py"),
+            "--material", str(tmp_path / "material.json"), "--expected-config-id",
+            "sha256:" + "a" * 64, "--json"])
+    assert caught.value.code == 2 and not root.exists(), (
+        "Synthetic image interpretation must reject native config pins before workspace reads."
+    )

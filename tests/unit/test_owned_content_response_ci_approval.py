@@ -171,14 +171,14 @@ def test_ApprovalRefusalEntrypointRejectsMissingOriginalPaths():
 
 
 def AssertApprovalCheckpoint(jobs):
-    """Require an isolated draft marker, one bounded case and original failure evidence."""
+    """Require master/ready enrollment, an isolated draft marker and original bounded evidence."""
 
     job = jobs["approval-denied-content-header"]
     marker = "[owned-content-header-approval-denied-checkpoint]"
-    assert job["if"] == ("github.event_name == 'pull_request' && "
+    assert job["if"] == ("github.event_name == 'push' || (github.event_name == 'pull_request' && "
         "(github.event.pull_request.draft == false || "
-        f"contains(github.event.pull_request.body, '{marker}'))"), (
-            "Only final ready or the unique approval checkpoint may activate this job")
+        f"contains(github.event.pull_request.body, '{marker}')))"), (
+            "Master pushes, final ready PRs and the unique approval checkpoint must stay enrolled")
     assert all(marker not in prior["if"] for name, prior in jobs.items() if name != (
         "approval-denied-content-header")), "The new draft marker must not repeat accepted cohorts"
     assert job["runs-on"] == "ubuntu-24.04" and job["timeout-minutes"] == 6 and job["env"] == {
@@ -217,7 +217,8 @@ def AssertApprovalCheckpoint(jobs):
             "New original evidence must not overwrite any accepted cohort artifact")
 
 
-@pytest.mark.parametrize("mutation", [None, "old-marker", "accepted-cohort-marker", "draft-only",
+@pytest.mark.parametrize("mutation", [None, "missing-master", "push-only", "old-marker",
+    "accepted-cohort-marker", "draft-only",
     "platform", "missing-prerequisite", "credentials", "wrong-case", "parallel", "wrong-junit",
     "skipped-execution", "skipped-checker", "continue-on-error", "overwrite-artifact",
     "missing-failure-evidence", "job-continue-on-error", "extra-command", "upload-action"])
@@ -230,7 +231,13 @@ def test_ApprovalCheckpointRequiresItsOwnSerialCaseAndOriginalEvidence(mutation)
     job = jobs["approval-denied-content-header"]
     executions = [step for step in job["steps"] if "pytest" in step.get("run", "")]
 
-    if mutation == "old-marker":
+    if mutation == "missing-master":
+        job["if"] = job["if"].removeprefix("github.event_name == 'push' || (")[:-1]
+
+    elif mutation == "push-only":
+        job["if"] = "github.event_name == 'push'"
+
+    elif mutation == "old-marker":
         job["if"] += " || contains(body, '[owned-content-header-checkpoint]')"
 
     elif mutation == "accepted-cohort-marker":

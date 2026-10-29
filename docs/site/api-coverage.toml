@@ -84,6 +84,27 @@ mode = "authored"
 page = "api/fuzzy1337.portscan.md"
 
 [[surfaces]]
+# Experimental finite native Nmap selection/adapter SDK; parser helpers remain Internal.
+module = "fuzzy1337.raw_cli"
+source = "src/fuzzy1337/raw_cli.py"
+mode = "authored"
+page = "api/fuzzy1337.raw_cli.md"
+
+[[surfaces]]
+# Experimental raw plan/run/replay SDK; original custody and persistence helpers remain Internal.
+module = "fuzzy1337.raw_cli_workflow"
+source = "src/fuzzy1337/raw_cli_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.raw_cli_workflow.md"
+
+[[surfaces]]
+# Internal explicit wrapper/native delimiter parsing and bounded collected presentation.
+module = "fuzzy1337.raw_commands"
+source = "src/fuzzy1337/raw_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.raw_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.native_web"
 source = "src/fuzzy1337/native_web.py"
 mode = "authored"
@@ -801,3 +822,45 @@ reason = "Internal implementation detail excluded from module __all__; not a pub
 [[exclusions]]
 symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation.ToDict"
 reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_archive"
+source = "src/fuzzy1337/local_image_archive.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_archive.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_commands"
+source = "src/fuzzy1337/local_image_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_commands.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_material"
+source = "src/fuzzy1337/local_image_material.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_material.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_policy"
+source = "src/fuzzy1337/local_image_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_policy.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_reference"
+source = "src/fuzzy1337/local_image_reference.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_reference.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_workflow"
+source = "src/fuzzy1337/local_image_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_workflow.md"

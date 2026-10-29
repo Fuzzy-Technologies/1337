@@ -1,0 +1,72 @@
+name: Owned real GitLab template acceptance
+
+on:
+  pull_request:
+    branches: [develop, master]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owned-gitlab-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  owned-gitlab:
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '<!-- owned-gitlab-product-checkpoint -->'))
+    name: GitLab CE 19.5.1 / actual public template
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      FUZZY1337_RUN_OWNED_GITLAB_ACCEPTANCE: "1"
+    steps:
+      - name: Check out exact source
+        timeout-minutes: 2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Select Python
+        timeout-minutes: 2
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        timeout-minutes: 2
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        timeout-minutes: 3
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Execute actual owned GitLab approval cohort
+        timeout-minutes: 29
+        env:
+          FUZZY1337_GITLAB_EVIDENCE: ${{ runner.temp }}/owned-gitlab-original-evidence
+        run: >-
+          .venv/bin/python -m pytest -q tests/functional/test_owned_gitlab_product.py
+          --no-cov -n 0 --tb=short --junitxml="$RUNNER_TEMP/owned-gitlab-junit.xml"
+      - name: Require executed GitLab cohort and original platform evidence
+        timeout-minutes: 1
+        env:
+          FUZZY1337_GITLAB_EVIDENCE: ${{ runner.temp }}/owned-gitlab-original-evidence
+        run: >-
+          .venv/bin/python -m tests.functional.owned_gitlab_platform --verify
+          --source "$GITHUB_WORKSPACE" --output "$FUZZY1337_GITLAB_EVIDENCE"
+          --junit "$RUNNER_TEMP/owned-gitlab-junit.xml"
+      - name: Preserve original GitLab jobs and cleanup evidence
+        if: always()
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owned-gitlab-original-evidence
+          path: |
+            ${{ runner.temp }}/owned-gitlab-original-evidence/
+            ${{ runner.temp }}/owned-gitlab-junit.xml
+          if-no-files-found: warn
+          retention-days: 14

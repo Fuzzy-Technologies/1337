@@ -70,8 +70,8 @@ def test_ContentCiOwnsOnlyTheRequiredSerialCaseAndOriginalEvidence():
     assert job["env"] == {"FUZZY1337_RUN_OWNED_CONTENT_HEADER_ACCEPTANCE": "1"}, (
         "Missing platform prerequisites must fail required acceptance")
     checkout = job["steps"][0]
-    assert checkout["with"] == {"ref": "${{ github.event.pull_request.head.sha }}",
-        "persist-credentials": False}, "Actual evidence must bind the reviewed head"
+    assert checkout["with"] == {"ref": "${{ github.event.pull_request.head.sha || github.sha }}",
+        "persist-credentials": False}, "Actual evidence must bind the reviewed PR or master head"
     assert "github.event.pull_request.draft == false" in job["if"], (
         "Final ready revisions must retain genuine acceptance")
     assert "[owned-content-header-checkpoint]" in job["if"], (

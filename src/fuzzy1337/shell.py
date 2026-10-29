@@ -31,12 +31,14 @@ SHELL_COMMANDS = (
     "demo",
     "help",
     "history",
+    "image",
     "intel",
     "lens",
     "model",
     "palette",
     "paths",
     "quit",
+    "raw",
     "report",
     "runtime",
     "sbom",
@@ -235,7 +237,7 @@ class NativeInputHistory:
 
             if command in {
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                "paths", "sbom", "api", "trace"
+                "paths", "sbom", "api", "trace", "raw", "image"
             }:
                 position = index - first_index
 
@@ -406,23 +408,25 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "paths", "sbom", "api", "trace"
+                    "paths", "sbom", "api", "trace", "raw", "image"
                 }
                 else normalized
             )
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "paths", "sbom", "api", "trace", "response"
+            "paths", "sbom", "api", "trace", "response", "raw", "image"
         }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
                         "ci": self.do_ci,
+                        "image": self.do_image,
                         "runtime": self.do_runtime,
                         "paths": self.do_paths,
                         "sbom": self.do_sbom,
                         "api": self.do_api,
                         "response": self.do_response,
+                        "raw": self.do_raw,
                         "trace": self.do_trace,
                         "intel": self.do_intel}
             self.lastcmd = command
@@ -520,12 +524,13 @@ class InteractiveShell(cmd.Cmd):
         help_text = {
             "": (
                 "api import graphql-introspection, ci scan, commands, context, demo local, "
-                "history [query], lens [<name>] [--json], "
+                "history [query], image export-local, lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
-                "paths analyze, report export, runtime import <docker-inspect|kubernetes-list>, "
+                "paths analyze, raw <plan|run|replay>, report export, "
+                "runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect>, "
                 "select <object-id>, "
-                "sbom import spdx-graph, scan <quick|crawl|ports|web|nuclei|image|config>, "
+                "sbom <image|import spdx-graph>, scan <quick|crawl|ports|web|nuclei|image|config>, "
                 "scope create, "
                 "workspace <create|open>, "
                 "update [--json], updates, view <name> [--json], quit"
@@ -534,6 +539,8 @@ class InteractiveShell(cmd.Cmd):
                 "api import graphql-introspection <workspace>: import one explicit owned offline "
                 "file or retained original manifest with endpoint/scope and exact revision bases."
             ),
+            "image": "image export-local <workspace>: plan or explicitly approve local export; "
+                     "archive scanning requires separate scope and approval.",
             "commands": "commands: list interactive and current top-level CLI commands.",
             "ci": (
                 "ci scan <workspace>: run the explicitly selected closed image/configuration "
@@ -563,6 +570,10 @@ class InteractiveShell(cmd.Cmd):
                 "paths analyze <workspace>: explain an exact saved-model selection using original "
                 "assessment manifests, an explicit analysis clock and finite search/cut budgets."
             ),
+            "raw": (
+                "raw <plan|run|replay> <workspace>: use explicit governed native Nmap profiles; "
+                "separate exact native tokens with --; replay verifies original custody offline."
+            ),
             "report": (
                 "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
             ),
@@ -571,8 +582,9 @@ class InteractiveShell(cmd.Cmd):
                 "owned file or retained manifest with existing HOST/cluster, scope and exact bases."
             ),
             "sbom": (
-                "sbom import spdx-graph <workspace>: import an explicit original file or retained "
-                "manifest with declared image digest/kind, scope and exact owner revision bases."
+                "sbom image <workspace>: inspect verified saved inventory by exact digest/kind; "
+                "sbom import spdx-graph <workspace>: import explicit original evidence with "
+                "declared image identity, scope and exact owner revision bases."
             ),
             "trace": (
                 "trace ioc <import|inspect> <workspace>: use explicit local candidate files or "
@@ -581,7 +593,8 @@ class InteractiveShell(cmd.Cmd):
             "scan": (
                 "scan <quick|crawl|ports|web|nuclei|image|config> <workspace>: run governed scans; "
                 "crawl requires explicit selected URLs/policy and --approve-safe-crawl; "
-                "config requires --profile synthetic and complete selected source/consent inputs."
+                "config requires explicit synthetic/native profile and selected source/consent; "
+                "native Kubernetes input must already be rendered."
             ),
             "scope": "scope create <workspace>: record explicit targets, rules and consent.",
             "workspace": "workspace <create|open>: initialize or verify durable shared state.",
@@ -607,10 +620,25 @@ class InteractiveShell(cmd.Cmd):
 
         try:
             arguments = shlex.split(argument)
-            json_output = "--json" in arguments
-            arguments = [item for item in arguments if item != "--json"]
+            separator = (arguments.index("--") if command == "raw" and "--" in arguments
+                         else len(arguments))
+            prefix, native = arguments[:separator], arguments[separator:]
+            json_output = "--json" in prefix
+            arguments = [item for item in prefix if item != "--json"] + native
 
-            if command == "paths":
+            if command == "raw":
+                from fuzzy1337.raw_commands import RunRawCommands
+
+                status = RunRawCommands(arguments, cast(TextIO, self.stdout),
+                                        json_output=json_output)
+
+            elif command == "image":
+                from fuzzy1337.local_image_commands import RunLocalImageCommands
+
+                status = RunLocalImageCommands(arguments, cast(TextIO, self.stdout),
+                                               json_output=json_output)
+
+            elif command == "paths":
                 from fuzzy1337.path_commands import RunPathCommands
 
                 status = RunPathCommands(arguments, cast(TextIO, self.stdout),
@@ -704,6 +732,15 @@ class InteractiveShell(cmd.Cmd):
 
         self.RunLocalCommand("scope", argument)
 
+    def do_image(self, argument: str) -> None:
+        """Plan or export a local reference with the same explicit CLI authority requirements.
+
+        Args:
+            argument: Export action and full explicit selected inputs and authority arguments.
+        """
+
+        self.RunLocalCommand("image", argument)
+
     def do_scan(self, argument: str) -> None:
         """Run foreground endpoint or closed synthetic scans with explicit authorization.
 
@@ -712,6 +749,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("scan", argument)
+
+    def do_raw(self, argument: str) -> None:
+        """Run a foreground exact-native profile or offline replay without implicit authority.
+
+        Args:
+            argument: Explicit wrapper arguments and untouched separated native token tail.
+        """
+
+        self.RunLocalCommand("raw", argument)
 
     def do_report(self, argument: str) -> None:
         """Export an explicitly selected saved workspace; shell context is never implicit input.

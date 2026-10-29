@@ -40,7 +40,7 @@ from fuzzy1337.executors import (
     LocalExecutionRequest,
     LocalExecutionResult,
 )
-from fuzzy1337.images import ApplyBatch, Record, Text, TrivyCandidates
+from fuzzy1337.images import ApplyBatch, Digest, ImageIdentity, Record, Text, TrivyCandidates
 from fuzzy1337.model import ModelDelta, ModelProvenance, ModelState
 from fuzzy1337.native_image_capture import NativeTrivyOperation, NativeTrivyOperationCapture
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceFields
@@ -533,7 +533,9 @@ def VerifyNativeTrivyImageReplay(records: tuple[EvidenceRecord, ...],
 
 def ApplyVerifiedNativeTrivyImages(state: ModelState, version: NativeTrivyOperationCapture,
                                    scan: NativeTrivyOperationCapture,
-                                   workspace_root: Path) -> tuple[ModelState, ModelDelta]:
+                                   workspace_root: Path, *,
+                                   expected_image_identity: ImageIdentity | None = None,
+                                   ) -> tuple[ModelState, ModelDelta]:
     """Admit original successful native captures into the existing canonical model in memory.
 
     Args:
@@ -541,6 +543,7 @@ def ApplyVerifiedNativeTrivyImages(state: ModelState, version: NativeTrivyOperat
         version: Original independently executed VERSION capture; never a legacy health probe.
         scan: Original SCAN bound to that exact VERSION, material, owner, scope and policy.
         workspace_root: Owning workspace retaining all six immutable original evidence records.
+        expected_image_identity: Optional exact config identity selected before workflow approval.
 
     Returns:
         One canonical image/package/Finding transition with existing triage retained.
@@ -559,6 +562,12 @@ def ApplyVerifiedNativeTrivyImages(state: ModelState, version: NativeTrivyOperat
     ):
         raise ValueError("native admission requires the original typed VERSION/SCAN and model")
 
+    if expected_image_identity is not None and (
+        type(expected_image_identity) is not ImageIdentity
+        or expected_image_identity.digest_kind != "config"
+    ):
+        raise ValueError("native admission expected image must be an exact config identity")
+
     facts, original_version, original_scan = VerifyRecords((*version.records, *scan.records),
                                                           workspace_root)
 
@@ -575,6 +584,11 @@ def ApplyVerifiedNativeTrivyImages(state: ModelState, version: NativeTrivyOperat
     raw = {record.reference.role: store.Read(record.reference) for record in facts.records}
     wire = ParseJson(raw["provider-version"], 16 * 1024)
     payload = ParseJson(raw["stdout"], 4 * 1024 * 1024)
+    if expected_image_identity is not None and ImageIdentity(
+        Digest(Record(payload.get("Metadata")).get("ImageID"))
+    ) != expected_image_identity:
+        raise ValueError("native admission report differs from the selected image config identity")
+
     objects, relations, observations, findings = TrivyCandidates(state.workspace_id, payload,
         wire, Record(wire["VulnerabilityDB"]), facts.provenance)
 
