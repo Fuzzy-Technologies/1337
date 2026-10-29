@@ -13,6 +13,15 @@ on:
         description: Exact reviewed master commit after its actual required gates passed
         type: string
         required: true
+      publication_recovery:
+        description: Create only the fixed operational recovery tag after PR388 acceptance
+        type: boolean
+        default: false
+        required: true
+      expected_recovery_sha:
+        description: Exact reviewed PR388 workflow commit; required only for publication recovery
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -23,6 +32,7 @@ concurrency:
 
 jobs:
   finalize:
+    if: ${{ !inputs.publication_recovery }}
     name: Require reviewed current master and create one annotated tag
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -120,3 +130,115 @@ jobs:
           expected="$(printf '%s\trefs/heads/master\n%s\trefs/tags/v0.3.0' "$EXPECTED_MASTER_SHA" "$(git rev-parse refs/tags/v0.3.0)")"
           test "$observed" = "$expected"
           gh workflow run release.yml --repo Fuzzy-Technologies/1337 --ref v0.3.0 -f version=0.3.0
+
+  recovery-finalize:
+    name: Require accepted PR388 and create one operational recovery tag
+    if: ${{ inputs.publication_recovery }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      commit: ${{ steps.recovery.outputs.commit }}
+    steps:
+      - name: Refuse unrelated recovery dispatch before source execution
+        env:
+          SELECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_MASTER_SHA: ${{ inputs.expected_master_sha }}
+          EXPECTED_RECOVERY_SHA: ${{ inputs.expected_recovery_sha }}
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = Fuzzy-Technologies/1337
+          test "$GITHUB_REF" = refs/heads/fix/release-publication-recovery
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$SELECTED_VERSION" = 0.3.0
+          test "$EXPECTED_MASTER_SHA" = 04a2ea7f83fa57cda887e916df02daea8eb7313a
+          [[ "$EXPECTED_RECOVERY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$GITHUB_SHA" = "$EXPECTED_RECOVERY_SHA"
+      - name: Check out only the reviewed recovery branch with complete tag history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/fix/release-publication-recovery
+          fetch-depth: 0
+          persist-credentials: false
+          path: recovery-code
+      - name: Check out the unchanged original product tag separately
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v0.3.0
+          fetch-depth: 0
+          persist-credentials: false
+          path: product-source
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Require actual original-master and recovery-PR gates before one tag push
+        id: recovery
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPECTED_RECOVERY_SHA: ${{ inputs.expected_recovery_sha }}
+        run: |
+          python recovery-code/tools/release_recovery.py finalize \
+            --code-root "$GITHUB_WORKSPACE/recovery-code" \
+            --product-root "$GITHUB_WORKSPACE/product-source" \
+            --expected-recovery-sha "$EXPECTED_RECOVERY_SHA" \
+            --output "$RUNNER_TEMP/publication-recovery-tag.json"
+          python -c 'import json,os; from pathlib import Path; value=json.loads((Path(os.environ["RUNNER_TEMP"])/"publication-recovery-tag.json").read_bytes()); assert value["recovery_commit"]==os.environ["EXPECTED_RECOVERY_SHA"]; Path(os.environ["GITHUB_OUTPUT"]).write_text("commit="+value["recovery_commit"]+"\n")'
+      - name: Preserve the original operational-tag acknowledgement
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publication-recovery-tag-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/publication-recovery-tag.json
+          if-no-files-found: warn
+
+  dispatch-recovery-tag:
+    name: Dispatch recovery only on the separately acknowledged operational tag
+    needs: recovery-finalize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Refuse an unacknowledged or foreign recovery continuation
+        env:
+          SELECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_MASTER_SHA: ${{ inputs.expected_master_sha }}
+          EXPECTED_RECOVERY_SHA: ${{ inputs.expected_recovery_sha }}
+          FINALIZED_COMMIT: ${{ needs.recovery-finalize.outputs.commit }}
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = Fuzzy-Technologies/1337
+          test "$GITHUB_REF" = refs/heads/fix/release-publication-recovery
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$SELECTED_VERSION" = 0.3.0
+          test "$EXPECTED_MASTER_SHA" = 04a2ea7f83fa57cda887e916df02daea8eb7313a
+          [[ "$EXPECTED_RECOVERY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$FINALIZED_COMMIT" = "$EXPECTED_RECOVERY_SHA"
+      - name: Check out the existing operational tag without publication authority
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v-publish-recovery-0.3.0-1
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify both distinct tags and dispatch original-byte publication once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_RECOVERY_SHA: ${{ inputs.expected_recovery_sha }}
+        run: |
+          test "$(git cat-file -t refs/tags/v-publish-recovery-0.3.0-1)" = tag
+          test "$(git rev-parse 'refs/tags/v-publish-recovery-0.3.0-1^{commit}')" = "$EXPECTED_RECOVERY_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RECOVERY_SHA"
+          test "$(git rev-parse refs/tags/v0.3.0)" = 955aa1f5d85e2ca7a8d04e316d5b4f178b7bffa7
+          test "$(git rev-parse 'refs/tags/v0.3.0^{commit}')" = 04a2ea7f83fa57cda887e916df02daea8eb7313a
+          test "$(git rev-parse refs/remotes/origin/master)" = 04a2ea7f83fa57cda887e916df02daea8eb7313a
+          test -z "$(git status --porcelain)"
+          observed="$(git ls-remote --refs origin refs/heads/master refs/tags/v0.3.0 refs/tags/v-publish-recovery-0.3.0-1 | LC_ALL=C sort)"
+          expected="$(printf '%s\trefs/heads/master\n%s\trefs/tags/v-publish-recovery-0.3.0-1\n%s\trefs/tags/v0.3.0' 04a2ea7f83fa57cda887e916df02daea8eb7313a "$(git rev-parse refs/tags/v-publish-recovery-0.3.0-1)" 955aa1f5d85e2ca7a8d04e316d5b4f178b7bffa7 | LC_ALL=C sort)"
+          test "$observed" = "$expected"
+          gh workflow run release.yml --repo Fuzzy-Technologies/1337 \
+            --ref v-publish-recovery-0.3.0-1 -f version=0.3.0 \
+            -F recovery=true -f expected_recovery_sha="$EXPECTED_RECOVERY_SHA"

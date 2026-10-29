@@ -43,7 +43,7 @@ jobs:
       - name: Exercise documentation boundaries and enforce per-tool branch coverage
         run: |
           release_tests=()
-          for tool in release_delivery release_finalize; do
+          for tool in release_delivery release_finalize release_recovery; do
             if test -f "tools/$tool.py"; then
               test -f "tests/unit/test_$tool.py"
               release_tests+=("tests/unit/test_$tool.py")
