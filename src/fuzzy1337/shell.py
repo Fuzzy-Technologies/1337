@@ -31,6 +31,7 @@ SHELL_COMMANDS = (
     "demo",
     "help",
     "history",
+    "image",
     "intel",
     "lens",
     "model",
@@ -235,7 +236,7 @@ class NativeInputHistory:
 
             if command in {
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                "paths", "sbom", "api", "trace"
+                "paths", "sbom", "api", "trace", "image"
             }:
                 position = index - first_index
 
@@ -406,18 +407,19 @@ class InteractiveShell(cmd.Cmd):
             self._history.append(
                 command if command in {
                     "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-                    "paths", "sbom", "api", "trace"
+                    "paths", "sbom", "api", "trace", "image"
                 }
                 else normalized
             )
 
         if command in {
             "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
-            "paths", "sbom", "api", "trace", "response"
+            "paths", "sbom", "api", "trace", "image", "response"
         }:
             handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
                         "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
                         "ci": self.do_ci,
+                        "image": self.do_image,
                         "runtime": self.do_runtime,
                         "paths": self.do_paths,
                         "sbom": self.do_sbom,
@@ -520,7 +522,7 @@ class InteractiveShell(cmd.Cmd):
         help_text = {
             "": (
                 "api import graphql-introspection, ci scan, commands, context, demo local, "
-                "history [query], lens [<name>] [--json], "
+                "history [query], image export-local, lens [<name>] [--json], "
                 "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
                 "paths analyze, report export, runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect>, "
@@ -534,6 +536,8 @@ class InteractiveShell(cmd.Cmd):
                 "api import graphql-introspection <workspace>: import one explicit owned offline "
                 "file or retained original manifest with endpoint/scope and exact revision bases."
             ),
+            "image": "image export-local <workspace>: plan or explicitly approve local export; "
+                     "archive scanning requires separate scope and approval.",
             "commands": "commands: list interactive and current top-level CLI commands.",
             "ci": (
                 "ci scan <workspace>: run the explicitly selected closed image/configuration "
@@ -610,7 +614,13 @@ class InteractiveShell(cmd.Cmd):
             json_output = "--json" in arguments
             arguments = [item for item in arguments if item != "--json"]
 
-            if command == "paths":
+            if command == "image":
+                from fuzzy1337.local_image_commands import RunLocalImageCommands
+
+                status = RunLocalImageCommands(arguments, cast(TextIO, self.stdout),
+                                               json_output=json_output)
+
+            elif command == "paths":
                 from fuzzy1337.path_commands import RunPathCommands
 
                 status = RunPathCommands(arguments, cast(TextIO, self.stdout),
@@ -703,6 +713,15 @@ class InteractiveShell(cmd.Cmd):
         """
 
         self.RunLocalCommand("scope", argument)
+
+    def do_image(self, argument: str) -> None:
+        """Plan or export a local reference with the same explicit CLI authority requirements.
+
+        Args:
+            argument: Export action and full explicit selected inputs and authority arguments.
+        """
+
+        self.RunLocalCommand("image", argument)
 
     def do_scan(self, argument: str) -> None:
         """Run foreground endpoint or closed synthetic scans with explicit authorization.

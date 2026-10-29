@@ -193,6 +193,12 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("workbench.scope",),
         ),
         CommandDescriptor(
+            identifier="image",
+            summary="Plan or export an explicitly governed local Docker image reference.",
+            usage="1337 image export-local <workspace>",
+            capabilities=("image.local-reference-export",),
+        ),
+        CommandDescriptor(
             identifier="scan",
             summary=("Run governed discovery, owned content crawl, checks, "
                      "synthetic/native images or configurations."),

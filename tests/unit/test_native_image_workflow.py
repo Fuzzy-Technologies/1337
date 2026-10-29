@@ -25,6 +25,7 @@ from fuzzy1337.artifact_inputs import (
     ArtifactRole,
 )
 from fuzzy1337.evidence import EvidenceProvenance, LocalEvidenceStore
+from fuzzy1337.images import ImageIdentity
 from fuzzy1337.jobs import JobArtifact, JobSnapshot, JobSpec, JobState
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.native_image_capture import NativeFileFact, NativeTrivySelection
@@ -840,10 +841,10 @@ def test_FreshAuthorityImmediatelyBeforeEachSuccessfulSaveKeepsFailureAcquisitio
         store.Save(replace(scope, authorization=replace(scope.authorization,
             state=AuthorizationState.REVOKED)))
 
-    def Normalize(*args):
+    def Normalize(*args, **kwargs):
         """Revoke after exact original admission but before the first successful model write."""
 
-        proposal = normalize(*args)
+        proposal = normalize(*args, **kwargs)
         if boundary == "model":
             Revoke()
         return proposal
@@ -922,3 +923,29 @@ def test_BridgeRefusesReplacingAnOriginalRoleBeforeAnotherPublication(owned):
     assert not calls and tuple(bridge.records.values()) == (first,), (
         "A replacement role must not be published or substituted for the original acquisition."
     )
+
+
+@pytest.mark.parametrize("kind", ("manifest", "untyped"))
+def test_SelectedConfigExpectationRejectsNonconfigIntent(kind):
+    """An optional correlation pin cannot broaden to manifest or untyped identity semantics."""
+
+    candidate = ImageIdentity("sha256:" + "1" * 64, "manifest") if kind == "manifest" else (
+        "sha256:" + "1" * 64)
+    with pytest.raises(ValueError, match="exact config identity"):
+        product.NativeImageAdmissionIntent(candidate)
+
+
+def test_SelectedConfigExpectationIsBoundToImmutablePlan():
+    """Approval intent carries the selected config even when no model asset exists yet."""
+
+    identity = ImageIdentity("sha256:" + "1" * 64)
+    intent = product.NativeImageAdmissionIntent(identity)
+    manifest = ArtifactManifest(ArtifactProfile.IMAGE, ArtifactRole.INPUT,
+        (ArtifactFile("image.tar", 1, "2" * 64),))
+    plan = product.NativeImageScanPlan(manifest, "material-preview", 30,
+                                      admission_intent=intent)
+    assert plan.ToDict()["expected_image_identity"] == identity.digest, (
+        "The immutable descriptive plan must expose the independently selected config pin."
+    )
+    with pytest.raises(AttributeError):
+        intent.expected_image_identity = None

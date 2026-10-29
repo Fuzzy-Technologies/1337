@@ -33,6 +33,7 @@ from fuzzy1337.executors import (
     LocalExecutor,
 )
 from fuzzy1337.findings import Finding, FindingStatus
+from fuzzy1337.images import ImageIdentity
 from fuzzy1337.model import LocalModelStore, ObjectKind
 from fuzzy1337.native_image_admission import (
     ApplyVerifiedNativeTrivyImages,
@@ -552,3 +553,36 @@ def test_AmbiguousInstalledPackageCollisionCannotCreateFinding(paired):
         ApplyVerifiedNativeTrivyImages(state, version, changed, root)
 
     assert LocalModelStore(root).Open() == state, "Ambiguous finding must leave saved model intact"
+
+
+@pytest.mark.parametrize("matches", (True, False))
+def test_SelectedConfigPinChecksFreshReportBeforeCandidates(paired, monkeypatch, matches):
+    """Old assets cannot satisfy the new report pin, and a mismatch never reaches projection."""
+
+    from fuzzy1337 import native_image_admission as admission
+
+    root, state, _, version, scan = paired
+    prior, _ = ApplyVerifiedNativeTrivyImages(state, version, scan, root)
+    observed = REPORT["Metadata"]["ImageID"]
+    expected = ImageIdentity(observed if matches else "sha256:" + "f" * 64)
+    calls = []
+    original = admission.TrivyCandidates
+
+    def Candidates(*args):
+        """Observe the actual projection boundary without changing its interpretation."""
+
+        calls.append(args)
+        return original(*args)
+
+    monkeypatch.setattr(admission, "TrivyCandidates", Candidates)
+    if matches:
+        updated, _ = ApplyVerifiedNativeTrivyImages(prior, version, scan, root,
+                                                   expected_image_identity=expected)
+        assert len(calls) == 1 and updated == prior, (
+            "A matching fresh report must preserve the existing idempotent model transition."
+        )
+    else:
+        with pytest.raises(ValueError, match="selected image config identity"):
+            ApplyVerifiedNativeTrivyImages(prior, version, scan, root,
+                                          expected_image_identity=expected)
+        assert calls == [], "A mismatch must stop before candidates and any model save."

@@ -642,3 +642,44 @@ def AcceptLocalImageExecution(engine: ArtifactPolicyEngine, claim: LocalImageExe
     state.completed = True
 
     return value
+
+
+def ValidateCompletedLocalExport(engine: ArtifactPolicyEngine,
+    claims: tuple[LocalImageExecutionClaim, ...], resolution: LocalImageResolution,
+    pin: LocalImageArchivePin, context: ArtifactPolicyContext, *, at: datetime,
+) -> None:
+    """Recheck all original accepted phase custody immediately before archive publication.
+
+    Args:
+        engine: Original canonical owner of all three one-use claims.
+        claims: Exact original inspect, export and recheck handles in that order.
+        resolution: Original accepted inspect association.
+        pin: Original accepted archive bytes and config identity.
+        context: Fresh current same-store authority.
+        at: Explicit aware final decision time.
+
+    Raises:
+        ArtifactDeniedError: Any original association, persistent control or authority changed.
+    """
+
+    authority = EngineState(engine)
+    if len(claims) != 3 or authority.resolutions.get(resolution) is not claims[0] or (
+        authority.exports.get(claims[1]) is not pin
+    ):
+        raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+
+    states = [authority.claims.get(claim) for claim in claims]
+    for state, operation in zip(states, LocalImageOperation, strict=True):
+        if state is None or not state.finished or not state.completed or (
+            state.prepared.operation is not operation or state.binding is None
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+        if operation is not LocalImageOperation.INSPECT and (
+            state.prepared.resolution is not resolution
+        ):
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+        ValidateLocalImageOperation(engine, state.grant, state.prepared, context, at=at)
+        if PrivateDirectory(state.path.parent) != state.namespace_identity:
+            raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
+        ReadControl(state.path, state.raw, state.identity)
+        ReadControl(state.path.with_suffix(".launch.json"), *state.binding)

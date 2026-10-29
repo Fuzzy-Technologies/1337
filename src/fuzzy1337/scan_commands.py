@@ -383,6 +383,8 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
                            help="Selected strict native ImpactPolicy, reread before authority use.")
         image.add_argument("--plan", action="store_true",
                            help="Native descriptive preview or scoped VERSION plan; no Trivy.")
+        image.add_argument("--expected-config-id",
+                           help="Explicit config SHA-256 pin checked before native model save.")
         image.add_argument("--approve-safe-image", action="store_true")
         image.add_argument("--timeout", type=int, default=30)
         image.add_argument("--report-format", choices=("json", "sarif"))
@@ -467,7 +469,7 @@ def RunCommands(
         if arguments.profile == "synthetic":
             if not all((arguments.scope, arguments.producer, arguments.material)) or any((
                 arguments.cache_directory is not None, arguments.policy is not None,
-                arguments.plan,
+                arguments.plan, arguments.expected_config_id is not None,
             )):
                 parser.error("synthetic image requires scope, producer and material only")
 
@@ -503,10 +505,13 @@ def RunCommands(
 
         else:
             if arguments.action == "image" and arguments.profile == "native":
+                from fuzzy1337.images import ImageIdentity
                 from fuzzy1337.native_image_capture import NativeTrivySelection
                 from fuzzy1337.native_image_observation import NativeImageObservationError
                 from fuzzy1337.native_image_workflow import PlanNativeImageScan, ScanNativeImage
 
+                expected_image = (None if arguments.expected_config_id is None else
+                    ImageIdentity(arguments.expected_config_id))
                 native_root = LocalWorkspaceStore(arguments.path).root
                 native_selection = NativeTrivySelection(native_root, arguments.executable,
                     arguments.archive, arguments.cache_directory,
@@ -522,7 +527,8 @@ def RunCommands(
                         native_plan = asyncio.run(PlanNativeImageScan(native_root,
                             arguments.owner, native_selection, scope_id=arguments.scope,
                             policy_provider=NativeReadPolicy if arguments.policy else None,
-                            timeout_seconds=arguments.timeout))
+                            timeout_seconds=arguments.timeout,
+                            expected_image_identity=expected_image))
 
                     except NativeImageObservationError:
                         WriteJson(output, {"schema_version": 1, "state": "failed",
@@ -642,7 +648,8 @@ def RunCommands(
                     arguments.owner, native_selection, NativeReadPolicy,
                     approve_safe_image=arguments.approve_safe_image,
                     timeout_seconds=arguments.timeout, on_event=OnEvent,
-                    report_format=arguments.report_format, report_output=arguments.report_output))
+                    report_format=arguments.report_format, report_output=arguments.report_output,
+                    expected_image_identity=expected_image))
 
             elif arguments.action == "image":
                 selection = ImageScanSelection(Path(arguments.archive), arguments.executable,

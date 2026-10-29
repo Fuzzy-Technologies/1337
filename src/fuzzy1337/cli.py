@@ -120,7 +120,8 @@ def Main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "command",
         choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan", "report",
-                 "demo", "intel", "ci", "runtime", "paths", "sbom", "api", "trace", "response"),
+                 "demo", "intel", "ci", "runtime", "paths", "sbom", "api", "trace", "response",
+                 "image"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
@@ -130,6 +131,14 @@ def Main(argv: Sequence[str] | None = None) -> int:
         help="Write experimental JSON for update or an explicit product command outcome.",
     )
     arguments, remaining = parser.parse_known_args(argv)
+
+    if arguments.command == "image":
+        from fuzzy1337.local_image_commands import RunLocalImageCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunLocalImageCommands(remaining, sys.stdout, json_output=arguments.json)
 
     if arguments.command == "response":
         from fuzzy1337.response_commands import RunResponseCommands
@@ -229,7 +238,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     if arguments.json and arguments.command != "update":
         parser.error(
             "--json is only available for update, workspace, scope, scan, report, demo, "
-            "intel, ci, runtime, paths, sbom, api and trace"
+            "intel, ci, runtime, paths, sbom, api, trace and image"
         )
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):

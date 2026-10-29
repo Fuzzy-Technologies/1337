@@ -305,3 +305,24 @@ def test_OriginalExecutionFailuresConsumeTheAttemptWithoutResolution(
 
     with pytest.raises(ArtifactDeniedError):
         AcceptLocalImageExecution(engine, claim, request, InertResult(), context, at=NOW)
+
+
+def test_CanonicalEngineFacadeRetainsOriginalClaimAndMandatoryBinding(original_operation):
+    """All seven facade methods delegate to the same authority owner without a binding bypass."""
+
+    engine, prepared, context = original_operation
+    plan = engine.PlanLocalImageOperation(prepared, context, at=NOW)
+    grant = engine.AuthorizeLocalImageOperation(prepared, context, at=NOW,
+                                                approve_local_image=True)
+    assert grant.plan == plan, "Facade planning and authorization must share exact authority."
+    engine.ValidateLocalImageOperation(grant, prepared, context, at=NOW)
+    claim, request = engine.ClaimLocalImageExecution(grant, prepared, context, at=NOW)
+    with pytest.raises(ArtifactDeniedError):
+        engine.ValidateLocalImageClaim(claim, request, context, at=NOW)
+    engine.BindLocalImageExecution(claim, request, context, at=NOW)
+    engine.ValidateLocalImageClaim(claim, request, context, at=NOW)
+    result = engine.AcceptLocalImageExecution(claim, request,
+        InertResult(json.dumps({"Os": "linux", "Id": CONFIG_ID}).encode()), context, at=NOW)
+    assert isinstance(result, LocalImageResolution) and result.image_config_id == CONFIG_ID, (
+        "The public facade must preserve original accepted inspect custody."
+    )
