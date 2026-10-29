@@ -585,6 +585,17 @@ verification, triage preservation and honest save uncertainty. The command
 implementation remains Internal; no remote scheduling or automatic refresh is
 introduced.
 
+### Read-only saved image inventory
+
+The Experimental `sbom image` console and shell command selects an exact saved
+config or manifest image identity. It verifies original custody and the pinned
+saved report before projecting nested packages and explicit configured Docker
+uses. Equal digest bytes do not merge digest kinds. Missing inventory and
+runtime reachability remain unknown; source corruption, changed bases and
+exhausted bounds refuse. No scan, acquisition or Save is performed. The
+`fuzzy1337.image_sbom_view` module and its helpers remain Internal; the command
+adds no supported Python extension interface or persisted-model schema.
+
 ### Repository releases
 
 Before `1.0.0`:

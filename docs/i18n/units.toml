@@ -10391,7 +10391,7 @@ state = "missing"
 id = "page:api.fuzzy1337.sbom-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.sbom_commands.md"
-sourceHash = "sha256:14102dcc6c3cad5101918fac8e91e169ced379cffeb58d1fef12cdd737e31365"
+sourceHash = "sha256:36dfdbf87fa88d0480dd45825eba3975e478e43b168efb8bda2cc208411a7b79"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -10435,7 +10435,7 @@ state = "missing"
 id = "symbol:fuzzy1337.sbom_commands.CheckKnownSbomSources"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/sbom_commands.py"
-sourceHash = "sha256:41f9b62098fc557bf2ae4c2bd3cb2a296015f4b24cce130670edc95cf79d9ee8"
+sourceHash = "sha256:2daaa7bd3c31b263b4894d4d9de33edc3879c6fe0e646dd938769cc708da7709"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -10468,7 +10468,7 @@ state = "missing"
 id = "symbol:fuzzy1337.sbom_commands.RunSbomCommands"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/sbom_commands.py"
-sourceHash = "sha256:e0fe939b346f54c490bdd0927fdb170e9f37eb9904f2ccc1d65fd3e2f036b593"
+sourceHash = "sha256:a3b71aec7067b81b39608b5e990efa7fab7c1e83543e4bb8fbd6d69d3f739321"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -10567,7 +10567,7 @@ state = "missing"
 id = "symbol:fuzzy1337.sbom_commands.SbomParser"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/sbom_commands.py"
-sourceHash = "sha256:e5152f718fc990e57c5513925bd06e2052f013704a861149eb7e9488e3a79a1b"
+sourceHash = "sha256:e4e6deaf12534753301bbf9972bbf2b860b593013720b42d37b410feebdd2dcd"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -22578,5 +22578,38 @@ reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
 
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.image-sbom-view"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.image_sbom_view.md"
+sourceHash = "sha256:b7bec2afb93e22d1f24a6592c9c8de009f2061347467a6a02180b50fd718c123"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.image_sbom_view.ImageSbomView"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/image_sbom_view.py"
+sourceHash = "sha256:f34381d96b4a28919c5e5c83db075f09713d2be4c7557602e2bc9281eca480a8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.image_sbom_view.RunImageSbomView"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/image_sbom_view.py"
+sourceHash = "sha256:01819f1950e02da8780cdf27d14736ef9046a00f85ead8d009ddc82089c52618"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
 [units.translations.zh-cn]
 state = "missing"

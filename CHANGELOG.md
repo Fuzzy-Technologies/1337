@@ -6,6 +6,30 @@
 
 Major 0 — the pre-stable 1337 Security Workbench line, establishing the Community foundation, development contracts, security boundaries, core workbench experience, and the path toward the first stable release.
 
+## Minor 0.3
+
+### Patch 0 — v0.3.0 — 2026-10-29
+
+#### Digest
+
+- Prepare the Community Scanner MVP delivery with useful installed workflows
+  and verified saved-state inspection. This is a development candidate; no
+  v0.3.0 release or PyPI publication has occurred at this checkpoint.
+
+#### Added
+
+- Add `sbom image` to inspect one saved image's nested package inventory and
+  explicit configured Docker uses through the installed console and shell.
+  Exact config/manifest digest selection, original evidence verification and
+  pinned model/snapshot references preserve the source of each observation.
+
+#### Security
+
+- Keep the joined inventory read-only and bounded. Missing inventory and runtime
+  reachability remain unknown, original corruption or changed saved bases refuse,
+  and license declarations establish no compliance result. Broader SBOM/license
+  semantics and live runtime correlation remain tracked separately under M4.
+
 ## Minor 0.2
 
 ### Patch 5 — v0.2.5 — 2026-10-29
