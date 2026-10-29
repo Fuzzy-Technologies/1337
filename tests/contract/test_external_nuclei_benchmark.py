@@ -13,7 +13,7 @@ import signal
 import stat
 import subprocess
 from dataclasses import replace
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -957,13 +957,32 @@ def test_StandaloneRuntimeContainerPathSpellingStaysInsideInertMock(tmp_path, mo
     )
 
 
-def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match"):
+def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match", container_paths=False):
     """Prepare inert source contracts while replacing every provider/process entry point."""
 
     arguments = StandaloneMaterial(tmp_path, path)
     wheel = tmp_path / "inert-not-installed.whl"
     wheel.write_bytes(b"inert wheel identity fixture, never installed")
     probe = {"calls": [], "health": [], "before_launch": 0}
+
+    def ExpectedContainerArguments(executable, selected_path, template, configuration):
+        """Map only predeclared inert artifact slots from independent fixed Linux arguments."""
+
+        expected_files = (arguments[2], arguments[0] / "prometheus-exposition.yaml",
+                          arguments[0] / "operator-config.yaml")
+
+        if (executable, template, configuration) != expected_files or selected_path != path:
+            raise ValueError("Inert whole-product expected arguments require exact fixture paths")
+
+        expected = list(StandaloneArguments(CONTAINER_EXECUTABLE, path,
+            CONTAINER_TEMPLATE, CONTAINER_CONFIGURATION))
+        expected[0], expected[-1], expected[4] = map(str, expected_files)
+
+        return tuple(expected)
+
+    if os.name == "nt" or container_paths:
+        # Expected argv remains independent of the actual plan and its provider flags.
+        monkeypatch.setattr(whole_runtime, "StandaloneArguments", ExpectedContainerArguments)
 
     def Inventory(revision, selected_wheel):
         """Label the replaced installed-wheel check explicitly as inert contract data."""
@@ -1035,6 +1054,67 @@ def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match"):
     monkeypatch.setattr(asyncio, "create_subprocess_exec", forbidden)
 
     return (*arguments, "a" * 40, wheel), probe, forbidden
+
+
+def test_WholeRuntimeOriginalArgumentGuardRejectsWindowsSpellingWithoutIo():
+    """The real Linux argv boundary still refuses Windows artifacts before any runtime access."""
+
+    with pytest.raises(ValueError, match="unambiguous absolute artifact paths"):
+        StandaloneArguments(PureWindowsPath("C:/inert/nuclei"), "/metrics",
+            PureWindowsPath("C:/inert/prometheus.yaml"), PureWindowsPath("C:/inert/config.yaml"))
+
+
+@pytest.mark.parametrize("mutation", ["none", "flag", "template-path"])
+def test_WholeRuntimeInertContainerProjectionPreservesStrictPlanComparison(
+    tmp_path, monkeypatch, mutation,
+):
+    """Explicit Linux exercise keeps artifact modeling narrow and refuses actual plan drift."""
+
+    arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch, container_paths=True)
+    original = NucleiAdapter.BuildInvocation
+
+    def BuildInvocation(adapter, request):
+        """Mutate only the actual product plan, never the independent expected-argv fixture."""
+
+        invocation = original(adapter, request)
+        argv = list(invocation.argv)
+
+        if mutation == "flag":
+            argv[argv.index("-rl") + 1] = "2"
+
+        elif mutation == "template-path":
+            argv[argv.index("-t") + 1] += ".wrong"
+
+        return replace(invocation, argv=tuple(argv))
+
+    monkeypatch.setattr(NucleiAdapter, "BuildInvocation", BuildInvocation)
+    outcome = whole_runtime.RunWhole1337(*arguments)
+    root = arguments[0]
+
+    if mutation == "none":
+        canonical = StandaloneArguments(CONTAINER_EXECUTABLE, "/metrics",
+                                         CONTAINER_TEMPLATE, CONTAINER_CONFIGURATION)
+        actual = probe["calls"][0].invocation.argv
+        assert len(actual) == len(canonical) and all(
+            actual[index] == value for index, value in enumerate(canonical)
+            if index not in {0, 4, len(canonical) - 1}
+        ), "The independent inert projection may alter only the three declared artifact slots."
+        assert outcome["status"] == "completed" and len(outcome["findings"]) == 1, (
+            "Explicit inert container spelling must preserve actual saved-Finding projection."
+        )
+        assert (root / "reopen.json").exists() and probe["before_launch"] == 1, (
+            "The portability fixture must still exercise real product authority and reopen."
+        )
+
+    else:
+        assert outcome["status"] == "failed" and not probe["calls"], (
+            "Changing a real plan flag or artifact path must refuse before any execution."
+        )
+        assert (root / "plan.json").exists() and not (root / "confirmation.json").exists(), (
+            "The independent expected argv must reject drift before plan confirmation."
+        )
+
+    forbidden.assert_not_called()
 
 
 @pytest.mark.parametrize("path", PATHS, ids=["metrics", "json", "html"])
