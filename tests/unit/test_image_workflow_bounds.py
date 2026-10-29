@@ -1,0 +1,120 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+"""Pure governed image selection, capture, summary and owned-loop configuration bounds."""
+
+from __future__ import annotations
+
+import asyncio
+import socket
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+
+from fuzzy1337.artifact_inputs import ArtifactReadConsent
+from fuzzy1337.image_evidence import ImageOperationCapture
+from fuzzy1337.image_workflow import ImageReportOutcome, ImageScanSelection, RunSyntheticImageScan
+from fuzzy1337.workspace import LocalWorkspaceStore
+
+
+@pytest.fixture(scope="module")
+def owned_image_runner() -> Iterator[asyncio.Runner]:
+    """Initialize owned Windows loop resources before the unchanged unit network guard."""
+
+    with asyncio.Runner() as runner:
+        runner.get_loop()
+        yield runner
+
+
+@pytest.fixture
+def image_runner(owned_image_runner: asyncio.Runner) -> Iterator[asyncio.Runner]:
+    """Reuse the initialized loop and reap every pending task at each test boundary."""
+
+    yield owned_image_runner
+
+    async def Cleanup() -> None:
+        """Cancel and await unfinished owned tasks without creating a new event loop."""
+
+        pending = asyncio.all_tasks() - {asyncio.current_task()}
+
+        for task in pending:
+            task.cancel()
+
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    owned_image_runner.run(Cleanup())
+
+
+@pytest.mark.parametrize("value", [Path("relative.tar"), "absolute-path-text", None])
+def test_SelectionRequiresTypedExplicitAbsolutePaths(tmp_path, value):
+    """No constructor discovers an archive/scanner path or follows caller-relative context."""
+
+    with pytest.raises(ValueError, match="explicit consent"):
+        ImageScanSelection(value, tmp_path, tmp_path, tmp_path,
+            ArtifactReadConsent("owner:test", "read:explicit"))
+
+
+@pytest.mark.parametrize("configuration", [
+    {"timeout_seconds": True}, {"timeout_seconds": 0}, {"timeout_seconds": 61},
+    {"timeout_seconds": 1.5}, {"timeout_seconds": "1"}, {"approve_safe_image": 1},
+    {"report_format": "json"}, {"report_output": Path("report.json")},
+])
+def test_RunConfigurationDeniesUnsupportedInputsBeforeAnyWorkspaceRead(
+    tmp_path, monkeypatch, image_runner, configuration
+):
+    """Caller coercion cannot weaken deadlines, explicit opt-in or paired report selection."""
+
+    selection = ImageScanSelection(tmp_path, tmp_path, tmp_path, tmp_path,
+        ArtifactReadConsent("owner:test", "read:explicit"))
+
+    def ForbiddenOpen(*arguments, **options):
+        """Reject any workspace read before the invalid caller configuration is denied."""
+
+        raise AssertionError("Invalid image configuration reached workspace storage")
+
+    monkeypatch.setattr(LocalWorkspaceStore, "Open", ForbiddenOpen)
+
+    with pytest.raises(ValueError, match="configuration"):
+        image_runner.run(RunSyntheticImageScan(tmp_path, "scope", "owner:test", selection,
+            **configuration))
+
+
+def test_OwnedImageLoopRetainsUnchangedUnitNetworkGuard(image_runner):
+    """Preinitialized loop resources never exempt test execution from network denial."""
+
+    async def Check() -> None:
+        """Exercise all guarded connection entry points inside the actual reused loop."""
+
+        with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+            socket.create_connection(("127.0.0.1", 1))
+
+        with socket.socket() as client:
+            with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                client.connect(("127.0.0.1", 1))
+
+            with pytest.raises(RuntimeError, match="Unit tests must not access the network"):
+                client.connect_ex(("127.0.0.1", 1))
+
+        assert asyncio.all_tasks() == {asyncio.current_task()}, (
+            "Configuration refusal must not retain tasks on the reused owned loop"
+        )
+
+    image_runner.run(Check())
+
+
+def test_CaptureProductionRequiresOriginalTypedSdkFacts():
+    """Untyped claims cannot be packaged as original operation captures."""
+
+    with pytest.raises(ValueError, match="original typed operation facts"):
+        ImageOperationCapture(None, None, None,
+            "2026-10-13T00:00:00Z", "2026-10-13T00:00:01Z")
+
+
+def test_ReportOutcomeKeepsPublicationTruthSeparateFromFailure():
+    """A failed post-link publication still describes the complete output already published."""
+
+    outcome = ImageReportOutcome("failed", "json", output_published=True, failure="publication")
+    assert outcome.output_published and outcome.status == "failed", (
+        "Export failure cannot erase confirmed complete output publication"
+    )

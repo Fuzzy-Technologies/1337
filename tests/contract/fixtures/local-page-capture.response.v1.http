@@ -1,0 +1,27 @@
+HTTP/1.1 200 Synthetic reason
+Content-Type: text/html; charset=utf-8
+Content-Length: 541
+Connection: close
+X-Discarded: synthetic-header-marker
+Set-Cookie: synthetic=discarded
+Authorization: Synthetic discarded
+Location: /must-not-be-fetched
+
+<!doctype html>
+<html>
+<head><title>Owned loopback page</title></head>
+<body>
+<a href="/alpha">Alpha</a>
+<a href="/alpha#section">Duplicate</a>
+<a href="next">Next</a>
+<a href="#section">Fragment</a>
+<a href="/blocked">Denied by scope</a>
+<a href="/search?q=synthetic">Query unsupported</a>
+<a href="https://127.0.0.1/off-origin">Other origin</a>
+<a href="/docs/index">Source</a>
+<a href="/zeta">Zeta</a>
+<a>Missing</a>
+<!-- <a href="/comment">Ignored</a> -->
+<script>const unused = '<a href="/script">Ignored</a>';</script>
+</body>
+</html>

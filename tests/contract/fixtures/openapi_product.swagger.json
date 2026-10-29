@@ -1,0 +1,29 @@
+{
+  "swagger": "2.0",
+  "info": {"title": "Owned offline product API", "version": "1"},
+  "host": "127.0.0.1:19001",
+  "schemes": ["http"],
+  "basePath": "/api",
+  "paths": {
+    "/ping": {
+      "get": {
+        "operationId": "Ping",
+        "parameters": [{"in": "query", "name": "limit", "required": true,
+          "type": "integer", "default": 4}],
+        "responses": {"200": {"description": "Owned metadata only"}}
+      }
+    },
+    "/notes": {
+      "post": {
+        "operationId": "AddNote",
+        "consumes": ["application/json"],
+        "parameters": [{"in": "body", "name": "note", "required": true,
+          "schema": {"type": "object", "required": ["text"], "properties": {
+            "text": {"type": "string", "default": "owned-original-only-marker"}
+          }}
+        }],
+        "responses": {"200": {"description": "Owned metadata only"}}
+      }
+    }
+  }
+}

@@ -83,7 +83,7 @@ def CommandEpilog(registry: CommandRegistry) -> str:
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
-    """Dispatch help, shell, diagnostics, or read-only component inspection.
+    """Dispatch local workspace/scope commands, bounded scans, explicit CI gates and reports.
 
     Writes to the terminal and may enter the interactive shell. The default dispatch does not
     start a scan.
@@ -92,7 +92,10 @@ def Main(argv: Sequence[str] | None = None) -> int:
         argv: Arguments excluding the executable, or None for process arguments.
 
     Returns:
-        Zero for help or shell exit, or the doctor/update required-check status.
+        Zero for completed commands or satisfied explicit CI predicates; one for CI violation,
+        two for invalid setup, three for scan denial,
+        four for scan/export integrity, execution or storage failure, 130 for interruption,
+        or inspection status.
 
     Raises:
         SystemExit: Argument parsing rejects input or handles help/version.
@@ -105,7 +108,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
         description="1337 Security Workbench by Fuzzy Technologies",
         epilog=CommandEpilog(registry),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,
     )
+    parser.add_argument("-h", "--help", action="store_true", help="Show command help and exit.")
     parser.add_argument(
         "--version",
         action=InstalledVersionAction,
@@ -114,19 +119,136 @@ def Main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "command",
-        choices=("doctor", "help", "shell", "update"),
+        choices=("doctor", "help", "shell", "update", "workspace", "scope", "scan", "report",
+                 "demo", "intel", "ci", "runtime", "paths", "sbom", "api", "trace", "response",
+                 "raw", "image"),
         nargs="?",
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--json",
         action="store_true",
-        help="Write the experimental JSON inspection report for 'update'.",
+        help="Write experimental JSON for update or an explicit product command outcome.",
     )
-    arguments = parser.parse_args(argv)
+    arguments, remaining = parser.parse_known_args(argv)
+
+    if arguments.command == "raw":
+        from fuzzy1337.raw_commands import RunRawCommands
+
+        if arguments.help:
+            separator = remaining.index("--") if "--" in remaining else len(remaining)
+            remaining.insert(separator, "--help")
+
+        return RunRawCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "image":
+        from fuzzy1337.local_image_commands import RunLocalImageCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunLocalImageCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "response":
+        from fuzzy1337.response_commands import RunResponseCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunResponseCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "paths":
+        from fuzzy1337.path_commands import RunPathCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunPathCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "sbom":
+        from fuzzy1337.sbom_commands import RunSbomCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunSbomCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "api":
+        from fuzzy1337.api_commands import RunApiCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunApiCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "runtime":
+        from fuzzy1337.runtime_commands import RunRuntimeCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunRuntimeCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "trace":
+        from fuzzy1337.ioc_commands import RunIocCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunIocCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "ci":
+        from fuzzy1337.ci_commands import RunCiCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunCiCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "intel":
+        from fuzzy1337.intelligence_commands import RunIntelCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunIntelCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "demo":
+        from fuzzy1337.demo_commands import RunDemoCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunDemoCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command == "report":
+        from fuzzy1337.report_commands import RunReportCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunReportCommands(remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.command in {"workspace", "scope", "scan"}:
+        from fuzzy1337.scan_commands import RunCommands
+
+        if arguments.help:
+            remaining.append("--help")
+
+        return RunCommands(arguments.command, remaining, sys.stdout, json_output=arguments.json)
+
+    if arguments.help:
+        parser.print_help()
+        parser.exit()
+
+    if remaining:
+        parser.error("unrecognized arguments: " + " ".join(remaining))
 
     if arguments.json and arguments.command != "update":
-        parser.error("--json is only available for update")
+        parser.error(
+            "--json is only available for update, workspace, scope, scan, report, demo, "
+            "intel, ci, runtime, paths, sbom, api, trace, response, raw and image"
+        )
 
     if arguments.command == "shell" or (arguments.command is None and sys.stdin.isatty()):
         return RunInteractiveShell()

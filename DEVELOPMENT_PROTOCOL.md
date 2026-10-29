@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-Protocol version: `0.5`
+Protocol version: `0.8`
 Project: **1337 Security Workbench by Fuzzy Technologies**
 
 This file is the persistent development contract for the repository. AI agents, Codex sessions, IDE assistants, scripts, CI jobs, and human contributors are expected to follow it.
@@ -100,7 +100,7 @@ Rules:
 - When work on one or more task issues actually begins, assign the project owner (`Tim55667757`) to those active task issues. If work is explicitly returned to the backlog before completion, remove the assignee.
 - Pull requests must reference the task(s) and feature(s) they implement and should use the milestone of the primary owning task/feature unless the PR is explicitly cross-milestone.
 - A pull request that fully completes a task may use `Closes #NN` or `Fixes #NN` in the PR body. Do not use closing keywords when the PR only partially advances the task.
-- After a human merge into `develop`, the `Close merged tasks` workflow closes only open repository issues named by an explicit, standalone `Closes #NN`, `Fixes #NN`, or `Resolves #NN` line in the merged PR body. `Refs #NN` and ordinary mentions never close work.
+- After an authorized merge into `develop`, the `Close merged tasks` workflow closes only open repository issues named by an explicit, standalone `Closes #NN`, `Fixes #NN`, or `Resolves #NN` line in the merged PR body. `Refs #NN` and ordinary mentions never close work.
 - Ordinary intermediate commits reference their owning issue without closing it.
 - When a task implementation is ready for owner review, add a short plain-English issue comment describing what changed, what the change enables, and how it was actually verified. Keep it readable for a human; use a small Markdown table only when it improves clarity.
 - A task remains open while its completing PR is in review. Normal completion is PR merge → Task closed.
@@ -128,10 +128,31 @@ Multiple existing labels may be used when each is materially true. Do not create
 - Open work PRs against `develop` unless a release/hotfix workflow or the documentation/site publication exception in `docs/RELEASE_WORKFLOW.md` explicitly requires another base.
 - Draft PRs are the normal place for work still being implemented or validated.
 - CI and relevant tests must pass before merge once those checks exist.
-- Human owner review is the normal merge gate.
-- Automated agents must not self-merge unless explicitly instructed for that specific PR.
+- Review is required before merge. The standing owner authorization below permits autonomous integration of ordinary implementation PRs into `develop`; work outside that authorization still requires the applicable owner decision.
 - Force-push and history rewriting on protected branches are prohibited.
 - Default merge method for ordinary work PRs is Squash and merge; exceptions are defined in `docs/RELEASE_WORKFLOW.md`.
+
+### Owner-approved autonomous integration cycle
+
+On 2026-10-13 the owner confirmed standing authorization for AIna and delegated development agents to continue the planned 1337 development cycle:
+
+```text
+implement in a branch
+→ verify the actual feature through its product interfaces
+→ review the exact proposed revision
+→ record Reviewed and/or Approved through the connected owner account
+→ merge the verified PR into develop
+→ continue the next planned task
+```
+
+- Do not stop for another per-PR merge confirmation when this standing authorization applies.
+- Functional verification must exercise the relevant implemented interface and its important failure paths. Fixtures or parser-only tests do not establish a working scanner or product workflow. Documentation-only changes require the applicable documentation checks.
+- Keep the focused pre-commit and full PR-checkpoint cadence in section 10. Required CI must be green for the proposed revision; never turn a missing, failed or unexecuted check into approval.
+- Coordinate an independent implementation review when agents work in parallel. The integration coordinator verifies review findings, functional evidence, CI and the final diff before merging.
+- Use the short review text `Reviewed`, `Approved`, or `Reviewed/Approved`, matching the completed review. When GitHub prohibits formal approval of a PR authored by the connected account, use an ordinary review comment; do not invent a second reviewer identity.
+- Verify merge state, linked-task lifecycle and branch cleanup after integration. Close a task or feature only when its actual acceptance criteria are complete.
+- PyPI publication tasks remain paused, including publisher setup, publishing workflows, authentication and uploads, and acceptance that requires a published PyPI package. Normal dependency installation and non-publication package tests remain part of development.
+- This permission covers ordinary planned development and integration into `develop`. Existing repository scope, security-testing, protected-policy, destructive-operation and release rules still apply. A later owner instruction may narrow or revoke the permission.
 
 ## 4. Commit messages
 
@@ -176,6 +197,7 @@ A commit should represent one coherent logical change. Infrastructure repair, be
 ### Work slicing and commit cadence
 
 - Commit after a coherent logical implementation slice has been completed and the applicable targeted tests/evidence for that slice have been checked.
+- Do not run the full repository gate before routine implementation commits. Validate the changed feature and its relevant regression paths; reserve full-gate execution for the PR checkpoints in section 10.
 - A non-trivial task should normally contain multiple small logical commits when that improves reviewability, diagnosis, or rollback.
 - Avoid both one giant catch-all commit and mechanical commit spam for every touched file or trivial edit.
 - Related tiny edits may be combined into one coherent commit; unrelated work must remain separate.
@@ -468,20 +490,39 @@ Test coverage is a release/merge contract, not an informational metric.
 
 ## 10. Test gates and evidence
 
-During implementation:
+During implementation and before each routine commit:
 
-- run the smallest relevant pytest layer/subsystem for fast feedback;
-- run functional/integration/E2E suites when the change crosses those boundaries;
-- after the final tracked change, run the canonical full repository gate;
-- any later tracked-file edit invalidates the full gate and requires it again before commit/release.
+- run only tests for the changed feature and its relevant regression paths;
+- include selected contract/functional/integration/E2E tests when the change crosses those boundaries;
+- use process-isolated xdist workers for independent tests and run explicitly marked shared-resource tests separately with `-n 0`;
+- use `--no-cov` for partial test selections so repository-wide coverage thresholds do not force unrelated tests into the development loop;
+- run applicable static checks on the changed code, inspect the exact diff, and record actual commands/results;
+- do not run `1337-dev unit`, `1337-dev test`, or `1337-dev check` as a routine pre-commit requirement: these commands validate complete suites.
 
-Expected baseline gates once bootstrap tooling exists:
+Tests and mandatory checks must be deterministic: use versioned fixtures, controlled
+owned targets, explicit inputs and deterministic assertions. Never call a live LLM,
+require model-service credentials or use model judgments to decide test/gate outcomes.
+Tests of future AI integrations must use fixed recorded fixtures or deterministic
+fakes. Independent test modules and CI jobs run in parallel with bounded workers;
+serialize only declared shared-resource cases or real execution dependencies.
 
-```text
-python -m pytest -q
-python -m compileall -q src tests tools
-python -m ruff check .
+Full repository validation belongs to final PR integration, under the owner's 2026-10-23 instruction:
+
+- keep implementation PRs in draft while intermediate commits are being prepared; draft opening and updates do not run the full gate;
+- run only the small, explicit feature/regression selection and applicable changed-code static checks before each intermediate commit, including review fixes;
+- after implementation and focused validation are complete, mark the final PR revision ready for review to start the canonical full gate in shared CI;
+- before intermediate follow-up work, return the PR to draft; this cancels an in-progress integration run. Mark it ready again when the new final revision is prepared;
+- a new head on an already ready PR reruns full CI, so changed code cannot inherit earlier green evidence;
+- do not duplicate the same full gate locally, in individual development agents or after the accepted merge into `develop`;
+- full-gate evidence applies only to its tested revision. Before approval or merge, verify actual required integration jobs succeeded for the final head after readiness. Skipped draft jobs and workflow-level success without executed checks are not full-gate evidence.
+
+The canonical full repository command is:
+
+```bash
+uv run --locked --extra dev 1337-dev check
 ```
+
+Existing integration/release CI remains the shared verification surface. Do not duplicate its full-suite execution in the local development loop. See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for focused commands and bounded worker settings.
 
 The canonical pytest/coverage gate must additionally collect branch coverage and enforce the per-module `>80%` contract defined above once coverage tooling is configured.
 
@@ -533,6 +574,7 @@ A generated artifact may be committed only when it is intentionally part of a st
 
 - AI is an optional intelligence/implementation layer, not the source of truth for deterministic security evidence.
 - Prefer deterministic parsers, validators, tests, and scripts whenever they can answer the question.
+- Use LLMs for bounded implementation/design/review work that deterministic tooling cannot perform. Routine validation, pass/fail decisions and process/deadline monitoring use deterministic tools; do not substitute repeated model reasoning or duplicate test runs.
 - Agents operate through the same project contracts as humans and automation.
 - Agents must not bypass scope/security rules with raw shell access.
 - Model-generated conclusions must be traceable to evidence when they affect findings, risk, or security decisions.

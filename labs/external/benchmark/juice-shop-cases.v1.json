@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "pack_id": "external.juice-shop.prometheus.v1",
+  "target_manifest": "juice-shop.v1.json",
+  "source_revision": "5658473cf8814459bf89000ce373b20ed0b4eb37",
+  "whole_application_oracle_complete": false,
+  "property": "Unauthenticated Prometheus exposition at an explicitly selected endpoint",
+  "requested_budget": {
+    "request_timeout_seconds": 3,
+    "operation_timeout_seconds": 10,
+    "max_requests": 1,
+    "max_response_bytes": 262144,
+    "rate_limit": 1
+  },
+  "sources": [
+    {
+      "id": "server",
+      "path": "server.ts",
+      "blob_sha": "b9904bae9bdbdfb046b24f77d9bdd1815e8a16d3",
+      "facts": "Lines 288-289 serve /ftp; 695 and 750 register /metrics without route authentication. Global compression precedes these routes."
+    },
+    {
+      "id": "metrics-handler",
+      "path": "routes/metrics.ts",
+      "blob_sha": "3d1adedac2bec8ce16a47983b46065cd7b450f25",
+      "facts": "Lines 84-98 return the Prometheus registry and collect default process metrics. Content-Type is set; res.end is used without explicit Content-Length. User-agent exclusions affect challenge bookkeeping, not access."
+    },
+    {
+      "id": "upstream-metrics-tests",
+      "path": "test/api/metrics.test.ts",
+      "blob_sha": "dc2314802d8f98a7b2b54583fd7be2f1ba44d1a7",
+      "facts": "Lines 73-79 independently expect HTTP 200 and text/plain. Other tests assert actual metric sample families. These upstream tests are source evidence, not execution of our pinned image."
+    },
+    {
+      "id": "challenges",
+      "path": "data/static/challenges.yml",
+      "blob_sha": "0b8ae97f1791aa6d01ad6dc95440cbb6aa11126b",
+      "facts": "Lines 1339-1350 identify exposedMetricsChallenge; 253-263 identify confidential document exposure. Neither inventory exhausts all application vulnerabilities."
+    },
+    {
+      "id": "version-handler",
+      "path": "routes/appVersion.ts",
+      "blob_sha": "bc4a2d5896b4305826c8d8abd4f85a15ba0863d7",
+      "facts": "Lines 11-16 return the application version via res.json, independently establishing the JSON negative control."
+    },
+    {
+      "id": "html-handler",
+      "path": "routes/angular.ts",
+      "blob_sha": "0522fc138426fb0fa7258cf9bff8042e94300ce7",
+      "facts": "Lines 9-17 serve frontend/dist/frontend/index.html for non-API/non-REST routes, independently establishing the HTML negative control."
+    },
+    {
+      "id": "file-handler",
+      "path": "routes/fileServer.ts",
+      "blob_sha": "79403a8a27db4fd1eedc23686b15fd6976001228",
+      "facts": "Lines 25-32 permit .md files and return acquisitions.md from ftp without authentication."
+    },
+    {
+      "id": "confidential-document",
+      "path": "ftp/acquisitions.md",
+      "blob_sha": "0c76ae74190e8b180f6c535a6a88a2ac121068c4",
+      "facts": "The upstream fixture explicitly labels the acquisition document confidential. No real customer document is involved."
+    }
+  ],
+  "cases": [
+    {
+      "id": "metrics.exposed",
+      "capability": "web.prometheus-exposition-check",
+      "path": "/metrics",
+      "applicability": "applicable",
+      "expected": true,
+      "source_ids": ["server", "metrics-handler", "upstream-metrics-tests", "challenges"],
+      "reason": "The unauthenticated route returns actual Prometheus registry data. Runtime response framing, body bounds, and the selected predicate still require verification."
+    },
+    {
+      "id": "metrics.json-control",
+      "capability": "web.prometheus-exposition-check",
+      "path": "/rest/admin/application-version",
+      "applicability": "applicable",
+      "expected": false,
+      "source_ids": ["server", "version-handler"],
+      "reason": "The existing pinned target version contract returns JSON; this endpoint must not be classified as Prometheus exposition. This is not a fixed /metrics route."
+    },
+    {
+      "id": "metrics.html-control",
+      "capability": "web.prometheus-exposition-check",
+      "path": "/",
+      "applicability": "applicable",
+      "expected": false,
+      "source_ids": ["server", "html-handler"],
+      "reason": "The existing pinned target root contract returns the HTML application; it must not be classified as Prometheus exposition. This is not a fixed /metrics route."
+    }
+  ],
+  "scanner_tracks": [
+    {
+      "id": "native-engine",
+      "scanner_id": "native.web-check",
+      "rule_ids": ["native.prometheus-exposition"],
+      "implementation": "available",
+      "artifact": null,
+      "predicate": "Associated legacy ASCII HELP, TYPE, and sample metric names; labels may contain Unicode. Native implementation is owned separately."
+    },
+    {
+      "id": "whole1337",
+      "scanner_id": "native.nuclei",
+      "rule_ids": ["nuclei.fuzzy1337-prometheus-process-exposition"],
+      "implementation": "available",
+      "artifact": {
+        "path": "templates/prometheus-exposition.yaml",
+        "sha256": "dff3e6ea0821ba769cf63575ad685b8c1def939ed24f790f42d2fde924d55c74",
+        "size_bytes": 1215
+      },
+      "predicate": "Candidate reviewed single-GET process_cpu_user_seconds_total HELP, TYPE counter, and numeric sample baseline through the real governed Nuclei workflow. Narrower than the native predicate."
+    },
+    {
+      "id": "external-nuclei",
+      "scanner_id": "nuclei",
+      "rule_ids": ["fuzzy1337-prometheus-process-exposition"],
+      "implementation": "available",
+      "artifact": {
+        "path": "templates/prometheus-exposition.yaml",
+        "sha256": "dff3e6ea0821ba769cf63575ad685b8c1def939ed24f790f42d2fde924d55c74",
+        "size_bytes": 1215
+      },
+      "predicate": "Same candidate template executed by a real pinned standalone Nuclei binary. This is an orchestration baseline, not an independent detector algorithm."
+    }
+  ],
+  "deferred_inventory": [
+    {
+      "id": "confidential-document.exposed",
+      "path": "/ftp/acquisitions.md",
+      "source_ids": ["server", "file-handler", "confidential-document", "challenges"],
+      "reason": "Real source-pinned confidential-document exposure. A separately reviewed detector and causal controls are required before adding scored cases."
+    }
+  ]
+}

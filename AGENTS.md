@@ -58,7 +58,7 @@ Do not weaken scope, impact-level, authorization, or safety controls merely to m
 - Normal work uses `feature/*`, `fix/*`, `release/*`, or `hotfix/*` branches as defined in `DEVELOPMENT_PROTOCOL.md`.
 - Do not push directly to `master`.
 - Do not bypass required review or CI.
-- Automated agents may prepare commits and pull requests when authorized, but must not merge their own PRs unless the owner explicitly asks for that specific merge.
+- Follow the owner-approved autonomous integration cycle in `DEVELOPMENT_PROTOCOL.md`: implement, functionally verify, review, merge into `develop`, then continue. This standing authorization does not require a separate merge request for each ordinary implementation PR. PyPI publication work remains on hold.
 - Do not force-push protected branches, rewrite published history, use destructive resets, or amend unrelated commits.
 - Stage/write only the intended files; avoid broad repository mutations.
 
@@ -84,7 +84,7 @@ Before reporting completion:
 
 1. verify the exact diff;
 2. run the applicable targeted tests;
-3. run the canonical full gate when it exists;
+3. keep intermediate work in draft PRs and run only small focused feature/regression checks per commit; mark the final revision ready to start shared full integration CI, then verify its actual jobs passed before approval or merge, as defined in section 10 of `DEVELOPMENT_PROTOCOL.md`;
 4. verify no secret or unrelated file entered the change;
 5. update documentation/changelog when required;
 6. report actual evidence, failures, and remaining uncertainty.

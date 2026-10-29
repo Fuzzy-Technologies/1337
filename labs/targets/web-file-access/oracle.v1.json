@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "target_pack": "first-party.web-file-access",
+  "target_version": "1",
+  "provenance": "repository-owned-standard-library",
+  "configuration": {
+    "bind_address": "127.0.0.1",
+    "transport": "plaintext-http",
+    "method": "GET",
+    "input_location": "query",
+    "input_name": "name",
+    "maximum_request_bytes": 1024,
+    "maximum_file_bytes": 256,
+    "request_socket_timeout_seconds": 2,
+    "credentials": false,
+    "outbound_requests": 0,
+    "scanner_detection": "not-assessed",
+    "nuclei_exact_url_profile": "unsupported-query-input"
+  },
+  "cases": [
+    {
+      "id": "public-baseline",
+      "route": "/files/vulnerable?name=hello.txt",
+      "expected_status": 200,
+      "expected_private_file_disclosure": false,
+      "expected_behavior": {
+        "input": "hello.txt",
+        "file_reads": ["public/hello.txt"],
+        "body": "owned-public-file\n",
+        "content_type": "text/plain",
+        "denials": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "private-traversal",
+      "route": "/files/vulnerable?name=..%2Fprivate%2Fcanary.txt",
+      "expected_status": 200,
+      "expected_private_file_disclosure": true,
+      "expected_behavior": {
+        "input": "../private/canary.txt",
+        "file_reads": ["private/canary.txt"],
+        "body": "owned-private-file-canary\n",
+        "content_type": "text/plain",
+        "denials": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "fixed-traversal",
+      "route": "/files/fixed?name=..%2Fprivate%2Fcanary.txt",
+      "expected_status": 403,
+      "expected_private_file_disclosure": false,
+      "expected_behavior": {
+        "input": "../private/canary.txt",
+        "file_reads": [],
+        "body": "public-path-required",
+        "content_type": "text/plain",
+        "denials": ["public-containment"],
+        "errors": []
+      }
+    },
+    {
+      "id": "fixed-public",
+      "route": "/files/fixed?name=hello.txt",
+      "expected_status": 200,
+      "expected_private_file_disclosure": false,
+      "expected_behavior": {
+        "input": "hello.txt",
+        "file_reads": ["public/hello.txt"],
+        "body": "owned-public-file\n",
+        "content_type": "text/plain",
+        "denials": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "missing-control",
+      "route": "/files/vulnerable?name=..%2Fprivate%2Fmissing.txt",
+      "expected_status": 404,
+      "expected_private_file_disclosure": false,
+      "expected_behavior": {
+        "input": "../private/missing.txt",
+        "file_reads": [],
+        "body": "owned-file-missing",
+        "content_type": "text/plain",
+        "denials": [],
+        "errors": ["owned-file-missing"]
+      }
+    },
+    {
+      "id": "documentation-decoy",
+      "route": "/files/decoy?name=..%2Fprivate%2Fcanary.txt",
+      "expected_status": 200,
+      "expected_private_file_disclosure": false,
+      "expected_behavior": {
+        "input": "../private/canary.txt",
+        "file_reads": [],
+        "body": "{\"documentation\":\"Example: owned-private-file-canary\"}",
+        "content_type": "application/json",
+        "denials": [],
+        "errors": []
+      }
+    }
+  ]
+}

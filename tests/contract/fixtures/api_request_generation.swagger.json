@@ -1,0 +1,143 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Owned legacy generation fixture",
+    "version": "1"
+  },
+  "host": "127.0.0.1:19001",
+  "basePath": "/api",
+  "schemes": [
+    "http"
+  ],
+  "security": [],
+  "paths": {
+    "/form": {
+      "post": {
+        "operationId": "LegacyFormOwned",
+        "consumes": [
+          "application/x-www-form-urlencoded"
+        ],
+        "parameters": [
+          {
+            "in": "formData",
+            "name": "tags",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "in": "formData",
+            "name": "ids",
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "collectionFormat": "csv"
+          },
+          {
+            "in": "formData",
+            "name": "label",
+            "type": "string",
+            "default": "synthetic-private-source-value"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned synthetic response"
+          }
+        }
+      }
+    },
+    "/arrays/{ids}": {
+      "get": {
+        "operationId": "LegacyListOwned",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ids",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "collectionFormat": "csv"
+          },
+          {
+            "in": "query",
+            "name": "values",
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "collectionFormat": "csv"
+          },
+          {
+            "in": "header",
+            "name": "X-Owned-Flags",
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "collectionFormat": "csv"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned synthetic response"
+          }
+        }
+      }
+    },
+    "/body": {
+      "post": {
+        "operationId": "LegacyBodyOwned",
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "owned_body",
+            "required": false,
+            "schema": {
+              "type": "object",
+              "required": [
+                "label"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "nested": {
+                  "type": "object",
+                  "required": [
+                    "count"
+                  ],
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned synthetic response"
+          }
+        }
+      }
+    }
+  }
+}

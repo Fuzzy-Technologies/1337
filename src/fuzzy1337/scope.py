@@ -44,6 +44,7 @@ class TargetKind(StrEnum):
     IP = "ip"
     NETWORK = "network"
     URL = "url"
+    ARTIFACT = "artifact"
 
 
 class AuthorizationState(StrEnum):
@@ -201,6 +202,12 @@ def NormalizeTarget(kind: TargetKind, value: str) -> str:
 
     if kind == TargetKind.URL:
         return NormalizeUrl(value)
+
+    if kind == TargetKind.ARTIFACT:
+        if not re.fullmatch(r"manifest-sha256:[0-9a-f]{64}", value):
+            raise ValueError("artifact target must be a canonical manifest SHA-256 reference")
+
+        return value
 
     if "%" in value:
         raise ValueError("IP and network targets must not contain interface zone identifiers")
@@ -418,6 +425,9 @@ def Matches(rule: Target, target: Target, *, denying: bool = False) -> bool:
 
     if rule.kind == target.kind and rule.value == target.value:
         return True
+
+    if TargetKind.ARTIFACT in (rule.kind, target.kind):
+        return False
 
     if denying and target.kind == TargetKind.URL and rule.kind != TargetKind.URL:
         hostname = urlsplit(target.value).hostname

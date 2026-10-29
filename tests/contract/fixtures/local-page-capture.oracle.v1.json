@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "fixture_id": "owned-loopback-html.v1",
+  "source_path": "/docs/index",
+  "literal_address": "127.0.0.1",
+  "port_binding": "pytest-owned-ephemeral",
+  "request": {
+    "method": "GET",
+    "path": "/docs/index",
+    "http_version": "HTTP/1.1",
+    "header_names_in_order": [
+      "Host",
+      "Connection",
+      "Accept",
+      "Accept-Encoding"
+    ],
+    "connection": "close",
+    "accept": "text/html",
+    "accept_encoding": "identity",
+    "host_binding": "exact canonical runtime authority",
+    "body_size_bytes": 0,
+    "observed_paths": [
+      "/docs/index"
+    ],
+    "connection_count": 1
+  },
+  "body": {
+    "size_bytes": 541,
+    "sha256": "c0b909f728bdcc098193c1fd268f056eea33c27b6537cd504fa77c3a25afe817"
+  },
+  "wire": {
+    "size_bytes": 793,
+    "sha256": "c97128021470f78bb029279c879eed781bef55f0ea00869246215a2d73675b6d",
+    "header_size_bytes": 252,
+    "header_count": 7,
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "content_type": "text/html",
+    "declared_charset": "utf-8",
+    "content_length": 541,
+    "eof_required": true,
+    "not_retained_header_names": [
+      "Connection",
+      "X-Discarded",
+      "Set-Cookie",
+      "Authorization",
+      "Location"
+    ],
+    "not_retained_values": [
+      "Synthetic reason",
+      "synthetic-header-marker",
+      "synthetic=discarded",
+      "Synthetic discarded",
+      "/must-not-be-fetched"
+    ]
+  },
+  "scope": {
+    "registered_allowed_paths": [
+      "/docs/index",
+      "/alpha",
+      "/docs/next",
+      "/zeta",
+      "/blocked"
+    ],
+    "excluded_paths": [
+      "/blocked"
+    ],
+    "literal_ip_registered_allowed": true
+  },
+  "frontier": {
+    "total_anchors": 10,
+    "processed_anchors": 10,
+    "eligible_occurrences": 4,
+    "entries": [
+      {
+        "path": "/alpha",
+        "ordinals": [
+          1,
+          2
+        ]
+      },
+      {
+        "path": "/docs/next",
+        "ordinals": [
+          3
+        ]
+      },
+      {
+        "path": "/zeta",
+        "ordinals": [
+          9
+        ]
+      }
+    ],
+    "exclusions": {
+      "fragment-only": 1,
+      "missing-href": 1,
+      "off-origin": 1,
+      "query": 1,
+      "scope.excluded": 1,
+      "source-target": 1
+    },
+    "complete": true,
+    "discarded_candidates": 0,
+    "truncation_reasons": [],
+    "never_fetched_paths": [
+      "/alpha",
+      "/docs/next",
+      "/zeta",
+      "/blocked",
+      "/must-not-be-fetched",
+      "/comment",
+      "/script"
+    ]
+  },
+  "model_from_empty": {
+    "revision_after_one_save": 1,
+    "endpoint_count": 4,
+    "source_response_observation_count": 1,
+    "lexical_link_observation_count": 3,
+    "owner_object_update_observation_count": 4,
+    "total_observation_count": 8,
+    "relation_count": 0,
+    "finding_count": 0,
+    "host_count": 0,
+    "port_count": 0,
+    "service_count": 0,
+    "model_delta_event_count": 1,
+    "progress_completed": 1,
+    "progress_total": 1,
+    "success_evidence_roles": [
+      "stdout",
+      "response-body"
+    ]
+  },
+  "oracle_origin": "Independent source/wire and manual anchor/model expectations; body/wire identities use only stdlib SHA-256."
+}

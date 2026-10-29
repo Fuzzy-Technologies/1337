@@ -1,6 +1,406 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Internal verified read-only joined inventory, not a Python extension contract.
+module = "fuzzy1337.image_sbom_view"
+source = "src/fuzzy1337/image_sbom_view.py"
+mode = "authored"
+page = "api/fuzzy1337.image_sbom_view.md"
+
+[[surfaces]]
+# Experimental attributed CVSS 2 source inspection; scores are never calculated.
+module = "fuzzy1337.intelligence_cvss2"
+source = "src/fuzzy1337/intelligence_cvss2.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cvss2.md"
+
+[[surfaces]]
+# Internal bounded predicate; direct use establishes neither custody nor permission.
+module = "fuzzy1337.adapters.prometheus_exposition"
+source = "src/fuzzy1337/adapters/prometheus_exposition.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.prometheus_exposition.md"
+
+[[surfaces]]
+# Experimental attributed CVE product statements; no applicability or scoring verdict.
+module = "fuzzy1337.intelligence_applicability"
+source = "src/fuzzy1337/intelligence_applicability.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_applicability.md"
+
+[[surfaces]]
+# Experimental public offline original-header apply/replay SDK and explicit summaries.
+module = "fuzzy1337.native_response_header_workflow"
+source = "src/fuzzy1337/native_response_header_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_response_header_workflow.md"
+
+[[surfaces]]
+# Internal pure field-name predicate; direct use proves neither custody nor permission.
+module = "fuzzy1337.native_response_headers"
+source = "src/fuzzy1337/native_response_headers.py"
+mode = "authored"
+page = "api/fuzzy1337.native_response_headers.md"
+
+[[surfaces]]
+# Experimental public crawl limits and first-party provider/authority composition.
+module = "fuzzy1337.native_crawl"
+source = "src/fuzzy1337/native_crawl.py"
+mode = "authored"
+page = "api/fuzzy1337.native_crawl.md"
+
+[[surfaces]]
+# Experimental public planning, execution and truthful source-only SDK summaries.
+module = "fuzzy1337.native_crawl_workflow"
+source = "src/fuzzy1337/native_crawl_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_crawl_workflow.md"
+
+[[surfaces]]
+# Internal fixed CLI/shell enrollment; documented statically, not an extension contract.
+module = "fuzzy1337.native_crawl_commands"
+source = "src/fuzzy1337/native_crawl_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.native_crawl_commands.md"
+
+[[surfaces]]
+# Internal installed wire worker; direct invocation never grants acquisition authority.
+module = "fuzzy1337.native_crawl_worker"
+source = "src/fuzzy1337/native_crawl_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_crawl_worker.md"
+
+[[surfaces]]
+# Internal closed input/record and invocation boundary for the first-party provider.
+module = "fuzzy1337.adapters.native_crawl"
+source = "src/fuzzy1337/adapters/native_crawl.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.native_crawl.md"
+
+[[surfaces]]
+module = "fuzzy1337.portscan"
+source = "src/fuzzy1337/portscan.py"
+mode = "authored"
+page = "api/fuzzy1337.portscan.md"
+
+[[surfaces]]
+# Experimental finite native Nmap selection/adapter SDK; parser helpers remain Internal.
+module = "fuzzy1337.raw_cli"
+source = "src/fuzzy1337/raw_cli.py"
+mode = "authored"
+page = "api/fuzzy1337.raw_cli.md"
+
+[[surfaces]]
+# Experimental raw plan/run/replay SDK; original custody and persistence helpers remain Internal.
+module = "fuzzy1337.raw_cli_workflow"
+source = "src/fuzzy1337/raw_cli_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.raw_cli_workflow.md"
+
+[[surfaces]]
+# Internal explicit wrapper/native delimiter parsing and bounded collected presentation.
+module = "fuzzy1337.raw_commands"
+source = "src/fuzzy1337/raw_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.raw_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_web"
+source = "src/fuzzy1337/native_web.py"
+mode = "authored"
+page = "api/fuzzy1337.native_web.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.native_web"
+source = "src/fuzzy1337/adapters/native_web.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.native_web.md"
+
+[[surfaces]]
+# Internal worker protocol for the Experimental first-party native web workflow.
+module = "fuzzy1337.native_web_worker"
+source = "src/fuzzy1337/native_web_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_web_worker.md"
+
+[[surfaces]]
+module = "fuzzy1337.api_commands"
+source = "src/fuzzy1337/api_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.api_commands.md"
+
+[[surfaces]]
+# Internal controller for the closed Experimental owned OpenAPI JSON product route.
+module = "fuzzy1337.openapi_commands"
+source = "src/fuzzy1337/openapi_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.openapi_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.ioc_commands"
+source = "src/fuzzy1337/ioc_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.ioc_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.synthetic_images"
+source = "src/fuzzy1337/synthetic_images.py"
+mode = "authored"
+page = "api/fuzzy1337.synthetic_images.md"
+
+[[surfaces]]
+module = "fuzzy1337.sbom_graph"
+source = "src/fuzzy1337/sbom_graph.py"
+mode = "authored"
+page = "api/fuzzy1337.sbom_graph.md"
+
+[[surfaces]]
+# Internal implementation of the closed Experimental v1 owned SPDX graph product command.
+module = "fuzzy1337.sbom_commands"
+source = "src/fuzzy1337/sbom_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.sbom_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.sbom_spdx"
+source = "src/fuzzy1337/sbom_spdx.py"
+mode = "authored"
+page = "api/fuzzy1337.sbom_spdx.md"
+
+[[surfaces]]
+module = "fuzzy1337.artifact_inputs"
+source = "src/fuzzy1337/artifact_inputs.py"
+mode = "authored"
+page = "api/fuzzy1337.artifact_inputs.md"
+
+[[surfaces]]
+module = "fuzzy1337.artifact_policy"
+source = "src/fuzzy1337/artifact_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.artifact_policy.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_policy"
+source = "src/fuzzy1337/native_image_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_policy.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_workflow"
+source = "src/fuzzy1337/native_image_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_workflow.md"
+
+[[surfaces]]
+# Internal pure content-record admission; direct use establishes no custody or authority.
+module = "fuzzy1337.adapters.owned_content_response"
+source = "src/fuzzy1337/adapters/owned_content_response.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.owned_content_response.md"
+
+[[surfaces]]
+# Internal installed content worker; acquisition authority remains with the governed workflow.
+module = "fuzzy1337.owned_content_response_worker"
+source = "src/fuzzy1337/owned_content_response_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_content_response_worker.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.owned_response_capture"
+source = "src/fuzzy1337/adapters/owned_response_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.owned_response_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.owned_response_capture_worker"
+source = "src/fuzzy1337/owned_response_capture_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_response_capture_worker.md"
+
+[[surfaces]]
+module = "fuzzy1337.owned_response_capture"
+source = "src/fuzzy1337/owned_response_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_response_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.owned_response_custody"
+source = "src/fuzzy1337/owned_response_custody.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_response_custody.md"
+
+[[surfaces]]
+module = "fuzzy1337.owned_response_workflow"
+source = "src/fuzzy1337/owned_response_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.owned_response_workflow.md"
+
+[[surfaces]]
+module = "fuzzy1337.response_commands"
+source = "src/fuzzy1337/response_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.response_commands.md"
+
+[[surfaces]]
+# Internal syntax-only native configuration selections and fixed nonauthority recipes.
+module = "fuzzy1337.native_configuration"
+source = "src/fuzzy1337/native_configuration.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration.md"
+
+[[surfaces]]
+# Internal owned selected-read observer; material proofs grant no provider authority.
+module = "fuzzy1337.native_configuration_material"
+source = "src/fuzzy1337/native_configuration_material.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_material.md"
+
+[[surfaces]]
+# Internal installed create/verify reader; never executes the selected scanner.
+module = "fuzzy1337.native_configuration_material_worker"
+source = "src/fuzzy1337/native_configuration_material_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_material_worker.md"
+
+[[surfaces]]
+# Internal bounded original native report interpretation; never an execution grant.
+module = "fuzzy1337.native_configuration_report"
+source = "src/fuzzy1337/native_configuration_report.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_report.md"
+
+[[surfaces]]
+# Internal original configuration-domain grants, claims and current authority checks.
+module = "fuzzy1337.native_configuration_policy"
+source = "src/fuzzy1337/native_configuration_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_policy.md"
+
+[[surfaces]]
+# Internal original VERSION/SCAN process custody and fixed seven-role evidence producer.
+module = "fuzzy1337.native_configuration_capture"
+source = "src/fuzzy1337/native_configuration_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_capture.md"
+
+[[surfaces]]
+# Experimental read-only native replay; fresh model-application helpers remain Internal.
+module = "fuzzy1337.native_configuration_evidence"
+source = "src/fuzzy1337/native_configuration_evidence.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_evidence.md"
+
+[[surfaces]]
+# Experimental exported native SDK planning/scanning; provider implementation remains Internal.
+module = "fuzzy1337.native_configuration_workflow"
+source = "src/fuzzy1337/native_configuration_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.native_configuration_workflow.md"
+
+[[surfaces]]
+module = "fuzzy1337.configuration_evidence"
+source = "src/fuzzy1337/configuration_evidence.py"
+mode = "authored"
+page = "api/fuzzy1337.configuration_evidence.md"
+
+[[surfaces]]
+module = "fuzzy1337.configuration_workflow"
+source = "src/fuzzy1337/configuration_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.configuration_workflow.md"
+
+[[surfaces]]
+module = "fuzzy1337.artifact_fixture_worker"
+source = "src/fuzzy1337/artifact_fixture_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.artifact_fixture_worker.md"
+
+[[surfaces]]
+module = "fuzzy1337.images"
+source = "src/fuzzy1337/images.py"
+mode = "authored"
+page = "api/fuzzy1337.images.md"
+
+[[surfaces]]
+module = "fuzzy1337.kubernetes_inventory"
+source = "src/fuzzy1337/kubernetes_inventory.py"
+mode = "authored"
+page = "api/fuzzy1337.kubernetes_inventory.md"
+
+[[surfaces]]
+# Internal implementation of the two closed Experimental v1 runtime import profiles.
+module = "fuzzy1337.runtime_commands"
+source = "src/fuzzy1337/runtime_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.runtime_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.docker_inventory"
+source = "src/fuzzy1337/docker_inventory.py"
+mode = "authored"
+page = "api/fuzzy1337.docker_inventory.md"
+
+[[surfaces]]
+module = "fuzzy1337.image_evidence"
+source = "src/fuzzy1337/image_evidence.py"
+mode = "authored"
+page = "api/fuzzy1337.image_evidence.md"
+
+[[surfaces]]
+module = "fuzzy1337.image_workflow"
+source = "src/fuzzy1337/image_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.image_workflow.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_capture"
+source = "src/fuzzy1337/native_image_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_observation"
+source = "src/fuzzy1337/native_image_observation.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_observation.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_material_worker"
+source = "src/fuzzy1337/native_image_material_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_material_worker.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_bounded_capture"
+source = "src/fuzzy1337/native_image_bounded_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_bounded_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_image_admission"
+source = "src/fuzzy1337/native_image_admission.py"
+mode = "authored"
+page = "api/fuzzy1337.native_image_admission.md"
+
+[[surfaces]]
+module = "fuzzy1337.discovery"
+source = "src/fuzzy1337/discovery.py"
+mode = "authored"
+page = "api/fuzzy1337.discovery.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.native_http"
+source = "src/fuzzy1337/adapters/native_http.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.native_http.md"
+
+[[surfaces]]
+module = "fuzzy1337.native_http_worker"
+source = "src/fuzzy1337/native_http_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.native_http_worker.md"
+
+[[surfaces]]
 module = "fuzzy1337"
 source = "src/fuzzy1337/__init__.py"
 mode = "authored"
@@ -10,6 +410,12 @@ page = "api/fuzzy1337.md"
 module = "fuzzy1337.__main__"
 source = "src/fuzzy1337/__main__.py"
 reason = "Executable entry point delegates to the documented CLI Main function."
+
+[[surfaces]]
+module = "fuzzy1337.openapi_yaml"
+source = "src/fuzzy1337/openapi_yaml.py"
+mode = "authored"
+page = "api/fuzzy1337.openapi_yaml.md"
 
 [[surfaces]]
 module = "fuzzy1337.adapters"
@@ -24,6 +430,18 @@ mode = "authored"
 page = "api/fuzzy1337.adapters.contracts.md"
 
 [[surfaces]]
+module = "fuzzy1337.adapters.nuclei"
+source = "src/fuzzy1337/adapters/nuclei.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.nuclei.md"
+
+[[surfaces]]
+module = "fuzzy1337.nucleiscan"
+source = "src/fuzzy1337/nucleiscan.py"
+mode = "authored"
+page = "api/fuzzy1337.nucleiscan.md"
+
+[[surfaces]]
 module = "fuzzy1337.adapters.nmap"
 source = "src/fuzzy1337/adapters/nmap.py"
 mode = "authored"
@@ -36,16 +454,40 @@ mode = "authored"
 page = "api/fuzzy1337.cli.md"
 
 [[surfaces]]
+module = "fuzzy1337.demo"
+source = "src/fuzzy1337/demo.py"
+mode = "authored"
+page = "api/fuzzy1337.demo.md"
+
+[[surfaces]]
+module = "fuzzy1337.demo_commands"
+source = "src/fuzzy1337/demo_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.demo_commands.md"
+
+[[surfaces]]
 module = "fuzzy1337.command_registry"
 source = "src/fuzzy1337/command_registry.py"
 mode = "authored"
 page = "api/fuzzy1337.command_registry.md"
 
 [[surfaces]]
+module = "fuzzy1337.lenses"
+source = "src/fuzzy1337/lenses.py"
+mode = "authored"
+page = "api/fuzzy1337.lenses.md"
+
+[[surfaces]]
 module = "fuzzy1337.component_health"
 source = "src/fuzzy1337/component_health.py"
 mode = "authored"
 page = "api/fuzzy1337.component_health.md"
+
+[[surfaces]]
+module = "fuzzy1337.jobs"
+source = "src/fuzzy1337/jobs.py"
+mode = "authored"
+page = "api/fuzzy1337.jobs.md"
 
 [[surfaces]]
 module = "fuzzy1337.coverage_gate"
@@ -96,10 +538,42 @@ mode = "authored"
 page = "api/fuzzy1337.executors.local.md"
 
 [[surfaces]]
+# Internal trusted control channel for opt-in Linux descendant ownership.
+module = "fuzzy1337.executors.owned_process"
+source = "src/fuzzy1337/executors/owned_process.py"
+mode = "authored"
+page = "api/fuzzy1337.executors.owned_process.md"
+
+[[surfaces]]
+# Internal installed Linux subreaper entry point, not an execution authority API.
+module = "fuzzy1337.executors.descendant_supervisor"
+source = "src/fuzzy1337/executors/descendant_supervisor.py"
+mode = "authored"
+page = "api/fuzzy1337.executors.descendant_supervisor.md"
+
+[[surfaces]]
 module = "fuzzy1337.functional_metrics"
 source = "src/fuzzy1337/functional_metrics.py"
 mode = "authored"
 page = "api/fuzzy1337.functional_metrics.md"
+
+[[surfaces]]
+module = "fuzzy1337.ioc_artifacts"
+source = "src/fuzzy1337/ioc_artifacts.py"
+mode = "authored"
+page = "api/fuzzy1337.ioc_artifacts.md"
+
+[[surfaces]]
+module = "fuzzy1337.intel_references"
+source = "src/fuzzy1337/intel_references.py"
+mode = "authored"
+page = "api/fuzzy1337.intel_references.md"
+
+[[surfaces]]
+module = "fuzzy1337.findings"
+source = "src/fuzzy1337/findings.py"
+mode = "authored"
+page = "api/fuzzy1337.findings.md"
 
 [[surfaces]]
 module = "fuzzy1337.model"
@@ -108,10 +582,100 @@ mode = "authored"
 page = "api/fuzzy1337.model.md"
 
 [[surfaces]]
+module = "fuzzy1337.journeys"
+source = "src/fuzzy1337/journeys.py"
+mode = "authored"
+page = "api/fuzzy1337.journeys.md"
+
+[[surfaces]]
+module = "fuzzy1337.standards_mapping"
+source = "src/fuzzy1337/standards_mapping.py"
+mode = "authored"
+page = "api/fuzzy1337.standards_mapping.md"
+
+[[surfaces]]
+module = "fuzzy1337.policy"
+source = "src/fuzzy1337/policy.py"
+mode = "authored"
+page = "api/fuzzy1337.policy.md"
+
+[[surfaces]]
+module = "fuzzy1337.openapi"
+source = "src/fuzzy1337/openapi.py"
+mode = "authored"
+page = "api/fuzzy1337.openapi.md"
+
+[[surfaces]]
+module = "fuzzy1337.quickscan"
+source = "src/fuzzy1337/quickscan.py"
+mode = "authored"
+page = "api/fuzzy1337.quickscan.md"
+
+[[surfaces]]
+module = "fuzzy1337.scan_commands"
+source = "src/fuzzy1337/scan_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.scan_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.api_request_generation"
+source = "src/fuzzy1337/api_request_generation.py"
+mode = "authored"
+page = "api/fuzzy1337.api_request_generation.md"
+
+[[surfaces]]
+module = "fuzzy1337.structured_mutations"
+source = "src/fuzzy1337/structured_mutations.py"
+mode = "authored"
+page = "api/fuzzy1337.structured_mutations.md"
+
+[[surfaces]]
+module = "fuzzy1337.graphql_import"
+source = "src/fuzzy1337/graphql_import.py"
+mode = "authored"
+page = "api/fuzzy1337.graphql_import.md"
+
+[[surfaces]]
 module = "fuzzy1337.performance"
 source = "src/fuzzy1337/performance.py"
 mode = "authored"
 page = "api/fuzzy1337.performance.md"
+
+[[surfaces]]
+module = "fuzzy1337.requests"
+source = "src/fuzzy1337/requests.py"
+mode = "authored"
+page = "api/fuzzy1337.requests.md"
+
+[[surfaces]]
+module = "fuzzy1337.reporting"
+source = "src/fuzzy1337/reporting.py"
+mode = "authored"
+page = "api/fuzzy1337.reporting.md"
+
+[[surfaces]]
+module = "fuzzy1337.report_formats"
+source = "src/fuzzy1337/report_formats.py"
+mode = "authored"
+page = "api/fuzzy1337.report_formats.md"
+
+[[surfaces]]
+module = "fuzzy1337.ci_gate"
+source = "src/fuzzy1337/ci_gate.py"
+mode = "authored"
+page = "api/fuzzy1337.ci_gate.md"
+
+[[surfaces]]
+module = "fuzzy1337.ci_commands"
+source = "src/fuzzy1337/ci_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.ci_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.report_commands"
+source = "src/fuzzy1337/report_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.report_commands.md"
 
 [[surfaces]]
 module = "fuzzy1337.scope"
@@ -126,7 +690,177 @@ mode = "authored"
 page = "api/fuzzy1337.shell.md"
 
 [[surfaces]]
+module = "fuzzy1337.test_progress"
+source = "src/fuzzy1337/test_progress.py"
+mode = "authored"
+page = "api/fuzzy1337.test_progress.md"
+
+[[surfaces]]
 module = "fuzzy1337.test_runner"
 source = "src/fuzzy1337/test_runner.py"
 mode = "authored"
 page = "api/fuzzy1337.test_runner.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.trivy"
+source = "src/fuzzy1337/adapters/trivy.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.trivy.md"
+
+[[surfaces]]
+module = "fuzzy1337.intelligence_acquisition"
+source = "src/fuzzy1337/intelligence_acquisition.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_acquisition.md"
+
+[[surfaces]]
+module = "fuzzy1337.intelligence_transport"
+source = "src/fuzzy1337/intelligence_transport.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_transport.md"
+
+[[surfaces]]
+module = "fuzzy1337.intelligence_commands"
+source = "src/fuzzy1337/intelligence_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.intelligence"
+source = "src/fuzzy1337/intelligence.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence.md"
+
+[[surfaces]]
+module = "fuzzy1337.reachability"
+source = "src/fuzzy1337/reachability.py"
+mode = "authored"
+page = "api/fuzzy1337.reachability.md"
+
+[[surfaces]]
+module = "fuzzy1337.path_analysis"
+source = "src/fuzzy1337/path_analysis.py"
+mode = "authored"
+page = "api/fuzzy1337.path_analysis.md"
+
+[[surfaces]]
+# Internal implementation of the Experimental v1 read-only saved-graph path command.
+module = "fuzzy1337.path_commands"
+source = "src/fuzzy1337/path_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.path_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.business_events"
+source = "src/fuzzy1337/business_events.py"
+mode = "authored"
+page = "api/fuzzy1337.business_events.md"
+
+[[surfaces]]
+module = "fuzzy1337.web_traversal"
+source = "src/fuzzy1337/web_traversal.py"
+mode = "authored"
+page = "api/fuzzy1337.web_traversal.md"
+
+[[surfaces]]
+module = "fuzzy1337.captured_web"
+source = "src/fuzzy1337/captured_web.py"
+mode = "authored"
+page = "api/fuzzy1337.captured_web.md"
+
+[[surfaces]]
+module = "fuzzy1337.adapters.page_capture"
+source = "src/fuzzy1337/adapters/page_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.page_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.page_capture"
+source = "src/fuzzy1337/page_capture.py"
+mode = "authored"
+page = "api/fuzzy1337.page_capture.md"
+
+[[surfaces]]
+module = "fuzzy1337.page_capture_worker"
+source = "src/fuzzy1337/page_capture_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.page_capture_worker.md"
+
+[[surfaces]]
+# Internal closed grammar for the explicitly selected Experimental offline browser profile.
+module = "fuzzy1337.adapters.browser_page"
+source = "src/fuzzy1337/adapters/browser_page.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.browser_page.md"
+
+[[surfaces]]
+# Internal worker; actual launch remains owned by policy, executor and page provider.
+module = "fuzzy1337.browser_page_worker"
+source = "src/fuzzy1337/browser_page_worker.py"
+mode = "authored"
+page = "api/fuzzy1337.browser_page_worker.md"
+
+[[surfaces]]
+# Experimental pure base calculation; original attributed source assertions stay unchanged.
+module = "fuzzy1337.intelligence_cvss2_base"
+source = "src/fuzzy1337/intelligence_cvss2_base.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cvss2_base.md"
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseScoreTenths"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation.DisplayScore"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[exclusions]]
+symbol = "fuzzy1337.intelligence_cvss2_base.BaseCalculation.ToDict"
+reason = "Internal implementation detail excluded from module __all__; not a public API."
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_archive"
+source = "src/fuzzy1337/local_image_archive.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_archive.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_commands"
+source = "src/fuzzy1337/local_image_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_commands.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_material"
+source = "src/fuzzy1337/local_image_material.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_material.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_policy"
+source = "src/fuzzy1337/local_image_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_policy.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_reference"
+source = "src/fuzzy1337/local_image_reference.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_reference.md"
+
+[[surfaces]]
+# Local reference export; stability is declared in docs/COMPATIBILITY.md.
+module = "fuzzy1337.local_image_workflow"
+source = "src/fuzzy1337/local_image_workflow.py"
+mode = "authored"
+page = "api/fuzzy1337.local_image_workflow.md"

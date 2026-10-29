@@ -3,6 +3,7 @@
 
 """Tests for packaging behavior."""
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -50,6 +51,16 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
 
     with zipfile.ZipFile(wheels[0]) as archive:
         members = archive.namelist()
+        from fuzzy1337 import artifact_fixture_worker, artifact_policy
+
+        worker_bytes = archive.read("fuzzy1337/artifact_fixture_worker.py")
+        assert worker_bytes == Path(artifact_fixture_worker.__file__).read_bytes(), (
+            "Built wheel changed reviewed closed producer source bytes"
+        )
+        assert b"\r\n" not in worker_bytes, "Reviewed producer did not preserve LF bytes"
+        assert hashlib.sha256(worker_bytes).hexdigest() in artifact_policy._REVIEWED_PRODUCERS, (
+            "Built wheel producer does not match the closed reviewed allowlist"
+        )
         assert "fuzzy1337/cli.py" in members, "sdist wheel and clean installation invariant failed."
         assert "fuzzy1337/adapters/contracts.py" in members, (
             "sdist wheel and clean installation invariant failed."
@@ -148,4 +159,32 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
     )
     assert Path(json.loads(location)).is_relative_to(environment), (
         "sdist wheel and clean installation invariant failed."
+    )
+
+    web_check_files = (
+        "manifest.v1.json", "git-head-exposure.yaml", "owned-sql-canary-disclosure.yaml",
+        "unsafe-html-reflection.yaml",
+    )
+    expected_web_checks = {
+        name: hashlib.sha256((ROOT / "src/fuzzy1337/data/nuclei" / name).read_bytes()).hexdigest()
+        for name in web_check_files
+    }
+    installed_web_checks = Invoke(
+        [str(executable), "-I", "-c", '''
+"""Read actual check resources from the clean installed wheel without checkout imports."""
+
+import hashlib
+import json
+from importlib.resources import files
+
+root = files("fuzzy1337").joinpath("data", "nuclei")
+manifest = json.loads(root.joinpath("manifest.v1.json").read_text(encoding="utf-8"))
+names = ["manifest.v1.json", *(item["filename"] for item in manifest["templates"])]
+print(json.dumps({name: hashlib.sha256(root.joinpath(name).read_bytes()).hexdigest()
+                  for name in names}, sort_keys=True))
+'''],
+        tmp_path,
+    )
+    assert json.loads(installed_web_checks) == expected_web_checks, (
+        "Clean installed wheel omitted or changed the exact reviewed web-check resources"
     )

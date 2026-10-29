@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html><head><title>Synthetic captured document</title></head><body>
+<a href="/zeta#section">Zeta</a>
+<a href="../alpha">Relative alpha</a>
+<a href="http://127.0.0.1:19091/alpha">Duplicate alpha</a>
+<a href="//127.0.0.1:19091/ports">Same-origin network path</a>
+<a href="/blocked">Denied by scope</a>
+<a href="/unregistered">Unregistered</a>
+<a href="http://127.0.0.1:19092/off-origin">Other origin</a>
+<a href="/search?selection=synthetic">Query excluded</a>
+<a href="#part">Fragment only</a>
+<a href="javascript:alert(1)">Non-HTTP</a>
+<a href="https://user:synthetic@127.0.0.1:19091/credentials">Credential excluded</a>
+<a>Missing href</a>
+<a href="/encoded%2Fpath">Ambiguous separator</a>
+<a href="/percent%41">Unsupported structural path</a>
+<a href="/with space">Invalid whitespace</a>
+<a href="../../alpha">Second relative duplicate</a>
+<a href="/later">Later candidate</a>
+<a href="/empty?">Empty query delimiter</a>
+<template><a href="/template">Lexical candidate; no DOM visibility claim</a></template>
+<!-- <a href="/comment-ignored">Not an anchor</a> -->
+<script>const ignored = '<a href="/script-ignored">Not an anchor</a>';</script>
+</body></html>

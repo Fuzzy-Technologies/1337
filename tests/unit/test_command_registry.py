@@ -100,7 +100,11 @@ def test_CoreRegistryDescribesOnlyCurrentlyAvailableCommands():
     """Verify core registry describes only currently available commands."""
 
     identifiers = [descriptor.identifier for descriptor in COMMAND_REGISTRY.Commands]
-    assert identifiers == ["doctor", "help", "version", "shell", "update"], (
+    assert identifiers == [
+        "doctor", "help", "version", "shell", "update", "workspace", "scope", "image",
+        "scan", "raw", "report",
+        "intel", "demo", "ci", "paths", "sbom", "api", "response", "runtime", "trace",
+    ], (
         "core registry describes only currently available commands invariant failed."
     )
     assert COMMAND_REGISTRY.Resolve("--version") is COMMAND_REGISTRY.Commands[2], (

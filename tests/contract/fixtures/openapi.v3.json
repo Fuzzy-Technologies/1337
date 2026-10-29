@@ -1,0 +1,59 @@
+{
+  "openapi": "3.1.2",
+  "info": {"title": "Synthetic API", "version": "1"},
+  "servers": [{"url": "http://127.0.0.1:19001/v1"}],
+  "security": [{"apiKey": []}, {}],
+  "components": {
+    "securitySchemes": {"apiKey": {"type": "apiKey", "in": "header", "name": "X-API-Key"}},
+    "parameters": {"UserId": {"in": "path", "name": "user_id", "required": true, "schema": {"type": "integer"}}},
+    "schemas": {
+      "User": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string", "default": "synthetic-private-source-value", "example": "synthetic-private-source-value", "minLength": 1},
+          "nickname": {"type": ["string", "null"]},
+          "internal": {"type": "string", "readOnly": true}
+        }
+      }
+    }
+  },
+  "paths": {
+    "/users/{user_id}": {
+      "parameters": [
+        {"$ref": "#/components/parameters/UserId"},
+        {"in": "query", "name": "limit", "schema": {"type": "integer"}}
+      ],
+      "get": {
+        "operationId": "GetUser",
+        "parameters": [
+          {"in": "query", "name": "limit", "required": true, "schema": {"type": "string"}},
+          {"in": "header", "name": "X-Trace", "schema": {"type": "string"}},
+          {"in": "cookie", "name": "theme", "schema": {"type": "string"}}
+        ],
+        "responses": {"200": {"description": "Synthetic success"}}
+      },
+      "post": {
+        "operationId": "SaveUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {"schema": {"$ref": "#/components/schemas/User"}},
+            "application/vnd.synthetic+json": {"schema": {"$ref": "#/components/schemas/User"}}
+          }
+        },
+        "responses": {"200": {"description": "Synthetic success"}}
+      }
+    },
+    "/upload": {
+      "post": {
+        "operationId": "Upload",
+        "security": [],
+        "requestBody": {"content": {"multipart/form-data": {"schema": {
+          "type": "object", "properties": {"file": {"type": "string", "format": "binary"}}
+        }}}},
+        "responses": {"200": {"description": "Synthetic success"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "fixture_kind": "owned-offline-docker-inspect",
+  "fixture_version": 1,
+  "counts": {"objects": 17, "relations": 11, "observations": 55, "findings": 6},
+  "observation_count_basis": "27 explicit facts/detections + 10 object updates + 11 relation updates + 6 finding object updates + 1 pre-existing host update",
+  "expected_checks": [
+    "docker.configured.host-pid",
+    "docker.configured.management-socket-mount",
+    "docker.configured.powerful-capability",
+    "docker.configured.privileged",
+    "docker.configured.root-user",
+    "docker.configured.sensitive-bind-mount"
+  ],
+  "absent_checks": ["docker.configured.host-network", "docker.configured.host-ipc",
+                    "docker.configured.host-userns"],
+  "image_key": "image-config:sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "configured_user": "root",
+  "reported_address": "192.0.2.20",
+  "reported_ipv6": "2001:db8::20",
+  "container_port": 80,
+  "host_port": 8080,
+  "unknown_container": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "unknown_fields": ["privileged", "readonly_rootfs", "user_category", "cap_add", "cap_drop",
+                     "pid_mode", "ipc_mode", "userns_mode", "network_mode", "reported_running",
+                     "reported_status", "reported_health", "mount_count", "network_count", "port_count"],
+  "reachability": "UNKNOWN",
+  "claim_count": 0,
+  "physical_access_claims": 0,
+  "permission_grants": 0
+}

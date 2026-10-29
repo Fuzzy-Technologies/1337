@@ -6,38 +6,58 @@
 from __future__ import annotations
 
 import cmd
+import shlex
 import sys
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
-from typing import TextIO
+from pathlib import Path
+from types import ModuleType
+from typing import TextIO, cast
 
 from fuzzy1337.command_registry import COMMAND_REGISTRY, CommandRegistry
 from fuzzy1337.component_health import RunUpdate
+from fuzzy1337.lenses import LENS_CATALOG, ResolveLens
+from fuzzy1337.model import CanonicalModelJson, LocalModelStore, ModelState
 
 DEFAULT_LENS = "pentest"
 DEFAULT_VIEW = "context"
-LENSES = ("pentest", "dfir", "devsecops", "purple")
+LENSES = tuple(descriptor.identifier for descriptor in LENS_CATALOG)
 SHELL_COMMANDS = (
+    "api",
+    "ci",
     "commands",
     "context",
+    "demo",
     "help",
     "history",
+    "image",
+    "intel",
     "lens",
+    "model",
     "palette",
+    "paths",
     "quit",
+    "raw",
+    "report",
+    "runtime",
+    "sbom",
+    "scan",
+    "scope",
     "select",
+    "trace",
     "update",
     "updates",
     "view",
+    "workspace",
 )
-VIEWS = ("context", "updates")
+VIEWS = ("context", "updates", "model")
 HISTORY_LIMIT = 100
 
 
 @dataclass(frozen=True, slots=True)
 class ShellState:
-    """Keep the minimum live-workbench context before the Security Object Model exists."""
+    """Keep lens selection and presentation separate from canonical security state."""
 
     lens: str = DEFAULT_LENS
     selected_object: str | None = None
@@ -112,8 +132,125 @@ def FuzzyScore(query: str, candidate: str) -> int | None:
     return score
 
 
+@dataclass(slots=True)
+class NativeInputHistory:
+    """Track only an owned terminal loop's new entries without changing readline settings."""
+
+    editor: ModuleType
+    last_index: int
+
+    @classmethod
+    def Open(cls, editor: ModuleType) -> NativeInputHistory:
+        """Pin native absolute indexing before accepting input, including capped GNU histories.
+
+        Args:
+            editor: Existing standard-library readline backend in the owned terminal process.
+
+        Returns:
+            Loop-local cursor; no prior history content is retained or rewritten.
+
+        Raises:
+            RuntimeError: Bounded public-API lookup cannot identify the native history safely.
+        """
+
+        count = int(editor.get_current_history_length())
+
+        if not count:
+            return cls(editor, 0)
+
+        for first_index in range(1, HISTORY_LIMIT + 1):
+            if editor.get_history_item(first_index) is None:
+                continue
+
+            last_index = first_index + count - 1
+
+            if (
+                editor.get_history_item(last_index) is not None
+                and editor.get_history_item(last_index + 1) is None
+            ):
+                return cls(editor, last_index)
+
+        raise RuntimeError("Native terminal history cannot be identified safely.")
+
+    def Reconcile(self, shell: InteractiveShell, line: str | None) -> None:
+        """Replace only subsequent protected input entries, preserving caller history and settings.
+
+        Args:
+            shell: Owning loop whose actual parser classifies the protected namespaces.
+            line: Actual input for exact matching, empty for observation, or None for exit cleanup.
+
+        Raises:
+            RuntimeError: Native indexing, retirement or growth cannot be identified safely.
+        """
+
+        count = int(self.editor.get_current_history_length())
+
+        if not count and not self.last_index:
+            return
+
+        entries: list[tuple[int, str]] = []
+
+        for index in range(self.last_index + 1, self.last_index + HISTORY_LIMIT + 2):
+            value = self.editor.get_history_item(index)
+
+            if value is None:
+                if entries:
+                    break
+
+                continue
+
+            if not isinstance(value, str) or index - self.last_index > HISTORY_LIMIT:
+                raise RuntimeError("Native terminal history changed outside its owned boundary.")
+
+            entries.append((index, value))
+
+        last_index = entries[-1][0] if entries else self.last_index
+
+        if (
+            not entries and line == "" and self.last_index
+            and self.editor.get_history_item(self.last_index) is None
+        ):
+            for previous_index in range(
+                self.last_index - 1, max(0, self.last_index - HISTORY_LIMIT - 1), -1
+            ):
+                if self.editor.get_history_item(previous_index) is not None:
+                    last_index = previous_index
+                    break
+
+        first_index = last_index - count + 1
+
+        if (
+            count <= 0 or first_index <= 0
+            or self.editor.get_history_item(first_index) is None
+            or self.editor.get_history_item(last_index) is None
+            or self.editor.get_history_item(last_index + 1) is not None
+            or int(self.editor.get_current_history_length()) != count
+        ):
+            raise RuntimeError("Native terminal history cannot be identified safely.")
+
+        for index, value in entries:
+            if line is not None and value != line:
+                continue
+
+            parsed, _, _ = shell.parseline(value)
+            command = parsed.lower() if parsed else ""
+
+            if command in {
+                "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
+                "paths", "sbom", "api", "trace", "raw", "image"
+            }:
+                position = index - first_index
+
+                if not 0 <= position < count:
+                    raise RuntimeError("Native terminal input no longer has an owned position.")
+
+                self.editor.replace_history_item(position, command)
+
+        self.last_index = last_index
+
+
 class InteractiveShell(cmd.Cmd):
-    """Provide a keyboard-first shell without claiming a Security Object Model exists."""
+    """Provide a keyboard-first shell with explicit read-only model snapshot views."""
 
     intro = "1337 interactive workbench. Type 'help' for commands."
     prompt = "1337> "
@@ -138,6 +275,75 @@ class InteractiveShell(cmd.Cmd):
         self._updates: deque[WorkbenchUpdate] = deque()
         self._history: deque[str] = deque(maxlen=HISTORY_LIMIT)
         self._context_actions: dict[str, tuple[ContextualAction, ...]] = {}
+        self._model: ModelState | None = None
+        self._native_history: NativeInputHistory | None = None
+
+    def CommandLoop(self, intro: str | None = None) -> None:
+        """Own only native entries created by this loop while preserving framework completion.
+
+        Args:
+            intro: Optional framework intro override, without implicit input or history files.
+
+        Raises:
+            KeyboardInterrupt: Terminal interruption after scoped cleanup and completer restore.
+            RuntimeError: Native history cannot be identified safely before accepting input.
+        """
+
+        if self.use_rawinput and sys.stdin.isatty() and sys.stdout.isatty():
+            try:
+                import readline
+
+            except ImportError:
+                pass
+
+            else:
+                self._native_history = NativeInputHistory.Open(readline)
+
+        try:
+            super().cmdloop(intro=intro)
+
+        finally:
+            try:
+                if self._native_history is not None:
+                    self._native_history.Reconcile(self, None)
+
+            finally:
+                self._native_history = None
+
+    cmdloop = CommandLoop
+
+    def AfterCommand(self, stop: bool, line: str) -> bool:
+        """Observe command-time additions without treating them as input owned by this loop.
+
+        Args:
+            stop: Framework termination result to preserve unchanged.
+            line: Framework command text; it never supplies native history ownership.
+
+        Returns:
+            Original framework termination result.
+        """
+
+        if self._native_history is not None:
+            self._native_history.Reconcile(self, "")
+
+        return stop
+
+    postcmd = AfterCommand
+
+    def BindModel(self, state: ModelState) -> None:
+        """Bind an immutable shared snapshot without authorizing, executing, or persisting work.
+
+        Args:
+            state: Validated canonical model snapshot supplied by a workspace owner.
+
+        Raises:
+            ValueError: The snapshot is not a ModelState.
+        """
+
+        if not isinstance(state, ModelState):
+            raise ValueError("state must be a ModelState")
+
+        self._model = state
 
     @property
     def State(self) -> ShellState:
@@ -183,7 +389,9 @@ class InteractiveShell(cmd.Cmd):
     def onecmd(self, line: str) -> bool:
         """Run a command while retaining bounded operator history for local search.
 
-        Records nonempty commands except history in bounded local history before dispatch.
+        Records ordinary nonempty commands except history in bounded local history.
+        Product commands retain only their namespace, excluding rejected arguments.
+        Classification uses the dispatch parser before either history or replay state is retained.
 
         Args:
             line: Operator command line to dispatch through cmd.Cmd.
@@ -193,11 +401,54 @@ class InteractiveShell(cmd.Cmd):
         """
 
         normalized = line.strip()
-        command = normalized.split(maxsplit=1)[0].lower() if normalized else ""
-        if normalized and command != "history":
-            self._history.append(normalized)
+        parsed_command, argument, _ = self.parseline(normalized)
+        command = parsed_command.lower() if parsed_command else ""
 
-        return super().onecmd(line)
+        if normalized and command != "history":
+            self._history.append(
+                command if command in {
+                    "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
+                    "paths", "sbom", "api", "trace", "raw", "image"
+                }
+                else normalized
+            )
+
+        if command in {
+            "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
+            "paths", "sbom", "api", "trace", "response", "raw", "image"
+        }:
+            handlers = {"workspace": self.do_workspace, "scope": self.do_scope,
+                        "scan": self.do_scan, "report": self.do_report, "demo": self.do_demo,
+                        "ci": self.do_ci,
+                        "image": self.do_image,
+                        "runtime": self.do_runtime,
+                        "paths": self.do_paths,
+                        "sbom": self.do_sbom,
+                        "api": self.do_api,
+                        "response": self.do_response,
+                        "raw": self.do_raw,
+                        "trace": self.do_trace,
+                        "intel": self.do_intel}
+            self.lastcmd = command
+
+            try:
+                handlers[command](argument or "")
+
+                return False
+
+            finally:
+                # The framework must never retain raw product arguments for empty-line replay.
+                self.lastcmd = command
+
+                if self._native_history is not None:
+                    self._native_history.Reconcile(self, "")
+
+        try:
+            return super().onecmd(line)
+
+        finally:
+            if self._native_history is not None:
+                self._native_history.Reconcile(self, "")
 
     def completenames(self, text: str, *ignored: object) -> list[str]:
         """Offer fuzzy command discovery for keyboard completion.
@@ -213,7 +464,7 @@ class InteractiveShell(cmd.Cmd):
         return list(FuzzyMatches(text, SHELL_COMMANDS))
 
     def precmd(self, line: str) -> str:
-        """Render queued updates before accepting the next operator action.
+        """Protect owned native input history and render queued updates before the next action.
 
         Args:
             line: Operator line to return unchanged for dispatch.
@@ -221,6 +472,9 @@ class InteractiveShell(cmd.Cmd):
         Returns:
             Original line after pending updates have been rendered.
         """
+
+        if self._native_history is not None:
+            self._native_history.Reconcile(self, line)
 
         self.RenderUpdates()
         return line
@@ -269,20 +523,84 @@ class InteractiveShell(cmd.Cmd):
         topic = argument.strip().lower()
         help_text = {
             "": (
-                "commands, context, history [query], lens <name>, palette [query], "
-                "select <object-id>, update [--json], updates, view <name>, quit"
+                "api import graphql-introspection, ci scan, commands, context, demo local, "
+                "history [query], image export-local, lens [<name>] [--json], "
+                "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
+                "paths analyze, raw <plan|run|replay>, report export, "
+                "runtime import <docker-inspect|kubernetes-list>, "
+                "trace ioc <import|inspect>, "
+                "select <object-id>, "
+                "sbom <image|import spdx-graph>, scan <quick|crawl|ports|web|nuclei|image|config>, "
+                "scope create, "
+                "workspace <create|open>, "
+                "update [--json], updates, view <name> [--json], quit"
             ),
+            "api": (
+                "api import graphql-introspection <workspace>: import one explicit owned offline "
+                "file or retained original manifest with endpoint/scope and exact revision bases."
+            ),
+            "image": "image export-local <workspace>: plan or explicitly approve local export; "
+                     "archive scanning requires separate scope and approval.",
             "commands": "commands: list interactive and current top-level CLI commands.",
+            "ci": (
+                "ci scan <workspace>: run the explicitly selected closed image/configuration "
+                "profile, "
+                "finding predicate and new JSON/SARIF/JUnit exports."
+            ),
             "context": "context: show the current lens and selected object reference.",
+            "demo": (
+                "demo local <new-output-root> [--approve-safe-http]: "
+                "run only the explicitly approved command-owned localhost demo."
+            ),
             "history": "history [query]: search previous shell commands from newest to oldest.",
-            "lens": "lens <name>: select pentest, dfir, devsecops, or purple.",
+            "intel": (
+                "intel <import|inspect|apply> <workspace>: explicitly select local source files, "
+                "verified snapshots/receipts, or one finding's enrichment."
+            ),
+            "lens": (
+                "lens [<name>] [--json]: select pentest, dfir, devsecops, or purple; "
+                "--json describes the selected lens."
+            ),
+            "model": "model <workspace-path>: open an existing read-only workspace model snapshot.",
             "palette": (
                 "palette [query]: instantly search local commands and selected-object actions."
             ),
             "select": "select <object-id>: keep an opaque object reference in the current context.",
+            "paths": (
+                "paths analyze <workspace>: explain an exact saved-model selection using original "
+                "assessment manifests, an explicit analysis clock and finite search/cut budgets."
+            ),
+            "raw": (
+                "raw <plan|run|replay> <workspace>: use explicit governed native Nmap profiles; "
+                "separate exact native tokens with --; replay verifies original custody offline."
+            ),
+            "report": (
+                "report export <workspace>: verify and export saved JSON, SARIF, HTML or JUnit."
+            ),
+            "runtime": (
+                "runtime import <docker-inspect|kubernetes-list> <workspace>: import one explicit "
+                "owned file or retained manifest with existing HOST/cluster, scope and exact bases."
+            ),
+            "sbom": (
+                "sbom image <workspace>: inspect verified saved inventory by exact digest/kind; "
+                "sbom import spdx-graph <workspace>: import explicit original evidence with "
+                "declared image identity, scope and exact owner revision bases."
+            ),
+            "trace": (
+                "trace ioc <import|inspect> <workspace>: use explicit local candidate files or "
+                "independent snapshot/receipt anchors without changing the Security Object Model."
+            ),
+            "scan": (
+                "scan <quick|crawl|ports|web|nuclei|image|config> <workspace>: run governed scans; "
+                "crawl requires explicit selected URLs/policy and --approve-safe-crawl; "
+                "config requires explicit synthetic/native profile and selected source/consent; "
+                "native Kubernetes input must already be rendered."
+            ),
+            "scope": "scope create <workspace>: record explicit targets, rules and consent.",
+            "workspace": "workspace <create|open>: initialize or verify durable shared state.",
             "update": "update [--json]: inspect local component health without installing updates.",
             "updates": "updates: render queued progress or future model updates.",
-            "view": "view <name>: select context or updates as the current model slice.",
+            "view": "view <name> [--json]: select context, updates, or model; JSON requires model.",
             "quit": "quit: leave the interactive shell.",
         }
         message = help_text.get(topic)
@@ -291,6 +609,245 @@ class InteractiveShell(cmd.Cmd):
             return
 
         self.Write(message)
+
+    def RunLocalCommand(self, command: str, argument: str) -> None:
+        """Dispatch the same explicit foreground product commands as the CLI.
+
+        Args:
+            command: Product namespace; shell context never supplies implicit authority.
+            argument: Quoted operator argument line, parsed without a subprocess shell.
+        """
+
+        try:
+            arguments = shlex.split(argument)
+            separator = (arguments.index("--") if command == "raw" and "--" in arguments
+                         else len(arguments))
+            prefix, native = arguments[:separator], arguments[separator:]
+            json_output = "--json" in prefix
+            arguments = [item for item in prefix if item != "--json"] + native
+
+            if command == "raw":
+                from fuzzy1337.raw_commands import RunRawCommands
+
+                status = RunRawCommands(arguments, cast(TextIO, self.stdout),
+                                        json_output=json_output)
+
+            elif command == "image":
+                from fuzzy1337.local_image_commands import RunLocalImageCommands
+
+                status = RunLocalImageCommands(arguments, cast(TextIO, self.stdout),
+                                               json_output=json_output)
+
+            elif command == "paths":
+                from fuzzy1337.path_commands import RunPathCommands
+
+                status = RunPathCommands(arguments, cast(TextIO, self.stdout),
+                                         json_output=json_output)
+
+            elif command == "sbom":
+                from fuzzy1337.sbom_commands import RunSbomCommands
+
+                status = RunSbomCommands(arguments, cast(TextIO, self.stdout),
+                                         json_output=json_output)
+
+            elif command == "api":
+                from fuzzy1337.api_commands import RunApiCommands
+
+                status = RunApiCommands(arguments, cast(TextIO, self.stdout),
+                                        json_output=json_output)
+
+            elif command == "response":
+                from fuzzy1337.response_commands import RunResponseCommands
+
+                status = RunResponseCommands(arguments, cast(TextIO, self.stdout),
+                                             json_output=json_output)
+
+            elif command == "runtime":
+                from fuzzy1337.runtime_commands import RunRuntimeCommands
+
+                status = RunRuntimeCommands(arguments, cast(TextIO, self.stdout),
+                                            json_output=json_output)
+
+            elif command == "trace":
+                from fuzzy1337.ioc_commands import RunIocCommands
+
+                status = RunIocCommands(arguments, cast(TextIO, self.stdout),
+                                        json_output=json_output)
+
+            elif command == "ci":
+                from fuzzy1337.ci_commands import RunCiCommands
+
+                status = RunCiCommands(arguments, cast(TextIO, self.stdout),
+                                       json_output=json_output)
+
+            elif command == "intel":
+                from fuzzy1337.intelligence_commands import RunIntelCommands
+
+                status = RunIntelCommands(arguments, cast(TextIO, self.stdout),
+                                          json_output=json_output)
+
+            elif command == "report":
+                from fuzzy1337.report_commands import RunReportCommands
+
+                status = RunReportCommands(arguments, cast(TextIO, self.stdout),
+                                           json_output=json_output)
+
+            elif command == "demo":
+                from fuzzy1337.demo_commands import RunDemoCommands
+
+                status = RunDemoCommands(arguments, cast(TextIO, self.stdout),
+                                         json_output=json_output)
+
+            else:
+                from fuzzy1337.scan_commands import RunCommands
+
+                status = RunCommands(command, arguments, cast(TextIO, self.stdout),
+                                     json_output=json_output)
+
+            if status:
+                self.Write(f"Command exit status: {status}")
+
+        except ValueError:
+            self.Write("Invalid quoted command arguments.")
+
+        except SystemExit as error:
+            if error.code:
+                self.Write(f"usage: {command} --help")
+
+    def do_workspace(self, argument: str) -> None:
+        """Create or reopen a workspace through the explicit product command.
+
+        Args:
+            argument: Workspace action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("workspace", argument)
+
+    def do_scope(self, argument: str) -> None:
+        """Record target rules and consent through the explicit product command.
+
+        Args:
+            argument: Scope action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("scope", argument)
+
+    def do_image(self, argument: str) -> None:
+        """Plan or export a local reference with the same explicit CLI authority requirements.
+
+        Args:
+            argument: Export action and full explicit selected inputs and authority arguments.
+        """
+
+        self.RunLocalCommand("image", argument)
+
+    def do_scan(self, argument: str) -> None:
+        """Run foreground endpoint or closed synthetic scans with explicit authorization.
+
+        Args:
+            argument: Scan action and its full explicit CLI argument list.
+        """
+
+        self.RunLocalCommand("scan", argument)
+
+    def do_raw(self, argument: str) -> None:
+        """Run a foreground exact-native profile or offline replay without implicit authority.
+
+        Args:
+            argument: Explicit wrapper arguments and untouched separated native token tail.
+        """
+
+        self.RunLocalCommand("raw", argument)
+
+    def do_report(self, argument: str) -> None:
+        """Export an explicitly selected saved workspace; shell context is never implicit input.
+
+        Args:
+            argument: Report action, workspace, selected format and new output path.
+        """
+
+        self.RunLocalCommand("report", argument)
+
+    def do_trace(self, argument: str) -> None:
+        """Use explicitly owned local IOC candidates without deriving authority from shell state.
+
+        Args:
+            argument: IOC action, owning workspace, source selections or independent anchors.
+        """
+
+        self.RunLocalCommand("trace", argument)
+
+    def do_ci(self, argument: str) -> None:
+        """Run an explicit current-execution finding predicate and verified report exports.
+
+        Args:
+            argument: Explicit profile, inputs, authority, criterion and three new output paths.
+        """
+
+        self.RunLocalCommand("ci", argument)
+
+    def do_paths(self, argument: str) -> None:
+        """Analyze explicit retained paths without deriving scope or selection from shell context.
+
+        Args:
+            argument: Analyze action, saved-model pins, original selections, clock and budgets.
+        """
+
+        self.RunLocalCommand("paths", argument)
+
+    def do_sbom(self, argument: str) -> None:
+        """Import an explicit local SPDX graph without deriving authority from shell context.
+
+        Args:
+            argument: Import action, original source, declared image identity and owner bases.
+        """
+
+        self.RunLocalCommand("sbom", argument)
+
+    def do_api(self, argument: str) -> None:
+        """Import an explicit offline API source without deriving authority from shell context.
+
+        Args:
+            argument: Import profile, source, exact endpoint/scope and owner revision bases.
+        """
+
+        self.RunLocalCommand("api", argument)
+
+    def do_response(self, argument: str) -> None:
+        """Capture originals, separately check headers or replay without implicit authority.
+
+        Args:
+            argument: Capture, header-check or historical replay with complete explicit inputs.
+        """
+
+        self.RunLocalCommand("response", argument)
+
+    def do_runtime(self, argument: str) -> None:
+        """Import explicitly owned offline source without deriving authority from shell context.
+
+        Args:
+            argument: Import profile, selected source, existing HOST/scope and exact owner bases.
+        """
+
+        self.RunLocalCommand("runtime", argument)
+
+    def do_intel(self, argument: str) -> None:
+        """Use explicit local intelligence selections without deriving them from shell context.
+
+        Args:
+            argument: Import, inspect, or apply action with its complete explicit arguments.
+        """
+
+        self.RunLocalCommand("intel", argument)
+
+    def do_demo(self, argument: str) -> None:
+        """Run the explicit local demo without deriving approval from selected shell context.
+
+        Args:
+            argument: Demo action, new output root and the separate explicit SAFE approval.
+        """
+
+        self.RunLocalCommand("demo", argument)
 
     def do_history(self, argument: str) -> None:
         """Search local command history in reverse chronological order.
@@ -314,10 +871,27 @@ class InteractiveShell(cmd.Cmd):
         """Select one of the initial workflow lenses.
 
         Args:
-            argument: Supported lens name, or empty input to list lenses.
+            argument: Supported lens name or --json; empty input lists lenses.
         """
 
-        lens = argument.strip().lower()
+        parts = argument.strip().lower().split()
+        json_output = bool(parts and parts[-1] == "--json")
+
+        if json_output:
+            parts.pop()
+
+        if len(parts) > 1:
+            self.Write("usage: lens [<name>] [--json]")
+
+            return
+
+        lens = parts[0] if parts else ""
+
+        if not lens and json_output:
+            self.Write(CanonicalModelJson(ResolveLens(self._state.lens).ToDict()).decode("utf-8"))
+
+            return
+
         if not lens:
             self.Write("Available lenses: " + ", ".join(LENSES))
             return
@@ -327,7 +901,41 @@ class InteractiveShell(cmd.Cmd):
             return
 
         self._state = replace(self._state, lens=lens)
+
+        if json_output:
+            self.Write(CanonicalModelJson(ResolveLens(lens).ToDict()).decode("utf-8"))
+
+            return
+
         self.Write(f"Selected lens: {lens}")
+
+        if self._state.view == "model":
+            self.RenderModel()
+
+    def do_model(self, argument: str) -> None:
+        """Open an explicitly named existing workspace without creating or saving model state.
+
+        Args:
+            argument: Workspace directory path; whitespace inside paths is retained.
+        """
+
+        path = argument.strip()
+
+        if not path:
+            self.Write("usage: model <workspace-path>")
+
+            return
+
+        try:
+            state = LocalModelStore(Path(path)).Open()
+
+        except (OSError, ValueError) as error:
+            self.Write(f"Could not open model: {error}")
+
+            return
+
+        self.BindModel(state)
+        self.Write(f"Loaded model: {state.workspace_id} at revision {state.revision}")
 
     def do_palette(self, argument: str) -> None:
         """Search immediately available commands and cached selected-object actions.
@@ -403,13 +1011,24 @@ class InteractiveShell(cmd.Cmd):
         RunUpdate(self.stdout, json_output=option == "--json")
 
     def do_view(self, argument: str) -> None:
-        """Select the small model-slice view used by the shell foundation.
+        """Select a presentation view and render an explicitly bound model snapshot.
 
         Args:
-            argument: Supported view name, or empty input to list views.
+            argument: Supported view name with optional --json for model output.
         """
 
-        view = argument.strip().lower()
+        parts = argument.strip().lower().split()
+        json_output = bool(parts and parts[-1] == "--json")
+
+        if json_output:
+            parts.pop()
+
+        if len(parts) > 1 or (json_output and parts != ["model"]):
+            self.Write("usage: view <name> [--json]")
+
+            return
+
+        view = parts[0] if parts else ""
         if not view:
             self.Write("Available views: " + ", ".join(VIEWS))
             return
@@ -418,8 +1037,57 @@ class InteractiveShell(cmd.Cmd):
             self.Write(f"Unknown view: {view}. Available views: " + ", ".join(VIEWS))
             return
 
+        if view == "model" and self._model is None:
+            self.Write("No model loaded. Use model <workspace-path>.")
+
+            return
+
         self._state = replace(self._state, view=view)
+
+        if view == "model":
+            self.RenderModel(json_output=json_output)
+
+            return
+
         self.Write(f"Selected view: {view}")
+
+    def RenderModel(self, *, json_output: bool = False) -> None:
+        """Render a read-only reference view; model records remain with the shared snapshot.
+
+        Args:
+            json_output: Emit the versioned reference document instead of compact terminal rows.
+        """
+
+        if self._model is None:
+            self.Write("No model loaded. Use model <workspace-path>.")
+
+            return
+
+        descriptor = ResolveLens(self._state.lens)
+        projected = descriptor.Project(self._model)
+
+        if json_output:
+            self.Write(CanonicalModelJson(projected).decode("utf-8"))
+
+            return
+
+        self.Write(
+            f"{descriptor.title}: {self._model.workspace_id} at revision {self._model.revision}"
+        )
+        references = set(projected["object_references"])
+
+        for item in self._model.objects:
+            if item.Reference() in references:
+                key = "".join(
+                    character if character.isprintable() else f"\\u{ord(character):04x}"
+                    for character in item.identity.key
+                )
+                self.Write(f"{item.identity.kind.value}: {key} [{item.Reference()}]")
+
+        self.Write(
+            f"Relations: {len(projected['relation_references'])}; "
+            f"observations: {len(projected['observation_references'])}"
+        )
 
     def do_quit(self, argument: str) -> bool:
         """Leave the interactive shell.

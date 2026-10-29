@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "profile_id": "owned-plaintext-proxy.v1",
+  "provenance": "first-party:labs/targets/proxy-regression",
+  "frontend_version": "owned-stdlib-reverse-proxy-v1",
+  "backend_version": "owned-stdlib-http-backend-v1",
+  "configuration": {
+    "bind_address": "127.0.0.1",
+    "transport": "plaintext-http",
+    "method": "GET",
+    "backend_route": "/owned-resource",
+    "redirect_route": "/never-followed",
+    "backend_status": 200,
+    "scanner_provider": "native.http",
+    "scanner_profile_version": "1",
+    "scanner_capability": "http.endpoint-discovery",
+    "scanner_impact": "SAFE",
+    "findings": 0,
+    "related_to_relations": 0,
+    "backend_product_objects": 0
+  },
+  "cases": [
+    {
+      "id": "transparent",
+      "frontend_route": "/transparent",
+      "backend_hits": ["/owned-resource"],
+      "frontend_status": 200,
+      "exit_code": 0,
+      "job_state": "completed",
+      "failure_code": null,
+      "model_revision": 1,
+      "objects": 4,
+      "evidence_records": 1
+    },
+    {
+      "id": "blocked",
+      "frontend_route": "/blocked",
+      "backend_hits": [],
+      "frontend_status": 403,
+      "exit_code": 0,
+      "job_state": "completed",
+      "failure_code": null,
+      "model_revision": 1,
+      "objects": 4,
+      "evidence_records": 1
+    },
+    {
+      "id": "redirect",
+      "frontend_route": "/redirect",
+      "backend_hits": [],
+      "frontend_status": 302,
+      "exit_code": 0,
+      "job_state": "completed",
+      "failure_code": null,
+      "model_revision": 1,
+      "objects": 4,
+      "evidence_records": 1
+    },
+    {
+      "id": "rewritten",
+      "frontend_route": "/rewritten",
+      "backend_hits": ["/owned-resource"],
+      "frontend_status": 429,
+      "exit_code": 0,
+      "job_state": "completed",
+      "failure_code": null,
+      "model_revision": 1,
+      "objects": 4,
+      "evidence_records": 1
+    },
+    {
+      "id": "timeout",
+      "frontend_route": "/timeout",
+      "backend_hits": [],
+      "frontend_status": null,
+      "exit_code": 4,
+      "job_state": "failed",
+      "failure_code": "timeout",
+      "model_revision": 0,
+      "objects": 0,
+      "evidence_records": 1
+    }
+  ]
+}

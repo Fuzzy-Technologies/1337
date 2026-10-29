@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "pack_id": "fuzzy1337-web-checks",
+  "version": "1",
+  "templates": [
+    {
+      "family": "git",
+      "template_id": "fuzzy1337-git-head-exposure",
+      "filename": "git-head-exposure.yaml",
+      "sha256": "805584b435f62433f78f528a8112e5604bb7dae43eddfa25b02809fb5cff86bb",
+      "size_bytes": 1072,
+      "source_reference": "first-party:fuzzy1337/data/nuclei/git-head-exposure.yaml",
+      "source_revision": "1",
+      "review_reference": "review:NUCLEI_WEB_CHECKS-v1:git",
+      "reviewed_profile": "single-get-exact-url"
+    },
+    {
+      "family": "sql",
+      "template_id": "fuzzy1337-owned-sql-canary-disclosure",
+      "filename": "owned-sql-canary-disclosure.yaml",
+      "sha256": "59c1d927d1e911be097599cd216a76bbddac249a9c422543d1a4cbea92052e8d",
+      "size_bytes": 1033,
+      "source_reference": "first-party:fuzzy1337/data/nuclei/owned-sql-canary-disclosure.yaml",
+      "source_revision": "1",
+      "review_reference": "review:NUCLEI_WEB_CHECKS-v1:sql",
+      "reviewed_profile": "single-get-exact-url"
+    },
+    {
+      "family": "reflection",
+      "template_id": "fuzzy1337-unsafe-html-reflection",
+      "filename": "unsafe-html-reflection.yaml",
+      "sha256": "ce751e7e7d79bfe2a095f877db25fea5c235b115b190ccac80bdb7d4e5fbfa19",
+      "size_bytes": 949,
+      "source_reference": "first-party:fuzzy1337/data/nuclei/unsafe-html-reflection.yaml",
+      "source_revision": "1",
+      "review_reference": "review:NUCLEI_WEB_CHECKS-v1:reflection",
+      "reviewed_profile": "single-get-exact-url"
+    }
+  ]
+}

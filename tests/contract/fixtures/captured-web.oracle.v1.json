@@ -1,0 +1,50 @@
+{
+  "profile_version": 1,
+  "workspace_id": "web-fixture",
+  "scope_id": "web-fixture-scope",
+  "source_url": "http://127.0.0.1:19091/docs/index",
+  "checked_at": "2026-10-13T12:00:00+00:00",
+  "capture_started_at": "2026-10-13T11:59:58+00:00",
+  "capture_finished_at": "2026-10-13T11:59:59+00:00",
+  "source_version": "synthetic-html-v7",
+  "tool_version": "fixture-collector-v3",
+  "registered_paths": ["/docs/index", "/alpha", "/zeta", "/ports", "/blocked", "/later", "/template"],
+  "allowed_paths": ["/docs/index", "/alpha", "/zeta", "/ports", "/blocked", "/later", "/template"],
+  "denied_paths": ["/blocked"],
+  "anchor_count": 19,
+  "complete_entries": [
+    {"path": "/alpha", "method": "GET", "ordinals": [2, 3, 16]},
+    {"path": "/later", "method": "GET", "ordinals": [17]},
+    {"path": "/ports", "method": "GET", "ordinals": [4]},
+    {"path": "/template", "method": "GET", "ordinals": [19]},
+    {"path": "/zeta", "method": "GET", "ordinals": [1]}
+  ],
+  "complete_exclusion_counts": {
+    "credentials": 1,
+    "fragment-only": 1,
+    "invalid-url": 2,
+    "missing-href": 1,
+    "non-http": 1,
+    "off-origin": 1,
+    "query": 2,
+    "scope.denied": 1,
+    "scope.unregistered": 1,
+    "unsupported-path": 1
+  },
+  "bounded_cases": [
+    {"max_anchor_work": 4, "max_candidates": 64, "processed_anchors": 4,
+     "entry_paths": ["/alpha", "/ports", "/zeta"], "truncation_reasons": ["anchor-work-limit"],
+     "entry_ordinals": [[2, 3], [4], [1]], "discarded_candidates": 0, "exclusion_counts": {}},
+    {"max_anchor_work": 19, "max_candidates": 2, "processed_anchors": 19,
+     "entry_paths": ["/alpha", "/later"], "truncation_reasons": ["candidate-limit"],
+     "entry_ordinals": [[2, 3, 16], [17]], "discarded_candidates": 3,
+     "exclusion_counts_use_complete": true},
+    {"max_anchor_work": 4, "max_candidates": 2, "processed_anchors": 4,
+     "entry_paths": ["/alpha", "/ports"], "truncation_reasons": ["anchor-work-limit", "candidate-limit"],
+     "entry_ordinals": [[2, 3], [4]], "discarded_candidates": 1, "exclusion_counts": {}},
+    {"max_anchor_work": 19, "max_candidates": 5, "processed_anchors": 19,
+     "entry_paths": ["/alpha", "/later", "/ports", "/template", "/zeta"],
+     "truncation_reasons": [], "entry_ordinals": [[2, 3, 16], [17], [4], [19], [1]],
+     "discarded_candidates": 0, "exclusion_counts_use_complete": true}
+  ]
+}

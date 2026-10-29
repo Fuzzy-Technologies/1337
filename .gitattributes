@@ -1,0 +1,26 @@
+# Preserve exact upstream/golden bytes across platform checkout settings.
+tests/contract/fixtures/reporting/sarif-schema-2.1.0.json -text whitespace=cr-at-eol
+tests/contract/fixtures/reporting/snapshot.* -text
+tests/fixtures/image_scan/producer.py text eol=lf
+src/fuzzy1337/artifact_fixture_worker.py text eol=lf
+tests/contract/fixtures/configuration_profiles/dockerfile/safe/Dockerfile text eol=lf
+tests/contract/fixtures/configuration_profiles/dockerfile/unsafe/Dockerfile text eol=lf
+tests/contract/fixtures/configuration_profiles/kubernetes/safe.yaml text eol=lf
+tests/contract/fixtures/configuration_profiles/kubernetes/unsafe.yaml text eol=lf
+tests/contract/fixtures/configuration_profiles/kubernetes/multi.yaml text eol=lf
+tests/fixtures/configuration_scan/producer.py text eol=lf
+tests/contract/fixtures/artifact_replay/schema1-* -text
+tests/contract/fixtures/web-traversal.*.v1.html text eol=lf
+labs/targets/proxy-regression/synthetic-*.pem text eol=lf
+src/fuzzy1337/data/nuclei/* text eol=lf
+tests/fixtures/nuclei/native-encoded-result.jsonl -text
+tests/contract/fixtures/zap-passive.oracle.v1.json text eol=lf
+labs/external/benchmark/templates/prometheus-exposition.yaml text eol=lf
+# Installed acceptance authenticates these helpers by their original source bytes.
+tests/contract/owned_content_response*.py text eol=lf
+tests/contract/owned_response_product_runner.py text eol=lf
+
+# Standalone onboarding provenance authenticates these exact UTF-8 source bytes.
+docs/i18n/agent-onboarding/en.md text eol=lf
+docs/i18n/agent-onboarding/ru.md text eol=lf
+docs/i18n/agent-onboarding/zh-cn.md text eol=lf

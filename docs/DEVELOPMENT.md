@@ -11,14 +11,78 @@ python -m pip install uv==0.11.33
 uv run --locked 1337-dev setup
 uv run --locked 1337 --version
 uv run --locked 1337 doctor
-uv run --locked 1337-dev unit
-uv run --locked 1337-dev check
 ```
+
+The owner-approved development cycle is autonomous: implement, verify the actual
+feature, review, record `Reviewed` and/or `Approved`, merge verified work into
+`develop`, and continue. Separate permission for each ordinary merge is not
+required. PyPI publication tasks remain paused. The complete authorization and
+its boundaries are in [the development protocol](../DEVELOPMENT_PROTOCOL.md).
+Use the focused pre-commit commands below; the full gate belongs to PR checkpoints.
+
+When agents work in parallel, keep an integration coordinator and an independent
+validator with separate progress checkpoints. Each developer, reviewer, coordinator
+and validator has its own next action and finite progress lease. Record concrete
+source, review or evidence progress; polling CI or a completed developer does not
+renew another owner's lease. Lease expiry is a request to inspect actual state,
+not proof of a process hang or its cause.
+
+Check the collaboration tool's actual agent state before dispatch. `send_message`
+steers an already running agent; it does not start a completed turn. Use
+`followup_task` to resume a completed, interrupted or errored owner when authorized
+work remains, or assign an explicit replacement. Never resume or rephrase an
+explicitly blocked task. Review findings sent to a completed author need this
+same explicit resume step before the controller waits for a fix.
+
+The coordinator also inspects actual role states at finite progress checkpoints,
+including the validator itself; silence is not a running-state confirmation.
+After an interruption, verify the explicit resume with a new running-state read
+and concrete source/review/evidence handoff before waiting again. Keep one writer
+for the controller checkpoint. The validator reports its expiry and maintains its
+own checkpoint instead of renewing the controller's lease.
+
+Persist a verified source, review or evidence result before announcing its handoff
+or starting another operation. On a resumed turn and before waiting, assess the
+finite owner checkpoints, including the validator's own lease. An expired lease
+requires an actual state/evidence inspection and a concrete next action before
+more polling. Keep one authoritative validator lease; derive summaries from that
+record instead of maintaining independent copies that can silently disagree.
+
+Retain bounded terminal status and fresh JUnit beside important checks, bound to
+the checked source hashes. A lost execution-session reference or partial stdout
+does not establish completion. Inspect available terminal evidence and actual
+remaining ownership before resuming work; never restart an accepted full gate
+because its old interactive session is unavailable.
+
+Keep a durable issue/PR checkpoint with the exact branch/head, actual accepted or
+failed evidence, next owner and remaining action. A local watchdog cannot recover
+its stopped parent by itself. A scheduled continuation is a separate backstop;
+record its actual execution/recovery evidence and do not claim uninterrupted
+platform operation or recovery until observed. Resume from the published state
+without duplicating an active owner or an already accepted full gate.
+
+Synchronize the actual source branch to the connected Git repository promptly
+after a tested handoff, before starting another long phase. A local commit hash
+in a message does not preserve its Git objects. Keep unfinished checkpoints in
+draft and state failing or unexecuted checks honestly; publication is not approval.
+After an execution environment reconnects, compare actual checkout heads/trees
+and owner proofs with the published checkpoint before editing or resuming tests.
+Preserve an unexpected older checkout and create a new worktree from the verified
+published ref instead of resetting it or assuming the latest local work survived.
 
 `uv.lock` records exact dependency versions and artifact hashes. `--locked`
 rejects stale dependency metadata instead of rewriting the lock. Build backend
 constraints also pin the editable-build environment. Update dependency pins and
 the lock together in a reviewed change; do not regenerate them during CI.
+
+When adding a production module, update the explicit API inventory, authored
+canonical reference and locale units before final readiness. Run this focused
+preflight without the full suite:
+
+```bash
+uv run --locked --extra dev pytest -o addopts='' --no-cov \
+  tests/unit/test_api_reference.py::test_InventoryCoversEverySourceModule
+```
 
 `1337-dev setup` is the repeatable CLI entry point for the locked development
 environment. It invokes `uv sync --locked --extra dev` with `shell=False` and
@@ -27,9 +91,41 @@ prerequisite is installing `uv==0.11.33` as shown above.
 
 The current `1337` entry point provides help, installed-version output, the
 interactive shell foundation, local diagnostics, and read-only component-health
-inspection. Scanner workflows belong to subsequent product work. See
+inspection. Explicit experimental scanner workflows are documented below. See
 [Component health and update inspection](COMPONENT_HEALTH.md) for the explicit
 non-mutation boundary and experimental JSON report.
+Current development workflows additionally expose
+[bounded Quick Scan](QUICK_SCAN.md) and [Offline report export](REPORT_EXPORT.md).
+The latter reads an explicitly selected existing workspace and publishes new
+JSON/SARIF output without a job, provider process or target contact.
+The [first-party native web check](NATIVE_WEB_CHECKS.md) uses `scan web` with an
+explicit STANDARD policy and exact-plan confirmation; no external scanner is
+required for its bounded Git HEAD exposure predicate.
+The [original-response capture and replay](OWNED_RESPONSE_CAPTURE.md) commands use
+the `response` namespace, explicit SAFE approval and the reviewed closed wire
+profile to preserve source facts for later assessment.
+The [native offline original-header SDK and CLI](NATIVE_RESPONSE_HEADER_CHECK.md) separately
+requires PASSIVE admission to interpret an acknowledged seven-role receipt. It
+preserves original source provenance and independent model/workspace ACK outcomes.
+All 37 focused owned-original cases passed; final shared integration remains required.
+Explicit `response check-headers` / `response replay-headers` enrollment adds no
+capture, job or execution grant. Six new required-Linux installed CLI/joined-pipeline
+cases passed in 15.47 seconds with no failures/errors/skips; final shared CI and
+platform acceptance remain pending. Prior SDK/crawler passing cohorts were not repeated.
+
+The [content-response capture contract](OWNED_CONTENT_RESPONSE_CAPTURE_CONTRACT.md)
+defines the implemented Experimental SDK retention profile beyond the closed
+catalog. Eight actual installed SDK cases cover original capture, explicit
+header-v2 analysis, relocated replay, authority refusals, stale CAS and controlled
+post-model-ACK expiry. A separate installed IPv6 case verifies only the worker
+boundary. CLI enrollment and wider Task 59 acceptance remain separate work;
+the final shared integration gate is still required before merge.
+
+The [owned-loopback native content crawl](NATIVE_CONTENT_CRAWL.md) uses `scan crawl`
+with an exact sorted selected URL set, current scope/policy and separate SAFE
+approval. It preserves source-only observations. Focused independent installed
+worker/SDK/CLI cases have passed; final shared integration and portability
+acceptance remain required.
 
 | Command                                | Behavior                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -45,15 +141,78 @@ non-mutation boundary and experimental JSON report.
 | `uv run --locked 1337-dev build`       | Build the sdist and wheel using locked tools                                        |
 | `uv run --locked 1337-dev check`       | Compile, lint, typecheck, measure performance, test coverage, and build             |
 
-Each child step has a 300-second limit. Normal child exit codes are propagated;
+Non-test child steps have a 300-second limit. Complete pytest invocations use the
+independent 600-second default suite budget described below. Normal child exit codes are propagated;
 timeouts return 124, process-start failures return 127, and POSIX signal exits
 are mapped to 128 plus the signal number. Run gates from the repository root.
 
-For the canonical fast feedback run:
+For fast feedback before a routine commit, select the changed feature's tests and
+its regression paths explicitly. For example, a developer-runner change uses:
 
 ```bash
-uv run --locked 1337-dev unit
+uv run --locked --extra dev pytest tests/unit/test_dev_commands.py tests/unit/test_test_runner.py --no-cov -m 'not serial' -n auto --dist=loadscope --timeout=120 -q
 ```
+
+If the selected files contain shared-resource tests, run their serial cases in a
+separate invocation:
+
+```bash
+uv run --locked --extra dev pytest tests/unit/test_dev_commands.py tests/unit/test_test_runner.py --no-cov -m serial -n 0 --timeout=120 -q
+```
+
+Replace those file paths with the feature's actual unit, contract and boundary
+tests. Include relevant failure/regression paths. `--no-cov` disables the full
+source-inventory coverage threshold for this partial run; mandatory branch and
+per-module coverage still applies in the full PR gate. Pytest exit code 5 means
+no selected tests were collected; it is not a passing test run.
+
+Do not run `1337-dev unit`, `1337-dev test` or `1337-dev check` before every
+implementation commit. Keep intermediate work in a draft PR and run a small,
+explicit selection of feature tests and relevant failure/regression paths, plus
+applicable changed-code static checks. Review fixes follow the same fast cycle.
+When the final revision is prepared, mark the PR ready for review to run the full
+gate once through shared CI. Return it to draft before intermediate follow-up
+work; this cancels any running integration gate. A new head on an already ready
+PR reruns full CI so changed code cannot inherit earlier green evidence.
+
+Required development workflows run on pull requests to `develop` or
+`master` when ready, including the explicit `ready_for_review` event. Draft
+opening and updates skip heavy jobs. Before approval or merge, inspect actual
+required job successes from the final readiness run for the proposed head;
+skipped draft jobs can appear green in GitHub and do not prove validation.
+Explicit draft feature markers may run only their declared browser, Trivy, native
+image or owned-response protocol checks. Portable protocol checkpoints use two
+workers across the existing OS matrix, a 30-second per-case deadline and a
+five-minute step limit. They retain JUnit without claiming complete coverage.
+The explicit `[native-crawl-portability-checkpoint]` runs two parallel draft-only
+jobs: Windows Python 3.12 checks the crawl workflow/command units and one actual
+SDK cancellation case; the existing development container runs one installed
+worker seed case through the quality service command override. Both keep finite
+timeouts, original UID/GID mapping where applicable and retained JUnit/original
+case evidence. Missing required prerequisites fail; these focused results never
+satisfy final full integration or platform acceptance.
+Remove its marker before final publication/readiness to avoid an extra diagnostic
+run; feature success never substitutes for the final complete integration gate.
+
+The separate `[owned-traversal-rate-checkpoint]` selects one independent draft-only
+Windows 2022/Python 3.12 job. It runs only the six new controlled rate/deadline
+cases and 21 timeout-classifier cases with two workers, then the two affected
+actual traversal cases serially. The eight-minute job keeps 30/90-second per-case
+and two/four-minute step ceilings, disables partial coverage and always uploads
+its JUnit and original native-crawl evidence. It does not rerun the earlier
+portability cohorts or satisfy the final Ready integration gate. Remove this
+marker before final readiness; the existing portability marker stays independent.
+
+Do not repeat the full gate locally, in individual development agents or after
+the accepted merge into `develop`. Protected `master` pushes retain stable-branch
+checks and master-only documentation deployment.
+
+Mandatory tests/checks use deterministic code and assertions over versioned inputs
+and controlled owned targets. No live LLM call, model-service credential or model
+judgment participates in a test result. Future AI integration tests use fixed
+recorded fixtures or deterministic fakes. Independent workflow jobs run concurrently;
+documentation tests also use bounded xdist workers. Required execution dependencies
+and explicitly marked shared-resource cases retain their ordered owner.
 
 Plain `pytest` also defaults to `tests/unit`. The `1337-dev unit` command additionally
 enforces the per-module contract; `1337-dev test` runs all test layers, and
@@ -70,17 +229,67 @@ Automatic scheduling uses `--dist=loadscope` and caps workers at
 `@pytest.mark.serial` marker; the runner executes them separately with `-n 0` after
 the parallel pool. No automatic retry is configured or permitted.
 
+The same automatic worker cap applies to focused pytest commands that use
+`-n auto`. Plain `pytest` without `-n` runs sequentially. When several development
+agents run tests on one host, use an explicit smaller `-n` budget for each agent
+to avoid multiplying the automatic CPU allocation.
+
 The runner accepts these controlled diagnostics:
 
 ```bash
 uv run --locked 1337-dev unit --jobs auto --timeout 120
+uv run --locked 1337-dev test --timeout 120 --suite-timeout 600
+uv run --locked 1337-dev check --suite-timeout 900 --fail-fast
 uv run --locked 1337-dev unit --jobs 4 --fail-fast
 uv run --locked 1337-dev unit --serial
 ```
 
-`--timeout` sets the per-test timeout and bounds each pytest worker process. The
-terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`, `timeout`,
-and `duration`. Any failure, timeout, or process-start error produces a non-zero exit.
+`--timeout` sets the per-test pytest deadline (default 120 seconds).
+`--suite-timeout` independently bounds each complete parallel or serial pytest
+invocation (default 600 seconds); it is not derived from the number of per-test
+deadlines. Both accept only integers in the supported 1–3600-second range, enforced
+by `MAX_TIMEOUT_SECONDS` before dispatch, report deletion or child startup. This
+keeps operating-system wait/timer conversion bounded and rejects oversized values
+through fixed configuration diagnostics. The full `check` command permits the
+suite-budget override and `--fail-fast`; nondefault worker counts, per-test
+timeouts and serial-only selection remain rejected. Ready Python-matrix and
+container CI checks stop on the first test failure, leaving subsequent work
+unassessed. Successful checks retain every quality phase, test layer and coverage
+requirement, with unchanged worker/per-test defaults and no retries.
+
+The Windows and container CI profiles use a 900-second suite budget and a
+20-minute job limit. Container CI runs the same complete check explicitly as
+`docker compose --profile quality run --rm quality 1337-dev check --fail-fast --suite-timeout 900`
+with the existing local UID/GID mapping. Its previous 600-second aggregate budget
+expired after 9,980 of 9,997 collected tests completed; no assertion failure was
+identified in that incomplete invocation. Per-test deadlines, automatic workers,
+test selection and coverage requirements remain unchanged.
+Recent successful Windows suites took 529–540 seconds; a larger invocation reached
+the previous 600-second bound near completion. Other quality-matrix
+platforms retain the 600-second suite budget and 15-minute job limit. These finite
+CI budgets leave room for later gates and evidence upload; the suite limit applies
+to each pytest invocation rather than all quality phases together. Local defaults
+and focused pre-commit validation are unchanged. A separate collection probe remains
+bounded at 300 seconds.
+
+The terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`,
+`timeout`, and `duration`. Any failure, timeout, or process-start error produces
+a non-zero exit. Each invocation discards its stale JUnit report before starting;
+an exit-zero child without fresh JUnit evidence still fails. Suite timeouts are
+reported as failure with status 124 and are never retried automatically.
+
+Shared runner invocations additionally preserve bounded completed-case progress
+under `coverage/<phase>-tests.progress/`. A thin bootstrap imports the optional
+implementation only after coverage starts in each worker. The plugin records
+hashed full case identities, sanitized labels without parameter values,
+durations and fixed outcomes. Each phase has at most twelve worker files capped
+at 1 MiB each. Buffered progress may omit the currently running case and a small
+unfinished batch; truncation or unavailable diagnostics are explicit.
+
+On termination, `summary.json` reports only retained diagnostic records
+and a bounded slowest-case selection. It is not fresh JUnit, coverage or merge
+acceptance. A timeout still fails with code 124; missing fresh JUnit still fails.
+The plugin does not change deadlines, test selection, scheduling or retries.
 
 The performance gate measures only capabilities that are implemented today. It
 starts fresh processes for CLI cold start and interactive readiness, then measures

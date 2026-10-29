@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuzzy-technologies.github.io/1337/contracts/native-http-record.schema.json",
+  "title": "Experimental native HTTP discovery record v1",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["schema_version", "url", "address", "port", "scheme", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": 1, "type": "integer"},
+        "url": {"type": "string", "format": "uri", "maxLength": 2048},
+        "address": {
+          "type": "string",
+          "anyOf": [{"format": "ipv4"}, {"format": "ipv6"}]
+        },
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "scheme": {"enum": ["http", "https"]},
+        "status": {"type": "integer", "minimum": 200, "maximum": 599}
+      }
+    },
+    {
+      "type": "object",
+      "required": ["schema_version", "error"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"const": 1, "type": "integer"},
+        "error": {"enum": ["timeout", "connection", "protocol", "tls", "input"]}
+      }
+    }
+  ]
+}

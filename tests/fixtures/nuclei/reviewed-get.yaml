@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+id: owned-http-marker
+info:
+  name: Owned synthetic HTTP marker
+  author: fuzzy-technologies
+  severity: info
+  tags: synthetic
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    redirects: false
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "1337-owned-synthetic-marker"

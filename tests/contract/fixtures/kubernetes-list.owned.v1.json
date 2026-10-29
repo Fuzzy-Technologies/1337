@@ -1,0 +1,40 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "metadata": {"continue": "", "remainingItemCount": 0},
+  "items": [
+    {"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": "blue", "uid": "00000000-0000-0000-0000-000000000001"}},
+    {"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": "red", "uid": "00000000-0000-0000-0000-000000000002"}},
+    {"apiVersion": "v1", "kind": "ServiceAccount", "metadata": {"name": "build", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000003"}, "automountServiceAccountToken": false},
+    {"apiVersion": "v1", "kind": "ServiceAccount", "metadata": {"name": "build", "namespace": "red", "uid": "00000000-0000-0000-0000-000000000004"}},
+    {
+      "apiVersion": "apps/v1", "kind": "Deployment",
+      "metadata": {"name": "web", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000005"},
+      "spec": {
+        "selector": {"matchLabels": {"app": "web"}, "matchExpressions": [{"key": "tier", "operator": "NotIn", "values": ["batch"]}]},
+        "template": {"metadata": {"labels": {"app": "web"}}, "spec": {
+          "serviceAccountName": "build", "hostNetwork": true,
+          "containers": [{"name": "main", "image": "example.invalid/web:owned", "securityContext": {"privileged": true, "allowPrivilegeEscalation": false}}]
+        }}
+      }
+    },
+    {
+      "apiVersion": "v1", "kind": "Pod",
+      "metadata": {"name": "web-one", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000006", "labels": {"app": "web", "tier": "frontend"}, "ownerReferences": [{"apiVersion": "apps/v1", "kind": "Deployment", "name": "web", "uid": "00000000-0000-0000-0000-000000000005", "controller": true}]},
+      "spec": {"serviceAccountName": "build", "hostNetwork": false, "containers": [{"name": "main", "image": "example.invalid/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "securityContext": {"privileged": false, "runAsNonRoot": true}}]},
+      "status": {"containerStatuses": [{"name": "main", "imageID": "containerd://sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]}
+    },
+    {"apiVersion": "v1", "kind": "Pod", "metadata": {"name": "web-batch", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000007", "labels": {"app": "web", "tier": "batch"}}},
+    {"apiVersion": "v1", "kind": "Pod", "metadata": {"name": "web-red", "namespace": "red", "uid": "00000000-0000-0000-0000-000000000008", "labels": {"app": "web", "tier": "frontend"}}, "spec": {"containers": [{"name": "main", "image": "example.invalid/web:owned"}]}},
+    {"apiVersion": "v1", "kind": "Pod", "metadata": {"name": "unlabelled", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000009", "labels": {}}, "spec": {"containers": []}},
+    {"apiVersion": "v1", "kind": "Service", "metadata": {"name": "web", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000010"}, "spec": {"type": "ClusterIP", "clusterIP": "192.0.2.10", "selector": {"app": "web"}, "ports": [{"name": "web", "port": 80, "targetPort": "http", "protocol": "TCP"}]}},
+    {"apiVersion": "v1", "kind": "Service", "metadata": {"name": "manual", "namespace": "red", "uid": "00000000-0000-0000-0000-000000000011"}, "spec": {"selector": {}, "ports": []}},
+    {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "Role", "metadata": {"name": "reader", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000012"}, "rules": [{"apiGroups": [""], "resources": ["pods"], "verbs": ["get", "list"]}]},
+    {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "pod-wildcard", "uid": "00000000-0000-0000-0000-000000000013"}, "rules": [{"apiGroups": [""], "resources": ["pods"], "verbs": ["*"]}]},
+    {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "aggregated", "uid": "00000000-0000-0000-0000-000000000014"}, "rules": [], "aggregationRule": {"clusterRoleSelectors": [{"matchLabels": {"aggregate": "true"}}]}},
+    {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "RoleBinding", "metadata": {"name": "reader", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000015"}, "roleRef": {"apiGroup": "rbac.authorization.k8s.io", "kind": "Role", "name": "reader"}, "subjects": [{"kind": "ServiceAccount", "name": "build", "namespace": "blue"}, {"kind": "ServiceAccount", "name": "build", "namespace": "red"}, {"kind": "User", "name": "owned-operator", "apiGroup": "rbac.authorization.k8s.io"}]},
+    {"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRoleBinding", "metadata": {"name": "pod-wildcard", "uid": "00000000-0000-0000-0000-000000000016"}, "roleRef": {"apiGroup": "rbac.authorization.k8s.io", "kind": "ClusterRole", "name": "pod-wildcard"}, "subjects": [{"kind": "ServiceAccount", "name": "build", "namespace": "blue"}, {"kind": "Group", "name": "owned-group", "apiGroup": "rbac.authorization.k8s.io"}]},
+    {"apiVersion": "networking.k8s.io/v1", "kind": "Ingress", "metadata": {"name": "web", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000017"}, "spec": {"defaultBackend": {"service": {"name": "web", "port": {"number": 80}}}, "rules": [{"http": {"paths": [{"path": "/", "pathType": "Prefix", "backend": {"service": {"name": "web", "port": {"name": "web"}}}}]}}]}},
+    {"apiVersion": "networking.k8s.io/v1", "kind": "NetworkPolicy", "metadata": {"name": "web", "namespace": "blue", "uid": "00000000-0000-0000-0000-000000000018"}, "spec": {"podSelector": {"matchLabels": {"app": "web"}, "matchExpressions": [{"key": "tier", "operator": "NotIn", "values": ["batch"]}]}, "policyTypes": ["Ingress"], "ingress": []}}
+  ]
+}

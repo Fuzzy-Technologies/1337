@@ -1,0 +1,42 @@
+[
+  {
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "Image": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "Config": {"User": "0:1000"},
+    "HostConfig": {
+      "Privileged": true,
+      "ReadonlyRootfs": false,
+      "CapAdd": ["SYS_ADMIN", "NET_ADMIN"],
+      "CapDrop": ["MKNOD"],
+      "PidMode": "host",
+      "IpcMode": "private",
+      "UsernsMode": "",
+      "NetworkMode": "bridge"
+    },
+    "State": {"Running": true, "Status": "running", "Health": {"Status": "healthy"}},
+    "NetworkSettings": {
+      "Networks": {
+        "owned-network": {
+          "NetworkID": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "IPAddress": "192.0.2.20",
+          "GlobalIPv6Address": "2001:db8::20"
+        }
+      },
+      "Ports": {
+        "80/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8080"},
+                   {"HostIp": "::", "HostPort": "8080"}],
+        "443/tcp": null
+      }
+    },
+    "Mounts": [
+      {"Type": "bind", "Source": "/var/run/docker.sock", "Destination": "/run/engine", "RW": true},
+      {"Type": "bind", "Source": "/", "Destination": "/host", "RW": false},
+      {"Type": "volume", "Name": "owned-volume", "Destination": "/data", "RW": true},
+      {"Type": "tmpfs", "Destination": "/cache", "RW": true}
+    ]
+  },
+  {
+    "Id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "Image": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+]

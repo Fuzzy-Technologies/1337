@@ -1,0 +1,120 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Owned synthetic image inventory",
+  "documentNamespace": "urn:owned:spdx:license-status-fixture",
+  "creationInfo": {
+    "created": "2026-10-01T00:00:00Z",
+    "creators": [
+      "Tool: repository-synthetic-fixture"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-Image"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Image",
+      "name": "owned-image",
+      "primaryPackagePurpose": "CONTAINER",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-0",
+      "name": "status-0",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/status-0@1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-1",
+      "name": "status-1",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/status-1@1.0"
+        }
+      ],
+      "licenseDeclared": "NONE",
+      "licenseConcluded": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-2",
+      "name": "status-2",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/status-2@1.0"
+        }
+      ],
+      "licenseDeclared": "NOASSERTION",
+      "licenseConcluded": "NONE"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-3",
+      "name": "status-3",
+      "versionInfo": "1.0",
+      "filesAnalyzed": false,
+      "downloadLocation": "NONE",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/status-3@1.0"
+        }
+      ],
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "licenseConcluded": "MIT"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Image"
+    },
+    {
+      "spdxElementId": "SPDXRef-Image",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-Image",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-Image",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-2"
+    },
+    {
+      "spdxElementId": "SPDXRef-Image",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-3"
+    }
+  ]
+}

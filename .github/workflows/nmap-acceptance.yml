@@ -1,0 +1,185 @@
+name: Genuine Nmap acceptance
+
+on:
+  pull_request:
+    branches: [develop, master]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nmap-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  owned-loopback:
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false)
+    name: Nmap 7.992 / owned TCP-connect product
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Acquire checksum-pinned official Nmap source
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import tarfile
+          from pathlib import Path, PurePosixPath
+          from urllib.request import urlopen
+
+          version = "7.992"
+          asset_url = "https://nmap.org/dist/nmap-7.992.tar.bz2"
+          expected_sha256 = "0c12660eddbf7eabeff6996cb0c044a4eadf2bb0c6fbcb340d6cf72b1caee402"
+          root = Path(os.environ["RUNNER_TEMP"]) / "nmap-7.992"
+          root.mkdir(mode=0o700)
+          evidence = Path("functional-evidence/nmap-product")
+          evidence.mkdir(parents=True)
+          archive_path = root / "nmap-7.992.tar.bz2"
+          digest = hashlib.sha256()
+          received = 0
+
+          with urlopen(asset_url, timeout=30) as response, archive_path.open("xb") as output:
+              while chunk := response.read(1024 * 1024):
+                  received += len(chunk)
+
+                  if received > 128 * 1024 * 1024:
+                      raise ValueError("Official Nmap archive exceeds the download budget")
+
+                  digest.update(chunk)
+                  output.write(chunk)
+
+          if digest.hexdigest() != expected_sha256:
+              raise ValueError("Official Nmap archive differs from the pinned upstream SHA256")
+
+          with tarfile.open(archive_path, "r:bz2") as archive:
+              members = archive.getmembers()
+
+              if not 1 <= len(members) <= 65536 or sum(
+                  member.size for member in members if member.isfile()
+              ) > 512 * 1024 * 1024:
+                  raise ValueError("Verified Nmap source exceeds the extraction budget")
+
+              for member in members:
+                  path = PurePosixPath(member.name)
+
+                  if path.is_absolute() or ".." in path.parts or (
+                      not path.parts or path.parts[0] != "nmap-7.992"
+                  ):
+                      raise ValueError("Verified Nmap source has an unexpected member path")
+
+              archive.extractall(root / "source", filter="data")
+
+          provenance = {
+              "schema_version": 1, "provider_id": "native.nmap", "release_version": version,
+              "archive_url": asset_url, "archive_sha256": digest.hexdigest(),
+              "archive_bytes": received,
+              "upstream_digest_url": "https://nmap.org/dist/sigs/nmap-7.992.tar.bz2.digest.txt",
+              "configure": ["./configure", "--prefix=" + str(root / "install"),
+                            "--without-zenmap"],
+              "build": ["make", "-j2"], "install": ["make", "install"],
+          }
+          (evidence / "provisioning.json").write_text(
+              json.dumps(provenance, sort_keys=True), encoding="utf-8",
+          )
+          PY
+      - name: Build and install genuine Nmap into the owned runner prefix
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$GITHUB_WORKSPACE/functional-evidence/nmap-product"
+          cd "$RUNNER_TEMP/nmap-7.992/source/nmap-7.992"
+          ./configure --prefix="$RUNNER_TEMP/nmap-7.992/install" --without-zenmap \
+            > "$evidence/configure.log" 2>&1
+          make -j2 > "$evidence/build.log" 2>&1
+          make install > "$evidence/install.log" 2>&1
+      - name: Require exact genuine provider version and retain binary provenance
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          evidence = Path("functional-evidence/nmap-product")
+          executable = Path(os.environ["RUNNER_TEMP"]) / "nmap-7.992/install/bin/nmap"
+          result = subprocess.run([str(executable), "--version"], stdin=subprocess.DEVNULL,
+                                  capture_output=True, timeout=10, check=True)
+          version = result.stdout.decode("utf-8")
+
+          if not version.startswith("Nmap version 7.992 ( https://nmap.org )"):
+              raise ValueError("Installed genuine Nmap version differs from the pinned release")
+
+          (evidence / "provider-version.txt").write_bytes(result.stdout)
+          provenance_path = evidence / "provisioning.json"
+          provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+          with executable.open("rb") as source:
+              provenance["executable_sha256"] = hashlib.file_digest(source, "sha256").hexdigest()
+          provenance["actual_version_output"] = version
+          provenance_path.write_text(json.dumps(provenance, sort_keys=True), encoding="utf-8")
+          PY
+      - name: Execute genuine SDK and installed CLI against pytest-owned loopback only
+        env:
+          FUZZY1337_RUN_NMAP_ACCEPTANCE: "1"
+          F1337_NMAP_TEST_EXECUTABLE: ${{ runner.temp }}/nmap-7.992/install/bin/nmap
+        run: >-
+          uv run --locked --extra dev pytest tests/functional/test_nmap_product_loopback.py
+          tests/functional/test_raw_cli_nmap.py
+          --no-cov -n 2 --dist=load --timeout=120 -q
+          --junitxml=functional-evidence/nmap-product/junit.xml
+      - name: Require every genuine SDK and raw profile case to execute
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          document = ElementTree.parse(Path("functional-evidence/nmap-product/junit.xml"))
+          cases = tuple(document.getroot().iter("testcase"))
+          expected = {
+              "test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReopen",
+              "test_GenuineRawProfilesRetainExactArgvCustodyAndRelocatedOfflineReplay[tcp-connect]",
+              "test_GenuineRawProfilesRetainExactArgvCustodyAndRelocatedOfflineReplay[light-services]",
+          }
+          if len(cases) != len(expected) or {case.attrib["name"] for case in cases} != expected:
+              raise ValueError("Genuine Nmap SDK/raw case inventory differs")
+          if any(case.find(kind) is not None for case in cases
+                 for kind in ("failure", "error", "skipped")):
+              raise ValueError("Every genuine Nmap SDK/raw profile case must pass without skips")
+          PY
+      - name: Preserve actual native provider and product evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: genuine-nmap-7.992-owned-tcp-connect-product
+          path: functional-evidence/nmap-product/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve original genuine native raw profile evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: genuine-nmap-7.992-owned-raw-profiles
+          path: functional-evidence/nmap-raw/
+          if-no-files-found: error
+          retention-days: 14

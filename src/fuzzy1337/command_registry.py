@@ -180,5 +180,109 @@ COMMAND_REGISTRY = CommandRegistry(
             usage="1337 update [--json]",
             capabilities=("core.component-health", "core.update-inspection"),
         ),
+        CommandDescriptor(
+            identifier="workspace",
+            summary="Create or reopen a durable workspace and verify retained evidence.",
+            usage="1337 workspace <create|open>",
+            capabilities=("workbench.workspace",),
+        ),
+        CommandDescriptor(
+            identifier="scope",
+            summary="Record explicit target rules and operator consent.",
+            usage="1337 scope create <workspace>",
+            capabilities=("workbench.scope",),
+        ),
+        CommandDescriptor(
+            identifier="image",
+            summary="Plan or export an explicitly governed local Docker image reference.",
+            usage="1337 image export-local <workspace>",
+            capabilities=("image.local-reference-export",),
+        ),
+        CommandDescriptor(
+            identifier="scan",
+            summary=("Run governed discovery, owned content crawl, checks, "
+                     "synthetic/native images or configurations."),
+            usage="1337 scan <quick|crawl|ports|web|nuclei|image|config> <workspace>",
+            capabilities=("http.endpoint-discovery", "web.git-head-check",
+                          "http.owned-loopback-crawl",
+                          "network.tcp-connect",
+                          "image.archive-vulnerabilities",
+                          "config.dockerfile-misconfigurations",
+                          "config.kubernetes-misconfigurations"),
+        ),
+        CommandDescriptor(
+            identifier="raw",
+            summary="Plan, confirm or replay exact governed native Nmap profiles.",
+            usage="1337 raw <plan|run|replay> <workspace>",
+            capabilities=("network.tcp-connect", "network.service-discovery"),
+        ),
+        CommandDescriptor(
+            identifier="report",
+            summary="Export a verified saved model to bounded JSON, SARIF, HTML or JUnit.",
+            usage=(
+                "1337 report export <workspace> --format <json|sarif|html|junit> "
+                "--output <new-file>"
+            ),
+            capabilities=("workbench.report-export",),
+        ),
+        CommandDescriptor(
+            identifier="intel",
+            summary="Import explicit local intelligence and verify or apply selected snapshots.",
+            usage="1337 intel <import|inspect|apply> <workspace>",
+            capabilities=("intelligence.local-snapshot", "intelligence.finding-enrichment"),
+        ),
+        CommandDescriptor(
+            identifier="demo",
+            summary="Run an explicitly approved command-owned local SAFE discovery demo.",
+            usage="1337 demo local <new-output-root> [--approve-safe-http]",
+            capabilities=("workbench.local-demo",),
+        ),
+        CommandDescriptor(
+            identifier="ci",
+            summary="Evaluate an explicit current-run finding predicate with verified reports.",
+            usage=(
+                "1337 ci scan <workspace> --profile "
+                "<synthetic-dockerfile|synthetic-kubernetes|synthetic-image>"
+            ),
+            capabilities=("workbench.selected-finding-gate",),
+        ),
+        CommandDescriptor(
+            identifier="paths",
+            summary="Analyze selected saved-model paths and original reachability proof.",
+            usage="1337 paths analyze <workspace>",
+            capabilities=("model.reachability-path-analysis",),
+        ),
+        CommandDescriptor(
+            identifier="sbom",
+            summary="Inspect verified saved image inventory or import an owned SPDX graph.",
+            usage="1337 sbom <image|import spdx-graph> <workspace>",
+            capabilities=("image.owned-spdx-graph-import",),
+        ),
+        CommandDescriptor(
+            identifier="api",
+            summary="Import an owned offline GraphQL introspection or OpenAPI JSON source.",
+            usage="1337 api import <graphql-introspection|openapi-json> <workspace>",
+            capabilities=("api.owned-offline-import",),
+        ),
+        CommandDescriptor(
+            identifier="response",
+            summary="Capture original responses, check original headers or replay known custody.",
+            usage="1337 response <capture|replay|check-headers|replay-headers> <workspace>",
+            capabilities=("http.synthetic-response-capture", "http.owned-response-header-check"),
+        ),
+        CommandDescriptor(
+            identifier="runtime",
+            summary="Import explicit owned offline Docker inspect or Kubernetes List evidence.",
+            usage="1337 runtime import <docker-inspect|kubernetes-list> <workspace>",
+            capabilities=("runtime.owned-offline-import",),
+        ),
+        CommandDescriptor(
+            identifier="trace",
+            summary=(
+                "Import explicit local IOC candidates or inspect independently anchored artifacts."
+            ),
+            usage="1337 trace ioc <import|inspect> <workspace>",
+            capabilities=("trace.local-ioc-candidates",),
+        ),
     )
 )

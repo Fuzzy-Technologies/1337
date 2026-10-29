@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "comparison_id": "external.juice-shop.prometheus.v1",
+  "provider": {
+    "repository": "projectdiscovery/nuclei",
+    "version": "3.4.10",
+    "source_revision": "5bff7a2a90965a0ed8b03f2ff557f3220624dd57",
+    "archive_filename": "nuclei_3.4.10_linux_amd64.zip",
+    "archive_size_bytes": 33657343,
+    "archive_sha256": "234c12cc5288af071abdcd6f854245b6067345556e1235cf96b76725c1004357",
+    "archive_url": "https://github.com/projectdiscovery/nuclei/releases/download/v3.4.10/nuclei_3.4.10_linux_amd64.zip",
+    "executable_sha256_basis": "Actual checksum-verified extraction in the inspected image, recorded at acquisition"
+  },
+  "rule": {
+    "path": "templates/prometheus-exposition.yaml",
+    "template_id": "fuzzy1337-prometheus-process-exposition",
+    "size_bytes": 1215,
+    "sha256": "dff3e6ea0821ba769cf63575ad685b8c1def939ed24f790f42d2fde924d55c74",
+    "source_revision": "ca73fb44606a40301db3a3d466235094aafad4c7",
+    "review_reference": "ADR0106:accepted-proposal-sha256:cdc0a17fa4b8710fd1d4db9bae606582448d863c6d03a28451fb299ae60859e2",
+    "reviewed_profile": "single-get-exact-url",
+    "operator_configuration_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+  },
+  "target": {
+    "source_revision": "5658473cf8814459bf89000ce373b20ed0b4eb37",
+    "image_index_digest": "sha256:8739101ade29358abb5469ee66ae78e582c97ed0a5543a4ad102e5fa5193526b",
+    "platform_digest": "sha256:7f7539921b046863f2fc48b84061f957e50b3aa4652ae0a62014a2fc25654d0b",
+    "case_pack": "juice-shop-cases.v1.json",
+    "case_truth": "Unchanged; read only from the independent case pack"
+  },
+  "effective_nuclei_budget": {
+    "request_timeout_seconds": 3,
+    "operation_timeout_seconds": 3,
+    "max_requests": 1,
+    "max_response_bytes": 1048576,
+    "rate_limit": 1
+  },
+  "separate_windows": {
+    "provider_seconds": 3,
+    "whole_product_wrapper_seconds": 8,
+    "provider_stdout_bytes": 4194304,
+    "provider_stderr_bytes": 65536,
+    "bundle_file_bytes": 2097152,
+    "bundle_total_bytes": 8388608
+  },
+  "attribution": {
+    "product_source_revision": "Actual clean committed host HEAD at each run; not the earlier proposal source",
+    "server_contacts": "Unknown; one approved configured invocation is not independent server telemetry",
+    "empty_output": "Executed unproven; no TN, FN or completed-response credit",
+    "comparison": "The two Nuclei tracks share one detector algorithm; native is a different recognizer"
+  }
+}

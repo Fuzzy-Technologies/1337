@@ -2,182 +2,161 @@
 
 ![1337 Security Workbench by Fuzzy Technologies](docs/site/content/en/assets/images/1337-logo.png)
 
-## Open security workbench · Live Security Object Model · Modular tooling
+**1337 Security Workbench by Fuzzy Technologies** is a local-first security
+workbench for human operators, CLI-capable AI agents and CI. Run explicitly
+approved checks, keep the original evidence in a portable workspace, reopen its
+Security Object Model, and export reports without contacting the target again.
 
-**1337 Security Workbench (1337-SW) by Fuzzy Technologies** is a fast, local-first
-workbench for hands-on security work.
+> Models reason. 1337 keeps state, governs execution, and preserves evidence.
 
-Built-in discovery creates an initial **Security Object Model** of the system under
-study. Native and external tools then enrich that model with observations, evidence,
-findings, relationships, reachability, and attack paths.
+**Version 0.3.0** is an early Community product. It contains
+workflows absent from the immutable [v0.2.1 release](https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.1).
+See the [release card](docs/releases/v0.3.0.md) for capabilities, examples and
+validation, and [release delivery](docs/RELEASE_WORKFLOW.md) for artifact provenance.
+Apache-2.0 Community core; CPython 3.11 and newer; no mandatory runtime dependencies.
 
-> **Models reason. 1337 keeps state, governs execution, and preserves evidence**
+## What you can use now
 
-> **Technologies · Knowledge · Science**
+| Task                             | Current interface                                                                | What you keep                                                                            |
+| -------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| First local run                  | [`1337 demo local`](docs/DEMO.md)                                                | Owned loopback target, live events, saved model, three acquisitions, JSON/SARIF          |
+| Discover selected HTTP endpoints | [`1337 scan quick`](docs/QUICK_SCAN.md)                                          | Status-only Host/Port/Service/Endpoint objects; explicit scope and SAFE approval         |
+| Discover selected TCP ports      | [`1337 scan ports`](docs/PORT_SCAN.md)                                           | Governed optional Nmap TCP-connect output and original XML; exact STANDARD confirmation  |
+| Check an owned web endpoint      | [`1337 scan web`](docs/OWNED_GIT_HEAD_RECIPE.md)                                 | Selected first-party checks, attributable Findings and evidence; exact plan confirmation |
+| Scan an owned image archive      | [`1337 scan image --profile native`](docs/NATIVE_IMAGE_WORKFLOW.md)              | Optional offline Trivy inventory/Findings with explicit material, scope and policy       |
+| Export an owned local image      | [`1337 image export-local`](docs/LOCAL_IMAGE_REFERENCE.md)                       | Immutable Docker-save archive and config identity; separate approval for a later scan    |
+| Check selected configuration     | [`1337 scan config --profile native`](docs/NATIVE_CONFIGURATION.md)              | Trivy Findings linked to the selected Dockerfile or already-rendered Kubernetes source   |
+| Inspect saved image inventory    | [`1337 sbom image`](docs/IMAGE_SBOM_VIEW.md)                                     | Verified nested packages, license declarations and supplied Docker-use associations      |
+| Use finite native Nmap arguments | [`1337 raw plan\|run\|replay`](docs/RAW_CLI.md)                                  | Original argument order, streams, status and a replayable evidence receipt               |
+| Inspect and report offline       | [`workspace open`](docs/WORKSPACES.md), [`report export`](docs/REPORT_EXPORT.md) | Verified saved evidence; JSON, SARIF, HTML and JUnit from one model snapshot             |
+| Gate a selected source           | [`1337 ci scan`](docs/CI_SCAN.md)                                                | Explicit finding predicate and separate execution/report outcomes                        |
 
-## What 1337 is
+Checks are bounded and selected; 1337 does not infer permission from a reachable
+service. Discovery creates no vulnerability Finding merely because a port is open
+or an endpoint responds. `scan_completeness: not-assessed` remains explicit.
 
-Security work is spread across terminals, scanners, browsers, files, logs, reports,
-and vendor consoles. The difficult part is not producing another scanner result; it
-is preserving what was learned, why it is believed, and how the pieces connect.
+The interactive `1337 shell` offers command discovery, history, model inspection
+and lens context over the same state. The complete split-pane TUI, general MCP
+service, autonomous target discovery, broad workflow lenses and M4 attack-path
+showcase remain roadmap work. Experimental interfaces and compatibility classes
+are documented in [Compatibility](docs/COMPATIBILITY.md).
 
-1337 keeps that state in one workspace:
+## Install and do useful work
 
-```text
-Human / AI / CI
-      ↓
-Workflow Lens
-      ↓
-Security Object Model
-      ↑
-      ├── Built-in discovery
-      ├── Native capabilities
-      ├── External tools / Kali toolsets
-      ├── Browser / workload engines
-      └── Imports / vendor integrations
-      ↓
-Observations + Evidence + Findings + Relationships
-      ↓
-Reachability / Attack Paths / Reports
-```
-
-The initial workflow lenses are:
-
-- **Pentest** — attack surface, footholds, pivots, findings, reachability, and attack paths;
-- **DFIR** — evidence, timelines, entities, provenance, and observed attack paths;
-- **DevSecOps** — source, dependencies, images, deployments, APIs, and release risk;
-- **Purple Team** — authorized actions, telemetry, detections, controls, and retest results.
-
-## Design principles
-
-**Tools remain tools.** 1337 does not hide specialist utilities behind a mandatory
-workflow engine. Experienced operators can keep using familiar command-line tools;
-typed adapters add structured state, evidence, and repeatability where useful.
-
-**The model updates while you work.** Long-running jobs are intended to stream
-progress, observations, and object changes instead of blocking the interface. The
-planned terminal workbench places actions and commands on the left and a focused
-view of the evolving model on the right.
-
-**The base installation stays lightweight.** Core workflows are local-first and do
-not require persistent endpoint agents. Large scanners, browser runtimes, Kali
-toolsets, search indexes, and vendor connectors are optional components enabled only
-when needed.
-
-**AI is another client of the Core.** API/SDK/MCP interfaces are intended to expose
-the same state and governed capabilities used by human operators and automation.
-AI does not own authorization, source evidence, or durable workspace state.
-
-## Status
-
-1337 is in **early pre-alpha**.
-
-The **v0.2.1** maintenance pre-alpha builds on the completed M1 Community Core
-and Shell foundation:
-interactive command discovery, local diagnostics, portable workspace/configuration
-and offline target/scope contracts. It also includes Experimental adapter/executor,
-Security Object Model, raw-evidence and optional Nmap Python interfaces.
-
-The shell exposes help, discovery/history, local context and component inspection.
-Workspace/scope/model/executor/Nmap operations currently use the Python APIs.
-The full split-pane workbench, native discovery, Quick Scan, reachability, complete
-workflow lenses and AI/MCP integrations remain roadmap work. M2/M3 are still in progress.
-
-The Community repository is licensed under Apache-2.0.
-
-## Roadmap
-
-| Phase                                                               | Focus                                            | Target outcome                                                                                                      |
-| ------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| ✅ [**M0**](https://github.com/Fuzzy-Technologies/1337/milestone/1)  | Foundation                                       | Repository baseline, CI, containers, synthetic lab, engineering and architecture contracts                          |
-| ✅ [**M1**](https://github.com/Fuzzy-Technologies/1337/milestone/2)  | Community Core & Shell                           | Interactive shell, workspace/configuration, offline scope, persistence boundaries, diagnostics, performance budgets |
-| 🚧 [**M2**](https://github.com/Fuzzy-Technologies/1337/milestone/3)  | Execution, Discovery & Security Object Model MVP | Executor runtime, built-in discovery, minimal live model, tool adapters, Quick Scan, initial workflow lenses        |
-| 🚧 [**M3**](https://github.com/Fuzzy-Technologies/1337/milestone/4)  | Evidence, Intelligence & Mapping                 | Evidence, findings, vulnerability/attack intelligence, standards mappings, reports                                  |
-| 🚧 [**M4**](https://github.com/Fuzzy-Technologies/1337/milestone/5)  | Advanced Discovery & Attack Paths                | Web/API/browser/runtime discovery, user journeys, reachability, attack paths, reproducible showcase                 |
-| ⏳ [**M5**](https://github.com/Fuzzy-Technologies/1337/milestone/6)  | Analytical UX                                    | Large-scale tables, graph visualization, prioritization, advanced mapping UX                                        |
-| ⏳ [**M6**](https://github.com/Fuzzy-Technologies/1337/milestone/7)  | Automation, Integrations & AI                    | Domain API/SDK, CI/CD, vendor integrations, remote executors, MCP, AI access                                        |
-| ⏳ [**M7**](https://github.com/Fuzzy-Technologies/1337/milestone/8)  | Authorized Validation                            | Fuzzy Striker and mature Purple Team validation workflows                                                           |
-| ⏳ [**M8**](https://github.com/Fuzzy-Technologies/1337/milestone/9)  | 1337 Trace                                       | DFIR ingestion, evidence integrity/custody, incident timeline, observed attack graph                                |
-| ⏳ [**M9**](https://github.com/Fuzzy-Technologies/1337/milestone/10) | Cloud & Enterprise Contracts                     | Verified assets, cloud-safe contracts, stable enterprise extension interfaces                                       |
-
-Status: ✅ Completed · 🚧 In progress · ⏳ Planned.
-
-In progress means partial foundations are accepted; the full target outcome has not
-yet shipped. Detailed planning lives in the linked GitHub milestones and issues.
-
-## Try v0.2.1
-
-Use CPython 3.11 or newer and Git. Docker and Nmap are optional for their respective
-lab/provider examples. Start with the released tag for a reproducible preview:
+Install the exact version in a clean environment:
 
 ```bash
-git clone --branch v0.2.1 --depth 1 https://github.com/Fuzzy-Technologies/1337.git
+python -m venv .venv-demo
+source .venv-demo/bin/activate
+python -m pip install 1337==0.3.0
+1337 --version
+1337 doctor
+```
+
+The version command must report `1337 0.3.0`; do not substitute another package or
+version if installation fails. For development builds, use one reviewed source
+revision and build its wheel in a fresh output directory:
+
+```bash
+git clone https://github.com/Fuzzy-Technologies/1337.git
 cd 1337
+git checkout YOUR_REVIEWED_COMMIT
+git rev-parse HEAD
 python -m pip install uv==0.11.33
-uv sync --locked
-uv run --locked 1337 --version
-uv run --locked 1337 doctor
-uv run --locked 1337 update
-uv run --locked 1337 shell
+uv build --wheel --out-dir dist
+python -m venv .venv-demo
+.venv-demo/bin/python -m pip install --no-deps dist/1337-*.whl
+.venv-demo/bin/1337 --version
+.venv-demo/bin/1337 doctor
 ```
 
-Inside the shell, start with `help`, `commands`, `context`, `lens devsecops`,
-`select asset:demo`, `palette`, `history`, and `quit`. Selected object identifiers
-are local context references; these commands do not start a scan.
+On Windows use `.venv-demo\Scripts\python.exe` and
+`.venv-demo\Scripts\1337.exe`. Build one selected revision in a fresh output
+directory; select its exact wheel if other files are present. Version metadata
+alone does not identify a development source revision.
 
-Follow the [quickstart](docs/QUICKSTART.md) for expected output, a temporary
-workspace/scope API example and optional isolated-lab commands. The
-[generated API reference with examples](https://fuzzy-technologies.github.io/1337/api/latest/en/)
-is published by the validated `master` Pages workflow. Its `latest` route follows
-the published repository state; use tag-linked source docs for version-pinned contracts.
-
-`1337 update [--json]` inspects local core health and reports unavailable component
-inventories. It performs no updates or remote version checks. See
-[Component health and update inspection](docs/COMPONENT_HEALTH.md).
-
-## Architecture and project docs
-
-- [Vision](docs/VISION.md)
-- [ADR 0010: live Security Object Model, modular tooling, and operator lenses](docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md)
-- [ADR 0008: model-agnostic execution, state, and evidence platform](docs/adr/0008-ai-native-cyber-execution-platform.md)
-- [ADR 0009: operator profiles and orthogonal execution dimensions](docs/adr/0009-operator-profiles-and-orthogonal-execution-dimensions.md)
-- [1337 for AI agents in cybersecurity](docs/AI_AGENTS.md)
-- [Machine-readable project summary](llms.txt)
-- [Compatibility](docs/COMPATIBILITY.md)
-- [Terminology](docs/TERMINOLOGY.md)
-
-## Development
-
-Use Python 3.11+ from the repository root:
+Activate the environment (`source .venv-demo/bin/activate`, or
+`.venv-demo\Scripts\Activate.ps1` in PowerShell), then preview the demo:
 
 ```bash
-python -m pip install uv==0.11.33
-uv run --locked 1337-dev setup
-uv run --locked 1337 --version
-uv run --locked 1337 doctor
-uv run --locked 1337-dev unit
-uv run --locked 1337-dev check
+mkdir artifacts
+1337 demo local artifacts/first-run --json
 ```
 
-See [Python development](docs/DEVELOPMENT.md),
-[Container development](docs/CONTAINERS.md),
-[Development protocol](DEVELOPMENT_PROTOCOL.md), and
-[Release workflow](docs/RELEASE_WORKFLOW.md).
+Expected: exit **3**, `failure: approval_required`, and no `first-run` directory.
+Review the printed plan: three anonymous status-only GETs to the command's own
+`127.0.0.1` service; no external target, browser, Docker, model API or scanner needed.
+If you approve that plan, execute it and inspect its durable result:
 
-The stable public branch is `master`. Active integration development occurs on
-`develop`; feature work is performed on short-lived branches and reviewed before
-merge.
+```bash
+1337 demo local artifacts/first-run --approve-safe-http --json
+1337 workspace open artifacts/first-run/workspace --json
+1337 report export artifacts/first-run/workspace \
+  --format html --output artifacts/first-run.html --json
+```
 
-## Responsible use
+Expected: exit **0** for each command, confirmed target teardown, model revision
+**3**, one Host, one Port, one Service, three Endpoints, zero Findings and three
+verified evidence records. Open `artifacts/first-run.html`; retain the whole
+`first-run/` bundle. Reopen/export run offline after the owned target stops.
+Every output must be new: an existing destination is refused, preserving its bytes.
 
-1337 is intended for defensive security engineering, authorized security assessment,
-investigations, training, research, CTF/lab environments, and systems you own or are
-explicitly authorized to assess.
+## Choose your operator path
 
-See [SECURITY.md](SECURITY.md).
+- **Human:** [Quickstart](docs/QUICKSTART.md) — installation, first result, shell inspection and next recipes.
+- **AI agent:** [Agent quickstart](docs/AGENT_QUICKSTART.md) — copyable EN prompt, RU/zh-cn draft prompts, explicit operator approval and evidence-linked JSON.
+- **CI:** [CI quickstart](docs/CI_QUICKSTART.md) — Docker wheel install, GitHub Actions/GitLab templates, predeclared local-demo approval and retained diagnostics.
 
-## License
+All three use the same scope/policy, jobs, evidence and persisted model owners.
+No mandatory check calls a paid LLM or grades model output.
 
-Apache License 2.0.
+## Produce a real Finding with the core
 
-Copyright © Fuzzy Technologies.
+The [owned Git HEAD recipe](docs/OWNED_GIT_HEAD_RECIPE.md) copies a standalone
+stdlib fixture, creates explicit scope/policy, reviews and confirms two exact
+plans, then produces one LOW Git metadata exposure Finding and no false Finding
+for its fixed control. Reopen and export JSON/HTML/SARIF after the fixture stops.
+It runs against the installed core without optional scanner or browser packages.
+
+## Next hands-on workflows
+
+Use [the owned HTTP recipe](docs/QUICK_SCAN.md#run-an-owned-localhost-example)
+for your own explicitly selected local endpoint. For optional tools and checks,
+start with [prerequisites and bounded recipes](docs/QUICKSTART.md#choose-the-next-recipe):
+Nmap needs an operator-supplied executable and STANDARD policy; native web checks
+need an exact approved plan; native Trivy needs Linux ownership support, a selected
+local archive and pre-provisioned offline database. None is installed implicitly.
+
+Configuration scanning reads a selected small UTF-8 file; render Helm/Kustomize
+manifests yourself before selection. 1337 supplies no configuration renderer.
+The image inventory view does not decide license compliance or runtime reachability;
+broader SBOM semantics and live runtime correlation continue in M4.
+
+The [v0.3.0 release card](docs/releases/v0.3.0.md) collects these workflows,
+copyable examples and the release validation boundary.
+
+[Documentation and API reference](https://fuzzy-technologies.github.io/1337/)
+follow published `master`. Use [tag-pinned v0.3.0 instructions](https://github.com/Fuzzy-Technologies/1337/tree/v0.3.0/docs)
+for this version and the same source revision's `docs/` for development builds;
+[v0.2.1 documentation](https://github.com/Fuzzy-Technologies/1337/tree/v0.2.1/docs)
+remains the reproducible older release guide. English is canonical; API RU/zh-cn
+routes currently identify English fallback content explicitly.
+
+## Direction
+
+1337 organizes security work around the Security Object Model: tools contribute
+observations and evidence; operators inspect relationships, Findings and reports.
+The intended lenses are Pentest, DFIR, DevSecOps and Purple Team. A lens changes
+focus over shared state and never grants execution permission.
+
+| Milestone                                                                                                                  | Focus                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [M0](https://github.com/Fuzzy-Technologies/1337/milestone/1), [M1](https://github.com/Fuzzy-Technologies/1337/milestone/2) | Completed foundation, Community Core and Shell                                      |
+| [M2](https://github.com/Fuzzy-Technologies/1337/milestone/3)                                                               | Community scanner: governed execution, discovery, saved model, evidence and reports |
+| [M3](https://github.com/Fuzzy-Technologies/1337/milestone/4)                                                               | Evidence, Intelligence and Mapping                                                  |
+| [M4](https://github.com/Fuzzy-Technologies/1337/milestone/5)                                                               | Advanced Discovery and Attack Paths                                                 |
+| M5–M9                                                                                                                      | Analytical UX, integrations/AI, validation, DFIR and enterprise contracts           |
+
+Detailed scope and acceptance live in GitHub issues. See [Vision](docs/VISION.md),
+[architecture decisions](docs/adr/), [Development protocol](DEVELOPMENT_PROTOCOL.md)
+and [Security policy](SECURITY.md) before contributing or reporting a vulnerability.

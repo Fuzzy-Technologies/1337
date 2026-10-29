@@ -6,13 +6,16 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import tomllib
 from html.parser import HTMLParser
@@ -374,12 +377,130 @@ def PreparePublicOutput(site: Path) -> None:
 
 
 
-def Render(root: Path, installed_packages: Path) -> None:
+
+def ReleaseVersion(root: Path, version: str) -> str:
+    """Require an explicit immutable route matching the selected package metadata.
+
+    Args:
+        root: Reviewed checkout containing canonical package version metadata.
+        version: Stable numeric X.Y.Z route, without a tag prefix or moving alias.
+
+    Returns:
+        Validated route spelling unchanged.
+
+    Raises:
+        ValueError: The route is ambiguous or differs from the package version.
+    """
+
+    if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)", version):
+        raise ValueError("An immutable API route requires a canonical X.Y.Z release version")
+
+    package = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+
+    if package["project"]["version"] != version:
+        raise ValueError("Immutable API route differs from the selected package version")
+
+    return version
+
+
+
+def VersionProvenance(root: Path, version: str, locales: dict) -> dict:
+    """Bind independently rendered release routes to exact source and generated file bytes.
+
+    Args:
+        root: Reviewed Git checkout used for this generated artifact.
+        version: Validated package version, without a moving alias.
+        locales: Three checked renderer inventories for the immutable route.
+
+    Returns:
+        Schema-one deterministic source identity and complete locale file inventory.
+    """
+
+    dirty = subprocess.run(["git", "diff", "--quiet", "HEAD", "--"], cwd=root,
+                           check=False, timeout=30)
+    untracked = subprocess.check_output(
+        ["git", "ls-files", "--others", "--exclude-standard", "--", "src", "docs", "tools",
+         "pyproject.toml", "README.md"], cwd=root, text=True, timeout=30,
+    )
+
+    if dirty.returncode != 0 or untracked:
+        raise ValueError("Immutable API provenance requires committed reviewed source inputs")
+
+    files = {f"{locale}/{name}": digest for locale, checked in locales.items()
+             for name, digest in checked["files"].items()}
+    identity = json.dumps(files, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    revision = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=root, text=True, timeout=30,
+    ).strip()
+    tree = subprocess.check_output(
+        ["git", "rev-parse", "HEAD^{tree}"], cwd=root, text=True, timeout=30,
+    ).strip()
+    epoch = subprocess.check_output(
+        ["git", "show", "-s", "--format=%ct", "HEAD"], cwd=root, text=True, timeout=30,
+    ).strip()
+
+    return {"schema_version": 1, "version": version, "revision": revision, "tree": tree,
+            "base_path": "/1337", "locales": ["en", "ru", "zh-cn"],
+            "source_date_epoch": int(epoch), "files": files,
+            "artifact_sha256": hashlib.sha256(identity).hexdigest()}
+
+
+def SealVersionArchive(version_root: Path, output: Path) -> dict:
+    """Seal original rendered bytes in a reproducible regular-files-only gzip tar.
+
+    Args:
+        version_root: Generated version directory including api-version-provenance.json.
+        output: Absent archive filename beneath an existing owned build directory.
+
+    Returns:
+        Separate release-transfer manifest binding checksum, source identity and provenance.
+
+    Raises:
+        ValueError: A selected generated path is symbolic or publication already exists.
+        OSError: A generated file or exclusive archive destination cannot be accessed.
+    """
+
+    provenance_bytes = (version_root / "api-version-provenance.json").read_bytes()
+    provenance = json.loads(provenance_bytes)
+    version = provenance["version"]
+    epoch = provenance["source_date_epoch"]
+
+    with output.open("xb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw,
+                                                mtime=epoch) as compressed:
+        with tarfile.open(fileobj=compressed, mode="w", format=tarfile.USTAR_FORMAT) as archive:
+            for path in sorted(version_root.rglob("*")):
+                if path.is_symlink():
+                    raise ValueError("Immutable API archive cannot follow generated links")
+
+                if not path.is_file():
+                    continue
+
+                relative = path.relative_to(version_root).as_posix()
+                info = tarfile.TarInfo(f"{version}/{relative}")
+                info.size = path.stat().st_size
+                info.mtime = epoch
+                info.mode = 0o644
+                info.uid = info.gid = 0
+                info.uname = info.gname = ""
+
+                with path.open("rb") as stream:
+                    archive.addfile(info, stream)
+
+    return {"schema_version": 1, "filename": output.name,
+            "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+            "size_bytes": output.stat().st_size,
+            **{key: provenance[key] for key in (
+                "version", "revision", "tree", "base_path", "locales", "source_date_epoch",
+            )}, "provenance_sha256": hashlib.sha256(provenance_bytes).hexdigest()}
+
+
+def Render(root: Path, installed_packages: Path, release_version: str | None = None) -> None:
     """Render installed-wheel sources strictly under an active runtime-import guard.
 
     Args:
         root: Checkout with reviewed manifests, pages, theme assets, and configuration.
         installed_packages: Source directory from a clean installed 1337 wheel.
+        release_version: Also render an independent immutable route matching package metadata.
 
     Raises:
         ValueError: Wheel provenance, inventory, locale states, or output validation fails.
@@ -410,48 +531,94 @@ def Render(root: Path, installed_packages: Path) -> None:
     build_root = root / manifest["buildRoot"]
     build_root.mkdir(parents=True, exist_ok=True)
     evidence = {"schemaVersion": 1, "runtimeImported": False, "locales": {}}
+    channels = ["latest"]
+
+    if release_version is not None:
+        channels.append(ReleaseVersion(root, release_version))
+        evidence["versions"] = {release_version: {"locales": {}}}
+        version_root = LocalInput(root, f"_build/api-versions/{release_version}")
+        shutil.rmtree(version_root, ignore_errors=True)
+
 
     with tempfile.TemporaryDirectory(prefix="1337-reference-") as temporary_root:
-        for locale in manifest["locales"]:
-            content = build_root / "content" / locale
-            shutil.rmtree(content, ignore_errors=True)
-            shutil.copytree(root / manifest["contentRoot"] / "en", content)
+        for channel in channels:
+            for locale in manifest["locales"]:
+                content = build_root / "content" / channel / locale
+                shutil.rmtree(content, ignore_errors=True)
+                shutil.copytree(root / manifest["contentRoot"] / "en", content)
 
-            if locale != "en":
-                for page in content.rglob("*.md"):
-                    page.write_text(
-                        "!!! note \"English fallback\"\n"
-                        "    This translation is missing; "
-                        "the canonical English reference follows.\n\n"
-                        + page.read_text(encoding="utf-8"), encoding="utf-8"
+                if locale != "en":
+                    for page in content.rglob("*.md"):
+                        page.write_text(
+                            "!!! note \"English fallback\"\n"
+                            "    This translation is missing; "
+                            "the canonical English reference follows.\n\n"
+                            + page.read_text(encoding="utf-8"), encoding="utf-8"
+                        )
+
+                if channel != "latest":
+                    for page in content.rglob("*.md"):
+                        page.write_text(page.read_text(encoding="utf-8").replace(
+                            "https://github.com/Fuzzy-Technologies/1337/blob/develop/",
+                            f"https://github.com/Fuzzy-Technologies/1337/blob/v{channel}/",
+                        ).replace(
+                            "https://github.com/Fuzzy-Technologies/1337/tree/develop/",
+                            f"https://github.com/Fuzzy-Technologies/1337/tree/v{channel}/",
+                        ).replace(
+                            f"{manifest['publicationPath']}/api/latest/",
+                            f"{manifest['publicationPath']}/api/{channel}/",
+                        ), encoding="utf-8")
+
+                base_url = f"{manifest['publicationPath']}/api/{channel}/{locale}/"
+                config = yaml.safe_load((root / "docs/site/mkdocs.yml").read_text(encoding="utf-8"))
+                config["docs_dir"] = str(content)
+                rendered = Path(temporary_root) / channel / locale
+                config["site_dir"] = str(rendered)
+                config["site_url"] = "https://fuzzy-technologies.github.io" + base_url
+                config["theme"]["language"] = "zh" if locale == "zh-cn" else locale
+                config["extra"]["alternate"] = [
+                    {**entry, "link": "https://fuzzy-technologies.github.io"
+                     + f"{manifest['publicationPath']}/api/{channel}/{target}/"}
+                    for entry, target in zip(config["extra"]["alternate"], manifest["locales"],
+                                             strict=True)
+                ]
+
+                if channel != "latest":
+                    config["edit_uri"] = f"blob/v{channel}/docs/site/content/en/"
+                config["nav"] = [{"Overview": "index.md"}, {"Modules": [
+                    {surface["module"]: surface["page"]} for surface in surfaces
+                ]}]
+                python = config["plugins"][1]["mkdocstrings"]["handlers"]["python"]
+
+                if any(python["options"].get(option) is not False
+                       for option in ("allow_inspection", "force_inspection")):
+                    raise ValueError(
+                        "Static API discovery must explicitly disable both inspection options"
                     )
 
-            base_url = f"{manifest['publicationPath']}/api/latest/{locale}/"
-            config = yaml.safe_load((root / "docs/site/mkdocs.yml").read_text(encoding="utf-8"))
-            config["docs_dir"] = str(content)
-            rendered = Path(temporary_root) / locale
-            config["site_dir"] = str(rendered)
-            config["site_url"] = "https://fuzzy-technologies.github.io" + base_url
-            config["theme"]["language"] = "zh" if locale == "zh-cn" else locale
-            config["nav"] = [{"Overview": "index.md"}, {"Modules": [
-                {surface["module"]: surface["page"]} for surface in surfaces
-            ]}]
-            python = config["plugins"][1]["mkdocstrings"]["handlers"]["python"]
+                python["paths"] = [str(installed_packages)]
+                config_path = build_root / f"mkdocs-{channel}-{locale}.yml"
+                config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+                build(load_config(config_file=str(config_path)), dirty=False)
+                PreparePublicOutput(rendered)
+                checked = CheckOutput(rendered, surfaces, base_url)
+                destination = output / locale
 
-            if any(python["options"].get(option) is not False
-                   for option in ("allow_inspection", "force_inspection")):
-                raise ValueError(
-                    "Static API discovery must explicitly disable both inspection options"
-                )
+                if channel == "latest":
+                    evidence["locales"][locale] = checked
 
-            python["paths"] = [str(installed_packages)]
-            config_path = build_root / f"mkdocs-{locale}.yml"
-            config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
-            build(load_config(config_file=str(config_path)), dirty=False)
-            PreparePublicOutput(rendered)
-            evidence["locales"][locale] = CheckOutput(rendered, surfaces, base_url)
-            shutil.rmtree(output / locale, ignore_errors=True)
-            shutil.copytree(rendered, output / locale)
+                else:
+                    evidence["versions"][channel]["locales"][locale] = checked
+                    destination = root / "_build/api-versions" / channel / locale
+
+                shutil.rmtree(destination, ignore_errors=True)
+                shutil.copytree(rendered, destination)
+    if release_version is not None:
+        provenance = VersionProvenance(root, release_version,
+                                       evidence["versions"][release_version]["locales"])
+        (version_root / "api-version-provenance.json").write_text(
+            json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+        )
 
     if any(name.partition(".")[0] in manifest["packageNames"] for name in sys.modules):
         raise RuntimeError("Security runtime was imported during documentation rendering")
@@ -489,11 +656,12 @@ def TrackedSourceHashes(root: Path) -> dict[str, str]:
     return result
 
 
-def Build(root: Path) -> None:
+def Build(root: Path, release_version: str | None = None) -> None:
     """Build a clean wheel and prove reproducible documentation without source mutation.
 
     Args:
         root: Git checkout containing locked tools and reviewed documentation inputs.
+        release_version: Optional exact package version for an additional immutable API route.
 
     Raises:
         RuntimeError: uv is unavailable or the wheel build is not uniquely identified.
@@ -502,6 +670,9 @@ def Build(root: Path) -> None:
         subprocess.CalledProcessError: A provisioning, wheel, or rendering command fails.
     """
 
+    if release_version is not None:
+        ReleaseVersion(root, release_version)
+
     original_sources = TrackedSourceHashes(root)
     manifest = ReadManifest(root)
     ValidateInventory(root, manifest)
@@ -509,6 +680,8 @@ def Build(root: Path) -> None:
         ["git", "show", "-s", "--format=%ct", "HEAD"], cwd=root, text=True, timeout=30,
     ).strip()
     render_environment = dict(os.environ, SOURCE_DATE_EPOCH=source_epoch)
+    version_arguments = [] if release_version is None else ["--release-version", release_version]
+    render_timeout = 180 if release_version is None else 360
     subprocess.run([sys.executable, str(root / "tools/locale_documentation.py"), "validate"],
                    cwd=root, check=True, timeout=300)
     uv = shutil.which("uv")
@@ -540,8 +713,9 @@ def Build(root: Path) -> None:
             cwd=Path(temporary_root), text=True, timeout=30,
         ).strip()
         subprocess.run([str(python), "-I", str(Path(__file__).resolve()), "render",
-                        "--root", str(root), "--installed-packages", installed],
-                       cwd=Path(temporary_root), check=True, timeout=180, env=render_environment)
+                        "--root", str(root), "--installed-packages", installed, *version_arguments],
+                       cwd=Path(temporary_root), check=True, timeout=render_timeout,
+                       env=render_environment)
         report_path = build_root / "api-build.json"
         first = json.loads(report_path.read_text(encoding="utf-8"))
         (build_root / "api-first-build.json").write_text(
@@ -549,8 +723,9 @@ def Build(root: Path) -> None:
         )
         shutil.rmtree(root / "_build/api-reference")
         subprocess.run([str(python), "-I", str(Path(__file__).resolve()), "render",
-                        "--root", str(root), "--installed-packages", installed],
-                       cwd=Path(temporary_root), check=True, timeout=180, env=render_environment)
+                        "--root", str(root), "--installed-packages", installed, *version_arguments],
+                       cwd=Path(temporary_root), check=True, timeout=render_timeout,
+                       env=render_environment)
         second = json.loads(report_path.read_text(encoding="utf-8"))
 
         if first != second:
@@ -579,6 +754,15 @@ def Build(root: Path) -> None:
         report_path.write_text(
             json.dumps(second, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
+        if release_version is not None:
+            archive_path = build_root / f"1337-{release_version}-api-docs.tar.gz"
+            archive_path.unlink(missing_ok=True)
+            transfer = SealVersionArchive(root / "_build/api-versions" / release_version,
+                                          archive_path)
+            (build_root / f"1337-{release_version}-api-docs.manifest.json").write_text(
+                json.dumps(transfer, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+            )
+
 
 
 
@@ -596,6 +780,7 @@ def Main() -> int:
     parser.add_argument("command", choices=("build", "render"), nargs="?", default="build")
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--installed-packages", type=Path)
+    parser.add_argument("--release-version")
     arguments = parser.parse_args()
 
     try:
@@ -603,10 +788,11 @@ def Main() -> int:
             if arguments.installed_packages is None:
                 raise ValueError("Render requires an installed wheel source path")
 
-            Render(arguments.root.resolve(), arguments.installed_packages.resolve())
+            Render(arguments.root.resolve(), arguments.installed_packages.resolve(),
+                   arguments.release_version)
 
         else:
-            Build(arguments.root.resolve())
+            Build(arguments.root.resolve(), arguments.release_version)
 
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         print(str(error), file=sys.stderr)

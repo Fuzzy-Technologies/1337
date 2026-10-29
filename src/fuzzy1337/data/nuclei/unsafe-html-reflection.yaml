@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+id: fuzzy1337-unsafe-html-reflection
+info:
+  name: Candidate unsafe raw HTML reflection
+  author: fuzzy-technologies
+  severity: info
+  description: >-
+    The selected inert probe appears as raw markup in the owned response's
+    reflection element. This is a candidate unsafe HTML reflection observation;
+    no browser execution, executable payload, or proven XSS is claimed.
+  tags: owned-lab,html,reflection
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    redirects: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: header
+        regex:
+          - '(?im)^content-type:\s*text/html(?:;[^\r\n]*)?\r?$'
+      - type: word
+        part: body
+        words:
+          - '<main id="reflection"><fuzzy1337-probe>owned</fuzzy1337-probe></main>'

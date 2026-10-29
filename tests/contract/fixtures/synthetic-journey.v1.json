@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "scenario_id": "synthetic-shopping",
+  "workspace_id": "synthetic-workspace",
+  "scope_id": "synthetic-scope",
+  "allowed_targets": [
+    {"kind": "url", "value": "http://127.0.0.1:19001/"},
+    {"kind": "url", "value": "http://127.0.0.1:19001/api/orders"}
+  ],
+  "steps": [
+    {
+      "step_id": "home",
+      "operation": "navigate",
+      "target": {"kind": "url", "value": "http://127.0.0.1:19001/"},
+      "assertions": [{"kind": "http_status", "expected": 200}],
+      "think_time_ms": 0,
+      "selector": null,
+      "method": null,
+      "test_data_key": null
+    },
+    {
+      "step_id": "name",
+      "operation": "fill",
+      "target": {"kind": "url", "value": "http://127.0.0.1:19001/"},
+      "assertions": [{"kind": "element_present", "expected": "#checkout"}],
+      "think_time_ms": 10,
+      "selector": "[data-test=\"name\"]",
+      "method": null,
+      "test_data_key": "name"
+    },
+    {
+      "step_id": "checkout",
+      "operation": "click",
+      "target": {"kind": "url", "value": "http://127.0.0.1:19001/"},
+      "assertions": [{"kind": "element_present", "expected": "#checkout"}],
+      "think_time_ms": 10,
+      "selector": "#go",
+      "method": null,
+      "test_data_key": null
+    },
+    {
+      "step_id": "orders",
+      "operation": "api_request",
+      "target": {"kind": "url", "value": "http://127.0.0.1:19001/api/orders"},
+      "assertions": [{"kind": "http_status", "expected": 200}],
+      "think_time_ms": 0,
+      "selector": null,
+      "method": "POST",
+      "test_data_key": "order"
+    }
+  ],
+  "workload": {
+    "iterations": 2,
+    "concurrency": 2,
+    "requests_per_second": 1,
+    "max_requests": 20,
+    "max_duration_seconds": 120
+  },
+  "test_data_reference": "test-data:synthetic-shopping",
+  "session_reference": "session:synthetic-user"
+}

@@ -1,0 +1,14 @@
+{
+  "fixture_kind": "handwritten-selected-graph-path-analysis-oracle",
+  "fixture_version": 1,
+  "basis": "reachability.graph.v1.json, resolved only by existing model constructors",
+  "query": {"source": "source", "target": "event", "phase": "confirmed"},
+  "returned_paths": 3,
+  "node_participation": {"source": 3, "portal": 2, "detour": 2, "identity": 3, "billing": 3, "event": 3},
+  "relation_participation": {"source-portal": 2, "source-detour": 1, "portal-identity": 1, "portal-detour": 1, "detour-identity": 2, "identity-billing": 3, "billing-event": 3},
+  "node_choke_points": ["identity", "billing"],
+  "relation_choke_points": ["identity-billing", "billing-event"],
+  "excluded_node_removals": ["source", "event"],
+  "group": {"group_key": "entry-presentation", "members": ["portal", "detour"], "internal_relations": ["portal-detour", "detour-self-cycle"], "to_identity_relations": ["portal-identity", "detour-identity"]},
+  "authority": "selected-nonblocked-transition-subgraph-only; structural removal, never mitigation efficacy"
+}

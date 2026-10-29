@@ -39,6 +39,55 @@ engines behind it.
 | Arachni          | Separation of audit framework and checks                                                     | Retired as implementation source | Repository is archived; no runtime dependency or code migration                       |
 | OWASP WSTG       | Human-readable test taxonomy and scenario vocabulary                                         | Reference mapping only           | Taxonomy informs coverage; it is not a scanner engine or evidence source              |
 
+## Evidence for migrated concepts
+
+The development candidate implements the following independent concepts through
+the shared owners below. Implementation status describes the declared profile;
+it does not transfer the legacy engine's claimed coverage to 1337.
+
+| Concept                            | New owner and verification                                                                                                      | Remaining boundary                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Requests and injection coordinates | `fuzzy1337.requests`; versioned contract and actual model relocation tests                                                      | Structural coordinates and symbolic bindings; no arbitrary request assembly or execution                    |
+| API baseline generation            | `ImportOpenApi` and `GenerateOpenApiRequest`; independently consumed previews and model/evidence integration                    | Bounded offline synthetic previews; authenticated assembly and general schema solving remain open           |
+| Concurrent discovery               | `LocalWebTraversalProvider`; actual overlapping acquisition, ordered commits, cancellation and consent-expiry integration tests | Explicit owned-loopback pages and reviewed body catalog; broader crawling and browser execution remain open |
+| Git metadata exposure              | Original `git-head-exposure.yaml`; genuine Nuclei, actual owned HEAD file and fixed/decoy/redirect controls                     | Selected endpoint and supported symbolic-reference grammar; no implicit path discovery or source recovery   |
+| SQL input behavior                 | Original `owned-sql-canary-disclosure.yaml`; real read-only SQLite target with baseline/true/false/fixed/decoy cases            | Owned result-canary disclosure only; no generic differential SQLi, timing inference or arbitrary extraction |
+| Reflected input                    | Original `unsafe-html-reflection.yaml`; actual raw/escaped/comment responses and genuine provider                               | Candidate unsafe HTML reflection; browser-confirmed, DOM, stored and other XSS contexts remain open         |
+
+The three response checks share the existing [Nuclei workflow](NUCLEI_WORKFLOW.md).
+Their [declared predicates and acceptance](NUCLEI_WEB_CHECKS.md) bind manifest and
+template hashes to the actual invocation, provider version, original streams,
+target observations and persisted Findings. Metrics come from those Findings and
+the independent oracle. Failed runs retain their evidence; rejected, skipped and
+unexecuted inputs do not become true negatives. The exact-path admission guard
+also rejects provider URL rewriting and decoded expression delimiters before
+invocation. It does not authorize an alternative spelling.
+
+Generic SQLi, filesystem traversal/LFI detection, SSRF, command/template injection,
+authorization and session attacks, business-logic abuse and AI-specific attacks
+need their own governed producer, independent positive/fixed/decoy targets and
+actual detector acceptance. Neither an injection coordinate nor a target-only
+mechanism establishes that coverage.
+
+## Current taxonomy references
+
+Reference check on 2026-10-15: [OWASP Top 10 2025](https://top10.owasp.org/2025/),
+[API Security Top 10 2023](https://api-security.owasp.org/editions/2023/en/0x11-t10/),
+[WSTG v4.2](https://wstg.owasp.org/v4.2/),
+[ASVS 5.0.0](https://owasp.org/projects/asvs),
+[ATT&CK v20.0](https://attack.mitre.org/resources/versions/) and
+[ATLAS content 2026.09](https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/dist/manifest.yaml)
+provide distinct risk, test, requirement or adversary-technique vocabularies.
+WSTG v5.0 remains in development; ATLAS content and its format version are separate.
+These references guide future scenario selection and do not assert implemented
+detectors, passed verification requirements or complete framework coverage.
+
+The [reviewed historical mapping baseline](STANDARDS_MAPPING_BASELINE.md) remains
+unchanged. Its versioned classifications and exact-content decisions cannot be
+silently relabeled to newer editions. New current-version mappings require their
+own reviewed source pins and evidence-bound classification; the web slices above
+do not establish an AI or prompt-injection detector.
+
 ## Non-negotiable migration guards
 
 - Do not copy source code, checks, templates, signatures, or global mutable

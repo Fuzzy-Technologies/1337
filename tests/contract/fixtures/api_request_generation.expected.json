@@ -1,0 +1,57 @@
+{
+  "CreateOwned": {
+    "method": "POST",
+    "path": "/api/items/1",
+    "query": [["tags", "synthetic-0"], ["tags", "synthetic-1"]],
+    "headers": {"x-owned-mode": "true", "cookie": "owned=synthetic", "content-type": "application/json"},
+    "json": {"name": "synthetic", "a/b~c": {"count": 1}, "flags": [true, false], "onlyNull": null}
+  },
+  "ListOwned": {
+    "method": "GET",
+    "path": "/api/arrays/synthetic-0,synthetic-1",
+    "query": [["tags", "synthetic-0,synthetic-1"]],
+    "headers": {"x-owned-ids": "1,2"},
+    "body": ""
+  },
+  "FormOwned": {
+    "method": "POST",
+    "path": "/api/form",
+    "query": [],
+    "headers": {"content-type": "application/x-www-form-urlencoded"},
+    "form": [["count", "1"], ["label", "synthetic"]]
+  },
+  "PartsOwned": {
+    "method": "POST",
+    "path": "/api/parts",
+    "query": [],
+    "multipart": {"count": "1", "label": "synthetic"}
+  },
+  "TextOwned": {
+    "method": "POST",
+    "path": "/api/text",
+    "query": [],
+    "headers": {"content-type": "text/plain"},
+    "body": "synthetic"
+  },
+  "LegacyFormOwned": {
+    "method": "POST",
+    "path": "/api/form",
+    "query": [],
+    "headers": {"content-type": "application/x-www-form-urlencoded"},
+    "form": [["ids", "1,2"], ["label", "synthetic"], ["tags", "synthetic-0"], ["tags", "synthetic-1"]]
+  },
+  "LegacyListOwned": {
+    "method": "GET",
+    "path": "/api/arrays/1,2",
+    "query": [["values", "1.5,2.5"]],
+    "headers": {"x-owned-flags": "true,false"},
+    "body": ""
+  },
+  "LegacyBodyOwned": {
+    "method": "POST",
+    "path": "/api/body",
+    "query": [],
+    "headers": {"content-type": "application/json"},
+    "json": {"label": "synthetic", "nested": {"count": 1}, "tags": ["synthetic-0", "synthetic-1"]}
+  }
+}

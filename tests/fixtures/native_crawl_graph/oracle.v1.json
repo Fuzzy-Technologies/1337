@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "target_pack": "first-party.native-crawl-graph",
+  "target_version": "1",
+  "provenance": "repository-owned-handwritten-source-and-truth",
+  "profile": "owned-loopback-content-crawl.v1",
+  "capabilities": ["http.owned-loopback-crawl", "fuzzy1337-git-head-exposure"],
+  "seed_path": "/entry",
+  "selected_paths": [
+    "/branch-a", "/branch-b", "/comment-decoy", "/entry", "/fixed/.git/HEAD",
+    "/html/.git/HEAD", "/leaf/.git/HEAD", "/redirect", "/redirect-destination",
+    "/script-decoy", "/selected-unreachable", "/shared", "/style-decoy"
+  ],
+  "zero_contact_paths": [
+    "/comment-decoy", "/script-decoy", "/style-decoy", "/selected-unreachable",
+    "/unselected", "/unregistered", "/credential-marker", "/query-marker?private-marker=1",
+    "/off-origin-marker", "/bad%20path", "/redirect-destination"
+  ],
+  "transient_markers": [
+    "credential-marker", "private-marker", "fragment-marker", "off-origin-marker",
+    "non-http-marker", "/bad%20path", "/unselected", "/unregistered"
+  ],
+  "configuration": {
+    "literal_address": "127.0.0.1",
+    "method": "GET",
+    "maximum_selected_urls": 16,
+    "owned_origins": 2,
+    "selected_origins": 1,
+    "sentinel_in_main_selection": false,
+    "aggregate_maximum_handlers": 8,
+    "aggregate_maximum_detailed_contacts": 128,
+    "aggregate_cleanup_deadline_seconds": 6,
+    "maximum_retained_contacts": 64,
+    "maximum_dispatched_contacts": 64,
+    "maximum_error_details": 64,
+    "maximum_concurrency": 4,
+    "request_limit_bytes": 8192,
+    "socket_timeout_seconds": 2,
+    "request_whole_deadline_seconds": 2,
+    "response_gate_seconds": 2,
+    "cleanup_whole_deadline_seconds": 3,
+    "remote_control_routes": [],
+    "outbound_requests": 0,
+    "file_writes": 0,
+    "authentication": false
+  },
+  "sentinel_oracle": {
+    "origin": "second-fixture-owned-ephemeral-literal-loopback",
+    "href_path": "/off-origin-marker",
+    "required_original_contacts_after_both_owner_cleanup": 0,
+    "terminal_status": 404,
+    "terminal_body": "owned-off-origin-contact-must-be-zero",
+    "zero_contact_uses_own_accept_time_ledger": true
+  },
+  "contact_accounting": {
+    "starts_at": "original-socket-accept",
+    "includes": ["empty", "partial", "invalid", "refused", "late-during-close", "completed"],
+    "exact_totals": "state.Counters",
+    "bounded_details": "state.Observe and state.Errors",
+    "overflow_explicit": true,
+    "zero_contact_requires": {"contacts": 0, "retained_contacts": 0, "contact_overflow": 0},
+    "original_prefix_truncation_explicit": true,
+    "teardown_erases_no_contact_or_failure": true,
+    "idle_requires": ["original-sockets", "running-handlers", "released-dispatch-slots"],
+    "idle_wait": "one-bounded-event-wait-with-atomic-owner-recheck"
+  },
+  "variants": {
+    "positive": {
+      "expected_completed": true,
+      "expected_waves": [["/entry"], ["/branch-a", "/branch-b"],
+        ["/fixed/.git/HEAD", "/html/.git/HEAD", "/leaf/.git/HEAD", "/shared"]],
+      "expected_commit_order": ["/entry", "/branch-a", "/branch-b", "/fixed/.git/HEAD",
+        "/html/.git/HEAD", "/leaf/.git/HEAD", "/shared"],
+      "expected_frontiers": {
+        "/entry": {
+          "anchor_count": 13,
+          "entries": [{"path": "/branch-a", "ordinals": [2, 3]},
+            {"path": "/branch-b", "ordinals": [1]}],
+          "exclusion_counts": {"missing-href": 1, "invalid-url": 0, "fragment-only": 1,
+            "non-http": 1, "credentials": 1, "query": 1, "off-origin": 1,
+            "unsupported-path": 1, "source-target": 1, "not-admitted": 2}
+        },
+        "/branch-a": {
+          "anchor_count": 5,
+          "entries": [{"path": "/branch-b", "ordinals": [5]},
+            {"path": "/fixed/.git/HEAD", "ordinals": [3]},
+            {"path": "/html/.git/HEAD", "ordinals": [4]},
+            {"path": "/leaf/.git/HEAD", "ordinals": [2]},
+            {"path": "/shared", "ordinals": [1]}],
+          "exclusion_counts": {"missing-href": 0, "invalid-url": 0, "fragment-only": 0,
+            "non-http": 0, "credentials": 0, "query": 0, "off-origin": 0,
+            "unsupported-path": 0, "source-target": 0, "not-admitted": 0}
+        },
+        "/branch-b": {
+          "anchor_count": 3,
+          "entries": [{"path": "/entry", "ordinals": [3]},
+            {"path": "/leaf/.git/HEAD", "ordinals": [2]},
+            {"path": "/shared", "ordinals": [1]}],
+          "exclusion_counts": {"missing-href": 0, "invalid-url": 0, "fragment-only": 0,
+            "non-http": 0, "credentials": 0, "query": 0, "off-origin": 0,
+            "unsupported-path": 0, "source-target": 0, "not-admitted": 0}
+        },
+        "/shared": {
+          "anchor_count": 2,
+          "entries": [{"path": "/branch-a", "ordinals": [1]},
+            {"path": "/leaf/.git/HEAD", "ordinals": [2]}],
+          "exclusion_counts": {"missing-href": 0, "invalid-url": 0, "fragment-only": 0,
+            "non-http": 0, "credentials": 0, "query": 0, "off-origin": 0,
+            "unsupported-path": 0, "source-target": 0, "not-admitted": 0}
+        }
+      },
+      "inverted_completion": {"required_before_b_completion": ["/branch-a", "/branch-b"],
+        "completed_before": ["/branch-b", "/branch-a"], "minimum_overlap": 2,
+        "minimum_overlap_counter": "maximum_active_handlers"}
+    },
+    "fixed": {"expected_completed": true, "expected_waves": [["/entry"]],
+      "expected_commit_order": ["/entry"], "seed_anchor_count": 0},
+    "decoy": {"expected_completed": true, "expected_waves": [["/entry"]],
+      "expected_commit_order": ["/entry"], "seed_anchor_count": 0},
+    "redirect": {"expected_completed": false, "expected_waves": [["/entry"], ["/redirect"]],
+      "expected_commit_order": ["/entry"], "seed_anchor_count": 1,
+      "expected_failure": "response-policy", "redirect_followup_contacts": 0}
+  },
+  "leaf_responses": {
+    "/leaf/.git/HEAD": {"status": 200, "media_type": "text/plain", "outcome": "non-html",
+      "body": "ref: refs/heads/independent-crawl-fixture\n"},
+    "/fixed/.git/HEAD": {"status": 403, "media_type": "text/plain", "outcome": "client-error",
+      "body": "owned-dotfile-denied"},
+    "/html/.git/HEAD": {"status": 200, "media_type": "text/html", "outcome": "html",
+      "body": "<html><body><code>ref: refs/heads/independent-crawl-fixture\n</code></body></html>"},
+    "/redirect": {"status": 302, "media_type": "text/plain", "outcome": "refused",
+      "body": "owned-crawl-redirect", "location": "/redirect-destination"}
+  },
+  "git_handoff": {
+    "policy": {"impact": "STANDARD", "capability": "web.git-head-check",
+      "requires_separate_permission": true, "requires_exact_plan_confirmation": true},
+    "endpoint_identity": {"crawl": "structural-json-key", "git": "legacy-exact-url",
+      "automatic_join": false},
+    "cases": [
+      {"id": "crawl-git-positive", "path": "/leaf/.git/HEAD", "discovered_in": "positive",
+        "capability": "fuzzy1337-git-head-exposure", "expected_match": true},
+      {"id": "crawl-git-fixed", "path": "/fixed/.git/HEAD", "discovered_in": "positive",
+        "capability": "fuzzy1337-git-head-exposure", "expected_match": false},
+      {"id": "crawl-git-html-decoy", "path": "/html/.git/HEAD", "discovered_in": "positive",
+        "capability": "fuzzy1337-git-head-exposure", "expected_match": false},
+      {"id": "crawl-git-redirect", "path": "/redirect", "discovered_in": "redirect",
+        "capability": "fuzzy1337-git-head-exposure", "expected_match": false}
+    ],
+    "expected_metrics": {"tp": 1, "tn": 3, "fp": 0, "fn": 0},
+    "failed_or_unexecuted_work_counts_as_negative": false,
+    "persistence_requirements": ["original-stdout-stderr-and-invocation", "saved-findings",
+      "operator-triage-preserved-on-rerun", "workspace-reopen", "capability-metadata"]
+  },
+  "cancellation_peer_observation": {
+    "accepted_terminal_kinds": ["eof", "peer-reset"],
+    "peer_closed_means": "original-eof-only",
+    "requires_original_peer_receive": true,
+    "requires_before_local_close": true,
+    "requires_within_original_hold": true,
+    "known_reset_codes": {"posix": "ECONNRESET", "windows": 10054},
+    "refused_kinds": ["timeout", "os-error", "unexpected-data", "local-teardown",
+      "before-peer-receive", "unobserved"],
+    "original_hold_seconds": 3,
+    "requires_original_sdk_execution_control_and_no_model_save": true
+  },
+  "acceptance_required": [
+    "installed-packaged-worker", "genuine-sdk", "installed-cli", "same-seed-byte-mutation",
+    "exact-original-requests-and-served-bytes", "ordered-model-saves", "original-worker-evidence",
+    "zero-contact-rejected-links", "zero-retained-transient-markers", "explicit-git-plan-handoff",
+    "failed-work-remains-unassessed", "distinct-consent-attester", "trusted-current-owner-drift",
+    "original-peer-eof-or-known-receive-reset-before-local-close"
+  ],
+  "source_checkpoint_runtime_acceptance": "not-run"
+}

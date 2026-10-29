@@ -24,16 +24,17 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <figcaption class="hero-caption">
 <p class="eyebrow">开放式安全工作台 · 动态安全对象模型 · 可插拔安全工具</p>
 <p class="hero-hook">分析目标系统。<br><strong>模型随工作过程持续更新</strong></p>
-<span class="status">早期 pre-alpha · Apache-2.0 · v0.2.1</span>
+<span class="status">早期 Community 产品 · Apache-2.0 · v0.3.0</span>
 </figcaption>
 </figure>
 
 <div class="hero-secondary">
+<p class="quiet"><strong>v0.3.0 翻译更新草稿：尚未确认完成编辑和技术审核。</strong>当前能力及边界以<a href="{{ '/' | relative_url }}">英文页面</a>为规范来源。实际操作请使用<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">英文 v0.3.0 快速入门</a>；其他已翻译的架构章节不代表已实现的能力承诺。</p>
 <p>1337 是一套快速、本地优先的安全工作台，面向渗透测试、安全调查和安全工程分析。内置扫描与发现能力先建立目标系统的初始模型，随后由内置工具和外部工具持续补充观察结果、证据、发现项、关联关系、网络可达性和攻击路径。</p>
 <blockquote class="hero-quote"><strong>模型负责推理；1337 负责保存状态、约束执行并留存证据</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.1">预发布版 v0.2.1</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.3.0">发布版 v0.3.0</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/milestones">开发路线图</a>
 </div>
 </div>
@@ -157,7 +158,7 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 </div>
 
 <blockquote><strong>哪些通往关键资产的攻击路径确实可达？哪些证据能够证明？哪项安全控制能够切断这条链路？</strong></blockquote>
-<p class="quiet">完整的 M4 展示仍属于 v0.2.1 之后的路线图。仓库已提供隔离的攻击路径迷你实验环境。</p>
+<p class="quiet">完整的 M4 展示仍属于 v0.3.0 之后的路线图。仓库已提供隔离的攻击路径迷你实验环境。</p>
 <p class="showcase-hook"><strong>启动实验环境 · 复现问题 · 验证攻击路径 · 确认修复效果</strong></p>
 </div>
 </section>
@@ -166,8 +167,9 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <h2>当前已经可用的内容</h2>
 <div class="proof-grid">
 <section class="proof-card proof-now">
-<span class="card-label">v0.2.1 已提供</span>
-<h3>可运行的 pre-alpha 工程基础</h3>
+<span class="card-label">当前版本 v0.3.0 · EN canonical</span>
+<p lang="en">English canonical summary: install 1337==0.3.0, preview the owned local demo, obtain explicit approval, then retain its evidence and reopen/export the saved model offline. The complete <a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/OWNED_GIT_HEAD_RECIPE.md">owned Git HEAD recipe</a> creates one LOW Finding and checks its separately approved fixed control using only the installed core. Optional Nmap/Nuclei/Trivy workflows have their own prerequisites and authority; no configuration renderer, license-compliance verdict or live runtime reachability is implied.</p>
+<h3>沿用自 v0.2.1 的工程基础（历史列表）</h3>
 <ul>
 <li>Apache-2.0 开源核心</li>
 <li>可安装的 1337 与 1337-dev 命令</li>
@@ -187,11 +189,11 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <h3>正在开发</h3>
 <ul>
 <li>实时双栏终端工作台</li>
-<li>内置发现能力与贯通的安全对象模型工作流</li>
-<li>可插拔扫描器和工具，以及 Quick Scan</li>
+<li>更广泛的认证应用检查和更多提供程序</li>
+<li>更完整的 SBOM 语义、许可证策略和运行时关联</li>
 <li>Pentest、DFIR、DevSecOps 与 Purple Team 工作视图</li>
-<li>发现结果工作流、可达性分析与攻击路径</li>
-<li>API/SDK/MCP 与厂商系统集成</li>
+<li>有证据支持的实时可达性分析及完整 M4 攻击路径展示</li>
+<li>通用 MCP 服务与厂商系统集成</li>
 </ul>
 </section>
 </div>
@@ -202,7 +204,10 @@ keywords: 1337 Security Workbench, 网络安全, 安全工作台, AI 安全, 网
 <h2>项目资源</h2>
 <div class="links">
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md">试用 v0.2.1</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">试用 v0.3.0 · EN</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md">AI 代理快速入门 · EN</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/CI_QUICKSTART.md">CI 快速入门 · EN</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md">v0.2.1 历史指南</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">架构愿景</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">AI 智能体集成</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">ADR 0010：工作台架构</a>

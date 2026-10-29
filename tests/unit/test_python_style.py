@@ -21,14 +21,23 @@ TEST_FUNCTION_PATTERN = re.compile(r"test_[A-Z][A-Za-z0-9]*")
 FRAMEWORK_FUNCTIONS = {
     "completenames",
     "default",
+    # StringIO/TextIO owns these callbacks; DemoEventOutput implements their exact interface.
+    "flush",
+    # socketserver.BaseRequestHandler owns the request-dispatch callback spelling.
+    "handle",
     "handle_starttag",
     "log_message",
     "onecmd",
     "precmd",
+    # Pytest owns these exact plugin hook callback names.
+    "pytest_addoption",
+    "pytest_runtest_logreport",
     "pytest_collection_modifyitems",
     "pytest_configure",
     "pytest_sessionfinish",
+    "pytest_sessionstart",
     "pytest_xdist_auto_num_workers",
+    "write",
 }
 EXTERNAL_PARAMETERS = {
     "server_version",
@@ -73,6 +82,47 @@ def IsFrameworkFunction(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
         or name in FRAMEWORK_FUNCTIONS
         or name.startswith("do_")
         or (name.startswith("__") and name.endswith("__"))
+    )
+
+
+def test_TextIoOverridesRetainFrameworkNamesWithoutExemptingOwnedHelpers():
+    """Recognize real StringIO callbacks while ordinary project-owned helpers retain PascalCase."""
+
+    tree = ast.parse((REPOSITORY_ROOT / "src/fuzzy1337/demo.py").read_text(encoding="utf-8"))
+    recorder = next(node for node in tree.body
+                    if isinstance(node, ast.ClassDef) and node.name == "DemoEventOutput")
+    assert any(isinstance(base, ast.Name) and base.id == "StringIO" for base in recorder.bases), (
+        "The demo recorder must implement its actual standard-library StringIO boundary."
+    )
+    callbacks = [node for node in recorder.body
+                 if isinstance(node, ast.FunctionDef) and node.name in {"write", "flush"}]
+    assert {node.name for node in callbacks} == {"write", "flush"}, (
+        "The recorder must preserve both framework-owned TextIO callback names."
+    )
+    assert all(IsFrameworkFunction(node) for node in callbacks), (
+        "The style checker must recognize the recorder's genuine StringIO overrides."
+    )
+    helper = ast.parse("def retain_events():\n    pass\n").body[0]
+    assert isinstance(helper, ast.FunctionDef) and not IsFrameworkFunction(helper), (
+        "Adding TextIO callbacks must not exempt unrelated lowercase project-owned helpers."
+    )
+
+
+def test_SocketServerOverridesRetainFrameworkNamesWithoutExemptingOwnedHelpers():
+    """Preserve the actual StreamRequestHandler callback without renaming its dispatch boundary."""
+
+    source = REPOSITORY_ROOT / "tests/functional/test_native_prometheus.py"
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    handler = next(node for node in ast.walk(tree)
+                   if isinstance(node, ast.ClassDef) and node.name == "Handler")
+    assert any(isinstance(base, ast.Attribute) and base.attr == "StreamRequestHandler"
+               for base in handler.bases), "The owned fixture must use the real server boundary."
+    callback = next(node for node in handler.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "handle")
+    assert IsFrameworkFunction(callback), "The server callback must retain its external name."
+    helper = ast.parse("def serve_request():\n    pass\n").body[0]
+    assert isinstance(helper, ast.FunctionDef) and not IsFrameworkFunction(helper), (
+        "Recognizing the server callback must not exempt ordinary project-owned helpers."
     )
 
 

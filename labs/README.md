@@ -26,6 +26,21 @@ JSON/upload inputs, status behavior, and explicit simulation canaries. The
 canaries never execute commands, access files, make outbound requests, or
 persist uploads.
 
+[`web-vulnerable`](targets/web-vulnerable/README.md) adds twelve finite owned
+HTTP cases backed by actual temporary Git HEAD file reads, read-only SQLite
+query behavior and raw/escaped/commented HTML insertion. Fixed variants and
+decoys provide independent negative controls. Each test owns ephemeral loopback
+listeners, synthetic files and bounded cleanup without Docker or external access.
+The handwritten oracle and target tests establish these mechanisms; scanner
+detection requires a separate real-provider evidence run.
+
+[`web-file-access`](targets/web-file-access/README.md) adds six explicit query
+cases with actual file reads inside a temporary owned tree. Vulnerable joins,
+fixed public-directory containment, a real missing file and a documentation
+decoy keep mechanism truth separate from a marker response. Current Nuclei
+profiles reject these query URLs; this target pack does not claim scanner
+detection or grant broader file or network access.
+
 The [optional external pack](external/README.md) adds isolated Juice Shop 20.2.0
 regression smoke. Ordinary checks leave it disabled; its pytest fixture requires
 an explicit opt-in and owns the bounded pull, readiness, provenance, and cleanup.
@@ -51,7 +66,7 @@ docker compose down
 ## Reserved target families
 
 The following repository directories reserve stable homes for future synthetic
-target packs: `web-vulnerable`, `api-vulnerable`, `network-mini`,
+target packs: `api-vulnerable`, `network-mini`,
 `identity-mini`, and `attack-path-mini`. They intentionally supply no
 unreviewed external target, black-box scanner scenario, or regression score.
 

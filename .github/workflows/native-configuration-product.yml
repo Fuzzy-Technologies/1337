@@ -1,0 +1,81 @@
+name: Installed native configuration product
+
+on:
+  pull_request:
+    branches: [develop, master]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-configuration-product-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed-native-configuration:
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == true
+      && contains(github.event.pull_request.body, '[native-config-product-checkpoint]'))
+    name: Installed configuration product / Linux x86_64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CONFIGURATION_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        timeout-minutes: 2
+        with:
+          python-version: "3.14"
+      - name: Install pinned uv
+        timeout-minutes: 2
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked preparation tools
+        timeout-minutes: 3
+        run: uv sync --locked --extra dev --python 3.14
+      - name: Build installed wheel and provision pinned provider
+        timeout-minutes: 5
+        run: >-
+          .venv/bin/python -I tests/fixtures/trivy/native_configuration_product_acceptance.py
+          prepare --repository "$GITHUB_WORKSPACE"
+          --root "$RUNNER_TEMP/native-configuration-product"
+      - name: Run ten installed product cases and required owned executor case with loopback only
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          lane="$RUNNER_TEMP/native-configuration-product"
+          host_netns="$(readlink /proc/self/ns/net)"
+          cd "$lane/run"
+          sudo unshare --net -- setpriv \
+            --reuid="$(id -u)" --regid="$(id -g)" --clear-groups \
+            env -i PATH=/usr/bin:/bin HOME="$lane/preparation-home" \
+            FUZZY1337_CONFIGURATION_PRODUCT_HOST_NETNS="$host_netns" \
+            FUZZY1337_CONFIGURATION_PRODUCT_CONTEXT="$lane/context.json" \
+            FUZZY1337_REQUIRE_OWNED_CONFIGURATION_EXECUTION=1 \
+            "$lane/environment/bin/python" -I "$lane/run/product_acceptance.py" \
+            run --root "$lane"
+      - name: Require eleven executed current-revision cases and original evidence
+        timeout-minutes: 1
+        run: >-
+          .venv/bin/python -I tests/fixtures/trivy/native_configuration_product_acceptance.py
+          verify --root "$RUNNER_TEMP/native-configuration-product"
+      - name: Preserve installed source provenance and original bounded streams
+        if: always()
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: installed-native-configuration-product
+          path: ${{ runner.temp }}/native-configuration-product/evidence/
+          if-no-files-found: warn
+          retention-days: 14

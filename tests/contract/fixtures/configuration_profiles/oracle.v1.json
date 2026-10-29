@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "classification": "independent-design-oracle",
+  "provider_id": "synthetic.trivy",
+  "native_acceptance": false,
+  "raw_only_marker": "SYNTHETIC_PRIVATE_CONFIGURATION_MARKER",
+  "cases": [
+    {
+      "case_id": "dockerfile.root-user",
+      "profile_id": "synthetic.dockerfile-offline.v1",
+      "inputs": [{"fixture": "dockerfile/unsafe/Dockerfile", "logical_path": "Dockerfile"}],
+      "expected_file_outcomes": [{"logical_path": "Dockerfile", "outcome": "processed"}],
+      "expected_findings": [{
+        "logical_path": "Dockerfile",
+        "check_id": "synthetic.configuration.dockerfile-root-user",
+        "severity": "HIGH",
+        "start_line": 7,
+        "end_line": 7,
+        "document_index": null,
+        "resource_selector": "instruction:USER"
+      }]
+    },
+    {
+      "case_id": "dockerfile.non-root-user",
+      "profile_id": "synthetic.dockerfile-offline.v1",
+      "inputs": [{"fixture": "dockerfile/safe/Dockerfile", "logical_path": "Dockerfile"}],
+      "expected_file_outcomes": [{"logical_path": "Dockerfile", "outcome": "processed"}],
+      "expected_findings": []
+    },
+    {
+      "case_id": "kubernetes.privileged-container",
+      "profile_id": "synthetic.kubernetes-offline.v1",
+      "inputs": [{"fixture": "kubernetes/unsafe.yaml", "logical_path": "unsafe.yaml"}],
+      "expected_file_outcomes": [{"logical_path": "unsafe.yaml", "outcome": "processed"}],
+      "expected_findings": [{
+        "logical_path": "unsafe.yaml",
+        "check_id": "synthetic.configuration.privileged-container",
+        "severity": "HIGH",
+        "start_line": 15,
+        "end_line": 15,
+        "document_index": 0,
+        "resource_selector": "/spec/containers/0/securityContext/privileged"
+      }]
+    },
+    {
+      "case_id": "kubernetes.non-privileged-container",
+      "profile_id": "synthetic.kubernetes-offline.v1",
+      "inputs": [{"fixture": "kubernetes/safe.yaml", "logical_path": "safe.yaml"}],
+      "expected_file_outcomes": [{"logical_path": "safe.yaml", "outcome": "processed"}],
+      "expected_findings": []
+    },
+    {
+      "case_id": "kubernetes.second-document",
+      "profile_id": "synthetic.kubernetes-offline.v1",
+      "inputs": [{"fixture": "kubernetes/multi.yaml", "logical_path": "multi.yaml"}],
+      "expected_file_outcomes": [{"logical_path": "multi.yaml", "outcome": "processed"}],
+      "expected_findings": [{
+        "logical_path": "multi.yaml",
+        "check_id": "synthetic.configuration.privileged-container",
+        "severity": "HIGH",
+        "start_line": 31,
+        "end_line": 31,
+        "document_index": 1,
+        "resource_selector": "/spec/containers/0/securityContext/privileged"
+      }]
+    }
+  ],
+  "failure_expectations": [
+    {"case_id": "missing-consent", "phase": "pre-launch", "process_started": false, "model_updated": false},
+    {"case_id": "excluded-or-revoked-scope", "phase": "pre-launch", "process_started": false, "model_updated": false},
+    {"case_id": "changed-owner-or-policy", "phase": "pre-launch", "process_started": false, "model_updated": false},
+    {"case_id": "input-worker-policy-mutation", "phase": "launch-or-acceptance", "model_updated": false},
+    {"case_id": "implicit-control-or-unknown-file", "phase": "selection-or-normalization", "model_updated": false},
+    {"case_id": "failed-or-timeout-or-cancelled-or-output-limit", "phase": "execution", "raw_result_retained": true, "model_updated": false},
+    {"case_id": "valid-looking-partial-json", "phase": "normalization", "raw_result_retained": true, "model_updated": false},
+    {"case_id": "missing-duplicate-unprocessed-file", "phase": "normalization", "raw_result_retained": true, "model_updated": false},
+    {"case_id": "wrong-rule-severity-location-or-hash", "phase": "normalization", "raw_result_retained": true, "model_updated": false},
+    {"case_id": "revoked-or-expired-after-execution", "phase": "acceptance", "raw_result_retained": true, "model_updated": false},
+    {"case_id": "historical-replay-or-relocation", "phase": "replay", "process_started": false, "current_grant_created": false},
+    {"case_id": "colliding-native-identity", "phase": "normalization-and-replay", "native_objects_unchanged": true}
+  ]
+}

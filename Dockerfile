@@ -4,6 +4,10 @@ ARG PYTHON_IMAGE=python:3.11-slim-bookworm
 
 FROM ${PYTHON_IMAGE} AS development
 
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

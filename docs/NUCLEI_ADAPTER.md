@@ -1,0 +1,135 @@
+# Optional Nuclei adapter
+
+`fuzzy1337.adapters.nuclei` is an Experimental optional producer for the existing
+[ToolAdapter SDK](TOOL_ADAPTERS.md), governed executor and immutable evidence
+store. It prepares finite familiar Nuclei CLI arguments and interprets verified
+JSONL. It neither installs tools nor authorizes, launches, persists or orchestrates
+target scans. See [ADR 0030](adr/0030-reviewed-optional-nuclei-adapter.md).
+
+The development candidate's separate [explicit Workbench workflow](NUCLEI_WORKFLOW.md)
+composes these existing boundaries into `1337 scan nuclei`; the adapter itself
+retains the same preparation/normalization responsibilities.
+
+## Reviewed profile
+
+The supported capability is `web.http-template-check` with `STANDARD` impact.
+An operator configures `NucleiProfile` with 1–32 explicit `NucleiTemplate` records
+and a regular config file containing exactly `{}\n`. Every template records:
+
+- local absolute YAML file path, exact SHA-256 and byte length;
+- provider template ID, source reference and pinned source revision;
+- non-secret review reference and `reviewed_profile="single-get-exact-url"`.
+
+The review must establish one HTTP GET against the exact input URL, with no
+redirect, other destination/protocol, executable expression, payload expansion,
+credential, local file access, global matcher or external callback. Normal YAML
+is retained for direct Nuclei CLI use. The adapter verifies file identity and
+size; it does not infer semantic safety from severity/tags/signatures or fabricate
+a review. Use owned immutable files with an actual reviewed declaration.
+
+An `AdapterRequest` must contain exactly `url`, `profile_sha256` (the profile's
+`Digest`), `timeout_seconds` (1–300) and `rate_limit` (1–10 requests/second). The
+URL is one literal unicast IP over HTTP(S), without credentials, query, fragment,
+control characters, IPv4 limited broadcast, DNS resolution or comma/list
+expansion. Its exact path and port are retained.
+There is no arbitrary provider option passthrough. The profile hash binds all
+selected source/revision/review data into existing invocation authorization.
+
+### Provider-preserved paths
+
+The selected path must already have the spelling preserved by the reviewed
+provider URL pipeline. Unsupported spellings fail during preparation and report
+normalization. The adapter never rewrites a selected path to make it acceptable.
+This closes a mismatch observed in genuine Nuclei 3.4.10 acceptance: the selected
+SQL fixture path contained `%3D`, but the actual request contained literal `=`.
+The target rejected that request, and the failed run remains failed evidence.
+
+The conservative path check uses ASCII only, refuses nested or malformed percent
+escapes, decoded query/fragment separators, braces, controls and backslashes,
+and compares the original path with the provider-preserved spelling. Braces
+are excluded before provider expression evaluation can reinterpret URL text.
+Both Go raw-path
+preservation and fallback escaping matter: standalone `%27` is unsupported,
+whereas the reviewed SQL path with `%27%20` and literal `=` is preserved.
+An encoded alias never authorizes its decoded destination. A different selected
+URL needs its own current scope and exact-plan confirmation.
+
+The behavior is traced to the pinned provider's
+[decoded-path serialization](https://github.com/projectdiscovery/utils/blob/v0.4.23/url/url.go),
+[expression evaluation](https://github.com/projectdiscovery/nuclei/blob/v3.4.10/pkg/protocols/common/expressions/expressions.go)
+and Go's
+[path escaping](https://github.com/golang/go/blob/go1.24.1/src/net/url/url.go).
+Real wire acceptance is pinned to Nuclei 3.4.10; version health alone does not
+establish compatibility for another provider release.
+
+Create `NucleiAdapter(evidence_store.Read, profile, executable, provider_version)`
+using trusted operator-selected executable configuration. `CheckHealth()` runs
+only bounded `-version -duc` and reports availability/version; it grants nothing.
+Provide an actually observed Nuclei 3.x version before calling `PrepareInvocation`.
+Preparation checks exact local artifact bytes without invoking a target process.
+
+## Execution and evidence
+
+Only the existing executor with explicit upstream `ExecutionAuthorization` may
+run the prepared invocation. Scope registration, a profile digest and a health
+result are not permissions. Keep artifacts immutable until execution finishes:
+hash checking is not protection against hostile concurrent replacement or a
+network sandbox.
+
+Prepared flags explicitly select HTTP and local templates, override the ambient
+main CLI configuration, emit JSONL, omit raw request/response/template bodies, disable
+updates/OAST/redirects/stdin/httpx, bound response size/rate/time, use concurrency
+one and retries zero. Other protocols, workflows, template downloads, code,
+headless browsers, fuzzing, cloud upload and unrestricted CLI passthrough require
+another contract. The tool remains available independently through its familiar
+CLI; doing so remains subject to operator scope/authorization.
+
+Store actual stdout/stderr through `LocalEvidenceStore` with real version,
+scope, invocation digest and terminal execution provenance before normalization.
+`NormalizeReport` verifies the existing immutable stdout reference, then produces
+`nuclei.run` metadata and `web.template-match` SDK findings. Exact URL/template
+binding, selected hashes/source/review, severity/classification and deterministic
+source finding identity are retained. Raw evidence stays in the enclosing report.
+No provider-owned core model or persistence path is introduced.
+
+Native authority-shaped records carry decoded `url` and `path` context separately
+from `matched-at`. The authority, scheme and port must agree with the approved
+target, and those context strings must equal the exact representation derived
+from that already validated URL. They cannot replace or relax the encoded match
+address. Full-URL host records keep their existing canonical URL checks. This
+distinction follows the pinned provider's
+[output-field producer](https://github.com/projectdiscovery/nuclei/blob/v3.4.10/pkg/protocols/utils/fields.go)
+and an actual retained SQL-canary result. Missing required native fields or
+contradictory context fails; the optional `path` is checked when supplied.
+
+Failed, timed-out and cancelled execution remain incomplete. Invalid successful
+JSONL fails; malformed partial unsuccessful output becomes an explicit parse
+diagnostic with no trusted findings. Zero matches mean no reported matches; they
+do not prove template coverage or target safety. Replay needs captured evidence
+and the immutable profile metadata, without requiring local template files.
+
+## Verification
+
+Tests use source-controlled synthetic YAML/JSONL and owned local version/JSONL
+producers. The integration test executes the exact prepared argument array through
+the existing executor, persists actual bytes through the evidence store, verifies
+authorization denial, then normalizes the stored output. The fixture performs no
+network activity and does not constitute a genuine installed Nuclei scan.
+
+```bash
+uv run --locked --extra dev pytest -q \
+  tests/unit/test_nuclei_adapter.py \
+  tests/contract/test_nuclei_contract.py \
+  tests/integration/test_nuclei_evidence.py
+```
+
+Real provider compatibility is based on the upstream
+[CLI flag reference](https://github.com/projectdiscovery/nuclei/blob/dev/README.md#command-line-flags)
+and [template/output behavior](https://docs.projectdiscovery.io/opensource/nuclei/running).
+No Internet target is part of the test suite.
+
+The separate [reviewed web-check acceptance](NUCLEI_WEB_CHECKS.md) runs the genuine
+pinned provider against actual owned Git-file, SQL and reflection mechanisms.
+Its exact-request observations and independently authored oracle also exercise
+the supported encoded paths. These results apply to the declared predicates and
+finite scenarios; they do not establish general SQLi or browser XSS detection.

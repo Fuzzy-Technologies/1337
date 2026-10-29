@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import math
 import os
+import re
 import subprocess
 import sys
 import time
@@ -15,25 +17,56 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_TIMEOUT_SECONDS = 120
+DEFAULT_SUITE_TIMEOUT_SECONDS = 600
 DEFAULT_MAX_WORKERS = 12
+MAX_TIMEOUT_SECONDS = 3600
+# pytest-timeout 2.4.0 raises this exact pytest.fail diagnostic; traceback text is not evidence.
+_PYTEST_TIMEOUT_FAILURE = re.compile(
+    r"Failed: Timeout \(>(?P<seconds>[0-9]+(?:\.[0-9]+)?(?:e[+-]?[0-9]+)?)s\)"
+    r" from pytest-timeout\."
+)
 
 
 @dataclass(frozen=True, slots=True)
 class TestOptions:
-    """Validated execution settings for a pytest layer."""
+    """Validated process settings with independent per-test and invocation budgets.
+
+    Args:
+        jobs: Automatic workers or an explicit positive decimal worker count.
+        timeout_seconds: Integer per-test pytest deadline in 1..3600 seconds, default 120.
+        serial_only: Select only the separate serial invocation.
+        fail_fast: Stop after the first failure without automatic retries.
+        suite_timeout_seconds: Integer budget for each complete pytest invocation in
+            1..3600 seconds, default 600. It is independent of the per-test deadline.
+
+    Raises:
+        ValueError: Worker selection is invalid or either timeout is outside the explicit
+            integer range bounded by MAX_TIMEOUT_SECONDS.
+    """
 
     jobs: str = "auto"
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
     serial_only: bool = False
     fail_fast: bool = False
+    suite_timeout_seconds: int = DEFAULT_SUITE_TIMEOUT_SECONDS
 
     def __post_init__(self) -> None:
         """Reject unsafe or ambiguous execution settings before spawning pytest."""
 
         if self.jobs != "auto" and (not self.jobs.isdecimal() or int(self.jobs) < 1):
             raise ValueError("jobs must be 'auto' or a positive integer")
-        if self.timeout_seconds < 1:
-            raise ValueError("timeout must be a positive integer")
+
+        if (
+            type(self.timeout_seconds) is not int
+            or not 1 <= self.timeout_seconds <= MAX_TIMEOUT_SECONDS
+        ):
+            raise ValueError("timeout must be an integer between 1 and 3600 seconds")
+
+        if (
+            type(self.suite_timeout_seconds) is not int
+            or not 1 <= self.suite_timeout_seconds <= MAX_TIMEOUT_SECONDS
+        ):
+            raise ValueError("suite timeout must be an integer between 1 and 3600 seconds")
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +138,7 @@ def PytestArguments(
 
     Args:
         target: Pytest layer or selection
-        options: Validated timeout, worker and fail-fast settings
+        options: Validated per-test timeout, worker and fail-fast settings.
         report_path: JUnit destination passed as one argv entry
         serial: Select serial tests without workers and with coverage append.
 
@@ -121,6 +154,9 @@ def PytestArguments(
         "--junitxml",
         str(report_path),
         f"--timeout={options.timeout_seconds}",
+        "-p",
+        "tools.pytest_progress",
+        "--1337-progress",
     ]
     if options.fail_fast:
         arguments.append("-x")
@@ -159,13 +195,28 @@ def ReadJunitSummary(report_path: Path) -> TestSummary:
     )
     skipped = sum(int(suite.attrib.get("skipped", 0)) for suite in suites)
     duration = sum(float(suite.attrib.get("time", 0.0)) for suite in suites)
-    timeout = sum(
-        1
-        for case in root.findall(".//testcase")
-        for failure in (*case.findall("failure"), *case.findall("error"))
-        if "timeout" in (failure.text or "").lower()
-        or "timeout" in failure.attrib.get("message", "").lower()
-    )
+    timeout = 0
+
+    for case in root.findall(".//testcase"):
+        for failure in (*case.findall("failure"), *case.findall("error")):
+            message = failure.attrib.get("message", "")
+
+            if failure.tag == "error":
+                for phase in ("setup", "teardown"):
+                    prefix = f'failed on {phase} with "'
+
+                    if message.startswith(prefix) and message.endswith('"'):
+                        message = message[len(prefix):-1]
+                        break
+
+            match = _PYTEST_TIMEOUT_FAILURE.fullmatch(message)
+
+            if match is not None:
+                seconds = float(match.group("seconds"))
+
+                if math.isfinite(seconds) and seconds > 0:
+                    timeout += 1
+
     return TestSummary(
         total=total,
         passed=total - failed - skipped,
@@ -189,29 +240,63 @@ def RunPytest(
     Args:
         arguments: Explicit subprocess argv without shell interpolation
         report_path: Report to remove before launch and read on completion
-        timeout_seconds: Per-test timeout also used to derive the process timeout floor.
+        timeout_seconds: Integer budget in 1..3600 seconds for the complete pytest invocation,
+            independent of its per-test timeout argument and bounded by MAX_TIMEOUT_SECONDS.
 
     Returns:
-        Exit code and summary, with failed summaries for timeout or launch errors.
+        Exit code and summary, with failed summaries for timeout, launch errors or absent
+        fresh JUnit evidence. A zero process exit with failed evidence returns status one.
+
+    Raises:
+        ValueError: The whole-suite budget is not an integer in the supported 1..3600 range.
     """
 
+    if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= MAX_TIMEOUT_SECONDS:
+        raise ValueError("suite timeout must be an integer between 1 and 3600 seconds")
+
+    from fuzzy1337.test_progress import PrepareProgress, SaveProgressSummary
+
     report_path.unlink(missing_ok=True)
+    progress_ready = PrepareProgress(report_path)
+    selected_workers = next((arguments[index + 1] for index, value in enumerate(arguments[:-1])
+                             if value == "-n"), "auto")
+    worker_digits = selected_workers.lstrip("0") or "0"
+    worker_limit_exceeded = (selected_workers.isdecimal()
+                             and (len(worker_digits) > 2 or int(worker_digits) > 12))
+    if not progress_ready:
+        arguments = [argument for argument in arguments if argument != "--1337-progress"]
+        print("Partial pytest diagnostic unavailable; JUnit acceptance unchanged.", flush=True)
     started = time.monotonic()
     try:
         result = subprocess.run(
             arguments,
             check=False,
             shell=False,
-            timeout=max(300, timeout_seconds * 3),
+            timeout=timeout_seconds,
         )
 
     except subprocess.TimeoutExpired:
+        if progress_ready:
+            diagnostic = SaveProgressSummary(
+                report_path, timed_out=True, worker_limit_exceeded=worker_limit_exceeded,
+            )
+            print("Partial pytest diagnostic (not JUnit): "
+                  f"completed={diagnostic['completed']} "
+                  f"truncated={diagnostic['truncated']} "
+                  f"unavailable={diagnostic['unavailable']}", flush=True)
         return 124, TestSummary(failed=1, timeout=1, duration_seconds=time.monotonic() - started)
 
     except OSError:
+        if progress_ready:
+            SaveProgressSummary(report_path, timed_out=False,
+                                worker_limit_exceeded=worker_limit_exceeded)
         return 127, TestSummary(failed=1, duration_seconds=time.monotonic() - started)
+    if progress_ready:
+        SaveProgressSummary(report_path, timed_out=False,
+                            worker_limit_exceeded=worker_limit_exceeded)
     summary = ReadJunitSummary(report_path)
-    return result.returncode, summary
+
+    return result.returncode or (1 if summary.failed else 0), summary
 
 
 def HasSerialTests(target: str) -> bool:
@@ -259,7 +344,8 @@ def RunTests(target: str, options: TestOptions) -> int:
 
     Args:
         target: Pytest layer or selection to run
-        options: Validated worker, timeout, serial-only and fail-fast settings.
+        options: Validated worker, independent per-test/suite timeout, serial-only and
+            fail-fast settings. Each selected pytest invocation receives its own suite budget.
 
     Returns:
         First nonzero subprocess status, or zero when selected invocations succeed.
@@ -273,7 +359,7 @@ def RunTests(target: str, options: TestOptions) -> int:
         code, result = RunPytest(
             PytestArguments(target, options, reports / "parallel-tests.xml", serial=False),
             reports / "parallel-tests.xml",
-            options.timeout_seconds,
+            options.suite_timeout_seconds,
         )
         summary = summary.Combine(result)
         return_codes.append(code)
@@ -282,7 +368,7 @@ def RunTests(target: str, options: TestOptions) -> int:
         code, result = RunPytest(
             PytestArguments(target, options, reports / "serial-tests.xml", serial=True),
             reports / "serial-tests.xml",
-            options.timeout_seconds,
+            options.suite_timeout_seconds,
         )
         summary = summary.Combine(result)
         return_codes.append(code)
