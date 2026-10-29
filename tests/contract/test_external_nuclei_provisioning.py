@@ -13,7 +13,7 @@ import subprocess
 import sys
 import urllib.request
 from pathlib import Path
-from zipfile import ZIP_STORED, BadZipFile, ZipFile
+from zipfile import ZIP_STORED, BadZipFile, ZipFile, ZipInfo
 
 import pytest
 
@@ -53,7 +53,14 @@ def ZipBytes(entries):
 
     with ZipFile(output, "w", compression=ZIP_STORED) as archive:
         for name, raw in entries:
-            archive.writestr(name, raw)
+            if "\\" in name:
+                # Bypass constructor normalization so the hostile raw name reaches admission.
+                member = ZipInfo("inert")
+                member.filename = member.orig_filename = name
+                archive.writestr(member, raw)
+
+            else:
+                archive.writestr(name, raw)
 
     return output.getvalue()
 
@@ -133,8 +140,38 @@ def test_ZipInventoryRejectsUntrustedPathSpellings(name):
     """Reject unsafe paths even though only the exact root executable would be extracted."""
 
     with ZipFile(io.BytesIO(ZipBytes([(name, b"inert")]))) as archive:
+        assert archive.infolist()[0].orig_filename == name, (
+            "The invalid-path fixture must retain its original unnormalized archive spelling")
+
         with pytest.raises(ValueError, match="regular file members"):
             provisioning.RegularMembers(archive, maximum_members=32, maximum_bytes=1024)
+
+
+@pytest.mark.parametrize("name, allowed", [("a\\nuclei", False), ("a/nuclei", True)],
+    ids=["raw-backslash", "canonical-slash"])
+def test_ZipPathFixturesPreserveRawNamesBeforeStrictInventory(name, allowed):
+    """Retain raw hostile separators across ZIP writers while a canonical file remains readable."""
+
+    payload = b"inert stored bytes"
+    raw = ZipBytes([(name, payload)])
+    assert raw.count(name.encode("ascii")) == 2, (
+        "Both local header and central directory must retain the exact selected raw filename")
+
+    with ZipFile(io.BytesIO(raw)) as archive:
+        member = archive.infolist()[0]
+        assert member.orig_filename == name, (
+            "The ZIP reader must expose the exact original name before platform normalization")
+
+        if allowed:
+            members = provisioning.RegularMembers(archive, maximum_members=1, maximum_bytes=32)
+            assert set(members) == {name} and member.filename == name, (
+                "A canonical slash path must remain one exact admitted regular file")
+            assert archive.read(members[name]) == payload, (
+                "The safe control must retain a valid readable ZIP member and its complete bytes")
+
+        else:
+            with pytest.raises(ValueError, match="regular file members"):
+                provisioning.RegularMembers(archive, maximum_members=1, maximum_bytes=32)
 
 
 @pytest.mark.parametrize("field,value", [

@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import signal
+import stat
 import subprocess
 from dataclasses import replace
 from pathlib import Path, PurePosixPath
@@ -80,6 +81,40 @@ REPOSITORY = Path(__file__).resolve().parents[2]
 CONTAINER_EXECUTABLE = PurePosixPath("/opt/benchmark/nuclei")
 CONTAINER_TEMPLATE = PurePosixPath("/opt/benchmark/prometheus.yaml")
 CONTAINER_CONFIGURATION = PurePosixPath("/opt/benchmark/operator-config.yaml")
+
+
+@pytest.fixture(name="inert_binary_modes", autouse=True)
+def InertBinaryModeView(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[Path, int]:
+    """Declare POSIX permissions for only the two inert executable fixture paths.
+
+    Windows chmod does not model Linux execute bits. The original file kind,
+    link count, byte size and other metadata remain real; no binary executes.
+
+    Args:
+        tmp_path: Isolated test owner containing the two explicit fake binary names.
+        monkeypatch: Restore the private metadata view after this one inert test.
+
+    Returns:
+        Explicit fixture permission declarations, mutable for negative mode controls.
+    """
+
+    modes = {tmp_path / name: 0o700 for name in (
+        "inert-binary-not-executed", "inert-never-executed")}
+    original = Path.lstat
+
+    def Lstat(path: Path) -> os.stat_result:
+        """Overlay only declared ordinary-file permissions, preserving all refusal metadata."""
+
+        metadata = original(path)
+
+        if path in modes and stat.S_ISREG(metadata.st_mode):
+            return os.stat_result(((metadata.st_mode & ~0o7777) | modes[path], *metadata[1:]))
+
+        return metadata
+
+    monkeypatch.setattr(Path, "lstat", Lstat)
+
+    return modes
 
 
 def Material(tmp_path):
@@ -225,6 +260,63 @@ def test_PreflightSeparatesArchiveBinaryAndVersionFacts(tmp_path):
 
     with pytest.raises(ValueError, match="pinned official"):
         VerifyArchive(archive)
+
+
+@pytest.mark.parametrize("fault", [
+    "none", "nonexecutable", "hardlink", "oversize", "symlink", "directory",
+])
+def test_InertExecutableModeViewPreservesActualIdentityRefusals(
+    tmp_path, inert_binary_modes, fault,
+):
+    """Exercise the real executable guard with explicit modes and real kind/link/size faults."""
+
+    binary = tmp_path / "inert-binary-not-executed"
+    binary.write_bytes(b"inert")
+
+    if fault == "nonexecutable":
+        inert_binary_modes[binary] = 0o600
+
+    elif fault == "hardlink":
+        os.link(binary, tmp_path / "linked-binary")
+
+    elif fault == "oversize":
+        binary.write_bytes(b"x" * 17)
+
+    elif fault == "symlink":
+        target = tmp_path / "original-material"
+        target.write_bytes(binary.read_bytes())
+        binary.unlink()
+        binary.symlink_to(target)
+
+    elif fault == "directory":
+        binary.unlink()
+        binary.mkdir()
+
+    actual, projected = os.lstat(binary), binary.lstat()
+    assert tuple(actual)[1:] == tuple(projected)[1:] and (
+        stat.S_IFMT(actual.st_mode) == stat.S_IFMT(projected.st_mode)
+    ), "The inert POSIX mode view must preserve actual file kind, links, size and other metadata."
+
+    if fault == "none":
+        identity = RegularIdentity(binary, maximum=16, executable=True)
+        assert identity["sha256"] == hashlib.sha256(b"inert").hexdigest() and (
+            identity["size_bytes"] == 5 and stat.S_IMODE(projected.st_mode) == 0o700
+        ), "Declared executable metadata must still pass the real bounded byte identity guard."
+
+    else:
+        with pytest.raises(ValueError, match="symbolic links|singly linked bounded regular"):
+            RegularIdentity(binary, maximum=16, executable=True)
+
+
+def test_InertExecutableModeViewLeavesUnselectedPathsUntouched(tmp_path):
+    """Permission modeling never broadens to another file or arbitrary executable location."""
+
+    unselected = tmp_path / "unselected-binary"
+    unselected.write_bytes(b"ordinary unselected bytes")
+    actual, observed = os.lstat(unselected), unselected.lstat()
+    assert tuple(actual) == tuple(observed) and actual.st_mode == observed.st_mode, (
+        "Only the two declared inert binary paths may receive modeled POSIX permission bits."
+    )
 
 
 def test_InstalledInventoryRefusesTheSourceCheckout(tmp_path):
