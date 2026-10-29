@@ -1,17 +1,17 @@
-# Human quickstart — 0.3.0 candidate
+# Human quickstart — 0.3.0
 
 Start with one owned local target, retain its evidence, then inspect the saved
-model after the target has stopped. The candidate supports the same workflow for
+model after the target has stopped. Version 0.3.0 supports the same workflow for
 [AI agents](AGENT_QUICKSTART.md) and [CI](CI_QUICKSTART.md).
 The immutable v0.2.1 release lacks these scan/demo commands; use its
 [tag-pinned guide](https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md)
-when running that release. This page is candidate documentation, not proof of
-PyPI publication or completed release acceptance.
+when running that release. Use the documentation from the same installed version
+or reviewed development source revision.
 
 ## Install a reviewed wheel
 
-CPython 3.11 or newer is required. After the release is published, install the
-exact distribution in a clean environment:
+CPython 3.11 or newer is required. Install the exact distribution in a clean
+environment:
 
 ```bash
 python -m venv .venv-demo
@@ -21,8 +21,8 @@ python -m pip install 1337==0.3.0
 1337 doctor
 ```
 
-Expect `1337 0.3.0`. Until publication and clean PyPI verification complete, use
-the reviewed source-wheel path below; do not silently install a different version.
+Expect `1337 0.3.0`; do not silently install a different version. For development
+builds, use the reviewed source-wheel path below and retain the full source SHA.
 Git is needed only for that source build. The base wheel
 has no runtime dependencies. Docker, Nmap, Trivy, browsers and a model API are
 unnecessary for the first recipe.

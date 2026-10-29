@@ -23,16 +23,16 @@ description: 1337 Security Workbench by Fuzzy Technologies — an open, local-fi
 <figcaption class="hero-caption">
 <p class="eyebrow">Open security workbench · Live Security Object Model · Modular tooling</p>
 <p class="hero-hook">Explore the system.<br><strong>Build the model as you work</strong></p>
-<span class="status">Early pre-alpha · Apache-2.0 · v0.2.1</span>
+<span class="status">Early Community product · Apache-2.0 · v0.3.0</span>
 </figcaption>
 </figure>
 
 <div class="hero-secondary">
-<p>A fast, local-first workbench for penetration testing, security investigations, and security engineering. Built-in discovery creates the initial model; built-in and external tools continuously enrich it with observations, evidence, findings, relationships, reachability, and attack paths.</p>
+<p>Run explicitly approved checks, retain their original evidence, and reopen a portable Security Object Model after execution ends. Start with an owned local demo or a reproducible Git metadata exposure Finding using only 1337 and CPython. Optional Nmap, Nuclei and Trivy workflows add selected provider observations.</p>
 <blockquote class="hero-quote"><strong>Models reason. 1337 keeps state, governs execution, and preserves evidence</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.1">Pre-release v0.2.1</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.3.0">Release v0.3.0</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/milestones">Roadmap</a>
 </div>
 </div>
@@ -44,19 +44,19 @@ description: 1337 Security Workbench by Fuzzy Technologies — an open, local-fi
 <section class="card">
 <span class="card-label">Built-in discovery</span>
 <h3>Start with a useful baseline</h3>
-<p>1337 can discover targets, hosts, services, endpoints, technologies, and relationships on its own. As additional tools and data sources are connected, the model is refined and expanded.</p>
+<p>Explicitly selected HTTP endpoints produce status-only Host, Port, Service and Endpoint objects. The owned demo makes three bounded loopback requests; discovery alone creates no vulnerability Finding and does not establish a clean target.</p>
 </section>
 
 <section class="card">
 <span class="card-label">Shared state</span>
 <h3>Every tool contributes to the same model</h3>
-<p>Nmap, Nuclei, browsers, Kali toolsets, imported artifacts, and external systems add traceable observations to one model instead of leaving behind disconnected reports.</p>
+<p>Selected first-party checks, optional Nmap/Nuclei/Trivy providers and supported artifact imports retain attributable observations in the same saved model. Reopen verified evidence and export JSON, SARIF, HTML or JUnit offline.</p>
 </section>
 
 <section class="card">
-<span class="card-label">Live workbench</span>
-<h3>Long-running jobs do not block the operator</h3>
-<p>Commands run on the left while the selected model view updates on the right in real time: objects, evidence, findings, attack paths, or timelines.</p>
+<span class="card-label">Human, agent and CI</span>
+<h3>Share the same execution and evidence contracts</h3>
+<p>Use the CLI, interactive shell or copyable CI recipes with explicit scope, policy, approval and finite limits. Command events and saved-model inspection are available; the complete concurrent split-pane workbench remains roadmap work.</p>
 </section>
 </div>
 </section>
@@ -75,19 +75,19 @@ Observations + Evidence
       ↓
 Findings + Relationships
       ↓
-Reachability / Attack Paths</code></pre>
+Reachability / Attack Paths (roadmap)</code></pre>
 </div>
 
 <div class="workbench-copy">
 <p class="section-hook"><strong>Built-in discovery creates the baseline. Your tools enrich it</strong></p>
-<p>Tools are part of the workbench, not bolted on. Built-in checks, familiar command-line tools, browsers, load generators, external scanners, and integrations all contribute to one workspace instead of producing separate data silos.</p>
+<p>Selected built-in checks and optional tool providers contribute to one workspace instead of producing separate data silos. Broader browser workflows, load generators and vendor integrations remain extension direction; the version-pinned recipes state each implemented operation and its prerequisites.</p>
 <p class="workbench-note">The core runs locally and requires no mandatory endpoint agents. Heavy scanners, Kali toolsets, browser runtimes, search indexes, and vendor connectors are enabled only when needed.</p>
 </div>
 </div>
 </section>
 
 <section class="content-section">
-<h2>One model, four initial workflow lenses</h2>
+<h2>Design direction: one model, four workflow lenses</h2>
 <div class="grid">
 <section class="card">
 <span class="card-label">Pentest</span>
@@ -116,7 +116,8 @@ Reachability / Attack Paths</code></pre>
 </section>
 
 <section class="content-section">
-<h2>Core architecture</h2>
+<h2>Core architecture and extension direction</h2>
+<p>The CLI, foreground shell and documented SDK surfaces expose current operations. The wider Web/MCP interfaces, full concurrent TUI and advanced attack-path workflows described by this architecture remain roadmap work.</p>
 <div class="architecture-grid">
 <section class="architecture-card"><h3>Security Object Model</h3><p>A shared model for targets, assets, services, endpoints, identities, evidence, findings, relationships, reachability, and attack paths.</p></section>
 <section class="architecture-card"><h3>Built-in Discovery (Native Discovery)</h3><p>Builds the initial black-box model without requiring external scanners or integrations.</p></section>
@@ -156,7 +157,7 @@ Reachability / Attack Paths</code></pre>
 </div>
 
 <blockquote><strong>Which paths to critical assets are actually reachable, what evidence supports them, and which security control breaks the chain?</strong></blockquote>
-<p class="quiet">The complete M4 showcase remains roadmap work beyond v0.2.1. The repository already includes an isolated attack-path mini lab.</p>
+<p class="quiet">The complete M4 showcase remains roadmap work beyond v0.3.0. The repository already includes an isolated attack-path mini lab.</p>
 <p class="showcase-hook"><strong>Run the lab · reproduce the issue · validate the path · verify the fix</strong></p>
 </div>
 </section>
@@ -165,20 +166,29 @@ Reachability / Attack Paths</code></pre>
 <h2>What works today</h2>
 <div class="proof-grid">
 <section class="proof-card proof-now">
-<span class="card-label">Available in v0.2.1</span>
-<h3>A working, reproducible pre-alpha foundation</h3>
+<span class="card-label">Available in v0.3.0</span>
+<h3>Useful installed workflows with retained evidence</h3>
 <ul>
 <li>Apache-2.0 open-source core</li>
 <li>installable 1337 and 1337-dev commands</li>
 <li>interactive shell, fuzzy completion, palette and history</li>
 <li>local doctor and read-only component inspection</li>
-<li>portable workspace/configuration and offline scope APIs</li>
-<li>Experimental model, evidence, executor and optional Nmap APIs</li>
+<li>owned loopback demo with approval preview, three acquisitions and confirmed target teardown</li>
+<li>core-only Git HEAD exposure recipe with one LOW Finding and a fixed negative control</li>
+<li>durable model, evidence verification, offline reopen and JSON/SARIF/HTML/JUnit exports</li>
+<li>selected Nmap/Nuclei checks and offline native Trivy image/configuration workflows</li>
+<li>read-only saved image SBOM inspection; license compliance and runtime reachability remain unknown</li>
 <li>repository-owned isolated test lab</li>
-<li>pytest-based functional test framework</li>
 <li>public versioned contracts and architecture documentation</li>
-<li>deterministic quality gates across supported platforms</li>
 </ul>
+<p>Start with CPython 3.11 or newer; the base wheel has no mandatory runtime dependencies:</p>
+<pre><code>python -m pip install 1337==0.3.0
+1337 --version
+1337 doctor
+mkdir artifacts
+1337 demo local artifacts/first-run --json</code></pre>
+<p>The preview returns exit 3 and <code>approval_required</code> without starting a target. Read the exact plan, then follow the <a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">version-pinned quickstart</a> to approve that invocation, run it and inspect its saved evidence. Optional tools are not installed or authorized implicitly.</p>
+<p>For an attributable Finding, use the complete <a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/OWNED_GIT_HEAD_RECIPE.md">owned Git HEAD recipe</a>. It includes the standalone fixture, explicit scope/policy, separately confirmed positive/fixed plans and offline reports; no external scanner or model API is required.</p>
 </section>
 
 <section class="proof-card">
@@ -186,11 +196,11 @@ Reachability / Attack Paths</code></pre>
 <h3>In development</h3>
 <ul>
 <li>live split-pane terminal workbench</li>
-<li>built-in discovery and connected Security Object Model workflows</li>
-<li>pluggable scanners and tools, plus Quick Scan</li>
-<li>Pentest, DFIR, DevSecOps, and Purple Team workflow lenses</li>
-<li>finding workflows, reachability analysis, and attack paths</li>
-<li>API/SDK/MCP and vendor integrations</li>
+<li>broader authenticated application checks and provider coverage</li>
+<li>complete Pentest, DFIR, DevSecOps and Purple Team workflow lenses</li>
+<li>evidence-backed live reachability and the M4 attack-path showcase</li>
+<li>broader SBOM semantics, license policy and runtime correlation</li>
+<li>general MCP service and vendor integrations</li>
 </ul>
 </section>
 </div>
@@ -201,7 +211,9 @@ Reachability / Attack Paths</code></pre>
 <h2>Project resources</h2>
 <div class="links">
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md">Try v0.2.1</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">Try v0.3.0</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md">AI-agent quickstart</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/CI_QUICKSTART.md">CI quickstart</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">Architecture vision</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">AI-agent integration</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">ADR 0010: Workbench architecture</a>

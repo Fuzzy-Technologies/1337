@@ -1,19 +1,19 @@
-# AI agent quickstart — 0.3.0 candidate
+# AI agent quickstart — 0.3.0
 
-Use a CLI-capable external agent with an installed reviewed candidate wheel.
+Use a CLI-capable external agent with installed 1337 0.3.0.
 The [human quickstart](QUICKSTART.md#install-a-reviewed-wheel) supplies installation;
 [CI onboarding](CI_QUICKSTART.md) uses the same local scenario non-interactively.
 No model API, MCP server, browser, Docker or external scanner is needed by 1337.
-This candidate is not a published release. The immutable v0.2.1 lacks this recipe;
-retain the source commit and actual installed package version.
+The immutable v0.2.1 lacks this recipe; retain the source commit, wheel identity
+and actual installed package version.
 
-This guide targets **1337 0.3.0**. After PyPI publication, use
+This guide targets **1337 0.3.0**. Use
 `python -m pip install 1337==0.3.0` in a clean environment and require
-`1337 --version` to report `1337 0.3.0`. Before publication, use the exact reviewed
-source-wheel path in the human guide. Never substitute an older package when
-these commands are unavailable. For the release, retain the installed wheel hash
+`1337 --version` to report `1337 0.3.0`. For development builds, use the exact
+reviewed source-wheel path in the human guide. Never substitute an older package
+when these commands are unavailable. For the release, retain the installed wheel hash
 and use [tag-pinned instructions](https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md);
-candidate work must retain its full reviewed source commit instead.
+development work must retain its full reviewed source commit instead.
 
 Human and agent operators use the same scope/policy, jobs, immutable evidence
 and durable model. The first task establishes status-only discovery; it does not
@@ -114,9 +114,9 @@ or teardown failure, and 130 for interrupted owned cleanup. Published report fil
 or an earlier saved delta do not override a later failure. Do not broaden scope,
 retry a side effect blindly or invent a successful acknowledgement.
 
-Release acceptance requires a real supported-agent walkthrough, clean published
-package installation, actual target-platform CI runs and reviewed localization.
-A prompt, local rehearsal or candidate wheel does not establish those outcomes.
+Release validation distinguishes actual supported-agent walkthroughs, installed
+artifact checks, target-platform CI runs and localization review states.
+A prompt or local rehearsal alone does not establish all those outcomes.
 See the [CI quickstart](CI_QUICKSTART.md#acceptance-evidence) for the honest
 execution boundary. RU/zh-cn resources remain explicitly marked drafts until
 editorial and technical review provenance is recorded for their exact digests.

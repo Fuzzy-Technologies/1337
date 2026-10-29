@@ -23,16 +23,17 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <figcaption class="hero-caption">
 <p class="eyebrow">Открытая рабочая среда ИБ · Живая модель объектов · Подключаемые инструменты</p>
 <p class="hero-hook">Исследуйте систему.<br><strong>Стройте её модель по мере работы</strong></p>
-<span class="status">Pre-alpha · Apache-2.0 · v0.2.1</span>
+<span class="status">Ранний Community-продукт · Apache-2.0 · v0.3.0</span>
 </figcaption>
 </figure>
 
 <div class="hero-secondary">
+<p class="quiet"><strong>Обновление перевода для v0.3.0 — черновик, редакционная и техническая проверка не подтверждена.</strong> Каноническое описание текущих возможностей и границ — <a href="{{ '/' | relative_url }}">английская страница</a>. Для работы используйте <a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">английский Quickstart v0.3.0</a>; остальные переведённые архитектурные разделы не являются обещанием реализованных возможностей.</p>
 <p>Быстрая локальная среда для пентеста, расследований и инженерных задач ИБ. Встроенный сканер строит первичную модель системы, а подключаемые инструменты дополняют её наблюдениями, доказательствами, выявленными проблемами, связями, данными о достижимости и путях атаки.</p>
 <blockquote class="hero-quote"><strong>ИИ-модели рассуждают. 1337 хранит состояние, контролирует выполнение и сохраняет доказательства</strong></blockquote>
 <div class="links hero-actions">
 <a href="https://github.com/Fuzzy-Technologies/1337">GitHub</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.1">Предварительный релиз v0.2.1</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.3.0">Релиз v0.3.0</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/milestones">План разработки</a>
 </div>
 </div>
@@ -156,7 +157,7 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 </div>
 
 <blockquote><strong>Какие пути к критичным активам действительно достижимы, какими доказательствами это подтверждается и какая мера защиты разрывает цепочку?</strong></blockquote>
-<p class="quiet">Полный сценарий M4 остаётся в плане после v0.2.1. В репозитории уже есть изолированный мини-стенд для проверки пути атаки.</p>
+<p class="quiet">Полный сценарий M4 остаётся в плане после v0.3.0. В репозитории уже есть изолированный мини-стенд для проверки пути атаки.</p>
 <p class="showcase-hook"><strong>Поднять стенд · воспроизвести проблему · подтвердить путь атаки · проверить исправление</strong></p>
 </div>
 </section>
@@ -165,8 +166,9 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <h2>Что уже работает</h2>
 <div class="proof-grid">
 <section class="proof-card proof-now">
-<span class="card-label">В v0.2.1</span>
-<h3>Рабочая инженерная база pre-alpha-версии</h3>
+<span class="card-label">Текущая версия v0.3.0 · EN canonical</span>
+<p lang="en">English canonical summary: install 1337==0.3.0, preview the owned local demo, obtain explicit approval, then retain its evidence and reopen/export the saved model offline. The complete <a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/OWNED_GIT_HEAD_RECIPE.md">owned Git HEAD recipe</a> creates one LOW Finding and checks its separately approved fixed control using only the installed core. Optional Nmap/Nuclei/Trivy workflows have their own prerequisites and authority; no configuration renderer, license-compliance verdict or live runtime reachability is implied.</p>
+<h3>Сохранённая инженерная база из v0.2.1 (исторический список)</h3>
 <ul>
 <li>открытое ядро под лицензией Apache-2.0</li>
 <li>устанавливаемые команды 1337 и 1337-dev</li>
@@ -186,11 +188,11 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <h3>В разработке</h3>
 <ul>
 <li>живой двухпанельный терминальный интерфейс</li>
-<li>встроенное обнаружение и сквозные сценарии модели объектов ИБ (Security Object Model)</li>
-<li>подключаемые сканеры и инструменты, Quick Scan</li>
+<li>более широкие проверки приложений с аутентификацией и новые провайдеры</li>
+<li>расширенная корреляция SBOM, лицензионная политика и связь с runtime</li>
 <li>рабочие представления для Pentest, DFIR, DevSecOps и Purple Team</li>
-<li>сценарии работы с находками, анализ достижимости и пути атаки</li>
-<li>API/SDK/MCP и интеграции с внешними продуктами</li>
+<li>доказательный анализ живой достижимости и полный стенд путей атаки M4</li>
+<li>общий MCP-сервис и интеграции с внешними продуктами</li>
 </ul>
 </section>
 </div>
@@ -201,7 +203,10 @@ description: 1337 Security Workbench от Fuzzy Technologies — открыта�
 <h2>Документация и материалы</h2>
 <div class="links">
 <a href="https://github.com/Fuzzy-Technologies/1337#readme">README</a>
-<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md">Попробовать v0.2.1</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/QUICKSTART.md">Попробовать v0.3.0 · EN</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/AGENT_QUICKSTART.md">Quickstart для ИИ-агента · EN</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/CI_QUICKSTART.md">Quickstart для CI · EN</a>
+<a href="https://github.com/Fuzzy-Technologies/1337/blob/v0.2.1/docs/QUICKSTART.md">Историческая инструкция v0.2.1</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/VISION.md">Архитектурное видение</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/AI_AGENTS.md">ИИ и интеграция агентов</a>
 <a href="https://github.com/Fuzzy-Technologies/1337/blob/master/docs/adr/0010-live-security-object-model-modular-tooling-and-lenses.md">ADR 0010: архитектура рабочего места</a>
