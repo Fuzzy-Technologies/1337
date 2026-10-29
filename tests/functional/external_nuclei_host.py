@@ -925,7 +925,7 @@ class PrerequisiteHost:
         self.receipt = {"status": "failed", "commands": [], "cleanup": [],
             "configured_target_inputs": [], "governed_no_home_compatibility": "not-established"}
 
-    def Command(self, role: str, arguments: tuple[str, ...], *, docker: bool = True,
+    async def Command(self, role: str, arguments: tuple[str, ...], *, docker: bool = True,
                 seconds: int = 15, limit: int = 256 * 1024, stderr: int | None = None,
                 require: bool = True, cwd: Path | None = None) -> tuple[dict, bytes]:
         """Retain a finite owned command before any interpretation of its original stdout.
@@ -956,8 +956,8 @@ class PrerequisiteHost:
             *arguments)
         self.receipt["commands"].append({"role": role, "directory": str(directory),
                                           "argv": list(argv)})
-        result = asyncio.run(CaptureCommand(directory, argv, cwd or REPOSITORY,
-            self.environment, seconds, limit, limit if stderr is None else stderr))
+        result = await CaptureCommand(directory, argv, cwd or REPOSITORY,
+            self.environment, seconds, limit, limit if stderr is None else stderr)
         raw = (directory / "stdout.raw").read_bytes()
 
         if result["cleanup_confirmed"] is not True or result["streams_complete"] is not True or (
@@ -969,7 +969,7 @@ class PrerequisiteHost:
 
         return result, raw
 
-    def Inspect(self, kind: str, identifier: str, role: str) -> dict:
+    async def Inspect(self, kind: str, identifier: str, role: str) -> dict:
         """Retain actual original JSON and decode one image/container readback.
 
         Args:
@@ -985,7 +985,7 @@ class PrerequisiteHost:
             OSError: Original bytes cannot be retained.
         """
 
-        _, raw = self.Command(role, (kind, "inspect", "--format", "{{json .}}", identifier))
+        _, raw = await self.Command(role, (kind, "inspect", "--format", "{{json .}}", identifier))
         value = StrictJson(raw)
 
         if not isinstance(value, dict):
@@ -993,7 +993,7 @@ class PrerequisiteHost:
 
         return value
 
-    def Source(self, role: str) -> tuple[str, str]:
+    async def Source(self, role: str) -> tuple[str, str]:
         """Require exact accepted-base ancestry and clean committed repository provenance.
 
         Args:
@@ -1007,26 +1007,26 @@ class PrerequisiteHost:
             OSError: Bounded original Git evidence cannot be retained.
         """
 
-        _, raw = self.Command(role + "-identity", ("rev-parse", "HEAD", "HEAD^{tree}"),
+        _, raw = await self.Command(role + "-identity", ("rev-parse", "HEAD", "HEAD^{tree}"),
                               docker=False)
         values = raw.decode("ascii").splitlines()
 
         if len(values) != 2 or any(re.fullmatch("[a-f0-9]{40}", value) is None for value in values):
             raise ValueError("Nuclei host source requires exact committed HEAD/tree")
 
-        self.Command(role + "-clean", ("diff", "--quiet", "--no-ext-diff", "--no-textconv",
+        await self.Command(role + "-clean", ("diff", "--quiet", "--no-ext-diff", "--no-textconv",
                                        "HEAD", "--"), docker=False)
-        _, untracked = self.Command(role + "-untracked", (
+        _, untracked = await self.Command(role + "-untracked", (
             "ls-files", "--others", "--exclude-standard", "-z"), docker=False)
-        self.Command(role + "-base", ("merge-base", "--is-ancestor", ACCEPTED_BASE, values[0]),
-                     docker=False)
+        await self.Command(role + "-base", ("merge-base", "--is-ancestor", ACCEPTED_BASE,
+                                           values[0]), docker=False)
 
         if untracked:
             raise ValueError("Nuclei host context requires no untracked nonignored source")
 
         return values[0], values[1]
 
-    def Build(self, tag: str, role: str, arguments: tuple[str, ...], seconds: int) -> dict:
+    async def Build(self, tag: str, role: str, arguments: tuple[str, ...], seconds: int) -> dict:
         """Build exactly once and bind the owned tag to its original iid and source labels.
 
         Args:
@@ -1044,15 +1044,15 @@ class PrerequisiteHost:
             BaseException: Interrupted build leaves backend quiescence explicitly unknown.
         """
 
-        _, existing = self.Command(role + "-tag-absent", ("image", "ls", "--quiet", "--no-trunc",
-            "--filter", "reference=" + tag))
+        _, existing = await self.Command(role + "-tag-absent", (
+            "image", "ls", "--quiet", "--no-trunc", "--filter", "reference=" + tag))
 
         if existing.strip():
             raise ValueError("Nuclei unique image tag already exists; it is not owned")
 
         iid = self.root / (role + ".iid")
         self.backend_unknown = True
-        self.Command(role + "-build", ("build", "--pull=false", "--iidfile", str(iid),
+        await self.Command(role + "-build", ("build", "--pull=false", "--iidfile", str(iid),
             "--tag", tag, "--label", SOURCE_LABEL + "=" + self.revision,
             "--label", OWNER_LABEL + "=" + self.owner, *arguments, str(self.context)),
             seconds=seconds, limit=16 * 1024 * 1024)
@@ -1069,8 +1069,8 @@ class PrerequisiteHost:
 
         image_id = identifier.decode("ascii").strip()
         self.images[tag] = image_id
-        value = self.Inspect("image", image_id, role + "-id-inspect")
-        tagged = self.Inspect("image", tag, role + "-tag-inspect")
+        value = await self.Inspect("image", image_id, role + "-id-inspect")
+        tagged = await self.Inspect("image", tag, role + "-tag-inspect")
 
         if value["Id"] != image_id or tagged["Id"] != image_id or (
             value["Config"]["Labels"].get(OWNER_LABEL) != self.owner
@@ -1102,7 +1102,7 @@ class PrerequisiteHost:
         ):
             raise ValueError("Nuclei cleanup cannot establish exact owned container identity")
 
-    def Close(self) -> None:
+    async def Close(self) -> None:
         """Unconditionally reconcile and remove only proven owned IDs/tags, retaining failures.
 
         Raises:
@@ -1115,8 +1115,9 @@ class PrerequisiteHost:
         failures = []
 
         try:
-            _, raw = self.Command("cleanup-owner-list", ("container", "ls", "--all", "--quiet",
-                "--no-trunc", "--filter", "label=" + OWNER_LABEL + "=" + self.owner))
+            _, raw = await self.Command("cleanup-owner-list", (
+                "container", "ls", "--all", "--quiet", "--no-trunc", "--filter",
+                "label=" + OWNER_LABEL + "=" + self.owner))
             identifiers = raw.decode("ascii").splitlines()
 
             if len(identifiers) > 1 or any(re.fullmatch("[a-f0-9]{64}", item) is None
@@ -1127,14 +1128,16 @@ class PrerequisiteHost:
                 raise ValueError("Nuclei known container disappeared before verified cleanup")
 
             for identifier in identifiers:
-                before = self.Inspect("container", identifier, "cleanup-before")
+                before = await self.Inspect("container", identifier, "cleanup-before")
                 self.OwnedContainer(before, identifier)
 
                 if before["State"]["Running"] is True:
-                    self.Command("cleanup-kill", ("container", "kill", identifier), seconds=10)
-                    self.Command("cleanup-wait", ("container", "wait", identifier), seconds=15)
+                    await self.Command("cleanup-kill", ("container", "kill", identifier),
+                                       seconds=10)
+                    await self.Command("cleanup-wait", ("container", "wait", identifier),
+                                       seconds=15)
 
-                stopped = self.Inspect("container", identifier, "cleanup-stopped")
+                stopped = await self.Inspect("container", identifier, "cleanup-stopped")
                 self.OwnedContainer(stopped, identifier)
                 state = stopped["State"]
 
@@ -1144,11 +1147,12 @@ class PrerequisiteHost:
                 ):
                     raise ValueError("Nuclei daemon has not confirmed container termination")
 
-                self.Command("cleanup-remove", ("container", "rm", "--force", "--volumes",
+                await self.Command("cleanup-remove", ("container", "rm", "--force", "--volumes",
                                                 identifier), seconds=20)
 
-            _, remaining = self.Command("cleanup-absence", ("container", "ls", "--all", "--quiet",
-                "--no-trunc", "--filter", "label=" + OWNER_LABEL + "=" + self.owner))
+            _, remaining = await self.Command("cleanup-absence", (
+                "container", "ls", "--all", "--quiet", "--no-trunc", "--filter",
+                "label=" + OWNER_LABEL + "=" + self.owner))
 
             if remaining.strip():
                 raise ValueError("Nuclei owned container remains after removal")
@@ -1161,11 +1165,11 @@ class PrerequisiteHost:
 
         for tag in reversed(self.tags):
             try:
-                _, present = self.Command("cleanup-tag-list", ("image", "ls", "--quiet",
+                _, present = await self.Command("cleanup-tag-list", ("image", "ls", "--quiet",
                     "--no-trunc", "--filter", "reference=" + tag))
 
                 if present.strip():
-                    value = self.Inspect("image", tag, "cleanup-tag-inspect")
+                    value = await self.Inspect("image", tag, "cleanup-tag-inspect")
                     identifier = value["Id"]
 
                     if value["Config"]["Labels"].get(OWNER_LABEL) != self.owner or (
@@ -1174,9 +1178,9 @@ class PrerequisiteHost:
                     ):
                         raise ValueError("Nuclei tag cleanup cannot establish owned immutable ID")
 
-                    self.Command("cleanup-tag-remove", ("image", "rm", tag), seconds=20)
+                    await self.Command("cleanup-tag-remove", ("image", "rm", tag), seconds=20)
 
-                _, remaining = self.Command("cleanup-tag-absence", ("image", "ls", "--quiet",
+                _, remaining = await self.Command("cleanup-tag-absence", ("image", "ls", "--quiet",
                     "--no-trunc", "--filter", "reference=" + tag))
 
                 if remaining.strip():
@@ -1206,7 +1210,7 @@ class PrerequisiteHost:
         if failures:
             raise BaseExceptionGroup("Nuclei prerequisite cleanup unconfirmed", failures)
 
-    def Run(self) -> dict:
+    async def Run(self) -> dict:
         """Build/inspect the committed image and attach one offline prerequisite invocation.
 
         Returns:
@@ -1242,7 +1246,7 @@ class PrerequisiteHost:
         primary = None
 
         try:
-            _, info = self.Command("daemon", ("info", "--format",
+            _, info = await self.Command("daemon", ("info", "--format",
                 '{"os":{{json .OSType}},"architecture":{{json .Architecture}}}'))
             daemon = StrictJson(info)
 
@@ -1250,8 +1254,8 @@ class PrerequisiteHost:
                                {"os": "linux", "architecture": "amd64"}):
                 raise ValueError("Nuclei fixed local daemon must be native Linux/amd64")
 
-            self.revision, self.tree = self.Source("before")
-            _, inventory = self.Command("source-inventory", ("ls-tree", "-r", "-l", "-z",
+            self.revision, self.tree = await self.Source("before")
+            _, inventory = await self.Command("source-inventory", ("ls-tree", "-r", "-l", "-z",
                 self.revision), docker=False, limit=INVENTORY_BYTES)
             declared = SourceInventory(inventory)
             WriteJson(self.root / "context-declaration.json", {"revision": self.revision,
@@ -1263,15 +1267,16 @@ class PrerequisiteHost:
             WriteJson(self.root / "context-inventory.json", {"revision": self.revision,
                 "tree": self.tree, "files": source, "file_limit": CONTEXT_FILES,
                 "byte_limit": CONTEXT_BYTES, "file_byte_limit": CONTEXT_FILE_BYTES})
-            base = self.Build(self.tags[0], "base", ("--target", "development"), 300)
-            runner = self.Build(self.tags[1], "runner", ("--file", str(self.context / RECIPE_PATH),
+            base = await self.Build(self.tags[0], "base", ("--target", "development"), 300)
+            runner = await self.Build(self.tags[1], "runner", (
+                "--file", str(self.context / RECIPE_PATH),
                 "--build-arg", "WORKBENCH_IMAGE=" + self.tags[0], "--build-arg",
                 "SOURCE_REVISION=" + self.revision), 180)
-            base_after = self.Inspect("image", self.tags[0], "base-tag-after")
-            runner_after = self.Inspect("image", self.tags[1], "runner-tag-after")
+            base_after = await self.Inspect("image", self.tags[0], "base-tag-after")
+            runner_after = await self.Inspect("image", self.tags[1], "runner-tag-after")
 
             if base_after["Id"] != base["Id"] or runner_after["Id"] != runner["Id"] or (
-                self.Source("after") != (self.revision, self.tree)
+                await self.Source("after") != (self.revision, self.tree)
             ):
                 raise ValueError("Nuclei source/base/runner transport tag changed during build")
 
@@ -1282,20 +1287,21 @@ class PrerequisiteHost:
             create = (*arguments[1:-2], "--label", OWNER_LABEL + "=" + self.owner,
                       *arguments[-2:])
             self.created = True
-            _, raw = self.Command("create", create, seconds=20)
+            _, raw = await self.Command("create", create, seconds=20)
             identifier = raw.decode("ascii").strip()
 
             if re.fullmatch("[a-f0-9]{64}", identifier) is None:
                 raise ValueError("Nuclei create did not return one exact container ID")
 
             self.container = identifier
-            before = self.Inspect("container", identifier, "container-before")
+            before = await self.Inspect("container", identifier, "container-before")
             self.OwnedContainer(before, identifier)
             projection = ContainerProjection(before)
             AdmitContainer(projection, image, self.owner, self.revision)
-            _, original = self.Command("attach", ("container", "start", "--attach", identifier),
+            _, original = await self.Command("attach", (
+                "container", "start", "--attach", identifier),
                 seconds=40, limit=12 * 1024 * 1024, stderr=65536)
-            after = self.Inspect("container", identifier, "container-after")
+            after = await self.Inspect("container", identifier, "container-after")
             self.OwnedContainer(after, identifier)
             final = ContainerProjection(after)
 
@@ -1316,9 +1322,17 @@ class PrerequisiteHost:
             primary = error
             self.receipt["failure"] = {"exception_type": type(error).__name__}
 
-        finally:
+        async def Finalize():
+            """Shield the whole bounded daemon cleanup sequence and preserve its independent facts.
+
+            Close owns fixed command counts/deadlines, verified IDs/labels and
+            absence checks. Caller cancellation never cancels this task.
+            """
+
+            nonlocal primary
+
             try:
-                self.Close()
+                await self.Close()
 
             except BaseException as error:
                 self.receipt["status"] = "failed"
@@ -1330,15 +1344,37 @@ class PrerequisiteHost:
                 else:
                     primary.add_note("Independent Docker cleanup failed: " + type(error).__name__)
 
-            try:
-                WriteJson(self.root / "host.json", self.receipt)
+        finalizer = asyncio.create_task(Finalize())
 
-            except OSError as error:
+        while not finalizer.done():
+            try:
+                await asyncio.shield(finalizer)
+
+            except asyncio.CancelledError as error:
+                self.receipt["caller_cancellations_during_cleanup"] = 1 + self.receipt.get(
+                    "caller_cancellations_during_cleanup", 0)
+                self.receipt["status"] = "failed"
+
                 if primary is None:
                     primary = error
+                    self.receipt["failure"] = {"exception_type": type(error).__name__}
 
                 else:
-                    primary.add_note("Host result evidence failed: " + type(error).__name__)
+                    primary.add_note("Caller cancellation retained while owned "
+                                     "Docker cleanup continued")
+
+        finalizer.result()
+
+        # No await follows: cancellation cannot interrupt the final truthful metadata write.
+        try:
+            WriteJson(self.root / "host.json", self.receipt)
+
+        except OSError as error:
+            if primary is None:
+                primary = error
+
+            else:
+                primary.add_note("Host result evidence failed: " + type(error).__name__)
 
         if primary is not None:
             raise primary

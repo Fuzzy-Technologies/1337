@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 import pytest
@@ -30,7 +31,7 @@ def nuclei_prerequisite():
     if not Enabled(os.environ.get(SELECTION)):
         pytest.skip("Nuclei image prerequisite is UNRUN without explicit linux-amd64 selection")
 
-    return PrerequisiteHost().Run()
+    return asyncio.run(PrerequisiteHost().Run())
 
 
 def test_InstalledImageRunsOfflineExactNucleiPrerequisites(nuclei_prerequisite):

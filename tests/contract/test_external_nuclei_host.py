@@ -815,7 +815,7 @@ class InertHost(host.PrerequisiteHost):
         self.container_present = False
         self.calls = []
 
-    def Command(self, role, arguments, **options):
+    async def Command(self, role, arguments, **options):
         """Return synthetic originals and record fixed lifecycle arguments, never invoke capture."""
 
         self.calls.append((role, arguments, options))
@@ -932,7 +932,7 @@ def test_HostLifecycleOneBuildPairAndOneOfflineAttach(inert_lifecycle):
     """Successful synthetic source exercises ordered admission, one attach and verified cleanup."""
 
     runtime = InertHost(inert_lifecycle)
-    receipt = runtime.Run()
+    receipt = asyncio.run(runtime.Run())
     roles = [role for role, _, _ in runtime.calls]
     assert receipt["status"] == "completed-prerequisites", (
         'The finite lifecycle must preserve admission order, isolation and verified cleanup.'
@@ -985,7 +985,7 @@ def test_HostLifecycleFailuresNeverBecomeAcceptance(inert_lifecycle, fault):
     runtime = InertHost(inert_lifecycle, fault)
 
     with pytest.raises((ValueError, ExceptionGroup)):
-        runtime.Run()
+        asyncio.run(runtime.Run())
 
     receipt = host.StrictJson((runtime.root / "host.json").read_bytes())
     assert receipt["status"] == "failed" and receipt["cleanup"], (
@@ -1244,18 +1244,18 @@ def test_HostLifecyclePrimaryFailureSurvivesCleanupRefusal(inert_lifecycle, monk
     runtime = InertHost(inert_lifecycle, "attach")
     command = runtime.Command
 
-    def RefuseRemoval(role, arguments, **options):
+    async def RefuseRemoval(role, arguments, **options):
         """Inject a second independent daemon-cleanup failure after the primary refusal."""
 
         if role == "cleanup-remove":
             raise OSError("inert removal refused")
 
-        return command(role, arguments, **options)
+        return await command(role, arguments, **options)
 
     monkeypatch.setattr(runtime, "Command", RefuseRemoval)
 
     with pytest.raises(ValueError, match="inert causal fault: attach") as failure:
-        runtime.Run()
+        asyncio.run(runtime.Run())
 
     assert any("Independent Docker cleanup failed" in note for note in failure.value.__notes__), (
         "The primary attach refusal must retain its separate cleanup failure annotation."
@@ -1303,7 +1303,7 @@ def test_HostLifecycleCommandBindsLocalAuthorityAndOriginalBytes(tmp_path, monke
     monkeypatch.setattr(host, "CaptureCommand", Capture)
     monkeypatch.setenv("DOCKER_HOST", "tcp://inert.invalid:2375")
     monkeypatch.setenv("DOCKER_CONTEXT", "inert-foreign")
-    _, raw = runtime.Command("metadata", ("version",))
+    _, raw = asyncio.run(runtime.Command("metadata", ("version",)))
     argv, environment, seconds, stdout_bytes, stderr_bytes = captured[0]
     assert argv == ("/usr/bin/docker", "--host", host.LOCAL_DOCKER, "--config",
                     str(runtime.config), "version"), (
@@ -1325,10 +1325,10 @@ def test_HostLifecycleIidIsBoundedOrdinaryMaterial(inert_lifecycle, monkeypatch,
     runtime = InertHost(inert_lifecycle)
     command = runtime.Command
 
-    def ChangeIid(role, arguments, **options):
+    async def ChangeIid(role, arguments, **options):
         """Replace only synthetic build-written material before its ordinary-file admission."""
 
-        result = command(role, arguments, **options)
+        result = await command(role, arguments, **options)
 
         if role == "base-build":
             iid = runtime.root / "base.iid"
@@ -1345,7 +1345,7 @@ def test_HostLifecycleIidIsBoundedOrdinaryMaterial(inert_lifecycle, monkeypatch,
     monkeypatch.setattr(runtime, "Command", ChangeIid)
 
     with pytest.raises(ValueError, match="ordinary bounded private file"):
-        runtime.Run()
+        asyncio.run(runtime.Run())
 
     assert "create" not in [role for role, _, _ in runtime.calls], (
         "Invalid iid custody must refuse before any container is created."
@@ -1366,3 +1366,66 @@ def test_HostFunctionalEnabledMissingDockerFails(monkeypatch):
 
     with pytest.raises(ValueError, match="fixed local Docker and Git"):
         functional.nuclei_prerequisite.__wrapped__()
+
+
+@LINUX_CONTEXT
+@pytest.mark.parametrize("boundary", ["kill", "remove"], ids=["kill-primary", "remove-cancel"])
+def test_HostLifecycleRepeatedCancellationShieldsOwnedCleanup(
+    inert_lifecycle, monkeypatch, boundary,
+):
+    """Repeated outer cancellation cannot skip owned cleanup or hide the primary failure."""
+
+    async def Scenario():
+        """Pause fake cleanup and verify its finalizer survives two caller cancellations."""
+
+        runtime = InertHost(inert_lifecycle, "attach-running" if boundary == "kill" else None)
+        command = runtime.Command
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def DelayCleanup(role, arguments, **options):
+            """Hold only the selected owned cleanup operation without starting any process."""
+
+            if role == "cleanup-" + boundary:
+                entered.set()
+                await release.wait()
+
+            return await command(role, arguments, **options)
+
+        monkeypatch.setattr(runtime, "Command", DelayCleanup)
+        task = asyncio.create_task(runtime.Run())
+        await entered.wait()
+        task.cancel()
+        await asyncio.sleep(0)
+        task.cancel()
+        await asyncio.sleep(0)
+        release.set()
+
+        if boundary == "kill":
+            with pytest.raises(ValueError, match="inert attach left") as failure:
+                await task
+
+            assert any("Caller cancellation retained" in note
+                       for note in failure.value.__notes__), (
+                "The original attach failure must stay primary while cancellation is retained."
+            )
+
+        else:
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        roles = [role for role, _, _ in runtime.calls]
+        assert roles.index("cleanup-stopped") < roles.index("cleanup-remove") < (
+            roles.index("cleanup-absence")
+        ), "Stopped state, removal and absence must all finish despite caller cancellation."
+        assert not runtime.container_present and not runtime.present_tags, (
+            "Repeated cancellation must not silently abandon known-owned container/image cleanup."
+        )
+        receipt = host.StrictJson((runtime.root / "host.json").read_bytes())
+        assert receipt["status"] == "failed" and (
+            receipt["caller_cancellations_during_cleanup"] == 2
+        ), "The final receipt must refuse acceptance and preserve both caller cancellations."
+        assert receipt["failure"]["exception_type"] == (
+            "ValueError" if boundary == "kill" else "CancelledError"
+        ), "The first failure must distinguish original attach refusal from caller cancellation."
+
+    asyncio.run(Scenario())
