@@ -9,10 +9,10 @@ Security Object Model, and export reports without contacting the target again.
 
 > Models reason. 1337 keeps state, governs execution, and preserves evidence.
 
-This branch prepares the **0.3.0 Community pre-alpha candidate**. It contains
+**Version 0.3.0** is an early Community product. It contains
 workflows absent from the immutable [v0.2.1 release](https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.1).
-A candidate is not a published release: retain the exact source revision, and see
-[release delivery](docs/RELEASE_WORKFLOW.md) for the actual publication gates.
+See the [release card](docs/releases/v0.3.0.md) for capabilities, examples and
+validation, and [release delivery](docs/RELEASE_WORKFLOW.md) for artifact provenance.
 Apache-2.0 Community core; CPython 3.11 and newer; no mandatory runtime dependencies.
 
 ## What you can use now
@@ -41,9 +41,9 @@ service, autonomous target discovery, broad workflow lenses and M4 attack-path
 showcase remain roadmap work. Experimental interfaces and compatibility classes
 are documented in [Compatibility](docs/COMPATIBILITY.md).
 
-## Install the candidate and do useful work
+## Install and do useful work
 
-The release install path, **after v0.3.0 is published on PyPI**, is:
+Install the exact version in a clean environment:
 
 ```bash
 python -m venv .venv-demo
@@ -53,10 +53,9 @@ python -m pip install 1337==0.3.0
 1337 doctor
 ```
 
-The version command must report `1337 0.3.0`. Publication and a clean PyPI install
-remain release gates for this candidate; an unavailable version is not a reason
-to substitute another package or version. To test before publication, build a
-wheel from one reviewed checkout in a fresh output directory:
+The version command must report `1337 0.3.0`; do not substitute another package or
+version if installation fails. For development builds, use one reviewed source
+revision and build its wheel in a fresh output directory:
 
 ```bash
 git clone https://github.com/Fuzzy-Technologies/1337.git
@@ -74,7 +73,7 @@ python -m venv .venv-demo
 On Windows use `.venv-demo\Scripts\python.exe` and
 `.venv-demo\Scripts\1337.exe`. Build one selected revision in a fresh output
 directory; select its exact wheel if other files are present. Version metadata
-alone does not identify an unreleased source revision.
+alone does not identify a development source revision.
 
 Activate the environment (`source .venv-demo/bin/activate`, or
 `.venv-demo\Scripts\Activate.ps1` in PowerShell), then preview the demo:
@@ -137,8 +136,9 @@ The [v0.3.0 release card](docs/releases/v0.3.0.md) collects these workflows,
 copyable examples and the release validation boundary.
 
 [Documentation and API reference](https://fuzzy-technologies.github.io/1337/)
-follow published `master`. Candidate commands belong to the same source revision's
-`docs/`; [v0.2.1 documentation](https://github.com/Fuzzy-Technologies/1337/tree/v0.2.1/docs)
+follow published `master`. Use [tag-pinned v0.3.0 instructions](https://github.com/Fuzzy-Technologies/1337/tree/v0.3.0/docs)
+for this version and the same source revision's `docs/` for development builds;
+[v0.2.1 documentation](https://github.com/Fuzzy-Technologies/1337/tree/v0.2.1/docs)
 remains the reproducible older release guide. English is canonical; API RU/zh-cn
 routes currently identify English fallback content explicitly.
 
@@ -149,13 +149,13 @@ observations and evidence; operators inspect relationships, Findings and reports
 The intended lenses are Pentest, DFIR, DevSecOps and Purple Team. A lens changes
 focus over shared state and never grants execution permission.
 
-| Milestone                                                                                                                  | Focus                                                                              |
-| -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [M0](https://github.com/Fuzzy-Technologies/1337/milestone/1), [M1](https://github.com/Fuzzy-Technologies/1337/milestone/2) | Completed foundation, Community Core and Shell                                     |
-| [M2](https://github.com/Fuzzy-Technologies/1337/milestone/3)                                                               | Execution, Discovery and Security Object Model MVP; release acceptance in progress |
-| [M3](https://github.com/Fuzzy-Technologies/1337/milestone/4)                                                               | Evidence, Intelligence and Mapping                                                 |
-| [M4](https://github.com/Fuzzy-Technologies/1337/milestone/5)                                                               | Advanced Discovery and Attack Paths                                                |
-| M5–M9                                                                                                                      | Analytical UX, integrations/AI, validation, DFIR and enterprise contracts          |
+| Milestone                                                                                                                  | Focus                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [M0](https://github.com/Fuzzy-Technologies/1337/milestone/1), [M1](https://github.com/Fuzzy-Technologies/1337/milestone/2) | Completed foundation, Community Core and Shell                                      |
+| [M2](https://github.com/Fuzzy-Technologies/1337/milestone/3)                                                               | Community scanner: governed execution, discovery, saved model, evidence and reports |
+| [M3](https://github.com/Fuzzy-Technologies/1337/milestone/4)                                                               | Evidence, Intelligence and Mapping                                                  |
+| [M4](https://github.com/Fuzzy-Technologies/1337/milestone/5)                                                               | Advanced Discovery and Attack Paths                                                 |
+| M5–M9                                                                                                                      | Analytical UX, integrations/AI, validation, DFIR and enterprise contracts           |
 
 Detailed scope and acceptance live in GitHub issues. See [Vision](docs/VISION.md),
 [architecture decisions](docs/adr/), [Development protocol](DEVELOPMENT_PROTOCOL.md)

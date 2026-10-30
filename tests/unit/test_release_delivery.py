@@ -751,7 +751,8 @@ def test_ReleaseWorkflowSeparatesBuildRegistryAndGitHubAuthority():
     assert workflow["concurrency"]["cancel-in-progress"] is False, (
         "An in-progress registry upload must not be cancelled by a later same-tag attempt")
     jobs = workflow["jobs"]
-    assert set(jobs) == {"preflight", "build", "publish-pypi", "verify-pypi", "github-release"}, (
+    assert set(jobs) == {"preflight", "build", "recover", "handoff", "publish-pypi",
+                         "verify-pypi", "github-release"}, (
         "Preflight, build, upload, actual-index verification and release publication are separate")
     assert jobs["build"]["needs"] == "preflight" and "if" not in jobs["preflight"], (
         "A manual branch dispatch must fail preflight instead of skipping publication green")
@@ -766,7 +767,7 @@ def test_ReleaseWorkflowSeparatesBuildRegistryAndGitHubAuthority():
         "digest-mismatch": "error"}, (
         "The API archive must come from the immutable accepted master run/attempt artifact")
     publish = jobs["publish-pypi"]
-    assert publish["needs"] == "build" and publish["permissions"] == {"id-token": "write"}, (
+    assert publish["needs"] == "handoff" and publish["permissions"] == {"id-token": "write"}, (
         "Only the separate publisher may obtain the project-bound OIDC identity")
     assert publish["environment"] == {"name": "pypi", "url": "https://pypi.org/p/1337"}, (
         "PyPI-side publisher configuration must name the exact protected workflow environment")
@@ -774,12 +775,12 @@ def test_ReleaseWorkflowSeparatesBuildRegistryAndGitHubAuthority():
         for step in publish["steps"]), "The OIDC job cannot build, install or check out source"
     action = publish["steps"][-1]
     assert action["uses"] == (
-        "pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e"
+        "pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086"
     ) and action["with"] == {"packages-dir": "release-bundle/dist/", "attestations": True,
         "skip-existing": False, "verify-metadata": True}, (
         "The checksum-pinned publisher must attest exact artifacts and refuse existing versions")
-    assert jobs["verify-pypi"]["needs"] == ["build", "publish-pypi"] and (
-        jobs["github-release"]["needs"] == ["build", "verify-pypi"]
+    assert jobs["verify-pypi"]["needs"] == ["handoff", "publish-pypi"] and (
+        jobs["github-release"]["needs"] == ["handoff", "verify-pypi"]
     ), "GitHub release publication must wait for actual PyPI clean-install verification"
     assert jobs["github-release"]["permissions"] == {"contents": "write"}, (
         "GitHub asset publication has no PyPI OIDC or unrelated write privilege")

@@ -260,6 +260,89 @@ def Workflow(name):
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+@pytest.mark.parametrize("preflight,build,recover", [
+    (first, second, third) for first in ("success", "failure", "cancelled", "skipped")
+    for second in ("success", "failure", "cancelled", "skipped")
+    for third in ("success", "failure", "cancelled", "skipped")
+])
+def test_PublicationHandoffRequiresOneSuccessfulProducerAndActualPreflight(
+    preflight, build, recover
+):
+    """Execute the actual job condition against every independent terminal-result combination."""
+
+    handoff = Workflow("release.yml")["jobs"]["handoff"]
+    context = SimpleNamespace(preflight=SimpleNamespace(result=preflight),
+        build=SimpleNamespace(result=build), recover=SimpleNamespace(result=recover))
+    expression = handoff["if"].replace("&&", "and").replace("||", "or")
+    observed = eval(expression, {"__builtins__": {}}, {"needs": context, "always": lambda: True})
+    expected = (preflight, build, recover) in {
+        ("success", "success", "skipped"), ("success", "skipped", "success")}
+    assert observed is expected and handoff["needs"] == ["preflight", "build", "recover"], (
+        "Two producers, missing preflight, failure or cancellation cannot authorize publication")
+
+
+def test_RecoveryTransportsOriginalsWithoutBuildOrOidcAndKeepsProductTagSeparate():
+    """The actual recovery graph retains original bytes and publishes only the product tag."""
+
+    workflow = Workflow("release.yml")
+    jobs = workflow["jobs"]
+    recover = jobs["recover"]
+    assert recover["permissions"] == {"contents": "read", "actions": "read"}, (
+        "Recovery verification and tool installation cannot acquire registry or tag-write authority"
+    )
+    download = next(s for s in recover["steps"] if "Download the immutable" in s["name"])
+    assert download["with"] == {"artifact-ids": "12931865374", "run-id": "40950150194",
+        "github-token": "${{ github.token }}", "path": "${{ runner.temp }}/recovery-bundle",
+        "digest-mismatch": "error"}, "No caller may select another producer or artifact"
+    scripts = "\n".join(s.get("run", "") for s in recover["steps"])
+    assert "twine==7.0.0" in scripts and "-m twine check" in scripts, (
+        "Both immutable distributions need a real compatible metadata check before upload")
+    assert "--wheel" in scripts and "VerifyLocalInstall" in scripts and (
+        "-m build" not in scripts and "uv build" not in scripts and "release_delivery.py seal"
+        not in scripts
+    ), "Recovery must recheck the original installed wheel without rebuilding or resealing"
+    transport = next(s for s in recover["steps"] if s.get("id") == "transport")
+    assert transport["with"]["path"] == "${{ runner.temp }}/recovery-bundle/", (
+        "Only unchanged original bundle files may enter the same-run transport")
+    for name in ("verify-pypi", "github-release"):
+        checkout = next(s for s in jobs[name]["steps"] if "checkout@" in s.get("uses", ""))
+        assert checkout["with"]["ref"] == "refs/tags/${{ needs.handoff.outputs.product_tag }}", (
+            "Operational workflow provenance cannot replace the original product source")
+
+    source = next(s for s in jobs["github-release"]["steps"] if "RELEASE_EVENT_SHA" in
+                  s.get("env", {}))
+    assert source["env"]["RELEASE_EVENT_SHA"] == "${{ needs.handoff.outputs.product_commit }}", (
+        "The original product tag, not the execution tag, binds release assets")
+    assert "inputs.recovery && 'refs/tags/v0.3.0'" in workflow["concurrency"]["group"], (
+        "Normal and recovery references must share the same logical publication lock")
+
+
+@pytest.mark.parametrize("fault", [None, "event", "repository", "reference", "attempt",
+    "version", "expected", "actual", "mode"])
+@pytest.mark.skipif(os.name != "posix", reason="Actual Linux workflow guards use a POSIX shell")
+def test_OperationalPublisherInlineGuardRefusesForeignFactsBeforeCheckout(tmp_path, fault):
+    """Run the actual recovery shell guard with one causally changed authority fact at a time."""
+
+    environment = {"PATH": os.defpath, "GITHUB_EVENT_NAME": "workflow_dispatch",
+        "GITHUB_REPOSITORY": delivery.REPOSITORY,
+        "GITHUB_REF": "refs/tags/v-publish-recovery-0.3.0-1", "GITHUB_RUN_ATTEMPT": "1",
+        "SELECTED_VERSION": "0.3.0", "RECOVERY_PUBLICATION": "true",
+        "EXPECTED_RECOVERY_SHA": "a" * 40, "GITHUB_SHA": "a" * 40}
+    fields = {"event": "GITHUB_EVENT_NAME", "repository": "GITHUB_REPOSITORY",
+        "reference": "GITHUB_REF", "attempt": "GITHUB_RUN_ATTEMPT",
+        "version": "SELECTED_VERSION", "expected": "EXPECTED_RECOVERY_SHA",
+        "actual": "GITHUB_SHA", "mode": "RECOVERY_PUBLICATION"}
+
+    if fault:
+        environment[fields[fault]] = "false" if fault == "mode" else "foreign"
+
+    step = Workflow("release.yml")["jobs"]["preflight"]["steps"][0]
+    result = subprocess.run(["bash", "--noprofile", "--norc", "-e", "-o", "pipefail", "-c",
+        step["run"]], cwd=tmp_path, env=environment, timeout=10, capture_output=True)
+    assert (result.returncode == 0) is (fault is None) and "uses" not in step, (
+        "Only the fixed original operational context may reach source checkout")
+
+
 @pytest.mark.parametrize("field,value", [("GITHUB_EVENT_NAME", "push"),
     ("GITHUB_REPOSITORY", "foreign/1337"), ("GITHUB_REF", "refs/heads/develop"),
     ("GITHUB_REF", "refs/tags/v0.3.0"), ("GITHUB_RUN_ATTEMPT", "2"),
@@ -304,10 +387,15 @@ def test_FinalizerAndPublisherWorkflowAuthorityRemainSeparate():
     assert set(events) == {"workflow_dispatch"} and events["workflow_dispatch"]["inputs"][
         "version"]["options"] == ["0.3.0"], "Finalization must be a fixed explicit manual action"
     jobs = workflow["jobs"]
-    assert set(jobs) == {"finalize", "dispatch-existing-tag"}, "No implicit publisher belongs here"
+    assert set(jobs) == {"finalize", "dispatch-existing-tag", "recovery-finalize",
+                         "dispatch-recovery-tag"}, "No implicit publisher belongs here"
     assert jobs["finalize"]["permissions"] == {"contents": "write", "actions": "read"} and (
         jobs["dispatch-existing-tag"]["permissions"] == {"contents": "read", "actions": "write"}
     ), "Tag creation and subsequent workflow dispatch must use different bounded job tokens"
+    assert jobs["recovery-finalize"]["permissions"] == {
+        "contents": "write", "actions": "read"} and jobs["dispatch-recovery-tag"][
+            "permissions"] == {"contents": "read", "actions": "write"}, (
+        "Operational recovery cannot combine tag write, dispatch write and publication identity")
     assert workflow["concurrency"]["cancel-in-progress"] is False and all(
         "id-token" not in job["permissions"] for job in jobs.values()
     ), "Tag creation cannot be cancelled or acquire registry publication identity"

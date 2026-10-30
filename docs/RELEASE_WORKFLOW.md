@@ -267,6 +267,94 @@ Pages publication remains independent; release-version documentation is prepared
 and validated before the release merge, then the exact master deployment must
 pass before tagging.
 
+### Fixed v0.3.0 original-artifact publication recovery
+
+The first v0.3.0 delivery run [40950150194](https://github.com/Fuzzy-Technologies/1337/actions/runs/40950150194)
+validated and sealed its original distributions, installed-wheel evidence and API
+archive. Its pinned PyPI publisher v1.13.0 rejected Core Metadata 2.5 during
+metadata validation, before distribution upload. Both original distributions
+subsequently passed an actual Twine 7.0.0 check; the exact public-index version
+returned HTTP 404. This is a transport-tool compatibility recovery, not a product
+rebuild or another version. The compatible publisher is pinned to PyPA v1.14.3
+commit `7245906fb61fa33a13554f9d5fb856fe61758086`.
+
+Keep these original product and producer identities immutable:
+
+| Identity                        | Fixed value                                                                             |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| Product tag / annotated object  | `v0.3.0` / `955aa1f5d85e2ca7a8d04e316d5b4f178b7bffa7`                                   |
+| Product commit / tree           | `04a2ea7f83fa57cda887e916df02daea8eb7313a` / `c68d7271cde0a2f7c5a8579af8b9c2d9dda21a5d` |
+| Original producer run / attempt | `40950150194` / `1`                                                                     |
+| Original artifact ID            | `12931865374`                                                                           |
+| Original ZIP SHA-256            | `f30831d5bf9b6fb8f1adf46673e3a4b33060de8bff44299688e645bdd6aef8f3`                      |
+| Original checksum-file SHA-256  | `5ba67d64eb1a528491edf20a8a0655991656a78683d329f10483d88bdeb51edf`                      |
+| Original wheel SHA-256          | `39009b6988a8fa16bc9d29f9b509a1e3c211c1551c6862d456597983d6471bea`                      |
+
+The fixed recovery implementation lives on `fix/release-publication-recovery`,
+reviewed through [PR388](https://github.com/Fuzzy-Technologies/1337/pull/388). It must
+pass the actual final-head readiness workflows, all 23 required PR jobs and 41
+named steps. It separately revalidates the original accepted master push. Keep
+`master` at the original product commit throughout this operation; ordinary
+`SourceFacts` and master-equality checks remain unchanged.
+
+After those checks and independent review, dispatch `release-finalize.yml` from
+that exact reviewed branch, with version `0.3.0`, `publication_recovery=true`,
+`expected_master_sha` equal to the original product commit and
+`expected_recovery_sha` equal to the full accepted PR388 head. The finalizer
+refuses retries and existing operational tags, verifies original refs again, and
+creates one annotated **operational execution tag** `v-publish-recovery-0.3.0-1`.
+This ref identifies delivery-control code only. It is not a SemVer product tag,
+receives no GitHub Release and must never replace or move `v0.3.0`.
+
+The finalizer explicitly dispatches the same `release.yml` filename at that
+operational tag with `recovery=true` and the accepted recovery SHA. That preserves
+the owner-configured Trusted Publisher filename, `pypi` environment, designated
+reviewer and existing tag-only rule. No new credential, publisher registration or
+environment permission is introduced. A shared logical v0.3.0 concurrency group
+prevents normal and recovery refs from uploading independently at the same time.
+
+Before publication, the product tag exists but its GitHub Release assets do not.
+Only the ready, owned recovery PR388 documentation gate may select the fixed
+original producer bundle. The documentation build has `contents: read` and
+`actions: read` to download that public original artifact; its policy admits that
+read-only scope only alongside the exact conditional fixed-artifact step and
+matching selection guard. It verifies the original producer, sealed checksum
+inventory, exact original product source and unchanged API archive/manifest before
+passing that archive to the ordinary documentation composer. The public
+retained-release acquisition and all build, rendering, composition and coverage
+checks remain required. Other PRs and master retain the ordinary public release
+asset source selection. The build receives no write, deployment, OIDC or
+secret-based publication authority.
+
+Recovery has a read-only preflight and verification job. It checks the fixed
+original producer run, attempt, actual build/failure jobs, immutable artifact ID
+and ZIP digest, then downloads that exact cross-run artifact. It verifies the
+closed original inventory/checksums, original source and master gates, both
+distribution metadata records, original installed-wheel evidence and original
+API transfer pair. It checks both files with pinned Twine 7.0.0 and performs
+another clean installation of the **same wheel**, without building or resealing
+anything. Only unchanged original bundle files enter a new same-run transport
+artifact. Recovery receipts and renewed install evidence are retained separately;
+they must not relabel or modify the original product manifest or card.
+
+The protected publisher keeps only `id-token: write`, no checkout/build/install,
+metadata verification, PEP 740 attestations and `skip-existing: false`. Its normal
+review gate applies to the exact selected artifact and checksum identity. An
+existing exact PyPI version or an unknown index response refuses recovery; 404
+does not establish project-name ownership. Successful upload must still be
+followed by actual clean public-index installation and wheel-hash verification.
+GitHub release publication then checks out the original `v0.3.0`, verifies its
+source again and publishes the **original card and assets** from that product tag.
+Operational workflow provenance remains distinct from original product source.
+
+After actual delivery passes, integrate the reviewed release propagation and
+recovery code into `develop` with a merge commit; close overlapping draft #387 as
+absorbed only after the accepted integration. Retain the operational tag and
+recovery run evidence for audit. This fixed procedure is not a generic retry or
+permission to rebuild, overwrite a version, disable validation or create another
+recovery ref. Any new uncertainty or partial upload needs a separate reviewed
+recovery decision.
+
 ## Published release notes
 
 GitHub Release notes are a public product interface. They must lead with an

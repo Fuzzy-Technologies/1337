@@ -36,12 +36,18 @@ NOW = datetime(2026, 10, 13, tzinfo=timezone.utc)
 PATHS = ("/index", "/alpha", "/beta", "/shared")
 EXPECTED_COMMIT_PATHS = ("/index", "/alpha", "/beta", "/shared")
 FIXTURES = Path(__file__).parent / "fixtures"
+BODY_FILES = {
+    "/index": FIXTURES / "web-traversal.index.v1.html",
+    "/alpha": FIXTURES / "web-traversal.alpha.v1.html",
+    "/beta": FIXTURES / "web-traversal.beta.v1.html",
+    "/shared": FIXTURES / "web-traversal.shared.v1.html",
+}
 
 
 def Body(path: str) -> bytes:
     """Read exact handwritten LF-pinned synthetic markup without producer-generated expectations."""
 
-    return (FIXTURES / ("web-traversal." + path[1:] + ".v1.html")).read_bytes()
+    return BODY_FILES[path].read_bytes()
 
 
 @dataclass(frozen=True)

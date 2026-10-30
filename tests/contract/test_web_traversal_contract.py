@@ -28,6 +28,14 @@ SCHEMA = json.loads((Path(__file__).parents[2] / "contracts" /
                      "page-capture-record.schema.json").read_bytes())
 
 
+@pytest.mark.parametrize("path", ("/unknown", "/../index", "/alpha/../../index", "index"))
+def test_UnknownTraversalBodySelectionCannotConstructAFilePath(path):
+    """Only the four reviewed routes can select a fixture file for an actual request."""
+
+    with pytest.raises(KeyError):
+        Body(path)
+
+
 def Record(path):
     """Build an independent actual-body record with handwritten concrete URL/header metadata."""
 

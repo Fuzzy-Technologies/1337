@@ -15,6 +15,49 @@ DEPLOY_CONDITION = (
 )
 READ_PERMISSIONS = {"contents": "read"}
 DEPLOY_PERMISSIONS = {"contents": "read", "pages": "write", "id-token": "write"}
+RECOVERY_CONDITION = (
+    "github.event_name == 'pull_request' && github.event.pull_request.number == 388 "
+    "&& github.event.pull_request.head.ref == 'fix/release-publication-recovery' "
+    "&& github.event.pull_request.head.repo.full_name == 'Fuzzy-Technologies/1337'"
+)
+RECOVERY_ACTIONS_READ = "read"
+RECOVERY_DOWNLOAD = {
+    "name": "Download the fixed original API custody bundle for recovery PR388",
+    "if": RECOVERY_CONDITION,
+    "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+    "with": {
+        "artifact-ids": "12931865374",
+        "run-id": "40950150194",
+        "github-token": "${{ github.token }}",
+        "path": "${{ runner.temp }}/documentation-original-release",
+        "digest-mismatch": "error",
+    },
+}
+
+
+def RecoveryReadBoundary(build: Mapping[str, Any]) -> bool:
+    """Admit one fixed original-artifact read solely for the guarded recovery PR388 path.
+
+    Args:
+        build: Documentation job whose read-only Actions permission is being examined.
+
+    Returns:
+        True only for the exact read scope, unique fixed download and matching selection guard.
+    """
+
+    if build.get("permissions") != {"contents": "read", "actions": RECOVERY_ACTIONS_READ}:
+        return False
+
+    steps = build.get("steps", [])
+    downloads = [step for step in steps if str(step.get("uses", "")).startswith(
+        "actions/download-artifact@")]
+    selections = [step for step in steps if step.get("id") == "api-mode"]
+
+    if downloads != [RECOVERY_DOWNLOAD] or len(selections) != 1:
+        return False
+
+    return selections[0].get("env", {}).get("RECOVERY_DOCUMENTATION") == (
+        "${{ " + RECOVERY_CONDITION + " }}")
 
 
 def ValidatePublicationWorkflow(workflow: Mapping[str, Any]) -> list[str]:
@@ -49,8 +92,15 @@ def ValidatePublicationWorkflow(workflow: Mapping[str, Any]) -> list[str]:
     build = jobs["deterministic-documentation"]
     deploy = jobs["deploy-pages"]
 
-    if build.get("permissions", READ_PERMISSIONS) != READ_PERMISSIONS:
-        violations.append("PR documentation builds cannot obtain write permissions")
+    recovery_source = any(
+        str(step.get("uses", "")).startswith("actions/download-artifact@")
+        or "RECOVERY_DOCUMENTATION" in step.get("env", {}) for step in build.get("steps", [])
+    )
+
+    if (build.get("permissions", READ_PERMISSIONS) != READ_PERMISSIONS or recovery_source) and not (
+        RecoveryReadBoundary(build)
+    ):
+        violations.append("PR documentation builds require contents-only or exact recovery reads")
 
     if "environment" in build:
         violations.append("PR builds cannot enter the publication environment")

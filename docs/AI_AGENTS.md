@@ -3,16 +3,15 @@
 This document describes how AI systems are intended to use 1337 Security Workbench.
 
 For a runnable first task with a CLI-capable external agent, use the
-[0.3.0 candidate agent quickstart](AGENT_QUICKSTART.md) and its EN/RU/zh-cn prompt
+[0.3.0 agent quickstart](AGENT_QUICKSTART.md) and its EN/RU/zh-cn prompt
 resources. Install the reviewed wheel, preview the actual owned local plan, obtain
 explicit operator approval, execute it, then reopen and export the saved state.
 The [human](QUICKSTART.md) and [CI](CI_QUICKSTART.md) paths use the same product
 contracts. No MCP or paid model is required by 1337. The immutable v0.2.1 lacks
-the local demo; candidate documentation does not establish published-release
-acceptance. Translation candidates are visibly marked drafts.
+the local demo. Translation candidates are visibly marked drafts.
 
-The version-specific entry guide covers installation of `1337==0.3.0` after
-publication, a reviewed wheel before publication, plan denial, explicit approval,
+The version-specific entry guide covers installation of `1337==0.3.0`, an explicit
+reviewed-source wheel alternative for development, plan denial, explicit approval,
 real execution, offline reopen/export and evidence-linked JSON. The
 [owned Git HEAD recipe](OWNED_GIT_HEAD_RECIPE.md) adds a real Finding and its fixed
 control without optional providers, under a separately approved STANDARD plan.

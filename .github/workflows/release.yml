@@ -11,12 +11,21 @@ on:
         options: ["0.3.0"]
         default: "0.3.0"
         required: true
+      recovery:
+        description: Recover only the original fixed v0.3.0 artifact after the recorded transport failure
+        type: boolean
+        default: false
+        required: true
+      expected_recovery_sha:
+        description: Exact reviewed operational workflow commit; required only for fixed recovery
+        type: string
+        required: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.recovery && 'refs/tags/v0.3.0' || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -30,13 +39,24 @@ jobs:
       - name: Require an existing-tag event before checkout or source execution
         env:
           SELECTED_VERSION: ${{ inputs.version }}
+          RECOVERY_PUBLICATION: ${{ inputs.recovery && 'true' || 'false' }}
+          EXPECTED_RECOVERY_SHA: ${{ inputs.expected_recovery_sha }}
         run: |
           test "$GITHUB_REPOSITORY" = Fuzzy-Technologies/1337
           case "$GITHUB_EVENT_NAME" in
-            push) [[ "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]] ;;
+            push)
+              test "${RECOVERY_PUBLICATION:-false}" = false
+              [[ "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]] ;;
             workflow_dispatch)
-              test "$GITHUB_REF" = refs/tags/v0.3.0
-              test "$SELECTED_VERSION" = 0.3.0 ;;
+              test "$SELECTED_VERSION" = 0.3.0
+              if test "${RECOVERY_PUBLICATION:-false}" = true; then
+                test "$GITHUB_REF" = refs/tags/v-publish-recovery-0.3.0-1
+                test "$GITHUB_RUN_ATTEMPT" = 1
+                [[ "$EXPECTED_RECOVERY_SHA" =~ ^[a-f0-9]{40}$ ]]
+                test "$GITHUB_SHA" = "$EXPECTED_RECOVERY_SHA"
+              else
+                test "$GITHUB_REF" = refs/tags/v0.3.0
+              fi ;;
             *) exit 1 ;;
           esac
       - name: Check out only the selected existing tag with master history
@@ -46,14 +66,28 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Require annotated current-master identity before source execution
+        if: ${{ !inputs.recovery }}
         run: |
           test "$(git cat-file -t "$GITHUB_REF")" = tag
           test "$(git rev-parse "$GITHUB_REF^{commit}")" = "$(git rev-parse HEAD)"
           test "$(git rev-parse refs/remotes/origin/master)" = "$(git rev-parse HEAD)"
           test -z "$(git status --porcelain)"
+      - name: Require distinct annotated operational identity before recovery source execution
+        if: ${{ inputs.recovery }}
+        env:
+          EXPECTED_RECOVERY_SHA: ${{ inputs.expected_recovery_sha }}
+        run: |
+          test "$(git cat-file -t "$GITHUB_REF")" = tag
+          test "$(git rev-parse "$GITHUB_REF^{commit}")" = "$EXPECTED_RECOVERY_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RECOVERY_SHA"
+          test "$(git rev-parse refs/remotes/origin/master)" = 04a2ea7f83fa57cda887e916df02daea8eb7313a
+          test "$(git rev-parse refs/tags/v0.3.0)" = 955aa1f5d85e2ca7a8d04e316d5b4f178b7bffa7
+          test "$(git rev-parse 'refs/tags/v0.3.0^{commit}')" = 04a2ea7f83fa57cda887e916df02daea8eb7313a
+          test -z "$(git status --porcelain)"
 
   build:
     needs: preflight
+    if: ${{ !inputs.recovery }}
     name: Validate annotated release and build distributions once
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -64,6 +98,8 @@ jobs:
       artifact_id: ${{ steps.handoff.outputs.artifact-id }}
       checksums_sha256: ${{ steps.seal.outputs.checksums_sha256 }}
       version: ${{ steps.seal.outputs.version }}
+      product_tag: ${{ steps.seal.outputs.product_tag }}
+      product_commit: ${{ steps.seal.outputs.product_commit }}
     steps:
       - name: Check out the exact existing tag with master history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -138,7 +174,7 @@ jobs:
             --smoke "$RUNNER_TEMP/release-inputs/clean-install.json" \
             --documentation "$RUNNER_TEMP/release-documentation" \
             --card "docs/releases/$RELEASE_TAG.md" --output "$RUNNER_TEMP/release-inputs/seal.json"
-          .venv/bin/python -c 'import json,os; from pathlib import Path; value=json.loads((Path(os.environ["RUNNER_TEMP"])/"release-inputs/seal.json").read_text()); Path(os.environ["GITHUB_OUTPUT"]).write_text("version="+value["version"]+"\nchecksums_sha256="+value["checksums_sha256"]+"\n")'
+          .venv/bin/python -c 'import json,os; from pathlib import Path; parent=Path(os.environ["RUNNER_TEMP"])/"release-inputs"; value=json.loads((parent/"seal.json").read_text()); source=json.loads((parent/"source.json").read_text()); Path(os.environ["GITHUB_OUTPUT"]).write_text("version="+value["version"]+"\nchecksums_sha256="+value["checksums_sha256"]+"\nproduct_tag="+source["tag"]+"\nproduct_commit="+source["commit"]+"\n")'
       - name: Retain the immutable same-run publication handoff
         id: handoff
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -148,9 +184,138 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  recover:
+    name: Verify and transport only the fixed original v0.3.0 bundle
+    needs: preflight
+    if: ${{ inputs.recovery }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact_id: ${{ steps.transport.outputs.artifact-id }}
+      checksums_sha256: ${{ steps.identity.outputs.checksums_sha256 }}
+      version: ${{ steps.identity.outputs.version }}
+      product_tag: ${{ steps.identity.outputs.product_tag }}
+      product_commit: ${{ steps.identity.outputs.product_commit }}
+    steps:
+      - name: Check out the exact reviewed operational tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: recovery-code
+      - name: Check out the unchanged original product tag separately
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v0.3.0
+          fetch-depth: 0
+          persist-credentials: false
+          path: product-source
+      - name: Select Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Download the immutable original producer artifact without rebuilding
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: "12931865374"
+          run-id: "40950150194"
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/recovery-bundle
+          digest-mismatch: error
+      - name: Require original producer identities and actual accepted source gates
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPECTED_RECOVERY_SHA: ${{ inputs.expected_recovery_sha }}
+        run: |
+          python recovery-code/tools/release_recovery.py validate \
+            --code-root "$GITHUB_WORKSPACE/recovery-code" \
+            --product-root "$GITHUB_WORKSPACE/product-source" \
+            --bundle "$RUNNER_TEMP/recovery-bundle" \
+            --expected-recovery-sha "$EXPECTED_RECOVERY_SHA" \
+            --output "$RUNNER_TEMP/recovery-receipt.json"
+      - name: Check both original distributions with compatible pinned Twine
+        run: |
+          python -m venv "$RUNNER_TEMP/recovery-metadata"
+          "$RUNNER_TEMP/recovery-metadata/bin/python" -m pip --isolated --disable-pip-version-check install --no-input twine==7.0.0
+          "$RUNNER_TEMP/recovery-metadata/bin/python" -m twine check \
+            "$RUNNER_TEMP/recovery-bundle/dist/1337-0.3.0-py3-none-any.whl" \
+            "$RUNNER_TEMP/recovery-bundle/dist/1337-0.3.0.tar.gz"
+      - name: Verify another clean installation of the unchanged original wheel
+        run: |
+          python recovery-code/tools/release_delivery.py smoke \
+            --root "$RUNNER_TEMP/recovery-wheel-install" --version 0.3.0 \
+            --wheel "$RUNNER_TEMP/recovery-bundle/dist/1337-0.3.0-py3-none-any.whl" \
+            --output "$RUNNER_TEMP/recovery-clean-install.json"
+      - name: Revalidate originals after metadata and clean-install checks
+        id: identity
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPECTED_RECOVERY_SHA: ${{ inputs.expected_recovery_sha }}
+        run: |
+          python recovery-code/tools/release_recovery.py validate \
+            --code-root "$GITHUB_WORKSPACE/recovery-code" \
+            --product-root "$GITHUB_WORKSPACE/product-source" \
+            --bundle "$RUNNER_TEMP/recovery-bundle" \
+            --expected-recovery-sha "$EXPECTED_RECOVERY_SHA" \
+            --output "$RUNNER_TEMP/recovery-receipt-final.json"
+          python -c 'import json,os,sys; from pathlib import Path; sys.path.insert(0,"recovery-code"); from tools.release_delivery import VerifyLocalInstall; parent=Path(os.environ["RUNNER_TEMP"]); VerifyLocalInstall(json.loads((parent/"recovery-clean-install.json").read_bytes()),parent/"recovery-bundle/dist/1337-0.3.0-py3-none-any.whl","0.3.0"); Path(os.environ["GITHUB_OUTPUT"]).write_text("version=0.3.0\nproduct_tag=v0.3.0\nproduct_commit=04a2ea7f83fa57cda887e916df02daea8eb7313a\nchecksums_sha256=5ba67d64eb1a528491edf20a8a0655991656a78683d329f10483d88bdeb51edf\n")'
+      - name: Transport the unchanged original bundle into this run
+        id: transport
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-distributions-recovered
+          path: ${{ runner.temp }}/recovery-bundle/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve recovery provenance separately from the original release bundle
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: original-artifact-recovery-evidence
+          path: |
+            ${{ runner.temp }}/recovery-receipt.json
+            ${{ runner.temp }}/recovery-receipt-final.json
+            ${{ runner.temp }}/recovery-clean-install.json
+          if-no-files-found: warn
+
+  handoff:
+    name: Select exactly one validated immutable distribution handoff
+    needs: [preflight, build, recover]
+    if: >-
+      always() && needs.preflight.result == 'success' &&
+      ((needs.build.result == 'success' && needs.recover.result == 'skipped') ||
+      (needs.recover.result == 'success' && needs.build.result == 'skipped'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      artifact_id: ${{ needs.build.outputs.artifact_id || needs.recover.outputs.artifact_id }}
+      checksums_sha256: ${{ needs.build.outputs.checksums_sha256 || needs.recover.outputs.checksums_sha256 }}
+      version: ${{ needs.build.outputs.version || needs.recover.outputs.version }}
+      product_tag: ${{ needs.build.outputs.product_tag || needs.recover.outputs.product_tag }}
+      product_commit: ${{ needs.build.outputs.product_commit || needs.recover.outputs.product_commit }}
+    steps:
+      - name: Refuse an incomplete selected identity before publication authority
+        env:
+          ARTIFACT_ID: ${{ needs.build.outputs.artifact_id || needs.recover.outputs.artifact_id }}
+          CHECKSUMS_SHA256: ${{ needs.build.outputs.checksums_sha256 || needs.recover.outputs.checksums_sha256 }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version || needs.recover.outputs.version }}
+          PRODUCT_TAG: ${{ needs.build.outputs.product_tag || needs.recover.outputs.product_tag }}
+          PRODUCT_COMMIT: ${{ needs.build.outputs.product_commit || needs.recover.outputs.product_commit }}
+        run: |
+          [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          [[ "$CHECKSUMS_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$PRODUCT_TAG" = "v$RELEASE_VERSION"
+          [[ "$PRODUCT_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+
   publish-pypi:
     name: Publish the validated distributions through Trusted Publishing
-    needs: build
+    needs: handoff
+    if: ${{ always() && needs.handoff.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment:
@@ -162,20 +327,20 @@ jobs:
       - name: Download only the exact producer artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          artifact-ids: ${{ needs.handoff.outputs.artifact_id }}
           path: release-bundle
           digest-mismatch: error
       - name: Require the original distribution checksum handoff
         working-directory: release-bundle
         env:
-          EXPECTED_CHECKSUMS_SHA256: ${{ needs.build.outputs.checksums_sha256 }}
+          EXPECTED_CHECKSUMS_SHA256: ${{ needs.handoff.outputs.checksums_sha256 }}
         run: |
           printf '%s  SHA256SUMS\n' "$EXPECTED_CHECKSUMS_SHA256" | sha256sum --strict --check -
           sha256sum --strict --check SHA256SUMS
           test "$(find dist -mindepth 1 -maxdepth 1 -type f | wc -l)" -eq 2
           test -z "$(find . -type l -print -quit)"
       - name: Publish both original artifacts with PEP 740 attestations
-        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: release-bundle/dist/
           attestations: true
@@ -184,7 +349,8 @@ jobs:
 
   verify-pypi:
     name: Verify the actual clean PyPI installation
-    needs: [build, publish-pypi]
+    needs: [handoff, publish-pypi]
+    if: ${{ always() && needs.handoff.result == 'success' && needs.publish-pypi.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -193,7 +359,7 @@ jobs:
       - name: Check out the same reviewed tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.ref }}
+          ref: refs/tags/${{ needs.handoff.outputs.product_tag }}
           persist-credentials: false
       - name: Select Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -202,13 +368,13 @@ jobs:
       - name: Download the unchanged original handoff
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          artifact-ids: ${{ needs.handoff.outputs.artifact_id }}
           path: release-bundle
           digest-mismatch: error
       - name: Install from PyPI and verify installed bytes and actual product outcomes
         env:
-          RELEASE_VERSION: ${{ needs.build.outputs.version }}
-          EXPECTED_CHECKSUMS_SHA256: ${{ needs.build.outputs.checksums_sha256 }}
+          RELEASE_VERSION: ${{ needs.handoff.outputs.version }}
+          EXPECTED_CHECKSUMS_SHA256: ${{ needs.handoff.outputs.checksums_sha256 }}
         run: |
           python tools/release_delivery.py verify --root release-bundle \
             --checksums-sha256 "$EXPECTED_CHECKSUMS_SHA256"
@@ -232,7 +398,8 @@ jobs:
 
   github-release:
     name: Publish the existing-tag release card and exact assets
-    needs: [build, verify-pypi]
+    needs: [handoff, verify-pypi]
+    if: ${{ always() && needs.handoff.result == 'success' && needs.verify-pypi.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -241,20 +408,20 @@ jobs:
       - name: Check out the existing annotated tag with master history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.ref }}
+          ref: refs/tags/${{ needs.handoff.outputs.product_tag }}
           fetch-depth: 0
           persist-credentials: false
       - name: Download exact original release assets
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          artifact-ids: ${{ needs.handoff.outputs.artifact_id }}
           path: ${{ runner.temp }}/release-bundle
           digest-mismatch: error
       - name: Verify original assets and existing master tag again
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_EVENT_SHA: ${{ github.sha }}
-          EXPECTED_CHECKSUMS_SHA256: ${{ needs.build.outputs.checksums_sha256 }}
+          RELEASE_TAG: ${{ needs.handoff.outputs.product_tag }}
+          RELEASE_EVENT_SHA: ${{ needs.handoff.outputs.product_commit }}
+          EXPECTED_CHECKSUMS_SHA256: ${{ needs.handoff.outputs.checksums_sha256 }}
         run: |
           python tools/release_delivery.py source --root "$GITHUB_WORKSPACE" \
             --tag "$RELEASE_TAG" --sha "$RELEASE_EVENT_SHA"
@@ -264,8 +431,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_TAG: ${{ needs.handoff.outputs.product_tag }}
+          RELEASE_VERSION: ${{ needs.handoff.outputs.version }}
         run: >-
           gh release create "$RELEASE_TAG" --verify-tag --latest
           --title "1337 Security Workbench $RELEASE_TAG"

@@ -1,15 +1,15 @@
-# 0.3.0 candidate agent prompt
+# 0.3.0 agent prompt
 
 Canonical English source. Read the [agent quickstart](../../AGENT_QUICKSTART.md)
-from the same reviewed candidate revision. Install its wheel using the human
+from the same release or reviewed development revision. Install using the human
 quickstart. Copy the single text block below;
 it is a task description and does not itself approve execution. The immutable
 v0.2.1 release does not provide this recipe.
 
 ```text
 Use installed 1337 0.3.0 and read docs/AGENT_QUICKSTART.md from the same release
-or reviewed candidate revision. After publication install 1337==0.3.0; before
-publication use its reviewed wheel, never substitute an older version. Record
+or reviewed development revision. Install 1337==0.3.0 in a clean environment;
+for development use its exact reviewed source wheel, never an older substitute. Record
 the Git commit, wheel identity and actual installed version. Ask me for targets (IPs/CIDRs/URLs/services),
 exclusions, assessment authority, allowed impact and time/rate limits. Explain
 that this recipe supports only its command-owned loopback demo; stop if my

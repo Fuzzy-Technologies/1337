@@ -223,6 +223,7 @@ def test_IndependentVerifyingTlsClientEstablishesNegotiationFixtureTruth(mode):
     """An ordinary verifying TLS client independently proves the finite refusal/stall fixture."""
 
     context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     assert context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED, (
         "Independent fixture client disabled normal certificate/identity verification"
     )
@@ -322,8 +323,11 @@ def test_InterruptedTlsFixtureReleasesRealStalledHandshakeAndJoinsItsThread():
                     """Run a real verifying handshake until fixture teardown closes it."""
 
                     try:
+                        context = ssl.create_default_context()
+                        context.minimum_version = ssl.TLSVersion.TLSv1_2
+
                         with socket.create_connection(address, timeout=2) as connection:
-                            with ssl.create_default_context().wrap_socket(
+                            with context.wrap_socket(
                                 connection, server_hostname="127.0.0.1",
                             ):
                                 client_errors.append("unexpected-success")
@@ -508,6 +512,7 @@ def test_IndependentVerifyingClientRejectsTheActualSelfSignedCertificate():
     """Unchanged trust and matching IP/lifetime yield a specific self-signed verification error."""
 
     context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     assert context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED, (
         "Independent certificate oracle disabled ordinary chain or hostname verification"
     )
