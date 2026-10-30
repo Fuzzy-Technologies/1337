@@ -16,6 +16,9 @@ import pytest
 
 from tools.documentation_publication_policy import (
     DEPLOY_CONDITION,
+    RECOVERY_ACTIONS_READ,
+    RECOVERY_CONDITION,
+    RECOVERY_DOWNLOAD,
     Main,
     ValidatePublicationWorkflow,
 )
@@ -44,6 +47,112 @@ def test_ConformingPublicationBoundaryIsAccepted() -> None:
     """Accept deployment only after the gate on a protected master push."""
 
     assert not ValidatePublicationWorkflow(SafeWorkflow()), "Conforming publication was rejected"
+
+
+def RecoveryWorkflow() -> dict[str, Any]:
+    """Describe the single fixed original-artifact read within the normal documentation build."""
+
+    workflow = SafeWorkflow()
+    build = workflow["jobs"]["deterministic-documentation"]
+    build["permissions"] = {"contents": "read", "actions": RECOVERY_ACTIONS_READ}
+    build["steps"] = [deepcopy(RECOVERY_DOWNLOAD), {
+        "id": "api-mode", "env": {
+            "RECOVERY_DOCUMENTATION": "${{ " + RECOVERY_CONDITION + " }}",
+        },
+    }]
+
+    return workflow
+
+
+def test_ExactRecoveryReadScopeIsAcceptedWithoutPublicationAuthority() -> None:
+    """Accept the fixed original bundle read without write or deployment authority."""
+
+    workflow = RecoveryWorkflow()
+    assert not ValidatePublicationWorkflow(workflow), "Exact original-artifact read was rejected"
+    assert workflow["permissions"] == {"contents": "read"}, "Default read boundary changed"
+    assert workflow["jobs"]["deploy-pages"] == SafeWorkflow()["jobs"]["deploy-pages"], (
+        "Recovery acquisition must retain the original protected deployment boundary"
+    )
+
+
+@pytest.mark.parametrize("mutation", (
+    "write-actions", "missing-actions", "read-default", "wrong-pr", "foreign-head",
+    "wrong-branch", "wrong-event", "extra-scope", "missing-download", "duplicate-download",
+    "wrong-pin", "wrong-artifact", "wrong-run", "foreign-token", "changed-path",
+    "digest-warning", "download-unconditional", "download-extra-input", "download-extra-step-key",
+    "selection-unconditional", "missing-selection", "duplicate-selection", "unguarded-source",
+))
+def test_RecoveryReadExceptionCannotExpandItsFixedSourceOrAuthority(mutation: str) -> None:
+    """Reject permission, event, source, digest and routing expansion of recovery reads."""
+
+    workflow = RecoveryWorkflow()
+    build = workflow["jobs"]["deterministic-documentation"]
+    download = build["steps"][0]
+    selection = build["steps"][1]
+
+    if mutation == "write-actions":
+        build["permissions"]["actions"] = "write"
+
+    elif mutation == "missing-actions":
+        build["permissions"].pop("actions")
+
+    elif mutation == "read-default":
+        workflow["permissions"]["actions"] = "read"
+
+    elif mutation in {"wrong-pr", "foreign-head", "wrong-branch", "wrong-event"}:
+        original, changed = {
+            "wrong-pr": ("== 388", "== 387"),
+            "foreign-head": ("Fuzzy-Technologies/1337", "foreign/1337"),
+            "wrong-branch": ("fix/release-publication-recovery", "develop"),
+            "wrong-event": ("'pull_request'", "'pull_request_target'"),
+        }[mutation]
+        download["if"] = RECOVERY_CONDITION.replace(original, changed)
+
+    elif mutation == "extra-scope":
+        build["permissions"]["checks"] = "read"
+
+    elif mutation == "missing-download":
+        build["steps"].remove(download)
+
+    elif mutation == "duplicate-download":
+        build["steps"].append(deepcopy(download))
+
+    elif mutation == "wrong-pin":
+        download["uses"] = "actions/download-artifact@v8"
+
+    elif mutation in {"wrong-artifact", "wrong-run", "foreign-token", "changed-path",
+                      "digest-warning", "download-extra-input"}:
+        key, value = {
+            "wrong-artifact": ("artifact-ids", "12931865375"),
+            "wrong-run": ("run-id", "40950150195"),
+            "foreign-token": ("github-token", "${{ secrets.PUBLISH_TOKEN }}"),
+            "changed-path": ("path", "_build/replacement"),
+            "digest-warning": ("digest-mismatch", "warn"),
+            "download-extra-input": ("merge-multiple", True),
+        }[mutation]
+        download["with"][key] = value
+
+    elif mutation == "download-unconditional":
+        download.pop("if")
+
+    elif mutation == "download-extra-step-key":
+        download["continue-on-error"] = True
+
+    elif mutation == "selection-unconditional":
+        selection["env"]["RECOVERY_DOCUMENTATION"] = "true"
+
+    elif mutation == "missing-selection":
+        build["steps"].remove(selection)
+
+    elif mutation == "duplicate-selection":
+        build["steps"].append(deepcopy(selection))
+
+    else:
+        build["permissions"] = {"contents": "read"}
+        download.pop("if")
+        selection["env"]["RECOVERY_DOCUMENTATION"] = "true"
+
+    assert ValidatePublicationWorkflow(workflow), f"Expanded recovery read accepted: {mutation}"
 
 
 @pytest.mark.parametrize("condition", (

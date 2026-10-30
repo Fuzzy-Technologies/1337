@@ -313,6 +313,19 @@ reviewer and existing tag-only rule. No new credential, publisher registration o
 environment permission is introduced. A shared logical v0.3.0 concurrency group
 prevents normal and recovery refs from uploading independently at the same time.
 
+Before publication, the product tag exists but its GitHub Release assets do not.
+Only the ready, owned recovery PR388 documentation gate may select the fixed
+original producer bundle. The documentation build has `contents: read` and
+`actions: read` to download that public original artifact; its policy admits that
+read-only scope only alongside the exact conditional fixed-artifact step and
+matching selection guard. It verifies the original producer, sealed checksum
+inventory, exact original product source and unchanged API archive/manifest before
+passing that archive to the ordinary documentation composer. The public
+retained-release acquisition and all build, rendering, composition and coverage
+checks remain required. Other PRs and master retain the ordinary public release
+asset source selection. The build receives no write, deployment, OIDC or
+secret-based publication authority.
+
 Recovery has a read-only preflight and verification job. It checks the fixed
 original producer run, attempt, actual build/failure jobs, immutable artifact ID
 and ZIP digest, then downloads that exact cross-run artifact. It verifies the

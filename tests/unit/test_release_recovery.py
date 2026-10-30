@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import io
+import json
 import subprocess
 import tarfile
 import urllib.error
@@ -446,6 +447,167 @@ def test_FinalizerCreatesOnlyOneOperationalTagAfterAllGates(owned, monkeypatch):
         recovery.FinalizeRecovery(owned.code, owned.product, owned.sha, owned.api.fetch)
 
     assert len(pushes) == 1
+
+
+@pytest.mark.parametrize("fault", [None, "event", "repository", "workflow-ref", "head-ref",
+    "sha", "pull-number", "pull-state", "draft", "pull-sha", "pull-ref", "pull-repo",
+    "pull-base", "source-epoch", "source-tag", "source-tree", "unlisted", "archive-byte",
+    "transfer"])
+def test_RecoveryDocumentationUsesOnlyOriginalSealedArchiveForExactReadyPr(
+    owned, tmp_path, monkeypatch, fault,
+):
+    """Keep original docs bytes; reject foreign events, ownership, source and corruption."""
+
+    for key, value in {"GITHUB_EVENT_NAME": "pull_request",
+        "GITHUB_REPOSITORY": delivery.REPOSITORY, "GITHUB_REF": "refs/pull/388/merge",
+        "GITHUB_HEAD_REF": recovery.RECOVERY_BRANCH}.items():
+        monkeypatch.setenv(key, value)
+
+    pull = {"number": 388, "state": "open", "draft": False,
+        "head": {"sha": owned.sha, "ref": recovery.RECOVERY_BRANCH,
+                 "repo": {"full_name": delivery.REPOSITORY}}, "base": {"ref": "develop"}}
+    source = recovery.ProductFacts(owned.product)
+    source["source_date_epoch"] = 1793304738
+
+    if fault == "source-epoch":
+        source["source_date_epoch"] += 1
+
+    elif fault == "source-tag":
+        source["tag"] = "v0.3.1"
+
+    elif fault == "source-tree":
+        source["tree"] = "b" * 40
+
+    bundle = Bundle(tmp_path / "bundle", source, {}, monkeypatch)
+    archive = bundle / "api-docs/1337-0.3.0-api-docs.tar.gz"
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    calls = []
+
+    def Fetch(path):
+        """Declare the current PR independently of the fixed original producer response."""
+
+        return pull if path == f"/repos/{delivery.REPOSITORY}/pulls/388" else owned.api.fetch(path)
+
+    def Transfer(directory, facts):
+        """Observe the existing separately tested archive verifier, including its refusal."""
+
+        calls.append((directory, facts))
+
+        if fault == "transfer":
+            raise ValueError("Original transfer verifier refused archive")
+
+        return {"sha256": digest}
+
+    monkeypatch.setattr(delivery, "VerifyDocumentationTransfer", Transfer)
+    environment = {"event": "GITHUB_EVENT_NAME", "repository": "GITHUB_REPOSITORY",
+        "workflow-ref": "GITHUB_REF", "head-ref": "GITHUB_HEAD_REF"}
+
+    if fault in environment:
+        monkeypatch.setenv(environment[fault], "foreign")
+
+    elif fault == "pull-number":
+        pull["number"] = 389
+
+    elif fault == "pull-state":
+        pull["state"] = "closed"
+
+    elif fault == "draft":
+        pull["draft"] = True
+
+    elif fault == "pull-sha":
+        pull["head"]["sha"] = "b" * 40
+
+    elif fault == "pull-ref":
+        pull["head"]["ref"] = "foreign"
+
+    elif fault == "pull-repo":
+        pull["head"]["repo"]["full_name"] = "foreign/1337"
+
+    elif fault == "pull-base":
+        pull["base"]["ref"] = "master"
+
+    elif fault == "unlisted":
+        (bundle / "unexpected").write_bytes(b"Foreign")
+
+    elif fault == "archive-byte":
+        archive.write_bytes(b"Changed archive")
+
+    before = delivery.Inventory(bundle)
+
+    if fault:
+        with pytest.raises(ValueError):
+            recovery.DocumentationSelection(bundle, "invalid" if fault == "sha" else owned.sha,
+                                             Fetch)
+
+    else:
+        result = recovery.DocumentationSelection(bundle, owned.sha, Fetch)
+        assert result == {"release_version": "", "retained_archive": str(archive.resolve()),
+                          "retained_sha256": digest}, "Original archive selection differs"
+        assert calls == [(bundle / "api-docs", source)], "Strict transfer verifier was not used"
+        assert owned.api.calls, "Original producer provenance must actually be checked"
+        requests = []
+
+        def Open(request, *, timeout):
+            """Exercise both real default transports against original API-shaped observations."""
+
+            assert timeout == 30, "API request lost its finite timeout"
+            assert request.full_url.startswith("https://api.github.com/repos/" +
+                delivery.REPOSITORY + "/"), "API request escaped the owned repository"
+            assert request.get_header("Authorization") == "Bearer owned-inert-job-token", (
+                "API request did not use the isolated inert job token")
+            requests.append(request.full_url)
+            path = request.full_url.removeprefix("https://api.github.com")
+
+            return io.BytesIO(json.dumps(Fetch(path)).encode())
+
+        def Opener(handler):
+            """Preserve the real authorization-bearing no-redirect handler selection."""
+
+            assert isinstance(handler, delivery.NoRedirect), "Token-bearing redirects were allowed"
+
+            return SimpleNamespace(open=Open)
+
+        monkeypatch.setattr(recovery.urllib.request, "build_opener", Opener)
+        assert recovery.DocumentationSelection(bundle, owned.sha) == result, (
+            "Default API transport changed the accepted original archive")
+        assert requests[0].endswith("/pulls/388") and len(requests) == 4, (
+            "Default transport did not check the exact PR and three producer endpoints")
+
+    assert delivery.Inventory(bundle) == before, "Docs selection must preserve every original byte"
+
+
+@pytest.mark.parametrize("fault", ["token", "other-pr", "foreign-host", "fragment", "oversize"])
+def test_RecoveryPrTransportCannotExpandOrReadUnboundedResponses(monkeypatch, fault):
+    """Admit one exact PR path and preserve Actions transport restrictions."""
+
+    monkeypatch.setenv("GITHUB_TOKEN", "owned-inert-job-token")
+    path = f"/repos/{delivery.REPOSITORY}/pulls/388"
+
+    if fault == "token":
+        monkeypatch.delenv("GITHUB_TOKEN")
+
+    elif fault == "other-pr":
+        path = path.replace("388", "389")
+
+    elif fault == "foreign-host":
+        path = "https://foreign.invalid" + path
+
+    elif fault == "fragment":
+        path += "#foreign"
+
+    def Open(request, *, timeout):
+        """Return a bounded oversized inert response only for the original fixed request."""
+
+        assert fault == "oversize" and timeout == 30, "Invalid API request reached the transport"
+        assert request.full_url == "https://api.github.com" + path, "API request changed endpoint"
+
+        return io.BytesIO(b" " * (delivery.MAX_JSON_BYTES + 1))
+
+    monkeypatch.setattr(recovery.urllib.request, "build_opener",
+                        lambda handler: SimpleNamespace(open=Open))
+
+    with pytest.raises(ValueError):
+        recovery.RecoveryJson(path)
 
 
 @pytest.mark.parametrize("fault", [None, "uri", "name", "version", "hash", "wheel-byte",

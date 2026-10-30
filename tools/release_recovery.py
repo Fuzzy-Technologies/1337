@@ -464,6 +464,76 @@ def Validate(code_root: Path, product_root: Path, bundle: Path, expected_sha: st
         "index_observation": index_observation}
 
 
+def RecoveryJson(path: str) -> dict:
+    """Read the fixed recovery PR or delegate to the unchanged bounded Actions transport.
+
+    Args:
+        path: Exact PR388 endpoint or an admitted owned-repository Actions evidence path.
+    Returns:
+        The bounded original JSON object without forwarding authorization across redirects.
+    """
+
+    if path != f"/repos/{delivery.REPOSITORY}/pulls/388":
+        return delivery.GitHubJson(path)
+
+    token = os.environ.get("GITHUB_TOKEN")
+
+    if not token:
+        raise ValueError("Recovery PR evidence requires the runner's read-only job token")
+
+    request = urllib.request.Request("https://api.github.com" + path, headers={
+        "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"})
+
+    with urllib.request.build_opener(delivery.NoRedirect()).open(request, timeout=30) as response:
+        return delivery.Json(response.read(delivery.MAX_JSON_BYTES + 1))
+
+
+def DocumentationSelection(bundle: Path, expected_sha: str,
+                          fetch: Callable[[str], dict] = RecoveryJson) -> dict:
+    """Select the unchanged original API archive only for the exact open recovery PR gate.
+
+    Args:
+        bundle: Fixed original producer artifact downloaded without altering its sealed files.
+        expected_sha: Recovery PR head observed by the actual pull-request workflow event.
+        fetch: Fixed-repository read-only GitHub API transport.
+    Returns:
+        Ordinary documentation composer inputs after complete original-byte verification.
+    """
+
+    if delivery.COMMIT.fullmatch(expected_sha) is None or (
+        os.environ.get("GITHUB_EVENT_NAME") != "pull_request"
+        or os.environ.get("GITHUB_REPOSITORY") != delivery.REPOSITORY
+        or os.environ.get("GITHUB_REF") != "refs/pull/388/merge"
+        or os.environ.get("GITHUB_HEAD_REF") != RECOVERY_BRANCH
+    ):
+        raise ValueError("Original pre-publication documentation is limited to recovery PR388")
+
+    pull = fetch(f"/repos/{delivery.REPOSITORY}/pulls/{RECOVERY_PR}")
+
+    if (pull["number"] != RECOVERY_PR or pull["state"] != "open" or pull["draft"] is not False
+        or pull["head"]["sha"] != expected_sha or pull["head"]["ref"] != RECOVERY_BRANCH
+        or pull["head"]["repo"]["full_name"] != delivery.REPOSITORY
+        or pull["base"]["ref"] != "develop"):
+        raise ValueError("Documentation requires the current ready owned recovery PR head")
+
+    OriginalProducer(fetch)
+    manifest = delivery.Verify(bundle, CHECKSUMS_SHA256)
+    source = delivery.Json(delivery.Read(bundle / "source.json", delivery.MAX_JSON_BYTES))
+
+    if source != {"commit": PRODUCT_COMMIT, "tree": PRODUCT_TREE, "tag": PRODUCT_TAG,
+        "tag_type": "tag", "version": VERSION, "project": delivery.PROJECT,
+        "repository": delivery.REPOSITORY, "requires_python": ">=3.11", "schema_version": 1,
+        "source_date_epoch": 1793304738} or manifest["source"] != source:
+        raise ValueError("Recovery documentation must retain the exact original product source")
+
+    transfer = delivery.VerifyDocumentationTransfer(bundle / "api-docs", source)
+    archive = bundle / "api-docs/1337-0.3.0-api-docs.tar.gz"
+
+    return {"release_version": "", "retained_archive": str(archive.resolve(strict=True)),
+            "retained_sha256": transfer["sha256"]}
+
+
 def PushOperationalTag(root: Path) -> None:
     """Attempt one literal non-force operational-tag push using only the builtin short-lived token.
 
