@@ -113,7 +113,7 @@ def ApiInputs(sha):
             return workflows[event, filename]
 
         run_id = int(path.split("/runs/", 1)[1].split("/", 1)[0])
-        assert path.endswith("/attempts/1/jobs?per_page=100")
+        assert path.endswith("/attempts/1/jobs?per_page=100"), "Unexpected job evidence endpoint"
 
         return jobs[run_id]
 
@@ -190,9 +190,12 @@ def test_ActualGitKeepsProductAndRecoveryProvenanceDistinct(owned):
     """The immutable product tag remains at master while reviewed control code has its own tree."""
 
     facts = recovery.CodeFacts(owned.code, owned.product, owned.sha)
-    assert facts["recovery_commit"] == owned.sha != facts["product_source"]["commit"]
-    assert facts["product_source"]["tree"] == Git(owned.product, "rev-parse", "HEAD^{tree}")
-    assert Git(owned.product, "cat-file", "-t", "v0.3.0") == "tag"
+    assert facts["recovery_commit"] == owned.sha != facts["product_source"]["commit"], (
+        "Recovery code and original product provenance were conflated")
+    assert facts["product_source"]["tree"] == Git(owned.product, "rev-parse", "HEAD^{tree}"), (
+        "Product facts do not identify the actual original tree")
+    assert Git(owned.product, "cat-file", "-t", "v0.3.0") == "tag", (
+        "The original product tag lost its annotation")
 
 
 @pytest.mark.parametrize("fault", ["wrong-code", "dirty-code", "tracking-code", "master",
@@ -225,7 +228,8 @@ def test_ActualGitSourceDriftRefusesBeforeRecoveryTagCreation(owned, monkeypatch
     with pytest.raises((ValueError, subprocess.SubprocessError)):
         recovery.CodeFacts(code, product, sha)
 
-    assert Git(owned.product, "tag", "--list", recovery.RECOVERY_TAG) == ""
+    assert Git(owned.product, "tag", "--list", recovery.RECOVERY_TAG) == "", (
+        "A refused source unexpectedly created an operational tag")
 
 
 def test_RecoveryRequiresAllElevenReadinessWorkflowsAndTwentyThreeActualJobs():
@@ -233,9 +237,11 @@ def test_RecoveryRequiresAllElevenReadinessWorkflowsAndTwentyThreeActualJobs():
 
     api = ApiInputs(SHA)
     value = recovery.RecoveryChecks(SHA, api.fetch)
-    assert len(value["accepted_workflows"]) == 11
-    assert sum(len(item["jobs"]) for item in value["accepted_workflows"]) == 23
-    assert all("deploy-pages" not in item["jobs"] for item in value["accepted_workflows"])
+    assert len(value["accepted_workflows"]) == 11, "Readiness omitted a required workflow"
+    assert sum(len(item["jobs"]) for item in value["accepted_workflows"]) == 23, (
+        "Readiness omitted a required product job")
+    assert all("deploy-pages" not in item["jobs"] for item in value["accepted_workflows"]), (
+        "PR readiness incorrectly required master Pages deployment")
 
 
 @pytest.mark.parametrize("fault", ["absent", "draft-skip", "wrong-pr", "wrong-pr-head",
@@ -327,7 +333,8 @@ def test_OriginalProducerCannotBeReplacedByAnotherBuildOrArtifact(fault):
         artifact["size_in_bytes"] = 256 * 1024 * 1024 + 1
 
     if fault is None:
-        assert recovery.OriginalProducer(api.fetch)["artifact_id"] == recovery.PRODUCER_ARTIFACT
+        assert recovery.OriginalProducer(api.fetch)["artifact_id"] == recovery.PRODUCER_ARTIFACT, (
+            "Producer selection changed the fixed original artifact")
     else:
         with pytest.raises(ValueError):
             recovery.OriginalProducer(api.fetch)
@@ -415,10 +422,13 @@ def test_ValidatePreservesOriginalBytesAndDelegatesOriginalDocumentation(owned, 
             recovery.Validate(owned.code, owned.product, bundle, owned.sha, owned.api.fetch)
     else:
         result = recovery.Validate(owned.code, owned.product, bundle, owned.sha, owned.api.fetch)
-        assert result["state"] == "verified-original-publication-handoff"
-        assert result["product_source"] == source and result["recovery_commit"] == owned.sha
-        assert result["producer"]["artifact_id"] == recovery.PRODUCER_ARTIFACT
-        assert calls == [(bundle / "api-docs", source)]
+        assert result["state"] == "verified-original-publication-handoff", (
+            "Original bundle did not establish a verified handoff")
+        assert result["product_source"] == source and result["recovery_commit"] == owned.sha, (
+            "Original and recovery source identities differ from their actual checkouts")
+        assert result["producer"]["artifact_id"] == recovery.PRODUCER_ARTIFACT, (
+            "Handoff changed the fixed original artifact")
+        assert calls == [(bundle / "api-docs", source)], "Strict original transfer was not checked"
 
     assert delivery.Inventory(bundle) == before, "Validation must never reseal or modify originals"
 
@@ -437,16 +447,21 @@ def test_FinalizerCreatesOnlyOneOperationalTagAfterAllGates(owned, monkeypatch):
 
     monkeypatch.setattr(recovery, "PushOperationalTag", Push)
     result = recovery.FinalizeRecovery(owned.code, owned.product, owned.sha, owned.api.fetch)
-    assert result["state"] == "acknowledged-operational-tag" and pushes == [owned.code]
-    assert Git(owned.code, "cat-file", "-t", recovery.RECOVERY_TAG) == "tag"
-    assert Git(owned.code, "rev-parse", recovery.RECOVERY_TAG + "^{commit}") == owned.sha
-    assert Git(owned.product, "rev-parse", "v0.3.0") == recovery.PRODUCT_TAG_OBJECT
-    assert Git(owned.product, "rev-parse", "master") == recovery.PRODUCT_COMMIT
+    assert result["state"] == "acknowledged-operational-tag" and pushes == [owned.code], (
+        "Finalization lacked one exact acknowledged push")
+    assert Git(owned.code, "cat-file", "-t", recovery.RECOVERY_TAG) == "tag", (
+        "Operational execution requires an annotated tag")
+    assert Git(owned.code, "rev-parse", recovery.RECOVERY_TAG + "^{commit}") == owned.sha, (
+        "Operational tag points to unreviewed control code")
+    assert Git(owned.product, "rev-parse", "v0.3.0") == recovery.PRODUCT_TAG_OBJECT, (
+        "Finalization changed the original product tag")
+    assert Git(owned.product, "rev-parse", "master") == recovery.PRODUCT_COMMIT, (
+        "Finalization changed the original product master")
 
     with pytest.raises(ValueError, match="every existing operational tag"):
         recovery.FinalizeRecovery(owned.code, owned.product, owned.sha, owned.api.fetch)
 
-    assert len(pushes) == 1
+    assert len(pushes) == 1, "A repeated finalization attempted another push"
 
 
 @pytest.mark.parametrize("fault", [None, "event", "repository", "workflow-ref", "head-ref",
@@ -666,7 +681,7 @@ def test_FinalizerRefusesEveryExistingOperationalTag(owned, fault):
     with pytest.raises(ValueError, match="every existing operational tag"):
         recovery.FinalizeRecovery(owned.code, owned.product, owned.sha, owned.api.fetch)
 
-    assert Git(owned.code, "show-ref", "--tags") == before
+    assert Git(owned.code, "show-ref", "--tags") == before, "Refusal changed existing tags"
 
 
 @pytest.mark.parametrize("raw", ["", "0" * 8193,
@@ -688,12 +703,13 @@ def test_RemoteReferenceObservationIsBoundedAndUnambiguous(tmp_path, monkeypatch
     monkeypatch.setattr(delivery, "Git", Observe)
 
     if raw == "":
-        assert recovery.RemoteRefs(tmp_path) == {}
+        assert recovery.RemoteRefs(tmp_path) == {}, "An empty response invented remote references"
     else:
         with pytest.raises(ValueError):
             recovery.RemoteRefs(tmp_path)
 
-    assert len(calls) == 1 and calls[0][:3] == ("ls-remote", "--refs", "origin")
+    assert len(calls) == 1 and calls[0][:3] == ("ls-remote", "--refs", "origin"), (
+        "Reference observation escaped its one read-only owned remote query")
 
 
 @pytest.mark.parametrize("fault", ["readiness", "producer", "master", "remote", "index", "token"])
@@ -721,7 +737,8 @@ def test_FinalizerRefusesBeforeAnyTagOrPushWhenARequiredGateFails(owned, monkeyp
     with pytest.raises(ValueError):
         recovery.FinalizeRecovery(owned.code, owned.product, owned.sha, owned.api.fetch)
 
-    assert Git(owned.code, "tag", "--list", recovery.RECOVERY_TAG) == ""
+    assert Git(owned.code, "tag", "--list", recovery.RECOVERY_TAG) == "", (
+        "A failed acceptance gate unexpectedly created an operational tag")
 
 
 @pytest.mark.parametrize("status,url", [(404, recovery.INDEX_URL), (403, recovery.INDEX_URL),
@@ -731,32 +748,31 @@ def test_IndexAbsenceAcceptsOnlyExactOriginal404(monkeypatch, status, url):
 
     calls = []
 
-    class Opener:
-        """Return one controlled original HTTP response without external network access."""
+    def Open(request, timeout):
+        """Record one fixed unauthenticated GET and return a controlled original response."""
 
-        def open(self, request, timeout):
-            """Record the fixed unauthenticated GET and its finite deadline."""
+        calls.append((request.full_url, request.get_method(), timeout, request.headers))
 
-            calls.append((request.full_url, request.get_method(), timeout, request.headers))
-
-            raise urllib.error.HTTPError(url, status, "Owned response", {}, io.BytesIO())
+        raise urllib.error.HTTPError(url, status, "Owned response", {}, io.BytesIO())
 
     def Build(handler):
         """Require the actual redirect-denying transport boundary."""
 
-        assert isinstance(handler, delivery.NoRedirect)
+        assert isinstance(handler, delivery.NoRedirect), "Index lookup allowed redirects"
 
-        return Opener()
+        return SimpleNamespace(open=Open)
 
     monkeypatch.setattr(recovery.urllib.request, "build_opener", Build)
 
     if status == 404 and url == recovery.INDEX_URL:
-        assert recovery.IndexAbsent()["http_status"] == 404
+        assert recovery.IndexAbsent()["http_status"] == 404, (
+            "Exact original absence was not recorded")
     else:
         with pytest.raises(ValueError):
             recovery.IndexAbsent()
 
-    assert calls == [(recovery.INDEX_URL, "GET", 20, {"Accept": "application/json"})]
+    assert calls == [(recovery.INDEX_URL, "GET", 20, {"Accept": "application/json"})], (
+        "Index lookup changed its fixed public unauthenticated request")
 
 
 @pytest.mark.parametrize("success", [True, False])
@@ -817,9 +833,12 @@ def test_OperationalPushRequiresOneExclusiveNewTagAcknowledgement(tmp_path, monk
         with pytest.raises(ValueError):
             recovery.PushOperationalTag(tmp_path)
 
-    assert len(calls) == 1 and calls[0][0][-1] == ref + ":" + ref
-    assert "--force" not in calls[0][0] and "--delete" not in calls[0][0]
-    assert all("owned-inert-job-token" not in argument for argument in calls[0][0])
+    assert len(calls) == 1 and calls[0][0][-1] == ref + ":" + ref, (
+        "Operational publication escaped its one literal tag push")
+    assert "--force" not in calls[0][0] and "--delete" not in calls[0][0], (
+        "Operational publication attempted destructive reference mutation")
+    assert all("owned-inert-job-token" not in argument for argument in calls[0][0]), (
+        "The job token leaked into process arguments")
 
 
 def test_MainNeverWritesRecoveryAcknowledgementIntoOriginalBundle(tmp_path, monkeypatch):
@@ -833,4 +852,5 @@ def test_MainNeverWritesRecoveryAcknowledgementIntoOriginalBundle(tmp_path, monk
     status = recovery.Main(["validate", "--code-root", str(code), "--product-root", str(product),
         "--bundle", str(bundle), "--expected-recovery-sha", SHA,
         "--output", str(bundle / "receipt.json")])
-    assert status == 1 and not any(bundle.iterdir())
+    assert status == 1 and not any(bundle.iterdir()), (
+        "Invalid receipt placement changed the protected original bundle")
