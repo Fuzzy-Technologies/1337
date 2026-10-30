@@ -368,8 +368,8 @@ def Bundle(root, source, checks, monkeypatch):
     (root / "api-docs/1337-0.3.0-api-docs.manifest.json").write_text("{}", encoding="utf-8")
     delivery.WriteJson(root / "release-manifest.json", {"schema_version": 1, "source": source,
         "files": delivery.Inventory(root)})
-    (root / "SHA256SUMS").write_text("".join(f"{v['sha256']}  {name}\n" for name, v in (
-        delivery.Inventory(root).items())), encoding="ascii")
+    (root / "SHA256SUMS").write_bytes("".join(f"{v['sha256']}  {name}\n" for name, v in (
+        delivery.Inventory(root).items())).encode("ascii"))
     monkeypatch.setattr(recovery, "CHECKSUMS_SHA256", hashlib.sha256(
         (root / "SHA256SUMS").read_bytes()).hexdigest())
 
