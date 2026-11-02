@@ -323,15 +323,18 @@ automatic fail-closed guard against real network connections, including local
 or Docker service sockets. The
 packaging integration test builds an sdist, builds its wheel, installs that wheel
 into a clean virtual environment without an index. Its required library comes
-from the preseeded uv cache. The test then invokes
+from the preseeded uv cache on the host. Cache-free development containers instead
+prepare a fixed runtime wheelhouse during dependency setup; clean child environments
+verify the original locked artifact and install it offline with required hashes.
+Neither test path fetches missing dependencies or relaxes runtime isolation. The test then invokes
 both installed entry points outside the checkout. It does not contact scan targets
 or external services.
 
 Generated evidence is under `coverage/`; distributable packages are under
 `dist/`. Both are ignored by Git. Dependencies must be installed before gates
 run; package validation uses the locally built wheel and the exact runtime
-dependency cached during locked setup. An absent cached dependency fails
-explicitly; tests never fetch one.
+dependency cached during locked setup or the image's fixed hash-checked wheelhouse.
+Absent or corrupted prerequisite material fails explicitly; tests never fetch it.
 
 Runtime dependency: `fuzzyroutines==2.1.0` (Apache-2.0); its optional NumPy extra
 is not installed. The normal locked environment includes the same exact library

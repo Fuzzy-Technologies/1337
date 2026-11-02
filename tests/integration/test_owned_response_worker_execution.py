@@ -17,6 +17,9 @@ from pathlib import Path
 
 import pytest
 
+from tools.release_delivery import Invoke as RuntimeInvoke
+from tools.release_delivery import ProvisionLocalWheelRuntime
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CATALOG = REPOSITORY_ROOT / "tests/contract/fixtures/zap-passive.oracle.v1.json"
 CATALOG_SHA256 = "fb57a1e31904e9904ef5501a6dc7721c9263e12ab55672405c5a70fb2c3798d7"
@@ -93,6 +96,9 @@ def installed_worker(tmp_path_factory):
         "--no-index", "--no-deps", "--no-compile", "--disable-pip-version-check", str(wheels[0])),
         cwd=root, capture_output=True, timeout=30, check=False)
     assert installed.returncode == 0, "Offline wheel installation failed: " + repr(installed.stderr)
+
+    if ProvisionLocalWheelRuntime(wheels[0], python, root):
+        RuntimeInvoke((str(python), "-m", "pip", "--isolated", "check"), root)
 
     return python
 

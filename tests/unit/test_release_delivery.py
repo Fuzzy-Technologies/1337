@@ -825,6 +825,8 @@ def test_LocalWheelRuntimeUsesOnlyExactOriginalMetadataAndOfflineCache(
 ):
     """Historical wheels stay dependency-free; current wheels provision their exact library."""
 
+    monkeypatch.delenv("FUZZY1337_RUNTIME_WHEELHOUSE", raising=False)
+
     wheel = tmp_path / "original.whl"
     metadata = "Metadata-Version: 2.5\nName: 1337\nVersion: 0.4.0\n"
 
@@ -860,6 +862,8 @@ def test_LocalWheelRuntimeRefusesAmbiguousRequirementsOrMissingProvisioner(
 ):
     """Runtime uncertainty fails before installation instead of pretending dependency success."""
 
+    monkeypatch.delenv("FUZZY1337_RUNTIME_WHEELHOUSE", raising=False)
+
     wheel = tmp_path / "original.whl"
     metadata = "Metadata-Version: 2.5\nName: 1337\nVersion: 0.4.0\nRequires-Dist: "
     metadata += "fuzzyroutines==" + ("2.0.0" if fault == "changed-pin" else "2.1.0") + "\n"
@@ -886,6 +890,8 @@ def test_LocalWheelRuntimeRefusesAmbiguousRequirementsOrMissingProvisioner(
 
 def test_LocalWheelRuntimeReportsOfflinePreparationFailureWithoutFallback(tmp_path, monkeypatch):
     """A cold cache preserves its failed command and offers explicit setup without networking."""
+
+    monkeypatch.delenv("FUZZY1337_RUNTIME_WHEELHOUSE", raising=False)
 
     wheel = tmp_path / "original.whl"
 
@@ -926,3 +932,80 @@ def test_MasterEvidenceRejectsUnknownOrForeignHistoricalProfiles(profile, commit
 
     with pytest.raises(ValueError, match="supported source-bound gate profile"):
         delivery.MasterChecks(commit, NoFetch, profile=profile)
+
+
+@pytest.mark.parametrize("fault", [None, "foreign-directory", "changed-bytes", "symlink",
+    "missing", "changed-pin", "ambiguous", "foreign-name", "changed-size"])
+def test_ImageWheelhouseUsesOnlyPhysicalHashLockedBytesWithoutCache(
+    tmp_path, monkeypatch, fault,
+):
+    """A no-cache image installs only its original locked library and never falls back online."""
+
+    wheel = tmp_path / "app.whl"
+
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("1337-0.3.0.dist-info/METADATA", "Name: 1337\nVersion: 0.3.0\n"
+            "Requires-Dist: fuzzyroutines==2.1.0\n")
+
+    wheelhouse = tmp_path / "image-runtime-wheels"
+    wheelhouse.mkdir()
+    name = "fuzzyroutines-2.1.0-py3-none-any.whl"
+    artifact = wheelhouse / name
+    raw = b"inert pure-test artifact; no runtime installation is claimed"
+    artifact.write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    locked_name = "foreign.whl" if fault == "foreign-name" else name
+    locked_version = "2.0.0" if fault == "changed-pin" else "2.1.0"
+    locked_size = len(raw) + (1 if fault == "changed-size" else 0)
+    lock = ('[[package]]\nname="fuzzyroutines"\nversion="' + locked_version + '"\n'
+        'wheels=[{url="https://files.pythonhosted.org/packages/owned/' + locked_name + '", '
+        'hash="sha256:' + digest + '", size=' + str(locked_size) + '}]\n').encode()
+
+    if fault == "ambiguous":
+        lock += lock
+
+    if fault == "changed-bytes":
+        artifact.write_bytes(b"changed")
+
+    if fault in ("missing", "symlink"):
+        artifact.unlink()
+
+    if fault == "symlink":
+        artifact.symlink_to(wheel)
+
+    monkeypatch.setattr(delivery, "RUNTIME_WHEELHOUSE", wheelhouse)
+    monkeypatch.setenv("FUZZY1337_RUNTIME_WHEELHOUSE",
+        str(tmp_path / "foreign") if fault == "foreign-directory" else str(wheelhouse))
+    monkeypatch.setenv("UV_NO_CACHE", "1")
+    original_read = delivery.Read
+
+    def Read(path, maximum=delivery.MAX_FILE_BYTES):
+        """Substitute only a handwritten lock; artifact bytes and alias checks remain real."""
+
+        return lock if path.name == "uv.lock" else original_read(path, maximum)
+
+    monkeypatch.setattr(delivery, "Read", Read)
+    commands = []
+    monkeypatch.setattr(delivery, "Invoke", lambda arguments, cwd:
+        commands.append(arguments))
+    python = tmp_path / "isolated/bin/python"
+
+    if fault is not None:
+        with pytest.raises((ValueError, FileNotFoundError)):
+            delivery.ProvisionLocalWheelRuntime(wheel, python, tmp_path)
+
+        assert commands == [], "Uncertain wheelhouse material cannot reach any installer or cache"
+
+        return
+
+    assert delivery.ProvisionLocalWheelRuntime(wheel, python, tmp_path) is True, (
+        "Only the explicit successfully verified image wheelhouse may provide the runtime"
+    )
+    requirements = tmp_path / "runtime-requirements.txt"
+    assert requirements.read_text() == (
+        "fuzzyroutines @ " + artifact.as_uri() + " --hash=sha256:" + digest + "\n"
+    ), "Installer requirements must bind one exact local artifact to its source-lock hash"
+    assert commands == [(str(python), "-m", "pip", "--isolated", "install", "--no-index",
+        "--no-deps", "--require-hashes", "--requirement", str(requirements))], (
+        "The image path must avoid uv caches, external indexes and unverified dependency lookup"
+    )

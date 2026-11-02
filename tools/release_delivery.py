@@ -32,6 +32,7 @@ from pathlib import Path
 REPOSITORY = "Fuzzy-Technologies/1337"
 PROJECT = "1337"
 MAX_FILE_BYTES = 64 * 1024 * 1024
+RUNTIME_WHEELHOUSE = Path("/opt/1337/runtime-wheels")
 MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_DOCUMENTATION_BYTES = 128 * 1024 * 1024
 VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
@@ -705,7 +706,7 @@ def Invoke(arguments: tuple[str, ...], cwd: Path, expected: int = 0, *,
 
 
 def ProvisionLocalWheelRuntime(wheel: Path, python: Path, root: Path) -> bool:
-    """Install an exact declared runtime library from the cache populated by locked setup.
+    """Install the declared runtime from locked cache or the fixed hash-checked image wheelhouse.
 
     Args:
         wheel: Selected original wheel whose metadata owns its runtime requirements.
@@ -737,6 +738,48 @@ def ProvisionLocalWheelRuntime(wheel: Path, python: Path, root: Path) -> bool:
 
     if requirements != ("fuzzyroutines==2.1.0",):
         raise ValueError("Wheel runtime requirements differ from the reviewed pinned library")
+
+    configured = os.environ.get("FUZZY1337_RUNTIME_WHEELHOUSE")
+
+    if configured is not None:
+        if configured != str(RUNTIME_WHEELHOUSE):
+            raise ValueError("Runtime wheelhouse must be the fixed image prerequisite directory")
+
+        lock = tomllib.loads(Read(Path(__file__).resolve().parents[1] / "uv.lock").decode("utf-8"))
+        packages = [item for item in lock["package"] if item["name"] == "fuzzyroutines"]
+
+        if len(packages) != 1 or packages[0]["version"] != "2.1.0":
+            raise ValueError("Runtime wheelhouse requires the exact reviewed locked library")
+
+        wheels = packages[0].get("wheels", [])
+
+        if len(wheels) != 1:
+            raise ValueError("Runtime wheelhouse requires exactly one locked universal wheel")
+
+        selected = wheels[0]
+        name = Path(urllib.parse.urlsplit(selected["url"]).path).name
+        expected = selected["hash"]
+
+        if name != "fuzzyroutines-2.1.0-py3-none-any.whl" or re.fullmatch(
+            r"sha256:[a-f0-9]{64}", expected
+        ) is None:
+            raise ValueError("Runtime wheelhouse artifact differs from its finite locked profile")
+
+        artifact = RUNTIME_WHEELHOUSE / name
+        raw = Read(artifact, 8 * 1024 * 1024)
+
+        if len(raw) != selected["size"] or hashlib.sha256(raw).hexdigest() != expected[7:]:
+            raise ValueError("Runtime wheelhouse bytes differ from the exact locked artifact")
+
+        requirement = root / "runtime-requirements.txt"
+
+        with requirement.open("x", encoding="utf-8") as output:
+            output.write("fuzzyroutines @ " + artifact.as_uri() + " --hash=" + expected + "\n")
+
+        Invoke((str(python), "-m", "pip", "--isolated", "install", "--no-index", "--no-deps",
+            "--require-hashes", "--requirement", str(requirement)), root)
+
+        return True
 
     uv = shutil.which("uv")
 

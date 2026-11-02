@@ -32,6 +32,8 @@ from tests.integration.test_owned_response_worker_execution import (
 from tests.integration.test_owned_response_worker_execution import (
     installed_worker as installed_worker,
 )
+from tools.release_delivery import Invoke as RuntimeInvoke
+from tools.release_delivery import ProvisionLocalWheelRuntime
 
 RUNNER = Path(__file__).resolve().parents[1] / "contract/owned_response_product_runner.py"
 OWNER = "actor:owned-response-product"
@@ -284,6 +286,9 @@ def CaptureRuntime(installed: Path, root: Path) -> Path:
     assert result.returncode == 0, (
         "Offline capture-wheel installation failed: " + repr(result.stderr)
     )
+
+    if ProvisionLocalWheelRuntime(wheel, python, root):
+        RuntimeInvoke((str(python), "-m", "pip", "--isolated", "check"), root)
 
     return python
 
