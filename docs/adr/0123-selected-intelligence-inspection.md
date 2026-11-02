@@ -85,9 +85,11 @@ continue to reparse identically; previously refused prose can now be imported.
 records catalog `2026.10.30` at exact commit
 `7ccba8e1223ccec82d12c7736bf3fae11e5bee86`: actual local product import succeeded
 for all 1,766 records, inspection selected one record, and original bytes were retained.
-The separately attempted isolated HTTPS receiver returned `transport-failed`
-with zero bytes; live receiver acceptance remains pending. Do not merge these
-two different evidence claims or relax the receiver's trust policy.
+The local isolated HTTPS receiver returned `transport-failed` with zero bytes.
+The separately recorded hosted SDK execution then passed exact original source,
+receipt and reparse verification for the pinned catalog without changing receiver
+trust policy. Keep the local import, local transport failure and hosted HTTPS
+success distinct; they establish no acceptance for a different source selection.
 
 ## Compatibility and evidence
 

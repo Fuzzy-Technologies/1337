@@ -151,15 +151,18 @@ Deterministic functional tests execute import/sync, immutable publication and
 portable replay, then the actual verified canonical finding consumer. Owned
 connection and subprocess fixtures cover framing, refusals, bounds, partial
 bytes, empty environment, timeout, and caller-interruption cleanup without
-contacting a live publisher. No live official-feed acceptance is claimed.
+contacting a live publisher. These fixture tests alone establish no live-feed acceptance.
 
 The separately recorded
 [selected official-source smoke](INTELLIGENCE_SOURCE_ACCEPTANCE.md) imports the
 exact original bytes of one pinned real CISA KEV catalog through the product CLI
-and verifies its receipt and selected source assertions. Its isolated SDK HTTPS
-attempt returned `transport-failed` with zero received bytes, so live receiver
-acceptance remains pending. A successful external download followed by local
-import is not evidence that this receiver's network path succeeded.
+and verifies its receipt and selected source assertions. Its local isolated SDK
+attempt returned `transport-failed` with zero received bytes. A subsequent
+guarded hosted execution passed the ordinary SDK HTTPS acquisition and verified
+the complete original receipt, exact raw source and all 1,766 reparsed records.
+The linked acceptance record identifies the exact source commit, run and artifact.
+These are separate outcomes; the local failure is retained and no receiver trust
+policy was changed. No broader live-source coverage follows from this one selection.
 
 Automatic refresh scheduling, broader provider acquisition, incremental/full
 corpus support, publisher signatures, license decisions, feed monitoring,

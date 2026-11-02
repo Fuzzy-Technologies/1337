@@ -42,10 +42,30 @@ an original-byte ceiling of `1826755`.
 | CLI diagnostics                         | No stderr or traceback                                                                |
 | Separate SDK isolated HTTPS acquisition | `transport-failed`, zero received bytes, no usable snapshot, failure receipt retained |
 
-The last result is an unresolved network-path acceptance limit. It is not hidden
-behind the successful external download/local import. The isolated receiver's
+The last result records the local environment's network-path failure separately
+from its successful external download/local import. The isolated receiver's
 certificate, environment, proxy, redirect and source-selection policies were not
-weakened. No live isolated-receiver success is claimed.
+weakened. A later hosted execution below resolves live acceptance for the exact
+selected source, without converting that local failure into a success.
+
+## Hosted isolated-receiver acceptance
+
+The guarded [GitHub Actions execution](https://github.com/Fuzzy-Technologies/1337/actions/runs/41530326913)
+passed on source commit `0d8b9db4f0582e56355b436eaf95284274a3fd4d`.
+The ordinary SDK performed one HTTPS acquisition from the pinned official mirror;
+the verifier reopened every original manifest, compared the complete terminal
+receipt, joined its raw reference to the snapshot's exact evidence reference and
+reparsed all `1766` records. HTTP status was `200`, the body was complete and the
+exact original size and SHA-256 above matched. No fallback or transport retry ran.
+
+Job `125568541511` uploaded the original workspace/receipt and deterministic
+wrapper-test results as [artifact 13182380874](https://github.com/Fuzzy-Technologies/1337/actions/runs/41530326913/artifacts/13182380874),
+archive SHA-256 `4db05ecc89eb60f2da8d61ded9545e4e2767390e82e62150b19a9b0bfc5886e5`.
+Artifact retention is seven days; the exact source selection and verification
+script remain in version control for reproduction. This is acceptance of one
+fixed historical source, not moving-feed coverage, publisher-signature
+authentication or target applicability. Those two verdicts remain explicitly
+`not-assessed` and `not-evaluated`.
 
 ## Publisher-prose regression
 
