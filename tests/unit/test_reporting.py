@@ -12,11 +12,13 @@ import pytest
 
 from fuzzy1337 import report_formats, reporting
 from fuzzy1337.adapters.contracts import ExecutionState
+from fuzzy1337.intelligence import IntelligenceFeed
 from fuzzy1337.model import (
     CanonicalModelJson,
     ModelState,
     ObjectIdentity,
     ObjectKind,
+    Observation,
     SecurityObject,
 )
 from fuzzy1337.report_formats import RenderHtml, SerializeJson, SerializeJunit, SerializeSarif
@@ -38,11 +40,21 @@ class Dom(HTMLParser):
         self.ids = []
         self.links = []
         self.text = []
+        self.primary_text = []
+        self.disclosure_depth = 0
+        self.style_depth = 0
 
     def handle_starttag(self, tag, attrs):
         """Record parsed attributes and targets, including decoded HTML entities."""
 
         self.tags.append(tag)
+
+        if tag == "details":
+            self.disclosure_depth += 1
+
+        if tag == "style":
+            self.style_depth += 1
+
         self.attributes.extend(attrs)
         fields = dict(attrs)
 
@@ -56,6 +68,18 @@ class Dom(HTMLParser):
         """Record visible text for independent escaped-payload assertions."""
 
         self.text.append(data)
+
+        if not self.disclosure_depth and not self.style_depth:
+            self.primary_text.append(data)
+
+    def handle_endtag(self, tag):
+        """Track closed disclosures independently of their preserved technical content."""
+
+        if tag == "details":
+            self.disclosure_depth -= 1
+
+        if tag == "style":
+            self.style_depth -= 1
 
     handle_data = HandleData
 
@@ -369,3 +393,200 @@ def test_AllFormatsEnforceTheFinalOutputByteLimit(monkeypatch, exporter):
 
     with pytest.raises(ValueError, match="byte limit"):
         exporter(report)
+
+
+
+def test_HtmlExplainsFindingsAndRemediationWithoutOpeningTechnicalDisclosures():
+    """Human interpretation, subject and next action are readable before viewing raw metadata."""
+
+    report = Fixture()
+    dom = Dom()
+    dom.feed(RenderHtml(report).decode("utf-8"))
+    visible = " ".join(dom.primary_text)
+
+    for expected in (
+        "Result at a glance", "Open or confirmed findings need attention",
+        "Synthetic check interpretation", "Host: 127.0.0.1", "What to do next",
+        "Review the synthetic fixture", "Inspect local evidence", "did not succeed",
+        "Marked resolved by an operator", "successful retesting is not established",
+        "Scan completeness was not assessed", "Recorded source", "synthetic",
+    ):
+        assert expected in visible, f"Readable explanation was omitted: {expected}"
+
+    assert "a" * 64 not in visible and report.SnapshotDigest() not in visible, (
+        "Raw evidence and snapshot digests must remain inside technical disclosures"
+    )
+    assert "object:" not in visible and '"schema_version"' not in visible, (
+        "Canonical identifiers and JSON must not replace readable report content"
+    )
+    assert "failed; exit 2" in visible, "Readable outcome must retain the actual failed execution"
+
+
+
+def test_EmptyHtmlExplainsUnknownCoverageAndDoesNotSuggestASecureTarget():
+    """Empty state distinguishes missing result records from a successful vulnerability check."""
+
+    dom = Dom()
+    dom.feed(RenderHtml(ReportSnapshot(ModelState("empty"))).decode("utf-8"))
+    visible = " ".join(dom.primary_text)
+
+    assert "Zero findings do not establish that a target is secure" in visible, (
+        "An empty report must not imply that any vulnerability checks passed"
+    )
+    assert "No execution outcomes were retained" in visible, "Missing execution must remain unknown"
+    assert "opening this report does not perform one" in visible, "Export cannot imply execution"
+    assert "No objects of this kind were retained" in visible, "Missing inventory must be explicit"
+
+
+
+def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
+    """Hosts, ports, services and addresses are readable records rather than inferred findings."""
+
+    original = Fixture()
+    provenance = original.state.Objects(ObjectKind.HOST)[0].provenance
+    objects = (
+        SecurityObject(ObjectIdentity("synthetic", ObjectKind.PORT, "127.0.0.1/tcp/8080"),
+                       {"protocol": "tcp", "number": 8080, "state": "open"}, provenance),
+        SecurityObject(ObjectIdentity("synthetic", ObjectKind.SERVICE, "owned-http"),
+                       {"name": "http", "version": {"unparsed": "unknown"}}, provenance),
+        SecurityObject(ObjectIdentity("synthetic", ObjectKind.ENDPOINT,
+                       "https://untrusted.invalid/<script>inert</script>"),
+                       {"method": "GET", "status": 302}, provenance),
+    )
+    state, _ = original.state.Apply(objects=objects)
+    dom = Dom()
+    dom.feed(RenderHtml(replace(original, state=state)).decode("utf-8"))
+    visible = " ".join(dom.primary_text)
+
+    for expected in ("Hosts (1)", "Ports (1)", "Services (1)", "Web addresses (1)",
+                     "8080", "tcp", "http", "GET", "302 Found", "Not recorded"):
+        assert expected in visible, f"Retained inventory field was not readable: {expected}"
+
+    assert "script" not in dom.tags, "An untrusted inventory identity must stay escaped"
+    assert not any("untrusted.invalid" in link for link in dom.links), (
+        "Retained endpoint addresses cannot become arbitrary clickable external URLs"
+    )
+    assert all(link[1:] in dom.ids for link in dom.links if link.startswith("#")), (
+        "Readable inventory lost a canonical object anchor"
+    )
+
+
+
+def IntelReport(assertions, *, unmatched=None):
+    """Attach explicit synthetic retained assertion metadata to one existing finding."""
+
+    report = Fixture()
+    entity = report.state.Objects(ObjectKind.FINDING)[0]
+    observation = Observation("finding-intelligence", entity.Reference(), {
+        "source_assertions": assertions, "unmatched_identifiers": unmatched or [],
+    }, entity.provenance[0])
+    state, _ = report.state.Apply(observations=(observation,))
+
+    return replace(report, state=state)
+
+
+
+def test_HtmlIntelExplainsDistinctSourceMeaningsWithoutChangingFindingState():
+    """Readable source meanings keep provenance and unknown target applicability separate."""
+
+    assertions = []
+
+    for feed, data in (
+        (IntelligenceFeed.CVE.value, {
+            "state": "PUBLISHED", "description": "Synthetic affected product description",
+            "cvss": [{"version": "3.1", "base_score": 9.8, "assessor": "CNA"}],
+        }),
+        (IntelligenceFeed.KEV.value, {
+            "name": "Synthetic vulnerability", "required_action": "Apply vendor guidance",
+        }),
+        (IntelligenceFeed.EPSS.value, {"probability": 0.12, "percentile": 0.91}),
+        (IntelligenceFeed.CWE.value, {"name": "Synthetic weakness", "status": "Draft"}),
+    ):
+        assertions.append({
+            "record": {"feed": feed, "identifier": "CVE-2025-12345", "catalog_version": "v1",
+                       "effective_at": "2026-10-13T00:00:00Z", "data": data},
+            "source": {"publisher": "Synthetic publisher", "origin": "synthetic"},
+            "association_state": "candidate",
+            "stale": feed == IntelligenceFeed.EPSS.value,
+        })
+
+    report = IntelReport(assertions, unmatched=["CVE-2025-99999"])
+    before = SerializeJson(report)
+    dom = Dom()
+    dom.feed(RenderHtml(report).decode("utf-8"))
+    visible = " ".join(dom.primary_text)
+
+    for expected in (
+        "CVE-2025-99999", "Synthetic affected product description", "9.8/10", "CNA",
+        "Source required action", "Apply vendor guidance", "known exploitation",
+        "not a probability of compromise for this target", "0.12", "0.91", "Synthetic weakness",
+        "Target applicability: not determined", "candidate", "stale", "Synthetic publisher",
+        "Source origin: synthetic", "FuzzyRoutines",
+    ):
+        assert expected in visible, f"Human intelligence explanation lost a source fact: {expected}"
+
+    assert SerializeJson(report) == before, "Human interpretation must not mutate the report model"
+    assert "does not prove that this target is affected" in visible, (
+        "A source association cannot manufacture a target applicability decision"
+    )
+
+
+
+@pytest.mark.parametrize("assertions,expected", [
+    (None, "Readable source details are unavailable"),
+    ([None], "Unsupported assertion structure"),
+    ([{"record": {"data": None}}], "Readable assertion fields were not retained"),
+    ([{"record": {"data": {}, "feed": "unsupported"}}], "Association: Unknown"),
+    ([{"record": {"data": {"cvss": [None]}, "feed": IntelligenceFeed.CVE.value}}],
+     "Source state: Unknown"),
+])
+def test_HtmlIntelPreservesUnsupportedOrMissingAssertionFieldsAsUnknown(assertions, expected):
+    """An arbitrary observation cannot create trusted facts or crash the readable rendering."""
+
+    dom = Dom()
+    dom.feed(RenderHtml(IntelReport(assertions)).decode("utf-8"))
+    visible = " ".join(dom.primary_text)
+
+    assert expected in visible, "Missing or unsupported fields need an explicit explanation"
+    assert "Target applicability: affected" not in visible, (
+        "Malformed or missing intelligence data cannot become a target verdict"
+    )
+
+
+@pytest.mark.parametrize("value,label", [(0.0, "Very low"), (5.0, "Medium"), (10.0, "Very high"),
+                                        (None, "Unknown"), (True, "Unknown"), (-1, "Unknown")])
+def test_HtmlScaleUsesExplicitCvssInputsAndKeepsMissingScoresUnknown(value, label):
+    """The actual consumer renders five library memberships without manufacturing a source score."""
+
+    dom = Dom()
+    dom.feed(report_formats.SeverityScale(value))
+    visible = " ".join(dom.primary_text)
+
+    assert label in visible, "CVSS input must retain its expected UFS linguistic level"
+    assert "Membership grades are not probabilities" in visible, (
+        "The HTML must explain the scientific meaning of the displayed membership grades"
+    )
+    assert "conventional CVSS severity labels have a separate definition" in visible, (
+        "The pilot UFS scale must remain distinct from the CVSS source classification"
+    )
+    assert dom.tags.count("meter") == (0 if label == "Unknown" else 5), (
+        "Missing or invalid source scores cannot become numeric zero memberships"
+    )
+    assert "fuzzyroutines" in " ".join(dom.text) and "scale_profile" in " ".join(dom.text), (
+        "Saved HTML must retain library, scale and full rule metadata for offline reproduction"
+    )
+
+
+
+@pytest.mark.parametrize("status,expected", [(200, "200 OK"), (204, "204 No Content"),
+                                           (599, "599"), (None, "Not recorded")])
+def test_HtmlHttpStatusesKeepExactCodeAndExplainKnownResponseMeaning(status, expected):
+    """Readable response labels explain known HTTP codes without recategorizing unknown status."""
+
+    provenance = Fixture().state.Objects(ObjectKind.HOST)[0].provenance
+    entity = SecurityObject(ObjectIdentity("synthetic", ObjectKind.ENDPOINT, "owned-address"),
+                            {"status": status}, provenance)
+
+    assert report_formats.AttributeText(entity, "status") == expected, (
+        "HTTP presentation must retain the source code and a standard phrase only when known"
+    )

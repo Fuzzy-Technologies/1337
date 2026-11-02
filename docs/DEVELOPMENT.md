@@ -1,7 +1,7 @@
 # Python development
 
-Use CPython 3.11 or newer and uv 0.11.33. The CI matrix exercises Python 3.11,
-3.12, 3.13, and 3.14 across Linux, Windows, and macOS. PyCharm can use the local
+Use CPython 3.13 or newer and uv 0.11.33. The CI matrix exercises Python 3.13
+and 3.14 across Linux, Windows, and macOS. PyCharm can use the local
 `.venv` interpreter; all operations below also run from an ordinary terminal.
 
 Run these commands from the repository root:
@@ -185,7 +185,7 @@ image or owned-response protocol checks. Portable protocol checkpoints use two
 workers across the existing OS matrix, a 30-second per-case deadline and a
 five-minute step limit. They retain JUnit without claiming complete coverage.
 The explicit `[native-crawl-portability-checkpoint]` runs two parallel draft-only
-jobs: Windows Python 3.12 checks the crawl workflow/command units and one actual
+jobs: Windows Python 3.13 checks the crawl workflow/command units and one actual
 SDK cancellation case; the existing development container runs one installed
 worker seed case through the quality service command override. Both keep finite
 timeouts, original UID/GID mapping where applicable and retained JUnit/original
@@ -195,7 +195,7 @@ Remove its marker before final publication/readiness to avoid an extra diagnosti
 run; feature success never substitutes for the final complete integration gate.
 
 The separate `[owned-traversal-rate-checkpoint]` selects one independent draft-only
-Windows 2022/Python 3.12 job. It runs only the six new controlled rate/deadline
+Windows 2022/Python 3.13 job. It runs only the six new controlled rate/deadline
 cases and 21 timeout-classifier cases with two workers, then the two affected
 actual traversal cases serially. The eight-minute job keeps 30/90-second per-case
 and two/four-minute step ceilings, disables partial coverage and always uploads
@@ -322,15 +322,21 @@ and finite-oracle regression checks. Unit tests are deterministic and carry an
 automatic fail-closed guard against real network connections, including local
 or Docker service sockets. The
 packaging integration test builds an sdist, builds its wheel, installs that wheel
-into a clean virtual environment without an index or dependencies, then invokes
+into a clean virtual environment without an index. Its required library comes
+from the preseeded uv cache. The test then invokes
 both installed entry points outside the checkout. It does not contact scan targets
 or external services.
 
 Generated evidence is under `coverage/`; distributable packages are under
 `dist/`. Both are ignored by Git. Dependencies must be installed before gates
-run; package validation itself installs only the locally built wheel.
+run; package validation uses the locally built wheel and the exact runtime
+dependency cached during locked setup. An absent cached dependency fails
+explicitly; tests never fetch one.
 
-Runtime dependencies: none. Initial direct development/build dependency review:
+Runtime dependency: `fuzzyroutines==2.1.0` (Apache-2.0); its optional NumPy extra
+is not installed. The normal locked environment includes the same exact library
+used by installed-package checks. Initial direct development/build dependency
+review:
 
 | Component  | Version | Role                         | License metadata |
 | ---------- | ------- | ---------------------------- | ---------------- |
@@ -344,11 +350,13 @@ Runtime dependencies: none. Initial direct development/build dependency review:
 | mypy       | 2.3.1   | Type checking                | MIT              |
 | jsonschema | 4.26.0  | Public contract validation   | MIT              |
 
-These tools add no dependency to the installed runtime. Transitive versions and
+These development tools add no dependency to the installed runtime beyond the
+required FuzzyRoutines library. Transitive versions and
 hashes are recorded in the lock. Broader supply-chain/release inventory remains
 part of the M0/release acceptance process.
 
-Architecture decision: [Python toolchain baseline](adr/0001-python-toolchain.md).
+Architecture decisions: [Python toolchain baseline](adr/0001-python-toolchain.md)
+and [Python 3.13 with required FuzzyRoutines](adr/0120-python313-required-fuzzyroutines.md).
 
 For the repository-owned container workflow, see
 [Container development](CONTAINERS.md). It provides `docker compose` commands

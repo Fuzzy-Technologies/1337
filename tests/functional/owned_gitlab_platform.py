@@ -54,8 +54,8 @@ TOKEN_PATTERN = re.compile(rb"gl(?:pat|rt|cbt|ptt)-[A-Za-z0-9_-]{16,}")
 MAX_RESPONSE = 32 * 1024 * 1024
 
 LOCAL_DOCKER_HOST = "unix:///var/run/docker.sock"
-PYTHON_IMAGE = ("python:3.12-slim-bookworm@sha256:"
-    "623674a14ef93d052bb9b0de4dbf5f28eb578a35263838941cc8aa43213c1487")
+PYTHON_IMAGE = ("python:3.13-slim-bookworm@sha256:"
+    "281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f")
 
 READINESS_ARGUMENTS = ("/opt/gitlab/embedded/bin/curl", "--disable", "--silent",
     "--noproxy", "*", "--proxy", "", "--proto", "=http", "--connect-timeout", "1",

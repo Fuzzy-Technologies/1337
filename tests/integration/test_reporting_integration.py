@@ -15,6 +15,12 @@ from jsonschema.validators import validator_for
 from fuzzy1337.adapters.contracts import AdapterExecution, ExecutionState
 from fuzzy1337.evidence import EvidenceError, EvidenceProvenance, LocalEvidenceStore
 from fuzzy1337.findings import ApplyVerifiedFindings, Finding, FindingSeverity
+from fuzzy1337.intel_references import ReferenceSource, SourceOrigin
+from fuzzy1337.intelligence import (
+    ApplyVerifiedEnrichment,
+    IntelligenceFeed,
+    ParseIntelligenceSnapshot,
+)
 from fuzzy1337.model import (
     LocalModelStore,
     ModelProvenance,
@@ -31,6 +37,8 @@ from fuzzy1337.reporting import (
 )
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
 from tests.contract.test_reporting_contract import Validator
+from tests.unit.test_intelligence import CVE, VERSIONS, Payload
+from tests.unit.test_reporting import Dom
 
 EXPORTERS = (RenderHtml, SerializeJson, SerializeSarif, SerializeJunit)
 
@@ -249,3 +257,65 @@ def test_GeneratedSarifValidatesAgainstPinnedOfficialSchema(tmp_path):
     ), "Official SARIF schema content changed without provenance review"
     validator = validator_for(schema)(schema)
     validator.validate(json.loads(SerializeSarif(report)))
+
+
+
+@pytest.mark.parametrize("feed,expected", [
+    (IntelligenceFeed.CVE, ("9.8/10", "FuzzyRoutines", "synthetic-cna",
+                            "Synthetic vulnerability description")),
+    (IntelligenceFeed.KEV, ("known exploitation", "Review this synthetic fixture")),
+    (IntelligenceFeed.EPSS, ("Source EPSS probability: 0.125", "percentile: 0.8")),
+    (IntelligenceFeed.CWE, ("Weakness: Synthetic weakness", "source status: Stable")),
+])
+def test_RealParsedAndVerifiedEnrichmentFeedsReadableHtmlWithoutChangingFinding(
+    tmp_path, feed, expected,
+):
+    """Actual saved parser/enrichment output exercises each supported source presentation branch."""
+
+    root, report, _, _ = Context(tmp_path)
+    raw = Payload(feed)
+    source_evidence = LocalEvidenceStore(root / "evidence").Put(
+        raw, "intelligence-source", "application/octet-stream", EvidenceProvenance(
+            report.state.workspace_id, "scope:local", "synthetic.intel", "1", None,
+            "2026-10-13T00:00:01Z", "2026-10-13T00:00:01Z",
+        ),
+    )
+    source = ReferenceSource(
+        SourceOrigin.SYNTHETIC, "1337 synthetic fixture", "https://example.invalid/source",
+        source_evidence.reference.sha256, "Apache-2.0 (synthetic fixture only)",
+        "https://example.invalid/LICENSE", "2026-10-13T00:00:01Z", "synthetic-importer", "1",
+    )
+    snapshot = ParseIntelligenceSnapshot(raw, feed, VERSIONS[feed], source,
+                                         source_evidence.reference)
+    finding = report.state.Objects(ObjectKind.FINDING)[0]
+    provenance = replace(finding.provenance[0], source_id="synthetic.intel",
+                         run_reference="run:intel", observed_at="2026-10-13T00:00:02Z",
+                         execution=None)
+    enriched, delta = ApplyVerifiedEnrichment(
+        report.state, finding.Reference(), (CVE, "CWE-89"), (snapshot,), provenance, root,
+        as_of="2026-10-13T00:00:02Z", max_age_seconds=3600,
+    )
+    store = LocalModelStore(root)
+    store.Save(enriched, expected_revision=delta.previous_revision)
+    projected = VerifyReportEvidence(ReportSnapshot(store.Open(), report.reference_bindings), root)
+    before = Files(root)
+    dom = Dom()
+    dom.feed(RenderHtml(projected).decode("utf-8"))
+    visible = " ".join(dom.primary_text)
+
+    for literal in (*expected, "Source origin: synthetic", "Publisher: 1337 synthetic fixture",
+                    "Association: candidate", "Target applicability: not determined"):
+        assert literal in visible, f"Actual source assertion lost readable presentation: {literal}"
+
+    assert projected.state.Objects(ObjectKind.FINDING) == (
+        report.state.Objects(ObjectKind.FINDING)
+    ), (
+        "Enrichment or linguistic rendering must not change the source Finding disposition/severity"
+    )
+    assert Files(root) == before, "HTML presentation must not modify source/model evidence"
+
+    if feed is IntelligenceFeed.CVE:
+        assert dom.tags.count("meter") == 5, "Actual CVSS must flow through the UFS consumer"
+
+    else:
+        assert "meter" not in dom.tags, "Other source fields cannot manufacture a CVSS input"

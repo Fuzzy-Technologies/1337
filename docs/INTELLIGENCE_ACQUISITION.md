@@ -153,7 +153,18 @@ connection and subprocess fixtures cover framing, refusals, bounds, partial
 bytes, empty environment, timeout, and caller-interruption cleanup without
 contacting a live publisher. No live official-feed acceptance is claimed.
 
+The separately recorded
+[selected official-source smoke](INTELLIGENCE_SOURCE_ACCEPTANCE.md) imports the
+exact original bytes of one pinned real CISA KEV catalog through the product CLI
+and verifies its receipt and selected source assertions. Its isolated SDK HTTPS
+attempt returned `transport-failed` with zero received bytes, so live receiver
+acceptance remains pending. A successful external download followed by local
+import is not evidence that this receiver's network path succeeded.
+
 Automatic refresh scheduling, broader provider acquisition, incremental/full
 corpus support, publisher signatures, license decisions, feed monitoring,
-applicability/CPE/version matching, risk calculation, and CLI/shell commands remain
-separate scope. #47 remains open for its remaining intelligence acceptance.
+applicability/CPE/version matching and risk calculation remain separate scope.
+The [local CLI and shell](INTELLIGENCE_CLI.md) now import, inspect and explicitly
+apply local selections; optional bounded identifier selection exposes source
+details. Remote acquisition is still a library interface and is not implied by
+the local CLI. #47 remains open for its remaining intelligence acceptance.

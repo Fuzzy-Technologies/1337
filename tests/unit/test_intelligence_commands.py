@@ -413,3 +413,245 @@ def test_QuotedShellSelectionsPreserveWindowsSeparatorsAndSpaces(workspace, monk
     assert json.loads(output.getvalue()) == {"status": "succeeded"}, (
         "Successful quoted dispatch added a second terminal document."
     )
+
+
+def DetailDocument():
+    """Describe a fictional product with independent legacy and current source assessments."""
+
+    document = json.loads(FeedBody(IntelligenceFeed.CVE))
+    cna = document["containers"]["cna"]
+    cna["descriptions"] = [{"lang": "en", "value": "Owned fictional source assertion"}]
+    cna["affected"] = [{"vendor": "Owned vendor", "product": "Owned product", "versions": [
+        {"version": "1", "status": "affected", "versionType": "custom", "lessThan": "3",
+         "changes": [{"at": "2", "status": "unknown"}]},
+        {"version": "0", "status": "unaffected"},
+    ]}]
+    cna["metrics"] = [
+        {"cvssV2_0": {"version": "2.0", "vectorString": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+                       "baseScore": 0.1}},
+        {"cvssV3_1": {"version": "3.1", "baseScore": 9.8,
+                       "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}},
+        {"cvssV4_0": {"version": "4.0", "baseScore": 9.3,
+                       "vectorString": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/"
+                                       "SC:N/SI:N/SA:N"}},
+    ]
+
+    return document
+
+
+def ImportedDetails(tmp_path, document=None):
+    """Import original fictional CVE bytes through the actual owning product dispatcher."""
+
+    model, finding = Context(tmp_path)
+    source = tmp_path / "owned-cve.json"
+    source.write_bytes(json.dumps(DetailDocument() if document is None else document).encode())
+    status, outcome = Run(ImportArguments(model.root, source, IntelligenceFeed.CVE))
+    assert status == 0, "Source setup failed before selected detailed inspection."
+
+    return model, finding, outcome
+
+
+def test_SelectedCveDetailsKeepSourceStatusesAndIndependentScoresWithoutSnapshotCopies(tmp_path):
+    """Detailed inspection connects existing source APIs while remaining read-only and bounded."""
+
+    model, _, imported = ImportedDetails(tmp_path)
+    before = Files(model.root)
+    arguments = Selection("inspect", model.root, imported)
+    _, default = Run(arguments)
+    status, selected = Run([*arguments, "--identifier", "CVE-1900-9999"])
+    assert status == 0 and set(selected) == set(default) | {"details"}, (
+        "Explicit inspection changed the default terminal contract rather than adding detail."
+    )
+    details = selected["details"]
+    assert details["target_applicability"] == "not-evaluated" and details[
+        "publisher_authentication"
+    ] == "not-assessed", "Source inspection manufactured target or publisher verification."
+    assert details["source"]["origin"] == "synthetic", "Source origin was hidden or upgraded."
+    record = details["records"][0]
+    assert [(item["version"], item["base_score"]) for item in record["data"]["cvss"]] == [
+        ("4.0", 9.3), ("3.1", 9.8),
+    ], "Separate current source scores were recalculated, selected, or combined."
+    profiles = details["cve_source_profiles"]
+    product = profiles["applicability"]["containers"][0]["affected"][0]
+    assert product == DetailDocument()["containers"]["cna"]["affected"][0], (
+        "Affected/unaffected/unknown source declarations changed or became a target verdict."
+    )
+    legacy = profiles["cvss2"]
+    assert legacy["assessments"][0]["metric"]["cvssV2_0"]["baseScore"] == 0.1, (
+        "Calculated CVSS2 base score overwrote the publisher's asserted score."
+    )
+    assert legacy["base_calculations"] == [{"assessment_index": 0,
+                                            "algorithm": "cvss2-base-2.10",
+                                            "base_score_tenths": 75}], (
+        "The existing exact CVSS2 arithmetic was replaced by source score interpretation."
+    )
+    assert '"snapshot":' not in json.dumps(details) and len(json.dumps(details)) < 10000, (
+        "Detailed inspection duplicated whole snapshots or original source bytes."
+    )
+    assert Files(model.root) == before, "Read-only details changed evidence or canonical state."
+
+
+@pytest.mark.parametrize("feed", list(IntelligenceFeed))
+def test_SelectedDetailsPreserveExactRecordsAndExplicitUnmatchedIdentifiers(tmp_path, feed):
+    """Every supported source family exposes only requested records and keeps absence uncertain."""
+
+    model, _ = Context(tmp_path)
+    source = tmp_path / "owned.data"
+    source.write_bytes(FeedBody(feed))
+    _, imported = Run(ImportArguments(model.root, source, feed))
+    selected_id = "CWE-89" if feed is IntelligenceFeed.CWE else "CVE-1900-9999"
+    status, outcome = Run([*Selection("inspect", model.root, imported),
+                           "--identifier", selected_id, "--identifier", "CVE-1900-8888"])
+    assert status == 0, "Selected source inspection failed its verified owning-store boundary."
+    details = outcome["details"]
+    assert [item["identifier"] for item in details["records"]] == [selected_id], (
+        "Selected details included unrelated source assertions."
+    )
+    assert details["unmatched_identifiers"] == ["CVE-1900-8888"], (
+        "Missing source membership became affected, unaffected, or silently vanished."
+    )
+    status, absent = Run([*Selection("inspect", model.root, imported),
+                          "--identifier", "CVE-1900-8888"])
+    assert status == 0 and absent["details"]["records"] == [], (
+        "An absent requested identifier manufactured a source record or failed the whole source."
+    )
+    assert "cve_source_profiles" not in absent["details"], (
+        "Unmatched CVE selection disclosed unrelated source declarations."
+    )
+
+
+@pytest.mark.parametrize("version", ["5.0", "5.1", "5.1.1"])
+def test_OlderCveFormatsRetainAssertionsWithoutInventingNewProfileSupport(tmp_path, version):
+    """Unsupported extended source formats remain explicit while original snapshot support works."""
+
+    document = DetailDocument()
+    document["dataVersion"] = version
+    model, _, imported = ImportedDetails(tmp_path, document)
+    status, outcome = Run([*Selection("inspect", model.root, imported),
+                           "--identifier", "CVE-1900-9999"])
+    assert status == 0 and outcome["details"]["records"], "Existing CVE assertions were lost."
+    assert outcome["details"]["cve_source_profiles"] == {
+        "format_version": version, "state": "unsupported-format",
+    }, "The CLI claimed extra source declaration support for an unimplemented format."
+
+
+@pytest.mark.parametrize("profile", ["applicability", "cvss2"])
+def test_UnsupportedProfileContentKeepsIndependentVerifiedSourceAssertions(tmp_path, profile):
+    """Strict profile refusals remain explicit without changing source bytes or other profiles."""
+
+    document = DetailDocument()
+
+    if profile == "applicability":
+        document["containers"]["cna"]["affected"][0]["unsupportedQualifier"] = "unknown"
+
+    else:
+        document["containers"]["cna"]["metrics"][0]["cvssV2_0"]["unsupportedMetric"] = 1
+
+    model, _, imported = ImportedDetails(tmp_path, document)
+    status, outcome = Run([*Selection("inspect", model.root, imported),
+                           "--identifier", "CVE-1900-9999"])
+    assert status == 0, "Unsupported additional profile content hid all verified base assertions."
+    profiles = outcome["details"]["cve_source_profiles"]
+    assert profiles[profile] == {"profile_version": 1, "state": "unsupported-content"}, (
+        "An unsupported declaration was guessed, silently dropped, or interpreted as absence."
+    )
+    other = "cvss2" if profile == "applicability" else "applicability"
+    assert profiles[other]["state"] == "inspected", "One profile failure erased another profile."
+
+
+def test_RejectedCveDetailedInspectionDoesNotCreatePositiveAssessments(tmp_path):
+    """Rejected source records retain their state with empty declaration and calculation arrays."""
+
+    document = DetailDocument()
+    document["cveMetadata"]["state"] = "REJECTED"
+    model, _, imported = ImportedDetails(tmp_path, document)
+    status, outcome = Run([*Selection("inspect", model.root, imported),
+                           "--identifier", "CVE-1900-9999"])
+    assert status == 0 and outcome["details"]["records"][0]["data"]["state"] == "REJECTED", (
+        "Rejected source state was hidden by selected inspection."
+    )
+    profiles = outcome["details"]["cve_source_profiles"]
+    assert profiles["applicability"]["containers"] == [] and profiles["cvss2"][
+        "assessments"
+    ] == profiles["cvss2"]["base_calculations"] == [], (
+        "Rejected CVE inspection invented positive source assertions or zero-score assessments."
+    )
+
+
+@pytest.mark.parametrize("identifiers", [
+    ["cve-1900-9999"], ["CVE-1900-9999", "CVE-1900-9999"],
+    [f"CVE-1900-{1000 + index}" for index in range(65)], ["untrusted-value"],
+])
+def test_InvalidDetailSelectionsRefuseBeforeOriginalSourceVerification(tmp_path, monkeypatch,
+                                                                     identifiers):
+    """Malformed, repeated or excessive explicit selections do not reach owning source reads."""
+
+    model, _, imported = Imported(tmp_path)
+    entered = []
+
+    def Verify(*arguments):
+        """Fail the test if malformed configuration crosses the original-source boundary."""
+
+        entered.append(arguments)
+        raise AssertionError("Invalid detail selection reached source verification.")
+
+    monkeypatch.setattr(commands, "VerifiedIntelSelection", Verify)
+    arguments = Selection("inspect", model.root, imported)
+
+    for identifier in identifiers:
+        arguments.extend(["--identifier", identifier])
+
+    status, outcome = Run(arguments)
+    assert status == 2 and outcome["failure"] == "configuration" and not entered, (
+        "Invalid identifier selection was not rejected before source verification."
+    )
+    assert "untrusted-value" not in json.dumps(outcome), "Rejected selection leaked to output."
+
+
+def test_ExactSelectionCountBoundAndDetailByteCeilingRemainIndependent(tmp_path, monkeypatch):
+    """At most 64 selected records may render, and excessive detail refuses without truncation."""
+
+    model, _, imported = Imported(tmp_path)
+    arguments = Selection("inspect", model.root, imported)
+
+    for index in range(64):
+        arguments.extend(["--identifier", f"CVE-1900-{1000 + index}"])
+
+    status, outcome = Run(arguments)
+    assert status == 0 and len(outcome["details"]["unmatched_identifiers"]) == 64, (
+        "The inclusive 64-identifier bound was reduced or silently truncated."
+    )
+    before = Files(model.root)
+    monkeypatch.setattr(commands, "MAX_INSPECTION_BYTES", 1)
+    status, refused = Run([*Selection("inspect", model.root, imported),
+                           "--identifier", "CVE-1900-9999"])
+    assert status == 4 and refused["failure"] == "inspection-limit" and "details" not in refused, (
+        "Excessive source details were partially printed or reported as successful."
+    )
+    assert Files(model.root) == before, "Detail-size refusal changed owning state."
+
+
+@pytest.mark.parametrize("feed", list(IntelligenceFeed))
+def test_HumanSelectedDetailsExplainFeedMeaningAndEscapeTerminalControls(tmp_path, feed):
+    """Human inspection explains separate measures without terminal-active source content."""
+
+    model, _ = Context(tmp_path)
+    source = tmp_path / "owned.data"
+    source.write_bytes(json.dumps(DetailDocument()).encode() if feed is IntelligenceFeed.CVE
+                       else FeedBody(feed))
+    _, imported = Run(ImportArguments(model.root, source, feed))
+    identifier = "CWE-89" if feed is IntelligenceFeed.CWE else "CVE-1900-9999"
+    status, human = Run([*Selection("inspect", model.root, imported),
+                         "--identifier", identifier, "--identifier", "CVE-1900-8888"],
+                        json_output=False)
+    assert status == 0 and "target applicability has not been evaluated" in human, (
+        "Human detail lost the source-versus-target interpretation boundary."
+    )
+    expected = {IntelligenceFeed.EPSS: "next 30 days", IntelligenceFeed.KEV: "Listed in",
+                IntelligenceFeed.CWE: "Weakness:", IntelligenceFeed.CVE: "Source CVSS 3.1"}
+    assert expected[feed] in human and "CVE-1900-8888" in human, (
+        "Human detail omitted the source measure's meaning or unmatched selection."
+    )
+    assert commands.IntelDisplay("source\x1b[31m\u202e") == "source\\u001b[31m\\u202e", (
+        "Selected source metadata could execute terminal controls or hide directional text."
+    )

@@ -224,7 +224,7 @@ def test_WindowsCrawlCheckpointSelectsOnlyTwoUnitsAndOneActualCancellation() -> 
     job = Workflow("python-quality.yml")["jobs"]["native-crawl-windows-portability"]
     assert job["runs-on"] == "windows-2022", "The diagnostic must exercise actual Windows."
     steps = {step["name"]: step for step in job["steps"]}
-    assert steps["Select Python"]["with"]["python-version"] == "3.12", (
+    assert steps["Select Python"]["with"]["python-version"] == "3.13", (
         "The diagnostic must use the failing shared Windows Python profile."
     )
     units = steps["Run focused Windows crawl units"]
@@ -843,8 +843,8 @@ def test_ContentUnitWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> Non
     assert steps[0] == {**original[0], "with": {
         "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False
     }} and steps[1]["uses"] == original[1]["uses"] and (
-        steps[1]["with"] == {"python-version": "3.12"} and steps[2] == original[2]
-        and steps[3]["run"] == "uv sync --locked --extra dev --python 3.12"
+        steps[1]["with"] == {"python-version": "3.13"} and steps[2] == original[2]
+        and steps[3]["run"] == "uv sync --locked --extra dev --python 3.13"
     ), "Windows diagnostics must keep exact-head checkout and pinned locked Python provisioning."
     junit = "functional-evidence/owned-content-unit-windows.xml"
     assert shlex.split(steps[4]["run"]) == [
@@ -1165,8 +1165,8 @@ def test_NucleiContractWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> 
         "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False,
     }, "Contract results must bind the exact PR head through pinned credential-free checkout."
     assert steps[1]["uses"] == original[1]["uses"] and steps[1]["with"] == {
-        "python-version": "3.12"} and steps[2] == original[2] and steps[3]["run"] == (
-        "uv sync --locked --extra dev --python 3.12"
+        "python-version": "3.13"} and steps[2] == original[2] and steps[3]["run"] == (
+        "uv sync --locked --extra dev --python 3.13"
     ), "The checkpoint must retain pinned Python provisioning and the locked development extra."
     junit = "functional-evidence/nuclei-contract-windows.xml"
     assert shlex.split(steps[4]["run"]) == [

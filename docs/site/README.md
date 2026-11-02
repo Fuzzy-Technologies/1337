@@ -7,7 +7,7 @@ Documentation packages are development tooling and never runtime dependencies.
 
 ## Build and validate
 
-From the repository root with Python 3.11 or later and `uv` installed:
+From the repository root with Python 3.13 or later and `uv` installed:
 
 ```bash
 python tools/locale_documentation.py validate
@@ -16,8 +16,10 @@ python tools/build_api_reference.py
 
 The builder provisions a disposable environment outside the checkout from the
 complete, SHA-256
-hashed `docs/requirements-api.lock`, builds a wheel, installs it without runtime
-dependencies, and launches an isolated Python process. Griffe inspection is
+hashed `docs/requirements-api.lock` and the base runtime requirements exported
+from `uv.lock`. Both dependency sets are installed together with hash enforcement;
+incompatible pins fail provisioning. The builder installs its fresh wheel without
+further dependency resolution and launches an isolated Python process. Griffe inspection is
 disabled. An import tripwire rejects every attempt to import `fuzzy1337`.
 Installed wheel sources are the only configured Python-handler paths; every Python
 source byte must match the reviewed checkout before rendering.

@@ -8,7 +8,7 @@ API reference. Publication is a separate protected-branch operation.
 
 ## Reproduce the gate
 
-The `Documentation` workflow uses Python 3.11 and the repository's pinned uv.
+The `Documentation` workflow uses Python 3.13 and the repository's pinned uv.
 Documentation dependencies have their own fully hashed transitive lock; none are
 added to the product wheel's runtime requirements.
 
@@ -24,7 +24,9 @@ uv pip install --python .venv/bin/python --require-hashes -r docs/requirements-a
 ```
 
 The strict builder provisions a fresh environment outside the checkout, installs
-the new wheel without runtime dependencies, rejects runtime imports and dynamic
+the documentation tooling and exported base runtime dependencies together under
+their locked hashes, and installs the new wheel without further dependency resolution.
+It rejects runtime imports and dynamic
 inspection, compares every packaged Python source byte with the checkout, and
 renders twice into fresh temporary output outside the checkout before copying
 validated public files to the artifact staging area. `SOURCE_DATE_EPOCH` fixes generated dates to the
