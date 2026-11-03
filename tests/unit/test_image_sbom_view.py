@@ -16,6 +16,13 @@ from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.sbom_helpers import IMAGE_DIGEST, Arguments, Context, Run, ViewArguments
 
 
+def PolicyArguments(owned):
+    """Select explicit synthetic caller preferences on the unchanged actual image view."""
+
+    return ViewArguments(owned) + ["--license-policy", "owned-v1", "--allow-license", "MIT",
+                                  "--deny-license", "Apache-2.0"]
+
+
 @pytest.mark.parametrize("mode", ["missing-kind", "tag", "extra-source", "missing-image"])
 def test_ExplicitImageViewRefusesInvalidSelectionsWithoutReflectingInputs(tmp_path, mode):
     """No tag, implicit digest kind or write option can select an image view."""
@@ -174,4 +181,111 @@ def test_OversizedKnownOriginalRefusesBeforeGenericEvidenceVerification(tmp_path
     status, outcome = Run(ViewArguments(owned))
     assert status == 4 and outcome["failure"] == "selected-source", (
         "Saved-source view must retain original SBOM ceilings before any generic owning byte read"
+    )
+
+
+@pytest.mark.parametrize("extra", [
+    ["--allow-license", "MIT"], ["--deny-license", "MIT"],
+    ["--license-policy", "owned"],
+    ["--license-policy", "owned", "--allow-license", "MIT", "--deny-license", "mit"],
+    ["--license-policy", "PRIVATE MARKER", "--allow-license", "MIT"],
+    ["--license-policy", "owned", "--allow-license", "PRIVATE MARKER"],
+])
+def test_ExplicitPolicyConfigurationIsValidatedBeforeReadingSavedOwners(tmp_path, extra):
+    """Missing, ambiguous or unsupported policy declarations never start a source projection."""
+
+    owned = Context(tmp_path)
+    status, outcome = Run(ViewArguments(owned) + extra)
+    assert status == 2 and outcome["failure"] == "configuration" and (
+        "PRIVATE" not in str(outcome)
+    ), "Policy configuration must fail safely before source and image lookup"
+
+
+@pytest.mark.parametrize("mode", ["expression", "source-sha", "source-spdx", "source-id",
+                                  "unknown-manifest", "manifest-type", "missing-alias"])
+def test_PolicyProjectionRequiresExactOriginalSourceInterpretation(tmp_path, mode):
+    """Saved assertions cannot borrow another source/alias or replace original expressions."""
+
+    owned = Context(tmp_path)
+    assert Run(Arguments(owned))[0] == 0, "Actual original SPDX import must first succeed"
+    store = LocalModelStore(owned.root)
+    model = store.Open()
+    assertion = next(item for item in model.observations if item.kind == "spdx-package-license"
+        and item.attributes["declared"].get("expression") == "MIT")
+    fields = dict(assertion.attributes)
+
+    if mode == "expression":
+        fields["declared"] = {"state": "expression", "expression": "Apache-2.0"}
+
+    elif mode == "source-sha":
+        fields["document_sha256"] = "b" * 64
+
+    elif mode == "source-spdx":
+        fields["spdx_id"] = "SPDXRef-Helper"
+
+    elif mode == "source-id":
+        assertion = replace(assertion, provenance=replace(assertion.provenance,
+                                                         source_id="inventory.other"))
+
+    elif mode == "unknown-manifest":
+        fields["evidence_id"] = "sha256:" + "b" * 64
+
+    elif mode == "manifest-type":
+        fields["evidence_id"] = 1
+
+    forged = replace(assertion, attributes=fields)
+    observations = tuple(item for item in model.observations if not (
+        item.kind == "spdx-package-license" and item.attributes.get("spdx_id") == "SPDXRef-Lib"
+    ) and not (mode == "missing-alias" and item.kind == "spdx-source-alias"
+               and item.attributes.get("spdx_id") == "SPDXRef-Lib")) + (forged,)
+    store.Save(replace(model, observations=observations, revision=model.revision + 1),
+               expected_revision=model.revision)
+    status, outcome = Run(PolicyArguments(owned))
+    assert status == 4 and outcome["status"] == "failed" and "license_policy" not in outcome, (
+        "Exact original reparse and custody joins must refuse changed interpretations atomically"
+    )
+
+
+@pytest.mark.parametrize("limit", ["MAX_IMAGE_LICENSE_SOURCES", "MAX_IMAGE_LICENSE_ASSERTIONS"])
+def test_PolicySourceAndAssertionQuotasWithholdEveryPartialDecision(tmp_path, monkeypatch, limit):
+    """Extra interpretation work has its own finite ceilings below the unchanged output ceiling."""
+
+    owned = Context(tmp_path)
+    assert Run(Arguments(owned))[0] == 0, "Actual source import must precede read-only projection"
+    monkeypatch.setattr(views, limit, 0)
+    status, outcome = Run(PolicyArguments(owned))
+    assert status == 4 and outcome["failure"] == "limit" and "license_policy" not in outcome, (
+        "A source/assertion quota cannot return a partial policy match as a successful image view"
+    )
+
+
+def test_UnsupportedAndAbsentSourceProfilesRemainUnknownWithoutBorrowingLicenseAssets(tmp_path):
+    """Opaque older declarations and unrelated current license assets are never silently trusted."""
+
+    owned = Context(tmp_path)
+    assert Run(Arguments(owned))[0] == 0, "Original source must first create canonical packages"
+    store = LocalModelStore(owned.root)
+    model = store.Open()
+    packages = {item.Reference() for item in model.objects
+                if item.attributes.get("asset_type") == "package"}
+    one = next(item for item in model.observations if item.kind == "spdx-package-license"
+               and item.subject_reference in packages)
+    old_fields = {key: value for key, value in one.attributes.items() if key != "evidence_id"}
+    older = replace(one, attributes=old_fields)
+    observations = tuple(item for item in model.observations if item.kind != (
+        "spdx-package-license"
+    )) + (older,)
+    store.Save(replace(model, observations=observations, revision=model.revision + 1),
+               expected_revision=model.revision)
+    status, outcome = Run(PolicyArguments(owned))
+    assert status == 0, "An explicit unsupported/absent result is a valid read-only projection"
+    rows = outcome["license_policy"]["packages"]
+    actual = next(row for row in rows if row["package_reference"] == older.subject_reference)
+    assert actual["assertions"] == [{"observation_reference": older.Reference(),
+        "status": "unknown", "reason": "unsupported-source-profile"}], (
+        "An older unsupported assertion cannot be upgraded to a trusted policy result"
+    )
+    assert all(row["status"] == "unknown" and row["reason"] == "no-selected-source-assertion"
+        for row in rows if row is not actual), (
+        "Remaining license assets or declarations from other profiles cannot fill missing facts"
     )

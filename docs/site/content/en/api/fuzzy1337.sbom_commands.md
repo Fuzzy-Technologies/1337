@@ -70,6 +70,13 @@ access, remote retrieval, native grant, implicit read consent, inferred score or
 Core/SDK schema change. The existing flat SPDX and graph SDK contracts remain
 unchanged.
 
+The read-only image route accepts an optional explicit `--license-policy ID`
+with repeated `--allow-license`/`--deny-license` atoms. The selected finite policy
+profile matches original owned SPDX graph assertions only, keeping their exact
+source/image/alias references and declared/concluded roles separate. It creates
+no compliance or aggregated package/image verdict. Invalid policy is refused
+before saved owners are read; default output remains unchanged without policy.
+
 See [Owned SPDX graph import](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/SBOM_IMPORT.md)
 and [ADR 0082](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/adr/0082-owned-offline-spdx-graph-import.md).
 

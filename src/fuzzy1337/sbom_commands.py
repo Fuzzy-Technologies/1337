@@ -271,6 +271,7 @@ def SbomParser() -> argparse.ArgumentParser:
     --image-digest sha256:DIGEST --image-digest-kind {config,manifest}
     --scope SCOPE --run RUN --expected-revision MODEL --expected-workspace-revision WORKSPACE
   image WORKSPACE --image-digest sha256:DIGEST --image-digest-kind {config,manifest}
+    [--license-policy ID [--allow-license ATOM]... [--deny-license ATOM]...]
 Retained replay requires known original product custody.
 It accepts no context or read overrides.""")
     actions = parser.add_subparsers(dest="action", required=True, parser_class=SbomArgumentParser)
@@ -297,6 +298,9 @@ It accepts no context or read overrides.""")
     viewer.add_argument("workspace", type=Path)
     viewer.add_argument("--image-digest", required=True)
     viewer.add_argument("--image-digest-kind", choices=("config", "manifest"), required=True)
+    viewer.add_argument("--license-policy")
+    viewer.add_argument("--allow-license", action="append", default=[])
+    viewer.add_argument("--deny-license", action="append", default=[])
 
     return parser
 
