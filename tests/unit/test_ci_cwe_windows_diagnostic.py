@@ -6,6 +6,7 @@
 import hashlib
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -25,13 +26,17 @@ def Job():
     return yaml.safe_load(WORKFLOW.read_text())["jobs"]["cwe-selected-windows"]
 
 
-def test_ExistingNativeBaselineRemainsByteIdentical():
-    """The independent native baseline retains its original selection and deadline unchanged."""
+@pytest.mark.parametrize("line_ending", [b"\n", b"\r\n"], ids=["git-lf", "windows-crlf"])
+def test_ExistingNativeBaselineRemainsByteIdentical(line_ending: bytes) -> None:
+    """Preserve exact Git-content bytes across LF and Windows CRLF checkout representations."""
 
-    original = WORKFLOW.read_bytes().split(b"  cwe-selected-windows:\n", 1)[0]
+    canonical = WORKFLOW.read_bytes().replace(b"\r\n", b"\n")
+    assert b"\r" not in canonical, "A lone carriage return must not enter canonical Git content."
+    checkout = canonical.replace(b"\n", line_ending)
+    original = checkout.replace(b"\r\n", b"\n").split(b"  cwe-selected-windows:\n", 1)[0]
     assert hashlib.sha256(original).hexdigest() == (
         "0fb492d0061d73c9474c8729fd51b1599578520ec1d02e628fffc30a1ee76742"
-    ), "Adding a CWE diagnostic must not modify the original native workflow/job bytes."
+    ), "The canonical Git bytes of the original native workflow/job must remain identical."
 
 
 def test_NewDiagnosticRequiresSameRepositoryDraftAndExactMarker():
