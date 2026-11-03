@@ -8,6 +8,22 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 1 — v0.4.1 — 2026-11-03
+
+#### Digest
+
+- Establish a bounded experimental EPSS gzip selection decoder for the remaining
+  M3 profile work. Acquisition, original receipt replay and installed CLI
+  inspection remain separate; this does not publish a release.
+
+#### Added
+
+- Validate one complete finite gzip/CSV corpus while retaining only explicitly
+  selected CVE assertions, exact publisher model/time metadata and unmatched IDs.
+  Separate selection references bind source hashes and decode facts without
+  changing legacy intelligence schemas or shared byte limits.
+
+
 ### Patch 0 — v0.4.0 — 2026-11-02
 
 #### Digest
