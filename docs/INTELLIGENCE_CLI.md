@@ -5,6 +5,10 @@ explicit local CVE, CWE, KEV or EPSS document and retains original evidence,
 normalized snapshot and terminal receipt in an existing workspace. It does not
 fetch declared URLs, discover a latest source or automatically enrich findings.
 
+The separate [selected EPSS gzip profile](INTELLIGENCE_EPSS_SELECTION.md) adds
+`intel epss import|inspect` with explicit selected IDs and independent custody
+references. Its receipts do not enter the legacy snapshot/apply path below.
+
 Create a workspace first with `1337 workspace create`. Import requires all source
 attribution to be supplied explicitly. For an owned synthetic EPSS fixture:
 

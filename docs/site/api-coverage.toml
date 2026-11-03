@@ -892,3 +892,17 @@ module = "fuzzy1337.intelligence_epss_selection"
 source = "src/fuzzy1337/intelligence_epss_selection.py"
 mode = "authored"
 page = "api/fuzzy1337.intelligence_epss_selection.md"
+
+[[surfaces]]
+# Experimental local custody/replay SDK; no legacy snapshot or remote admission changes.
+module = "fuzzy1337.intelligence_epss_acquisition"
+source = "src/fuzzy1337/intelligence_epss_acquisition.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_epss_acquisition.md"
+
+[[surfaces]]
+# Internal additive selected-EPSS commands; no legacy snapshot or remote admission changes.
+module = "fuzzy1337.intelligence_epss_commands"
+source = "src/fuzzy1337/intelligence_epss_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_epss_commands.md"

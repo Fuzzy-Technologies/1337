@@ -8,6 +8,28 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 2 — v0.4.2 — 2026-11-03
+
+#### Digest
+
+- Connect explicit local selected-EPSS imports to original evidence custody and
+  offline inspection. HTTPS and publisher authentication remain separate.
+
+#### Added
+
+- Add separate selected-envelope and acquisition-receipt identities retaining
+  source terms, model/time, exact gzip evidence and requested/unmatched CVEs.
+- Expose explicit `intel epss import|inspect` without model mutation or changes
+  to legacy intelligence import, replay and Finding application.
+
+#### Security
+
+- Enforce caller-expected artifact roles, types and finite content budgets before
+  original reads; reparse source bytes on reopen and reject future score clocks.
+- Preserve independent raw/selection/receipt acknowledgements, including uncertain
+  publication, instead of inferring rollback or complete custody after failure.
+
+
 ### Patch 1 — v0.4.1 — 2026-11-03
 
 #### Digest

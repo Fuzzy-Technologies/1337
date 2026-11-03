@@ -13,4 +13,7 @@ references and observed receiver facts without source bodies. The module grants
 no remote acquisition, publisher authentication, automatic enrichment or execution
 authority. ADR 0069 and `docs/INTELLIGENCE_CLI.md` define the CLI contract.
 
+The additive `intel epss` namespace delegates to its own bounded selected-gzip
+consumer; it does not change the legacy parser, snapshots or application path.
+
 ::: fuzzy1337.intelligence_commands
