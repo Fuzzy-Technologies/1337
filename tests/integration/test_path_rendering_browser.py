@@ -84,18 +84,28 @@ def test_RequiredActualChromiumUsesOfflineArtifactControlsDownloadsAndCsp(tmp_pa
         page.wait_for_function("initial => document.getElementById('path-graph').getAttribute("
                                "'viewBox') !== initial", arg=initial)
         zoomed = graph.get_attribute("viewBox")
+        assert float(zoomed.split()[2]) < float(initial.split()[2]), (
+            "Actual wheel-in event did not decrease the visible graph width"
+        )
         page.mouse.wheel(0, 120)
         page.wait_for_function("previous => document.getElementById('path-graph').getAttribute("
                                "'viewBox') !== previous", arg=zoomed)
+        assert float(graph.get_attribute("viewBox").split()[2]) > float(zoomed.split()[2]), (
+            "Actual wheel-out event did not increase the visible graph width"
+        )
         page.locator("#reset-view").click()
         graph.dispatch_event("pointermove", {"clientX": 0, "clientY": 0})
         bounds = graph.bounding_box()
         assert bounds is not None, "Original graph has no visible browser geometry"
+        before_pan = tuple(float(value) for value in graph.get_attribute("viewBox").split())
         page.mouse.move(bounds["x"] + 8, bounds["y"] + 8)
         page.mouse.down()
         page.mouse.move(bounds["x"] + 48, bounds["y"] + 28)
         page.mouse.up()
-        assert graph.get_attribute("viewBox") != initial, "Actual drag did not pan the graph"
+        after_pan = tuple(float(value) for value in graph.get_attribute("viewBox").split())
+        assert after_pan[:2] != before_pan[:2] and after_pan[2:] == before_pan[2:], (
+            "Actual drag must move the graph origin without changing the visible width/height"
+        )
         graph.dispatch_event("pointercancel", {"pointerId": 1})
         page.locator("#reset-view").click()
         edge = page.locator("#path-graph a.edge").first

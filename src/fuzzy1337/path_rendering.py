@@ -163,10 +163,15 @@ def Layout(references: tuple[str, ...], transitions: list[dict[str, Any]],
     for reference in references:
         rank = ranks.get(reference, final_rank)
         row = rows.get(rank, 0)
-        positions[reference] = (120 + rank * 260, 80 + row * 140)
+        positions[reference] = (320 + rank * 260, 120 + row * 140)
         rows[rank] = row + 1
 
-    return positions, 240 + max(rows) * 260, 20 + max(rows.values()) * 140
+    # Keep cubic control points, self-loops and complete state labels inside the static export.
+    # The rightmost vertical curve extends 200 pixels; its state label is centered at +180.
+    width = max(point[0] for point in positions.values()) + 300
+    height = max(point[1] for point in positions.values()) + 100
+
+    return positions, width, height
 
 
 def EdgeGeometry(source: tuple[int, int], target: tuple[int, int]) -> tuple[str, int, int]:
@@ -264,7 +269,8 @@ def GraphSvg(document: dict[str, Any], model: ModelState) -> tuple[str, str]:
             f'aria-label="{escape(label + " " + reference, quote=True)}">'
             f'<path d="{path}" marker-end="url(#arrow)"/>'
             f'<text x="{label_x}" y="{label_y}" '
-            f'text-anchor="middle">{escape(label)}</text></a>')
+            f'text-anchor="middle" textLength="{len(label) * 8}" '
+            f'lengthAdjust="spacingAndGlyphs">{escape(label)}</text></a>')
         details.append(f'<details id="{Anchor(reference)}" open><summary>'
             f'{escape(label + " " + reference)}</summary><pre>'
             f'{escape(CanonicalModelJson(transition).decode("utf-8"))}</pre></details>')
@@ -280,8 +286,11 @@ def GraphSvg(document: dict[str, Any], model: ModelState) -> tuple[str, str]:
             f'href="#{Anchor(reference)}" '
             f'aria-label="{escape(label + " " + reference, quote=True)}">'
             f'<rect x="{x - 100}" y="{y - 30}" width="200" height="60" rx="9"/>'
-            f'<text x="{x}" y="{y - 6}" text-anchor="middle">{escape(label + suffix)}</text>'
-            f'<text x="{x}" y="{y + 16}" text-anchor="middle">'
+            f'<text x="{x}" y="{y - 6}" text-anchor="middle" '
+            f'textLength="{len(label + suffix) * 7}" lengthAdjust="spacingAndGlyphs">'
+            f'{escape(label + suffix)}</text>'
+            f'<text x="{x}" y="{y + 16}" text-anchor="middle" textLength="140" '
+            f'lengthAdjust="spacingAndGlyphs">'
             f'{escape(reference[:19] + "…")}</text></a>')
         details.append(f'<details id="{Anchor(reference)}" open><summary>{escape(label + suffix)}'
             f'</summary><p><code>{escape(reference)}</code></p><p>'

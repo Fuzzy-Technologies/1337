@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import shutil
@@ -15,9 +16,19 @@ import pytest
 
 from fuzzy1337 import path_commands as commands
 from fuzzy1337 import path_rendering as rendering
+from fuzzy1337.model import (
+    LocalModelStore,
+    ModelProvenance,
+    ObjectIdentity,
+    ObjectKind,
+    Relation,
+    RelationKind,
+    SecurityObject,
+)
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
 from tests.contract.reachability_fixture import Fixture
 from tests.integration.test_path_command_workflow import Selected
-from tests.path_command_helpers import Files, Run, SmallArguments, SmallGraph, Value
+from tests.path_command_helpers import Arguments, Files, Run, SmallArguments, SmallGraph, Value
 
 
 def Html(arguments):
@@ -109,6 +120,80 @@ def test_ActualOppositeAttestationsAndSelfLoopKeepIndependentVisibleGeometry(tmp
     ), "Opposite original transitions hide each other's visible curve/state label"
     self_ref = fixture.relations["detour-self-cycle"].Reference()
     assert "#" + rendering.Anchor(self_ref) in links, "Original selected self-loop disappeared"
+
+
+@pytest.mark.parametrize("disconnected", [False, True])
+def test_ActualSameRankCurvesAndAllLabelsFitHtmlAndDownloadedStaticSvg(tmp_path, disconnected):
+    """Original same-rank edges, reverse curves and self-loops fit the static artifact."""
+
+    root = tmp_path / "owned geometry workspace"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned graph geometry"), "geometry")
+    store = LocalModelStore(root)
+    initial = store.Create()
+    provenance = ModelProvenance("owned.geometry", "run:geometry", "2026-10-14T00:00:00Z",
+                                "scope:owned", "target:owned")
+    kinds = {"a": ObjectKind.DOMAIN, "b": ObjectKind.SERVICE, "c": ObjectKind.ENDPOINT}
+
+    if disconnected:
+        kinds.update({"d": ObjectKind.TECHNOLOGY, "e": ObjectKind.HOST})
+
+    keys = {"a": "geometry.invalid", "e": "127.0.0.1"}
+    objects = {alias: SecurityObject(ObjectIdentity(initial.workspace_id, kind,
+        keys.get(alias, "owned-geometry:" + alias)), provenance=(provenance,))
+        for alias, kind in kinds.items()}
+    coordinates = (("a", "b"), ("a", "c"), ("b", "c"), ("c", "b"), ("b", "a"),
+                   ("a", "a"), ("b", "b"), ("c", "c"))
+
+    if disconnected:
+        coordinates += (("d", "e"), ("e", "d"))
+
+    relations = tuple(Relation(RelationKind.RELATED_TO, objects[source].Reference(),
+        objects[target].Reference(), provenance=(provenance,)) for source, target in coordinates)
+    changed, _ = initial.Apply(objects=tuple(objects.values()), relations=relations)
+    model = store.Save(changed, expected_revision=initial.revision)
+    arguments = Arguments(root, model, objects["a"].Reference(), objects["c"].Reference(),
+                          tuple(item.Reference() for item in relations))
+    before = Files(root)
+    status, ordinary = Run(arguments)
+    html_status, html = Html(arguments)
+    assert status == html_status == 0 and Embedded(html) == ordinary, (
+        "Geometry presentation changed the original graph analysis or machine-readable outcome"
+    )
+    svg = re.search(r'(<svg\b.*?</svg>)', html, re.DOTALL).group(1)
+    selected = re.search(r'download="path-analysis.svg" href="data:image/svg\+xml;base64,([^"]+)"',
+                         html).group(1)
+    downloaded = base64.b64decode(selected).decode("utf-8")
+    assert downloaded == svg, "Downloaded static graph is not the same rendered original graph"
+    namespace = {"svg": "http://www.w3.org/2000/svg"}
+
+    for artifact in (svg, downloaded):
+        document = etree.fromstring(artifact)
+        left, top, width, height = map(float, document.attrib["viewBox"].split())
+        assert left == top == 0, "Static graph changed its declared finite canvas origin"
+        assert len(document.findall("svg:a/svg:path", namespace)) == len(relations), (
+            "Geometry bounds fix silently omitted an original transition"
+        )
+
+        for path in document.findall("svg:a/svg:path", namespace):
+            points = [float(value) for value in re.findall(r'-?\d+(?:\.\d+)?', path.attrib["d"])]
+            assert all(0 <= value <= width for value in points[::2]) and all(
+                0 <= value <= height for value in points[1::2]
+            ), "An original transition's cubic control hull is outside the static canvas"
+
+        for text in document.findall("svg:a/svg:text", namespace):
+            x, y = float(text.attrib["x"]), float(text.attrib["y"])
+            half_width = float(text.attrib["textLength"]) / 2
+            assert 0 <= x - half_width <= x + half_width <= width and (
+                0 <= y - 16 <= y + 16 <= height
+            ), "An original state or typed-node label is clipped outside the static canvas"
+
+        for rectangle in document.findall("svg:a/svg:rect", namespace):
+            x, y = float(rectangle.attrib["x"]), float(rectangle.attrib["y"])
+            assert 0 <= x < x + float(rectangle.attrib["width"]) <= width and (
+                0 <= y < y + float(rectangle.attrib["height"]) <= height
+            ), "An original selected node is clipped outside the static canvas"
+
+    assert Files(root) == before, "Geometry rendering changed the authoritative saved model"
 
 
 @pytest.mark.parametrize("failure", ["basis", "proof", "limit", "mode"])
