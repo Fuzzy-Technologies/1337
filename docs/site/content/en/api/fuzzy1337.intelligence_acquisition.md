@@ -5,6 +5,11 @@ immutable official CISA KEV mirror revision. Acquisition retains observed receiv
 times, bounded original/partial bytes, immutable terminal records and honest batch
 outcomes. A failed or incomplete acquisition yields no usable snapshot.
 
+The existing CISA admission delegates process lifetime and byte framing to the
+shared Internal `fuzzy1337.intelligence_receiver` owner. Its default JSON worker
+invocation and typed source restrictions remain unchanged. The separate pinned
+EPSS HTTPS family does not enter this snapshot admission or replay contract.
+
 Portable replay requires the original raw owning manifest, exact byte identities
 and consistent receiver/importer provenance. Existing verified enrichment owns
 finding application and triage. HTTPS transport and hashes do not authenticate
