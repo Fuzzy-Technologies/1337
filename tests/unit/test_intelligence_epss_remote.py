@@ -54,21 +54,33 @@ def test_ExactFiniteRequestBoundariesAreAccepted(timeout, maximum):
     """Both declared timeout boundaries and the exact four MiB compressed cap remain usable."""
 
     request = EpssHttpsRequest(Source(), ("CVE-1900-0001",), maximum, timeout)
-    assert request.max_bytes == maximum and request.timeout_seconds == timeout
+    assert request.max_bytes == maximum and request.timeout_seconds == timeout, (
+        'Accepted request changed the explicit compressed-byte or timeout boundary'
+    )
 
 
 def test_OnlyGeneratedImmutableLocatorAndPrimaryAttributionArePresented():
     """Fixed source links remain detached without an invented data license or authenticity."""
 
     source = Source()
-    assert source.source_url == ("https://raw.githubusercontent.com/empiricalsec/epss_scores/"
-        + "a" * 40 + "/2026/epss_scores-2026-11-02.csv.gz")
+    assert source.SourceUrl == ("https://raw.githubusercontent.com/empiricalsec/epss_scores/"
+        + "a" * 40 + "/2026/epss_scores-2026-11-02.csv.gz"), (
+        'Source locator did not retain the sole immutable archive URL recipe'
+    )
     document = source.ToDict()
-    assert DecodeHttpsSource(document) == source
-    assert document["data_license"] == "not-established"
-    assert document["publisher_authentication"] == "not-assessed"
+    assert DecodeHttpsSource(document) == source, (
+        'Exact HTTPS source declaration did not round-trip'
+    )
+    assert document["data_license"] == "not-established", (
+        'Source metadata invented a data license'
+    )
+    assert document["publisher_authentication"] == "not-assessed", (
+        'Source metadata invented publisher authentication'
+    )
     document["terms_urls"].append("https://evil.invalid")
-    assert source.ToDict()["terms_urls"] == ["https://www.first.org/about/policies/terms"]
+    assert source.ToDict()["terms_urls"] == ["https://www.first.org/about/policies/terms"], (
+        'Mutating detached terms changed the immutable source declaration'
+    )
 
 
 @pytest.mark.parametrize("field,value", [("source_url", "https://evil.invalid/source"),

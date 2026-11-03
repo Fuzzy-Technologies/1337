@@ -56,17 +56,29 @@ def test_EnvelopeKeepsOwnProfileReferenceImporterAndNestedUnchangedDecoder():
 
     envelope = Envelope()
     document = envelope.ToDict()
-    assert document["schema_version"] == document["profile_version"] == 1
-    assert document["profile"] == "epss-https-selected-acquisition"
-    assert document["selection"]["schema_version"] == 2
+    assert document["schema_version"] == document["profile_version"] == 1, (
+        'HTTPS envelope schema or profile version changed'
+    )
+    assert document["profile"] == "epss-https-selected-acquisition", (
+        'HTTPS envelope lost its separate acquisition profile identity'
+    )
+    assert document["selection"]["schema_version"] == 2, (
+        'HTTPS envelope rewrote the unchanged nested decoder schema'
+    )
     assert envelope.Reference() == "epss-https-selection:" + hashlib.sha256(
         CanonicalReferenceJson(document),
-    ).hexdigest()
+    ).hexdigest(), (
+        'HTTPS reference omitted exact envelope facts or used a foreign reference family'
+    )
     assert envelope.Serialize() == CanonicalReferenceJson(
         {**document, "reference": envelope.Reference()},
+    ), (
+        'HTTPS serialization disagreed with the complete canonical envelope and reference'
     )
     altered = replace(envelope, source=replace(envelope.source, commit="b" * 40))
-    assert altered.Reference() != envelope.Reference()
+    assert altered.Reference() != envelope.Reference(), (
+        'Changing the pinned source commit did not change the envelope identity'
+    )
 
 
 @pytest.mark.parametrize("field,value", [("source", {}), ("raw", {}), ("selection", {})])

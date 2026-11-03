@@ -91,15 +91,23 @@ def test_ReceiveUsesOnlyFixedResourceAndObservedClockThenReplaysOfflineAfterRelo
     root = Workspace(tmp_path)
     request = Request()
     outcome = AcquireHttpsEpssSelection(root, request, scope_reference="scope:owned")
-    assert calls == [(request.source.source_url, request.max_bytes, 15.0, "gzip")]
-    assert outcome.started_at == "2026-11-02T13:00:00.000000+00:00"
-    assert outcome.finished_at == "2026-11-02T13:00:01.000000+00:00"
+    assert calls == [(request.source.SourceUrl, request.max_bytes, 15.0, "gzip")], (
+        'Receiver delegation changed the pinned locator, byte cap, timeout or gzip kind'
+    )
+    assert outcome.started_at == "2026-11-02T13:00:00.000000+00:00", (
+        'Acquisition start did not record the observed clock before receive'
+    )
+    assert outcome.finished_at == "2026-11-02T13:00:01.000000+00:00", (
+        'Acquisition finish did not record the observed clock after receive'
+    )
     moved = tmp_path / "relocated"
     shutil.move(root, moved)
     monkeypatch.setattr(remote, "ReceiveIsolatedHttps", lambda *args, **kwargs:
                         pytest.fail("Offline replay attempted a receive"))
     assert LoadHttpsEpssSelection(moved, outcome.selection_record.evidence_id,
-                                 outcome.receipt.evidence_id) == outcome.envelope
+                                 outcome.receipt.evidence_id) == outcome.envelope, (
+        'Relocated offline replay changed the acknowledged original HTTPS envelope'
+    )
     assert not (moved / "model").exists(), "Acquisition created a model"
 
 
@@ -116,13 +124,27 @@ def test_ReceiverNegativeFactsPreserveBoundedPartialOriginalsWithoutSuccessEnvel
                         (partial, state, status))
     root = Workspace(tmp_path)
     outcome = AcquireHttpsEpssSelection(root, Request(), scope_reference="scope:owned")
-    assert outcome.state.value == state and outcome.http_status == status
-    assert outcome.receive_state == state and not outcome.body_complete
-    assert outcome.raw.reference.role == PARTIAL_ROLE and outcome.receipt
-    assert LocalEvidenceStore(root / "evidence").Read(outcome.raw.reference) == partial
-    assert outcome.received_bytes == len(partial)
-    assert outcome.selection_ack is EpssHttpsAcknowledgement.NOT_ATTEMPTED
-    assert outcome.envelope is None and outcome.selection_record is None
+    assert outcome.state.value == state and outcome.http_status == status, (
+        'Receiver refusal lost its observed terminal state or HTTP status'
+    )
+    assert outcome.receive_state == state and not outcome.body_complete, (
+        'Receiver refusal claimed complete body custody or lost its observed state'
+    )
+    assert outcome.raw.reference.role == PARTIAL_ROLE and outcome.receipt, (
+        'Receiver refusal lost bounded partial source evidence or its receipt'
+    )
+    assert LocalEvidenceStore(root / "evidence").Read(outcome.raw.reference) == partial, (
+        'Partial-source evidence did not retain the actual bounded receiver bytes'
+    )
+    assert outcome.received_bytes == len(partial), (
+        'Recorded receive length disagreed with actual bounded partial bytes'
+    )
+    assert outcome.selection_ack is EpssHttpsAcknowledgement.NOT_ATTEMPTED, (
+        'A refused receive attempted selected-envelope publication'
+    )
+    assert outcome.envelope is None and outcome.selection_record is None, (
+        'A refused receive exposed a usable successful selected envelope'
+    )
 
 
 @pytest.mark.parametrize("payload,pin,state", [(b"invalid gzip", None, "parse-failed"),
@@ -143,10 +165,18 @@ def test_CompleteHashOrDecodeFailurePreservesOriginalBytesAndFailureReceipt(
 
     root = Workspace(tmp_path)
     outcome = AcquireHttpsEpssSelection(root, request, scope_reference="scope:owned")
-    assert outcome.state.value == state and outcome.raw and outcome.receipt
-    assert outcome.raw.reference.role == RAW_ROLE and outcome.body_complete
-    assert LocalEvidenceStore(root / "evidence").Read(outcome.raw.reference) == payload
-    assert outcome.envelope is None and outcome.selection_record is None
+    assert outcome.state.value == state and outcome.raw and outcome.receipt, (
+        'Complete hash or parse failure lost its terminal state, original bytes or receipt'
+    )
+    assert outcome.raw.reference.role == RAW_ROLE and outcome.body_complete, (
+        'Complete failed source was incorrectly recorded as partial transport custody'
+    )
+    assert LocalEvidenceStore(root / "evidence").Read(outcome.raw.reference) == payload, (
+        'Hash or parse failure changed the retained original received bytes'
+    )
+    assert outcome.envelope is None and outcome.selection_record is None, (
+        'Hash or parse failure published a usable successful selected envelope'
+    )
 
 
 @pytest.mark.parametrize("stage", [1, 2, 3])
@@ -181,14 +211,24 @@ def test_StorageFailuresBeforeAndAfterCommitExposeIndependentUnknownAcknowledgem
     root = Workspace(tmp_path)
     outcome = AcquireHttpsEpssSelection(root, Request(), scope_reference="scope:owned")
     acks = (outcome.raw_ack, outcome.selection_ack, outcome.receipt_ack)
-    assert outcome.state is EpssHttpsState.STORAGE_FAILED and outcome.envelope is None
-    assert acks[stage - 1] is EpssHttpsAcknowledgement.UNKNOWN
-    assert all(ack is EpssHttpsAcknowledgement.CONFIRMED for ack in acks[:stage - 1])
-    assert all(ack is EpssHttpsAcknowledgement.NOT_ATTEMPTED for ack in acks[stage:])
+    assert outcome.state is EpssHttpsState.STORAGE_FAILED and outcome.envelope is None, (
+        'Publication failure returned success or exposed a usable successful envelope'
+    )
+    assert acks[stage - 1] is EpssHttpsAcknowledgement.UNKNOWN, (
+        'The failed publication did not retain its unknown acknowledgement'
+    )
+    assert all(ack is EpssHttpsAcknowledgement.CONFIRMED for ack in acks[:stage - 1]), (
+        'Earlier successful publications lost their confirmed acknowledgements'
+    )
+    assert all(ack is EpssHttpsAcknowledgement.NOT_ATTEMPTED for ack in acks[stage:]), (
+        'Publications after the failure were incorrectly recorded as attempted'
+    )
 
     if stage == 3 and lost_ack:
         loaded = LoadHttpsEpssSelection(root, calls[1].evidence_id, calls[2].evidence_id)
-        assert loaded.selection.unmatched_ids == (MISSING,)
+        assert loaded.selection.unmatched_ids == (MISSING,), (
+            'Recovered receipt with a lost acknowledgement changed the unmatched selection'
+        )
 
 
 @pytest.mark.parametrize("key,value", [("body_complete", False), ("received_bytes", 1),
@@ -221,7 +261,9 @@ def test_RehashedNetworkReceiptTamperingRefusesBeforeOriginalRawAdmission(
     with pytest.raises(ValueError):
         LoadHttpsEpssSelection(root, outcome.selection_record.evidence_id, forged.evidence_id)
 
-    assert outcome.raw.evidence_id not in visited
+    assert outcome.raw.evidence_id not in visited, (
+        'Tampered receipt reached original raw-manifest admission before refusal'
+    )
 
 
 @pytest.mark.parametrize("limit,value", [("max_compressed_bytes", True),
@@ -272,7 +314,9 @@ def test_SameWorkspaceDistinctAcquisitionsCannotSpliceOwningCustody(
     root, first = Imported(tmp_path, monkeypatch)
     second = AcquireHttpsEpssSelection(root, Request(), scope_reference="scope:other")
     store = LocalEvidenceStore(root / "evidence")
-    assert first.raw.evidence_id != second.raw.evidence_id
+    assert first.raw.evidence_id != second.raw.evidence_id, (
+        'Distinct acquisition provenance reused the same original evidence identity'
+    )
 
     if splice == "roots":
         selected_id, receipt_id = first.selection_record.evidence_id, second.receipt.evidence_id
@@ -339,7 +383,9 @@ def test_RoleMediaAndBudgetRefuseBeforeOwningGetAllocatesBlobContent(
     with pytest.raises(ValueError, match="role-specific"):
         LoadHttpsEpssSelection(root, selected_id, receipt_id)
 
-    assert malicious.reference.sha256 not in reads
+    assert malicious.reference.sha256 not in reads, (
+        'Invalid role, media or budget delegated actual malicious blob loading'
+    )
 
 
 def test_FutureSourceClockPreservesRawWithParseFailedReceipt(tmp_path, monkeypatch):
@@ -351,8 +397,12 @@ def test_FutureSourceClockPreservesRawWithParseFailedReceipt(tmp_path, monkeypat
                         (PAYLOAD, "succeeded", 200))
     root = Workspace(tmp_path)
     outcome = AcquireHttpsEpssSelection(root, Request(), scope_reference="scope:owned")
-    assert outcome.state is EpssHttpsState.PARSE_FAILED and outcome.raw and outcome.receipt
-    assert outcome.envelope is None and outcome.selection_record is None
+    assert outcome.state is EpssHttpsState.PARSE_FAILED and outcome.raw and outcome.receipt, (
+        'Future source clock was accepted or lost original bytes and failure receipt'
+    )
+    assert outcome.envelope is None and outcome.selection_record is None, (
+        'Future source clock produced a usable selected envelope'
+    )
 
 
 def test_ForeignWorkspaceCannotAdoptCopiedManifests(tmp_path, monkeypatch):
@@ -443,11 +493,26 @@ def test_ValidLargeWorkspaceIdentityCannotHideConfirmedPublicationsOnReceiptBudg
     monkeypatch.setattr(remote, "ReceiveIsolatedHttps", lambda *args, **kwargs:
                         (PAYLOAD, "succeeded", 200))
     outcome = AcquireHttpsEpssSelection(root, Request(), scope_reference="scope:owned")
-    assert outcome.state is EpssHttpsState.STORAGE_FAILED
-    assert outcome.raw and outcome.selection_record and outcome.envelope is None
-    assert outcome.raw_ack is EpssHttpsAcknowledgement.CONFIRMED
-    assert outcome.selection_ack is EpssHttpsAcknowledgement.CONFIRMED
-    assert outcome.receipt_ack is EpssHttpsAcknowledgement.NOT_ATTEMPTED and outcome.receipt is None
+    assert outcome.state is EpssHttpsState.STORAGE_FAILED, (
+        'Receipt byte-budget failure did not return storage failure'
+    )
+    assert outcome.raw and outcome.selection_record and outcome.envelope is None, (
+        'Receipt byte-budget failure lost earlier artifacts or retained a usable envelope'
+    )
+    assert outcome.raw_ack is EpssHttpsAcknowledgement.CONFIRMED, (
+        'Receipt byte-budget failure lost the confirmed raw publication acknowledgement'
+    )
+    assert outcome.selection_ack is EpssHttpsAcknowledgement.CONFIRMED, (
+        'Receipt byte-budget failure lost the confirmed selection acknowledgement'
+    )
+    assert (outcome.receipt_ack is EpssHttpsAcknowledgement.NOT_ATTEMPTED
+            and outcome.receipt is None), (
+        'Oversized receipt was published or recorded as attempted'
+    )
     store = LocalEvidenceStore(root / "evidence")
-    assert store.Get(outcome.raw.evidence_id) == outcome.raw
-    assert store.Get(outcome.selection_record.evidence_id) == outcome.selection_record
+    assert store.Get(outcome.raw.evidence_id) == outcome.raw, (
+        'Confirmed raw publication was not retrievable after receipt-budget refusal'
+    )
+    assert store.Get(outcome.selection_record.evidence_id) == outcome.selection_record, (
+        'Confirmed selected publication was not retrievable after receipt-budget refusal'
+    )
