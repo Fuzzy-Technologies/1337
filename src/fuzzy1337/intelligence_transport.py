@@ -21,7 +21,8 @@ TRANSPORT_EXIT = 6
 TIMEOUT_EXIT = 7
 
 
-def Receive(url: str, max_bytes: int, timeout_seconds: float, output: BinaryIO) -> int:
+def Receive(url: str, max_bytes: int, timeout_seconds: float, output: BinaryIO, *,
+            accept_kind: str = "json") -> int:
     """Stream only bounded original response bytes without redirects or decompression.
 
     Args:
@@ -29,10 +30,14 @@ def Receive(url: str, max_bytes: int, timeout_seconds: float, output: BinaryIO) 
         max_bytes: Maximum retained response-body bytes.
         timeout_seconds: Socket inactivity ceiling beneath the parent's total deadline.
         output: Parent-owned binary pipe; first line contains controlled framing metadata.
+        accept_kind: Fixed json or gzip resource preference; response-body bytes stay original.
 
     Returns:
         Explicit terminal status; nonzero status never means a complete source body.
     """
+
+    if type(accept_kind) is not str or accept_kind not in ("json", "gzip"):
+        return FORMAT_EXIT
 
     parsed = urlsplit(url)
 
@@ -46,7 +51,8 @@ def Receive(url: str, max_bytes: int, timeout_seconds: float, output: BinaryIO) 
 
     try:
         connection.request("GET", parsed.path, headers={
-            "Accept": "application/json", "Accept-Encoding": "identity",
+            "Accept": "application/gzip" if accept_kind == "gzip" else "application/json",
+            "Accept-Encoding": "identity",
             "Connection": "close", "User-Agent": "1337-intelligence-acquisition/1",
         })
         response = connection.getresponse()
@@ -117,10 +123,11 @@ def Main() -> int:
         Terminal receiver status; no exception details or environment are exported.
     """
 
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != "gzip"):
         return FORMAT_EXIT
 
-    return Receive(sys.argv[1], int(sys.argv[2]), float(sys.argv[3]), sys.stdout.buffer)
+    return Receive(sys.argv[1], int(sys.argv[2]), float(sys.argv[3]), sys.stdout.buffer,
+                   accept_kind="gzip" if len(sys.argv) == 5 else "json")
 
 
 if __name__ == "__main__":

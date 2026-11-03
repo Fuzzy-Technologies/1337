@@ -906,3 +906,24 @@ module = "fuzzy1337.intelligence_epss_commands"
 source = "src/fuzzy1337/intelligence_epss_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.intelligence_epss_commands.md"
+
+[[surfaces]]
+# Internal shared process owner; typed acquisition profiles retain source admission.
+module = "fuzzy1337.intelligence_receiver"
+source = "src/fuzzy1337/intelligence_receiver.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_receiver.md"
+
+[[surfaces]]
+# Experimental pinned HTTPS custody; separate from local and legacy snapshot families.
+module = "fuzzy1337.intelligence_epss_remote"
+source = "src/fuzzy1337/intelligence_epss_remote.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_epss_remote.md"
+
+[[surfaces]]
+# Internal explicit pinned fetch and original offline inspection consumer.
+module = "fuzzy1337.intelligence_epss_https_commands"
+source = "src/fuzzy1337/intelligence_epss_https_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_epss_https_commands.md"

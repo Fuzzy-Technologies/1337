@@ -1,7 +1,7 @@
 # Selected official intelligence source acceptance
 
-This records one actual 2026-11-02 smoke separately from deterministic synthetic
-tests. It establishes acceptance only for the exact selected source bytes and
+This records selected original-source executions separately from deterministic
+synthetic tests. It establishes acceptance only for the exact source bytes and
 executed product paths. The original downloaded corpus and workspace evidence are
 untracked; no official corpus is redistributed in this repository.
 
@@ -66,6 +66,54 @@ script remain in version control for reproduction. This is acceptance of one
 fixed historical source, not moving-feed coverage, publisher-signature
 authentication or target applicability. Those two verdicts remain explicitly
 `not-assessed` and `not-evaluated`.
+
+## Pinned selected EPSS HTTPS checkpoint
+
+The separate [pinned EPSS profile](INTELLIGENCE_EPSS_HTTPS.md) selects archive
+commit `489cd9fcf989cdc3ec87168b873c858938a53517`, day `2026-11-02`, model
+`v2026.06.15` and raw SHA-256
+`86885067d459c6f3ca888bfeb6219d536b428afda9a776c14b48c82bb6a85635`.
+Expected source facts are 2,796,673 gzip bytes, 12,129,716 decoded bytes and
+398,815 original rows. These pins originate from the accepted local source
+checkpoint; they do not alone establish remote acquisition.
+
+The actual isolated SDK attempt in this local environment returned
+`transport-failed`, no HTTP status and zero received bytes. It retained confirmed
+partial raw/failure receipt evidence, did not publish a usable selection and did
+not change model state. This remains a failed network acceptance.
+
+The guarded Draft-only hosted lane runs `tools/epss_https_acceptance.py` using a
+fresh installed wheel. It requires the actual complete HTTP 200 SDK body, exact
+source pins and original remote roots, full gzip reparse, explicit matched and
+unmatched CVEs, unchanged decimal spelling and offline replay after relocation.
+Its terminal facts and original workspace are retained separately from the local
+failure. [Hosted run 41628694763](https://github.com/Fuzzy-Technologies/1337/actions/runs/41628694763)
+passed on head `dc934ae7fa025b431edb243d167baed6b76bc433`, tree
+`5c3b3ea7f74c2cace9c22f400495b4a4f1e4ea95`. Job `125892447105` actually
+built/installed the wheel and executed that unchanged receiver: complete HTTP
+200, the exact raw hash/size above, all 398,815 rows validated, two selected
+assertions and one unmatched CVE. Original `6e-05` spelling and score clock
+`2026-11-02T12:00:30Z` were retained; relocated original-source reopening and
+unchanged model state passed. No fallback or retry supplied the body.
+
+[EPSS artifact 13227615267](https://github.com/Fuzzy-Technologies/1337/actions/runs/41628694763/artifacts/13227615267)
+has archive SHA-256
+`8417a4a12f4ce2619d35be894b2df27006477de830e3b6b5b8aefab27e4d727b`.
+Its original evidence, terminal JSON and installed wheel were downloaded and the
+archive digest checked independently. The clean installed offline CLI reopened
+the same original selection/receipt and raw bytes locally without a model write.
+The artifact's five production source hashes match this profile's source files;
+the later acceptance-record update changes documentation only.
+
+The same run's CISA job `125892446719` also passed complete original HTTPS
+acquisition/reparse of 1,766 records after extraction of shared receiver ownership.
+[CISA artifact 13227411518](https://github.com/Fuzzy-Technologies/1337/actions/runs/41628694763/artifacts/13227411518)
+has independently checked archive SHA-256
+`a48285473f6fb4c6ef615afe1e35d611e2f8b6a18bee73a21bf50dd035123f43`.
+Both artifacts have seven-day retention. Exact source pins and verification tools
+remain versioned. This is bounded historical source acceptance, with publisher
+authentication `not-assessed` and target applicability separate. It does not
+complete the broader CVE/CWE/terms/assurance scope of #43/#47.
 
 ## Publisher-prose regression
 

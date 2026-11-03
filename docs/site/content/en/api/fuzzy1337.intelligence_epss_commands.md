@@ -10,7 +10,10 @@ JSON outcomes distinguish configuration, integrity and acquisition failures and
 retain independent publication acknowledgements. Unmatched CVEs remain explicit;
 source decimal assertions, model metadata and score clock remain separate from
 risk interpretation. Successful import requires all original custody records
-and confirmed acknowledgements. No remote collection, automatic matching,
-Finding application, model save or publisher authentication is introduced.
+and confirmed acknowledgements. The additive `https` namespace dispatches to
+`fuzzy1337.intelligence_epss_https_commands`, whose pinned remote custody is a
+separate profile. Local import is not proof of HTTPS acquisition. Automatic
+matching, Finding application, model save and publisher authentication remain
+outside both profiles.
 
 ::: fuzzy1337.intelligence_epss_commands
