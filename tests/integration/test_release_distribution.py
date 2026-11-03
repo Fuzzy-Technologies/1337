@@ -39,7 +39,7 @@ def test_ReleaseCleanWheelInstallRunsOwnedDemoAndReopensOriginalModel(tmp_path):
         "Only actual successful clean installation and owned demo outcomes can pass")
     assert receipt["demo"]["target_teardown_completed"] is True, (
         "The installed demo must verify target teardown before recording success")
-    assert len(commands) == 10 and all(item["exit_code"] == item["expected_exit_code"]
+    assert len(commands) == 12 and all(item["exit_code"] == item["expected_exit_code"]
                                      for item in commands), (
         "Every actual installed command must preserve its original invocation and exit status")
     assert receipt["pip_install"]["install"][0]["metadata"]["version"] == version, (

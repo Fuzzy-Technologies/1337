@@ -11,6 +11,7 @@ import io
 import json
 import math
 import re
+import unicodedata
 import xml.etree.ElementTree as element_tree
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
@@ -840,10 +841,24 @@ def ParseKev(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
 
     for entry in entries:
         item = IntelligenceObject(entry)
+        prose = {}
+
+        for name, field_name in (("vendor", "vendorProject"), ("product", "product"),
+                                 ("name", "vulnerabilityName"),
+                                 ("required_action", "requiredAction")):
+            value = item.get(field_name)
+
+            if not isinstance(value, str) or len(value.encode("utf-8")) > 8192:
+                raise ValueError("KEV publisher prose must be bounded text")
+
+            # Official prose includes spacing separators; custody keeps the original bytes.
+            normalized = "".join(" " if unicodedata.category(character) == "Zs" else character
+                                 for character in value)
+            prose[name] = IntelligenceText(normalized.strip(), name)
+
         data = {
             "date_added": item.get("dateAdded"), "due_date": item.get("dueDate"),
-            "vendor": item.get("vendorProject"), "product": item.get("product"),
-            "name": item.get("vulnerabilityName"), "required_action": item.get("requiredAction"),
+            **prose,
             "ransomware_use": item.get("knownRansomwareCampaignUse"),
         }
         record = IntelligenceRecord(IntelligenceFeed.KEV, IntelligenceIdentifier(item.get("cveID")),

@@ -54,7 +54,7 @@ def ApiInputs(sha):
 
     for event, branch, source, offset in (("push", "master", recovery.PRODUCT_COMMIT, 100),
         ("pull_request", recovery.RECOVERY_BRANCH, sha, 200)):
-        for index, (filename, required) in enumerate(delivery.MASTER_JOBS.items(), 1):
+        for index, (filename, required) in enumerate(delivery.ORIGINAL_MASTER_JOBS.items(), 1):
             run_id = offset + index
             run = {"id": run_id, "run_number": 5, "run_attempt": 1, "event": event,
                 "head_branch": branch, "head_sha": source,
@@ -152,6 +152,7 @@ def owned(tmp_path, monkeypatch):
     sha = Git(code, "rev-parse", "HEAD")
     Git(code, "update-ref", "refs/remotes/origin/" + recovery.RECOVERY_BRANCH, sha)
     monkeypatch.setattr(recovery, "PRODUCT_COMMIT", original)
+    monkeypatch.setattr(delivery, "ORIGINAL_V030_COMMIT", original)
     monkeypatch.setattr(recovery, "PRODUCT_TREE", Git(product, "rev-parse", "HEAD^{tree}"))
     monkeypatch.setattr(recovery, "PRODUCT_TAG_OBJECT", original_tag)
     refs = {"refs/heads/master": original, "refs/tags/v0.3.0": original_tag,
@@ -394,7 +395,8 @@ def test_ValidatePreservesOriginalBytesAndDelegatesOriginalDocumentation(owned, 
     owned.refs["refs/tags/" + recovery.RECOVERY_TAG] = Git(
         owned.code, "rev-parse", recovery.RECOVERY_TAG)
     source = recovery.ProductFacts(owned.product)
-    checks = delivery.MasterChecks(recovery.PRODUCT_COMMIT, owned.api.fetch)
+    checks = delivery.MasterChecks(recovery.PRODUCT_COMMIT, owned.api.fetch,
+                                   profile="v0.3.0-original")
     bundle = Bundle(tmp_path / "bundle", source, checks, monkeypatch)
     calls = []
 
@@ -854,3 +856,19 @@ def test_MainNeverWritesRecoveryAcknowledgementIntoOriginalBundle(tmp_path, monk
         "--output", str(bundle / "receipt.json")])
     assert status == 1 and not any(bundle.iterdir()), (
         "Invalid receipt placement changed the protected original bundle")
+
+
+def test_OriginalRecoveryKeepsHistoricalPythonEvidenceAfterBaselineUpgrade():
+    """New platform support must not rewrite the executed interpreter facts of release 0.3.0."""
+
+    original = delivery.ORIGINAL_MASTER_JOBS["python-quality.yml"]
+    current = delivery.MASTER_JOBS["python-quality.yml"]
+    assert "Python 3.11 / ubuntu-24.04" in original and (
+        "Python 3.12 / windows-2022" in original
+    ), "Fixed original release recovery must retain its actual historical Python lanes"
+    assert "Python 3.13 / ubuntu-24.04" in current and (
+        "Python 3.13 / windows-2022" in current
+    ), "New release acceptance must follow the current supported Python baseline"
+    assert "Python 3.11 / ubuntu-24.04" not in current, (
+        "Unsupported Python must not remain required for new release evidence"
+    )

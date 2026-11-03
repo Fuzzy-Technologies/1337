@@ -51,6 +51,55 @@ the receipt's integer byte ceiling (1 through 16 MiB), finite receiver timeout
 declared original-reference size against that ceiling. These preliminary checks
 do not replace the owning raw manifest, byte-integrity and exact reparse checks.
 
+## Selected source details
+
+Default inspection keeps its existing bounded terminal summary. Select one or
+more exact CVE/CWE identifiers to inspect source assertions without dumping the
+whole catalog:
+
+```bash
+1337 intel inspect ./workspace --snapshot sha256:SNAPSHOT_DIGEST \
+  --receipt sha256:RECEIPT_DIGEST --identifier CVE-1900-9999 --json
+```
+
+Repeat `--identifier` for up to 64 unique identifiers. IDs are case-sensitive;
+malformed, duplicate or excessive selections fail before source verification.
+The complete selected detail document has a 1 MiB ceiling; excessive output
+fails with `inspection-limit` rather than silently truncating records. No
+identifier is inferred from a product, banner, description or another record.
+
+Only selected inspection adds the Experimental `details` profile `1` to terminal
+JSON. It retains the original snapshot reference, source/license/import
+attribution once, requested and unmatched identifiers, and selected normalized
+records. `target_applicability="not-evaluated"` and
+`publisher_authentication="not-assessed"` remain explicit. Missing catalog
+membership is not evidence of no vulnerability, exploitation or risk. Omit
+`--json` for a source summary that explains each feed's meaning.
+
+For a selected CVE Record `5.2`/`5.2.0`, `cve_source_profiles` exposes the existing
+independent inspection results without repeating snapshots:
+
+- `applicability.containers` retains ordered CNA/ADP providers and source product
+  declarations, including exact `affected`, `unaffected` and `unknown` statuses.
+  These are source statements about versions, not a verdict about the target.
+- `cvss2.assessments` retains source wrappers and asserted scores;
+  `cvss2.base_calculations` separately links the existing exact base arithmetic
+  through `assessment_index`, `algorithm` and integer `base_score_tenths`.
+  A calculated score never overwrites or corrects the source's score.
+- CVSS 3/4 source assessments remain separate in `records[].data.cvss`, retaining
+  each version, vector, source base score and assessor. They are not combined.
+
+Older supported CVE formats keep their ordinary assertions and report the extra
+profiles as `unsupported-format`. A strict additional reader may report
+`unsupported-content` without declarations when the source exceeds that reader's
+supported structure; the independent other reader and verified base assertions
+remain available. This does not declare the whole publisher document invalid.
+Rejected CVEs expose no positive product or scoring assessments. An unmatched
+CVE selection discloses no unrelated product/scoring profile.
+
+Inspection writes no model state and grants no applicability review or execution
+approval. It works after relocating the owning workspace and needs no network.
+
 Apply a selected snapshot only to an existing evidence-linked finding, with
 explicit interpretation and model concurrency inputs:
 
@@ -87,3 +136,5 @@ rolled back.
 
 See [ADR 0069](adr/0069-explicit-local-intelligence-cli.md) and the
 [acquisition contract](adr/0060-bounded-intelligence-snapshot-acquisition.md).
+[ADR 0123](adr/0123-selected-intelligence-inspection.md) defines selected details
+and their finite source/output boundaries.

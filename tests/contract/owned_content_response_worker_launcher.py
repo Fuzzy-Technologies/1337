@@ -33,6 +33,8 @@ from tests.native_crawl_acceptance_helpers import (
     NativeInstallation,
     NativeProcess,
 )
+from tools.release_delivery import Invoke as RuntimeInvoke
+from tools.release_delivery import ProvisionLocalWheelRuntime
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 SUPPORTED_CASES = frozenset(CASES)
@@ -170,6 +172,10 @@ def Build(repository: Path, directory: Path, evidence: NativeCaseEvidence, *, co
     Process("install", (str(python), "-I", "-B", "-m", "pip", "--isolated", "install",
         "--no-index", "--no-deps", "--no-compile", "--disable-pip-version-check", str(wheel)),
         cwd=directory)
+
+    if ProvisionLocalWheelRuntime(wheel, python, directory):
+        RuntimeInvoke((str(python), "-m", "pip", "--isolated", "check"), directory)
+
     probe = Process("import-probe", (str(python), "-I", "-B", "-c", IMPORT_PROBE), cwd=directory,
         timeout=10)
     assert probe.stderr == b"", "Installed import probe diagnostics are not clean acceptance"

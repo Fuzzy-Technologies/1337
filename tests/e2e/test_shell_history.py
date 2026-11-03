@@ -340,24 +340,28 @@ def test_ActualNativeEofAndInterruptRestoreCallerState(tmp_path, ending):
 
 
 def InstalledGnu(tmp_path: Path) -> str:
-    """Select only an existing optional GNU backend without caller configuration or provisioning."""
+    """Use the active locked application runtime when its optional native backend is GNU.
 
-    executable = Path("/usr/bin/python3")
+    Args:
+        tmp_path: Owned directory containing the empty line-editor configuration.
 
-    if not executable.is_file():
-        pytest.skip("No separate installed system Python is available for the GNU backend oracle.")
+    Returns:
+        The active interpreter with its supported Python version and installed dependencies.
+    """
+
+    executable = sys.executable
 
     configuration = tmp_path / "owned-probe-inputrc"
     configuration.write_text("")
     environment = {"PATH": os.defpath, "INPUTRC": str(configuration), "EDITRC": str(configuration)}
-    observed = subprocess.run([str(executable), "-I", "-c",
+    observed = subprocess.run([executable, "-I", "-c",
         "import readline; print(getattr(readline, '_READLINE_LIBRARY_VERSION', ''))"],
         capture_output=True, text=True, timeout=10, check=False, env=environment)
 
     if observed.returncode or not observed.stdout.strip() or "EditLine" in observed.stdout:
-        pytest.skip("The installed system interpreter has no optional GNU readline backend.")
+        pytest.skip("The active application interpreter has no optional GNU readline backend.")
 
-    return str(executable)
+    return executable
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Native terminal regression requires a POSIX PTY.")

@@ -44,6 +44,7 @@ OWNED_ORIGINS = frozenset({"https://github.com/Fuzzy-Technologies/1337",
 INDEX_URL = "https://pypi.org/pypi/1337/0.3.0/json"
 
 
+
 def IndexAbsent() -> dict:
     """Accept only an original exact-version 404 from the fixed public PyPI endpoint.
 
@@ -182,7 +183,7 @@ def RecoveryChecks(recovery_sha: str, fetch: Callable[[str], dict] = delivery.Gi
 
     accepted = []
 
-    for filename, master_required in delivery.MASTER_JOBS.items():
+    for filename, master_required in delivery.ORIGINAL_MASTER_JOBS.items():
         required = {name: steps for name, steps in master_required.items()
                     if name != "deploy-pages"}
         query = urllib.parse.urlencode({"head_sha": recovery_sha, "event": "pull_request",
@@ -429,7 +430,7 @@ def Validate(code_root: Path, product_root: Path, bundle: Path, expected_sha: st
     RequireRemote(code_root, expected_sha, tagged=True)
     checks = RecoveryChecks(expected_sha, fetch)
     producer = OriginalProducer(fetch)
-    master_checks = delivery.MasterChecks(PRODUCT_COMMIT, fetch)
+    master_checks = delivery.MasterChecks(PRODUCT_COMMIT, fetch, profile="v0.3.0-original")
     manifest = delivery.Verify(bundle, CHECKSUMS_SHA256)
     source = facts["product_source"]
 
@@ -585,7 +586,7 @@ def FinalizeRecovery(code_root: Path, product_root: Path, expected_sha: str,
     RequireRemote(code_root, expected_sha, tagged=False)
     checks = RecoveryChecks(expected_sha, fetch)
     producer = OriginalProducer(fetch)
-    master_checks = delivery.MasterChecks(PRODUCT_COMMIT, fetch)
+    master_checks = delivery.MasterChecks(PRODUCT_COMMIT, fetch, profile="v0.3.0-original")
 
     if CodeFacts(code_root, product_root, expected_sha) != facts:
         raise ValueError("Recovery source changed after execution acceptance")

@@ -692,10 +692,16 @@ def Build(root: Path, release_version: str | None = None) -> None:
     build_root = root / manifest["buildRoot"]
     with tempfile.TemporaryDirectory(prefix="1337-docs-") as temporary_root:
         environment = Path(temporary_root) / "venv"
-        subprocess.run([uv, "venv", "--clear", str(environment)], cwd=root, check=True, timeout=300)
+        subprocess.run([uv, "venv", "--clear", "--python", sys.executable, str(environment)],
+                       cwd=root, check=True, timeout=300)
         python = environment / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+        runtime_requirements = Path(temporary_root) / "runtime-requirements.txt"
+        subprocess.run([uv, "export", "--locked", "--no-default-groups", "--no-emit-project",
+                        "--format", "requirements.txt", "--output-file", str(runtime_requirements)],
+                       cwd=root, check=True, timeout=300)
         subprocess.run([uv, "pip", "install", "--python", str(python), "--require-hashes",
-                        "-r", str(root / "docs/requirements-api.lock")],
+                        "-r", str(root / "docs/requirements-api.lock"),
+                        "-r", str(runtime_requirements)],
                        cwd=root, check=True, timeout=300)
         wheels = build_root / "wheel"
         shutil.rmtree(wheels, ignore_errors=True)

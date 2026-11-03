@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG PYTHON_IMAGE=python:3.11-slim-bookworm
+ARG PYTHON_IMAGE=python:3.13-slim-bookworm
 
 FROM ${PYTHON_IMAGE} AS development
 
@@ -12,7 +12,8 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_NO_CACHE=1 \
-    UV_PROJECT_ENVIRONMENT=/opt/1337/.venv
+    UV_PROJECT_ENVIRONMENT=/opt/1337/.venv \
+    FUZZY1337_RUNTIME_WHEELHOUSE=/opt/1337/runtime-wheels
 
 RUN groupadd --gid 1337 workbench \
     && useradd --create-home --gid workbench --shell /usr/sbin/nologin --uid 1337 workbench
@@ -23,7 +24,13 @@ RUN python -m pip install --no-cache-dir uv==0.11.33
 
 COPY pyproject.toml uv.lock README.md LICENSE ./
 
-RUN uv sync --locked --extra dev --no-install-project
+RUN uv sync --locked --extra dev --no-install-project \
+    && mkdir -p /opt/1337/runtime-wheels \
+    && uv export --locked --no-dev --no-emit-project --format requirements.txt \
+        --output-file /opt/1337/runtime-wheels/requirements.txt \
+    && python -m pip download --only-binary=:all: --require-hashes \
+        --dest /opt/1337/runtime-wheels \
+        --requirement /opt/1337/runtime-wheels/requirements.txt
 
 COPY AGENTS.md CHANGELOG.md DEVELOPMENT_PROTOCOL.md SECURITY.md ./
 COPY contracts ./contracts

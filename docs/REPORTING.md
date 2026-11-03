@@ -59,9 +59,39 @@ junit_bytes = SerializeJunit(checked)
 The caller owns file publication and downstream transport. A report JSON document
 is a projection, not a second model snapshot format; only its embedded `model`
 member can pass through the existing canonical model decoder.
-For the current development candidate's explicit bounded JSON/SARIF CLI/shell
+For the explicit bounded JSON/SARIF/HTML/JUnit CLI/shell
 consumer, see [Offline report export](REPORT_EXPORT.md). It reads existing saved
 state through these owners and never starts a scan.
+
+## Reading the HTML report
+
+The report starts with a readable result and recorded execution outcomes. Saved
+hosts, ports, services and web addresses appear in tables; findings explain the
+subject, check, disposition, confidence attribution, available remediation and
+linked evidence without requiring a reader to open JSON. Source data that was not
+recorded stays unknown. Discovery records describe objects and responses; a zero
+finding count does not establish that a target is secure. A resolved disposition
+alone does not establish a successful repeated check.
+
+Finding-intelligence cards keep source origin, publisher, version, date,
+freshness, explicit candidate association and unmatched identifiers visible.
+CVSS technical severity, KEV known-exploitation assertions and EPSS forecasts
+remain separate. The report does not determine whether a target is affected from
+an identifier association. Independent affected-product or CVSS2 inspection is
+not inferred when those data are absent from the retained observation.
+
+An actual retained CVSS base score also receives a
+[five-level FuzzyRoutines interpretation](FUZZY_ASSESSMENTS.md). The source score,
+normalized Finding severity and UFS linguistic presentation remain distinct.
+Membership meters show grades from zero to one; these are not probabilities or
+action priorities. Missing scores stay unknown. The full grade trace, exact
+library version, scale profile and selection rule remain in technical details.
+
+Digests, canonical identifiers, JSON, complete provenance and observation history
+remain accessible through native expandable details. Stored relationship links
+use readable object labels and do not infer attack paths. The report needs no
+running target, script, CDN or external image. This presentation decision is
+recorded in [ADR 0121](adr/0121-readable-offline-assessment-reports.md).
 
 ## Reference context
 
@@ -92,7 +122,7 @@ relations by parsing finding summaries or traversing a mapping pack.
 
 | Output | Contract                                                                                                                                                                                                                                                                                         |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| HTML   | Self-contained dark Fuzzy Technologies palette; executive counts, technical details, native disclosure, canonical object/evidence fragments, stored relations, and escaped provenance/history. No scripts, remote assets, raw artifact links, or browser requirement.                            |
+| HTML   | Self-contained dark Fuzzy Technologies palette; readable results, retained operations, inventory, finding/advice/source cards, five-level UFS meters for source CVSS scores, evidence/relationship links and disclosed technical metadata. No scripts, remote assets or raw artifact links.      |
 | JSON   | Exact schema-v1 projection at `contracts/report.schema.json`, including original model content and integrity/context metadata.                                                                                                                                                                   |
 | SARIF  | Version `2.1.0`; only open/confirmed findings become results. Dismissed/resolved findings remain in run properties. Snapshot, context, outcomes, and byte-integrity metadata stay attached. No passed checks, physical source coordinates, successful invocation, or fixed baseline is inferred. |
 | JUnit  | One case per retained finding; open/confirmed dispositions fail, dismissed/resolved dispositions skip. Zero findings mean zero cases, not a completed clean scan. Snapshot, context, outcomes, and integrity properties accompany the XML.                                                       |
@@ -121,7 +151,7 @@ uv run --locked --extra dev pytest -q -o addopts='' \
 The tests include hostile serialization, dispositions, failure attribution, byte
 bounds, strict schema checks, four golden artifacts, real artifact reads,
 corruption/ownership failures, workspace relocation, and unchanged stored files.
-The bounded JSON/SARIF product command has its own
-[consumer verification](REPORT_EXPORT.md#verification). Live jobs, HTML/JUnit
-commands, mature graph analysis, source catalog synchronization and automatic
-standards conclusions remain separate capabilities.
+The bounded JSON/SARIF/HTML/JUnit product command has its own
+[consumer verification](REPORT_EXPORT.md#verification). Live jobs, mature graph analysis, source catalog synchronization and automatic
+standards conclusions remain separate capabilities. Installed guided-assessment
+acceptance exercises the assembled renderer through the product export command.

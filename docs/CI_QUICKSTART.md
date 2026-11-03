@@ -17,7 +17,7 @@ for the intended release. Resolve `v0.3.0` to its full commit before configuring
 the template; do not substitute a moving `develop` or an unverified tag string.
 For development builds use the full reviewed source commit. Fetch verifies that
 exact commit.
-Select `PYTHON_IMAGE` / `python_image` as an approved Python 3.11-or-newer slim
+Select `PYTHON_IMAGE` / `python_image` as an approved Python 3.13-or-newer slim
 image pinned by `@sha256:<64 hex>`. Do not use an unpinned image tag. Keep these
 non-secret inputs in pipeline configuration; add no credential to the demo bundle.
 
@@ -108,7 +108,7 @@ same accepted `master` SHA. Set `release_commit` to the full SHA and `python_ima
 to the same reviewed official Linux amd64 base in both runs:
 
 ```text
-python:3.12-slim-bookworm@sha256:623674a14ef93d052bb9b0de4dbf5f28eb578a35263838941cc8aa43213c1487
+python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
 ```
 
 Set `approved_local_demo` to false in the first run and true in the second. The

@@ -27,6 +27,8 @@ from tests.native_crawl_graph_helpers import (
     OwnedCrawlGraph,
     OwnedNativeCrawlGraph,
 )
+from tools.release_delivery import Invoke as RuntimeInvoke
+from tools.release_delivery import ProvisionLocalWheelRuntime
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONSUMER = Path(__file__).parent / "functional/native_crawl_installed_consumer.py"
@@ -268,6 +270,9 @@ def installed_native_crawl(tmp_path_factory, native_acceptance_run) -> Path:
         "install", "--no-index", "--no-deps", "--no-compile", "--disable-pip-version-check",
         str(wheel)), cwd=root, environment=environment, timeout=40, maximum=MAX_INSTALL_LOG_BYTES)
     assert installed.returncode == 0, "Wheel installation failed; original logs retained."
+
+    if ProvisionLocalWheelRuntime(wheel, python, root):
+        RuntimeInvoke((str(python), "-m", "pip", "--isolated", "check"), root)
     probe_input = root / "import-probe.json"
     probe_input.write_bytes(CanonicalNative({"workspace": str(root / "unused-probe-workspace")}))
     owner.Write("import-probe-input.json", probe_input.read_bytes())
