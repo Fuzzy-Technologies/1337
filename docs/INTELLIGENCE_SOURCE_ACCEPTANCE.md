@@ -132,6 +132,12 @@ publication outcomes, request-limit identity, corruption/mixed-source refusal
 and offline relocation. The actual product CLI is also exercised through a real
 isolated owned worker. These are fixture results, not public-source acceptance.
 
+The actual clean installed CLI attempt in this local environment returned
+`transport-failed`, no HTTP status and zero bytes. Partial raw and failure receipt
+publication were confirmed, selection publication was not attempted and model
+commit remained `not-attempted`. That network attempt is retained as a failure;
+receiver policy was not weakened and no fallback supplied replacement bytes.
+
 The separate guarded hosted lane uses `tools/cve_https_acceptance.py` through a
 fresh installed wheel. It requires the actual complete HTTP 200 body, exact pins
 and requested byte/deadline limits, original source/envelope/receipt joins,
