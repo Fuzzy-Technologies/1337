@@ -211,6 +211,46 @@ source/custody profile must retain the applicable MITRE notices and attribution
 separately. Legal rights, publisher authentication, applicability and contextual
 scoring remain not assessed. #43/#47 stay open.
 
+## Local selected CWE custody and CLI consumer
+
+The accepted [local SDK custody](CWE_LOCAL_CUSTODY.md) under
+[ADR 0133](adr/0133-local-selected-cwe-custody.md) retains an explicitly supplied
+original ZIP, attributed selected envelope and exact terminal receipt. The
+bounded profile admits catalog 5.0/schema 8 or 4.21/schema 7, a mandatory exact
+original-byte pin, one to 64 explicit CWE IDs and the fixed complete captured
+MITRE notice bundle. Original-byte, expanded XML and selected-content ceilings
+remain profile-local; legacy snapshot budgets are unchanged.
+
+The additive [local CLI consumer](adr/0135-local-selected-cwe-cli.md) exposes
+`intel cwe import|inspect` over this SDK, including explicit immutable selection
+and receipt roots. Import requires three independent confirmed ACKs for usable
+success. Inspection verifies exact owner/provenance/notice/limit joins and full
+original reparse, writes no files or model, and survives input deletion/workspace
+relocation. SDK publication ACKs and verified-present inspection facts remain
+distinct. Weakness matches, known unsupported source kinds and absent IDs remain
+separate source assertions without risk or applicability conclusions.
+
+The complete captured terms text and provenance are preserved in source/envelope/
+receipt identities. An inert attributed fixture retains the exact original HTML
+and full UTF-8 text for reproducible notice identity checks without another fetch.
+Neither retention nor a matching hash establishes legal rights, historical notice
+applicability or publisher authentication. The prior pure-decoder checkpoint
+above remains evidence of that historical boundary; SDK and assembled CLI
+acceptance are separately verified through their actual interfaces. The wider
+#43/#47 profiles and assurance scope remain open.
+
+On 2026-11-03, a clean installed console exercised both retained original ZIPs
+without another source fetch. Each import used its exact compressed byte length
+as the inclusive ceiling, confirmed all three publications and preserved the
+complete notice. After deleting the acceptance input and relocating its workspace,
+installed inspection returned identical source/selection facts under network,
+process and store-write tripwires. Missing receipt roots refused without writes.
+The reviewed wheel SHA-256 was
+`de12e1da0ba6dcf3737a7b74446765d02a33045435d043d30b458f9a2fdc568b`.
+A separate independently authored installed synthetic oracle passed Weakness,
+unsupported View, absent-ID and max-plus-one partial-custody cases. These finite
+local consumer checks are distinct from exact-head shared integration CI.
+
 ## Publisher-prose regression
 
 The first real import failed honestly with `parse-failed`. The selected catalog

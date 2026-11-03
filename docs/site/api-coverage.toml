@@ -1004,3 +1004,10 @@ module = "fuzzy1337.trivy_license_policy"
 source = "src/fuzzy1337/trivy_license_policy.py"
 mode = "authored"
 page = "api/fuzzy1337.trivy_license_policy.md"
+
+[[surfaces]]
+# Internal explicit local selected CWE import and exact read-only offline inspection routes.
+module = "fuzzy1337.intelligence_cwe_commands"
+source = "src/fuzzy1337/intelligence_cwe_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cwe_commands.md"
