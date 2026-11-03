@@ -18,4 +18,12 @@ compliance result. Output is bounded to one MiB, changed saved bases refuse, and
 retained original corruption prevents a successful view. See
 [Owned SBOM commands](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/SBOM_IMPORT.md).
 
+An explicit `--license-policy ID` adds a bounded original-SPDX-graph assertion
+projection. `ImageLicensePolicyView` reparses the exact retained acquisition,
+source context and aliases before matching declared and concluded roles
+independently. It returns original observation/source references and the caller
+policy digest, with unknown source states and no package/image compliance
+verdict. Default output remains unchanged. The additional source/assertion bounds
+and unchanged output limit refuse the complete query when exceeded.
+
 ::: fuzzy1337.image_sbom_view

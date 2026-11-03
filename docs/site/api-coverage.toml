@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Internal explicit syntactic policy matching; no license-compliance conclusion.
+module = "fuzzy1337.license_policy"
+source = "src/fuzzy1337/license_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.license_policy.md"
+
+[[surfaces]]
 # Internal verified read-only joined inventory, not a Python extension contract.
 module = "fuzzy1337.image_sbom_view"
 source = "src/fuzzy1337/image_sbom_view.py"

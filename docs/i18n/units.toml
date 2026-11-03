@@ -10391,7 +10391,7 @@ state = "missing"
 id = "page:api.fuzzy1337.sbom-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.sbom_commands.md"
-sourceHash = "sha256:36dfdbf87fa88d0480dd45825eba3975e478e43b168efb8bda2cc208411a7b79"
+sourceHash = "sha256:71a387d7bd2a2cbf88da2a144f980d5918bc903e87c90ebb813b73745a29625e"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -23552,7 +23552,7 @@ state = "missing"
 id = "page:api.fuzzy1337.image-sbom-view"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.image_sbom_view.md"
-sourceHash = "sha256:b7bec2afb93e22d1f24a6592c9c8de009f2061347467a6a02180b50fd718c123"
+sourceHash = "sha256:d5cc760078df77e051879a81e9c54e64a474166a9c3cf13b837d18f4782f98e1"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -24695,6 +24695,160 @@ id = "symbol:fuzzy1337.shell.InteractiveShell.do_image"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/shell.py"
 sourceHash = "sha256:b5244ad67e7f2a809fa82d015538f82c181023c429286dfcf1ae1e7d52402058"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.license-policy"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.license_policy.md"
+sourceHash = "sha256:2c8ac68e53852fe8d8ca9d208575033c2da293d870ccbd5b33686f82cc3c5c26"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.image_sbom_view.ImageLicensePolicyView"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/image_sbom_view.py"
+sourceHash = "sha256:c20cd126325020d07c15f6bcdc3652013854dcace806825560ba88f41766403f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.EvaluateLicenseExpression"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:c4625c0e6ac2457689ec1718e2c1b9042d45fdfe746563b6c1246b327bd3da5a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicensePolicy"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:e673029696f9b6d178438ca7c3cbec6b518ac553be9e024dea2cf38a7a717386"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicensePolicy.Description"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:dce0434396bb6de8cd3842a2dd2cc1ee22ed3e723c4ba29774e26ad1a835ab0f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicenseExpressionParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:8c691864c80f1c9ccc1c0d692587247416636f731c3f8949eb07e3b7200e0e77"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicenseExpressionParser.And"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:5fa919dca20367150d1bf300adb12df8a0482a2e23253a744b3c5c13802fe35a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicenseExpressionParser.Or"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:f332dda113a3cd08d6fc64a8e566e3987287cd668bb167f8bec5eb1acf0d476a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicenseExpressionParser.Parse"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:cfe9f98bfcb7b8c8911d8001c56bb173069bf2da3a2d4faa279e74dd6923c4bc"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicenseExpressionParser.Primary"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:f92bf5708250be9bb171a407af8fb3c4410d93944c5d57b787bc4161d41b78b3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicenseExpressionParser.Take"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:fb7d627a2e831ea2c77788dec3ba476bc0699ae979256277fc927aade3c7663a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicenseExpressionValue"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:f405d5039b37ffaa585050531b0c81bff3e6dc5edc473fa04d7acc6d48859beb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.LicenseIdentifier"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:3ace1cf8e4904d277f86c39fca58f5682340a8e0d198e0c1e397fc199bfb9571"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.license_policy.UnsupportedLicenseExpression"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/license_policy.py"
+sourceHash = "sha256:5c16224238ca7e4813cb041160aa351c334d1e5f7372cd5064b3572e934229f0"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
