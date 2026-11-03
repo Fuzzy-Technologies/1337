@@ -392,7 +392,8 @@ def test_SinkFailurePropagatesWithoutAnySuccessfulCompletionFact():
     assert raised.value is error and len(calls) == 1, "The sink error or completion meaning changed"
 
 
-@pytest.mark.parametrize("payload", [None, bytearray(b"x"), memoryview(b"x"), b"", b"x" * 4194305])
+@pytest.mark.parametrize("payload", [None, bytearray(b"x"), memoryview(b"x"), b"", b"x" * 4194305],
+                         ids=["none", "mutable-bytes", "memory-view", "empty", "source-overflow"])
 def test_OriginalAdmissionRequiresExactBytesWithinItsOwnCeiling(payload):
     """A path, mutable buffer or one-over original source cannot enter framing or decoding."""
 

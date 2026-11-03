@@ -140,7 +140,7 @@ def test_UnfinishedTokensRefuseBeforeAnyLargeParserAllocation(prefix):
     b"<Owned " + b" ".join(f"a{index}='x'".encode() for index in range(33)) + b"/>",
     b"<Owned " + b" ".join(f"xmlns:p{index}='urn:{index}'".encode()
                             for index in range(33)) + b"/>",
-])
+], ids=["raw-qname-overflow", "attribute-count-overflow", "namespace-count-overflow"])
 def test_RawQnameAndAttributeCeilingsPrecedeTheStartMappingAllocation(token):
     """Raw prefix names and xmlns declarations count before Expat sees a start token."""
 
@@ -280,7 +280,7 @@ def test_XmlDeclarationQuoteStateIsDistinctFromOrdinaryProcessingInstructions():
     )
 
 
-@pytest.mark.parametrize("name,uri", [("p", "x" * 8193)])
+@pytest.mark.parametrize("name,uri", [("p", "x" * 8193)], ids=["namespace-uri-overflow"])
 def test_NamespaceUriValueHasItsOwnBoundBeforeStartAttributes(name, uri):
     """Namespace declaration values consume the same finite individual-value ceiling."""
 

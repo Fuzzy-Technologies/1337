@@ -52,7 +52,8 @@ def test_RequestAdmissionIsExactImmutableCanonicalAndPrecedesAnyZipRead(requeste
     (bytearray(b"zip"), "5.0"), (BytesSubclass(b"zip"), "5.0"), (b"", "5.0"),
     (b"x" * (4 * 1024 * 1024 + 1), "5.0"), (b"zip", "latest"),
     (b"zip", TextSubclass("5.0")), (b"zip", 5.0),
-])
+], ids=["mutable-bytes", "bytes-subclass", "empty", "source-overflow", "moving-mode",
+        "mode-subclass", "nontext-mode"])
 def test_SourceAdmissionRequiresBoundedExactBytesAndOneClosedMode(payload, version, monkeypatch):
     """Neither alternate source inputs nor caller aliases can reach the fixed ZIP parser."""
 
