@@ -15,7 +15,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import TextIO
 
-MINIMUM_PYTHON_VERSION = (3, 11)
+MINIMUM_PYTHON_VERSION = (3, 13)
 DOCKER_COMPOSE_TIMEOUT_SECONDS = 5
 
 

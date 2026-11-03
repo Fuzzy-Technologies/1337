@@ -117,6 +117,20 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     assert inspected["record_count"] == 1 and inspected["feed"] == feed.value, (
         "Inspection silently changed source family or failed to reparse its one actual record."
     )
+    identifier = "CWE-89" if feed is IntelligenceFeed.CWE else "CVE-1900-9999"
+    status, selected = Run([*Selection("inspect", model.root, imported),
+                            "--identifier", identifier, "--identifier", "CVE-1900-8888"])
+    assert status == 0 and set(selected) == set(inspected) | {"details"}, (
+        "Actual selected inspection changed the default terminal output contract."
+    )
+    assert [item["identifier"] for item in selected["details"]["records"]] == [identifier], (
+        "Actual CLI details lost the selected verified source record."
+    )
+    assert selected["details"]["unmatched_identifiers"] == ["CVE-1900-8888"] and selected[
+        "details"
+    ]["target_applicability"] == "not-evaluated", (
+        "Actual selected source absence became target applicability or disappeared."
+    )
     assert model.Open() == before_model and Files(model.root) == before, (
         "Import or inspection implicitly enriched the model or mutated retained acquisitions."
     )
@@ -125,6 +139,11 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     status, moved = Run(Selection("inspect", relocated, imported))
     assert status == 0 and moved["snapshot_id"] == imported["snapshot_id"], (
         "A portable owning workspace lost its immutable snapshot identity after relocation."
+    )
+    status, moved_details = Run([*Selection("inspect", relocated, imported),
+                                 "--identifier", identifier])
+    assert status == 0 and moved_details["details"]["records"] == selected["details"]["records"], (
+        "Workspace relocation changed selected source assertions or required reacquisition."
     )
 
 

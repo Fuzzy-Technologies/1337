@@ -16,6 +16,8 @@ from pathlib import Path
 import jsonschema
 import pytest
 
+from tools.release_delivery import ProvisionLocalWheelRuntime
+
 ROOT = Path(__file__).resolve().parents[2]
 RECIPE = ROOT / "docs/examples/ci/run_demo.py"
 
@@ -42,6 +44,10 @@ def installed_onboarding(tmp_path_factory: pytest.TempPathFactory) -> Path:
         capture_output=True, text=True, timeout=60, check=False,
     )
     assert installed.returncode == 0, installed.stderr
+    ProvisionLocalWheelRuntime(wheel, python, parent)
+    checked = subprocess.run([str(python), "-m", "pip", "--isolated", "check"],
+        cwd=parent, capture_output=True, text=True, timeout=30, check=False)
+    assert checked.returncode == 0, checked.stderr
     provenance = subprocess.run(
         [str(python), "-I", "-c", "import fuzzy1337; print(fuzzy1337.__file__)"],
         cwd=parent, capture_output=True, text=True, timeout=10, check=False,

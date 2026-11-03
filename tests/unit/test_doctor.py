@@ -47,19 +47,19 @@ def test_ReportRendersDeterministicallyAndFailsOnlyForRequiredChecks():
 def test_PythonRuntimeReportsSupportedAndUnsupportedVersions(monkeypatch):
     """Verify python runtime reports supported and unsupported versions."""
 
-    monkeypatch.setattr(doctor.sys, "version_info", (3, 10, 9))
+    monkeypatch.setattr(doctor.sys, "version_info", (3, 12, 9))
     assert doctor.CheckPythonRuntime() == DoctorCheck(
         "python",
         DoctorStatus.FAIL,
-        "Python 3.10.9 is below the required 3.11.",
+        "Python 3.12.9 is below the required 3.13.",
     ), "python runtime reports supported and unsupported versions invariant failed."
 
-    monkeypatch.setattr(doctor.sys, "version_info", (3, 11, 0))
+    monkeypatch.setattr(doctor.sys, "version_info", (3, 13, 0))
     monkeypatch.setattr(doctor.sys, "executable", "/usr/bin/python")
     assert doctor.CheckPythonRuntime() == DoctorCheck(
         "python",
         DoctorStatus.PASS,
-        "Python 3.11.0 at /usr/bin/python",
+        "Python 3.13.0 at /usr/bin/python",
     ), "python runtime reports supported and unsupported versions invariant failed."
 
 

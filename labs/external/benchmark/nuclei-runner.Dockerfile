@@ -9,7 +9,12 @@ LABEL org.opencontainers.image.revision=${SOURCE_REVISION}
 
 RUN --network=none /opt/1337/.venv/bin/python -m build --no-isolation --wheel --outdir /opt/benchmark-wheel \
     && python -m venv /opt/benchmark-runtime \
-    && /opt/benchmark-runtime/bin/python -m pip install --no-index --no-deps /opt/benchmark-wheel/*.whl
+    && /opt/benchmark-runtime/bin/python -m pip --isolated install \
+        --no-index --no-deps --require-hashes --find-links=/opt/1337/runtime-wheels \
+        --requirement /opt/1337/runtime-wheels/requirements.txt \
+    && /opt/benchmark-runtime/bin/python -m pip --isolated install \
+        --no-index --no-deps /opt/benchmark-wheel/*.whl \
+    && /opt/benchmark-runtime/bin/python -m pip --isolated check
 
 ADD --checksum=sha256:234c12cc5288af071abdcd6f854245b6067345556e1235cf96b76725c1004357 \
     https://github.com/projectdiscovery/nuclei/releases/download/v3.4.10/nuclei_3.4.10_linux_amd64.zip \

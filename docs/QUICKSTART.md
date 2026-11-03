@@ -10,7 +10,9 @@ or reviewed development source revision.
 
 ## Install a reviewed wheel
 
-CPython 3.11 or newer is required. Install the exact distribution in a clean
+New builds from this checkout require CPython 3.13 or newer. The published
+v0.3.0 retains its original interpreter and dependency contract; use its
+tag-pinned instructions for that wheel. Install an exact distribution in a clean
 environment:
 
 ```bash
@@ -23,9 +25,9 @@ python -m pip install 1337==0.3.0
 
 Expect `1337 0.3.0`; do not silently install a different version. For development
 builds, use the reviewed source-wheel path below and retain the full source SHA.
-Git is needed only for that source build. The base wheel
-has no runtime dependencies. Docker, Nmap, Trivy, browsers and a model API are
-unnecessary for the first recipe.
+Git is needed only for that source build. New development wheels
+require the pinned FuzzyRoutines 2.1.0 library. Docker, Nmap, Trivy, browsers and
+a model API are unnecessary for the first recipe.
 
 ```bash
 git clone https://github.com/Fuzzy-Technologies/1337.git
@@ -35,7 +37,7 @@ git rev-parse HEAD
 python -m pip install uv==0.11.33
 uv build --wheel --out-dir dist
 python -m venv .venv-demo
-.venv-demo/bin/python -m pip install --no-deps dist/1337-*.whl
+.venv-demo/bin/python -m pip install dist/1337-*.whl
 source .venv-demo/bin/activate
 1337 --version
 1337 doctor
@@ -47,6 +49,10 @@ Windows use `.venv-demo\Scripts\python.exe` and activate with
 `doctor` checks local health; missing optional Docker is a warning.
 For development instead, use `uv sync --locked --extra dev` and prefix commands
 with `uv run --locked`; do not confuse an editable checkout with clean wheel proof.
+
+After the basic recipe, use the [guided development assessment](GUIDED_ASSESSMENT.md)
+to connect a real Finding, explicitly synthetic Intel, the five-level scale and
+readable offline HTML. It requires the reviewed development wheel above.
 
 ## Preview, approve and run
 

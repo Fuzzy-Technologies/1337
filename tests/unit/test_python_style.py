@@ -25,6 +25,9 @@ FRAMEWORK_FUNCTIONS = {
     "flush",
     # socketserver.BaseRequestHandler owns the request-dispatch callback spelling.
     "handle",
+    # HTMLParser owns these exact markup and text callbacks.
+    "handle_data",
+    "handle_endtag",
     "handle_starttag",
     "log_message",
     "onecmd",

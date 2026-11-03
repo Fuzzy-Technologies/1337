@@ -17,9 +17,19 @@ selected first-party checks with attributable Findings, durable reopen and offli
 reports. Optional Nmap, Nuclei and Trivy providers have their own explicit
 prerequisites and approvals. Search covers every documented module.
 
+## Next development assessment
+
+Reviewed development wheels require Python 3.13+ and pinned FuzzyRoutines 2.1.0.
+The [five-level source severity API](api/fuzzy1337.assessments.md) keeps original
+CVSS scores separate from linguistic memberships and target risk. Read the
+repository's `docs/GUIDED_ASSESSMENT.md` at the same source revision for the
+installed Finding, candidate Intel association and readable offline HTML recipe.
+The published v0.3.0 and its retained API documentation keep their original
+runtime and capability contracts.
+
 ## Try the release
 
-Use CPython 3.11 or newer and a clean environment:
+Use CPython 3.13 or newer and a clean environment:
 
 ```bash
 python -m venv .venv

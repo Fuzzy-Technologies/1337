@@ -16,6 +16,7 @@ import io
 import json
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -31,6 +32,7 @@ from pathlib import Path
 REPOSITORY = "Fuzzy-Technologies/1337"
 PROJECT = "1337"
 MAX_FILE_BYTES = 64 * 1024 * 1024
+RUNTIME_WHEELHOUSE = Path("/opt/1337/runtime-wheels")
 MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_DOCUMENTATION_BYTES = 128 * 1024 * 1024
 VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
@@ -39,8 +41,8 @@ VALIDATION_MARKER = "<!-- RELEASE_VALIDATION -->"
 MASTER_JOBS = {
     "python-quality.yml": {
         **{f"Python {python} / {system}": ("Run repository quality gate",)
-           for python, system in (("3.11", "ubuntu-24.04"), ("3.14", "ubuntu-24.04"),
-                                  ("3.12", "windows-2022"), ("3.13", "macos-15"))},
+           for python, system in (("3.13", "ubuntu-24.04"), ("3.14", "ubuntu-24.04"),
+                                  ("3.13", "windows-2022"), ("3.13", "macos-15"))},
         "Offline browser page acceptance": (
             "Verify real browser descendant cancellation and timeout",
             "Verify real offline DOM and original source custody"),
@@ -101,6 +103,20 @@ MASTER_JOBS = {
     },
     "zap-inert-acceptance.yml": {"Rootless static inert prerequisite": (
         "First serial genuine capability case", "Remaining independent genuine cases")},
+}
+
+
+ORIGINAL_V030_COMMIT = "04a2ea7f83fa57cda887e916df02daea8eb7313a"
+# The finite historical profile retains the actually executed 0.3.0 interpreter lanes.
+ORIGINAL_MASTER_JOBS = {
+    **MASTER_JOBS,
+    "python-quality.yml": {
+        **{name: steps for name, steps in MASTER_JOBS["python-quality.yml"].items()
+           if not name.startswith("Python ")},
+        **{f"Python {python} / {system}": ("Run repository quality gate",)
+           for python, system in (("3.11", "ubuntu-24.04"), ("3.14", "ubuntu-24.04"),
+                                  ("3.12", "windows-2022"), ("3.13", "macos-15"))},
+    },
 }
 
 
@@ -311,12 +327,14 @@ def GitHubJson(path: str) -> dict:
         return Json(response.read(MAX_JSON_BYTES + 1))
 
 
-def MasterChecks(commit: str, fetch: Callable[[str], dict] = GitHubJson) -> dict:
+def MasterChecks(commit: str, fetch: Callable[[str], dict] = GitHubJson, *,
+                 profile: str = "current") -> dict:
     """Require named executed jobs and steps from each latest exact-master push attempt.
 
     Args:
         commit: Exact full master source SHA selected for the release.
         fetch: Read-only fixed-repository API transport.
+        profile: Closed current profile, or v0.3.0-original for its exact original source only.
     Returns:
         Accepted workflow attempt identities and their required actual jobs.
     """
@@ -324,9 +342,18 @@ def MasterChecks(commit: str, fetch: Callable[[str], dict] = GitHubJson) -> dict
     if COMMIT.fullmatch(commit) is None:
         raise ValueError("Master evidence requires one full commit SHA")
 
+    if profile == "current":
+        required_jobs = MASTER_JOBS
+
+    elif profile == "v0.3.0-original" and commit == ORIGINAL_V030_COMMIT:
+        required_jobs = ORIGINAL_MASTER_JOBS
+
+    else:
+        raise ValueError("Master evidence requires a supported source-bound gate profile")
+
     accepted = []
 
-    for filename, required in MASTER_JOBS.items():
+    for filename, required in required_jobs.items():
         query = urllib.parse.urlencode({"head_sha": commit, "event": "push",
                                        "branch": "master", "per_page": 100})
         value = fetch(f"/repos/{REPOSITORY}/actions/workflows/{filename}/runs?{query}")
@@ -646,19 +673,26 @@ def Verify(root: Path, checksums_sha256: str) -> dict:
     return manifest
 
 
-def Invoke(arguments: tuple[str, ...], cwd: Path, expected: int = 0) -> subprocess.CompletedProcess:
+def Invoke(arguments: tuple[str, ...], cwd: Path, expected: int = 0, *,
+           project_environment: Path | None = None) -> subprocess.CompletedProcess:
     """Keep each installed CLI exit status and reject unexpected failure without a hidden retry.
 
     Args:
         arguments: Exact literal command vector without shell interpretation.
         cwd: Owned installation directory outside the source checkout.
         expected: Required actual process exit code.
+        project_environment: Exact isolated uv environment for offline runtime preparation only.
     Returns:
         Original command output after retaining its invocation and actual status.
     """
 
+    environment = {**os.environ, "PYTHONPATH": ""}
+
+    if project_environment is not None:
+        environment["UV_PROJECT_ENVIRONMENT"] = str(project_environment)
+
     result = subprocess.run(arguments, cwd=cwd, capture_output=True, text=True, timeout=120,
-                            check=False, env={**os.environ, "PYTHONPATH": ""})
+                            check=False, env=environment)
 
     with (cwd / "commands.jsonl").open("a", encoding="utf-8") as evidence:
         evidence.write(json.dumps({"argv": arguments, "cwd": str(cwd),
@@ -668,6 +702,102 @@ def Invoke(arguments: tuple[str, ...], cwd: Path, expected: int = 0) -> subproce
         raise ValueError("Release installed command returned an unexpected exit status")
 
     return result
+
+
+
+def ProvisionLocalWheelRuntime(wheel: Path, python: Path, root: Path) -> bool:
+    """Install the declared runtime from locked cache or the fixed hash-checked image wheelhouse.
+
+    Args:
+        wheel: Selected original wheel whose metadata owns its runtime requirements.
+        python: Isolated target interpreter that receives only the declared library.
+        root: Owned working directory retaining actual preparation commands.
+
+    Returns:
+        True after provisioning the required library, False for a dependency-free historical wheel.
+
+    Raises:
+        ValueError: Metadata, required uv or the exact cached dependency is unavailable.
+    """
+
+    with zipfile.ZipFile(io.BytesIO(Read(wheel))) as archive:
+        members = [item for item in archive.infolist()
+                   if item.filename.endswith(".dist-info/METADATA")]
+
+        if len(members) != 1 or not 0 < members[0].file_size <= 262144:
+            raise ValueError("Runtime preparation requires one bounded wheel metadata record")
+
+        with archive.open(members[0]) as source:
+            metadata = BytesParser().parsebytes(source.read(262145))
+
+    requirements = tuple(item for item in metadata.get_all("Requires-Dist", [])
+        if "; extra ==" not in item)
+
+    if not requirements:
+        return False
+
+    if requirements != ("fuzzyroutines==2.1.0",):
+        raise ValueError("Wheel runtime requirements differ from the reviewed pinned library")
+
+    configured = os.environ.get("FUZZY1337_RUNTIME_WHEELHOUSE")
+
+    if configured is not None:
+        if configured != str(RUNTIME_WHEELHOUSE):
+            raise ValueError("Runtime wheelhouse must be the fixed image prerequisite directory")
+
+        lock = tomllib.loads(Read(Path(__file__).resolve().parents[1] / "uv.lock").decode("utf-8"))
+        packages = [item for item in lock["package"] if item["name"] == "fuzzyroutines"]
+
+        if len(packages) != 1 or packages[0]["version"] != "2.1.0":
+            raise ValueError("Runtime wheelhouse requires the exact reviewed locked library")
+
+        wheels = packages[0].get("wheels", [])
+
+        if len(wheels) != 1:
+            raise ValueError("Runtime wheelhouse requires exactly one locked universal wheel")
+
+        selected = wheels[0]
+        name = Path(urllib.parse.urlsplit(selected["url"]).path).name
+        expected = selected["hash"]
+
+        if name != "fuzzyroutines-2.1.0-py3-none-any.whl" or re.fullmatch(
+            r"sha256:[a-f0-9]{64}", expected
+        ) is None:
+            raise ValueError("Runtime wheelhouse artifact differs from its finite locked profile")
+
+        artifact = RUNTIME_WHEELHOUSE / name
+        raw = Read(artifact, 8 * 1024 * 1024)
+
+        if len(raw) != selected["size"] or hashlib.sha256(raw).hexdigest() != expected[7:]:
+            raise ValueError("Runtime wheelhouse bytes differ from the exact locked artifact")
+
+        requirement = root / "runtime-requirements.txt"
+
+        with requirement.open("x", encoding="utf-8") as output:
+            output.write("fuzzyroutines @ " + artifact.as_uri() + " --hash=" + expected + "\n")
+
+        Invoke((str(python), "-m", "pip", "--isolated", "install", "--no-index", "--no-deps",
+            "--require-hashes", "--requirement", str(requirement)), root)
+
+        return True
+
+    uv = shutil.which("uv")
+
+    if uv is None:
+        raise ValueError("Offline runtime preparation requires uv from the locked setup")
+
+    try:
+        Invoke((uv, "--offline", "--no-config", "--no-python-downloads", "sync", "--project",
+            str(Path(__file__).resolve().parents[1]), "--locked", "--no-dev",
+            "--no-install-project", "--inexact"), root,
+            project_environment=python.parent.parent)
+
+    except ValueError as error:
+        raise ValueError("Offline pinned runtime preparation failed; run uv sync --locked "
+                         "--extra dev --reinstall-package fuzzyroutines before "
+                         "installed-package checks") from error
+
+    return True
 
 
 def Smoke(root: Path, version: str, wheel: Path | None = None) -> dict:
@@ -694,6 +824,10 @@ def Smoke(root: Path, version: str, wheel: Path | None = None) -> dict:
     Invoke((str(python), "-m", "pip", "--isolated", "install", "--no-cache-dir", "--no-deps",
         "--retries", "0", "--timeout", "30", "--report", str(root / "pip-install.json"),
         *selection), root)
+
+    if wheel is not None and ProvisionLocalWheelRuntime(wheel, python, root):
+        Invoke((str(python), "-m", "pip", "--isolated", "check"), root)
+
     observed = Invoke((str(cli), "--version"), root).stdout.strip()
 
     if observed != "1337 " + version:

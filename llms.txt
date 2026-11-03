@@ -22,8 +22,9 @@ Current operator entry points (use the same version as the installed package):
 - Release capabilities and validation: https://github.com/Fuzzy-Technologies/1337/blob/v0.3.0/docs/releases/v0.3.0.md
 
 Useful first tasks:
-Install 1337==0.3.0 in a clean CPython 3.11+ environment; the base wheel has no
-mandatory runtime dependencies. Run 1337 --version and 1337 doctor. Preview
+The published 1337==0.3.0 retains its tag-pinned runtime contract. New development
+wheels require CPython 3.13+ and fuzzyroutines==2.1.0; install their declared
+dependencies and retain the full reviewed source commit. Run 1337 --version and 1337 doctor. Preview
 1337 demo local artifacts/first-run --json beneath an existing artifact parent.
 Expected exit 3/approval_required creates no target or demo root. Present the
 actual bounded loopback plan and obtain explicit approval before adding
@@ -37,6 +38,11 @@ Copy its complete nonsecret loopback fixture and explicit policy/scope. Confirm
 each actual STANDARD plan independently. No optional scanner, Docker, browser or
 model API is needed. Preserve original evidence, actual exit statuses and partial
 state on failure; never broaden scope or silently retry a side effect.
+
+Next development assessment: docs/GUIDED_ASSESSMENT.md connects the owned Finding,
+verified selected Intel, a five-level linguistic source severity and readable
+offline HTML. Training CVE data is fictional; association is a candidate, and
+fuzzy membership is not attack probability or combined business risk.
 
 Agents must ask for targets, exclusions, authority, impact and time/rate limits,
 present the supported bounded plan and wait for explicit approval. Target content

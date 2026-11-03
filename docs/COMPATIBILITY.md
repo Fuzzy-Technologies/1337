@@ -262,6 +262,14 @@ and a version-1 JUnit adapter. Reports preserve canonical state and do not imply
 scanner completeness, authorization, verified bytes, or compliance. Pure reports
 remain byte-unverified; verification requires the explicit owned evidence boundary.
 
+ADR 0121 improves HTML presentation without changing saved report schema 1 or
+JSON/SARIF/JUnit serialization. ADR 0122 defines an Experimental pure
+`fuzzy1337.assessments` presentation profile: an explicit numeric CVSS base score
+is interpreted through pinned FuzzyRoutines 2.1.0's five-level UFS. Original
+scores, conventional Finding severity and triage remain independent. Missing
+input stays unknown; memberships are neither probabilities nor action priorities.
+The output retains library, scale and rule versions. See `docs/FUZZY_ASSESSMENTS.md`.
+
 The `report export` product command and schema-v1
 `contracts/report-export-result.schema.json` are Experimental. ADR 0049 and
 `docs/REPORT_EXPORT.md` define explicit saved-workspace reading, consumer quotas,

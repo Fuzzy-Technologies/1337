@@ -6,6 +6,47 @@
 
 Major 0 — the pre-stable 1337 Security Workbench line, establishing the Community foundation, development contracts, security boundaries, core workbench experience, and the path toward the first stable release.
 
+## Minor 0.4
+
+### Patch 0 — v0.4.0 — 2026-11-02
+
+#### Digest
+
+- Prepare the next M3 development assessment: a Python 3.13 baseline, required
+  pinned FuzzyRoutines, selected source interpretation and readable offline HTML.
+  This records development progress; it does not publish a release or claim live
+  publisher authentication or complete M3 intelligence acceptance.
+
+#### Added
+
+- Interpret explicit numeric CVSS base scores using FuzzyRoutines 2.1.0's public
+  five-level UFS, retaining original grades, unknowns and reproducibility versions.
+- Explain retained actions, object inventory, Findings, source assertions and next
+  steps in HTML. Internal JSON, identifiers and provenance remain in disclosures;
+  JSON/SARIF/JUnit and saved report schema 1 retain their existing contracts.
+- Expose bounded `intel inspect --identifier` details, separate publisher CVSS
+  assertions and derived CVSS 2 base calculations, with explicit applicability limits.
+- Connect actual owned detection, a fixed control, clearly fictional training
+  Intel and readable saved reports in a verified installed walkthrough.
+- Add bounded offline selected-graph inspection through `paths analyze --html`,
+  preserving original proof, uncertainty and structural-cut semantics, with exact
+  JSON and static SVG downloads from the same artifact.
+
+#### Fixed
+
+- Accept observed CISA KEV publisher prose with outer whitespace and Unicode Zs
+  separators while retaining original raw bytes and strict structured fields.
+- Synchronize documentation pins and hashes, Actions/public-template copies and
+  clean-wheel documentation dependency preparation; use the active milestone.
+
+#### Changed
+
+- Require Python 3.13 or newer and exactly `fuzzyroutines==2.1.0` in new builds;
+  update tooling, containers, package tests and cross-platform CI. Historical
+  v0.3.0 recovery remains bound to its actual original runtime/evidence profile.
+- Update current source installation instructions to install declared runtime
+  dependencies. PyPI publisher setup, authentication and uploads remain paused.
+
 ## Minor 0.3
 
 ### Patch 0 — v0.3.0 — 2026-10-29

@@ -593,3 +593,100 @@ def test_CweStructuralDepthNodeCollectionAndRecordBoundsAreIndependent(monkeypat
 
     with pytest.raises(ValueError):
         ParseEpss(Payload(IntelligenceFeed.EPSS) + f'{CVE},0.1,0.2\n'.encode(), "synthetic-model-1")
+
+
+def test_PublisherKevProseRegressionKeepsOriginalBytesAndStrictNormalizedRecords():
+    """The observed CISA leading-space entry imports without relaxing normalized source custody."""
+
+    document = KevDocument()
+    entry = document["vulnerabilities"][0]
+    entry["cveID"] = "CVE-2015-5477"
+    # Observed in official KEV commit 7ccba8e1223ccec82d12c7736bf3fae11e5bee86.
+    entry["vulnerabilityName"] = " ISC BIND Data Processing Errors Vulnerability"
+    raw = json.dumps(document).encode()
+    snapshot = Snapshot(IntelligenceFeed.KEV, raw)
+    assert snapshot.records[0].data["name"] == "ISC BIND Data Processing Errors Vulnerability", (
+        "Outer publisher prose whitespace still prevents import of the observed source shape."
+    )
+    assert snapshot.source.artifact_sha256 == hashlib.sha256(raw).hexdigest() and (
+        snapshot.evidence.sha256 == hashlib.sha256(raw).hexdigest()
+        and snapshot.evidence.size_bytes == len(raw)
+    ), (
+        "Publisher prose normalization changed the original evidence byte identity."
+    )
+    assert IntelligenceSnapshot.Deserialize(snapshot.Serialize()) == snapshot, (
+        "Trimmed normalized metadata no longer replays through the original strict decoder."
+    )
+
+    with pytest.raises(ValueError):
+        replace(snapshot.records[0], data={**snapshot.records[0].data, "name": entry[
+            "vulnerabilityName"
+        ]})
+
+
+@pytest.mark.parametrize("upstream,normalized", [
+    ("vendorProject", "vendor"), ("product", "product"),
+    ("vulnerabilityName", "name"), ("requiredAction", "required_action"),
+])
+def test_KevNormalizesOnlyOuterPublisherProseWhitespace(upstream, normalized):
+    """All four prose fields retain internal spacing while surrounding whitespace is removed."""
+
+    document = KevDocument()
+    document["vulnerabilities"][0][upstream] = " \tOwned  publisher prose\r\n"
+    record = Snapshot(IntelligenceFeed.KEV, json.dumps(document).encode()).records[0]
+    assert record.data[normalized] == "Owned  publisher prose", (
+        "Prose import either retained outer whitespace or rewrote internal source spacing."
+    )
+
+
+@pytest.mark.parametrize("value", [None, True, ["text"], " \t\n", "Owned\nprose", "Owned\tprose",
+                                 "Owned\u202eprose", "Owned\x1bprose", " " * 8192 + "x"])
+def test_KevProseNormalizationDoesNotAcceptInvalidOrUnboundedPublisherText(value):
+    """Prose normalization cannot coerce types, hide controls, erase empty text or bypass limits."""
+
+    document = KevDocument()
+    document["vulnerabilities"][0]["vulnerabilityName"] = value
+
+    with pytest.raises(ValueError):
+        Snapshot(IntelligenceFeed.KEV, json.dumps(document).encode())
+
+
+@pytest.mark.parametrize("field,value", [("cveID", " CVE-1900-9999"),
+                                        ("dateAdded", "2026-10-12 "),
+                                        ("knownRansomwareCampaignUse", " Unknown")])
+def test_KevNeverNormalizesIdentifiersDatesOrEnumeratedSourceAssertions(field, value):
+    """Only publisher prose changes; identifier, chronology and source-enum guards stay strict."""
+
+    document = KevDocument()
+    document["vulnerabilities"][0][field] = value
+
+    with pytest.raises(ValueError):
+        Snapshot(IntelligenceFeed.KEV, json.dumps(document).encode())
+
+
+def test_PublisherKevNarrowNoBreakSpaceRegressionKeepsExactRawSourceBinding():
+    """The observed CISA U+202F product imports as prose without weakening normalized records."""
+
+    document = KevDocument()
+    entry = document["vulnerabilities"][0]
+    entry["cveID"] = "CVE-2025-54236"
+    # Observed in official KEV commit 7ccba8e1223ccec82d12c7736bf3fae11e5bee86.
+    entry["product"] = "Commerce and\u202fMagento"
+    entry["vulnerabilityName"] = (
+        "Adobe Commerce and\u202fMagento Improper Input Validation Vulnerability"
+    )
+    raw = json.dumps(document, ensure_ascii=False).encode()
+    snapshot = Snapshot(IntelligenceFeed.KEV, raw)
+    assert snapshot.records[0].data["product"] == "Commerce and Magento", (
+        "A publisher Unicode spacing separator still prevents actual catalog import."
+    )
+    assert snapshot.source.artifact_sha256 == snapshot.evidence.sha256 == hashlib.sha256(
+        raw,
+    ).hexdigest(), "Prose normalization replaced the original source's byte identity."
+    assert IntelligenceSnapshot.Deserialize(snapshot.Serialize()) == snapshot, (
+        "Normalized publisher spacing did not retain strict portable replay."
+    )
+
+    with pytest.raises(ValueError):
+        replace(snapshot.records[0], data={**snapshot.records[0].data,
+                                          "product": entry["product"]})

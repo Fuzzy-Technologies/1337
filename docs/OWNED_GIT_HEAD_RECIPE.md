@@ -2,8 +2,8 @@
 
 This recipe uses the accepted first-party `git-head-exposure` check. It produces
 one LOW-severity Git metadata exposure Finding, verifies a fixed negative control,
-then reopens and reports the saved state offline. Only installed 1337 and CPython
-3.11+ are needed at runtime. No scanner download, model API, container, browser,
+then reopens and reports the saved state offline. Installed 1337, its pinned
+FuzzyRoutines dependency and CPython 3.13+ are needed at runtime. No scanner download, model API, container, browser,
 pytest or source checkout is required to run the copied example.
 
 Use the [version-specific installation](QUICKSTART.md#install-a-reviewed-wheel)
