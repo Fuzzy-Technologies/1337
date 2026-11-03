@@ -603,6 +603,7 @@ jobs:
         run: >-
           uv run --locked --extra dev --extra browser pytest
           tests/integration/test_path_rendering_browser.py
+          tests/integration/test_path_comparison_browser.py
           --no-cov -n 0 -q
           --junitxml=functional-evidence/path-renderer-browser.xml
       - name: Preserve genuine browser acceptance evidence
@@ -613,6 +614,7 @@ jobs:
           path: |
             functional-evidence/browser-*
             functional-evidence/path-renderer*
+            functional-evidence/path-comparison*
           if-no-files-found: ignore
           retention-days: 14
 
