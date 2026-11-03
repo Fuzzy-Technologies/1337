@@ -56,3 +56,34 @@ Full integration evidence remains the final PR's shared CI responsibility.
 The existing public-index smoke remains the retained dependency-free release
 profile while publication is paused; dependency-aware public-index acceptance
 must be addressed before publishing a new dependency-bearing release.
+
+## Measured Linux 3.13 integration budget
+
+On 2026-11-03, [run 41588423164](https://github.com/Fuzzy-Technologies/1337/actions/runs/41588423164)
+used the complete gate selection on the same proposed revision. The
+[Ubuntu 3.13 job](https://github.com/Fuzzy-Technologies/1337/actions/runs/41588423164/job/125759231198)
+exceeded the 600-second pytest subprocess deadline at 600.299 seconds and retained
+no original JUnit report. Its partial diagnostic remains timing evidence only,
+not passing acceptance. The
+[Ubuntu 3.14 job](https://github.com/Fuzzy-Technologies/1337/actions/runs/41588423164/job/125759231482)
+completed with original JUnit evidence: 13,589 passed, 77 skipped, zero failures,
+and 455.336 seconds across the parallel and serial invocations.
+
+Both jobs used four workers. Their retained diagnostic protocols summed to
+2,120.955 worker-seconds on 3.13 and 1,290.704 on 3.14, with individual worker
+sums of 522.698–534.694 and 314.530–334.713 seconds respectively. The additional
+time was distributed across several CPU-intensive modules; no single stalled
+test was established. Matching retained protocol hashes do not substitute for
+the missing 3.13 JUnit report.
+
+The pinned coverage 7.17.0 `env.py` and `core.py` select CTracer for branch
+coverage on 3.13 and default to SysMonitor on 3.14, where the required branch
+monitoring events are available. Instrumentation overhead contributing to the
+runtime difference is an inference from that source and these timings, not a
+controlled benchmark proving causality.
+
+Give only the Ubuntu 24.04 / Python 3.13 matrix entry a 900-second subprocess
+budget and a 20-minute job ceiling. Preserve the CLI's 600-second default,
+120-second per-test deadline, all other matrix profiles, complete test selection,
+branch coverage and failure behavior. The new revision must still produce
+successful original JUnit evidence in shared CI before integration.

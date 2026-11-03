@@ -32,6 +32,9 @@ jobs:
         include:
           - os: ubuntu-24.04
             python: "3.13"
+            # ADR 0120 records the measured branch-coverage budget for this runtime only.
+            suite_timeout_seconds: 900
+            job_timeout_minutes: 20
           - os: ubuntu-24.04
             python: "3.14"
           - os: windows-2022
