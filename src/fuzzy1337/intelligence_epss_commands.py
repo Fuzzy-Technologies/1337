@@ -158,6 +158,11 @@ def RunEpssIntelCommands(
         four for acquisition/integrity failure, or 130 for interruption. No model is saved.
     """
 
+    if arguments and arguments[0] == "https":
+        from fuzzy1337.intelligence_epss_https_commands import RunEpssHttpsCommands
+
+        return RunEpssHttpsCommands(arguments[1:], output, json_output=json_output)
+
     if arguments and arguments[0] in ("import", "inspect", "--help", "-h") and (
         "--help" in arguments or "-h" in arguments
     ):

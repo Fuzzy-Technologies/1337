@@ -54,3 +54,54 @@ jobs:
           path: functional-evidence/
           if-no-files-found: warn
           retention-days: 7
+
+  pinned-epss:
+    if: >-
+      github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.body, '[intel-source-acceptance-checkpoint]')
+    name: Pinned EPSS installed HTTPS original-source receipt verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out the proposed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize the locked environment
+        run: uv sync --locked --extra dev --python 3.13
+      - name: Verify deterministic acceptance refusal cases
+        timeout-minutes: 2
+        run: >-
+          uv run --locked --extra dev pytest
+          tests/unit/test_epss_https_acceptance.py
+          -n 2 --no-cov -q
+          --junitxml=functional-evidence/epss-source-wrapper.xml
+      - name: Build and install the exact wheel with hashed runtime dependencies
+        timeout-minutes: 2
+        run: |
+          uv run --locked --extra dev python -m build --wheel --no-isolation --outdir functional-evidence/epss-wheel
+          uv venv --python 3.13 .tmp/epss-installed
+          uv export --locked --no-default-groups --no-emit-project --format requirements.txt --output-file .tmp/epss-runtime-requirements.txt
+          uv pip install --python .tmp/epss-installed/bin/python --require-hashes -r .tmp/epss-runtime-requirements.txt
+          uv pip install --python .tmp/epss-installed/bin/python --no-deps functional-evidence/epss-wheel/*.whl
+          uv pip check --python .tmp/epss-installed/bin/python
+      - name: Fetch the exact archive once and reopen original HTTPS custody offline
+        timeout-minutes: 2
+        run: >-
+          .tmp/epss-installed/bin/python -I tools/epss_https_acceptance.py
+          --output functional-evidence/epss-https-source
+      - name: Preserve original transport and custody evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pinned-epss-https-source-acceptance
+          path: functional-evidence/
+          if-no-files-found: warn
+          retention-days: 7

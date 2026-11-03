@@ -8,6 +8,8 @@ fetch declared URLs, discover a latest source or automatically enrich findings.
 The separate [selected EPSS gzip profile](INTELLIGENCE_EPSS_SELECTION.md) adds
 `intel epss import|inspect` with explicit selected IDs and independent custody
 references. Its receipts do not enter the legacy snapshot/apply path below.
+The additive [pinned HTTPS profile](INTELLIGENCE_EPSS_HTTPS.md) uses the separate
+`intel epss https fetch|inspect` namespace and original remote custody.
 
 Create a workspace first with `1337 workspace create`. Import requires all source
 attribution to be supplied explicitly. For an owned synthetic EPSS fixture:

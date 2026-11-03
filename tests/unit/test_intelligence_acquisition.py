@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from fuzzy1337 import intelligence_acquisition as acquisition
+from fuzzy1337 import intelligence_receiver as receiver
 from fuzzy1337 import intelligence_transport as transport
 from fuzzy1337.evidence import EvidenceStorageError, LocalEvidenceStore
 from fuzzy1337.intel_references import SourceOrigin
@@ -331,7 +332,7 @@ def Worker(tmp_path, monkeypatch, body):
         '"""Owned controlled receiver fixture; no network requests or product security claims."""\n'
         + body, encoding="utf-8",
     )
-    monkeypatch.setattr(acquisition, "__file__", str(tmp_path / "intelligence_acquisition.py"))
+    monkeypatch.setattr(receiver, "__file__", str(tmp_path / "intelligence_receiver.py"))
 
 
 @pytest.mark.parametrize("exit_code,state", [
@@ -378,7 +379,7 @@ def test_TotalDeadlineRetainsDeliveredPartialBytesAndKillsAndJoinsTheRealWorker(
 
         return process
 
-    monkeypatch.setattr(acquisition.subprocess, "Popen", Popen)
+    monkeypatch.setattr(receiver.subprocess, "Popen", Popen)
     payload, state, status = acquisition.FetchRemoteBytes(
         SnapshotRequest(CisaKevSource(COMMIT, "synthetic-1"), timeout_seconds=1.0),
     )
@@ -420,7 +421,7 @@ def test_CallerInterruptionAlsoKillsAndJoinsTheActualReceiver(tmp_path, monkeypa
 
         return process
 
-    monkeypatch.setattr(acquisition.subprocess, "Popen", Popen)
+    monkeypatch.setattr(receiver.subprocess, "Popen", Popen)
 
     with pytest.raises(KeyboardInterrupt):
         acquisition.FetchRemoteBytes(SnapshotRequest(CisaKevSource(COMMIT, "synthetic-1")))
@@ -458,7 +459,7 @@ def test_ReceiverStartFailureAndInvalidDirectWorkerInvocationStayControlled(monk
 
         raise OSError("Owned process startup failure")
 
-    monkeypatch.setattr(acquisition.subprocess, "Popen", Popen)
+    monkeypatch.setattr(receiver.subprocess, "Popen", Popen)
 
     assert acquisition.FetchRemoteBytes(SnapshotRequest(CisaKevSource(COMMIT, "x"))) == (
         b"", AcquisitionState.TRANSPORT_FAILED, None
@@ -477,7 +478,7 @@ def test_ProcessCreationTimeIsChargedAgainstTheSameTotalDeadline(monkeypatch):
     """A slow receiver launch cannot restart the full acquisition timeout after process creation."""
 
     clocks = iter((100.0, 100.1))
-    monkeypatch.setattr(acquisition.time, "monotonic", lambda: next(clocks))
+    monkeypatch.setattr(receiver.time, "monotonic", lambda: next(clocks))
 
     class Process:
         """Model an owned receiver whose launch already consumed the selected deadline."""
@@ -511,7 +512,7 @@ def test_ProcessCreationTimeIsChargedAgainstTheSameTotalDeadline(monkeypatch):
     worker = SimpleNamespace(
         communicate=process.Communicate, kill=process.Kill, returncode=process.returncode,
     )
-    monkeypatch.setattr(acquisition.subprocess, "Popen", lambda *a, **k: worker)
+    monkeypatch.setattr(receiver.subprocess, "Popen", lambda *a, **k: worker)
     payload, state, status = acquisition.FetchRemoteBytes(
         SnapshotRequest(CisaKevSource(COMMIT, "x"), timeout_seconds=0.05),
     )

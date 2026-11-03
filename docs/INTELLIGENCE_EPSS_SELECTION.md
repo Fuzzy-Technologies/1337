@@ -5,6 +5,10 @@ one original gzip corpus in the owning workspace, validates every CSV row and
 retains assertions only for explicit selected CVEs. Missing IDs remain unmatched.
 It does not change the legacy `intel import|inspect|apply` snapshot family.
 
+The separate [pinned HTTPS profile](INTELLIGENCE_EPSS_HTTPS.md) exposes
+`intel epss https fetch|inspect` with its own original remote custody. The local
+commands below never prove that a source was acquired over HTTPS.
+
 Create an existing workspace first with `1337 workspace create`. The following
 small example works from Python on Windows, Linux and macOS in an environment
 with the installed package. It generates explicitly fictional training data;

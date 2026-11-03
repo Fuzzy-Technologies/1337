@@ -435,3 +435,26 @@ def test_OutcomeConstructorsCannotAdoptMutableOrUntypedExecutionFacts(tmp_path, 
 
     with pytest.raises(ValueError):
         replace(outcome, **{field: value})
+
+
+def test_ValidLargeWorkspaceAttributionKeepsConfirmedHandlesWhenReceiptCannotFit(tmp_path):
+    """Finite profile receipts cannot erase earlier publication facts for valid large owners."""
+
+    root = tmp_path / "large-owner"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Large valid EPSS owner"), "a" * 20000)
+    outcome = AcquireLocalEpssSelection(root, Request(), scope_reference="scope:owned")
+    assert outcome.state is EpssAcquisitionState.STORAGE_FAILED and outcome.envelope is None, (
+        "Oversized receipt escaped without an honest failure or retained a usable success envelope"
+    )
+    assert outcome.raw is not None and outcome.selection_record is not None, (
+        "Receipt ceiling erased confirmed original or selected publication handles"
+    )
+    assert outcome.raw_ack is EpssAcknowledgement.CONFIRMED and (
+        outcome.selection_ack is EpssAcknowledgement.CONFIRMED
+        and outcome.receipt_ack is EpssAcknowledgement.NOT_ATTEMPTED
+        and outcome.receipt is None
+    ), "Receipt allocation failure fabricated rollback, publication or acknowledgement"
+    store = LocalEvidenceStore(root / "evidence")
+    assert store.Get(outcome.raw.evidence_id) == outcome.raw and (
+        store.Get(outcome.selection_record.evidence_id) == outcome.selection_record
+    ), "Receipt refusal made earlier immutable publications inaccessible"

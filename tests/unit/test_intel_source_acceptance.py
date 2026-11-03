@@ -328,7 +328,8 @@ def test_MainReportsSetupRefusalWithoutUntrustedPath(
     )
 
 
-def test_HostedLaneHasOnlyExplicitDraftSameRepositoryReadOnlyAuthority() -> None:
+@pytest.mark.parametrize("job_name", ["pinned-kev", "pinned-epss"])
+def test_HostedLaneHasOnlyExplicitDraftSameRepositoryReadOnlyAuthority(job_name) -> None:
     """The live data retrieval lane cannot run on a schedule, fork or ordinary ready PR."""
 
     root = Path(__file__).absolute().parents[2]
@@ -340,7 +341,7 @@ def test_HostedLaneHasOnlyExplicitDraftSameRepositoryReadOnlyAuthority() -> None
     assert workflow["permissions"] == {"contents": "read"}, (
         "Read-only official-source acceptance gained repository mutation permission."
     )
-    job = workflow["jobs"]["pinned-kev"]
+    job = workflow["jobs"][job_name]
     assert all(condition in job["if"] for condition in (
         "github.event.pull_request.draft", "github.repository",
         "github.event.pull_request.head.repo.full_name == github.repository",

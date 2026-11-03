@@ -6,12 +6,8 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import math
 import re
-import subprocess
-import sys
-import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -33,13 +29,7 @@ from fuzzy1337.intelligence import (
     IntelligenceText,
     ParseIntelligenceSnapshot,
 )
-from fuzzy1337.intelligence_transport import (
-    FORMAT_EXIT,
-    HTTP_EXIT,
-    REDIRECT_EXIT,
-    SIZE_EXIT,
-    TIMEOUT_EXIT,
-)
+from fuzzy1337.intelligence_receiver import ReceiveIsolatedHttps
 from fuzzy1337.model import CanonicalModelJson
 from fuzzy1337.workspace import LocalWorkspaceStore
 
@@ -268,70 +258,11 @@ def FetchRemoteBytes(request: SnapshotRequest) -> tuple[bytes, AcquisitionState,
         Original bounded complete/partial bytes, terminal transport state, and observed HTTP status.
     """
 
-    worker = Path(__file__).with_name("intelligence_transport.py")
-    started = time.monotonic()
+    body, state, status = ReceiveIsolatedHttps(
+        request.source.source_url, request.max_bytes, request.timeout_seconds,
+    )
 
-    try:
-        process = subprocess.Popen(
-            [sys.executable, "-I", "-S", str(worker), request.source.source_url,
-             str(request.max_bytes), str(request.timeout_seconds)],
-            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env={},
-        )
-
-    except OSError:
-        return b"", AcquisitionState.TRANSPORT_FAILED, None
-
-    timed_out = False
-
-    try:
-        remaining = max(0.0, request.timeout_seconds - (time.monotonic() - started))
-        output, _ = process.communicate(timeout=remaining)
-
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        process.kill()
-        output, _ = process.communicate()
-
-    except BaseException:
-        process.kill()
-        process.communicate()
-
-        raise
-
-    line, separator, body = output.partition(b"\n")
-    status = None
-
-    if separator and len(line) <= 128:
-        try:
-            metadata = json.loads(line)
-
-            if (
-                isinstance(metadata, dict) and set(metadata) == {"status"}
-                and type(metadata["status"]) is int and 100 <= metadata["status"] <= 599
-            ):
-                status = metadata["status"]
-
-        except (ValueError, UnicodeError):
-            pass
-
-    if status is None or len(body) > request.max_bytes:
-        return b"", (
-            AcquisitionState.TIMED_OUT if timed_out else AcquisitionState.TRANSPORT_FAILED
-        ), status
-
-    state = {
-        0: AcquisitionState.SUCCEEDED, REDIRECT_EXIT: AcquisitionState.REDIRECT_REJECTED,
-        HTTP_EXIT: AcquisitionState.HTTP_REJECTED, FORMAT_EXIT: AcquisitionState.FORMAT_REJECTED,
-        SIZE_EXIT: AcquisitionState.SIZE_EXCEEDED, TIMEOUT_EXIT: AcquisitionState.TIMED_OUT,
-    }.get(process.returncode, AcquisitionState.TRANSPORT_FAILED)
-
-    if timed_out:
-        state = AcquisitionState.TIMED_OUT
-
-    if state is AcquisitionState.SUCCEEDED and status != 200:
-        state = AcquisitionState.TRANSPORT_FAILED
-
-    return body, state, status
+    return body, AcquisitionState(state), status
 
 
 def AcquireIntelligenceSnapshot(

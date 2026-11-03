@@ -8,6 +8,36 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 3 — v0.4.3 — 2026-11-03
+
+#### Digest
+
+- Add explicit pinned EPSS HTTPS acquisition and offline inspection with original
+  remote custody, finite selected-ID normalization and honest failure outcomes.
+
+#### Added
+
+- Expose `intel epss https fetch|inspect` with mandatory archive commit, day, model
+  and raw SHA-256 pins, retained FIRST attribution/terms and separate remote roots.
+- Verify installed original-source acquisition and relocated replay through a
+  guarded hosted acceptance checkpoint, separately from deterministic tests.
+
+#### Fixed
+
+- Return explicit storage failure when a local selected-EPSS receipt exceeds its
+  ceiling, preserving earlier publication acknowledgements without claiming rollback.
+
+#### Changed
+
+- Share isolated child lifetime/framing ownership between typed CISA and EPSS
+  profiles; preserve default CISA request admission and JSON worker invocation.
+
+#### Security
+
+- Keep finite gzip/selection budgets, exact original-source joins, independent
+  acknowledgements and unmatched IDs; byte pins do not authenticate publishers.
+
+
 ### Patch 2 — v0.4.2 — 2026-11-03
 
 #### Digest
