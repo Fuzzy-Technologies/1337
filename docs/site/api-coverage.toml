@@ -934,3 +934,17 @@ module = "fuzzy1337.cyclonedx_license_policy"
 source = "src/fuzzy1337/cyclonedx_license_policy.py"
 mode = "authored"
 page = "api/fuzzy1337.cyclonedx_license_policy.md"
+
+[[surfaces]]
+# Experimental exact-commit selected CVE HTTPS custody; legacy snapshot admission is unchanged.
+module = "fuzzy1337.intelligence_cve_remote"
+source = "src/fuzzy1337/intelligence_cve_remote.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cve_remote.md"
+
+[[surfaces]]
+# Internal explicit selected CVE fetch and original offline inspection consumer.
+module = "fuzzy1337.intelligence_cve_https_commands"
+source = "src/fuzzy1337/intelligence_cve_https_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cve_https_commands.md"

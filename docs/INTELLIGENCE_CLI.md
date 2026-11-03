@@ -10,6 +10,8 @@ The separate [selected EPSS gzip profile](INTELLIGENCE_EPSS_SELECTION.md) adds
 references. Its receipts do not enter the legacy snapshot/apply path below.
 The additive [pinned HTTPS profile](INTELLIGENCE_EPSS_HTTPS.md) uses the separate
 `intel epss https fetch|inspect` namespace and original remote custody.
+The separate [selected CVE HTTPS profile](INTELLIGENCE_CVE_HTTPS.md) exposes
+`intel cve https fetch|inspect` for one explicitly pinned published 5.2 record.
 
 Create a workspace first with `1337 workspace create`. Import requires all source
 attribution to be supplied explicitly. For an owned synthetic EPSS fixture:

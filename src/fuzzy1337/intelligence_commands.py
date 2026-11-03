@@ -453,7 +453,7 @@ def IntelParser(action: str | None = None) -> argparse.ArgumentParser:
 def RunIntelCommands(
     arguments: Sequence[str], output: TextIO, *, json_output: bool = False,
 ) -> int:
-    """Execute only explicit local selections and print bounded summaries without source bodies.
+    """Execute explicit local imports or typed pinned-source profiles with bounded summaries.
 
     Args:
         arguments: Explicit action and its workspace, source or immutable selection arguments.
@@ -469,6 +469,11 @@ def RunIntelCommands(
         from fuzzy1337.intelligence_epss_commands import RunEpssIntelCommands
 
         return RunEpssIntelCommands(arguments[1:], output, json_output=json_output)
+
+    if list(arguments[:2]) == ["cve", "https"]:
+        from fuzzy1337.intelligence_cve_https_commands import RunCveHttpsCommands
+
+        return RunCveHttpsCommands(arguments[2:], output, json_output=json_output)
 
     parser = IntelParser()
 
