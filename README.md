@@ -13,7 +13,12 @@ Security Object Model, and export reports without contacting the target again.
 workflows absent from the immutable [v0.2.1 release](https://github.com/Fuzzy-Technologies/1337/releases/tag/v0.2.1).
 See the [release card](docs/releases/v0.3.0.md) for capabilities, examples and
 validation, and [release delivery](docs/RELEASE_WORKFLOW.md) for artifact provenance.
-Apache-2.0 Community core; CPython 3.11 and newer; no mandatory runtime dependencies.
+Apache-2.0 Community core. New development builds require CPython 3.13 or newer
+and pinned FuzzyRoutines 2.1.0; the published v0.3.0 keeps its original contracts.
+
+The next M3 development slice adds [a guided assessment](docs/GUIDED_ASSESSMENT.md),
+[readable HTML](docs/REPORTING.md) and [five-level source severity](docs/FUZZY_ASSESSMENTS.md).
+Use its reviewed source wheel; these additions are not claims about the released wheel.
 
 ## What you can use now
 
@@ -65,7 +70,7 @@ git rev-parse HEAD
 python -m pip install uv==0.11.33
 uv build --wheel --out-dir dist
 python -m venv .venv-demo
-.venv-demo/bin/python -m pip install --no-deps dist/1337-*.whl
+.venv-demo/bin/python -m pip install dist/1337-*.whl
 .venv-demo/bin/1337 --version
 .venv-demo/bin/1337 doctor
 ```

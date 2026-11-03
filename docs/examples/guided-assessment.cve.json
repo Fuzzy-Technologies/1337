@@ -1,0 +1,33 @@
+{
+  "dataType": "CVE_RECORD",
+  "dataVersion": "5.2",
+  "cveMetadata": {
+    "cveId": "CVE-1900-9999",
+    "state": "PUBLISHED",
+    "dateUpdated": "2026-01-01T00:00:00Z"
+  },
+  "containers": {
+    "cna": {
+      "providerMetadata": {
+        "orgId": "1337-owned-training-fixture",
+        "shortName": "Owned synthetic training data"
+      },
+      "descriptions": [{
+        "lang": "en",
+        "value": "Fictional training record. This is not a real CVE and does not describe the Git HEAD exposure check or its target. Its CVSS score demonstrates source interpretation only."
+      }],
+      "affected": [{
+        "vendor": "Fictional training vendor",
+        "product": "Fictional training product",
+        "defaultStatus": "unknown"
+      }],
+      "metrics": [{
+        "cvssV3_1": {
+          "version": "3.1",
+          "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "baseScore": 8.1
+        }
+      }]
+    }
+  }
+}

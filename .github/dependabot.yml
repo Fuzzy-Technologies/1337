@@ -8,7 +8,7 @@ updates:
       interval: "weekly"
     assignees:
       - "Tim55667757"
-    milestone: 2
+    milestone: 4
     open-pull-requests-limit: 2
     groups:
       routine-python-updates:
@@ -26,7 +26,7 @@ updates:
       interval: "weekly"
     assignees:
       - "Tim55667757"
-    milestone: 2
+    milestone: 4
     open-pull-requests-limit: 2
     groups:
       routine-actions-updates:

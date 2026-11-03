@@ -9,7 +9,7 @@ import argparse
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Never, TextIO
+from typing import Never, TextIO, cast
 
 from fuzzy1337.adapters import EvidenceReference
 from fuzzy1337.evidence import (
@@ -22,9 +22,12 @@ from fuzzy1337.evidence import (
 )
 from fuzzy1337.intel_references import SourceOrigin
 from fuzzy1337.intelligence import (
+    MAX_SELECTED_RECORDS,
     MAX_SOURCE_BYTES,
     ApplyVerifiedEnrichment,
+    BoundedJson,
     IntelligenceFeed,
+    IntelligenceIdentifier,
     IntelligenceSnapshot,
     IntelligenceTime,
 )
@@ -38,10 +41,15 @@ from fuzzy1337.intelligence_acquisition import (
     SnapshotRequest,
     SnapshotSource,
 )
+from fuzzy1337.intelligence_applicability import ParseCveAffectedStatements
+from fuzzy1337.intelligence_cvss2 import ParseCveCvss2Statements
+from fuzzy1337.intelligence_cvss2_base import CveCvss2BaseCalculations
 from fuzzy1337.model import CanonicalModelJson, LocalModelStore, ModelProvenance
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceBusyError, WorkspaceConflictError
 
 MAX_RECEIPT_BYTES = 32 * 1024
+MAX_INSPECTION_BYTES = 1024 * 1024
+INSPECTION_PROFILE_VERSION = 1
 
 
 class IntelFailure(RuntimeError):
@@ -226,6 +234,174 @@ def VerifiedIntelSelection(
     return snapshot, raw_record, receipt
 
 
+def IntelIdentifiers(values: Sequence[str]) -> tuple[str, ...]:
+    """Validate one explicit bounded selection before original-source reads.
+
+    Args:
+        values: Exact selected CVE/CWE identifiers, without inferred associations.
+
+    Returns:
+        Unique validated identifiers in the operator's original order.
+    """
+
+    if not 1 <= len(values) <= MAX_SELECTED_RECORDS:
+        raise IntelFailure("configuration", 2)
+
+    try:
+        identifiers = tuple(IntelligenceIdentifier(value) for value in values)
+
+    except ValueError as error:
+        raise IntelFailure("configuration", 2) from error
+
+    if len(set(identifiers)) != len(identifiers):
+        raise IntelFailure("configuration", 2)
+
+    return identifiers
+
+
+def IntelDetails(
+    root: Path, snapshot: IntelligenceSnapshot, identifiers: tuple[str, ...],
+) -> dict[str, object]:
+    """Project selected verified source assertions without manufacturing target applicability.
+
+    Args:
+        root: Owning workspace already checked by the complete receipt/source verifier.
+        snapshot: Original verified snapshot, never an unverified caller dictionary.
+        identifiers: Validated explicit selection of at most 64 unique identifiers.
+
+    Returns:
+        Profile-one details within 1 MiB, retaining source and derived scores separately.
+    """
+
+    records = [record for record in snapshot.records if record.identifier in identifiers]
+    matched = {record.identifier for record in records}
+    details: dict[str, object] = {
+        "profile_version": INSPECTION_PROFILE_VERSION,
+        "snapshot_reference": snapshot.Reference(), "source": snapshot.source.ToDict(),
+        "requested_identifiers": list(identifiers),
+        "unmatched_identifiers": [value for value in identifiers if value not in matched],
+        "records": [record.ToDict() for record in records],
+        "target_applicability": "not-evaluated", "publisher_authentication": "not-assessed",
+    }
+
+    if snapshot.feed is IntelligenceFeed.CVE and records:
+        raw = BoundedIntelEvidenceStore(root / "evidence").Read(snapshot.evidence)
+        version = cast(dict[str, object], BoundedJson(raw))["dataVersion"]
+        profiles: dict[str, object] = {"format_version": version}
+
+        if version not in ("5.2", "5.2.0"):
+            profiles["state"] = "unsupported-format"
+
+        else:
+            profiles["state"] = "inspected"
+
+            try:
+                affected = ParseCveAffectedStatements(
+                    raw, snapshot.catalog_version, snapshot.source, snapshot.evidence,
+                )
+                profiles["applicability"] = {
+                    "profile_version": 1, "state": "inspected",
+                    "containers": [container.ToDict() for container in affected.containers],
+                }
+
+            except ValueError:
+                profiles["applicability"] = {"profile_version": 1,
+                                             "state": "unsupported-content"}
+
+            try:
+                statements = ParseCveCvss2Statements(
+                    raw, snapshot.catalog_version, snapshot.source, snapshot.evidence,
+                )
+                calculated = CveCvss2BaseCalculations(statements)
+                profiles["cvss2"] = {
+                    "profile_version": 1, "state": "inspected",
+                    "assessments": [item.ToDict() for item in statements.assessments],
+                    "base_calculations": [item.ToDict() for item in calculated.calculations],
+                }
+
+            except ValueError:
+                profiles["cvss2"] = {"profile_version": 1, "state": "unsupported-content"}
+
+        details["cve_source_profiles"] = profiles
+
+    if len(CanonicalModelJson(details)) > MAX_INSPECTION_BYTES:
+        raise IntelFailure("inspection-limit")
+
+    return details
+
+
+def IntelDisplay(value: object) -> str:
+    """Escape terminal controls in selected source metadata without interpreting it.
+
+    Args:
+        value: Source scalar or detached JSON-compatible structured declaration.
+
+    Returns:
+        Printable text with controls and directional formatting escaped.
+    """
+
+    text = value if isinstance(value, str) else CanonicalModelJson(value).decode("utf-8")
+
+    return "".join(character if character.isprintable() else f"\\u{ord(character):04x}"
+                   for character in text)
+
+
+def WriteIntelDetails(details: dict[str, object], output: TextIO) -> None:
+    """Explain selected source assertions while preserving their distinct measurement meanings.
+
+    Args:
+        details: Bounded profile-one projection produced after original-source verification.
+        output: Caller-owned terminal stream.
+    """
+
+    source = cast(dict[str, object], details["source"])
+    output.write("Source assertions; target applicability has not been evaluated.\n")
+    output.write(f"Publisher (declared): {IntelDisplay(source['publisher'])}\n")
+    output.write(f"Source: {IntelDisplay(source['source_url'])}\n")
+    output.write("Publisher authentication: not assessed.\n")
+
+    for record in cast(list[dict[str, object]], details["records"]):
+        data = cast(dict[str, object], record["data"])
+        output.write(f"\n{IntelDisplay(record['identifier'])} "
+                     f"(catalog {IntelDisplay(record['catalog_version'])})\n")
+
+        if record["feed"] == IntelligenceFeed.EPSS.value:
+            output.write("EPSS predicts exploitation of the CVE in the next 30 days; "
+                         "it does not establish that this target is vulnerable.\n")
+            output.write(f"Source probability: {IntelDisplay(data['probability'])}; "
+                         f"percentile: {IntelDisplay(data['percentile'])}\n")
+
+        elif record["feed"] == IntelligenceFeed.KEV.value:
+            output.write("Listed in the selected KEV catalog: source-reported exploitation, "
+                         "not an observed attack on this target.\n")
+            output.write(f"Required action: {IntelDisplay(data['required_action'])}\n")
+            output.write(f"Ransomware use: {IntelDisplay(data['ransomware_use'])}\n")
+
+        elif record["feed"] == IntelligenceFeed.CWE.value:
+            output.write(f"Weakness: {IntelDisplay(data['name'])}; "
+                         f"source status: {IntelDisplay(data['status'])}\n")
+
+        else:
+            output.write(f"CVE source state: {IntelDisplay(data['state'])}\n")
+            output.write(f"Description: {IntelDisplay(data['description'])}\n")
+
+            for assessment in cast(list[dict[str, object]], data["cvss"]):
+                output.write(f"Source CVSS {IntelDisplay(assessment['version'])}: "
+                             f"{IntelDisplay(assessment['base_score'])}; "
+                             f"assessor {IntelDisplay(assessment['assessor'])}; "
+                             f"{IntelDisplay(assessment['vector'])}\n")
+
+    unmatched = cast(list[str], details["unmatched_identifiers"])
+
+    if unmatched:
+        output.write("Not present in this selected snapshot: " + ", ".join(unmatched) + "\n")
+
+    profiles = details.get("cve_source_profiles")
+
+    if isinstance(profiles, dict):
+        output.write("CVE source profiles: " + IntelDisplay(profiles) + "\n")
+
+
 def IntelParser(action: str | None = None) -> argparse.ArgumentParser:
     """Declare explicit offline import, verified inspection, and one finding's enrichment.
 
@@ -259,7 +435,10 @@ def IntelParser(action: str | None = None) -> argparse.ArgumentParser:
         selected.add_argument("--snapshot", required=True)
         selected.add_argument("--receipt", required=True)
 
-        if name == "apply":
+        if name == "inspect":
+            selected.add_argument("--identifier", action="append")
+
+        else:
             selected.add_argument("--finding", required=True)
             selected.add_argument("--identifier", action="append", required=True)
             selected.add_argument("--expected-revision", type=int, required=True)
@@ -307,6 +486,9 @@ def RunIntelCommands(
     try:
         options = parser.parse_args(arguments)
         outcome["command"] = "intel." + options.action
+        identifiers = IntelIdentifiers(options.identifier) if (
+            options.action == "inspect" and options.identifier is not None
+        ) else None
         root = IntelPath(options.workspace)
         phase = "integrity"
         LocalWorkspaceStore(root).Open()
@@ -350,6 +532,9 @@ def RunIntelCommands(
         outcome.update({"feed": snapshot.feed.value, "catalog_version": snapshot.catalog_version,
                         "record_count": len(snapshot.records),
                         "source_sha256": snapshot.evidence.sha256})
+
+        if identifiers is not None:
+            outcome["details"] = IntelDetails(root, snapshot, identifiers)
 
         if options.action == "apply":
             model = LocalModelStore(root)
@@ -403,5 +588,8 @@ def RunIntelCommands(
         for name in ("snapshot_id", "receipt_id", "raw_id", "model_revision", "failure"):
             if outcome[name] is not None:
                 output.write(f"{name}: {outcome[name]}\n")
+
+        if outcome["status"] == "succeeded" and "details" in outcome:
+            WriteIntelDetails(cast(dict[str, object], outcome["details"]), output)
 
     return status

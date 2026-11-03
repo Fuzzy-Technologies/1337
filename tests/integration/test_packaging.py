@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from tools.release_delivery import ProvisionLocalWheelRuntime
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -94,6 +96,21 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
             str(wheels[0]),
         ],
         tmp_path,
+    )
+    ProvisionLocalWheelRuntime(wheels[0], executable, tmp_path)
+    Invoke([str(executable), "-m", "pip", "--isolated", "check"], tmp_path)
+    runtime = json.loads(Invoke([str(executable), "-I", "-c",
+        "import importlib.metadata,json,fuzzyroutines; "
+        "print(json.dumps({'version':importlib.metadata.version('fuzzyroutines'), "
+        "'path':fuzzyroutines.__file__}))"], tmp_path))
+    assert runtime["version"] == "2.1.0" and Path(runtime["path"]).is_relative_to(environment), (
+        "Clean installation must resolve the exact required library inside its isolated environment"
+    )
+    refused = subprocess.run([str(executable), "-m", "pip", "--isolated", "install",
+        "--dry-run", "--ignore-installed", "--no-index", "--no-deps", "--python-version", "3.12",
+        str(wheels[0])], cwd=tmp_path, capture_output=True, text=True, timeout=60, check=False)
+    assert refused.returncode != 0 and "requires a different Python" in refused.stderr, (
+        "The actual built wheel must refuse installation on unsupported Python 3.12"
     )
     expected = f"1337 {metadata['version']}"
     assert (

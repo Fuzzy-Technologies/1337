@@ -56,9 +56,12 @@ def test_HealthSnapshotsAreImmutable():
         report.components = ()
 
 
-@pytest.mark.parametrize("detected, healthy", [((3, 10, 9), False), ((3, 11, 0), True)])
+@pytest.mark.parametrize("detected, healthy", [
+    ((3, 10, 9), False), ((3, 11, 0), False), ((3, 12, 9), False),
+    ((3, 13, 0), True), ((3, 14, 0), True),
+])
 def test_PythonObservationRetainsDetectedVersionAndCompatibility(monkeypatch, detected, healthy):
-    """Observe interpreter compatibility using the existing minimum-runtime contract."""
+    """Retain the detected version while enforcing the approved Python 3.13 baseline."""
 
     monkeypatch.setattr(component_health.sys, "version_info", detected)
     component = CheckPythonComponent()

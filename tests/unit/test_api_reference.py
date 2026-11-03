@@ -570,6 +570,19 @@ if arguments[0] == "venv":
     (environment / "bin").mkdir(parents=True)
     shutil.copyfile(Path(__file__).parent / "fixture_interpreter.py", environment / "bin/python")
     (environment / "bin/python").chmod(0o755)
+
+elif arguments[0] == "export":
+    if os.environ.get("DOCUMENTATION_FIXTURE_MODE") == "runtime-export-failed":
+        raise SystemExit(17)
+
+    Path(arguments[arguments.index("--output-file") + 1]).write_text(
+        "# Controlled hash-locked runtime requirements.\\n"
+    )
+
+elif "--require-hashes" in arguments and os.environ.get(
+    "DOCUMENTATION_FIXTURE_MODE"
+) == "runtime-install-failed":
+    raise SystemExit(23)
 ''')
     executable.chmod(0o755)
 
@@ -582,6 +595,8 @@ if arguments[0] == "venv":
     ("multiple-wheels", "exactly one newly built wheel"),
     ("nondeterministic", "different outputs"),
     ("source-mutated", "modified tracked source inputs"),
+    ("runtime-export-failed", "exit status 17"),
+    ("runtime-install-failed", "exit status 23"),
 ))
 def test_ExternalBuildOrchestrationRejectsAmbiguousOrMutableResults(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str, diagnostic: str
@@ -604,7 +619,8 @@ def test_ExternalBuildOrchestrationRejectsAmbiguousOrMutableResults(
     monkeypatch.setenv("DOCUMENTATION_FIXTURE_RECEIPTS", str(receipts))
 
     if diagnostic:
-        with pytest.raises((ValueError, RuntimeError), match=diagnostic):
+        with pytest.raises((ValueError, RuntimeError, subprocess.CalledProcessError),
+                           match=diagnostic):
             API.Build(root)
 
     else:
@@ -618,10 +634,31 @@ def test_ExternalBuildOrchestrationRejectsAmbiguousOrMutableResults(
         assert len(evidence["wheelSha256"]) == 64, "Build evidence must bind the produced wheel"
         calls = [json.loads(line) for line in receipts.read_text().splitlines()]
 
-        assert "--require-hashes" in calls[1], "Documentation dependencies require hash enforcement"
-        assert "--no-deps" in calls[2], "Wheel installation must never resolve runtime dependencies"
-        assert not Path(calls[0][-1]).exists(), (
-            "The outside-checkout environment must be cleaned up"
+        assert calls[0][calls[0].index("--python") + 1] == sys.executable, (
+            "Documentation provisioning must retain the invoking supported Python interpreter"
+        )
+        assert calls[1][:5] == [
+            "export", "--locked", "--no-default-groups", "--no-emit-project", "--format",
+        ], "Only base runtime requirements may be exported without changing the product lock"
+        runtime_requirements = calls[1][calls[1].index("--output-file") + 1]
+        requirements = [
+            calls[2][index + 1] for index, value in enumerate(calls[2]) if value == "-r"
+        ]
+        assert "--require-hashes" in calls[2] and requirements == [
+            str(root / "docs/requirements-api.lock"), runtime_requirements,
+        ], "Documentation and runtime dependencies must resolve together under their exact hashes"
+        assert "--no-deps" in calls[3], (
+            "Wheel installation must not resolve dependencies beyond the exported runtime lock"
+        )
+
+    calls = [json.loads(line) for line in receipts.read_text().splitlines()]
+    assert not Path(calls[0][-1]).exists(), (
+        "The outside-checkout environment must be cleaned up after success or failure"
+    )
+
+    if mode in {"runtime-export-failed", "runtime-install-failed"}:
+        assert not (root / "_build/docs/api-build.json").exists(), (
+            "A failed runtime provision cannot continue to rendering or create success evidence"
         )
 
 

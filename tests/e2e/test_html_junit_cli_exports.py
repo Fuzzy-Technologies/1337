@@ -174,7 +174,10 @@ def CheckLiteralOracle(payload: bytes, format_name: str, model: ModelState,
         assert b"Scan completeness was not assessed." in payload and (
             f"revision {model.revision}".encode() in payload
         ), "HTML must expose its exact saved revision and unassessed completeness"
-        assert b"verified bytes" in payload and b"Failed execution records" in payload, (
+        assert b"verified bytes" in payload and (
+            "Execution records that did not succeed" in parser.text
+            and "failed; exit 7" in parser.text
+        ), (
             "HTML must preserve original source failure and checked byte-integrity presentation"
         )
 

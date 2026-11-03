@@ -688,6 +688,7 @@ def SmokeCommands(root, monkeypatch, fault=None):
         return SimpleNamespace(stdout=response, returncode=expected)
 
     monkeypatch.setattr(delivery, "Invoke", Invoke)
+    monkeypatch.setattr(delivery, "ProvisionLocalWheelRuntime", lambda *_: False)
 
     return commands
 
@@ -816,3 +817,195 @@ def test_ReleaseCliDispatchKeepsExplicitOwnedInputs(tmp_path, monkeypatch, comma
         str(output), "--documentation", str(tmp_path)]) == 0, (
         "The finite command must report its actual successful dispatch")
     assert json.loads(output.read_bytes()) == expected, "The retained result must match dispatch"
+
+
+@pytest.mark.parametrize("requirement", [None, "fuzzyroutines==2.1.0"])
+def test_LocalWheelRuntimeUsesOnlyExactOriginalMetadataAndOfflineCache(
+    tmp_path, monkeypatch, requirement,
+):
+    """Historical wheels stay dependency-free; current wheels provision their exact library."""
+
+    monkeypatch.delenv("FUZZY1337_RUNTIME_WHEELHOUSE", raising=False)
+
+    wheel = tmp_path / "original.whl"
+    metadata = "Metadata-Version: 2.5\nName: 1337\nVersion: 0.4.0\n"
+
+    if requirement is not None:
+        metadata += "Requires-Dist: " + requirement + "\n"
+
+    metadata += "Requires-Dist: PyYAML==6.0.3; extra == 'openapi-yaml'\n"
+
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("1337-0.4.0.dist-info/METADATA", metadata)
+
+    commands = []
+    monkeypatch.setattr(delivery.shutil, "which", lambda _: "/owned/uv")
+    monkeypatch.setattr(delivery, "Invoke", lambda arguments, cwd, **options:
+        commands.append((arguments, options)))
+    python = tmp_path / "environment/bin/python"
+    assert delivery.ProvisionLocalWheelRuntime(wheel, python, tmp_path) is (
+        requirement is not None
+    ), "Runtime preparation must follow the selected original wheel, including historical absence"
+    expected = (("/owned/uv", "--offline", "--no-config", "--no-python-downloads", "sync",
+        "--project", str(Path(delivery.__file__).resolve().parents[1]), "--locked", "--no-dev",
+        "--no-install-project", "--inexact"),
+        {"project_environment": tmp_path / "environment"})
+    assert commands == ([] if requirement is None else [expected]), (
+        "Runtime preparation must use the exact locked cache and preserve the isolated app wheel"
+    )
+
+
+@pytest.mark.parametrize("fault", ["missing-metadata", "extra-metadata", "oversized-metadata",
+                                  "changed-pin", "no-uv"])
+def test_LocalWheelRuntimeRefusesAmbiguousRequirementsOrMissingProvisioner(
+    tmp_path, monkeypatch, fault,
+):
+    """Runtime uncertainty fails before installation instead of pretending dependency success."""
+
+    monkeypatch.delenv("FUZZY1337_RUNTIME_WHEELHOUSE", raising=False)
+
+    wheel = tmp_path / "original.whl"
+    metadata = "Metadata-Version: 2.5\nName: 1337\nVersion: 0.4.0\nRequires-Dist: "
+    metadata += "fuzzyroutines==" + ("2.0.0" if fault == "changed-pin" else "2.1.0") + "\n"
+
+    if fault == "oversized-metadata":
+        metadata += "x" * 262144
+
+    with zipfile.ZipFile(wheel, "w") as archive:
+        if fault != "missing-metadata":
+            archive.writestr("1337-0.4.0.dist-info/METADATA", metadata)
+
+        if fault == "extra-metadata":
+            archive.writestr("other-0.4.0.dist-info/METADATA", metadata)
+
+    monkeypatch.setattr(delivery.shutil, "which", lambda _: None if fault == "no-uv" else "/uv")
+    commands = []
+    monkeypatch.setattr(delivery, "Invoke", lambda arguments, cwd: commands.append(arguments))
+
+    with pytest.raises(ValueError):
+        delivery.ProvisionLocalWheelRuntime(wheel, tmp_path / "python", tmp_path)
+
+    assert commands == [], "Unknown wheel metadata or unavailable uv must not launch an installer"
+
+
+def test_LocalWheelRuntimeReportsOfflinePreparationFailureWithoutFallback(tmp_path, monkeypatch):
+    """A cold cache preserves its failed command and offers explicit setup without networking."""
+
+    monkeypatch.delenv("FUZZY1337_RUNTIME_WHEELHOUSE", raising=False)
+
+    wheel = tmp_path / "original.whl"
+
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("1337-0.4.0.dist-info/METADATA", "Metadata-Version: 2.5\n"
+            "Name: 1337\nVersion: 0.4.0\nRequires-Dist: fuzzyroutines==2.1.0\n")
+
+    commands = []
+    monkeypatch.setattr(delivery.shutil, "which", lambda _: "/owned/uv")
+
+    def Failed(arguments, cwd, **options):
+        """Retain the single actual offline attempt without simulating cached success."""
+
+        commands.append(arguments)
+
+        raise ValueError("cache miss")
+
+    monkeypatch.setattr(delivery, "Invoke", Failed)
+
+    with pytest.raises(ValueError, match="run uv sync --locked") as failure:
+        delivery.ProvisionLocalWheelRuntime(wheel, tmp_path / "python", tmp_path)
+
+    assert str(failure.value.__cause__) == "cache miss" and len(commands) == 1, (
+        "A cache miss must retain its cause and cannot launch an implicit index retry"
+    )
+    assert "--offline" in commands[0], "Runtime test preparation must remain network-free"
+
+
+@pytest.mark.parametrize("profile,commit", [("unknown", SHA), ("", SHA),
+    ("v0.3.0-original", SHA)])
+def test_MasterEvidenceRejectsUnknownOrForeignHistoricalProfiles(profile, commit):
+    """A historical matrix cannot bypass current gates for any arbitrary source commit."""
+
+    def NoFetch(_):
+        """Refuse to consult any service for a caller-selected invalid evidence profile."""
+
+        pytest.fail("Invalid gate profiles must fail before network inspection")
+
+    with pytest.raises(ValueError, match="supported source-bound gate profile"):
+        delivery.MasterChecks(commit, NoFetch, profile=profile)
+
+
+@pytest.mark.parametrize("fault", [None, "foreign-directory", "changed-bytes", "symlink",
+    "missing", "changed-pin", "ambiguous", "foreign-name", "changed-size"])
+def test_ImageWheelhouseUsesOnlyPhysicalHashLockedBytesWithoutCache(
+    tmp_path, monkeypatch, fault,
+):
+    """A no-cache image installs only its original locked library and never falls back online."""
+
+    wheel = tmp_path / "app.whl"
+
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("1337-0.3.0.dist-info/METADATA", "Name: 1337\nVersion: 0.3.0\n"
+            "Requires-Dist: fuzzyroutines==2.1.0\n")
+
+    wheelhouse = tmp_path / "image-runtime-wheels"
+    wheelhouse.mkdir()
+    name = "fuzzyroutines-2.1.0-py3-none-any.whl"
+    artifact = wheelhouse / name
+    raw = b"inert pure-test artifact; no runtime installation is claimed"
+    artifact.write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    locked_name = "foreign.whl" if fault == "foreign-name" else name
+    locked_version = "2.0.0" if fault == "changed-pin" else "2.1.0"
+    locked_size = len(raw) + (1 if fault == "changed-size" else 0)
+    lock = ('[[package]]\nname="fuzzyroutines"\nversion="' + locked_version + '"\n'
+        'wheels=[{url="https://files.pythonhosted.org/packages/owned/' + locked_name + '", '
+        'hash="sha256:' + digest + '", size=' + str(locked_size) + '}]\n').encode()
+
+    if fault == "ambiguous":
+        lock += lock
+
+    if fault == "changed-bytes":
+        artifact.write_bytes(b"changed")
+
+    if fault in ("missing", "symlink"):
+        artifact.unlink()
+
+    if fault == "symlink":
+        artifact.symlink_to(wheel)
+
+    monkeypatch.setattr(delivery, "RUNTIME_WHEELHOUSE", wheelhouse)
+    monkeypatch.setenv("FUZZY1337_RUNTIME_WHEELHOUSE",
+        str(tmp_path / "foreign") if fault == "foreign-directory" else str(wheelhouse))
+    monkeypatch.setenv("UV_NO_CACHE", "1")
+    original_read = delivery.Read
+
+    def Read(path, maximum=delivery.MAX_FILE_BYTES):
+        """Substitute only a handwritten lock; artifact bytes and alias checks remain real."""
+
+        return lock if path.name == "uv.lock" else original_read(path, maximum)
+
+    monkeypatch.setattr(delivery, "Read", Read)
+    commands = []
+    monkeypatch.setattr(delivery, "Invoke", lambda arguments, cwd:
+        commands.append(arguments))
+    python = tmp_path / "isolated/bin/python"
+
+    if fault is not None:
+        with pytest.raises((ValueError, FileNotFoundError)):
+            delivery.ProvisionLocalWheelRuntime(wheel, python, tmp_path)
+
+        assert commands == [], "Uncertain wheelhouse material cannot reach any installer or cache"
+
+        return
+
+    assert delivery.ProvisionLocalWheelRuntime(wheel, python, tmp_path) is True, (
+        "Only the explicit successfully verified image wheelhouse may provide the runtime"
+    )
+    requirements = tmp_path / "runtime-requirements.txt"
+    assert requirements.read_text() == (
+        "fuzzyroutines @ " + artifact.as_uri() + " --hash=sha256:" + digest + "\n"
+    ), "Installer requirements must bind one exact local artifact to its source-lock hash"
+    assert commands == [(str(python), "-m", "pip", "--isolated", "install", "--no-index",
+        "--no-deps", "--require-hashes", "--requirement", str(requirements))], (
+        "The image path must avoid uv caches, external indexes and unverified dependency lookup"
+    )

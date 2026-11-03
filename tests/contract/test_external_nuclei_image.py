@@ -216,6 +216,11 @@ def test_ImageRecipeFreezesAssetAndInstalledWheelBeforeRuntime():
     assert "--no-isolation --wheel" in recipe and "--no-index --no-deps" in recipe, (
         "The runtime must import the new wheel without editable or dependency fallback."
     )
+    assert "--no-index --no-deps --require-hashes" in recipe and (
+        "--find-links=/opt/1337/runtime-wheels" in recipe
+        and "--requirement /opt/1337/runtime-wheels/requirements.txt" in recipe
+        and "-m pip --isolated check" in recipe
+    ), "The isolated runtime must install its hash-locked library offline and verify metadata"
     assert recipe.count("RUN --network=none") == 2 and "--prepare --source-revision" in recipe, (
         "Build phases must prepare material offline after the separate pinned ADD acquisition."
     )

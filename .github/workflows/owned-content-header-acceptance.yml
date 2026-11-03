@@ -32,7 +32,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -52,7 +52,7 @@ jobs:
           functional-evidence/owned-content-header.xml functional-evidence/owned-content-sdk
       - name: Preserve original installation process source and offline evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-original-evidence
           path: |
@@ -76,13 +76,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - name: Install pinned environment tool
         run: python -m pip install uv==0.11.33
       - name: Synchronize locked development tools
-        run: uv sync --locked --extra dev --python 3.12
+        run: uv sync --locked --extra dev --python 3.13
       - name: Execute all focused Windows content unit cases
         timeout-minutes: 3
         run: >-
@@ -111,7 +111,7 @@ jobs:
           print(f'Focused Windows units: {len(executed)} executed, {len(cases) - len(executed)} skipped')
       - name: Preserve original Windows content unit JUnit
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-unit-windows-original-evidence
           path: functional-evidence/owned-content-unit-windows.xml
@@ -135,7 +135,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -156,7 +156,7 @@ jobs:
           functional-evidence/owned-content-header-actor-denied.xml functional-evidence/owned-content-sdk
       - name: Preserve original controlled actor refusal evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-actor-denied-original-evidence
           path: |
@@ -182,7 +182,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -203,7 +203,7 @@ jobs:
           functional-evidence/owned-content-header-policy-denied.xml functional-evidence/owned-content-sdk
       - name: Preserve original policy refusal and acquired state evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-policy-denied-original-evidence
           path: |
@@ -229,7 +229,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -249,7 +249,7 @@ jobs:
           functional-evidence/owned-content-header-fixed.xml functional-evidence/owned-content-sdk fixed
       - name: Preserve original fixed installation process source and offline evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-fixed-original-evidence
           path: |
@@ -275,7 +275,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -296,7 +296,7 @@ jobs:
           functional-evidence/owned-content-header-body-decoy.xml functional-evidence/owned-content-sdk
       - name: Preserve original body-decoy installation process source and offline evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-body-decoy-original-evidence
           path: |
@@ -322,7 +322,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -343,7 +343,7 @@ jobs:
           functional-evidence/owned-content-header-approval-denied.xml functional-evidence/owned-content-sdk
       - name: Preserve original approval refusal and acquired state evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-approval-denied-original-evidence
           path: |
@@ -369,7 +369,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -390,7 +390,7 @@ jobs:
           functional-evidence/owned-content-header-stale-model-cas.xml functional-evidence/owned-content-sdk
       - name: Preserve original stale model CAS and acquired state evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-stale-model-cas-original-evidence
           path: |
@@ -416,7 +416,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -437,7 +437,7 @@ jobs:
           functional-evidence/owned-content-header-post-model-ack-expiry.xml functional-evidence/owned-content-sdk
       - name: Preserve original partial expiry installation process and custody evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-post-model-ack-expiry-original-evidence
           path: |
@@ -463,7 +463,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Select Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install pinned environment tool
@@ -484,7 +484,7 @@ jobs:
           functional-evidence/owned-content-header-ipv6-worker.xml functional-evidence/owned-content-sdk
       - name: Preserve original IPv6 worker installation streams and source evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-content-header-ipv6-worker-original-evidence
           path: |

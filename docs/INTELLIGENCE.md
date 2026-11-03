@@ -60,12 +60,20 @@ These joins apply to direct construction and portable decoding as well as parser
 - Supported CVSS `3.0`, `3.1` and `4.0` vectors and base scores retain their source
   assessor. Vector grammar is validated, including the fixed CVSS 4.0 metric order.
   Source scores are not recalculated, merged, converted between versions, or applied
-  to finding severity. CVSS 2 and other metric formats remain visibly unsupported
-  and recoverable from the raw artifact.
+  to finding severity. Schema-v1 snapshots keep CVSS 2 and other metric formats
+  visibly unsupported and recoverable from raw evidence. Separate additive
+  [CVSS 2 source inspection](INTELLIGENCE_CVSS2.md) and
+  [base calculation](INTELLIGENCE_CVSS2_BASE.md) profiles are available; they do
+  not alter those retained snapshots or overwrite asserted scores.
 - CWE describes a catalog weakness, not the finding's verified applicability.
 - KEV membership describes a source exploitation assertion for a CVE, not an
   observed attack against the finding. `Unknown` ransomware use remains unknown.
   Missing catalog membership never proves non-exploitation or absence of risk.
+  Publisher prose in vendor, product, name and required-action fields maps Unicode
+  spacing separators (`Zs`) to ASCII spaces and removes surrounding whitespace.
+  This admits observed official catalog prose while retaining printable internal
+  spacing; internal controls and directional formatting still fail. Original raw
+  bytes, their digest, identifiers, dates and enumerated assertions are unchanged.
 - EPSS probability and percentile remain separate values with a source model
   revision and score date. The probability concerns exploitation within the model's
   next 30 days; it is not the probability that the specific target is vulnerable.
@@ -136,3 +144,15 @@ retains independent terminal receipts and observed receiver times, supports
 verified portable replay, and never changes this pure parser or finding consumer.
 Automatic live refresh, broader source providers, and live official-feed
 acceptance remain separate scope.
+
+The [local CLI and shell](INTELLIGENCE_CLI.md) now provide explicit
+`intel import|inspect|apply`. Optional `inspect --identifier` exposes selected
+verified source assertions and the independent CVE 5.2 applicability/CVSS 2
+profiles. Source declarations remain distinct from target applicability and
+calculated scores remain separate from source assessments. See
+[ADR 0123](adr/0123-selected-intelligence-inspection.md) for the finite source
+matrix and selected output contract.
+
+A [selected official KEV catalog acceptance](INTELLIGENCE_SOURCE_ACCEPTANCE.md)
+records the exact source revision, byte digest, actual offline product import
+and selected inspection, and the separately failed isolated HTTPS attempt.

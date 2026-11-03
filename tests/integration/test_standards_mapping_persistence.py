@@ -31,6 +31,8 @@ from fuzzy1337.standards_mapping import (
     StandardIdentity,
 )
 from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceConfiguration
+from tools.release_delivery import Invoke as RuntimeInvoke
+from tools.release_delivery import ProvisionLocalWheelRuntime
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -147,6 +149,9 @@ def test_WheelResourceSupportsIsolatedOfflineConsumer(tmp_path):
     assert installed.returncode == 0, (
         "Offline clean-wheel installation failed: " + installed.stdout + installed.stderr
     )
+
+    if ProvisionLocalWheelRuntime(wheels[0], executable, tmp_path):
+        RuntimeInvoke((str(executable), "-m", "pip", "--isolated", "check"), tmp_path)
     consumer = subprocess.run(
         [str(executable), "-I", "-c",
          "from fuzzy1337.standards_mapping import ReviewedBaseline; "

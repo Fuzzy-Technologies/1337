@@ -19,6 +19,12 @@ Human and agent operators use the same scope/policy, jobs, immutable evidence
 and durable model. The first task establishes status-only discovery; it does not
 assess vulnerabilities or attack paths.
 
+For the next development workflow, follow [the guided assessment](GUIDED_ASSESSMENT.md)
+from the same reviewed source revision. It distinguishes a real detector Finding
+from fictional training CVE assertions, preserves candidate-only associations and
+verifies readable HTML after the owned target stops. Use Python 3.13+ and install
+the development wheel with its required pinned FuzzyRoutines dependency.
+
 ## Give an agent the bounded task
 
 Read the prompt for [English](i18n/agent-onboarding/en.md),

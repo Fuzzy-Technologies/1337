@@ -20,6 +20,8 @@ from zipfile import ZipFile
 import pytest
 
 from tests.integration.test_owned_response_worker_execution import OwnedResponseListener
+from tools.release_delivery import Invoke as RuntimeInvoke
+from tools.release_delivery import ProvisionLocalWheelRuntime
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 CONSUMER = Path(__file__).with_name("native_response_header_capture_consumer.py")
@@ -290,6 +292,9 @@ def installed_header_worker(tmp_path_factory, header_evidence_run, header_platfo
         "install", "--no-index", "--no-deps", "--no-compile", "--disable-pip-version-check",
         str(wheel)), cwd=root, environment=environment, timeout=40, maximum=MAX_BUILD_STREAM)
     assert installed.returncode == 0, "Actual wheel install failed; raw original evidence retained"
+
+    if ProvisionLocalWheelRuntime(wheel, python, root):
+        RuntimeInvoke((str(python), "-m", "pip", "--isolated", "check"), root)
     probe = HeaderProcess(owner, "import-identity", (str(python), "-I", "-B", str(CONSUMER),
         "identity"), cwd=root, environment=environment, timeout=10, maximum=MAX_BUILD_STREAM,
         installation=identity)
