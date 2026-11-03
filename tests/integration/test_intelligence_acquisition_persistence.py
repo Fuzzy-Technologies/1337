@@ -13,6 +13,7 @@ from dataclasses import replace
 import pytest
 
 from fuzzy1337 import intelligence_acquisition as acquisition
+from fuzzy1337 import intelligence_receiver as receiver
 from fuzzy1337.evidence import EvidenceError, EvidenceProvenance, LocalEvidenceStore
 from fuzzy1337.findings import ApplyVerifiedFindings, Finding, FindingSeverity
 from fuzzy1337.intel_references import SourceOrigin
@@ -156,8 +157,8 @@ def test_OwnedActualReceiverSuccessPublishesRawSnapshotReceiptAndReplaysThroughP
         'sys.stdout.buffer.write(b\'{"status":200}\\n\' + ' + repr(raw) + ')\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(acquisition, "__file__", str(tmp_path / "intelligence_acquisition.py"))
-    original = acquisition.subprocess.Popen
+    monkeypatch.setattr(receiver, "__file__", str(tmp_path / "intelligence_receiver.py"))
+    original = receiver.subprocess.Popen
     processes = []
 
     def Popen(*args, **kwargs):
@@ -172,7 +173,7 @@ def test_OwnedActualReceiverSuccessPublishesRawSnapshotReceiptAndReplaysThroughP
 
         return process
 
-    monkeypatch.setattr(acquisition.subprocess, "Popen", Popen)
+    monkeypatch.setattr(receiver.subprocess, "Popen", Popen)
     outcome = AcquireIntelligenceSnapshot(
         model.root, SnapshotRequest(source, max_bytes=len(raw) + 1, timeout_seconds=3),
         scope_reference="scope:owned",
