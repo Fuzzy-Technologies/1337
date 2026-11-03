@@ -962,3 +962,24 @@ module = "fuzzy1337.path_comparison_commands"
 source = "src/fuzzy1337/path_comparison_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.path_comparison_commands.md"
+
+[[surfaces]]
+# Experimental pure selected CWE DTO/decoder; no acquisition, replay or legacy snapshot changes.
+module = "fuzzy1337.intelligence_cwe_selection"
+source = "src/fuzzy1337/intelligence_cwe_selection.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cwe_selection.md"
+
+[[surfaces]]
+# Internal exact ZIP frame and bounded complete raw-DEFLATE owner.
+module = "fuzzy1337.intelligence_cwe_zip"
+source = "src/fuzzy1337/intelligence_cwe_zip.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cwe_zip.md"
+
+[[surfaces]]
+# Internal byte-level lexical gate and namespace-aware consumed-field XML collector.
+module = "fuzzy1337.intelligence_cwe_xml"
+source = "src/fuzzy1337/intelligence_cwe_xml.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cwe_xml.md"
