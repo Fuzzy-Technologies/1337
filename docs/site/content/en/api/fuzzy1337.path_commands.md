@@ -73,6 +73,15 @@ fixed-category text without partial HTML. The offline graph, original inspection
 exact JSON/static SVG downloads and fixed-script CSP are described in
 [the renderer reference](fuzzy1337.path_rendering.md).
 
+The additive Experimental `paths compare` route delegates to the Internal
+`path_comparison_commands` owner. It invokes ordinary original analysis for two
+explicit assessment selections on the same pinned saved basis and permits only
+the selected focus transition's state label to differ. The separate bounded pair
+retains both complete outcomes without implying chronology, causal control
+effectiveness or risk. See [comparison commands](fuzzy1337.path_comparison_commands.md)
+and [static comparison presentation](fuzzy1337.path_comparison.md). Ordinary
+`paths analyze` admission, output and rendering limits remain unchanged.
+
 Installed-console and foreground-shell routes share this owner. Shell context
 supplies no omitted selections or grants, and protected local/native history and
 empty-line replay keep only `paths`. The module acquires nothing, writes no

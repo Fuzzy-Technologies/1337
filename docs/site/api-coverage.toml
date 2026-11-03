@@ -948,3 +948,17 @@ module = "fuzzy1337.intelligence_cve_https_commands"
 source = "src/fuzzy1337/intelligence_cve_https_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.intelligence_cve_https_commands.md"
+
+[[surfaces]]
+# Internal same-basis original path-outcome comparison and bounded static presentation.
+module = "fuzzy1337.path_comparison"
+source = "src/fuzzy1337/path_comparison.py"
+mode = "authored"
+page = "api/fuzzy1337.path_comparison.md"
+
+[[surfaces]]
+# Internal additive explicit comparison route over the unchanged original analyze owner.
+module = "fuzzy1337.path_comparison_commands"
+source = "src/fuzzy1337/path_comparison_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.path_comparison_commands.md"
