@@ -1,7 +1,7 @@
 # Selected official intelligence source acceptance
 
-This records one actual 2026-11-02 smoke separately from deterministic synthetic
-tests. It establishes acceptance only for the exact selected source bytes and
+This records selected original-source executions separately from deterministic
+synthetic tests. It establishes acceptance only for the exact source bytes and
 executed product paths. The original downloaded corpus and workspace evidence are
 untracked; no official corpus is redistributed in this repository.
 
@@ -66,6 +66,29 @@ script remain in version control for reproduction. This is acceptance of one
 fixed historical source, not moving-feed coverage, publisher-signature
 authentication or target applicability. Those two verdicts remain explicitly
 `not-assessed` and `not-evaluated`.
+
+## Pinned selected EPSS HTTPS checkpoint
+
+The separate [pinned EPSS profile](INTELLIGENCE_EPSS_HTTPS.md) selects archive
+commit `489cd9fcf989cdc3ec87168b873c858938a53517`, day `2026-11-02`, model
+`v2026.06.15` and raw SHA-256
+`86885067d459c6f3ca888bfeb6219d536b428afda9a776c14b48c82bb6a85635`.
+Expected source facts are 2,796,673 gzip bytes, 12,129,716 decoded bytes and
+398,815 original rows. These pins originate from the accepted local source
+checkpoint; they do not alone establish remote acquisition.
+
+The actual isolated SDK attempt in this local environment returned
+`transport-failed`, no HTTP status and zero received bytes. It retained confirmed
+partial raw/failure receipt evidence, did not publish a usable selection and did
+not change model state. This remains a failed network acceptance.
+
+The guarded Draft-only hosted lane runs `tools/epss_https_acceptance.py` using a
+fresh installed wheel. It requires the actual complete HTTP 200 SDK body, exact
+source pins and original remote roots, full gzip reparse, explicit matched and
+unmatched CVEs, unchanged decimal spelling and offline replay after relocation.
+Its terminal facts and original workspace are retained separately from the local
+failure. Hosted acceptance is pending until an actual successful execution is
+recorded here; deterministic tests do not satisfy that claim.
 
 ## Publisher-prose regression
 
