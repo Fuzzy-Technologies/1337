@@ -8,6 +8,28 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 8 — v0.4.8 — 2026-11-03
+
+#### Digest
+
+- Add separate local selected CWE source custody with original ZIP retention,
+  fixed source notices and exact offline reconstruction.
+
+#### Added
+
+- Bind explicit catalog, byte pin, selected identifiers and effective input
+  limit to attributed selection envelopes and independent publication receipts.
+- Retain one complete versioned MITRE source-notice bundle and its capture
+  provenance through offline inspection.
+
+#### Security
+
+- Revalidate original owning evidence, context joins and complete ZIP decoding
+  before returning selected assertions; refuse mixed roots and changed notices.
+- Preserve independent publication acknowledgements and bounded failure facts,
+  without HTTP acquisition, model application or a legal-compliance verdict.
+
+
 ### Patch 7 — v0.4.7 — 2026-11-03
 
 #### Digest
