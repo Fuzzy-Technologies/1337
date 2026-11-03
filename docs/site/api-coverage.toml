@@ -885,3 +885,10 @@ module = "fuzzy1337.local_image_workflow"
 source = "src/fuzzy1337/local_image_workflow.py"
 mode = "authored"
 page = "api/fuzzy1337.local_image_workflow.md"
+
+[[surfaces]]
+# Experimental pure selection foundation; no acquisition or legacy snapshot dispatch.
+module = "fuzzy1337.intelligence_epss_selection"
+source = "src/fuzzy1337/intelligence_epss_selection.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_epss_selection.md"

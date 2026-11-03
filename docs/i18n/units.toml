@@ -25130,3 +25130,124 @@ state = "missing"
 
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.intelligence-epss-selection"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_epss_selection.md"
+sourceHash = "sha256:d104b4720cc7ec6893054597e12247e69ef9b714d7d5815fab4c1ef71ac1a0d4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.DecodeGzip"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:c44e32902bdd95bcc23933b990f948bbf822ba73cbeb089b2b498e8f8892556f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.EpssSelectedRecord"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:55f3c07a7b9d94838e6acf2fbb549439ee606cb69024dc76f4901b136999fa13"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.EpssSelectedRecord.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:82c247f8cfb674cd79d9e9703f1031b47c63e4c76fed3e0fc7bde7683e920d55"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.EpssSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:84a990071f13bb4660553418656e43c5969254e8c330d1a585cb198689e54e40"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.EpssSelection.Reference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:7c44d1fc60bca8cc3035d9224311072b00f013c22c95908183d16d502a5e539a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.EpssSelection.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:efccf42e6ff4bf3fd25f19918cbd1e016d486c3b45d77a3c181522693aafdc1a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.Metadata"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:469b901bec7ad473267019fc8e7c66e7c654adc71ec52f3fedf6e5f65645e381"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.ParseEpssSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:483e7feca1eec8220b9e97959f1e7e89e9efc575967b697ec532c485e219d5f8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.RequestedIds"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:7a35a0ad76e39c121f2ffb256a987a66f49715af2cc2f45b1032bac43efc4b2e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_epss_selection.DecimalToken"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_epss_selection.py"
+sourceHash = "sha256:67ffa6c2f12d8cf2c079e85554acc272691c2a2a0aa64412f27b55e7487b3ef1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
