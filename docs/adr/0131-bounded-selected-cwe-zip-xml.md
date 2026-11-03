@@ -77,17 +77,17 @@ owner consumes into an Internal sink and returns facts only after complete actua
 EOF/size/CRC verification. The XML owner must finish a complete root, lexical
 state and strict UTF-8 stream before the public module constructs any result.
 
-| Resource                                         | Profile-only maximum                    |
-| ------------------------------------------------ | --------------------------------------- |
-| Original ZIP / expanded XML                      | 4 MiB / 32 MiB                          |
-| Selected canonical JSON / requested IDs          | 1 MiB / 64                              |
-| Central directory / local or central extras      | 16 KiB / 256 bytes and 8 TLVs           |
-| Compressed input and decoded chunks              | 64 KiB each                             |
-| Ordinary markup / comment or PI / live reference | 64 KiB / 64 KiB / 10 bytes              |
-| Source entries / XML nodes / depth               | 10,000 / 1,000,000 / 32                 |
-| Parsed text / attribute bytes                    | 24 MiB / 4 MiB                          |
-| Attributes per element / QName / attribute value | 32 / 256 UTF-8 bytes / 8192 UTF-8 bytes |
-| Per-entry nodes / text plus attributes           | 65,536 / 1 MiB                          |
+| Resource                                                          | Profile-only maximum                    |
+| ----------------------------------------------------------------- | --------------------------------------- |
+| Original ZIP / expanded XML                                       | 4 MiB / 32 MiB                          |
+| Selected canonical JSON / requested IDs                           | 1 MiB / 64                              |
+| Central directory / local or central extras                       | 16 KiB / 256 bytes and 8 TLVs           |
+| Compressed input and decoded chunks                               | 64 KiB each                             |
+| Ordinary markup / comment or PI / live reference                  | 64 KiB / 64 KiB / 10 bytes              |
+| Source entries / XML nodes / depth                                | 10,000 / 1,000,000 / 32                 |
+| Parsed text / attribute bytes                                     | 24 MiB / 4 MiB                          |
+| Attributes per element / raw and expanded QName / attribute value | 32 / 256 UTF-8 bytes / 8192 UTF-8 bytes |
+| Per-entry nodes / text plus attributes                            | 65,536 / 1 MiB                          |
 
 Enforce before extending bounded buffers; canonical encoding is incremental.
 Count unselected/ignored/XHTML text, comments, processing instructions and
@@ -95,6 +95,11 @@ namespace declarations, independently of feed/callback segmentation. Keep only
 bounded counters, stack, source identities and selected fields, not an expanded
 tree or accumulated ignored strings. These are finite allocation/work bounds,
 not a realtime deadline or a claim of 64-KiB total resident memory.
+
+The QName ceiling covers raw lexical names before parsing and expanded element
+and ordinary attribute names in callbacks. A long namespace URI must not amplify
+a bounded source into many permanently interned expanded strings. The first
+token remains bounded before its callback refuses an oversized expanded name.
 
 ZIP admission requires one exact local/central/EOCD chain, no stub/gap/trailer,
 extraction version 20, flags zero, method 8 and Unix creator host 3 with a regular
@@ -105,6 +110,8 @@ Refuse ZIP64, multi-disk, encryption, descriptors and archive/member comments.
 Bounded independent extra TLVs may differ (observed local 28 versus central 24
 bytes); reject duplicate/truncated/ZIP64 TLVs and never interpret metadata as an
 alternate path, size or encoding. Never extract a member path.
+Opaque non-ZIP64 IDs remain admissible within these bounds; the two observed
+timestamp/UID metadata IDs do not imply an extra-field whitelist.
 
 Use bounded raw-DEFLATE input/output, including empty-input drains, with actual
 expanded SHA-256/CRC/size and EOF/no-unused-data checks. Never use an unlimited
