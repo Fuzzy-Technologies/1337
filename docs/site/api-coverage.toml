@@ -983,3 +983,10 @@ module = "fuzzy1337.intelligence_cwe_xml"
 source = "src/fuzzy1337/intelligence_cwe_xml.py"
 mode = "authored"
 page = "api/fuzzy1337.intelligence_cwe_xml.md"
+
+[[surfaces]]
+# Internal original native Trivy package-license occurrence policy; no collection, model writes or compliance verdict.
+module = "fuzzy1337.trivy_license_policy"
+source = "src/fuzzy1337/trivy_license_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.trivy_license_policy.md"

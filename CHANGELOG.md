@@ -8,6 +8,26 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 9 — v0.4.9 — 2026-11-03
+
+#### Digest
+
+- Evaluate original native Trivy package-license occurrences against an explicit
+  local expression policy while retaining their source coordinates.
+
+#### Added
+
+- Keep repeated packages and license strings as separate original occurrences,
+  with independent policy decisions and explicit unknown source states.
+
+#### Security
+
+- Require verified original native report ownership and complete image admission
+  before projection; bound source reads, occurrence count and canonical output.
+- Preserve original provenance and digest domains without collection, model
+  writes, package-level aggregation or a legal-compliance verdict.
+
+
 ### Patch 7 — v0.4.7 — 2026-11-03
 
 #### Digest
