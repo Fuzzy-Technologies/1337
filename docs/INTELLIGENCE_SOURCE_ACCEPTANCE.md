@@ -251,6 +251,20 @@ A separate independently authored installed synthetic oracle passed Weakness,
 unsupported View, absent-ID and max-plus-one partial-custody cases. These finite
 local consumer checks are distinct from exact-head shared integration CI.
 
+A subsequent Windows integration job exposed a redirected CP1252 terminal failure
+on the full notice's Unicode down-triangle. The earlier wheel above did not pass
+that integration gate. The corrected consumer ASCII-escapes JSON losslessly and
+human non-ASCII text explicitly before its existing byte ceiling. A new clean
+installed wheel, SHA-256
+`2c422cb16df08d95f36fbea23aa237c43c1b1b56232146523b6dc0f33b061b8e`,
+passed both retained original catalogs through actual strict CP1252 child streams,
+including JSON import, guarded JSON/human replay and missing-receipt refusal.
+The process encoding was checked directly; no UTF-8 override supplied the result.
+Original ZIP/notice bytes, all three acknowledgements, exact inclusive input limits
+and relocation/no-write guards remained intact. Separate strict ASCII/CP1252
+synthetic processes cover original accented and non-BMP source names. Shared CI
+must independently pass this corrected final revision before integration.
+
 ## Publisher-prose regression
 
 The first real import failed honestly with `parse-failed`. The selected catalog

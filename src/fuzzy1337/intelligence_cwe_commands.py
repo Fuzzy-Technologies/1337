@@ -40,7 +40,7 @@ MAX_FALLBACK_BYTES = 64 * 1024
 
 
 class CweTerminalBuffer:
-    """Stage actual UTF-8 output within a finite byte ceiling before publishing any text."""
+    """Stage portable ASCII output within its UTF-8 byte ceiling before publishing text."""
 
     def __init__(self, maximum: int) -> None:
         """Initialize a profile-controlled finite terminal staging buffer.
@@ -53,13 +53,13 @@ class CweTerminalBuffer:
         self.payload = bytearray()
 
     def Write(self, text: str) -> None:
-        """Append only text whose encoded bytes fit, including terminal escape expansion.
+        """Append text after portable non-ASCII escaping and check the complete byte expansion.
 
         Args:
-            text: Next complete formatted or canonical-JSON text fragment.
+            text: Next formatted human or ASCII-escaped JSON fragment; source bytes are unchanged.
         """
 
-        encoded = text.encode("utf-8")
+        encoded = text.encode("ascii", errors="backslashreplace")
 
         if len(self.payload) + len(encoded) > self.maximum:
             raise ValueError("CWE terminal output exceeds its byte profile")
@@ -73,7 +73,7 @@ class CweTerminalBuffer:
             Complete staged UTF-8 text admitted within the buffer's byte ceiling.
         """
 
-        return self.payload.decode("utf-8")
+        return self.payload.decode("ascii")
 
 
 def CweIntelParser(action: str | None = None) -> argparse.ArgumentParser:
@@ -227,7 +227,7 @@ def CweTerminal(
     Args:
         outcome: Actual terminal facts; usable selected content appears only on success.
         envelope: Fully acknowledged or verified selected content for human presentation.
-        json_output: Select canonical JSON rather than human lines.
+        json_output: Select lossless ASCII-escaped JSON rather than human lines.
         maximum: Separate terminal budget, including human formatting and escaping.
 
     Returns:
@@ -237,7 +237,7 @@ def CweTerminal(
     output = CweTerminalBuffer(maximum)
 
     if json_output:
-        encoder = json.JSONEncoder(ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        encoder = json.JSONEncoder(ensure_ascii=True, sort_keys=True, separators=(",", ":"),
                                    allow_nan=False)
 
         for part in encoder.iterencode(outcome):

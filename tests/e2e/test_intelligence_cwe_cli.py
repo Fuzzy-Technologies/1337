@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -99,3 +100,53 @@ def test_ActualProductRejectsCorruptOrAbsentRootsWithoutExposingAssertions(tmp_p
     assert status == 4 and rejected["failure"] == "integrity", "Corruption became successful replay"
     assert "source" not in rejected and "selection" not in rejected, "Corruption exposed assertions"
     assert Files(model.root) == before, "Refused exact-root inspection wrote owning state"
+
+
+@pytest.mark.parametrize("codec", ["cp1252", "ascii"])
+def test_ActualRedirectedCodePagePreservesCompleteJsonAndHumanOutput(tmp_path, codec):
+    """Actual redirected legacy-code-page children preserve Unicode facts and read-only replay."""
+
+    environment = {**os.environ, "PYTHONUTF8": "0", "PYTHONIOENCODING": codec + ":strict"}
+    probe = subprocess.run(
+        [sys.executable, "-c", "import sys; print(sys.stdout.encoding, sys.stdout.errors)"],
+        env=environment, capture_output=True, timeout=15, check=False,
+    )
+    assert probe.returncode == 0 and probe.stdout.decode("ascii").split() == [codec, "strict"], (
+        "The child did not use the requested actual narrow output codec"
+    )
+    model, _ = Context(tmp_path)
+    expected_name = "Owned é ▼ 😀 source"
+    original = Body(name=expected_name)
+    source = tmp_path / "owned.zip"
+    source.write_bytes(original)
+    imported = subprocess.run(
+        [sys.executable, "-m", "fuzzy1337", "intel", "cwe",
+         *Arguments(model.root, source, original), "--json"],
+        env=environment, capture_output=True, timeout=15, check=False,
+    )
+    assert imported.returncode == 0 and not imported.stderr and imported.stdout.isascii(), (
+        "Actual redirected JSON failed or leaked a traceback on the requested code page"
+    )
+    document = json.loads(imported.stdout)
+    assert document["selection"]["records"][0]["name"] == expected_name, (
+        "The real portable JSON process changed source Unicode characters"
+    )
+    assert "▼" in document["source"]["notice_bundle"]["text"], (
+        "Portable JSON normalized rather than escaped the complete original notice"
+    )
+    before = Files(model.root)
+    inspected = subprocess.run(
+        [sys.executable, "-m", "fuzzy1337", "intel", "cwe", *Inspect(model.root, document)],
+        env=environment, capture_output=True, timeout=15, check=False,
+    )
+    assert inspected.returncode == 0 and not inspected.stderr and inspected.stdout.isascii(), (
+        "Actual human redirected inspection failed on the requested code page"
+    )
+    assert b"\\u25bc" in inspected.stdout and b"\\U0001f600" in inspected.stdout, (
+        "Actual human output lost non-BMP or notice escapes"
+    )
+    store = LocalEvidenceStore(model.root / "evidence")
+    assert store.Read(store.Get(document["raw_id"]).reference) == original, (
+        "Portable terminal encoding changed the original ZIP"
+    )
+    assert Files(model.root) == before, "Portable human inspection wrote owning files"

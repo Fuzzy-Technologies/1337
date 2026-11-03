@@ -11,7 +11,7 @@ import inspect
 import json
 import sys
 from dataclasses import replace
-from io import StringIO
+from io import BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
 
 import pytest
@@ -286,7 +286,7 @@ def test_ActualInspectRetainsPartitionsEscapesControlsAndWritesNothing(tmp_path,
     )
     assert selected["unmatched_ids"] == ["CWE-999"], "Absent identity became risk"
     status, human = Run(Inspect(model.root, imported), human=True)
-    assert status == 0 and "Owned é source" in human, "Readable source prose changed"
+    assert status == 0 and r"Owned \xe9 source" in human, "Readable source prose changed"
     assert all(value in human for value in ("4329", "day precision",
                                            "unsupported source kind View")), (
         "Human output lost notice provenance, date precision or source partitions"
@@ -329,16 +329,20 @@ def test_ActualTopLevelInheritsGlobalHelpJsonNormalization(args, capsys):
     assert status == 0 and "usage:" in output.out and not output.err, "Global normalization changed"
 
 
-def test_BoundedBufferIncludesActualUtf8AndRejectsBeforeAppend():
-    """Actual byte ceilings include multibyte text and preserve already staged content."""
+@pytest.mark.parametrize("text, escaped", [("é", r"\xe9"), ("😀", r"\U0001f600")])
+def test_PortableExpansionPrecedesInclusiveByteLimit(text, escaped):
+    """The actual expanded byte ceiling is inclusive and rejects before changing staged text."""
 
-    output = commands.CweTerminalBuffer(2)
-    output.Write("é")
+    output = commands.CweTerminalBuffer(len(escaped))
+    output.Write(text)
 
     with pytest.raises(ValueError):
         output.Write("x")
 
-    assert output.Text() == "é", "Overflow corrupted staged output"
+    assert output.Text() == escaped, "Overflow corrupted portable staged output"
+
+    with pytest.raises(ValueError):
+        commands.CweTerminalBuffer(len(escaped) - 1).Write(text)
 
 
 @pytest.mark.parametrize("human", [False, True])
@@ -489,3 +493,36 @@ def test_RetainedNoticeCapturePinsExactOriginalAndCompleteProductText():
 
     text = base64.b64decode(document["full_text"]["base64"], validate=True).decode("utf-8")
     assert CweNoticeBundle()["text"] == text, "Product notice omitted captured source text"
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "ascii"])
+@pytest.mark.parametrize("human", [False, True])
+def test_PortableOutputPreservesFactsThroughActualNarrowStreams(tmp_path, encoding, human):
+    """Real strict narrow streams preserve original Unicode facts and immutable custody."""
+
+    name = "Owned é ▼ 😀 source"
+    model, source, raw, imported = Imported(tmp_path, name=name)
+    before = Files(model.root)
+    target = BytesIO()
+    stream = TextIOWrapper(target, encoding=encoding, errors="strict", newline="\n")
+    status = commands.RunCweIntelCommands(Inspect(model.root, imported), stream,
+                                          json_output=not human)
+    stream.flush()
+    payload = target.getvalue()
+    assert status == 0 and payload.isascii(), "Portable output failed the actual strict stream"
+
+    if human:
+        assert all(value in payload for value in (b"\\xe9", b"\\u25bc", b"\\U0001f600")), (
+            "Human presentation omitted explicit portable source or notice escapes"
+        )
+
+    else:
+        decoded = json.loads(payload)
+        assert decoded["selection"]["records"][0]["name"] == name, "JSON changed Unicode facts"
+        assert decoded["source"]["notice_bundle"] == imported["source"]["notice_bundle"], (
+            "JSON escaping changed complete notice content or provenance"
+        )
+
+    assert source.read_bytes() == raw and Files(model.root) == before, (
+        "Terminal encoding changed caller bytes or immutable owning state"
+    )

@@ -87,7 +87,10 @@ expected source pin remains a separate declaration.
 Both JSON and human output are staged within independent 2 MiB UTF-8 ceilings,
 including framing. Human output shows source fields, complete notice text and
 provenance, Weakness records, known unsupported kinds and absent IDs separately;
-terminal controls are escaped. A small failed fallback preserves actual handles
+terminal controls and non-ASCII characters are escaped. JSON uses lossless Unicode
+escapes (including surrogate pairs); human lines use explicit backslash escapes.
+The staged bytes are ASCII, a UTF-8 subset, so redirected strict CP1252/ASCII
+streams preserve complete output without an environment encoding override. A small failed fallback preserves actual handles
 and ACKs without usable selected content if presentation exceeds its budget or
 is interrupted. Source declarations and notices establish no legal, authenticity,
 applicability or risk assessment.

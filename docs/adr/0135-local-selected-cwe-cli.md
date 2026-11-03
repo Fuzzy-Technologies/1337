@@ -39,6 +39,10 @@ historical publication return. Inspection uses original acquisition times and
 reparses exact roots through the unchanged strict loader; it writes nothing.
 
 Stage complete canonical JSON or complete escaped human text before stdout.
+Encode JSON with lossless ASCII Unicode escapes and human non-ASCII characters
+with explicit backslash escapes before counting the expanded bytes. This UTF-8
+subset supports redirected strict CP1252 and ASCII streams without changing
+original source/notice bytes or requiring an environment encoding override.
 Each has its own 2 MiB actual UTF-8 byte ceiling, including final framing newline.
 Human output gives readable named source/provenance fields, complete captured
 notice text line by line, Weakness records, known unsupported kinds and absent

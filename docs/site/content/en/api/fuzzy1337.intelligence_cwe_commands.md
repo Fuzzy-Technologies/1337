@@ -11,6 +11,9 @@ ACKs and every handle. `WriteCweMetadata` and `WriteCweDetails` present readable
 source fields, full captured notices and distinct selected partitions.
 `CweTerminalBuffer` and `CweTerminal` stage actual UTF-8 output within separate
 finite human/JSON budgets; failures expose no usable selected assertions.
+JSON uses lossless ASCII Unicode escapes and human text explicit backslash
+escapes before byte accounting, including non-BMP expansion. Redirected strict
+CP1252/ASCII streams preserve source facts without changing original bytes.
 
 The terminal profile is `cwe-local-selected-cli`, schema one/profile one. Import
 ACK basis is `sdk-returned`; inspection is `verified-present`, preserving the
