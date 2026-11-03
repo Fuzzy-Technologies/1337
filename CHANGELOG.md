@@ -36,6 +36,32 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   attack paths, remediation, CVE applicability or complete scanner coverage.
 
 
+### Patch 11 — v0.4.11 — 2026-11-03
+
+#### Digest
+
+- Add an explicit 1337Scope classic directory-index observation through the
+  existing governed native web workflow.
+
+#### Added
+
+- Expose `scan web --check directory-index` and the corresponding SDK selection
+  with a bounded complete-HTML predicate, original worker metadata and a LOW
+  descriptive Finding.
+- Add an independent filesystem-backed local target/oracle covering genuine
+  enumeration, fixed/decoy controls, truthful failed transport and installed
+  SDK/CLI plus offline-reopen acceptance.
+
+#### Security
+
+- Preserve exact target scope, current consent, STANDARD confirmation and one
+  bounded GET without following redirects or listed entries. Filenames and
+  response contents remain transient; unsupported formats do not prove safety.
+- Keep previous native profile media/framing behavior and shared limits intact.
+  The finite profile does not establish sensitive-file contents, general scanner
+  completion or genuine external-application acceptance.
+
+
 ### Patch 10 — v0.4.10 — 2026-11-03
 
 #### Digest

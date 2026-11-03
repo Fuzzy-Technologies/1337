@@ -1,7 +1,8 @@
 # First-party native web checks
 
 The development checkout provides `1337 scan web --check git-head-exposure`.
-Explicit file-canary and Prometheus exposition selections are described below.
+Explicit file-canary, Prometheus exposition and directory-index selections are
+described below.
 The first-party Python worker performs the HTTP request and response check;
 Nuclei and other external scanners are optional separate workflows. This
 Experimental version-1 interface is defined by
@@ -215,3 +216,124 @@ uv run --locked --extra dev pytest --no-cov -q -n 2 \
 These owned synthetic responses establish the local product path. They do not
 establish Juice Shop, DVWA, OWASP Benchmark or comparative-scanner acceptance;
 each external target requires its own actual pinned runtime and preserved evidence.
+
+## Classic HTML directory-index profile
+
+1337Scope (Litoscope) exposes the additive Experimental version-1 selection
+`1337 scan web --check directory-index`, check `native.directory-index`, under
+[ADR 0136](adr/0136-bounded-native-directory-index-observation.md). It observes a
+finite classic index format in one explicitly selected response. It does not
+discover a directory, enumerate candidate paths, follow listed entries or retrieve
+file contents.
+
+Select an already canonical, query-free literal-IP HTTP(S) URL, and retain its
+existing exact URL/IP scope and current operator-attributed consent. Set the
+existing policy example's capability to `web.directory-index-check`, adapter
+`native.web-check`, maximum impact `STANDARD`. A Git or Prometheus capability
+does not authorize this separate check. First inspect the exact plan:
+
+```bash
+1337 scan web owned-workspace --check directory-index \
+  --scope local --owner operator:demo \
+  --target http://127.0.0.1:8000/operator-selected-directory/ \
+  --policy native-web-policy.json --plan
+```
+
+Confirm the same actual target, check, deadline and authority with the printed
+intent digest and your approval-record reference:
+
+```bash
+1337 scan web owned-workspace --check directory-index \
+  --scope local --owner operator:demo \
+  --target http://127.0.0.1:8000/operator-selected-directory/ \
+  --policy native-web-policy.json \
+  --confirm-plan EXACT_INTENT_SHA256 \
+  --confirmation-reference approval:actual-record --events-json
+1337 workspace open owned-workspace --json
+```
+
+PowerShell uses the same exact plan and confirmation, with its own continuation
+syntax:
+
+```powershell
+1337 scan web owned-workspace --check directory-index `
+  --scope local --owner operator:demo `
+  --target http://127.0.0.1:8000/operator-selected-directory/ `
+  --policy native-web-policy.json --plan
+1337 scan web owned-workspace --check directory-index `
+  --scope local --owner operator:demo `
+  --target http://127.0.0.1:8000/operator-selected-directory/ `
+  --policy native-web-policy.json `
+  --confirm-plan EXACT_INTENT_SHA256 `
+  --confirmation-reference approval:actual-record --events-json
+1337 workspace open owned-workspace --json
+```
+
+The SDK selects `check_id="native.directory-index"` on `PlanNativeWebScan` and
+`RunNativeWebScan`. Planning contacts no target; execution retains the existing
+STANDARD confirmation, current scope/policy checks, complete-request deadline
+and startup-inclusive job limit. There is exactly one GET without credentials,
+cookies, DNS resolution, retries, redirects or entry following.
+
+A positive requires HTTP 200, this check's explicit `text/html` media category,
+strict UTF-8 and a fully closed supported tree. There must be one `html`, `head`,
+`title`, `body` and direct-body `h1`; normalized title and heading must agree on
+`Index of /...`. Exactly one direct-body `pre`, `table` or `ul` listing contains
+one or more relative basename-labelled entry anchors. Parent-directory and
+classic sort links do not count as entries. Supported table icons may accompany
+a separate basename-labelled entry; an icon-only list is insufficient. The
+heading text is compared with the document title, not asserted to be the target
+URL's actual filesystem path.
+
+The finite grammar refuses unsupported/active tags, inline style, `hidden` or
+`aria-hidden` attributes and an explicit `hidden` class/id token. It performs no
+browser rendering or general CSS-visibility calculation. Comment text, escaped
+tutorial examples, unrelated link labels and unfinished markup do not establish
+the predicate. A quote-aware source-token check precedes HTMLParser; complete
+token consumption, allowed parent/child relationships and exact closing tags
+are required before returning a positive.
+
+| Resource                         | Fixed ceiling                        |
+| -------------------------------- | ------------------------------------ |
+| Complete response body           | 4096 bytes                           |
+| Original markup or comment token | 1024 UTF-8 bytes                     |
+| Element starts                   | 256                                  |
+| Open element stack               | 8                                    |
+| Attributes per element           | 8                                    |
+| Attribute value                  | 256 UTF-8 bytes                      |
+| Recognized labelled entries      | 64                                   |
+| Transport                        | Existing bounded Content-Length only |
+
+Chunked/EOF framing, Content-Encoding, ambiguous headers, HTTP 5xx and
+incomplete or oversized acquisition fail without an assessment. A complete
+unsupported HTML format instead produces an unmatched response observation.
+It does not prove indexing is disabled. Existing Git, file-canary and Prometheus
+media categories and framing remain unchanged; only this new check classifies
+HTML explicitly.
+
+A match creates one LOW, OPEN descriptive Finding with unknown confidence.
+Original stdout/stderr evidence binds the exact invocation and retains response
+status, body size/hash and the fixed boolean. Filenames, hrefs and response bodies
+remain transient; offline reopening verifies the saved worker record and cannot
+reconstruct discarded contents. This establishes a supported response format,
+without proving sensitive files, file-content access or exploitability.
+
+The independently authored
+[owned target oracle](../labs/targets/directory-index/oracle.v1.json) separates
+actual filesystem enumeration from fixed denial, tutorial/comment/hidden controls,
+wrong media, an unfollowed redirect, unfinished HTML and four failed transport
+cases. The product suite covers actual isolated worker jobs, capability/consent/
+operator denials before contact, canonical Findings, relocated offline evidence
+and separate CLI plan/confirmation processes:
+
+```bash
+uv run --locked --extra dev pytest -o addopts='' --no-cov -q \
+  tests/unit/test_directory_listing.py \
+  tests/functional/test_native_directory_listing.py
+```
+
+Local acceptance also ran these product cases on a separately built, noneditable
+wheel with source/wheel/installed-byte agreement. Final integration still requires
+the actual shared CI gate for the proposed revision. These finite owned cases do
+not establish Juice Shop `/ftp`, arbitrary server formats or complete #53/#59;
+genuine pinned external-app acceptance remains separate.

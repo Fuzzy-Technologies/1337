@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "target_pack": "first-party.directory-index",
+  "target_version": "1",
+  "provenance": "repository-owned-filesystem-and-http",
+  "configuration": {
+    "bind_address": "127.0.0.1",
+    "method": "GET",
+    "outbound_requests": 0,
+    "file_contents_read": 0,
+    "owned_entries": ["owned-visible-note.txt", "owned-visible-subdir/"],
+    "listing_format": "closed-classic-html-index"
+  },
+  "cases": [
+    {"id": "listed", "route": "/listing/listed/", "expected_match": true,
+      "assessed": true, "expected_status": 200, "directory_reads": 1},
+    {"id": "fixed", "route": "/listing/fixed/", "expected_match": false,
+      "assessed": true, "expected_status": 403, "directory_reads": 0},
+    {"id": "tutorial", "route": "/listing/tutorial/", "expected_match": false,
+      "assessed": true, "expected_status": 200, "directory_reads": 0},
+    {"id": "comment", "route": "/listing/comment/", "expected_match": false,
+      "assessed": true, "expected_status": 200, "directory_reads": 0},
+    {"id": "hidden", "route": "/listing/hidden/", "expected_match": false,
+      "assessed": true, "expected_status": 200, "directory_reads": 0},
+    {"id": "wrong-media", "route": "/listing/wrong-media/", "expected_match": false,
+      "assessed": true, "expected_status": 200, "directory_reads": 0},
+    {"id": "redirect", "route": "/listing/redirect/", "expected_match": false,
+      "assessed": true, "expected_status": 302, "directory_reads": 0},
+    {"id": "unfinished-html", "route": "/listing/unfinished-html/", "expected_match": false,
+      "assessed": true, "expected_status": 200, "directory_reads": 0},
+    {"id": "truncated", "route": "/listing/truncated/", "expected_match": false,
+      "assessed": false, "expected_status": 200, "directory_reads": 0},
+    {"id": "overrun", "route": "/listing/overrun/", "expected_match": false,
+      "assessed": false, "expected_status": 200, "directory_reads": 0},
+    {"id": "oversized", "route": "/listing/oversized/", "expected_match": false,
+      "assessed": false, "expected_status": 200, "directory_reads": 0},
+    {"id": "ambiguous-framing", "route": "/listing/ambiguous-framing/", "expected_match": false,
+      "assessed": false, "expected_status": 200, "directory_reads": 0}
+  ]
+}
