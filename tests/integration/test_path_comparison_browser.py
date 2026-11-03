@@ -70,6 +70,20 @@ def test_RequiredActualChromiumRendersStaticPairProofDownloadsAndNoScript(tmp_pa
         assert page.locator("section.phase").count() == 2 and page.locator("img").count() == 2, (
             "Original Before/After images or independent proof panels disappeared."
         )
+        focus_states = [next(transition["state"]
+            for transition in comparison[side]["analysis"]["transitions"]
+            if transition["relation_reference"] == comparison["focus_transition"])
+            for side in ("before", "after")]
+        readable_states = ["Focus state: " + state for state in focus_states]
+        assert page.locator("section.phase .focus-state").all_text_contents() == readable_states, (
+            "Readable focus labels differ from the original selected transition states."
+        )
+
+        for index, side in enumerate(("before", "after")):
+            proof = page.locator("section.phase").nth(index).locator("details pre").inner_text()
+            assert json.loads(proof) == comparison[side] and '\n  "analysis": {' in proof, (
+                "Readable proof panels changed original fields or omitted two-space indentation."
+            )
         assert page.locator("img").evaluate_all(
             "images => images.every(image => image.complete && image.naturalWidth > 0)"
         ), "Genuine Chromium did not decode both isolated original SVG data images."
@@ -123,6 +137,13 @@ def test_RequiredActualChromiumRendersStaticPairProofDownloadsAndNoScript(tmp_pa
         ) and "Before" in static.locator("body").inner_text() and "After" in static.locator(
             "body"
         ).inner_text(), "No-script artifact lost original graph images or labelled proof text."
+        assert static.locator("section.phase .focus-state").all_text_contents() == (
+            readable_states
+        ), (
+            "Script-disabled presentation lost its readable original focus states."
+        )
+        facts["focus_states"] = focus_states
+        facts["proof_json_indentation"] = 2
         facts["no_script_readable"] = True
         facts["external_requests"] = external
         facts["page_errors"] = errors

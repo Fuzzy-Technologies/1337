@@ -163,13 +163,18 @@ def RenderPathComparisonHtml(comparison: dict[str, object], model: ModelState) -
         encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
         analysis = document["analysis"]
         search, cuts = analysis["search"], analysis["cuts"]
-        parts.append('<section class="phase"><h2>' + label + '</h2><p>Returned candidate paths: '
+        focus_state = next(transition["state"] for transition in analysis["transitions"]
+                           if transition["relation_reference"] == comparison["focus_transition"])
+        proof = json.dumps(original, ensure_ascii=False, allow_nan=False, sort_keys=True, indent=2)
+        parts.append('<section class="phase"><h2>' + label
+            + '</h2><p class="focus-state"><strong>Focus state: ' + escape(focus_state)
+            + '</strong></p><p>Returned candidate paths: '
             + str(len(search["paths"])) + '; enumeration complete: '
             + str(search["complete"]).lower() + '; cut checks complete: '
             + str(cuts["complete"]).lower() + '.</p><img alt="' + label
             + ' original selected graph" src="data:image/svg+xml;base64,' + encoded + '">'
             + '<details open><summary>' + label + ' original proof, UNKNOWN and bounds</summary>'
-            + '<pre>' + escape(CanonicalModelJson(original).decode("utf-8"))
+            + '<pre>' + escape(proof)
             + '</pre></details></section>')
         downloads.append(Download(svg.encode("utf-8"), "image/svg+xml",
                                   label.lower() + "-path.svg", "Download " + label + " SVG"))

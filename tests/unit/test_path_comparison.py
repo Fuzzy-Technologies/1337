@@ -218,3 +218,43 @@ def test_WholeJsonAndHtmlCeilingsRefuseInsteadOfReturningPartialArtifact(monkeyp
 
     with pytest.raises(ValueError, match="unchanged original comparison"):
         comparison.RenderPathComparisonHtml(result, model)
+
+
+@pytest.mark.parametrize("state", ["CONFIRMED", "LIKELY", "POTENTIAL", "BLOCKED", "UNKNOWN"])
+@pytest.mark.parametrize("focus_index", [0, 1])
+def test_ReadableFocusStateAndIndentedProofRetainExactOriginalValues(state, focus_index):
+    """Readable state words come from each original focus, including unchanged UNKNOWN."""
+
+    before, model, _ = Presentation()
+    focus = before["analysis"]["transitions"][focus_index]["relation_reference"]
+    before["analysis"]["transitions"][focus_index]["state"] = state
+    result = comparison.ComparePathOutcomes(before, deepcopy(before), model, focus_transition=focus)
+    original_bytes = comparison.CanonicalModelJson(result)
+    html = comparison.RenderPathComparisonHtml(result, model)
+    labels = re.findall(r'<p class="focus-state"><strong>Focus state: ([A-Z]+)</strong></p>', html)
+    assert labels == [state, state], "Focus state came from a change summary or another edge."
+
+    for side, label in (("before", "Before"), ("after", "After")):
+        rendered = re.search('<details open><summary>' + label
+            + r' original proof, UNKNOWN and bounds</summary><pre>(.*?)</pre>', html, re.DOTALL)
+        assert rendered is not None, "Readable original proof panel disappeared."
+        proof = unescape(rendered.group(1))
+        assert json.loads(proof) == result[side] and '\n  "analysis": {' in proof, (
+            "Pretty printing changed original proof values or lost two-space indentation."
+        )
+
+    raw = re.search(r'download="path-comparison.json" href="data:application/json;base64,([^"]+)"',
+                    html).group(1)
+    assert base64.b64decode(raw) == original_bytes + b"\n" and comparison.CanonicalModelJson(
+        result,
+    ) == original_bytes, "Readable presentation changed canonical machine output or exact download."
+
+
+def test_ReadableChangedFocusLabelsRemainIndependentBeforeAndAfterFacts():
+    """A changed pair prints each original state directly instead of a combined summary label."""
+
+    result, model = Pair()
+    html = comparison.RenderPathComparisonHtml(result, model)
+    assert re.findall(r'Focus state: ([A-Z]+)</strong>', html) == ["UNKNOWN", "BLOCKED"], (
+        "Readable changed-focus presentation merged or replaced its original side states."
+    )
