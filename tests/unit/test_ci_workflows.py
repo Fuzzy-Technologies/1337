@@ -404,6 +404,25 @@ def test_OfflineBrowserAcceptanceRequiresAnInstalledEngineAndSeparatesTheOwnedFi
     )
 
 
+def test_OfflinePathPresentationRequiresGenuineBrowserCoverageAndRetainsItsArtifact() -> None:
+    """Renderer interaction cannot silently skip inside the required existing browser lane."""
+
+    job = Workflow("python-quality.yml")["jobs"]["browser-page-quality"]
+    selected = [step for step in job["steps"]
+                if "test_path_rendering_browser.py" in step.get("run", "")]
+    assert len(selected) == 1 and selected[0]["env"][
+        "FUZZY1337_RUN_PLAYWRIGHT_ACCEPTANCE"
+    ] == "1", "Required rendered-path interaction could become optional or run more than once"
+    assert "--no-cov" in selected[0]["run"] and "-n 0" in selected[0]["run"] and (
+        "--junitxml=functional-evidence/path-renderer-browser.xml" in selected[0]["run"]
+    ), "Actual renderer acceptance lost its bounded isolated execution or terminal evidence"
+    artifacts = [step for step in job["steps"] if "with" in step and
+                 "functional-evidence/path-renderer*" in step["with"].get("path", "")]
+    assert len(artifacts) == 1 and artifacts[0]["if"] == "always()", (
+        "Rendered graph, script coverage and failed browser outcomes are not retained"
+    )
+
+
 def test_NmapAcceptanceRequiresGenuinePinnedProviderAndProductOracle() -> None:
     """The genuine provider lane cannot silently skip its installed SDK/CLI acceptance."""
 

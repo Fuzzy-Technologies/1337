@@ -126,6 +126,43 @@ checks the final serialized ceiling. An oversized explanation is refused instead
 of silently truncating fields. Plain text presents the returned-path count and
 separate search/cut completeness; `--json` retains the detailed original reasons.
 
+## Offline graph presentation
+
+Pass `--html` instead of root `--json` with the same complete explicit selections
+to emit a standalone HTML artifact on stdout. For example, add `--html` to the
+command above after removing `--json`, and redirect stdout to a new local HTML
+file using your shell. The command itself writes no artifact or authoritative
+state. Inspect its exit status: failures emit the ordinary fixed-category text,
+not a successful or partial graph. `--html --json` is refused.
+
+The Experimental presentation profile accepts up to 64 selected nodes and 128
+transitions. Larger views fail rather than hiding a subset; ordinary JSON analysis
+retains its existing limits. The complete HTML ceiling is four MiB, in addition
+to the existing one-MiB original JSON limit. It contains the same original outcome,
+model pin, graph references, hop states, reasons and claim/proof attribution.
+Node labels expose only existing object kinds and references, not arbitrary saved
+attributes or original raw evidence.
+
+Full state words and distinct line patterns label CONFIRMED, LIKELY, POTENTIAL,
+BLOCKED and UNKNOWN transitions. Source/target labels and `CUT` markers identify
+the exact query endpoints and verified structural cuts in the selected nonblocked
+graph. These markers do not establish physical reachability or remediation
+efficacy. The independent search/cut completeness, reasons and budgets remain
+visible even when enumeration is truncated or no candidate was returned.
+
+Drag the background to pan; use the wheel or zoom/reset buttons to change the
+view. Select a node/edge, including by keyboard, to open its original explanation.
+All explanations and the static graph remain available without JavaScript.
+Download the exact ordinary JSON outcome and the same standalone SVG from the
+file; there is no CDN, external page, network fetch or SaaS dependency. Source
+text is escaped independently for HTML and inert JSON; only the fixed control
+script's exact hash is admitted by the artifact's CSP.
+
+This is a structural saved-graph presentation slice of #121. Canonical scenario
+reasoning from #119, additional graph object families, grouping and reproducible
+remediation before/after presentation remain unfinished. It does not implement
+the full M5 graph UX. See [ADR 0124](adr/0124-offline-selected-path-presentation.md).
+
 | Exit code | Result                                                                   |
 | --------- | ------------------------------------------------------------------------ |
 | 0         | Completed bounded analysis, possibly with explicit search/cut truncation |

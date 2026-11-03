@@ -72,6 +72,7 @@ def PathParser() -> argparse.ArgumentParser:
     parser = RuntimeArgumentParser(prog="1337 paths", add_help=False)
     parser.add_argument("action", choices=("analyze",))
     parser.add_argument("workspace", type=Path)
+    parser.add_argument("--html", action="store_true")
     parser.add_argument("--expected-revision", required=True, type=int)
     parser.add_argument("--expected-snapshot-sha256", required=True)
     parser.add_argument("--source", required=True)
@@ -436,7 +437,7 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
 
     Args:
         arguments: Analyze action, existing workspace, selections, clock and finite budgets.
-        output: Caller-owned stream receiving safe bounded JSON or a concise human explanation.
+        output: Caller-owned stream receiving bounded JSON, HTML or a concise human explanation.
         json_output: Emit a schema-one DTO without raw evidence, observations or private seals.
 
     Returns:
@@ -458,9 +459,14 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
         "core_mutation": "none", "evidence_mutation": "none", "authority": "none"}
     status = 4
     phase = "configuration"
+    html_document = None
 
     try:
         options = parser.parse_args(arguments)
+
+        if options.html and json_output:
+            raise RuntimeFailure("configuration", 2)
+
         if type(options.expected_revision) is not int or options.expected_revision < 0:
             raise RuntimeFailure("configuration", 2)
 
@@ -531,6 +537,15 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
         if len(CanonicalModelJson(outcome)) + 1 > MAX_PATH_OUTPUT_BYTES:
             raise RuntimeFailure("output-limit")
 
+        if options.html:
+            from fuzzy1337.path_rendering import RenderPathHtml
+
+            try:
+                html_document = RenderPathHtml(outcome, model)
+
+            except ValueError as error:
+                raise RuntimeFailure("output-limit") from error
+
         status = 0
 
     except RuntimeFailure as error:
@@ -551,7 +566,10 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
 
     outcome["exit_code"] = status
 
-    if json_output:
+    if html_document is not None:
+        output.write(html_document)
+
+    elif json_output:
         output.write(CanonicalModelJson(outcome).decode("utf-8") + "\n")
 
     else:

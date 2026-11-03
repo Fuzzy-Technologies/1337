@@ -64,6 +64,15 @@ failure; and `130` for interruption. Failures keep generic categories without
 original exception bodies or rejected literals. Every outcome reports no
 Core/evidence mutation and no authority. Static help reads no local state.
 
+Optional `--html` presents the same successful original schema-one outcome through
+the Internal `path_rendering` owner. It is mutually exclusive with root `--json`.
+All admission/basis checks remain before rendering. The HTML profile refuses more
+than 64 selected nodes, 128 transitions or a final four-MiB artifact; it does not
+partition the graph or alter the existing JSON limits. Failures preserve ordinary
+fixed-category text without partial HTML. The offline graph, original inspection,
+exact JSON/static SVG downloads and fixed-script CSP are described in
+[the renderer reference](fuzzy1337.path_rendering.md).
+
 Installed-console and foreground-shell routes share this owner. Shell context
 supplies no omitted selections or grants, and protected local/native history and
 empty-line replay keep only `paths`. The module acquires nothing, writes no
