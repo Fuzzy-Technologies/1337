@@ -142,8 +142,33 @@ The separate guarded hosted lane uses `tools/cve_https_acceptance.py` through a
 fresh installed wheel. It requires the actual complete HTTP 200 body, exact pins
 and requested byte/deadline limits, original source/envelope/receipt joins,
 unchanged nested assertions/model and relocated offline SDK plus CLI inspection.
-Publisher authentication and legal rights stay `not-assessed`. Genuine hosted
-acceptance is pending until an actual successful execution is recorded here.
+Publisher authentication and legal rights stay `not-assessed`.
+
+[Hosted run 41640143215](https://github.com/Fuzzy-Technologies/1337/actions/runs/41640143215)
+passed on head `08f423c4c9bf6c39fb0e1dd48e3056f3cd977aab`, tree
+`ac266efcaf042857e0a0ea83040c706f561c9249`. Actual CVE job `125931299029`
+built/installed the wheel and fetched the exact original record once: complete
+HTTP 200, the size/hash above, matching wire/state/CVE and original request limits
+of 23,216 bytes and 30 seconds. Original SDK receipt/reparse, relocated offline
+CLI inspection and unchanged canonical model state passed. The KEV/EPSS source
+jobs were skipped; their earlier acceptance is separate.
+
+[Artifact 13232686390](https://github.com/Fuzzy-Technologies/1337/actions/runs/41640143215/artifacts/13232686390)
+has archive SHA-256
+`2a5a32046164ee874f20164f369d93273b4be8c6509a666ae229ecd62333cf11`.
+Its wheel SHA-256 is
+`87f7a67be6430a4df73b0c13431bdb831dbe61f63765b811f7e7b502264b9da0`.
+Both were downloaded and independently hashed. The five exercised production
+hashes agree with current source and wheel members. A clean installed Main CLI
+reopened the same downloaded original roots locally; source/snapshot/raw bytes,
+request limits and model bytes agreed. The later acceptance-record update is
+documentation only. Artifact retention is seven days; exact source pins and
+verification tools remain versioned.
+
+This establishes the one selected historical PUBLISHED record through this
+finite profile. It does not establish complete JSON-schema/catalog coverage,
+other source states, batch/delta acquisition, publisher signatures, downstream
+legal rights or target applicability. The wider #43/#47 scope stays open.
 
 ## Publisher-prose regression
 
