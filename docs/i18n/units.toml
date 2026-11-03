@@ -27000,3 +27000,58 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.trivy-license-policy"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.trivy_license_policy.md"
+sourceHash = "sha256:001593170c8b992fc32baeee949176051d78d645ed93f3f53786521d80cea0ec"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.trivy_license_policy.EvaluateVerifiedTrivyLicenses"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/trivy_license_policy.py"
+sourceHash = "sha256:8d53a7228f5a28d04e252104fbb46cee1bf96c7815b2bf289852c11751905a3c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.trivy_license_policy.PreflightRecords"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/trivy_license_policy.py"
+sourceHash = "sha256:40580848370be9d2083c4b3777a1b3080e13be875959611e2e1de406c45c102a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.trivy_license_policy.SelectedEvidenceStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/trivy_license_policy.py"
+sourceHash = "sha256:5b8bca8a30dd0084ed722adac05b7a205577b5b88d594f44ff034618e1f3a198"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.trivy_license_policy.SelectedEvidenceStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/trivy_license_policy.py"
+sourceHash = "sha256:570f57a3e42c0c44fe269edaf3ea80dbde2221eea55b3d78ca0e8c3a08cf52bf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
