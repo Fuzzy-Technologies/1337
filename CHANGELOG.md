@@ -8,6 +8,32 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 7 — v0.4.7 — 2026-11-03
+
+#### Digest
+
+- Add a pure selected CWE ZIP/XML foundation for explicit schema-8 and
+  compatible schema-7 modes, with original-byte identity and independent bounds.
+
+#### Added
+
+- Expose immutable version-one selected results for exact catalog 5.0 and 4.21
+  inputs, retaining civil-day metadata, source statuses, complete ZIP/expanded
+  facts and at most 64 explicit requested IDs.
+- Keep selected Weakness records, known unsupported Category/Grouping/View
+  identities and absent IDs in separate complete partitions.
+
+#### Security
+
+- Verify complete strict ZIP framing and actual DEFLATE EOF, size and CRC before
+  result publication; bound incremental XML, raw and expanded names, ignored
+  content and canonical selected JSON independently.
+- Refuse DTD/entities, XInclude, malformed unselected entries and resource excess
+  without source acquisition, model writes, inferred applicability or zero risk.
+- Preserve legacy parser/snapshot limits and references; full XSD validation,
+  notice custody, publisher authentication and product import remain separate.
+
+
 ### Patch 6 — v0.4.6 — 2026-11-03
 
 #### Digest
