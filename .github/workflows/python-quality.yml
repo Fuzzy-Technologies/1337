@@ -721,6 +721,18 @@ jobs:
           uv run --locked --extra dev pytest tests/functional/test_external_native_benchmark.py
           -o addopts='' --no-cov -n 0 -v
           --junitxml=functional-evidence/external-native-benchmark/pytest.xml
+      - name: Require original 1337Scope native application acceptance
+        if: >-
+          !(github.event_name == 'pull_request' && github.event.pull_request.draft == true
+          && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false
+          || !contains(github.event.pull_request.body, '[native-external-metrics-diagnostic]'))
+        timeout-minutes: 1
+        env:
+          NATIVE_ACCEPTANCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python tests/functional/external_native_acceptance_gate.py
+          --head "$NATIVE_ACCEPTANCE_HEAD"
+          --identity "$(git rev-parse HEAD HEAD^{tree})"
       - name: Capture one separate fresh-target metrics diagnostic
         if: >-
           !(github.event_name == 'pull_request' && github.event.pull_request.draft == true

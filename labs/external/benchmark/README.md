@@ -77,6 +77,21 @@ target host loop and complete original v2 assembly now have reviewed source.
 Both track implementations are available for explicit selection; application
 runtime remains **UNRUN** until the six actual comparative cases execute.
 
+## Original 1337Scope native acceptance
+
+After the existing three-case installed native execution, the external-target
+job requires `tests/functional/external_native_acceptance_gate.py`. This read-only
+gate joins the exact current-head JUnit cases, original Docker bundle, installed
+wheel and selected source bytes, nine evidence roles, worker reports and saved
+Findings. Missing, skipped, stale or contradictory evidence fails the lane.
+
+The finite result requires one true positive and two distinct negative controls.
+It leaves other tracks unrun in the native report and whole-application accuracy
+unassessed. The gate consumes the existing run and starts no additional target or
+scanner. Its contract fixtures are deterministic checks; genuine acceptance
+still requires the current proposed head to execute in the actual application
+lane.
+
 ## Installed Nuclei image prerequisite
 
 The implemented prerequisite is independently usable before application
