@@ -25823,3 +25823,36 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.cyclonedx-license-policy"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.cyclonedx_license_policy.md"
+sourceHash = "sha256:7e665a891508bed1f3833181d3e34ae65de01661d10edf77c07c7c9b3dac68d1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.cyclonedx_license_policy.EvaluateVerifiedCycloneDxLicenses"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/cyclonedx_license_policy.py"
+sourceHash = "sha256:c1687a9bcb30aa6f9f573488bf80474cde3ff298bdcf1ec50724456ea15a5217"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.cyclonedx_license_policy.LicenseChoice"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/cyclonedx_license_policy.py"
+sourceHash = "sha256:ae47fb88b3d69bb3eb380a2ac370c2d35772120bb780e35604dc6564038c785a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"

@@ -103,6 +103,11 @@ cannot supply a policy result. There is no aggregated package/image compliance
 verdict, license obligation analysis or Finding creation. Exit 0 means the
 verified view completed, regardless of an assertion's allow/deny/unknown result.
 
+The separate [Internal CycloneDX 1.6 SDK projection](CYCLONEDX_LICENSE_POLICY.md)
+revalidates original inventory custody and evaluates each original component
+license occurrence independently. It retains distinct aliases and unknowns,
+without changing this command's selected SPDX projection or default output.
+
 At most 64 original source contexts and 4096 package/assertion rows may be
 projected, inside the unchanged one-MiB output bound. Exceeded quotas, original
 source mismatch or changed saved bases refuse the complete view. Source facts,
