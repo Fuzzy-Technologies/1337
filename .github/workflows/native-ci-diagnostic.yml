@@ -46,3 +46,58 @@ jobs:
           path: functional-evidence/native-ci-diagnostic/
           if-no-files-found: warn
           retention-days: 7
+  cwe-selected-windows:
+    if: >-
+      ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && contains(github.event.pull_request.body, '[cwe-windows-diagnostic-checkpoint]') }}
+    name: Selected CWE Windows diagnostic
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact proposed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.13
+      - name: Run only the bounded selected CWE diagnostic
+        timeout-minutes: 3
+        shell: pwsh
+        env:
+          PYTHONPATH: tests
+        run: |
+          New-Item -ItemType Directory -Force functional-evidence/cwe-windows-diagnostic | Out-Null
+          git rev-parse HEAD | Set-Content functional-evidence/cwe-windows-diagnostic/head.txt
+          uv run --locked --extra dev pytest `
+            tests/unit/test_intelligence_cwe_selection.py `
+            tests/unit/test_intelligence_cwe_xml.py `
+            tests/unit/test_intelligence_cwe_zip.py `
+            tests/contract/test_intelligence_cwe_selection_contract.py `
+            tests/integration/test_intelligence_cwe_selection_composition.py `
+            -p cwe_windows_progress -n 2 --dist=load -o addopts='' --no-cov -vv `
+            --timeout=30 --timeout-method=thread --durations=20 `
+            --junitxml=functional-evidence/cwe-windows-diagnostic/selection.xml `
+            2>&1 | Tee-Object -FilePath functional-evidence/cwe-windows-diagnostic/pytest.log
+          $testExit = $LASTEXITCODE
+          $testExit | Set-Content functional-evidence/cwe-windows-diagnostic/exit-code.txt
+          uv run --locked --extra dev python tests/cwe_windows_progress.py `
+            2>&1 | Tee-Object -FilePath functional-evidence/cwe-windows-diagnostic/verification.json
+          $verificationExit = $LASTEXITCODE
+          if ($testExit -ne 0) { exit $testExit }
+          exit $verificationExit
+      - name: Preserve the selected CWE diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: selected-cwe-windows-diagnostic
+          path: functional-evidence/cwe-windows-diagnostic/
+          if-no-files-found: error
+          retention-days: 7

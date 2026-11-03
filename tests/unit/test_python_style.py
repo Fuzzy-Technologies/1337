@@ -34,6 +34,7 @@ FRAMEWORK_FUNCTIONS = {
     "precmd",
     # Pytest owns these exact plugin hook callback names.
     "pytest_addoption",
+    "pytest_runtest_logstart",
     "pytest_runtest_logreport",
     "pytest_collection_modifyitems",
     "pytest_configure",
