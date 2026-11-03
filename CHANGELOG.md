@@ -28,6 +28,9 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   assertions and derived CVSS 2 base calculations, with explicit applicability limits.
 - Connect actual owned detection, a fixed control, clearly fictional training
   Intel and readable saved reports in a verified installed walkthrough.
+- Add bounded offline selected-graph inspection through `paths analyze --html`,
+  preserving original proof, uncertainty and structural-cut semantics, with exact
+  JSON and static SVG downloads from the same artifact.
 
 - Add opt-in source-bound SPDX license-expression policy inspection to the
   verified image view, preserving separate declared/concluded assertions,

@@ -15814,7 +15814,7 @@ state = "missing"
 id = "page:api.fuzzy1337.path-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.path_commands.md"
-sourceHash = "sha256:bf1f4e3cc1eca9eed0045562d7e3ce60d71812fc6b087139461586078f2120f7"
+sourceHash = "sha256:487cf645eaec178b4bf0c35511a5d94020bb22aa140f7e5dd29e2873caaba14e"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -15944,7 +15944,7 @@ state = "missing"
 id = "symbol:fuzzy1337.path_commands.RunPathCommands"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/path_commands.py"
-sourceHash = "sha256:9a5896ad1ef7de4cc6b83e5825516d782bbfb9cda787901e1e1c7c92a2496279"
+sourceHash = "sha256:03baf073e9a9cbb83b52094a3f04cf87190275e7771c2fe60225a7b64b6cd0ca"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -25044,5 +25044,89 @@ sourceHash = "sha256:5c16224238ca7e4813cb041160aa351c334d1e5f7372cd5064b3572e934
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "page:api.fuzzy1337.path-rendering"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.path_rendering.md"
+sourceHash = "sha256:eb3ca69655a5158ee598015bd4b69deb04234073aff1613c9dc305590ba62eac"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.path_rendering.Anchor"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_rendering.py"
+sourceHash = "sha256:c08dd7f31d092a7c297c1004e08360ac6de4c13913b102a7da1427fc42fd0d70"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.path_rendering.Download"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_rendering.py"
+sourceHash = "sha256:11cba9ae97e211480618dce59075a817dfa73a4a6a0bb4aca271afd28cba24aa"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.path_rendering.EdgeGeometry"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_rendering.py"
+sourceHash = "sha256:c754a58a1c93fcbcee7d803718752a18dd0a41c59146a4a872d9de0df263829b"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.path_rendering.GraphSvg"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_rendering.py"
+sourceHash = "sha256:897af539bae52e3d918a3c279cbddaafb9ea160764f36ccc7d09f965c2eb35df"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.path_rendering.Layout"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_rendering.py"
+sourceHash = "sha256:ac1ad341581913a5ec2fde5405f95b460f7231b0a956d3d4968b81a61dd832ba"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "symbol:fuzzy1337.path_rendering.RenderPathHtml"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/path_rendering.py"
+sourceHash = "sha256:3784f01b19d9de0d6a99277431b352a628206e83777b37cd6c47f9038f6713c7"
+reviewClass = "technical"
+
+[units.translations.ru]
+state = "missing"
+
 [units.translations.zh-cn]
 state = "missing"

@@ -597,12 +597,22 @@ jobs:
           tests/integration/test_browser_page_execution.py
           --no-cov -n 0 -q -m serial
           --junitxml=functional-evidence/browser-dom.xml
+      - name: Verify offline selected-path interaction and script coverage
+        env:
+          FUZZY1337_RUN_PLAYWRIGHT_ACCEPTANCE: "1"
+        run: >-
+          uv run --locked --extra dev --extra browser pytest
+          tests/integration/test_path_rendering_browser.py
+          --no-cov -n 0 -q
+          --junitxml=functional-evidence/path-renderer-browser.xml
       - name: Preserve genuine browser acceptance evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-page-acceptance
-          path: functional-evidence/browser-*
+          path: |
+            functional-evidence/browser-*
+            functional-evidence/path-renderer*
           if-no-files-found: ignore
           retention-days: 14
 

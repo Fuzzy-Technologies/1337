@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Internal pure offline presentation; source admission remains the path command owner's contract.
+module = "fuzzy1337.path_rendering"
+source = "src/fuzzy1337/path_rendering.py"
+mode = "authored"
+page = "api/fuzzy1337.path_rendering.md"
+
+[[surfaces]]
 # Internal explicit syntactic policy matching; no license-compliance conclusion.
 module = "fuzzy1337.license_policy"
 source = "src/fuzzy1337/license_policy.py"
