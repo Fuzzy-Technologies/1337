@@ -8,6 +8,29 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 5 — v0.4.5 — 2026-11-03
+
+#### Digest
+
+- Add finite selected CVE 5.2 HTTPS acquisition and offline inspection with
+  original source custody and retained data notices.
+
+#### Added
+
+- Expose `intel cve https fetch|inspect` for one explicitly pinned published
+  record, with mandatory commit/CVE/SHA-256 and distinct version-one roots.
+- Retain the unchanged normalized snapshot inside a bounded selection envelope,
+  including original source, request limits and complete attributed data notices.
+
+#### Security
+
+- Revalidate original role/media/budgets, acquisition provenance, exact receipt
+  and source bytes before interpreting assertions; preserve independent storage
+  acknowledgements and honest partial/failure outcomes without model writes.
+- Keep data terms separate from schema licensing, publisher authentication,
+  target applicability and contextual risk.
+
+
 ### Patch 4 — v0.4.4 — 2026-11-03
 
 #### Digest

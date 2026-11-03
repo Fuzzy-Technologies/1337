@@ -115,6 +115,30 @@ remain versioned. This is bounded historical source acceptance, with publisher
 authentication `not-assessed` and target applicability separate. It does not
 complete the broader CVE/CWE/terms/assurance scope of #43/#47.
 
+## Pinned selected CVE 5.2 HTTPS checkpoint
+
+The separate [CVE HTTPS profile](INTELLIGENCE_CVE_HTTPS.md) selects one published
+wire-5.2 record, with distinct original remote custody and finite one-MiB source,
+two-MiB envelope and 32-KiB receipt limits. The candidate is `CVE-2024-3094` at
+commit `124afead838875e8bf8f5f0bbaf929340216d81b`, with 23,216 expected bytes and
+raw SHA-256
+`f9f0858cc058006963ed8338b802cadaf559f4fa5c501c53752407dfaf3227f9`.
+Research retrieval established Git content identity and existing pure-parser
+compatibility. It did not establish SDK HTTPS acquisition.
+
+Owned deterministic tests and clean installed synthetic SDK replay cover exact
+wire/state/ID admission, original manifests and source notices, independent
+publication outcomes, request-limit identity, corruption/mixed-source refusal
+and offline relocation. The actual product CLI is also exercised through a real
+isolated owned worker. These are fixture results, not public-source acceptance.
+
+The separate guarded hosted lane uses `tools/cve_https_acceptance.py` through a
+fresh installed wheel. It requires the actual complete HTTP 200 body, exact pins
+and requested byte/deadline limits, original source/envelope/receipt joins,
+unchanged nested assertions/model and relocated offline SDK plus CLI inspection.
+Publisher authentication and legal rights stay `not-assessed`. Genuine hosted
+acceptance is pending until an actual successful execution is recorded here.
+
 ## Publisher-prose regression
 
 The first real import failed honestly with `parse-failed`. The selected catalog
