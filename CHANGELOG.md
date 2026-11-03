@@ -8,6 +8,29 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 6 — v0.4.6 — 2026-11-03
+
+#### Digest
+
+- Add an explicit offline comparison of two original selected-path analyses on
+  one exact saved model, with a bounded static Before/After artifact.
+
+#### Added
+
+- Expose `paths compare` with separate original assessment selections, common
+  model/query/clock/budget pins and one explicitly selected focus transition.
+- Retain both complete original outcomes, exact JSON/SVG downloads and static
+  graphs without new JavaScript or changes to the single-state renderer.
+
+#### Security
+
+- Reuse unchanged source admission and path analysis twice, then reread the
+  actual owning basis before success; reject out-of-focus state changes and
+  oversized paired output without model, workspace or evidence writes.
+- Preserve UNKNOWN and separate completeness indicators; derive no causal,
+  remediation-efficacy, physical-access or compromise-probability verdict.
+
+
 ### Patch 5 — v0.4.5 — 2026-11-03
 
 #### Digest

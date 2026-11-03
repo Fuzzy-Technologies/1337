@@ -416,11 +416,15 @@ def test_OfflinePathPresentationRequiresGenuineBrowserCoverageAndRetainsItsArtif
     assert "--no-cov" in selected[0]["run"] and "-n 0" in selected[0]["run"] and (
         "--junitxml=functional-evidence/path-renderer-browser.xml" in selected[0]["run"]
     ), "Actual renderer acceptance lost its bounded isolated execution or terminal evidence"
+    assert "tests/integration/test_path_comparison_browser.py" in selected[0]["run"], (
+        "The paired static presentation must execute in the genuine browser lane")
     artifacts = [step for step in job["steps"] if "with" in step and
                  "functional-evidence/path-renderer*" in step["with"].get("path", "")]
     assert len(artifacts) == 1 and artifacts[0]["if"] == "always()", (
         "Rendered graph, script coverage and failed browser outcomes are not retained"
     )
+    assert "functional-evidence/path-comparison*" in artifacts[0]["with"]["path"], (
+        "Original paired-presentation browser evidence must survive failure")
 
 
 def test_NmapAcceptanceRequiresGenuinePinnedProviderAndProductOracle() -> None:
