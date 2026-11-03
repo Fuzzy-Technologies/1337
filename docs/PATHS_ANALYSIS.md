@@ -1,5 +1,8 @@
 # Explicit saved-graph path analysis
 
+For two independently verified assessment selections on one exact saved basis,
+see [selected path-state comparison](PATH_STATE_COMPARISON.md).
+
 `1337 paths analyze` exposes the existing attributed reachability and path-analysis
 owners over one existing local workspace. The Experimental product profile is
 version 1. `fuzzy1337.path_commands` and its parser/handler/helpers are Internal.
