@@ -465,6 +465,11 @@ def RunIntelCommands(
         or 130 for interruption. A failed save may have committed; the outcome states uncertainty.
     """
 
+    if arguments and arguments[0] == "epss":
+        from fuzzy1337.intelligence_epss_commands import RunEpssIntelCommands
+
+        return RunEpssIntelCommands(arguments[1:], output, json_output=json_output)
+
     parser = IntelParser()
 
     if "--help" in arguments or "-h" in arguments:
