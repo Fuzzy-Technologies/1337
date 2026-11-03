@@ -87,8 +87,33 @@ fresh installed wheel. It requires the actual complete HTTP 200 SDK body, exact
 source pins and original remote roots, full gzip reparse, explicit matched and
 unmatched CVEs, unchanged decimal spelling and offline replay after relocation.
 Its terminal facts and original workspace are retained separately from the local
-failure. Hosted acceptance is pending until an actual successful execution is
-recorded here; deterministic tests do not satisfy that claim.
+failure. [Hosted run 41628694763](https://github.com/Fuzzy-Technologies/1337/actions/runs/41628694763)
+passed on head `dc934ae7fa025b431edb243d167baed6b76bc433`, tree
+`5c3b3ea7f74c2cace9c22f400495b4a4f1e4ea95`. Job `125892447105` actually
+built/installed the wheel and executed that unchanged receiver: complete HTTP
+200, the exact raw hash/size above, all 398,815 rows validated, two selected
+assertions and one unmatched CVE. Original `6e-05` spelling and score clock
+`2026-11-02T12:00:30Z` were retained; relocated original-source reopening and
+unchanged model state passed. No fallback or retry supplied the body.
+
+[EPSS artifact 13227615267](https://github.com/Fuzzy-Technologies/1337/actions/runs/41628694763/artifacts/13227615267)
+has archive SHA-256
+`8417a4a12f4ce2619d35be894b2df27006477de830e3b6b5b8aefab27e4d727b`.
+Its original evidence, terminal JSON and installed wheel were downloaded and the
+archive digest checked independently. The clean installed offline CLI reopened
+the same original selection/receipt and raw bytes locally without a model write.
+The artifact's five production source hashes match this profile's source files;
+the later acceptance-record update changes documentation only.
+
+The same run's CISA job `125892446719` also passed complete original HTTPS
+acquisition/reparse of 1,766 records after extraction of shared receiver ownership.
+[CISA artifact 13227411518](https://github.com/Fuzzy-Technologies/1337/actions/runs/41628694763/artifacts/13227411518)
+has independently checked archive SHA-256
+`a48285473f6fb4c6ef615afe1e35d611e2f8b6a18bee73a21bf50dd035123f43`.
+Both artifacts have seven-day retention. Exact source pins and verification tools
+remain versioned. This is bounded historical source acceptance, with publisher
+authentication `not-assessed` and target applicability separate. It does not
+complete the broader CVE/CWE/terms/assurance scope of #43/#47.
 
 ## Publisher-prose regression
 
