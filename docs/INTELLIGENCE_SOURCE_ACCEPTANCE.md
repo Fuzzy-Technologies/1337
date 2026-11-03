@@ -170,6 +170,47 @@ finite profile. It does not establish complete JSON-schema/catalog coverage,
 other source states, batch/delta acquisition, publisher signatures, downstream
 legal rights or target applicability. The wider #43/#47 scope stays open.
 
+## Selected CWE pure-decoder checkpoint
+
+The separate [pure selected decoder](INTELLIGENCE_CWE_SELECTION.md) supports exact
+catalog 5.0 / namespace 8 and 4.21 / namespace 7 consumed-field modes under
+[ADR 0131](adr/0131-bounded-selected-cwe-zip-xml.md). Its 4 MiB ZIP, 32 MiB actual
+XML and 1 MiB selected canonical-JSON ceilings are profile-local; legacy source
+and normalized snapshot limits remain unchanged. Only explicit selected
+Weaknesses become records. Category, Grouping and View identities remain known
+unsupported kinds, while absent IDs remain separately unmatched.
+
+Dedicated [research run 41656354959](https://github.com/Fuzzy-Technologies/1337/actions/runs/41656354959)
+at `ab482cbfff482748655e4d061fae599cf4334676` retrieved four literal pinned
+XSD/ZIP inputs once. Original artifact `13238544847`, SHA-256
+`d92cdc41bdf3b355839cc8aa9f827c688fcfdd685387637296f3e4da261f1fe3`,
+retains exact inputs, hash-bound status-enumeration slices, complete bounded
+DEFLATE/CRC/XML metrics and 22 executed cases without skips/failures. Original
+hashes, enum slices and complete expanded facts were independently rechecked.
+Earlier local zero-byte transport timeouts remain failures. This external
+research is separate from product SDK acquisition.
+
+| Catalog | Actual expanded bytes / CRC32 | Actual source entry kinds           |
+| ------- | ----------------------------- | ----------------------------------- |
+| 5.0     | 19,105,731 / `c01f0a7d`       | 984 Weakness, 431 Grouping, 62 View |
+| 4.21    | 18,571,978 / `0575b537`       | 984 Weakness, 431 Category, 62 View |
+
+A separate clean installed pure-SDK exercise consumed both retained original
+ZIPs without network access, matching original/expanded hashes, complete CRC,
+counters and exact partitions. The wheel SHA-256 is
+`e90ec2ffdc773e5e11194e13e59a9aa467902ff3de4fa4db4f7ff53db61b878c`;
+all three installed decoder members matched the reviewed source. `CWE-79` and
+`CWE-89` matched Weakness records, `CWE-1000` retained its unsupported View kind,
+and `CWE-9999999999` remained absent. These are finite observations of those
+exact supplied bytes, not universal publisher counts or full XSD validation.
+
+Neither the research probe nor this pure decoder creates an acquisition record,
+stored selection, receipt, original-source custody or CLI workflow. Raw XML did
+not establish complete applicable copyright/license notice coverage; a future
+source/custody profile must retain the applicable MITRE notices and attribution
+separately. Legal rights, publisher authentication, applicability and contextual
+scoring remain not assessed. #43/#47 stay open.
+
 ## Publisher-prose regression
 
 The first real import failed honestly with `parse-failed`. The selected catalog

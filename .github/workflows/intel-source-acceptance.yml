@@ -13,6 +13,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cwe-prerequisites:
+    if: >-
+      github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.body, '[cwe-prerequisite-checkpoint]')
+    name: Pinned CWE schema and archive research prerequisites
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out the exact proposed research revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize the locked environment
+        run: uv sync --locked --extra dev --python 3.13
+      - name: Verify bounded original schemas and archives without product acquisition claims
+        timeout-minutes: 3
+        env:
+          FUZZY1337_RUN_CWE_PREREQUISITES: "1"
+        run: >-
+          uv run --locked --extra dev pytest
+          tests/integration/test_cwe_source_prerequisites.py
+          -n 0 --no-cov -q
+          --junitxml=functional-evidence/cwe-prerequisites.xml
+      - name: Preserve original research inputs and complete verification facts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pinned-cwe-research-prerequisites
+          path: |
+            functional-evidence/cwe-prerequisites/
+            functional-evidence/cwe-prerequisites.xml
+          if-no-files-found: error
+          retention-days: 7
+
   pinned-kev:
     if: >-
       github.event.pull_request.draft &&
