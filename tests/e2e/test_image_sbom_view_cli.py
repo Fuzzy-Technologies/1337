@@ -121,3 +121,96 @@ def test_InstalledImageViewJoinsOriginalGraphAndDockerImportsWithExplicitKinds(t
     assert status == 4 and refusal["status"] == "failed" and (
         "package_references" not in refusal
     ), "A changed retained original must refuse the whole view without partial inventory output"
+
+
+def test_InstalledImageLicensePolicyKeepsExactSourcesRolesAndDigestKindsAfterRelocation(tmp_path):
+    """Match explicit caller policy to original assertions without a package/global verdict."""
+
+    owned = Context(tmp_path)
+    status, config = Console(tmp_path, "sbom", Arguments(owned))
+    assert status == 0, "The actual product must first acquire the unchanged config source"
+    payload = json.loads(owned.source.read_bytes())
+    library = next(package for package in payload["packages"]
+                   if package["SPDXID"] == "SPDXRef-Lib")
+    library["licenseDeclared"] = "GPL-2.0-only"
+    library["licenseConcluded"] = "MIT"
+    owned.source.write_text(json.dumps(payload), encoding="utf-8")
+    status, manifest = Console(tmp_path, "sbom", Arguments(owned, digest_kind="manifest"))
+    assert status == 0 and manifest["evidence_id"] != config["evidence_id"], (
+        "The independent manifest image source must retain its different original declaration"
+    )
+    owned.source.unlink()
+    relocated = tmp_path / "relocated workspace"
+    shutil.copytree(owned.root, relocated)
+    saved = LocalModelStore(relocated).Open()
+    observations = {item.Reference(): item for item in saved.observations}
+    before = {path.relative_to(relocated): path.read_bytes()
+              for path in relocated.rglob("*") if path.is_file()}
+    selected = {}
+
+    for kind, source in (("config", config), ("manifest", manifest)):
+        arguments = ViewArguments(owned, kind=kind)
+        arguments[1] = str(relocated)
+        status, default = Console(tmp_path, "sbom", arguments)
+        assert status == 0 and "license_policy" not in default, (
+            "The existing default output remains unchanged without explicit caller policy"
+        )
+        arguments.extend(["--license-policy", "owned-review-v1", "--allow-license", "MIT",
+                          "--deny-license", "Apache-2.0"])
+        status, result = Console(tmp_path, "sbom", arguments)
+        assert status == 0 and result["snapshot_sha256"] == default["snapshot_sha256"], (
+            "The new read-only policy route must retain the exact same verified source snapshot"
+        )
+        policy = result["license_policy"]
+        assert policy["source_profile"] == "owned-spdx-graph-v1" and policy["policy"] == {
+            "profile": "spdx-expression-policy-v1", "policy_id": "owned-review-v1",
+            "allowed": ["mit"], "denied": ["apache-2.0"],
+            "sha256": hashlib.sha256(json.dumps({"profile": "spdx-expression-policy-v1",
+                "policy_id": "owned-review-v1", "allowed": ["mit"], "denied": ["apache-2.0"]},
+                sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+        }, "The installed result must identify every explicit caller decision and its profile"
+        assertions = [item for package in policy["packages"] for item in package["assertions"]]
+        assert len(assertions) == 4 and {item["evidence_id"] for item in assertions} == {
+            source["evidence_id"]
+        }, "Shared packages must not borrow license facts from the equal-byte other digest kind"
+
+        for assertion in assertions:
+            observation = observations[assertion["observation_reference"]]
+            assert observation.attributes["image_reference"] == result["image_reference"] and (
+                observation.attributes["document_sha256"] == assertion["source_sha256"]
+                and observation.attributes["spdx_id"] == assertion["source_spdx_id"]
+                and observation.provenance.source_id == assertion["source_id"]
+                and observation.attributes["evidence_id"] == assertion["evidence_id"]
+            ), "Every policy result must resolve the exact original source/image/alias assertion"
+
+        selected[kind] = {item["source_spdx_id"]: item for item in assertions}
+
+    original = selected["config"]["SPDXRef-Lib"]
+    changed = selected["manifest"]["SPDXRef-Lib"]
+    assert original["declared"]["evaluation"]["status"] == "allow" and (
+        original["concluded"]["evaluation"]["status"] == "deny"
+    ), "Publisher-declared and publisher-concluded assertions must retain their conflicting roles"
+    assert changed["declared"]["source"]["expression"] == "GPL-2.0-only" and (
+        changed["declared"]["evaluation"]["status"] == "unknown"
+        and changed["concluded"]["evaluation"]["status"] == "allow"
+    ), "A changed unconfigured declaration remains unknown despite another allowed conclusion"
+    assert selected["config"]["SPDXRef-App"]["declared"]["evaluation"] == {
+        "status": "unknown", "reason": "source-none", "atoms": []
+    } and selected["config"]["SPDXRef-Lib-Alias"]["declared"]["evaluation"] == {
+        "status": "unknown", "reason": "source-absent", "atoms": []
+    }, "NONE and omitted license information must not become implicit policy permissions"
+    assert all(item["concluded"]["evaluation"]["status"] == "unknown" for item in (
+        selected["config"]["SPDXRef-App"], selected["config"]["SPDXRef-Lib-Alias"]
+    )), "NOASSERTION remains an explicit unknown source state"
+    after = {path.relative_to(relocated): path.read_bytes()
+             for path in relocated.rglob("*") if path.is_file()}
+    assert before == after and LocalModelStore(relocated).Open() == saved, (
+        "The relocated installed policy query cannot write evidence, model, triage or workspace"
+    )
+    evidence = LocalEvidenceStore(relocated / "evidence")
+    record = evidence.Get(config["evidence_id"])
+    evidence.StoragePath(("blobs", "sha256", record.reference.sha256)).write_bytes(b"changed")
+    status, refused = Console(tmp_path, "sbom", arguments)
+    assert status == 4 and refused["status"] == "failed" and "license_policy" not in refused, (
+        "Changed original bytes must withhold every policy decision and fail the whole view"
+    )

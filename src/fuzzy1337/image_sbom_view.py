@@ -5,11 +5,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TextIO
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import TextIO, cast
 
 from fuzzy1337.evidence import EvidenceError
-from fuzzy1337.images import ImageIdentity
+from fuzzy1337.images import ImageIdentity, VerifyRecords
+from fuzzy1337.license_policy import EvaluateLicenseExpression, LicensePolicy
 from fuzzy1337.model import CanonicalModelJson, LocalModelStore, ModelState, RelationKind
 from fuzzy1337.report_commands import OpenReportInput, ReportFailure
 from fuzzy1337.sbom_commands import (
@@ -18,10 +20,14 @@ from fuzzy1337.sbom_commands import (
     SbomFailure,
     SbomParser,
     SbomPath,
+    SourceFact,
 )
-from fuzzy1337.workspace import LocalWorkspaceStore
+from fuzzy1337.sbom_graph import GraphCandidates
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceState
 
 MAX_IMAGE_SBOM_VIEW_BYTES = 1024 * 1024
+MAX_IMAGE_LICENSE_SOURCES = 64
+MAX_IMAGE_LICENSE_ASSERTIONS = 4096
 
 
 def ImageSbomView(model: ModelState, image: ImageIdentity) -> dict[str, object]:
@@ -100,6 +106,106 @@ def ImageSbomView(model: ModelState, image: ImageIdentity) -> dict[str, object]:
         "inventory_status": "observed" if packages else "unknown", "docker_uses": uses}
 
 
+def ImageLicensePolicyView(model: ModelState, image: ImageIdentity, packages: Sequence[str],
+                           workspace: WorkspaceState, root: Path,
+                           policy: LicensePolicy) -> dict[str, object]:
+    """Reparse exact original owned SPDX graph assertions before matching their license roles.
+
+    Args:
+        model: Evidence-verified saved model selected by the read-only image command.
+        image: Exact selected config/manifest identity, never an equal-byte digest alias.
+        packages: Original containment-selected package references from that same image view.
+        workspace: Exact saved owner retaining the original acquisition manifest IDs.
+        root: Existing physical owning workspace path selected by the command.
+        policy: Explicit caller-authored bounded policy; unconfigured atoms remain unknown.
+
+    Returns:
+        Separate declared/concluded assertion decisions with original observation/source references
+        and a reproducible policy digest. No package, image or compliance verdict is aggregated.
+
+    Raises:
+        SbomFailure: Original custody, exact interpretation equality or projection quotas fail.
+        ValueError: Original source context or profile cannot be revalidated.
+    """
+
+    image_reference = image.Object(model.workspace_id).Reference()
+    selected = set(packages)
+    assertions = [item for item in model.observations if item.kind == "spdx-package-license"
+        and item.subject_reference in selected
+        and item.attributes.get("image_reference") == image_reference]
+
+    if len(packages) > MAX_IMAGE_LICENSE_ASSERTIONS or len(assertions) > (
+        MAX_IMAGE_LICENSE_ASSERTIONS
+    ):
+        raise SbomFailure("limit")
+
+    store = SbomEvidenceStore(root / "evidence")
+    originals: dict[tuple[str, bytes], set[str]] = {}
+    retained_observations = {item.Reference() for item in model.observations}
+    results: dict[str, list[dict[str, object]]] = {reference: [] for reference in sorted(selected)}
+
+    for assertion in sorted(assertions, key=lambda item: item.Reference()):
+        evidence_id = assertion.attributes.get("evidence_id")
+
+        if evidence_id is None:
+            results[assertion.subject_reference].append({
+                "observation_reference": assertion.Reference(), "status": "unknown",
+                "reason": "unsupported-source-profile"})
+
+            continue
+
+        if type(evidence_id) is not str or evidence_id not in workspace.evidence_record_references:
+            raise SbomFailure("license-source")
+
+        key = (evidence_id, CanonicalModelJson(assertion.provenance))
+
+        if key not in originals:
+            if len(originals) >= MAX_IMAGE_LICENSE_SOURCES:
+                raise SbomFailure("limit")
+
+            record = store.Get(evidence_id)
+            SourceFact(model, record, assertion.provenance, image, None)
+            raw = VerifyRecords(model, assertion.provenance, (record,), root)["sbom"]
+            _, _, facts = GraphCandidates(raw, model.workspace_id, record,
+                                          assertion.provenance, image)
+            aliases = {item.Reference() for item in facts if item.kind == "spdx-source-alias"}
+
+            if not aliases.issubset(retained_observations):
+                raise SbomFailure("license-source")
+
+            originals[key] = {item.Reference() for item in facts
+                              if item.kind == "spdx-package-license"}
+
+        if assertion.Reference() not in originals[key]:
+            raise SbomFailure("license-source")
+
+        roles = {}
+
+        for role in ("declared", "concluded"):
+            source = cast(Mapping[str, object], assertion.attributes[role])
+            state = cast(str, source["state"])
+
+            if state == "expression":
+                decision = EvaluateLicenseExpression(source["expression"], policy)
+
+            else:
+                decision = {"status": "unknown", "reason": "source-" + state, "atoms": []}
+
+            roles[role] = {"source": dict(source), "evaluation": decision}
+
+        results[assertion.subject_reference].append({
+            "observation_reference": assertion.Reference(),
+            "evidence_id": evidence_id, "source_sha256": assertion.attributes["document_sha256"],
+            "source_spdx_id": assertion.attributes["spdx_id"],
+            "source_id": assertion.provenance.source_id, **roles})
+
+    return {"policy": policy.Description(), "source_profile": "owned-spdx-graph-v1",
+        "packages": [{"package_reference": reference, "assertions": values,
+                      "status": "assertions-only" if values else "unknown",
+                      "reason": "not-aggregated" if values else "no-selected-source-assertion"}
+                     for reference, values in results.items()]}
+
+
 def RunImageSbomView(arguments: Sequence[str], output: TextIO, *, json_output: bool) -> int:
     """Verify the saved owners and original evidence before exposing one bounded image view.
 
@@ -120,6 +226,15 @@ def RunImageSbomView(arguments: Sequence[str], output: TextIO, *, json_output: b
 
     try:
         options = SbomParser().parse_args(arguments)
+        policy = None
+
+        if options.license_policy is not None:
+            policy = LicensePolicy(options.license_policy, tuple(options.allow_license),
+                                   tuple(options.deny_license))
+
+        elif options.allow_license or options.deny_license:
+            raise SbomFailure("configuration", 2)
+
         image = ImageIdentity(options.image_digest, options.image_digest_kind)
         root = SbomPath(options.workspace)
         phase = "integrity"
@@ -132,6 +247,10 @@ def RunImageSbomView(arguments: Sequence[str], output: TextIO, *, json_output: b
             raise SbomFailure("basis-changed")
 
         view = ImageSbomView(basis, image)
+
+        if policy is not None:
+            view["license_policy"] = ImageLicensePolicyView(
+                basis, image, cast(list[str], view["package_references"]), workspace, root, policy)
 
         if LocalWorkspaceStore(root).Open() != workspace or LocalModelStore(root).Open() != basis:
             raise SbomFailure("basis-changed")

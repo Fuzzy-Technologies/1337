@@ -8,6 +8,13 @@ mode = "authored"
 page = "api/fuzzy1337.path_rendering.md"
 
 [[surfaces]]
+# Internal explicit syntactic policy matching; no license-compliance conclusion.
+module = "fuzzy1337.license_policy"
+source = "src/fuzzy1337/license_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.license_policy.md"
+
+[[surfaces]]
 # Experimental pure presentation; no target verdict or model-state mutation.
 module = "fuzzy1337.assessments"
 source = "src/fuzzy1337/assessments.py"

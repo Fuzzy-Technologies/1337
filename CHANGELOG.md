@@ -32,6 +32,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   preserving original proof, uncertainty and structural-cut semantics, with exact
   JSON and static SVG downloads from the same artifact.
 
+- Add opt-in source-bound SPDX license-expression policy inspection to the
+  verified image view, preserving separate declared/concluded assertions,
+  explicit unknowns and exact original acquisition/alias provenance.
+
 #### Fixed
 
 - Accept observed CISA KEV publisher prose with outer whitespace and Unicode Zs
