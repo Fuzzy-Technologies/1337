@@ -927,3 +927,10 @@ module = "fuzzy1337.intelligence_epss_https_commands"
 source = "src/fuzzy1337/intelligence_epss_https_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.intelligence_epss_https_commands.md"
+
+[[surfaces]]
+# Internal opt-in original CycloneDX occurrence projection; no saved schema or owner writes.
+module = "fuzzy1337.cyclonedx_license_policy"
+source = "src/fuzzy1337/cyclonedx_license_policy.py"
+mode = "authored"
+page = "api/fuzzy1337.cyclonedx_license_policy.md"

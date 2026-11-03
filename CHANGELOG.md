@@ -8,6 +8,27 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 4 — v0.4.4 — 2026-11-03
+
+#### Digest
+
+- Add bounded, read-only policy projection of original CycloneDX 1.6 license
+  occurrences through the existing image/SBOM evidence owners.
+
+#### Added
+
+- Provide an opt-in Internal SDK projection retaining original component aliases,
+  license indexes, image digest kind, acquisition manifest, source hash and policy.
+- Evaluate accepted expression and identifier occurrences independently; preserve
+  omitted, empty and unsupported information as explicit unknown states.
+
+#### Security
+
+- Revalidate the complete existing inventory and original evidence before
+  interpretation, with finite row/result budgets and whole-operation refusal.
+  No compliance verdict, model write or runtime collection is introduced.
+
+
 ### Patch 3 — v0.4.3 — 2026-11-03
 
 #### Digest
