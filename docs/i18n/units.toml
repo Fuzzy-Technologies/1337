@@ -27187,3 +27187,58 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.ci-native-web"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.ci_native_web.md"
+sourceHash = "sha256:4a2633b091540ede04f59c4390f4b7e09db0ec44505020fa39340b1e4485458a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.ci_native_web.EvaluateNativeWebCriterion"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/ci_native_web.py"
+sourceHash = "sha256:03c99dc45e96bbe7c183709c2e690ffc94314f57b8c743aaa45ee775e63ef287"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.ci_native_web.RequireNativeSummary"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/ci_native_web.py"
+sourceHash = "sha256:cc7e2116df83ecd16b5149b5e61ee8f59674c26d511f3fbf8b76d7c4d6ac3c00"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.ci_native_web.RequirePlan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/ci_native_web.py"
+sourceHash = "sha256:e6ac85c70eba625f8765c38bb93eca20968c26f5dd589d090a4ec13a063a92f3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.ci_native_web.RunNativeWebCiCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/ci_native_web.py"
+sourceHash = "sha256:f839e4e1fc39c4020480d453bf9c3df2f90023a2b038faa136756f55d0e5d8d1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"

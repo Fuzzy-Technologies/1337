@@ -147,7 +147,8 @@ class CiPredicateResult:
         RequireDigest(self.snapshot_sha256)
         RequireWorkspaceText(self.run_reference, "CI run reference")
 
-        if not re.fullmatch(r"(?:artifact-run:[0-9a-f]{32}|native-scan:[0-9a-f]{64})",
+        if not re.fullmatch(
+            r"(?:artifact-run:[0-9a-f]{32}|native-scan:[0-9a-f]{64}|native-web:[0-9a-f]{64})",
                             self.run_reference):
             raise ValueError("CI result requires an original run identity")
 

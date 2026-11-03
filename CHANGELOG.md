@@ -8,6 +8,32 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 13 — v0.4.13 — 2026-11-04
+
+#### Digest
+
+- Add an explicit 1337Scope native web CI predicate over original current-run
+  evidence, preserving manual triage and complete saved-snapshot reports.
+
+#### Added
+
+- Expose `ci scan --profile native-web` for the existing Git HEAD and Prometheus
+  checks, with ordinary exact STANDARD plan confirmation and explicit
+  severity/status/count selections.
+- Publish JSON/SARIF/JUnit from one verified saved model for both criterion
+  satisfaction and violation; retain independent partial publication outcomes.
+
+#### Security
+
+- Revalidate original successful job/invocation/acquisition and exact current
+  source/detection observations before selecting Findings. Earlier retained
+  positives cannot become detections in a new negative execution.
+- Keep metadata re-normalization separate from unavailable HTTP-body replay,
+  publisher authentication, global scan completeness and reachable-risk claims.
+- Preserve current authority, report no-clobber and truthful refusal, failure,
+  uncertainty and cancellation outcomes.
+
+
 ### Patch 10 — v0.4.10 — 2026-11-03
 
 #### Digest

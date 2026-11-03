@@ -1011,3 +1011,9 @@ module = "fuzzy1337.intelligence_cwe_commands"
 source = "src/fuzzy1337/intelligence_cwe_commands.py"
 mode = "authored"
 page = "api/fuzzy1337.intelligence_cwe_commands.md"
+
+[[surfaces]]
+module = "fuzzy1337.ci_native_web"
+source = "src/fuzzy1337/ci_native_web.py"
+mode = "authored"
+page = "api/fuzzy1337.ci_native_web.md"
