@@ -27,8 +27,13 @@ FRAMEWORK_FUNCTIONS = {
     "handle",
     # HTMLParser owns these exact markup and text callbacks.
     "handle_data",
+    "handle_comment",
+    "handle_decl",
     "handle_endtag",
+    "handle_pi",
+    "handle_startendtag",
     "handle_starttag",
+    "unknown_decl",
     "log_message",
     "onecmd",
     "precmd",
@@ -127,6 +132,31 @@ def test_SocketServerOverridesRetainFrameworkNamesWithoutExemptingOwnedHelpers()
     helper = ast.parse("def serve_request():\n    pass\n").body[0]
     assert isinstance(helper, ast.FunctionDef) and not IsFrameworkFunction(helper), (
         "Recognizing the server callback must not exempt ordinary project-owned helpers."
+    )
+
+
+def test_HtmlParserCallbacksRetainFrameworkNamesWithoutExemptingOwnedHelpers():
+    """Preserve actual stdlib markup callbacks while requiring PascalCase for owned helpers."""
+
+    from html.parser import HTMLParser
+
+    source = REPOSITORY_ROOT / "src/fuzzy1337/adapters/directory_listing.py"
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    parser = next(node for node in tree.body
+                  if isinstance(node, ast.ClassDef) and node.name == "DirectoryIndexParser")
+    assert any(isinstance(base, ast.Name) and base.id == "HTMLParser" for base in parser.bases), (
+        "The parser must implement the actual standard-library dispatch interface."
+    )
+    callbacks = [node for node in parser.body if isinstance(node, ast.FunctionDef)
+                 and node.name in {"handle_startendtag", "handle_comment", "handle_decl",
+                                   "handle_pi", "unknown_decl"}]
+    assert len(callbacks) == 5 and all(hasattr(HTMLParser, node.name)
+                                      and IsFrameworkFunction(node) for node in callbacks), (
+        "Every new callback exemption must correspond to the inherited HTMLParser contract."
+    )
+    helper = ast.parse("def parse_directory():\n    pass\n").body[0]
+    assert isinstance(helper, ast.FunctionDef) and not IsFrameworkFunction(helper), (
+        "HTMLParser callbacks must not exempt an unrelated lowercase project-owned helper."
     )
 
 

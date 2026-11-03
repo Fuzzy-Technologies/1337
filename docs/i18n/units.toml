@@ -1470,7 +1470,7 @@ state = "missing"
 id = "symbol:fuzzy1337.demo.OwnedDemoTarget.Urls"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/demo.py"
-sourceHash = "sha256:12016c20b28adad0c88f122df615e978aa808008876acd1e3c341693b19def7d"
+sourceHash = "sha256:d8bfaf59e109d2e4748906b1d8e22ad9adc8041ab6b4e884b8b3b45eb6de66ef"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -1542,7 +1542,7 @@ state = "missing"
 id = "symbol:fuzzy1337.demo_commands.RunDemoCommands"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/demo_commands.py"
-sourceHash = "sha256:7de1698c7d3ba92950f081f0dbaebe576b00119d5128b86569655e9c9f62d0f0"
+sourceHash = "sha256:f8a49b5491dabd911b720e6df19436985099e5ea0dcd441a07ba263bb46f85ec"
 reviewClass = "technical"
 
 [units.translations.ru]
@@ -27182,6 +27182,225 @@ id = "symbol:fuzzy1337.intelligence_cwe_commands.WriteCweMetadata"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence_cwe_commands.py"
 sourceHash = "sha256:4801518e2a5d9bf8704945903750d55967682092add58686101a50a759c0f930"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.adapters.directory-listing"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.directory_listing.md"
+sourceHash = "sha256:fcab50fd6373e32d9206481982b5e9d8d8c4628e30f45dffc524edf7a78ad84c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.CompleteMarkup"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:a9d288a90ed4adf6cd0125ecc00f7f212352016f96ccacab3b43ce46c8ec9142"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:68381053513d59efb810f56fef8f9a72613b3c535b35d0e8346c82ed1fe0c31b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.Matches"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:017c85d4fc0bce58cf66e22e5291d90d1f7ceef5dcd06a73869c2e873c8ade11"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.handle_comment"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:25b10817e6be800c3c3461e8a89c3010e0c5b47492a78dc6b17d1411d06f5308"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.handle_data"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:c12b66643129a50a92cc88b40269b2393745efecb4889389c58ee0db9e249ed8"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.handle_decl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:be264cd104e976eace3b261aa98df7f5eb65d69aba2e7d6512e900e38e55fa52"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.handle_endtag"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:f5d15b506669593f505731604a88a8ca5e8f6f628dd222df42a4fb5c7d02a579"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.handle_pi"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:6db3fc03c4f11424530cd701cdd49827d4a693a2c8caa29fff1dc28ec90c7cd3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.handle_startendtag"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:37cc2c099d1e128e2ff935cee947f299d140a57d324955113fb6c8069013bb72"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.handle_starttag"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:2e27b4d4d3aad9c7e985b284dc0ea8dc01e93fe9073e857d1d37647642d3c0a4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.DirectoryIndexParser.unknown_decl"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:8ea50253822379db5848dcd14e7ac51544cdd9fdeaa4b3a929623541bc28c5a5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.SupportedDirectoryIndex"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:cf7e5bd2f0b02ed87ef8a43f55cb8252ab793d680ff22d9807a1b4db2892d97e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.directory_listing.UnsupportedDirectoryIndex"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/directory_listing.py"
+sourceHash = "sha256:f9ad7befb6f35167adb0cb467575a977898e9fbfe5a2f01531474a9cdef3a380"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.native_web.MatchesDirectoryIndex"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/native_web.py"
+sourceHash = "sha256:5d788e7877a76c7dc4820850ec78f79dbdb5ec0e187ee0d4e204fd18bce2ce7a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+[[units]]
+id = "page:api.fuzzy1337.demo-assessment"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.demo_assessment.md"
+sourceHash = "sha256:28bbf4262a65c53d351e4a428ddf85558efddff655004d4c205eeed1f5b81317"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.demo_assessment.AssessmentDemoPlan"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/demo_assessment.py"
+sourceHash = "sha256:e89b4391df75cdf22cef66ceb92a15b68ce47c359df3fa58a5400cc601dff34e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.demo_assessment.ReadAssessmentExecution"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/demo_assessment.py"
+sourceHash = "sha256:eb4550ff60c654896dd10eb36c32f478138f22b8cb63ac5e2bc5fce09313ead1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.demo_assessment.ReadAssessmentFinding"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/demo_assessment.py"
+sourceHash = "sha256:73e753f5025778b414221dd2d6196041020a37531615363cb771b28d4c6a98bb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.demo_assessment.RunAssessmentDemo"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/demo_assessment.py"
+sourceHash = "sha256:a04ae4a689542393959447bfdfd5dc6b74a21141da000ae4fab962b37a85b395"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

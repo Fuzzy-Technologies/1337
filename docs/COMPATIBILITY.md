@@ -953,6 +953,60 @@ not add runtime container discovery or a registry/image mutation API. See
 [ADR 0114](adr/0114-governed-local-image-reference-export.md).
 
 
+## Native directory-index observation
+
+The additive Experimental profile-one check `native.directory-index`, capability
+`web.directory-index-check`, is selected explicitly through
+`scan web --check directory-index` or the existing native web SDK. It retains the
+current exact literal-IP/query-free target, STANDARD policy/confirmation and
+one-GET workflow. Only the new profile recognizes the `text/html` media category;
+existing worker schema-one record shapes, default Git behavior, prior media
+categories and profile-specific body/framing limits remain unchanged.
+
+`fuzzy1337.adapters.directory_listing` declares only
+`MAX_DIRECTORY_INDEX_BODY_BYTES` and `SupportedDirectoryIndex` as its Experimental
+Python export surface. Its token scanner, parser class, callbacks and exception
+are Internal. Source visibility and generated documentation do not grant a
+separate execution or extension contract for those helpers.
+
+The bounded predicate recognizes matching classic index headings and relative
+basename-labelled entries in a complete supported HTML tree. A LOW exposure
+Finding establishes neither confidential file contents nor general directory
+listing coverage. Complete unmatched responses remain limited predicate results;
+failed acquisition cannot become a successful negative. Original metadata may
+be reopened offline, but discarded filenames and response bodies cannot be
+reconstructed. See [the operator profile](NATIVE_WEB_CHECKS.md) and
+[ADR 0136](adr/0136-bounded-native-directory-index-observation.md).
+
+
+## Command-owned 1337Scope assessment demo
+
+`fuzzy1337.demo_assessment` adds the Experimental schema-one
+`AssessmentDemoPlan()` and `RunAssessmentDemo(path, output, *,
+approve_standard_http=False, json_output=False)` surfaces under
+[ADR 0137](adr/0137-command-owned-native-assessment-demo.md). Other helpers and
+module constants remain Internal. The additive console and foreground-shell
+action is `demo assessment <new-output-root> --approve-standard-http`; no
+operator-selected target argument is admitted.
+
+Exact explicit STANDARD approval authorizes only the command-owned two-route
+loopback fixture. Current scope/consent, the native Git HEAD capability policy
+and a separate actual confirmation intent for each endpoint remain authoritative.
+The saved Finding must bind the exposed endpoint, original successful job and
+registered worker evidence. A distinct 404 endpoint adds no Finding and grants
+no resolution or remediation verdict for the original open LOW Finding.
+
+Stop the fixture before reopening and exporting JSON, HTML and SARIF. Pin the
+complete owner-read workspace/model state, recheck it around every export and
+require matching receipt revision/snapshot identities before successful
+completion. Drift refuses continuation while preserving already published
+original files. Native evidence retains original worker metadata and HTTP body
+hashes; the demo does not add HTTP body retention. Existing `demo local`, SAFE
+approval, source/model schemas, native check identifiers and report contracts
+retain their current behavior. See [the demo guide](DEMO.md); the complete
+canonical attack-path showcase remains separate work.
+
+
 ## 1337Scope native web CI profile
 
 The additive Experimental `ci scan --profile native-web` selection uses the

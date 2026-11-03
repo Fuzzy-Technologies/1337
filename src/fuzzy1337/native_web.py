@@ -26,6 +26,8 @@ from fuzzy1337.adapters.contracts import JsonValue
 from fuzzy1337.adapters.native_http import RequestTimeout
 from fuzzy1337.adapters.native_web import (
     MAX_NATIVE_WEB_RECORD_BYTES,
+    NATIVE_DIRECTORY_INDEX_CAPABILITY,
+    NATIVE_DIRECTORY_INDEX_CHECK_ID,
     NATIVE_FILE_CANARY_CAPABILITY,
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_FILE_CANARY_PROFILE,
@@ -96,6 +98,7 @@ __all__ = [
     "NATIVE_WEB_PROVIDER_ID", "NATIVE_WEB_CAPABILITY", "NATIVE_WEB_CHECK_ID",
     "NATIVE_FILE_CANARY_CHECK_ID", "NATIVE_FILE_CANARY_CAPABILITY", "NATIVE_FILE_CANARY_PROFILE",
     "NATIVE_PROMETHEUS_CHECK_ID", "NATIVE_PROMETHEUS_CAPABILITY",
+    "NATIVE_DIRECTORY_INDEX_CHECK_ID", "NATIVE_DIRECTORY_INDEX_CAPABILITY",
     "NativeWebAuthorityDeniedError", "NativeWebScanLimits", "NativeWebScanPlan",
     "NativeWebScanSummary", "PlanNativeWebScan", "RunNativeWebScan",
 ]
