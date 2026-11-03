@@ -257,6 +257,61 @@ def test_RehashedSelectionAndReceiptStillRequireActualOriginalGzipAgreement(tmp_
         LoadAcquiredEpssSelection(root, forged_selection.evidence_id, receipt.evidence_id)
 
 
+def test_SameWorkspaceAcquisitionSpliceRefusesBeforeOriginalRawAdmission(tmp_path, monkeypatch):
+    """Valid source bytes and rehashed wrappers cannot exchange original acquisition attribution."""
+
+    root, first = Imported(tmp_path)
+    second = AcquireLocalEpssSelection(root, Request(), scope_reference="scope:other-acquisition")
+    assert second.state is EpssAcquisitionState.SUCCEEDED and second.raw and second.receipt, (
+        "Second independent acquisition did not produce valid owning custody"
+    )
+    assert first.raw.provenance.workspace_id == second.raw.provenance.workspace_id, (
+        "Counterexample must stay inside the same owning workspace"
+    )
+    assert first.raw.evidence_id != second.raw.evidence_id, (
+        "Distinct acquisition attribution unexpectedly reused an original manifest identity"
+    )
+    store = LocalEvidenceStore(root / "evidence")
+    assert store.Read(first.raw.reference) == store.Read(second.raw.reference), (
+        "Counterexample must preserve identical valid original source bytes"
+    )
+    assert LoadAcquiredEpssSelection(root, second.selection_record.evidence_id,
+        second.receipt.evidence_id) == second.envelope, "Second original acquisition is not valid"
+
+    wrapper = store.Put(first.envelope.Serialize(), ENVELOPE_ROLE, "application/json",
+                        second.raw.provenance)
+    spliced = replace(second, source=first.source, requested_ids=first.requested_ids,
+        received_bytes=first.received_bytes, raw=first.raw, envelope=first.envelope,
+        selection_record=wrapper)
+    terminal = store.Put(CanonicalReferenceJson(spliced.ReceiptContent()), RECEIPT_ROLE,
+                         "application/json", second.raw.provenance)
+    assert json.loads(store.Read(wrapper.reference)) == json.loads(first.envelope.Serialize()), (
+        "Spliced wrapper must retain the complete original valid source and decoder content"
+    )
+    assert json.loads(store.Read(terminal.reference)) == spliced.ReceiptContent(), (
+        "Spliced receipt must be fully rehashed and internally consistent, not stale evidence"
+    )
+    original = LocalEvidenceStore.Get
+    visited = []
+
+    def Get(store, evidence_id):
+        """Observe original-manifest admission through the actual owning store implementation."""
+
+        visited.append(evidence_id)
+
+        return original(store, evidence_id)
+
+    monkeypatch.setattr(LocalEvidenceStore, "Get", Get)
+
+    with pytest.raises(ValueError, match="original raw facts disagree"):
+        LoadAcquiredEpssSelection(root, wrapper.evidence_id, terminal.evidence_id)
+
+    assert visited == [wrapper.evidence_id, terminal.evidence_id], (
+        "Mixed acquisition attribution reached original raw manifest admission"
+    )
+    assert first.raw.evidence_id not in visited, "Spliced raw acquisition was read before refusal"
+
+
 def test_ForeignWorkspaceCannotAdoptCopiedOriginalManifests(tmp_path):
     """Identical raw bytes and full copied manifests do not establish another owner's custody."""
 
