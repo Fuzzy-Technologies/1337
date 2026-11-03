@@ -26738,6 +26738,270 @@ state = "missing"
 state = "missing"
 
 [[units]]
+id = "page:api.fuzzy1337.intelligence-cwe-acquisition"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_cwe_acquisition.md"
+sourceHash = "sha256:7d0a28e958d1fa762a3374ad609fc77b343fb245e83852fd975c7681478695e5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.intelligence-cwe-notice"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_cwe_notice.md"
+sourceHash = "sha256:d6097091d3e13ceda46f50dcd5265de72d79fb994a91d1b72f8c4df896e959a6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.AcquireLocalCweSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:7598960974c71f95a1ae5b93d7791d30f8194a8f4cf3ef52c7be9234f7028959"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.BoundedCweEvidenceStore"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:0fcbbfa06394953c0d9eccc719e59b63cfda4410c878775ca68979c99481f5eb"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.BoundedCweEvidenceStore.Read"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:00585fef24fd0ef744117440cdee16c427ef120961929bbd3e4b7843c7470c76"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.BoundedEncode"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:fd37998bfa56228f70f7d74c625e699737be38e6f5c7cedbc6f31576064ddff7"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweAcknowledgement"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:6b29724237dfba9f54e40299ce0f64055e5593dab2ab8ec6f054cbab60f7ba01"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweAcquiredSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:301d095ed94f6bbad474c0e5a1390a8edf61e1a42f5362d9c28f9e81460bd14a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweAcquiredSelection.Reference"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:59a01ed01cc448a3ff65c722a79b0ad66432f8810a088825d610673a93ebd8a5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweAcquiredSelection.Serialize"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:8b892876e8e7ee1163a455dd53d89fc1ad24bd05a0a9c70a050a92507b2c275f"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweAcquiredSelection.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:9dc59cb43ca810da3bffd54d5b0962721457b1dd84a430756ecc05c15c56048a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweAcquisitionOutcome"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:d73b6a5ceec7f52931a545963820f94054a2bb941b8b11e0d0139c30fedcad53"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweAcquisitionOutcome.ReceiptContent"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:c95bdade2c05a17ec69032cdc6d427ee9fa6d5d2712da92a6acab9c16a836a78"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweAcquisitionState"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:a4537436bcaa678afb5d80d917f07a3a30fcf0f96d1e622e5e87bcf2e48b904b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweLocalRequest"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:91aa205aa46548b9bda99246ab6d791328bbcb02ca1477ccebaae09146674ad3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweLocalSource"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:fc90a1f397e709c5ec84afe3482d75ad880b3ff302279c2cd6df7335345cbcd2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.CweLocalSource.ToDict"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:28f31a2acb04aaaae25f2f267edd1e3b09b4a86f2d86854013ad0bc01e9f0488"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.DecodeSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:4563418cba0a315d7688644f52eb22b8467cb51235001da670a0b5ce3c29327b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.DecodeSource"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:3d16c187c981cec44a48bbfdeb2d873ed7826d8b3bae2a32b5ac430917641389"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.JsonObject"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:6d8eeab1874d1a4ed9324412646f283155b0ebe337fa8bccd5c01158979fdee6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.LoadAcquiredCweSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:837da23eefd4aba575cc0224f13f9326c124522e5f336f8e0fa6275a190713a5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.ReadBounded"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:3c6d9570d64a74668e9f4cde797d9e37d6bab458ba41b68d8aea1e41d98b78a9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_acquisition.RequireRecord"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_acquisition.py"
+sourceHash = "sha256:5bc2d269628d2c12a10ceeb9e526940a2ff8a94052640ef37b3ba1d009569964"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_notice.CweNoticeBundle"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_notice.py"
+sourceHash = "sha256:8d31e268e5743affa3e4f03499875ce58a2ae11ec07095ab82f7cb7ccf0064ff"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
 id = "page:api.fuzzy1337.trivy-license-policy"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.trivy_license_policy.md"
