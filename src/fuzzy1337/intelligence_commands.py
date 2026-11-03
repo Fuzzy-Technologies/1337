@@ -465,6 +465,11 @@ def RunIntelCommands(
         or 130 for interruption. A failed save may have committed; the outcome states uncertainty.
     """
 
+    if arguments and arguments[0] == "cwe":
+        from fuzzy1337.intelligence_cwe_commands import RunCweIntelCommands
+
+        return RunCweIntelCommands(arguments[1:], output, json_output=json_output)
+
     if arguments and arguments[0] == "epss":
         from fuzzy1337.intelligence_epss_commands import RunEpssIntelCommands
 

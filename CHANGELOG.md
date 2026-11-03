@@ -8,6 +8,28 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 10 — v0.4.10 — 2026-11-03
+
+#### Digest
+
+- Expose explicit local selected CWE import and original offline inspection
+  through the ordinary Intel CLI and shell routes.
+
+#### Added
+
+- Add `intel cwe import` with exact catalog, mandatory source byte pin,
+  explicit selected identifiers, scope and a bounded local file read.
+- Add `intel cwe inspect` with exact immutable selection and receipt roots,
+  retaining source notices and original supported, unsupported and absent states.
+
+#### Security
+
+- Reuse accepted local custody and complete original ZIP replay; refuse changed
+  roots, source corruption and oversized input without model application.
+- Preserve independent publication acknowledgements, explicit failure outcomes
+  and catalog-day precision without network acquisition or inferred target risk.
+
+
 ### Patch 9 — v0.4.9 — 2026-11-03
 
 #### Digest
