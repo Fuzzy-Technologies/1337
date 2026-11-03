@@ -433,10 +433,10 @@ def PathDocument(result: PathAnalysis) -> dict[str, object]:
 
 
 def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bool = False) -> int:
-    """Analyze only an explicitly pinned saved selected graph without any durable writes.
+    """Analyze or compare explicitly pinned saved selected graphs without durable writes.
 
     Args:
-        arguments: Analyze action, existing workspace, selections, clock and finite budgets.
+        arguments: Analyze or compare action, explicit saved selections, clock and finite budgets.
         output: Caller-owned stream receiving bounded JSON, HTML or a concise human explanation.
         json_output: Emit a schema-one DTO without raw evidence, observations or private seals.
 
@@ -445,6 +445,11 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
         output failure, and 130 for interruption. Truncated analysis is honest completed output;
         no-path/cuts/completeness concern only the explicit selected graph and declared limits.
     """
+
+    if arguments and arguments[0] == "compare":
+        from fuzzy1337.path_comparison_commands import RunPathComparisonCommands
+
+        return RunPathComparisonCommands(arguments[1:], output, json_output=json_output)
 
     parser = PathParser()
 
