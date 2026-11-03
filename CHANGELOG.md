@@ -8,6 +8,34 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 12 — v0.4.12 — 2026-11-04
+
+#### Digest
+
+- Add a command-owned 1337Scope assessment demo connecting actual native
+  vulnerability detection, verified original evidence and readable offline HTML.
+
+#### Added
+
+- Expose `demo assessment <new-output-root> --approve-standard-http` for one
+  inert Git HEAD exposure and a separately confirmed fixed-endpoint control.
+- Retain the actual open LOW Finding, original worker metadata and hashes,
+  per-endpoint plans and receipts, evidence index and JSON/HTML/SARIF exports.
+- Verify the clean installed CLI, offline reopen, existing-root refusal,
+  expired consent, changed confirmation, corruption and failure cleanup.
+
+#### Security
+
+- Require separate explicit STANDARD approval before acquiring resources;
+  preserve existing SAFE-only `demo local` behavior and ordinary policy checks.
+- Bind the Finding to the exact exposed endpoint, successful job, scope and
+  registered original evidence. Stop the target before offline processing and
+  require one pinned workspace/model snapshot across every export.
+- Preserve actual partial publication and lost-acknowledgement outcomes;
+  a different fixed endpoint does not resolve the original Finding or establish
+  attack paths, remediation, CVE applicability or complete scanner coverage.
+
+
 ### Patch 10 — v0.4.10 — 2026-11-03
 
 #### Digest

@@ -951,3 +951,31 @@ synthetic profiles retain their prior behavior when the pin is absent. This does
 not add runtime container discovery or a registry/image mutation API. See
 [the operator recipe](LOCAL_IMAGE_REFERENCE.md) and
 [ADR 0114](adr/0114-governed-local-image-reference-export.md).
+
+
+## Command-owned 1337Scope assessment demo
+
+`fuzzy1337.demo_assessment` adds the Experimental schema-one
+`AssessmentDemoPlan()` and `RunAssessmentDemo(path, output, *,
+approve_standard_http=False, json_output=False)` surfaces under
+[ADR 0137](adr/0137-command-owned-native-assessment-demo.md). Other helpers and
+module constants remain Internal. The additive console and foreground-shell
+action is `demo assessment <new-output-root> --approve-standard-http`; no
+operator-selected target argument is admitted.
+
+Exact explicit STANDARD approval authorizes only the command-owned two-route
+loopback fixture. Current scope/consent, the native Git HEAD capability policy
+and a separate actual confirmation intent for each endpoint remain authoritative.
+The saved Finding must bind the exposed endpoint, original successful job and
+registered worker evidence. A distinct 404 endpoint adds no Finding and grants
+no resolution or remediation verdict for the original open LOW Finding.
+
+Stop the fixture before reopening and exporting JSON, HTML and SARIF. Pin the
+complete owner-read workspace/model state, recheck it around every export and
+require matching receipt revision/snapshot identities before successful
+completion. Drift refuses continuation while preserving already published
+original files. Native evidence retains original worker metadata and HTTP body
+hashes; the demo does not add HTTP body retention. Existing `demo local`, SAFE
+approval, source/model schemas, native check identifiers and report contracts
+retain their current behavior. See [the demo guide](DEMO.md); the complete
+canonical attack-path showcase remains separate work.
