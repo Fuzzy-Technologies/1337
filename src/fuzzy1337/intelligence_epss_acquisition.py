@@ -419,7 +419,7 @@ def AcquireLocalEpssSelection(
         serialized_receipt = CanonicalReferenceJson(outcome.ReceiptContent())
 
         if len(serialized_receipt) > MAX_RECEIPT_BYTES:
-            raise ValueError("EPSS receipt exceeds its byte profile")
+            return replace(outcome, state=EpssAcquisitionState.STORAGE_FAILED, envelope=None)
 
         outcome = replace(outcome, receipt_ack=EpssAcknowledgement.UNKNOWN)
         receipt = store.Put(serialized_receipt, RECEIPT_ROLE, "application/json", provenance)
