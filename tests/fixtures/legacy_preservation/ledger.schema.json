@@ -1,0 +1,434 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuzzy-technologies:1337:development:legacy-preservation:1",
+  "title": "1337Scope historical preservation snapshot, not executed acceptance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "reviewed_source_date",
+    "current_reference_commit",
+    "owning_issue",
+    "input_sources",
+    "qa_sources",
+    "families",
+    "xss_cases",
+    "xss_refinements",
+    "qa_requirements",
+    "limits"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "const": "1337scope.legacy-preservation"
+    },
+    "reviewed_source_date": {
+      "const": "2026-11-03"
+    },
+    "current_reference_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "owning_issue": {
+      "const": 409
+    },
+    "input_sources": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "sha256",
+          "size_bytes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "qa_sources": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "input_id",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "input_id": {
+            "const": "qa-archive"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "families": {
+      "type": "array",
+      "minItems": 19,
+      "maxItems": 19,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "source",
+          "owner_issues",
+          "disposition",
+          "current_scope",
+          "current_source_paths",
+          "current_test_refs",
+          "current_run_evidence",
+          "preserved_requirements"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^legacy\\.family\\.[a-z0-9-]+$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "input_id",
+              "path",
+              "sha256",
+              "line_anchors"
+            ],
+            "properties": {
+              "input_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "line_anchors": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "owner_issues": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "disposition": {
+            "enum": [
+              "partial",
+              "planned",
+              "shared-foundation"
+            ]
+          },
+          "current_scope": {
+            "type": "string",
+            "minLength": 1
+          },
+          "current_source_paths": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "current_test_refs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "current_run_evidence": {
+            "type": "null"
+          },
+          "preserved_requirements": {
+            "type": "array",
+            "minItems": 2,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "xss_cases": {
+      "type": "array",
+      "minItems": 60,
+      "maxItems": 60,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "source_id",
+          "source_row",
+          "historical_label_sha256",
+          "kind",
+          "historical_browsers",
+          "language",
+          "protection",
+          "delivery",
+          "context",
+          "historical_target_ready",
+          "historical_autotest_ready",
+          "disposition",
+          "owner_issue",
+          "dependencies",
+          "current_state",
+          "current_run_evidence",
+          "current_test_ref"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^legacy\\.xss\\.[0-9]{3}$"
+          },
+          "source_id": {
+            "const": "qa-xss-design"
+          },
+          "source_row": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 60
+          },
+          "historical_label_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "kind": {
+            "enum": [
+              "reflected",
+              "stored"
+            ]
+          },
+          "historical_browsers": {
+            "const": [
+              "IE",
+              "FF",
+              "CHR"
+            ]
+          },
+          "language": {
+            "const": "javascript"
+          },
+          "protection": {
+            "const": "none"
+          },
+          "delivery": {
+            "enum": [
+              "get",
+              "post",
+              "cookie",
+              "header",
+              "url"
+            ]
+          },
+          "context": {
+            "enum": [
+              "html-text",
+              "html-attribute",
+              "html-tag",
+              "ajax",
+              "redirect",
+              "script"
+            ]
+          },
+          "historical_target_ready": {
+            "type": "boolean"
+          },
+          "historical_autotest_ready": {
+            "type": "boolean"
+          },
+          "disposition": {
+            "const": "planned"
+          },
+          "owner_issue": {
+            "const": 412
+          },
+          "dependencies": {
+            "const": [
+              146,
+              155,
+              157
+            ]
+          },
+          "current_state": {
+            "const": "not-run"
+          },
+          "current_run_evidence": {
+            "type": "null"
+          },
+          "current_test_ref": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "xss_refinements": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "source_id",
+          "owner_issues",
+          "disposition",
+          "requirement",
+          "current_state",
+          "current_run_evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^legacy\\.xss-refinement\\.[a-z0-9-]+$"
+          },
+          "source_id": {
+            "const": "qa-xss-mindmap"
+          },
+          "owner_issues": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "disposition": {
+            "enum": [
+              "planned",
+              "decision-required"
+            ]
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "current_state": {
+            "const": "not-run"
+          },
+          "current_run_evidence": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "qa_requirements": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "source_id",
+          "owner_issues",
+          "disposition",
+          "current_state",
+          "current_run_evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^legacy\\.qa\\.[a-z0-9-]+$"
+          },
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner_issues": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "disposition": {
+            "const": "planned-continuation"
+          },
+          "current_state": {
+            "const": "not-run"
+          },
+          "current_run_evidence": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    "limits": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
