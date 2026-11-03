@@ -105,9 +105,14 @@ def RequireNewDemoRoot(path: Path) -> Path:
 class OwnedDemoTarget:
     """Own one finite non-secret service, listening thread and exact request receipt."""
 
-    def __init__(self) -> None:
-        """Initialize ownership bookkeeping without opening a socket or starting a thread."""
+    def __init__(self, *, assessment: bool = False) -> None:
+        """Select one closed response profile without opening a socket or starting a thread."""
 
+        if type(assessment) is not bool:
+            raise DemoFailure("configuration", 2)
+
+        self.assessment = assessment
+        self.routes = ("/.git/HEAD", "/fixed/.git/HEAD") if assessment else DEMO_ROUTES
         self.server: HTTPServer | None = None
         self.thread: Thread | None = None
         self.ready = Event()
@@ -180,26 +185,41 @@ class OwnedDemoTarget:
             handle_error = HandleError
 
         class Handler(BaseHTTPRequestHandler):
-            """Serve three bounded synthetic routes without exposing filesystem contents."""
+            """Serve the selected fixed synthetic routes without exposing filesystem contents."""
 
             def do_GET(self) -> None:
-                """Record an actually received request and return an empty synthetic response."""
+                """Record actual requests and return only the selected closed synthetic profile."""
 
-                status = {"/": 200, "/health": 204, "/redirect": 302}.get(self.path, 404)
+                if owner.assessment:
+                    exposed = self.path == "/.git/HEAD"
+                    status = 200 if exposed else 404
+                    body = b"ref: refs/heads/main\n" if exposed else b"Not Found\n"
+
+                else:
+                    status = {"/": 200, "/health": 204, "/redirect": 302}.get(self.path, 404)
+                    body = b""
 
                 with owner.lock:
                     if len(owner.requests) < 16:
                         owner.requests.append({"method": "GET",
-                                               "path": self.path if self.path in DEMO_ROUTES else (
+                                               "path": self.path if self.path in owner.routes else (
                                                    "<unselected>"), "status": status})
 
                 self.send_response(status)
-                self.send_header("Content-Length", "0")
+                self.send_header("Content-Length", str(len(body)))
 
-                if self.path == "/redirect":
+                if owner.assessment:
+                    self.send_header("Content-Type", "text/plain")
+                    self.send_header("Connection", "close")
+
+                if not owner.assessment and self.path == "/redirect":
                     self.send_header("Location", "/not-selected")
 
                 self.end_headers()
+
+                if owner.assessment:
+                    self.wfile.write(body)
+                    self.close_connection = True
 
             def log_message(self, format: str, *args: object) -> None:
                 """Suppress framework diagnostics; exact bounded requests remain in the receipt."""
@@ -226,7 +246,7 @@ class OwnedDemoTarget:
         """Return only the fixed explicit endpoints of the started command-owned service.
 
         Returns:
-            Three exact literal-IP URLs; never discovered or externally supplied targets.
+            Exact literal-IP URLs for the closed selected profile, never supplied targets.
 
         Raises:
             DemoFailure: The service was not started or has already stopped.
@@ -235,7 +255,7 @@ class OwnedDemoTarget:
         if self.port is None or self.stopped:
             raise DemoFailure("target")
 
-        return tuple(f"http://127.0.0.1:{self.port}{route}" for route in DEMO_ROUTES)
+        return tuple(f"http://127.0.0.1:{self.port}{route}" for route in self.routes)
 
     def Close(self) -> None:
         """Attempt service shutdown/socket close and verify the owning thread was reaped.

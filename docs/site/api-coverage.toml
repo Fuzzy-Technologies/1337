@@ -1017,3 +1017,8 @@ module = "fuzzy1337.adapters.directory_listing"
 source = "src/fuzzy1337/adapters/directory_listing.py"
 mode = "authored"
 page = "api/fuzzy1337.adapters.directory_listing.md"
+[[surfaces]]
+module = "fuzzy1337.demo_assessment"
+source = "src/fuzzy1337/demo_assessment.py"
+mode = "authored"
+page = "api/fuzzy1337.demo_assessment.md"

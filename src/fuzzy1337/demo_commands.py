@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import NoReturn, TextIO
 
 from fuzzy1337.demo import DemoFailure, RunLocalDemo
+from fuzzy1337.demo_assessment import RunAssessmentDemo
 
 __all__ = ["RunDemoCommands"]
 
@@ -37,10 +38,10 @@ class DemoArgumentParser(argparse.ArgumentParser):
 def RunDemoCommands(
     arguments: Sequence[str], output: TextIO, *, json_output: bool = False,
 ) -> int:
-    """Parse only the bounded local demo plan; explicit approval precedes all mutations.
+    """Parse the selected closed demo plan; action-specific approval precedes all mutations.
 
     Args:
-        arguments: `local`, a new output root and optional `--approve-safe-http`.
+        arguments: A closed action, a new root and its optional separate HTTP approval flag.
         output: Caller-owned terminal stream.
         json_output: Write one schema-v1 outcome instead of live presentation.
 
@@ -49,10 +50,12 @@ def RunDemoCommands(
     """
 
     parser = DemoArgumentParser(prog="1337 demo", add_help=False)
-    parser.add_argument("action", choices=("local",))
+    parser.add_argument("action", choices=("local", "assessment"))
     parser.add_argument("output_root", type=Path)
     parser.add_argument("--approve-safe-http", action="store_true",
                         help="Approve only the command-owned localhost SAFE HTTP demo.")
+    parser.add_argument("--approve-standard-http", action="store_true",
+                        help="Approve only the closed command-owned 1337Scope STANDARD assessment.")
 
     if "--help" in arguments or "-h" in arguments:
         parser.print_help(file=output)
@@ -62,9 +65,14 @@ def RunDemoCommands(
     try:
         options = parser.parse_args(arguments)
 
+        if (options.action == "local" and options.approve_standard_http
+                or options.action == "assessment" and options.approve_safe_http):
+            raise DemoFailure("configuration", 2)
+
     except DemoFailure:
         if json_output:
-            output.write(json.dumps({"schema_version": 1, "command": "demo.local",
+            output.write(json.dumps({"schema_version": 1, "command": "demo.assessment" if (
+                arguments and arguments[0] == "assessment") else "demo.local",
                                      "state": "failed", "exit_status": 2,
                                      "phase": "configuration", "failure": "configuration"}) + "\n")
 
@@ -73,6 +81,11 @@ def RunDemoCommands(
         output.flush()
 
         return 2
+
+    if options.action == "assessment":
+        return RunAssessmentDemo(options.output_root, output,
+                                 approve_standard_http=options.approve_standard_http,
+                                 json_output=json_output)
 
     return RunLocalDemo(options.output_root, output,
                         approve_safe_http=options.approve_safe_http, json_output=json_output)

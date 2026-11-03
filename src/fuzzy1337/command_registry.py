@@ -234,8 +234,10 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="demo",
-            summary="Run an explicitly approved command-owned local SAFE discovery demo.",
-            usage="1337 demo local <new-output-root> [--approve-safe-http]",
+            summary=("Run owned SAFE discovery or STANDARD 1337Scope assessment "
+                     "with separate approval."),
+            usage=("1337 demo local <new-output-root> [--approve-safe-http] | "
+                   "1337 demo assessment <new-output-root> [--approve-standard-http]"),
             capabilities=("workbench.local-demo",),
         ),
         CommandDescriptor(
