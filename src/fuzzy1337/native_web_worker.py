@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 
 from fuzzy1337.adapters.native_http import RequestTimeout
 from fuzzy1337.adapters.native_web import (
+    NATIVE_DIRECTORY_INDEX_CHECK_ID,
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_FILE_CANARY_PROFILE,
     NATIVE_PROMETHEUS_CHECK_ID,
@@ -122,8 +123,12 @@ def Headers(
             raise NativeWebProtocolError
 
     media = values.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
-    category = media.decode("ascii") if media in {b"text/plain", b"application/octet-stream"} \
-        else "other"
+    media_types = {b"text/plain", b"application/octet-stream"}
+
+    if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID:
+        media_types.add(b"text/html")
+
+    category = media.decode("ascii") if media in media_types else "other"
 
     return status, category, size
 
@@ -348,8 +353,10 @@ def Probe(
 
         parsed = urlsplit(target.value)
         request_target = parsed.path + ("?" + parsed.query if template is not None else "")
+        accept = "text/html" if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID else (
+            "text/plain, application/octet-stream")
         request = (f"GET {request_target} HTTP/1.1\r\nHost: {parsed.netloc}\r\n"
-                   "Connection: close\r\nAccept: text/plain, application/octet-stream\r\n"
+                   f"Connection: close\r\nAccept: {accept}\r\n"
                    "Accept-Encoding: identity\r\n\r\n")
         connection.settimeout(Remaining(deadline))
         connection.sendall(request.encode("ascii"))
@@ -445,7 +452,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
         if len(arguments) == 2:
             record = Probe(arguments[0], float(arguments[1]))
 
-        elif len(arguments) == 3 and arguments[2] == NATIVE_PROMETHEUS_CHECK_ID:
+        elif len(arguments) == 3 and arguments[2] in {
+            NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID,
+        }:
             record = Probe(arguments[0], float(arguments[1]), check_id=arguments[2])
 
         elif len(arguments) == 4 and arguments[2] == NATIVE_FILE_CANARY_CHECK_ID:

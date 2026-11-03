@@ -200,10 +200,11 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="scan",
-            summary=("Run governed discovery, owned content crawl, checks, "
+            summary=("Run governed discovery, owned content crawl, 1337Scope web checks, "
                      "synthetic/native images or configurations."),
             usage="1337 scan <quick|crawl|ports|web|nuclei|image|config> <workspace>",
             capabilities=("http.endpoint-discovery", "web.git-head-check",
+                          "web.directory-index-check",
                           "http.owned-loopback-crawl",
                           "network.tcp-connect",
                           "image.archive-vulnerabilities",

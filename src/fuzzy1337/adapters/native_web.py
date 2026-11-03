@@ -31,6 +31,7 @@ from fuzzy1337.adapters import (
     NormalizedObservation,
 )
 from fuzzy1337.adapters.contracts import JsonValue
+from fuzzy1337.adapters.directory_listing import SupportedDirectoryIndex
 from fuzzy1337.adapters.native_http import Endpoint, RequestTimeout
 from fuzzy1337.adapters.prometheus_exposition import (
     MAX_PROMETHEUS_BODY_BYTES,
@@ -49,6 +50,8 @@ NATIVE_FILE_CANARY_CAPABILITY = "web.file-canary-check"
 NATIVE_FILE_CANARY_PROFILE = "owned-loopback-file-canary-query-v1"
 NATIVE_PROMETHEUS_CHECK_ID = "native.prometheus-exposition"
 NATIVE_PROMETHEUS_CAPABILITY = "web.prometheus-exposition-check"
+NATIVE_DIRECTORY_INDEX_CHECK_ID = "native.directory-index"
+NATIVE_DIRECTORY_INDEX_CAPABILITY = "web.directory-index-check"
 MAX_NATIVE_WEB_RECORD_BYTES = 4096
 MAX_NATIVE_WEB_BODY_BYTES = 4096
 NATIVE_WEB_MEDIA_TYPES = frozenset({"text/plain", "application/octet-stream", "other"})
@@ -194,6 +197,22 @@ def MatchesPrometheus(status: int, media_type: str, body: bytes) -> bool:
             and SupportedExposition(body))
 
 
+def MatchesDirectoryIndex(status: int, media_type: str, body: bytes) -> bool:
+    """Require HTML/200 and the complete finite classic directory-index structure.
+
+    Args:
+        status: Actual complete response status, requiring integer 200.
+        media_type: Fixed response category, requiring this profile's explicit text/html.
+        body: Transient complete response bytes, never retained by the check.
+
+    Returns:
+        Whether a supported index format is observed, without following or retrieving entries.
+    """
+
+    return (type(status) is int and status == 200 and media_type == "text/html"
+            and SupportedDirectoryIndex(body))
+
+
 _CHECKS = MappingProxyType({
     NATIVE_WEB_CHECK_ID: NativeWebCheck(NATIVE_WEB_CHECK_ID, NATIVE_WEB_CAPABILITY,
         "git-head-exposure", "Exposed supported Git HEAD symbolic reference", MatchesGitHead),
@@ -204,6 +223,9 @@ _CHECKS = MappingProxyType({
         NATIVE_PROMETHEUS_CAPABILITY, "prometheus-exposition",
         "Anonymous response contains supported Prometheus exposition", MatchesPrometheus,
         max_body_bytes=MAX_PROMETHEUS_BODY_BYTES),
+    NATIVE_DIRECTORY_INDEX_CHECK_ID: NativeWebCheck(NATIVE_DIRECTORY_INDEX_CHECK_ID,
+        NATIVE_DIRECTORY_INDEX_CAPABILITY, "directory-index",
+        "Response contains a supported classic HTML directory index", MatchesDirectoryIndex),
 })
 _DESCRIPTOR = AdapterDescriptor(
     NATIVE_WEB_PROVIDER_ID, "Native bounded response checks", NATIVE_WEB_VERSION,
@@ -267,7 +289,7 @@ def NativeWebParameters(
     parameters: dict[str, object] = {"url": url,
                                    "timeout_seconds": RequestTimeout(timeout_seconds)}
 
-    if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+    if check_id in {NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID}:
         parameters["check_id"] = check_id
 
     if check_id == NATIVE_FILE_CANARY_CHECK_ID:
@@ -350,7 +372,8 @@ def ParseNativeWebRecord(
             or type(record["body_bytes"]) is not int
             or not 0 <= record["body_bytes"] <= check.max_body_bytes
             or type(record["media_type"]) is not str
-            or record["media_type"] not in NATIVE_WEB_MEDIA_TYPES
+            or record["media_type"] not in (NATIVE_WEB_MEDIA_TYPES | {"text/html"}
+                if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID else NATIVE_WEB_MEDIA_TYPES)
             or type(record["body_sha256"]) is not str
             or _SHA256.fullmatch(record["body_sha256"]) is None
             or type(record["matched"]) is not bool
@@ -371,6 +394,12 @@ def ParseNativeWebRecord(
 
         if check_id == NATIVE_PROMETHEUS_CHECK_ID and record["matched"] and (
             record["status"] != 200 or record["media_type"] != "text/plain"
+            or record["body_bytes"] == 0
+        ):
+            raise ValueError
+
+        if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID and record["matched"] and (
+            record["status"] != 200 or record["media_type"] != "text/html"
             or record["body_bytes"] == 0
         ):
             raise ValueError
@@ -442,7 +471,7 @@ class NativeWebAdapter:
 
         expected = {"url", "timeout_seconds"}
 
-        if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+        if check_id in {NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID}:
             expected.add("check_id")
 
         if check_id == NATIVE_FILE_CANARY_CHECK_ID:
@@ -457,7 +486,7 @@ class NativeWebAdapter:
         suffix: tuple[str, ...] = ()
         workspace_id = None
 
-        if check_id == NATIVE_PROMETHEUS_CHECK_ID:
+        if check_id in {NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID}:
             suffix = (check_id,)
 
         if check_id == NATIVE_FILE_CANARY_CHECK_ID:
