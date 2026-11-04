@@ -790,9 +790,9 @@ def test_ServerBootstrapNeverMountsOrRelaxesRunnerPrivateControls():
     import inspect
 
     source = inspect.getsource(platform.Run)
-    assert 'Bootstrap(server_identity, token, Checked)' in source, (
+    assert 'Bootstrap(serverIdentity, token, Checked)' in source, (
         "The real owned cohort must use its validated private-stdin bootstrap boundary")
-    assert '("docker", "port", server_identity, "80/tcp")' in source, (
+    assert '("docker", "port", serverIdentity, "80/tcp")' in source, (
         "Published-port observation must bind the created ID instead of its mutable name")
     assert all(value not in source for value in (
         "bootstrap-token", "bootstrap.rb", "/owned-private", "chmod(0o755)", "chmod(0o777)"
