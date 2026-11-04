@@ -82,18 +82,26 @@ def test_FiniteComparisonKeepsMissesAndFalsePositivesSeparateFromAnomalies():
 
     assert row["state"] == "comparable", "The exact oracle and selected profiles must join."
     assert row["reason"] is None, "Comparable runs do not have an incomparability reason."
-    assert row["baseline"]["finite_counts"] == {"tp": 1, "fp": 0, "fn": 0, "tn": 1}
-    assert row["candidate"]["finite_counts"] == {"tp": 0, "fp": 1, "fn": 1, "tn": 0}
-    assert row["baseline"]["unexpected_detections"] == ["irrelevant"]
-    assert row["candidate"]["unexpected_detections"] == ["unknown"]
-    assert row["candidate"]["missing_evidence"] == ["stderr"]
-    assert row["candidate"]["evidence_completeness"] == 0.5
-    assert row["baseline"]["duration_seconds"] == 1.25
-    assert row["candidate"]["duration_seconds"] == 2.5
+    assert row["baseline"]["finite_counts"] == {"tp": 1, "fp": 0, "fn": 0, "tn": 1}, (
+        "The baseline must count one true positive and one true negative."
+    )
+    assert row["candidate"]["finite_counts"] == {"tp": 0, "fp": 1, "fn": 1, "tn": 0}, (
+        "The candidate must count one false positive and one false negative."
+    )
+    assert row["baseline"]["unexpected_detections"] == ["irrelevant"], (
+        "A detection on a non-applicable check must stay outside finite counts."
+    )
+    assert row["candidate"]["unexpected_detections"] == ["unknown"], (
+        "An undeclared detection must be reported separately from false positives."
+    )
+    assert row["candidate"]["missing_evidence"] == ["stderr"], "Identify the absent stderr role."
+    assert row["candidate"]["evidence_completeness"] == 0.5, "One of two required roles is present."
+    assert row["baseline"]["duration_seconds"] == 1.25, "Preserve the baseline scanner duration."
+    assert row["candidate"]["duration_seconds"] == 2.5, "Preserve the candidate scanner duration."
     assert row["checks"] == [
         {"check_id": "negative", "baseline": "tn", "candidate": "fp", "change": "regressed"},
         {"check_id": "positive", "baseline": "tp", "candidate": "fn", "change": "regressed"},
-    ]
+    ], "Both regressed checks must retain their separate before and after outcomes."
 
 
 @pytest.mark.parametrize(("after_detections", "verdicts"), [
@@ -107,7 +115,9 @@ def test_StableOrCorrectedMistakesStayVisible(after_detections, verdicts):
     row = Compare(oracle, oracle, Run(BEFORE, ("negative",)), Run(AFTER, after_detections))
 
     assert [(check["baseline"], check["candidate"], check["change"])
-            for check in row["checks"]] == verdicts
+            for check in row["checks"]] == verdicts, (
+        "Keep corrected mistakes distinct from unchanged mistakes by check."
+    )
 
 
 def test_CompatibleOracleIgnoresOnlyDeclarationOrder():
@@ -118,8 +128,10 @@ def test_CompatibleOracleIgnoresOnlyDeclarationOrder():
         required_evidence=oracle.required_evidence[::-1])
     row = Compare(oracle, reordered, Run(BEFORE), Run(AFTER))
 
-    assert row["state"] == "comparable"
-    assert row["baseline"]["oracle_sha256"] == row["candidate"]["oracle_sha256"]
+    assert row["state"] == "comparable", "Declaration order must not prevent comparison."
+    assert row["baseline"]["oracle_sha256"] == row["candidate"]["oracle_sha256"], (
+        "Equivalent oracles must retain the same identity after reordering."
+    )
 
 
 @pytest.mark.parametrize(("oracle_change", "profile", "reason"), [
@@ -138,11 +150,15 @@ def test_IncompatibleOracleOrProfileCannotSupplyComparisonCredits(oracle_change,
     row = Compare(Oracle(), Oracle(**oracle_change), Run(BEFORE), Run(AFTER),
         after=comparison.Selection(AFTER.release_id, profile))
 
-    assert row["state"] == "incomparable"
-    assert row["reason"] == reason
-    assert row["checks"] == []
-    assert row["baseline"]["finite_counts"] is row["candidate"]["finite_counts"] is None
-    assert row["baseline"]["state"] == row["candidate"]["state"] == "completed"
+    assert row["state"] == "incomparable", "Incompatible inputs must not be scored as a pair."
+    assert row["reason"] == reason, "Identify the exact incompatible oracle or profile property."
+    assert row["checks"] == [], "Suppress paired check verdicts when the inputs are incompatible."
+    assert row["baseline"]["finite_counts"] is row["candidate"]["finite_counts"] is None, (
+        "Withhold finite counts on both sides of an incompatible comparison."
+    )
+    assert row["baseline"]["state"] == row["candidate"]["state"] == "completed", (
+        "Oracle incompatibility must not rewrite either scanner's execution state."
+    )
 
 
 @pytest.mark.parametrize(("state", "oracle", "reason"), [
@@ -156,11 +172,11 @@ def test_PartialOrQualitativeEvidenceDoesNotBecomeAccuracy(state, oracle, reason
 
     row = Compare(oracle, oracle, Run(BEFORE), Run(AFTER, status=state))
 
-    assert row["reason"] == reason
-    assert row["candidate"]["state"] == state.value
-    assert row["candidate"]["duration_seconds"] == 1.25
-    assert row["candidate"]["detected_checks"] == []
-    assert row["candidate"]["finite_counts"] is None
+    assert row["reason"] == reason, "Identify the run or oracle condition that prevents scoring."
+    assert row["candidate"]["state"] == state.value, "Preserve the original candidate run state."
+    assert row["candidate"]["duration_seconds"] == 1.25, "Retain the observed partial duration."
+    assert row["candidate"]["detected_checks"] == [], "Keep the observed empty detection list."
+    assert row["candidate"]["finite_counts"] is None, "Withhold finite counts for ineligible runs."
 
 
 def test_MissingScenarioAndMissingSelectedRunStayDistinct():
@@ -179,9 +195,13 @@ def test_MissingScenarioAndMissingSelectedRunStayDistinct():
         ("owned.absent", "missing-scenario", "absent-scenario"),
         ("owned.case", "missing-run", "not-run"),
         ("owned.unexecuted", "missing-run", "not-run"),
-    ]
-    assert all(row["candidate"]["duration_seconds"] is None for row in rows)
-    assert all(row["candidate"]["finite_counts"] is None for row in rows)
+    ], "Distinguish absent scenarios and missing selected runs in scenario order."
+    assert all(row["candidate"]["duration_seconds"] is None for row in rows), (
+        "Do not borrow a duration from another scanner or release."
+    )
+    assert all(row["candidate"]["finite_counts"] is None for row in rows), (
+        "An absent candidate run must not create finite counts."
+    )
 
 
 def test_MatrixAndScoreClaimsCannotOverrideOriginalRecords():
@@ -196,7 +216,7 @@ def test_MatrixAndScoreClaimsCannotOverrideOriginalRecords():
 
     assert result["scenarios"][0]["candidate"]["finite_counts"] == {
         "tp": 0, "fp": 1, "fn": 1, "tn": 0,
-    }
+    }, "Recompute finite counts using the original oracle and run records."
 
 
 @pytest.mark.parametrize("malformed", [
@@ -297,20 +317,24 @@ def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_pa
 
     first = subprocess.run(args, cwd=ROOT, capture_output=True, check=True, timeout=10)
     second = subprocess.run(args, cwd=ROOT, capture_output=True, check=True, timeout=10)
-    assert first.stdout == second.stdout
+    assert first.stdout == second.stdout, "Identical input bytes must produce identical JSON."
     assert json.loads(first.stdout)["baseline"]["report_sha256"] == (
         hashlib.sha256(before).hexdigest()
-    )
+    ), "Bind the baseline SHA-256 to the original file bytes."
     assert json.loads(first.stdout)["candidate"]["report_sha256"] == (
         hashlib.sha256(after).hexdigest()
+    ), "Bind the candidate SHA-256 to the original file bytes."
+    assert left.read_bytes() == before and right.read_bytes() == after, (
+        "A successful comparison must leave both input files unchanged."
     )
-    assert left.read_bytes() == before and right.read_bytes() == after
     assert b"original" not in first.stdout, "Source evidence content must not appear in output."
 
     invalid = b"private invalid input"
     right.write_bytes(invalid)
     failure = subprocess.run(args, cwd=ROOT, capture_output=True, check=False, timeout=10)
 
-    assert failure.returncode == 2 and not failure.stdout
-    assert invalid not in failure.stderr
-    assert right.read_bytes() == invalid
+    assert failure.returncode == 2 and not failure.stdout, (
+        "Reject invalid input with exit status 2 and no partial JSON."
+    )
+    assert invalid not in failure.stderr, "Diagnostics must not disclose rejected file contents."
+    assert right.read_bytes() == invalid, "A rejected input file must remain unchanged."
