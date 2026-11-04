@@ -67,10 +67,26 @@ def test_AttackPathLabConfirmsCanonicalPathAndBlocksSigningKey(attack_path_lab: 
     """Exercise real service hops and the independent policy-blocked negative path."""
 
     oracle = LoadJson("oracle.v1.json")
+    assert RunOperation(attack_path_lab, "health") == {
+        "status": "ok",
+        "targets": {
+            "portal": "attack-path-portal",
+            "identity": "attack-path-identity",
+            "billing": "attack-path-billing",
+            "events": "attack-path-events",
+        },
+    }, "the owned topology must expose all four independently identified service roles."
     RunOperation(attack_path_lab, "reset")
+    assert RunOperation(attack_path_lab, "events") == {
+        "asset_id": "asset.business-event",
+        "events": [],
+    }, "the positive rehearsal must start from an independently verified empty event store."
     confirmed = RunOperation(attack_path_lab, "validate")
     negative = RunOperation(attack_path_lab, "negative")
 
+    assert confirmed["state"] == "CONFIRMED", (
+        f"the complete executable path must become confirmed, received {confirmed!r}."
+    )
     assert confirmed["path_id"] == oracle["canonical_path"]["path_id"], (
         "authorized validation must report the canonical path."
     )
@@ -83,14 +99,13 @@ def test_AttackPathLabConfirmsCanonicalPathAndBlocksSigningKey(attack_path_lab: 
     assert confirmed["phase_id"] == "phase.authorized-validation", (
         "successful validation must identify its lifecycle phase."
     )
-    assert confirmed["state"] == "CONFIRMED", (
-        "the complete executable path must become confirmed."
-    )
-    assert {
+    assert confirmed["evidence_ids"] == [
+        "evidence.finding-confirmation",
+        "evidence.discovery",
         "evidence.authorized-validation",
         "evidence.validation-authorization",
-    } <= set(confirmed["evidence_ids"]), (
-        "confirmed path must preserve validation and authorization evidence."
+    ], (
+        "the lab transcript must identify each fixture observation and the authorization marker."
     )
     assert negative == {
         "blocked_by": "control.billing-key-policy",
@@ -108,6 +123,7 @@ def test_AttackPathLabRemediationAndResetAreDeterministic(attack_path_lab: Compo
     """Prove remediation blocks the path and reset restores the initial lab behavior."""
 
     oracle = LoadJson("oracle.v1.json")
+    RunOperation(attack_path_lab, "reset")
     remediated = RunOperation(attack_path_lab, "remediate")
 
     assert remediated == {
@@ -118,6 +134,20 @@ def test_AttackPathLabRemediationAndResetAreDeterministic(attack_path_lab: Compo
         "state": oracle["remediation_path_break"]["resulting_state"],
     }, "remediation must block the exact canonical relation declared by the oracle."
 
+    assert RunOperation(attack_path_lab, "validate") == {
+        "phase_id": "phase.authorized-validation",
+        "result": {
+            "blocked_by": remediated["blocked_by"],
+            "relation_id": remediated["relation_id"],
+            "state": "BLOCKED",
+        },
+        "state": "BLOCKED",
+    }, "an independent validation attempt must observe the applied control."
+    assert RunOperation(attack_path_lab, "events") == {
+        "asset_id": "asset.business-event",
+        "events": [],
+    }, "an attempted path after remediation must leave the initially empty event store unchanged."
+
     reset = RunOperation(attack_path_lab, "reset")
     assert reset["reset"] is True, "reset operation must report successful restoration."
     assert RunOperation(attack_path_lab, "events") == {
@@ -127,3 +157,7 @@ def test_AttackPathLabRemediationAndResetAreDeterministic(attack_path_lab: Compo
     assert RunOperation(attack_path_lab, "validate")["state"] == "CONFIRMED", (
         "reset must restore the authorized canonical path."
     )
+    assert RunOperation(attack_path_lab, "events") == {
+        "asset_id": "asset.business-event",
+        "events": ["invoice-settlement-demo"],
+    }, "the restored path must create exactly the declared event."
