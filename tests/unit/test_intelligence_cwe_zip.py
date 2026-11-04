@@ -34,19 +34,19 @@ def Extra(identifier: int, body: bytes = b"") -> bytes:
     return struct.pack("<HH", identifier, len(body)) + body
 
 
-def Archive(body=BODY, *, member=MEMBER, local_extra=b"", central_extra=b"",
-            compressed=None, declared_size=None, crc32=None):
+def Archive(body=BODY, *, member=MEMBER, localExtra=b"", centralExtra=b"",
+            compressed=None, declaredSize=None, crc32=None):
     """Produce independently framed one-member ZIP bytes with explicit original header facts."""
 
     name = member.encode("utf-8")
     compressed = Deflate(body) if compressed is None else compressed
-    size = len(body) if declared_size is None else declared_size
+    size = len(body) if declaredSize is None else declaredSize
     crc = zlib.crc32(body) if crc32 is None else crc32
     local = struct.pack("<4s5H3I2H", b"PK\x03\x04", 20, 0, 8, 0, 0, crc,
-                        len(compressed), size, len(name), len(local_extra)) + name + local_extra
+                        len(compressed), size, len(name), len(localExtra)) + name + localExtra
     central = struct.pack("<4s6H3I5H2I", b"PK\x01\x02", 3 << 8 | 30, 20, 0, 8, 0, 0,
-        crc, len(compressed), size, len(name), len(central_extra), 0, 0, 1,
-        (stat.S_IFREG | 0o640) << 16, 0) + name + central_extra
+        crc, len(compressed), size, len(name), len(centralExtra), 0, 0, 1,
+        (stat.S_IFREG | 0o640) << 16, 0) + name + centralExtra
     end = struct.pack("<4s4H2IH", b"PK\x05\x06", 0, 0, 1, 1, len(central),
                       len(local) + len(compressed), 0)
 
@@ -84,7 +84,7 @@ def test_ExactCompleteMemberRetainsOriginalFactsWithoutIo(member, monkeypatch):
 
     local = Extra(0x5455, b"\x03" + b"x" * 8) + Extra(0x7875, b"owned-user")
     central = Extra(0x5455, b"\x03" + b"y" * 4) + Extra(0x7875, b"other")
-    payload = Archive(member=member, local_extra=local, central_extra=central)
+    payload = Archive(member=member, localExtra=local, centralExtra=central)
     retained = []
 
     def NoIo(*args, **kwargs):
@@ -115,12 +115,12 @@ def test_OpaqueExtrasCannotSupplyAnotherPathOrExtractionDirective():
     """Unknown and Unicode-path metadata never override the sole exact ASCII header basename."""
 
     metadata = Extra(0x7075, b"\x01\x00\x00\x00\x00../../untrusted.xml") + Extra(0x1234, b"\0" * 7)
-    payload = Archive(local_extra=metadata, central_extra=Extra(0xCAFE, b"opaque"))
+    payload = Archive(localExtra=metadata, centralExtra=Extra(0xCAFE, b"opaque"))
     result = owner.ConsumeCweZip(payload, MEMBER, lambda value: None)
     assert result.member_name == MEMBER, "Opaque extra metadata became an alternate source path"
 
     with pytest.raises(ValueError):
-        owner.ConsumeCweZip(Archive(member="../" + MEMBER, local_extra=metadata), MEMBER,
+        owner.ConsumeCweZip(Archive(member="../" + MEMBER, localExtra=metadata), MEMBER,
                             lambda value: None)
 
 
@@ -131,7 +131,7 @@ def test_OpaqueExtrasCannotSupplyAnotherPathOrExtractionDirective():
 def test_InvalidExtraMetadataRefusesBeforeAnySink(extra, location):
     """Truncated, duplicate, ZIP64, ninth-field and 257-byte regions never reach decoded input."""
 
-    payload = Archive(**{location + "_extra": extra})
+    payload = Archive(**{location + "Extra": extra})
 
     def NoSink(value):
         """Expose decoding before all original extra metadata is admitted."""
@@ -147,7 +147,7 @@ def test_InvalidExtraMetadataRefusesBeforeAnySink(extra, location):
 def test_Inclusive256BytesAndEightOpaqueFieldsRemainSupported(extra):
     """The real metadata ceilings admit their inclusive values without relaxed constants."""
 
-    result = owner.ConsumeCweZip(Archive(local_extra=extra, central_extra=extra), MEMBER,
+    result = owner.ConsumeCweZip(Archive(localExtra=extra, centralExtra=extra), MEMBER,
                                   lambda value: None)
     assert result.decoded_size == len(BODY), "Inclusive opaque metadata limits were reduced"
 
@@ -245,10 +245,10 @@ def test_ActualDeflateEofSizeCrcAndNoUnusedBytesAreMandatory(case):
         compressed += Deflate(b"") if case == "second-deflate" else b"\0"
 
     elif case == "declared-short":
-        options["declared_size"] = len(body) - 1
+        options["declaredSize"] = len(body) - 1
 
     elif case == "declared-long":
-        options["declared_size"] = len(body) + 1
+        options["declaredSize"] = len(body) + 1
 
     else:
         options["crc32"] = zlib.crc32(body) ^ 1
@@ -305,7 +305,7 @@ def test_ActualExpandedCeilingNeverUsesDeclaredSizeAsProof(actual_extra):
     """Exactly 32 MiB succeeds; one additional expanded byte refuses before sink publication."""
 
     body = b"x" * (33554432 + actual_extra)
-    payload = Archive(body, declared_size=33554432)
+    payload = Archive(body, declaredSize=33554432)
     received = 0
 
     def Count(value):
