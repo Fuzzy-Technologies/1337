@@ -11,7 +11,7 @@ from xml.etree import ElementTree
 import pytest
 
 from fuzzy1337 import report_formats, reporting
-from fuzzy1337.adapters.contracts import ExecutionState
+from fuzzy1337.adapters.contracts import AdapterExecution, ExecutionState
 from fuzzy1337.intelligence import IntelligenceFeed
 from fuzzy1337.model import (
     CanonicalModelJson,
@@ -470,6 +470,46 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
         "Readable inventory lost a canonical object anchor"
     )
 
+
+
+def test_HtmlNativeResponseRowsRequireAttributedEvidenceAndAnExactObservation():
+    """Keep failed or ambiguous native response records in technical history only."""
+
+    report = Fixture()
+    host = report.state.Objects(ObjectKind.HOST)[0]
+    attributed = replace(host.provenance[0], source_id="native.web-check",
+                         execution=AdapterExecution(ExecutionState.SUCCEEDED, 0, 0.1))
+    endpoint = SecurityObject(ObjectIdentity("synthetic", ObjectKind.ENDPOINT,
+                                             "http://127.0.0.1/<script>inert</script>"), {},
+                              (attributed,))
+    lexical = {"check_id": "native.html-reflection", "matched": False}
+    records = (
+        Observation("native.web-response-check", endpoint.Reference(), lexical, attributed),
+        Observation("native.web-response-check", endpoint.Reference(),
+                    {"check_id": "native.html-reflection", "matched": 1}, attributed),
+        Observation("native.web-response-check", endpoint.Reference(),
+                    {"check_id": "native.sql-boolean-sample"}, attributed),
+        Observation("native.web-response-check", host.Reference(), lexical, attributed),
+        Observation("native.web-response-check", endpoint.Reference(), lexical, host.provenance[0]),
+        Observation("native.web-response-check", endpoint.Reference(), lexical,
+                    replace(attributed, evidence_references=())),
+        Observation("native.web-response-check", endpoint.Reference(), lexical,
+                    replace(attributed, execution=host.provenance[0].execution)),
+    )
+    state, _ = report.state.Apply(objects=(endpoint,), observations=records)
+    dom = Dom()
+    dom.feed(RenderHtml(replace(report, state=state)).decode("utf-8"))
+    visible = " ".join(dom.primary_text)
+
+    assert visible.count("Lexical marker not observed") == 1, (
+        "Only the exact native negative observation belongs in the readable rows."
+    )
+    assert "Response captured; assessment pending" not in visible, (
+        "An absent match field must not be displayed as a SQL sample."
+    )
+    assert "script" not in dom.tags and all(
+        link[1:] in dom.ids for link in dom.links if link.startswith("#")
+    ), "Native response subject labels must stay inert and all evidence links must resolve."
 
 
 def IntelReport(assertions, *, unmatched=None):
