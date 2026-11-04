@@ -109,7 +109,7 @@ if __name__ == "__main__":
     raise SystemExit(Main())
 ```
 
-In terminal 1, run:
+In terminal 1, run the same command in Bash or PowerShell:
 
 ```bash
 python owned_git_head_demo.py --port 8765
@@ -123,7 +123,10 @@ planning and denied execution must not consume either request.
 
 ## Create the workspace, consent and policy
 
-In terminal 2, using the same activated environment:
+In terminal 2, using the same activated environment, run each command and stop
+if workspace or scope creation fails.
+
+Bash on Linux or macOS:
 
 ```bash
 1337 --version
@@ -139,10 +142,18 @@ HEAD_UNTIL=$(python -c 'from datetime import UTC,datetime,timedelta; print((date
   --valid-from "$HEAD_FROM" --valid-until "$HEAD_UNTIL" --json
 ```
 
-The commands above use Bash variable assignment. In PowerShell, obtain the same
-bounds with `$HEAD_FROM = (Get-Date).ToUniversalTime().ToString("o")` and
-`$HEAD_UNTIL = (Get-Date).ToUniversalTime().AddMinutes(10).ToString("o")`, and enter
-the continued commands as single lines. Workspace and scope creation return 0.
+PowerShell 7 on Windows:
+
+```powershell
+& '1337' --version
+New-Item -ItemType Directory -Path git-head-demo -ErrorAction Stop | Out-Null
+& '1337' workspace create git-head-demo/workspace --id owned-git-head --name "Owned Git HEAD example" --json
+$HEAD_FROM = [DateTimeOffset]::UtcNow.ToString("o")
+$HEAD_UNTIL = [DateTimeOffset]::UtcNow.AddMinutes(10).ToString("o")
+& '1337' scope create git-head-demo/workspace --id local --allow-url http://127.0.0.1:8765/.git/HEAD --allow-url http://127.0.0.1:8765/fixed/.git/HEAD --allow-ip 127.0.0.1 --grant-consent --owner operator:owned-git-head --consent-reference consent:owned-git-head-example --valid-from "$HEAD_FROM" --valid-until "$HEAD_UNTIL" --json
+```
+
+Workspace and scope creation return 0.
 Scope records your authority for only the two selected URLs and their actual IP;
 registration, consent and policy remain separate requirements.
 
@@ -170,11 +181,19 @@ no URL expansion, repository download or additional scan.
 
 ## Inspect and approve the exact exposed-endpoint plan
 
+Bash:
+
 ```bash
 1337 scan web git-head-demo/workspace --check git-head-exposure \
   --scope local --owner operator:owned-git-head \
   --target http://127.0.0.1:8765/.git/HEAD --policy git-head-demo/policy.json \
   --request-timeout 2 --timeout 10 --plan --json
+```
+
+PowerShell:
+
+```powershell
+& '1337' scan web git-head-demo/workspace --check git-head-exposure --scope local --owner operator:owned-git-head --target http://127.0.0.1:8765/.git/HEAD --policy git-head-demo/policy.json --request-timeout 2 --timeout 10 --plan --json
 ```
 
 Expected: exit 0 with a read-only plan, including
@@ -185,12 +204,20 @@ confirmation returns 3 before contact; it grants no execution permission.
 After you explicitly approve this actual plan, copy its real digest into the
 command below in place of `EXPOSED_INTENT_SHA256`:
 
+Bash:
+
 ```bash
 1337 scan web git-head-demo/workspace --check git-head-exposure \
   --scope local --owner operator:owned-git-head \
   --target http://127.0.0.1:8765/.git/HEAD --policy git-head-demo/policy.json \
   --request-timeout 2 --timeout 10 --confirm-plan EXPOSED_INTENT_SHA256 \
   --confirmation-reference approval:owned-git-head-exposed --json
+```
+
+PowerShell:
+
+```powershell
+& '1337' scan web git-head-demo/workspace --check git-head-exposure --scope local --owner operator:owned-git-head --target http://127.0.0.1:8765/.git/HEAD --policy git-head-demo/policy.json --request-timeout 2 --timeout 10 --confirm-plan EXPOSED_INTENT_SHA256 --confirmation-reference approval:owned-git-head-exposed --json
 ```
 
 Expected: exit 0, `state: completed`, `object_counts.finding: 1`. The saved Finding
@@ -205,6 +232,8 @@ credential exposure or exploitability. The nonsecret fixture response is exactly
 The different URL needs a fresh plan and explicit approval; never reuse the
 exposed URL's digest:
 
+Bash:
+
 ```bash
 1337 scan web git-head-demo/workspace --check git-head-exposure \
   --scope local --owner operator:owned-git-head \
@@ -212,7 +241,15 @@ exposed URL's digest:
   --request-timeout 2 --timeout 10 --plan --json
 ```
 
+PowerShell:
+
+```powershell
+& '1337' scan web git-head-demo/workspace --check git-head-exposure --scope local --owner operator:owned-git-head --target http://127.0.0.1:8765/fixed/.git/HEAD --policy git-head-demo/policy.json --request-timeout 2 --timeout 10 --plan --json
+```
+
 Review and approve that plan, then substitute its real digest below:
+
+Bash:
 
 ```bash
 1337 scan web git-head-demo/workspace --check git-head-exposure \
@@ -220,6 +257,12 @@ Review and approve that plan, then substitute its real digest below:
   --target http://127.0.0.1:8765/fixed/.git/HEAD --policy git-head-demo/policy.json \
   --request-timeout 2 --timeout 10 --confirm-plan FIXED_INTENT_SHA256 \
   --confirmation-reference approval:owned-git-head-fixed --json
+```
+
+PowerShell:
+
+```powershell
+& '1337' scan web git-head-demo/workspace --check git-head-exposure --scope local --owner operator:owned-git-head --target http://127.0.0.1:8765/fixed/.git/HEAD --policy git-head-demo/policy.json --request-timeout 2 --timeout 10 --confirm-plan FIXED_INTENT_SHA256 --confirmation-reference approval:owned-git-head-fixed --json
 ```
 
 Expected: exit 0 and `state: completed`. The control returns a complete HTTP 404
@@ -230,11 +273,22 @@ endpoint's finding. Terminal 1 now reports `state: stopped`,
 
 ## Reopen and export after the fixture stops
 
+Bash:
+
 ```bash
 1337 workspace open git-head-demo/workspace --json
 1337 report export git-head-demo/workspace --format json --output git-head-demo/model.json --json
 1337 report export git-head-demo/workspace --format html --output git-head-demo/model.html --json
 1337 report export git-head-demo/workspace --format sarif --output git-head-demo/model.sarif --json
+```
+
+PowerShell:
+
+```powershell
+& '1337' workspace open git-head-demo/workspace --json
+& '1337' report export git-head-demo/workspace --format json --output git-head-demo/model.json --json
+& '1337' report export git-head-demo/workspace --format html --output git-head-demo/model.html --json
+& '1337' report export git-head-demo/workspace --format sarif --output git-head-demo/model.sarif --json
 ```
 
 Each returns 0; reopen verifies the retained evidence and reports one Finding.

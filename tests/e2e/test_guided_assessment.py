@@ -7,12 +7,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shlex
+import shutil
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
+
+import pytest
 
 from tests.e2e.test_operator_onboarding import installed_onboarding as installed_onboarding
 
@@ -62,9 +67,10 @@ class DisclosureParser(HTMLParser):
 def Statements(text: str, language: str) -> list[list[str]]:
     """Read only explicit product commands, preserving caller variables and receipt destinations."""
 
-    return [shlex.split(line) for block in re.findall(
+    return [shlex.split(line.removeprefix("& ")) for block in re.findall(
         rf"```{language}\n(.*?)```", text, re.DOTALL,
-    ) for line in block.replace("\\\n", " ").splitlines() if line.startswith("1337 ")]
+    ) for line in block.replace("\\\n", " ").splitlines()
+        if line.startswith(("1337 ", "& '1337' "))]
 
 
 def Files(root: Path) -> dict[str, bytes]:
@@ -91,6 +97,50 @@ def test_GuidedSourceIsExactAndShellProductCommandsAgree() -> None:
     )
     assert len(Statements(guide, "bash")) == 6, (
         "The guide must retain import, selected inspect, apply, reopen and both offline exports"
+    )
+    recipe = FINDING_RECIPE.read_text(encoding="utf-8")
+    assert Statements(recipe, "bash") == Statements(recipe, "powershell"), (
+        "The native recipe must preserve separate endpoint approval and export arguments "
+        "in both shells"
+    )
+
+
+def test_GuidedAsOfReadsTheOriginalReceiptTimestamp(tmp_path: Path) -> None:
+    """Run the platform's copied shell assignment without reinterpreting a receipt timestamp."""
+
+    parent = tmp_path / "git-head-demo"
+    parent.mkdir()
+    (parent / "intel-import.json").write_text(
+        json.dumps({"finished_at": "2026-01-03T22:15:34.123456+05:45"}), encoding="utf-8",
+    )
+    windows = os.name == "nt"
+    language, shellName, assignmentPrefix = (
+        ("powershell", "pwsh", "$AS_OF = ") if windows else ("bash", "bash", "AS_OF=")
+    )
+    shell = shutil.which(shellName)
+
+    if shell is None:
+        pytest.skip(f"The documented {shellName} interpreter is unavailable")
+
+    guide = GUIDE.read_text(encoding="utf-8")
+    assignment, = [line for block in re.findall(rf"```{language}\n(.*?)```", guide, re.DOTALL)
+                   for line in block.splitlines() if line.startswith(assignmentPrefix)]
+
+    if windows:
+        arguments = [shell, "-NoProfile", "-NonInteractive", "-Command",
+                     f"{assignment}\nif ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}\n$AS_OF"]
+
+    else:
+        arguments = [shell, "-ec", f'{assignment}\nprintf "%s\\n" "$AS_OF"']
+
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(Path(sys.executable).parent),
+                                          environment.get("PATH", os.defpath)))
+    result = subprocess.run(arguments, cwd=tmp_path, env=environment, capture_output=True,
+                            text=True, timeout=20, check=False)
+    assert result.returncode == 0 and not result.stderr, (result.returncode, result.stderr)
+    assert result.stdout.strip() == "2026-01-03T22:15:35.123456+05:45", (
+        "The copied clock calculation must preserve offset and precision and add one second"
     )
 
 

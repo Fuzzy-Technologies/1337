@@ -96,7 +96,7 @@ REVISION=$(python -c 'import json; print(json.load(open("git-head-demo/model.jso
 1337 intel import git-head-demo/workspace git-head-demo/training.cve.json --feed cve-record-5 --catalog-version training-1 --origin synthetic --publisher "Owned synthetic training data" --source-url https://example.invalid/training.cve.json --license-name "Apache-2.0 synthetic fixture" --license-url https://example.invalid/LICENSE --scope scope:local --max-bytes 1048576 --json > git-head-demo/intel-import.json
 SNAPSHOT=$(python -c 'import json; print(json.load(open("git-head-demo/intel-import.json"))["snapshot_id"])')
 RECEIPT=$(python -c 'import json; print(json.load(open("git-head-demo/intel-import.json"))["receipt_id"])')
-AS_OF=$(python -c 'import json; from datetime import datetime,timedelta; print((datetime.fromisoformat(json.load(open("git-head-demo/intel-import.json"))["finished_at"])+timedelta(seconds=1)).isoformat())')
+AS_OF=$(python -c "import json; from datetime import datetime,timedelta; print((datetime.fromisoformat(json.load(open('git-head-demo/intel-import.json', encoding='utf-8'))['finished_at'])+timedelta(seconds=1)).isoformat())")
 1337 intel inspect git-head-demo/workspace --snapshot "$SNAPSHOT" --receipt "$RECEIPT" --identifier CVE-1900-9999 --json > git-head-demo/intel-inspect.json
 1337 intel apply git-head-demo/workspace --snapshot "$SNAPSHOT" --receipt "$RECEIPT" --finding "$FINDING" --identifier CVE-1900-9999 --expected-revision "$REVISION" --as-of "$AS_OF" --max-age-seconds 86400 --scope scope:local --run run:guided-training --json > git-head-demo/intel-apply.json
 1337 workspace open git-head-demo/workspace --json
@@ -104,24 +104,25 @@ AS_OF=$(python -c 'import json; from datetime import datetime,timedelta; print((
 1337 report export git-head-demo/workspace --format html --output git-head-demo/assessment.html --json
 ```
 
-### PowerShell on Windows
+### PowerShell 7 on Windows
 
 ```powershell
 $Original = Get-Content -Raw git-head-demo/model.json | ConvertFrom-Json
 $FINDING = $Original.findings[0].reference
 $REVISION = $Original.model_revision
-1337 intel import git-head-demo/workspace git-head-demo/training.cve.json --feed cve-record-5 --catalog-version training-1 --origin synthetic --publisher "Owned synthetic training data" --source-url https://example.invalid/training.cve.json --license-name "Apache-2.0 synthetic fixture" --license-url https://example.invalid/LICENSE --scope scope:local --max-bytes 1048576 --json > git-head-demo/intel-import.json
+& '1337' intel import git-head-demo/workspace git-head-demo/training.cve.json --feed cve-record-5 --catalog-version training-1 --origin synthetic --publisher "Owned synthetic training data" --source-url https://example.invalid/training.cve.json --license-name "Apache-2.0 synthetic fixture" --license-url https://example.invalid/LICENSE --scope scope:local --max-bytes 1048576 --json > git-head-demo/intel-import.json
 $Imported = Get-Content -Raw git-head-demo/intel-import.json | ConvertFrom-Json
 $SNAPSHOT = $Imported.snapshot_id
 $RECEIPT = $Imported.receipt_id
-$AS_OF = ([DateTimeOffset]::Parse($Imported.finished_at)).AddSeconds(1).ToString("o")
-1337 intel inspect git-head-demo/workspace --snapshot "$SNAPSHOT" --receipt "$RECEIPT" --identifier CVE-1900-9999 --json > git-head-demo/intel-inspect.json
-1337 intel apply git-head-demo/workspace --snapshot "$SNAPSHOT" --receipt "$RECEIPT" --finding "$FINDING" --identifier CVE-1900-9999 --expected-revision "$REVISION" --as-of "$AS_OF" --max-age-seconds 86400 --scope scope:local --run run:guided-training --json > git-head-demo/intel-apply.json
-1337 workspace open git-head-demo/workspace --json
-1337 report export git-head-demo/workspace --format json --output git-head-demo/assessment.json --json
-1337 report export git-head-demo/workspace --format html --output git-head-demo/assessment.html --json
+$AS_OF = python -c "import json; from datetime import datetime,timedelta; print((datetime.fromisoformat(json.load(open('git-head-demo/intel-import.json', encoding='utf-8'))['finished_at'])+timedelta(seconds=1)).isoformat())"
+& '1337' intel inspect git-head-demo/workspace --snapshot "$SNAPSHOT" --receipt "$RECEIPT" --identifier CVE-1900-9999 --json > git-head-demo/intel-inspect.json
+& '1337' intel apply git-head-demo/workspace --snapshot "$SNAPSHOT" --receipt "$RECEIPT" --finding "$FINDING" --identifier CVE-1900-9999 --expected-revision "$REVISION" --as-of "$AS_OF" --max-age-seconds 86400 --scope scope:local --run run:guided-training --json > git-head-demo/intel-apply.json
+& '1337' workspace open git-head-demo/workspace --json
+& '1337' report export git-head-demo/workspace --format json --output git-head-demo/assessment.json --json
+& '1337' report export git-head-demo/workspace --format html --output git-head-demo/assessment.html --json
 ```
 
+Both shells derive `AS_OF` directly from the UTF-8 receipt's ISO timestamp.
 Check each exit status before continuing (`echo $?` immediately after a command
 in Bash, `$LASTEXITCODE` in PowerShell). All commands above should exit **0**.
 If an earlier command fails, preserve its result and diagnose it before running
@@ -158,7 +159,8 @@ technical details only when you need the retained references and hashes.
 Membership values are not probabilities. No combined business risk, exploit
 applicability, scanner completeness or reviewed CVE match is established.
 
-Open a saved model interactively with `1337 shell`, then enter:
+Open a saved model interactively with `1337 shell` in Bash or `& '1337' shell`
+in PowerShell, then enter:
 
 ```text
 model git-head-demo/workspace
@@ -193,3 +195,26 @@ original files before retrying. Do not broaden scope, delete retained evidence,
 reuse confirmation for a changed target or convert unknown values to zero.
 See [Intel CLI](INTELLIGENCE_CLI.md), [offline reports](REPORT_EXPORT.md) and
 [fuzzy assessments](FUZZY_ASSESSMENTS.md) for the exact contracts.
+
+## Rehearse as an agent or in CI
+
+An agent can follow the same installed commands and record their JSON receipts.
+Show the operator each read-only endpoint plan and its exact digest. Wait for
+approval for that plan before making the corresponding request. Show the Finding,
+the separate 404 result and the evidence verification before applying the optional
+synthetic association. Report the detector severity and source score separately.
+The [agent quickstart](AGENT_QUICKSTART.md) covers the initial install and handoff.
+
+On a reviewed source checkout, run the repository-owned installed-wheel
+acceptance on an isolated runner:
+
+```text
+uv run --locked --extra dev python -m pytest -o addopts='' --no-cov tests/e2e/test_guided_assessment.py
+```
+
+The test builds and installs the local wheel, uses only its own loopback fixture,
+and keeps the command transcript and saved model digest in
+`guided-rehearsal.json` under the test's temporary directory. Expect one open
+LOW Finding, a separate fixed control, one synthetic candidate association,
+matching offline report snapshots and a refused duplicate export. The standard
+[CI quickstart](CI_QUICKSTART.md) uses the separate SAFE discovery demo.
