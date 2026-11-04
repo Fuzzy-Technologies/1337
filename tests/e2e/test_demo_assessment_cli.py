@@ -721,7 +721,7 @@ def test_CleanInstalledAssessmentCliRefusesThenDetectsAndReopensOffline(
     assert export == original and export["verified_retained_acquisitions"] == 4, (
         "The relocated export must verify the same four acquisitions and pin the same snapshot"
     )
-    assert html.read_bytes() == before["reports/model.html"], (
+    assert html.read_bytes() == before[str(Path("reports") / "model.html")], (
         "Offline HTML must render the same retained Finding byte-for-byte at the new location"
     )
     assert Files(relocated) == {**before, str(html.relative_to(relocated)): html.read_bytes()}, (
