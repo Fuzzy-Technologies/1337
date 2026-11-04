@@ -8,6 +8,26 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 21 — v0.4.21 — 2026-11-04
+
+#### Digest
+
+- Require original installed 1337Scope acceptance evidence for the three existing
+  pinned Juice Shop cases before the external-target lane can pass.
+
+#### Changed
+
+- Join exact current-head JUnit cases, installed wheel/source bytes, original
+  Docker bundle, worker reports and retained Findings in a read-only final gate.
+- Require one true positive and two distinct negative controls, with zero skips;
+  keep other scanner tracks and whole-application accuracy explicitly unassessed.
+
+#### Security
+
+- Reject missing, stale, swapped or contradictory source/evidence identities
+  without starting another target or scanner execution.
+
+
 ### Patch 20 — v0.4.20 — 2026-11-04
 
 #### Digest
