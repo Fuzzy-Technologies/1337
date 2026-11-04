@@ -19,7 +19,11 @@ class ReflectionParser(HTMLParser):
     """Recognize the exact inert probe element in ordinary HTML element content."""
 
     def __init__(self, text: str) -> None:
-        """Retain physical source lines for exact marker matching at token offsets."""
+        """Retain physical source lines for exact marker matching at token offsets.
+
+        Args:
+            text: Complete admitted UTF-8 response decoded by the caller.
+        """
 
         super().__init__(convert_charrefs=False)
         self.lines = text.split("\n")
@@ -27,7 +31,12 @@ class ReflectionParser(HTMLParser):
         self.matches = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        """Count complete raw markers outside excluded lexical contexts."""
+        """Count complete raw markers outside excluded lexical contexts.
+
+        Args:
+            tag: Normalized HTML start-tag name reported by the parser.
+            attrs: Parsed attributes. The raw marker spelling determines eligibility.
+        """
 
         if tag in _INERT:
             self.inert.append(tag)
@@ -39,20 +48,38 @@ class ReflectionParser(HTMLParser):
                 self.matches += 1
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        """Treat a trailing slash conservatively for inert HTML elements."""
+        """Treat a trailing slash conservatively for inert HTML elements.
+
+        Args:
+            tag: Normalized name of the start token with a trailing slash.
+            attrs: Parsed attributes, which cannot close an inert context.
+        """
 
         if tag in _INERT:
             self.inert.append(tag)
 
     def handle_endtag(self, tag: str) -> None:
-        """Close the innermost inert context except terminal plaintext."""
+        """Close the innermost inert context except terminal plaintext.
+
+        Args:
+            tag: Normalized closing-tag name reported by the parser.
+        """
 
         if self.inert and self.inert[-1] == tag and tag != "plaintext":
             self.inert.pop()
 
 
 def MatchesHtmlReflection(status: int, media_type: str, body: bytes) -> bool:
-    """Recognize one lexical element from a complete bounded UTF-8 HTML response."""
+    """Recognize one lexical element from a complete bounded UTF-8 HTML response.
+
+    Args:
+        status: Actual complete HTTP response status.
+        media_type: Normalized response media category.
+        body: Complete bounded transient response body.
+
+    Returns:
+        Whether exactly one supported inert marker occupies ordinary HTML element content.
+    """
 
     if (status != 200 or media_type != "text/html" or b"<![" in body
         or REFLECTION_MARKER.encode() not in body):

@@ -16641,7 +16641,7 @@ state = "missing"
 id = "symbol:fuzzy1337.adapters.native_web.NativeWebCheck"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/native_web.py"
-sourceHash = "sha256:adef858392c1c794a79a4f52f3b7a678089759d65a8437010b6b62a59bcf3912"
+sourceHash = "sha256:07855dc4c5197dfde3f22942250dfdbe57001527bade0779ffcd6bb551053857"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
