@@ -629,7 +629,8 @@ jobs:
       && github.event.pull_request.draft == false)
     name: Container configuration and quality
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Complete suite attempts reached 99% at the former 900-second deadline.
+    timeout-minutes: 25
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -644,7 +645,7 @@ jobs:
         run: >-
           LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
           docker compose --profile quality run --rm quality 1337-dev check --fail-fast
-          --suite-timeout 900
+          --suite-timeout 1200
       - name: Preserve bounded container failure diagnostics
         if: failure() && steps.container_gate.outcome == 'failure'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
