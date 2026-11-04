@@ -455,7 +455,7 @@ def test_InvalidReturnedCustodyCannotSupplyUsableBatchHandles(tmp_path, monkeypa
     owner = Workspace(tmp_path)
     requests = Requests(2)
     calls = OwnedReceiver(monkeypatch, requests)
-    acquire = batch._AcquireHttpsCveSelection
+    acquire = batch.AcquireHttpsCveSelectionForComposition
 
     def Acquire(*args, **kwargs):
         """Inject a damaged returned fact after the real owned publication."""
@@ -503,7 +503,7 @@ def test_InvalidReturnedCustodyCannotSupplyUsableBatchHandles(tmp_path, monkeypa
 
         return replace(outcome, receipt=replace(outcome.receipt, provenance=wrong))
 
-    monkeypatch.setattr(batch, "_AcquireHttpsCveSelection", Acquire)
+    monkeypatch.setattr(batch, "AcquireHttpsCveSelectionForComposition", Acquire)
     result = AcquireHttpsCveBatch(owner.root, requests, scopeReference=_SCOPE)
 
     failed, later = result.members

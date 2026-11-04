@@ -19,4 +19,8 @@ discovery, archive or official delta processing, model save or Finding apply.
 Timing budgets cover configured receives. Local storage and worker cleanup
 can extend elapsed time.
 
+The supported SDK symbols are `AcquireHttpsCveBatch`, `CveHttpsBatchOutcome`,
+`CveHttpsBatchMember` and `CveHttpsBatchMemberState`. Other declarations shown
+in this reference are internal to batch composition.
+
 ::: fuzzy1337.intelligence_cve_batch

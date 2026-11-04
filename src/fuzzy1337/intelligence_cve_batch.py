@@ -21,14 +21,14 @@ from fuzzy1337.intelligence_cve_remote import (
     PARTIAL_ROLE,
     RAW_ROLE,
     RECEIPT_ROLE,
+    AcquireHttpsCveSelectionForComposition,
     CveHttpsAcknowledgement,
     CveHttpsOutcome,
+    CveHttpsOwnershipStop,
+    CveHttpsReceiveFacts,
     CveHttpsRequest,
     CveHttpsState,
     RequireRecord,
-    _AcquireHttpsCveSelection,
-    _CveHttpsOwnershipStop,
-    _CveHttpsReceiveFacts,
 )
 from fuzzy1337.workspace import LocalWorkspaceStore
 
@@ -69,7 +69,7 @@ class CveHttpsBatchMember:
     state: CveHttpsBatchMemberState
     outcome: CveHttpsOutcome | None = None
     stopReason: _BatchStop | None = None
-    stoppedReceive: _CveHttpsReceiveFacts | None = None
+    stoppedReceive: CveHttpsReceiveFacts | None = None
     rawAck: CveHttpsAcknowledgement = _NO_PUBLICATION
     snapshotAck: CveHttpsAcknowledgement = _NO_PUBLICATION
     receiptAck: CveHttpsAcknowledgement = _NO_PUBLICATION
@@ -92,8 +92,16 @@ class CveHttpsBatchOutcome:
     members: tuple[CveHttpsBatchMember, ...]
 
 
-def _ValidateBatch(requests: tuple[CveHttpsRequest, ...], scopeReference: str) -> None:
-    """Refuse undeclared or excessive selections before any receive or evidence write."""
+def ValidateBatch(requests: tuple[CveHttpsRequest, ...], scopeReference: str) -> None:
+    """Validate internal batch inputs before any receive or evidence write.
+
+    Args:
+        requests: All pinned selections supplied to the batch.
+        scopeReference: Declared collection attribution.
+
+    Raises:
+        ValueError: The selections or scope reference fail preflight admission.
+    """
 
     if type(requests) is not tuple or not 2 <= len(requests) <= _MAX_MEMBERS or any(
         type(request) is not CveHttpsRequest for request in requests
@@ -114,8 +122,17 @@ def _ValidateBatch(requests: tuple[CveHttpsRequest, ...], scopeReference: str) -
     RequireReferenceText(scopeReference, "scopeReference")
 
 
-def _MatchesHandles(outcome: CveHttpsOutcome, workspaceId: str, scopeReference: str) -> bool:
-    """Validate each handle in its exact original publication slot without opening stores."""
+def MatchesHandles(outcome: CveHttpsOutcome, workspaceId: str, scopeReference: str) -> bool:
+    """Check exact publication slots during internal batch composition.
+
+    Args:
+        outcome: Single-record result whose publication handles are being checked.
+        workspaceId: Expected owning workspace identity.
+        scopeReference: Expected collection attribution.
+
+    Returns:
+        Whether the acknowledgements and available handles match their attributed slots.
+    """
 
     rawRole = RAW_ROLE if outcome.body_complete else PARTIAL_ROLE
     slots = (
@@ -149,17 +166,27 @@ def _MatchesHandles(outcome: CveHttpsOutcome, workspaceId: str, scopeReference: 
     return outcome.raw is None or outcome.raw.reference.size_bytes == outcome.received_bytes
 
 
-def _AcceptMember(
+def AcceptMember(
     request: CveHttpsRequest, outcome: CveHttpsOutcome, workspaceId: str, scopeReference: str,
 ) -> CveHttpsBatchMember:
-    """Keep attributed outcomes and refuse mismatched request or custody handles."""
+    """Join outcomes to requests and custody handles during internal batch composition.
+
+    Args:
+        request: Exact request assigned to this member.
+        outcome: Single-record result returned by the acquisition implementation.
+        workspaceId: Expected owning workspace identity.
+        scopeReference: Expected collection attribution.
+
+    Returns:
+        The attributed member or a structural failure without usable custody.
+    """
 
     handles = (outcome.raw, outcome.snapshot_record, outcome.receipt)
     acknowledgements = (outcome.raw_ack, outcome.snapshot_ack, outcome.receipt_ack)
     matching = (
         outcome.source == request.source and outcome.max_bytes == request.max_bytes
         and outcome.timeout_seconds == request.timeout_seconds
-        and _MatchesHandles(outcome, workspaceId, scopeReference)
+        and MatchesHandles(outcome, workspaceId, scopeReference)
     )
     success = outcome.state is CveHttpsState.SUCCEEDED
     raw, envelope = outcome.raw, outcome.envelope
@@ -179,7 +206,7 @@ def _AcceptMember(
                         for record, ack in zip(handles, acknowledgements, strict=True))
 
         return CveHttpsBatchMember(request, CveHttpsBatchMemberState.FAILED,
-            stopReason="outcome-mismatch", stoppedReceive=_CveHttpsReceiveFacts.FromOutcome(
+            stopReason="outcome-mismatch", stoppedReceive=CveHttpsReceiveFacts.FromOutcome(
                 outcome,
             ), rawAck=unbound[0], snapshotAck=unbound[1], receiptAck=unbound[2])
 
@@ -206,7 +233,7 @@ def AcquireHttpsCveBatch(
         ValueError: The batch inputs or workspace locator fail preflight admission.
     """
 
-    _ValidateBatch(requests, scopeReference)
+    ValidateBatch(requests, scopeReference)
     workspace = LocalWorkspaceStore(workspaceRoot)
     members: list[CveHttpsBatchMember] = []
 
@@ -221,17 +248,17 @@ def AcquireHttpsCveBatch(
     if workspaceId is not None:
         for request in requests:
             try:
-                outcome = _AcquireHttpsCveSelection(workspace.root, request,
+                outcome = AcquireHttpsCveSelectionForComposition(workspace.root, request,
                     scopeReference=scopeReference, expectedWorkspaceId=workspaceId)
 
-            except _CveHttpsOwnershipStop as stop:
+            except CveHttpsOwnershipStop as stop:
                 memberState = (CveHttpsBatchMemberState.NOT_ATTEMPTED if stop.receive is None
                                 else CveHttpsBatchMemberState.FAILED)
                 member = CveHttpsBatchMember(request, memberState, stopReason=stop.reason,
                                              stoppedReceive=stop.receive)
 
             else:
-                member = _AcceptMember(request, outcome, workspaceId, scopeReference)
+                member = AcceptMember(request, outcome, workspaceId, scopeReference)
 
             members.append(member)
             stopReason = member.stopReason

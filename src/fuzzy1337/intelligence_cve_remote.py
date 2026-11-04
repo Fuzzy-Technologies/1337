@@ -434,8 +434,8 @@ def RequireRecord(record: EvidenceRecord, role: str, media_type: str) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class _CveHttpsReceiveFacts:
-    """Retain observed receiver facts without conferring any custody."""
+class CveHttpsReceiveFacts:
+    """Hold internal batch receiver observations without conferring custody."""
 
     startedAt: str
     finishedAt: str
@@ -445,41 +445,65 @@ class _CveHttpsReceiveFacts:
     httpStatus: int | None
 
     @classmethod
-    def FromOutcome(cls, outcome: CveHttpsOutcome) -> _CveHttpsReceiveFacts:
-        """Copy observed transport facts without exposing publication handles."""
+    def FromOutcome(cls, outcome: CveHttpsOutcome) -> CveHttpsReceiveFacts:
+        """Copy observed transport facts without exposing publication handles.
+
+        Args:
+            outcome: Single-record result containing the observed receiver facts.
+
+        Returns:
+            The observed transport facts alone.
+        """
 
         return cls(outcome.started_at, outcome.finished_at, outcome.received_bytes,
                    outcome.body_complete, outcome.receive_state, outcome.http_status)
 
 
-class _CveHttpsOwnershipStop(Exception):
-    """Stop composition when the owning workspace cannot be observed as expected."""
+class CveHttpsOwnershipStop(Exception):
+    """Signal an internal batch stop when the owning workspace cannot be verified."""
 
     def __init__(
         self, reason: Literal["workspace-unavailable", "workspace-changed"],
-        receive: _CveHttpsReceiveFacts | None,
+        receive: CveHttpsReceiveFacts | None,
     ) -> None:
-        """Retain the distinct stop reason and any already observed receive."""
+        """Retain the distinct stop reason and any already observed receive.
+
+        Args:
+            reason: Whether the workspace became unavailable or changed owner.
+            receive: Observed receiver facts, when the stop followed a receive.
+        """
 
         super().__init__(reason)
         self.reason = reason
         self.receive = receive
 
 
-def _OpenExpectedWorkspace(
+def OpenExpectedWorkspace(
     workspace: LocalWorkspaceStore, expectedWorkspaceId: str,
-    receive: _CveHttpsReceiveFacts | None = None,
+    receive: CveHttpsReceiveFacts | None = None,
 ) -> WorkspaceState:
-    """Read current workspace ownership without treating revision changes as replacement."""
+    """Check internal batch ownership while allowing same-owner revision changes.
+
+    Args:
+        workspace: Operator-owned physical workspace store.
+        expectedWorkspaceId: Owner identity captured at batch preflight.
+        receive: Observed receiver facts, when this check follows a receive.
+
+    Returns:
+        Current workspace state for the expected owner.
+
+    Raises:
+        CveHttpsOwnershipStop: The current owner cannot be verified.
+    """
 
     try:
         owner = workspace.Open()
 
     except (OSError, ValueError) as error:
-        raise _CveHttpsOwnershipStop("workspace-unavailable", receive) from error
+        raise CveHttpsOwnershipStop("workspace-unavailable", receive) from error
 
     if owner.workspace_id != expectedWorkspaceId:
-        raise _CveHttpsOwnershipStop("workspace-changed", receive)
+        raise CveHttpsOwnershipStop("workspace-changed", receive)
 
     return owner
 
@@ -499,14 +523,30 @@ def AcquireHttpsCveSelection(
         immutable artifacts and is never reported as rollback or successful complete custody.
     """
 
-    return _AcquireHttpsCveSelection(workspace_root, request, scopeReference=scope_reference)
+    return AcquireHttpsCveSelectionForComposition(
+        workspace_root, request, scopeReference=scope_reference,
+    )
 
 
-def _AcquireHttpsCveSelection(
+def AcquireHttpsCveSelectionForComposition(
     workspaceRoot: Path, request: CveHttpsRequest, *, scopeReference: str,
     expectedWorkspaceId: str | None = None,
 ) -> CveHttpsOutcome:
-    """Perform the same acquisition with optional ownership checks for composition."""
+    """Run shared internal acquisition with optional ownership checks for composition.
+
+    Args:
+        workspaceRoot: Explicit existing owning workspace.
+        request: Exact pinned single-record selection.
+        scopeReference: Declared collection attribution.
+        expectedWorkspaceId: Required owner identity when called by the batch.
+
+    Returns:
+        The single-record acquisition result with observed custody acknowledgements.
+
+    Raises:
+        CveHttpsOwnershipStop: A required batch owner check fails.
+        ValueError: The request, scope reference, or workspace fails admission.
+    """
 
     if type(request) is not CveHttpsRequest:
         raise ValueError("CVE HTTPS acquisition requires a typed HTTPS request")
@@ -515,7 +555,7 @@ def _AcquireHttpsCveSelection(
     workspace = LocalWorkspaceStore(workspaceRoot)
     owner = (
         workspace.Open() if expectedWorkspaceId is None
-        else _OpenExpectedWorkspace(workspace, expectedWorkspaceId)
+        else OpenExpectedWorkspace(workspace, expectedWorkspaceId)
     )
     store = LocalEvidenceStore(workspaceRoot / "evidence")
     startedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
@@ -533,8 +573,8 @@ def _AcquireHttpsCveSelection(
     )
 
     if expectedWorkspaceId is not None:
-        _OpenExpectedWorkspace(workspace, expectedWorkspaceId,
-                               _CveHttpsReceiveFacts.FromOutcome(outcome))
+        OpenExpectedWorkspace(workspace, expectedWorkspaceId,
+                               CveHttpsReceiveFacts.FromOutcome(outcome))
 
     try:
         outcome = replace(outcome, raw_ack=CveHttpsAcknowledgement.UNKNOWN)

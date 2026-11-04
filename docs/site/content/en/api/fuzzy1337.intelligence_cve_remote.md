@@ -34,4 +34,8 @@ provenance. These are distinct from the schema's CC0 license. Publisher
 authentication and legal rights remain `not-assessed`; retaining notices does
 not decide entitlement. ADR 0130 defines this additive Experimental profile.
 
+`AcquireHttpsCveSelection` and `LoadHttpsCveSelection` are the SDK entry
+points for single-record custody. The shared acquisition implementation and
+its ownership checks are internal batch composition helpers.
+
 ::: fuzzy1337.intelligence_cve_remote
