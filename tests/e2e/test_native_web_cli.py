@@ -9,8 +9,10 @@ import hashlib
 import json
 import shlex
 from datetime import UTC, datetime, timedelta
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import StringIO
 from pathlib import Path
+from threading import Thread
 
 import pytest
 
@@ -314,6 +316,74 @@ def test_NativeReflectionRecordsOnlyTheOwnedLexicalObservation(tmp_path, capsys,
         assert Main(["workspace", "open", str(root), "--json"]) == 0, (
             "Reopening must verify the original worker acquisitions."
         )
+
+
+@pytest.mark.parametrize(("prefix", "suffix", "matched"), [
+    (b"<script><!--<script></script>", b"</script>", False),
+    (b"<script><!-- ordinary text --></script>", b"", True),
+], ids=["marker-in-script-data", "marker-after-script"])
+def test_NativeReflectionSeparatesScriptDataFromElementContent(
+    tmp_path, capsys, prefix, suffix, matched,
+):
+    """Compare real loopback responses with the marker on either side of a script boundary."""
+
+    route = next(case["route"] for case in Oracle()["cases"] if case["id"] == "reflection-raw")
+    body = prefix + b"<fuzzy1337-probe>owned</fuzzy1337-probe>" + suffix
+    requests: list[str] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        """Serve one deterministic HTML response on the explicitly allowed route."""
+
+        timeout = 2
+
+        def Get(self) -> None:
+            """Send the control bytes and retain the exact target contact."""
+
+            requests.append(self.path)
+
+            if self.path != route:
+                self.send_error(404)
+
+                return
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_GET = Get
+
+    with HTTPServer(("127.0.0.1", 0), Handler) as server:
+        thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01})
+        thread.start()
+
+        try:
+            root = tmp_path / "workspace"
+            url = f"http://127.0.0.1:{server.server_port}{route}"
+            args = Setup(root, url, check="html-reflection")
+            plan = Plan(args)
+            assert not requests, "Reflection planning contacted the loopback target."
+            assert Main(["scan", *Confirm(args, plan), "--json"]) == 0, (
+                "The worker failed to acquire the complete HTML response."
+            )
+            capsys.readouterr()
+            assert requests == [route], "Only the approved request is allowed."
+            model = LocalModelStore(root).Open()
+            observed = [item for item in model.observations
+                        if item.kind == "native.web-response-check"]
+            assert len(observed) == 1 and observed[0].attributes["matched"] is matched, (
+                "The stored lexical observation disagreed with the script context control."
+            )
+            assert not Findings(model), "Neither control establishes a browser-confirmed Finding."
+            assert Main(["workspace", "open", str(root), "--json"]) == 0, (
+                "Reopening must verify the worker evidence for the script control."
+            )
+
+        finally:
+            server.shutdown()
+            thread.join(timeout=3)
+            assert not thread.is_alive(), "The loopback script control leaked its server thread."
 
 
 @pytest.mark.parametrize("case", Oracle()["failure_cases"], ids=lambda case: case["route"])

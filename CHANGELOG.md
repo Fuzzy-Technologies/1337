@@ -8,6 +8,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 28 — v0.4.28 — 2026-11-04
+
+#### Digest
+
+- Keep script data out of native HTML reflection observations.
+
+#### Fixed
+
+- Exclude ambiguous script boundaries from the lexical match and verify
+  the distinction against both script data and ordinary element content.
+
+
 ### Patch 27 — v0.4.27 — 2026-11-04
 
 #### Digest

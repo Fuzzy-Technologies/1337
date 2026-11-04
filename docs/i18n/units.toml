@@ -27752,7 +27752,7 @@ state = "missing"
 id = "symbol:fuzzy1337.adapters.web_assessment.ReflectionParser"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/web_assessment.py"
-sourceHash = "sha256:8a36fd00e32cf61cc96678ff8b08007464b5a99b58788e176402f3366d09f115"
+sourceHash = "sha256:c1a2e171af57fb82c1b9757e966ccd42a713d4f10e74945812b80da35d29c567"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
