@@ -174,5 +174,27 @@
         "marker_elements": 0
       }
     }
+  ],
+  "failure_cases": [
+    {
+      "route": "/broken/header",
+      "expected_error": "protocol"
+    },
+    {
+      "route": "/broken/framing",
+      "expected_error": "protocol"
+    },
+    {
+      "route": "/broken/truncated",
+      "expected_error": "protocol"
+    },
+    {
+      "route": "/broken/status",
+      "expected_error": "protocol"
+    },
+    {
+      "route": "/broken/unavailable",
+      "expected_error": "response-policy"
+    }
   ]
 }

@@ -17,9 +17,11 @@ from urllib.parse import urlsplit
 
 from fuzzy1337.adapters.native_http import RequestTimeout
 from fuzzy1337.adapters.native_web import (
-    NATIVE_DIRECTORY_INDEX_CHECK_ID,
+    NATIVE_EXPLICIT_CHECKS,
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_FILE_CANARY_PROFILE,
+    NATIVE_HTML_CHECKS,
+    NATIVE_HTML_REFLECTION_CHECK_ID,
     NATIVE_PROMETHEUS_CHECK_ID,
     NATIVE_WEB_CHECK_ID,
     NATIVE_WEB_ERROR_EXITS,
@@ -125,7 +127,7 @@ def Headers(
     media = values.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
     media_types = {b"text/plain", b"application/octet-stream"}
 
-    if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID:
+    if check_id in NATIVE_HTML_CHECKS:
         media_types.add(b"text/html")
 
     category = media.decode("ascii") if media in media_types else "other"
@@ -353,7 +355,7 @@ def Probe(
 
         parsed = urlsplit(target.value)
         request_target = parsed.path + ("?" + parsed.query if template is not None else "")
-        accept = "text/html" if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID else (
+        accept = "text/html" if check_id in NATIVE_HTML_CHECKS else (
             "text/plain, application/octet-stream")
         request = (f"GET {request_target} HTTP/1.1\r\nHost: {parsed.netloc}\r\n"
                    f"Connection: close\r\nAccept: {accept}\r\n"
@@ -407,6 +409,16 @@ def Probe(
 
             raw_body = bytes(body)
 
+        if check_id == NATIVE_HTML_REFLECTION_CHECK_ID:
+            if status != 200 or media_type != "text/html" or b"\x00" in raw_body:
+                raise NativeWebResponseError
+
+            try:
+                raw_body.decode("utf-8")
+
+            except UnicodeError as error:
+                raise NativeWebResponseError from error
+
         matched = check.predicate(status, media_type, raw_body)
 
         if check_id == NATIVE_PROMETHEUS_CHECK_ID:
@@ -452,9 +464,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
         if len(arguments) == 2:
             record = Probe(arguments[0], float(arguments[1]))
 
-        elif len(arguments) == 3 and arguments[2] in {
-            NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID,
-        }:
+        elif len(arguments) == 3 and arguments[2] in NATIVE_EXPLICIT_CHECKS:
             record = Probe(arguments[0], float(arguments[1]), check_id=arguments[2])
 
         elif len(arguments) == 4 and arguments[2] == NATIVE_FILE_CANARY_CHECK_ID:

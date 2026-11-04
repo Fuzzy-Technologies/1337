@@ -14,7 +14,12 @@ from pathlib import Path
 import pytest
 
 from fuzzy1337.adapters import ImpactLevel, SerializeContract
-from fuzzy1337.adapters.native_web import NATIVE_FILE_CANARY_CAPABILITY, NATIVE_FILE_CANARY_CHECK_ID
+from fuzzy1337.adapters.native_web import (
+    NATIVE_FILE_CANARY_CAPABILITY,
+    NATIVE_FILE_CANARY_CHECK_ID,
+    NATIVE_HTML_REFLECTION_CAPABILITY,
+    NATIVE_HTML_REFLECTION_CHECK_ID,
+)
 from fuzzy1337.cli import Main
 from fuzzy1337.findings import Findings
 from fuzzy1337.model import LocalModelStore
@@ -23,7 +28,7 @@ from fuzzy1337.policy import CapabilityPermission, ImpactPolicy
 from fuzzy1337.scan_commands import RunCommands
 from fuzzy1337.shell import InteractiveShell
 from tests.web_file_access_helpers import OwnedWebFileAccessTarget
-from tests.web_vulnerability_helpers import OwnedWebVulnerabilityTarget
+from tests.web_vulnerability_helpers import Oracle, OwnedWebVulnerabilityTarget
 
 
 def Setup(root: Path, url: str, *, check: str = "git-head-exposure") -> list[str]:
@@ -40,9 +45,13 @@ def Setup(root: Path, url: str, *, check: str = "git-head-exposure") -> list[str
         "--valid-from", (now - timedelta(minutes=1)).isoformat(),
         "--valid-until", (now + timedelta(minutes=10)).isoformat()]
     assert RunCommands("scope", scope_arguments, output) == 0, "Explicit scope creation failed."
+    capability = {
+        "git-head-exposure": NATIVE_WEB_CAPABILITY,
+        "file-canary-disclosure": NATIVE_FILE_CANARY_CAPABILITY,
+        "html-reflection": NATIVE_HTML_REFLECTION_CAPABILITY,
+    }[check]
     policy = ImpactPolicy("owned-native-web", maximum_impact=ImpactLevel.STANDARD,
-        permissions=(CapabilityPermission(NATIVE_FILE_CANARY_CAPABILITY
-            if check == "file-canary-disclosure" else NATIVE_WEB_CAPABILITY, NATIVE_WEB_PROVIDER_ID,
+        permissions=(CapabilityPermission(capability, NATIVE_WEB_PROVIDER_ID,
                                            ImpactLevel.STANDARD),))
     policy_path = root / "native-policy.json"
     policy_path.write_text(SerializeContract(policy), encoding="utf-8")
@@ -266,3 +275,58 @@ def test_NativeWebCliRefusesCanonicalizingRawSelectedUrls(tmp_path, url):
     assert json.loads(output.getvalue())["failure"]["code"] == "invalid_configuration", (
         "Raw spelling refusal must retain the invalid-input classification."
     )
+
+
+@pytest.mark.parametrize("case", [case for case in Oracle()["cases"]
+                                  if case["family"] == "reflection"], ids=lambda case: case["id"])
+def test_NativeReflectionRecordsOnlyTheOwnedLexicalObservation(tmp_path, capsys, case):
+    """Exercise the real worker and persist an observation independently of XSS confirmation."""
+
+    with OwnedWebVulnerabilityTarget(tmp_path / "target") as service:
+        root = tmp_path / "workspace"
+        args = Setup(root, service.Url(case), check="html-reflection")
+        plan = Plan(args)
+        assert not service.Observe()["requests"], "Read-only planning contacted the target."
+        assert Main(["scan", *args, "--json"]) == 3, "Unconfirmed HTML reflection ran."
+        capsys.readouterr()
+        assert not service.Observe()["requests"], "Denied work contacted the target."
+        assert Main(["scan", *Confirm(args, plan), "--json"]) == 0, (
+            "Confirmed native reflection must complete on valid owned HTML."
+        )
+        result = json.loads(capsys.readouterr().out)
+        assert result["check_id"] == NATIVE_HTML_REFLECTION_CHECK_ID, "Check identity drifted."
+        model = LocalModelStore(root).Open()
+        assert not Findings(model), "An inert lexical probe cannot establish an XSS Finding."
+        observed = [item for item in model.observations
+                    if item.kind == "native.web-response-check"]
+        assert len(observed) == 1 and observed[0].attributes["matched"] is case["expected_match"], (
+            "The owned positive, fixed and decoy oracles must match the recorded observation."
+        )
+        assert service.Observe()["requests"] == [case["route"]], "One exact contact is required."
+        assert Main(["workspace", "open", str(root), "--json"]) == 0, (
+            "Reopening must verify the original worker acquisitions."
+        )
+
+
+@pytest.mark.parametrize("case", Oracle()["failure_cases"], ids=lambda case: case["route"])
+def test_NativeReflectionFailsClosedOnBrokenOwnedTargets(tmp_path, capsys, case):
+    """Retain a failed job and its original worker error without a clean observation."""
+
+    with OwnedWebVulnerabilityTarget(tmp_path / "target") as service:
+        root = tmp_path / "workspace"
+        args = Setup(root, service.base_url + case["route"], check="html-reflection")
+        assert Main(["scan", *Confirm(args, Plan(args)), "--json"]) == 4, (
+            "Broken transport must fail the assessment instead of becoming a clean response."
+        )
+        result = json.loads(capsys.readouterr().out)
+        assert result["state"] == "failed", "Target failure must leave a failed job."
+        model = LocalModelStore(root).Open()
+        assert not model.observations and not Findings(model), (
+            "Failed acquisition must create neither a clean observation nor a Finding."
+        )
+        errors = [json.loads(value.read_bytes()) for value in (root / "evidence").rglob("*")
+                  if value.is_file() and value.read_bytes().startswith(b'{"error":')]
+        assert errors == [{"error": case["expected_error"], "schema_version": 1}], (
+            "The exact original worker failure must survive the job."
+        )
+        assert service.Observe()["requests"] == [case["route"]], "Only one contact is allowed."

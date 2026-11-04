@@ -40,7 +40,17 @@ REFLECTION_ROUTES = {
     f"/reflect/{mode}/" + quote(REFLECTION_INPUT, safe="/"): mode
     for mode in ("vulnerable", "fixed", "decoy")
 }
-KNOWN_ROUTES = frozenset((*GIT_ROUTES, *SQL_ROUTES, *REFLECTION_ROUTES, "/redirect"))
+BROKEN_RESPONSES = {
+    "/broken/header": b"HTTP/1.1 200 OK\r\nInvalid Header\r\n\r\n",
+    "/broken/framing": (b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\n"
+                         b"Content-Length: 2\r\n\r\nx"),
+    "/broken/truncated": b"HTTP/1.1 200 OK\r\nContent-Length: 8\r\n\r\nshort",
+    "/broken/status": b"not-an-http-response\r\n\r\n",
+}
+KNOWN_ROUTES = frozenset((
+    *GIT_ROUTES, *SQL_ROUTES, *REFLECTION_ROUTES, *BROKEN_RESPONSES, "/broken/unavailable",
+    "/redirect",
+))
 MAX_PATH_BYTES = 1024
 MAX_FILE_BYTES = 256
 
@@ -186,6 +196,12 @@ class WebVulnerabilityHandler(BaseHTTPRequestHandler):
         if self.path == "/redirect":
             self.Reply(302, b"owned-redirect", "text/plain",
                        location="/git/vulnerable/.git/HEAD")
+
+        elif self.path in BROKEN_RESPONSES:
+            self.wfile.write(BROKEN_RESPONSES[self.path])
+
+        elif self.path == "/broken/unavailable":
+            self.Reply(503, b"owned-configuration-unavailable", "text/plain")
 
         elif self.path in GIT_ROUTES:
             self.GitHead(state, GIT_ROUTES[self.path])

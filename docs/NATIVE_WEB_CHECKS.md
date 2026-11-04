@@ -337,3 +337,15 @@ wheel with source/wheel/installed-byte agreement. Final integration still requir
 the actual shared CI gate for the proposed revision. These finite owned cases do
 not establish Juice Shop `/ftp`, arbitrary server formats or complete #53/#59;
 genuine pinned external-app acceptance remains separate.
+
+## Owned HTML reflection profile
+
+The Experimental `scan web --check html-reflection` profile uses
+`web.html-reflection-check` and the existing STANDARD confirmation flow.
+Select the exact scoped loopback URL from the
+[owned target oracle](../labs/targets/web-vulnerable/oracle.v1.json).
+The check records one lexical observation from the original worker evidence.
+Positive evidence is the exact inert probe element in complete UTF-8 HTML.
+The fixed and decoy controls exercise escaping and comment insertion. The
+malformed or unavailable controls produce failed jobs. Browser execution
+and XSS Findings are outside this profile. See [ADR 0143](adr/0143-owned-html-reflection-observation.md).

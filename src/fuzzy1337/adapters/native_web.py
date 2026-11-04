@@ -14,7 +14,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import MappingProxyType
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from fuzzy1337.adapters import (
     AdapterDescriptor,
@@ -37,6 +37,7 @@ from fuzzy1337.adapters.prometheus_exposition import (
     MAX_PROMETHEUS_BODY_BYTES,
     SupportedExposition,
 )
+from fuzzy1337.adapters.web_assessment import REFLECTION_MARKER, MatchesHtmlReflection
 from fuzzy1337.requests import Endpoint as RequestEndpoint
 from fuzzy1337.requests import InjectionLocation, InjectionPoint, RequestTemplate, ValueBinding
 from fuzzy1337.scope import Target, TargetKind
@@ -52,6 +53,10 @@ NATIVE_PROMETHEUS_CHECK_ID = "native.prometheus-exposition"
 NATIVE_PROMETHEUS_CAPABILITY = "web.prometheus-exposition-check"
 NATIVE_DIRECTORY_INDEX_CHECK_ID = "native.directory-index"
 NATIVE_DIRECTORY_INDEX_CAPABILITY = "web.directory-index-check"
+NATIVE_HTML_REFLECTION_CHECK_ID = "native.html-reflection"
+NATIVE_HTML_REFLECTION_CAPABILITY = "web.html-reflection-check"
+NATIVE_HTML_CHECKS = frozenset({NATIVE_DIRECTORY_INDEX_CHECK_ID, NATIVE_HTML_REFLECTION_CHECK_ID})
+NATIVE_EXPLICIT_CHECKS = NATIVE_HTML_CHECKS | {NATIVE_PROMETHEUS_CHECK_ID}
 MAX_NATIVE_WEB_RECORD_BYTES = 4096
 MAX_NATIVE_WEB_BODY_BYTES = 4096
 NATIVE_WEB_MEDIA_TYPES = frozenset({"text/plain", "application/octet-stream", "other"})
@@ -68,6 +73,13 @@ _FILE_PATHS = frozenset({"/files/vulnerable", "/files/fixed", "/files/decoy"})
 _FILE_QUERIES = frozenset({"name=hello.txt", "name=..%2Fprivate%2Fcanary.txt",
                            "name=..%2Fprivate%2Fmissing.txt"})
 _FILE_CANARY = b"owned-private-file-canary\n"
+_REFLECTION_PATHS = frozenset(
+    f"/reflect/{mode}/" + quote(REFLECTION_MARKER, safe="/")
+    for mode in ("vulnerable", "fixed", "decoy")
+) | frozenset({
+    "/broken/header", "/broken/framing", "/broken/truncated", "/broken/status",
+    "/broken/unavailable",
+})
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,7 +88,7 @@ class NativeWebCheck:
 
     check_id: str
     capability: str
-    finding_id: str
+    finding_id: str | None
     title: str
     predicate: Callable[[int, str, bytes], bool]
     request_profile: str | None = None
@@ -125,6 +137,12 @@ def NativeWebEndpoint(
         return selected, address, port, scheme
 
     result = Endpoint(value)
+
+    if check_id == NATIVE_HTML_REFLECTION_CHECK_ID and (
+        not ipaddress.ip_address(result[1]).is_loopback
+        or urlsplit(result[0].value).path not in _REFLECTION_PATHS
+    ):
+        raise ValueError("native HTML reflection requires an exact owned-loopback probe URL")
 
     if value != result[0].value:
         raise ValueError("native web requires an already canonical exact URL")
@@ -226,6 +244,9 @@ _CHECKS = MappingProxyType({
     NATIVE_DIRECTORY_INDEX_CHECK_ID: NativeWebCheck(NATIVE_DIRECTORY_INDEX_CHECK_ID,
         NATIVE_DIRECTORY_INDEX_CAPABILITY, "directory-index",
         "Response contains a supported classic HTML directory index", MatchesDirectoryIndex),
+    NATIVE_HTML_REFLECTION_CHECK_ID: NativeWebCheck(NATIVE_HTML_REFLECTION_CHECK_ID,
+        NATIVE_HTML_REFLECTION_CAPABILITY, None,
+        "Owned HTML probe observed as a lexical element", MatchesHtmlReflection),
 })
 _DESCRIPTOR = AdapterDescriptor(
     NATIVE_WEB_PROVIDER_ID, "Native bounded response checks", NATIVE_WEB_VERSION,
@@ -289,7 +310,7 @@ def NativeWebParameters(
     parameters: dict[str, object] = {"url": url,
                                    "timeout_seconds": RequestTimeout(timeout_seconds)}
 
-    if check_id in {NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID}:
+    if check_id in NATIVE_EXPLICIT_CHECKS:
         parameters["check_id"] = check_id
 
     if check_id == NATIVE_FILE_CANARY_CHECK_ID:
@@ -373,7 +394,7 @@ def ParseNativeWebRecord(
             or not 0 <= record["body_bytes"] <= check.max_body_bytes
             or type(record["media_type"]) is not str
             or record["media_type"] not in (NATIVE_WEB_MEDIA_TYPES | {"text/html"}
-                if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID else NATIVE_WEB_MEDIA_TYPES)
+                if check_id in NATIVE_HTML_CHECKS else NATIVE_WEB_MEDIA_TYPES)
             or type(record["body_sha256"]) is not str
             or _SHA256.fullmatch(record["body_sha256"]) is None
             or type(record["matched"]) is not bool
@@ -398,7 +419,7 @@ def ParseNativeWebRecord(
         ):
             raise ValueError
 
-        if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID and record["matched"] and (
+        if check_id in NATIVE_HTML_CHECKS and record["matched"] and (
             record["status"] != 200 or record["media_type"] != "text/html"
             or record["body_bytes"] == 0
         ):
@@ -471,7 +492,7 @@ class NativeWebAdapter:
 
         expected = {"url", "timeout_seconds"}
 
-        if check_id in {NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID}:
+        if check_id in NATIVE_EXPLICIT_CHECKS:
             expected.add("check_id")
 
         if check_id == NATIVE_FILE_CANARY_CHECK_ID:
@@ -486,7 +507,7 @@ class NativeWebAdapter:
         suffix: tuple[str, ...] = ()
         workspace_id = None
 
-        if check_id in {NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID}:
+        if check_id in NATIVE_EXPLICIT_CHECKS:
             suffix = (check_id,)
 
         if check_id == NATIVE_FILE_CANARY_CHECK_ID:
@@ -575,7 +596,7 @@ class NativeWebAdapter:
         findings = (NormalizedFinding(
             check.finding_id, subject, check.title,
             {"check_id": check.check_id, "severity": "low"},
-        ),) if record["matched"] else ()
+        ),) if record["matched"] and check.finding_id is not None else ()
 
         return AdapterResult(report, (
             NormalizedObservation("native.web-response-check", subject, attributes),

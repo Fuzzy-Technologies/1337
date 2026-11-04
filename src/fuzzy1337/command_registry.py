@@ -204,7 +204,7 @@ COMMAND_REGISTRY = CommandRegistry(
                      "synthetic/native images or configurations."),
             usage="1337 scan <quick|crawl|ports|web|nuclei|image|config> <workspace>",
             capabilities=("http.endpoint-discovery", "web.git-head-check",
-                          "web.directory-index-check",
+                          "web.directory-index-check", "web.html-reflection-check",
                           "http.owned-loopback-crawl",
                           "network.tcp-connect",
                           "image.archive-vulnerabilities",

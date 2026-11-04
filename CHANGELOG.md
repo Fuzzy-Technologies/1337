@@ -8,6 +8,19 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 24 — v0.4.24 — 2026-11-04
+
+#### Digest
+
+- Observe owned HTML reflection through a bounded 1337Scope native profile.
+
+#### Added
+
+- Record the exact inert HTML marker as a lexical observation through the
+  existing governed scan, worker evidence and model pipeline.
+- Exercise raw, escaped, comment and broken-target controls through the actual
+  native CLI. Malformed transport remains a failed job.
+
 ### Patch 23 — v0.4.23 — 2026-11-04
 
 #### Digest
