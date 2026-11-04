@@ -27945,3 +27945,58 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.sql-boolean-assessment"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.sql_boolean_assessment.md"
+sourceHash = "sha256:2155c3da8f71f8c62e2e0d12d96f5974fc90ff3f181b705a16a783051343f05e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sql_boolean_assessment.AssessSqlBooleanEvidence"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sql_boolean_assessment.py"
+sourceHash = "sha256:00649d16925fc18c9e5ce547f959ceb16e155335106a77cb47b6fc90a3e4c980"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sql_boolean_assessment.ClassifySqlBooleanDigests"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sql_boolean_assessment.py"
+sourceHash = "sha256:519fbe8e6dc559056b54d7c358cb5581dcaa9f2dcaeff936a6d3eec675ca6f22"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sql_boolean_assessment.RequireSqlBooleanPlans"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sql_boolean_assessment.py"
+sourceHash = "sha256:9183bf5ee86b022f40786417df0a282da9ab5a9d8727db67ee48b25e21ffd11c"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.sql_boolean_assessment.SqlBooleanOutcome"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/sql_boolean_assessment.py"
+sourceHash = "sha256:4346ecf276198507d023732a8907fdbe74638a65a43c1f7694237ba2780243ee"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
