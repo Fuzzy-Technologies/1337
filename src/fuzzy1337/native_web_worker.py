@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import ipaddress
+import json
 import re
 import socket
 import ssl
@@ -17,10 +18,13 @@ from urllib.parse import urlsplit
 
 from fuzzy1337.adapters.native_http import RequestTimeout
 from fuzzy1337.adapters.native_web import (
-    NATIVE_DIRECTORY_INDEX_CHECK_ID,
+    NATIVE_EXPLICIT_CHECKS,
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_FILE_CANARY_PROFILE,
+    NATIVE_HTML_CHECKS,
+    NATIVE_HTML_REFLECTION_CHECK_ID,
     NATIVE_PROMETHEUS_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
     NATIVE_WEB_CHECK_ID,
     NATIVE_WEB_ERROR_EXITS,
     NATIVE_WEB_VERSION,
@@ -30,6 +34,7 @@ from fuzzy1337.adapters.native_web import (
     NativeWebEndpoint,
 )
 from fuzzy1337.native_http_worker import Remaining
+from fuzzy1337.workspace import RejectWorkspaceConstant
 
 MAX_HEADER_BYTES = 16384
 MAX_HEADER_FIELDS = 64
@@ -125,8 +130,11 @@ def Headers(
     media = values.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
     mediaTypes = {b"text/plain", b"application/octet-stream"}
 
-    if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID:
+    if check_id in NATIVE_HTML_CHECKS:
         mediaTypes.add(b"text/html")
+
+    elif check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID:
+        mediaTypes.add(b"application/json")
 
     category = media.decode("ascii") if media in mediaTypes else "other"
 
@@ -353,8 +361,14 @@ def Probe(
 
         parsed = urlsplit(target.value)
         requestTarget = parsed.path + ("?" + parsed.query if template is not None else "")
-        accept = "text/html" if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID else (
-            "text/plain, application/octet-stream")
+        accept = "text/plain, application/octet-stream"
+
+        if check_id in NATIVE_HTML_CHECKS:
+            accept = "text/html"
+
+        elif check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID:
+            accept = "application/json"
+
         request = (f"GET {requestTarget} HTTP/1.1\r\nHost: {parsed.netloc}\r\n"
                    f"Connection: close\r\nAccept: {accept}\r\n"
                    "Accept-Encoding: identity\r\n\r\n")
@@ -407,7 +421,30 @@ def Probe(
 
             rawBody = bytes(body)
 
-        matched = check.predicate(status, mediaType, rawBody)
+        if check_id == NATIVE_HTML_REFLECTION_CHECK_ID:
+            if status != 200 or mediaType != "text/html" or b"\x00" in rawBody:
+                raise NativeWebResponseError
+
+            try:
+                rawBody.decode("utf-8")
+
+            except UnicodeError as error:
+                raise NativeWebResponseError from error
+
+        elif check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID:
+            if status != 200 or mediaType != "application/json":
+                raise NativeWebResponseError
+
+            try:
+                if type(json.loads(rawBody.decode("utf-8"),
+                                   parse_constant=RejectWorkspaceConstant)) is not dict:
+                    raise ValueError
+
+            except (ValueError, RecursionError) as error:
+                raise NativeWebResponseError from error
+
+        matched = (check.predicate(status, mediaType, rawBody)
+                   if check.predicate is not None else None)
 
         if check_id == NATIVE_PROMETHEUS_CHECK_ID:
             Remaining(deadline)
@@ -452,9 +489,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
         if len(arguments) == 2:
             record = Probe(arguments[0], float(arguments[1]))
 
-        elif len(arguments) == 3 and arguments[2] in {
-            NATIVE_PROMETHEUS_CHECK_ID, NATIVE_DIRECTORY_INDEX_CHECK_ID,
-        }:
+        elif len(arguments) == 3 and arguments[2] in NATIVE_EXPLICIT_CHECKS:
             record = Probe(arguments[0], float(arguments[1]), check_id=arguments[2])
 
         elif len(arguments) == 4 and arguments[2] == NATIVE_FILE_CANARY_CHECK_ID:

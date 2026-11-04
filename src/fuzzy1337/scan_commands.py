@@ -18,7 +18,9 @@ from fuzzy1337.adapters import SerializeContract
 from fuzzy1337.adapters.native_web import (
     NATIVE_DIRECTORY_INDEX_CHECK_ID,
     NATIVE_FILE_CANARY_CHECK_ID,
+    NATIVE_HTML_REFLECTION_CHECK_ID,
     NATIVE_PROMETHEUS_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
     NATIVE_WEB_CHECK_ID,
     NativeWebEndpoint,
 )
@@ -352,7 +354,8 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         web = actions.add_parser("web", help="Plan/run a first-party STANDARD web check.")
         web.add_argument("path", type=Path)
         web.add_argument("--check", choices=("git-head-exposure", "file-canary-disclosure",
-                                           "prometheus-exposition", "directory-index"),
+                                           "prometheus-exposition", "directory-index",
+                                           "html-reflection", "sql-boolean-sample"),
                          required=True)
         web.add_argument("--scope", required=True)
         web.add_argument("--owner", required=True)
@@ -620,6 +623,12 @@ def RunCommands(
 
                 if arguments.action == "web" and arguments.check == "directory-index":
                     checkId = NATIVE_DIRECTORY_INDEX_CHECK_ID
+
+                if arguments.action == "web" and arguments.check == "html-reflection":
+                    checkId = NATIVE_HTML_REFLECTION_CHECK_ID
+
+                if arguments.action == "web" and arguments.check == "sql-boolean-sample":
+                    checkId = NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID
 
                 if arguments.action == "ports":
                     target = Target(TargetKind.IP, arguments.target)
