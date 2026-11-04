@@ -44,10 +44,10 @@ def GrantedAuthorization() -> ScopeAuthorization:
     )
 
 
-def CreateStore(tmp_path: Path) -> tuple[LocalScopeStore, ScopeSnapshot]:
+def CreateStore(tmpPath: Path) -> tuple[LocalScopeStore, ScopeSnapshot]:
     """Create a real isolated workspace and one registered authorized scope."""
 
-    root = tmp_path / "workspace"
+    root = tmpPath / "workspace"
     LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Synthetic"), "synthetic")
     store = LocalScopeStore(root)
     target = Target(TargetKind.DOMAIN, "example.test")
