@@ -417,6 +417,56 @@ def test_CorruptedOriginalWorkerBlobFailsBeforeAnyReport(
     )
 
 
+def test_IdenticalHistoricalWorkerBytesCannotReplaceCurrentAcquisitions(
+    workflow, runner, monkeypatch, tmp_path,
+):
+    """Retained manifests with the same bytes and execution still belong to their own run."""
+
+    workflow[3]["mode"] = "negative"
+    _, _, _, previous, _ = ActualSource(workflow, runner)
+    monkeypatch.setattr(ci_native_web.asyncio, "run", runner.run)
+    originalRun = ci_native_web.RunNativeWebScan
+    captured = []
+
+    async def ScanThenSubstituteAcquisitions(*args, **kwargs):
+        """Keep the current job events and swap only its terminal artifact manifests."""
+
+        current = await originalRun(*args, **kwargs)
+        substituted = tuple(replace(artifact, evidence=historical.evidence)
+            for historical, artifact in zip(previous.snapshot.artifacts, current.snapshot.artifacts,
+                                            strict=True))
+        captured.append(current)
+
+        return replace(current, snapshot=replace(current.snapshot, artifacts=substituted))
+
+    monkeypatch.setattr(ci_native_web, "RunNativeWebScan", ScanThenSubstituteAcquisitions)
+    status, outcome = Invoke(Arguments(workflow, tmp_path))
+    assert len(captured) == 1 and (
+        previous.snapshot.spec.job_id != captured[0].snapshot.spec.job_id
+    ), (
+        "The test must substitute receipts from a different owning job."
+    )
+
+    for historical, artifact in zip(previous.snapshot.artifacts, captured[0].snapshot.artifacts,
+                                    strict=True):
+        before, after = historical.evidence, artifact.evidence
+        assert before.reference == after.reference and (
+            before.provenance.execution == after.provenance.execution
+        ), "Only acquisition identity may distinguish these two executions."
+        assert before.evidence_id != after.evidence_id, (
+            "The evidence store must retain separate original acquisition manifests."
+        )
+
+    assert status == 4 and outcome["failure"] == "scan" and (
+        outcome["criterion"] == {"status": "indeterminate"}
+    ), (
+        "An earlier byte-identical acquisition must not satisfy the current gate."
+    )
+    assert all(item["status"] == "not-run" for item in outcome["reports"].values()) and not (
+        tmp_path / "ci.json"
+    ).exists(), "A mismatched acquisition must fail before report publication."
+
+
 @pytest.mark.parametrize("ack_lost", [False, True])
 def test_ReportPublicationFailureRetainsActualCompletedPrefix(
     workflow, runner, monkeypatch, tmp_path, ack_lost,

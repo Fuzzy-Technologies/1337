@@ -37,7 +37,15 @@ from fuzzy1337.ci_gate import (
 from fuzzy1337.evidence import EvidenceError, EvidenceProvenance, EvidenceRecord, LocalEvidenceStore
 from fuzzy1337.executors import InvocationDigest
 from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus
-from fuzzy1337.jobs import JobArtifact, JobFailure, JobSnapshot, JobSpec, JobState
+from fuzzy1337.jobs import (
+    JobArtifact,
+    JobEvent,
+    JobEventKind,
+    JobFailure,
+    JobSnapshot,
+    JobSpec,
+    JobState,
+)
 from fuzzy1337.model import (
     CanonicalModelJson,
     LocalModelStore,
@@ -123,6 +131,22 @@ def RequireNativeSummary(summary: NativeWebScanSummary) -> None:
             or type(artifact.evidence.provenance) is not EvidenceProvenance
         ):
             raise ValueError("CI native web evidence belongs to a different job")
+
+    if snapshot.state is JobState.COMPLETED:
+        events = summary.events
+
+        if type(events) is not tuple or any(
+            type(event) is not JobEvent or event.job_id != snapshot.spec.job_id
+            for event in events
+        ):
+            raise ValueError("CI native web requires its own job events")
+
+        captured = tuple(event.data for event in events if event.kind is JobEventKind.ARTIFACT)
+
+        if any(type(item) is not JobArtifact for item in captured) or (
+            captured != snapshot.artifacts
+        ):
+            raise ValueError("CI native web evidence differs from the original job acquisitions")
 
 
 def RequirePlan(plan: NativeWebScanPlan) -> None:
