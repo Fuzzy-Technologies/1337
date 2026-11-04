@@ -12,7 +12,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from fuzzy1337.adapters import EvidenceReference
 from fuzzy1337.evidence import (
@@ -40,7 +40,7 @@ from fuzzy1337.intelligence import (
     ParseIntelligenceSnapshot,
 )
 from fuzzy1337.intelligence_receiver import ReceiveIsolatedHttps
-from fuzzy1337.workspace import LocalWorkspaceStore
+from fuzzy1337.workspace import LocalWorkspaceStore, WorkspaceState
 
 __all__ = ("CveHttpsSource", "CveHttpsRequest", "CveHttpsSelection", "CveHttpsState",
            "CveHttpsAcknowledgement", "CveHttpsOutcome", "AcquireHttpsCveSelection",
@@ -433,6 +433,57 @@ def RequireRecord(record: EvidenceRecord, role: str, media_type: str) -> None:
         raise ValueError("CVE artifact has foreign role, media type or importer provenance")
 
 
+@dataclass(frozen=True, slots=True)
+class _CveHttpsReceiveFacts:
+    """Retain observed receiver facts without conferring any custody."""
+
+    startedAt: str
+    finishedAt: str
+    receivedBytes: int
+    bodyComplete: bool
+    receiveState: str
+    httpStatus: int | None
+
+    @classmethod
+    def FromOutcome(cls, outcome: CveHttpsOutcome) -> _CveHttpsReceiveFacts:
+        """Copy observed transport facts without exposing publication handles."""
+
+        return cls(outcome.started_at, outcome.finished_at, outcome.received_bytes,
+                   outcome.body_complete, outcome.receive_state, outcome.http_status)
+
+
+class _CveHttpsOwnershipStop(Exception):
+    """Stop composition when the owning workspace cannot be observed as expected."""
+
+    def __init__(
+        self, reason: Literal["workspace-unavailable", "workspace-changed"],
+        receive: _CveHttpsReceiveFacts | None,
+    ) -> None:
+        """Retain the distinct stop reason and any already observed receive."""
+
+        super().__init__(reason)
+        self.reason = reason
+        self.receive = receive
+
+
+def _OpenExpectedWorkspace(
+    workspace: LocalWorkspaceStore, expectedWorkspaceId: str,
+    receive: _CveHttpsReceiveFacts | None = None,
+) -> WorkspaceState:
+    """Read current workspace ownership without treating revision changes as replacement."""
+
+    try:
+        owner = workspace.Open()
+
+    except (OSError, ValueError) as error:
+        raise _CveHttpsOwnershipStop("workspace-unavailable", receive) from error
+
+    if owner.workspace_id != expectedWorkspaceId:
+        raise _CveHttpsOwnershipStop("workspace-changed", receive)
+
+    return owner
+
+
 def AcquireHttpsCveSelection(
     workspace_root: Path, request: CveHttpsRequest, *, scope_reference: str,
 ) -> CveHttpsOutcome:
@@ -448,25 +499,42 @@ def AcquireHttpsCveSelection(
         immutable artifacts and is never reported as rollback or successful complete custody.
     """
 
+    return _AcquireHttpsCveSelection(workspace_root, request, scopeReference=scope_reference)
+
+
+def _AcquireHttpsCveSelection(
+    workspaceRoot: Path, request: CveHttpsRequest, *, scopeReference: str,
+    expectedWorkspaceId: str | None = None,
+) -> CveHttpsOutcome:
+    """Perform the same acquisition with optional ownership checks for composition."""
+
     if type(request) is not CveHttpsRequest:
         raise ValueError("CVE HTTPS acquisition requires a typed HTTPS request")
 
-    RequireReferenceText(scope_reference, "scope_reference")
-    owner = LocalWorkspaceStore(workspace_root).Open()
-    store = LocalEvidenceStore(workspace_root / "evidence")
+    RequireReferenceText(scopeReference, "scope_reference")
+    workspace = LocalWorkspaceStore(workspaceRoot)
+    owner = (
+        workspace.Open() if expectedWorkspaceId is None
+        else _OpenExpectedWorkspace(workspace, expectedWorkspaceId)
+    )
+    store = LocalEvidenceStore(workspaceRoot / "evidence")
     startedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     payload, receiveState, httpStatus = ReceiveIsolatedHttps(
         request.source.SourceUrl, request.max_bytes, request.timeout_seconds,
     )
     finishedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     complete = receiveState == "succeeded"
-    provenance = EvidenceProvenance(owner.workspace_id, scope_reference, IMPORTER_ID,
+    provenance = EvidenceProvenance(owner.workspace_id, scopeReference, IMPORTER_ID,
                                     IMPORTER_VERSION, None, startedAt, finishedAt)
     outcome = CveHttpsOutcome(
         CveHttpsState(receiveState),
         request.source, startedAt, finishedAt, len(payload),
         complete, request.max_bytes, request.timeout_seconds, receiveState, httpStatus,
     )
+
+    if expectedWorkspaceId is not None:
+        _OpenExpectedWorkspace(workspace, expectedWorkspaceId,
+                               _CveHttpsReceiveFacts.FromOutcome(outcome))
 
     try:
         outcome = replace(outcome, raw_ack=CveHttpsAcknowledgement.UNKNOWN)

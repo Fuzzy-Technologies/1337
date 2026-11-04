@@ -82,6 +82,25 @@ possible. Later failure can leave earlier immutable records; an oversized
 generated receipt is refused while preserving earlier acknowledgements. Failure
 is not complete successful custody and never supplies zero risk.
 
+## Explicit selected batch SDK
+
+`fuzzy1337.intelligence_cve_batch.AcquireHttpsCveBatch` accepts a tuple of two
+to four `CveHttpsRequest` selections. Use unique CVE IDs at one pinned commit,
+with independent SHA-256 and receive limits. The SDK validates all requests
+before collection, then processes them serially in the same owning workspace.
+The sum of byte ceilings is at most 4 MiB and the sum of configured receive
+timeouts is at most 60 seconds. Each member retains the single-record limits.
+
+The result separates verified custody, attempted failure and not-attempted
+members. A partial batch can retain successful selections and independent
+acknowledgements. Reopen each successful selection with its own receipt through
+`LoadHttpsCveSelection`. Batch output has no persistent aggregate receipt or
+model write. The existing CLI continues to select one record at a time.
+
+The [batch design](adr/0145-pinned-selected-cve-https-batch.md) records the
+ownership and interruption boundaries. Genuine batch HTTPS acceptance remains
+pending.
+
 ## Attribution and interpretation
 
 The source identity retains [CVE Program Terms of Use](https://www.cve.org/Legal/TermsOfUse),

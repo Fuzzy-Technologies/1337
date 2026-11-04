@@ -8,6 +8,25 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 27 — v0.4.27 — 2026-11-04
+
+#### Digest
+
+- Compose a finite set of explicitly pinned CVE records in one Experimental
+  SDK operation with independent per-record custody.
+
+#### Added
+
+- Accept two to four distinct wire-5.2 PUBLISHED CVE selections at one immutable
+  commit. Preserve caller order, partial outcomes and independently reopenable
+  original, selection and receipt records.
+
+#### Security
+
+- Check owning workspace identity before and after each receive. Refuse
+  inconsistent handles and keep later unattempted members explicit.
+
+
 ### Patch 24 — v0.4.24 — 2026-11-04
 
 #### Digest

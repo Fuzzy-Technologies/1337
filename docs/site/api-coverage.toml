@@ -957,6 +957,13 @@ mode = "authored"
 page = "api/fuzzy1337.intelligence_cve_remote.md"
 
 [[surfaces]]
+# Experimental ordered batch of explicit pinned CVE HTTPS selections.
+module = "fuzzy1337.intelligence_cve_batch"
+source = "src/fuzzy1337/intelligence_cve_batch.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cve_batch.md"
+
+[[surfaces]]
 # Internal explicit selected CVE fetch and original offline inspection consumer.
 module = "fuzzy1337.intelligence_cve_https_commands"
 source = "src/fuzzy1337/intelligence_cve_https_commands.py"
