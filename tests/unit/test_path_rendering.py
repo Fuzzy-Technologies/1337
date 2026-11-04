@@ -64,8 +64,8 @@ def test_DeterministicSvgRetainsStatesOriginalRefsAndScriptHash():
             "A selected transition's original state/reference disappeared"
         )
 
-    expected_hash = base64.b64encode(hashlib.sha256(rendering.SCRIPT.encode()).digest()).decode()
-    assert "sha256-" + expected_hash in html and "default-src &#x27;none&#x27;" in html, (
+    expectedHash = base64.b64encode(hashlib.sha256(rendering.SCRIPT.encode()).digest()).decode()
+    assert "sha256-" + expectedHash in html and "default-src &#x27;none&#x27;" in html, (
         "Offline controls lost the exact fixed script or deny-network CSP"
     )
     assert "· CUT" in html and "enumeration complete: false" in html and (
@@ -76,9 +76,9 @@ def test_DeterministicSvgRetainsStatesOriginalRefsAndScriptHash():
     assert base64.b64decode(raw) == rendering.CanonicalModelJson(document) + b"\n", (
         "JSON download is not the original exact canonical command outcome"
     )
-    svg_raw = re.search(r'download="path-analysis.svg" href="data:image/svg\+xml;base64,([^"]+)"',
+    svgRaw = re.search(r'download="path-analysis.svg" href="data:image/svg\+xml;base64,([^"]+)"',
                         html).group(1)
-    assert base64.b64decode(svg_raw).decode() == rendering.GraphSvg(document, model)[0], (
+    assert base64.b64decode(svgRaw).decode() == rendering.GraphSvg(document, model)[0], (
         "Static SVG download uses a separately maintained graph"
     )
 

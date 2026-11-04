@@ -150,9 +150,9 @@ class HeldResponseListener(OwnedResponseListener):
             if self.peer_observed.is_set():
                 return
 
-            within_hold = self.peer_deadline is not None and time.monotonic() < self.peer_deadline
+            withinHold = self.peer_deadline is not None and time.monotonic() < self.peer_deadline
             self.peer_signal = HeldPeerSignal(phase, not self.local_close_started, data, error,
-                                              within_hold=within_hold)
+                                              within_hold=withinHold)
             self.peer_closed = self.peer_signal["kind"] == "eof"
             self.hold_expired = isinstance(error, TimeoutError)
             self.peer_observed.set()
@@ -373,9 +373,9 @@ def CheckCapture(summary, state, prior, listener, case, python, root, observed=N
         "body": ids["owned-response-body"], "response": ids["owned-response-wire"]}, (
         "The noncircular receipt must preserve every actual original role-specific manifest ID"
     )
-    target_reference = "target:" + Sha({"kind": "url", "value": worker["url"]})
+    targetReference = "target:" + Sha({"kind": "url", "value": worker["url"]})
     invocation = {"adapter_id": "native.loopback-response", "request": {
-        "capability": "http.synthetic-response-capture", "target_reference": target_reference,
+        "capability": "http.synthetic-response-capture", "target_reference": targetReference,
         "impact": "SAFE", "parameters": {"url": worker["url"]}, "credential_references": []},
         "argv": [str(python), "-I", "-B", "-m",
             "fuzzy1337.owned_response_capture_worker", worker["url"]],
@@ -429,8 +429,8 @@ def CheckCapture(summary, state, prior, listener, case, python, root, observed=N
                 "sha256": digest, "size_bytes": len(raw), "media_type": ROLES[role]}
         ), "Reopened actual original ID, full five-field reference and provenance must agree"
 
-    artifact_ids = {item["evidence"]["evidence_id"] for item in summary["job"]["artifacts"]}
-    assert artifact_ids == set(ids.values()) and summary["original_job_id"] in (
+    artifactIds = {item["evidence"]["evidence_id"] for item in summary["job"]["artifacts"]}
+    assert artifactIds == set(ids.values()) and summary["original_job_id"] in (
         state["workspace"]["job_references"]), "Actual job attachments must retain all original IDs"
     assert set(ids.values()) <= set(state["workspace"]["evidence_record_references"]), (
         "Workspace must retain original IDs independently of shared content hashes"
@@ -466,14 +466,14 @@ def test_InstalledSdkAndCliPreserveOriginalCaptureAssociationsAndRelocatedOfflin
         assert Path(initial["runtime_module"]).is_relative_to(python.parents[1]), (
             "SDK must import the actual clean installed wheel, never checkout/editable code"
         )
-        before_plan = Files(root)
+        beforePlan = Files(root)
         plan = Consumer(python, tmp_path, "plan", config)
         assert plan["summary"]["state"] == "planned" and (
             plan["summary"]["execution_authorized"] is False
         ), (
             "Planning must expose only descriptive intent without an execution grant"
         )
-        assert listener.accepted == 0 and Files(root) == before_plan, (
+        assert listener.accepted == 0 and Files(root) == beforePlan, (
             "Actual installed planning must make zero contacts and no canonical or private writes"
         )
         sdk = Consumer(python, tmp_path, "capture", config)
@@ -486,9 +486,9 @@ def test_InstalledSdkAndCliPreserveOriginalCaptureAssociationsAndRelocatedOfflin
             "--owner", OWNER, "--policy", str(policy), "--approve-safe-response-capture")
         cli = Cli(python, tmp_path, command)
         assert cli.returncode == 0 and cli.stderr == b"", "Installed capture CLI must complete"
-        cli_summary = json.loads(cli.stdout)
+        cliSummary = json.loads(cli.stdout)
         final = Consumer(python, tmp_path, "inspect", config)
-        second = CheckCapture(cli_summary, final, sdk["state"], listener, case, python, root)
+        second = CheckCapture(cliSummary, final, sdk["state"], listener, case, python, root)
 
     finally:
         listener.Close()
@@ -501,15 +501,15 @@ def test_InstalledSdkAndCliPreserveOriginalCaptureAssociationsAndRelocatedOfflin
     assert not set(first["ids"].values()) & set(second["ids"].values()), (
         "Distinct real captures must preserve distinct original manifests even for identical bytes"
     )
-    initial_objects = {Sha(item["identity"]): item for item in initial["model"]["objects"]}
-    final_objects = {Sha(item["identity"]): item for item in final["model"]["objects"]}
-    assert all(final_objects[key] == value for key, value in initial_objects.items()), (
+    initialObjects = {Sha(item["identity"]): item for item in initial["model"]["objects"]}
+    finalObjects = {Sha(item["identity"]): item for item in final["model"]["objects"]}
+    assert all(finalObjects[key] == value for key, value in initialObjects.items()), (
         "Acquisition must preserve unrelated native assets and confirmed finding triage exactly"
     )
     assert {key: final["originals"][key] for key in initial["originals"]} == initial["originals"], (
         "Unrelated original evidence IDs, bytes and full provenance must survive both captures"
     )
-    added = [item for key, item in final_objects.items() if key not in initial_objects]
+    added = [item for key, item in finalObjects.items() if key not in initialObjects]
     assert len(added) == 1 and added[0]["identity"] == {"workspace_id": WORKSPACE,
         "kind": "endpoint", "key": config["url"]} and (
         added[0]["attributes"] == {"url": config["url"]}
@@ -519,31 +519,31 @@ def test_InstalledSdkAndCliPreserveOriginalCaptureAssociationsAndRelocatedOfflin
     assert final["model"]["relations"] == initial["model"]["relations"] == [], (
         "Source acquisition must create no relation or alter unrelated model topology"
     )
-    assert Counter(item["identity"]["kind"] for item in initial_objects.values()) == {
+    assert Counter(item["identity"]["kind"] for item in initialObjects.values()) == {
         "asset": 1, "finding": 1} and any(item["attributes"].get("status") == "confirmed"
-        for item in initial_objects.values()), (
+        for item in initialObjects.values()), (
         "Preservation requires an actual unrelated native asset and already confirmed Finding"
     )
     endpoint = added[0]
-    endpoint_reference = "object:" + Sha({"namespace": "object", "identity": endpoint["identity"]})
-    assert endpoint["reference"] == endpoint_reference, (
+    endpointReference = "object:" + Sha({"namespace": "object", "identity": endpoint["identity"]})
+    assert endpoint["reference"] == endpointReference, (
         "Both captures must share the same canonical source Endpoint identity"
     )
-    initial_observations = initial["model"]["observations"]
-    added_observations = [item for item in final["model"]["observations"]
-        if item not in initial_observations]
-    assert all(item in final["model"]["observations"] for item in initial_observations) and (
-        Counter(item["kind"] for item in added_observations) == {
+    initialObservations = initial["model"]["observations"]
+    addedObservations = [item for item in final["model"]["observations"]
+        if item not in initialObservations]
+    assert all(item in final["model"]["observations"] for item in initialObservations) and (
+        Counter(item["kind"] for item in addedObservations) == {
             "object-update": 2, "owned-response-source": 2}
     ), "Both immutable source observations and their owner updates must preserve original history"
-    source_facts = [item for item in added_observations if item["kind"] == "owned-response-source"]
+    sourceFacts = [item for item in addedObservations if item["kind"] == "owned-response-source"]
 
-    expected_attributions = []
+    expectedAttributions = []
 
-    for summary, captured in ((sdk["summary"], first), (cli_summary, second)):
-        facts = [item for item in source_facts if item["attributes"]["original_receipt_id"] == (
+    for summary, captured in ((sdk["summary"], first), (cliSummary, second)):
+        facts = [item for item in sourceFacts if item["attributes"]["original_receipt_id"] == (
             summary["original_receipt_id"])]
-        expected_facts = {"profile": "owned-response-capture.v1", "catalog_sha256": CATALOG_SHA256,
+        expectedFacts = {"profile": "owned-response-capture.v1", "catalog_sha256": CATALOG_SHA256,
             "case_id": case_id, "original_job_id": summary["original_job_id"],
             "original_receipt_id": summary["original_receipt_id"],
             "original_role_ids": captured["ids"],
@@ -551,10 +551,10 @@ def test_InstalledSdkAndCliPreserveOriginalCaptureAssociationsAndRelocatedOfflin
             "response_sha256": case["response"]["sha256"],
             "header_size_bytes": case["header_section"]["size_bytes"],
             "body_size_bytes": case["body"]["size_bytes"]}
-        assert len(facts) == 1 and facts[0]["attributes"] == expected_facts, (
+        assert len(facts) == 1 and facts[0]["attributes"] == expectedFacts, (
             "Each original job, receipt and role association must remain an immutable source fact"
         )
-        expected_attribution = {"source_id": "native.loopback-response",
+        expectedAttribution = {"source_id": "native.loopback-response",
             "run_reference": summary["original_job_id"],
             "observed_at": captured["receipt"]["finished_at"],
             "scope_reference": "scope:owned-source",
@@ -563,19 +563,19 @@ def test_InstalledSdkAndCliPreserveOriginalCaptureAssociationsAndRelocatedOfflin
             "evidence_references": sorted((final["originals"][identity]["manifest"]["reference"]
                 for identity in captured["ids"].values()), key=Canonical),
             "execution": captured["receipt"]["execution"]}
-        expected_attributions.append(expected_attribution)
-        assert facts[0]["subject_reference"] == endpoint_reference and (
-            facts[0]["provenance"] == expected_attribution
-            and summary["source_facts"] == expected_facts
+        expectedAttributions.append(expectedAttribution)
+        assert facts[0]["subject_reference"] == endpointReference and (
+            facts[0]["provenance"] == expectedAttribution
+            and summary["source_facts"] == expectedFacts
         ), "Each source fact must bind its original endpoint, complete evidence and execution"
-        updates = [item for item in added_observations if item["kind"] == "object-update"
-            and item["provenance"] == expected_attribution]
-        assert len(updates) == 1 and updates[0]["subject_reference"] == endpoint_reference and (
+        updates = [item for item in addedObservations if item["kind"] == "object-update"
+            and item["provenance"] == expectedAttribution]
+        assert len(updates) == 1 and updates[0]["subject_reference"] == endpointReference and (
             updates[0]["attributes"] == {"url": config["url"]}
         ), "Each capture must retain exactly its own source Endpoint update attribution"
 
     assert sorted(endpoint["provenance"], key=Canonical) == sorted(
-        expected_attributions, key=Canonical
+        expectedAttributions, key=Canonical
     ), "The shared Endpoint must retain both exact original capture attributions"
 
     operations = tuple(root.glob("owned-response-*"))
@@ -591,11 +591,11 @@ def test_InstalledSdkAndCliPreserveOriginalCaptureAssociationsAndRelocatedOfflin
     assert not root.exists() and not python.exists() and not policy.exists(), (
         "Offline replay must lose the original target, runtime path and current policy inputs"
     )
-    before_replay = Files(moved)
+    beforeReplay = Files(moved)
 
-    for summary in (sdk["summary"], cli_summary):
-        replay_config = {"workspace": str(moved), "receipt": summary["original_receipt_id"]}
-        replay = Consumer(installed_worker, tmp_path, "replay", replay_config)
+    for summary in (sdk["summary"], cliSummary):
+        replayConfig = {"workspace": str(moved), "receipt": summary["original_receipt_id"]}
+        replay = Consumer(installed_worker, tmp_path, "replay", replayConfig)
         command = Cli(installed_worker, tmp_path, ("replay", str(moved), "--receipt",
             summary["original_receipt_id"]))
         assert replay["exception_type"] is None and (
@@ -609,19 +609,19 @@ def test_InstalledSdkAndCliPreserveOriginalCaptureAssociationsAndRelocatedOfflin
                 "Replay must return original IDs and immutable source association"
             )
 
-        assert Files(moved) == before_replay and (
+        assert Files(moved) == beforeReplay and (
             replay["state"]["originals"] == final["originals"]
         ), (
             "Offline replay must write nothing and preserve every actual original manifest and byte"
         )
 
-    body_record = final["originals"][first["ids"]["owned-response-body"]]
-    blob = moved / "evidence" / body_record["manifest"]["reference"]["locator"]
+    bodyRecord = final["originals"][first["ids"]["owned-response-body"]]
+    blob = moved / "evidence" / bodyRecord["manifest"]["reference"]["locator"]
     raw = blob.read_bytes()
     blob.write_bytes(bytes((raw[0] ^ 1,)) + raw[1:])
     tampered = Files(moved)
-    replay_config = {"workspace": str(moved), "receipt": sdk["summary"]["original_receipt_id"]}
-    rejected = Consumer(installed_worker, tmp_path, "replay", replay_config)
+    replayConfig = {"workspace": str(moved), "receipt": sdk["summary"]["original_receipt_id"]}
+    rejected = Consumer(installed_worker, tmp_path, "replay", replayConfig)
     command = Cli(installed_worker, tmp_path, ("replay", str(moved), "--receipt",
         sdk["summary"]["original_receipt_id"]))
     assert rejected["summary"] is None and rejected["exception_type"] is not None and (

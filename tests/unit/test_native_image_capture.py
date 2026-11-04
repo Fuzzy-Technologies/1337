@@ -91,10 +91,10 @@ def Authority(invocation, identifier):
 def Result(raw, *, state=ExecutionState.SUCCEEDED, termination=ExecutionTermination.PROCESS_EXIT):
     """Represent simulated original executor outcomes; this is never genuine scanner evidence."""
 
-    exit_code = 0 if state is ExecutionState.SUCCEEDED else (
+    exitCode = 0 if state is ExecutionState.SUCCEEDED else (
         7 if state is ExecutionState.FAILED else None)
 
-    return LocalExecutionResult(AdapterExecution(state, exit_code, 0.01),
+    return LocalExecutionResult(AdapterExecution(state, exitCode, 0.01),
         termination, raw, b"owned-stderr",
         (ExecutionEvent(0, ExecutionEventKind.STARTED),
          ExecutionEvent(1, ExecutionEventKind.COMPLETED, termination=termination)))

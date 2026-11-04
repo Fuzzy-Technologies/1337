@@ -229,7 +229,7 @@ def test_ReadableFocusStateAndIndentedProofRetainExactOriginalValues(state, focu
     focus = before["analysis"]["transitions"][focus_index]["relation_reference"]
     before["analysis"]["transitions"][focus_index]["state"] = state
     result = comparison.ComparePathOutcomes(before, deepcopy(before), model, focus_transition=focus)
-    original_bytes = comparison.CanonicalModelJson(result)
+    originalBytes = comparison.CanonicalModelJson(result)
     html = comparison.RenderPathComparisonHtml(result, model)
     labels = re.findall(r'<p class="focus-state"><strong>Focus state: ([A-Z]+)</strong></p>', html)
     assert labels == [state, state], "Focus state came from a change summary or another edge."
@@ -245,9 +245,9 @@ def test_ReadableFocusStateAndIndentedProofRetainExactOriginalValues(state, focu
 
     raw = re.search(r'download="path-comparison.json" href="data:application/json;base64,([^"]+)"',
                     html).group(1)
-    assert base64.b64decode(raw) == original_bytes + b"\n" and comparison.CanonicalModelJson(
+    assert base64.b64decode(raw) == originalBytes + b"\n" and comparison.CanonicalModelJson(
         result,
-    ) == original_bytes, "Readable presentation changed canonical machine output or exact download."
+    ) == originalBytes, "Readable presentation changed canonical machine output or exact download."
 
 
 def test_ReadableChangedFocusLabelsRemainIndependentBeforeAndAfterFacts():

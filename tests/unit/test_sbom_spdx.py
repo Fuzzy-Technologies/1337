@@ -105,8 +105,8 @@ def test_InventoryRetainsCanonicalIdentitiesRawBytesAndSeparateLicenseRoles(cont
     assert b"SYNTHETIC_PRIVATE_MARKER" not in CanonicalModelJson(state.ToDict()), (
         "Private source details escaped the raw evidence boundary"
     )
-    replayed, replay_delta = ApplyVerifiedSpdx(state, record, provenance, IMAGE, root)
-    assert replayed == state and not replay_delta.created and not replay_delta.updated, (
+    replayed, replayDelta = ApplyVerifiedSpdx(state, record, provenance, IMAGE, root)
+    assert replayed == state and not replayDelta.created and not replayDelta.updated, (
         "Exact verified source replay changed state"
     )
 
@@ -443,8 +443,8 @@ def test_CorruptOrSubstitutedManifestDoesNotUpdateState(context):
     with pytest.raises((ValueError, EvidenceError)):
         ApplyVerifiedSpdx(state, altered, provenance, IMAGE, root)
 
-    raw_path = store.root / record.reference.locator
-    raw_path.write_bytes(b"corrupted")
+    rawPath = store.root / record.reference.locator
+    rawPath.write_bytes(b"corrupted")
 
     with pytest.raises(EvidenceIntegrityError):
         ApplyVerifiedSpdx(state, record, provenance, IMAGE, root)

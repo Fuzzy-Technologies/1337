@@ -274,7 +274,7 @@ def test_SyntheticTransportProducerFitsTheExistingComparisonConsumer(tmp_path):
         "wheel": {"filename": wheel.name, "size_bytes": wheel.stat().st_size,
                   "sha256": hashlib.sha256(wheel.read_bytes()).hexdigest()}}
     url = "http://127.0.0.1:3000" + case["path"]
-    control_hash = hashlib.sha256(b'{"version":"20.2.0"}').hexdigest()
+    controlHash = hashlib.sha256(b'{"version":"20.2.0"}').hexdigest()
     invocation = {"argv": ["contract-only-not-executed"], "scanner_id": "native.web-check",
         "scanner_version": "contract-fixture", "scanner_sha256": "e" * 64,
         "rule_sha256": modules["adapters.prometheus_exposition"],
@@ -283,7 +283,7 @@ def test_SyntheticTransportProducerFitsTheExistingComparisonConsumer(tmp_path):
     for name, value in (("provisioning.json", provisioning), ("invocation.json", invocation),
                         ("findings.json", []), ("worker-stdout.json", {"url": url,
                          "check_id": "native.prometheus-exposition", "status": 200,
-                         "matched": False, "body_sha256": control_hash})):
+                         "matched": False, "body_sha256": controlHash})):
         (scanner / name).write_text(json.dumps(value))
 
     (scanner / "worker-stderr.json").write_bytes(b"")
@@ -292,7 +292,7 @@ def test_SyntheticTransportProducerFitsTheExistingComparisonConsumer(tmp_path):
     (repository / "labs/external").mkdir(parents=True)
     (repository / "labs/external/compose.yaml").write_bytes(b"contract-only-compose")
     outcome = {"status": "completed", "exit_code": 0, "duration_seconds": 0.1, "target_url": url}
-    observation = runtime.Observation(case, directory, lab, outcome, control_sha256=control_hash)
+    observation = runtime.Observation(case, directory, lab, outcome, control_sha256=controlHash)
     runtime_owner.ValidateObservation(pack, target, observation, runtime.output)
     accounting = json.loads((directory / "attempt-provenance.json").read_text())
     assert accounting["independent_server_contact_count"] is None, (
@@ -305,7 +305,7 @@ def test_SyntheticTransportProducerFitsTheExistingComparisonConsumer(tmp_path):
     (scanner / "provisioning.json").write_text(json.dumps(provisioning))
 
     with pytest.raises(RuntimeError, match="unknown wheel"):
-        runtime.Observation(case, directory, lab, outcome, control_sha256=control_hash)
+        runtime.Observation(case, directory, lab, outcome, control_sha256=controlHash)
 
 
 @pytest.mark.parametrize("timed_out", [False, True])
@@ -483,17 +483,17 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
         "The native step keeps its budget; the lane reserves the original 40 minutes "
         "plus 20 minutes for the six application cases and one for their original-result gate."
     )
-    diagnostic_marker = "[native-external-metrics-diagnostic]"
+    diagnosticMarker = "[native-external-metrics-diagnostic]"
     assert " ".join(native["if"].split()) == (
         f"!({prerequisite}) && (github.event_name != 'pull_request' "
         "|| github.event.pull_request.draft == false "
-        "|| !contains(github.event.pull_request.body, '" + diagnostic_marker + "'))"
+        "|| !contains(github.event.pull_request.body, '" + diagnosticMarker + "'))"
     ), "Only explicit diagnostic or prerequisite enrollment may suppress native acceptance."
     diagnostic = steps["Capture one separate fresh-target metrics diagnostic"]
     assert " ".join(diagnostic["if"].split()) == (
         f"!({prerequisite}) && (github.event_name == 'pull_request' "
         "&& github.event.pull_request.draft == true "
-        "&& contains(github.event.pull_request.body, '" + diagnostic_marker + "'))"
+        "&& contains(github.event.pull_request.body, '" + diagnosticMarker + "'))"
     ), "Diagnostics require their own draft marker and refuse prerequisite-mode overlap."
     for name in ("Execute one target-free installed Nuclei prerequisite",
         "Require original target-free Nuclei prerequisite evidence"):

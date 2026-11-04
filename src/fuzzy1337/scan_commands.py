@@ -227,8 +227,8 @@ def CreateScope(path: Path, arguments: argparse.Namespace) -> dict[str, object]:
         Created scope document, including unknown consent when no grant was supplied.
     """
 
-    workspace_store = LocalWorkspaceStore(path)
-    workspace = workspace_store.Open()
+    workspaceStore = LocalWorkspaceStore(path)
+    workspace = workspaceStore.Open()
     targets = tuple(Endpoint(value) for value in arguments.allow_url) + tuple(
         Target(TargetKind.IP, value) for value in arguments.allow_ip
     ) + tuple(
@@ -259,7 +259,7 @@ def CreateScope(path: Path, arguments: argparse.Namespace) -> dict[str, object]:
         exclusions=exclusions,
     )
 
-    snapshot = LocalScopeStore(workspace_store.root).Create(snapshot)
+    snapshot = LocalScopeStore(workspaceStore.root).Create(snapshot)
 
     return snapshot.ToDict()
 
@@ -542,14 +542,14 @@ def RunCommands(
                     ValidateSelection,
                 )
 
-                native_configuration_selection = NativeConfigurationSelection(
+                nativeConfigurationSelection = NativeConfigurationSelection(
                     ArtifactProfile.DOCKERFILE if arguments.type == "dockerfile" else
                     ArtifactProfile.KUBERNETES, arguments.logical_path, arguments.source,
                     arguments.executable,
                     ArtifactReadConsent(arguments.owner, arguments.read_consent_reference))
-                configuration_root = LocalWorkspaceStore(arguments.path).root
-                ValidateSelection(configuration_root, arguments.owner,
-                                  native_configuration_selection, arguments.timeout)
+                configurationRoot = LocalWorkspaceStore(arguments.path).root
+                ValidateSelection(configurationRoot, arguments.owner,
+                                  nativeConfigurationSelection, arguments.timeout)
 
                 def NativeConfigurationReadPolicy() -> ImpactPolicy:
                     """Reread native policy independently of source consent and approval."""
@@ -558,8 +558,8 @@ def RunCommands(
 
                 if arguments.plan:
                     try:
-                        configuration_plan = asyncio.run(PlanNativeConfigurationScan(
-                            configuration_root, arguments.owner, native_configuration_selection,
+                        configurationPlan = asyncio.run(PlanNativeConfigurationScan(
+                            configurationRoot, arguments.owner, nativeConfigurationSelection,
                             scope_id=arguments.scope, policy_provider=NativeConfigurationReadPolicy
                             if arguments.policy is not None else None,
                             timeout_seconds=arguments.timeout))
@@ -571,7 +571,7 @@ def RunCommands(
 
                         return 4
 
-                    WriteJson(output, configuration_plan.ToDict())
+                    WriteJson(output, configurationPlan.ToDict())
 
                     return 0
 
@@ -581,10 +581,10 @@ def RunCommands(
                 from fuzzy1337.native_image_observation import NativeImageObservationError
                 from fuzzy1337.native_image_workflow import PlanNativeImageScan, ScanNativeImage
 
-                expected_image = (None if arguments.expected_config_id is None else
+                expectedImage = (None if arguments.expected_config_id is None else
                     ImageIdentity(arguments.expected_config_id))
-                native_root = LocalWorkspaceStore(arguments.path).root
-                native_selection = NativeTrivySelection(native_root, arguments.executable,
+                nativeRoot = LocalWorkspaceStore(arguments.path).root
+                nativeSelection = NativeTrivySelection(nativeRoot, arguments.executable,
                     arguments.archive, arguments.cache_directory,
                     ArtifactReadConsent(arguments.owner, arguments.read_consent_reference))
 
@@ -595,11 +595,11 @@ def RunCommands(
 
                 if arguments.plan:
                     try:
-                        native_plan = asyncio.run(PlanNativeImageScan(native_root,
-                            arguments.owner, native_selection, scope_id=arguments.scope,
+                        nativePlan = asyncio.run(PlanNativeImageScan(nativeRoot,
+                            arguments.owner, nativeSelection, scope_id=arguments.scope,
                             policy_provider=NativeReadPolicy if arguments.policy else None,
                             timeout_seconds=arguments.timeout,
-                            expected_image_identity=expected_image))
+                            expected_image_identity=expectedImage))
 
                     except NativeImageObservationError:
                         WriteJson(output, {"schema_version": 1, "state": "failed",
@@ -608,33 +608,33 @@ def RunCommands(
 
                         return 4
 
-                    WriteJson(output, native_plan.ToDict())
+                    WriteJson(output, nativePlan.ToDict())
 
                     return 0
 
             if arguments.action in {"nuclei", "web", "ports"}:
-                check_id = (
+                checkId = (
                     NATIVE_FILE_CANARY_CHECK_ID if arguments.action == "web"
                     and arguments.check == "file-canary-disclosure" else NATIVE_WEB_CHECK_ID
                 )
 
                 if arguments.action == "web" and arguments.check == "prometheus-exposition":
-                    check_id = NATIVE_PROMETHEUS_CHECK_ID
+                    checkId = NATIVE_PROMETHEUS_CHECK_ID
 
                 if arguments.action == "web" and arguments.check == "directory-index":
-                    check_id = NATIVE_DIRECTORY_INDEX_CHECK_ID
+                    checkId = NATIVE_DIRECTORY_INDEX_CHECK_ID
 
                 if arguments.action == "web" and arguments.check == "html-reflection":
-                    check_id = NATIVE_HTML_REFLECTION_CHECK_ID
+                    checkId = NATIVE_HTML_REFLECTION_CHECK_ID
 
                 if arguments.action == "web" and arguments.check == "sql-boolean-sample":
-                    check_id = NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID
+                    checkId = NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID
 
                 if arguments.action == "ports":
                     target = Target(TargetKind.IP, arguments.target)
 
                 else:
-                    target = (NativeWebEndpoint(arguments.target, check_id=check_id)[0]
+                    target = (NativeWebEndpoint(arguments.target, check_id=checkId)[0]
                               if arguments.action == "web" else Endpoint(arguments.target))
 
                 def ReadPolicy() -> ImpactPolicy:
@@ -643,34 +643,34 @@ def RunCommands(
                     return ReadNucleiPolicy(arguments.policy)
 
             if arguments.action == "ports":
-                port_limits = PortScanLimits(arguments.timeout)
+                portLimits = PortScanLimits(arguments.timeout)
 
                 if arguments.plan:
-                    port_plan = PlanPortScan(arguments.path, arguments.scope, target,
+                    portPlan = PlanPortScan(arguments.path, arguments.scope, target,
                         arguments.owner, arguments.ports, arguments.executable, ReadPolicy,
-                        limits=port_limits)
-                    WriteJson(output, port_plan.ToDict())
+                        limits=portLimits)
+                    WriteJson(output, portPlan.ToDict())
 
                     return 0
 
             elif arguments.action == "web":
-                web_limits = NativeWebScanLimits(arguments.request_timeout, arguments.timeout)
+                webLimits = NativeWebScanLimits(arguments.request_timeout, arguments.timeout)
 
                 if arguments.plan:
-                    web_plan = PlanNativeWebScan(arguments.path, arguments.scope, target,
-                        arguments.owner, ReadPolicy, check_id=check_id, limits=web_limits)
-                    WriteJson(output, web_plan.ToDict())
+                    webPlan = PlanNativeWebScan(arguments.path, arguments.scope, target,
+                        arguments.owner, ReadPolicy, check_id=checkId, limits=webLimits)
+                    WriteJson(output, webPlan.ToDict())
 
                     return 0
 
             elif arguments.action == "nuclei":
                 profile = ReadNucleiProfile(arguments.profile)
-                nuclei_limits = NucleiScanLimits(arguments.timeout, arguments.rate_limit)
+                nucleiLimits = NucleiScanLimits(arguments.timeout, arguments.rate_limit)
 
                 if arguments.plan:
                     plan = PlanNucleiScan(arguments.path, arguments.scope, target, arguments.owner,
                                          profile, arguments.executable, ReadPolicy,
-                                         limits=nuclei_limits)
+                                         limits=nucleiLimits)
                     WriteJson(output, plan.ToDict())
 
                     return 0
@@ -699,7 +699,7 @@ def RunCommands(
                         arguments.owner, arguments.ports, arguments.executable, ReadPolicy,
                         confirmation=PolicyConfirmation(arguments.confirm_plan,
                             arguments.confirmation_reference) if arguments.confirm_plan else None,
-                        limits=port_limits, on_event=OnEvent))
+                        limits=portLimits, on_event=OnEvent))
                 )
 
             elif arguments.action == "web":
@@ -708,7 +708,7 @@ def RunCommands(
                         arguments.path, arguments.scope, target, arguments.owner, ReadPolicy,
                         confirmation=PolicyConfirmation(arguments.confirm_plan,
                             arguments.confirmation_reference) if arguments.confirm_plan else None,
-                        check_id=check_id, limits=web_limits, on_event=OnEvent,
+                        check_id=checkId, limits=webLimits, on_event=OnEvent,
                     )
                 )
 
@@ -719,17 +719,17 @@ def RunCommands(
                         arguments.executable, ReadPolicy,
                         confirmation=PolicyConfirmation(arguments.confirm_plan,
                             arguments.confirmation_reference) if arguments.confirm_plan else None,
-                        limits=nuclei_limits, on_event=OnEvent,
+                        limits=nucleiLimits, on_event=OnEvent,
                     )
                 )
 
             elif arguments.action == "image" and arguments.profile == "native":
-                summary = asyncio.run(ScanNativeImage(native_root, arguments.scope,
-                    arguments.owner, native_selection, NativeReadPolicy,
+                summary = asyncio.run(ScanNativeImage(nativeRoot, arguments.scope,
+                    arguments.owner, nativeSelection, NativeReadPolicy,
                     approve_safe_image=arguments.approve_safe_image,
                     timeout_seconds=arguments.timeout, on_event=OnEvent,
                     report_format=arguments.report_format, report_output=arguments.report_output,
-                    expected_image_identity=expected_image))
+                    expected_image_identity=expectedImage))
 
             elif arguments.action == "image":
                 selection = ImageScanSelection(Path(arguments.archive), arguments.executable,
@@ -743,20 +743,20 @@ def RunCommands(
                 ))
 
             elif arguments.action == "config" and arguments.profile == "native":
-                summary = asyncio.run(ScanNativeConfiguration(configuration_root, arguments.scope,
-                    arguments.owner, native_configuration_selection, NativeConfigurationReadPolicy,
+                summary = asyncio.run(ScanNativeConfiguration(configurationRoot, arguments.scope,
+                    arguments.owner, nativeConfigurationSelection, NativeConfigurationReadPolicy,
                     approve_safe_configuration=arguments.approve_safe_configuration,
                     timeout_seconds=arguments.timeout, on_event=OnEvent,
                     report_format=arguments.report_format, report_output=arguments.report_output))
 
             elif arguments.action == "config":
-                configuration_selection = ConfigurationScanSelection(
+                configurationSelection = ConfigurationScanSelection(
                     ArtifactProfile.SYNTHETIC_DOCKERFILE if arguments.type == "dockerfile" else
                     ArtifactProfile.SYNTHETIC_KUBERNETES, arguments.logical_path,
                     arguments.source, arguments.executable, arguments.producer, arguments.material,
                     ArtifactReadConsent(arguments.owner, arguments.read_consent_reference))
                 summary = asyncio.run(RunSyntheticConfigurationScan(
-                    arguments.path, arguments.scope, arguments.owner, configuration_selection,
+                    arguments.path, arguments.scope, arguments.owner, configurationSelection,
                     approve_safe_configuration=arguments.approve_safe_configuration,
                     timeout_seconds=arguments.timeout, on_event=OnEvent,
                     report_format=arguments.report_format, report_output=arguments.report_output,
@@ -802,14 +802,14 @@ def RunCommands(
             return summary.ExitCode()
 
     except ArtifactDeniedError as error:
-        storage_failure = error.reason is ArtifactDenialReason.STORAGE
+        storageFailure = error.reason is ArtifactDenialReason.STORAGE
         domain = "configuration" if arguments.action == "config" else "image"
         WriteJson(output, {"schema_version": 1, "state": "failed", "failure": {
-            "code": "storage" if storage_failure else "authorization",
-            "message": "Native " + domain + " storage is unverified" if storage_failure else
+            "code": "storage" if storageFailure else "authorization",
+            "message": "Native " + domain + " storage is unverified" if storageFailure else
                        "Current native " + domain + " authority denied execution"}})
 
-        return 4 if storage_failure else 3
+        return 4 if storageFailure else 3
 
     except (NativeWebAuthorityDeniedError, NucleiAuthorityDeniedError,
             PortScanAuthorityDeniedError, PolicyDeniedError):

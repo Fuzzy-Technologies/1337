@@ -49,14 +49,14 @@ def test_ProductImportRetainsOriginalAcquisitionAndIndependentConfiguredConditio
               "observations": len(saved.observations), "findings": len(Findings(saved))}
     expected = {**oracle["counts"], "observations": 56}
     assert actual == expected, "Product import lost SDK facts or its one source observation"
-    source_facts = [item for item in saved.observations if item.kind == "runtime-import-source"]
-    assert len(source_facts) == 1 and (
-        source_facts[0].attributes["evidence_id"] == record.evidence_id
+    sourceFacts = [item for item in saved.observations if item.kind == "runtime-import-source"]
+    assert len(sourceFacts) == 1 and (
+        sourceFacts[0].attributes["evidence_id"] == record.evidence_id
     ), (
         "Product import lost its independently bound original manifest identity"
     )
-    assert source_facts[0].attributes["read_actor_reference"] == "owner:owned" and (
-        source_facts[0].attributes["read_consent_reference"] == "consent:owned-input"
+    assert sourceFacts[0].attributes["read_actor_reference"] == "owner:owned" and (
+        sourceFacts[0].attributes["read_consent_reference"] == "consent:owned-input"
     ), "Source fact replaced explicit current read references with inferred authority"
     checks = {item.check_id for item in Findings(saved)}
     confusion = {"tp": len(checks & set(oracle["expected_checks"])),
@@ -136,7 +136,7 @@ def test_KubernetesProductImportRetainsOriginalClusterCustodyAndIndependentOracl
         item.attributes["image_digest_kind"] is None
         and item.attributes["effective_privileges"] is None for item in containers
     ), "Product import inferred effective authorization or image digest domains"
-    resource_refs = {item.Reference(): item for item in resources}
+    resourceRefs = {item.Reference(): item for item in resources}
     selectors = {}
     roles = {}
     subjects = {}
@@ -152,18 +152,18 @@ def test_KubernetesProductImportRetainsOriginalClusterCustodyAndIndependentOracl
             association = fields["association"]
 
             if association == "configured-pod-selector-match":
-                key = Coordinate(resource_refs[edge.source_reference])
-                target = resource_refs[edge.target_reference]
+                key = Coordinate(resourceRefs[edge.source_reference])
+                target = resourceRefs[edge.target_reference]
                 selectors.setdefault(key, []).append(target.attributes["namespace"] + ":" +
                                                        target.attributes["name"])
 
             if association == "nominal-role-reference":
-                roles[Coordinate(resource_refs[edge.source_reference])] = Coordinate(
-                    resource_refs[edge.target_reference])
+                roles[Coordinate(resourceRefs[edge.source_reference])] = Coordinate(
+                    resourceRefs[edge.target_reference])
 
             if association == "nominal-service-account-subject":
-                key = Coordinate(resource_refs[edge.source_reference])
-                target = resource_refs[edge.target_reference]
+                key = Coordinate(resourceRefs[edge.source_reference])
+                target = resourceRefs[edge.target_reference]
                 subjects.setdefault(key, []).append(target.attributes["namespace"] + ":" +
                                                       target.attributes["name"])
 

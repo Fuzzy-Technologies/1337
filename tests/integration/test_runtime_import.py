@@ -72,8 +72,8 @@ def test_PublicHandlerActualPortableReplayExportsOriginalEvidenceAndPreservedTri
     triaged, _ = TransitionFinding(saved, finding.ToObject(saved.workspace_id).Reference(),
         FindingStatus.DISMISSED, decision, "Owned explicit runtime disposition")
     LocalModelStore(root).Save(triaged, expected_revision=saved.revision)
-    refreshed_at = TIME + timedelta(seconds=1)
-    status, refreshed = Run(Arguments(context), clock=lambda: refreshed_at)
+    refreshedAt = TIME + timedelta(seconds=1)
+    status, refreshed = Run(Arguments(context), clock=lambda: refreshedAt)
     assert status == 0 and refreshed["evidence_id"] != original.evidence_id, (
         "Fresh source was not acquired"
     )
@@ -104,16 +104,16 @@ def test_PublicHandlerActualPortableReplayExportsOriginalEvidenceAndPreservedTri
             "Retained relocated exact import was not a canonical no-op"
         )
 
-        for report_format in ("json", "sarif"):
-            destination = tmp_path / ("report." + report_format)
+        for reportFormat in ("json", "sarif"):
+            destination = tmp_path / ("report." + reportFormat)
             output = StringIO()
-            status = RunReportCommands(["export", str(moved), "--format", report_format,
+            status = RunReportCommands(["export", str(moved), "--format", reportFormat,
                 "--output", str(destination)], output, json_output=True)
             outcome = json.loads(output.getvalue())
             assert status == 0 and outcome["output_published"] is True, "Report export failed"
             document = json.loads(destination.read_bytes())
 
-            if report_format == "json":
+            if reportFormat == "json":
                 assert document["summary"]["findings"] == 6, "Saved runtime JSON lost findings"
 
             else:
@@ -163,11 +163,11 @@ def test_SameRawBytesWithDifferentOriginalManifestIdentityRemainDistinctOnReplay
         "Second original manifest identity was collapsed or caused multiple model revisions"
     )
     saved = LocalModelStore(root).Open()
-    source_facts = {item.attributes["evidence_id"]: item for item in saved.observations
+    sourceFacts = {item.attributes["evidence_id"]: item for item in saved.observations
                     if item.kind == "runtime-import-source"}
-    assert set(source_facts) == {original.evidence_id, second.evidence_id}, "Manifest IDs merged"
-    assert source_facts[second.evidence_id].attributes["read_actor_reference"] is None and (
-        source_facts[second.evidence_id].attributes["read_consent_reference"] is None
+    assert set(sourceFacts) == {original.evidence_id, second.evidence_id}, "Manifest IDs merged"
+    assert sourceFacts[second.evidence_id].attributes["read_actor_reference"] is None and (
+        sourceFacts[second.evidence_id].attributes["read_consent_reference"] is None
     ), "Externally acquired original record invented prior file read consent"
     workspace = LocalWorkspaceStore(root).Open()
     assert len(workspace.evidence_references) == 1 and (
@@ -226,14 +226,14 @@ def test_PreexistingDockerCustodyShapeReplaysWithoutMigrationOrSavedByteChanges(
     record, provenance = Acquire(context[:4])
     proposed, _ = ApplyVerifiedDockerInspect(basis, record, provenance,
         host_reference=host.Reference(), workspace_root=root)
-    original_fact = Observation("runtime-import-source", host.Reference(), {
+    originalFact = Observation("runtime-import-source", host.Reference(), {
         "profile": "docker-inspect", "evidence_id": record.evidence_id,
         "source_sha256": record.reference.sha256,
         "source_version": "owned-docker-container-inspect-v1",
         "read_actor_reference": "owner:legacy",
         "read_consent_reference": "consent:legacy",
     }, provenance)
-    legacy, _ = proposed.Apply(observations=(original_fact,))
+    legacy, _ = proposed.Apply(observations=(originalFact,))
     legacy = replace(legacy, revision=proposed.revision)
     LocalModelStore(root).Save(legacy, expected_revision=basis.revision)
     workspace = LocalWorkspaceStore(root)
@@ -254,6 +254,6 @@ def test_PreexistingDockerCustodyShapeReplaysWithoutMigrationOrSavedByteChanges(
     )
     after = {path.relative_to(root): path.read_bytes()
              for path in root.rglob("*") if path.is_file()}
-    assert after == before and original_fact in LocalModelStore(root).Open().observations, (
+    assert after == before and originalFact in LocalModelStore(root).Open().observations, (
         "Shared profiles changed original Docker attribute keys, host/run or read descriptions"
     )

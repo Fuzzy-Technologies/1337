@@ -62,12 +62,12 @@ def test_RequiredActualChromiumUsesOfflineArtifactControlsDownloadsAndCsp(tmp_pa
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(args=["--disable-background-networking"])
-        browser_context = browser.new_context(accept_downloads=True)
-        browser_context.route(re.compile(r"https?://"), lambda route: (
+        browserContext = browser.new_context(accept_downloads=True)
+        browserContext.route(re.compile(r"https?://"), lambda route: (
             external.append(route.request.url), route.abort()))
-        page = browser_context.new_page()
+        page = browserContext.new_page()
         page.on("pageerror", lambda error: errors.append(str(error)))
-        cdp = browser_context.new_cdp_session(page)
+        cdp = browserContext.new_cdp_session(page)
         cdp.send("Debugger.enable")
         cdp.send("Profiler.enable")
         cdp.send("Profiler.startPreciseCoverage", {"callCount": True, "detailed": True})
@@ -97,13 +97,13 @@ def test_RequiredActualChromiumUsesOfflineArtifactControlsDownloadsAndCsp(tmp_pa
         graph.dispatch_event("pointermove", {"clientX": 0, "clientY": 0})
         bounds = graph.bounding_box()
         assert bounds is not None, "Original graph has no visible browser geometry"
-        before_pan = tuple(float(value) for value in graph.get_attribute("viewBox").split())
+        beforePan = tuple(float(value) for value in graph.get_attribute("viewBox").split())
         page.mouse.move(bounds["x"] + 8, bounds["y"] + 8)
         page.mouse.down()
         page.mouse.move(bounds["x"] + 48, bounds["y"] + 28)
         page.mouse.up()
-        after_pan = tuple(float(value) for value in graph.get_attribute("viewBox").split())
-        assert after_pan[:2] != before_pan[:2] and after_pan[2:] == before_pan[2:], (
+        afterPan = tuple(float(value) for value in graph.get_attribute("viewBox").split())
+        assert afterPan[:2] != beforePan[:2] and afterPan[2:] == beforePan[2:], (
             "Actual drag must move the graph origin without changing the visible width/height"
         )
         graph.dispatch_event("pointercancel", {"pointerId": 1})
@@ -166,12 +166,12 @@ def test_RequiredActualChromiumUsesOfflineArtifactControlsDownloadsAndCsp(tmp_pa
         (output / "path-renderer.html").write_text(result.stdout, encoding="utf-8")
         page.locator("#path-graph").screenshot(path=str(output / "path-renderer.png"))
         assert not errors and not external, "Offline graph had errors or attempted network access"
-        no_script = browser.new_context(java_script_enabled=False)
-        static = no_script.new_page()
+        noScript = browser.new_context(java_script_enabled=False)
+        static = noScript.new_page()
         static.goto(artifact.as_uri(), wait_until="load")
         assert static.locator("#path-graph a.edge").count() == 5 and (
             "UNKNOWN" in static.locator("details").first.inner_text()
         ), "No-script graph or original explanations disappeared"
-        no_script.close()
-        browser_context.close()
+        noScript.close()
+        browserContext.close()
         browser.close()

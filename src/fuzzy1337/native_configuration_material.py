@@ -322,7 +322,7 @@ class NativeConfigurationMaterialObserver:
         """
 
         workspace = ArtifactPathInfo(self.workspace_root, directory=True)
-        workspace_identity = workspace.st_dev, workspace.st_ino
+        workspaceIdentity = workspace.st_dev, workspace.st_ino
         nonce = uuid.uuid4().hex
         directory = self.workspace_root / ("native-configuration-read-" + nonce)
         directory.mkdir(mode=0o700)
@@ -330,7 +330,7 @@ class NativeConfigurationMaterialObserver:
         fields = {"schema_version": 1, "action": "create" if prior is None else "verify",
             "nonce": nonce, "operation_reference": operation_reference,
             "workspace_id": self.workspace_id, "owner_reference": self.owner_reference,
-            "workspace_root": str(self.workspace_root), "workspace_identity": workspace_identity,
+            "workspace_root": str(self.workspace_root), "workspace_identity": workspaceIdentity,
             "directory_identity": (info.st_dev, info.st_ino),
             "selection": SelectionPayload(self.selection), "stage_root": str(self._stage_root),
             "stage": None}
@@ -436,16 +436,16 @@ class NativeConfigurationMaterialObserver:
 
             assert self._stage_root is not None, "Only an owned generated stage can be observed"
             stage = StageFromPayload(value["stage"], self.selection, self._stage_root)
-            scratch_identity = Identity(value["stage"]["scratch_identity"], 2)
+            scratchIdentity = Identity(value["stage"]["scratch_identity"], 2)
 
             if prior is not None and (
-                stage != prior.stage or scratch_identity != prior.scratch_identity
+                stage != prior.stage or scratchIdentity != prior.scratch_identity
             ):
                 raise NativeConfigurationMaterialError("configuration material stage changed")
 
             CheckStageMetadata(stage, self.selection)
             self._stage = stage if prior is None else prior.stage
-            self._scratch_identity = scratch_identity if prior is None else prior.scratch_identity
+            self._scratch_identity = scratchIdentity if prior is None else prior.scratch_identity
             ReadControl(path, digest, identity)
 
         finally:
@@ -456,7 +456,7 @@ class NativeConfigurationMaterialObserver:
 
         return NativeConfigurationMaterialProof(self._stage, nonce, operation_reference,
             self.workspace_id, self.owner_reference, self._selection_sha256, digest,
-            identity, (info.st_dev, info.st_ino), workspace_identity,
+            identity, (info.st_dev, info.st_ino), workspaceIdentity,
             self._scratch_identity, monotonic())
 
     def Request(self, directory: Path, path: Path, digest: str, identity: tuple[int, ...],

@@ -353,9 +353,9 @@ class SyntheticImageWorkflow:
             for operation in (ArtifactOperation.VERSION, ArtifactOperation.SCAN):
                 context.CheckCancellation()
                 phase = JobFailureCode.STORAGE
-                stage_started = self.clock().isoformat()
+                stageStarted = self.clock().isoformat()
                 stage = self.selection.Stage(self.workspace_root / ("image-stage-" + uuid4().hex))
-                self.CaptureSelections(context, stage, operation, stage_started,
+                self.CaptureSelections(context, stage, operation, stageStarted,
                     self.clock().isoformat())
                 phase = JobFailureCode.AUTHORIZATION
                 prepared = PrepareArtifact(stage, self.workspace_root, operation=operation,
@@ -363,10 +363,10 @@ class SyntheticImageWorkflow:
                         self.timeout_seconds), version_proof=proof)
                 grant = ArtifactPolicyEngine().Authorize(prepared, stage,
                     self.CurrentContext(), at=self.clock())
-                collected_started = self.clock().isoformat()
+                collectedStarted = self.clock().isoformat()
                 outcome = await executor.Execute(prepared, stage, grant, self.CurrentContext,
                     cancellation=context.Cancellation)
-                capture = ImageOperationCapture(outcome, prepared, stage, collected_started,
+                capture = ImageOperationCapture(outcome, prepared, stage, collectedStarted,
                     self.clock().isoformat())
                 self.captures.append(capture)
                 records.extend(self.CaptureOperation(context, capture))
@@ -472,7 +472,7 @@ class SyntheticImageWorkflow:
             VerifyWorkspaceEvidence(workspace, evidence)
             VerifyReportEvidence(ReportSnapshot(model), self.workspace_root)
             references = {(item.locator, item.role): item for item in workspace.evidence_references}
-            record_ids = set(workspace.evidence_record_references)
+            recordIds = set(workspace.evidence_record_references)
             snapshot = self.snapshot()
             scopes = {*workspace.scope_references, snapshot.spec.scope_reference}
 
@@ -482,9 +482,9 @@ class SyntheticImageWorkflow:
 
                 LocalScopeStore(self.workspace_root).Open(reference[6:])
 
-            object_refs = {item.Reference() for item in model.objects}
+            objectRefs = {item.Reference() for item in model.objects}
 
-            if not set(workspace.object_references) <= object_refs:
+            if not set(workspace.object_references) <= objectRefs:
                 raise ValueError("Image workspace contains missing model object references")
 
             for artifact in snapshot.artifacts:
@@ -496,13 +496,13 @@ class SyntheticImageWorkflow:
                 evidence.Read(record.reference)
                 references.setdefault((record.reference.locator, record.reference.role),
                     record.reference)
-                record_ids.add(record.evidence_id)
+                recordIds.add(record.evidence_id)
 
             store.Save(replace(workspace, scope_references=tuple(sorted(scopes)),
-                object_references=tuple(sorted(object_refs)),
+                object_references=tuple(sorted(objectRefs)),
                 job_references=tuple(sorted({*workspace.job_references, snapshot.spec.job_id})),
                 evidence_references=tuple(references[key] for key in sorted(references)),
-                evidence_record_references=tuple(sorted(record_ids))))
+                evidence_record_references=tuple(sorted(recordIds))))
 
         except (EvidenceError, OSError, ValueError, WorkspaceBusyError, WorkspaceConflictError):
             raise JobError(JobFailure(JobFailureCode.STORAGE,
@@ -540,11 +540,11 @@ async def RunSyntheticImageScan(
     ):
         raise ValueError("image workflow configuration is invalid")
 
-    workspace_store = LocalWorkspaceStore(workspace_root)
-    workspace = workspace_store.Open()
-    model_store = LocalModelStore(workspace_store.root)
-    model = model_store.Open()
-    scope = LocalScopeStore(workspace_store.root).Open(scope_id)
+    workspaceStore = LocalWorkspaceStore(workspace_root)
+    workspace = workspaceStore.Open()
+    modelStore = LocalModelStore(workspaceStore.root)
+    model = modelStore.Open()
+    scope = LocalScopeStore(workspaceStore.root).Open(scope_id)
     policy = ImpactPolicy("synthetic-image-safe-v1", permissions=(CapabilityPermission(
         "image.archive-vulnerabilities", SYNTHETIC_IMAGE_SOURCE, ImpactLevel.SAFE),
     ) if approve_safe_image else ())
@@ -556,11 +556,11 @@ async def RunSyntheticImageScan(
 
         return job.Snapshot()
 
-    workflow = SyntheticImageWorkflow(workspace_store.root, scope_id, owner_reference,
+    workflow = SyntheticImageWorkflow(workspaceStore.root, scope_id, owner_reference,
         selection, policy, timeout_seconds, workspace, model, Snapshot, clock)
     job = ScanJob(spec, workflow,
-        evidence_store=LocalEvidenceStore(workspace_store.root / "evidence"))
-    started_at = datetime.now(UTC).isoformat()
+        evidence_store=LocalEvidenceStore(workspaceStore.root / "evidence"))
+    startedAt = datetime.now(UTC).isoformat()
     started = time.monotonic()
     first_update: float | None = None
     cursor = -1
@@ -594,13 +594,13 @@ async def RunSyntheticImageScan(
         raise
 
     snapshot = await job.Wait()
-    actual = model_store.Open()
+    actual = modelStore.Open()
     export = None
 
     if report_format is not None and report_output is not None and (
         snapshot.state is JobState.COMPLETED and workflow.saved_model is not None
     ):
-        export = ExportImageReport(workspace_store.root, workflow.saved_model,
+        export = ExportImageReport(workspaceStore.root, workflow.saved_model,
             report_format, report_output)
 
     elif report_format is not None:
@@ -616,7 +616,7 @@ async def RunSyntheticImageScan(
         "started_at": item.started_at, "finished_at": item.finished_at}
         for item in workflow.captures)
 
-    return ImageScanSummary(snapshot, started_at, datetime.now(UTC).isoformat(),
+    return ImageScanSummary(snapshot, startedAt, datetime.now(UTC).isoformat(),
         time.monotonic() - started, first_update, actual.revision,
         tuple((kind.value, len(actual.Objects(kind))) for kind in ObjectKind),
         job.EventsSince(), operations, export, tuple(workflow.captures))

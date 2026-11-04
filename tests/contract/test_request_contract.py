@@ -177,13 +177,13 @@ def test_StoredOrderDuplicatesAndHeaderAliasesAreNotAccepted():
     reordered["injection_points"].reverse()
     duplicate = deepcopy(document)
     duplicate["injection_points"].append(duplicate["injection_points"][0])
-    header_alias = deepcopy(document)
+    headerAlias = deepcopy(document)
     header = next(
-        point for point in header_alias["injection_points"] if point["location"] == "header"
+        point for point in headerAlias["injection_points"] if point["location"] == "header"
     )
     header["selector"] = "X-CSRF-Token"
 
-    for tampered in (reordered, duplicate, header_alias):
+    for tampered in (reordered, duplicate, headerAlias):
         with pytest.raises(ValueError):
             RequestTemplate.FromDict(tampered)
 

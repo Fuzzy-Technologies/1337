@@ -16,10 +16,12 @@ import pytest
 
 from fuzzy1337.adapters import ImpactLevel, SerializeContract
 from fuzzy1337.adapters.native_web import (
+    NATIVE_DIRECTORY_INDEX_CAPABILITY,
     NATIVE_FILE_CANARY_CAPABILITY,
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_HTML_REFLECTION_CAPABILITY,
     NATIVE_HTML_REFLECTION_CHECK_ID,
+    NATIVE_PROMETHEUS_CAPABILITY,
     NATIVE_SQL_BOOLEAN_SAMPLE_CAPABILITY,
     NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
 )
@@ -41,27 +43,29 @@ def Setup(root: Path, url: str, *, check: str = "git-head-exposure") -> list[str
     assert RunCommands("workspace", ["create", str(root), "--id", "native-cli",
         "--name", "Owned native CLI acceptance"], output) == 0, "Workspace creation failed."
     now = datetime.now(UTC)
-    scope_flag = "--allow-canary-url" if check == "file-canary-disclosure" else "--allow-url"
-    scope_arguments = ["create", str(root), "--id", "local", scope_flag, url,
+    scopeFlag = "--allow-canary-url" if check == "file-canary-disclosure" else "--allow-url"
+    scopeArguments = ["create", str(root), "--id", "local", scopeFlag, url,
         "--allow-ip", "127.0.0.1", "--grant-consent", "--owner", "operator:owned",
         "--consent-reference", "consent:owned-native-cli",
         "--valid-from", (now - timedelta(minutes=1)).isoformat(),
         "--valid-until", (now + timedelta(minutes=10)).isoformat()]
-    assert RunCommands("scope", scope_arguments, output) == 0, "Explicit scope creation failed."
+    assert RunCommands("scope", scopeArguments, output) == 0, "Explicit scope creation failed."
     capability = {
         "git-head-exposure": NATIVE_WEB_CAPABILITY,
         "file-canary-disclosure": NATIVE_FILE_CANARY_CAPABILITY,
+        "prometheus-exposition": NATIVE_PROMETHEUS_CAPABILITY,
+        "directory-index": NATIVE_DIRECTORY_INDEX_CAPABILITY,
         "html-reflection": NATIVE_HTML_REFLECTION_CAPABILITY,
         "sql-boolean-sample": NATIVE_SQL_BOOLEAN_SAMPLE_CAPABILITY,
     }[check]
     policy = ImpactPolicy("owned-native-web", maximum_impact=ImpactLevel.STANDARD,
         permissions=(CapabilityPermission(capability, NATIVE_WEB_PROVIDER_ID,
                                            ImpactLevel.STANDARD),))
-    policy_path = root / "native-policy.json"
-    policy_path.write_text(SerializeContract(policy), encoding="utf-8")
+    policyPath = root / "native-policy.json"
+    policyPath.write_text(SerializeContract(policy), encoding="utf-8")
 
     return ["web", str(root), "--check", check, "--scope", "local",
-        "--owner", "operator:owned", "--target", url, "--policy", str(policy_path)]
+        "--owner", "operator:owned", "--target", url, "--policy", str(policyPath)]
 
 
 def Plan(arguments: list[str]) -> dict:
@@ -373,21 +377,21 @@ def test_OwnedSqlBooleanSamplingCapturesSeparateActualResponses(tmp_path, capsys
             model = LocalModelStore(root).Open()
             observations = [item for item in model.observations
                             if item.kind == "native.web-response-check"]
-            expected_body = json.dumps({"rows": case["rows"]},
+            expectedBody = json.dumps({"rows": case["rows"]},
                                        separators=(",", ":")).encode()
             assert not Findings(model) and len(observations) == 1, (
                 "Individual SQL samples cannot create a differential Finding."
             )
             attributes = observations[0].attributes
             assert attributes["matched"] is None, "Sampling must remain distinct from a verdict."
-            digest = hashlib.sha256(expected_body).hexdigest()
+            digest = hashlib.sha256(expectedBody).hexdigest()
             assert attributes["body_sha256"] == digest, "The response digest must bind real rows."
             digests.append(digest)
 
-        baseline, true_control, false_control, repeated_baseline = digests
-        assert baseline == repeated_baseline, "The fixture baseline must be independently stable."
-        assert (baseline == true_control != false_control if mode == "vulnerable"
-                else true_control == false_control != baseline), (
+        baseline, trueControl, falseControl, repeatedBaseline = digests
+        assert baseline == repeatedBaseline, "The fixture baseline must be independently stable."
+        assert (baseline == trueControl != falseControl if mode == "vulnerable"
+                else trueControl == falseControl != baseline), (
             "The actual samples must distinguish the vulnerable and parameterized queries."
         )
         assert [item["parameterized"] for item in service.Observe()["queries"]] == [

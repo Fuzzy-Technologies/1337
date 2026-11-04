@@ -281,15 +281,15 @@ def ValidateArtifactProfile(stage: ArtifactStage) -> str:
     if set(scanner) != {"executable", "producer.py"}:
         raise ArtifactDeniedError(ArtifactDenialReason.UNTRUSTED_PRODUCER)
 
-    producer_sha256 = scanner["producer.py"].sha256
+    producerSha256 = scanner["producer.py"].sha256
 
-    if producer_sha256 in _REVIEWED_PRODUCERS:
+    if producerSha256 in _REVIEWED_PRODUCERS:
         family = _LIFECYCLE_FAMILY
 
-    elif producer_sha256 == _IMAGE_PRODUCER_SHA256 and profile == ArtifactProfile.SYNTHETIC_IMAGE:
+    elif producerSha256 == _IMAGE_PRODUCER_SHA256 and profile == ArtifactProfile.SYNTHETIC_IMAGE:
         family = _IMAGE_FAMILY
 
-    elif producer_sha256 == _CONFIGURATION_PRODUCER_SHA256 and profile in _CONFIGURATION_PROFILES:
+    elif producerSha256 == _CONFIGURATION_PRODUCER_SHA256 and profile in _CONFIGURATION_PROFILES:
         family = _CONFIGURATION_FAMILY
 
     else:
@@ -337,11 +337,11 @@ def ValidateArtifactProfile(stage: ArtifactStage) -> str:
     if tuple(item.name for item in stage.material.manifest.files) != ("policy.json",):
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
 
-    policy_limit = 512 if family == _IMAGE_FAMILY else (
+    policyLimit = 512 if family == _IMAGE_FAMILY else (
         1024 if family == _CONFIGURATION_FAMILY else 4096
     )
 
-    if stage.material.manifest.files[0].size_bytes > policy_limit:
+    if stage.material.manifest.files[0].size_bytes > policyLimit:
         raise ArtifactDeniedError(ArtifactDenialReason.MATERIAL_CHANGED)
 
     return family
@@ -400,12 +400,12 @@ def ParseConfigurationFixturePolicy(payload: bytes, manifest: ArtifactManifest) 
     ):
         raise ValueError("configuration policy requires the exact owned family and case")
 
-    profile, name, size_bytes, sha256 = _CONFIGURATION_CASES[policy["case_id"]]
+    profile, name, sizeBytes, sha256 = _CONFIGURATION_CASES[policy["case_id"]]
 
     if (
         manifest.role is not ArtifactRole.INPUT or manifest.profile is not profile
         or policy["profile_id"] != profile.value or len(manifest.files) != 1
-        or manifest.files[0].name != name or manifest.files[0].size_bytes != size_bytes
+        or manifest.files[0].name != name or manifest.files[0].size_bytes != sizeBytes
         or manifest.files[0].sha256 != sha256
     ):
         raise ValueError("configuration policy differs from its exact selected source")
@@ -546,12 +546,12 @@ def ValidatePrerequisiteType(
         ValueError: Missing, wrong-type or extraneous prerequisite.
     """
 
-    needs_version = family == _IMAGE_FAMILY and operation == ArtifactOperation.SCAN
+    needsVersion = family == _IMAGE_FAMILY and operation == ArtifactOperation.SCAN
 
-    if needs_version != (type(proof) is ArtifactVersionProof):
+    if needsVersion != (type(proof) is ArtifactVersionProof):
         raise ValueError("richer image SCAN requires its original typed VERSION prerequisite")
 
-    if not needs_version and proof is not None:
+    if not needsVersion and proof is not None:
         raise ValueError("VERSION and lifecycle SCAN do not accept a VERSION prerequisite")
 
 
@@ -679,23 +679,23 @@ def ValidateArtifactResources(
         ValueError: Numeric declarations exceed the original closed factory bounds.
     """
 
-    timeout_max = 60 if family in {_IMAGE_FAMILY, _CONFIGURATION_FAMILY} else 300
-    stdout_max = 4 * 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
-    stderr_max = 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
+    timeoutMax = 60 if family in {_IMAGE_FAMILY, _CONFIGURATION_FAMILY} else 300
+    stdoutMax = 4 * 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
+    stderrMax = 1024 * 1024 if family == _IMAGE_FAMILY else 16 * 1024 * 1024
 
     if family == _CONFIGURATION_FAMILY:
-        stdout_max = stderr_max = 16 * 1024
+        stdoutMax = stderrMax = 16 * 1024
 
     if operation == ArtifactOperation.VERSION:
-        stdout_max = stderr_max = 16 * 1024
+        stdoutMax = stderrMax = 16 * 1024
 
     if (
         type(timeout_seconds) is not int
-        or not 1 <= timeout_seconds <= timeout_max
+        or not 1 <= timeout_seconds <= timeoutMax
         or (operation == ArtifactOperation.VERSION and timeout_seconds != 3)
         or not isinstance(resources, ExecutionResources)
-        or resources.max_stdout_bytes > stdout_max
-        or resources.max_stderr_bytes > stderr_max
+        or resources.max_stdout_bytes > stdoutMax
+        or resources.max_stderr_bytes > stderrMax
         or resources.terminate_grace_seconds > 5
     ):
         raise ValueError("artifact timeout/output/cleanup resources exceed fixed profile bounds")
@@ -833,8 +833,8 @@ def BuildPreparedArtifact(
     try:
         stage.Verify(after_run=after_run)
 
-        with (stage.material.directory / "policy.json").open("rb") as policy_stream:
-            policy = policy_stream.read(4097)
+        with (stage.material.directory / "policy.json").open("rb") as policyStream:
+            policy = policyStream.read(4097)
 
         if family == _IMAGE_FAMILY:
             ParseImageFixturePolicy(policy)
@@ -1034,14 +1034,14 @@ class ArtifactPlan:
         ):
             raise ValueError("artifact execution plan requires a reviewed synthetic profile")
 
-        needs_version = (
+        needsVersion = (
             self.producer_family == _IMAGE_FAMILY and self.operation == ArtifactOperation.SCAN
         )
         prerequisite = (
             self.version_run_id, self.version_grant_id, self.version_prerequisite_sha256,
         )
 
-        if needs_version:
+        if needsVersion:
             RequireReference(cast(str, self.version_run_id), "artifact VERSION prerequisite run")
             RequireReference(
                 cast(str, self.version_grant_id), "artifact VERSION prerequisite grant"
@@ -1789,9 +1789,9 @@ class ArtifactPolicyEngine:
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
         workspace = LocalWorkspaceStore(prepared.workspace_root).Open()
-        current_scope = LocalScopeStore(prepared.workspace_root).Open(context.scope.scope_id)
+        currentScope = LocalScopeStore(prepared.workspace_root).Open(context.scope.scope_id)
 
-        if workspace.workspace_id != context.scope.workspace_id or current_scope != context.scope:
+        if workspace.workspace_id != context.scope.workspace_id or currentScope != context.scope:
             raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
 
         target = stage.input.manifest.Target()
@@ -1827,7 +1827,7 @@ class ArtifactPolicyEngine:
             raise ArtifactDeniedError(ArtifactDenialReason.IMPACT_DENIED)
 
         self.ValidateVersionPrerequisite(prepared, stage, context, at=at)
-        version_bindings = prepared.VersionBindings()
+        versionBindings = prepared.VersionBindings()
 
         return ArtifactPlan(
             context.owner_ref,
@@ -1851,9 +1851,9 @@ class ArtifactPolicyEngine:
             permission.granted_privileges,
             prepared.operation,
             prepared.producer_family,
-            cast(str | None, version_bindings["version_run_id"]),
-            cast(str | None, version_bindings["version_grant_id"]),
-            cast(str | None, version_bindings["version_prerequisite_sha256"]),
+            cast(str | None, versionBindings["version_run_id"]),
+            cast(str | None, versionBindings["version_grant_id"]),
+            cast(str | None, versionBindings["version_prerequisite_sha256"]),
         )
 
     def ValidateVersionPrerequisite(
@@ -1924,7 +1924,7 @@ class ArtifactPolicyEngine:
         """
 
         plan = self.Plan(prepared, stage, context, at=at)
-        issued_at = at.astimezone(timezone.utc).isoformat()
+        issuedAt = at.astimezone(timezone.utc).isoformat()
 
         try:
             expiry = at + timedelta(seconds=context.policy.max_authorization_seconds)
@@ -1935,10 +1935,10 @@ class ArtifactPolicyEngine:
         if context.scope.authorization.valid_until is not None:
             expiry = min(expiry, datetime.fromisoformat(context.scope.authorization.valid_until))
 
-        valid_until = expiry.astimezone(timezone.utc).isoformat()
-        authorization = self.Envelope(plan, issued_at, valid_until)
+        validUntil = expiry.astimezone(timezone.utc).isoformat()
+        authorization = self.Envelope(plan, issuedAt, validUntil)
 
-        return ArtifactGrant(plan, authorization, issued_at, valid_until)
+        return ArtifactGrant(plan, authorization, issuedAt, validUntil)
 
     def Envelope(
         self, plan: ArtifactPlan, issued_at: str, valid_until: str
@@ -2036,10 +2036,10 @@ class ArtifactPolicyEngine:
         ):
             raise ArtifactDeniedError(ArtifactDenialReason.GRANT_EXPIRED)
 
-        issued_at = datetime.fromisoformat(grant.issued_at)
+        issuedAt = datetime.fromisoformat(grant.issued_at)
 
         try:
-            expiry = issued_at + timedelta(seconds=context.policy.max_authorization_seconds)
+            expiry = issuedAt + timedelta(seconds=context.policy.max_authorization_seconds)
 
         except OverflowError as error:
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED) from error
@@ -2050,7 +2050,7 @@ class ArtifactPolicyEngine:
         if datetime.fromisoformat(grant.valid_until) != expiry:
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
-        if not context.scope.Check(stage.input.manifest.Target(), at=issued_at).Allowed():
+        if not context.scope.Check(stage.input.manifest.Target(), at=issuedAt).Allowed():
             raise ArtifactDeniedError(ArtifactDenialReason.AUTHORITY_DENIED)
 
         if not context.scope.Check(stage.input.manifest.Target(), at=at).Allowed():
@@ -2374,7 +2374,7 @@ def DetachedReplayBounds(value: object) -> None:
 
     pending = [(value, 0)]
     nodes = 0
-    text_bytes = 0
+    textBytes = 0
 
     while pending:
         item, depth = pending.pop()
@@ -2403,9 +2403,9 @@ def DetachedReplayBounds(value: object) -> None:
             if len(item) > 4096 or "\x00" in item:
                 raise ValueError("detached artifact text exceeds its field bound")
 
-            text_bytes += len(item.encode("utf-8"))
+            textBytes += len(item.encode("utf-8"))
 
-            if text_bytes > 1024 * 1024:
+            if textBytes > 1024 * 1024:
                 raise ValueError("detached artifact text exceeds its aggregate bound")
 
         elif type(item) is int:
@@ -2529,13 +2529,13 @@ def VerifySyntheticImagePayloadReplay(
             raise ValueError("detached operation or prerequisite differs from the original plan")
 
     root = DetachedReplayPath(stage["root"])
-    workspace_root = DetachedReplayPath(prepared["workspace_root"])
+    workspaceRoot = DetachedReplayPath(prepared["workspace_root"])
     executable = DetachedReplayPath(stage["executable"])
 
-    if type(root) is not type(workspace_root) or type(root) is not type(executable) or (
-        root == workspace_root or not root.is_relative_to(workspace_root)
+    if type(root) is not type(workspaceRoot) or type(root) is not type(executable) or (
+        root == workspaceRoot or not root.is_relative_to(workspaceRoot)
         or executable.is_relative_to(root)
-        or prepared["workspace"] != (root / "scratch").relative_to(workspace_root).as_posix()
+        or prepared["workspace"] != (root / "scratch").relative_to(workspaceRoot).as_posix()
     ):
         raise ValueError("detached stage, selected runtime or scratch paths are inconsistent")
 
@@ -2544,13 +2544,13 @@ def VerifySyntheticImagePayloadReplay(
     if type(partitions) is not list or len(partitions) != 3:
         raise ValueError("detached image requires three original stage partitions")
 
-    physical_ids = {DetachedReplayIdentity(stage["root_identity"], 2)}
-    executable_identity = DetachedReplayIdentity(stage["executable_identity"], 5)
+    physicalIds = {DetachedReplayIdentity(stage["root_identity"], 2)}
+    executableIdentity = DetachedReplayIdentity(stage["executable_identity"], 5)
 
-    if executable_identity[:2] in physical_ids:
+    if executableIdentity[:2] in physicalIds:
         raise ValueError("detached runtime and stage have aliased physical identities")
 
-    physical_ids.add(executable_identity[:2])
+    physicalIds.add(executableIdentity[:2])
     manifests = []
 
     for index, role in enumerate((ArtifactRole.INPUT, ArtifactRole.SCANNER, ArtifactRole.MATERIAL)):
@@ -2561,31 +2561,31 @@ def VerifySyntheticImagePayloadReplay(
         consent = WorkspaceFields(partition["consent"], {"actor_ref", "record_ref"},
                                   "detached read consent")
         ArtifactReadConsent(**cast(dict[str, Any], consent))
-        directory_identity = DetachedReplayIdentity(partition["directory_identity"], 2)
+        directoryIdentity = DetachedReplayIdentity(partition["directory_identity"], 2)
 
-        if directory_identity in physical_ids or manifest.role is not role or (
+        if directoryIdentity in physicalIds or manifest.role is not role or (
             manifest.profile is not ArtifactProfile.SYNTHETIC_IMAGE
         ):
             raise ValueError("detached partition roles or physical identities are inconsistent")
 
-        physical_ids.add(directory_identity)
+        physicalIds.add(directoryIdentity)
         identities = partition["identities"]
 
         if type(identities) is not list or len(identities) != len(manifest.files):
             raise ValueError("detached partition file observations differ from its manifest")
 
-        for file_record, observation in zip(manifest.files, identities, strict=True):
+        for fileRecord, observation in zip(manifest.files, identities, strict=True):
             if type(observation) is not list or len(observation) != 2 or (
-                observation[0] != file_record.name
+                observation[0] != fileRecord.name
             ):
                 raise ValueError("detached file observation ordering is inconsistent")
 
             identity = DetachedReplayIdentity(observation[1], 5)
 
-            if identity[:2] in physical_ids or identity[2] != file_record.size_bytes:
+            if identity[:2] in physicalIds or identity[2] != fileRecord.size_bytes:
                 raise ValueError("detached selected copies have aliased identities or wrong sizes")
 
-            physical_ids.add(identity[:2])
+            physicalIds.add(identity[:2])
 
     if [item.ToDict() for item in manifests] != record["manifests"] or (
         tuple(item.Digest() for item in manifests) != (
@@ -2598,17 +2598,17 @@ def VerifySyntheticImagePayloadReplay(
         or manifests[0].files[0].size_bytes > 128 * 1024
         or manifests[2].files[0].size_bytes > 512
         or manifests[1].files[1].sha256 != _IMAGE_PRODUCER_SHA256
-        or executable_identity[2] != manifests[1].files[0].size_bytes
+        or executableIdentity[2] != manifests[1].files[0].size_bytes
     ):
         raise ValueError("detached image material is outside the original closed factory")
 
-    invocation_record = WorkspaceFields(prepared["invocation"],
+    invocationRecord = WorkspaceFields(prepared["invocation"],
         {"adapter_id", "request", "argv", "timeout_seconds", "provider_version"},
         "detached invocation")
-    resource_record = WorkspaceFields(prepared["resources"],
+    resourceRecord = WorkspaceFields(prepared["resources"],
         {item.name for item in fields(ExecutionResources)}, "detached resources")
-    resources = ExecutionResources(**cast(dict[str, Any], resource_record))
-    timeout = cast(int, invocation_record["timeout_seconds"])
+    resources = ExecutionResources(**cast(dict[str, Any], resourceRecord))
+    timeout = cast(int, invocationRecord["timeout_seconds"])
     operation = ArtifactOperation(cast(str, plan["operation"]))
     ValidateArtifactResources(_IMAGE_FAMILY, operation, timeout, resources)
     capability = ProfileCapability(ArtifactProfile.SYNTHETIC_IMAGE)
@@ -2622,7 +2622,7 @@ def VerifySyntheticImagePayloadReplay(
     environment = WorkspaceFields(prepared["environment"],
         set(ArtifactEnvironment(root, "", "")), "detached environment")
 
-    if invocation_record != json.loads(SerializeContract(invocation)) or (
+    if invocationRecord != json.loads(SerializeContract(invocation)) or (
         prepared["capability"] != json.loads(SerializeContract(capability))
         or environment != dict(ArtifactEnvironment(root, cast(str, environment["SYSTEMROOT"]),
                                                    cast(str, environment["WINDIR"])))
@@ -2652,9 +2652,9 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
         "artifact replay",
     )
 
-    schema_version = record["schema_version"]
+    schemaVersion = record["schema_version"]
 
-    if type(schema_version) is not int or schema_version not in {1, 2}:
+    if type(schemaVersion) is not int or schemaVersion not in {1, 2}:
         raise ValueError("artifact replay version is unsupported")
 
     if (
@@ -2664,65 +2664,65 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
     ):
         raise ValueError("artifact replay requires bounded retained stream bytes")
 
-    grant_record = WorkspaceFields(
+    grantRecord = WorkspaceFields(
         record["grant"], {"plan", "authorization", "issued_at", "valid_until"}, "artifact grant"
     )
-    plan_record = VerifyReplayPlan(grant_record["plan"], schema_version)
+    planRecord = VerifyReplayPlan(grantRecord["plan"], schemaVersion)
 
     try:
-        authorization_record = cast(
+        authorizationRecord = cast(
             dict[str, Any],
             WorkspaceFields(
-                grant_record["authorization"],
+                grantRecord["authorization"],
                 {item.name for item in fields(ExecutionAuthorization)},
                 "artifact envelope",
             ),
         )
-        authorization = ExecutionAuthorization(**authorization_record)
-        issued_at = NormalizeTime(cast(str, grant_record["issued_at"]))
-        valid_until = NormalizeTime(cast(str, grant_record["valid_until"]))
+        authorization = ExecutionAuthorization(**authorizationRecord)
+        issuedAt = NormalizeTime(cast(str, grantRecord["issued_at"]))
+        validUntil = NormalizeTime(cast(str, grantRecord["valid_until"]))
 
         if (
-            issued_at != grant_record["issued_at"]
-            or valid_until != grant_record["valid_until"]
-            or datetime.fromisoformat(issued_at) >= datetime.fromisoformat(valid_until)
+            issuedAt != grantRecord["issued_at"]
+            or validUntil != grantRecord["valid_until"]
+            or datetime.fromisoformat(issuedAt) >= datetime.fromisoformat(validUntil)
         ):
             raise ValueError("artifact replay grant times are inconsistent")
 
-        receipt_record = WorkspaceFields(
+        receiptRecord = WorkspaceFields(
             record["acceptance"],
             {item.name for item in fields(ArtifactAcceptance)},
             "artifact receipt",
         )
-        receipt_values: dict[str, Any] = dict(receipt_record)
-        receipt_values["refusal"] = (
+        receiptValues: dict[str, Any] = dict(receiptRecord)
+        receiptValues["refusal"] = (
             None
-            if receipt_values["refusal"] is None
-            else ArtifactDenialReason(receipt_values["refusal"])
+            if receiptValues["refusal"] is None
+            else ArtifactDenialReason(receiptValues["refusal"])
         )
-        receipt = ArtifactAcceptance(**receipt_values)
+        receipt = ArtifactAcceptance(**receiptValues)
 
     except (TypeError, ValueError):
         raise ValueError("artifact replay metadata is malformed") from None
 
-    expected_envelope = ExecutionAuthorization(
-        "artifact-authorization:" + Digest((plan_record, issued_at, valid_until)),
-        cast(str, plan_record["scope_reference"]),
-        cast(str, plan_record["policy_reference"]),
-        cast(str, plan_record["invocation_sha256"]),
-        cast(tuple[str, ...], plan_record["granted_privileges"]),
+    expectedEnvelope = ExecutionAuthorization(
+        "artifact-authorization:" + Digest((planRecord, issuedAt, validUntil)),
+        cast(str, planRecord["scope_reference"]),
+        cast(str, planRecord["policy_reference"]),
+        cast(str, planRecord["invocation_sha256"]),
+        cast(tuple[str, ...], planRecord["granted_privileges"]),
     )
 
-    if authorization != expected_envelope:
+    if authorization != expectedEnvelope:
         raise ValueError("artifact replay plan or original envelope is inconsistent")
 
-    manifest_records = record["manifests"]
+    manifestRecords = record["manifests"]
 
-    if not isinstance(manifest_records, list) or len(manifest_records) != 3:
+    if not isinstance(manifestRecords, list) or len(manifestRecords) != 3:
         raise ValueError("artifact replay requires three role-separated manifests")
 
     try:
-        manifests = tuple(ArtifactManifest.FromDict(item) for item in manifest_records)
+        manifests = tuple(ArtifactManifest.FromDict(item) for item in manifestRecords)
 
     except (TypeError, ValueError):
         raise ValueError("artifact replay manifest metadata is malformed") from None
@@ -2730,21 +2730,21 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
     if (
         tuple(item.role for item in manifests)
         != (ArtifactRole.INPUT, ArtifactRole.SCANNER, ArtifactRole.MATERIAL)
-        or any(item.profile.value != plan_record["profile"] for item in manifests)
+        or any(item.profile.value != planRecord["profile"] for item in manifests)
         or tuple(item.Digest() for item in manifests)
         != (
-            plan_record["input_manifest_sha256"], plan_record["scanner_manifest_sha256"],
-            plan_record["material_manifest_sha256"],
+            planRecord["input_manifest_sha256"], planRecord["scanner_manifest_sha256"],
+            planRecord["material_manifest_sha256"],
         )
-        or manifests[0].Target().Reference() != plan_record["target_reference"]
+        or manifests[0].Target().Reference() != planRecord["target_reference"]
     ):
         raise ValueError("artifact replay manifests do not match original input authority")
 
-    scanner_files = {item.name: item for item in manifests[1].files}
-    family = _LIFECYCLE_FAMILY if schema_version == 1 else plan_record["producer_family"]
+    scannerFiles = {item.name: item for item in manifests[1].files}
+    family = _LIFECYCLE_FAMILY if schemaVersion == 1 else planRecord["producer_family"]
 
-    if set(scanner_files) != {"executable", "producer.py"} or (
-        scanner_files["producer.py"].sha256 not in (
+    if set(scannerFiles) != {"executable", "producer.py"} or (
+        scannerFiles["producer.py"].sha256 not in (
             _LEGACY_PRODUCERS if family == _LIFECYCLE_FAMILY else (
                 {_CONFIGURATION_PRODUCER_SHA256} if family == _CONFIGURATION_FAMILY
                 else {_IMAGE_PRODUCER_SHA256}
@@ -2781,7 +2781,7 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
             "artifact raw facts",
         ),
     )
-    execution_record = cast(
+    executionRecord = cast(
         dict[str, Any],
         WorkspaceFields(
             facts["execution"],
@@ -2790,14 +2790,14 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
         ),
     )
 
-    if isinstance(execution_record["duration_seconds"], bool):
+    if isinstance(executionRecord["duration_seconds"], bool):
         raise ValueError("artifact replay execution duration is malformed")
 
     try:
         AdapterExecution(
-            ExecutionState(execution_record["state"]),
-            execution_record["exit_code"],
-            execution_record["duration_seconds"],
+            ExecutionState(executionRecord["state"]),
+            executionRecord["exit_code"],
+            executionRecord["duration_seconds"],
         )
         ExecutionTermination(facts["termination"])
         RequireDigest(facts["events_sha256"])
@@ -2812,19 +2812,19 @@ def VerifyArtifactReplay(metadata: object, stdout: bytes, stderr: bytes) -> Arti
         raise ValueError("artifact replay event count exceeds retained-output bounds")
 
     if receipt.refusal is None and not (
-        execution_record["state"] == ExecutionState.SUCCEEDED.value
-        and execution_record["exit_code"] == 0
+        executionRecord["state"] == ExecutionState.SUCCEEDED.value
+        and executionRecord["exit_code"] == 0
         and facts["termination"] == ExecutionTermination.PROCESS_EXIT.value
-        and datetime.fromisoformat(issued_at)
+        and datetime.fromisoformat(issuedAt)
         <= datetime.fromisoformat(receipt.checked_at)
-        < datetime.fromisoformat(valid_until)
+        < datetime.fromisoformat(validUntil)
     ):
         raise ValueError("artifact replay falsely claims successful original acceptance")
 
     if (
         receipt.grant_id != authorization.authorization_id
         or receipt.raw_sha256 != Digest(facts)
-        or receipt.stage_lease != plan_record["stage_lease"]
+        or receipt.stage_lease != planRecord["stage_lease"]
         or type(facts["stdout_bytes"]) is not int
         or type(facts["stderr_bytes"]) is not int
         or facts["stdout_bytes"] != len(stdout)
@@ -3049,7 +3049,7 @@ class GovernedArtifactExecutor:
             grant, prepared, stage, self.CurrentContext(context_provider), at=self._clock()
         )
         request = prepared.Request(grant)
-        run_id = "artifact-run:" + uuid.uuid4().hex
+        runId = "artifact-run:" + uuid.uuid4().hex
         marker_identity: tuple[int, int, int, int, int] | None = None
 
         def BeforeLaunch(actual: LocalExecutionRequest) -> None:
@@ -3060,62 +3060,62 @@ class GovernedArtifactExecutor:
             if actual != prepared.Request(grant):
                 raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
-            launch_context = self.CurrentContext(context_provider)
-            self._engine.Validate(grant, prepared, stage, launch_context, at=self._clock())
-            launch_context = self.CurrentContext(context_provider)
-            self._engine.ValidateCurrent(grant, prepared, stage, launch_context, at=self._clock())
+            launchContext = self.CurrentContext(context_provider)
+            self._engine.Validate(grant, prepared, stage, launchContext, at=self._clock())
+            launchContext = self.CurrentContext(context_provider)
+            self._engine.ValidateCurrent(grant, prepared, stage, launchContext, at=self._clock())
             self._engine.ValidateTime(
-                grant, stage, launch_context, at=self._clock(),
+                grant, stage, launchContext, at=self._clock(),
                 version_proof=prepared.version_proof,
             )
             scratch = stage.root / "scratch"
 
             with (scratch / "run-lease.json").open("xb") as marker:
-                marker.write(ExecutionMarkerBytes(run_id, grant.authorization.authorization_id))
+                marker.write(ExecutionMarkerBytes(runId, grant.authorization.authorization_id))
 
             marker_identity = PhysicalIdentity(ArtifactPathInfo(scratch / "run-lease.json"))
 
             for name in ("home", "temp", "config", "cache"):
                 (scratch / name).mkdir(mode=0o700)
 
-            launch_context = self.CurrentContext(context_provider)
-            self._engine.ValidateCurrent(grant, prepared, stage, launch_context, at=self._clock())
+            launchContext = self.CurrentContext(context_provider)
+            self._engine.ValidateCurrent(grant, prepared, stage, launchContext, at=self._clock())
             self._engine.ValidateTime(
-                grant, stage, launch_context, at=self._clock(),
+                grant, stage, launchContext, at=self._clock(),
                 version_proof=prepared.version_proof,
             )
 
         raw = await self._executor.Execute(
             request, on_event=on_event, cancellation=cancellation, pre_launch=BeforeLaunch
         )
-        checked_at = datetime.now(timezone.utc)
+        checkedAt = datetime.now(timezone.utc)
         refusal = None
 
         try:
-            checked_at = self._clock()
-            RequireTime(checked_at)
+            checkedAt = self._clock()
+            RequireTime(checkedAt)
             self._engine.Validate(
                 grant,
                 prepared,
                 stage,
                 self.CurrentContext(context_provider),
-                at=checked_at,
+                at=checkedAt,
                 after_run=True,
             )
 
             if marker_identity is not None:
                 VerifyExecutionMarker(
-                    stage, run_id, grant.authorization.authorization_id, marker_identity
+                    stage, runId, grant.authorization.authorization_id, marker_identity
                 )
 
-            acceptance_context = self.CurrentContext(context_provider)
-            checked_at = self._clock()
+            acceptanceContext = self.CurrentContext(context_provider)
+            checkedAt = self._clock()
             self._engine.ValidateCurrent(
-                grant, prepared, stage, acceptance_context, at=checked_at
+                grant, prepared, stage, acceptanceContext, at=checkedAt
             )
-            checked_at = self._clock()
+            checkedAt = self._clock()
             self._engine.ValidateTime(
-                grant, stage, acceptance_context, at=checked_at,
+                grant, stage, acceptanceContext, at=checkedAt,
                 version_proof=prepared.version_proof,
             )
 
@@ -3130,7 +3130,7 @@ class GovernedArtifactExecutor:
 
         except Exception:
             refusal = ArtifactDenialReason.CONTEXT_INVALID
-            checked_at = datetime.now(timezone.utc)
+            checkedAt = datetime.now(timezone.utc)
 
         if refusal is None and not (
             raw.execution.state == ExecutionState.SUCCEEDED
@@ -3143,11 +3143,11 @@ class GovernedArtifactExecutor:
             refusal = ArtifactDenialReason.PLAN_CHANGED
 
         receipt = ArtifactAcceptance(
-            run_id,
+            runId,
             grant.authorization.authorization_id,
             stage.lease_id,
             RawResultDigest(raw),
-            checked_at.isoformat(),
+            checkedAt.isoformat(),
             refusal,
             marker_identity,
         )
@@ -3156,7 +3156,7 @@ class GovernedArtifactExecutor:
             raw,
             grant,
             receipt,
-            run_id,
+            runId,
             (stage.input.manifest, stage.scanner.manifest, stage.material.manifest),
         )
 
@@ -3269,44 +3269,44 @@ class GovernedArtifactExecutor:
             ):
                 raise ValueError("artifact pair requires original typed run/request/stage tuples")
 
-        version_outcome, version_prepared, version_stage = version
-        scan_outcome, scan_prepared, scan_stage = scan
-        version_plan = version_outcome.grant.plan
-        scan_plan = scan_outcome.grant.plan
-        prerequisite = scan_prepared.version_proof
+        versionOutcome, versionPrepared, versionStage = version
+        scanOutcome, scanPrepared, scanStage = scan
+        versionPlan = versionOutcome.grant.plan
+        scanPlan = scanOutcome.grant.plan
+        prerequisite = scanPrepared.version_proof
 
         if (
-            version_prepared.operation != ArtifactOperation.VERSION
-            or scan_prepared.operation != ArtifactOperation.SCAN
-            or version_plan.operation != ArtifactOperation.VERSION
-            or scan_plan.operation != ArtifactOperation.SCAN
+            versionPrepared.operation != ArtifactOperation.VERSION
+            or scanPrepared.operation != ArtifactOperation.SCAN
+            or versionPlan.operation != ArtifactOperation.VERSION
+            or scanPlan.operation != ArtifactOperation.SCAN
             or any(
                 plan.producer_family != _IMAGE_FAMILY
                 or plan.profile != ArtifactProfile.SYNTHETIC_IMAGE
-                for plan in (version_plan, scan_plan)
+                for plan in (versionPlan, scanPlan)
             )
-            or version_stage.root == scan_stage.root
-            or version_stage.root_identity == scan_stage.root_identity
-            or version_stage.lease_id == scan_stage.lease_id
-            or version_outcome.run_id == scan_outcome.run_id
-            or version_outcome.grant.authorization.authorization_id
-            == scan_outcome.grant.authorization.authorization_id
-            or version_outcome.manifests != scan_outcome.manifests
-            or version_stage.executable != scan_stage.executable
-            or version_stage.executable_identity != scan_stage.executable_identity
-            or version_prepared.workspace_root != scan_prepared.workspace_root
-            or version_plan.workspace_id != scan_plan.workspace_id
-            or version_plan.owner_ref != scan_plan.owner_ref
-            or version_plan.provider_version != scan_plan.provider_version
+            or versionStage.root == scanStage.root
+            or versionStage.root_identity == scanStage.root_identity
+            or versionStage.lease_id == scanStage.lease_id
+            or versionOutcome.run_id == scanOutcome.run_id
+            or versionOutcome.grant.authorization.authorization_id
+            == scanOutcome.grant.authorization.authorization_id
+            or versionOutcome.manifests != scanOutcome.manifests
+            or versionStage.executable != scanStage.executable
+            or versionStage.executable_identity != scanStage.executable_identity
+            or versionPrepared.workspace_root != scanPrepared.workspace_root
+            or versionPlan.workspace_id != scanPlan.workspace_id
+            or versionPlan.owner_ref != scanPlan.owner_ref
+            or versionPlan.provider_version != scanPlan.provider_version
             or prerequisite is None
-            or prerequisite.outcome != version_outcome
-            or prerequisite.prepared != version_prepared
-            or prerequisite.stage != version_stage
-            or scan_plan.version_run_id != version_outcome.run_id
-            or scan_plan.version_grant_id != version_outcome.grant.authorization.authorization_id
-            or scan_plan.version_prerequisite_sha256 != prerequisite.Digest()
-            or datetime.fromisoformat(version_outcome.acceptance.checked_at)
-            > datetime.fromisoformat(scan_outcome.grant.issued_at)
+            or prerequisite.outcome != versionOutcome
+            or prerequisite.prepared != versionPrepared
+            or prerequisite.stage != versionStage
+            or scanPlan.version_run_id != versionOutcome.run_id
+            or scanPlan.version_grant_id != versionOutcome.grant.authorization.authorization_id
+            or scanPlan.version_prerequisite_sha256 != prerequisite.Digest()
+            or datetime.fromisoformat(versionOutcome.acceptance.checked_at)
+            > datetime.fromisoformat(scanOutcome.grant.issued_at)
         ):
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 

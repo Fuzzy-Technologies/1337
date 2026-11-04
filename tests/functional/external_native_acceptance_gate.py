@@ -230,9 +230,9 @@ def VerifyInstalled(repository: Path, evidence: dict[str, bytes], head: str) -> 
 def VerifyCase(repository: Path, root: Path, row: dict, head: str, reset_hash: str) -> str:
     """Require the original response, Finding, attempt and source for one finite case."""
 
-    case_id, execution = row["case_id"], row["execution"]
-    positive = case_id == "metrics.exposed"
-    url = "http://127.0.0.1:3000" + CASES[case_id]
+    caseId, execution = row["case_id"], row["execution"]
+    positive = caseId == "metrics.exposed"
+    url = "http://127.0.0.1:3000" + CASES[caseId]
     Require(type(row["schema_version"]) is int and row["schema_version"] == 1
         and row["status"] == "completed"
         and row["scanner_track"] == "native-engine"
@@ -260,7 +260,7 @@ def VerifyCase(repository: Path, root: Path, row: dict, head: str, reset_hash: s
     evidence = {}
 
     for record in records:
-        Require(record["path"].startswith(case_id + "/"),
+        Require(record["path"].startswith(caseId + "/"),
                 "Original native role belongs to a different case")
         raw = Read(root, record["path"])
         Require(type(record["size_bytes"]) is int and len(raw) == record["size_bytes"]
@@ -268,14 +268,14 @@ def VerifyCase(repository: Path, root: Path, row: dict, head: str, reset_hash: s
         evidence[record["role"]] = raw
 
     source = VerifyInstalled(repository, evidence, head)
-    expected_paths = {"stdout": "scanner/worker-stdout.json",
+    expectedPaths = {"stdout": "scanner/worker-stdout.json",
         "stderr": "scanner/worker-stderr.json",
         "invocation": "scanner/invocation.json", "findings": "scanner/findings.json",
         "target-provenance": "target-provenance.json", "requests": "approved-attempts.json",
         "attempt-provenance": "attempt-provenance.json",
         "installed-source": "scanner/provisioning.json",
         "installed-wheel": "scanner/" + source["wheel"]["filename"]}
-    Require(all(record["path"] == case_id + "/" + expected_paths[record["role"]]
+    Require(all(record["path"] == caseId + "/" + expectedPaths[record["role"]]
                 for record in records), "Original native evidence roles changed their owning paths")
     Require(execution["scanner_sha256"] == source["python_sha256"] and execution["rule_sha256"]
         == source["module_sha256"]["adapters.prometheus_exposition"],
@@ -305,7 +305,7 @@ def VerifyCase(repository: Path, root: Path, row: dict, head: str, reset_hash: s
         and re.fullmatch("[a-f0-9]{64}", worker["body_sha256"]) is not None
         and (worker["media_type"] == "text/plain" if positive else worker["media_type"] == "other"),
         "Original native worker did not assess the exact complete finite response")
-    findings = ([{"rule_id": "native.prometheus-exposition", "path": CASES[case_id]}]
+    findings = ([{"rule_id": "native.prometheus-exposition", "path": CASES[caseId]}]
                 if positive else [])
     Require(execution["findings"] == findings and Decode(evidence["findings"]) == findings,
             "Original native Findings disagree with the independent finite case truth")
@@ -323,15 +323,15 @@ def VerifyCase(repository: Path, root: Path, row: dict, head: str, reset_hash: s
         control = attempt["fixture_http_probes"][-1]
         body = control["body"].encode("utf-8")
         Require(control["host"] == "127.0.0.1" and control["port"] == 3000
-            and control["path"] == CASES[case_id] and control["status"] == 200
+            and control["path"] == CASES[caseId] and control["status"] == 200
             and control["error"] == "" and control["timed_out"] is False
             and Digest(body) == worker["body_sha256"] and len(body) == worker["body_bytes"]
-            and (Decode(body) == {"version": "20.2.0"} if case_id == "metrics.json-control"
+            and (Decode(body) == {"version": "20.2.0"} if caseId == "metrics.json-control"
                  else "OWASP Juice Shop" in control["body"]),
             "Native negative case lacks its separate genuine JSON or HTML response control")
 
-    VerifyBundle(root, case_id, execution, {value.removeprefix("scanner/")
-        for value in expected_paths.values() if value.startswith("scanner/")})
+    VerifyBundle(root, caseId, execution, {value.removeprefix("scanner/")
+        for value in expectedPaths.values() if value.startswith("scanner/")})
 
     return execution["target_instance"]
 
@@ -361,7 +361,7 @@ def Verify(repository: Path, head: str, tree: str) -> dict:
         and native[0]["scanner_id"] == "native.web-check"
         and native[0]["rule_ids"] == ["native.prometheus-exposition"],
         "Selected native mapping lacks its accepted exact detector")
-    reset_hash = Digest(json.dumps({"target": target, "compose_sha256": Digest(Read(repository,
+    resetHash = Digest(json.dumps({"target": target, "compose_sha256": Digest(Read(repository,
         "labs/external/compose.yaml"))}, sort_keys=True).encode())
     parent = repository / ROOT
     Require(not parent.is_symlink(), "Native evidence owner is linked")
@@ -383,7 +383,7 @@ def Verify(repository: Path, head: str, tree: str) -> dict:
         and type(rows) is list and len(rows) == 3 and {row["case_id"] for row in rows} == set(CASES)
         and report["whole_application_accuracy"] is None,
         "Native acceptance must contain exactly three finite cases and no whole-app score")
-    instances = {VerifyCase(repository, root, row, head, reset_hash) for row in rows}
+    instances = {VerifyCase(repository, root, row, head, resetHash) for row in rows}
     Require(len(instances) == 3 and report["finite_completed_case_counts"]["native-engine"]
         == {"tp": 1, "fp": 0, "fn": 0, "tn": 2, "unscored": 0, "coverage_gaps": 0},
         "Native cases must use three distinct fresh targets and exact finite TP1/TN2")

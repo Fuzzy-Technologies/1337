@@ -83,7 +83,7 @@ def test_ActualHttpsCliOwnsWorkerAndReopensAfterRelocationAndInputDeletion(
     """Actual CLI keeps original source meaning and supports read-only offline inspection."""
 
     model, _ = Context(tmp_path)
-    before_model = model.Open()
+    beforeModel = model.Open()
     processes, worker = OwnedWorker(tmp_path, monkeypatch)
     monkeypatch.setattr(LocalModelStore, "Save", Refuse)
     status, acquired = Run(["epss", "https", *Arguments(model.root)], capsys)
@@ -130,15 +130,15 @@ def test_ActualHttpsCliOwnsWorkerAndReopensAfterRelocationAndInputDeletion(
     ] == acquired["source"], "Offline relocated inspection changed source assertions."
     assert inspected["http_status"] == 200 and Files(relocated) == before and LocalModelStore(
         relocated,
-    ).Open() == before_model, "Read-only inspection mutated storage or discarded HTTP proof."
+    ).Open() == beforeModel, "Read-only inspection mutated storage or discarded HTTP proof."
     blob = relocated / "evidence" / raw.reference.locator
     blob.write_bytes(b"x" * raw.reference.size_bytes)
-    corrupt_before = Files(relocated)
+    corruptBefore = Files(relocated)
     status, rejected = Run(Selection(relocated, acquired), capsys)
     assert status == 4 and rejected["failure"] == "integrity" and "selection" not in rejected, (
         "Offline inspection trusted normalized selection despite corrupt original bytes."
     )
-    assert Files(relocated) == corrupt_before, "Integrity refusal rewrote owning storage."
+    assert Files(relocated) == corruptBefore, "Integrity refusal rewrote owning storage."
 
 
 @pytest.mark.parametrize("case,expected", [("digest", "digest-mismatch"),
@@ -150,10 +150,10 @@ def test_ActualCliFailureRetainsNetworkAndIndependentStorageFacts(
 
     model, _ = Context(tmp_path)
     raw = b"invalid owned gzip" if case == "parse" else Body()
-    http_status = 503 if case == "http" else 200
-    exit_code = 3 if case == "http" else (1 if case == "partial" else 0)
-    processes, _ = OwnedWorker(tmp_path, monkeypatch, raw=raw, status=http_status,
-                                exit_code=exit_code)
+    httpStatus = 503 if case == "http" else 200
+    exitCode = 3 if case == "http" else (1 if case == "partial" else 0)
+    processes, _ = OwnedWorker(tmp_path, monkeypatch, raw=raw, status=httpStatus,
+                                exit_code=exitCode)
     arguments = Arguments(model.root)
 
     if case in ("digest", "parse"):
@@ -161,19 +161,19 @@ def test_ActualCliFailureRetainsNetworkAndIndependentStorageFacts(
             "0" * 64 if case == "digest" else hashlib.sha256(raw).hexdigest()
         )
 
-    before_model = model.Open()
+    beforeModel = model.Open()
     status, outcome = Run(["epss", "https", *arguments], capsys)
     assert status == 4 and outcome["acquisition_state"] == expected and (
         outcome["status"] == "failed" and "selection" not in outcome
     ), "Actual failed HTTPS acquisition exposed a usable selected assertion."
-    assert outcome["http_status"] == http_status and outcome["received_bytes"] == len(raw), (
+    assert outcome["http_status"] == httpStatus and outcome["received_bytes"] == len(raw), (
         "Failure output discarded observed original HTTP status or bounded body bytes."
     )
     assert outcome["body_complete"] == (case in ("digest", "parse")) and outcome[
         "selection_ack"
     ] == "not-attempted", "Failure confused transport completeness with normalized publication."
     assert outcome["raw_ack"] == outcome["receipt_ack"] == "confirmed" and (
-        outcome["selection_id"] is None and model.Open() == before_model
+        outcome["selection_id"] is None and model.Open() == beforeModel
     ), "Failure lost independent custody or changed model state."
     assert len(processes) == 1 and processes[0].poll() is not None, "Failed receiver child leaked."
     store = LocalEvidenceStore(model.root / "evidence")

@@ -55,8 +55,8 @@ def test_ActualStaticPairKeepsOriginalProofAndReopensAfterRelocation(tmp_path, m
 
     fixture, before, after = Setup(tmp_path)
     arguments = PairArguments(fixture, before, after)
-    _, original_before = Run(OriginalArguments(fixture, before))
-    _, original_after = Run(OriginalArguments(fixture, after))
+    _, originalBefore = Run(OriginalArguments(fixture, before))
+    _, originalAfter = Run(OriginalArguments(fixture, after))
     retained = Files(fixture.root)
     monkeypatch.setattr(LocalModelStore, "Save", Refuse)
     monkeypatch.setattr(LocalWorkspaceStore, "Save", Refuse)
@@ -64,10 +64,10 @@ def test_ActualStaticPairKeepsOriginalProofAndReopensAfterRelocation(tmp_path, m
     monkeypatch.setattr(socket, "socket", Refuse)
     monkeypatch.setattr(subprocess, "Popen", Refuse)
     status, paired = Run(arguments)
-    html_status, html = Html(arguments)
-    assert status == html_status == 0 and paired["before"] == original_before and paired[
+    htmlStatus, html = Html(arguments)
+    assert status == htmlStatus == 0 and paired["before"] == originalBefore and paired[
         "after"
-    ] == original_after, "Actual comparison substituted a supplied or reconstructed graph."
+    ] == originalAfter, "Actual comparison substituted a supplied or reconstructed graph."
     download = re.search(r'download="path-comparison.json" href="data:application/json;'
                          r'base64,([^"]+)"', html).group(1)
     assert json.loads(base64.b64decode(download)) == paired and "<script" not in html, (
@@ -79,9 +79,9 @@ def test_ActualStaticPairKeepsOriginalProofAndReopensAfterRelocation(tmp_path, m
     moved = tmp_path / "relocated"
     shutil.move(fixture.root, moved)
     fixture.root = moved
-    moved_status, moved_pair = Run(PairArguments(fixture, before, after))
-    moved_html_status, moved_html = Html(PairArguments(fixture, before, after))
-    assert moved_status == moved_html_status == 0 and moved_pair == paired and moved_html == html, (
+    movedStatus, movedPair = Run(PairArguments(fixture, before, after))
+    movedHtmlStatus, movedHtml = Html(PairArguments(fixture, before, after))
+    assert movedStatus == movedHtmlStatus == 0 and movedPair == paired and movedHtml == html, (
         "Relocation changed exact original pairing, IDs or static artifacts."
     )
     assert Files(moved) == retained, "Paired query wrote saved owner or original evidence bytes."
@@ -97,8 +97,8 @@ def test_CorruptOriginalSideRefusesWholePairWithoutPartialHtmlOrJson(tmp_path, s
     blob.write_bytes(b"x" * record.reference.size_bytes)
     retained = Files(fixture.root)
     status, result = Run(PairArguments(fixture, before, after))
-    html_status, html = Html(PairArguments(fixture, before, after))
-    assert status == html_status == 4 and result["failure"] == side + "-analysis" and (
+    htmlStatus, html = Html(PairArguments(fixture, before, after))
+    assert status == htmlStatus == 4 and result["failure"] == side + "-analysis" and (
         result["before"] is None and result["after"] is None and "<!doctype" not in html
     ), "A corrupt source side escaped as partial or successful comparison."
     assert Files(fixture.root) == retained, "Failed pair repaired or changed original source bytes."

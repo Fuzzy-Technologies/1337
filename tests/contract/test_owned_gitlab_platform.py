@@ -520,7 +520,7 @@ def test_OfficialRunnerRequiresExactOriginalLengthAndUnchangedChecksum(monkeypat
     """An inert transport proves admission before any runner bytes can be written or executed."""
 
     payload = b"inert-provider-binary"
-    expected_size = len(payload)
+    expectedSize = len(payload)
     observed = []
 
     class Response(io.BytesIO):
@@ -550,7 +550,7 @@ def test_OfficialRunnerRequiresExactOriginalLengthAndUnchangedChecksum(monkeypat
             assert request == platform.RUNNER_URL, (
                 "Acquisition cannot change the pinned provider URL")
             header = {} if fault == "missing-length" else {"Content-Length": str(
-                expected_size + (1 if fault == "wrong-length" else 0))}
+                expectedSize + (1 if fault == "wrong-length" else 0))}
             body = payload[:-1] if fault == "truncated" else payload + (
                 b"X" if fault == "overrun" else b"")
 
@@ -558,7 +558,7 @@ def test_OfficialRunnerRequiresExactOriginalLengthAndUnchangedChecksum(monkeypat
 
         open = Open
 
-    monkeypatch.setattr(platform, "RUNNER_SIZE_BYTES", expected_size)
+    monkeypatch.setattr(platform, "RUNNER_SIZE_BYTES", expectedSize)
     monkeypatch.setattr(platform, "RUNNER_SHA256", "0" * 64 if fault == "checksum" else
         hashlib.sha256(payload).hexdigest())
     monkeypatch.setattr(platform.urllib.request, "build_opener", lambda *handlers: Opener())
@@ -790,9 +790,9 @@ def test_ServerBootstrapNeverMountsOrRelaxesRunnerPrivateControls():
     import inspect
 
     source = inspect.getsource(platform.Run)
-    assert 'Bootstrap(server_identity, token, Checked)' in source, (
+    assert 'Bootstrap(serverIdentity, token, Checked)' in source, (
         "The real owned cohort must use its validated private-stdin bootstrap boundary")
-    assert '("docker", "port", server_identity, "80/tcp")' in source, (
+    assert '("docker", "port", serverIdentity, "80/tcp")' in source, (
         "Published-port observation must bind the created ID instead of its mutable name")
     assert all(value not in source for value in (
         "bootstrap-token", "bootstrap.rb", "/owned-private", "chmod(0o755)", "chmod(0o777)"

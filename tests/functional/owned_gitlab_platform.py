@@ -226,10 +226,10 @@ def Command(arguments: tuple[str, ...], timeout: float, *, data: bytes | None = 
             "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
             "GIT_TERMINAL_PROMPT": "0"})
 
-    transport_pending = (readiness_probe and result.returncode in {7, 28, 52, 55, 56}
+    transportPending = (readiness_probe and result.returncode in {7, 28, 52, 55, 56}
         and result.stdout == b"000")
 
-    if (result.returncode != 0 and not transport_pending) or len(result.stdout) > MAX_RESPONSE:
+    if (result.returncode != 0 and not transportPending) or len(result.stdout) > MAX_RESPONSE:
         raise ValueError("An owned GitLab platform operation did not complete successfully")
 
     return result.stdout
@@ -296,27 +296,27 @@ def WaitReady(identity: str, deadline: float, command) -> None:
     if re.fullmatch(r"[a-f0-9]{64}", identity) is None:
         raise ValueError("Readiness requires the exact original owned server identity")
 
-    boot_end = min(deadline, time.monotonic() + 900)
-    last_status = "unobserved"
+    bootEnd = min(deadline, time.monotonic() + 900)
+    lastStatus = "unobserved"
 
-    while time.monotonic() < boot_end:
+    while time.monotonic() < bootEnd:
         raw = command(("docker", "exec", identity, *READINESS_ARGUMENTS),
-            min(5, boot_end - time.monotonic()), readiness_probe=True)
+            min(5, bootEnd - time.monotonic()), readiness_probe=True)
 
         if re.fullmatch(rb"[0-9]{3}", raw) is None:
             raise ValueError("Owned readiness did not return one exact status-only receipt")
 
-        last_status = raw.decode("ascii")
+        lastStatus = raw.decode("ascii")
 
         if raw == b"200":
             return
 
         if raw not in {b"000", b"502", b"503"}:
-            raise ValueError("Owned readiness returned unexpected HTTP status " + last_status)
+            raise ValueError("Owned readiness returned unexpected HTTP status " + lastStatus)
 
-        time.sleep(min(1, max(0, boot_end - time.monotonic())))
+        time.sleep(min(1, max(0, bootEnd - time.monotonic())))
 
-    raise ValueError("GitLab exceeded its fixed boot deadline; last HTTP status " + last_status)
+    raise ValueError("GitLab exceeded its fixed boot deadline; last HTTP status " + lastStatus)
 
 
 def StartupFailure(owner: str, identity: str, output: Path, elapsed: float,
@@ -643,9 +643,9 @@ def Pipeline(api: Api, project: int, runner_id: int, commit: str, image: str, ap
         "ref": "main", "variables": variables})
     identity = pipeline["id"]
     end = min(deadline, time.monotonic() + 300)
-    created_end = min(end, time.monotonic() + 30)
+    createdEnd = min(end, time.monotonic() + 30)
 
-    while time.monotonic() < created_end:
+    while time.monotonic() < createdEnd:
         jobs = json.loads(api.Bytes(f"/projects/{project}/pipelines/{identity}/jobs"))
 
         if len(jobs) == 1 and jobs[0]["name"] == "1337-local-demo":
@@ -711,8 +711,8 @@ def Run(source: Path, output: Path, image: str) -> dict:
     private.chmod(0o700)
     (private / "docker").mkdir(mode=0o700)
     (private / "home").mkdir(mode=0o700)
-    private_stat = private.stat()
-    private_identity = (private_stat.st_dev, private_stat.st_ino)
+    privateStat = private.stat()
+    privateIdentity = (privateStat.st_dev, privateStat.st_ino)
 
     def Checked(arguments, timeout, **options):
         """Spend one cohort allowance using the same literal local Docker endpoint."""
@@ -731,8 +731,8 @@ def Run(source: Path, output: Path, image: str) -> dict:
     token = secrets.token_hex(10)
     forbidden = (token.encode(),)
     session = None
-    network_identity = None
-    owned_jobs = []
+    networkIdentity = None
+    ownedJobs = []
     successful = False
 
     try:
@@ -746,12 +746,12 @@ def Run(source: Path, output: Path, image: str) -> dict:
         tree = Checked(("git", "rev-parse", "HEAD^{tree}"), 30, cwd=source).decode().strip()
         template = (source / TEMPLATE).read_bytes()
         daemon = Json(Checked(("docker", "info", "--format", "{{json .}}"), 30))
-        docker_free = shutil.disk_usage(daemon["DockerRootDir"]).free
+        dockerFree = shutil.disk_usage(daemon["DockerRootDir"]).free
 
-        if daemon["OSType"] != "linux" or docker_free < 30 * 1024**3:
+        if daemon["OSType"] != "linux" or dockerFree < 30 * 1024**3:
             raise ValueError("Actual Docker storage must independently admit 30 GiB free")
 
-        resources["docker_free_bytes"] = docker_free
+        resources["docker_free_bytes"] = dockerFree
 
         if Checked(("docker", "ps", "-aq", "--filter", "name=^/1337-demo-"), 15).strip() or Checked(
             ("docker", "image", "ls", "-q", "--filter", "reference=1337-demo:*"), 15
@@ -767,10 +767,10 @@ def Run(source: Path, output: Path, image: str) -> dict:
         runner.write_bytes(binary)
         runner.chmod(0o700)
         Checked(("docker", "pull", SERVER), 180)
-        network_identity = Checked(("docker", "network", "create", "--label",
+        networkIdentity = Checked(("docker", "network", "create", "--label",
             "1337.owner=" + owner, owner), 30).decode().strip()
 
-        if re.fullmatch(r"[a-f0-9]{64}", network_identity) is None:
+        if re.fullmatch(r"[a-f0-9]{64}", networkIdentity) is None:
             raise ValueError("Created GitLab network did not retain its full original identity")
 
         for suffix in ("config", "logs", "data"):
@@ -781,7 +781,7 @@ def Run(source: Path, output: Path, image: str) -> dict:
             "puma['worker_processes']=0; sidekiq['concurrency']=5; "
             "prometheus_monitoring['enable']=false; gitlab_kas['enable']=false; "
             "gitlab_rails['usage_ping_enabled']=false; gitlab_rails['gitlab_email_enabled']=false")
-        server_identity = Checked(("docker", "run", "-d", "--name", owner, "--network", owner,
+        serverIdentity = Checked(("docker", "run", "-d", "--name", owner, "--network", owner,
             "--hostname", "gitlab.1337.test", "--label", "1337.owner=" + owner,
             "--publish", "127.0.0.1::80", "--shm-size", "256m", "--cpus", "3",
             "--memory", "10g", "--memory-swap", "10g", "--pids-limit", "2048",
@@ -789,32 +789,32 @@ def Run(source: Path, output: Path, image: str) -> dict:
             "--volume", owner + "-config:/etc/gitlab", "--volume", owner + "-logs:/var/log/gitlab",
             "--volume", owner + "-data:/var/opt/gitlab", SERVER), 60).decode().strip()
 
-        if re.fullmatch(r"[a-f0-9]{64}", server_identity) is None:
+        if re.fullmatch(r"[a-f0-9]{64}", serverIdentity) is None:
             raise ValueError("Created GitLab server did not retain its full original identity")
 
-        ports = Checked(("docker", "port", server_identity, "80/tcp"), 30).decode().strip()
+        ports = Checked(("docker", "port", serverIdentity, "80/tcp"), 30).decode().strip()
 
         if re.fullmatch(r"127\.0\.0\.1:[0-9]+", ports) is None:
             raise ValueError("Real GitLab must publish only one owned loopback HTTP port")
 
         port = int(ports.rsplit(":", 1)[1])
-        boot_started = time.monotonic()
+        bootStarted = time.monotonic()
 
         try:
-            WaitReady(server_identity, deadline, Checked)
+            WaitReady(serverIdentity, deadline, Checked)
 
         except Exception:
             # Optional diagnosis cannot replace the original readiness failure.
             try:
-                StartupFailure(owner, server_identity, output,
-                    time.monotonic() - boot_started, Checked, forbidden)
+                StartupFailure(owner, serverIdentity, output,
+                    time.monotonic() - bootStarted, Checked, forbidden)
 
             except Exception:
                 pass
 
             raise
 
-        Bootstrap(server_identity, token, Checked)
+        Bootstrap(serverIdentity, token, Checked)
         api = Api(port, token, deadline)
         project = api.Object("/projects", "POST", {"name": "owned-1337", "visibility": "private",
             "shared_runners_enabled": False, "auto_devops_enabled": False,
@@ -822,10 +822,10 @@ def Run(source: Path, output: Path, image: str) -> dict:
         registration = api.Object("/user/runners", "POST", {"runner_type": "project_type",
             "project_id": project, "description": "owned-1337", "tag_list": ["docker-shell"],
             "run_untagged": False, "locked": True, "maximum_timeout": 900, "paused": True})
-        runner_token = registration["token"]
-        forbidden = (*forbidden, runner_token.encode())
+        runnerToken = registration["token"]
+        forbidden = (*forbidden, runnerToken.encode())
         config = private / "config.toml"
-        RunnerConfig(config, api, runner_token, private)
+        RunnerConfig(config, api, runnerToken, private)
         Checked((str(runner), "verify", "--config", str(config)), 30)
         api.Object(f"/projects/{project}/repository/commits", "POST", {"branch": "main",
             "commit_message": "Exact reviewed public GitLab template", "actions": [{
@@ -836,13 +836,13 @@ def Run(source: Path, output: Path, image: str) -> dict:
         for approved in (False, True):
             session.Check()
             Pipeline(api, project, registration["id"], commit, image, approved, deadline,
-                output / ("approved" if approved else "unapproved"), forbidden, owned_jobs)
+                output / ("approved" if approved else "unapproved"), forbidden, ownedJobs)
             session.Check()
 
         successful = True
 
     finally:
-        cleanup = Cleanup(owner, owned_jobs, private, session, private_identity, network_identity)
+        cleanup = Cleanup(owner, ownedJobs, private, session, privateIdentity, networkIdentity)
 
         if output.is_dir():
             Publish(output / "cleanup.json",
@@ -856,7 +856,7 @@ def Run(source: Path, output: Path, image: str) -> dict:
         "server": SERVER,
         "runner_version": RUNNER_VERSION, "runner_sha256": RUNNER_SHA256,
         "runner_size_bytes": len(binary),
-        "executor": "shell", "job_ids": owned_jobs, "owned_resources_removed": True}
+        "executor": "shell", "job_ids": ownedJobs, "owned_resources_removed": True}
     Publish(output / "result.json", json.dumps(result, sort_keys=True).encode(), forbidden)
 
     return result
@@ -871,14 +871,14 @@ def Verify(output: Path, source: Path) -> dict:
     cleanup = Json((output / "cleanup.json").read_bytes())
     resources = Json((output / "resources.json").read_bytes())
     runner = cleanup.get("runner")
-    template_sha256 = hashlib.sha256((source / TEMPLATE).read_bytes()).hexdigest()
+    templateSha256 = hashlib.sha256((source / TEMPLATE).read_bytes()).hexdigest()
 
     if (result.get("state") != "verified-real-gitlab" or result.get("schema_version") != 1
         or result.get("source_commit") != commit or result.get("source_tree") != tree
         or result.get("server") != SERVER or result.get("runner_version") != RUNNER_VERSION
         or result.get("runner_sha256") != RUNNER_SHA256
         or result.get("runner_size_bytes") != RUNNER_SIZE_BYTES or result.get("executor") != "shell"
-        or result.get("template_sha256") != template_sha256
+        or result.get("template_sha256") != templateSha256
         or result.get("owned_resources_removed") is not True
         or cleanup.get("owned_resources_removed") is not True
         or cleanup.get("private_controls_removed") is not True or type(runner) is not dict

@@ -117,7 +117,7 @@ def test_InstalledApiConsolePreservesOriginalOracleTriageUnknownReplayAndReports
 
     context = ConsoleContext(tmp_path)
     root, basis, scope, evidence, source = context
-    scope_before = (root / "state/scopes/owned.json").read_bytes()
+    scopeBefore = (root / "state/scopes/owned.json").read_bytes()
     original = source.read_bytes()
     status, first = Import(tmp_path, context)
     assert status == 0 and all(
@@ -174,8 +174,8 @@ def test_InstalledApiConsolePreservesOriginalOracleTriageUnknownReplayAndReports
         "Owned pre-existing synthetic note",
         (attribution,),
     )
-    with_finding, _ = saved.Apply(objects=(finding.ToObject(saved.workspace_id),))
-    saved = LocalModelStore(root).Save(with_finding, expected_revision=saved.revision)
+    withFinding, _ = saved.Apply(objects=(finding.ToObject(saved.workspace_id),))
+    saved = LocalModelStore(root).Save(withFinding, expected_revision=saved.revision)
     triaged, _ = TransitionFinding(
         saved,
         finding.ToObject(saved.workspace_id).Reference(),
@@ -194,7 +194,7 @@ def test_InstalledApiConsolePreservesOriginalOracleTriageUnknownReplayAndReports
     assert (
         len(Findings(expected)) == 1 and Findings(expected)[0].status is FindingStatus.DISMISSED
     ), "Actual repeated description import erased existing operator triage"
-    assert (root / "state/scopes/owned.json").read_bytes() == scope_before, (
+    assert (root / "state/scopes/owned.json").read_bytes() == scopeBefore, (
         "Import changed scope/grants"
     )
     workspace = LocalWorkspaceStore(root).Open()
@@ -219,8 +219,8 @@ def test_InstalledApiConsolePreservesOriginalOracleTriageUnknownReplayAndReports
     status, _ = Console(tmp_path, ["workspace", "open", str(moved), "--json"])
     assert status == 0, "Public authoritative relocated reopen failed"
 
-    for report_format in ("json", "sarif"):
-        destination = tmp_path / ("graphql-report." + report_format)
+    for reportFormat in ("json", "sarif"):
+        destination = tmp_path / ("graphql-report." + reportFormat)
         status, exported = Console(
             tmp_path,
             [
@@ -228,7 +228,7 @@ def test_InstalledApiConsolePreservesOriginalOracleTriageUnknownReplayAndReports
                 "export",
                 str(moved),
                 "--format",
-                report_format,
+                reportFormat,
                 "--output",
                 str(destination),
                 "--json",
@@ -237,7 +237,7 @@ def test_InstalledApiConsolePreservesOriginalOracleTriageUnknownReplayAndReports
         assert status == 0 and exported["output_published"] is True, "Actual report export failed"
         document = json.loads(destination.read_bytes())
 
-        if report_format == "json":
+        if reportFormat == "json":
             assert document["model"] == expected.ToDict(), (
                 "JSON report changed exact saved API truth"
             )

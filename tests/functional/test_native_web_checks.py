@@ -174,9 +174,9 @@ def test_FirstPartyGitChecksMatchIndependentOracleAndDurablyReopen(tmp_path):
                     plan.policy_plan.intent_sha256, "approval:owned-" + case["id"])))
             observed = service.Observe()
             model = LocalModelStore(root).Open()
-            actual_findings = Findings(model)
+            actualFindings = Findings(model)
             detected = tuple(case["id"] if finding.check_id == NATIVE_WEB_CHECK_ID else
-                             finding.check_id for finding in actual_findings)
+                             finding.check_id for finding in actualFindings)
             status = RunStatus.COMPLETED if summary.snapshot.state is JobState.COMPLETED else (
                 RunStatus.TIMED_OUT if summary.snapshot.failure is not None and
                 summary.snapshot.failure.code is JobFailureCode.TIMEOUT else RunStatus.CRASHED
@@ -202,25 +202,25 @@ def test_FirstPartyGitChecksMatchIndependentOracleAndDurablyReopen(tmp_path):
             assert [item["path"] for item in reads] == case["expected_behavior"]["file_reads"], (
                 "Only the exposed positive may perform the actual owned HEAD file read."
             )
-            assert len(actual_findings) == int(case["expected_match"]), (
+            assert len(actualFindings) == int(case["expected_match"]), (
                 "Persisted native Findings disagree with independent target truth."
             )
             assert {item.role for item in raw} == {"stdout", "stderr", "invocation"}, (
                 "Original native report, empty stderr and exact invocation must all survive."
             )
             worker = json.loads(next(item.content for item in raw if item.role == "stdout"))
-            expected_body = case["expected_behavior"]["body"].encode("utf-8")
+            expectedBody = case["expected_behavior"]["body"].encode("utf-8")
             assert worker["check_id"] == NATIVE_WEB_CHECK_ID and worker["matched"] is (
                 case["expected_match"]), "Derived worker match must preserve its check identity."
             assert worker["status"] == case["expected_status"], "Worker lost the HTTP status."
-            assert worker["body_bytes"] == len(expected_body) and worker["body_sha256"] == (
-                hashlib.sha256(expected_body).hexdigest()), "Derived body attribution changed."
+            assert worker["body_bytes"] == len(expectedBody) and worker["body_sha256"] == (
+                hashlib.sha256(expectedBody).hexdigest()), "Derived body attribution changed."
             stdout = next(item.content for item in raw if item.role == "stdout")
             assert "owned-fixture" not in stdout, (
                 "The native report must not retain the transient branch reference or response body."
             )
 
-            for finding in actual_findings:
+            for finding in actualFindings:
                 assert (finding.check_id, finding.severity, finding.status, finding.confidence) == (
                     NATIVE_WEB_CHECK_ID, FindingSeverity.LOW, FindingStatus.OPEN, 0.0,
                 ), "Native exposure must not invent source recovery or operator confirmation."
@@ -301,7 +301,7 @@ def test_NativeWorkerIgnoresWorkspacePythonModuleShadowing(tmp_path):
             'Path(__file__).parent.parent.joinpath("shadow-module-executed").write_text(\n'
             '    "owned-shadow-was-executed", encoding="utf-8")\n'
         )
-        fake_negative = json.dumps({
+        fakeNegative = json.dumps({
             "schema_version": 1, "check_id": "native.git-head-exposure", "profile_version": "1",
             "url": target.value, "address": "127.0.0.1", "port": service.server.server_port,
             "scheme": "http", "status": 200, "media_type": "other", "body_bytes": 0,
@@ -309,7 +309,7 @@ def test_NativeWorkerIgnoresWorkspacePythonModuleShadowing(tmp_path):
         }, sort_keys=True, separators=(",", ":")) + "\n"
         (shadow / "__init__.py").write_text(source, encoding="utf-8")
         (shadow / "native_web_worker.py").write_text(
-            source + "import sys\nsys.stdout.write(" + repr(fake_negative) + ")\n",
+            source + "import sys\nsys.stdout.write(" + repr(fakeNegative) + ")\n",
             encoding="utf-8")
         plan, summary = ConfirmedNativeRun(root, target)
 

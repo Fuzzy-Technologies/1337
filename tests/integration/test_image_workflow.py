@@ -74,8 +74,8 @@ def NativeBaseline(owned):
     objects.append(native.ToObject("owned-images"))
     seed = ModelState("owned-images", 1, tuple(objects))
     LocalModelStore(owned.root).Save(seed, expected_revision=0)
-    workspace_store = LocalWorkspaceStore(owned.root)
-    workspace_store.Save(replace(workspace_store.Open(), scope_references=(scope,),
+    workspaceStore = LocalWorkspaceStore(owned.root)
+    workspaceStore.Save(replace(workspaceStore.Open(), scope_references=(scope,),
         object_references=tuple(item.Reference() for item in objects),
         evidence_references=(record.reference,), evidence_record_references=(record.evidence_id,)))
 
@@ -90,7 +90,7 @@ def test_ActualTwoOperationWorkflowPreservesNativeGraphAndProjectsExactSavedRepo
 
     owned = CreateOwnedImage(tmp_path)
     seed = NativeBaseline(owned)
-    original_bytes = {item.Reference(): CanonicalModelJson(item) for item in seed.objects}
+    originalBytes = {item.Reference(): CanonicalModelJson(item) for item in seed.objects}
     events = []
     output = tmp_path / ("image-report." + report_format)
     summary = asyncio.run(RunSyntheticImageScan(owned.root, "image-scope", "owner:image-test",
@@ -114,11 +114,11 @@ def test_ActualTwoOperationWorkflowPreservesNativeGraphAndProjectsExactSavedRepo
     assert "captures" not in summary.ToDict(), (
         "Detached canonical summary excludes original grant, stage and prerequisite proof"
     )
-    assert set(original_bytes) <= {item.Reference() for item in saved.objects}, (
+    assert set(originalBytes) <= {item.Reference() for item in saved.objects}, (
         "All original native assets and the triaged Finding must remain present"
     )
-    assert all(CanonicalModelJson(item) == original_bytes[item.Reference()]
-        for item in saved.objects if item.Reference() in original_bytes), (
+    assert all(CanonicalModelJson(item) == originalBytes[item.Reference()]
+        for item in saved.objects if item.Reference() in originalBytes), (
         "Every entire colliding native asset and operator-triaged Finding must remain byte-exact"
     )
     synthetic = [item for item in saved.Objects(ObjectKind.ASSET)
@@ -126,8 +126,8 @@ def test_ActualTwoOperationWorkflowPreservesNativeGraphAndProjectsExactSavedRepo
     assert {item.identity.key for item in synthetic} == set(
         ORACLE["domain_facts"]["synthetic_asset_keys"].values()
     ), "Actual image/domain identities must match the unchanged independent oracle"
-    synthetic_refs = {item.Reference() for item in synthetic}
-    assert all({item.source_reference, item.target_reference} <= synthetic_refs
+    syntheticRefs = {item.Reference() for item in synthetic}
+    assert all({item.source_reference, item.target_reference} <= syntheticRefs
         for item in saved.relations), "No digest/PURL hint may create a synthetic-to-native edge"
     findings = [item for item in Findings(saved) if item.check_id.startswith("synthetic.")]
     assert len(findings) == 1 and findings[0].check_id == "synthetic.supply-chain.vulnerability", (
@@ -137,8 +137,8 @@ def test_ActualTwoOperationWorkflowPreservesNativeGraphAndProjectsExactSavedRepo
         "Every interpretation must retain all six original operation evidence roles"
     )
     assert summary.first_model_update_seconds is not None, "Measure the actual committed delta time"
-    delta_events = [item for item in events if item.kind is JobEventKind.MODEL_DELTA]
-    assert len(delta_events) == 1 and delta_events[0].data.revision == saved.revision, (
+    deltaEvents = [item for item in events if item.kind is JobEventKind.MODEL_DELTA]
+    assert len(deltaEvents) == 1 and deltaEvents[0].data.revision == saved.revision, (
         "Publish only the actual saved atomic model delta"
     )
     assert summary.snapshot.spec.job_id in workspace.job_references, (
@@ -257,35 +257,35 @@ def test_TypedLiveImportAndHistoricalRelocationPreserveTriageWithoutAuthority(
             provider_version=None, execution=None,
             observed_at=datetime.now(UTC).isoformat()), "Owned synthetic operator dismissal")
     LocalModelStore(owned.root).Save(triaged, expected_revision=saved.revision)
-    later_proof, later_scan, later_records = asyncio.run(CollectOwnedImagePair(owned))
-    redetected, _ = ApplyVerifiedSyntheticTrivyImages(triaged, later_proof, later_scan.outcome,
-        later_scan.prepared, later_scan.stage, later_records, owned.root,
+    laterProof, laterScan, laterRecords = asyncio.run(CollectOwnedImagePair(owned))
+    redetected, _ = ApplyVerifiedSyntheticTrivyImages(triaged, laterProof, laterScan.outcome,
+        laterScan.prepared, laterScan.stage, laterRecords, owned.root,
         context_provider=lambda: owned.context)
     LocalModelStore(owned.root).Save(redetected, expected_revision=triaged.revision)
     latest = next(item for item in Findings(redetected) if item.check_id.startswith("synthetic."))
     assert latest.status is FindingStatus.DISMISSED and latest.status_reason == (
         "Owned synthetic operator dismissal"
     ), "A later genuine governed synthetic collection cannot reopen operator disposition"
-    explicitly_open, _ = TransitionFinding(redetected, latest.ToObject("owned-images").Reference(),
+    explicitlyOpen, _ = TransitionFinding(redetected, latest.ToObject("owned-images").Reference(),
         FindingStatus.OPEN, replace(latest.provenance[0], source_id="operator.test",
             run_reference="run:explicit-reopen", provider_version=None, execution=None,
             observed_at=datetime.now(UTC).isoformat()), "Explicit owned test reopen")
-    assert next(item for item in Findings(explicitly_open) if item.check_id.startswith(
+    assert next(item for item in Findings(explicitlyOpen) if item.check_id.startswith(
         "synthetic."
     )).status is FindingStatus.OPEN, "Only explicit operator transition may reopen disposition"
     triaged = redetected
-    original_bytes = CanonicalModelJson(triaged.ToDict())
+    originalBytes = CanonicalModelJson(triaged.ToDict())
     provenance = VerifySyntheticTrivyImageReplay(records, owned.root).provenance
     assert provenance == finding.provenance[0], "Replay must return the exact original attribution"
     assert delta.revision == saved.revision, "Live import proposes the actual atomic transition"
-    for stage_root in (proof.stage.root, scan.stage.root):
-        stage_root.chmod(0o700)
+    for stageRoot in (proof.stage.root, scan.stage.root):
+        stageRoot.chmod(0o700)
 
-        for path in stage_root.rglob("*"):
+        for path in stageRoot.rglob("*"):
             path.chmod(0o700 if path.is_dir() else 0o600)
 
-        rmtree(stage_root)
-        assert not stage_root.exists(), "Original test-owned stage must be physically removed"
+        rmtree(stageRoot)
+        assert not stageRoot.exists(), "Original test-owned stage must be physically removed"
 
     relocated = tmp_path / "relocated image workspace"
     copytree(owned.root, relocated)
@@ -302,7 +302,7 @@ def test_TypedLiveImportAndHistoricalRelocationPreserveTriageWithoutAuthority(
     assert VerifySyntheticTrivyImageReplay(records, relocated).provenance == provenance, (
         "Relocation must preserve original receipt paths/digests without reading current stages"
     )
-    assert CanonicalModelJson(LocalModelStore(relocated).Open().ToDict()) == original_bytes, (
+    assert CanonicalModelJson(LocalModelStore(relocated).Open().ToDict()) == originalBytes, (
         "Historical verification cannot reopen triage or add model history"
     )
 
@@ -363,12 +363,12 @@ def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth
 
     owned = CreateOwnedImage(tmp_path)
     initial = LocalModelStore(owned.root).Open()
-    original_open = LocalScopeStore.Open
-    original_execute = LocalExecutor.Execute
-    original_pair = GovernedArtifactExecutor.ValidatePairAcceptanceFresh
-    private_detail = "Owned private scope path must not reach diagnostics"
-    scope_error = storage_error(13 if storage_error is PermissionError else 5, private_detail)
-    assert type(scope_error) is storage_error, "Both parameter rows must exercise distinct OS types"
+    originalOpen = LocalScopeStore.Open
+    originalExecute = LocalExecutor.Execute
+    originalPair = GovernedArtifactExecutor.ValidatePairAcceptanceFresh
+    privateDetail = "Owned private scope path must not reach diagnostics"
+    scopeError = storage_error(13 if storage_error is PermissionError else 5, privateDetail)
+    assert type(scopeError) is storage_error, "Both parameter rows must exercise distinct OS types"
     armed = False
     fired = False
     scope_reads = 0
@@ -387,9 +387,9 @@ def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth
             armed = False
             fired = True
 
-            raise scope_error
+            raise scopeError
 
-        return original_open(self, scope_id)
+        return originalOpen(self, scope_id)
 
     async def Execute(self, request, *, on_event=None, cancellation=None, pre_launch=None):
         """Arm storage failure around the actual canonical launch or completed raw result."""
@@ -407,7 +407,7 @@ def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth
 
             return pre_launch(actual)
 
-        result = await original_execute(self, request, on_event=on_event,
+        result = await originalExecute(self, request, on_event=on_event,
             cancellation=cancellation, pre_launch=BeforeLaunch)
 
         if failure_at == "post-run" and not fired:
@@ -421,7 +421,7 @@ def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth
         nonlocal pair_calls
         pair_calls += 1
         current_reads = 0
-        selected_pair = 1 if failure_at == "final-import" else 2
+        selectedPair = 1 if failure_at == "final-import" else 2
 
         def CurrentContext():
             """Read actual scope and fail the after-hashing refresh for the selected pair."""
@@ -430,13 +430,13 @@ def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth
             current_reads += 1
 
             if failure_at in {"final-import", "final-save"} and (
-                pair_calls == selected_pair and current_reads == 3
+                pair_calls == selectedPair and current_reads == 3
             ):
                 armed = True
 
             return context_provider()
 
-        return original_pair(self, version, scan, CurrentContext)
+        return originalPair(self, version, scan, CurrentContext)
 
     monkeypatch.setattr(LocalScopeStore, "Open", Open)
     monkeypatch.setattr(LocalExecutor, "Execute", Execute)
@@ -444,8 +444,8 @@ def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth
     summary = asyncio.run(RunSyntheticImageScan(owned.root, "image-scope", "owner:image-test",
         owned.selection, approve_safe_image=True))
     workspace = LocalWorkspaceStore(owned.root).Open()
-    expected_operations = 2 if failure_at.startswith("final-") else int(failure_at == "post-run")
-    expected_acquisitions = 12 if failure_at.startswith("final-") else {
+    expectedOperations = 2 if failure_at.startswith("final-") else int(failure_at == "post-run")
+    expectedAcquisitions = 12 if failure_at.startswith("final-") else {
         "initial": 0, "launch": 3, "post-run": 6,
     }[failure_at]
     assert fired, "Every parameter must exercise its actual one-shot scope-reader failure"
@@ -458,11 +458,11 @@ def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth
     assert summary.first_model_update_seconds is None and not any(
         item.kind is JobEventKind.MODEL_DELTA for item in summary.events
     ), "Neither acceptance barrier may publish an uncommitted model delta"
-    assert len(summary.operations) == expected_operations, (
+    assert len(summary.operations) == expectedOperations, (
         "A storage refusal cannot fabricate a launch or erase an already completed operation"
     )
     assert len(summary.snapshot.artifacts) == len(workspace.evidence_record_references) == (
-        expected_acquisitions
+        expectedAcquisitions
     ), "A later storage refusal must retain every actual selected-byte and process acquisition"
     assert summary.snapshot.spec.job_id in workspace.job_references, (
         "Recovered storage must persist the owning job reference even after a failed current read"
@@ -480,7 +480,7 @@ def test_ActualScopeReaderStorageFailuresRetainOriginalProcessAndSavedStateTruth
     ) for item in summary.operations), (
         "Preserve the original SDK receipt refusal without changing earlier successful receipts"
     )
-    assert private_detail not in json.dumps(summary.ToDict(), sort_keys=True), (
+    assert privateDetail not in json.dumps(summary.ToDict(), sort_keys=True), (
         "Machine diagnostics must not reflect the failing physical scope path or OS exception"
     )
 

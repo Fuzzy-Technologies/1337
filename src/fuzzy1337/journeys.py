@@ -476,7 +476,7 @@ class JourneyStep:
         assertions = JourneyArray(record["assertions"], "assertions", 16)
         method = record["method"]
         selector = record["selector"]
-        data_key = record["test_data_key"]
+        dataKey = record["test_data_key"]
         operation = JourneyText(record["operation"], "operation")
 
         if operation not in tuple(item.value for item in JourneyOperation):
@@ -496,7 +496,7 @@ class JourneyStep:
             JourneyInteger(record["think_time_ms"], "think_time_ms", 0, 60000),
             None if selector is None else JourneySelector(selector),
             None if method is None else JourneyHttpMethod(method),
-            None if data_key is None else JourneyIdentifier(data_key, "test_data_key"),
+            None if dataKey is None else JourneyIdentifier(dataKey, "test_data_key"),
         )
 
 

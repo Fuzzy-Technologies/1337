@@ -119,12 +119,12 @@ def test_DescriptorIsClosedWhenStreamWrappingFails(tmp_path, monkeypatch):
     source = tmp_path / "source.json"
     source.write_bytes(b"{}")
     opened = []
-    original_open = os.open
+    originalOpen = os.open
 
     def Open(*args, **kwargs):
         """Retain the actual private descriptor solely for independent closed-state inspection."""
 
-        descriptor = original_open(*args, **kwargs)
+        descriptor = originalOpen(*args, **kwargs)
         opened.append(descriptor)
 
         return descriptor
@@ -152,8 +152,8 @@ def test_SameViewIdentityChangesCannotBorrowWindowsCrossViewTolerance(tmp_path, 
 
     source = tmp_path / "source.json"
     source.write_bytes(b"{}")
-    original_stat = commands.os.fstat
-    original_check = commands.CheckStorageEntry
+    originalStat = commands.os.fstat
+    originalCheck = commands.CheckStorageEntry
     count = {"descriptor": 0, "path": 0}
 
     def Alter(metadata, changes):
@@ -168,7 +168,7 @@ def test_SameViewIdentityChangesCannotBorrowWindowsCrossViewTolerance(tmp_path, 
     def Fstat(descriptor):
         """Change only the final same-handle ctime or observed private link count."""
 
-        metadata = original_stat(descriptor)
+        metadata = originalStat(descriptor)
         count["descriptor"] += 1
 
         if count["descriptor"] == 2 and kind == "descriptor-ctime":
@@ -182,7 +182,7 @@ def test_SameViewIdentityChangesCannotBorrowWindowsCrossViewTolerance(tmp_path, 
     def Check(path, *, directory):
         """Change only the second same-path observation after original bytes have been read."""
 
-        metadata = original_check(path, directory=directory)
+        metadata = originalCheck(path, directory=directory)
 
         if path == source:
             count["path"] += 1
@@ -227,8 +227,8 @@ def test_UnknownRetainedSdkAcquisitionRefusesBeforeAnySelectedRawRead(tmp_path, 
 def test_HelpAndHumanOutputNeedNoImplicitSourceOrScope(tmp_path):
     """Static help and successful human summaries retain explicit selections and safe facts."""
 
-    status, help_text = Run(["--help"], json_output=False)
-    assert status == 0 and "--image-digest-kind" in help_text and "known original" in help_text, (
+    status, helpText = Run(["--help"], json_output=False)
+    assert status == 0 and "--image-digest-kind" in helpText and "known original" in helpText, (
         "Read-only help describes explicit image semantics and conservative retained admission"
     )
     owned = Context(tmp_path)
@@ -268,12 +268,12 @@ def test_StableWindowsPathHandleCtimeDifferencePreservesOriginalBytes(tmp_path, 
     source = tmp_path / "source.json"
     original = b'{"owned":"original"}'
     source.write_bytes(original)
-    original_stat = commands.os.fstat
+    originalStat = commands.os.fstat
 
     def Fstat(descriptor):
         """Return a stable handle view with only a different Windows API ctime value."""
 
-        metadata = original_stat(descriptor)
+        metadata = originalStat(descriptor)
         values = {name: getattr(metadata, name) for name in (
             "st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns", "st_nlink", "st_mode")}
         values["st_ctime_ns"] += 1

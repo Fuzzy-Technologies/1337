@@ -473,7 +473,7 @@ def ValidateRequest(value: dict[str, object], url: str, *,
     ):
         raise ValueError("owned response installed recipe differs")
 
-    expected_invocation = {
+    expectedInvocation = {
         "adapter_id": _family.provider_id,
         "request": {
             "capability": _family.capability_id,
@@ -487,13 +487,13 @@ def ValidateRequest(value: dict[str, object], url: str, *,
         "timeout_seconds": 10,
         "provider_version": "1",
     }
-    expected_capability = {
+    expectedCapability = {
         "identifier": _family.capability_id,
         "adapter_id": _family.provider_id,
         "maximum_impact": "SAFE",
         "required_privileges": [],
     }
-    expected_resources = {
+    expectedResources = {
         "max_stdout_bytes": _family.stdout_bytes,
         "max_stderr_bytes": 1,
         "terminate_grace_seconds": 0.5,
@@ -507,15 +507,15 @@ def ValidateRequest(value: dict[str, object], url: str, *,
     ):
         raise ValueError("owned response private environment differs")
 
-    expected_environment = {
+    expectedEnvironment = {
         key: "" for key in ("PATH", "COMSPEC", "PATHEXT", "SYSTEMROOT", "WINDIR")
     }
-    expected_environment.update(LANG="C", LC_ALL="C", TEMP=temp, TMP=temp)
+    expectedEnvironment.update(LANG="C", LC_ALL="C", TEMP=temp, TMP=temp)
 
-    if Canonical(invocation) != Canonical(expected_invocation) or (
-        Canonical(value["capability"]) != Canonical(expected_capability)
-        or Canonical(value["resources"]) != Canonical(expected_resources)
-        or Canonical(environment) != Canonical(expected_environment)
+    if Canonical(invocation) != Canonical(expectedInvocation) or (
+        Canonical(value["capability"]) != Canonical(expectedCapability)
+        or Canonical(value["resources"]) != Canonical(expectedResources)
+        or Canonical(environment) != Canonical(expectedEnvironment)
         or set(authorization)
         != {
             "authorization_id",
@@ -984,27 +984,27 @@ def PublishCapture(
         complete=admitted is not None,
         _family=store._family,
     )
-    receipt_raw = Canonical(planned)
-    total = sum(len(raw) for _, raw in pieces) + len(receipt_raw)
+    receiptRaw = Canonical(planned)
+    total = sum(len(raw) for _, raw in pieces) + len(receiptRaw)
 
     if total > MAX_PUBLICATION_BYTES or len(pieces) + 1 > 8:
         raise ValueError("owned response aggregate publication bound differs")
 
-    receipt_candidate = EvidenceRecord(
+    receiptCandidate = EvidenceRecord(
         EvidenceReference(
             "owned-response-receipt",
-            "blobs/sha256/" + hashlib.sha256(receipt_raw).hexdigest(),
-            hashlib.sha256(receipt_raw).hexdigest(),
+            "blobs/sha256/" + hashlib.sha256(receiptRaw).hexdigest(),
+            hashlib.sha256(receiptRaw).hexdigest(),
             "application/json",
-            len(receipt_raw),
+            len(receiptRaw),
         ),
         provenance,
     )
     candidates.append(
         {
-            "manifest": receipt_candidate.ToDict(),
-            "candidate_id": receipt_candidate.evidence_id,
-            "base64": base64.b64encode(receipt_raw).decode("ascii"),
+            "manifest": receiptCandidate.ToDict(),
+            "candidate_id": receiptCandidate.evidence_id,
+            "base64": base64.b64encode(receiptRaw).decode("ascii"),
         }
     )
     stage = OwnedResponseStage(
@@ -1108,7 +1108,7 @@ def ReconcileOwnedResponse(
     if type(plan) is not list or not 1 <= len(plan) <= 7:
         raise ValueError("owned response staged plan differs")
 
-    expected_roles = (
+    expectedRoles = (
         _ROLES + ("owned-response-receipt",)
         if len(plan) == 7
         else ("stdout", "stderr", "owned-response-receipt")
@@ -1118,7 +1118,7 @@ def ReconcileOwnedResponse(
         else ()
     )
 
-    if not expected_roles or set(source) != {
+    if not expectedRoles or set(source) != {
         "schema_version",
         "workspace_id",
         "owner_reference",
@@ -1142,10 +1142,10 @@ def ReconcileOwnedResponse(
         from fuzzy1337.evidence import ParseEvidenceManifest
 
         expected = ParseEvidenceManifest(Canonical(item["manifest"]))
-        if expected.reference.role != expected_roles[index]:
+        if expected.reference.role != expectedRoles[index]:
             raise ValueError("owned response staged role order differs")
 
-        candidate_id = item["candidate_id"]
+        candidateId = item["candidate_id"]
         if type(item["base64"]) is not str:
             raise ValueError("owned response staged byte encoding differs")
 
@@ -1157,7 +1157,7 @@ def ReconcileOwnedResponse(
         ):
             raise ValueError("owned response staged original bytes differ")
 
-        if candidate_id != expected.evidence_id or (
+        if candidateId != expected.evidence_id or (
             len(original) > store.Maximum(expected.reference.role)
         ):
             raise ValueError("owned response staged original bound differs")
@@ -1166,7 +1166,7 @@ def ReconcileOwnedResponse(
             if frames[cursor] != {
                 "kind": "intent",
                 "role": expected.reference.role,
-                "candidate_id": candidate_id,
+                "candidate_id": candidateId,
             }:
                 raise ValueError("owned response publication intent differs")
 
@@ -1176,7 +1176,7 @@ def ReconcileOwnedResponse(
                 if frames[cursor] != {
                     "kind": "ack",
                     "role": expected.reference.role,
-                    "original_id": candidate_id,
+                    "original_id": candidateId,
                 }:
                     raise ValueError("owned response original ack differs")
 
@@ -1190,15 +1190,15 @@ def ReconcileOwnedResponse(
             VerifyEvidence(store, expected, original, expected.provenance, expected.reference.role)
 
         except EvidenceNotFoundError:
-            unknown.append(cast(str, candidate_id))
-            absent.append(cast(str, candidate_id))
+            unknown.append(cast(str, candidateId))
+            absent.append(cast(str, candidateId))
 
         except (OSError, ValueError, RuntimeError):
-            unknown.append(cast(str, candidate_id))
-            unverifiable.append(cast(str, candidate_id))
+            unknown.append(cast(str, candidateId))
+            unverifiable.append(cast(str, candidateId))
 
         else:
-            stored.append(cast(str, candidate_id))
+            stored.append(cast(str, candidateId))
 
         if (
             snapshot is not None
@@ -1210,7 +1210,7 @@ def ReconcileOwnedResponse(
                 and any(artifact.evidence == expected for artifact in snapshot.artifacts)
             )
         ):
-            acknowledged.append(cast(str, candidate_id))
+            acknowledged.append(cast(str, candidateId))
 
     if cursor < len(frames) and frames[cursor] == {"kind": "finished", "custody": "acknowledged"}:
         if completed != len(plan):
@@ -1258,7 +1258,7 @@ def ReplayOwnedResponseCapture(
         raise ValueError("owned response original receipt role differs")
 
     value = ParseCanonical(store.Read(receipt.reference), MAX_RECEIPT_BYTES)
-    expected_keys = {
+    expectedKeys = {
         "schema_version",
         "profile",
         "custody",
@@ -1275,7 +1275,7 @@ def ReplayOwnedResponseCapture(
     }
 
     if (
-        set(value) != expected_keys
+        set(value) != expectedKeys
         or type(value["schema_version"]) is not int
         or (
             value["schema_version"] != 1
@@ -1317,9 +1317,9 @@ def ReplayOwnedResponseCapture(
         originals[key] = original
         content[key] = store.Read(original.reference)
 
-    execution_data = cast(dict[str, object], value["execution"])
+    executionData = cast(dict[str, object], value["execution"])
 
-    if type(execution_data) is not dict or set(execution_data) != {
+    if type(executionData) is not dict or set(executionData) != {
         "state",
         "exit_code",
         "duration_seconds",
@@ -1327,9 +1327,9 @@ def ReplayOwnedResponseCapture(
         raise ValueError("owned response original execution differs")
 
     execution = AdapterExecution(
-        ExecutionState(cast(str, execution_data["state"])),
-        cast(int | None, execution_data["exit_code"]),
-        cast(float, execution_data["duration_seconds"]),
+        ExecutionState(cast(str, executionData["state"])),
+        cast(int | None, executionData["exit_code"]),
+        cast(float, executionData["duration_seconds"]),
     )
     events = []
 
@@ -1369,7 +1369,7 @@ def ReplayOwnedResponseCapture(
     )
     record = ValidateResult(result, url, _family=store._family)
     provenance = receipt.provenance
-    expected_provenance = EvidenceProvenance(
+    expectedProvenance = EvidenceProvenance(
         cast(str, value["workspace_id"]),
         cast(str, cast(dict[str, object], request["authorization"])["scope_reference"]),
         store._family.provider_id,
@@ -1381,13 +1381,13 @@ def ReplayOwnedResponseCapture(
         execution,
     )
 
-    if provenance != expected_provenance or value["refusal"] != record.get("error"):
+    if provenance != expectedProvenance or value["refusal"] != record.get("error"):
         raise ValueError("owned response receipt attribution or refusal differs")
 
     if record["outcome"] == "captured":
-        expected_parts = ResponseParts(record, url, store._family)
+        expectedParts = ResponseParts(record, url, store._family)
 
-        if any(content.get(key) != expected for key, expected in expected_parts.items()):
+        if any(content.get(key) != expected for key, expected in expectedParts.items()):
             raise ValueError("owned response original wire evidence differs")
 
     elif any(ids[key] is not None for key in ("request", "headers", "body", "response")):

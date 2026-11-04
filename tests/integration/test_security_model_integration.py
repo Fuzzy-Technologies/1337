@@ -54,7 +54,7 @@ def Context(tmp_path: Path, outcome: ExecutionState = ExecutionState.SUCCEEDED):
     LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Synthetic integration"), "synthetic")
     store = LocalModelStore(root)
     initial = store.Create()
-    target_reference = "target:" + "a" * 64
+    targetReference = "target:" + "a" * 64
     execution = AdapterExecution(outcome, 0 if outcome is ExecutionState.SUCCEEDED else 2, 0.1)
     evidence = LocalEvidenceStore(root / "evidence").Put(
         b'<synthetic><host address="127.0.0.1"/></synthetic>', "stdout", "application/xml",
@@ -65,36 +65,36 @@ def Context(tmp_path: Path, outcome: ExecutionState = ExecutionState.SUCCEEDED):
     )
     invocation = AdapterInvocation(
         "synthetic-adapter",
-        AdapterRequest("network-discovery", target_reference, ImpactLevel.SAFE),
+        AdapterRequest("network-discovery", targetReference, ImpactLevel.SAFE),
         ("synthetic-provider", "127.0.0.1"), 5, "fixture-1",
     )
     report = AdapterReport(invocation, execution, (evidence.reference,))
-    port_reference = target_reference + ":tcp:443"
-    service_reference = port_reference + ":service"
+    portReference = targetReference + ":tcp:443"
+    serviceReference = portReference + ":service"
     result = AdapterResult(
         report,
-        observations=(NormalizedObservation("host-state", target_reference, {"state": "up"}),),
-        findings=(NormalizedFinding("synthetic", target_reference, "Future finding owner"),),
+        observations=(NormalizedObservation("host-state", targetReference, {"state": "up"}),),
+        findings=(NormalizedFinding("synthetic", targetReference, "Future finding owner"),),
         object_enrichments=(
-            ObjectEnrichment("host", target_reference, {"address": "127.0.0.1", "state": "up"}),
-            ObjectEnrichment("port", port_reference, {"protocol": "tcp", "number": 443}),
-            ObjectEnrichment("service", service_reference, {"name": "https"}),
+            ObjectEnrichment("host", targetReference, {"address": "127.0.0.1", "state": "up"}),
+            ObjectEnrichment("port", portReference, {"protocol": "tcp", "number": 443}),
+            ObjectEnrichment("service", serviceReference, {"name": "https"}),
         ),
         relation_enrichments=(
-            RelationEnrichment("has-port", target_reference, port_reference),
-            RelationEnrichment("hosts-service", port_reference, service_reference),
+            RelationEnrichment("has-port", targetReference, portReference),
+            RelationEnrichment("hosts-service", portReference, serviceReference),
         ),
     )
     bindings = {
-        target_reference: ObjectIdentity("synthetic", ObjectKind.HOST, "127.0.0.1"),
-        port_reference: ObjectIdentity("synthetic", ObjectKind.PORT, "host:127.0.0.1/tcp/443"),
-        service_reference: ObjectIdentity(
+        targetReference: ObjectIdentity("synthetic", ObjectKind.HOST, "127.0.0.1"),
+        portReference: ObjectIdentity("synthetic", ObjectKind.PORT, "host:127.0.0.1/tcp/443"),
+        serviceReference: ObjectIdentity(
             "synthetic", ObjectKind.SERVICE, "host:127.0.0.1/tcp/443",
         ),
     }
     provenance = ModelProvenance(
         "synthetic-adapter", evidence.evidence_id, "2026-10-05T20:00:01+00:00",
-        "scope:local", target_reference, "fixture-1", (evidence.reference,), execution,
+        "scope:local", targetReference, "fixture-1", (evidence.reference,), execution,
     )
 
     return store, initial, result, bindings, provenance
@@ -105,31 +105,31 @@ def test_AdapterEvidenceAndPortableModelRoundTrip(tmp_path, outcome):
     """Existing SDK output updates one attributable model and survives a complete workspace move."""
 
     store, initial, result, bindings, provenance = Context(tmp_path, outcome)
-    workspace_bytes = (store.root / "workspace.json").read_bytes()
+    workspaceBytes = (store.root / "workspace.json").read_bytes()
     state, delta = initial.ApplyAdapterResult(result, bindings, provenance)
     store.Save(state, expected_revision=0)
-    replayed, no_op = store.Open().ApplyAdapterResult(result, bindings, provenance)
-    original_bytes = (store.root / "state" / "model" / "model.json").read_bytes()
-    moved_root = tmp_path / "moved-workspace"
-    shutil.move(str(store.root), moved_root)
-    reopened = LocalModelStore(moved_root).Open()
+    replayed, noOp = store.Open().ApplyAdapterResult(result, bindings, provenance)
+    originalBytes = (store.root / "state" / "model" / "model.json").read_bytes()
+    movedRoot = tmp_path / "moved-workspace"
+    shutil.move(str(store.root), movedRoot)
+    reopened = LocalModelStore(movedRoot).Open()
 
     assert len(state.objects) == 3 and len(state.relations) == 2, (
         "SDK enrichments did not populate typed host, port, service, and relation records"
     )
-    assert state == replayed == reopened and no_op.created == no_op.updated == (), (
+    assert state == replayed == reopened and noOp.created == noOp.updated == (), (
         "Exact adapter replay or workspace relocation changed the authoritative model"
     )
     assert delta.previous_revision == 0 and delta.revision == 1, (
         "SDK batch did not produce exactly one incremental revision transition"
     )
-    assert (moved_root / "workspace.json").read_bytes() == workspace_bytes, (
+    assert (movedRoot / "workspace.json").read_bytes() == workspaceBytes, (
         "Model publication unexpectedly changed authoritative workspace metadata"
     )
-    assert (moved_root / "state" / "model" / "model.json").read_bytes() == original_bytes, (
+    assert (movedRoot / "state" / "model" / "model.json").read_bytes() == originalBytes, (
         "Relocation changed portable model snapshot bytes"
     )
-    assert LocalEvidenceStore(moved_root / "evidence").Read(provenance.evidence_references[0]) == (
+    assert LocalEvidenceStore(movedRoot / "evidence").Read(provenance.evidence_references[0]) == (
         b'<synthetic><host address="127.0.0.1"/></synthetic>'
     ), "Model provenance lost the portable verified raw evidence reference"
     assert all(item.provenance.execution.state is outcome for item in reopened.observations), (
@@ -165,25 +165,25 @@ def test_AdapterBoundaryRejectsUnsupportedOrUnresolvedEnvelopes(tmp_path, mutati
     """Only explicitly mapped supported first-party identities can consume normalized SDK output."""
 
     _, initial, result, bindings, provenance = Context(tmp_path)
-    host_reference = result.report.invocation.request.target_reference
+    hostReference = result.report.invocation.request.target_reference
 
     if mutation == "missing-binding":
-        del bindings[host_reference]
+        del bindings[hostReference]
 
     elif mutation == "foreign-binding":
-        bindings[host_reference] = replace(bindings[host_reference], workspace_id="other")
+        bindings[hostReference] = replace(bindings[hostReference], workspace_id="other")
 
     elif mutation == "unknown-object-kind":
         result = replace(result, object_enrichments=(
-            ObjectEnrichment("provider-owned-host", host_reference),
+            ObjectEnrichment("provider-owned-host", hostReference),
         ))
 
     elif mutation == "mismatched-kind":
-        result = replace(result, object_enrichments=(ObjectEnrichment("asset", host_reference),))
+        result = replace(result, object_enrichments=(ObjectEnrichment("asset", hostReference),))
 
     elif mutation == "unknown-relation-kind":
         result = replace(result, relation_enrichments=(
-            RelationEnrichment("unknown-edge", host_reference, host_reference),
+            RelationEnrichment("unknown-edge", hostReference, hostReference),
         ))
 
     elif mutation == "untyped-object":
@@ -302,28 +302,28 @@ def test_AbsentRebuildableDirectoriesDoNotAffectModelOpening(tmp_path):
 def test_ProviderReferenceChangesNeverCreateAnotherAuthoritativeObjectModel(tmp_path):
     """Providers with different references enrich the same attributed logical objects."""
 
-    _, initial, first_result, first_bindings, first_provenance = Context(tmp_path)
-    state, _ = initial.ApplyAdapterResult(first_result, first_bindings, first_provenance)
-    rewritten = {reference: "other-provider:" + reference for reference in first_bindings}
-    second_result = replace(
-        first_result,
-        report=replace(first_result.report, invocation=replace(
-            first_result.report.invocation, adapter_id="other-provider",
+    _, initial, firstResult, firstBindings, firstProvenance = Context(tmp_path)
+    state, _ = initial.ApplyAdapterResult(firstResult, firstBindings, firstProvenance)
+    rewritten = {reference: "other-provider:" + reference for reference in firstBindings}
+    secondResult = replace(
+        firstResult,
+        report=replace(firstResult.report, invocation=replace(
+            firstResult.report.invocation, adapter_id="other-provider",
             provider_version="fixture-2",
         )),
         observations=tuple(replace(item, subject_reference=rewritten[item.subject_reference])
-                           for item in first_result.observations),
+                           for item in firstResult.observations),
         object_enrichments=tuple(replace(item, object_reference=rewritten[item.object_reference])
-                                for item in first_result.object_enrichments),
+                                for item in firstResult.object_enrichments),
         relation_enrichments=tuple(replace(
             item, source_reference=rewritten[item.source_reference],
             target_reference=rewritten[item.target_reference],
-        ) for item in first_result.relation_enrichments),
+        ) for item in firstResult.relation_enrichments),
     )
-    second_bindings = {rewritten[key]: identity for key, identity in first_bindings.items()}
-    second_provenance = replace(first_provenance, source_id="other-provider",
+    secondBindings = {rewritten[key]: identity for key, identity in firstBindings.items()}
+    secondProvenance = replace(firstProvenance, source_id="other-provider",
                                 run_reference="run:second-provider", provider_version="fixture-2")
-    enriched, _ = state.ApplyAdapterResult(second_result, second_bindings, second_provenance)
+    enriched, _ = state.ApplyAdapterResult(secondResult, secondBindings, secondProvenance)
 
     assert [item.Reference() for item in enriched.objects] == [
         item.Reference() for item in state.objects

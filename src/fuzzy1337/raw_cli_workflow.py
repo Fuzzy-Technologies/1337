@@ -322,12 +322,12 @@ class RawCliWorkflow:
             self.adapter.selection.address)}
 
         for port in self.adapter.selection.ports:
-            provider_port = f"{subject}:tcp:{port}"
-            natural_port = f"host:{self.adapter.selection.address}/tcp/{port}"
-            bindings[provider_port] = ObjectIdentity(self.model.workspace_id,
-                ObjectKind.PORT, natural_port)
-            bindings[provider_port + ":service"] = ObjectIdentity(self.model.workspace_id,
-                ObjectKind.SERVICE, natural_port)
+            providerPort = f"{subject}:tcp:{port}"
+            naturalPort = f"host:{self.adapter.selection.address}/tcp/{port}"
+            bindings[providerPort] = ObjectIdentity(self.model.workspace_id,
+                ObjectKind.PORT, naturalPort)
+            bindings[providerPort + ":service"] = ObjectIdentity(self.model.workspace_id,
+                ObjectKind.SERVICE, naturalPort)
 
         projected = normalized if normalized.object_enrichments else replace(
             normalized, observations=())
@@ -403,7 +403,7 @@ class RawCliWorkflow:
         evidence = LocalEvidenceStore(self.root / "evidence")
         references = {(item.locator, item.role): item
             for item in self.workspace.evidence_references}
-        record_ids = set(self.workspace.evidence_record_references)
+        recordIds = set(self.workspace.evidence_record_references)
 
         for artifact in self.snapshot().artifacts:
             record = artifact.evidence
@@ -412,7 +412,7 @@ class RawCliWorkflow:
                 raise ValueError("raw CLI acquisition differs from its original record")
 
             references[(record.reference.locator, record.reference.role)] = record.reference
-            record_ids.add(record.evidence_id)
+            recordIds.add(record.evidence_id)
 
         proposal = replace(self.workspace,
             scope_references=tuple(sorted({*self.workspace.scope_references,
@@ -422,7 +422,7 @@ class RawCliWorkflow:
             job_references=tuple(sorted({*self.workspace.job_references,
                 self.snapshot().spec.job_id})),
             evidence_references=tuple(references[key] for key in sorted(references)),
-            evidence_record_references=tuple(sorted(record_ids)))
+            evidence_record_references=tuple(sorted(recordIds)))
         self.Validate()
         saved = store.Save(proposal)
 
@@ -624,12 +624,12 @@ def ReplayRawCli(workspace_root: Path, receipt_id: str) -> dict[str, object]:
     original = []
 
     for role, maximum in (("stdout", NMAP_XML_MAX_BYTES), ("stderr", RAW_CLI_STDERR_MAX_BYTES)):
-        evidence_id = value["original_role_ids"][role]
+        evidenceId = value["original_role_ids"][role]
 
-        if evidence_id not in workspace.evidence_record_references:
+        if evidenceId not in workspace.evidence_record_references:
             raise ValueError("raw CLI original stream is not acknowledged by this workspace")
 
-        record, _ = ReadRawRecord(evidence, evidence_id, role, maximum)
+        record, _ = ReadRawRecord(evidence, evidenceId, role, maximum)
 
         if record.provenance != receipt.provenance or (
             record.reference not in workspace.evidence_references

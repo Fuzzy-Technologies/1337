@@ -77,7 +77,7 @@ def Oracle(vector: str) -> tuple[Fraction, Fraction, Fraction]:
     """
 
     tokens = dict(component.split(":") for component in vector.split("/"))
-    access_vector = {"L": Fraction("0.395"), "A": Fraction("0.646"), "N": Fraction("1.0")}
+    accessVector = {"L": Fraction("0.395"), "A": Fraction("0.646"), "N": Fraction("1.0")}
     complexity = {"H": Fraction("0.35"), "M": Fraction("0.61"), "L": Fraction("0.71")}
     authentication = {"M": Fraction("0.45"), "S": Fraction("0.56"), "N": Fraction("0.704")}
     impacts = {"N": Fraction("0.0"), "P": Fraction("0.275"), "C": Fraction("0.660")}
@@ -86,14 +86,14 @@ def Oracle(vector: str) -> tuple[Fraction, Fraction, Fraction]:
         * (1 - impacts[tokens["A"]])
     )
     exploitability = (
-        20 * access_vector[tokens["AV"]] * complexity[tokens["AC"]]
+        20 * accessVector[tokens["AV"]] * complexity[tokens["AC"]]
         * authentication[tokens["Au"]]
     )
     multiplier = Fraction(0) if impact == 0 else Fraction("1.176")
-    raw_base = (Fraction("0.6") * impact + Fraction("0.4") * exploitability
+    rawBase = (Fraction("0.6") * impact + Fraction("0.4") * exploitability
                 - Fraction("1.5")) * multiplier
 
-    return impact, exploitability, raw_base
+    return impact, exploitability, rawBase
 
 
 @pytest.mark.parametrize("anchor", PRIMARY_ANCHORS["cases"], ids=lambda case: case["id"])
@@ -116,17 +116,17 @@ def test_CompleteBaseDomainMatchesIndependentFractionOracle():
     vectors = [f"AV:{av}/AC:{ac}/Au:{au}/C:{c}/I:{i}/A:{a}"
                for av, ac, au, c, i, a in product("LAN", "HML", "MSN", "NPC", "NPC", "NPC")]
     calculated = CveCvss2BaseCalculations(Statements(vectors))
-    zero_impact_count = 0
+    zeroImpactCount = 0
 
     pairs = zip(vectors, calculated.calculations, strict=True)
 
     for index, (vector, calculation) in enumerate(pairs):
-        impact, _, raw_base = Oracle(vector)
-        exact_tenths = 10 * raw_base
-        lower = exact_tenths.numerator // exact_tenths.denominator
+        impact, _, rawBase = Oracle(vector)
+        exactTenths = 10 * rawBase
+        lower = exactTenths.numerator // exactTenths.denominator
 
-        assert exact_tenths - lower != Fraction(1, 2), f"Unexpected final tie for {vector}"
-        assert calculation.base_score_tenths == round(exact_tenths), (
+        assert exactTenths - lower != Fraction(1, 2), f"Unexpected final tie for {vector}"
+        assert calculation.base_score_tenths == round(exactTenths), (
             f"Scaled-integer production disagrees with independent rational equation for {vector}"
         )
         assert type(calculation.base_score_tenths) is int, "Computed score is not integer tenths"
@@ -134,12 +134,12 @@ def test_CompleteBaseDomainMatchesIndependentFractionOracle():
         assert calculation.assessment_index == index, "Calculation positions lost source order"
 
         if impact == 0:
-            zero_impact_count += 1
+            zeroImpactCount += 1
 
             assert calculation.base_score_tenths == 0, f"Zero-impact branch failed for {vector}"
 
     assert len(calculated.calculations) == 729, "Complete six-token domain was not exercised"
-    assert zero_impact_count == 27, "Not all AV/AC/Au zero-impact combinations were checked"
+    assert zeroImpactCount == 27, "Not all AV/AC/Au zero-impact combinations were checked"
     assert min(item.base_score_tenths for item in calculated.calculations) == 0, (
         "Zero endpoint disappeared from the complete domain"
     )
@@ -156,10 +156,10 @@ def test_CompleteBaseDomainMatchesIndependentFractionOracle():
 def test_FinalRoundingBoundariesAndEarlyRoundingTrap(vector, raw_base, tenths):
     """Derived threshold cases test exact final rounding without claiming primary golden status."""
 
-    _, _, actual_raw = Oracle(vector)
+    _, _, actualRaw = Oracle(vector)
     result = CveCvss2BaseCalculations(Statements([vector]))
 
-    assert actual_raw == Fraction(raw_base), "Independent derived boundary transcription changed"
+    assert actualRaw == Fraction(raw_base), "Independent derived boundary transcription changed"
     assert result.calculations[0].base_score_tenths == tenths, (
         "Production rounded an intermediate value or crossed the wrong final threshold"
     )
@@ -170,20 +170,20 @@ def test_FullImpactRemainsAboveTenAndSubscoresAreNeverRounded():
 
     boundary = "AV:L/AC:L/Au:N/C:C/I:C/A:C"
     impact, exploitability, _ = Oracle(boundary)
-    incorrectly_clamped = (
+    incorrectlyClamped = (
         Fraction("0.6") * 10 + Fraction("0.4") * exploitability - Fraction("1.5")
     ) * Fraction("1.176")
     trap = "AV:L/AC:H/Au:M/C:N/I:P/A:C"
-    trap_impact, trap_exploitability, _ = Oracle(trap)
-    incorrectly_rounded = (
-        Fraction("0.6") * Fraction(round(10 * trap_impact), 10)
-        + Fraction("0.4") * Fraction(round(10 * trap_exploitability), 10) - Fraction("1.5")
+    trapImpact, trapExploitability, _ = Oracle(trap)
+    incorrectlyRounded = (
+        Fraction("0.6") * Fraction(round(10 * trapImpact), 10)
+        + Fraction("0.4") * Fraction(round(10 * trapExploitability), 10) - Fraction("1.5")
     ) * Fraction("1.176")
     result = CveCvss2BaseCalculations(Statements([boundary, trap]))
 
     assert impact == Fraction("10.00084536"), "Full impact was incorrectly limited to ten"
-    assert round(10 * incorrectly_clamped) == 71, "Clamping counterexample no longer differs"
-    assert round(10 * incorrectly_rounded) == 43, "Early-rounding counterexample no longer differs"
+    assert round(10 * incorrectlyClamped) == 71, "Clamping counterexample no longer differs"
+    assert round(10 * incorrectlyRounded) == 43, "Early-rounding counterexample no longer differs"
     assert [item.base_score_tenths for item in result.calculations] == [72, 44], (
         "Production adopted clamping or intermediate rounding"
     )

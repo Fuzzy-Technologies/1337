@@ -50,9 +50,9 @@ def test_OriginalSourceKindAndEveryUnknownRemainSeparate(choice, status, reason)
     assert result["evaluation"]["status"] == status and result["evaluation"]["reason"] == reason, (
         "Independent original-choice oracle disagrees with explicit syntax-policy semantics."
     )
-    source_field = "expression" if "expression" in choice else "license.id"
-    original_text = choice["expression"] if "expression" in choice else choice["license"]["id"]
-    assert result["source_field"] == source_field and result["source_text"] == original_text, (
+    sourceField = "expression" if "expression" in choice else "license.id"
+    originalText = choice["expression"] if "expression" in choice else choice["license"]["id"]
+    assert result["source_field"] == sourceField and result["source_text"] == originalText, (
         "Original source field or exact expression spelling was lost."
     )
     assert result["source_role"] == "not-classified", "Source statements gained an invented role."

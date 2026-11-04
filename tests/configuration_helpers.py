@@ -55,8 +55,8 @@ def OwnedConfiguration(
     source = root / "selected-configuration"
     source.write_bytes((CORPUS / selected["fixture"]).read_bytes()
                        if source_payload is None else source_payload)
-    policy_file = root / "selected-policy.json"
-    policy_file.write_bytes(json.dumps({
+    policyFile = root / "selected-policy.json"
+    policyFile.write_bytes(json.dumps({
         "schema_version": 1, "fixture_id": FAMILY, "provider_version": "0.75.0-synthetic",
         "profile_id": case["profile_id"], "case_id": case_id,
     }, sort_keys=True, separators=(",", ":")).encode()
@@ -67,7 +67,7 @@ def OwnedConfiguration(
         ArtifactReadConsent("owner:test", "read:owned-configuration"),
         (ArtifactSelection(input_name or selected["logical_path"], source),),
         ArtifactSelection("executable", Path(sys.executable).resolve()), "0.75.0-synthetic",
-        material=(ArtifactSelection("policy.json", policy_file),),
+        material=(ArtifactSelection("policy.json", policyFile),),
         producer=ArtifactSelection("producer.py", producer),
     )
     target = stage.input.manifest.Target()

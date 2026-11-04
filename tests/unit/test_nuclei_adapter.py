@@ -50,16 +50,16 @@ def Profile(tmp_path):
         Profile containing one exact source-controlled synthetic template.
     """
 
-    template_path = tmp_path / "reviewed-get.yaml"
+    templatePath = tmp_path / "reviewed-get.yaml"
     raw = (FIXTURES / "reviewed-get.yaml").read_bytes()
-    template_path.write_bytes(raw)
-    configuration_path = tmp_path / "nuclei-empty.yaml"
-    configuration_path.write_bytes(b"{}\n")
-    template = NucleiTemplate("owned-http-marker", str(template_path),
+    templatePath.write_bytes(raw)
+    configurationPath = tmp_path / "nuclei-empty.yaml"
+    configurationPath.write_bytes(b"{}\n")
+    template = NucleiTemplate("owned-http-marker", str(templatePath),
         hashlib.sha256(raw).hexdigest(), len(raw), "fixture:owned-nuclei", "1",
         "review:source-controlled-synthetic", "single-get-exact-url")
 
-    return NucleiProfile("owned-synthetic", (template,), str(configuration_path))
+    return NucleiProfile("owned-synthetic", (template,), str(configurationPath))
 
 
 def Request(profile, **parameters):
@@ -107,19 +107,19 @@ def ReboundNativeReport(tmp_path, record=None):
 
     source = (Path(__file__).parents[2]
               / "src/fuzzy1337/data/nuclei/owned-sql-canary-disclosure.yaml")
-    template_raw = source.read_bytes()
-    template_path = tmp_path / "owned-sql-canary-disclosure.yaml"
-    template_path.write_bytes(template_raw)
-    configuration_path = tmp_path / "empty.yaml"
-    configuration_path.write_bytes(b"{}\n")
+    templateRaw = source.read_bytes()
+    templatePath = tmp_path / "owned-sql-canary-disclosure.yaml"
+    templatePath.write_bytes(templateRaw)
+    configurationPath = tmp_path / "empty.yaml"
+    configurationPath.write_bytes(b"{}\n")
     adapted = dict(ParseJsonl(NATIVE_ENCODED_JSONL)[0] if record is None else record)
-    adapted["template-path"] = str(template_path)
+    adapted["template-path"] = str(templatePath)
     raw = json.dumps(adapted).encode("utf-8")
-    template = NucleiTemplate("fuzzy1337-owned-sql-canary-disclosure", str(template_path),
-        hashlib.sha256(template_raw).hexdigest(), len(template_raw),
+    template = NucleiTemplate("fuzzy1337-owned-sql-canary-disclosure", str(templatePath),
+        hashlib.sha256(templateRaw).hexdigest(), len(templateRaw),
         "first-party:fuzzy1337/data/nuclei/owned-sql-canary-disclosure.yaml", "1",
         "review:NUCLEI_WEB_CHECKS-v1:sql", "single-get-exact-url")
-    profile = NucleiProfile("owned-sql", (template,), str(configuration_path))
+    profile = NucleiProfile("owned-sql", (template,), str(configurationPath))
     adapter = NucleiAdapter(lambda reference: raw, profile, provider_version="3.4.10")
     reference = EvidenceReference("stdout", "fixture/rebound-native-encoded-result.jsonl",
         hashlib.sha256(raw).hexdigest(), "application/x-ndjson", len(raw))
@@ -140,8 +140,8 @@ def test_CapturedNativeShapeBindsDecodedContextAfterLocalTemplateRebind(tmp_path
     assert len(captured) == 1, (
         "The unchanged captured stdout must parse to one actual native match."
     )
-    adapter, report, adapted_raw = ReboundNativeReport(tmp_path)
-    adapted = ParseJsonl(adapted_raw)[0]
+    adapter, report, adaptedRaw = ReboundNativeReport(tmp_path)
+    adapted = ParseJsonl(adaptedRaw)[0]
     assert adapted["template-path"] == str(tmp_path / "owned-sql-canary-disclosure.yaml"), (
         "Only the optional template path is rebound to the current platform's owned local file."
     )

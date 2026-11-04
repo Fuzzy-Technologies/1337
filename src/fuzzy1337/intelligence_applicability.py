@@ -331,9 +331,9 @@ def ParseCveAffectedStatements(
     containers = []
 
     if snapshot.records[0].data["state"] == "PUBLISHED":
-        source_containers = IntelligenceObject(document["containers"])
-        cna = IntelligenceObject(source_containers["cna"])
-        adps = source_containers.get("adp", [])
+        sourceContainers = IntelligenceObject(document["containers"])
+        cna = IntelligenceObject(sourceContainers["cna"])
+        adps = sourceContainers.get("adp", [])
 
         if not isinstance(adps, list) or len(adps) >= MAX_CONTAINERS:
             raise ValueError("ADP containers exceed their bound")

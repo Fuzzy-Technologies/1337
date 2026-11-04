@@ -784,9 +784,9 @@ def Resource(batch: InventoryBatch, record: dict[str, object]) -> None:
         "namespace": namespace, "effective_permissions": None}
 
     if kind == "Service":
-        service_type = spec.get("type")
+        serviceType = spec.get("type")
 
-        if service_type is not None and (type(service_type) is not str or service_type not in {
+        if serviceType is not None and (type(serviceType) is not str or serviceType not in {
             "ClusterIP", "NodePort", "LoadBalancer", "ExternalName"
         }):
             raise ValueError("Kubernetes inventory Service type is unsupported")
@@ -805,7 +805,7 @@ def Resource(batch: InventoryBatch, record: dict[str, object]) -> None:
             except ValueError:
                 raise ValueError("Kubernetes Service address requires a literal IP") from None
 
-        attributes.update({"service_type": "kubernetes-service", "configured_type": service_type,
+        attributes.update({"service_type": "kubernetes-service", "configured_type": serviceType,
             "configured_cluster_ip": address,
             "ports": ServicePorts(spec.get("ports"), batch.limits),
             "physical_reachability": None})
@@ -816,14 +816,14 @@ def Resource(batch: InventoryBatch, record: dict[str, object]) -> None:
             "aggregation_unresolved": True if record.get("aggregationRule") is not None else None})
 
     if kind == "NetworkPolicy":
-        policy_types = None if spec.get("policyTypes") is None else StringList(
+        policyTypes = None if spec.get("policyTypes") is None else StringList(
             spec["policyTypes"], batch.limits.max_entries)
 
-        if policy_types is not None and any(item not in {"Ingress", "Egress"}
-                                            for item in policy_types):
+        if policyTypes is not None and any(item not in {"Ingress", "Egress"}
+                                            for item in policyTypes):
             raise ValueError("Kubernetes inventory NetworkPolicy type is unsupported")
 
-        attributes.update({"configured_policy_types": policy_types, "cni_enforcement": None,
+        attributes.update({"configured_policy_types": policyTypes, "cni_enforcement": None,
             "ingress_rule_count": None if spec.get("ingress") is None else len(Items(
                 spec["ingress"], batch.limits.max_entries)),
             "egress_rule_count": None if spec.get("egress") is None else len(Items(
@@ -834,15 +834,15 @@ def Resource(batch: InventoryBatch, record: dict[str, object]) -> None:
             record.get("automountServiceAccountToken"))
 
     if kind in _WORKLOADS or kind == "Pod":
-        pod_spec = PodSpec(record)
-        attributes["pod_spec_known"] = pod_spec is not None
+        podSpec = PodSpec(record)
+        attributes["pod_spec_known"] = podSpec is not None
 
         for source, field in (("hostNetwork", "host_network"), ("hostPID", "host_pid"),
                               ("hostIPC", "host_ipc")):
-            attributes[field] = OptionalBool((pod_spec or {}).get(source))
+            attributes[field] = OptionalBool((podSpec or {}).get(source))
 
-    object_kind = ObjectKind.SERVICE if kind == "Service" else ObjectKind.ASSET
-    entity = batch.Object(ObjectIdentity(batch.state.workspace_id, object_kind,
+    objectKind = ObjectKind.SERVICE if kind == "Service" else ObjectKind.ASSET
+    entity = batch.Object(ObjectIdentity(batch.state.workspace_id, objectKind,
         f"kubernetes-resource:{batch.cluster}:{record['apiVersion']}:{kind}:{metadata['uid']}"),
         attributes)
     batch.resources[(kind, cast(str, metadata["name"]), namespace)] = entity
@@ -869,8 +869,8 @@ def Resource(batch: InventoryBatch, record: dict[str, object]) -> None:
                     "Pod spec requests a host namespace; effective isolation is unverified.",
                     FindingSeverity.MEDIUM)
 
-        if pod_spec is not None:
-            Containers(batch, entity, pod_spec)
+        if podSpec is not None:
+            Containers(batch, entity, podSpec)
 
 
 def SelectedPods(batch: InventoryBatch, record: dict[str, object], entity: SecurityObject) -> None:
@@ -921,19 +921,19 @@ def Binding(batch: InventoryBatch, record: dict[str, object], entity: SecurityOb
     """
 
     role = Fields(record.get("roleRef"))
-    role_kind = role.get("kind")
+    roleKind = role.get("kind")
 
-    if role.get("apiGroup") != "rbac.authorization.k8s.io" or type(role_kind) is not str or (
-        role_kind not in {
+    if role.get("apiGroup") != "rbac.authorization.k8s.io" or type(roleKind) is not str or (
+        roleKind not in {
         "Role", "ClusterRole"
-    }) or (record["kind"] == "ClusterRoleBinding" and role_kind != "ClusterRole"):
+    }) or (record["kind"] == "ClusterRoleBinding" and roleKind != "ClusterRole"):
         raise ValueError("Kubernetes inventory binding role reference is unsupported")
 
     namespace = entity.attributes["namespace"]
-    role_name = Name(role.get("name"))
-    target = batch.resources.get((role_kind, role_name,
-                                 cast(str | None, namespace) if role_kind == "Role" else None))
-    role_resolved = target is not None
+    roleName = Name(role.get("name"))
+    target = batch.resources.get((roleKind, roleName,
+                                 cast(str | None, namespace) if roleKind == "Role" else None))
+    roleResolved = target is not None
 
     if target is not None:
         batch.Edge(entity.Reference(), target.Reference(), "nominal-role-reference",
@@ -946,43 +946,43 @@ def Binding(batch: InventoryBatch, record: dict[str, object], entity: SecurityOb
 
     for item in subjects or []:
         subject = Fields(item)
-        subject_kind = subject.get("kind")
+        subjectKind = subject.get("kind")
 
-        if type(subject_kind) is not str or subject_kind not in counts:
+        if type(subjectKind) is not str or subjectKind not in counts:
             raise ValueError("Kubernetes inventory binding subject kind is unsupported")
 
         name = Text(subject.get("name"), 253)
-        subject_namespace = subject.get("namespace")
+        subjectNamespace = subject.get("namespace")
 
-        if subject_kind == "ServiceAccount":
+        if subjectKind == "ServiceAccount":
             name = Name(name)
 
             if subject.get("apiGroup") not in (None, ""):
                 raise ValueError("Kubernetes ServiceAccount subject cannot use an RBAC API group")
 
-            subject_namespace = None if subject_namespace is None else Name(subject_namespace,
+            subjectNamespace = None if subjectNamespace is None else Name(subjectNamespace,
                                                                             namespace=True)
 
         elif subject.get("apiGroup") != "rbac.authorization.k8s.io" or (
-            subject_namespace is not None
+            subjectNamespace is not None
         ):
             raise ValueError("Kubernetes User/Group subject requires its nominal API group")
 
-        token = CanonicalModelJson([subject_kind, name, subject_namespace])
+        token = CanonicalModelJson([subjectKind, name, subjectNamespace])
 
         if token in seen:
             raise ValueError("Kubernetes inventory binding subjects must be unique")
 
         seen.add(token)
-        counts[subject_kind] += 1
-        target = batch.resources.get(("ServiceAccount", name, subject_namespace))
+        counts[subjectKind] += 1
+        target = batch.resources.get(("ServiceAccount", name, subjectNamespace))
 
-        if subject_kind == "ServiceAccount" and target is not None:
+        if subjectKind == "ServiceAccount" and target is not None:
             batch.Edge(entity.Reference(), target.Reference(), "nominal-service-account-subject",
                        {"binding_namespace": namespace, "effective_permissions": None})
 
-    fields = {"role_ref_kind": role_kind, "role_ref_name": role_name,
-              "role_reference_resolved": role_resolved,
+    fields = {"role_ref_kind": roleKind, "role_ref_name": roleName,
+              "role_reference_resolved": roleResolved,
               "subject_counts": None if subjects is None else counts,
               "subject_count": None if subjects is None else len(subjects)}
     original = dict(entity.attributes)
@@ -1040,8 +1040,8 @@ def Ingress(batch: InventoryBatch, record: dict[str, object], entity: SecurityOb
             if fields not in entries:
                 entries.append(fields)
 
-    for target_reference, ports in sorted(targets.items()):
-        batch.Edge(entity.Reference(), target_reference, "configured-ingress-service-backend",
+    for targetReference, ports in sorted(targets.items()):
+        batch.Edge(entity.Reference(), targetReference, "configured-ingress-service-backend",
                    {"backend_ports": sorted(ports, key=CanonicalModelJson),
                     "physical_reachability": None})
 
@@ -1058,10 +1058,10 @@ def Associations(batch: InventoryBatch, record: dict[str, object]) -> None:
     kind = cast(str, record["kind"])
     namespace = None if kind in _CLUSTER_KINDS else cast(str, metadata["namespace"])
     entity = batch.resources[(kind, cast(str, metadata["name"]), namespace)]
-    owner_namespace = batch.resources.get(("Namespace", namespace, None)) if namespace else None
+    ownerNamespace = batch.resources.get(("Namespace", namespace, None)) if namespace else None
 
-    if owner_namespace is not None:
-        batch.Edge(owner_namespace.Reference(), entity.Reference(), "declared-namespace-resource",
+    if ownerNamespace is not None:
+        batch.Edge(ownerNamespace.Reference(), entity.Reference(), "declared-namespace-resource",
                    kind=RelationKind.CONTAINS)
 
     seen: set[str] = set()
@@ -1074,16 +1074,16 @@ def Associations(batch: InventoryBatch, record: dict[str, object]) -> None:
             raise ValueError("Kubernetes inventory owner references require unique literal UIDs")
 
         seen.add(uid)
-        owner_kind = owner.get("kind")
+        ownerKind = owner.get("kind")
         name = Name(owner.get("name"))
 
-        if type(owner_kind) is not str or owner_kind not in _VERSIONS or (
-            owner.get("apiVersion") != _VERSIONS[owner_kind]
+        if type(ownerKind) is not str or ownerKind not in _VERSIONS or (
+            owner.get("apiVersion") != _VERSIONS[ownerKind]
         ):
             continue
 
-        target = batch.resources.get((owner_kind, name,
-            None if owner_kind in _CLUSTER_KINDS else namespace))
+        target = batch.resources.get((ownerKind, name,
+            None if ownerKind in _CLUSTER_KINDS else namespace))
         exported = next((item for item in batch.resources.values()
                          if item.attributes["resource_uid"] == uid), None)
 
@@ -1099,10 +1099,10 @@ def Associations(batch: InventoryBatch, record: dict[str, object]) -> None:
 
     if kind == "Pod" or kind in _WORKLOADS:
         spec = PodSpec(record)
-        account_name = None if spec is None or spec.get("serviceAccountName") is None else Name(
+        accountName = None if spec is None or spec.get("serviceAccountName") is None else Name(
             spec["serviceAccountName"])
-        target = batch.resources.get(("ServiceAccount", account_name, namespace)) if (
-            account_name) else None
+        target = batch.resources.get(("ServiceAccount", accountName, namespace)) if (
+            accountName) else None
 
         if target is not None:
             batch.Edge(entity.Reference(), target.Reference(), "configured-service-account-use",
@@ -1212,9 +1212,9 @@ def ApplyVerifiedKubernetesList(
     ):
         raise ValueError("Kubernetes inventory requires an existing declared cluster ASSET")
 
-    cluster_id = Name(entity.attributes.get("cluster_id"))
+    clusterId = Name(entity.attributes.get("cluster_id"))
 
-    if entity.identity.key != "kubernetes-cluster:" + cluster_id:
+    if entity.identity.key != "kubernetes-cluster:" + clusterId:
         raise ValueError("Kubernetes inventory cluster identity differs from its literal basis")
 
     if source.workspace_id != state.workspace_id or source.source_id != _SOURCE_ID or (

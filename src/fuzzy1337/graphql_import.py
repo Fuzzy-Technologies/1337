@@ -420,12 +420,12 @@ class GraphQlImportContext:
                     enum = GraphQlFields(item, {
                         "name", "description", "isDeprecated", "deprecationReason",
                     })
-                    enum_name = GraphQlName(enum.get("name"))
+                    enumName = GraphQlName(enum.get("name"))
 
-                    if enum_name in {"true", "false", "null"} or enum_name in values:
+                    if enumName in {"true", "false", "null"} or enumName in values:
                         raise ValueError("GraphQL enum values require unique non-literal names")
 
-                    values.append(enum_name)
+                    values.append(enumName)
 
                 if not values:
                     raise ValueError("GraphQL enums require declared values")
@@ -505,25 +505,25 @@ def ImportGraphQl(value: bytes, *, workspace_id: str, endpoint_url: str) -> Grap
     operations = []
     roots: set[str] = set()
 
-    for operation_kind in ("query", "mutation", "subscription"):
-        root = schema.get(operation_kind + "Type")
+    for operationKind in ("query", "mutation", "subscription"):
+        root = schema.get(operationKind + "Type")
 
         if root is None:
-            if operation_kind == "query":
+            if operationKind == "query":
                 raise ValueError("GraphQL schema requires a query root")
 
             continue
 
-        root_name = GraphQlName(GraphQlFields(root, {"name"}).get("name"))
+        rootName = GraphQlName(GraphQlFields(root, {"name"}).get("name"))
 
-        if root_name in roots or root_name not in context.records or (
-            context.records[root_name][0]["kind"] != "OBJECT"
+        if rootName in roots or rootName not in context.records or (
+            context.records[rootName][0]["kind"] != "OBJECT"
         ):
             raise ValueError("GraphQL roots require distinct indexed object types")
 
-        roots.add(root_name)
-        record, root_pointer = context.records[root_name]
-        field_names: set[str] = set()
+        roots.add(rootName)
+        record, rootPointer = context.records[rootName]
+        fieldNames: set[str] = set()
 
         for index, item in enumerate(ApiImportArray(record.get("fields"), MAX_GRAPHQL_OPERATIONS)):
             declared = GraphQlFields(item, {
@@ -531,26 +531,26 @@ def ImportGraphQl(value: bytes, *, workspace_id: str, endpoint_url: str) -> Grap
             })
             name = GraphQlName(declared.get("name"))
 
-            if name in field_names:
+            if name in fieldNames:
                 raise ValueError("GraphQL root fields require unique names")
 
-            field_names.add(name)
-            source = ApiImportPointer(root_pointer + "/fields", index)
+            fieldNames.add(name)
+            source = ApiImportPointer(rootPointer + "/fields", index)
             arguments = context.Arguments(declared.get("args"), source + "/args")
-            result_type = context.Type(declared.get("type"), _OUTPUT_KINDS)
-            operation_name = "Gql" + operation_kind.title() + "_" + hashlib.sha256(
+            resultType = context.Type(declared.get("type"), _OUTPUT_KINDS)
+            operationName = "Gql" + operationKind.title() + "_" + hashlib.sha256(
                 name.encode("ascii")
             ).hexdigest()[:16]
             template = RequestTemplate(endpoint, tuple(ApiImportPoint(
                 InjectionLocation.GRAPHQL, "/variables/" + argument.name,
-            ) for argument in arguments), BodyKind.GRAPHQL, graphql_operation=operation_name)
-            operations.append(GraphQlOperation(operation_kind, name, source, digest, target,
-                                              template, arguments, result_type))
+            ) for argument in arguments), BodyKind.GRAPHQL, graphql_operation=operationName)
+            operations.append(GraphQlOperation(operationKind, name, source, digest, target,
+                                              template, arguments, resultType))
 
             if len(operations) > MAX_GRAPHQL_OPERATIONS:
                 raise ValueError("GraphQL operation count exceeds its bound")
 
-        if not field_names:
+        if not fieldNames:
             raise ValueError("GraphQL roots require declared fields")
 
     result = GraphQlImport(workspace_id, digest,
@@ -804,16 +804,16 @@ def RequireGraphQlOperation(operation: object) -> None:
     RequireGraphQlArguments(operation.arguments)
     RequireGraphQlType(operation.result_type, _OUTPUT_KINDS)
     endpoint = operation.template.endpoint
-    expected_target = Target(TargetKind.URL, endpoint.origin + endpoint.path_template)
-    expected_name = "Gql" + operation.operation_kind.title() + "_" + hashlib.sha256(
+    expectedTarget = Target(TargetKind.URL, endpoint.origin + endpoint.path_template)
+    expectedName = "Gql" + operation.operation_kind.title() + "_" + hashlib.sha256(
         operation.field_name.encode("ascii")
     ).hexdigest()[:16]
-    expected_template = RequestTemplate(endpoint, tuple(ApiImportPoint(
+    expectedTemplate = RequestTemplate(endpoint, tuple(ApiImportPoint(
         InjectionLocation.GRAPHQL, "/variables/" + item.name,
-    ) for item in operation.arguments), BodyKind.GRAPHQL, graphql_operation=expected_name)
+    ) for item in operation.arguments), BodyKind.GRAPHQL, graphql_operation=expectedName)
 
     if endpoint.method != "POST" or endpoint.PathVariables() or (
-        operation.target != expected_target or operation.template != expected_template
+        operation.target != expectedTarget or operation.template != expectedTemplate
     ):
         raise ValueError("GraphQL consumed target and template must match the producer context")
 

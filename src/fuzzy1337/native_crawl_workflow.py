@@ -314,9 +314,9 @@ async def RunNativeCrawl(
         policy_provider, limits=limits, clock=clock, current_owner_provider=current_owner_provider)
     store = LocalWorkspaceStore(workspace_root)
     workspace = store.Open()
-    model_store = LocalModelStore(store.root)
+    modelStore = LocalModelStore(store.root)
 
-    if workspace.revision != plan.workspace_revision or model_store.Open().revision != (
+    if workspace.revision != plan.workspace_revision or modelStore.Open().revision != (
         plan.model_revision
     ):
         raise ValueError("native crawl canonical bases changed after planning")
@@ -367,23 +367,23 @@ async def RunNativeCrawl(
     snapshot = await job.Wait()
 
     try:
-        actual_model = model_store.Open()
+        actualModel = modelStore.Open()
 
     except (OSError, ValueError):
-        actual_model = None
+        actualModel = None
 
     try:
-        actual_workspace = store.Open()
+        actualWorkspace = store.Open()
 
     except (OSError, ValueError):
-        actual_workspace = None
+        actualWorkspace = None
 
     status = "not-attempted"
 
     if workflow.attempted:
         status = "acknowledged" if workflow.acknowledged else (
-            "observed-committed" if actual_workspace == workflow.proposed else
-            "observed-unchanged" if actual_workspace == workspace else "unconfirmed")
+            "observed-committed" if actualWorkspace == workflow.proposed else
+            "observed-unchanged" if actualWorkspace == workspace else "unconfirmed")
 
     try:
         records = provider.Records()
@@ -399,7 +399,7 @@ async def RunNativeCrawl(
         records, acknowledged, custody = (), (), "unconfirmed"
 
     return NativeCrawlSummary(snapshot, records, provider.completed_urls,
-        None if actual_model is None else actual_model.revision,
-        None if actual_workspace is None else actual_workspace.revision,
+        None if actualModel is None else actualModel.revision,
+        None if actualWorkspace is None else actualWorkspace.revision,
         tuple(provider.model_saves), status, acknowledged, custody, job.EventsSince(),
         time.monotonic() - started)

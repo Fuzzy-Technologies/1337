@@ -559,15 +559,15 @@ def AuthorizeNativeImageOperation(
 
     plan = PlanNativeImageOperation(engine, prepared, context, observer=observer,
         material_proof=material_proof, at=at)
-    issued_at = at.astimezone(timezone.utc).isoformat()
-    valid_until = Expiry(at, context).isoformat()
-    authorization = GrantEnvelope(plan, issued_at, valid_until)
+    issuedAt = at.astimezone(timezone.utc).isoformat()
+    validUntil = Expiry(at, context).isoformat()
+    authorization = GrantEnvelope(plan, issuedAt, validUntil)
     state = EngineState(engine)
 
     if authorization.authorization_id in state.grants:
         raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
-    grant = NativeImageOperationGrant(plan, authorization, issued_at, valid_until, True)
+    grant = NativeImageOperationGrant(plan, authorization, issuedAt, validUntil, True)
     state.grants[authorization.authorization_id] = grant
     state.observers[authorization.authorization_id] = observer
 
@@ -731,12 +731,12 @@ def WriteControl(path: Path, value: object) -> tuple[bytes, tuple[int, ...]]:
         os.close(descriptor)
 
     SyncDirectory(path.parent)
-    path_info = ArtifactPathInfo(path)
+    pathInfo = ArtifactPathInfo(path)
 
-    if not MatchesArtifactReadIdentity(path_info, opened):
+    if not MatchesArtifactReadIdentity(pathInfo, opened):
         raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
-    identity = PhysicalIdentity(path_info)
+    identity = PhysicalIdentity(pathInfo)
     ReadControl(path, raw, identity)
 
     return raw, identity
@@ -765,7 +765,7 @@ def ConsumeIndex(
 
     directory = namespace / kind
     directory.mkdir(mode=0o700, exist_ok=True)
-    parent_identity = PrivateDirectory(directory)
+    parentIdentity = PrivateDirectory(directory)
     SyncDirectory(namespace)
     path = directory / (key + ".json")
 
@@ -775,12 +775,12 @@ def ConsumeIndex(
             "profile": ArtifactProfile.IMAGE, "index_kind": kind, "index_key": key,
             "grant": grant, "prepared": prepared.Payload(), "proof_sha256": proof.Digest(),
             "observation_id": proof.observation_id, "workspace_identity": workspace_identity,
-            "namespace_identity": namespace_identity, "index_directory_identity": parent_identity})
+            "namespace_identity": namespace_identity, "index_directory_identity": parentIdentity})
 
     except FileExistsError:
         raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED) from None
 
-    return NativeClaimIndex(path, parent_identity, raw, identity)
+    return NativeClaimIndex(path, parentIdentity, raw, identity)
 
 
 def ClaimNativeImageExecution(
@@ -810,14 +810,14 @@ def ClaimNativeImageExecution(
     root = prepared.selection.workspace_root
     namespace = root / "native-image-claims"
     namespace.mkdir(mode=0o700, exist_ok=True)
-    namespace_identity = PrivateDirectory(namespace)
+    namespaceIdentity = PrivateDirectory(namespace)
     SyncDirectory(root)
     workspace = ArtifactPathInfo(root, directory=True)
-    workspace_identity = (workspace.st_dev, workspace.st_ino)
-    observation_index = ConsumeIndex(namespace, "observations", material_proof.Digest(), grant,
-        prepared, material_proof, workspace_identity, namespace_identity)
-    operation_index = ConsumeIndex(namespace, "operations", Digest(prepared.operation_id), grant,
-        prepared, material_proof, workspace_identity, namespace_identity)
+    workspaceIdentity = (workspace.st_dev, workspace.st_ino)
+    observationIndex = ConsumeIndex(namespace, "observations", material_proof.Digest(), grant,
+        prepared, material_proof, workspaceIdentity, namespaceIdentity)
+    operationIndex = ConsumeIndex(namespace, "operations", Digest(prepared.operation_id), grant,
+        prepared, material_proof, workspaceIdentity, namespaceIdentity)
     directory = namespace / Digest(grant.authorization.authorization_id)
 
     try:
@@ -826,18 +826,18 @@ def ClaimNativeImageExecution(
     except FileExistsError:
         raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED) from None
 
-    directory_identity = PrivateDirectory(directory)
+    directoryIdentity = PrivateDirectory(directory)
     SyncDirectory(namespace)
     reservation, identity = WriteControl(directory / "reservation.json", {
         "schema_version": NATIVE_IMAGE_SCHEMA_VERSION, "family": NATIVE_IMAGE_FAMILY,
         "claim_id": "native-image-claim:" + uuid.uuid4().hex,
         "grant": grant, "prepared": prepared.Payload(), "proof_sha256": material_proof.Digest(),
-        "observation_id": material_proof.observation_id, "workspace_identity": workspace_identity,
-        "namespace_identity": namespace_identity, "directory_identity": directory_identity})
+        "observation_id": material_proof.observation_id, "workspace_identity": workspaceIdentity,
+        "namespace_identity": namespaceIdentity, "directory_identity": directoryIdentity})
     claim = object.__new__(NativeImageExecutionClaim)
     EngineState(engine).claims[claim] = NativeClaimState(grant, prepared, observer, material_proof,
-        directory, namespace_identity, directory_identity, workspace_identity, reservation,
-        identity, (observation_index, operation_index))
+        directory, namespaceIdentity, directoryIdentity, workspaceIdentity, reservation,
+        identity, (observationIndex, operationIndex))
 
     return claim
 
@@ -945,15 +945,15 @@ def BindNativeImageRequest(
     ValidateNativeImageOperation(engine, state.grant, state.prepared, context, observer=observer,
         material_proof=material_proof, at=at)
     CheckReservation(state)
-    scratch_identity = CheckRequest(state, request, live_scratch=True)
+    scratchIdentity = CheckRequest(state, request, live_scratch=True)
     binding, identity = WriteControl(state.directory / "binding.json", {
         "schema_version": NATIVE_IMAGE_SCHEMA_VERSION, "family": NATIVE_IMAGE_FAMILY,
         "claim_sha256": hashlib.sha256(state.reservation).hexdigest(),
         "request": request, "request_sha256": Digest(request),
-        "workspace_identity": state.workspace_identity, "scratch_identity": scratch_identity,
+        "workspace_identity": state.workspace_identity, "scratch_identity": scratchIdentity,
         "proof_sha256": material_proof.Digest(), "observation_id": material_proof.observation_id})
     state.request, state.binding, state.binding_identity = request, binding, identity
-    state.scratch_identity = scratch_identity
+    state.scratch_identity = scratchIdentity
 
 
 def CheckBinding(state: NativeClaimState, request: LocalExecutionRequest,
@@ -971,9 +971,9 @@ def CheckBinding(state: NativeClaimState, request: LocalExecutionRequest,
     if request is not state.request or state.binding is None or state.binding_identity is None:
         raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
-    scratch_identity = CheckRequest(state, request, live_scratch=live_scratch)
+    scratchIdentity = CheckRequest(state, request, live_scratch=live_scratch)
 
-    if live_scratch and scratch_identity != state.scratch_identity:
+    if live_scratch and scratchIdentity != state.scratch_identity:
         raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 
     ReadControl(state.directory / "binding.json", state.binding, state.binding_identity)
@@ -1055,7 +1055,7 @@ def ValidateNativeImageCapture(
     roles = ("provider-version", "provider-version-stderr", "native-version-receipt") if (
         prepared.operation is NativeTrivyOperation.VERSION) else ("stdout", "stderr",
                                                                   "native-scan-receipt")
-    expected_raw = (capture.outcome.stdout, capture.outcome.stderr,
+    expectedRaw = (capture.outcome.stdout, capture.outcome.stderr,
                     EncodeBounded(capture.Envelope(), 256 * 1024 if prepared.operation is (
                         NativeTrivyOperation.VERSION) else 16 * 1024 * 1024))
     store = NativeEvidenceStore(prepared.selection.workspace_root / "evidence")
@@ -1065,7 +1065,7 @@ def ValidateNativeImageCapture(
 
     originals = {}
 
-    for record, raw in zip(capture.records, expected_raw, strict=True):
+    for record, raw in zip(capture.records, expectedRaw, strict=True):
         if store.Get(record.evidence_id) != record or store.Read(record.reference) != raw:
             raise ArtifactDeniedError(ArtifactDenialReason.PLAN_CHANGED)
 

@@ -175,16 +175,16 @@ def Finalize(root: Path, expected_master_sha: str) -> dict:
         "tag", "-a", RELEASE_TAG, expected_master_sha, "-m", "1337 Security Workbench v0.3.0"],
         cwd=root, check=True, capture_output=True, timeout=30)
     Preflight(root, expected_master_sha, tagged=True)
-    tag_object = delivery.Git(root, "rev-parse", "refs/tags/" + RELEASE_TAG)
+    tagObject = delivery.Git(root, "rev-parse", "refs/tags/" + RELEASE_TAG)
     PushTag(root)
     remote = RemoteRefs(root)
 
-    if remote.get("refs/tags/" + RELEASE_TAG) != tag_object or remote.get(
+    if remote.get("refs/tags/" + RELEASE_TAG) != tagObject or remote.get(
         "refs/heads/master"
     ) != expected_master_sha:
         raise ValueError("Finalization original remote tag/master acknowledgement differs")
 
-    return {**source, "tag_object": tag_object, "tag_type": "tag", "master_checks": checks}
+    return {**source, "tag_object": tagObject, "tag_type": "tag", "master_checks": checks}
 
 
 def Main(arguments: list[str] | None = None) -> int:

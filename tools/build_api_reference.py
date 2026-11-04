@@ -302,12 +302,12 @@ def CheckOutput(site: Path, modules: list[dict], base_url: str) -> dict:
 
         ValidateSymbolAnchors(pages[page.resolve()].anchors, module["symbols"])
 
-    authored_pages = [
+    authoredPages = [
         site / module["page"].removesuffix(".md") / "index.html" for module in modules
     ]
 
-    if authored_pages and not any(
-        'class="mkdocstrings-source"' in page.read_text(encoding="utf-8") for page in authored_pages
+    if authoredPages and not any(
+        'class="mkdocstrings-source"' in page.read_text(encoding="utf-8") for page in authoredPages
     ):
         raise ValueError("API output must expose statically analyzed source blocks")
 
@@ -460,8 +460,8 @@ def SealVersionArchive(version_root: Path, output: Path) -> dict:
         OSError: A generated file or exclusive archive destination cannot be accessed.
     """
 
-    provenance_bytes = (version_root / "api-version-provenance.json").read_bytes()
-    provenance = json.loads(provenance_bytes)
+    provenanceBytes = (version_root / "api-version-provenance.json").read_bytes()
+    provenance = json.loads(provenanceBytes)
     version = provenance["version"]
     epoch = provenance["source_date_epoch"]
 
@@ -491,7 +491,7 @@ def SealVersionArchive(version_root: Path, output: Path) -> dict:
             "size_bytes": output.stat().st_size,
             **{key: provenance[key] for key in (
                 "version", "revision", "tree", "base_path", "locales", "source_date_epoch",
-            )}, "provenance_sha256": hashlib.sha256(provenance_bytes).hexdigest()}
+            )}, "provenance_sha256": hashlib.sha256(provenanceBytes).hexdigest()}
 
 
 def Render(root: Path, installed_packages: Path, release_version: str | None = None) -> None:
@@ -528,22 +528,22 @@ def Render(root: Path, installed_packages: Path, release_version: str | None = N
 
     sys.meta_path.insert(0, ImportTripwire(manifest["packageNames"]))
     output = root / "_build/api-reference"
-    build_root = root / manifest["buildRoot"]
-    build_root.mkdir(parents=True, exist_ok=True)
+    buildRoot = root / manifest["buildRoot"]
+    buildRoot.mkdir(parents=True, exist_ok=True)
     evidence = {"schemaVersion": 1, "runtimeImported": False, "locales": {}}
     channels = ["latest"]
 
     if release_version is not None:
         channels.append(ReleaseVersion(root, release_version))
         evidence["versions"] = {release_version: {"locales": {}}}
-        version_root = LocalInput(root, f"_build/api-versions/{release_version}")
-        shutil.rmtree(version_root, ignore_errors=True)
+        versionRoot = LocalInput(root, f"_build/api-versions/{release_version}")
+        shutil.rmtree(versionRoot, ignore_errors=True)
 
 
-    with tempfile.TemporaryDirectory(prefix="1337-reference-") as temporary_root:
+    with tempfile.TemporaryDirectory(prefix="1337-reference-") as temporaryRoot:
         for channel in channels:
             for locale in manifest["locales"]:
-                content = build_root / "content" / channel / locale
+                content = buildRoot / "content" / channel / locale
                 shutil.rmtree(content, ignore_errors=True)
                 shutil.copytree(root / manifest["contentRoot"] / "en", content)
 
@@ -569,12 +569,12 @@ def Render(root: Path, installed_packages: Path, release_version: str | None = N
                             f"{manifest['publicationPath']}/api/{channel}/",
                         ), encoding="utf-8")
 
-                base_url = f"{manifest['publicationPath']}/api/{channel}/{locale}/"
+                baseUrl = f"{manifest['publicationPath']}/api/{channel}/{locale}/"
                 config = yaml.safe_load((root / "docs/site/mkdocs.yml").read_text(encoding="utf-8"))
                 config["docs_dir"] = str(content)
-                rendered = Path(temporary_root) / channel / locale
+                rendered = Path(temporaryRoot) / channel / locale
                 config["site_dir"] = str(rendered)
-                config["site_url"] = "https://fuzzy-technologies.github.io" + base_url
+                config["site_url"] = "https://fuzzy-technologies.github.io" + baseUrl
                 config["theme"]["language"] = "zh" if locale == "zh-cn" else locale
                 config["extra"]["alternate"] = [
                     {**entry, "link": "https://fuzzy-technologies.github.io"
@@ -597,11 +597,11 @@ def Render(root: Path, installed_packages: Path, release_version: str | None = N
                     )
 
                 python["paths"] = [str(installed_packages)]
-                config_path = build_root / f"mkdocs-{channel}-{locale}.yml"
-                config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
-                build(load_config(config_file=str(config_path)), dirty=False)
+                configPath = buildRoot / f"mkdocs-{channel}-{locale}.yml"
+                configPath.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+                build(load_config(config_file=str(configPath)), dirty=False)
                 PreparePublicOutput(rendered)
-                checked = CheckOutput(rendered, surfaces, base_url)
+                checked = CheckOutput(rendered, surfaces, baseUrl)
                 destination = output / locale
 
                 if channel == "latest":
@@ -616,14 +616,14 @@ def Render(root: Path, installed_packages: Path, release_version: str | None = N
     if release_version is not None:
         provenance = VersionProvenance(root, release_version,
                                        evidence["versions"][release_version]["locales"])
-        (version_root / "api-version-provenance.json").write_text(
+        (versionRoot / "api-version-provenance.json").write_text(
             json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8",
         )
 
     if any(name.partition(".")[0] in manifest["packageNames"] for name in sys.modules):
         raise RuntimeError("Security runtime was imported during documentation rendering")
 
-    (build_root / "api-build.json").write_text(
+    (buildRoot / "api-build.json").write_text(
         json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
@@ -673,15 +673,15 @@ def Build(root: Path, release_version: str | None = None) -> None:
     if release_version is not None:
         ReleaseVersion(root, release_version)
 
-    original_sources = TrackedSourceHashes(root)
+    originalSources = TrackedSourceHashes(root)
     manifest = ReadManifest(root)
     ValidateInventory(root, manifest)
-    source_epoch = subprocess.check_output(
+    sourceEpoch = subprocess.check_output(
         ["git", "show", "-s", "--format=%ct", "HEAD"], cwd=root, text=True, timeout=30,
     ).strip()
-    render_environment = dict(os.environ, SOURCE_DATE_EPOCH=source_epoch)
-    version_arguments = [] if release_version is None else ["--release-version", release_version]
-    render_timeout = 180 if release_version is None else 360
+    renderEnvironment = dict(os.environ, SOURCE_DATE_EPOCH=sourceEpoch)
+    versionArguments = [] if release_version is None else ["--release-version", release_version]
+    renderTimeout = 180 if release_version is None else 360
     subprocess.run([sys.executable, str(root / "tools/locale_documentation.py"), "validate"],
                    cwd=root, check=True, timeout=300)
     uv = shutil.which("uv")
@@ -689,50 +689,50 @@ def Build(root: Path, release_version: str | None = None) -> None:
     if uv is None:
         raise RuntimeError("The locked documentation build requires uv")
 
-    build_root = root / manifest["buildRoot"]
-    with tempfile.TemporaryDirectory(prefix="1337-docs-") as temporary_root:
-        environment = Path(temporary_root) / "venv"
+    buildRoot = root / manifest["buildRoot"]
+    with tempfile.TemporaryDirectory(prefix="1337-docs-") as temporaryRoot:
+        environment = Path(temporaryRoot) / "venv"
         subprocess.run([uv, "venv", "--clear", "--python", sys.executable, str(environment)],
                        cwd=root, check=True, timeout=300)
         python = environment / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
-        runtime_requirements = Path(temporary_root) / "runtime-requirements.txt"
+        runtimeRequirements = Path(temporaryRoot) / "runtime-requirements.txt"
         subprocess.run([uv, "export", "--locked", "--no-default-groups", "--no-emit-project",
-                        "--format", "requirements.txt", "--output-file", str(runtime_requirements)],
+                        "--format", "requirements.txt", "--output-file", str(runtimeRequirements)],
                        cwd=root, check=True, timeout=300)
         subprocess.run([uv, "pip", "install", "--python", str(python), "--require-hashes",
                         "-r", str(root / "docs/requirements-api.lock"),
-                        "-r", str(runtime_requirements)],
+                        "-r", str(runtimeRequirements)],
                        cwd=root, check=True, timeout=300)
-        wheels = build_root / "wheel"
+        wheels = buildRoot / "wheel"
         shutil.rmtree(wheels, ignore_errors=True)
         subprocess.run([str(python), "-m", "build", "--wheel", "--no-isolation", "--outdir",
-                        str(wheels)], cwd=root, check=True, timeout=300, env=render_environment)
-        wheel_paths = list(wheels.glob("*.whl"))
+                        str(wheels)], cwd=root, check=True, timeout=300, env=renderEnvironment)
+        wheelPaths = list(wheels.glob("*.whl"))
 
-        if len(wheel_paths) != 1:
+        if len(wheelPaths) != 1:
             raise RuntimeError("Documentation build requires exactly one newly built wheel")
 
         subprocess.run([uv, "pip", "install", "--python", str(python), "--no-deps",
-                        str(wheel_paths[0])], cwd=root, check=True, timeout=300)
+                        str(wheelPaths[0])], cwd=root, check=True, timeout=300)
         installed = subprocess.check_output(
             [str(python), "-I", "-c", "import sysconfig; print(sysconfig.get_path('purelib'))"],
-            cwd=Path(temporary_root), text=True, timeout=30,
+            cwd=Path(temporaryRoot), text=True, timeout=30,
         ).strip()
         subprocess.run([str(python), "-I", str(Path(__file__).resolve()), "render",
-                        "--root", str(root), "--installed-packages", installed, *version_arguments],
-                       cwd=Path(temporary_root), check=True, timeout=render_timeout,
-                       env=render_environment)
-        report_path = build_root / "api-build.json"
-        first = json.loads(report_path.read_text(encoding="utf-8"))
-        (build_root / "api-first-build.json").write_text(
+                        "--root", str(root), "--installed-packages", installed, *versionArguments],
+                       cwd=Path(temporaryRoot), check=True, timeout=renderTimeout,
+                       env=renderEnvironment)
+        reportPath = buildRoot / "api-build.json"
+        first = json.loads(reportPath.read_text(encoding="utf-8"))
+        (buildRoot / "api-first-build.json").write_text(
             json.dumps(first, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
         shutil.rmtree(root / "_build/api-reference")
         subprocess.run([str(python), "-I", str(Path(__file__).resolve()), "render",
-                        "--root", str(root), "--installed-packages", installed, *version_arguments],
-                       cwd=Path(temporary_root), check=True, timeout=render_timeout,
-                       env=render_environment)
-        second = json.loads(report_path.read_text(encoding="utf-8"))
+                        "--root", str(root), "--installed-packages", installed, *versionArguments],
+                       cwd=Path(temporaryRoot), check=True, timeout=renderTimeout,
+                       env=renderEnvironment)
+        second = json.loads(reportPath.read_text(encoding="utf-8"))
 
         if first != second:
             changed = [
@@ -750,22 +750,22 @@ def Build(root: Path, release_version: str | None = None) -> None:
                 + ", ".join(changed)
             )
 
-        if original_sources != TrackedSourceHashes(root):
+        if originalSources != TrackedSourceHashes(root):
             raise ValueError("Documentation generation modified tracked source inputs")
 
-        second["sourceDateEpoch"] = int(source_epoch)
+        second["sourceDateEpoch"] = int(sourceEpoch)
         second["reproducible"] = True
         second["sourceUnchanged"] = True
-        second["wheelSha256"] = hashlib.sha256(wheel_paths[0].read_bytes()).hexdigest()
-        report_path.write_text(
+        second["wheelSha256"] = hashlib.sha256(wheelPaths[0].read_bytes()).hexdigest()
+        reportPath.write_text(
             json.dumps(second, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
         if release_version is not None:
-            archive_path = build_root / f"1337-{release_version}-api-docs.tar.gz"
-            archive_path.unlink(missing_ok=True)
+            archivePath = buildRoot / f"1337-{release_version}-api-docs.tar.gz"
+            archivePath.unlink(missing_ok=True)
             transfer = SealVersionArchive(root / "_build/api-versions" / release_version,
-                                          archive_path)
-            (build_root / f"1337-{release_version}-api-docs.manifest.json").write_text(
+                                          archivePath)
+            (buildRoot / f"1337-{release_version}-api-docs.manifest.json").write_text(
                 json.dumps(transfer, indent=2, sort_keys=True) + "\n", encoding="utf-8",
             )
 

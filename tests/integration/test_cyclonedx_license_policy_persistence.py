@@ -344,27 +344,27 @@ def test_AnotherOriginalImageAndAcquisitionCannotSupplySharedPackageLicenseFacts
 ):
     """Saved package/license deduplication cannot replace selected original source occurrences."""
 
-    root, state, selected_record, selected_provenance, _ = owned_context
-    other_payload = Payload([Component("other-alias", [{"expression": "Apache-2.0"}])])
-    other_payload["metadata"]["component"]["hashes"][0]["content"] = "b" * 64
-    other_source = replace(selected_record.provenance, source_id="inventory.other")
-    other_record = LocalEvidenceStore(root / "evidence").Put(
-        CanonicalModelJson(other_payload), "sbom", "application/json", other_source,
+    root, state, selectedRecord, selectedProvenance, _ = owned_context
+    otherPayload = Payload([Component("other-alias", [{"expression": "Apache-2.0"}])])
+    otherPayload["metadata"]["component"]["hashes"][0]["content"] = "b" * 64
+    otherSource = replace(selectedRecord.provenance, source_id="inventory.other")
+    otherRecord = LocalEvidenceStore(root / "evidence").Put(
+        CanonicalModelJson(otherPayload), "sbom", "application/json", otherSource,
     )
-    other_provenance = replace(selected_provenance, source_id=other_source.source_id,
-                               evidence_references=(other_record.reference,))
-    state, _ = ApplyVerifiedCycloneDx(state, other_record, other_provenance,
+    otherProvenance = replace(selectedProvenance, source_id=otherSource.source_id,
+                               evidence_references=(otherRecord.reference,))
+    state, _ = ApplyVerifiedCycloneDx(state, otherRecord, otherProvenance,
                                      ImageIdentity("sha256:" + "b" * 64), root)
     LocalModelStore(root).Save(state, expected_revision=0)
     before = Files(root)
-    selected = EvaluateVerifiedCycloneDxLicenses(state, selected_record, selected_provenance,
+    selected = EvaluateVerifiedCycloneDxLicenses(state, selectedRecord, selectedProvenance,
                                                ImageIdentity(IMAGE), root, Policy())
     assert len(selected["components"]) == 1 and selected["components"][0]["source_bom_ref"] == (
         "source-one"
     ) and selected["components"][0]["assertions"][0]["evaluation"]["status"] == "allow", (
         "Another image's shared package license replaced the selected original source assertion."
     )
-    assert selected["evidence_id"] == selected_record.evidence_id and "other-alias" not in (
+    assert selected["evidence_id"] == selectedRecord.evidence_id and "other-alias" not in (
         CanonicalModelJson(selected).decode("utf-8")
     ), "A different original acquisition supplied the selected policy result or source alias."
     assert Files(root) == before, "Cross-source projection modified saved original owners."

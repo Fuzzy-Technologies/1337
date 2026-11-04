@@ -50,9 +50,9 @@ def test_PersistedSnapshotOriginalEvidenceAndExactReplaySurviveWorkspaceRelocati
     """Actual save/reopen and evidence reads remain portable with path-independent identities."""
 
     context = OwnedContext(tmp_path / "workspace")
-    root, _, host, original_evidence = context
+    root, _, host, originalEvidence = context
     saved, record, provenance = Import(context)
-    original = original_evidence.Read(record.reference)
+    original = originalEvidence.Read(record.reference)
     moved = tmp_path / "relocated"
     root.rename(moved)
     reopened = LocalModelStore(moved).Open()
@@ -114,11 +114,11 @@ def test_RefreshedDetectorEvidencePreservesExplicitOperatorTriage(tmp_path):
     triaged, _ = TransitionFinding(imported, reference, FindingStatus.DISMISSED,
                                   decision, "Owned fixture disposition")
     saved = LocalModelStore(root).Save(triaged, expected_revision=imported.revision)
-    refreshed_record = evidence.Put(evidence.Read(record.reference), record.reference.role,
+    refreshedRecord = evidence.Put(evidence.Read(record.reference), record.reference.role,
         record.reference.media_type, replace(record.provenance,
             started_at="2026-10-14T09:00:01Z", finished_at="2026-10-14T09:00:01Z"))
-    refreshed_provenance = replace(provenance, observed_at="2026-10-14T09:00:01Z")
-    refreshed, delta = ApplyVerifiedDockerInspect(saved, refreshed_record, refreshed_provenance,
+    refreshedProvenance = replace(provenance, observed_at="2026-10-14T09:00:01Z")
+    refreshed, delta = ApplyVerifiedDockerInspect(saved, refreshedRecord, refreshedProvenance,
         host_reference=host.Reference(), workspace_root=root)
     LocalModelStore(root).Save(refreshed, expected_revision=saved.revision)
     current = next(item for item in Findings(LocalModelStore(root).Open())

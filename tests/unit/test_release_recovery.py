@@ -55,8 +55,8 @@ def ApiInputs(sha):
     for event, branch, source, offset in (("push", "master", recovery.PRODUCT_COMMIT, 100),
         ("pull_request", recovery.RECOVERY_BRANCH, sha, 200)):
         for index, (filename, required) in enumerate(delivery.ORIGINAL_MASTER_JOBS.items(), 1):
-            run_id = offset + index
-            run = {"id": run_id, "run_number": 5, "run_attempt": 1, "event": event,
+            runId = offset + index
+            run = {"id": runId, "run_number": 5, "run_attempt": 1, "event": event,
                 "head_branch": branch, "head_sha": source,
                 "head_repository": {"full_name": delivery.REPOSITORY},
                 "path": ".github/workflows/" + filename, "status": "completed",
@@ -67,14 +67,14 @@ def ApiInputs(sha):
                 {"name": step, "status": "completed", "conclusion": "success"}
                 for step in steps or ("Actual deployment",)]} for name, steps in required.items()
                 if event == "push" or name != "deploy-pages"]
-            jobs[run_id] = {"total_count": len(rows), "jobs": rows}
+            jobs[runId] = {"total_count": len(rows), "jobs": rows}
 
     producer = {"id": recovery.PRODUCER_RUN, "run_attempt": 1,
         "head_sha": recovery.PRODUCT_COMMIT, "head_branch": "v0.3.0",
         "event": "workflow_dispatch", "path": ".github/workflows/release.yml",
         "head_repository": {"full_name": delivery.REPOSITORY},
         "status": "completed", "conclusion": "failure"}
-    producer_jobs = {"total_count": 5, "jobs": [
+    producerJobs = {"total_count": 5, "jobs": [
         {"name": "Refuse branch publication before source execution", "id": 11,
          "status": "completed", "conclusion": "success"},
         {"name": "Validate annotated release and build distributions once",
@@ -101,7 +101,7 @@ def ApiInputs(sha):
             return producer
 
         if path == prefix + "/attempts/1/jobs?per_page=100":
-            return producer_jobs
+            return producerJobs
 
         if path == prefix + "/artifacts?per_page=100":
             return artifacts
@@ -112,13 +112,13 @@ def ApiInputs(sha):
 
             return workflows[event, filename]
 
-        run_id = int(path.split("/runs/", 1)[1].split("/", 1)[0])
+        runId = int(path.split("/runs/", 1)[1].split("/", 1)[0])
         assert path.endswith("/attempts/1/jobs?per_page=100"), "Unexpected job evidence endpoint"
 
-        return jobs[run_id]
+        return jobs[runId]
 
     return SimpleNamespace(workflows=workflows, jobs=jobs, producer=producer,
-        producer_jobs=producer_jobs, artifacts=artifacts, calls=calls, fetch=Fetch)
+        producer_jobs=producerJobs, artifacts=artifacts, calls=calls, fetch=Fetch)
 
 
 @pytest.fixture
@@ -141,7 +141,7 @@ def owned(tmp_path, monkeypatch):
     Git(product, "commit", "-m", "Owned original product")
     original = Git(product, "rev-parse", "HEAD")
     Git(product, "tag", "-a", "v0.3.0", "-m", "Owned original annotated product")
-    original_tag = Git(product, "rev-parse", "v0.3.0")
+    originalTag = Git(product, "rev-parse", "v0.3.0")
     Git(product, "remote", "add", "origin", "https://github.com/Fuzzy-Technologies/1337.git")
     Git(product, "update-ref", "refs/remotes/origin/master", original)
     code = tmp_path / "code"
@@ -154,8 +154,8 @@ def owned(tmp_path, monkeypatch):
     monkeypatch.setattr(recovery, "PRODUCT_COMMIT", original)
     monkeypatch.setattr(delivery, "ORIGINAL_V030_COMMIT", original)
     monkeypatch.setattr(recovery, "PRODUCT_TREE", Git(product, "rev-parse", "HEAD^{tree}"))
-    monkeypatch.setattr(recovery, "PRODUCT_TAG_OBJECT", original_tag)
-    refs = {"refs/heads/master": original, "refs/tags/v0.3.0": original_tag,
+    monkeypatch.setattr(recovery, "PRODUCT_TAG_OBJECT", originalTag)
+    refs = {"refs/heads/master": original, "refs/tags/v0.3.0": originalTag,
             "refs/heads/" + recovery.RECOVERY_BRANCH: sha}
     monkeypatch.setattr(recovery, "RemoteRefs", lambda root: refs.copy())
     monkeypatch.setattr(recovery, "IndexAbsent", lambda: {"http_status": 404})

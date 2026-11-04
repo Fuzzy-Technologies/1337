@@ -113,8 +113,8 @@ def test_ShallowEnumerationCannotHideLongSelectedGraphAlternativeToAnApparentCut
     objects = {name: SecurityObject(ObjectIdentity(workspace, ObjectKind.ASSET,
         "path-analysis:" + name), provenance=(provenance,)) for name in aliases}
     routes = [("source", "pivot"), ("pivot", "target")]
-    long_route = ("source", *(f"detour-{index}" for index in range(37)), "target")
-    routes.extend(zip(long_route, long_route[1:], strict=False))
+    longRoute = ("source", *(f"detour-{index}" for index in range(37)), "target")
+    routes.extend(zip(longRoute, longRoute[1:], strict=False))
     relations = tuple(Relation(RelationKind.RELATED_TO, objects[source].Reference(),
         objects[target].Reference(), provenance=(provenance,)) for source, target in routes)
     changed, _ = initial.Apply(objects=tuple(objects.values()), relations=relations)

@@ -39,29 +39,29 @@ def test_PreparedFixtureExecutionEvidenceAndNormalization(tmp_path):
     (root / "evidence").mkdir()
     store = LocalEvidenceStore(root / "evidence")
     adapter = TrivyAdapter(store.Read, root, str(executable), "0.75.0-synthetic")
-    probe_started = datetime.now(timezone.utc).isoformat()
+    probeStarted = datetime.now(timezone.utc).isoformat()
     probe = adapter.ProbeHealth()
-    probe_finished = datetime.now(timezone.utc).isoformat()
+    probeFinished = datetime.now(timezone.utc).isoformat()
     request = AdapterRequest("image.archive-vulnerabilities", "target:owned-synthetic",
                              ImpactLevel.SAFE, {"archive": "owned.tar", "timeout_seconds": 10})
     invocation = adapter.PrepareInvocation(request)
     digest = InvocationDigest(invocation)
     authorization = ExecutionAuthorization("authorization:owned", "scope:owned",
                                            "policy:synthetic-only", digest)
-    execution_request = LocalExecutionRequest(invocation,
+    executionRequest = LocalExecutionRequest(invocation,
         CapabilityDescriptors(adapter.Descriptor)[0], authorization)
     started = datetime.now(timezone.utc).isoformat()
-    captured = asyncio.run(LocalExecutor(root).Execute(execution_request))
+    captured = asyncio.run(LocalExecutor(root).Execute(executionRequest))
     finished = datetime.now(timezone.utc).isoformat()
     provenance = EvidenceProvenance("workspace:synthetic", authorization.scope_reference,
         adapter.Descriptor.adapter_id, adapter.Descriptor.version, probe.health.provider_version,
         started, finished, digest, captured.execution)
     stdout = store.Put(captured.stdout, "stdout", "application/json", provenance)
     stderr = store.Put(captured.stderr, "stderr", "text/plain", provenance)
-    version_provenance = EvidenceProvenance("workspace:synthetic", authorization.scope_reference,
+    versionProvenance = EvidenceProvenance("workspace:synthetic", authorization.scope_reference,
         adapter.Descriptor.adapter_id, adapter.Descriptor.version, probe.health.provider_version,
-        probe_started, probe_finished)
-    version = store.Put(probe.stdout, "provider-version", "application/json", version_provenance)
+        probeStarted, probeFinished)
+    version = store.Put(probe.stdout, "provider-version", "application/json", versionProvenance)
     report = AdapterReport(invocation, captured.execution,
                            (stdout.reference, stderr.reference, version.reference))
     result = adapter.NormalizeReport(report)

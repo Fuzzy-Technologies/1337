@@ -45,25 +45,25 @@ def test_HandwrittenGraphOracleResolvesExactOriginalEdgesAndIndependentCanonical
     assert SPDX_GRAPH_IMPORT_VERSION == 1, "Additive graph profile version changed"
     assert set(aliases) == set(oracle["package_keys"]), "Original package aliases were lost"
 
-    for source_id, expected_key in oracle["package_keys"].items():
-        alias = aliases[source_id]
-        assert objects[alias.subject_reference].identity.key == expected_key, (
+    for sourceId, expectedKey in oracle["package_keys"].items():
+        alias = aliases[sourceId]
+        assert objects[alias.subject_reference].identity.key == expectedKey, (
             "Canonical package/image key disagreed with the independent literal identity oracle"
         )
         assert alias.attributes["evidence_id"] == record.evidence_id, "Alias lost original manifest"
 
     claims = [item for item in state.observations if item.kind == "spdx-relationship-claim"]
-    actual_edges = sorted([item.attributes["relationship_index"], item.attributes["source_id"],
+    actualEdges = sorted([item.attributes["relationship_index"], item.attributes["source_id"],
                            item.attributes["relationship_type"], item.attributes["target_id"]]
                           for item in claims)
-    assert actual_edges == oracle["edges"], "Direct edges disagreed with handwritten oracle"
+    assert actualEdges == oracle["edges"], "Direct edges disagreed with handwritten oracle"
 
     for claim in claims:
         facts = claim.attributes
         original = source["relationships"][facts["relationship_index"]]
-        original_coordinate = [facts["original_source_id"], facts["original_type"],
+        originalCoordinate = [facts["original_source_id"], facts["original_type"],
                                facts["original_target_id"]]
-        assert original_coordinate == [
+        assert originalCoordinate == [
             original["spdxElementId"], original["relationshipType"], original["relatedSpdxElement"],
         ], "Source relationship index did not resolve exact original inverse direction"
         assert facts["document_sha256"] == record.reference.sha256 and (

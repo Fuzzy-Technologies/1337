@@ -53,10 +53,10 @@ class FakeContentEnvironment(FakeOriginalEnvironment):
         self.workspace = replace(self.workspace, object_references=(endpoint.Reference(),),
             evidence_references=tuple(item.reference for item in self.records),
             evidence_record_references=tuple(item.evidence_id for item in self.records))
-        store_type = workflow.OwnedResponseEvidenceStore
+        storeType = workflow.OwnedResponseEvidenceStore
         environment = self
 
-        class FakeContentStore(store_type):
+        class FakeContentStore(storeType):
             """Require the explicit selected binding at the original labelled fake owner."""
 
             def __init__(self, root, *, _family=_CATALOG_FAMILY):

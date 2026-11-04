@@ -336,13 +336,13 @@ def test_SelectionChecksReceiptConstraintsBeforeOriginalLoader(tmp_path, monkeyp
     read = commands.BoundedIntelEvidenceStore.Read
     loader = commands.LoadAcquiredSnapshot
     loaded = []
-    source_reads = []
+    sourceReads = []
 
     def ReadSelected(owner, reference):
         """Supply only the selected receipt fields to this validation-order unit test."""
 
         if reference.role == "intelligence-source":
-            source_reads.append(reference)
+            sourceReads.append(reference)
 
         return json.dumps(document).encode() if reference == receipt.reference else (
             read(owner, reference)
@@ -363,7 +363,7 @@ def test_SelectionChecksReceiptConstraintsBeforeOriginalLoader(tmp_path, monkeyp
     before = Files(model.root)
     status, outcome = Run(arguments)
     assert status == 4 and outcome["status"] == "failed", "Invalid receipt constraints passed."
-    assert not source_reads, "Original bytes were read before selected receipt constraints."
+    assert not sourceReads, "Original bytes were read before selected receipt constraints."
     assert not loaded, "The original-source loader ran before selected receipt constraints."
     assert Files(model.root) == before, "Receipt preflight changed owning workspace bytes."
 
@@ -499,12 +499,12 @@ def test_SelectedDetailsPreserveExactRecordsAndExplicitUnmatchedIdentifiers(tmp_
     source = tmp_path / "owned.data"
     source.write_bytes(FeedBody(feed))
     _, imported = Run(ImportArguments(model.root, source, feed))
-    selected_id = "CWE-89" if feed is IntelligenceFeed.CWE else "CVE-1900-9999"
+    selectedId = "CWE-89" if feed is IntelligenceFeed.CWE else "CVE-1900-9999"
     status, outcome = Run([*Selection("inspect", model.root, imported),
-                           "--identifier", selected_id, "--identifier", "CVE-1900-8888"])
+                           "--identifier", selectedId, "--identifier", "CVE-1900-8888"])
     assert status == 0, "Selected source inspection failed its verified owning-store boundary."
     details = outcome["details"]
-    assert [item["identifier"] for item in details["records"]] == [selected_id], (
+    assert [item["identifier"] for item in details["records"]] == [selectedId], (
         "Selected details included unrelated source assertions."
     )
     assert details["unmatched_identifiers"] == ["CVE-1900-8888"], (

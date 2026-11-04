@@ -41,12 +41,12 @@ def Record(body=b"new body", headers=None, url=URL, media="text/plain"):
     request = (f"GET /{path} HTTP/1.1\r\nHost: {authority}\r\nConnection: close\r\n"
         "Accept: text/html, text/plain\r\nAccept-Encoding: identity\r\n"
         "User-Agent: 1337-owned-content-response/1\r\n\r\n").encode()
-    original_headers = Headers(body) if headers is None else headers
-    wire = original_headers + body
+    originalHeaders = Headers(body) if headers is None else headers
+    wire = originalHeaders + body
 
     return {"schema_version": 1, "profile": PROFILE, "outcome": "captured", "url": url,
         "address": address, "port": int(authority.rsplit(":", 1)[1]), "media_type": media,
-        "request": Part(request), "response_headers": Part(original_headers),
+        "request": Part(request), "response_headers": Part(originalHeaders),
         "response_body": Part(body),
         "response": {"size_bytes": len(wire), "sha256": hashlib.sha256(wire).hexdigest()}}
 

@@ -210,14 +210,14 @@ def test_VerifiedIntelligenceKeepsDispositionAndEvidenceAcrossRelocationAndOldRe
     moved = tmp_path / "moved"
     shutil.move(str(store.root), moved)
     reopened = LocalModelStore(moved)
-    prior_bytes = (moved / "state/model/model.json").read_bytes()
+    priorBytes = (moved / "state/model/model.json").read_bytes()
     replayed, delta = Enrich(reopened.Open(), reference, snapshot, provenance, moved)
     reopened.Save(replayed, expected_revision=delta.previous_revision)
 
     assert replayed == triaged and delta.created == delta.updated == (), (
         "Exact enrichment replay changed newer triage or created another interpretation"
     )
-    assert (moved / "state/model/model.json").read_bytes() == prior_bytes, (
+    assert (moved / "state/model/model.json").read_bytes() == priorBytes, (
         "Replaying a portable source rewrote the authoritative finding/model snapshot"
     )
     assert LocalEvidenceStore(moved / "evidence").Read(detector.reference) == (
@@ -314,11 +314,11 @@ def test_IndependentSourceRevisionsAreRetainedAndUseTheCanonicalModelCas(tmp_pat
     first = Source(store)
     second = Source(store, "0.5")
     proposal, delta = Enrich(state, reference, first, provenance, store.root)
-    other, other_delta = Enrich(state, reference, second, provenance, store.root)
+    other, otherDelta = Enrich(state, reference, second, provenance, store.root)
     store.Save(proposal, expected_revision=delta.previous_revision)
 
     with pytest.raises(WorkspaceConflictError):
-        store.Save(other, expected_revision=other_delta.previous_revision)
+        store.Save(other, expected_revision=otherDelta.previous_revision)
 
     combined, delta = Enrich(store.Open(), reference, second, provenance, store.root)
     store.Save(combined, expected_revision=delta.previous_revision)
@@ -370,14 +370,14 @@ def test_MultiSourceFailuresAndRecordBoundsRejectPartialProposals(tmp_path, monk
     store, state, reference, _, provenance = Context(tmp_path)
     first, second = Source(store), Source(store, "0.5")
     ordered = sorted((first, second), key=lambda snapshot: snapshot.Reference())
-    last_path = store.root / "evidence" / ordered[-1].evidence.locator
-    original = last_path.read_bytes()
-    last_path.unlink()
+    lastPath = store.root / "evidence" / ordered[-1].evidence.locator
+    original = lastPath.read_bytes()
+    lastPath.unlink()
 
     with pytest.raises(EvidenceError):
         Enrich(state, reference, first, provenance, store.root, snapshots=tuple(ordered))
 
-    last_path.write_bytes(original)
+    lastPath.write_bytes(original)
     monkeypatch.setattr("fuzzy1337.intelligence.MAX_SELECTED_RECORDS", 1)
 
     with pytest.raises(ValueError, match="observation record bound"):

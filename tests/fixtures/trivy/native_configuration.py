@@ -129,13 +129,13 @@ def VerifyNativeInterpretation(raw: bytes, case: dict) -> dict:
             if "severity" in expected and candidate.get("Severity") != expected["severity"]:
                 raise ValueError("native check severity differs from its pinned source")
 
-            for expected_name, native_name in (("nativeStartLine", "StartLine"),
+            for expectedName, nativeName in (("nativeStartLine", "StartLine"),
                                                 ("nativeEndLine", "EndLine")):
-                if expected_name in expected:
+                if expectedName in expected:
                     cause = candidate.get("CauseMetadata")
 
-                    if type(cause) is not dict or type(cause.get(native_name)) is not int or (
-                        cause[native_name] != expected[expected_name]
+                    if type(cause) is not dict or type(cause.get(nativeName)) is not int or (
+                        cause[nativeName] != expected[expectedName]
                     ):
                         raise ValueError("native cause location differs from its original source")
 
@@ -216,21 +216,21 @@ async def CaptureOriginal(
     authorization = ExecutionAuthorization("test-only:closed-native-config-compatibility",
         "test-only:owned-fixtures", "test-only:compatibility-not-product-permission",
         InvocationDigest(invocation))
-    original_request = LocalExecutionRequest(invocation,
+    originalRequest = LocalExecutionRequest(invocation,
         CapabilityDescriptor(request.capability, invocation.adapter_id, ImpactLevel.SAFE),
         authorization, workspace=workspace, environment=environment,
         resources=ExecutionResources(max_stdout_bytes=(MAX_VERSION_STDOUT_BYTES
             if operation == "version" else MAX_CONFIG_STDOUT_BYTES),
             max_stderr_bytes=MAX_STDERR_BYTES, terminate_grace_seconds=1.0))
     evidence.mkdir(parents=True, exist_ok=True)
-    environment_before = {name: sorted(path.name for path in (environment_root / name).iterdir())
+    environmentBefore = {name: sorted(path.name for path in (environment_root / name).iterdir())
                           for name in ("home", "config", "cache", "tmp", "cwd")}
     events = []
     result = None
     failure = None
 
     try:
-        result = await LocalExecutor(root).Execute(original_request, on_event=events.append,
+        result = await LocalExecutor(root).Execute(originalRequest, on_event=events.append,
                                                    own_descendants=True)
 
         return result
@@ -248,8 +248,8 @@ async def CaptureOriginal(
         (evidence / (operation + ".stderr")).write_bytes(stderr)
         receipt = {"schema_version": 1, "classification": "test-only-native-compatibility",
             "product_authorization": False, "request": json.loads(SerializeContract(
-                original_request)), "original_failure": failure,
-            "environment_before": environment_before,
+                originalRequest)), "original_failure": failure,
+            "environment_before": environmentBefore,
             "execution": json.loads(SerializeContract(result.execution))
                 if result is not None else None,
             "termination": result.termination.value if result is not None else None,

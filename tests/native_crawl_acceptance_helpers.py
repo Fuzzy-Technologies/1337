@@ -238,14 +238,14 @@ def installed_native_crawl(tmp_path_factory, native_acceptance_run) -> Path:
     identity = {"schema_version": 1, "source_commit": commit, "source_tree": tree,
                 "source_modules_sha256": sources}
     owner.Json("source-checkpoint.json", identity)
-    wheel_directory = root / "wheel"
-    wheel_directory.mkdir()
+    wheelDirectory = root / "wheel"
+    wheelDirectory.mkdir()
     built = NativeProcess(owner, "build",
         (sys.executable, "-m", "build", "--wheel", "--no-isolation",
-        "--outdir", str(wheel_directory)), cwd=REPOSITORY_ROOT, environment=environment,
+        "--outdir", str(wheelDirectory)), cwd=REPOSITORY_ROOT, environment=environment,
         timeout=40, maximum=MAX_INSTALL_LOG_BYTES)
     assert built.returncode == 0, "Wheel build failed; original logs retained."
-    wheels = tuple(wheel_directory.glob("*.whl"))
+    wheels = tuple(wheelDirectory.glob("*.whl"))
     assert len(wheels) == 1, "Acceptance requires exactly one freshly built actual package wheel."
     wheel = wheels[0]
     assert wheel.stat().st_size <= 32 * 1024 * 1024, "Actual wheel exceeds its finite ceiling."
@@ -273,20 +273,20 @@ def installed_native_crawl(tmp_path_factory, native_acceptance_run) -> Path:
 
     if ProvisionLocalWheelRuntime(wheel, python, root):
         RuntimeInvoke((str(python), "-m", "pip", "--isolated", "check"), root)
-    probe_input = root / "import-probe.json"
-    probe_input.write_bytes(CanonicalNative({"workspace": str(root / "unused-probe-workspace")}))
-    owner.Write("import-probe-input.json", probe_input.read_bytes())
+    probeInput = root / "import-probe.json"
+    probeInput.write_bytes(CanonicalNative({"workspace": str(root / "unused-probe-workspace")}))
+    owner.Write("import-probe-input.json", probeInput.read_bytes())
     probe = NativeProcess(owner, "import-identity",
-        (str(python), "-I", "-B", str(CONSUMER), "identity", str(probe_input)), cwd=root,
+        (str(python), "-I", "-B", str(CONSUMER), "identity", str(probeInput)), cwd=root,
         environment=environment, timeout=10, maximum=MAX_INSTALL_LOG_BYTES,
         installation={"identity": identity})
     assert probe.returncode == 0 and probe.stderr == b"", (
         "The actual installed capability/import probe failed; original process evidence retained."
     )
     imported = json.loads(probe.stdout)
-    actual_modules = {name: value["sha256"]
+    actualModules = {name: value["sha256"]
                       for name, value in imported["installed_sources"].items()}
-    assert actual_modules == members, "Installed source hashes must match the original wheel."
+    assert actualModules == members, "Installed source hashes must match the original wheel."
     identity.update(installed_sources=imported["installed_sources"],
                     distribution_version=imported["distribution_version"])
     (root / "installation.json").write_bytes(CanonicalNative(identity))
@@ -331,9 +331,9 @@ def NativeConsumer(
     directory.mkdir(parents=True, exist_ok=True)
     name = "consumer-input-" + uuid4().hex + ".json"
     path = directory / name
-    raw_input = CanonicalNative(config)
-    path.write_bytes(raw_input)
-    evidence.Write(name, raw_input)
+    rawInput = CanonicalNative(config)
+    path.write_bytes(rawInput)
+    evidence.Write(name, rawInput)
     installation = NativeInstallation(python)
     result = NativeProcess(evidence, "consumer-" + mode,
         (str(python), "-I", "-B", str(CONSUMER), mode, str(path)), cwd=directory,
@@ -399,9 +399,9 @@ def AssertNativeWireMetadata(record: dict, wire: bytes, expected: dict) -> None:
         "header_fields",
         "body_bytes", "body_sha256"}, "Original response shape must stay closed."
     header, body = wire.split(b"\r\n\r\n", 1)
-    status_line, *field_lines = header.decode("ascii").split("\r\n")
-    version, status, _reason = status_line.split(" ", 2)
-    fields = [line.split(":", 1) for line in field_lines]
+    statusLine, *fieldLines = header.decode("ascii").split("\r\n")
+    version, status, _reason = statusLine.split(" ", 2)
+    fields = [line.split(":", 1) for line in fieldLines]
     headers = {name.lower(): value.strip(" \t") for name, value in fields}
     media = headers["content-type"].split(";", 1)[0].strip().lower()
     assert len(fields) == len(headers) and int(headers["content-length"]) == len(body), (
@@ -412,7 +412,7 @@ def AssertNativeWireMetadata(record: dict, wire: bytes, expected: dict) -> None:
     ), "Original status/media and worker outcome must match handwritten response truth."
     assert type(response["status"]) is int and response["status"] == int(status) and (
         response["http_version"] == version and type(response["header_fields"]) is int
-        and response["header_fields"] == len(field_lines)
+        and response["header_fields"] == len(fieldLines)
         and response["media_type"] == media
         and type(response["header_bytes"]) is int and response["header_bytes"] == len(header) + 4
         and type(response["body_bytes"]) is int and response["body_bytes"] == len(body)
@@ -466,9 +466,9 @@ def AssertNativeRecord(record: dict, document: dict, contact, *, variant: str) -
     assert contact.sent_bytes == len(contact.response_bytes) and contact.completion_sequence, (
         "A completed target response must have actual full-send and completion evidence."
     )
-    expected_response = oracle["leaf_responses"].get(source.path,
+    expectedResponse = oracle["leaf_responses"].get(source.path,
         {"status": 200, "media_type": "text/html", "outcome": "html"})
-    AssertNativeWireMetadata(record, contact.response_bytes, expected_response)
+    AssertNativeWireMetadata(record, contact.response_bytes, expectedResponse)
     assert set(record["source"]) == {"url", "address", "port", "request_reference",
         "endpoint_reference", "request_size_bytes", "request_sha256"}, (
             "Original source metadata must have exactly its selected peer/request fields."
@@ -502,17 +502,17 @@ def AssertNativeRecord(record: dict, document: dict, contact, *, variant: str) -
         assert frontier["anchor_count"] == oracle["variants"][variant]["seed_anchor_count"], (
             "Changing bytes at the same seed must change its actual lexical frontier."
         )
-        expected_paths = ["/redirect"] if variant == "redirect" else []
-        assert [urlsplit(item["url"]).path for item in frontier["entries"]] == expected_paths, (
+        expectedPaths = ["/redirect"] if variant == "redirect" else []
+        assert [urlsplit(item["url"]).path for item in frontier["entries"]] == expectedPaths, (
             "Fixed/decoy/redirect seeds must retain only their independently declared edges."
         )
 
     else:
-        expected_leaf = oracle["leaf_responses"].get(source.path)
+        expectedLeaf = oracle["leaf_responses"].get(source.path)
 
-        if expected_leaf is not None:
+        if expectedLeaf is not None:
             assert (record["outcome"], response["status"], response["media_type"]) == (
-                expected_leaf["outcome"], expected_leaf["status"], expected_leaf["media_type"]
+                expectedLeaf["outcome"], expectedLeaf["status"], expectedLeaf["media_type"]
             ), "Terminal page observations must not become vulnerability-negative scanner results."
 
         assert frontier["anchor_count"] == 0 and frontier["entries"] == [] and not any(

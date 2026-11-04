@@ -56,26 +56,26 @@ def test_SystemNmapPreservesLoopbackOracleAndRawEvidence(tmp_path):
     """
 
     root = tmp_path.resolve()
-    evidence_root = root / "evidence"
-    evidence_root.mkdir()
-    store = LocalEvidenceStore(evidence_root)
+    evidenceRoot = root / "evidence"
+    evidenceRoot.mkdir()
+    store = LocalEvidenceStore(evidenceRoot)
     health = NmapAdapter(store.Read, NMAP_TEST_EXECUTABLE).CheckHealth()
 
     assert health.state is AdapterHealthState.AVAILABLE, (
         "An installed tool whose health probe fails cannot be treated as functional availability."
     )
     adapter = NmapAdapter(store.Read, NMAP_TEST_EXECUTABLE, health.provider_version)
-    tool_environment = {key: os.environ[key] for key in ("LD_LIBRARY_PATH", "NMAPDIR")
+    toolEnvironment = {key: os.environ[key] for key in ("LD_LIBRARY_PATH", "NMAPDIR")
                         if key in os.environ}
 
     with socket.socket() as listening, socket.socket() as closed:
         listening.bind(("127.0.0.1", 0))
         listening.listen(8)
         closed.bind(("127.0.0.1", 0))
-        open_port = listening.getsockname()[1]
-        closed_port = closed.getsockname()[1]
+        openPort = listening.getsockname()[1]
+        closedPort = closed.getsockname()[1]
         request = AdapterRequest("network.tcp-connect", "target:owned-loopback",
-            ImpactLevel.STANDARD, {"address": "127.0.0.1", "ports": [open_port, closed_port],
+            ImpactLevel.STANDARD, {"address": "127.0.0.1", "ports": [openPort, closedPort],
                                    "timeout_seconds": NMAP_LOOPBACK_ORACLE["timeout_seconds"]})
         invocation = adapter.PrepareInvocation(request)
         digest = InvocationDigest(invocation)
@@ -84,19 +84,19 @@ def test_SystemNmapPreservesLoopbackOracleAndRawEvidence(tmp_path):
             "policy:test-owned-ports", digest,
         )
         governed = LocalExecutionRequest(invocation, CapabilityDescriptors(adapter.Descriptor)[0],
-                                          authorization, environment=tool_environment)
-        started_at = datetime.now(timezone.utc).isoformat()
+                                          authorization, environment=toolEnvironment)
+        startedAt = datetime.now(timezone.utc).isoformat()
         captured = asyncio.run(LocalExecutor(root).Execute(governed))
-        finished_at = datetime.now(timezone.utc).isoformat()
+        finishedAt = datetime.now(timezone.utc).isoformat()
 
     provenance = EvidenceProvenance("workspace:nmap-loopback", authorization.scope_reference,
         adapter.Descriptor.adapter_id, adapter.Descriptor.version, health.provider_version,
-        started_at, finished_at, digest, captured.execution)
+        startedAt, finishedAt, digest, captured.execution)
     stdout = store.Put(captured.stdout, "stdout", "application/xml", provenance)
     stderr = store.Put(captured.stderr, "stderr", "text/plain", provenance)
     report = AdapterReport(invocation, captured.execution, (stdout.reference, stderr.reference))
     normalized = adapter.NormalizeReport(report)
-    oracle = {**NMAP_LOOPBACK_ORACLE, "open_port": open_port, "closed_port": closed_port,
+    oracle = {**NMAP_LOOPBACK_ORACLE, "open_port": openPort, "closed_port": closedPort,
               "tool_version": health.provider_version, "invocation_sha256": digest}
     (root / "oracle.json").write_text(json.dumps(oracle, sort_keys=True), encoding="utf-8")
     (root / "normalized.json").write_text(SerializeContract(normalized), encoding="utf-8")
@@ -106,8 +106,8 @@ def test_SystemNmapPreservesLoopbackOracleAndRawEvidence(tmp_path):
     assert captured.execution.state is ExecutionState.SUCCEEDED, (
         "A failed real tool must not pass the loopback discovery oracle."
     )
-    assert observations.get(open_port) == "open", "The fixture-owned listening port must be open."
-    assert observations.get(closed_port) == "closed", (
+    assert observations.get(openPort) == "open", "The fixture-owned listening port must be open."
+    assert observations.get(closedPort) == "closed", (
         "The fixture-owned bound but non-listening port must remain closed."
     )
     assert normalized.findings == (), "The port oracle cannot make vulnerability accuracy claims."

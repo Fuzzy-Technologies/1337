@@ -323,7 +323,7 @@ class TrivyAdapter:
         assert process.stdout is not None, "subprocess.PIPE must provide a capture handle"
         pipe = process.stdout
         captured: list[bytes] = []
-        capture_failed = threading.Event()
+        captureFailed = threading.Event()
 
         def Capture() -> None:
             """Drain a finite capture plus one detection byte without unbounded allocation."""
@@ -344,17 +344,17 @@ class TrivyAdapter:
                     process.kill()
 
             except (OSError, ValueError):
-                capture_failed.set()
+                captureFailed.set()
 
         worker = threading.Thread(target=Capture, daemon=True)
         worker.start()
-        timed_out = False
+        timedOut = False
 
         try:
             process.wait(timeout=TRIVY_HEALTH_TIMEOUT_SECONDS)
 
         except subprocess.TimeoutExpired:
-            timed_out = True
+            timedOut = True
 
             try:
                 process.kill()
@@ -369,7 +369,7 @@ class TrivyAdapter:
         raw = b"".join(captured)
         detail = "Trivy version probe exceeded a resource budget"
 
-        if not (timed_out or worker.is_alive() or capture_failed.is_set() or
+        if not (timedOut or worker.is_alive() or captureFailed.is_set() or
                 len(raw) > TRIVY_HEALTH_MAX_BYTES):
             try:
                 metadata = ParseJson(raw, TRIVY_HEALTH_MAX_BYTES)
@@ -547,11 +547,11 @@ class TrivyAdapter:
             raise TrivyReportError("successful Trivy output requires observed DB metadata")
 
         try:
-            updated_at = cast(str, database["UpdatedAt"])
-            RequireText(updated_at, "Trivy DB update time")
-            database_time = datetime.fromisoformat(updated_at)
+            updatedAt = cast(str, database["UpdatedAt"])
+            RequireText(updatedAt, "Trivy DB update time")
+            databaseTime = datetime.fromisoformat(updatedAt)
 
-            if database_time.tzinfo is None or database_time.utcoffset() is None:
+            if databaseTime.tzinfo is None or databaseTime.utcoffset() is None:
                 raise ValueError("Trivy DB update time requires an explicit UTC offset")
 
         except ValueError as error:
@@ -566,11 +566,11 @@ class TrivyAdapter:
         ):
             raise TrivyReportError("Trivy output requires schema 2 container_image JSON")
 
-        native_version = payload.get("Trivy")
+        nativeVersion = payload.get("Trivy")
 
-        if native_version is not None and (
-            not isinstance(native_version, dict) or
-            native_version.get("Version") != version["Version"]
+        if nativeVersion is not None and (
+            not isinstance(nativeVersion, dict) or
+            nativeVersion.get("Version") != version["Version"]
         ):
             raise TrivyReportError("Trivy native version differs from observed provenance")
 

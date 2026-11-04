@@ -153,11 +153,11 @@ def NormalizeUrl(value: str) -> str:
         host = f"[{address.compressed}]" if address.version == 6 else address.compressed
 
     path = parsed.path or "/"
-    decoded_path = unquote(path)
+    decodedPath = unquote(path)
 
     if (
         "//" in path
-        or any(part in {".", ".."} for part in decoded_path.split("/"))
+        or any(part in {".", ".."} for part in decodedPath.split("/"))
         or re.search(r"%(?:2f|5c)", path, re.IGNORECASE)
     ):
         raise ValueError("URL path must not contain ambiguous separators or dot segments")
@@ -319,22 +319,22 @@ class ScopeAuthorization:
         if not isinstance(self.state, AuthorizationState):
             raise ValueError("authorization state must be an AuthorizationState")
 
-        for field_name in ("authority_reference", "record_reference"):
-            value = getattr(self, field_name)
+        for fieldName in ("authority_reference", "record_reference"):
+            value = getattr(self, fieldName)
 
             if value is not None:
-                RequireWorkspaceText(value, field_name)
+                RequireWorkspaceText(value, fieldName)
 
         if self.state == AuthorizationState.GRANTED and (
             self.authority_reference is None or self.record_reference is None
         ):
             raise ValueError("granted authorization requires authority and record references")
 
-        for field_name in ("valid_from", "valid_until"):
-            value = getattr(self, field_name)
+        for fieldName in ("valid_from", "valid_until"):
+            value = getattr(self, fieldName)
 
             if value is not None:
-                object.__setattr__(self, field_name, NormalizeTime(value))
+                object.__setattr__(self, fieldName, NormalizeTime(value))
 
         if self.valid_from is not None and self.valid_until is not None:
             if datetime.fromisoformat(self.valid_from) >= datetime.fromisoformat(self.valid_until):
@@ -524,8 +524,8 @@ class ScopeSnapshot:
         if not isinstance(self.authorization, ScopeAuthorization):
             raise ValueError("authorization must be a ScopeAuthorization")
 
-        for field_name in ("targets", "allow", "deny", "exclusions"):
-            object.__setattr__(self, field_name, Targets(getattr(self, field_name), field_name))
+        for fieldName in ("targets", "allow", "deny", "exclusions"):
+            object.__setattr__(self, fieldName, Targets(getattr(self, fieldName), fieldName))
 
     def Reference(self) -> str:
         """Return the opaque workspace-local reference used by existing workspace metadata.
@@ -602,15 +602,15 @@ class ScopeSnapshot:
         if reason is not None:
             return ScopeDecision(reason, self.Reference(), target.Reference())
 
-        for rules, matched_reason in (
+        for rules, matchedReason in (
             (self.exclusions, ScopeDecisionReason.EXCLUDED),
             (self.deny, ScopeDecisionReason.DENIED),
             (self.allow, ScopeDecisionReason.ALLOWED),
         ):
             for rule in rules:
-                if Matches(rule, target, denying=matched_reason != ScopeDecisionReason.ALLOWED):
+                if Matches(rule, target, denying=matchedReason != ScopeDecisionReason.ALLOWED):
                     return ScopeDecision(
-                        matched_reason, self.Reference(), target.Reference(), rule.Reference()
+                        matchedReason, self.Reference(), target.Reference(), rule.Reference()
                     )
 
         return ScopeDecision(ScopeDecisionReason.NOT_ALLOWED, self.Reference(), target.Reference())
@@ -653,9 +653,9 @@ class ScopeSnapshot:
             "scope snapshot",
         )
 
-        schema_version = RequireWorkspaceInteger(record["schema_version"], "schema_version")
+        schemaVersion = RequireWorkspaceInteger(record["schema_version"], "schema_version")
 
-        if schema_version != SCOPE_SCHEMA_VERSION:
+        if schemaVersion != SCOPE_SCHEMA_VERSION:
             raise ValueError("unsupported scope schema version")
 
         lists: dict[str, tuple[Target, ...]] = {}
@@ -745,7 +745,7 @@ class LocalScopeStore:
             OSError: The record or workspace cannot be read.
         """
 
-        _, path, workspace_id = self.Paths(scope_id)
+        _, path, workspaceId = self.Paths(scope_id)
 
         with path.open("rb") as stream:
             payload = stream.read(MAX_SCOPE_BYTES + 1)
@@ -764,7 +764,7 @@ class LocalScopeStore:
 
         snapshot = ScopeSnapshot.FromDict(value)
 
-        if snapshot.scope_id != scope_id or snapshot.workspace_id != workspace_id:
+        if snapshot.scope_id != scope_id or snapshot.workspace_id != workspaceId:
             raise ValueError("stored scope/workspace identity does not match its owner")
 
         return snapshot
@@ -825,15 +825,15 @@ class LocalScopeStore:
         if not isinstance(snapshot, ScopeSnapshot):
             raise ValueError("snapshot must be a ScopeSnapshot")
 
-        namespace, path, workspace_id = self.Paths(snapshot.scope_id, initialize=create)
+        namespace, path, workspaceId = self.Paths(snapshot.scope_id, initialize=create)
 
-        if snapshot.workspace_id != workspace_id or (create and snapshot.revision != 0):
+        if snapshot.workspace_id != workspaceId or (create and snapshot.revision != 0):
             raise ScopeConflictError("scope workspace identity or initial revision differs")
 
-        lock_path = namespace / f".{snapshot.scope_id}.write-lock"
+        lockPath = namespace / f".{snapshot.scope_id}.write-lock"
 
         try:
-            lock_path.mkdir(mode=0o700)
+            lockPath.mkdir(mode=0o700)
 
         except FileExistsError as error:
             raise ScopeBusyError("scope writer lock exists; never remove a live lock") from error
@@ -858,7 +858,7 @@ class LocalScopeStore:
             return committed
 
         finally:
-            lock_path.rmdir()
+            lockPath.rmdir()
 
     def Write(self, path: Path, snapshot: ScopeSnapshot) -> None:
         """Durably replace one owned record through a private same-directory temporary file.
@@ -880,20 +880,20 @@ class LocalScopeStore:
         if len(payload) > MAX_SCOPE_BYTES:
             raise ValueError("scope state exceeds the metadata size limit")
 
-        temporary_path: Path | None = None
+        temporaryPath: Path | None = None
 
         try:
             with tempfile.NamedTemporaryFile(
                 mode="wb", dir=path.parent, prefix=".scope-", suffix=".json", delete=False
             ) as stream:
-                temporary_path = Path(stream.name)
+                temporaryPath = Path(stream.name)
                 stream.write(payload)
                 stream.flush()
                 os.fsync(stream.fileno())
 
-            os.replace(temporary_path, path)
+            os.replace(temporaryPath, path)
             SyncStorageDirectory(path.parent)
 
         finally:
-            if temporary_path is not None:
-                temporary_path.unlink(missing_ok=True)
+            if temporaryPath is not None:
+                temporaryPath.unlink(missing_ok=True)

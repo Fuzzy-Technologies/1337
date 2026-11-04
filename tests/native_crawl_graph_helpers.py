@@ -317,20 +317,20 @@ class CrawlGraphState:
 
         with self.lock:
             self.contact_count += 1
-            accepted_at = self.clock()
-            deadline_at = accepted_at + SOCKET_TIMEOUT_SECONDS
+            acceptedAt = self.clock()
+            deadlineAt = acceptedAt + SOCKET_TIMEOUT_SECONDS
             index = None
 
             if len(self.requests) < MAX_REQUESTS:
                 index = len(self.requests)
                 self.requests.append(GraphRequestObservation(self.contact_count, self.graph.variant,
-                                                              accepted_at, deadline_at))
+                                                              acceptedAt, deadlineAt))
 
             else:
                 self.contact_overflow += 1
                 self.RecordErrorLocked("owned-contact-limit")
 
-            self.connections[connection] = GraphSocketOwner(index, deadline_at)
+            self.connections[connection] = GraphSocketOwner(index, deadlineAt)
             self.UpdateIdleLocked()
 
             if self.closing.is_set():
@@ -603,11 +603,11 @@ class CrawlGraphState:
                 return
 
             owner.closing = True
-            completed_response = False
+            completedResponse = False
 
             if owner.index is not None:
                 record = self.requests[owner.index]
-                completed_response = record.completion_sequence is not None and (
+                completedResponse = record.completion_sequence is not None and (
                     bool(record.response_bytes) and record.sent_bytes == len(record.response_bytes)
                     and record.failure is None
                 )
@@ -615,7 +615,7 @@ class CrawlGraphState:
                 if record.completion_sequence is None and record.failure is None:
                     self.FailLocked(connection, "owned-contact-interrupted")
 
-        if not completed_response:
+        if not completedResponse:
             try:
                 connection.shutdown(socket.SHUT_RDWR)
 
@@ -680,8 +680,8 @@ class CrawlGraphHandler(BaseRequestHandler):
 
                 raw.extend(block)
 
-            first_line = bytes(raw).split(b"\r\n", 1)[0].decode("ascii")
-            method, target, version = first_line.split(" ")
+            firstLine = bytes(raw).split(b"\r\n", 1)[0].decode("ascii")
+            method, target, version = firstLine.split(" ")
 
             if method != "GET" or version not in ("HTTP/1.0", "HTTP/1.1") or (
                 not target.startswith("/") or len(target) > 1024 or
@@ -689,9 +689,9 @@ class CrawlGraphHandler(BaseRequestHandler):
             ):
                 raise ValueError("invalid-owned-request")
 
-            response, invert_siblings = state.BeginResponse(connection, target)
+            response, invertSiblings = state.BeginResponse(connection, target)
 
-            if invert_siblings:
+            if invertSiblings:
                 state.WaitForSibling(connection, target)
 
             sent = 0
@@ -733,16 +733,16 @@ class CrawlGraphServer(TCPServer):
         self.handlers: list[Thread] = []
         super().__init__(("127.0.0.1", 0), CrawlGraphHandler)
         self.timeout = 0.05
-        graph_type = OffOriginCrawlSentinel if sentinel_only else MutableCrawlGraph
-        self.state = CrawlGraphState(graph_type(f"http://127.0.0.1:{self.server_address[1]}"))
+        graphType = OffOriginCrawlSentinel if sentinel_only else MutableCrawlGraph
+        self.state = CrawlGraphState(graphType(f"http://127.0.0.1:{self.server_address[1]}"))
 
     def GetRequest(self) -> tuple[socket.socket, tuple[str, int]]:
         """Register every accepted socket atomically before any dispatch can start a handler."""
 
-        request, client_address = self.socket.accept()
+        request, clientAddress = self.socket.accept()
         self.state.Accept(request)
 
-        return request, client_address
+        return request, clientAddress
 
     def ProcessRequest(self, request: socket.socket, client_address: tuple[str, int]) -> None:
         """Close admission and thread creation through the same original state ownership lock."""
@@ -864,7 +864,7 @@ def OwnedNativeCrawlGraph() -> Iterator[OwnedCrawlGraph]:
         raise
 
     server.state.graph.AttachSentinel(sentinel.state.graph.origin)
-    ready, sentinel_ready = Event(), Event()
+    ready, sentinelReady = Event(), Event()
 
     def Serve(owner: CrawlGraphServer, readiness: Event) -> None:
         """Signal one bound original origin and preserve all mechanism errors through cleanup."""
@@ -880,27 +880,27 @@ def OwnedNativeCrawlGraph() -> Iterator[OwnedCrawlGraph]:
 
     thread = Thread(target=Serve, args=(server, ready),
                     name="owned-native-crawl-graph", daemon=False)
-    sentinel_thread = Thread(target=Serve, args=(sentinel, sentinel_ready),
+    sentinelThread = Thread(target=Serve, args=(sentinel, sentinelReady),
                              name="owned-native-crawl-sentinel", daemon=False)
 
     try:
         thread.start()
-        sentinel_thread.start()
+        sentinelThread.start()
 
-        if not ready.wait(2) or not sentinel_ready.wait(2) or (
-            not thread.is_alive() or not sentinel_thread.is_alive()
+        if not ready.wait(2) or not sentinelReady.wait(2) or (
+            not thread.is_alive() or not sentinelThread.is_alive()
         ):
             raise RuntimeError("Both owned crawl origins must become ready")
 
         yield OwnedCrawlGraph(server.state, thread, server.state.graph, sentinel.state,
-                              sentinel_thread, sentinel.state.graph.origin)
+                              sentinelThread, sentinel.state.graph.origin)
 
     finally:
         try:
             server.Settle(thread)
 
         finally:
-            sentinel.Settle(sentinel_thread)
+            sentinel.Settle(sentinelThread)
 
 
 def CrawlGraphOracle() -> dict[str, Any]:

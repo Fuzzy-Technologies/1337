@@ -177,10 +177,10 @@ def test_ForegroundShellQuickScanPreservesExplicitModelAndLensReopening(
         "--valid-until", (now + timedelta(minutes=2)).isoformat(),
     ]))
     Execute(f"model {root}")
-    empty_projection = json.loads(Execute("view model --json"))
+    emptyProjection = json.loads(Execute("view model --json"))
     Execute("lens dfir --json")
     Execute("select selected:opaque")
-    original_context = shell.State
+    originalContext = shell.State
 
     denied = Execute(shlex.join(["scan", *ScanArguments(root, (url,), approval=False), "--json"]))
     ValidateSummary(json.loads(denied.splitlines()[0]))
@@ -192,35 +192,35 @@ def test_ForegroundShellQuickScanPreservesExplicitModelAndLensReopening(
     summary = json.loads(approved)
     ValidateSummary(summary)
     assert summary["state"] == "completed", "The explicit real shell scan must complete."
-    assert shell.State == original_context, (
+    assert shell.State == originalContext, (
         "Scanning must preserve explicit lens/object/view state."
     )
     assert shell.lastcmd == "scan", "Foreground history replay must retain only its namespace."
     assert requests == ["/"], "Only the explicitly approved owned endpoint may be contacted."
 
-    model_store = LocalModelStore(root)
-    current = model_store.Open()
-    old_view = json.loads(Execute("view model --json"))
-    assert old_view["revision"] == empty_projection["revision"] == 0, (
+    modelStore = LocalModelStore(root)
+    current = modelStore.Open()
+    oldView = json.loads(Execute("view model --json"))
+    assert oldView["revision"] == emptyProjection["revision"] == 0, (
         "A bound read-only snapshot must remain explicit until the operator reopens the model."
     )
     assert current.revision == summary["model_revision"] == 1, (
         "Quick Scan must persist the newer canonical revision independently of shell presentation."
     )
-    model_path = model_store.ValidatePaths() / "model.json"
-    model_bytes = model_path.read_bytes()
-    workspace_bytes = (root / "workspace.json").read_bytes()
+    modelPath = modelStore.ValidatePaths() / "model.json"
+    modelBytes = modelPath.read_bytes()
+    workspaceBytes = (root / "workspace.json").read_bytes()
     workspace = LocalWorkspaceStore(root).Open()
     evidence = LocalEvidenceStore(root / "evidence")
-    records = tuple(evidence.Get(record_id) for record_id in workspace.evidence_record_references)
-    raw_evidence = tuple(evidence.Read(record.reference) for record in records)
+    records = tuple(evidence.Get(recordId) for recordId in workspace.evidence_record_references)
+    rawEvidence = tuple(evidence.Read(record.reference) for record in records)
     Execute(f"model {root}")
 
     for descriptor in LENS_CATALOG:
-        actual_descriptor = json.loads(Execute(f"lens {descriptor.identifier} --json"))
-        actual_projection = json.loads(Execute("view model --json"))
-        assert actual_descriptor == descriptor.ToDict(), "Shell lens JSON must retain its catalog."
-        assert actual_projection == descriptor.Project(current), (
+        actualDescriptor = json.loads(Execute(f"lens {descriptor.identifier} --json"))
+        actualProjection = json.loads(Execute("view model --json"))
+        assert actualDescriptor == descriptor.ToDict(), "Shell lens JSON must retain its catalog."
+        assert actualProjection == descriptor.Project(current), (
             "Each lens must project the reopened canonical snapshot through its actual contract."
         )
 
@@ -229,20 +229,20 @@ def test_ForegroundShellQuickScanPreservesExplicitModelAndLensReopening(
     assert reopened["object_counts"] == summary["object_counts"], (
         "Workspace reopening and scan completion must describe the same authoritative model."
     )
-    assert model_path.read_bytes() == model_bytes, "Inspection must preserve canonical model bytes."
-    assert (root / "workspace.json").read_bytes() == workspace_bytes, (
+    assert modelPath.read_bytes() == modelBytes, "Inspection must preserve canonical model bytes."
+    assert (root / "workspace.json").read_bytes() == workspaceBytes, (
         "Lens projection and reopening must preserve durable workspace metadata bytes."
     )
     assert tuple(evidence.Get(record.evidence_id) for record in records) == records, (
         "Read-only model/lens inspection must preserve immutable acquisition provenance."
     )
-    assert tuple(evidence.Read(record.reference) for record in records) == raw_evidence, (
+    assert tuple(evidence.Read(record.reference) for record in records) == rawEvidence, (
         "Read-only model/lens inspection must preserve the actual retained raw evidence."
     )
     assert requests == ["/"], "Lens selection, model view and reopen must never contact targets."
     history = Execute("history").splitlines()
-    expected_history = {"scan", "scope", "workspace", f"model {root}", "select selected:opaque"}
-    assert expected_history <= set(history), (
+    expectedHistory = {"scan", "scope", "workspace", f"model {root}", "select selected:opaque"}
+    assert expectedHistory <= set(history), (
         "New namespaces retain safe names while ordinary inspection history is preserved."
     )
     assert not any(line.startswith(("scan ", "scope ", "workspace ")) for line in history), (
@@ -259,8 +259,8 @@ def test_ProductQuickScanStreamsBeforeContactAndReopensVerifiedDurableState(
     url = base + "/redirect"
     root = tmp_path / "workspace"
     Setup(root, (url,), capsys)
-    queued_before_contact: list[bool] = []
-    saved_deltas: list[int] = []
+    queuedBeforeContact: list[bool] = []
+    savedDeltas: list[int] = []
 
     class LiveOutput(StringIO):
         """Observe actual machine events as they arrive, before the terminal summary exists."""
@@ -274,10 +274,10 @@ def test_ProductQuickScanStreamsBeforeContactAndReopensVerifiedDurableState(
                 event = record["event"]
 
                 if event["kind"] == "state" and event["data"] == "queued":
-                    queued_before_contact.append(not requests)
+                    queuedBeforeContact.append(not requests)
 
                 if event["kind"] == "model_delta":
-                    saved_deltas.append(LocalModelStore(root).Open().revision)
+                    savedDeltas.append(LocalModelStore(root).Open().revision)
 
             return super().write(value)
 
@@ -292,8 +292,8 @@ def test_ProductQuickScanStreamsBeforeContactAndReopensVerifiedDurableState(
     records = [json.loads(line) for line in output.getvalue().splitlines()]
     summary = records[-1]["summary"]
     ValidateSummary(summary)
-    assert queued_before_contact == [True], "Queued status must precede target contact."
-    assert saved_deltas == [1], "Model events must describe already persisted changes."
+    assert queuedBeforeContact == [True], "Queued status must precede target contact."
+    assert savedDeltas == [1], "Model events must describe already persisted changes."
     assert requests == ["/redirect"], "Native discovery must not follow redirect target data."
     assert summary["state"] == "completed", (
         'Prove the real scope → native → governed jobs → evidence → model → reopen path '

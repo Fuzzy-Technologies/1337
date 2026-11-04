@@ -38,11 +38,11 @@ def test_ProfileIdentityBindsSelectionAndExactRawBytesWithoutLegacyAdmissionChan
     assert result.Reference() == "epss-selection:" + hashlib.sha256(
         CanonicalReferenceJson(document),
     ).hexdigest(), "Profile identity omitted canonical source or selection content"
-    altered_selection = ParseEpssSelection(source, ["CVE-1900-0001"],
+    alteredSelection = ParseEpssSelection(source, ["CVE-1900-0001"],
         model_version="synthetic-1", score_date="2026-11-02")
-    altered_raw = ParseEpssSelection(gzip.compress(raw, mtime=1), result.requested_ids,
+    alteredRaw = ParseEpssSelection(gzip.compress(raw, mtime=1), result.requested_ids,
         model_version="synthetic-1", score_date="2026-11-02")
-    assert result.Reference() != altered_selection.Reference() != altered_raw.Reference(), (
+    assert result.Reference() != alteredSelection.Reference() != alteredRaw.Reference(), (
         "Source or selection changes reused a profile reference"
     )
     assert INTELLIGENCE_SCHEMA_VERSION == ACQUISITION_SCHEMA_VERSION == 1, "Legacy schemas changed"

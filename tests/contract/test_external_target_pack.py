@@ -484,14 +484,14 @@ def test_ExternalReadinessRetriesTransientTimeoutWithoutDiscardingEvidence(
         """Preserve a deterministic parent timeout followed by the exact release response."""
 
         del timeout_seconds
-        first_attempt = not lab.commands
+        firstAttempt = not lab.commands
         payload = json.dumps({
             "status": 200, "headers": [], "body": '{"version":"20.2.0"}', "error": "",
         })
         result = CommandResult(
-            arguments, 124 if first_attempt else 0, "" if first_attempt else payload,
-            "cold launch diagnostic" if first_attempt else "", timed_out=first_attempt,
-            duration_seconds=3.125 if first_attempt else 0.05,
+            arguments, 124 if firstAttempt else 0, "" if firstAttempt else payload,
+            "cold launch diagnostic" if firstAttempt else "", timed_out=firstAttempt,
+            duration_seconds=3.125 if firstAttempt else 0.05,
         )
         lab.WriteEvidence(result)
 
@@ -500,8 +500,8 @@ def test_ExternalReadinessRetriesTransientTimeoutWithoutDiscardingEvidence(
     monkeypatch.setattr(lab, "Compose", TransientCommand)
     monkeypatch.setattr("tests.functional.external_targets.time.sleep", lambda duration: None)
     lab.WaitUntilReady()
-    first_command = json.loads((tmp_path / "command-01.json").read_text())
-    final_command = json.loads((tmp_path / "command-02.json").read_text())
+    firstCommand = json.loads((tmp_path / "command-01.json").read_text())
+    finalCommand = json.loads((tmp_path / "command-02.json").read_text())
 
     assert len(lab.observations) == 2 and lab.observations[0].timed_out, (
         "Readiness must retry a transient timeout without discarding the failed observation."
@@ -509,10 +509,10 @@ def test_ExternalReadinessRetriesTransientTimeoutWithoutDiscardingEvidence(
     assert lab.observations[-1].status == 200 and not lab.observations[-1].error, (
         "Readiness succeeds only after the later response satisfies the pinned release contract."
     )
-    assert first_command["timed_out"] and first_command["stderr"] == "cold launch diagnostic", (
+    assert firstCommand["timed_out"] and firstCommand["stderr"] == "cold launch diagnostic", (
         "Retry success must preserve the earlier raw subprocess timeout and diagnostic."
     )
-    assert final_command["returncode"] == 0 and not final_command["timed_out"], (
+    assert finalCommand["returncode"] == 0 and not finalCommand["timed_out"], (
         "Successful readiness must correspond to its own final raw subprocess record."
     )
 
@@ -621,8 +621,8 @@ def local_http_server() -> Iterator[ThreadingHTTPServer]:
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), LocalHttpHandler)
     server.daemon_threads = True
-    stop_event = threading.Event()
-    setattr(server, "stop_event", stop_event)
+    stopEvent = threading.Event()
+    setattr(server, "stop_event", stopEvent)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
@@ -630,7 +630,7 @@ def local_http_server() -> Iterator[ThreadingHTTPServer]:
         yield server
 
     finally:
-        stop_event.set()
+        stopEvent.set()
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
@@ -727,10 +727,10 @@ def test_ExternalHttpProbeUsesFixedDockerExecWithoutHostInput(
     monkeypatch.setattr(fake_lab, "Run", Capture)
     observation = ExternalTargetLab.Request(fake_lab, "/fixed?marker=1337")
     argv, budget = invocations[0]
-    operation_index = argv.index("exec")
+    operationIndex = argv.index("exec")
     script = (REPOSITORY_ROOT / "tests/functional/external_http_probe.js").read_text()
 
-    assert argv[operation_index:] == (
+    assert argv[operationIndex:] == (
         "exec", "-T", "external-juice-shop", "/nodejs/bin/node", "-e", script,
         "--", "/fixed?marker=1337", "3000", "2250",
     ), "The launcher must preserve fixed container, executable, port, and bounded child deadline."

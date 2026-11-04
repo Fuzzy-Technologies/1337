@@ -36,27 +36,27 @@ def BaseScoreTenths(assessment: CveCvss2Assessment) -> int:
     cvss = cast(Mapping[str, object], assessment.metric["cvssV2_0"])
     vector = cast(str, cvss["vectorString"])
     tokens = dict(component.split(":") for component in vector.split("/"))
-    remaining_impact = (
+    remainingImpact = (
         (_WEIGHT_SCALE - _IMPACT[tokens["C"]])
         * (_WEIGHT_SCALE - _IMPACT[tokens["I"]])
         * (_WEIGHT_SCALE - _IMPACT[tokens["A"]])
     )
-    impact_numerator = 1041 * (_PRODUCT_DENOMINATOR - remaining_impact)
+    impactNumerator = 1041 * (_PRODUCT_DENOMINATOR - remainingImpact)
 
-    if impact_numerator == 0:
+    if impactNumerator == 0:
         return 0
 
-    exploitability_numerator = 20 * _AV[tokens["AV"]] * _AC[tokens["AC"]] * _AU[tokens["Au"]]
+    exploitabilityNumerator = 20 * _AV[tokens["AV"]] * _AC[tokens["AC"]] * _AU[tokens["Au"]]
     # Impact has denominator 100*1000^3; exploitability has denominator 1000^3.
     # Multiplication by ten for tenths cancels the base expression's factor 1/10.
-    base_tenths_numerator = (
-        6 * impact_numerator + 4 * 100 * exploitability_numerator - 15 * _IMPACT_DENOMINATOR
+    baseTenthsNumerator = (
+        6 * impactNumerator + 4 * 100 * exploitabilityNumerator - 15 * _IMPACT_DENOMINATOR
     ) * 1176
-    base_tenths_denominator = _IMPACT_DENOMINATOR * 1000
-    quotient, remainder = divmod(base_tenths_numerator, base_tenths_denominator)
+    baseTenthsDenominator = _IMPACT_DENOMINATOR * 1000
+    quotient, remainder = divmod(baseTenthsNumerator, baseTenthsDenominator)
 
     # The complete valid six-token domain has no exact final half-tenth ties.
-    return quotient + int(2 * remainder > base_tenths_denominator)
+    return quotient + int(2 * remainder > baseTenthsDenominator)
 
 
 @dataclass(frozen=True, slots=True)

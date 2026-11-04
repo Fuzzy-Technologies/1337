@@ -55,7 +55,7 @@ def RunCase(tmp_path, case, mode):
 
         raise
 
-    copied_originals = False
+    copiedOriginals = False
 
     try:
         result = outcome.execution
@@ -79,13 +79,13 @@ def RunCase(tmp_path, case, mode):
         if outcome.setup is not None:
             (destination / "original-setup.bin").write_bytes(outcome.setup)
 
-        copied_originals = outcome.report is not None
+        copiedOriginals = outcome.report is not None
 
         return owner, outcome
 
     finally:
         if outcome.cleanup_confirmed:
-            if outcome._retained_directory is None or copied_originals:
+            if outcome._retained_directory is None or copiedOriginals:
                 outcome.CloseRecovery()
 
             runner.close()

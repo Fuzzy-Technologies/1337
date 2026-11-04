@@ -51,29 +51,29 @@ def test_OriginalGraphSavedPortableReplayReusesPackagesAndPreservesOperatorTriag
     store = LocalEvidenceStore(root / "evidence")
     model = LocalModelStore(root)
     initial = model.Create()
-    raw_flat = (ROOT / "tests/contract/fixtures/spdx.image.v2.3.json").read_bytes()
-    flat_record, flat_context = Acquire(store, initial.workspace_id, raw_flat,
+    rawFlat = (ROOT / "tests/contract/fixtures/spdx.image.v2.3.json").read_bytes()
+    flatRecord, flatContext = Acquire(store, initial.workspace_id, rawFlat,
                                         "inventory.flat", "run:flat")
-    flat, _ = ApplyVerifiedSpdx(initial, flat_record, flat_context, IMAGE, root)
+    flat, _ = ApplyVerifiedSpdx(initial, flatRecord, flatContext, IMAGE, root)
     state = model.Save(flat, expected_revision=initial.revision)
     cyclone = {"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
         "metadata": {"component": {"type": "container", "hashes": [
             {"alg": "SHA-256", "content": IMAGE.digest[7:]}]}}, "components": [
             {"type": "library", "bom-ref": "owned-1", "name": "Owned_Lib", "version": "1.0",
              "purl": "pkg:pypi/owned-lib@1.0", "licenses": [{"license": {"id": "MIT"}}]}]}
-    cyclone_record, cyclone_context = Acquire(store, initial.workspace_id,
+    cycloneRecord, cycloneContext = Acquire(store, initial.workspace_id,
         CanonicalModelJson(cyclone), "inventory.cyclonedx", "run:cyclone")
-    updated, _ = ApplyVerifiedCycloneDx(state, cyclone_record, cyclone_context, IMAGE, root)
+    updated, _ = ApplyVerifiedCycloneDx(state, cycloneRecord, cycloneContext, IMAGE, root)
     state = model.Save(updated, expected_revision=state.revision)
     package = PackageIdentity.FromPurl("pkg:pypi/owned-lib@1.0").Object(state.workspace_id)
     detector = store.Put(b"Owned synthetic detector observation; no scanner execution claimed",
         "stdout", "text/plain", EvidenceProvenance(state.workspace_id, "scope:owned",
             "owned.detector", "1", None, "2026-10-14T00:01:00Z", "2026-10-14T00:01:01Z"))
-    detected_context = ModelProvenance("owned.detector", "run:detector",
+    detectedContext = ModelProvenance("owned.detector", "run:detector",
         detector.provenance.finished_at, "scope:owned", "target:owned",
         evidence_references=(detector.reference,))
     finding = Finding(package.Reference(), "owned.synthetic", "owned-package:1.0",
-                      "Owned synthetic detector finding", (detected_context,))
+                      "Owned synthetic detector finding", (detectedContext,))
     detected, _ = ApplyVerifiedFindings(state, (finding,), root)
     state = model.Save(detected, expected_revision=state.revision)
     operator = ModelProvenance("operator", "decision:owned", "2026-10-14T00:02:00Z",
@@ -81,10 +81,10 @@ def test_OriginalGraphSavedPortableReplayReusesPackagesAndPreservesOperatorTriag
     decided, _ = TransitionFinding(state, finding.ToObject(state.workspace_id).Reference(),
         FindingStatus.RESOLVED, operator, "Owned synthetic disposition")
     basis = model.Save(decided, expected_revision=state.revision)
-    raw_graph = (ROOT / "tests/contract/fixtures/spdx.graph.v2.3.json").read_bytes()
-    record, provenance = Acquire(store, basis.workspace_id, raw_graph,
+    rawGraph = (ROOT / "tests/contract/fixtures/spdx.graph.v2.3.json").read_bytes()
+    record, provenance = Acquire(store, basis.workspace_id, rawGraph,
                                   "inventory.graph", "run:graph")
-    immutable_manifest = record.Serialize()
+    immutableManifest = record.Serialize()
     updated, delta = ApplyVerifiedSpdxGraph(basis, record, provenance, IMAGE, root)
     assert model.Open() == basis, "In-memory graph application implicitly persisted a model"
     assert delta.previous_revision == basis.revision and delta.revision == basis.revision + 1, (
@@ -93,9 +93,9 @@ def test_OriginalGraphSavedPortableReplayReusesPackagesAndPreservesOperatorTriag
     state = model.Save(updated, expected_revision=basis.revision)
     assert model.Open() == state, "Saved graph could not reopen through canonical consumer"
     packages = [item for item in state.objects if item.attributes.get("asset_type") == "package"]
-    owned_lib = [item for item in packages if item.identity == package]
-    assert len(packages) == 3 and len(owned_lib) == 1, "Graph invented competing canonical packages"
-    assert {item.source_id for item in owned_lib[0].provenance} == {
+    ownedLib = [item for item in packages if item.identity == package]
+    assert len(packages) == 3 and len(ownedLib) == 1, "Graph invented competing canonical packages"
+    assert {item.source_id for item in ownedLib[0].provenance} == {
         "inventory.flat", "inventory.cyclonedx", "inventory.graph",
     }, "Graph ingestion lost cross-source package provenance"
     assert Findings(state) == Findings(basis), "Graph rewrote existing detector or operator triage"
@@ -105,23 +105,23 @@ def test_OriginalGraphSavedPortableReplayReusesPackagesAndPreservesOperatorTriag
         model.Save(replace(updated, revision=updated.revision + 1),
                    expected_revision=basis.revision)
 
-    saved_bytes = (root / "state/model/model.json").read_bytes()
+    savedBytes = (root / "state/model/model.json").read_bytes()
     moved = tmp_path / "moved"
     root.rename(moved)
     reopened = LocalModelStore(moved).Open()
     assert reopened == state, "Relocated saved graph changed canonical consumers"
-    relocated_store = LocalEvidenceStore(moved / "evidence")
-    original = relocated_store.Get(record.evidence_id)
-    assert original.Serialize() == immutable_manifest, "Relocation changed original source manifest"
-    assert relocated_store.Read(original.reference) == raw_graph, "Relocation lost original bytes"
-    replayed, replay_delta = ApplyVerifiedSpdxGraph(reopened, original, provenance, IMAGE, moved)
-    assert replayed == reopened and not replay_delta.created and not replay_delta.updated, (
+    relocatedStore = LocalEvidenceStore(moved / "evidence")
+    original = relocatedStore.Get(record.evidence_id)
+    assert original.Serialize() == immutableManifest, "Relocation changed original source manifest"
+    assert relocatedStore.Read(original.reference) == rawGraph, "Relocation lost original bytes"
+    replayed, replayDelta = ApplyVerifiedSpdxGraph(reopened, original, provenance, IMAGE, moved)
+    assert replayed == reopened and not replayDelta.created and not replayDelta.updated, (
         "Saved relocated original replay changed state or duplicated source facts"
     )
     assert LocalModelStore(moved).Save(replayed, expected_revision=reopened.revision) == reopened, (
         "Exact graph replay failed canonical model CAS save"
     )
-    assert (moved / "state/model/model.json").read_bytes() == saved_bytes, (
+    assert (moved / "state/model/model.json").read_bytes() == savedBytes, (
         "No-op replay rewrote bytes"
     )
     assert Findings(replayed) == Findings(basis), "Portable replay changed owner triage"

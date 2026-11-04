@@ -80,30 +80,30 @@ def Frames(path):
 def collector(simulated_observer, observation_runner, monkeypatch):
     """Reuse the actual opaque-proof issuer with a separate explicit provider executor double."""
 
-    original_observer, wire = simulated_observer
-    original_selection = original_observer.selection
-    root = original_selection.workspace_root / "collector"
+    originalObserver, wire = simulated_observer
+    originalSelection = originalObserver.selection
+    root = originalSelection.workspace_root / "collector"
     LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned bounded collector"),
                                      "collector-unit")
-    shutil.copyfile(original_selection.executable, root / "trivy")
-    shutil.copyfile(original_selection.workspace_root / original_selection.archive,
+    shutil.copyfile(originalSelection.executable, root / "trivy")
+    shutil.copyfile(originalSelection.workspace_root / originalSelection.archive,
                     root / "image.tar")
-    shutil.copytree(original_selection.workspace_root / original_selection.cache_directory,
+    shutil.copytree(originalSelection.workspace_root / originalSelection.cache_directory,
                     root / "cache", dirs_exist_ok=True)
-    selection = replace(original_selection, workspace_root=root, executable=root / "trivy")
+    selection = replace(originalSelection, workspace_root=root, executable=root / "trivy")
     observer = bounded.NativeImageMaterialObserver(selection, "collector-unit", "actor:unit")
     store = LocalEvidenceStore(selection.workspace_root / "evidence")
     budget = bounded.NativeImageObservationBudget()
-    wire_execute = LocalExecutor.Execute
+    wireExecute = LocalExecutor.Execute
     state = SimpleNamespace(mode="success", calls=[], started=asyncio.Event(),
         cleanup=False, revoked=False, checks=[], after=None, reading=False, raw=None)
     monkeypatch.setattr(bounded, "RequireLinuxOwnership", lambda: None)
 
     if os.name == "nt":
         # These are portable protocol units, not Windows permission/directory-fsync acceptance.
-        selected_os = SimpleNamespace(**vars(os))
-        selected_os.fchmod = lambda descriptor, mode: None
-        monkeypatch.setattr(bounded, "os", selected_os)
+        selectedOs = SimpleNamespace(**vars(os))
+        selectedOs.fchmod = lambda descriptor, mode: None
+        monkeypatch.setattr(bounded, "os", selectedOs)
         monkeypatch.setattr(bounded, "stat", SimpleNamespace(S_IMODE=lambda mode:
             0o700 if stat.S_ISDIR(mode) else 0o600))
         monkeypatch.setattr(bounded.OutcomeJournal, "SyncDirectory", lambda owner: None)
@@ -115,7 +115,7 @@ def collector(simulated_observer, observation_runner, monkeypatch):
             state.reading = True
 
             try:
-                return await wire_execute(executor, request, **options)
+                return await wireExecute(executor, request, **options)
 
             finally:
                 state.reading = False
@@ -232,14 +232,14 @@ def test_BoundedPairUsesThreeProofsAndPreservesSixOriginalRolesWithoutLegacyHash
 ):
     """Post-VERSION reuse preserves original identities without a fourth observation."""
 
-    original_material = legacy.NativeTrivySelection.Material
+    originalMaterial = legacy.NativeTrivySelection.Material
 
     def WorkerMaterial(owner):
         """Permit hashing only inside this explicit synthetic owned-worker double."""
 
         assert collector.state.reading, "The bounded collector called legacy Material on its loop."
 
-        return original_material(owner)
+        return originalMaterial(owner)
 
     monkeypatch.setattr(legacy.NativeTrivySelection, "Material", WorkerMaterial)
     monkeypatch.setattr(legacy, "ObserveVersion",

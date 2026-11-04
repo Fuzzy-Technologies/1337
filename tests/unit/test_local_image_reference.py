@@ -140,14 +140,14 @@ def test_InvalidRecipeDeclarationsCannotDescribeExecutableWork(tmp_path, fault):
 
     selected = Selection(tmp_path / "workspace")
     operation = LocalImageOperation.EXPORT
-    image_id = IMAGE
+    imageId = IMAGE
     config = selected.workspace_root / "private"
 
     if fault == "missing-id":
-        image_id = None
+        imageId = None
 
     elif fault == "tag-id":
-        image_id = selected.reference
+        imageId = selected.reference
 
     elif fault == "inspect-id":
         operation = LocalImageOperation.INSPECT
@@ -156,7 +156,7 @@ def test_InvalidRecipeDeclarationsCannotDescribeExecutableWork(tmp_path, fault):
         config = selected.workspace_root.parent / "unowned"
 
     with pytest.raises(ValueError):
-        PrepareLocalImageInvocation(selected, operation, config, image_id=image_id)
+        PrepareLocalImageInvocation(selected, operation, config, image_id=imageId)
 
 
 def test_ConfigIdentityNeverAcceptsTagsOrShortenedValues():

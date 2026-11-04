@@ -147,9 +147,9 @@ def DecodeOpenApiYaml(value: str, *, maximum_nodes: int, maximum_depth: int) -> 
 
                 else:
                     mapping = isinstance(event, yaml.events.MappingStartEvent)
-                    expected_tag = _TAG_PREFIX + ("map" if mapping else "seq")
+                    expectedTag = _TAG_PREFIX + ("map" if mapping else "seq")
 
-                    if event.tag not in {None, expected_tag}:
+                    if event.tag not in {None, expectedTag}:
                         raise ValueError("API YAML collection tag is outside the JSON profile")
 
                     child = {} if mapping else []

@@ -47,7 +47,7 @@ def test_OperatorCanCollectReopenVerifyAndExportClosedSyntheticImageInventory(tm
     store = LocalEvidenceStore(owned.root / "evidence")
     roles = {"provider-version", "provider-version-stderr", "stdout", "stderr",
         "artifact-version-receipt", "artifact-scan-receipt"}
-    acquisitions = tuple(store.Get(record_id) for record_id in workspace.evidence_record_references)
+    acquisitions = tuple(store.Get(recordId) for recordId in workspace.evidence_record_references)
     records = tuple(item for item in acquisitions if item.reference.role in roles)
     original = VerifySyntheticTrivyImageReplay(records, owned.root)
     report = json.loads(output.read_bytes())

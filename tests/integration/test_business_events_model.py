@@ -64,18 +64,18 @@ def test_OriginalDefinitionToPersistedScenarioRetainsHandwrittenTechnicalStateOr
     assert result.semantics == "declared-unacceptable-outcome-scenario", "Outcome became incident"
     assert result.definition_evidence_id == record.evidence_id, "Original owner definition was lost"
     assert result.owner_reference == "owner:synthetic-billing", "Owner attribution changed"
-    asset_aliases = {fixture.objects[name].Reference(): name for name in ("billing", "key")}
+    assetAliases = {fixture.objects[name].Reference(): name for name in ("billing", "key")}
     aliases = {item.Reference(): name for name, item in fixture.relations.items()}
-    expected_routes = [
+    expectedRoutes = [
         ("source-portal", "portal-identity", "identity-billing"),
         ("source-detour", "detour-identity", "identity-billing"),
         ("source-portal", "portal-detour", "detour-identity", "identity-billing"),
     ]
 
     for item in result.paths_to_assets:
-        name = asset_aliases[item.critical_asset_reference]
+        name = assetAliases[item.critical_asset_reference]
         routes = [(*route, "billing-key") if name == "key" else route
-                  for route in expected_routes]
+                  for route in expectedRoutes]
         expected = list(zip(routes, expected_key if name == "key" else expected_billing,
                             strict=True))
         expected.sort(key=lambda pair: (len(pair[0]),
@@ -111,18 +111,18 @@ def test_DefinitionReplayReopenRelocationAndFindingTriageStayWithExistingOwners(
     store = LocalModelStore(fixture.root)
     changed, _ = ApplyFindings(fixture.model, (finding,))
     fixture.model = store.Save(changed, expected_revision=fixture.model.revision)
-    finding_reference = finding.ToObject(fixture.model.workspace_id).Reference()
-    changed, _ = TransitionFinding(fixture.model, finding_reference, FindingStatus.DISMISSED,
+    findingReference = finding.ToObject(fixture.model.workspace_id).Reference()
+    changed, _ = TransitionFinding(fixture.model, findingReference, FindingStatus.DISMISSED,
                                    provenance, "Owned synthetic disposition")
     fixture.model = store.Save(changed, expected_revision=fixture.model.revision)
-    original_findings = fixture.model.Objects(ObjectKind.FINDING)
-    original_observations = fixture.model.observations
+    originalFindings = fixture.model.Objects(ObjectKind.FINDING)
+    originalObservations = fixture.model.observations
     definition = Persist(fixture, record)
     persisted = fixture.model
     repeated, delta = ApplyBusinessEvent(definition, fixture.model)
     assert repeated == persisted and not delta.created and not delta.updated, "Replay changed state"
-    assert repeated.Objects(ObjectKind.FINDING) == original_findings, "Finding triage changed"
-    assert all(item in repeated.observations for item in original_observations), (
+    assert repeated.Objects(ObjectKind.FINDING) == originalFindings, "Finding triage changed"
+    assert all(item in repeated.observations for item in originalObservations), (
         "Observation history lost"
     )
     records = fixture.Phase("confirmed")
@@ -183,12 +183,12 @@ def test_DescriptiveMembershipIsNeverAReachabilityTransitionOrAttackerPosition(t
     claims = ReadReachabilityClaims(fixture.model, records, workspace_root=fixture.root,
         expected_model_version=version, context_reference=fixture.graph["context_reference"],
         scope_reference=fixture.graph["scope_reference"], at=fixture.graph["query_at"])
-    all_relations = tuple(item.Reference() for item in fixture.model.relations)
-    with_membership = ProjectReachability(fixture.model, all_relations, claims,
+    allRelations = tuple(item.Reference() for item in fixture.model.relations)
+    withMembership = ProjectReachability(fixture.model, allRelations, claims,
                                           expected_model_version=version)
 
     with pytest.raises(ValueError):
-        AnalyzeBusinessEventPaths(definition, fixture.model, with_membership,
+        AnalyzeBusinessEventPaths(definition, fixture.model, withMembership,
                                   (fixture.objects["source"].Reference(),))
 
     declaration = next(item for item in fixture.model.objects

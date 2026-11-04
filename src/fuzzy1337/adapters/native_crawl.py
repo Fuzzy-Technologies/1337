@@ -595,8 +595,8 @@ def CheckCrawlFrontier(value: object, selection: CrawlInput, outcome: str) -> Cr
     urls: list[str] = []
     used: set[int] = set()
 
-    for value_entry in entries:
-        entry = CrawlObject(value_entry, {
+    for valueEntry in entries:
+        entry = CrawlObject(valueEntry, {
             "url", "request_reference", "endpoint_reference", "ordinals"})
         url = CrawlText(entry["url"], 2048)
 
@@ -642,8 +642,8 @@ def ParseCrawlRecord(raw: bytes, expected_input: Mapping[str, object]) -> CrawlR
         Strict admitted observation or closed refusal for parent failure classification.
     """
 
-    input_bytes = EncodeCrawlInput(expected_input)
-    selection = ParseCrawlInput(input_bytes)
+    inputBytes = EncodeCrawlInput(expected_input)
+    selection = ParseCrawlInput(inputBytes)
     data = ReadCrawlJson(raw, MAX_RECORD_BYTES)
     CrawlInteger(data.get("schema_version"), 1, 1)
 
@@ -662,7 +662,7 @@ def ParseCrawlRecord(raw: bytes, expected_input: Mapping[str, object]) -> CrawlR
     outcome = CrawlText(data["outcome"], 16)
 
     if outcome not in {"html", "non-html", "client-error"} or (
-        CrawlDigest(data["input_sha256"]) != hashlib.sha256(input_bytes).hexdigest()
+        CrawlDigest(data["input_sha256"]) != hashlib.sha256(inputBytes).hexdigest()
         or CrawlDigest(data["selected_urls_sha256"]) != hashlib.sha256(
             SerializeContract(selection["selected_urls"]).encode("ascii")).hexdigest()
     ):
@@ -671,14 +671,14 @@ def ParseCrawlRecord(raw: bytes, expected_input: Mapping[str, object]) -> CrawlR
     _, address, port, _, _ = CrawlEndpoint(selection["source_url"])
     template = CrawlTemplate(selection["workspace_id"], selection["source_url"])
     request = CrawlRequestBytes(selection["source_url"])
-    expected_source = {"url": selection["source_url"], "address": address, "port": port,
+    expectedSource = {"url": selection["source_url"], "address": address, "port": port,
         "request_reference": template.Reference(),
         "endpoint_reference": template.endpoint.Identity().Reference(),
         "request_size_bytes": len(request), "request_sha256": hashlib.sha256(request).hexdigest()}
-    source = CrawlObject(data["source"], set(expected_source))
+    source = CrawlObject(data["source"], set(expectedSource))
 
     if any(type(source[key]) is not type(item) or source[key] != item
-           for key, item in expected_source.items()):
+           for key, item in expectedSource.items()):
         raise NativeCrawlRecordError("crawl source, peer or request identity differs")
 
     response = CheckCrawlResponse(data["response"], selection, outcome)

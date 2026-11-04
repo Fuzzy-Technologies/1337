@@ -46,7 +46,7 @@ def test_IndependentFixturesGenerateRealRequestsAndSafeMetadata(name, version, c
     text = (ROOT / "tests/contract/fixtures" / name).read_text(encoding="utf-8")
     source = json.loads(text)
     imported = ImportOpenApi(text, workspace_id="demo")
-    request_schema = json.loads((ROOT / "contracts/request-template.schema.json").read_text())
+    requestSchema = json.loads((ROOT / "contracts/request-template.schema.json").read_text())
     assert imported.source_digest == "sha256:" + hashlib.sha256(text.encode()).hexdigest(), (
         "OpenAPI expectation failed: imported.source_digest == "
         "'sha256:' + hashlib.sha256(text.encode()).hexdigest() "
@@ -72,7 +72,7 @@ def test_IndependentFixturesGenerateRealRequestsAndSafeMetadata(name, version, c
     )
 
     for operation in imported.operations:
-        jsonschema.validate(operation.template.ToDict(), request_schema)
+        jsonschema.validate(operation.template.ToDict(), requestSchema)
         assert RequestTemplate.FromJson(operation.template.ToJson()) == operation.template, (
             "OpenAPI expectation failed: "
             "RequestTemplate.FromJson(operation.template.ToJson()) == "

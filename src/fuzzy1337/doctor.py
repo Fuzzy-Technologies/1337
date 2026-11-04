@@ -68,20 +68,20 @@ class DoctorReport:
         return "\n".join(lines)
 
 
-def CollectDoctorReport(working_directory: Path | None = None) -> DoctorReport:
+def CollectDoctorReport(workingDirectory: Path | None = None) -> DoctorReport:
     """Inspect the local runtime without modifying configuration or user state.
 
     May run a bounded docker compose version query. Does not start targets or change
     configuration.
 
     Args:
-        working_directory: Directory to inspect, or None for the current directory.
+        workingDirectory: Directory to inspect, or None for the current directory.
 
     Returns:
         Ordered runtime, package, directory, optional Compose and configuration checks.
     """
 
-    directory = working_directory or Path.cwd()
+    directory = workingDirectory or Path.cwd()
     return DoctorReport(
         checks=(
             CheckPythonRuntime(),
@@ -141,7 +141,7 @@ def CheckPackageInstallation() -> DoctorCheck:
     """
 
     try:
-        installed_version = version("1337")
+        installedVersion = version("1337")
 
     except PackageNotFoundError:
         return DoctorCheck(
@@ -153,7 +153,7 @@ def CheckPackageInstallation() -> DoctorCheck:
     return DoctorCheck(
         identifier="package",
         status=DoctorStatus.PASS,
-        summary=f"1337 {installed_version} is installed.",
+        summary=f"1337 {installedVersion} is installed.",
     )
 
 

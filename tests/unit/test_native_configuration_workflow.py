@@ -101,15 +101,15 @@ def controlled_runtime(tmp_path, monkeypatch, request):
     stages = []
 
     if os.name == "nt" or getattr(request, "param", False):
-        selected_os = SimpleNamespace(**vars(os))
-        selected_os.O_NOFOLLOW = 0
-        selected_os.O_DIRECTORY = 0
-        selected_os.fchmod = lambda descriptor, mode: None
-        monkeypatch.setattr(policy_module, "os", selected_os)
+        selectedOs = SimpleNamespace(**vars(os))
+        selectedOs.O_NOFOLLOW = 0
+        selectedOs.O_DIRECTORY = 0
+        selectedOs.fchmod = lambda descriptor, mode: None
+        monkeypatch.setattr(policy_module, "os", selectedOs)
         monkeypatch.setattr(policy_module, "stat", SimpleNamespace(S_IMODE=lambda mode:
             0o700 if stat.S_ISDIR(mode) else 0o600))
         monkeypatch.setattr(policy_module, "SyncDirectory", lambda path: None)
-        original_unlink = Path.unlink
+        originalUnlink = Path.unlink
 
         def Unlink(path, missing_ok=False):
             """Model POSIX unlink only after the real owner reaches exact known snapshot bytes."""
@@ -124,7 +124,7 @@ def controlled_runtime(tmp_path, monkeypatch, request):
                 )
                 path.chmod(0o600)
 
-            return original_unlink(path, missing_ok=missing_ok)
+            return originalUnlink(path, missing_ok=missing_ok)
 
         monkeypatch.setattr(Path, "unlink", Unlink)
 
@@ -147,11 +147,11 @@ def controlled_runtime(tmp_path, monkeypatch, request):
     async def Create(self, budget, *, operation_reference, cancellation=None):
         """Issue a declared observer proof after real tiny stage mechanics, without child proof."""
 
-        stage_root = self.workspace_root / ("native-configuration-stage-" + uuid4().hex)
-        stage = worker.CreateStage(stage_root, self.selection)
+        stageRoot = self.workspace_root / ("native-configuration-stage-" + uuid4().hex)
+        stage = worker.CreateStage(stageRoot, self.selection)
         stages.append(stage)
         self._stage = stage
-        self._stage_root = stage_root
+        self._stage_root = stageRoot
         scratch = (stage.root / "scratch").stat()
         self._scratch_identity = scratch.st_dev, scratch.st_ino
 
@@ -345,12 +345,12 @@ def test_CopiedForeignExpiredAndRepeatedAuthorityIsRefused(
     grant = AuthorizeNativeConfigurationOperation(engine, prepared, context, observer=observer,
         material_proof=proof, at=now, approve_safe_configuration=True)
 
-    for supplied_engine, supplied_grant, at in (
+    for suppliedEngine, suppliedGrant, at in (
         (engine, replace(grant), now), (ArtifactPolicyEngine(), grant, now),
         (engine, grant, now + timedelta(hours=2)),
     ):
         with pytest.raises(ArtifactDeniedError):
-            ValidateNativeConfigurationOperation(supplied_engine, supplied_grant, prepared, context,
+            ValidateNativeConfigurationOperation(suppliedEngine, suppliedGrant, prepared, context,
                 observer=observer, material_proof=proof, at=at)
 
     claim = ClaimNativeConfigurationExecution(engine, grant, prepared, context, observer=observer,
@@ -448,7 +448,7 @@ def test_OriginalCaptureRecipeHasNoMutableStageAliases(controlled_runtime, confi
 
     summary = Run(configuration_runner, controlled_runtime)
     prepared = summary.captures[-1].prepared
-    original_digest = summary.captures[-1].Digest()
+    originalDigest = summary.captures[-1].Digest()
 
     with pytest.raises(TypeError):
         prepared.stage_metadata["lease_id"] = "changed"
@@ -456,7 +456,7 @@ def test_OriginalCaptureRecipeHasNoMutableStageAliases(controlled_runtime, confi
     with pytest.raises(TypeError):
         prepared.stage_metadata["partitions"]["input"]["manifest"]["files"][0]["name"] = "other"
 
-    assert summary.captures[-1].Digest() == original_digest, (
+    assert summary.captures[-1].Digest() == originalDigest, (
         "Original receipt identity must remain stable after a caller attempts metadata mutation"
     )
 
@@ -470,7 +470,7 @@ def test_UnacknowledgedWritesNeverEmitSuccessfulModelDelta(
 
     root, selection, context, settings = controlled_runtime
     store = LocalModelStore if owner == "model" else LocalWorkspaceStore
-    original_save = store.Save
+    originalSave = store.Save
     calls = []
 
     def Save(self, proposal, **options):
@@ -481,7 +481,7 @@ def test_UnacknowledgedWritesNeverEmitSuccessfulModelDelta(
         if failure == "suppressed":
             return None
 
-        committed = original_save(self, proposal, **options)
+        committed = originalSave(self, proposal, **options)
 
         return None if failure == "lost-ack" else replace(committed,
                                                          revision=committed.revision + 1)
@@ -496,8 +496,8 @@ def test_UnacknowledgedWritesNeverEmitSuccessfulModelDelta(
     ), (
         "One irreversible save attempt cannot be retried or advertised as an acknowledged delta"
     )
-    expected_revision = 0 if owner == "model" and failure == "suppressed" else 1
-    assert summary.model_revision == expected_revision and len(summary.retained_records) == 7, (
+    expectedRevision = 0 if owner == "model" and failure == "suppressed" else 1
+    assert summary.model_revision == expectedRevision and len(summary.retained_records) == 7, (
         "Actual saved model and retained original acquisitions remain separate truthful facts"
     )
 

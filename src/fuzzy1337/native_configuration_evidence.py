@@ -245,14 +245,14 @@ def VerifyFactory(prepared: dict[str, Any]) -> tuple[NativeConfigurationSelectio
         if type(arguments) is not list or not arguments:
             raise ValueError("Native configuration SCAN argv is absent")
 
-        input_directory = Path(arguments[-1])
+        inputDirectory = Path(arguments[-1])
 
-        if input_directory.name != "input" or input_directory.parent.parent != workspace or not (
-            input_directory.parent.name.startswith("native-configuration-stage-")
+        if inputDirectory.name != "input" or inputDirectory.parent.parent != workspace or not (
+            inputDirectory.parent.name.startswith("native-configuration-stage-")
         ):
             raise ValueError("Native configuration SCAN selected stage path differs")
 
-        recipe = NativeConfigurationScanRecipe(selection, manifest, input_directory,
+        recipe = NativeConfigurationScanRecipe(selection, manifest, inputDirectory,
                                                scratch / "cache", invocation["timeout_seconds"])
         expected = AdapterInvocation("native.trivy", AdapterRequest(selection.Capability(),
             manifest.Target().Reference(), ImpactLevel.SAFE,
@@ -266,11 +266,11 @@ def VerifyFactory(prepared: dict[str, Any]) -> tuple[NativeConfigurationSelectio
 
     resources = ExecutionResources(**Fields(prepared["resources"],
         {item.name for item in fields(ExecutionResources)}))
-    stdout_limit, _ = NATIVE_CONFIGURATION_ROLES["native-configuration-" + operation + "-stdout"]
-    stderr_limit, _ = NATIVE_CONFIGURATION_ROLES["native-configuration-" + operation + "-stderr"]
+    stdoutLimit, _ = NATIVE_CONFIGURATION_ROLES["native-configuration-" + operation + "-stdout"]
+    stderrLimit, _ = NATIVE_CONFIGURATION_ROLES["native-configuration-" + operation + "-stderr"]
 
     if Detached(expected) != invocation or resources != ExecutionResources(
-        max_stdout_bytes=stdout_limit, max_stderr_bytes=stderr_limit
+        max_stdout_bytes=stdoutLimit, max_stderr_bytes=stderrLimit
     ):
         raise ValueError("Native configuration replay differs from its fixed original factory")
 
@@ -303,9 +303,9 @@ def VerifyOperation(envelope: dict[str, Any], stdout: bytes,
     selection, manifest, invocation = VerifyFactory(prepared)
     grant = Fields(envelope["grant"], {"plan", "authorization", "issued_at", "valid_until",
                                        "approve_safe_configuration"})
-    plan_value = Fields(grant["plan"], {item.name for item in
+    planValue = Fields(grant["plan"], {item.name for item in
                                        fields(NativeConfigurationOperationPlan)})
-    plan = NativeConfigurationOperationPlan(**plan_value)
+    plan = NativeConfigurationOperationPlan(**planValue)
     authorization = ExecutionAuthorization(**Fields(grant["authorization"], {
         "authorization_id", "scope_reference", "policy_reference", "invocation_sha256",
         "granted_privileges"}))
@@ -319,7 +319,7 @@ def VerifyOperation(envelope: dict[str, Any], stdout: bytes,
         "version_prerequisite_sha256": prepared["version_prerequisite_sha256"],
         "family": NATIVE_CONFIGURATION_FAMILY}
 
-    if any(plan_value[key] != value for key, value in bindings.items()) or (
+    if any(planValue[key] != value for key, value in bindings.items()) or (
         grant["approve_safe_configuration"] is not True
         or authorization != GrantEnvelope(plan, grant["issued_at"], grant["valid_until"])
     ):
@@ -341,9 +341,9 @@ def VerifyOperation(envelope: dict[str, Any], stdout: bytes,
 
     raw = Fields(envelope["raw_facts"], {"execution", "termination", "stdout_size_bytes",
         "stdout_sha256", "stderr_size_bytes", "stderr_sha256", "events"})
-    execution_value = Fields(raw["execution"], {"state", "exit_code", "duration_seconds"})
-    execution = AdapterExecution(ExecutionState(execution_value["state"]),
-        execution_value["exit_code"], execution_value["duration_seconds"])
+    executionValue = Fields(raw["execution"], {"state", "exit_code", "duration_seconds"})
+    execution = AdapterExecution(ExecutionState(executionValue["state"]),
+        executionValue["exit_code"], executionValue["duration_seconds"])
 
     if execution.state is not ExecutionState.SUCCEEDED or execution.exit_code != 0 or (
         raw["termination"] != "process_exit"
@@ -447,25 +447,25 @@ def VerifyNativeConfigurationReplay(records: tuple[EvidenceRecord, ...],
     ):
         raise ValueError("Native configuration replay requires seven original acquisitions")
 
-    by_role = {item.reference.role: item for item in records}
+    byRole = {item.reference.role: item for item in records}
 
-    if set(by_role) != set(NATIVE_CONFIGURATION_ROLES):
+    if set(byRole) != set(NATIVE_CONFIGURATION_ROLES):
         raise ValueError("Native configuration replay requires seven distinct original roles")
 
-    workspace_id = LocalWorkspaceStore(workspace_root).Open().workspace_id
+    workspaceId = LocalWorkspaceStore(workspace_root).Open().workspace_id
     store = NativeConfigurationEvidenceStore(workspace_root / "evidence")
     raw = {}
 
-    for role, record in by_role.items():
+    for role, record in byRole.items():
         if store.Get(record.evidence_id) != record or (
-            record.provenance.workspace_id != workspace_id
+            record.provenance.workspace_id != workspaceId
         ):
             raise ValueError("Native configuration acquisition differs from its owning manifest")
 
         raw[role] = store.Read(record.reference)
 
     envelopes = {}
-    prepared_operations = {}
+    preparedOperations = {}
     provenances = {}
 
     for operation in ("version", "scan"):
@@ -474,11 +474,11 @@ def VerifyNativeConfigurationReplay(records: tuple[EvidenceRecord, ...],
         prepared, provenance = VerifyOperation(envelope, raw[prefix + "-stdout"],
                                                raw[prefix + "-stderr"])
 
-        if prepared["operation"] != operation or prepared["workspace_id"] != workspace_id:
+        if prepared["operation"] != operation or prepared["workspace_id"] != workspaceId:
             raise ValueError("Native configuration original operation/workspace differs")
 
         execution = provenance.execution
-        expected = EvidenceProvenance(workspace_id, provenance.scope_reference,
+        expected = EvidenceProvenance(workspaceId, provenance.scope_reference,
             "native.trivy", "1", "0.75.0", envelope["started_at"], envelope["finished_at"],
             envelope["grant"]["plan"]["invocation_sha256"], execution)
         roles = [prefix + "-stdout", prefix + "-stderr", prefix + "-receipt"]
@@ -486,19 +486,19 @@ def VerifyNativeConfigurationReplay(records: tuple[EvidenceRecord, ...],
         if operation == "scan":
             roles.append("native-configuration-source")
 
-        if any(by_role[role].provenance != expected for role in roles):
+        if any(byRole[role].provenance != expected for role in roles):
             raise ValueError("Native configuration acquisition provenance differs from its receipt")
 
         envelopes[operation] = envelope
-        prepared_operations[operation] = prepared
+        preparedOperations[operation] = prepared
         provenances[operation] = provenance
 
-    version = prepared_operations["version"]
-    scan = prepared_operations["scan"]
-    version_digest = Digest({"family": NATIVE_CONFIGURATION_FAMILY, "prepared": version,
+    version = preparedOperations["version"]
+    scan = preparedOperations["scan"]
+    versionDigest = Digest({"family": NATIVE_CONFIGURATION_FAMILY, "prepared": version,
         "grant": envelopes["version"]["grant"], "capture_sha256": Digest(envelopes["version"])})
 
-    if scan["version_prerequisite_sha256"] != version_digest or any(
+    if scan["version_prerequisite_sha256"] != versionDigest or any(
         scan[key] != version[key] for key in ("selection", "workspace_root", "workspace_id",
             "owner_reference", "operation_reference", "input_manifest", "stage_metadata")
     ) or envelopes["version"]["finished_at"] > envelopes["scan"]["started_at"] or (
@@ -520,7 +520,7 @@ def VerifyNativeConfigurationReplay(records: tuple[EvidenceRecord, ...],
     provenance = replace(provenances["scan"], evidence_references=tuple(item.reference for item in
         sorted(records, key=lambda item: item.reference.role)))
 
-    return NativeConfigurationReplay(workspace_id, scan["owner_reference"], manifest, selection,
+    return NativeConfigurationReplay(workspaceId, scan["owner_reference"], manifest, selection,
         provenance, records, checks, Digest(envelopes["version"]), Digest(envelopes["scan"]))
 
 

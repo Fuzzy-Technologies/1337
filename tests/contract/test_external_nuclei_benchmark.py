@@ -196,9 +196,9 @@ def test_DirectArgumentsMatchGovernedDetectionFlagsWithoutLaunching(tmp_path, mo
     monkeypatch.setattr(nuclei_adapter, "Path", PurePosixPath)
     document["templates"][0]["path"] = str(CONTAINER_TEMPLATE)
     document["configuration_path"] = str(CONTAINER_CONFIGURATION)
-    profile_path = tmp_path / "profile.json"
-    profile_path.write_text(json.dumps(document))
-    profile = ReadNucleiProfile(profile_path)
+    profilePath = tmp_path / "profile.json"
+    profilePath.write_text(json.dumps(document))
+    profile = ReadNucleiProfile(profilePath)
     executable = tmp_path / "nuclei-not-installed"
     adapter = NucleiAdapter(lambda reference: b"", profile, str(CONTAINER_EXECUTABLE), VERSION)
     limits = NucleiScanLimits(timeout_seconds=3, rate_limit=1)
@@ -393,18 +393,18 @@ def test_OffCaseHttpIdentitiesRemainUnprovenThroughV2(tmp_path, case_id, identit
     track["implementation"] = "available"
     observation = ContractNucleiObservation(pack, target, tmp_path, case_id=case_id)
     execution = observation["execution"]
-    target_url = execution["target_url"]
+    targetUrl = execution["target_url"]
 
     if identity_change == "query":
-        matched_at = target_url + "?raw=%2f&source=off-case"
+        matchedAt = targetUrl + "?raw=%2f&source=off-case"
 
     elif identity_change == "fragment":
-        matched_at = target_url + "#raw-marker"
+        matchedAt = targetUrl + "#raw-marker"
 
     else:
-        matched_at = target_url.replace(":3000", "", 1)
+        matchedAt = targetUrl.replace(":3000", "", 1)
 
-    raw = Match(**{"matched-at": matched_at})
+    raw = Match(**{"matched-at": matchedAt})
     findings = ProjectStandaloneMatches(raw)
     execution["findings"] = findings
     WriteNucleiContractEvidence(observation, tmp_path, stdout=raw)
@@ -416,7 +416,7 @@ def test_OffCaseHttpIdentitiesRemainUnprovenThroughV2(tmp_path, case_id, identit
     assert findings == ProjectNucleiMatches(raw, "external-nuclei"), (
         "Standalone projection must preserve valid off-case identities accepted by v2."
     )
-    assert findings[0]["target_url"] == matched_at, (
+    assert findings[0]["target_url"] == matchedAt, (
         "Projection must retain query, fragment and absent explicit port verbatim."
     )
     assert (tmp_path / stdout["path"]).read_bytes() == raw, (
@@ -625,10 +625,10 @@ def test_StandaloneRuntimeEmptyInvocationRemainsUnprovenThroughV2(tmp_path, monk
     assert json.loads((root / "attempt-provenance.json").read_bytes()) == AttemptProvenance(path), (
         "Process completion must never replace unknown contacts with invented server telemetry."
     )
-    expected_argv = StandaloneArguments(CONTAINER_EXECUTABLE, path,
+    expectedArgv = StandaloneArguments(CONTAINER_EXECUTABLE, path,
         CONTAINER_TEMPLATE, CONTAINER_CONFIGURATION) if os.name == "nt" else StandaloneArguments(
             arguments[2], path, root / "prometheus-exposition.yaml", root / "operator-config.yaml")
-    assert tuple(invocation["argv"]) == expected_argv, (
+    assert tuple(invocation["argv"]) == expectedArgv, (
         "The launched argv must retain only the exact independently constructed detection flags."
     )
     options = popen.call_args.kwargs
@@ -873,8 +873,8 @@ def test_StandaloneRuntimeUnexpectedCaptureAndReapFailuresStayUnscored(
     assert outcome["status"] == "failed", (
         "Unexpected capture exceptions and unsuccessful reaping must never receive case credit."
     )
-    expected_field = "capture_error" if failure == "selector" else "cleanup_error"
-    assert lifecycle[expected_field] is not None, (
+    expectedField = "capture_error" if failure == "selector" else "cleanup_error"
+    assert lifecycle[expectedField] is not None, (
         "The actual capture or cleanup failure category must remain in lifecycle evidence."
     )
     assert (arguments[0] / "stdout.raw").exists() and (arguments[0] / "stderr.raw").exists(), (
@@ -1001,15 +1001,15 @@ def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match", conta
     def ExpectedContainerArguments(executable, selected_path, template, configuration):
         """Map only predeclared inert artifact slots from independent fixed Linux arguments."""
 
-        expected_files = (arguments[2], arguments[0] / "prometheus-exposition.yaml",
+        expectedFiles = (arguments[2], arguments[0] / "prometheus-exposition.yaml",
                           arguments[0] / "operator-config.yaml")
 
-        if (executable, template, configuration) != expected_files or selected_path != path:
+        if (executable, template, configuration) != expectedFiles or selected_path != path:
             raise ValueError("Inert whole-product expected arguments require exact fixture paths")
 
         expected = list(StandaloneArguments(CONTAINER_EXECUTABLE, path,
             CONTAINER_TEMPLATE, CONTAINER_CONFIGURATION))
-        expected[0], expected[-1], expected[4] = map(str, expected_files)
+        expected[0], expected[-1], expected[4] = map(str, expectedFiles)
 
         return tuple(expected)
 
@@ -1039,9 +1039,9 @@ def WholeMaterial(tmp_path, monkeypatch, *, path="/metrics", mode="match", conta
         probe["calls"].append(request)
 
         if mode == "revoked":
-            scope_store = LocalScopeStore(arguments[0] / "workspace")
-            scope = scope_store.Open("local")
-            scope_store.Save(replace(scope, authorization=replace(
+            scopeStore = LocalScopeStore(arguments[0] / "workspace")
+            scope = scopeStore.Open("local")
+            scopeStore.Save(replace(scope, authorization=replace(
                 scope.authorization, state=AuthorizationState.REVOKED)))
 
         pre_launch(request)
@@ -1210,8 +1210,8 @@ def test_WholeRuntimeSavedFindingsKeepOriginalPairAndVerifiedReopen(tmp_path, mo
         "Projection must retain the actual persisted Finding reference, not a fabricated wrapper."
     )
 
-    for acquisition_id in references[0]["acquisition_ids"]:
-        record = evidence.Get(acquisition_id)
+    for acquisitionId in references[0]["acquisition_ids"]:
+        record = evidence.Get(acquisitionId)
         assert evidence.Read(record.reference) == (root / (
             record.reference.role + ".raw")).read_bytes(), (
             "Exported raw streams must be exact unchanged bytes of the enclosing acquisitions."
@@ -1325,12 +1325,12 @@ def test_WholeRuntimeCopiedWheelMismatchRefusesBeforeProductWorkspace(tmp_path, 
     """A changed retained wheel copy cannot inherit the original installed inventory identity."""
 
     arguments, probe, forbidden = WholeMaterial(tmp_path, monkeypatch)
-    original_copy = whole_runtime.shutil.copyfile
+    originalCopy = whole_runtime.shutil.copyfile
 
     def Copy(source, destination):
         """Change only the inert copied wheel after an otherwise ordinary local copy."""
 
-        copied = original_copy(source, destination)
+        copied = originalCopy(source, destination)
 
         if destination.name == "installed.whl":
             destination.write_bytes(b"changed inert wheel copy")

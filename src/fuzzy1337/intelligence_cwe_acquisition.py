@@ -351,15 +351,15 @@ def AcquireLocalCweSelection(
     RequireReferenceText(scope_reference, "scope_reference")
     owner = LocalWorkspaceStore(workspace_root).Open()
     store = LocalEvidenceStore(workspace_root / "evidence")
-    started_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    startedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     payload = request.payload[:request.max_bytes]
     complete = len(request.payload) <= request.max_bytes
-    finished_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    finishedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     provenance = EvidenceProvenance(owner.workspace_id, scope_reference, IMPORTER_ID,
-                                    IMPORTER_VERSION, None, started_at, finished_at)
+                                    IMPORTER_VERSION, None, startedAt, finishedAt)
     outcome = CweAcquisitionOutcome(
         CweAcquisitionState.SUCCEEDED if complete else CweAcquisitionState.SIZE_EXCEEDED,
-        request.source, request.requested_ids, started_at, finished_at, len(payload),
+        request.source, request.requested_ids, startedAt, finishedAt, len(payload),
         complete, request.max_bytes,
     )
 
@@ -393,10 +393,10 @@ def AcquireLocalCweSelection(
                     outcome = replace(outcome, envelope=envelope, selection_record=record,
                                       selection_ack=CweAcknowledgement.CONFIRMED)
 
-        serialized_receipt = BoundedEncode(outcome.ReceiptContent(), MAX_RECEIPT_BYTES)
+        serializedReceipt = BoundedEncode(outcome.ReceiptContent(), MAX_RECEIPT_BYTES)
 
         outcome = replace(outcome, receipt_ack=CweAcknowledgement.UNKNOWN)
-        receipt = store.Put(serialized_receipt, RECEIPT_ROLE, "application/json", provenance)
+        receipt = store.Put(serializedReceipt, RECEIPT_ROLE, "application/json", provenance)
 
         return replace(outcome, receipt=receipt, receipt_ack=CweAcknowledgement.CONFIRMED)
 
@@ -559,39 +559,39 @@ def LoadAcquiredCweSelection(
     receipts = BoundedCweEvidenceStore(
         workspace_root / "evidence", RECEIPT_ROLE, "application/json", MAX_RECEIPT_BYTES,
     )
-    selected_record = store.Get(selection_id)
+    selectedRecord = store.Get(selection_id)
     receipt = receipts.Get(receipt_id)
-    RequireRecord(selected_record, ENVELOPE_ROLE, "application/json")
+    RequireRecord(selectedRecord, ENVELOPE_ROLE, "application/json")
     RequireRecord(receipt, RECEIPT_ROLE, "application/json")
 
-    if selected_record.provenance != receipt.provenance or (
+    if selectedRecord.provenance != receipt.provenance or (
         receipt.provenance.workspace_id != owner.workspace_id
     ):
         raise ValueError("CWE selected custody requires identical owning acquisition provenance")
 
     document = JsonObject(
-        ReadBounded(store, selected_record, MAX_ENVELOPE_BYTES), MAX_ENVELOPE_BYTES,
+        ReadBounded(store, selectedRecord, MAX_ENVELOPE_BYTES), MAX_ENVELOPE_BYTES,
     )
     terminal = JsonObject(ReadBounded(receipts, receipt, MAX_RECEIPT_BYTES), MAX_RECEIPT_BYTES)
     source = DecodeSource(document.get("source"))
     limits = RequireManifestFields(document.get("limits"), {"max_zip_bytes"})
     selection = DecodeSelection(document.get("selection"))
-    requested_ids = selection.requested_ids
-    request = CweLocalRequest(source, b"", requested_ids,
+    requestedIds = selection.requested_ids
+    request = CweLocalRequest(source, b"", requestedIds,
                                cast(int, limits["max_zip_bytes"]))
     raw = ParseEvidenceManifest(CanonicalReferenceJson(document.get("raw")))
 
-    if raw.provenance != selected_record.provenance or (
+    if raw.provenance != selectedRecord.provenance or (
         raw.reference.size_bytes > request.max_bytes
     ):
         raise ValueError("CWE original raw facts disagree with selected receipt constraints")
 
     envelope = CweAcquiredSelection(source, raw, selection, request.max_bytes)
     expected = CweAcquisitionOutcome(
-        CweAcquisitionState.SUCCEEDED, source, requested_ids,
+        CweAcquisitionState.SUCCEEDED, source, requestedIds,
         receipt.provenance.started_at, receipt.provenance.finished_at,
         raw.reference.size_bytes, True, request.max_bytes, raw=raw, envelope=envelope,
-        selection_record=selected_record, raw_ack=CweAcknowledgement.CONFIRMED,
+        selection_record=selectedRecord, raw_ack=CweAcknowledgement.CONFIRMED,
         selection_ack=CweAcknowledgement.CONFIRMED,
     )
 
@@ -608,7 +608,7 @@ def LoadAcquiredCweSelection(
         raise ValueError("CWE original acquisition manifest is missing or foreign")
 
     reparsed = ParseCweSelection(
-        ReadBounded(originals, raw, request.max_bytes), requested_ids,
+        ReadBounded(originals, raw, request.max_bytes), requestedIds,
         catalog_version=source.catalog_version,
     )
 

@@ -95,18 +95,18 @@ def test_SyntheticCertificatePinsAndValidityKeepTheRejectionOracleSpecific():
         "Certificate DER fingerprint differs from the independently inspected X.509 fixture"
     )
     decoded = ssl._ssl._test_decode_cert(str(TLS_CERTIFICATE))
-    expected_subject = ((("commonName", certificate["subject_common_name"]),),
+    expectedSubject = ((("commonName", certificate["subject_common_name"]),),
                         (("organizationName", certificate["subject_organization"]),))
-    assert decoded["subject"] == decoded["issuer"] == expected_subject and (
+    assert decoded["subject"] == decoded["issuer"] == expectedSubject and (
         decoded["serialNumber"] == certificate["serial_hex"]
         and decoded["subjectAltName"] == (("IP Address", certificate["subject_alt_ip"]),)
     ), "Certificate identity/issuer/SAN no longer matches the self-signed loopback oracle"
-    not_before = datetime.fromisoformat(certificate["not_before_utc"])
-    not_after = datetime.fromisoformat(certificate["not_after_utc"])
-    assert ssl.cert_time_to_seconds(decoded["notBefore"]) == not_before.timestamp() and (
-        ssl.cert_time_to_seconds(decoded["notAfter"]) == not_after.timestamp()
+    notBefore = datetime.fromisoformat(certificate["not_before_utc"])
+    notAfter = datetime.fromisoformat(certificate["not_after_utc"])
+    assert ssl.cert_time_to_seconds(decoded["notBefore"]) == notBefore.timestamp() and (
+        ssl.cert_time_to_seconds(decoded["notAfter"]) == notAfter.timestamp()
     ), "Declared certificate validity differs from the encoded X.509 dates"
-    assert not_before <= datetime.now(UTC) < not_after, (
+    assert notBefore <= datetime.now(UTC) < notAfter, (
         "Synthetic certificate is not currently valid; rotate the fixture and reviewed oracle"
     )
     assert [(case["id"], case["tls_connections"], case["worker_error"], case["failure_code"])

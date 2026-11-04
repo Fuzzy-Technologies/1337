@@ -129,9 +129,9 @@ def PrepareMaterial(archive_path: Path, template: Path, configuration: Path,
     if sys.platform != "linux":
         raise ValueError("Nuclei executable materialization requires Linux file-mode semantics")
 
-    archive_identity = VerifyArchive(archive_path)
-    archive_bytes = IdentityBytes(archive_path, archive_identity, maximum=ARCHIVE_BYTES)
-    original_profile = ProfileDocument(template, configuration)
+    archiveIdentity = VerifyArchive(archive_path)
+    archiveBytes = IdentityBytes(archive_path, archiveIdentity, maximum=ARCHIVE_BYTES)
+    originalProfile = ProfileDocument(template, configuration)
 
     if not destination.is_absolute() or any(part == ".." for part in destination.parts):
         raise ValueError("Nuclei material requires a new absolute private directory")
@@ -140,7 +140,7 @@ def PrepareMaterial(archive_path: Path, template: Path, configuration: Path,
         if component.is_symlink():
             raise ValueError("Nuclei material directory cannot traverse symbolic links")
 
-    with ZipFile(io.BytesIO(archive_bytes)) as archive:
+    with ZipFile(io.BytesIO(archiveBytes)) as archive:
         members = RegularMembers(archive, maximum_members=MAX_RELEASE_MEMBERS,
                                  maximum_bytes=MAX_EXECUTABLE_BYTES)
 
@@ -166,12 +166,12 @@ def PrepareMaterial(archive_path: Path, template: Path, configuration: Path,
 
             executable.chmod(0o500)
             binary = RegularIdentity(executable, maximum=MAX_EXECUTABLE_BYTES, executable=True)
-            copied_template = destination / "prometheus-exposition.yaml"
-            copied_configuration = destination / "operator-config.yaml"
+            copiedTemplate = destination / "prometheus-exposition.yaml"
+            copiedConfiguration = destination / "operator-config.yaml"
 
             for source, copied, maximum in (
-                (template, copied_template, original_profile["templates"][0]["size_bytes"]),
-                (configuration, copied_configuration, len(EMPTY_CONFIG)),
+                (template, copiedTemplate, originalProfile["templates"][0]["size_bytes"]),
+                (configuration, copiedConfiguration, len(EMPTY_CONFIG)),
             ):
                 with source.open("rb") as incoming, copied.open("xb") as outgoing:
                     raw = incoming.read(maximum + 1)
@@ -183,20 +183,20 @@ def PrepareMaterial(archive_path: Path, template: Path, configuration: Path,
 
                 copied.chmod(0o400)
 
-            profile = ProfileDocument(copied_template, copied_configuration)
+            profile = ProfileDocument(copiedTemplate, copiedConfiguration)
 
         except BaseException as error:
             # Refuse partial material while retaining any cleanup failure on the original error.
             try:
                 executable.unlink(missing_ok=True)
 
-            except OSError as cleanup_error:
+            except OSError as cleanupError:
                 error.add_note("Nuclei partial executable cleanup failed: "
-                               + type(cleanup_error).__name__ + "; destination remains unaccepted")
+                               + type(cleanupError).__name__ + "; destination remains unaccepted")
 
             raise
 
-    return {"archive": archive_identity, "executable": binary, "profile": profile,
+    return {"archive": archiveIdentity, "executable": binary, "profile": profile,
             "release_inventory": [{"name": name, "size_bytes": member.file_size,
                 "compressed_bytes": member.compress_size, "crc32": f"{member.CRC:08x}",
                 "crc_verified": name == "nuclei"} for name, member in members.items()],
@@ -273,9 +273,9 @@ def InstalledSourceInventory(source_revision: str, wheel: Path, source_package: 
     if set(source) != set(package):
         raise ValueError("Nuclei installed package file inventory differs from supplied source")
 
-    wheel_bytes = IdentityBytes(wheel, installed["wheel"], maximum=MAX_FILE_BYTES)
+    wheelBytes = IdentityBytes(wheel, installed["wheel"], maximum=MAX_FILE_BYTES)
 
-    with ZipFile(io.BytesIO(wheel_bytes)) as archive:
+    with ZipFile(io.BytesIO(wheelBytes)) as archive:
         members = RegularMembers(archive, maximum_members=MAX_WHEEL_MEMBERS,
                                  maximum_bytes=MAX_PACKAGE_BYTES, allow_directories=True)
         selected = {name.removeprefix("fuzzy1337/"): member for name, member in members.items()

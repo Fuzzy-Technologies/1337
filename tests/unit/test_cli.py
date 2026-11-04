@@ -170,8 +170,8 @@ def test_WorkspaceAndScopeCommandsNeverInferConsent(tmp_path, capsys):
         'Exercise product creation, explicit registration and authoritative reopen offline '
         'invariant failed.'
     )
-    scope_document = json.loads(capsys.readouterr().out)
-    assert scope_document["authorization"]["state"] == "unknown", (
+    scopeDocument = json.loads(capsys.readouterr().out)
+    assert scopeDocument["authorization"]["state"] == "unknown", (
         'Exercise product creation, explicit registration and authoritative reopen offline '
         'invariant failed.'
     )
@@ -415,9 +415,9 @@ def test_RuntimeRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
     """Static import help and safe invalid grammar are available before workspace setup."""
 
     assert Main(["runtime", "import", "--help"]) == 0, "Runtime static help failed"
-    help_text = capsys.readouterr().out
-    assert "--read-consent-reference" in help_text and "--expected-workspace-revision" in (
-        help_text
+    helpText = capsys.readouterr().out
+    assert "--read-consent-reference" in helpText and "--expected-workspace-revision" in (
+        helpText
     ), "Runtime help omitted the explicit original source and owner bases"
     assert Main(["runtime", "SYNTHETIC_PRIVATE_MARKER", "--json"]) == 2, "Unknown profile passed"
     output = capsys.readouterr()
@@ -457,10 +457,10 @@ def test_ApiRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
     """The original source and exact owner bases remain visible before workspace setup."""
 
     assert Main(["api", "import", "--help"]) == 0, "API static help failed"
-    help_text = capsys.readouterr().out
-    assert "--read-consent-reference" in help_text and "--expected-workspace-revision" in (
-        help_text
-    ) and "--endpoint" in help_text, "API help omitted original source or selected owner bases"
+    helpText = capsys.readouterr().out
+    assert "--read-consent-reference" in helpText and "--expected-workspace-revision" in (
+        helpText
+    ) and "--endpoint" in helpText, "API help omitted original source or selected owner bases"
     assert Main(["api", "SYNTHETIC_PRIVATE_MARKER", "--json"]) == 2, "Unknown API grammar passed"
     output = capsys.readouterr()
     assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
@@ -498,10 +498,10 @@ def test_SbomRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
     """Original source and declared image semantics are visible before local workspace setup."""
 
     assert Main(["sbom", "import", "--help"]) == 0, "SBOM static help failed"
-    help_text = capsys.readouterr().out
-    assert "--read-consent-reference" in help_text and "--expected-workspace-revision" in (
-        help_text
-    ) and "--image-digest-kind" in help_text, "SBOM help omitted explicit source or image bases"
+    helpText = capsys.readouterr().out
+    assert "--read-consent-reference" in helpText and "--expected-workspace-revision" in (
+        helpText
+    ) and "--image-digest-kind" in helpText, "SBOM help omitted explicit source or image bases"
     assert Main(["sbom", "SYNTHETIC_PRIVATE_MARKER", "--json"]) == 2, "Unknown SBOM grammar passed"
     output = capsys.readouterr()
     assert json.loads(output.out)["failure"] == "configuration" and not output.err and (
@@ -539,10 +539,10 @@ def test_PathRegisteredHelpAndGrammarRefusalNeedNoLocalState(capsys):
     """Exact model pins and explicit assessment absence remain visible before workspace setup."""
 
     assert Main(["paths", "analyze", "--help"]) == 0, "Path static help failed"
-    help_text = capsys.readouterr().out
-    assert "--expected-snapshot-sha256" in help_text and "--no-assessments" in (
-        help_text
-    ) and "--as-of" in help_text, "Path help omitted model, proof or analysis clock selections"
+    helpText = capsys.readouterr().out
+    assert "--expected-snapshot-sha256" in helpText and "--no-assessments" in (
+        helpText
+    ) and "--as-of" in helpText, "Path help omitted model, proof or analysis clock selections"
     assert Main(["paths", "SYNTHETIC_PRIVATE_MARKER", "--json"]) == 2, "Unknown path grammar passed"
     output = capsys.readouterr()
     assert json.loads(output.out)["failure"] == "configuration" and not output.err and (

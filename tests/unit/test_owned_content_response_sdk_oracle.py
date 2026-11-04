@@ -132,8 +132,8 @@ def test_OriginalCustodyRejectsRebindingAndEqualValueBooleanClaims(mutation):
 def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(mutation):
     """A self-consistent new manifest hash cannot validate false underlying custody facts."""
 
-    url, receipt_id, originals, attrs = Bundle("missing")
-    item = originals.pop(receipt_id)
+    url, receiptId, originals, attrs = Bundle("missing")
+    item = originals.pop(receiptId)
     receipt = json.loads(bytes.fromhex(item["data_hex"]))
 
     if mutation == "exit-bool":
@@ -172,13 +172,13 @@ def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(
     item["data_hex"] = raw.hex()
     item["manifest"]["reference"].update(locator="blobs/sha256/" + digest, sha256=digest,
         size_bytes=len(raw))
-    replacement_id = "sha256:" + hashlib.sha256(Encode(item["manifest"])).hexdigest()
-    originals[replacement_id] = item
-    attrs["original_receipt_id"] = replacement_id
-    attrs["original_role_ids"][oracle.RECEIPT_ROLE] = replacement_id
+    replacementId = "sha256:" + hashlib.sha256(Encode(item["manifest"])).hexdigest()
+    originals[replacementId] = item
+    attrs["original_receipt_id"] = replacementId
+    attrs["original_role_ids"][oracle.RECEIPT_ROLE] = replacementId
 
     with pytest.raises(AssertionError):
-        oracle.AssertContentParts("missing", url, replacement_id, originals, attrs,
+        oracle.AssertContentParts("missing", url, replacementId, originals, attrs,
             job_id="job:synthetic-unit-only")
 
 
@@ -186,31 +186,31 @@ def test_ResignedReceiptStillCannotHideWrongFamilyFailureOrDifferentOriginalIds(
 def test_ResignedPartCannotMixForeignScopeIntoOneOtherwiseConsistentCapture(mutation):
     """Equal bytes and freshly consistent IDs cannot replace original collection provenance."""
 
-    url, receipt_id, originals, attrs = Bundle("missing")
-    body_id = attrs["original_role_ids"]["owned-response-body"]
-    body = originals.pop(body_id)
+    url, receiptId, originals, attrs = Bundle("missing")
+    bodyId = attrs["original_role_ids"]["owned-response-body"]
+    body = originals.pop(bodyId)
     if mutation == "scope":
         body["manifest"]["provenance"]["scope_reference"] = "scope:foreign"
 
     else:
         body["manifest"]["provenance"]["execution"]["exit_code"] = False
-    new_body_id = "sha256:" + hashlib.sha256(Encode(body["manifest"])).hexdigest()
-    originals[new_body_id] = body
-    attrs["original_role_ids"]["owned-response-body"] = new_body_id
-    receipt_item = originals.pop(receipt_id)
-    receipt = json.loads(bytes.fromhex(receipt_item["data_hex"]))
-    receipt["evidence_ids"]["body"] = new_body_id
+    newBodyId = "sha256:" + hashlib.sha256(Encode(body["manifest"])).hexdigest()
+    originals[newBodyId] = body
+    attrs["original_role_ids"]["owned-response-body"] = newBodyId
+    receiptItem = originals.pop(receiptId)
+    receipt = json.loads(bytes.fromhex(receiptItem["data_hex"]))
+    receipt["evidence_ids"]["body"] = newBodyId
     raw = json.dumps(receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
         allow_nan=False).encode("ascii")
     digest = hashlib.sha256(raw).hexdigest()
-    receipt_item["data_hex"] = raw.hex()
-    receipt_item["manifest"]["reference"].update(locator="blobs/sha256/" + digest,
+    receiptItem["data_hex"] = raw.hex()
+    receiptItem["manifest"]["reference"].update(locator="blobs/sha256/" + digest,
         sha256=digest, size_bytes=len(raw))
-    new_receipt_id = "sha256:" + hashlib.sha256(Encode(receipt_item["manifest"])).hexdigest()
-    originals[new_receipt_id] = receipt_item
-    attrs["original_receipt_id"] = new_receipt_id
-    attrs["original_role_ids"][oracle.RECEIPT_ROLE] = new_receipt_id
+    newReceiptId = "sha256:" + hashlib.sha256(Encode(receiptItem["manifest"])).hexdigest()
+    originals[newReceiptId] = receiptItem
+    attrs["original_receipt_id"] = newReceiptId
+    attrs["original_role_ids"][oracle.RECEIPT_ROLE] = newReceiptId
 
     with pytest.raises(AssertionError, match="same actual collection provenance"):
-        oracle.AssertContentParts("missing", url, new_receipt_id, originals, attrs,
+        oracle.AssertContentParts("missing", url, newReceiptId, originals, attrs,
             job_id="job:synthetic-unit-only")

@@ -70,10 +70,10 @@ def ReadCaptures(pair):
 
     owned, _, _, records = pair
     store = LocalEvidenceStore(owned.root / "evidence")
-    by_role = {record.reference.role: record for record in records}
+    byRole = {record.reference.role: record for record in records}
 
     return {
-        operation: json.loads(store.Read(by_role["artifact-" + operation + "-receipt"].reference))
+        operation: json.loads(store.Read(byRole["artifact-" + operation + "-receipt"].reference))
         for operation in ("version", "scan")
     }
 
@@ -117,7 +117,7 @@ def test_ActualCapturesUseCanonicalGrammarWithoutCurrentStageAuthorityOrModelIo(
     owned, proof, scan, records = actual_pair
     before = ReadCaptures(actual_pair)
     stages = (proof.stage.root, scan.stage.root)
-    actual_open, actual_stat, actual_resolve = Path.open, Path.stat, Path.resolve
+    actualOpen, actualStat, actualResolve = Path.open, Path.stat, Path.resolve
     calls = []
 
     def Canonical(metadata, prepared, stage):
@@ -133,7 +133,7 @@ def test_ActualCapturesUseCanonicalGrammarWithoutCurrentStageAuthorityOrModelIo(
             "Historical replay attempted a current original-stage file read"
         )
 
-        return actual_open(path, *arguments, **options)
+        return actualOpen(path, *arguments, **options)
 
     def NoStageStat(path, *arguments, **options):
         """Permit evidence integrity checks while refusing current original-stage observations."""
@@ -142,7 +142,7 @@ def test_ActualCapturesUseCanonicalGrammarWithoutCurrentStageAuthorityOrModelIo(
             "Historical replay attempted a current original-stage physical observation"
         )
 
-        return actual_stat(path, *arguments, **options)
+        return actualStat(path, *arguments, **options)
 
     def NoStageResolve(path, *arguments, **options):
         """Permit owning-workspace resolution while refusing current original-stage resolution."""
@@ -151,7 +151,7 @@ def test_ActualCapturesUseCanonicalGrammarWithoutCurrentStageAuthorityOrModelIo(
             "Historical replay attempted current original-stage path resolution"
         )
 
-        return actual_resolve(path, *arguments, **options)
+        return actualResolve(path, *arguments, **options)
 
     def Forbidden(*arguments, **options):
         """Refuse any current principal, grant, process or model application/persistence."""
@@ -271,12 +271,12 @@ def test_CanonicalHistoricalPairRejectsSameMarkerDeviceInodeWithDifferentLaterFa
 
     owned = actual_pair[0]
     envelopes = ReadCaptures(actual_pair)
-    version_marker = envelopes["version"]["artifact_metadata"]["acceptance"]["marker_identity"]
-    scan_marker = envelopes["scan"]["artifact_metadata"]["acceptance"]["marker_identity"]
-    assert version_marker[2:] != scan_marker[2:], (
+    versionMarker = envelopes["version"]["artifact_metadata"]["acceptance"]["marker_identity"]
+    scanMarker = envelopes["scan"]["artifact_metadata"]["acceptance"]["marker_identity"]
+    assert versionMarker[2:] != scanMarker[2:], (
         "Actual separately launched operations must supply different later marker observations"
     )
-    scan_marker[:2] = version_marker[:2]
+    scanMarker[:2] = versionMarker[:2]
     CheckOriginalRaw(actual_pair, envelopes)
     changed = StoreCaptures(actual_pair, envelopes)
 
@@ -296,12 +296,12 @@ def test_ActualOwningManifestBudgetPrecedesEagerBlobRead(actual_pair, monkeypatc
 
     owned, _, _, records = actual_pair
     store = LocalEvidenceStore(owned.root / "evidence")
-    original_record = next(record for record in records if record.reference.role == role)
-    oversized = store.Put(b"x" * (bound + 1), role, media, original_record.provenance)
-    forged = copy(original_record)
+    originalRecord = next(record for record in records if record.reference.role == role)
+    oversized = store.Put(b"x" * (bound + 1), role, media, originalRecord.provenance)
+    forged = copy(originalRecord)
     object.__setattr__(forged, "evidence_id", oversized.evidence_id)
     changed = tuple(forged if record.reference.role == role else record for record in records)
-    actual_read = LocalEvidenceStore.Read
+    actualRead = LocalEvidenceStore.Read
 
     def NoOversizedRead(self, reference):
         """Refuse allocation if an oversized actual role reference bypasses the consumer facade."""
@@ -310,7 +310,7 @@ def test_ActualOwningManifestBudgetPrecedesEagerBlobRead(actual_pair, monkeypatc
             "Actual oversized owning-manifest reference reached eager blob allocation"
         )
 
-        return actual_read(self, reference)
+        return actualRead(self, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", NoOversizedRead)
 

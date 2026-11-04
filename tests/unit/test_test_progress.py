@@ -233,11 +233,11 @@ def test_PrepareOnlyClearsRecognizedOwnChildrenAndKeepsParent(tmp_path):
     Complete(recorder)
     recorder.pytest_sessionfinish()
     progress.SaveProgressSummary(report, timed_out=False)
-    parent_marker = tmp_path / "operator.txt"
-    parent_marker.write_text("keep")
+    parentMarker = tmp_path / "operator.txt"
+    parentMarker.write_text("keep")
     assert progress.PrepareProgress(report), "Recognized diagnostics must allow a fresh rerun."
     assert not list(progress.ProgressDirectory(report).iterdir()), "Old counts must be removed."
-    assert parent_marker.read_text() == "keep", "Parent files must remain untouched."
+    assert parentMarker.read_text() == "keep", "Parent files must remain untouched."
 
 
 def test_PrepareRefusesUnknownDirectoryChildBeforeAnyDeletion(tmp_path):

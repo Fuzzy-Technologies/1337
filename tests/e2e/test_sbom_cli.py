@@ -34,13 +34,13 @@ def test_InstalledConsoleSavesOriginalOwnedGraphAndReplaysAfterRelocation(tmp_pa
     """Operators can import through the real console and replay their original moved custody."""
 
     owned = Context(tmp_path)
-    original_raw = owned.source.read_bytes()
+    originalRaw = owned.source.read_bytes()
     status, outcome = Console(Arguments(owned, digest_kind=digest_kind), tmp_path)
     assert status == 0 and outcome["model_revision"] == outcome["workspace_revision"] == 1, (
         "Actual product acquisition must acknowledge one model transition and workspace CAS save"
     )
     record = LocalEvidenceStore(owned.root / "evidence").Get(outcome["evidence_id"])
-    assert LocalEvidenceStore(owned.root / "evidence").Read(record.reference) == original_raw, (
+    assert LocalEvidenceStore(owned.root / "evidence").Read(record.reference) == originalRaw, (
         "The installed console must preserve complete original bytes and actual immutable custody"
     )
     model = LocalModelStore(owned.root).Open()

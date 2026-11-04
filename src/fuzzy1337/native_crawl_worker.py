@@ -117,12 +117,12 @@ def Headers(raw: bytes, max_body_bytes: int) -> CrawlHeaders:
     ):
         raise CrawlRefusal("output-limit")
 
-    status_match = _STATUS.fullmatch(lines[0])
+    statusMatch = _STATUS.fullmatch(lines[0])
 
-    if status_match is None:
+    if statusMatch is None:
         raise CrawlRefusal("protocol")
 
-    status = int(status_match[2])
+    status = int(statusMatch[2])
     values: dict[bytes, bytes] = {}
 
     for line in lines[1:]:
@@ -140,13 +140,13 @@ def Headers(raw: bytes, max_body_bytes: int) -> CrawlHeaders:
     ):
         raise CrawlRefusal("response-policy")
 
-    length_text = values.get(b"content-length", b"")
+    lengthText = values.get(b"content-length", b"")
     media = values.get(b"content-type")
 
-    if _LENGTH.fullmatch(length_text) is None or media is None:
+    if _LENGTH.fullmatch(lengthText) is None or media is None:
         raise CrawlRefusal("protocol")
 
-    length = int(length_text)
+    length = int(lengthText)
 
     if length > max_body_bytes:
         raise CrawlRefusal("output-limit")
@@ -160,7 +160,7 @@ def Headers(raw: bytes, max_body_bytes: int) -> CrawlHeaders:
     else:
         raise CrawlRefusal("response-policy")
 
-    return {"http_version": status_match[1].decode("ascii"), "status": status,
+    return {"http_version": statusMatch[1].decode("ascii"), "status": status,
         "media_type": category, "header_bytes": len(raw), "header_fields": len(values),
         "content_length": length}
 
@@ -391,8 +391,8 @@ def Main(argv: Sequence[str] | None = None) -> int:
         ):
             raise NativeCrawlRecordError("crawl requires one bounded canonical argument")
 
-        raw_input = arguments[0].encode("ascii")
-        selection = ParseCrawlInput(raw_input)
+        rawInput = arguments[0].encode("ascii")
+        selection = ParseCrawlInput(rawInput)
 
     except Exception:
         return Emit(Refused("input"))
@@ -400,7 +400,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
     record: CrawlRecord
 
     try:
-        record = Probe(raw_input)
+        record = Probe(rawInput)
         ParseCrawlRecord(CanonicalRecord(record), selection)
 
     except CrawlRefusal as error:

@@ -92,12 +92,12 @@ def AssertOriginalNativeCustody(output: dict, contacts: tuple, *, variant: str) 
     assert len(controls) == len(output["executions"]), (
         "Every actual original execution needs its separately named control receipt."
     )
-    by_source = {json.loads(execution["request"]["invocation"]["argv"][-1])["source_url"]:
+    bySource = {json.loads(execution["request"]["invocation"]["argv"][-1])["source_url"]:
                  execution for execution in output["executions"]}
 
     for control in controls:
         document = json.loads(control["request"]["invocation"]["argv"][-1])
-        execution = by_source[document["source_url"]]
+        execution = bySource[document["source_url"]]
         argv = execution["request"]["invocation"]["argv"]
         assert argv == [output["installed_python"], "-I", "-m",
             "fuzzy1337.native_crawl_worker", CanonicalNative(document).decode("ascii")], (
@@ -159,16 +159,16 @@ def AssertNativeSaves(output: dict, expected_urls: list[str]) -> None:
     )
     projected = {template["request_reference"]: template for endpoint in output["state"]["requests"]
                  for template in endpoint["templates"]}
-    projected_urls = {template["endpoint"]["origin"] + template["endpoint"]["path_template"]
+    projectedUrls = {template["endpoint"]["origin"] + template["endpoint"]["path_template"]
                       for template in projected.values()}
-    assert projected_urls == set(expected_urls), (
+    assert projectedUrls == set(expected_urls), (
         "Actual structural request projection must preserve the reachable source collection only."
     )
     for response in responses:
         attributes = response["attributes"]
-        expected_references = {attributes["source_request_reference"], *(entry["request_reference"]
+        expectedReferences = {attributes["source_request_reference"], *(entry["request_reference"]
             for entry in attributes["frontier"]["entries"])}
-        assert expected_references.issubset(projected), (
+        assert expectedReferences.issubset(projected), (
             "Every actual source/candidate request must survive in complete reopened collections."
         )
 
@@ -194,7 +194,7 @@ def test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState(
     oracle = CrawlGraphOracle()
 
     with NativeAcceptanceGraph(native_case_evidence) as target:
-        original_seed = target.graph.Url("/entry")
+        originalSeed = target.graph.Url("/entry")
 
         for variant in ("positive", "fixed", "decoy", "redirect"):
             assert target.state.WaitIdle(), "Mutation requires all original owners idle."
@@ -216,10 +216,10 @@ def test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState(
             assert target.state.WaitIdle(), "The actual SDK left original target owners active."
             contacts = target.state.Observe()[before:]
             PersistNativeAcceptance(directory / "evidence", output, target)
-            expected_paths = [path for wave in oracle["variants"][variant]["expected_waves"]
+            expectedPaths = [path for wave in oracle["variants"][variant]["expected_waves"]
                               for path in wave]
             AssertNativeContactWaves(contacts, oracle["variants"][variant]["expected_waves"])
-            assert config["seed_url"] == original_seed, "Every variant must use the same seed URL."
+            assert config["seed_url"] == originalSeed, "Every variant must use the same seed URL."
             summary = output["summary"]
             assert output["exception_type"] is None and summary is not None, (
                 "Actual SDK startup/authority failure cannot be scored as a successful clean run."
@@ -228,7 +228,7 @@ def test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState(
 
             if variant == "redirect":
                 assert summary["state"] == "failed" and (
-                    summary["completed_urls"] == [original_seed]
+                    summary["completed_urls"] == [originalSeed]
                 ), (
                     "Redirect refusal must preserve the acknowledged seed."
                 )
@@ -238,16 +238,16 @@ def test_ActualSdkChangesFetchesAtSameSeedAndPreservesOrderedOriginalState(
 
             else:
                 assert summary["state"] == "completed", "Required real crawl work did not complete."
-                AssertNativeSaves(output, [target.graph.origin + path for path in expected_paths])
+                AssertNativeSaves(output, [target.graph.origin + path for path in expectedPaths])
 
             if variant == "positive":
-                by_path = {item.target: item for item in contacts}
+                byPath = {item.target: item for item in contacts}
                 assert target.state.Counters()["maximum_active_handlers"] >= 2 and max(
-                    by_path["/branch-a"].active_at_start,
-                    by_path["/branch-b"].active_at_start,
+                    byPath["/branch-a"].active_at_start,
+                    byPath["/branch-b"].active_at_start,
                 ) >= 2 and (
-                    by_path["/branch-b"].completion_sequence <
-                    by_path["/branch-a"].completion_sequence
+                    byPath["/branch-b"].completion_sequence <
+                    byPath["/branch-a"].completion_sequence
                 ), "Actual two-handler overlap and B-before-A completion must both be measured."
 
             reopened = NativeConsumer(installed_native_crawl, directory, "inspect", config,
@@ -374,12 +374,12 @@ def test_DiscoveredTargetsRequireSeparateGitConfirmationAndPersistFiniteFindings
             scenarios.append(ScenarioOracle(case["id"], oracle["target_pack"],
                 oracle["target_version"], oracle["provenance"],
                 (OracleCheck(case["id"], case["capability"], case["expected_match"]),), True))
-            prior_ids = set(denied["state"]["originals"])
+            priorIds = set(denied["state"]["originals"])
             raw = [RawEvidence("invocation", "application/json",
                                CanonicalNative(output["plan"]["invocation"]).decode())]
 
             for identity, original in output["state"]["originals"].items():
-                if identity not in prior_ids:
+                if identity not in priorIds:
                     reference = original["manifest"]["reference"]
                     raw.append(RawEvidence(reference["role"], reference["media_type"],
                                            bytes.fromhex(original["data_hex"]).decode()))
@@ -388,8 +388,8 @@ def test_DiscoveredTargetsRequireSeparateGitConfirmationAndPersistFiniteFindings
                 output["provider_version"], status,
                 summary["duration_seconds"], (case["id"],) if current else (), evidence=tuple(raw)))
             report = BuildReport(tuple(scenarios), tuple(runs))
-            output_directory = tmp_path / "git-evidence" / case["id"]
-            PersistNativeAcceptance(output_directory, output, target)
+            outputDirectory = tmp_path / "git-evidence" / case["id"]
+            PersistNativeAcceptance(outputDirectory, output, target)
             (tmp_path / "git-matrix.json").write_text(SerializeReport(report), encoding="utf-8")
             native_case_evidence.Write("git-matrix.json", SerializeReport(report).encode("utf-8"))
             native_case_evidence.Write("git-matrix.md", RenderMarkdown(report).encode("utf-8"))
@@ -492,9 +492,9 @@ def test_InstalledCliPlansApprovesTraversesAndReopensTruthfulRefusedWork(
                 evidence=native_case_evidence)
             assert target.state.WaitIdle(), "CLI must settle every original owner."
             summary = json.loads(result.stdout)
-            expected_completed = oracle["variants"][variant]["expected_completed"]
-            assert result.returncode == (0 if expected_completed else 4) and summary["state"] == (
-                "completed" if expected_completed else "failed"
+            expectedCompleted = oracle["variants"][variant]["expected_completed"]
+            assert result.returncode == (0 if expectedCompleted else 4) and summary["state"] == (
+                "completed" if expectedCompleted else "failed"
             ), "Actual installed CLI must expose truthful completed versus refused work."
             contacts = target.state.Observe()[before:]
             AssertNativeContactWaves(contacts, oracle["variants"][variant]["expected_waves"])
@@ -522,27 +522,27 @@ def test_ActualSdkRelocatedOriginalsReopenOfflineAfterOriginalRootRemoval(
     """Relocate actual canonical originals and verify them without HTTP or writes."""
 
     with NativeAcceptanceGraph(native_case_evidence) as target:
-        original_root = tmp_path / "original-workspace"
-        config = NativeConfig(target, original_root)
+        originalRoot = tmp_path / "original-workspace"
+        config = NativeConfig(target, originalRoot)
         NativeConsumer(installed_native_crawl, tmp_path, "setup", config, native_case_evidence)
         output = NativeConsumer(installed_native_crawl, tmp_path, "crawl", config,
                                 native_case_evidence)
         assert output["summary"]["state"] == "completed" and target.state.WaitIdle(), (
             "Relocation requires actual completed acquisition and settled original target owners."
         )
-        prior_contacts = target.state.Counters()["contacts"]
-        relocated_root = tmp_path / "relocated-workspace"
-        shutil.copytree(original_root, relocated_root)
-        shutil.rmtree(original_root)
+        priorContacts = target.state.Counters()["contacts"]
+        relocatedRoot = tmp_path / "relocated-workspace"
+        shutil.copytree(originalRoot, relocatedRoot)
+        shutil.rmtree(originalRoot)
         relocated = NativeConsumer(installed_native_crawl, tmp_path, "inspect-offline",
-            {**config, "workspace": str(relocated_root)}, native_case_evidence)
+            {**config, "workspace": str(relocatedRoot)}, native_case_evidence)
         native_case_evidence.Json("relocation.json", {
-            "original_root_removed": not original_root.exists(),
-            "relocated_root": str(relocated_root), "original_contacts": prior_contacts,
+            "original_root_removed": not originalRoot.exists(),
+            "relocated_root": str(relocatedRoot), "original_contacts": priorContacts,
             "contacts_after_offline_reopen": target.state.Counters()["contacts"],
             "same_canonical_originals": relocated["state"] == output["state"]})
-        assert not original_root.exists() and relocated["state"] == output["state"] and (
-            target.state.Counters()["contacts"] == prior_contacts
+        assert not originalRoot.exists() and relocated["state"] == output["state"] and (
+            target.state.Counters()["contacts"] == priorContacts
         ), "Relocated originals must reopen unchanged with zero new contacts."
 
 

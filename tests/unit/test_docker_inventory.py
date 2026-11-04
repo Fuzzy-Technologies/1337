@@ -417,7 +417,7 @@ def test_ActualParsedOwnerReferenceIsBoundedBeforeEagerBlobRead(context, monkeyp
     object.__setattr__(small, "evidence_id", large.evidence_id)
     attribution = replace(provenance, evidence_references=(small.reference,))
     reads = []
-    owner_read = LocalEvidenceStore.Read
+    ownerRead = LocalEvidenceStore.Read
 
     def Read(self, reference):
         """Record actual raw owner reads after the importer quota interception.
@@ -432,7 +432,7 @@ def test_ActualParsedOwnerReferenceIsBoundedBeforeEagerBlobRead(context, monkeyp
 
         reads.append(reference)
 
-        return owner_read(self, reference)
+        return ownerRead(self, reference)
 
     monkeypatch.setattr("fuzzy1337.evidence.LocalEvidenceStore.Read", Read)
 

@@ -464,11 +464,11 @@ def ParseAnchors(raw: bytes) -> tuple[str | None, ...]:
     parser = AnchorParser()
     position = 0
     tokens = 0
-    raw_tag: str | None = None
+    rawTag: str | None = None
 
     while position < len(text):
-        if raw_tag is not None:
-            closing = _RAW_CLOSE[raw_tag].search(text, position)
+        if rawTag is not None:
+            closing = _RAW_CLOSE[rawTag].search(text, position)
 
             if closing is None:
                 raise ValueError("captured web raw-text closing tag is incomplete")
@@ -507,11 +507,11 @@ def ParseAnchors(raw: bytes) -> tuple[str | None, ...]:
         if parser.rawdata:
             raise ValueError("captured web markup token is not complete")
 
-        raw_tag = parser.cdata_elem if parser.cdata_elem in {"script", "style"} else None
+        rawTag = parser.cdata_elem if parser.cdata_elem in {"script", "style"} else None
         parser.reset()
         position = end
 
-    if raw_tag is not None:
+    if rawTag is not None:
         raise ValueError("captured web raw-text closing tag is incomplete")
 
     parser.close()
@@ -562,13 +562,13 @@ def Candidate(
     if parsed.username is not None or parsed.password is not None:
         return None, "credentials"
 
-    without_fragment = href.split("#", 1)[0]
+    withoutFragment = href.split("#", 1)[0]
 
-    if "?" in without_fragment:
+    if "?" in withoutFragment:
         return None, "query"
 
     try:
-        resolved = urljoin(source_target.value, without_fragment)
+        resolved = urljoin(source_target.value, withoutFragment)
         parsed = urlsplit(resolved)
 
         if parsed.username is not None or parsed.password is not None:
@@ -653,21 +653,21 @@ def FrontierFields(frontier: CapturedWebFrontier) -> dict[str, object]:
     ):
         raise ValueError("captured web retained counts or collection shapes differ")
 
-    exclusion_total = 0
-    previous_reason = ""
+    exclusionTotal = 0
+    previousReason = ""
 
     for pair in frontier.exclusion_counts:
         if type(pair) is not tuple or len(pair) != 2 or not isinstance(pair[0], str) or (
-            pair[0] not in _REJECTIONS or pair[0] <= previous_reason
+            pair[0] not in _REJECTIONS or pair[0] <= previousReason
         ):
             raise ValueError("captured web retained exclusion counters are malformed")
 
-        exclusion_total += WebInteger(pair[1], 1, MAX_ANCHORS)
-        previous_reason = pair[0]
+        exclusionTotal += WebInteger(pair[1], 1, MAX_ANCHORS)
+        previousReason = pair[0]
 
     entries: list[dict[str, object]] = []
     ordinals: set[int] = set()
-    previous_url = ""
+    previousUrl = ""
 
     for entry in frontier.entries:
         if type(entry) is not CapturedWebEntry or type(entry.target) is not Target or (
@@ -678,10 +678,10 @@ def FrontierFields(frontier: CapturedWebFrontier) -> dict[str, object]:
         ):
             raise ValueError("captured web retained candidate requires exact typed fields")
 
-        template, candidate_target = WebSource(entry.template)
+        template, candidateTarget = WebSource(entry.template)
 
-        if entry.target != candidate_target or entry.target.kind is not TargetKind.URL or (
-            entry.target.value <= previous_url or template.endpoint.origin != source.endpoint.origin
+        if entry.target != candidateTarget or entry.target.kind is not TargetKind.URL or (
+            entry.target.value <= previousUrl or template.endpoint.origin != source.endpoint.origin
             or template.endpoint.workspace_id != source.endpoint.workspace_id
             or entry.target == target
             or entry.decision.scope_reference != frontier.scope_reference
@@ -695,25 +695,25 @@ def FrontierFields(frontier: CapturedWebFrontier) -> dict[str, object]:
         if entry.decision.rule_reference is not None:
             WebText(entry.decision.rule_reference)
 
-        previous_ordinal = 0
+        previousOrdinal = 0
 
         for ordinal in entry.ordinals:
             WebInteger(ordinal, 1, frontier.processed_anchors)
 
-            if ordinal <= previous_ordinal or ordinal in ordinals:
+            if ordinal <= previousOrdinal or ordinal in ordinals:
                 raise ValueError("captured web source ordinals are duplicated or unordered")
 
             ordinals.add(ordinal)
-            previous_ordinal = ordinal
+            previousOrdinal = ordinal
 
-        previous_url = entry.target.value
+        previousUrl = entry.target.value
         entries.append({"target": entry.target.ToDict(), "template": template.ToDict(),
             "decision": {"reason": entry.decision.reason.value,
                 "scope_reference": entry.decision.scope_reference,
                 "target_reference": entry.decision.target_reference,
                 "rule_reference": entry.decision.rule_reference}, "ordinals": entry.ordinals})
 
-    unreturned = frontier.processed_anchors - exclusion_total - len(ordinals)
+    unreturned = frontier.processed_anchors - exclusionTotal - len(ordinals)
 
     if unreturned < frontier.discarded_candidates or (
         frontier.discarded_candidates == 0 and unreturned != 0
@@ -814,7 +814,7 @@ def ReadFrontier(
         EvidenceError: Actual owning immutable evidence verification fails.
     """
 
-    source, source_target = WebSource(source)
+    source, sourceTarget = WebSource(source)
     capture = WebCapture(capture)
     WebText(scope_id)
     RequireIdentifier(scope_id, "scope_id")
@@ -827,7 +827,7 @@ def ReadFrontier(
     if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
         raise ValueError("captured web requires an explicit aware decision time")
 
-    checked_at = at.astimezone(timezone.utc).isoformat()
+    checkedAt = at.astimezone(timezone.utc).isoformat()
 
     try:
         workspace = LocalWorkspaceStore(workspace_root).Open()
@@ -844,7 +844,7 @@ def ReadFrontier(
     ):
         raise ValueError("captured web source, collection or scope/time binding differs")
 
-    decision = scope.Check(source_target, at=at)
+    decision = scope.Check(sourceTarget, at=at)
 
     if not decision.Allowed():
         raise PermissionError("captured web source rejected by scope: " + decision.reason.value)
@@ -861,33 +861,33 @@ def ReadFrontier(
     entries: dict[str, CapturedWebEntry] = {}
 
     for ordinal in range(1, processed + 1):
-        candidate_target, reason = Candidate(anchors[ordinal - 1], source, source_target)
+        candidateTarget, reason = Candidate(anchors[ordinal - 1], source, sourceTarget)
 
         if reason is not None:
             exclusions[reason] += 1
             continue
 
-        assert candidate_target is not None, "An admitted URI must have an exact target"
-        membership = scope.Check(candidate_target, at=at)
+        assert candidateTarget is not None, "An admitted URI must have an exact target"
+        membership = scope.Check(candidateTarget, at=at)
 
         if not membership.Allowed():
             exclusions["scope." + membership.reason.value] += 1
             continue
 
         template = RequestTemplate(Endpoint(source.endpoint.workspace_id, source.endpoint.origin,
-                                            urlsplit(candidate_target.value).path))
-        previous = entries.get(candidate_target.value)
-        entries[candidate_target.value] = CapturedWebEntry(candidate_target, template, membership,
+                                            urlsplit(candidateTarget.value).path))
+        previous = entries.get(candidateTarget.value)
+        entries[candidateTarget.value] = CapturedWebEntry(candidateTarget, template, membership,
             (ordinal,) if previous is None else (*previous.ordinals, ordinal))
 
     ordered = tuple(entries[key] for key in sorted(entries))
     discarded = max(0, len(ordered) - limits.max_candidates)
     reasons = tuple(sorted((*(('anchor-work-limit',) if processed < len(anchors) else ()),
                             *(('candidate-limit',) if discarded else ()))))
-    frontier = CapturedWebFrontier(CAPTURED_WEB_PROFILE_VERSION, source, source_target, actual,
+    frontier = CapturedWebFrontier(CAPTURED_WEB_PROFILE_VERSION, source, sourceTarget, actual,
         scope.Reference(), scope.revision,
         hashlib.sha256(CanonicalModelJson(scope.ToDict())).hexdigest(),
-        checked_at, limits, ordered[:limits.max_candidates], len(anchors), processed,
+        checkedAt, limits, ordered[:limits.max_candidates], len(anchors), processed,
         tuple(sorted(exclusions.items())), not reasons, discarded, reasons, "")
     object.__setattr__(frontier, "frontier_digest", FrontierDigest(frontier))
 

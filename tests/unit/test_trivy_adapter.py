@@ -57,8 +57,8 @@ def Report(adapter, payload=PAYLOAD, version=VERSION, state=ExecutionState.SUCCE
     """Attribute exact synthetic bytes through immutable existing SDK envelopes."""
 
     stdout = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
-    version_bytes = json.dumps(version).encode()
-    data = {"stdout": stdout, "provider-version": version_bytes}
+    versionBytes = json.dumps(version).encode()
+    data = {"stdout": stdout, "provider-version": versionBytes}
     references = tuple(EvidenceReference(role, f"fixture/{role}.json",
         hashlib.sha256(raw).hexdigest(), "application/json", len(raw))
         for role, raw in data.items())

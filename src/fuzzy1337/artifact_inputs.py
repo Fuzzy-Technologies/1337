@@ -497,11 +497,11 @@ def MatchesArtifactReadIdentity(path_info: os.stat_result, handle_info: os.stat_
         Windows ctime differs across APIs, so each API's full five fields is checked separately.
     """
 
-    path_identity = PhysicalIdentity(path_info)
-    handle_identity = PhysicalIdentity(handle_info)
+    pathIdentity = PhysicalIdentity(path_info)
+    handleIdentity = PhysicalIdentity(handle_info)
 
-    return path_identity[:4] == handle_identity[:4] and (
-        _WINDOWS_STAT_VIEWS or path_identity[4] == handle_identity[4]
+    return pathIdentity[:4] == handleIdentity[:4] and (
+        _WINDOWS_STAT_VIEWS or pathIdentity[4] == handleIdentity[4]
     )
 
 
@@ -690,15 +690,15 @@ class ArtifactSnapshot:
             raise ValueError("artifact partition physical identity changed")
 
         files, directories = ArtifactInventory(self.directory)
-        expected_dirs: set[str] = set()
+        expectedDirs: set[str] = set()
 
         for record in self.manifest.files:
             parts = record.name.split("/")
-            expected_dirs.update("/".join(parts[:index]) for index in range(1, len(parts)))
+            expectedDirs.update("/".join(parts[:index]) for index in range(1, len(parts)))
 
         if (
             files != tuple(item.name for item in self.manifest.files)
-            or set(directories) != expected_dirs
+            or set(directories) != expectedDirs
         ):
             raise ValueError("artifact snapshot contains missing or unlisted material")
 
@@ -809,8 +809,8 @@ class ArtifactStage:
 
         inputs = tuple(inputs)
         material = tuple(material)
-        scanner_selections = (executable,) if producer is None else (executable, producer)
-        selected = (*inputs, *scanner_selections, *material)
+        scannerSelections = (executable,) if producer is None else (executable, producer)
+        selected = (*inputs, *scannerSelections, *material)
 
         if len(selected) > MAX_ARTIFACT_FILES or any(
             not isinstance(item, ArtifactSelection) for item in selected
@@ -825,22 +825,22 @@ class ArtifactStage:
 
         ArtifactPathInfo(root.parent, directory=True)
         root.mkdir(mode=0o700)
-        input_snapshot = ArtifactSnapshot.Capture(
+        inputSnapshot = ArtifactSnapshot.Capture(
             root / "input", profile, ArtifactRole.INPUT, inputs, consent
         )
         remaining = MAX_ARTIFACT_TOTAL_BYTES - sum(
-            item.size_bytes for item in input_snapshot.manifest.files
+            item.size_bytes for item in inputSnapshot.manifest.files
         )
         scanner = ArtifactSnapshot.Capture(
             root / "scanner",
             profile,
             ArtifactRole.SCANNER,
-            scanner_selections,
+            scannerSelections,
             consent,
             max_total_bytes=remaining,
         )
         remaining -= sum(item.size_bytes for item in scanner.manifest.files)
-        material_snapshot = ArtifactSnapshot.Capture(
+        materialSnapshot = ArtifactSnapshot.Capture(
             root / "material",
             profile,
             ArtifactRole.MATERIAL,
@@ -854,9 +854,9 @@ class ArtifactStage:
         return cls(
             root,
             uuid.uuid4().hex,
-            input_snapshot,
+            inputSnapshot,
             scanner,
-            material_snapshot,
+            materialSnapshot,
             executable.source,
             PhysicalIdentity(ArtifactPathInfo(executable.source)),
             version,

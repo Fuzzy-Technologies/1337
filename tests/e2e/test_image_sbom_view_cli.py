@@ -67,7 +67,7 @@ def test_InstalledImageViewJoinsOriginalGraphAndDockerImportsWithExplicitKinds(t
     record = runtime[3].Get(imported["evidence_id"])
     saved = store.Open()
     oracle = json.loads((FIXTURES / "spdx.graph.oracle.json").read_bytes())
-    expected_packages = {key for key in oracle["package_keys"].values()
+    expectedPackages = {key for key in oracle["package_keys"].values()
                          if key.startswith("package-version:")}
     objects = {item.Reference(): item for item in saved.objects}
     relations = {item.Reference(): item for item in saved.relations}
@@ -86,7 +86,7 @@ def test_InstalledImageViewJoinsOriginalGraphAndDockerImportsWithExplicitKinds(t
             "The query must identify its complete canonical source snapshot without a clean verdict"
         )
         assert {objects[item].identity.key for item in view["package_references"]} == (
-            expected_packages
+            expectedPackages
         ), "Nested package inventory must match the independent handwritten source identity oracle"
         assert len(view["containment_relation_references"]) == oracle["canonical_contains_count"], (
             "Inventory traversal must retain original containment and exclude dependency claims"

@@ -134,8 +134,8 @@ def test_ViewDoesNotWriteSavedOwnersAndEmptyInventoryRemainsUnknown(tmp_path):
 
     owned = Context(tmp_path)
     assert Run(Arguments(owned))[0] == 0, "Owned original graph import must first succeed"
-    model_store = LocalModelStore(owned.root)
-    original = model_store.Open()
+    modelStore = LocalModelStore(owned.root)
+    original = modelStore.Open()
     # Remove relation-subject observations while preserving real image/package attribution.
     objects = {item.Reference() for item in original.objects}
     empty = replace(original, relations=(), observations=tuple(
@@ -152,7 +152,7 @@ def test_ViewDoesNotWriteSavedOwnersAndEmptyInventoryRemainsUnknown(tmp_path):
     assert status == 0 and "sbom.image: succeeded" in text and before == after, (
         "A successful human-readable image query must leave every saved owner byte unchanged"
     )
-    assert model_store.Open() == original and (
+    assert modelStore.Open() == original and (
         LocalWorkspaceStore(owned.root).Open().revision == 1
     ), (
         "Read-only projection cannot create a canonical model or workspace transition"
@@ -270,8 +270,8 @@ def test_UnsupportedAndAbsentSourceProfilesRemainUnknownWithoutBorrowingLicenseA
                 if item.attributes.get("asset_type") == "package"}
     one = next(item for item in model.observations if item.kind == "spdx-package-license"
                and item.subject_reference in packages)
-    old_fields = {key: value for key, value in one.attributes.items() if key != "evidence_id"}
-    older = replace(one, attributes=old_fields)
+    oldFields = {key: value for key, value in one.attributes.items() if key != "evidence_id"}
+    older = replace(one, attributes=oldFields)
     observations = tuple(item for item in model.observations if item.kind != (
         "spdx-package-license"
     )) + (older,)

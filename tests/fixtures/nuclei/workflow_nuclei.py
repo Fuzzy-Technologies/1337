@@ -38,8 +38,8 @@ def Main() -> int:
         return 7
 
     root = Path.cwd()
-    mode_path = root / "nuclei-workflow-mode"
-    mode = mode_path.read_text(encoding="utf-8") if mode_path.exists() else "match"
+    modePath = root / "nuclei-workflow-mode"
+    mode = modePath.read_text(encoding="utf-8") if modePath.exists() else "match"
     (root / "nuclei-launched").write_text("synthetic-no-network", encoding="utf-8")
     print("Owned synthetic producer; no network activity", file=sys.stderr, flush=True)
 

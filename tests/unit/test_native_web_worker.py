@@ -16,6 +16,7 @@ from fuzzy1337 import native_web_worker as worker
 from fuzzy1337.adapters.native_web import (
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_PROMETHEUS_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
     CanonicalRecord,
     NativeFileCanaryTemplate,
 )
@@ -218,6 +219,25 @@ def test_HttpsUsesVerifiedDefaultTrustAndLiteralServerName(monkeypatch: pytest.M
     )
 
 
+@pytest.mark.parametrize("token", [b"NaN", b"Infinity", b"-Infinity"])
+def test_SqlSampleRejectsNonJsonConstants(
+    monkeypatch: pytest.MonkeyPatch, token: bytes,
+) -> None:
+    """Python JSON extensions never produce a successful SQL response sample."""
+
+    body = b'{"rows":[' + token + b"]}"
+    header = (b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
+              + str(len(body)).encode("ascii") + b"\r\n\r\n")
+    transport = FakeSocket([header + body])
+    monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
+
+    with pytest.raises(worker.NativeWebResponseError):
+        worker.Probe("http://127.0.0.1:8080/sql-boolean/vulnerable/public", 1.0,
+                     check_id=NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID)
+
+    assert transport.closed, "Rejecting an invalid SQL response leaked its socket."
+
+
 @pytest.mark.parametrize("error,code,name", [
     (TimeoutError("private-detail"), 124, "timeout"),
     (ssl.SSLError("private-detail"), 1, "tls"),
@@ -273,16 +293,16 @@ def test_MainBypassesPlatformTextNewlineTranslation(monkeypatch, outcome):
 
     arguments = [] if outcome == "input" else ["http://127.0.0.1/", "1"]
     expected = record if outcome == "success" else {"schema_version": 1, "error": outcome}
-    expected_code = {"success": 0, "input": 64, "timeout": 124}[outcome]
+    expectedCode = {"success": 0, "input": 64, "timeout": 124}[outcome]
     monkeypatch.setattr(worker, "Probe", Probe)
 
-    with monkeypatch.context() as output_patch:
-        output_patch.setattr(worker.sys, "stdout", stream)
+    with monkeypatch.context() as outputPatch:
+        outputPatch.setattr(worker.sys, "stdout", stream)
         code = worker.Main(arguments)
         stream.flush()
         actual = output.getvalue()
 
-    assert code == expected_code, "Binary report output changed the truthful worker exit code."
+    assert code == expectedCode, "Binary report output changed the truthful worker exit code."
     assert actual == CanonicalRecord(expected), (
         "Platform text translation changed canonical worker report bytes."
     )
@@ -501,13 +521,13 @@ def test_MetricsProgressNeverRenewsDeadlineIncludingFinalEof(monkeypatch, framin
     boundary = wire.index(b"\r\n\r\n") + 4
     transport = FakeSocket([wire[:boundary], wire[boundary:]])
     now = [0.0]
-    original_receive = transport.recv
+    originalReceive = transport.recv
 
     def Receive(maximum):
         """Advance a deterministic shared clock on one selected actual I/O boundary."""
 
         before = len(transport.parts)
-        part = original_receive(maximum)
+        part = originalReceive(maximum)
 
         if (late_phase == "header" and before == 2 or
             late_phase == "body" and before == 1 or late_phase == "eof" and not part):
@@ -520,7 +540,7 @@ def test_MetricsProgressNeverRenewsDeadlineIncludingFinalEof(monkeypatch, framin
     monkeypatch.setattr(worker.time, "monotonic", lambda: now[0])
 
     if late_phase == "predicate":
-        original_check = worker.NativeWebCheckFor(NATIVE_PROMETHEUS_CHECK_ID)
+        originalCheck = worker.NativeWebCheckFor(NATIVE_PROMETHEUS_CHECK_ID)
 
         def Predicate(*_args):
             """Model bounded interpretation returning after the same original deadline."""
@@ -530,7 +550,7 @@ def test_MetricsProgressNeverRenewsDeadlineIncludingFinalEof(monkeypatch, framin
             return True
 
         monkeypatch.setattr(worker, "NativeWebCheckFor",
-                            lambda _: replace(original_check, predicate=Predicate))
+                            lambda _: replace(originalCheck, predicate=Predicate))
 
     with pytest.raises(TimeoutError):
         worker.Probe("http://127.0.0.1:8080/metrics", 1.0,

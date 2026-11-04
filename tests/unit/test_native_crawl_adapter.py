@@ -291,10 +291,10 @@ def test_UndeclaredRefusalAndCorruptActualEvidenceCannotNormalize():
         ParseCrawlRecord(CanonicalRecord(record), Input())
 
     _, report = Report()
-    corrupt_reader = NativeCrawlAdapter(lambda _reference: b"corrupt-original")
+    corruptReader = NativeCrawlAdapter(lambda _reference: b"corrupt-original")
 
     with pytest.raises(NativeCrawlRecordError):
-        corrupt_reader.NormalizeReport(report)
+        corruptReader.NormalizeReport(report)
 
 
 def test_AdapterNormalizesOnlyVerifiedOriginalSuccessAndPreservesTargetBindings():

@@ -148,7 +148,7 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
     """Real SDK jobs distinguish exposure, negatives and failed unassessed transport end to end."""
 
     case, url, hits = prometheus_target
-    _, expected_match, assessed = CASES[case]
+    _, expectedMatch, assessed = CASES[case]
     root = tmp_path / "workspace"
     target = NativeWorkspace(root, url)
     plan = PlanNativeWebScan(root, "local", target, "operator:owned", MetricsPolicy,
@@ -165,7 +165,7 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
     assert summary.ExitCode() == (0 if assessed else 4), "A failed acquisition became clean."
     model = LocalModelStore(root).Open()
     findings = Findings(model)
-    assert len(findings) == int(expected_match), "Saved Findings differ from case truth."
+    assert len(findings) == int(expectedMatch), "Saved Findings differ from case truth."
 
     for finding in findings:
         assert (finding.check_id, finding.severity, finding.status, finding.confidence) == (
@@ -181,13 +181,13 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
     worker = json.loads(streams["stdout"])
 
     if assessed:
-        assert worker["matched"] is expected_match, "Original worker predicate differs from model."
+        assert worker["matched"] is expectedMatch, "Original worker predicate differs from model."
         assert worker["check_id"] == NATIVE_PROMETHEUS_CHECK_ID, "Wrong worker code ran."
 
-        if expected_match:
-            expected_body = NAN_EXPOSITION if case == "nan-spelling-positive" else PADDED_EXPOSITION
-            assert worker["body_bytes"] == len(expected_body) > 4096, "New cap was not used."
-            assert worker["body_sha256"] == hashlib.sha256(expected_body).hexdigest(), (
+        if expectedMatch:
+            expectedBody = NAN_EXPOSITION if case == "nan-spelling-positive" else PADDED_EXPOSITION
+            assert worker["body_bytes"] == len(expectedBody) > 4096, "New cap was not used."
+            assert worker["body_sha256"] == hashlib.sha256(expectedBody).hexdigest(), (
                 "Actual decoded response hash differs from the independent fixture."
             )
 
@@ -212,10 +212,10 @@ def test_MetricsCliRequiresTheSameExactPlanAndCurrentAuthority(tmp_path, prometh
     _, url, hits = prometheus_target
     root = tmp_path / "workspace"
     NativeWorkspace(root, url)
-    policy_path = tmp_path / "policy.json"
-    policy_path.write_text(SerializeContract(MetricsPolicy()), encoding="utf-8")
+    policyPath = tmp_path / "policy.json"
+    policyPath.write_text(SerializeContract(MetricsPolicy()), encoding="utf-8")
     arguments = ["web", str(root), "--check", "prometheus-exposition", "--scope", "local",
-        "--owner", "operator:owned", "--target", url, "--policy", str(policy_path)]
+        "--owner", "operator:owned", "--target", url, "--policy", str(policyPath)]
     output = StringIO()
     assert RunCommands("scan", [*arguments, "--plan"], output) == 0, "CLI planning failed."
     plan = json.loads(output.getvalue())

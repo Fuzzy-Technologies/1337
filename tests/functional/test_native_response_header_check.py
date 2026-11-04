@@ -131,9 +131,9 @@ def test_GenuineFixtureHasExplicitPlatformAdmissionWithoutFakePosixOrHiddenSkips
     source = ast.parse(Path(artifacts.__file__).read_text())
     guard = next(node for node in source.body if isinstance(node, ast.FunctionDef)
         and node.name == "AdmitHeaderPlatform")
-    skip_calls = [node for node in ast.walk(source) if isinstance(node, ast.Call)
+    skipCalls = [node for node in ast.walk(source) if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute) and node.func.attr in ("skip", "skipif")]
-    assert len(skip_calls) == 1 and skip_calls[0] in tuple(ast.walk(guard)), (
+    assert len(skipCalls) == 1 and skipCalls[0] in tuple(ast.walk(guard)), (
         "The only unsupported skip must belong to the explicit platform admission guard"
     )
 
@@ -331,9 +331,9 @@ def test_MockedListenerFailureAlwaysRetainsPostCloseTruth(tmp_path, monkeypatch,
 def test_OfflineProductionSourceHasNoAcquisitionRuntimeOrEvidencePublicationCalls():
     """Reject newly introduced runtime imports/calls in the two fixed offline production owners."""
 
-    forbidden_modules = {"socket", "subprocess", "threading", "multiprocessing", "asyncio",
+    forbiddenModules = {"socket", "subprocess", "threading", "multiprocessing", "asyncio",
         "http", "urllib", "requests", "httpx", "ctypes", "os", "pty", "importlib"}
-    forbidden_calls = {"Put", "CaptureEvidence", "RunOwnedResponseCapture",
+    forbiddenCalls = {"Put", "CaptureEvidence", "RunOwnedResponseCapture",
         "PlanOwnedResponseCapture", "PrepareOwnedResponseInvocation", "Popen", "system",
         "fork", "posix_spawn", "create_connection", "connect", "urlopen", "eval", "exec",
         "__import__"}
@@ -346,14 +346,14 @@ def test_OfflineProductionSourceHasNoAcquisitionRuntimeOrEvidencePublicationCall
             if isinstance(node, ast.Import) for alias in node.names}
         imports.update((node.module or "").split(".")[0] for node in ast.walk(tree)
             if isinstance(node, ast.ImportFrom))
-        assert not imports & forbidden_modules, (
+        assert not imports & forbiddenModules, (
             'Reject newly introduced runtime imports/calls in the two fixed offline '
             'production owners.'
         )
         calls = {node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id
             for node in ast.walk(tree) if isinstance(node, ast.Call)
             and isinstance(node.func, (ast.Attribute, ast.Name))}
-        assert not calls & forbidden_calls, (
+        assert not calls & forbiddenCalls, (
             'Reject newly introduced runtime imports/calls in the two fixed offline '
             'production owners.'
         )
@@ -384,10 +384,10 @@ def original(tmp_path, installed_header_worker, request, header_case_evidence):
     with HeaderListener(header_case_evidence, wire) as listener:
         url = listener.origin + "/zap-passive/" + selected
         Setup({"workspace": str(root), "url": url})
-        policy_path = tmp_path / "capture-policy.json"
-        policy_path.write_text(json.dumps(Policy()))
+        policyPath = tmp_path / "capture-policy.json"
+        policyPath.write_text(json.dumps(Policy()))
         captured = HeaderConsumer(installed_header_worker, tmp_path, {"workspace": str(root),
-            "policy": str(policy_path), "url": url}, header_case_evidence)
+            "policy": str(policyPath), "url": url}, header_case_evidence)
         assert captured["exception_type"] is None, "Actual capture SDK must return its owned result"
         assert Path(captured["runtime_module"]).is_relative_to(
             installed_header_worker.parents[1]
@@ -458,8 +458,8 @@ def original(tmp_path, installed_header_worker, request, header_case_evidence):
             and captured["executions"][0]["termination"] == "process_exit"
         ), "The genuine refused source must preserve its actual worker failure"
         scope = LocalScopeStore(root).Open("owned-source")
-        workspace_store = LocalWorkspaceStore(root)
-        before = workspace_store.Open()
+        workspaceStore = LocalWorkspaceStore(root)
+        before = workspaceStore.Open()
         assert scope.workspace_id == before.workspace_id and (
             scope.Reference() not in before.scope_references
         ), "Refused fixture must explicitly register only its existing selected workspace scope"
@@ -473,7 +473,7 @@ def original(tmp_path, installed_header_worker, request, header_case_evidence):
         header_case_evidence.Json("refused-scope-prerequisite.json", prerequisite)
 
         try:
-            acknowledged = workspace_store.Save(proposed)
+            acknowledged = workspaceStore.Save(proposed)
             prerequisite.update(acknowledgement_returned=True,
                 acknowledged_revision=acknowledged.revision,
                 exact_acknowledgement=acknowledged == replace(proposed,
@@ -654,12 +654,12 @@ def test_IndependentAuthorityAndSelectedSourceRefuseBeforeAnySave(
         options["current_owner_provider"] = Owner
 
         if denial == "owner-save":
-            original_apply = offline.ApplyVerifiedFindings
+            originalApply = offline.ApplyVerifiedFindings
 
             def Interpret(*args, **kwargs):
                 """Preserve the real composed interpretation and revoke before its Save fence."""
 
-                proposal = original_apply(*args, **kwargs)
+                proposal = originalApply(*args, **kwargs)
                 interpreted.append(None)
                 changed[0] = True
 
@@ -725,21 +725,21 @@ def test_OriginalAdmissionWindowNeverRenewsAfterSynchronousRead(
 ):
     """A late or regressed original read cannot use an unchanged policy to reach Save."""
 
-    scope_store = LocalScopeStore(original.root)
-    scope = scope_store.Open("owned-source")
+    scopeStore = LocalScopeStore(original.root)
+    scope = scopeStore.Open("owned-source")
     expiry = None if boundary == "no-consent-expiry" else (
         original.now + timedelta(seconds=1 if boundary == "consent-deadline" else 60)).isoformat()
-    scope_store.Save(replace(scope, authorization=replace(scope.authorization, valid_until=expiry)))
+    scopeStore.Save(replace(scope, authorization=replace(scope.authorization, valid_until=expiry)))
     before = LocalModelStore(original.root).Open()
     workspace = LocalWorkspaceStore(original.root).Open()
     at = [original.now]
     samples = []
-    original_read = OwnedResponseEvidenceStore.Read
+    originalRead = OwnedResponseEvidenceStore.Read
 
     def Read(store, reference):
         """Return actual original bytes, then advance only the controlled admission clock."""
 
-        raw = original_read(store, reference)
+        raw = originalRead(store, reference)
         if boundary != "clock-regression-inside":
             at[0] = original.now + timedelta(seconds=-1 if boundary == "clock-regression" else 1)
 
@@ -782,7 +782,7 @@ def test_ExpiryAfterActualModelAckPreservesPartialCommitWithoutReferenceSave(
 ):
     """Expiry cannot erase an acknowledged model transition or authorize a later workspace Save."""
 
-    original_save = LocalModelStore.Save
+    originalSave = LocalModelStore.Save
     calls = {"model": 0, "workspace": 0}
     at = [original.now]
     workspace = LocalWorkspaceStore(original.root).Open()
@@ -791,7 +791,7 @@ def test_ExpiryAfterActualModelAckPreservesPartialCommitWithoutReferenceSave(
         """Commit through the actual owner, then reach the original exclusive deadline."""
 
         calls["model"] += 1
-        saved = original_save(store, state, expected_revision=expected_revision)
+        saved = originalSave(store, state, expected_revision=expected_revision)
         at[0] = original.now + timedelta(seconds=1)
 
         return saved
@@ -926,8 +926,8 @@ def test_TwoCasOwnersPreserveActualPartialStateAndNeverInventLostAcks(
 ):
     """An actual model commit survives later reference failure without retry, rebase or rollback."""
 
-    model_save = LocalModelStore.Save
-    workspace_save = LocalWorkspaceStore.Save
+    modelSave = LocalModelStore.Save
+    workspaceSave = LocalWorkspaceStore.Save
     calls = {"model": 0, "workspace": 0}
     observed = {}
 
@@ -941,10 +941,10 @@ def test_TwoCasOwnersPreserveActualPartialStateAndNeverInventLostAcks(
 
         if boundary == "model-conflict":
             before = store.Open()
-            observed["model"] = model_save(store, replace(before, revision=before.revision + 1),
+            observed["model"] = modelSave(store, replace(before, revision=before.revision + 1),
                 expected_revision=before.revision)
 
-        result = model_save(store, state, expected_revision=expected_revision)
+        result = modelSave(store, state, expected_revision=expected_revision)
 
         if boundary == "model-after":
             raise OSError("Independent controlled lost model ACK")
@@ -960,9 +960,9 @@ def test_TwoCasOwnersPreserveActualPartialStateAndNeverInventLostAcks(
             raise OSError("Independent controlled reference refusal")
 
         if boundary == "workspace-conflict":
-            observed["workspace"] = workspace_save(store, store.Open())
+            observed["workspace"] = workspaceSave(store, store.Open())
 
-        result = workspace_save(store, state)
+        result = workspaceSave(store, state)
 
         if boundary == "workspace-after":
             raise OSError("Independent controlled lost reference ACK")
@@ -984,7 +984,7 @@ def test_TwoCasOwnersPreserveActualPartialStateAndNeverInventLostAcks(
     after = LocalModelStore(original.root).Open()
     workspace = LocalWorkspaceStore(original.root).Open()
     committed = boundary not in ("model-before", "model-conflict")
-    expected_commits = {
+    expectedCommits = {
         "model-before": ("observed-unchanged", "not-attempted"),
         "model-after": ("observed-committed", "not-attempted"),
         "workspace-before": ("acknowledged", "observed-unchanged"),
@@ -992,7 +992,7 @@ def test_TwoCasOwnersPreserveActualPartialStateAndNeverInventLostAcks(
         "model-conflict": ("unconfirmed", "not-attempted"),
         "workspace-conflict": ("acknowledged", "unconfirmed"),
     }
-    assert (data["model_commit"], data["workspace_commit"]) == expected_commits[boundary], (
+    assert (data["model_commit"], data["workspace_commit"]) == expectedCommits[boundary], (
         "Each original store owner must report its actual ACK/observed/conflict state separately"
     )
     assert data["state"] == ("partial" if committed else "failed"), (
@@ -1035,22 +1035,22 @@ def test_TwoCasOwnersPreserveActualPartialStateAndNeverInventLostAcks(
             'An actual model commit survives later reference failure without retry, '
             'rebase or rollback.'
         )
-        model_before = after
-        workspace_before = workspace
+        modelBefore = after
+        workspaceBefore = workspace
         reused = Apply(offline, original)
         assert reused.ToDict()["state"] == "partial", (
             'An actual model commit survives later reference failure without retry, '
             'rebase or rollback.'
         )
-        AssertNoNewInterpretation(original.root, model_before, workspace_before)
+        AssertNoNewInterpretation(original.root, modelBefore, workspaceBefore)
         assert calls == {"model": 1, "workspace": 1}, "Reuse cannot repair a previous partial Save"
         fact, = (item for item in after.observations if item.kind == ASSESSMENT)
 
         with pytest.raises(ValueError):
             offline.ReplayOwnedResponseHeaderCheck(original.root, fact.Reference())
 
-    for owner, committed_state in observed.items():
-        assert (after if owner == "model" else workspace) == committed_state, (
+    for owner, committedState in observed.items():
+        assert (after if owner == "model" else workspace) == committedState, (
             'An actual model commit survives later reference failure without retry, '
             'rebase or rollback.'
         )
@@ -1138,8 +1138,8 @@ def test_ConflictingAnalysisOwnerReuseCannotReattributeOrSave(original, offline,
 def test_NegativeAssessmentNeverResolvesControlledExistingOperatorTriage(original, offline):
     """An actual negative source cannot delete or resolve an explicitly seeded earlier Finding."""
 
-    model_store = LocalModelStore(original.root)
-    state = model_store.Open()
+    modelStore = LocalModelStore(original.root)
+    state = modelStore.Open()
     attribution = ModelProvenance("operator.seed", "analysis:controlled-earlier-state",
         original.now.isoformat(), "scope:owned-source", Target(TargetKind.URL,
             original.url).Reference(), "1", tuple(item.reference for item in
@@ -1158,7 +1158,7 @@ def test_NegativeAssessmentNeverResolvesControlledExistingOperatorTriage(origina
             "proposed_revision": proposed.revision, "acknowledgement_returned": False,
             "acknowledged_revision": None, "exact_acknowledgement": False}
         setup["steps"].append(creation)
-        created = model_store.Save(proposed, expected_revision=state.revision)
+        created = modelStore.Save(proposed, expected_revision=state.revision)
         creation.update(acknowledgement_returned=True, acknowledged_revision=created.revision,
             exact_acknowledgement=created == proposed)
         assert created == proposed and created.revision == state.revision + 1, (
@@ -1170,24 +1170,24 @@ def test_NegativeAssessmentNeverResolvesControlledExistingOperatorTriage(origina
             "proposed_revision": proposed.revision, "acknowledgement_returned": False,
             "acknowledged_revision": None, "exact_acknowledgement": False}
         setup["steps"].append(confirmation)
-        confirmed = model_store.Save(proposed, expected_revision=created.revision)
+        confirmed = modelStore.Save(proposed, expected_revision=created.revision)
         confirmation.update(acknowledgement_returned=True, acknowledged_revision=confirmed.revision,
             exact_acknowledgement=confirmed == proposed)
         assert confirmed == proposed and confirmed.revision == created.revision + 1, (
             "Controlled operator confirmation requires its separate actual model Save ACK"
         )
         seeded = next(item for item in confirmed.objects if item.Reference() == seeded.Reference())
-        workspace_store = LocalWorkspaceStore(original.root)
-        workspace = workspace_store.Open()
-        proposed_workspace = replace(workspace,
+        workspaceStore = LocalWorkspaceStore(original.root)
+        workspace = workspaceStore.Open()
+        proposedWorkspace = replace(workspace,
             object_references=(*workspace.object_references, seeded.Reference()))
         retention = {"phase": "workspace-reference-retention", "basis_revision": workspace.revision,
-            "proposed_revision": proposed_workspace.revision, "acknowledgement_returned": False,
+            "proposed_revision": proposedWorkspace.revision, "acknowledgement_returned": False,
             "acknowledged_revision": None, "exact_acknowledgement": False}
         setup["steps"].append(retention)
-        retained = workspace_store.Save(proposed_workspace)
+        retained = workspaceStore.Save(proposedWorkspace)
         retention.update(acknowledgement_returned=True, acknowledged_revision=retained.revision,
-            exact_acknowledgement=retained == replace(proposed_workspace,
+            exact_acknowledgement=retained == replace(proposedWorkspace,
                 revision=workspace.revision + 1))
         assert retention["exact_acknowledgement"] is True, (
             "Controlled triage object retention requires its actual separate workspace CAS ACK"
@@ -1196,8 +1196,8 @@ def test_NegativeAssessmentNeverResolvesControlledExistingOperatorTriage(origina
     finally:
         original.evidence.Json("negative-triage-setup.json", setup)
 
-    before = model_store.Open()
-    source = dict(original.source, model=before, workspace=workspace_store.Open())
+    before = modelStore.Open()
+    source = dict(original.source, model=before, workspace=workspaceStore.Open())
     summary = Apply(offline, original)
     assert summary.ToDict()["state"] == "completed", (
         'An actual negative source cannot delete or resolve an explicitly seeded earlier '
@@ -1209,7 +1209,7 @@ def test_NegativeAssessmentNeverResolvesControlledExistingOperatorTriage(origina
         'An actual negative source cannot delete or resolve an explicitly seeded earlier '
         'Finding.'
     )
-    after = model_store.Open()
+    after = modelStore.Open()
     assert seeded in after.objects, (
         'An actual negative source cannot delete or resolve an explicitly seeded earlier '
         'Finding.'

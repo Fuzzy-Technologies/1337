@@ -276,8 +276,8 @@ class ModelProvenance:
 
         RequireIdentifier(self.source_id, "source_id")
 
-        for field_name in ("run_reference", "scope_reference", "target_reference"):
-            RequireWorkspaceText(getattr(self, field_name), field_name)
+        for fieldName in ("run_reference", "scope_reference", "target_reference"):
+            RequireWorkspaceText(getattr(self, fieldName), fieldName)
 
         object.__setattr__(self, "observed_at", NormalizeEvidenceTime(self.observed_at))
 
@@ -337,19 +337,19 @@ class ModelProvenance:
                 outcome, {"state", "exit_code", "duration_seconds"}, "model execution"
             )
             duration = details["duration_seconds"]
-            exit_code = details["exit_code"]
+            exitCode = details["exit_code"]
 
             if isinstance(duration, bool) or not isinstance(duration, (int, float)):
                 raise ValueError("execution duration must be a number")
 
-            if exit_code is not None and (
-                isinstance(exit_code, bool) or not isinstance(exit_code, int)
+            if exitCode is not None and (
+                isinstance(exitCode, bool) or not isinstance(exitCode, int)
             ):
                 raise ValueError("execution exit code must be an integer or None")
 
             execution = AdapterExecution(
                 ExecutionState(RequireWorkspaceText(details["state"], "execution state")),
-                exit_code, duration,
+                exitCode, duration,
             )
 
         version = record["provider_version"]
@@ -386,8 +386,8 @@ def ProvenanceCollection(value: object) -> tuple[ModelProvenance, ...]:
     if not records or any(not isinstance(record, ModelProvenance) for record in records):
         raise ValueError("provenance must contain ModelProvenance values")
 
-    typed_records = cast(tuple[ModelProvenance, ...], records)
-    unique = {CanonicalModelJson(record): record for record in typed_records}
+    typedRecords = cast(tuple[ModelProvenance, ...], records)
+    unique = {CanonicalModelJson(record): record for record in typedRecords}
 
     return tuple(unique[key] for key in sorted(unique))
 
@@ -505,15 +505,15 @@ class ModelDelta:
         RequireWorkspaceInteger(self.previous_revision, "previous_revision")
         RequireWorkspaceInteger(self.revision, "revision")
 
-        for field_name in ("created", "updated"):
+        for fieldName in ("created", "updated"):
             references = tuple(RequireModelReference(value) for value in ModelSequence(
-                getattr(self, field_name), field_name,
+                getattr(self, fieldName), fieldName,
             ))
 
             if len(set(references)) != len(references):
                 raise ValueError("delta references must be unique")
 
-            object.__setattr__(self, field_name, tuple(sorted(references)))
+            object.__setattr__(self, fieldName, tuple(sorted(references)))
 
         if set(self.created) & set(self.updated):
             raise ValueError("created and updated delta references must be disjoint")
@@ -538,47 +538,47 @@ class ModelState:
         RequireIdentifier(self.workspace_id, "workspace_id")
         RequireWorkspaceInteger(self.revision, "revision")
 
-        for field_name, expected in (
+        for fieldName, expected in (
             ("objects", SecurityObject), ("relations", Relation), ("observations", Observation),
         ):
-            records = ModelSequence(getattr(self, field_name), field_name)
+            records = ModelSequence(getattr(self, fieldName), fieldName)
 
             if any(not isinstance(record, expected) for record in records):
-                raise ValueError(f"{field_name} must contain {expected.__name__} values")
+                raise ValueError(f"{fieldName} must contain {expected.__name__} values")
 
-            typed_records = cast(tuple[SecurityObject | Relation | Observation, ...], records)
-            record_references = [record.Reference() for record in typed_records]
+            typedRecords = cast(tuple[SecurityObject | Relation | Observation, ...], records)
+            recordReferences = [record.Reference() for record in typedRecords]
 
-            if len(set(record_references)) != len(record_references):
+            if len(set(recordReferences)) != len(recordReferences):
                 raise ValueError("model records must have unique references")
 
-            object.__setattr__(self, field_name, tuple(sorted(
-                typed_records, key=lambda record: record.Reference(),
+            object.__setattr__(self, fieldName, tuple(sorted(
+                typedRecords, key=lambda record: record.Reference(),
             )))
 
-        object_references = {item.Reference() for item in self.objects}
+        objectReferences = {item.Reference() for item in self.objects}
 
         if any(item.identity.workspace_id != self.workspace_id for item in self.objects):
             raise ValueError("objects must belong to the enclosing workspace")
 
-        finding_references = {
+        findingReferences = {
             item.Reference() for item in self.objects if item.identity.kind is ObjectKind.FINDING
         }
-        finding_subjects = object_references - finding_references
+        findingSubjects = objectReferences - findingReferences
 
         for item in self.objects:
             if item.identity.kind is ObjectKind.FINDING:
-                if item.attributes["subject_reference"] not in finding_subjects:
+                if item.attributes["subject_reference"] not in findingSubjects:
                     raise ValueError("finding subject must be a non-finding object in this model")
 
                 if not any(record.evidence_references for record in item.provenance):
                     raise ValueError("stored finding requires evidence references")
 
         for relation in self.relations:
-            if {relation.source_reference, relation.target_reference} - object_references:
+            if {relation.source_reference, relation.target_reference} - objectReferences:
                 raise ValueError("relation endpoints must exist in the same model")
 
-        subjects = object_references | {item.Reference() for item in self.relations}
+        subjects = objectReferences | {item.Reference() for item in self.relations}
 
         if any(item.subject_reference not in subjects for item in self.observations):
             raise ValueError("observation subject must be an existing object or relation")
@@ -619,11 +619,11 @@ class ModelState:
             ValueError: Input types, identity collisions, references, or final state are invalid.
         """
 
-        entity_map: dict[str, SecurityObject | Relation] = {
+        entityMap: dict[str, SecurityObject | Relation] = {
             item.Reference(): item for item in self.objects
         }
-        entity_map.update({item.Reference(): item for item in self.relations})
-        observation_map = {item.Reference(): item for item in self.observations}
+        entityMap.update({item.Reference(): item for item in self.relations})
+        observationMap = {item.Reference(): item for item in self.observations}
         created: set[str] = set()
         updated: set[str] = set()
         facts = list(ModelSequence(observations, "observations"))
@@ -636,7 +636,7 @@ class ModelState:
                     raise ValueError(f"patches must contain {expected.__name__} values")
 
                 reference = item.Reference()
-                current = entity_map.get(reference)
+                current = entityMap.get(reference)
                 merged = item
 
                 if isinstance(item, SecurityObject) and item.identity.kind is ObjectKind.FINDING:
@@ -671,7 +671,7 @@ class ModelState:
                     )
 
                 if current != merged:
-                    entity_map[reference] = merged
+                    entityMap[reference] = merged
                     (created if current is None else updated).add(reference)
 
                 for provenance in item.provenance:
@@ -685,22 +685,22 @@ class ModelState:
                 raise ValueError("observations must contain Observation values")
 
             reference = fact.Reference()
-            current_fact = observation_map.get(reference)
+            currentFact = observationMap.get(reference)
 
-            if current_fact is not None and current_fact != fact:
+            if currentFact is not None and currentFact != fact:
                 raise ValueError("observation reference collision")
 
-            if current_fact is None:
-                observation_map[reference] = fact
+            if currentFact is None:
+                observationMap[reference] = fact
                 created.add(reference)
 
         updated -= created
         revision = self.revision + bool(created or updated)
         state = ModelState(
             self.workspace_id, revision,
-            tuple(item for item in entity_map.values() if isinstance(item, SecurityObject)),
-            tuple(item for item in entity_map.values() if isinstance(item, Relation)),
-            tuple(observation_map.values()),
+            tuple(item for item in entityMap.values() if isinstance(item, SecurityObject)),
+            tuple(item for item in entityMap.values() if isinstance(item, Relation)),
+            tuple(observationMap.values()),
         )
 
         return state, ModelDelta(
@@ -741,14 +741,14 @@ class ModelState:
             if any(not isinstance(value, expected) for value in values):
                 raise ValueError("adapter enrichment envelopes must use typed contracts")
 
-        report_evidence = tuple(sorted(report.evidence, key=CanonicalModelJson))
+        reportEvidence = tuple(sorted(report.evidence, key=CanonicalModelJson))
 
         if (
             provenance.source_id != report.invocation.adapter_id
             or provenance.target_reference != report.invocation.request.target_reference
             or provenance.provider_version != report.invocation.provider_version
             or provenance.execution != report.execution
-            or provenance.evidence_references != report_evidence
+            or provenance.evidence_references != reportEvidence
         ):
             raise ValueError("adapter provenance must match the executor-owned report")
 
@@ -846,7 +846,7 @@ class ModelState:
             identity = WorkspaceFields(
                 details["identity"], {"workspace_id", "kind", "key"}, "identity"
             )
-            parsed_object = SecurityObject(
+            parsedObject = SecurityObject(
                 ObjectIdentity(
                     RequireWorkspaceText(identity["workspace_id"], "workspace_id"),
                     ObjectKind(RequireWorkspaceText(identity["kind"], "kind")),
@@ -857,15 +857,15 @@ class ModelState:
                     details["provenance"], "provenance"
                 )),
             )
-            RequireStoredReference(details["reference"], parsed_object.Reference())
-            objects.append(parsed_object)
+            RequireStoredReference(details["reference"], parsedObject.Reference())
+            objects.append(parsedObject)
 
         for item in ModelSequence(record["relations"], "relations"):
             details = WorkspaceFields(item, {
                 "reference", "kind", "source_reference", "target_reference",
                 "attributes", "provenance",
             }, "relation")
-            parsed_relation = Relation(
+            parsedRelation = Relation(
                 RelationKind(RequireWorkspaceText(details["kind"], "kind")),
                 RequireWorkspaceText(details["source_reference"], "source_reference"),
                 RequireWorkspaceText(details["target_reference"], "target_reference"),
@@ -874,21 +874,21 @@ class ModelState:
                     details["provenance"], "provenance"
                 )),
             )
-            RequireStoredReference(details["reference"], parsed_relation.Reference())
-            relations.append(parsed_relation)
+            RequireStoredReference(details["reference"], parsedRelation.Reference())
+            relations.append(parsedRelation)
 
         for item in ModelSequence(record["observations"], "observations"):
             details = WorkspaceFields(item, {
                 "reference", "kind", "subject_reference", "attributes", "provenance",
             }, "observation")
-            parsed_observation = Observation(
+            parsedObservation = Observation(
                 RequireWorkspaceText(details["kind"], "kind"),
                 RequireWorkspaceText(details["subject_reference"], "subject_reference"),
                 details["attributes"],  # type: ignore[arg-type]
                 ModelProvenance.FromDict(details["provenance"]),
             )
-            RequireStoredReference(details["reference"], parsed_observation.Reference())
-            observations.append(parsed_observation)
+            RequireStoredReference(details["reference"], parsedObservation.Reference())
+            observations.append(parsedObservation)
 
         return cls(
             RequireWorkspaceText(record["workspace_id"], "workspace_id"),
@@ -941,19 +941,19 @@ class LocalModelStore:
         LocalWorkspaceStore(self.root).Open()
         directory = self.root / "state" / "model"
 
-        for path, directory_expected in (
+        for path, directoryExpected in (
             (directory, True), (directory / ".write-lock", True),
             (directory / "model.json", False),
         ):
             metadata = StoragePathInfo(path)
 
             if metadata is not None and (
-                stat.S_ISDIR(metadata.st_mode) if directory_expected
+                stat.S_ISDIR(metadata.st_mode) if directoryExpected
                 else stat.S_ISREG(metadata.st_mode)
             ) is False:
                 raise ValueError("model paths have unsafe filesystem types")
 
-            if metadata is not None and not directory_expected and metadata.st_nlink != 1:
+            if metadata is not None and not directoryExpected and metadata.st_nlink != 1:
                 raise ValueError("authoritative model state must not be hard linked")
 
         return directory
@@ -1083,20 +1083,20 @@ class LocalModelStore:
         if len(payload) > MAX_MODEL_BYTES:
             raise ValueError("model state exceeds the size limit")
 
-        temporary_path: Path | None = None
+        temporaryPath: Path | None = None
 
         try:
             with tempfile.NamedTemporaryFile(
                 mode="wb", dir=directory, prefix=".model-", suffix=".json", delete=False,
             ) as stream:
-                temporary_path = Path(stream.name)
+                temporaryPath = Path(stream.name)
                 stream.write(payload)
                 stream.flush()
                 os.fsync(stream.fileno())
 
-            os.replace(temporary_path, directory / "model.json")
+            os.replace(temporaryPath, directory / "model.json")
             SyncStorageDirectory(directory)
 
         finally:
-            if temporary_path is not None:
-                temporary_path.unlink(missing_ok=True)
+            if temporaryPath is not None:
+                temporaryPath.unlink(missing_ok=True)

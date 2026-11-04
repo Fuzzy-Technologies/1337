@@ -75,8 +75,8 @@ def test_IntegrationActualAcquisitionAndReadOnlyRelocationReparsePreserveOrigina
     """Compose actual immutable publication and detached replay after workspace movement."""
 
     root = ioc_workspace
-    workspace_before = (root / "workspace.json").read_bytes()
-    model_before = (root / "state/model/model.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
+    modelBefore = (root / "state/model/model.json").read_bytes()
     times = iter(("2026-10-14T10:00:00.000000+00:00", "2026-10-14T10:00:01.000000+00:00"))
     monkeypatch.setattr(ioc, "AcquisitionClock", lambda: next(times))
     monkeypatch.setattr(socket, "socket", Denied)
@@ -108,7 +108,7 @@ def test_IntegrationActualAcquisitionAndReadOnlyRelocationReparsePreserveOrigina
     moved = tmp_path / "m"
     shutil.move(str(root), moved)
     files = tuple(path for path in (moved / "evidence").rglob("*") if path.is_file())
-    original_bytes = {path.relative_to(moved): path.read_bytes() for path in files}
+    originalBytes = {path.relative_to(moved): path.read_bytes() for path in files}
 
     try:
         for path in files:
@@ -116,13 +116,13 @@ def test_IntegrationActualAcquisitionAndReadOnlyRelocationReparsePreserveOrigina
 
         replayed = LoadIocArtifact(moved, acquired.snapshot_record.evidence_id,
                                    acquired.receipt.evidence_id)
-        typed_replay = ReplayIocArtifact(moved, acquired.snapshot_record, acquired.receipt)
+        typedReplay = ReplayIocArtifact(moved, acquired.snapshot_record, acquired.receipt)
 
     finally:
         for path in files:
             path.chmod(0o600)
 
-    assert replayed == acquired.snapshot == typed_replay, (
+    assert replayed == acquired.snapshot == typedReplay, (
         "Reopening or relocating owning evidence changed independently reparsed candidate facts"
     )
     assert [item.normalized_token for item in replayed.candidates] == [
@@ -131,11 +131,11 @@ def test_IntegrationActualAcquisitionAndReadOnlyRelocationReparsePreserveOrigina
     assert replayed.candidates[-1].observed_at == "2099-01-01T12:00:00+05:30" and (
         replayed.candidates[-1].source_locator == r"C:\owned\case.tsv"
     ), "Detached replay read an original Windows locator or erased declared timestamp/timezone"
-    assert (moved / "workspace.json").read_bytes() == workspace_before and (
+    assert (moved / "workspace.json").read_bytes() == workspaceBefore and (
         moved / "state/model/model.json"
-    ).read_bytes() == model_before, "IOC acquisition or replay mutated workspace/Core model state"
+    ).read_bytes() == modelBefore, "IOC acquisition or replay mutated workspace/Core model state"
     assert all((moved / path).read_bytes() == content
-               for path, content in original_bytes.items()), (
+               for path, content in originalBytes.items()), (
         "Read-only replay rewrote original raw, acquisition or derived immutable evidence"
     )
 
@@ -429,7 +429,7 @@ def test_IntegrationCoherentReceiptSnapshotCannotBorrowOriginalRawSelection(
     data["acquisition_evidence_id"] = receipt.evidence_id
     snapshot = store.Put(ioc.JsonBytes(data), "ioc-snapshot", "application/json",
                          acquired.snapshot_record.provenance)
-    original_read = ioc.IocEvidenceStore.ReadStoredBytes
+    originalRead = ioc.IocEvidenceStore.ReadStoredBytes
 
     def Read(store, parts, max_bytes):
         """Tripwire original raw reads until the immutable source-selection agreement is proven."""
@@ -437,7 +437,7 @@ def test_IntegrationCoherentReceiptSnapshotCannotBorrowOriginalRawSelection(
         if parts == ("blobs", "sha256", acquired.raw.reference.sha256):
             raise AssertionError("Rewritten source selection reached original raw before refusal")
 
-        return original_read(store, parts, max_bytes)
+        return originalRead(store, parts, max_bytes)
 
     monkeypatch.setattr(ioc.IocEvidenceStore, "ReadStoredBytes", Read)
 

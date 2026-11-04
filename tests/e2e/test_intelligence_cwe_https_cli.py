@@ -61,7 +61,7 @@ def test_ActualFetchOwnsOneIsolatedWorkerAndRelocatedReplayWritesNothing(
     """Verify assembled routing, bounded receiver execution and read-only exact-root replay."""
 
     model, _ = Context(tmp_path)
-    before_model = model.Open()
+    beforeModel = model.Open()
     raw = Body(version, name="Owned é ▼ 😀 source")
     worker = Worker(tmp_path, raw)
     monkeypatch.setattr(receiver, "__file__", str(tmp_path / "intelligence_receiver.py"))
@@ -118,11 +118,11 @@ def test_ActualFetchOwnsOneIsolatedWorkerAndRelocatedReplayWritesNothing(
         "The CLI omitted part of the captured notice"
     )
     store = LocalEvidenceStore(model.root / "evidence")
-    original_record = store.Get(acquired["raw_id"])
-    assert store.Read(original_record.reference) == raw, "CLI custody changed original ZIP bytes"
-    assert all(store.Get(acquired[key]).provenance == original_record.provenance
+    originalRecord = store.Get(acquired["raw_id"])
+    assert store.Read(originalRecord.reference) == raw, "CLI custody changed original ZIP bytes"
+    assert all(store.Get(acquired[key]).provenance == originalRecord.provenance
                for key in ("selection_id", "receipt_id")), "Custody roots lost joined provenance"
-    assert model.Open() == before_model, "Acquisition wrote authoritative model state"
+    assert model.Open() == beforeModel, "Acquisition wrote authoritative model state"
 
     worker.unlink()
     monkeypatch.setattr(remote, "ReceiveIsolatedHttps", Refuse)

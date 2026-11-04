@@ -759,9 +759,9 @@ def test_ReleaseWorkflowSeparatesBuildRegistryAndGitHubAuthority():
         "A manual branch dispatch must fail preflight instead of skipping publication green")
     assert jobs["build"]["permissions"] == {"contents": "read", "actions": "read"}, (
         "Build and master acceptance must have no publication token")
-    original_docs = next(step for step in jobs["build"]["steps"] if step.get("name") == (
+    originalDocs = next(step for step in jobs["build"]["steps"] if step.get("name") == (
         "Download only that exact original documentation attempt"))
-    assert original_docs["with"] == {
+    assert originalDocs["with"] == {
         "artifact-ids": "${{ steps.documentation.outputs.artifact_id }}",
         "run-id": "${{ steps.documentation.outputs.run_id }}",
         "github-token": "${{ github.token }}", "path": "${{ runner.temp }}/release-documentation",
@@ -954,12 +954,12 @@ def test_ImageWheelhouseUsesOnlyPhysicalHashLockedBytesWithoutCache(
     raw = b"inert pure-test artifact; no runtime installation is claimed"
     artifact.write_bytes(raw)
     digest = hashlib.sha256(raw).hexdigest()
-    locked_name = "foreign.whl" if fault == "foreign-name" else name
-    locked_version = "2.0.0" if fault == "changed-pin" else "2.1.0"
-    locked_size = len(raw) + (1 if fault == "changed-size" else 0)
-    lock = ('[[package]]\nname="fuzzyroutines"\nversion="' + locked_version + '"\n'
-        'wheels=[{url="https://files.pythonhosted.org/packages/owned/' + locked_name + '", '
-        'hash="sha256:' + digest + '", size=' + str(locked_size) + '}]\n').encode()
+    lockedName = "foreign.whl" if fault == "foreign-name" else name
+    lockedVersion = "2.0.0" if fault == "changed-pin" else "2.1.0"
+    lockedSize = len(raw) + (1 if fault == "changed-size" else 0)
+    lock = ('[[package]]\nname="fuzzyroutines"\nversion="' + lockedVersion + '"\n'
+        'wheels=[{url="https://files.pythonhosted.org/packages/owned/' + lockedName + '", '
+        'hash="sha256:' + digest + '", size=' + str(lockedSize) + '}]\n').encode()
 
     if fault == "ambiguous":
         lock += lock
@@ -977,12 +977,12 @@ def test_ImageWheelhouseUsesOnlyPhysicalHashLockedBytesWithoutCache(
     monkeypatch.setenv("FUZZY1337_RUNTIME_WHEELHOUSE",
         str(tmp_path / "foreign") if fault == "foreign-directory" else str(wheelhouse))
     monkeypatch.setenv("UV_NO_CACHE", "1")
-    original_read = delivery.Read
+    originalRead = delivery.Read
 
     def Read(path, maximum=delivery.MAX_FILE_BYTES):
         """Substitute only a handwritten lock; artifact bytes and alias checks remain real."""
 
-        return lock if path.name == "uv.lock" else original_read(path, maximum)
+        return lock if path.name == "uv.lock" else originalRead(path, maximum)
 
     monkeypatch.setattr(delivery, "Read", Read)
     commands = []

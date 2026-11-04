@@ -267,16 +267,16 @@ def test_ActualConsoleExportsAllFormatsThenRelocatesAndRefusesChangedRawEvidence
     before = Files(root)
     payloads = {}
 
-    for format_name in FORMATS:
-        destination = tmp_path / ("selected report." + format_name)
-        completed = Console(ExportArguments(root, destination, format_name))
+    for formatName in FORMATS:
+        destination = tmp_path / ("selected report." + formatName)
+        completed = Console(ExportArguments(root, destination, formatName))
         assert completed.returncode == 0 and not completed.stderr, (
             "Actual console export must complete independently of JUnit failures or source failure"
         )
         outcome = json.loads(completed.stdout)
         OutcomeValidator().validate(outcome)
         payload = destination.read_bytes()
-        payloads[format_name] = payload
+        payloads[formatName] = payload
         assert outcome["model_revision"] == model.revision and (
             outcome["snapshot_sha256"] == ReportSnapshot(model).SnapshotDigest()
         ), "Actual console outcome must identify the exact saved full snapshot"
@@ -285,7 +285,7 @@ def test_ActualConsoleExportsAllFormatsThenRelocatesAndRefusesChangedRawEvidence
             and outcome["checked_model_evidence_references"] == 1
             and outcome["output_published"]
         ), "Outcome must bind complete published bytes and all original verified references"
-        CheckLiteralOracle(payload, format_name, model, findings=findings)
+        CheckLiteralOracle(payload, formatName, model, findings=findings)
         assert str(root).encode() not in payload and (
             b"raw-only owned report record" not in payload
         ), (
@@ -293,17 +293,17 @@ def test_ActualConsoleExportsAllFormatsThenRelocatesAndRefusesChangedRawEvidence
         )
         assert Files(root) == before, "Actual export must not write any owning source file"
 
-    scope_store = LocalScopeStore(root)
-    scope_store.Save(replace(scope_store.Open("owned"),
+    scopeStore = LocalScopeStore(root)
+    scopeStore.Save(replace(scopeStore.Open("owned"),
                             authorization=ScopeAuthorization(AuthorizationState.REVOKED)))
     moved = tmp_path / "relocated owning workspace"
     root.rename(moved)
     historical = Files(moved)
 
-    for format_name in FORMATS:
-        destination = tmp_path / ("relocated report." + format_name)
-        completed = Console(ExportArguments(moved, destination, format_name))
-        assert completed.returncode == 0 and destination.read_bytes() == payloads[format_name], (
+    for formatName in FORMATS:
+        destination = tmp_path / ("relocated report." + formatName)
+        completed = Console(ExportArguments(moved, destination, formatName))
+        assert completed.returncode == 0 and destination.read_bytes() == payloads[formatName], (
             "Relocation and revoked current scope cannot rewrite original historical report bytes"
         )
 
@@ -322,17 +322,17 @@ def test_ActualConsoleExportsAllFormatsThenRelocatesAndRefusesChangedRawEvidence
     )
     unused = records[1]
     (moved / "evidence" / unused.reference.locator).write_bytes(b"Z" * unused.reference.size_bytes)
-    rejected_source = Files(moved)
+    rejectedSource = Files(moved)
 
-    for format_name in ("html", "junit"):
-        destination = tmp_path / ("refused." + format_name)
-        refused = Console(ExportArguments(moved, destination, format_name))
+    for formatName in ("html", "junit"):
+        destination = tmp_path / ("refused." + formatName)
+        refused = Console(ExportArguments(moved, destination, formatName))
         outcome = json.loads(refused.stdout)
         assert refused.returncode == 4 and outcome["failure"] == "integrity" and (
             not outcome["output_published"] and not destination.exists()
         ), "Even unused retained raw corruption must refuse the entire new-format export"
 
-    assert Files(moved) == rejected_source, "Failed export cannot rewrite rejected evidence"
+    assert Files(moved) == rejectedSource, "Failed export cannot rewrite rejected evidence"
 
 
 @pytest.mark.parametrize("format_name", ["html", "junit"])
@@ -347,9 +347,9 @@ def test_RealPublicationAndPureRendererBoundariesPreserveFailureAndAcknowledgeme
     model, _ = RetainOwnedState(root)
     before = Files(root)
     DenyExecution(monkeypatch)
-    original_link = os.link
-    renderer_name = "RenderHtml" if format_name == "html" else "SerializeJunit"
-    original_renderer = getattr(report_commands, renderer_name)
+    originalLink = os.link
+    rendererName = "RenderHtml" if format_name == "html" else "SerializeJunit"
+    originalRenderer = getattr(report_commands, rendererName)
 
     def DeniedIo(*_args, **_options):
         """Reject filesystem acquisition inside the unchanged pure renderer only."""
@@ -366,9 +366,9 @@ def test_RealPublicationAndPureRendererBoundariesPreserveFailureAndAcknowledgeme
             boundary.setattr(LocalModelStore, "Open", DeniedIo)
             boundary.setattr(LocalEvidenceStore, "Read", DeniedIo)
 
-            return original_renderer(report)
+            return originalRenderer(report)
 
-    monkeypatch.setattr(report_commands, renderer_name, PureRenderer)
+    monkeypatch.setattr(report_commands, rendererName, PureRenderer)
     output = StringIO()
     shell = InteractiveShell(stdin=StringIO(), stdout=output)
     destination = tmp_path / ("shell report." + format_name)
@@ -395,9 +395,9 @@ def test_RealPublicationAndPureRendererBoundariesPreserveFailureAndAcknowledgeme
             if phase == "race":
                 Path(target).write_bytes(b"owned competing destination")
 
-                return original_link(source, target)
+                return originalLink(source, target)
 
-            original_link(source, target)
+            originalLink(source, target)
 
             if phase == "interrupt-after":
                 raise KeyboardInterrupt
@@ -483,16 +483,16 @@ def test_NewFormatMainRejectsCooperativeFullSnapshotChanges(
     created = Console(["workspace", "create", str(root), "--id", "report-changes",
                        "--name", "Report"])
     assert created.returncode == 0, "Snapshot mutation test requires console-created owner state"
-    original_model, _ = RetainOwnedState(root)
+    originalModel, _ = RetainOwnedState(root)
     name = "RenderHtml" if format_name == "html" else "SerializeJunit"
-    original_renderer = getattr(report_commands, name)
-    changed_files = []
+    originalRenderer = getattr(report_commands, name)
+    changedFiles = []
     DenyExecution(monkeypatch)
 
     def RenderThenSave(report):
         """Render original bytes and perform an actual cooperative save before publication."""
 
-        payload = original_renderer(report)
+        payload = originalRenderer(report)
 
         if change == "model":
             current = LocalModelStore(root).Open()
@@ -506,7 +506,7 @@ def test_NewFormatMainRejectsCooperativeFullSnapshotChanges(
             store = LocalWorkspaceStore(root)
             store.Save(replace(store.Open(), configuration=WorkspaceConfiguration("Owned change")))
 
-        changed_files.append(Files(root))
+        changedFiles.append(Files(root))
 
         return payload
 
@@ -518,13 +518,13 @@ def test_NewFormatMainRejectsCooperativeFullSnapshotChanges(
     outcome = json.loads(capsys.readouterr().out)
     OutcomeValidator().validate(outcome)
     assert outcome["failure"] == "input-changed" and (
-        outcome["model_revision"] == original_model.revision
-        and outcome["snapshot_sha256"] == ReportSnapshot(original_model).SnapshotDigest()
+        outcome["model_revision"] == originalModel.revision
+        and outcome["snapshot_sha256"] == ReportSnapshot(originalModel).SnapshotDigest()
     ), "Failure outcome must retain the original selected snapshot rather than substitute new facts"
     assert not selected.exists() and not outcome["output_published"], (
         "Cooperative changes cannot publish the now-stale complete rendered bytes"
     )
-    assert Files(root) == changed_files[0], "Export cannot repair or reverse an actual owner change"
+    assert Files(root) == changedFiles[0], "Export cannot repair or reverse an actual owner change"
 
 
 @pytest.mark.parametrize("format_name", ["html", "junit"])

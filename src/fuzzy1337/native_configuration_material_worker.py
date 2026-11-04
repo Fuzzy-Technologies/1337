@@ -194,14 +194,14 @@ def SelectionFromControl(value: dict[str, Any]) -> NativeConfigurationSelection:
         Text(value[key])
 
     root = Path(value["workspace_root"])
-    stage_root = Path(value["stage_root"])
+    stageRoot = Path(value["stage_root"])
     ConfigurationPath(root)
-    ConfigurationPath(stage_root)
+    ConfigurationPath(stageRoot)
     Identity(value["workspace_identity"], 2)
     Identity(value["directory_identity"], 2)
 
-    if stage_root.parent != root or not re.fullmatch(
-        r"native-configuration-stage-[a-f0-9]{32}", stage_root.name
+    if stageRoot.parent != root or not re.fullmatch(
+        r"native-configuration-stage-[a-f0-9]{32}", stageRoot.name
     ) or (value["action"] == "create") != (value["stage"] is None):
         raise ValueError("configuration material stage association differs")
 
@@ -250,12 +250,12 @@ def StagePayload(stage: ArtifactStage, *,
             "identities": snapshot.identities, "directory_identity": snapshot.directory_identity}
 
     scratch = ArtifactPathInfo(stage.root / "scratch", directory=True)
-    observed_scratch_identity = scratch.st_dev, scratch.st_ino
+    observedScratchIdentity = scratch.st_dev, scratch.st_ino
 
     if scratch_identity is None:
-        scratch_identity = observed_scratch_identity
+        scratch_identity = observedScratchIdentity
 
-    elif observed_scratch_identity != scratch_identity:
+    elif observedScratchIdentity != scratch_identity:
         raise ValueError("configuration material scratch identity changed")
 
     return {"lease_id": stage.lease_id, "root_identity": stage.root_identity,
@@ -414,9 +414,9 @@ def VerifyStage(stage: ArtifactStage, selection: NativeConfigurationSelection) -
     """
 
     CheckStageMetadata(stage, selection)
-    source_bytes = io.BytesIO()
+    sourceBytes = io.BytesIO()
     source = ReadArtifactFile(stage.input.directory / selection.logical_path,
-        selection.logical_path, source_bytes, max_bytes=MAX_NATIVE_CONFIGURATION_SOURCE_BYTES)
+        selection.logical_path, sourceBytes, max_bytes=MAX_NATIVE_CONFIGURATION_SOURCE_BYTES)
     scanner = ReadArtifactFile(stage.scanner.directory / "executable", "executable",
                                max_bytes=MAX_NATIVE_CONFIGURATION_EXECUTABLE_BYTES)
     original = ReadArtifactFile(stage.executable, "executable",
@@ -427,7 +427,7 @@ def VerifyStage(stage: ArtifactStage, selection: NativeConfigurationSelection) -
     ):
         raise ValueError("configuration material copied bytes differ from original manifests")
 
-    source_bytes.getvalue().decode("utf-8")
+    sourceBytes.getvalue().decode("utf-8")
     CheckStageMetadata(stage, selection)
 
 
@@ -449,7 +449,7 @@ def CreateStage(stage_root: Path, selection: NativeConfigurationSelection) -> Ar
             is retained on failure for the owning observer to assess.
     """
 
-    executable_identity = PhysicalIdentity(ArtifactPathInfo(selection.executable))
+    executableIdentity = PhysicalIdentity(ArtifactPathInfo(selection.executable))
     stage_root.mkdir(mode=0o700)
     source = ArtifactSnapshot.Capture(stage_root / "input", selection.profile, ArtifactRole.INPUT,
         (ArtifactSelection(selection.logical_path, selection.source),), selection.read_consent,
@@ -462,7 +462,7 @@ def CreateStage(stage_root: Path, selection: NativeConfigurationSelection) -> Ar
     (stage_root / "scratch").mkdir(mode=0o700)
     root = ArtifactPathInfo(stage_root, directory=True)
     stage = ArtifactStage(stage_root, uuid.uuid4().hex, source, scanner, material,
-        selection.executable, executable_identity, NATIVE_CONFIGURATION_VERSION,
+        selection.executable, executableIdentity, NATIVE_CONFIGURATION_VERSION,
         (root.st_dev, root.st_ino))
     VerifyStage(stage, selection)
 
@@ -539,20 +539,20 @@ def ObserveControl(value: dict[str, Any], digest: str,
 
     RequirePlatform()
     selection = SelectionFromControl(value)
-    stage_root = Path(value["stage_root"])
-    scratch_identity = None
+    stageRoot = Path(value["stage_root"])
+    scratchIdentity = None
 
     if value["action"] == "create":
-        stage = CreateStage(stage_root, selection)
+        stage = CreateStage(stageRoot, selection)
 
     else:
-        stage = StageFromPayload(value["stage"], selection, stage_root)
-        scratch_identity = Identity(value["stage"]["scratch_identity"], 2)
+        stage = StageFromPayload(value["stage"], selection, stageRoot)
+        scratchIdentity = Identity(value["stage"]["scratch_identity"], 2)
         VerifyStage(stage, selection)
 
     return CanonicalControl({"schema_version": 1, "control": value,
         "request_sha256": digest, "request_identity": request_identity,
-        "stage": StagePayload(stage, scratch_identity=scratch_identity)})
+        "stage": StagePayload(stage, scratch_identity=scratchIdentity)})
 
 
 def Main(argv: list[str] | None = None) -> int:

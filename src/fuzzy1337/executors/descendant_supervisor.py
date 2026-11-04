@@ -85,11 +85,11 @@ class DescendantOwner:
         if prctl(36, 1, 0, 0, 0) != 0 or prctl(1, int(signal.SIGTERM), 0, 0, 0) != 0:
             raise OwnershipFailure("setup")
 
-        subreaper, death_signal = ctypes.c_int(), ctypes.c_int()
+        subreaper, deathSignal = ctypes.c_int(), ctypes.c_int()
 
         if prctl(37, ctypes.addressof(subreaper), 0, 0, 0) != 0 or (
-            prctl(2, ctypes.addressof(death_signal), 0, 0, 0) != 0
-            or subreaper.value != 1 or death_signal.value != signal.SIGTERM
+            prctl(2, ctypes.addressof(deathSignal), 0, 0, 0) != 0
+            or subreaper.value != 1 or deathSignal.value != signal.SIGTERM
         ):
             raise OwnershipFailure("setup")
 
@@ -108,7 +108,7 @@ class DescendantOwner:
 
         while True:
             try:
-                process_id, status = os.waitpid(-1, cast(int, getattr(os, "WNOHANG")))
+                processId, status = os.waitpid(-1, cast(int, getattr(os, "WNOHANG")))
 
             except ChildProcessError:
                 return True
@@ -116,7 +116,7 @@ class DescendantOwner:
             except InterruptedError:
                 continue
 
-            if process_id == 0:
+            if processId == 0:
                 return False
 
             self.reaped += 1
@@ -124,7 +124,7 @@ class DescendantOwner:
             if self.reaped > MAX_OWNED_PROCESSES:
                 raise OwnershipFailure("limit")
 
-            if process_id == self.worker_pid:
+            if processId == self.worker_pid:
                 self.worker_returncode = os.waitstatus_to_exitcode(status)
 
     def Children(self) -> tuple[int, ...]:
@@ -134,8 +134,8 @@ class DescendantOwner:
             Still-unreaped direct/adopted child identifiers, never a global process listing.
         """
 
-        own_pid = os.getpid()
-        selected = Path(f"/proc/{own_pid}/task/{own_pid}/children")
+        ownPid = os.getpid()
+        selected = Path(f"/proc/{ownPid}/task/{ownPid}/children")
 
         with selected.open("rb") as stream:
             raw = stream.read(MAX_OWNED_PROCESSES * 12 + 1)
@@ -151,7 +151,7 @@ class DescendantOwner:
 
         children = tuple(int(token) for token in tokens)
 
-        if len(set(children)) != len(children) or own_pid in children:
+        if len(set(children)) != len(children) or ownPid in children:
             raise OwnershipFailure("ownership")
 
         return children
@@ -172,8 +172,8 @@ class DescendantOwner:
             if empty and not children:
                 return
 
-            for process_id in children:
-                os.kill(process_id, cast(int, getattr(signal, "SIGKILL")))
+            for processId in children:
+                os.kill(processId, cast(int, getattr(signal, "SIGKILL")))
 
             time.sleep(0.005)
 
@@ -265,9 +265,9 @@ def Main(arguments: Sequence[str] | None = None) -> int:
     ):
         return 125
 
-    configuration_fd, receipt_fd = int(selected[0]), int(selected[1])
-    gate_fd = int(selected[3])
-    ready_fd = int(selected[4])
+    configurationFd, receiptFd = int(selected[0]), int(selected[1])
+    gateFd = int(selected[3])
+    readyFd = int(selected[4])
     digest = selected[2]
     owner = DescendantOwner()
     worker: subprocess.Popen[bytes] | None = None
@@ -275,25 +275,25 @@ def Main(arguments: Sequence[str] | None = None) -> int:
     cleanup = "failed"
 
     try:
-        if len({configuration_fd, receipt_fd, gate_fd, ready_fd}) != 4 or (
-            min(configuration_fd, receipt_fd, gate_fd, ready_fd) < 3
+        if len({configurationFd, receiptFd, gateFd, readyFd}) != 4 or (
+            min(configurationFd, receiptFd, gateFd, readyFd) < 3
         ):
             raise OwnershipFailure("setup")
 
-        os.set_inheritable(receipt_fd, False)
-        argv, environment, parent = ReadConfiguration(configuration_fd, digest)
-        os.close(configuration_fd)
-        configuration_fd = -1
+        os.set_inheritable(receiptFd, False)
+        argv, environment, parent = ReadConfiguration(configurationFd, digest)
+        os.close(configurationFd)
+        configurationFd = -1
         owner.Configure(parent)
 
-        if os.write(ready_fd, b"1") != 1:
+        if os.write(readyFd, b"1") != 1:
             raise OwnershipFailure("setup")
 
-        os.close(ready_fd)
-        ready_fd = -1
-        WaitForHandoff(gate_fd, owner)
-        os.close(gate_fd)
-        gate_fd = -1
+        os.close(readyFd)
+        readyFd = -1
+        WaitForHandoff(gateFd, owner)
+        os.close(gateFd)
+        gateFd = -1
 
         try:
             worker = subprocess.Popen(argv, env=environment, close_fds=True, start_new_session=True)
@@ -339,14 +339,14 @@ def Main(arguments: Sequence[str] | None = None) -> int:
             "reaped_processes": min(owner.reaped, MAX_OWNED_PROCESSES), "failure": failure})
 
         try:
-            if len(record) > MAX_RECEIPT_BYTES or os.write(receipt_fd, record) != len(record):
+            if len(record) > MAX_RECEIPT_BYTES or os.write(receiptFd, record) != len(record):
                 failure = "ownership"
 
         except OSError:
             failure = "ownership"
 
         finally:
-            for descriptor in set((configuration_fd, receipt_fd, gate_fd, ready_fd)):
+            for descriptor in set((configurationFd, receiptFd, gateFd, readyFd)):
                 if descriptor >= 0:
                     os.close(descriptor)
 

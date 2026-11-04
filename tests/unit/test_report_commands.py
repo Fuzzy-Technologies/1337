@@ -105,10 +105,10 @@ def test_AnyRetainedEvidenceOrOwningContextFailurePreventsOutput(tmp_path, failu
         (root / "state" / "scopes" / "local.json").unlink()
 
     elif failure == "foreign-scope":
-        scope_path = root / "state" / "scopes" / "local.json"
-        scope_data = json.loads(scope_path.read_bytes())
-        scope_data["workspace_id"] = "foreign"
-        scope_path.write_text(json.dumps(scope_data))
+        scopePath = root / "state" / "scopes" / "local.json"
+        scopeData = json.loads(scopePath.read_bytes())
+        scopeData["workspace_id"] = "foreign"
+        scopePath.write_text(json.dumps(scopeData))
 
     else:
         (root / "state" / "scopes" / "local.json").write_bytes(b"{}")
@@ -268,7 +268,7 @@ def test_ActualOversizedStoredBlobIsRejectedBeforeOwningRead(tmp_path, monkeypat
 
     root, records = Context(tmp_path)
     (root / "evidence" / records[0].reference.locator).write_bytes(b"x" * 256)
-    owner_read = LocalEvidenceStore.Read
+    ownerRead = LocalEvidenceStore.Read
     reads = []
 
     def ObserveRead(store, reference):
@@ -276,7 +276,7 @@ def test_ActualOversizedStoredBlobIsRejectedBeforeOwningRead(tmp_path, monkeypat
 
         reads.append(reference)
 
-        return owner_read(store, reference)
+        return ownerRead(store, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", ObserveRead)
     monkeypatch.setattr(commands, "MAX_EXPORT_BLOB_BYTES", 128)
@@ -458,15 +458,15 @@ def test_AcquisitionOnlyAndModelOnlyReferencesShareTheSameReadQuotas(tmp_path, m
 def test_InvalidArgumentDiagnosticsRetainOnlyFixedCategories(arguments):
     """Rejected values and unknown options stay out of terminal diagnostics in both modes."""
 
-    for json_output in (False, True):
+    for jsonOutput in (False, True):
         output = StringIO()
-        status = commands.RunReportCommands(arguments, output, json_output=json_output)
+        status = commands.RunReportCommands(arguments, output, json_output=jsonOutput)
         assert status == 2, "Invalid command grammar must remain a configuration exit."
         assert "synthetic-" not in output.getvalue() and "secret" not in output.getvalue(), (
             "Argparse must not echo private rejected argument values or flags."
         )
 
-        if json_output:
+        if jsonOutput:
             OutcomeValidator().validate(json.loads(output.getvalue()))
 
 
@@ -596,8 +596,8 @@ def test_InterruptedLinkCannotClaimOrRemoveAForeignConcurrentDestination(
 
     root, _ = Context(tmp_path)
     destination = tmp_path / "foreign-selected.json"
-    foreign_bytes = []
-    foreign_target = tmp_path / "foreign-owned-bytes"
+    foreignBytes = []
+    foreignTarget = tmp_path / "foreign-owned-bytes"
 
     def CreateForeignThenInterrupt(source, target):
         """Create competing owned test data rather than performing the exporter link."""
@@ -606,17 +606,17 @@ def test_InterruptedLinkCannotClaimOrRemoveAForeignConcurrentDestination(
             Path(target).mkdir()
 
         elif foreign_kind == "symlink":
-            foreign_target.write_bytes(b"owned competitor content")
+            foreignTarget.write_bytes(b"owned competitor content")
 
             try:
-                Path(target).symlink_to(foreign_target)
+                Path(target).symlink_to(foreignTarget)
 
             except OSError:
                 pytest.skip("This platform cannot create the owned symlink regression fixture.")
 
         else:
-            foreign_bytes.append(Path(source).read_bytes())
-            Path(target).write_bytes(foreign_bytes[0])
+            foreignBytes.append(Path(source).read_bytes())
+            Path(target).write_bytes(foreignBytes[0])
 
         raise KeyboardInterrupt
 
@@ -629,10 +629,10 @@ def test_InterruptedLinkCannotClaimOrRemoveAForeignConcurrentDestination(
     assert not list(tmp_path.glob(".1337-report-*.pending")), "Clean only the owned temporary file."
 
     if foreign_kind == "equal-bytes":
-        assert destination.read_bytes() == foreign_bytes[0], "Keep the equal foreign bytes intact."
+        assert destination.read_bytes() == foreignBytes[0], "Keep the equal foreign bytes intact."
 
     elif foreign_kind == "symlink":
-        assert destination.is_symlink() and foreign_target.read_bytes() == (
+        assert destination.is_symlink() and foreignTarget.read_bytes() == (
             b"owned competitor content"
         ), "Observed link refusal must retain the competitor and its original target."
 
@@ -645,18 +645,18 @@ def test_PhysicalSourceAliasesInAnyOutputAncestorAreRejected(tmp_path, monkeypat
     """Model case/short-name aliases with real metadata on any supported test filesystem."""
 
     root, _ = Context(tmp_path)
-    physical_alias = tmp_path / "owned-physical-alias"
-    physical_alias.mkdir()
-    parent = physical_alias / "nested" if nested else physical_alias
+    physicalAlias = tmp_path / "owned-physical-alias"
+    physicalAlias.mkdir()
+    parent = physicalAlias / "nested" if nested else physicalAlias
     parent.mkdir(exist_ok=True)
     destination = parent / "inside-aliased-source.json"
     inspecting = commands.StoragePathInfo
-    source_identity = root.lstat()
+    sourceIdentity = root.lstat()
 
     def AliasIdentity(path):
         """Supply the actual source identity for one already physical test-owned parent alias."""
 
-        return source_identity if path == physical_alias else inspecting(path)
+        return sourceIdentity if path == physicalAlias else inspecting(path)
 
     monkeypatch.setattr(commands, "StoragePathInfo", AliasIdentity)
     assert not destination.is_relative_to(root), "The regression must bypass lexical containment."

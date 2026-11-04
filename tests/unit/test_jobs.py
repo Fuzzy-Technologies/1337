@@ -40,8 +40,8 @@ def owned_job_runners() -> Iterator[tuple[asyncio.Runner, asyncio.Runner]]:
     connections subject to the unchanged unit network guard.
     """
 
-    with asyncio.Runner() as primary_runner, asyncio.Runner() as secondary_runner:
-        yield primary_runner, secondary_runner
+    with asyncio.Runner() as primaryRunner, asyncio.Runner() as secondaryRunner:
+        yield primaryRunner, secondaryRunner
 
 
 @pytest.fixture
@@ -280,8 +280,8 @@ def test_RunningCancellationWaitsForCleanup(
         """Use explicit cleanup gates to prove the terminal event occurs after cleanup."""
 
         entered = asyncio.Event()
-        cleanup_started = asyncio.Event()
-        release_cleanup = asyncio.Event()
+        cleanupStarted = asyncio.Event()
+        releaseCleanup = asyncio.Event()
 
         async def Provider(context: JobContext) -> None:
             """Observe the cooperative cancellation signal and perform owned cleanup."""
@@ -290,9 +290,9 @@ def test_RunningCancellationWaitsForCleanup(
 
             await context.Cancellation.wait()
 
-            cleanup_started.set()
+            cleanupStarted.set()
 
-            await release_cleanup.wait()
+            await releaseCleanup.wait()
 
             context.CheckCancellation()
 
@@ -304,10 +304,10 @@ def test_RunningCancellationWaitsForCleanup(
         assert job.Cancel("owner:test"), "Running cancellation must produce a new intent event."
         assert not job.Cancel("owner:test"), "Repeated cancellation must not duplicate intent."
 
-        await cleanup_started.wait()
+        await cleanupStarted.wait()
 
         assert job.Snapshot().state is JobState.RUNNING, "Cleanup must retain running ownership."
-        release_cleanup.set()
+        releaseCleanup.set()
 
         result = await job.CancelAndWait("owner:test")
 
@@ -459,20 +459,20 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
         """Advance the loop clock only after each real timer is armed or cleanup is entered."""
 
         loop = asyncio.get_running_loop()
-        loop_time = loop.time()
-        wait_for = asyncio.wait_for
-        grace_entered = (asyncio.Event(), asyncio.Event())
-        grace_finished = (asyncio.Event(), asyncio.Event())
+        loopTime = loop.time()
+        waitFor = asyncio.wait_for
+        graceEntered = (asyncio.Event(), asyncio.Event())
+        graceFinished = (asyncio.Event(), asyncio.Event())
         grace_count = 0
         entered = asyncio.Event()
-        cleanup_started = asyncio.Event()
-        release_cleanup = asyncio.Event()
+        cleanupStarted = asyncio.Event()
+        releaseCleanup = asyncio.Event()
         cleaned = asyncio.Event()
 
         def CurrentTime() -> float:
             """Keep timer ordering independent of Windows clock resolution or host load."""
 
-            return loop_time
+            return loopTime
 
         async def ObserveGrace(awaitable: Awaitable[None], timeout: float) -> None:
             """Observe the real grace timeout without substituting its cancellation behavior."""
@@ -480,13 +480,13 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
             nonlocal grace_count
             index = grace_count
             grace_count += 1
-            grace_entered[index].set()
+            graceEntered[index].set()
 
             try:
-                await wait_for(awaitable, timeout=timeout)
+                await waitFor(awaitable, timeout=timeout)
 
             finally:
-                grace_finished[index].set()
+                graceFinished[index].set()
 
         async def Provider(context: JobContext) -> None:
             """Wait for cancellation and release resources through asynchronous cleanup."""
@@ -497,15 +497,15 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
                 await asyncio.Event().wait()
 
             finally:
-                cleanup_started.set()
+                cleanupStarted.set()
 
-                await release_cleanup.wait()
+                await releaseCleanup.wait()
 
                 cleaned.set()
 
-        with monkeypatch.context() as timer_control:
-            timer_control.setattr(loop, "time", CurrentTime)
-            timer_control.setattr(asyncio, "wait_for", ObserveGrace)
+        with monkeypatch.context() as timerControl:
+            timerControl.setattr(loop, "time", CurrentTime)
+            timerControl.setattr(asyncio, "wait_for", ObserveGrace)
             job = ScanJob(replace(Spec(), timeout_seconds=0.04), FunctionProvider(Provider))
             job.Start()
 
@@ -517,20 +517,20 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
             )
 
             if deadline_first:
-                loop_time += 0.05
+                loopTime += 0.05
 
-                await cleanup_started.wait()
+                await cleanupStarted.wait()
 
                 assert deadline.expired(), "The job deadline must win before any client cancels."
 
             first = asyncio.create_task(job.CancelAndWait("owner:test", grace_seconds=0.01))
 
-            await grace_entered[0].wait()
+            await graceEntered[0].wait()
 
-            loop_time += 0.02
+            loopTime += 0.02
 
-            await grace_finished[0].wait()
-            await cleanup_started.wait()
+            await graceFinished[0].wait()
+            await cleanupStarted.wait()
 
             if not deadline_first:
                 assert deadline.when() is None and not deadline.expired(), (
@@ -539,13 +539,13 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
 
             second = asyncio.create_task(job.CancelAndWait("owner:test", grace_seconds=0.01))
 
-            await grace_entered[1].wait()
+            await graceEntered[1].wait()
 
             # Cross both the second grace and the original job deadline during owned cleanup.
-            loop_time += 0.05
+            loopTime += 0.05
 
             try:
-                await grace_finished[1].wait()
+                await graceFinished[1].wait()
 
                 assert not first.done() and not second.done(), (
                     "Every cancellation client must remain attached to unfinished cleanup."
@@ -555,7 +555,7 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
                 )
 
             finally:
-                release_cleanup.set()
+                releaseCleanup.set()
 
                 results = await asyncio.gather(first, second)
 
@@ -576,13 +576,13 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
                 )
                 assert result.failure is None, "A disarmed deadline must not create a failure."
 
-            terminal_events = [
+            terminalEvents = [
                 event for event in job.EventsSince()
                 if event.kind is JobEventKind.STATE
                 and event.data in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
             ]
 
-            assert len(terminal_events) == 1, "Repeated cancellation must seal one terminal event."
+            assert len(terminalEvents) == 1, "Repeated cancellation must seal one terminal event."
 
     job_runners[0].run(Scenario())
 
@@ -863,13 +863,13 @@ def test_EvidenceAttachmentsAreOwnedDeduplicatedAndRetainedOnFailure(
         second = context.CaptureEvidence(b"synthetic", "stdout", "text/plain", Provenance())
         assert first == second, "Exact evidence attachment replay must be idempotent."
 
-        for field_name, value in (
+        for fieldName, value in (
             ("workspace_id", "workspace-other"), ("scope_reference", "scope:other"),
             ("source_id", "other.provider"),
         ):
             with pytest.raises(ValueError, match="owning job"):
                 context.CaptureEvidence(
-                    b"other", "stdout", "text/plain", Provenance(**{field_name: value}),
+                    b"other", "stdout", "text/plain", Provenance(**{fieldName: value}),
                 )
 
         raise JobError(JobFailure(JobFailureCode.PROVIDER, "Synthetic failure after evidence"))

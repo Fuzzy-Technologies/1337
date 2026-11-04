@@ -111,11 +111,11 @@ def Provision(repository: Path, root: Path) -> dict:
                if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name)
                    and target.id == "NATIVE_CONFIGURATION_EXECUTABLE_SHA256"
                    for target in node.targets))
-    archive_path = root / "release.tar.gz"
+    archivePath = root / "release.tar.gz"
     digest = hashlib.sha256()
     received = 0
 
-    with urlopen(oracle["release_asset"], timeout=30) as source, archive_path.open("xb") as output:
+    with urlopen(oracle["release_asset"], timeout=30) as source, archivePath.open("xb") as output:
         while chunk := source.read(1024 * 1024):
             received += len(chunk)
 
@@ -130,7 +130,7 @@ def Provision(repository: Path, root: Path) -> dict:
 
     members = []
 
-    with tarfile.open(archive_path) as archive:
+    with tarfile.open(archivePath) as archive:
         for member in archive:
             if len(members) >= 64:
                 raise ValueError("Pinned release exceeds its bounded member inventory")
@@ -192,17 +192,17 @@ def Prepare(repository: Path, root: Path) -> None:
     if os.environ.get("MATERIAL_SOURCE_SHA", state["commit"]) != state["commit"]:
         raise ValueError("Acceptance checkout differs from the current workflow revision")
 
-    wheel_directory = root / "wheel"
+    wheelDirectory = root / "wheel"
     Command([sys.executable, "-I", "-m", "build", "--wheel", "--no-isolation",
-             "--outdir", str(wheel_directory)], repository, environment)
-    wheels = tuple(wheel_directory.glob("*.whl"))
+             "--outdir", str(wheelDirectory)], repository, environment)
+    wheels = tuple(wheelDirectory.glob("*.whl"))
 
     if len(wheels) != 1:
         raise ValueError("Acceptance requires exactly one original wheel build")
 
     wheel = wheels[0]
     inventory = []
-    source_hashes = {}
+    sourceHashes = {}
 
     with zipfile.ZipFile(wheel) as archive:
         for member in archive.infolist():
@@ -221,7 +221,7 @@ def Prepare(repository: Path, root: Path) -> None:
                 ):
                     raise ValueError("Wheel member differs from the exact clean source revision")
 
-                source_hashes[member.filename] = digest
+                sourceHashes[member.filename] = digest
 
     uv = shutil.which("uv", path=environment["PATH"])
 
@@ -230,20 +230,20 @@ def Prepare(repository: Path, root: Path) -> None:
 
     requirements = Command([uv, "export", "--locked", "--extra", "dev", "--no-emit-project",
                             "--format", "requirements-txt"], repository, environment)
-    requirements_path = root / "locked-requirements.txt"
-    requirements_path.write_bytes(requirements)
+    requirementsPath = root / "locked-requirements.txt"
+    requirementsPath.write_bytes(requirements)
     installed = root / "environment"
     Command([sys.executable, "-I", "-m", "venv", str(installed)], root, environment)
     interpreter = installed / "bin/python"
     Command([uv, "pip", "install", "--python", str(interpreter), "--require-hashes",
-             "-r", str(requirements_path)], root, environment)
+             "-r", str(requirementsPath)], root, environment)
     Command([uv, "pip", "install", "--python", str(interpreter), "--no-deps", str(wheel)],
             root, environment)
-    run_directory = root / "run"
-    run_directory.mkdir(mode=0o700)
-    shutil.copyfile(repository / TEST_PATH, run_directory / Path(TEST_PATH).name)
-    helper_source = repository / "tests/fixtures/trivy/native_configuration_material_acceptance.py"
-    shutil.copyfile(helper_source, run_directory / "material_acceptance.py")
+    runDirectory = root / "run"
+    runDirectory.mkdir(mode=0o700)
+    shutil.copyfile(repository / TEST_PATH, runDirectory / Path(TEST_PATH).name)
+    helperSource = repository / "tests/fixtures/trivy/native_configuration_material_acceptance.py"
+    shutil.copyfile(helperSource, runDirectory / "material_acceptance.py")
     provisioning = Provision(repository, root)
 
     if SourceState(repository, environment) != state:
@@ -253,11 +253,11 @@ def Prepare(repository: Path, root: Path) -> None:
     evidence.mkdir(mode=0o700)
     context = {"schema_version": 1, **state, "repository": str(repository), "root": str(root),
         "interpreter": str(interpreter), "environment": str(installed),
-        "run_directory": str(run_directory), "evidence": str(evidence),
+        "run_directory": str(runDirectory), "evidence": str(evidence),
         "wheel": {"name": wheel.name, "sha256": Digest(wheel), "members": inventory},
-        "source_hashes": source_hashes, "test_sha256": Digest(repository / TEST_PATH),
-        "helper_sha256": Digest(helper_source),
-        "requirements_sha256": Digest(requirements_path), "provisioning": provisioning,
+        "source_hashes": sourceHashes, "test_sha256": Digest(repository / TEST_PATH),
+        "helper_sha256": Digest(helperSource),
+        "requirements_sha256": Digest(requirementsPath), "provisioning": provisioning,
         "quota": "UNKNOWN", "native_product_acceptance": False}
     WriteJson(root / "context.json", context)
     WriteJson(evidence / "installation.json", context)
@@ -312,43 +312,43 @@ def Verify(root: Path) -> None:
 
     context = ReadJson(root / "context.json")
     evidence = root / "evidence"
-    junit_path = evidence / "pytest.xml"
+    junitPath = evidence / "pytest.xml"
 
     if os.environ.get("MATERIAL_SOURCE_SHA", context["commit"]) != context["commit"]:
         raise ValueError("Required helper evidence differs from the current workflow revision")
 
-    if junit_path.is_symlink() or junit_path.stat().st_size > CONTEXT_BYTES:
+    if junitPath.is_symlink() or junitPath.stat().st_size > CONTEXT_BYTES:
         raise ValueError("Current-head JUnit is missing or unbounded")
 
-    junit = ElementTree.parse(junit_path).getroot()
+    junit = ElementTree.parse(junitPath).getroot()
     cases = list(junit.iter("testcase"))
     prefix = "test_InstalledMaterialLifecycle["
-    expected = {prefix + case_id + "]" for case_id in CASE_IDS}
+    expected = {prefix + caseId + "]" for caseId in CASE_IDS}
 
     if len(cases) != 4 or {item.attrib["name"] for item in cases} != expected or any(
         child.tag in {"skipped", "failure", "error"} for item in junit.iter() for child in item
     ):
         raise ValueError("Required four helper cases did not execute without skips/errors")
 
-    for case_id in CASE_IDS:
-        directory = evidence / case_id
+    for caseId in CASE_IDS:
+        directory = evidence / caseId
         facts = ReadJson(directory / "case.json", RECEIPT_BYTES)
-        expected_count = 2 if case_id == CASE_IDS[0] else 1
+        expectedCount = 2 if caseId == CASE_IDS[0] else 1
 
-        if facts["case_id"] != case_id or facts["commit"] != context["commit"] or (
+        if facts["case_id"] != caseId or facts["commit"] != context["commit"] or (
             facts["tree"] != context["tree"] or facts["wheel_sha256"] != context["wheel"]["sha256"]
             or facts["outcome"] != "installed-helper-assertions-passed"
             or facts["native_product_acceptance"] is not False
             or facts["provider_executed"] is not False
-            or facts["pending_tasks"] != [] or facts["helper_count"] != expected_count
+            or facts["pending_tasks"] != [] or facts["helper_count"] != expectedCount
             or facts["terminal"] is not True or facts["private_controls_retained"] != []
-            or len(facts["receipt_sha256"]) != expected_count
+            or len(facts["receipt_sha256"]) != expectedCount
         ):
             raise ValueError("Original installed helper case association is incomplete")
 
-        for index in range(expected_count):
-            receipt_path = directory / f"observation-{index + 1}.json"
-            receipt = ReadJson(receipt_path, RECEIPT_BYTES)
+        for index in range(expectedCount):
+            receiptPath = directory / f"observation-{index + 1}.json"
+            receipt = ReadJson(receiptPath, RECEIPT_BYTES)
             argv = receipt["request"]["invocation"]["argv"]
 
             if receipt["original_result_returned"] is not True or (
@@ -356,7 +356,7 @@ def Verify(root: Path) -> None:
                 or receipt["terminal_ownership"] != (
                     "original-owned-executor-returned-after-verified-cleanup")
                 or receipt["module_hashes"] != facts["module_hashes"]
-                or Digest(receipt_path) != facts["receipt_sha256"][index]
+                or Digest(receiptPath) != facts["receipt_sha256"][index]
                 or len(argv) != 7 or argv[:4] != [context["interpreter"], "-I", "-m",
                     "fuzzy1337.native_configuration_material_worker"]
             ):

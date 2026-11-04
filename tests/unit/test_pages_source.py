@@ -112,14 +112,14 @@ def ConfiguredPageExcludes() -> set[str]:
     """Provide deterministic test support for configured page excludes."""
 
     excludes: set[str] = set()
-    in_exclude_block = False
+    inExcludeBlock = False
 
     for line in Read(CONFIG).splitlines():
         if line == "exclude:":
-            in_exclude_block = True
+            inExcludeBlock = True
             continue
 
-        if not in_exclude_block:
+        if not inExcludeBlock:
             continue
 
         match = CONFIG_EXCLUDE_ITEM.match(line)
@@ -139,9 +139,9 @@ def test_PagesDoNotIndentRawHtmlAsMarkdownCode() -> None:
     violations: list[str] = []
 
     for page in PAGES:
-        for line_number, line in enumerate(Read(page).splitlines(), start=1):
+        for lineNumber, line in enumerate(Read(page).splitlines(), start=1):
             if BLOCK_HTML_INDENT.match(line):
-                violations.append(f"{page.relative_to(ROOT)}:{line_number}: {line.strip()}")
+                violations.append(f"{page.relative_to(ROOT)}:{lineNumber}: {line.strip()}")
 
     assert not violations, (
         "Raw HTML indented by four or more spaces is rendered as Markdown code:\n"
@@ -168,12 +168,12 @@ def test_LocalizedPagesKeepTheSameComponentStructure() -> None:
     """Verify localized pages keep the same component structure."""
 
     pages = [Read(page) for page in PAGES]
-    reference_classes = PageClasses(pages[0])
+    referenceClasses = PageClasses(pages[0])
 
     assert all(page.count('<section class="content-section">') == 8 for page in pages), (
         "localized pages keep the same component structure invariant failed."
     )
-    assert all(PageClasses(page) == reference_classes for page in pages[1:]), (
+    assert all(PageClasses(page) == referenceClasses for page in pages[1:]), (
         "localized pages keep the same component structure invariant failed."
     )
 
@@ -232,12 +232,12 @@ def test_LanguageRoutesArePresentOnAllPages() -> None:
 def test_PagesPublishBoundaryMatchesCanonicalExcludes() -> None:
     """Verify pages publish boundary matches canonical excludes."""
 
-    excluded_roots = ConfiguredPageExcludes()
+    excludedRoots = ConfiguredPageExcludes()
 
-    assert excluded_roots == EXPECTED_EXCLUDED_ROOTS, (
+    assert excludedRoots == EXPECTED_EXCLUDED_ROOTS, (
         "pages publish boundary matches canonical excludes invariant failed."
     )
-    assert not SITE_SOURCE_ROOTS & excluded_roots, (
+    assert not SITE_SOURCE_ROOTS & excludedRoots, (
         "pages publish boundary matches canonical excludes invariant failed."
     )
 
@@ -249,23 +249,23 @@ def test_PagesPublishBoundaryRejectsUnclassifiedTrackedFiles() -> None:
         pytest.skip("git is not installed in the container quality image")
 
     tracked = TrackedFiles()
-    tracked_roots = {Path(path).parts[0] for path in tracked}
-    non_site_roots = tracked_roots - SITE_SOURCE_ROOTS
+    trackedRoots = {Path(path).parts[0] for path in tracked}
+    nonSiteRoots = trackedRoots - SITE_SOURCE_ROOTS
 
-    missing_excludes = sorted(non_site_roots - EXPECTED_EXCLUDED_ROOTS)
-    assert not missing_excludes, (
+    missingExcludes = sorted(nonSiteRoots - EXPECTED_EXCLUDED_ROOTS)
+    assert not missingExcludes, (
         "Tracked repository roots would be published by GitHub Pages unless "
-        f"explicitly excluded: {', '.join(missing_excludes)}"
+        f"explicitly excluded: {', '.join(missingExcludes)}"
     )
 
-    unapproved_site_files = sorted(
+    unapprovedSiteFiles = sorted(
         path
         for path in tracked
         if Path(path).parts[0] in SITE_SOURCE_ROOTS and path not in SITE_SOURCE_FILES
     )
-    assert not unapproved_site_files, (
+    assert not unapprovedSiteFiles, (
         "Files inside public Pages roots require explicit approval in "
-        f"SITE_SOURCE_FILES: {', '.join(unapproved_site_files)}"
+        f"SITE_SOURCE_FILES: {', '.join(unapprovedSiteFiles)}"
     )
 
 

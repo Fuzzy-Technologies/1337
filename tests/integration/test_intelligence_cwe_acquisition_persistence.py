@@ -144,8 +144,8 @@ def test_LocalFailureRetainsHonestOriginalReceiptAndNoUsableSelection(tmp_path, 
     assert store.Read(outcome.raw.reference) == request.payload[:request.max_bytes], (
         "Failure changed retained original bytes"
     )
-    expected_role = RAW_ROLE if outcome.body_complete else "cwe-local-zip-partial"
-    assert outcome.raw.reference.role == expected_role, (
+    expectedRole = RAW_ROLE if outcome.body_complete else "cwe-local-zip-partial"
+    assert outcome.raw.reference.role == expectedRole, (
         "Partial raw evidence adopted complete-source role"
     )
 
@@ -241,14 +241,14 @@ def test_RehashedSelectionAndReceiptStillRequireActualOriginalZipAgreement(tmp_p
     selected = replace(outcome.envelope.selection, records=(record,))
     envelope = CweAcquiredSelection(outcome.envelope.source, outcome.raw, selected,
                                     outcome.max_bytes)
-    forged_selection = store.Put(envelope.Serialize(), ENVELOPE_ROLE, "application/json",
+    forgedSelection = store.Put(envelope.Serialize(), ENVELOPE_ROLE, "application/json",
                                  outcome.selection_record.provenance)
-    changed = replace(outcome, envelope=envelope, selection_record=forged_selection)
+    changed = replace(outcome, envelope=envelope, selection_record=forgedSelection)
     receipt = store.Put(CanonicalReferenceJson(changed.ReceiptContent()), RECEIPT_ROLE,
                         "application/json", outcome.receipt.provenance)
 
     with pytest.raises(ValueError, match="original ZIP"):
-        LoadAcquiredCweSelection(root, forged_selection.evidence_id, receipt.evidence_id)
+        LoadAcquiredCweSelection(root, forgedSelection.evidence_id, receipt.evidence_id)
 
 
 def test_SameWorkspaceAcquisitionSpliceRefusesBeforeOriginalRawAdmission(tmp_path, monkeypatch):
@@ -359,13 +359,13 @@ def test_ActualOwningGetCannotLoadOverLimitRehashedArtifactContent(
         return original(store, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", Read)
-    selection_id = malicious.evidence_id if role == ENVELOPE_ROLE else (
+    selectionId = malicious.evidence_id if role == ENVELOPE_ROLE else (
         outcome.selection_record.evidence_id
     )
-    receipt_id = malicious.evidence_id if role == RECEIPT_ROLE else outcome.receipt.evidence_id
+    receiptId = malicious.evidence_id if role == RECEIPT_ROLE else outcome.receipt.evidence_id
 
     with pytest.raises(ValueError, match="role-specific"):
-        LoadAcquiredCweSelection(root, selection_id, receipt_id)
+        LoadAcquiredCweSelection(root, selectionId, receiptId)
 
     assert malicious.reference.sha256 not in reads, "Owning Get loaded oversized artifact bytes"
 
@@ -388,13 +388,13 @@ def test_WrongRoleRootCannotSelectItsOwnMorePermissiveContentBudget(
         return original(store, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", Read)
-    selection_id = outcome.raw.evidence_id if selected_root else (
+    selectionId = outcome.raw.evidence_id if selected_root else (
         outcome.selection_record.evidence_id
     )
-    receipt_id = outcome.receipt.evidence_id if selected_root else outcome.raw.evidence_id
+    receiptId = outcome.receipt.evidence_id if selected_root else outcome.raw.evidence_id
 
     with pytest.raises(ValueError, match="role-specific"):
-        LoadAcquiredCweSelection(root, selection_id, receipt_id)
+        LoadAcquiredCweSelection(root, selectionId, receiptId)
 
     assert outcome.raw.reference.sha256 not in reads, "Wrong-role root selected its own byte budget"
 

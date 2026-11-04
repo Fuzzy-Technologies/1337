@@ -77,15 +77,15 @@ def RecordFirstFailure(observations: dict, phase: str, error: BaseException) -> 
 
     locations = []
     limited = False
-    original_trace = error.__traceback__
+    originalTrace = error.__traceback__
 
     for _ in range(16):
-        if original_trace is None:
+        if originalTrace is None:
             break
 
-        frame = original_trace.tb_frame
+        frame = originalTrace.tb_frame
         name = frame.f_code.co_name
-        line = original_trace.tb_lineno
+        line = originalTrace.tb_lineno
 
         if frame.f_code.co_filename == __file__ and name in FIRST_FAILURE_FUNCTIONS and (
             type(line) is int and 1 <= line <= 1000000
@@ -96,14 +96,14 @@ def RecordFirstFailure(observations: dict, phase: str, error: BaseException) -> 
                 del locations[0]
                 limited = True
 
-        original_trace = original_trace.tb_next
+        originalTrace = originalTrace.tb_next
 
     number = error.errno if isinstance(error, OSError) else None
-    error_name = type(error).__name__
+    errorName = type(error).__name__
     observations["first_failure"] = {"phase": phase if phase in FIRST_FAILURE_PHASES else "other",
-        "error_type": error_name if error_name in FIRST_FAILURE_ERRORS else "other",
+        "error_type": errorName if errorName in FIRST_FAILURE_ERRORS else "other",
         "errno": number if type(number) is int and number in errno.errorcode else None,
-        "locations": locations, "frames_limited": limited or original_trace is not None}
+        "locations": locations, "frames_limited": limited or originalTrace is not None}
 
 
 def LoadContract():
@@ -357,10 +357,10 @@ def RequirePeerExit(descriptor: int) -> None:
     ):
         raise ValueError("original inert peer has no exact readable exit indication")
 
-    observed_descriptor, flags = events[0]
+    observedDescriptor, flags = events[0]
     allowed = select.POLLIN | select.POLLHUP
 
-    if type(observed_descriptor) is not int or observed_descriptor != descriptor or (
+    if type(observedDescriptor) is not int or observedDescriptor != descriptor or (
         type(flags) is not int or not flags & select.POLLIN
         or flags & (select.POLLERR | select.POLLNVAL) or flags & ~allowed
     ):
@@ -387,23 +387,23 @@ def ReceiveReady(channel: socket.socket, envelope) -> tuple[int, int, int, tuple
     try:
         raw, ancillary, flags, _ = channel.recvmsg(CONTRACT.READY.size, socket.CMSG_SPACE(16 * 4),
             socket.MSG_CMSG_CLOEXEC | socket.MSG_WAITALL)
-        valid_control = True
+        validControl = True
 
         for level, kind, data in ancillary:
             if level != socket.SOL_SOCKET or kind != socket.SCM_RIGHTS or len(data) % 4:
-                valid_control = False
+                validControl = False
                 continue
 
             values = array.array("i")
             values.frombytes(data)
             received.extend(values)
 
-        if flags & (socket.MSG_CTRUNC | socket.MSG_TRUNC) or not valid_control or (
+        if flags & (socket.MSG_CTRUNC | socket.MSG_TRUNC) or not validControl or (
             len(ancillary) != 1 or len(received) != 1
         ):
             raise ValueError("inert READY ancillary descriptors refused")
 
-        previous_timeout = channel.gettimeout()
+        previousTimeout = channel.gettimeout()
         channel.setblocking(False)
 
         try:
@@ -414,7 +414,7 @@ def ReceiveReady(channel: socket.socket, envelope) -> tuple[int, int, int, tuple
                 trailing = b""
 
         finally:
-            channel.settimeout(previous_timeout)
+            channel.settimeout(previousTimeout)
 
         if trailing:
             raise ValueError("inert READY has trailing data")
@@ -431,24 +431,24 @@ def ReceiveReady(channel: socket.socket, envelope) -> tuple[int, int, int, tuple
         ):
             raise ValueError("inert READY directory descriptor refused")
 
-        kernel_raw = channel.getsockopt(socket.SOL_SOCKET, SO_PEERPIDFD, 4)
+        kernelRaw = channel.getsockopt(socket.SOL_SOCKET, SO_PEERPIDFD, 4)
 
-        if len(kernel_raw) != 4:
+        if len(kernelRaw) != 4:
             raise ValueError("unsupported direct peer pidfd ABI")
 
-        pidfd = struct.unpack("=i", kernel_raw)[0]
+        pidfd = struct.unpack("=i", kernelRaw)[0]
 
         if pidfd < 0 or not fcntl.fcntl(pidfd, fcntl.F_GETFD) & fcntl.FD_CLOEXEC:
             raise ValueError("invalid direct kernel peer pidfd")
 
         Alive(pidfd)
-        peer_pid, peer_uid, peer_gid = struct.unpack("=iii",
+        peerPid, peerUid, peerGid = struct.unpack("=iii",
             channel.getsockopt(socket.SOL_SOCKET, SO_PEERCRED, 12))
 
-        if peer_pid <= 0 or (peer_uid, peer_gid) != (os.getuid(), os.getgid()):
+        if peerPid <= 0 or (peerUid, peerGid) != (os.getuid(), os.getgid()):
             raise ValueError("inert peer host owner differs")
 
-        return directory, pidfd, peer_pid, declaration
+        return directory, pidfd, peerPid, declaration
 
     except BaseException:
         for descriptor in received:
@@ -490,10 +490,10 @@ def VerifyPeer(
     ):
         raise ValueError("inert peer privilege or single-thread facts differ")
 
-    for name, owner_id in (("uid_map", os.getuid()), ("gid_map", os.getgid())):
+    for name, ownerId in (("uid_map", os.getuid()), ("gid_map", os.getgid())):
         mapping = BoundedRead(peer / name, 1024).split()
 
-        if mapping != [b"0", str(owner_id).encode(), b"1"]:
+        if mapping != [b"0", str(ownerId).encode(), b"1"]:
             raise ValueError("inert peer identity mapping differs")
 
     namespaces = {}
@@ -511,8 +511,8 @@ def VerifyPeer(
 
     for line in mountinfo.splitlines():
         left, right = line.split(" - ", 1)
-        fields, super_fields = left.split(), right.split()
-        mounts[fields[4]] = (set(fields[5].split(",")), super_fields)
+        fields, superFields = left.split(), right.split()
+        mounts[fields[4]] = (set(fields[5].split(",")), superFields)
 
     if set(mounts) != {"/", "/work", "/inert", "/request.bin", "/control.sock"}:
         raise ValueError("inert peer has an unexpected mounted filesystem")
@@ -521,9 +521,9 @@ def VerifyPeer(
         for name in ("/inert", "/request.bin", "/control.sock")):
         raise ValueError("inert root or fixed inputs are writable")
 
-    work_flags, super_fields = mounts["/work"]
+    workFlags, superFields = mounts["/work"]
 
-    if not {"rw", "nodev", "nosuid", "noexec"} <= work_flags or super_fields[0] != "tmpfs":
+    if not {"rw", "nodev", "nosuid", "noexec"} <= workFlags or superFields[0] != "tmpfs":
         raise ValueError("inert quota mount flags differ")
 
     quota = os.fstatvfs(directory)
@@ -568,28 +568,28 @@ def VerifyPeer(
             raise ValueError("inert writable alias differs from the original quota")
 
         # Sandbox-absolute alias text must not be followed through the inspector's root.
-        child_info = os.stat(expected.removeprefix("/work/"), dir_fd=directory,
+        childInfo = os.stat(expected.removeprefix("/work/"), dir_fd=directory,
             follow_symlinks=False)
 
-        if not stat.S_ISDIR(child_info.st_mode) or stat.S_IMODE(child_info.st_mode) != 0o700 or (
-            child_info.st_uid != os.getuid() or child_info.st_dev != work.st_dev
+        if not stat.S_ISDIR(childInfo.st_mode) or stat.S_IMODE(childInfo.st_mode) != 0o700 or (
+            childInfo.st_uid != os.getuid() or childInfo.st_dev != work.st_dev
         ):
             raise ValueError("inert writable alias target differs from the original quota")
 
     for path in ("work/home", "work/tmp", "work/session", "work/report", "work/shm", "work/run"):
-        child_info = os.lstat(root / path)
+        childInfo = os.lstat(root / path)
 
-        if not stat.S_ISDIR(child_info.st_mode) or stat.S_IMODE(child_info.st_mode) != 0o700 or (
-            child_info.st_uid != os.getuid() or child_info.st_dev != work.st_dev
+        if not stat.S_ISDIR(childInfo.st_mode) or stat.S_IMODE(childInfo.st_mode) != 0o700 or (
+            childInfo.st_uid != os.getuid() or childInfo.st_dev != work.st_dev
         ):
             raise ValueError("inert work child differs from quota mount")
 
-    report_directory = os.open("report", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    reportDirectory = os.open("report", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
         | os.O_CLOEXEC, dir_fd=directory)
 
     try:
         try:
-            os.stat("result.bin", dir_fd=report_directory, follow_symlinks=False)
+            os.stat("result.bin", dir_fd=reportDirectory, follow_symlinks=False)
 
         except FileNotFoundError:
             pass
@@ -598,7 +598,7 @@ def VerifyPeer(
             raise ValueError("late inert report exists before ACK")
 
     finally:
-        os.close(report_directory)
+        os.close(reportDirectory)
 
     Alive(pidfd)
 
@@ -953,9 +953,9 @@ async def FinishOwned(
 
     result = None
     report = setup = None
-    cleanup_confirmed = False
-    custody_valid = True
-    retain_originals = False
+    cleanupConfirmed = False
+    custodyValid = True
+    retainOriginals = False
 
     def CallerCancelled() -> None:
         """Preserve the first caller cancellation while settling the same original task."""
@@ -970,10 +970,10 @@ async def FinishOwned(
 
         except Exception as error:
             failure = failure or "owned-cleanup-unknown-" + type(error).__name__
-            retain_originals = True
+            retainOriginals = True
 
         else:
-            cleanup_confirmed = True
+            cleanupConfirmed = True
 
             if time.monotonic() > started + 20:
                 failure = failure or "execution-cleanup-measured-late"
@@ -985,11 +985,11 @@ async def FinishOwned(
                     observations["original_peer_exited_after_cleanup"] = True
 
                 except (OSError, ValueError):
-                    cleanup_confirmed = False
+                    cleanupConfirmed = False
                     failure = failure or "owned-cleanup-unknown-peer"
-                    retain_originals = True
+                    retainOriginals = True
 
-        if cleanup_confirmed and directory is not None:
+        if cleanupConfirmed and directory is not None:
             try:
                 if time.monotonic() >= started + 28:
                     raise ValueError("original inert custody deadline expired")
@@ -999,11 +999,11 @@ async def FinishOwned(
                 if time.monotonic() >= started + 28:
                     raise ValueError("original inert custody deadline expired")
 
-                late_lines = [line for line in result.stdout.splitlines()
+                lateLines = [line for line in result.stdout.splitlines()
                     if line.startswith(b"LATE ")]
 
-                if len(late_lines) == 1:
-                    expected = tuple(int(value) for value in late_lines[0].split()[1:])
+                if len(lateLines) == 1:
+                    expected = tuple(int(value) for value in lateLines[0].split()[1:])
 
                     if len(expected) != 8 or expected[3] != 0:
                         raise ValueError("invalid original inert writer identity")
@@ -1019,8 +1019,8 @@ async def FinishOwned(
 
             except (OSError, ValueError) as error:
                 failure = failure or "custody-incomplete-" + type(error).__name__
-                custody_valid = False
-                retain_originals = True
+                custodyValid = False
+                retainOriginals = True
 
         try:
             contacted, _ = sink.accept()
@@ -1033,10 +1033,10 @@ async def FinishOwned(
             observations["host_sink_contacts"] = 1
             failure = failure or "host-network-contact"
 
-        observations["host_sink_observation_final"] = cleanup_confirmed
+        observations["host_sink_observation_final"] = cleanupConfirmed
         outcome = Outcome(result, observations, report, setup,
-            report is not None and custody_valid and cleanup_confirmed, failure)
-        outcome.cleanup_confirmed = cleanup_confirmed
+            report is not None and custodyValid and cleanupConfirmed, failure)
+        outcome.cleanup_confirmed = cleanupConfirmed
         outcome.observed_stdout_prefix = bytes(observed_stdout)
 
         if time.monotonic() < started + 28:
@@ -1046,24 +1046,24 @@ async def FinishOwned(
             except (OSError, ValueError) as error:
                 outcome.failure = outcome.failure or "test-publication-" + type(error).__name__
                 outcome.complete = False
-                retain_originals = True
+                retainOriginals = True
 
         else:
             outcome.failure = outcome.failure or "custody-publication-measured-late"
             outcome.complete = False
-            retain_originals = True
+            retainOriginals = True
 
         if time.monotonic() >= started + 28:
             outcome.failure = outcome.failure or "custody-publication-measured-late"
             outcome.complete = False
-            retain_originals = True
+            retainOriginals = True
 
         if time.monotonic() >= started + 30:
             outcome.failure = outcome.failure or "owner-measured-deadline"
             outcome.complete = False
-            retain_originals = True
+            retainOriginals = True
 
-        if retain_originals:
+        if retainOriginals:
             outcome._retained_directory, directory = directory, None
             outcome._retained_pidfd, pidfd = pidfd, None
             outcome._retained_task = task
@@ -1106,20 +1106,20 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
     held = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     connection = None
-    operation_fd = None
+    operationFd = None
     directory = pidfd = None
     observations = {}
     failure = None
     task = None
     cancellation = asyncio.Event()
     late = asyncio.Event()
-    before_report = asyncio.Event()
+    beforeReport = asyncio.Event()
     launched = asyncio.Event()
-    work_complete = asyncio.Event()
+    workComplete = asyncio.Event()
     stream = bytearray()
     denied = False
     ready_deadline = None
-    execution_handed_off = False
+    executionHandedOff = False
 
     try:
         sink.bind(("127.0.0.1", 0))
@@ -1128,11 +1128,11 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
         held.bind(("127.0.0.1", 0))
         envelope = CONTRACT.Envelope(mode, sink.getsockname()[1], held.getsockname()[1],
             os.urandom(16), hashlib.sha256(str(operation).encode()).digest())
-        request_path = operation / "request.bin"
-        Exclusive(request_path, envelope.Encode())
-        operation_fd = os.open(operation, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        requestPath = operation / "request.bin"
+        Exclusive(requestPath, envelope.Encode())
+        operationFd = os.open(operation, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
             | os.O_CLOEXEC)
-        listener.bind(f"/proc/self/fd/{operation_fd}/control.sock")
+        listener.bind(f"/proc/self/fd/{operationFd}/control.sock")
         os.chmod(operation / "control.sock", 0o600)
         listener.listen(1)
         listener.setblocking(False)
@@ -1140,12 +1140,12 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
             "bwrap": Material(material_root / "bin/bwrap", executable=True),
             "contract": Material(HERE / "contract.py", executable=False),
             "bootstrap": Material(HERE / "bootstrap.py", executable=False),
-            "request": Material(request_path, executable=False)}
+            "request": Material(requestPath, executable=False)}
         provenance = VerifyBuild(material_root, materials)
         outer = {"operation": str(operation), "request_sha256": hashlib.sha256(
             envelope.Encode()).hexdigest(), "materials": materials}
-        outer_path = operation / "bootstrap.json"
-        Exclusive(outer_path, Canonical(outer))
+        outerPath = operation / "bootstrap.json"
+        Exclusive(outerPath, Canonical(outer))
         target = Target(TargetKind.IP, "127.0.0.1")
         scope = ScopeSnapshot("inert", "inert", ScopeAuthorization(
             AuthorizationState.GRANTED, "operator:inert-test", "approval:closed-inert"),
@@ -1157,7 +1157,7 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
             "test.zap-inert", "native.zap-inert-test", ImpactLevel.SAFE)
         invocation = AdapterInvocation("native.zap-inert-test", AdapterRequest(
             "test.zap-inert", target.Reference(), ImpactLevel.SAFE),
-            (sys.executable, "-I", "-B", str(HERE / "bootstrap.py"), str(outer_path)), 11, "1")
+            (sys.executable, "-I", "-B", str(HERE / "bootstrap.py"), str(outerPath)), 11, "1")
         engine = PolicyEngine()
         grant = engine.Authorize(invocation, capability, context, at=datetime.now(timezone.utc))
         request = LocalExecutionRequest(invocation, capability, grant.authorization,
@@ -1195,11 +1195,11 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
                     late.set()
 
                 if b"ACK_WITHOUT_REPORT\n" in stream:
-                    before_report.set()
+                    beforeReport.set()
 
                 if b"WORK_COMPLETE\n" in stream:
                     observations["work_complete_observed"] = True
-                    work_complete.set()
+                    workComplete.set()
 
         if time.monotonic() - started > 2:
             raise ValueError("inert preflight exceeded its measured budget")
@@ -1208,15 +1208,15 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
             context_provider=CurrentContext, on_event=OnEvent, cancellation=cancellation,
             own_descendants=True))
         accept = asyncio.create_task(asyncio.get_running_loop().sock_accept(listener))
-        start_wait = asyncio.create_task(launched.wait())
+        startWait = asyncio.create_task(launched.wait())
 
         phase = "outer-ready"
 
         try:
-            started_done, _ = await asyncio.wait((task, start_wait), timeout=3,
+            startedDone, _ = await asyncio.wait((task, startWait), timeout=3,
                 return_when=asyncio.FIRST_COMPLETED)
 
-            if start_wait not in started_done:
+            if startWait not in startedDone:
                 raise ValueError("inert original outer READY was not observed")
 
             if ready_deadline is None:
@@ -1233,9 +1233,9 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
             connection.setblocking(True)
             connection.settimeout(min(1, ReadyRemaining(ready_deadline)))
             phase = "ready-receive"
-            directory, pidfd, peer_pid, declaration = ReceiveReady(connection, envelope)
+            directory, pidfd, peerPid, declaration = ReceiveReady(connection, envelope)
             phase = "peer-verify"
-            observations = VerifyPeer(peer_pid, pidfd, directory, declaration,
+            observations = VerifyPeer(peerPid, pidfd, directory, declaration,
                 envelope.Encode(), materials)
             observations.update(build=provenance, final_ready_verified=True, ack_sent=False,
                 intentional_authority_revocation=False, current_authority_refused=False,
@@ -1277,7 +1277,7 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
 
             if case not in {"deny", "missing"}:
                 phase = "work-completion"
-                readiness = work_complete if case in {"normal", "bytes", "inodes"} else late
+                readiness = workComplete if case in {"normal", "bytes", "inodes"} else late
 
                 await asyncio.wait_for(readiness.wait(),
                     ReadyRemaining(ready_deadline - 5 + 11))
@@ -1319,7 +1319,7 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
                     cancellation.set()
 
             elif case == "missing":
-                await asyncio.wait_for(before_report.wait(), 5)
+                await asyncio.wait_for(beforeReport.wait(), 5)
                 observations["cooperative_cancel_requested"] = True
                 cancellation.set()
 
@@ -1334,7 +1334,7 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
             cancellation.set()
 
         finally:
-            for pending in (accept, start_wait):
+            for pending in (accept, startWait):
                 if not pending.done():
                     pending.cancel()
 
@@ -1342,24 +1342,24 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
                     await pending
 
                 except asyncio.CancelledError:
-                    current_task = asyncio.current_task()
+                    currentTask = asyncio.current_task()
 
-                    if current_task is not None and current_task.cancelling():
+                    if currentTask is not None and currentTask.cancelling():
                         failure = failure or "caller-cancelled"
                         cancellation.set()
 
-        execution_handed_off = True
-        custody_directory, directory = directory, None
-        custody_pidfd, pidfd = pidfd, None
+        executionHandedOff = True
+        custodyDirectory, directory = directory, None
+        custodyPidfd, pidfd = pidfd, None
 
-        return await FinishOwned(task, cancellation, operation, custody_directory, custody_pidfd,
+        return await FinishOwned(task, cancellation, operation, custodyDirectory, custodyPidfd,
             observations, failure, started, stream, sink)
 
     finally:
         cancellation.set()
 
         try:
-            if task is not None and not task.done() and not execution_handed_off:
+            if task is not None and not task.done() and not executionHandedOff:
                 await Settle(task, cancellation, deadline=started + 20)
 
         finally:
@@ -1367,6 +1367,6 @@ async def Run(operation: Path, material_root: Path, mode: str, case: str) -> Out
                 if handle is not None:
                     handle.close()
 
-            for descriptor in (directory, pidfd, operation_fd):
+            for descriptor in (directory, pidfd, operationFd):
                 if descriptor is not None:
                     os.close(descriptor)

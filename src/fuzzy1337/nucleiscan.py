@@ -365,12 +365,12 @@ def PlanNucleiScan(
         raise ValueError("Nuclei workflow requires an absolute executable and typed limits")
 
     RequireWorkspaceText(owner_reference, "owner_reference")
-    workspace_store = LocalWorkspaceStore(workspace_root)
-    workspace = workspace_store.Open()
-    evidence = LocalEvidenceStore(workspace_store.root / "evidence")
+    workspaceStore = LocalWorkspaceStore(workspace_root)
+    workspace = workspaceStore.Open()
+    evidence = LocalEvidenceStore(workspaceStore.root / "evidence")
     VerifyWorkspaceEvidence(workspace, evidence)
-    LocalModelStore(workspace_store.root).Open()
-    authority = CurrentContext(workspace_store.root, scope_id, target, owner_reference,
+    LocalModelStore(workspaceStore.root).Open()
+    authority = CurrentContext(workspaceStore.root, scope_id, target, owner_reference,
                                policy_provider)
     adapter = NucleiAdapter(evidence.Read, profile, executable)
     health = adapter.CheckHealth()
@@ -622,7 +622,7 @@ class NucleiWorkflow:
             evidence = LocalEvidenceStore(self.workspace_root / "evidence")
             VerifyWorkspaceEvidence(workspace, evidence)
             references = {(item.locator, item.role): item for item in workspace.evidence_references}
-            record_ids = set(workspace.evidence_record_references)
+            recordIds = set(workspace.evidence_record_references)
 
             for artifact in snapshot.artifacts:
                 record = artifact.evidence
@@ -633,7 +633,7 @@ class NucleiWorkflow:
                 evidence.Read(record.reference)
                 references.setdefault((record.reference.locator, record.reference.role),
                                       record.reference)
-                record_ids.add(record.evidence_id)
+                recordIds.add(record.evidence_id)
 
             store.Save(replace(
                 workspace,
@@ -643,7 +643,7 @@ class NucleiWorkflow:
                                                 *(item.Reference() for item in model.objects)})),
                 job_references=(*workspace.job_references, snapshot.spec.job_id),
                 evidence_references=tuple(references[key] for key in sorted(references)),
-                evidence_record_references=tuple(sorted(record_ids)),
+                evidence_record_references=tuple(sorted(recordIds)),
             ))
 
         except (OSError, ValueError, EvidenceError, WorkspaceBusyError,
@@ -705,7 +705,7 @@ async def RunNucleiScan(
     provider = NucleiWorkflow(store.root, scope_id, target, owner_reference, policy_provider,
                              adapter, plan.invocation, confirmation, Snapshot, clock)
     job = ScanJob(spec, provider, evidence_store=evidence)
-    started_at = datetime.now(UTC).isoformat()
+    startedAt = datetime.now(UTC).isoformat()
     started = time.monotonic()
     cursor = -1
     job.Start()
@@ -738,7 +738,7 @@ async def RunNucleiScan(
     model = LocalModelStore(store.root).Open()
 
     return NucleiScanSummary(
-        snapshot, started_at, datetime.now(UTC).isoformat(), time.monotonic() - started,
+        snapshot, startedAt, datetime.now(UTC).isoformat(), time.monotonic() - started,
         model.revision, tuple((kind.value, len(model.Objects(kind))) for kind in ObjectKind),
         job.EventsSince(),
     )

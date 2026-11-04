@@ -200,7 +200,7 @@ def PerformanceCases() -> tuple[BenchmarkCase, ...]:
         Fixed implemented benchmark cases and latency budgets.
     """
 
-    palette_probe, switch_probe = PrepareInProcessProbes()
+    paletteProbe, switchProbe = PrepareInProcessProbes()
 
     return (
         BenchmarkCase("cli_cold_start", 2000.0, PROCESS_SAMPLE_COUNT, 1, ProbeColdStart),
@@ -216,14 +216,14 @@ def PerformanceCases() -> tuple[BenchmarkCase, ...]:
             2.0,
             IN_PROCESS_SAMPLE_COUNT,
             IN_PROCESS_ITERATIONS,
-            palette_probe,
+            paletteProbe,
         ),
         BenchmarkCase(
             "lens_view_switch",
             2.0,
             IN_PROCESS_SAMPLE_COUNT,
             IN_PROCESS_ITERATIONS,
-            switch_probe,
+            switchProbe,
         ),
     )
 
@@ -247,8 +247,8 @@ def Measure(case: BenchmarkCase) -> BenchmarkResult:
         for _ in range(case.iterations_per_sample):
             case.operation()
 
-        elapsed_ns = time.perf_counter_ns() - started
-        samples.append(elapsed_ns / case.iterations_per_sample / 1_000_000)
+        elapsedNs = time.perf_counter_ns() - started
+        samples.append(elapsedNs / case.iterations_per_sample / 1_000_000)
 
     return BenchmarkResult(
         name=case.name,

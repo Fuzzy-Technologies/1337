@@ -126,11 +126,11 @@ def ParseNativeConfigurationReport(
         raise ValueError("Native configuration requires exactly one schema-two file result")
 
     result = results[0]
-    expected_type = "dockerfile" if manifest.profile is ArtifactProfile.DOCKERFILE else "kubernetes"
+    expectedType = "dockerfile" if manifest.profile is ArtifactProfile.DOCKERFILE else "kubernetes"
     rows = result.get("Misconfigurations")
 
     if result.get("Target") != selection.logical_path or result.get("Class") != "config" or (
-        result.get("Type") != expected_type or type(rows) is not list or not 1 <= len(rows) <= 2048
+        result.get("Type") != expectedType or type(rows) is not list or not 1 <= len(rows) <= 2048
     ):
         raise ValueError("Native configuration did not positively process its selected file")
 
@@ -141,9 +141,9 @@ def ParseNativeConfigurationReport(
         if type(row) is not dict:
             raise ValueError("Native configuration check must be an object")
 
-        check_id = BoundedText(row.get("ID"), 128, "check ID")
+        checkId = BoundedText(row.get("ID"), 128, "check ID")
 
-        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*", check_id):
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*", checkId):
             raise ValueError("Native configuration check ID is not a canonical provider identifier")
 
         status = row.get("Status")
@@ -178,7 +178,7 @@ def ParseNativeConfigurationReport(
         if resource is not None:
             resource = BoundedText(resource, 4096, "resource", empty=True)
 
-        checks.append(NativeConfigurationCheck(check_id, status, severity, title, description,
+        checks.append(NativeConfigurationCheck(checkId, status, severity, title, description,
                                                 resolution, start, end, resource))
 
     return tuple(checks)

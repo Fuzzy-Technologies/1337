@@ -68,14 +68,14 @@ def Control(tmp_path, selection, action="create", stage=None):
 
     directory = tmp_path / ("native-configuration-read-" + "b" * 32)
     directory.mkdir(mode=0o700)
-    directory_identity = directory.stat()
-    workspace_identity = tmp_path.stat()
+    directoryIdentity = directory.stat()
+    workspaceIdentity = tmp_path.stat()
 
     return directory, {"schema_version": 1, "action": action, "nonce": "c" * 32,
         "operation_reference": "operation:material", "workspace_id": "workspace:material",
         "owner_reference": selection.read_consent.actor_ref, "workspace_root": str(tmp_path),
-        "workspace_identity": [workspace_identity.st_dev, workspace_identity.st_ino],
-        "directory_identity": [directory_identity.st_dev, directory_identity.st_ino],
+        "workspace_identity": [workspaceIdentity.st_dev, workspaceIdentity.st_ino],
+        "directory_identity": [directoryIdentity.st_dev, directoryIdentity.st_ino],
         "selection": worker.SelectionPayload(selection), "stage_root": str(StageRoot(tmp_path)),
         "stage": stage}
 
@@ -84,14 +84,14 @@ def test_SnapshotCompositionPassesActualRoleAdmissionLimits(tmp_path, owned_mate
     """The limits reach streaming Capture rather than depending on a prior metadata check."""
 
     captures = []
-    original_capture = ArtifactSnapshot.Capture
+    originalCapture = ArtifactSnapshot.Capture
 
     def Capture(*args, **kwargs):
         """Observe the real bounded capture API while preserving actual guarded file copying."""
 
         captures.append((args[2], kwargs.get("max_total_bytes")))
 
-        return original_capture(*args, **kwargs)
+        return originalCapture(*args, **kwargs)
 
     def Forbidden(*args, **kwargs):
         """Reject accidental calls to the globally bounded stage or snapshot verifier."""
@@ -119,7 +119,7 @@ def test_VerificationNeverReopensOriginalSource(tmp_path, owned_material, monkey
     stage = worker.CreateStage(StageRoot(tmp_path), owned_material)
     owned_material.source.unlink()
     reads = []
-    original_read = worker.ReadArtifactFile
+    originalRead = worker.ReadArtifactFile
 
     def Read(path, name, destination=None, *, max_bytes):
         """Retain each real bounded read and reject any original-source reopen."""
@@ -127,7 +127,7 @@ def test_VerificationNeverReopensOriginalSource(tmp_path, owned_material, monkey
         assert path != owned_material.source, "Captured original source must never be reopened"
         reads.append((path, max_bytes))
 
-        return original_read(path, name, destination, max_bytes=max_bytes)
+        return originalRead(path, name, destination, max_bytes=max_bytes)
 
     monkeypatch.setattr(worker, "ReadArtifactFile", Read)
     worker.VerifyStage(stage, owned_material)
@@ -360,7 +360,7 @@ def test_ActualOverlimitReadChunkIsRefusedBeforeHashOrCopy(tmp_path, monkeypatch
 
     source = tmp_path / "growing"
     source.write_bytes(b"x")
-    original_fdopen = os.fdopen
+    originalFdopen = os.fdopen
     opened = 0
     requested = []
     chunk = b"x" * (64 * 1024)
@@ -376,7 +376,7 @@ def test_ActualOverlimitReadChunkIsRefusedBeforeHashOrCopy(tmp_path, monkeypatch
         """Replace only the selected read stream, retaining the independent witness handle."""
 
         nonlocal opened
-        stream = original_fdopen(*args, **kwargs)
+        stream = originalFdopen(*args, **kwargs)
         opened += 1
 
         if opened != 1:
@@ -398,11 +398,11 @@ def test_ActualOverlimitReadChunkIsRefusedBeforeHashOrCopy(tmp_path, monkeypatch
     with pytest.raises(ValueError, match="grew beyond"):
         artifact_inputs.ReadArtifactFile(source, "source", destination, max_bytes=maximum)
 
-    admitted_chunks = maximum // len(chunk)
-    assert requested == [64 * 1024] * (admitted_chunks + 1), (
+    admittedChunks = maximum // len(chunk)
+    assert requested == [64 * 1024] * (admittedChunks + 1), (
         "Growth may read at most one extra fixed 64-KiB buffer before refusing the selected file")
-    assert digest.update.call_count == admitted_chunks and (
-        destination.write.call_count == admitted_chunks
+    assert digest.update.call_count == admittedChunks and (
+        destination.write.call_count == admittedChunks
     ), "The overlimit chunk must never be hashed, copied or admitted to either role budget"
 
 
@@ -420,22 +420,22 @@ def test_StagePayloadCannotBroadenManifestSizeWithoutPhysicalAgreement(tmp_path,
 def InstallPrivatePosixModel(observer, monkeypatch):
     """Model declared private modes and owned snapshot unlink for protocol units only."""
 
-    original_info = worker.ArtifactPathInfo
-    original_mkdir, original_chmod, original_unlink = Path.mkdir, Path.chmod, Path.unlink
-    original_open = os.open
+    originalInfo = worker.ArtifactPathInfo
+    originalMkdir, originalChmod, originalUnlink = Path.mkdir, Path.chmod, Path.unlink
+    originalOpen = os.open
     model = SimpleNamespace(modes={}, declarations=[], views=[], unlinked=[])
 
     def Remember(path, mode, *, directory):
         """Retain declared permissions alongside the original guarded physical entry identity."""
 
-        info = original_info(path, directory=directory)
+        info = originalInfo(path, directory=directory)
         model.modes[path] = ((info.st_dev, info.st_ino), mode, directory)
         model.declarations.append((path, mode))
 
     def Mkdir(path, mode=0o777, parents=False, exist_ok=False):
         """Observe only successful generated private directories inside the active workspace."""
 
-        original_mkdir(path, mode=mode, parents=parents, exist_ok=exist_ok)
+        originalMkdir(path, mode=mode, parents=parents, exist_ok=exist_ok)
         prefix = "native-configuration-read-"
         suffix = path.name.removeprefix(prefix)
 
@@ -448,7 +448,7 @@ def InstallPrivatePosixModel(observer, monkeypatch):
     def Open(path, flags, mode=0o777, *, dir_fd=None):
         """Delegate actual exclusive creation and record only an owned private request's mode."""
 
-        descriptor = original_open(path, flags, mode, dir_fd=dir_fd)
+        descriptor = originalOpen(path, flags, mode, dir_fd=dir_fd)
         path = Path(path)
 
         if path.parent in model.modes and path.name == "request.json" and observer._busy:
@@ -460,8 +460,8 @@ def InstallPrivatePosixModel(observer, monkeypatch):
         """Keep deliberate permission changes visible instead of normalizing them away."""
 
         entry = model.modes.get(path)
-        info = original_info(path, directory=entry[2]) if entry is not None else None
-        original_chmod(path, mode, follow_symlinks=follow_symlinks)
+        info = originalInfo(path, directory=entry[2]) if entry is not None else None
+        originalChmod(path, mode, follow_symlinks=follow_symlinks)
 
         if entry is not None and (info.st_dev, info.st_ino) == entry[0]:
             Remember(path, mode, directory=entry[2])
@@ -469,7 +469,7 @@ def InstallPrivatePosixModel(observer, monkeypatch):
     def Info(path, *, directory=False):
         """Run physical guards first; change only modes of exact registered private entries."""
 
-        info = original_info(path, directory=directory)
+        info = originalInfo(path, directory=directory)
         entry = model.modes.get(path)
         registered = path in observer._private or any(
             path == request.parent for request in observer._private)
@@ -492,17 +492,17 @@ def InstallPrivatePosixModel(observer, monkeypatch):
             for name, identity in snapshot.identities}
 
         if path in known:
-            info = original_info(path)
+            info = originalInfo(path)
             assert PhysicalIdentity(info) == known[path] and (
                 stage.root == observer._stage_root and observer._terminal and not observer._busy
             ), "Only unchanged terminal observer snapshots may use modeled POSIX unlink"
 
             if not info.st_mode & stat.S_IWUSR:
-                original_chmod(path, stat.S_IMODE(info.st_mode) | stat.S_IWUSR)
+                originalChmod(path, stat.S_IMODE(info.st_mode) | stat.S_IWUSR)
 
             model.unlinked.append(path)
 
-        return original_unlink(path, missing_ok=missing_ok)
+        return originalUnlink(path, missing_ok=missing_ok)
 
     monkeypatch.setattr(Path, "mkdir", Mkdir)
     monkeypatch.setattr(Path, "chmod", Chmod)
@@ -1005,9 +1005,9 @@ def test_SimulatedWorkingDeadlineStopsBeforeCleanupReserve(simulated_observer, m
 
     observer, controls = simulated_observer
     controls["mode"] = "cancel"
-    observed_base = material.monotonic()
-    monkeypatch.setattr(material, "monotonic", lambda: observed_base)
-    monkeypatch.setattr(budget_module, "monotonic", lambda: observed_base)
+    observedBase = material.monotonic()
+    monkeypatch.setattr(material, "monotonic", lambda: observedBase)
+    monkeypatch.setattr(budget_module, "monotonic", lambda: observedBase)
     budget = NativeImageObservationBudget()
     original = budget.BeginObservation
 
@@ -1284,7 +1284,7 @@ def test_UnsupportedPlatformRefusesWorkerAndParentBeforeReadsOrHelperAdmission(
     observer = material.NativeConfigurationMaterialObserver(owned_material, tmp_path,
         "workspace:material", "owner:mechanics")
     budget = NativeImageObservationBudget()
-    original_children = set(tmp_path.iterdir())
+    originalChildren = set(tmp_path.iterdir())
     forbidden = MagicMock(side_effect=AssertionError("Unsupported platforms must refuse admission"))
     monkeypatch.setattr(worker, "sys", SimpleNamespace(platform=system, stderr=worker.sys.stderr))
     monkeypatch.setattr(worker.platform, "machine", lambda: machine)
@@ -1310,7 +1310,7 @@ def test_UnsupportedPlatformRefusesWorkerAndParentBeforeReadsOrHelperAdmission(
     with pytest.raises(ValueError, match="platform is unsupported"):
         asyncio.run(observer.Create(budget, operation_reference="operation:material"))
 
-    assert not forbidden.called and set(tmp_path.iterdir()) == original_children, (
+    assert not forbidden.called and set(tmp_path.iterdir()) == originalChildren, (
         "Unsupported platform refusal must precede reads, helper launch and workspace mutation")
     assert budget.ObservationCount == 0 and not budget.Failed, (
         "Platform preflight must refuse before the caller ledger admits an observation")
@@ -1355,7 +1355,7 @@ def test_InProcessWorkerEntryPointRechecksOriginalControlBeforeMetadataOutput(
 
         return
 
-    original_read = worker.ReadControl
+    originalRead = worker.ReadControl
     reads = []
 
     def Read(path, digest, identity):
@@ -1363,7 +1363,7 @@ def test_InProcessWorkerEntryPointRechecksOriginalControlBeforeMetadataOutput(
 
         reads.append((path, digest, identity))
 
-        return original_read(path, digest, identity)
+        return originalRead(path, digest, identity)
 
     monkeypatch.setattr(worker, "RequirePlatform", lambda: None)
     monkeypatch.setattr(worker, "ReadControl", Read)
@@ -1390,8 +1390,8 @@ def test_ScratchReplacementDuringWorkerVerificationRefusesAndRetainsStage(
     observer, controls = simulated_observer
     budget = NativeImageObservationBudget()
     proof = asyncio.run(observer.Create(budget, operation_reference="operation:material"))
-    original_read = worker.ReadArtifactFile
-    original_execute = LocalExecutor.Execute
+    originalRead = worker.ReadArtifactFile
+    originalExecute = LocalExecutor.Execute
     replaced = False
     refusal = []
 
@@ -1406,13 +1406,13 @@ def test_ScratchReplacementDuringWorkerVerificationRefusesAndRetainsStage(
             scratch.mkdir()
             replaced = True
 
-        return original_read(path, name, destination, max_bytes=max_bytes)
+        return originalRead(path, name, destination, max_bytes=max_bytes)
 
     async def Execute(executor, request, **options):
         """Represent sanitized child refusal with a confirmed simulated terminal result."""
 
         try:
-            return await original_execute(executor, request, **options)
+            return await originalExecute(executor, request, **options)
 
         except ValueError as error:
             if "scratch identity" not in str(error):

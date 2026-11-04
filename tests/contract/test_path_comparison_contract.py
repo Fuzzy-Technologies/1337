@@ -61,25 +61,25 @@ def test_HandwrittenOneFocusOraclePreservesBothOriginalAnalyses(tmp_path, target
     fixture = Fixture.Create(tmp_path / "workspace")
     before = fixture.Phase(oracle["before_phase"])
     after = fixture.Phase(oracle["after_phase"])
-    original_bytes = Files(fixture.root)
-    before_status, original_before = Run(OriginalArguments(fixture, before, target=target))
-    after_status, original_after = Run(OriginalArguments(fixture, after, target=target))
+    originalBytes = Files(fixture.root)
+    beforeStatus, originalBefore = Run(OriginalArguments(fixture, before, target=target))
+    afterStatus, originalAfter = Run(OriginalArguments(fixture, after, target=target))
     status, result = Run(PairArguments(fixture, before, after, target=target))
-    assert before_status == after_status == status == 0, "Original paired admission failed"
+    assert beforeStatus == afterStatus == status == 0, "Original paired admission failed"
     assert set(result) == set(oracle["top_level_fields"]), "Paired machine family changed"
     assert result["schema_version"] == result["profile_version"] == 1 and (
         result["profile"] == "same-basis-selected-path-comparison"
         and result["command"] == "paths.compare" and result["status"] == "completed"
     ), "Comparison lost its distinct additive profile"
-    assert result["before"] == original_before and result["after"] == original_after, (
+    assert result["before"] == originalBefore and result["after"] == originalAfter, (
         "Comparison rewrote an original outcome, source proof, estimate, limit or completeness"
     )
     focus = fixture.relations[oracle["focus_transition"]].Reference()
-    expected_change = oracle["observed_state_change"]
+    expectedChange = oracle["observed_state_change"]
     assert result["focus_transition"] == focus and result["observed_state_change"] is True and (
         result["state_changes"] == [{"relation_reference": focus,
-            "before_state": expected_change["before_state"],
-            "after_state": expected_change["after_state"]}]
+            "before_state": expectedChange["before_state"],
+            "after_state": expectedChange["after_state"]}]
     ), "A path-count comparison replaced the handwritten transition-state change"
 
     for side in ("before", "after"):
@@ -88,15 +88,15 @@ def test_HandwrittenOneFocusOraclePreservesBothOriginalAnalyses(tmp_path, target
         assert PathsByAliases(fixture, result[side]) == expected, (
             "The one-focus comparison lost a detour or already blocked route"
         )
-        assert result[side]["as_of"] == original_before["as_of"], "A replay clock was invented"
+        assert result[side]["as_of"] == originalBefore["as_of"], "A replay clock was invented"
 
-    assert result["model_version"] == original_before["model_version"] == (
-        original_after["model_version"]
+    assert result["model_version"] == originalBefore["model_version"] == (
+        originalAfter["model_version"]
     ), "The comparison joined different saved model bases"
     assert all(result[name] == "none" for name in (
         "core_mutation", "evidence_mutation", "authority"
     )), "The paired presentation acquired write or execution authority"
-    assert Files(fixture.root) == original_bytes, "Comparison wrote original owner state"
+    assert Files(fixture.root) == originalBytes, "Comparison wrote original owner state"
 
 
 def test_EqualStatesRetainDistinctOriginalAssessmentProofs(tmp_path):
@@ -106,34 +106,34 @@ def test_EqualStatesRetainDistinctOriginalAssessmentProofs(tmp_path):
     before = fixture.Phase("confirmed")
     raw = LocalEvidenceStore(fixture.root / "evidence").Read(before[0].reference)
     after = (fixture.Assessment(raw=raw, source_id="separate-owned-attester"),)
-    original_bytes = Files(fixture.root)
-    before_status, original_before = Run(OriginalArguments(fixture, before))
-    after_status, original_after = Run(OriginalArguments(fixture, after))
+    originalBytes = Files(fixture.root)
+    beforeStatus, originalBefore = Run(OriginalArguments(fixture, before))
+    afterStatus, originalAfter = Run(OriginalArguments(fixture, after))
     status, result = Run(PairArguments(fixture, before, after))
-    assert before_status == after_status == status == 0, "Equal-state original proof was refused"
+    assert beforeStatus == afterStatus == status == 0, "Equal-state original proof was refused"
     assert result["observed_state_change"] is False and result["state_changes"] == [], (
         "A provenance difference became an observed transition-state change"
     )
-    assert result["before"] == original_before and result["after"] == original_after, (
+    assert result["before"] == originalBefore and result["after"] == originalAfter, (
         "Equal-state comparison merged distinct source outcomes"
     )
-    assert original_before["assessment_manifest_ids"] != original_after[
+    assert originalBefore["assessment_manifest_ids"] != originalAfter[
         "assessment_manifest_ids"
     ], "The owned fixture did not independently attribute its copied source bytes"
-    assert original_before["analysis"]["transitions"] != original_after["analysis"][
+    assert originalBefore["analysis"]["transitions"] != originalAfter["analysis"][
         "transitions"
     ], "Distinct original claim attribution disappeared"
-    assert Files(fixture.root) == original_bytes, "Equal-state comparison wrote retained evidence"
+    assert Files(fixture.root) == originalBytes, "Equal-state comparison wrote retained evidence"
 
 
 def test_UnassessedBothSidesRemainUnknownWithoutInventingRisk(tmp_path):
     """No-assessment selections keep UNKNOWN routes and exact owner output on each side."""
 
     fixture = Fixture.Create(tmp_path / "workspace")
-    original_bytes = Files(fixture.root)
-    original_status, original = Run(OriginalArguments(fixture, ()))
+    originalBytes = Files(fixture.root)
+    originalStatus, original = Run(OriginalArguments(fixture, ()))
     status, result = Run(PairArguments(fixture, (), ()))
-    assert original_status == status == 0, "Explicit unassessed comparison was refused"
+    assert originalStatus == status == 0, "Explicit unassessed comparison was refused"
     assert result["before"] == result["after"] == original, "UNKNOWN source facts were rewritten"
     assert result["observed_state_change"] is False and result["state_changes"] == [], (
         "Unassessed repeated selection acquired a state change"
@@ -147,7 +147,7 @@ def test_UnassessedBothSidesRemainUnknownWithoutInventingRisk(tmp_path):
         assert all(transition["state"] == "UNKNOWN" and not transition["claims"]
             for transition in analysis["transitions"]), "A claim was fabricated for missing support"
 
-    assert Files(fixture.root) == original_bytes, "Unassessed comparison changed owner state"
+    assert Files(fixture.root) == originalBytes, "Unassessed comparison changed owner state"
 
 
 @pytest.mark.parametrize("flag,search_complete,cuts_complete", [
@@ -160,12 +160,12 @@ def test_SearchAndCutTruncationStayIndependentOriginalFacts(
 
     fixture = Fixture.Create(tmp_path / "workspace")
     before, after = fixture.Phase("confirmed"), fixture.Phase("remediation")
-    original_bytes = Files(fixture.root)
-    before_status, original_before = Run(Value(OriginalArguments(fixture, before), flag, "1"))
-    after_status, original_after = Run(Value(OriginalArguments(fixture, after), flag, "1"))
+    originalBytes = Files(fixture.root)
+    beforeStatus, originalBefore = Run(Value(OriginalArguments(fixture, before), flag, "1"))
+    afterStatus, originalAfter = Run(Value(OriginalArguments(fixture, after), flag, "1"))
     status, result = Run(Value(PairArguments(fixture, before, after), flag, "1"))
-    assert before_status == after_status == status == 0, "Honest bounded analysis became failure"
-    assert result["before"] == original_before and result["after"] == original_after, (
+    assert beforeStatus == afterStatus == status == 0, "Honest bounded analysis became failure"
+    assert result["before"] == originalBefore and result["after"] == originalAfter, (
         "Comparison normalized or combined separate completeness indicators"
     )
 
@@ -175,7 +175,7 @@ def test_SearchAndCutTruncationStayIndependentOriginalFacts(
             analysis["cuts"]["complete"] is cuts_complete
         ), "Returned-path and independent cut completeness were confused"
 
-    assert Files(fixture.root) == original_bytes, "Bounded comparison wrote original stores"
+    assert Files(fixture.root) == originalBytes, "Bounded comparison wrote original stores"
 
 
 @pytest.mark.parametrize("after_phase,focus", [
@@ -189,15 +189,15 @@ def test_OriginalStateChangesOutsideFocusRefuseWithoutSuccessfulPartialPair(
 
     fixture = Fixture.Create(tmp_path / "workspace")
     before, after = fixture.Phase("confirmed"), fixture.Phase(after_phase)
-    original_bytes = Files(fixture.root)
-    before_status, _ = Run(OriginalArguments(fixture, before))
-    after_status, _ = Run(OriginalArguments(fixture, after))
+    originalBytes = Files(fixture.root)
+    beforeStatus, _ = Run(OriginalArguments(fixture, before))
+    afterStatus, _ = Run(OriginalArguments(fixture, after))
     status, result = Run(PairArguments(fixture, before, after, focus=focus))
-    assert before_status == after_status == 0, "The independent original phases were invalid"
+    assert beforeStatus == afterStatus == 0, "The independent original phases were invalid"
     assert status == 4 and result["status"] != "completed" and result["failure"], (
         "An unrelated or multiple state change escaped the selected-focus comparison boundary"
     )
     assert result["before"] is None and result["after"] is None, (
         "A refused pair exposed a successful first-only comparison"
     )
-    assert Files(fixture.root) == original_bytes, "Refused comparison repaired original state"
+    assert Files(fixture.root) == originalBytes, "Refused comparison repaired original state"

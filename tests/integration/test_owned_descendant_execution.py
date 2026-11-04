@@ -82,15 +82,15 @@ def ReapRecorded(root: Path) -> None:
     while True:
         remaining = Recorded(root)
 
-        for process_id, started in remaining.items():
+        for processId, started in remaining.items():
             try:
-                descriptor = os.pidfd_open(process_id)
+                descriptor = os.pidfd_open(processId)
 
             except ProcessLookupError:
                 continue
 
             try:
-                if Identity(process_id) == started:
+                if Identity(processId) == started:
                     try:
                         signal.pidfd_send_signal(descriptor, signal.SIGKILL)
 
@@ -101,7 +101,7 @@ def ReapRecorded(root: Path) -> None:
                 os.close(descriptor)
 
             try:
-                os.waitpid(process_id, os.WNOHANG)
+                os.waitpid(processId, os.WNOHANG)
 
             except ChildProcessError:
                 pass
@@ -119,10 +119,10 @@ def ReapRecorded(root: Path) -> None:
 def owned_tree(tmp_path: Path) -> Iterator[Path]:
     """Reap only this case's recorded descendants if the implementation regresses."""
 
-    own_children = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
+    ownChildren = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
 
     try:
-        with own_children.open("rb"):
+        with ownChildren.open("rb"):
             pass
 
     except OSError:
@@ -187,10 +187,10 @@ async def Ready(root: Path) -> None:
 def test_ActualUnavailableKernelInterfaceRefusesBeforeTheClosedFixtureRuns(tmp_path):
     """An actually unsupported host cannot start the approved fixture or emit a launch event."""
 
-    own_children = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
+    ownChildren = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
 
     try:
-        with own_children.open("rb"):
+        with ownChildren.open("rb"):
             pass
 
     except OSError:
@@ -238,13 +238,13 @@ def test_StoppedExecutionReapsActualDetachedTreeBeforeTerminalResult(owned_tree,
         """Cancel only after the actual detached leaf has acknowledged readiness."""
 
         cancellation = asyncio.Event()
-        root_output = asyncio.Event()
+        rootOutput = asyncio.Event()
 
         def Observe(event: ExecutionEvent) -> None:
             """Acknowledge root output only after the detached leaf readiness barrier."""
 
             if event.kind is ExecutionEventKind.STDOUT:
-                root_output.set()
+                rootOutput.set()
 
         task = asyncio.create_task(LocalExecutor(owned_tree).Execute(
             Request(owned_tree, "output" if stop == "output" else "hold"),
@@ -254,7 +254,7 @@ def test_StoppedExecutionReapsActualDetachedTreeBeforeTerminalResult(owned_tree,
             if stop == "cancellation":
                 await Ready(owned_tree)
 
-                await asyncio.wait_for(root_output.wait(), 3)
+                await asyncio.wait_for(rootOutput.wait(), 3)
                 cancellation.set()
 
             return await task
@@ -291,7 +291,7 @@ def test_ObserverAndCallerAbortPropagateOnlyAfterDetachedTreeCleanup(owned_tree,
         """Abort at an actual root output event, after the fixture's complete readiness barrier."""
 
         observed = []
-        root_output = asyncio.Event()
+        rootOutput = asyncio.Event()
 
         async def Observe(event: ExecutionEvent) -> None:
             """Refuse the observer or suspend until the caller cancels this exact invocation."""
@@ -299,7 +299,7 @@ def test_ObserverAndCallerAbortPropagateOnlyAfterDetachedTreeCleanup(owned_tree,
             observed.append(event)
 
             if event.kind is ExecutionEventKind.STDOUT:
-                root_output.set()
+                rootOutput.set()
 
                 if abort == "observer":
                     raise RuntimeError("owned observer failure")
@@ -311,13 +311,13 @@ def test_ObserverAndCallerAbortPropagateOnlyAfterDetachedTreeCleanup(owned_tree,
 
         try:
             if abort == "caller":
-                await asyncio.wait_for(root_output.wait(), 3)
+                await asyncio.wait_for(rootOutput.wait(), 3)
                 task.cancel()
 
-            error_type = RuntimeError if abort == "observer" else asyncio.CancelledError
+            errorType = RuntimeError if abort == "observer" else asyncio.CancelledError
             message = "^owned observer failure$" if abort == "observer" else None
 
-            with pytest.raises(error_type, match=message):
+            with pytest.raises(errorType, match=message):
                 await task
 
             assert not any(event.kind is ExecutionEventKind.COMPLETED for event in observed), (

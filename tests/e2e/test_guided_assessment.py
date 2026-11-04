@@ -99,13 +99,13 @@ def test_InstalledGuidedAssessmentKeepsDetectionSourceAndInterpretationSeparate(
 ) -> None:
     """Run real approval, detection, fixed control, verified Intel and offline installed exports."""
 
-    finding_recipe = FINDING_RECIPE.read_text(encoding="utf-8")
+    findingRecipe = FINDING_RECIPE.read_text(encoding="utf-8")
     guide = GUIDE.read_text(encoding="utf-8")
     script = tmp_path / "owned_git_head_demo.py"
     script.write_bytes((ROOT / "docs/examples/owned_git_head_demo.py").read_bytes())
     parent = tmp_path / "git-head-demo"
     parent.mkdir()
-    policy, = re.findall(r"```json\n(.*?)```", finding_recipe, re.DOTALL)
+    policy, = re.findall(r"```json\n(.*?)```", findingRecipe, re.DOTALL)
     (parent / "policy.json").write_text(policy, encoding="utf-8")
     process = subprocess.Popen(
         [str(installed_onboarding), "-I", str(script), "--port", "0", "--seconds", "60"],
@@ -141,7 +141,7 @@ def test_InstalledGuidedAssessmentKeepsDetectionSourceAndInterpretationSeparate(
         )
         stopped = None
 
-        for statement in Statements(finding_recipe, "bash"):
+        for statement in Statements(findingRecipe, "bash"):
             arguments = [replacements.get(value, value).replace(":8765", f":{ready['port']}")
                          for value in statement[1:]]
 
@@ -176,8 +176,8 @@ def test_InstalledGuidedAssessmentKeepsDetectionSourceAndInterpretationSeparate(
             "Planning and missing confirmation cannot consume either of the two owned requests"
         )
         original = json.loads((parent / "model.json").read_bytes())
-        original_finding, = original["findings"]
-        replacements.update({"$FINDING": original_finding["reference"],
+        originalFinding, = original["findings"]
+        replacements.update({"$FINDING": originalFinding["reference"],
                              "$REVISION": str(original["model_revision"])})
         (parent / "training.cve.json").write_bytes(TRAINING.read_bytes())
 
@@ -228,7 +228,7 @@ def test_InstalledGuidedAssessmentKeepsDetectionSourceAndInterpretationSeparate(
                 assert outcome["model_commit"] == "confirmed" and (
                     outcome["model_revision"] == original["model_revision"] + 1
                 ), "Explicit candidate association must acknowledge exactly one durable revision"
-                apply_arguments = arguments
+                applyArguments = arguments
 
             elif arguments[0] == "report":
                 exports.append(outcome)
@@ -246,11 +246,11 @@ def test_InstalledGuidedAssessmentKeepsDetectionSourceAndInterpretationSeparate(
         observations = [item for item in report["model"]["observations"]
                         if item["kind"] == "finding-intelligence"]
         observation, = observations
-        source_assertion, = observation["attributes"]["source_assertions"]
-        assert source_assertion["association_state"] == "candidate" and (
-            source_assertion["source"]["origin"] == "synthetic"
+        sourceAssertion, = observation["attributes"]["source_assertions"]
+        assert sourceAssertion["association_state"] == "candidate" and (
+            sourceAssertion["source"]["origin"] == "synthetic"
         ), "The training association must remain synthetic and unreviewed"
-        assert source_assertion["record"]["identifier"] == "CVE-1900-9999", (
+        assert sourceAssertion["record"]["identifier"] == "CVE-1900-9999", (
             "The saved observation must retain only the selected fictional identifier"
         )
         assert report["scan_completeness"] == "not-assessed" and (
@@ -259,11 +259,11 @@ def test_InstalledGuidedAssessmentKeepsDetectionSourceAndInterpretationSeparate(
         html = (parent / "assessment.html").read_text(encoding="utf-8")
         displayed = DisclosureParser()
         displayed.feed(html)
-        primary_text = " ".join(displayed.visible_text)
+        primaryText = " ".join(displayed.visible_text)
         assert all(value in html for value in (
             "native.git-head-exposure", "CVE-1900-9999", "8.1", "FuzzyRoutines", "synthetic",
         )), "HTML must show the detector and separately attributed fuzzy source interpretation"
-        assert all(value in primary_text for value in ("CVE-1900-9999", "8.1", "candidate")), (
+        assert all(value in primaryText for value in ("CVE-1900-9999", "8.1", "candidate")), (
             "Readers must see the source meaning and association limit without expanding raw JSON"
         )
         assert displayed.unfolded_json == displayed.scripts == 0, (
@@ -272,15 +272,15 @@ def test_InstalledGuidedAssessmentKeepsDetectionSourceAndInterpretationSeparate(
         assert {item["snapshot_sha256"] for item in exports} == {report["snapshot_sha256"]}, (
             "Both offline presentations must bind the exact same saved model snapshot"
         )
-        stale = Execute(apply_arguments, 4)
+        stale = Execute(applyArguments, 4)
         assert isinstance(stale, dict) and stale["failure"] == "revision-conflict", (
             "A stale revision must refuse instead of overwriting newer retained model state"
         )
-        apply_arguments[apply_arguments.index("--expected-revision") + 1] = str(
+        applyArguments[applyArguments.index("--expected-revision") + 1] = str(
             report["model_revision"],
         )
         before = Files(parent / "workspace")
-        replay = Execute(apply_arguments)
+        replay = Execute(applyArguments)
         assert isinstance(replay, dict) and (
             replay["model_revision"] == report["model_revision"]
             and Files(parent / "workspace") == before

@@ -151,7 +151,7 @@ def ValidateResult(result: object) -> LocalExecutionResult:
     Execution(result.execution)
     stdout: list[bytes] = []
     stderr: list[bytes] = []
-    stream_bytes = 0
+    streamBytes = 0
 
     for sequence, event in enumerate(result.events):
         if type(event) is not ExecutionEvent or type(event.sequence) is not int or (
@@ -161,9 +161,9 @@ def ValidateResult(result: object) -> LocalExecutionResult:
         ):
             raise PageCaptureRecordError("page capture executor event shape is invalid")
 
-        stream_bytes += len(event.data)
+        streamBytes += len(event.data)
 
-        if stream_bytes > MAX_RECORD_BYTES + MAX_STDERR_BYTES or (
+        if streamBytes > MAX_RECORD_BYTES + MAX_STDERR_BYTES or (
             ExecutionEvent(event.sequence, event.kind, event.data, event.termination) != event
         ):
             raise PageCaptureRecordError("page capture executor event bounds differ")
@@ -187,14 +187,14 @@ def ValidateResult(result: object) -> LocalExecutionResult:
     ):
         raise PageCaptureRecordError("page capture executor terminal stream facts differ")
 
-    expected_states = {
+    expectedStates = {
         ExecutionTermination.PROCESS_EXIT: (ExecutionState.SUCCEEDED, ExecutionState.FAILED),
         ExecutionTermination.CANCELLATION: (ExecutionState.CANCELLED,),
         ExecutionTermination.TIMEOUT: (ExecutionState.TIMED_OUT,),
         ExecutionTermination.OUTPUT_LIMIT: (ExecutionState.CANCELLED,),
     }
 
-    if result.execution.state not in expected_states[result.termination]:
+    if result.execution.state not in expectedStates[result.termination]:
         raise PageCaptureRecordError("page capture execution and termination disagree")
 
     return result
@@ -231,22 +231,22 @@ class LocalPageCaptureProvider:
         if type(renderer) is not PageRenderer:
             raise ValueError("page capture requires an explicit finite renderer selection")
 
-        limit_type = PageCaptureLimits if renderer is PageRenderer.NATIVE else (
+        limitType = PageCaptureLimits if renderer is PageRenderer.NATIVE else (
             BrowserPageCaptureLimits)
 
-        if type(limits) is not limit_type or (
+        if type(limits) is not limitType or (
             type(frontier_limits) is not CapturedWebLimits
             or type(policy) is not ImpactPolicy or not callable(clock)
         ):
             raise ValueError("page capture requires exact typed limits, policy and clock")
 
-        checked_limits = limit_type(limits.max_body_bytes, limits.request_timeout_seconds,
+        checkedLimits = limitType(limits.max_body_bytes, limits.request_timeout_seconds,
                                     limits.timeout_seconds)
-        checked_frontier = CapturedWebLimits(frontier_limits.max_anchor_work,
+        checkedFrontier = CapturedWebLimits(frontier_limits.max_anchor_work,
                                             frontier_limits.max_candidates)
         body = KnownBody(expected_body)
 
-        if body.size_bytes > checked_limits.max_body_bytes:
+        if body.size_bytes > checkedLimits.max_body_bytes:
             raise ValueError("page capture reviewed body does not fit its selected quota")
 
         source, target = WebSource(source)
@@ -272,8 +272,8 @@ class LocalPageCaptureProvider:
         self._scope_id = scope_id
         self._policy = policy
         self._clock = clock
-        self.limits = checked_limits
-        self.frontier_limits = checked_frontier
+        self.limits = checkedLimits
+        self.frontier_limits = checkedFrontier
 
     @property
     def Descriptor(self) -> AdapterDescriptor:
@@ -399,10 +399,10 @@ class LocalPageCaptureProvider:
                 context.Heartbeat()
 
         try:
-            initial_context = self.CurrentContext()
-            pinned = initial_context.scope
-            pinned_dict = pinned.ToDict()
-            grant = PolicyEngine().Authorize(invocation, capability, initial_context, at=self.Now())
+            initialContext = self.CurrentContext()
+            pinned = initialContext.scope
+            pinnedDict = pinned.ToDict()
+            grant = PolicyEngine().Authorize(invocation, capability, initialContext, at=self.Now())
             started = self.Now().isoformat()
             request = LocalExecutionRequest(invocation, capability, grant.authorization,
                 resources=ExecutionResources(MAX_RECORD_BYTES, MAX_STDERR_BYTES, 0.5))
@@ -412,7 +412,7 @@ class LocalPageCaptureProvider:
 
                 current = self.CurrentContext()
 
-                if current.scope.ToDict() != pinned_dict or (
+                if current.scope.ToDict() != pinnedDict or (
                     current.scope.revision != pinned.revision
                 ):
                     raise PermissionError("page capture launch scope snapshot changed")
@@ -469,13 +469,13 @@ class LocalPageCaptureProvider:
             parser = ParseRecord if self._renderer is PageRenderer.NATIVE else ParseBrowserRecord
             record = parser(result.stdout, self._target.value,
                             self._expected_body, self.limits.max_body_bytes)
-            error_code = record.get("error")
+            errorCode = record.get("error")
             exits = ERROR_EXITS if self._renderer is PageRenderer.NATIVE else (
                 {**ERROR_EXITS, **BROWSER_ERROR_EXITS})
 
-            if error_code is not None:
+            if errorCode is not None:
                 if result.execution.state is not ExecutionState.FAILED or (
-                    result.execution.exit_code != exits[str(error_code)]
+                    result.execution.exit_code != exits[str(errorCode)]
                 ):
                     raise ValueError("worker failure record and terminal outcome disagree")
 
@@ -484,56 +484,56 @@ class LocalPageCaptureProvider:
             ):
                 raise ValueError("worker page record and terminal outcome disagree")
 
-            tool_version = PAGE_CAPTURE_VERSION if self._renderer is PageRenderer.NATIVE else (
-                str(record["chromium_version"]) if error_code is None else None)
+            toolVersion = PAGE_CAPTURE_VERSION if self._renderer is PageRenderer.NATIVE else (
+                str(record["chromium_version"]) if errorCode is None else None)
             provenance = EvidenceProvenance(context.Spec.workspace_id, context.Spec.scope_reference,
-                PAGE_CAPTURE_PROVIDER_ID, PAGE_CAPTURE_VERSION, tool_version, started,
+                PAGE_CAPTURE_PROVIDER_ID, PAGE_CAPTURE_VERSION, toolVersion, started,
                 self.Now().isoformat(), InvocationDigest(invocation), result.execution)
 
         except (ValueError, TypeError, AttributeError, OverflowError):
             raise JobError(JobFailure(JobFailureCode.NORMALIZATION,
                 "Page output violated its closed safe record contract")) from None
 
-        stdout_record = context.CaptureEvidence(result.stdout, "stdout", "application/json",
+        stdoutRecord = context.CaptureEvidence(result.stdout, "stdout", "application/json",
                                                provenance).evidence
 
-        if error_code is not None:
+        if errorCode is not None:
             if self._renderer is PageRenderer.PLAYWRIGHT_OFFLINE and "body_base64" in record:
                 try:
-                    partial_body = DecodeBody(record, self._expected_body)
-                    partial_record = context.CaptureEvidence(partial_body, "response-body",
+                    partialBody = DecodeBody(record, self._expected_body)
+                    partialRecord = context.CaptureEvidence(partialBody, "response-body",
                                                              "text/html", provenance).evidence
-                    self.VerifyEvidence(stdout_record, result.stdout, provenance, "stdout")
-                    self.VerifyEvidence(partial_record, partial_body, provenance, "response-body")
+                    self.VerifyEvidence(stdoutRecord, result.stdout, provenance, "stdout")
+                    self.VerifyEvidence(partialRecord, partialBody, provenance, "response-body")
 
                 except (ValueError, TypeError, AttributeError, OverflowError, OSError,
                         EvidenceError):
                     raise JobError(JobFailure(JobFailureCode.NORMALIZATION,
                         "Could not verify failed browser acquisition source custody")) from None
 
-            code = JobFailureCode.TIMEOUT if error_code in ("timeout", "renderer-timeout") else (
+            code = JobFailureCode.TIMEOUT if errorCode in ("timeout", "renderer-timeout") else (
                 JobFailureCode.PROVIDER)
             raise JobError(JobFailure(code, "Closed synthetic page acquisition failed")) from None
 
         body = DecodeBody(record, self._expected_body)
-        body_record = context.CaptureEvidence(body, "response-body", "text/html",
+        bodyRecord = context.CaptureEvidence(body, "response-body", "text/html",
                                              provenance).evidence
         context.CheckCancellation()
 
         try:
-            self.VerifyEvidence(stdout_record, result.stdout, provenance, "stdout")
-            self.VerifyEvidence(body_record, body, provenance, "response-body")
+            self.VerifyEvidence(stdoutRecord, result.stdout, provenance, "stdout")
+            self.VerifyEvidence(bodyRecord, body, provenance, "response-body")
             self._adapter.NormalizeReport(AdapterReport(invocation, result.execution,
-                                                        (stdout_record.reference,)))
-            frontier = ReadCapturedWebFrontier(self._workspace.root, self._source, body_record,
+                                                        (stdoutRecord.reference,)))
+            frontier = ReadCapturedWebFrontier(self._workspace.root, self._source, bodyRecord,
                 self._scope_id, at=self.Now(), limits=self.frontier_limits)
 
             if FrontierDigest(frontier) != frontier.frontier_digest or (
                 frontier.scope_reference != pinned.Reference()
                 or frontier.scope_revision != pinned.revision
                 or frontier.scope_sha256 != hashlib.sha256(
-                    CanonicalModelJson(pinned_dict)).hexdigest()
-                or grant.plan.scope_sha256 != Digest(pinned_dict)
+                    CanonicalModelJson(pinnedDict)).hexdigest()
+                or grant.plan.scope_sha256 != Digest(pinnedDict)
             ):
                 raise PermissionError("page capture frontier does not bind the launch snapshot")
 
@@ -552,27 +552,27 @@ class LocalPageCaptureProvider:
 
         try:
             state = self._model.Open()
-            provenance_model = ModelProvenance(PAGE_CAPTURE_PROVIDER_ID, context.Spec.job_id,
+            provenanceModel = ModelProvenance(PAGE_CAPTURE_PROVIDER_ID, context.Spec.job_id,
                 provenance.finished_at, context.Spec.scope_reference, self._target.Reference(),
-                PAGE_CAPTURE_VERSION, (stdout_record.reference, body_record.reference),
+                PAGE_CAPTURE_VERSION, (stdoutRecord.reference, bodyRecord.reference),
                 result.execution)
-            by_identity = {item.Reference(): item for item in state.Objects(ObjectKind.ENDPOINT)}
+            byIdentity = {item.Reference(): item for item in state.Objects(ObjectKind.ENDPOINT)}
             identity = self._source.endpoint.Identity().Reference()
-            previous = RequestsFromObject(by_identity[identity]) if identity in by_identity else ()
+            previous = RequestsFromObject(byIdentity[identity]) if identity in byIdentity else ()
             templates = {template.Reference(): template for template in (*previous, self._source)}
-            source_patch = ProjectRequests(tuple(templates[key] for key in sorted(templates)),
-                                           provenance=(provenance_model,))
-            candidate_refs = {entry.template.endpoint.Identity().Reference()
+            sourcePatch = ProjectRequests(tuple(templates[key] for key in sorted(templates)),
+                                           provenance=(provenanceModel,))
+            candidateRefs = {entry.template.endpoint.Identity().Reference()
                               for entry in frontier.entries}
-            existing = tuple(by_identity[key]
-                             for key in sorted(candidate_refs & by_identity.keys()))
+            existing = tuple(byIdentity[key]
+                             for key in sorted(candidateRefs & byIdentity.keys()))
             projection = ProjectCapturedWebFrontier(frontier, existing=existing)
             attributes = {key: value for key, value in record.items() if key != "body_base64"}
             attributes.update({
                 "source_request_reference": self._source.Reference(),
                 "source_target_reference": self._target.Reference(),
-                "stdout_manifest_id": stdout_record.evidence_id,
-                "body_manifest_id": body_record.evidence_id,
+                "stdout_manifest_id": stdoutRecord.evidence_id,
+                "body_manifest_id": bodyRecord.evidence_id,
                 "invocation_sha256": InvocationDigest(invocation),
                 "launch_plan_intent_sha256": grant.plan.intent_sha256,
                 "authorization_id": grant.authorization.authorization_id,
@@ -595,10 +595,10 @@ class LocalPageCaptureProvider:
             })
             kind = "http.synthetic-page" if self._renderer is PageRenderer.NATIVE else (
                 "http.synthetic-page-browser")
-            source_observation = Observation(kind, identity, attributes,
-                                             provenance_model)
-            updated, delta = state.Apply(objects=(source_patch, *projection.object_patches),
-                observations=(source_observation, *projection.observations))
+            sourceObservation = Observation(kind, identity, attributes,
+                                             provenanceModel)
+            updated, delta = state.Apply(objects=(sourcePatch, *projection.object_patches),
+                observations=(sourceObservation, *projection.observations))
 
             if len(CanonicalModelJson(updated.ToDict())) > MAX_MODEL_BYTES:
                 raise ValueError("proposed page model exceeds its owning size budget")
@@ -610,7 +610,7 @@ class LocalPageCaptureProvider:
         context.CheckCancellation()
 
         try:
-            self.FinalAuthority(pinned, pinned_dict, grant, frontier, invocation, capability)
+            self.FinalAuthority(pinned, pinnedDict, grant, frontier, invocation, capability)
 
         except PermissionError:
             raise JobError(JobFailure(JobFailureCode.AUTHORIZATION,
@@ -730,11 +730,11 @@ class LocalPageCaptureProvider:
 
         current = self.CurrentContext()
         payload = current.scope.ToDict()
-        model_digest = hashlib.sha256(CanonicalModelJson(payload)).hexdigest()
-        policy_digest = Digest(payload)
+        modelDigest = hashlib.sha256(CanonicalModelJson(payload)).hexdigest()
+        policyDigest = Digest(payload)
 
         if payload != pinned_dict or current.scope.revision != pinned.revision or (
-            policy_digest != grant.plan.scope_sha256 or model_digest != frontier.scope_sha256
+            policyDigest != grant.plan.scope_sha256 or modelDigest != frontier.scope_sha256
             or frontier.scope_revision != current.scope.revision
             or frontier.scope_reference != current.scope.Reference()
         ):

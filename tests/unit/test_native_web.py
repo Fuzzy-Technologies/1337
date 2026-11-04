@@ -461,14 +461,14 @@ def test_CurrentPolicyReaderFilesystemFailuresRemainStorageFailures(
 
     root, target, approval, _ = workflow
     calls = [0]
-    failed_call = {"authorize": 2, "launch": 3, "save": 4}[stage]
+    failedCall = {"authorize": 2, "launch": 3, "save": 4}[stage]
 
     def ReadPolicy():
         """Return actual typed policy or fail at the selected fresh authority-read seam."""
 
         calls[0] += 1
 
-        if calls[0] == failed_call:
+        if calls[0] == failedCall:
             raise error_type("synthetic-current-policy-read-failure")
 
         return Policy()

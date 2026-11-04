@@ -280,12 +280,12 @@ def RequireCaptureContracts(capture: ConfigurationOperationCapture | ImageOperat
         if type(value) is not expected:
             raise ValueError("CI capture requires exact original SDK record types")
 
-    for nested_value, nested_type in ((outcome.grant.plan, ArtifactPlan),
+    for nestedValue, nestedType in ((outcome.grant.plan, ArtifactPlan),
         (outcome.grant.authorization, ExecutionAuthorization),
         (outcome.raw_result.execution, AdapterExecution),
         (outcome.raw_result.termination, ExecutionTermination),
         (prepared.operation, ArtifactOperation)):
-        if type(nested_value) is not nested_type:
+        if type(nestedValue) is not nestedType:
             raise ValueError("CI capture requires exact original SDK child contracts")
 
     if type(outcome.raw_result.execution.state) is not ExecutionState:
@@ -374,14 +374,14 @@ def EvaluateConfigurationCriterion(
                                   capture.started_at, capture.finished_at)
     RequireCaptureContracts(capture, records)
     RequireModelContracts(model)
-    rebuilt_model = ModelState.FromDict(model.ToDict())
+    rebuiltModel = ModelState.FromDict(model.ToDict())
 
-    if rebuilt_model != model or ReportSnapshot(rebuilt_model).SnapshotDigest() != (
+    if rebuiltModel != model or ReportSnapshot(rebuiltModel).SnapshotDigest() != (
         expected_snapshot_sha256
     ):
         raise ValueError("CI gate requires the complete exact saved snapshot")
 
-    if LocalModelStore(workspace_root).Open() != rebuilt_model:
+    if LocalModelStore(workspace_root).Open() != rebuiltModel:
         raise ValueError("CI gate basis differs from its current owning saved model")
 
     facts, envelope, raw = VerifiedCapture(records, workspace_root)
@@ -395,12 +395,12 @@ def EvaluateConfigurationCriterion(
     GovernedArtifactExecutor(workspace_root).ValidateAcceptanceFresh(capture.outcome,
         capture.prepared, capture.stage, context_provider)
     asset, inventory, candidates = Candidates(facts, raw)
-    objects = {item.Reference(): item for item in rebuilt_model.objects}
-    saved_asset = objects.get(asset.Reference())
+    objects = {item.Reference(): item for item in rebuiltModel.objects}
+    savedAsset = objects.get(asset.Reference())
 
-    if saved_asset is None or saved_asset.attributes != asset.attributes or (
-        facts.provenance not in saved_asset.provenance
-        or inventory not in rebuilt_model.observations
+    if savedAsset is None or savedAsset.attributes != asset.attributes or (
+        facts.provenance not in savedAsset.provenance
+        or inventory not in rebuiltModel.observations
     ):
         raise ValueError("CI gate has no exact saved processed-source proof")
 
@@ -413,7 +413,7 @@ def EvaluateConfigurationCriterion(
                                 facts.provenance)
 
         if entity is None or facts.provenance not in entity.provenance or (
-            detection not in rebuilt_model.observations
+            detection not in rebuiltModel.observations
         ):
             raise ValueError("CI gate has no exact saved current-detection proof")
 
@@ -421,16 +421,16 @@ def EvaluateConfigurationCriterion(
         attributes = current.ToAttributes()
         expected = candidate.ToAttributes()
 
-        for field_name in ("status", "status_reason"):
-            attributes.pop(field_name)
-            expected.pop(field_name)
+        for fieldName in ("status", "status_reason"):
+            attributes.pop(fieldName)
+            expected.pop(fieldName)
 
         if attributes != expected:
             raise ValueError("CI saved interpretation differs from its original source facts")
 
         selected.append(current)
 
-    return EvaluatePredicate(rebuilt_model, tuple(selected), criterion, expected_snapshot_sha256,
+    return EvaluatePredicate(rebuiltModel, tuple(selected), criterion, expected_snapshot_sha256,
                              capture.outcome.run_id)
 
 
@@ -497,21 +497,21 @@ def EvaluateImageCriterion(
         raise ValueError("CI image gate requires this exact original VERSION prerequisite")
 
     RequireModelContracts(model)
-    rebuilt_model = ModelState.FromDict(model.ToDict())
+    rebuiltModel = ModelState.FromDict(model.ToDict())
 
-    if rebuilt_model != model or ReportSnapshot(rebuilt_model).SnapshotDigest() != (
+    if rebuiltModel != model or ReportSnapshot(rebuiltModel).SnapshotDigest() != (
         expected_snapshot_sha256
-    ) or LocalModelStore(workspace_root).Open() != rebuilt_model:
+    ) or LocalModelStore(workspace_root).Open() != rebuiltModel:
         raise ValueError("CI image gate requires the complete exact current saved snapshot")
 
-    facts, original_version, original_scan = VerifyRecords(records, workspace_root)
+    facts, originalVersion, originalScan = VerifyRecords(records, workspace_root)
 
-    if facts.workspace_id != rebuilt_model.workspace_id or (
+    if facts.workspace_id != rebuiltModel.workspace_id or (
         facts.scan_acceptance.refusal is not None
     ):
         raise ValueError("CI image gate requires its successful original owned SCAN")
 
-    for capture, original in ((version, original_version), (scan, original_scan)):
+    for capture, original in ((version, originalVersion), (scan, originalScan)):
         if original.envelope != capture.Envelope() or (
             original.stdout != capture.outcome.raw_result.stdout
             or original.stderr != capture.outcome.raw_result.stderr
@@ -521,19 +521,19 @@ def EvaluateImageCriterion(
     GovernedArtifactExecutor(workspace_root).ValidatePairAcceptanceFresh(
         (version.outcome, version.prepared, version.stage),
         (scan.outcome, scan.prepared, scan.stage), context_provider)
-    version_payload = ParseJson(original_version.stdout, 16 * 1024)
-    candidates = SyntheticTrivyCandidates(rebuilt_model.workspace_id,
-        ParseJson(original_scan.stdout, 4 * 1024 * 1024), version_payload,
-        cast(dict[str, object], version_payload["VulnerabilityDB"]), facts.provenance)
+    versionPayload = ParseJson(originalVersion.stdout, 16 * 1024)
+    candidates = SyntheticTrivyCandidates(rebuiltModel.workspace_id,
+        ParseJson(originalScan.stdout, 4 * 1024 * 1024), versionPayload,
+        cast(dict[str, object], versionPayload["VulnerabilityDB"]), facts.provenance)
     objects, relations, observations, findings = candidates
-    saved_objects = {item.Reference(): item for item in rebuilt_model.objects}
-    saved_relations = {item.Reference(): item for item in rebuilt_model.relations}
+    savedObjects = {item.Reference(): item for item in rebuiltModel.objects}
+    savedRelations = {item.Reference(): item for item in rebuiltModel.relations}
     entities: tuple[SecurityObject | Relation, ...] = (*objects, *relations)
 
     for entity in entities:
-        saved: SecurityObject | Relation | None = saved_objects.get(entity.Reference()) if (
+        saved: SecurityObject | Relation | None = savedObjects.get(entity.Reference()) if (
             isinstance(entity, SecurityObject)
-        ) else saved_relations.get(entity.Reference())
+        ) else savedRelations.get(entity.Reference())
 
         if saved is None or saved.attributes != entity.attributes or (
             facts.provenance not in saved.provenance
@@ -545,35 +545,35 @@ def EvaluateImageCriterion(
             observation = replace(observation, attributes={**observation.attributes,
                 "scan_completeness": "not-assessed"})
 
-        if observation not in rebuilt_model.observations:
+        if observation not in rebuiltModel.observations:
             raise ValueError("CI image gate has no exact saved current source observation")
 
     selected = []
 
     for candidate in findings:
-        reference = candidate.ToObject(rebuilt_model.workspace_id).Reference()
-        saved_finding = saved_objects.get(reference)
+        reference = candidate.ToObject(rebuiltModel.workspace_id).Reference()
+        savedFinding = savedObjects.get(reference)
         detection = Observation("finding-detection", reference, candidate.ToAttributes(),
                                 facts.provenance)
 
-        if saved_finding is None or facts.provenance not in saved_finding.provenance or (
-            detection not in rebuilt_model.observations
+        if savedFinding is None or facts.provenance not in savedFinding.provenance or (
+            detection not in rebuiltModel.observations
         ):
             raise ValueError("CI image gate has no exact saved current detection proof")
 
-        current = Finding.FromObject(saved_finding)
+        current = Finding.FromObject(savedFinding)
         attributes, expected = current.ToAttributes(), candidate.ToAttributes()
 
-        for field_name in ("status", "status_reason"):
-            attributes.pop(field_name)
-            expected.pop(field_name)
+        for fieldName in ("status", "status_reason"):
+            attributes.pop(fieldName)
+            expected.pop(fieldName)
 
         if attributes != expected:
             raise ValueError("CI saved image interpretation differs from original source facts")
 
         selected.append(current)
 
-    return EvaluatePredicate(rebuilt_model, tuple(selected), criterion, expected_snapshot_sha256,
+    return EvaluatePredicate(rebuiltModel, tuple(selected), criterion, expected_snapshot_sha256,
                              scan.outcome.run_id)
 
 
@@ -622,70 +622,70 @@ def EvaluateNativeImageCriterion(
         raise ValueError("CI native gate requires the original pair and its six acquisitions")
 
     RequireModelContracts(model)
-    rebuilt_model = ModelState.FromDict(model.ToDict())
+    rebuiltModel = ModelState.FromDict(model.ToDict())
 
-    if rebuilt_model != model or ReportSnapshot(rebuilt_model).SnapshotDigest() != (
+    if rebuiltModel != model or ReportSnapshot(rebuiltModel).SnapshotDigest() != (
         expected_snapshot_sha256
-    ) or LocalModelStore(workspace_root).Open() != rebuilt_model:
+    ) or LocalModelStore(workspace_root).Open() != rebuiltModel:
         raise ValueError("CI native gate requires the complete exact current saved snapshot")
 
-    facts, original_version, original_scan = VerifyNativeRecords(records, workspace_root)
+    facts, originalVersion, originalScan = VerifyNativeRecords(records, workspace_root)
 
-    if facts.workspace_id != rebuilt_model.workspace_id or facts.scan_refusal is not None:
+    if facts.workspace_id != rebuiltModel.workspace_id or facts.scan_refusal is not None:
         raise ValueError("CI native gate requires its successful original owned SCAN")
 
-    for capture, original in ((version, original_version), (scan, original_scan)):
+    for capture, original in ((version, originalVersion), (scan, originalScan)):
         if capture.Envelope() != original.envelope or capture.request != original.request or (
             capture.outcome != original.outcome
         ):
             raise ValueError("CI native acquisitions differ from these original captures")
 
-    wire = ParseJson(original_version.outcome.stdout, 16 * 1024)
-    candidates = TrivyCandidates(rebuilt_model.workspace_id,
-        ParseJson(original_scan.outcome.stdout, 4 * 1024 * 1024), wire,
+    wire = ParseJson(originalVersion.outcome.stdout, 16 * 1024)
+    candidates = TrivyCandidates(rebuiltModel.workspace_id,
+        ParseJson(originalScan.outcome.stdout, 4 * 1024 * 1024), wire,
         Record(wire["VulnerabilityDB"]), facts.provenance)
     objects, relations, observations, findings = candidates
-    saved_objects = {item.Reference(): item for item in rebuilt_model.objects}
-    saved_relations = {item.Reference(): item for item in rebuilt_model.relations}
+    savedObjects = {item.Reference(): item for item in rebuiltModel.objects}
+    savedRelations = {item.Reference(): item for item in rebuiltModel.relations}
     entities: tuple[SecurityObject | Relation, ...] = (*objects, *relations)
 
     for entity in entities:
-        saved: SecurityObject | Relation | None = saved_objects.get(entity.Reference()) if (
+        saved: SecurityObject | Relation | None = savedObjects.get(entity.Reference()) if (
             type(entity) is SecurityObject
-        ) else saved_relations.get(entity.Reference())
+        ) else savedRelations.get(entity.Reference())
 
         if saved is None or saved.attributes != entity.attributes or (
             facts.provenance not in saved.provenance
         ):
             raise ValueError("CI native gate has no exact saved current inventory proof")
 
-    if any(item not in rebuilt_model.observations for item in observations):
+    if any(item not in rebuiltModel.observations for item in observations):
         raise ValueError("CI native gate has no exact saved current source observation")
 
     selected = []
 
     for candidate in findings:
-        reference = candidate.ToObject(rebuilt_model.workspace_id).Reference()
-        saved_finding = saved_objects.get(reference)
+        reference = candidate.ToObject(rebuiltModel.workspace_id).Reference()
+        savedFinding = savedObjects.get(reference)
         detection = Observation("finding-detection", reference, candidate.ToAttributes(),
                                 facts.provenance)
 
-        if saved_finding is None or facts.provenance not in saved_finding.provenance or (
-            detection not in rebuilt_model.observations
+        if savedFinding is None or facts.provenance not in savedFinding.provenance or (
+            detection not in rebuiltModel.observations
         ):
             raise ValueError("CI native gate has no exact saved current detection proof")
 
-        current = Finding.FromObject(saved_finding)
+        current = Finding.FromObject(savedFinding)
         attributes, expected = current.ToAttributes(), candidate.ToAttributes()
 
-        for field_name in ("status", "status_reason"):
-            attributes.pop(field_name)
-            expected.pop(field_name)
+        for fieldName in ("status", "status_reason"):
+            attributes.pop(fieldName)
+            expected.pop(fieldName)
 
         if attributes != expected:
             raise ValueError("CI saved native interpretation differs from original source facts")
 
         selected.append(current)
 
-    return EvaluatePredicate(rebuilt_model, tuple(selected), criterion, expected_snapshot_sha256,
+    return EvaluatePredicate(rebuiltModel, tuple(selected), criterion, expected_snapshot_sha256,
                              facts.provenance.run_reference)

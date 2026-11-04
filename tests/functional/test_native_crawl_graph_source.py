@@ -319,40 +319,40 @@ def test_BothSiblingEntriesPrecedeBThenACompletionWithoutRealThreads() -> None:
     state = CrawlGraphState(MutableCrawlGraph(
         "http://127.0.0.1:49152", sentinel_origin="http://127.0.0.1:49153"))
     state.InvertSiblingCompletion()
-    a_socket = FakeGraphSocket()
-    b_socket = FakeGraphSocket()
-    a_gate = FakeGraphGate()
-    b_gate = FakeGraphGate()
-    state.branch_a_entered = a_gate
-    state.branch_b_completed = b_gate
-    state.Accept(b_socket)
-    state.BeginHandler(b_socket)
+    aSocket = FakeGraphSocket()
+    bSocket = FakeGraphSocket()
+    aGate = FakeGraphGate()
+    bGate = FakeGraphGate()
+    state.branch_a_entered = aGate
+    state.branch_b_completed = bGate
+    state.Accept(bSocket)
+    state.BeginHandler(bSocket)
 
     with pytest.raises(TimeoutError):
-        state.WaitForSibling(b_socket, "/branch-b")
+        state.WaitForSibling(bSocket, "/branch-b")
 
-    assert a_gate.waits and not b_socket.sent and not b_gate.ready, (
+    assert aGate.waits and not bSocket.sent and not bGate.ready, (
         "B must wait for actual A entry before it can send or publish completion."
     )
-    state.Accept(a_socket)
-    state.BeginHandler(a_socket)
+    state.Accept(aSocket)
+    state.BeginHandler(aSocket)
 
     def CompleteB() -> None:
         """Interleave actual modeled B completion only after A has entered its fixed gate."""
 
-        assert a_gate.ready, "A must signal its actual entry before B's wait can succeed."
-        state.WaitForSibling(b_socket, "/branch-b")
-        response, _ = state.BeginResponse(b_socket, "/branch-b")
-        state.RecordSent(b_socket, b_socket.send(response))
-        b_socket.shutdown(socket.SHUT_WR)
-        state.CompleteResponse(b_socket, "/branch-b")
+        assert aGate.ready, "A must signal its actual entry before B's wait can succeed."
+        state.WaitForSibling(bSocket, "/branch-b")
+        response, _ = state.BeginResponse(bSocket, "/branch-b")
+        state.RecordSent(bSocket, bSocket.send(response))
+        bSocket.shutdown(socket.SHUT_WR)
+        state.CompleteResponse(bSocket, "/branch-b")
 
-    b_gate.on_wait = CompleteB
-    state.WaitForSibling(a_socket, "/branch-a")
-    response, _ = state.BeginResponse(a_socket, "/branch-a")
-    state.RecordSent(a_socket, a_socket.send(response))
-    a_socket.shutdown(socket.SHUT_WR)
-    state.CompleteResponse(a_socket, "/branch-a")
+    bGate.on_wait = CompleteB
+    state.WaitForSibling(aSocket, "/branch-a")
+    response, _ = state.BeginResponse(aSocket, "/branch-a")
+    state.RecordSent(aSocket, aSocket.send(response))
+    aSocket.shutdown(socket.SHUT_WR)
+    state.CompleteResponse(aSocket, "/branch-a")
     observations = state.Observe()
     assert [(item.target, item.completion_sequence) for item in observations] == [
         ("/branch-b", 1), ("/branch-a", 2),
@@ -360,8 +360,8 @@ def test_BothSiblingEntriesPrecedeBThenACompletionWithoutRealThreads() -> None:
     assert state.Counters()["maximum_active_handlers"] == 2, (
         "Gate configuration alone must not substitute for measured two-handler overlap."
     )
-    state.EndHandler(a_socket)
-    state.EndHandler(b_socket)
+    state.EndHandler(aSocket)
+    state.EndHandler(bSocket)
     state.CloseConnections()
 
 
@@ -680,12 +680,12 @@ def test_CompletedOriginalResponseClosesWithoutRedundantFullShutdown() -> None:
     state = CrawlGraphState(MutableCrawlGraph("http://127.0.0.1:49152"))
     server = PureGraphServer(state)
     connection = FakeGraphSocket()
-    original_shutdown = connection.shutdown
+    originalShutdown = connection.shutdown
 
     def Shutdown(mode: int) -> None:
         """Model a completed connection refusing only the redundant full-shutdown operation."""
 
-        original_shutdown(mode)
+        originalShutdown(mode)
 
         if mode == socket.SHUT_RDWR:
             raise OSError(errno.ENOTCONN, "private simulated shutdown diagnostic")
@@ -724,12 +724,12 @@ def test_IncompleteOriginalSocketStillRequiresFullShutdownAndPhysicalClose(
     state = CrawlGraphState(MutableCrawlGraph("http://127.0.0.1:49152"))
     server = PureGraphServer(state)
     connection = FakeGraphSocket()
-    original_shutdown = connection.shutdown
+    originalShutdown = connection.shutdown
 
     def Shutdown(mode: int) -> None:
         """Observe required full shutdown and optionally model its actual failure."""
 
-        original_shutdown(mode)
+        originalShutdown(mode)
 
         if shutdown_fails:
             raise OSError(errno.EIO, "private mock shutdown detail must not survive")
@@ -777,7 +777,7 @@ def test_PhysicalCloseFailureRetainsOriginalOwnerAndBoundedFirstErrno(
 
     state = CrawlGraphState(MutableCrawlGraph("http://127.0.0.1:49152"))
     connection = FakeGraphSocket()
-    original_close = connection.close
+    originalClose = connection.close
 
     def Close() -> None:
         """Model only one original close failure without opening or reading any real descriptor."""
@@ -800,7 +800,7 @@ def test_PhysicalCloseFailureRetainsOriginalOwnerAndBoundedFirstErrno(
     assert record.close_error is True and record.close_errno == retained_errno and (
         "private mock close" not in json.dumps(record.ToDict())
     ), "Only known original integer errno survives; unsupported values stay unknown."
-    connection.close = original_close
+    connection.close = originalClose
     state.CloseConnection(connection)
     retried = state.Observe()[0]
     assert connection.closed and retried.socket_closed and state.WaitIdle(0), (

@@ -340,20 +340,20 @@ def VerifiedCapture(records: tuple[EvidenceRecord, ...], workspace_root: Path
     ):
         raise ValueError("configuration replay requires four original typed acquisitions")
 
-    by_role = {item.reference.role: item for item in records}
+    byRole = {item.reference.role: item for item in records}
 
-    if set(by_role) != set(_ROLES):
+    if set(byRole) != set(_ROLES):
         raise ValueError("configuration replay requires four distinct original source roles")
 
     workspace = LocalWorkspaceStore(workspace_root)
-    workspace_id = workspace.Open().workspace_id
+    workspaceId = workspace.Open().workspace_id
     store = ConfigurationEvidenceStore(workspace.root / "evidence")
     raw = {}
 
-    for role, record in by_role.items():
+    for role, record in byRole.items():
         store.Read(record.reference)
 
-        if record.provenance.workspace_id != workspace_id or (
+        if record.provenance.workspace_id != workspaceId or (
             store.Get(record.evidence_id) != record
         ):
             raise ValueError("configuration acquisition differs from its immutable owning manifest")
@@ -398,7 +398,7 @@ def VerifiedCapture(records: tuple[EvidenceRecord, ...], workspace_root: Path
         actual = metadata["raw_facts"]["execution"]
         execution = AdapterExecution(ExecutionState(actual["state"]), actual["exit_code"],
                                      actual["duration_seconds"])
-        expected = EvidenceProvenance(workspace_id, plan["scope_reference"],
+        expected = EvidenceProvenance(workspaceId, plan["scope_reference"],
             CONFIGURATION_SOURCE, "1", CONFIGURATION_VERSION, started, finished,
             plan["invocation_sha256"], execution)
 
@@ -408,7 +408,7 @@ def VerifiedCapture(records: tuple[EvidenceRecord, ...], workspace_root: Path
         provenance = ModelProvenance(CONFIGURATION_SOURCE, acceptance.run_id, finished,
             plan["scope_reference"], plan["target_reference"], CONFIGURATION_VERSION,
             tuple(item.reference for item in records), execution)
-        facts = ConfigurationReplay(workspace_id, plan["owner_ref"], acceptance, provenance,
+        facts = ConfigurationReplay(workspaceId, plan["owner_ref"], acceptance, provenance,
             manifest, tuple(sorted(records, key=lambda item: item.reference.role)))
 
         return facts, envelope, raw
@@ -457,9 +457,9 @@ def Candidates(facts: ConfigurationReplay, raw: dict[str, bytes]
     kind = "dockerfile" if dockerfile else "kubernetes"
     lines = raw["configuration-source"].decode("utf-8").splitlines()
     document = 0
-    expected_findings = []
+    expectedFindings = []
 
-    for line_number, text in enumerate(lines, 1):
+    for lineNumber, text in enumerate(lines, 1):
         if text.strip() == "---":
             document += 1
 
@@ -467,18 +467,18 @@ def Candidates(facts: ConfigurationReplay, raw: dict[str, bytes]
             text.strip() == "privileged: true")
 
         if failed:
-            expected_findings.append({"logical_path": selected.name, "check_id": _RULES[kind][0],
-                "severity": "HIGH", "outcome": "failed", "start_line": line_number,
-                "end_line": line_number, "document_index": None if dockerfile else document,
+            expectedFindings.append({"logical_path": selected.name, "check_id": _RULES[kind][0],
+                "severity": "HIGH", "outcome": "failed", "start_line": lineNumber,
+                "end_line": lineNumber, "document_index": None if dockerfile else document,
                 "resource_selector": "instruction:USER" if dockerfile else
                     "/spec/containers/0/securityContext/privileged"})
 
-    case_id = ("dockerfile.root-user" if expected_findings else "dockerfile.non-root-user") if (
+    caseId = ("dockerfile.root-user" if expectedFindings else "dockerfile.non-root-user") if (
         dockerfile
     ) else ("kubernetes.second-document" if document == 1 else (
-        "kubernetes.privileged-container" if expected_findings else
+        "kubernetes.privileged-container" if expectedFindings else
         "kubernetes.non-privileged-container"))
-    expected_files = [{"logical_path": selected.name, "sha256": selected.sha256,
+    expectedFiles = [{"logical_path": selected.name, "sha256": selected.sha256,
         "size_bytes": selected.size_bytes, "configuration_type": kind,
         "document_count": None if dockerfile else document + 1, "outcome": "processed"}]
 
@@ -487,9 +487,9 @@ def Candidates(facts: ConfigurationReplay, raw: dict[str, bytes]
         or payload["provider_version"] != CONFIGURATION_VERSION
         or payload["fixture_id"] != CONFIGURATION_FAMILY
         or payload["profile_id"] != manifest.profile.value
-        or payload["case_id"] != case_id or payload["scan_completeness"] != "not-assessed"
-        or CanonicalModelJson(payload["file_outcomes"]) != CanonicalModelJson(expected_files)
-        or CanonicalModelJson(payload["findings"]) != CanonicalModelJson(expected_findings)
+        or payload["case_id"] != caseId or payload["scan_completeness"] != "not-assessed"
+        or CanonicalModelJson(payload["file_outcomes"]) != CanonicalModelJson(expectedFiles)
+        or CanonicalModelJson(payload["findings"]) != CanonicalModelJson(expectedFindings)
     ):
         raise ValueError("configuration wire differs from its exact processed source and checks")
 
@@ -503,7 +503,7 @@ def Candidates(facts: ConfigurationReplay, raw: dict[str, bytes]
             "scan_completeness": "not-assessed"}, (facts.provenance,))
     findings = []
 
-    for item in expected_findings:
+    for item in expectedFindings:
         position = {key: item[key] for key in (
             "start_line", "end_line", "document_index", "resource_selector")}
         findings.append(Finding(asset.Reference(), _RULES[kind][0],

@@ -83,12 +83,12 @@ def ParseNativeNmap(arguments: tuple[str, ...]) -> tuple[str, tuple[int, ...], i
     if ("-sV" in selected) != ("--version-light" in selected):
         raise ValueError("raw Nmap service discovery requires both reviewed service options")
 
-    raw_ports = selected["-p"]
+    rawPorts = selected["-p"]
 
-    if not isinstance(raw_ports, str):
+    if not isinstance(rawPorts, str):
         raise ValueError("raw Nmap requires explicit ports")
 
-    parts = raw_ports.split(",")
+    parts = rawPorts.split(",")
 
     if not 1 <= len(parts) <= NMAP_MAX_PORTS or any(
         re.fullmatch(r"[1-9][0-9]{0,4}", part) is None or int(part) > 65535 for part in parts
@@ -100,12 +100,12 @@ def ParseNativeNmap(arguments: tuple[str, ...]) -> tuple[str, tuple[int, ...], i
     if len(set(ports)) != len(ports):
         raise ValueError("raw Nmap rejects duplicate ports")
 
-    raw_timeout = selected["--host-timeout"]
+    rawTimeout = selected["--host-timeout"]
 
-    if not isinstance(raw_timeout, str) or re.fullmatch(r"[1-9][0-9]{0,3}s", raw_timeout) is None:
+    if not isinstance(rawTimeout, str) or re.fullmatch(r"[1-9][0-9]{0,3}s", rawTimeout) is None:
         raise ValueError("raw Nmap host timeout requires explicit whole seconds")
 
-    timeout = int(raw_timeout[:-1])
+    timeout = int(rawTimeout[:-1])
 
     if timeout > NMAP_MAX_TIMEOUT_SECONDS:
         raise ValueError("raw Nmap host timeout exceeds the existing adapter bound")

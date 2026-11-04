@@ -164,8 +164,8 @@ def test_OriginalExecutedPairAdmitsCanonicalAssetsAndStableFindingTriage(paired)
     )
     triaged = replace(parsed, status=FindingStatus.CONFIRMED, status_reason="owned reason")
     current, _ = updated.Apply(objects=(triaged.ToObject(state.workspace_id),))
-    repeated, repeated_delta = ApplyVerifiedNativeTrivyImages(current, version, scan, root)
-    assert repeated == current and not repeated_delta.created and not repeated_delta.updated, (
+    repeated, repeatedDelta = ApplyVerifiedNativeTrivyImages(current, version, scan, root)
+    assert repeated == current and not repeatedDelta.created and not repeatedDelta.updated, (
         "Reapplying the exact original pair must preserve existing owner triage and revision"
     )
 
@@ -202,10 +202,10 @@ def test_ChangedReceiptFactsCannotReplaceOriginalPair(paired, field, changed):
     root, _, store, version, scan = paired
     envelope = scan.Envelope()
     envelope[field] = changed
-    changed_scan = Receipt(scan, store, envelope)
+    changedScan = Receipt(scan, store, envelope)
 
     with pytest.raises(ValueError, match="inconsistent"):
-        VerifyNativeTrivyImageReplay((*version.records, *changed_scan.records), root)
+        VerifyNativeTrivyImageReplay((*version.records, *changedScan.records), root)
 
 
 @pytest.mark.parametrize("path,changed", [
@@ -237,10 +237,10 @@ def test_ChangedExactRequestCannotExpandOrSubstituteOriginalProfile(paired, path
         value = value[part]
 
     value[path[-1]] = changed
-    changed_scan = Receipt(scan, store, envelope)
+    changedScan = Receipt(scan, store, envelope)
 
     with pytest.raises(ValueError, match="inconsistent"):
-        VerifyNativeTrivyImageReplay((*version.records, *changed_scan.records), root)
+        VerifyNativeTrivyImageReplay((*version.records, *changedScan.records), root)
 
 
 @pytest.mark.parametrize("field,changed", [
@@ -254,10 +254,10 @@ def test_MaterialFactShapeCannotBorrowOriginalByteIdentity(paired, field, change
     root, _, store, version, scan = paired
     envelope = scan.Envelope()
     envelope["material_before"][0][field] = changed
-    changed_scan = Receipt(scan, store, envelope)
+    changedScan = Receipt(scan, store, envelope)
 
     with pytest.raises(ValueError, match="inconsistent"):
-        VerifyNativeTrivyImageReplay((*version.records, *changed_scan.records), root)
+        VerifyNativeTrivyImageReplay((*version.records, *changedScan.records), root)
 
 
 @pytest.mark.parametrize("field,changed", [
@@ -270,10 +270,10 @@ def test_OriginalEventHistoryCannotSubstituteRetainedStream(paired, field, chang
     root, _, store, version, scan = paired
     envelope = scan.Envelope()
     envelope["events"][1][field] = changed
-    changed_scan = Receipt(scan, store, envelope)
+    changedScan = Receipt(scan, store, envelope)
 
     with pytest.raises(ValueError, match="inconsistent"):
-        VerifyNativeTrivyImageReplay((*version.records, *changed_scan.records), root)
+        VerifyNativeTrivyImageReplay((*version.records, *changedScan.records), root)
 
 
 @pytest.mark.parametrize("role", ["stdout", "stderr", "native-scan-receipt",
@@ -404,12 +404,12 @@ def test_RehashedVersionReceiptCannotBeBorrowedByOriginalScan(paired):
     root, _, store, version, scan = paired
     envelope = version.Envelope()
     envelope["read_consent"]["record_ref"] = "read:another-record"
-    changed_version = Receipt(version, store, envelope)
+    changedVersion = Receipt(version, store, envelope)
 
     with pytest.raises(ValueError, match="inconsistent"):
-        VerifyNativeTrivyImageReplay((*changed_version.records, *scan.records), root)
+        VerifyNativeTrivyImageReplay((*changedVersion.records, *scan.records), root)
 
-    assert changed_version.records[-1].reference.sha256 != hashlib.sha256(
+    assert changedVersion.records[-1].reference.sha256 != hashlib.sha256(
         store.Read(version.records[-1].reference)).hexdigest(), "Changed VERSION is separate"
 
 
@@ -502,9 +502,9 @@ def test_ExecutedNativeAdmissionSharesCanonicalLegacyIdentityWithoutRewritingHea
     from fuzzy1337.model import ModelProvenance
 
     root, state, store, version, scan = paired
-    health_source = replace(version.records[0].provenance, execution=None, invocation_sha256=None)
+    healthSource = replace(version.records[0].provenance, execution=None, invocation_sha256=None)
     health = store.Put(version.outcome.stdout, "provider-version", "application/json",
-                       health_source)
+                       healthSource)
     records = (*scan.records[:2], health)
     report = AdapterReport(scan.request.invocation, scan.outcome.execution,
                            tuple(record.reference for record in records))

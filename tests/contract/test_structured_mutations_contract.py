@@ -68,7 +68,7 @@ def test_SeededOrderAndEveryMetadataIdentityCanBeRecomputedWithoutProducerHelper
         ("int32-max", {"value": 2147483647}), ("int32-min", {"value": -2147483648}),
         ("negative", {"value": -1}), ("zero", {"value": 0}),
     ], "Versioned seed/corpus ordering drifted"
-    expected_configuration = {
+    expectedConfiguration = {
         "seed": 17, "profile": "scalar-boundaries-v1",
         "selections": [{"pointer": "/value", "decoded_pointer": None}],
         "limits": {"max_depth": 16, "max_nodes": 4096, "max_body_bytes": 65536,
@@ -78,7 +78,7 @@ def test_SeededOrderAndEveryMetadataIdentityCanBeRecomputedWithoutProducerHelper
     for candidate in candidates:
         metadata = candidate.Metadata()
         assert metadata["schema_version"] == 1, "Metadata version is missing"
-        assert metadata["configuration"] == expected_configuration, "Complete configuration lost"
+        assert metadata["configuration"] == expectedConfiguration, "Complete configuration lost"
         assert metadata["source_body_digest"] == "sha256:" + hashlib.sha256(body).hexdigest(), (
             "Source attribution did not retain exact input bytes"
         )
@@ -124,9 +124,9 @@ def test_ExplicitJsonStringDecodingChangesOnlyTheSelectedInnerScalar():
     assert candidate.Metadata()["selection"] == {
         "pointer": "/packed", "decoded_pointer": "/a~1b/0",
     }, "Explicit outer and inner pointer provenance changed"
-    raw_candidates = GenerateJsonMutations(Template(), source,
+    rawCandidates = GenerateJsonMutations(Template(), source,
                                           (JsonMutationSelection("/packed"),), seed=0)
-    assert {json.loads(item.body)["packed"] for item in raw_candidates} == {
+    assert {json.loads(item.body)["packed"] for item in rawCandidates} == {
         "", "1337", "'\"\\", "\x00",
     }, "JSON-looking strings were implicitly decoded"
 
@@ -223,16 +223,16 @@ def test_IndependentBase64AndJsonConsumersCheckExactMutationAndCompleteProvenanc
     assert base64.b64encode(decoded).decode() == outer["packed"], "Output Base64 is noncanonical"
     assert outer["keep"] == "dHJ1ZQ==", "Another Base64-looking string was decoded"
     metadata = candidate.Metadata()
-    expected_selection = {"pointer": "/packed", "decoded_pointer": "/a~1b~0c/0",
+    expectedSelection = {"pointer": "/packed", "decoded_pointer": "/a~1b~0c/0",
                           "encoding": "base64-json-v1"}
-    assert selection.ToDict() == metadata["selection"] == expected_selection, "Codec not bound"
-    assert metadata["configuration"]["selections"] == [expected_selection], "Config lost codec"
+    assert selection.ToDict() == metadata["selection"] == expectedSelection, "Codec not bound"
+    assert metadata["configuration"]["selections"] == [expectedSelection], "Config lost codec"
     assert metadata["encoding_chain"] == [
         "json-utf8", "json-string", "base64-rfc4648", "json-utf8",
     ], "Complete explicit decoder chain is missing"
-    retained_reference = candidate.Reference()
+    retainedReference = candidate.Reference()
     assert ReplayJsonMutation(Template(), source, candidate,
-        expected_reference=retained_reference) == candidate, "Base64 candidate cannot replay"
+        expected_reference=retainedReference) == candidate, "Base64 candidate cannot replay"
     assert encoded not in json.dumps(metadata) and "body=" not in repr(candidate), "Body leaked"
 
 

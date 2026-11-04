@@ -88,10 +88,10 @@ def actual_browser() -> None:
         pytest.skip("Optional genuine Chromium acceptance is disabled; not acceptance")
 
     assert sys.platform == "linux", "Required Chromium acceptance needs Linux descendant ownership"
-    own_children = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
+    ownChildren = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
 
     try:
-        with own_children.open("rb"):
+        with ownChildren.open("rb"):
             pass
 
     except OSError:
@@ -145,7 +145,7 @@ def test_ActualChromiumRendersClosedBodyAndReopensCanonicalCustody(
     headers = (b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
                b"Content-Length: 423\r\nConnection: close\r\n\r\n")
     server = OwnedWireServer(headers + body)
-    resource_sink = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    resourceSink = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     observed = []
     execute = LocalExecutor.Execute
 
@@ -160,9 +160,9 @@ def test_ActualChromiumRendersClosedBodyAndReopensCanonicalCustody(
     monkeypatch.setattr(LocalExecutor, "Execute", Observe)
 
     try:
-        resource_sink.bind(("127.0.0.1", 19008))
-        resource_sink.listen(4)
-        resource_sink.setblocking(False)
+        resourceSink.bind(("127.0.0.1", 19008))
+        resourceSink.listen(4)
+        resourceSink.setblocking(False)
         root = tmp_path / "workspace"
         source = CreateWorkspace(root, server.origin)
         policy = ImpactPolicy("local", permissions=(CapabilityPermission(
@@ -179,27 +179,27 @@ def test_ActualChromiumRendersClosedBodyAndReopensCanonicalCustody(
             f"Actual pinned Chromium production provider failed: {snapshot.failure}"
         )
         authority = server.origin.removeprefix("http://")
-        expected_request = (f"GET /docs/index HTTP/1.1\r\nHost: {authority}\r\n"
+        expectedRequest = (f"GET /docs/index HTTP/1.1\r\nHost: {authority}\r\n"
             "Connection: close\r\nAccept: text/html\r\nAccept-Encoding: identity\r\n\r\n").encode()
-        assert server.accepted == 1 and server.requests == [expected_request], (
+        assert server.accepted == 1 and server.requests == [expectedRequest], (
             "Browser rendering must preserve exactly one approved native acquisition GET"
         )
 
         with pytest.raises(BlockingIOError):
-            resource_sink.accept()
+            resourceSink.accept()
 
         assert len(observed) == 1 and observed[0][1] is True, (
             "The actual provider must use one real execution with descendant ownership"
         )
         request, _, execution = observed[0]
-        expected_invocation = AdapterInvocation(PAGE_CAPTURE_PROVIDER_ID,
+        expectedInvocation = AdapterInvocation(PAGE_CAPTURE_PROVIDER_ID,
             AdapterRequest(PAGE_BROWSER_CAPABILITY,
                 Target(TargetKind.URL, server.origin + "/docs/index").Reference(), ImpactLevel.SAFE,
                 {"url": server.origin + "/docs/index", "timeout_seconds": 2.0,
                  "fixture_id": "owned-browser-dom.v1", "max_body_bytes": 16384}),
             (sys.executable, "-I", "-m", "fuzzy1337.browser_page_worker",
              server.origin + "/docs/index", "2.0", "owned-browser-dom.v1", "16384"), 9, "1")
-        assert request.invocation == expected_invocation, (
+        assert request.invocation == expectedInvocation, (
             "Browser acquisition changed the approved original worker argv/request/deadline"
         )
         assert execution.execution.state is ExecutionState.SUCCEEDED and (
@@ -229,14 +229,14 @@ def test_ActualChromiumRendersClosedBodyAndReopensCanonicalCustody(
                 "element_count", "anchor_count", "form_count", "input_count",
                 "blocked_request_count")}}
         assert report == expected, "Actual Chromium DOM facts differ from the handwritten oracle"
-        invocation_sha = InvocationDigest(expected_invocation)
+        invocationSha = InvocationDigest(expectedInvocation)
 
         for capture in captures.values():
             assert store.Get(capture.evidence_id) == capture, "Evidence manifest failed reopening"
             assert capture.provenance.source_id == PAGE_CAPTURE_PROVIDER_ID and (
                 capture.provenance.source_version == "1"
                 and capture.provenance.tool_version == oracle["chromium_version"]
-                and capture.provenance.invocation_sha256 == invocation_sha
+                and capture.provenance.invocation_sha256 == invocationSha
                 and capture.provenance.execution == execution.execution
             ), "Custody must bind original worker identity, real engine and terminal status"
 
@@ -247,36 +247,36 @@ def test_ActualChromiumRendersClosedBodyAndReopensCanonicalCustody(
         assert len(state.observations) == 4 and not state.relations and all(
             item.identity.kind is ObjectKind.ENDPOINT for item in state.objects
         ), "Acquisition must retain source/lexical and two owner updates without extra objects"
-        source_observation = next(item for item in state.observations
+        sourceObservation = next(item for item in state.observations
                                   if item.kind == "http.synthetic-page-browser")
         link = next(item for item in state.observations if item.kind == "web.lexical-link")
         candidate = RequestTemplate(Endpoint("synthetic", server.origin, "/selected-next"))
-        expected_observations = (
+        expectedObservations = (
             ("http.synthetic-page-browser", source.endpoint.Identity().Reference()),
             ("web.lexical-link", candidate.endpoint.Identity().Reference()),
             ("object-update", source.endpoint.Identity().Reference()),
             ("object-update", candidate.endpoint.Identity().Reference()),
         )
         assert sorted((item.kind, item.subject_reference) for item in state.observations) == (
-            sorted(expected_observations)
+            sorted(expectedObservations)
         ), "The exact two semantic facts and two owner updates must bind their endpoint subjects"
-        assert source_observation.subject_reference == source.endpoint.Identity().Reference(), (
+        assert sourceObservation.subject_reference == source.endpoint.Identity().Reference(), (
             "Browser source observation lost its canonical source endpoint identity"
         )
         assert link.subject_reference == candidate.endpoint.Identity().Reference() and (
             tuple(link.attributes["source_ordinals"]) == (1,)
         ), "The original reviewed anchor must produce exactly its selected canonical candidate"
-        assert source_observation.attributes["invocation_sha256"] == invocation_sha and (
-            source_observation.attributes["frontier_complete"] is True
-            and source_observation.attributes["frontier_anchor_count"] == 1
+        assert sourceObservation.attributes["invocation_sha256"] == invocationSha and (
+            sourceObservation.attributes["frontier_complete"] is True
+            and sourceObservation.attributes["frontier_anchor_count"] == 1
         ), "Canonical source must retain exact original invocation and completed lexical custody"
-        assert all(source_observation.attributes[key] == value for key, value in report.items()
+        assert all(sourceObservation.attributes[key] == value for key, value in report.items()
                    if key != "body_base64"), "Source observation dropped genuine browser facts"
         frontier = ReadCapturedWebFrontier(root, source, captures["response-body"], "local", at=NOW)
         assert len(frontier.entries) == 1 and frontier.entries[0].template == candidate, (
             "Retained exact body must independently reopen the single lexical candidate"
         )
-        assert source_observation.attributes["frontier_digest"] == frontier.frontier_digest, (
+        assert sourceObservation.attributes["frontier_digest"] == frontier.frontier_digest, (
             "Stored browser interpretation differs from the independently reopened body frontier"
         )
         kinds = [event.kind for event in job.EventsSince()]
@@ -284,23 +284,23 @@ def test_ActualChromiumRendersClosedBodyAndReopensCanonicalCustody(
             kinds.index(JobEventKind.MODEL_DELTA) > max(index for index, kind in enumerate(kinds)
                 if kind is JobEventKind.ARTIFACT)
         ), "One canonical transition must follow both retained original evidence artifacts"
-        expected_model = CanonicalModelJson(state.ToDict())
+        expectedModel = CanonicalModelJson(state.ToDict())
 
     finally:
         server.Close()
-        resource_sink.close()
+        resourceSink.close()
 
     moved = tmp_path / "relocated"
     root.rename(moved)
-    assert CanonicalModelJson(LocalModelStore(moved).Open().ToDict()) == expected_model, (
+    assert CanonicalModelJson(LocalModelStore(moved).Open().ToDict()) == expectedModel, (
         "Canonical source and browser interpretation changed after targets closed and relocation"
     )
     reopened = LocalEvidenceStore(moved / "evidence")
 
     for capture in captures.values():
         assert reopened.Get(capture.evidence_id) == capture, "Relocation changed custody metadata"
-        expected_bytes = stdout if capture.reference.role == "stdout" else body
-        assert reopened.Read(capture.reference) == expected_bytes, "Relocation lost evidence bytes"
+        expectedBytes = stdout if capture.reference.role == "stdout" else body
+        assert reopened.Read(capture.reference) == expectedBytes, "Relocation lost evidence bytes"
 
     retained = ReadCapturedWebFrontier(moved, source, captures["response-body"], "local", at=NOW)
     assert retained.frontier_digest == frontier.frontier_digest, (
@@ -356,16 +356,16 @@ def ReapRecorded(root: Path) -> None:
         records = Recorded(root)
 
         for record in records:
-            process_id = record["pid"]
+            processId = record["pid"]
 
             try:
-                descriptor = os.pidfd_open(process_id)
+                descriptor = os.pidfd_open(processId)
 
             except ProcessLookupError:
                 continue
 
             try:
-                if Identity(process_id) == record["started_ticks"]:
+                if Identity(processId) == record["started_ticks"]:
                     try:
                         signal.pidfd_send_signal(descriptor, signal.SIGKILL)
 
@@ -373,7 +373,7 @@ def ReapRecorded(root: Path) -> None:
                         pass
 
                     try:
-                        os.waitpid(process_id, os.WNOHANG)
+                        os.waitpid(processId, os.WNOHANG)
 
                     except ChildProcessError:
                         pass
@@ -442,47 +442,47 @@ def test_ActualNodeAndChromiumAreReapedBeforeStoppedExecutionReturns(owned_brows
     async def Execute():
         """Use explicit actual-ready stdout for cancellation, never race a fast normal render."""
 
-        ready_output = asyncio.Event()
+        readyOutput = asyncio.Event()
         cancellation = asyncio.Event()
-        ready_marker = b"owned-browser-ready\n"
-        ready_bytes = bytearray()
-        observed_events = []
+        readyMarker = b"owned-browser-ready\n"
+        readyBytes = bytearray()
+        observedEvents = []
 
         def Observe(event: ExecutionEvent) -> None:
             """Acknowledge the exact bounded readiness stream across arbitrary read chunks."""
 
-            observed_events.append(event)
+            observedEvents.append(event)
 
             if event.kind is ExecutionEventKind.STDOUT:
-                remaining = len(ready_marker) + 1 - len(ready_bytes)
-                ready_bytes.extend(event.data[:remaining])
+                remaining = len(readyMarker) + 1 - len(readyBytes)
+                readyBytes.extend(event.data[:remaining])
 
-                if ready_bytes == ready_marker:
-                    ready_output.set()
+                if readyBytes == readyMarker:
+                    readyOutput.set()
 
         request = TreeRequest(root)
         task = asyncio.create_task(LocalExecutor(root).Execute(request,
             own_descendants=True, cancellation=cancellation, on_event=Observe))
         result = None
         error = None
-        wait_outcome = "not-observed"
+        waitOutcome = "not-observed"
 
         try:
             if stop == "cancellation":
-                wait_outcome = await AwaitBrowserReadiness(task, ready_output, timeout_seconds=7)
+                waitOutcome = await AwaitBrowserReadiness(task, readyOutput, timeout_seconds=7)
 
-                if wait_outcome in {"ready", "readiness-deadline"}:
+                if waitOutcome in {"ready", "readiness-deadline"}:
                     cancellation.set()
 
             else:
-                wait_outcome = "timeout-terminal-wait"
+                waitOutcome = "timeout-terminal-wait"
 
             result = await task
 
             if stop == "timeout":
-                wait_outcome = "ready" if ready_output.is_set() else "execution-complete"
+                waitOutcome = "ready" if readyOutput.is_set() else "execution-complete"
 
-            return result, wait_outcome
+            return result, waitOutcome
 
         except BaseException as caught:
             error = caught
@@ -503,15 +503,15 @@ def test_ActualNodeAndChromiumAreReapedBeforeStoppedExecutionReturns(owned_brows
 
             summary = WriteBrowserTreeDiagnostics(
                 Path("functional-evidence") / f"browser-owner-{stop}.json", root, request,
-                result=result, error=error, observed_events=tuple(observed_events),
-                ready_bytes=bytes(ready_bytes), wait_outcome=wait_outcome)
+                result=result, error=error, observed_events=tuple(observedEvents),
+                ready_bytes=bytes(readyBytes), wait_outcome=waitOutcome)
             diagnostics.append(summary)
 
             if error is not None:
                 error.add_note(summary)
 
-    result, wait_outcome = asyncio.run(Execute())
-    assert wait_outcome == "ready", (
+    result, waitOutcome = asyncio.run(Execute())
+    assert waitOutcome == "ready", (
         "Actual browser readiness was not established: " + diagnostics[-1]
     )
     assert (root / "ready.json").is_file(), (

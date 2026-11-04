@@ -204,7 +204,7 @@ async def CaptureNativeConfigurationOperation(
 
     with Finalization(budget):
         prepared.scratch.mkdir(mode=0o700)
-        scratch_identity = PrivateDirectory(prepared.scratch)
+        scratchIdentity = PrivateDirectory(prepared.scratch)
         (prepared.scratch / "cache").mkdir(mode=0o700)
         request = LocalExecutionRequest(prepared.invocation,
             CapabilityDescriptor(prepared.selection.Capability(), "native.trivy",
@@ -275,7 +275,7 @@ async def CaptureNativeConfigurationOperation(
         terminal = WriteControl(directory / "terminal.json", RawFacts(outcome))
         state.controls = (*state.controls, terminal)
 
-        if PrivateDirectory(prepared.scratch) != scratch_identity:
+        if PrivateDirectory(prepared.scratch) != scratchIdentity:
             raise NativeConfigurationCaptureError("Native configuration execution scratch changed")
 
         shutil.rmtree(prepared.scratch)

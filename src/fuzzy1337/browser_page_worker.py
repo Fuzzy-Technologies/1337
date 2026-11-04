@@ -96,7 +96,7 @@ async def Render(body: bytes, expected_body: KnownSyntheticHtmlBody) -> dict[str
     manager: Any = None
     browser: Any = None
     context: Any = None
-    api_timeouts: tuple[type[Exception], ...] = ()
+    apiTimeouts: tuple[type[Exception], ...] = ()
     blocked = 0
     pages = 0
     policy_failed = False
@@ -156,17 +156,17 @@ async def Render(body: bytes, expected_body: KnownSyntheticHtmlBody) -> dict[str
     try:
         async with asyncio.timeout(RENDER_SECONDS):
             try:
-                installed_version = metadata.version("playwright")
+                installedVersion = metadata.version("playwright")
 
             except metadata.PackageNotFoundError:
                 raise BrowserRenderError("renderer-unavailable") from None
 
-            if installed_version != PLAYWRIGHT_VERSION:
+            if installedVersion != PLAYWRIGHT_VERSION:
                 raise BrowserRenderError("renderer-version")
 
             try:
                 api = import_module("playwright.async_api")
-                api_timeouts = (api.TimeoutError,)
+                apiTimeouts = (api.TimeoutError,)
 
             except ImportError:
                 raise BrowserRenderError("renderer-unavailable") from None
@@ -174,9 +174,9 @@ async def Render(body: bytes, expected_body: KnownSyntheticHtmlBody) -> dict[str
             manager = await api.async_playwright().start()
             browser = await manager.chromium.launch(headless=True,
                 timeout=RemainingMilliseconds(deadline))
-            chromium_version = browser.version
+            chromiumVersion = browser.version
 
-            if chromium_version != CHROMIUM_VERSION:
+            if chromiumVersion != CHROMIUM_VERSION:
                 raise BrowserRenderError("renderer-version")
 
             context = await browser.new_context(offline=True, java_script_enabled=False,
@@ -214,7 +214,7 @@ async def Render(body: bytes, expected_body: KnownSyntheticHtmlBody) -> dict[str
             ):
                 raise BrowserRenderError("renderer-policy")
 
-            result = {"playwright_version": installed_version, "chromium_version": chromium_version,
+            result = {"playwright_version": installedVersion, "chromium_version": chromiumVersion,
                 "dom_sha256": hashlib.sha256(dom).hexdigest(), "dom_size_bytes": len(dom),
                 "element_count": counts[0], "anchor_count": counts[1], "form_count": counts[2],
                 "input_count": counts[3], "blocked_request_count": blocked}
@@ -234,7 +234,7 @@ async def Render(body: bytes, expected_body: KnownSyntheticHtmlBody) -> dict[str
     except TimeoutError:
         raise BrowserRenderError("renderer-timeout") from None
 
-    except api_timeouts:
+    except apiTimeouts:
         raise BrowserRenderError("renderer-timeout") from None
 
     finally:

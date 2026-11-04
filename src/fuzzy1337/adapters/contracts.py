@@ -103,10 +103,10 @@ def FreezeJson(value: object) -> object:
 
     if isinstance(value, Mapping):
         frozen: dict[str, object] = {}
-        for key, nested_value in value.items():
+        for key, nestedValue in value.items():
             if not isinstance(key, str) or not key:
                 raise ValueError("contract metadata keys must be non-empty strings")
-            frozen[key] = FreezeJson(nested_value)
+            frozen[key] = FreezeJson(nestedValue)
 
         return MappingProxyType(dict(sorted(frozen.items())))
 
@@ -202,10 +202,10 @@ def JsonValue(value: object) -> object:
 
     if isinstance(value, Mapping):
         rendered: dict[str, object] = {}
-        for key, nested_value in value.items():
+        for key, nestedValue in value.items():
             if not isinstance(key, str):
                 raise ValueError("contract mappings must use string keys")
-            rendered[key] = JsonValue(nested_value)
+            rendered[key] = JsonValue(nestedValue)
 
         return dict(sorted(rendered.items()))
 
@@ -438,8 +438,8 @@ class AdapterReport:
         """Freeze evidence ordering and reject ambiguous duplicate references."""
 
         evidence = tuple(self.evidence)
-        locator_roles = tuple((item.locator, item.role) for item in evidence)
-        if len(set(locator_roles)) != len(locator_roles):
+        locatorRoles = tuple((item.locator, item.role) for item in evidence)
+        if len(set(locatorRoles)) != len(locatorRoles):
             raise ValueError("evidence references must be unique by locator and role")
         object.__setattr__(self, "evidence", evidence)
 

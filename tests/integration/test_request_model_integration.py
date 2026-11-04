@@ -30,15 +30,15 @@ def test_AttributableRequestProjectionPersistsAndMovesWithoutScopeConsent(tmp_pa
     LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Request integration"), "demo")
     target = Target(TargetKind.URL, "http://127.0.0.1:8080/api")
     scope = LocalScopeStore(root).Create(ScopeSnapshot("local", "demo", targets=(target,)))
-    scope_before = (root / "state/scopes/local.json").read_bytes()
-    workspace_before = (root / "workspace.json").read_bytes()
+    scopeBefore = (root / "state/scopes/local.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     endpoint = Endpoint("demo", "http://127.0.0.1:8080", "/api")
     template = RequestTemplate(endpoint, (
         InjectionPoint(InjectionLocation.QUERY, "id", ValueBinding("user-id")),
     ))
     raw = template.ToJson().encode("utf-8")
-    evidence_store = LocalEvidenceStore(root / "evidence")
-    evidence = evidence_store.Put(raw, "structure", "application/json", EvidenceProvenance(
+    evidenceStore = LocalEvidenceStore(root / "evidence")
+    evidence = evidenceStore.Put(raw, "structure", "application/json", EvidenceProvenance(
         "demo", scope.Reference(), "synthetic-request", "1", "structure-fixture",
         "2026-10-11T10:00:00Z", "2026-10-11T10:00:01Z",
     ))
@@ -56,9 +56,9 @@ def test_AttributableRequestProjectionPersistsAndMovesWithoutScopeConsent(tmp_pa
     patch = ProjectRequests((template,), provenance=(provenance,))
     state, delta = state.Apply(objects=(patch,))
     saved = store.Save(state, expected_revision=1)
-    replayed, replay_delta = saved.Apply(objects=(patch,))
+    replayed, replayDelta = saved.Apply(objects=(patch,))
     assert delta.updated == (endpoint.Identity().Reference(),), "Request projection added objects"
-    assert replayed == saved and replay_delta.updated == replay_delta.created == (), (
+    assert replayed == saved and replayDelta.updated == replayDelta.created == (), (
         "Replayed structural metadata unexpectedly advanced model revision"
     )
     assert RequestsFromObject(saved.objects[0]) == (template,), "Model consumer lost the template"
@@ -80,8 +80,8 @@ def test_AttributableRequestProjectionPersistsAndMovesWithoutScopeConsent(tmp_pa
     assert reopened == saved, "Workspace relocation changed canonical request/model identities"
     assert RequestsFromObject(reopened.objects[0]) == (template,), "Relocation lost request state"
     assert (moved / "state/model/model.json").read_bytes() == before, "Relocation rewrote model"
-    assert (moved / "state/scopes/local.json").read_bytes() == scope_before, "Scope bytes changed"
-    assert (moved / "workspace.json").read_bytes() == workspace_before, "Workspace bytes changed"
+    assert (moved / "state/scopes/local.json").read_bytes() == scopeBefore, "Scope bytes changed"
+    assert (moved / "workspace.json").read_bytes() == workspaceBefore, "Workspace bytes changed"
     assert LocalEvidenceStore(moved / "evidence").Read(evidence.reference) == raw, "Evidence drift"
     decision = LocalScopeStore(moved).Open("local").Check(
         target, at=datetime(2026, 10, 11, tzinfo=timezone.utc),

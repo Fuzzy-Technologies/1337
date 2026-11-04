@@ -278,9 +278,9 @@ def DecodeSelectedString(
     if len(encoded) % 4 or re.fullmatch(rb"[A-Za-z0-9+/]*={0,2}", encoded) is None:
         raise ValueError("JSON mutation Base64 spelling is invalid")
 
-    decoded_size = len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip(b"=")))
+    decodedSize = len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip(b"=")))
 
-    if decoded_size > limits.max_body_bytes or len(encoded) + decoded_size > remaining:
+    if decodedSize > limits.max_body_bytes or len(encoded) + decodedSize > remaining:
         raise ValueError("JSON mutation Base64 decoding exceeds its byte budget")
 
     decoded = base64.b64decode(encoded, validate=True)
@@ -531,23 +531,23 @@ def PrepareMutations(
     ):
         raise ValueError("JSON mutation selections must be bounded and unique")
 
-    raw_pointers = {item.pointer for item in selections if item.decoded_pointer is None}
-    decoded_pointers = {item.pointer for item in selections if item.decoded_pointer is not None}
+    rawPointers = {item.pointer for item in selections if item.decoded_pointer is None}
+    decodedPointers = {item.pointer for item in selections if item.decoded_pointer is not None}
 
     if len({(item.pointer, item.encoding) for item in selections
-            if item.decoded_pointer is not None}) != len(decoded_pointers):
+            if item.decoded_pointer is not None}) != len(decodedPointers):
         raise ValueError("JSON mutation selections cannot mix decoding paths")
 
-    if raw_pointers & decoded_pointers:
+    if rawPointers & decodedPointers:
         raise ValueError("JSON mutation selections cannot mix raw and decoded input versions")
 
     if type(body) is not bytes or len(body) > limits.max_decoded_bytes:
         raise ValueError("JSON mutation source exceeds its decoded byte budget")
 
     tree, nodes = DecodeBody(body, limits)
-    decoded_bytes = len(body)
+    decodedBytes = len(body)
     decoded: dict[str, object] = {}
-    decoded_sizes: dict[str, int] = {}
+    decodedSizes: dict[str, int] = {}
     plans: list[list[tuple[str, object]]] = []
     count = 0
     coordinates = [PointerTokens(point.selector) for point in template.injection_points
@@ -566,14 +566,14 @@ def PrepareMutations(
                 raise ValueError("JSON string decoding requires a string")
 
             if selection.pointer not in decoded:
-                inner_bytes, charge = DecodeSelectedString(selected, selection.encoding, limits,
-                    limits.max_decoded_bytes - decoded_bytes)
-                decoded_bytes += charge
+                innerBytes, charge = DecodeSelectedString(selected, selection.encoding, limits,
+                    limits.max_decoded_bytes - decodedBytes)
+                decodedBytes += charge
 
-                inner, inner_nodes = DecodeBody(inner_bytes, limits, depth=len(tokens) + 1)
+                inner, innerNodes = DecodeBody(innerBytes, limits, depth=len(tokens) + 1)
                 decoded[selection.pointer] = inner
-                decoded_sizes[selection.pointer] = charge
-                nodes += inner_nodes
+                decodedSizes[selection.pointer] = charge
+                nodes += innerNodes
 
                 if nodes > limits.max_nodes:
                     raise ValueError("JSON mutation decoding exceeds its aggregate node budget")
@@ -592,7 +592,7 @@ def PrepareMutations(
         plans.append(candidates)
 
     result: list[JsonMutation] = []
-    output_bytes = 0
+    outputBytes = 0
 
     for index, candidates in enumerate(plans):
         selection = selections[index]
@@ -600,39 +600,39 @@ def PrepareMutations(
 
         for variant, replacement in candidates:
             mutated = deepcopy(tree)
-            candidate_decoded_bytes = decoded_bytes - len(body)
+            candidateDecodedBytes = decodedBytes - len(body)
 
             if selection.decoded_pointer is not None:
                 inner = Replace(deepcopy(decoded[selection.pointer]),
                                 PointerTokens(selection.decoded_pointer), replacement)
                 InspectTree(inner, limits, depth=len(tokens) + 1)
-                encoded_inner = EncodeBody(inner, limits.max_body_bytes)
-                charge = len(encoded_inner)
+                encodedInner = EncodeBody(inner, limits.max_body_bytes)
+                charge = len(encodedInner)
 
                 if selection.encoding is JsonMutationEncoding.BASE64_JSON:
-                    encoded_size = (len(encoded_inner) + 2) // 3 * 4
+                    encodedSize = (len(encodedInner) + 2) // 3 * 4
 
-                    if encoded_size > limits.max_body_bytes or (
-                        candidate_decoded_bytes - decoded_sizes[selection.pointer]
-                        + charge + encoded_size > limits.max_decoded_bytes
+                    if encodedSize > limits.max_body_bytes or (
+                        candidateDecodedBytes - decodedSizes[selection.pointer]
+                        + charge + encodedSize > limits.max_decoded_bytes
                     ):
                         raise ValueError("JSON mutation Base64 output exceeds its byte budget")
 
-                    encoded_inner = base64.b64encode(encoded_inner)
-                    charge += len(encoded_inner)
+                    encodedInner = base64.b64encode(encodedInner)
+                    charge += len(encodedInner)
 
-                candidate_decoded_bytes += charge - decoded_sizes[selection.pointer]
-                replacement = encoded_inner.decode("utf-8")
+                candidateDecodedBytes += charge - decodedSizes[selection.pointer]
+                replacement = encodedInner.decode("utf-8")
 
             mutated = Replace(mutated, tokens, replacement)
             InspectTree(mutated, limits)
             encoded = EncodeBody(mutated, min(limits.max_body_bytes,
-                                             limits.max_output_bytes - output_bytes))
+                                             limits.max_output_bytes - outputBytes))
 
-            if candidate_decoded_bytes + len(encoded) > limits.max_decoded_bytes:
+            if candidateDecodedBytes + len(encoded) > limits.max_decoded_bytes:
                 raise ValueError("JSON mutation output exceeds its decoded byte budget")
 
-            output_bytes += len(encoded)
+            outputBytes += len(encoded)
             result.append(JsonMutation(template.Reference(), BodyDigest(body), selections, seed,
                                        profile, limits, index, variant, encoded))
 

@@ -44,16 +44,16 @@ def test_ActualConsoleRetainsBothOriginalsExactDownloadsAndPortableReplay(tmp_pa
     before, after = fixture.Phase("confirmed"), fixture.Phase("remediation")
     arguments = PairArguments(fixture, before, after)
     retained = Files(fixture.root)
-    original_before = Console([*OriginalArguments(fixture, before), "--json"])
-    original_after = Console([*OriginalArguments(fixture, after), "--json"])
+    originalBefore = Console([*OriginalArguments(fixture, before), "--json"])
+    originalAfter = Console([*OriginalArguments(fixture, after), "--json"])
     machine = Console([*arguments, "--json"])
     rendered = Console([*arguments, "--html"])
-    assert original_before.returncode == original_after.returncode == machine.returncode == (
+    assert originalBefore.returncode == originalAfter.returncode == machine.returncode == (
         rendered.returncode
     ) == 0, "Actual console comparison failed its original owning interface."
     result = json.loads(machine.stdout)
-    assert result["before"] == json.loads(original_before.stdout) and result["after"] == json.loads(
-        original_after.stdout,
+    assert result["before"] == json.loads(originalBefore.stdout) and result["after"] == json.loads(
+        originalAfter.stdout,
     ), "Console pair differs from independent original machine outcomes."
     download = re.search(r'download="path-comparison.json" href="data:application/json;'
                          r'base64,([^"]+)"', rendered.stdout).group(1)

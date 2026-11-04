@@ -185,8 +185,8 @@ class NucleiComparisonHost(PrerequisiteHost):
             self.source, self.runner, self.image = await self.Prepare()
             await self.RunPrepared(self.source, self.runner, self.image,
                                    self.root / "governed-prerequisite")
-            manifest_path = self.root / "governed-prerequisite/image-provisioning.json"
-            self.manifest_raw = manifest_path.read_bytes()
+            manifestPath = self.root / "governed-prerequisite/image-provisioning.json"
+            self.manifest_raw = manifestPath.read_bytes()
             self.receipt["status"] = "prepared-comparison"
 
         finally:
@@ -195,18 +195,18 @@ class NucleiComparisonHost(PrerequisiteHost):
     def AdmitTarget(self, lab):
         """Inspect the actual pinned target and internal network before sharing its namespace."""
 
-        target_id = lab.provenance["container_id"]
+        targetId = lab.provenance["container_id"]
 
-        if re.fullmatch("[a-f0-9]{64}", target_id) is None or target_id in self.targets or (
+        if re.fullmatch("[a-f0-9]{64}", targetId) is None or targetId in self.targets or (
             lab.provenance["platform"] != "linux/amd64"
         ):
             raise ValueError("Comparison requires a fresh exact native amd64 target instance")
 
-        raw = asyncio.run(self.Inspect("container", target_id, "target-original-inspect"))
+        raw = asyncio.run(self.Inspect("container", targetId, "target-original-inspect"))
         networks = raw["NetworkSettings"]["Networks"]
         host = raw["HostConfig"]
 
-        if raw["Id"] != target_id or raw["Image"] != lab.provenance["image"]["id"] or (
+        if raw["Id"] != targetId or raw["Image"] != lab.provenance["image"]["id"] or (
             raw["Config"]["Image"] != lab.target.ImageReference
             or raw["State"]["Running"] is not True or raw["Config"]["User"] != "65532:0"
             or raw["Mounts"] != [] or host["Binds"] not in (None, [])
@@ -222,19 +222,19 @@ class NucleiComparisonHost(PrerequisiteHost):
         ):
             raise ValueError("Comparison target widened its identity, mounts, ports or network")
 
-        network_id = next(iter(networks.values()))["NetworkID"]
+        networkId = next(iter(networks.values()))["NetworkID"]
         _, original = asyncio.run(self.Command("target-network-inspect", (
-            "network", "inspect", "--format", "{{json .}}", network_id)))
+            "network", "inspect", "--format", "{{json .}}", networkId)))
         network = StrictJson(original)
 
-        if network["Id"] != network_id or network["Internal"] is not True or (
-            network["Driver"] != "bridge" or set(network["Containers"]) != {target_id}
+        if network["Id"] != networkId or network["Internal"] is not True or (
+            network["Driver"] != "bridge" or set(network["Containers"]) != {targetId}
         ):
             raise ValueError("Actual comparison namespace is not the one isolated internal target")
 
-        self.targets.add(target_id)
+        self.targets.add(targetId)
 
-        return target_id
+        return targetId
 
     @contextmanager
     def OwnApplication(self):
@@ -259,17 +259,17 @@ class NucleiComparisonHost(PrerequisiteHost):
         directory = self.root / ("case-" + str(index) + "-" + track + "-" + case["id"])
         directory.mkdir(mode=0o700)
         lab = ComparisonTargetLab(self, directory / "target")
-        observation, failure, attached, start_record = None, None, False, None
-        target_id = ""
+        observation, failure, attached, startRecord = None, None, False, None
+        targetId = ""
         self.name = "fuzzy-1337-nuclei-case-" + self.owner[:12] + "-" + str(index)
-        before_cleanup = len(self.receipt["cleanup"])
+        beforeCleanup = len(self.receipt["cleanup"])
 
         try:
             if asyncio.run(self.Source("case-before")) != (self.revision, self.tree):
                 raise ValueError("Comparison source changed before target startup")
 
             with contextmanager(OwnExternalTarget)(lab), self.OwnApplication():
-                target_id = self.AdmitTarget(lab)
+                targetId = self.AdmitTarget(lab)
                 reset = {"target": self.target, "compose_sha256": hashlib.sha256(
                     (self.repository / "labs/external/compose.yaml").read_bytes()).hexdigest()}
                 provenance = directory / "target-provenance.json"
@@ -277,17 +277,17 @@ class NucleiComparisonHost(PrerequisiteHost):
                     "image_index_digest": self.target["index_digest"],
                     "platform_digest": lab.provenance["platform_manifest_digest"],
                     "target_url": "http://127.0.0.1:3000" + case["path"],
-                    "target_instance": target_id,
+                    "target_instance": targetId,
                     "reset_contract_sha256": hashlib.sha256(json.dumps(
                         reset, sort_keys=True).encode()).hexdigest(),
                     "network_internal": True, "published_ports": 0,
                     "fixture_http_probes": [asdict(item) for item in lab.observations],
                     "scanner_image_id": self.image["id"], "scanner_source_revision": self.revision})
-                arguments = ApplicationArguments(self.name, self.image["id"], target_id,
+                arguments = ApplicationArguments(self.name, self.image["id"], targetId,
                                                 track, case["path"], self.owner)
-                image_position = arguments.index(self.image["id"])
-                create = (*arguments[1:image_position], "--label", OWNER_LABEL + "=" + self.owner,
-                          *arguments[image_position:])
+                imagePosition = arguments.index(self.image["id"])
+                create = (*arguments[1:imagePosition], "--label", OWNER_LABEL + "=" + self.owner,
+                          *arguments[imagePosition:])
                 self.created = True
                 _, raw = asyncio.run(self.Command("case-create", create, seconds=20))
                 identifier = raw.decode("ascii").strip()
@@ -300,8 +300,8 @@ class NucleiComparisonHost(PrerequisiteHost):
                 self.OwnedContainer(before, self.container)
                 projection = ApplicationProjection(before)
                 AdmitApplicationContainer(projection, self.image, self.owner, self.revision,
-                    self.name, target_id, ApplicationCommand(
-                        track, case["path"], target_id, self.owner))
+                    self.name, targetId, ApplicationCommand(
+                        track, case["path"], targetId, self.owner))
                 attached = True
 
                 try:
@@ -310,7 +310,7 @@ class NucleiComparisonHost(PrerequisiteHost):
                         seconds=40, limit=12 * 1024 * 1024, stderr=65536, require=False))
 
                 finally:
-                    start_record = self.receipt["commands"][-1]
+                    startRecord = self.receipt["commands"][-1]
 
                 after = asyncio.run(self.Inspect("container", self.container, "case-after"))
                 self.OwnedContainer(after, self.container)
@@ -323,7 +323,7 @@ class NucleiComparisonHost(PrerequisiteHost):
                     raise ValueError("Application container changed configuration during execution")
 
                 bundle = BindApplicationBundle(raw, directory / "scanner", self.manifest_raw,
-                    self.revision, track, case["path"], target_id, self.owner)
+                    self.revision, track, case["path"], targetId, self.owner)
                 observation = Observation(self.pack, self.target, case, track, self.root,
                     directory / "scanner", provenance, bundle["outcome"])
 
@@ -349,7 +349,7 @@ class NucleiComparisonHost(PrerequisiteHost):
             cleanup = {"container_absent": True if self.container is None and not (
                 self.created) else None,
                 "target_absent": lab.target_absent,
-                "original_cleanup_records": self.receipt["cleanup"][before_cleanup:]}
+                "original_cleanup_records": self.receipt["cleanup"][beforeCleanup:]}
             WriteJson(directory / "cleanup.json", cleanup)
 
         if observation is None:
@@ -358,8 +358,8 @@ class NucleiComparisonHost(PrerequisiteHost):
                 "reason": "Provider custody unavailable; original host evidence retained",
                 "execution": None}
 
-            if attached and start_record is not None:
-                observation = self.FailedAttempt(case, track, target_id, directory, start_record,
+            if attached and startRecord is not None:
+                observation = self.FailedAttempt(case, track, targetId, directory, startRecord,
                                                  cleanup, failure)
 
         elif failure is not None:

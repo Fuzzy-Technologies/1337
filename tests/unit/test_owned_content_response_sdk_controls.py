@@ -152,31 +152,31 @@ def test_CanonicalAliasSeparationPrecedesEffectsAndPreservesOriginalSelection(
 
     workspace = tmp_path / "selected-workspace-alias"
     observations = tmp_path / "selected-observation-alias" / "fresh"
-    physical_workspace = tmp_path / "physical-product"
-    physical_observations = tmp_path / "physical-evidence"
+    physicalWorkspace = tmp_path / "physical-product"
+    physicalObservations = tmp_path / "physical-evidence"
 
     if alias == "observation-into-workspace":
-        physical_observations = physical_workspace / "fresh"
+        physicalObservations = physicalWorkspace / "fresh"
 
     elif alias == "workspace-inside-observation":
-        physical_workspace = physical_observations / "product"
+        physicalWorkspace = physicalObservations / "product"
 
     elif alias == "equal-canonical-roots":
-        physical_observations = physical_workspace
+        physicalObservations = physicalWorkspace
 
-    original_resolve = Path.resolve
+    originalResolve = Path.resolve
     calls = []
 
     def Resolve(path, *args, **kwargs):
         """Model resolved aliases without constructing any symlink or actual product workspace."""
 
         if path == workspace:
-            return physical_workspace
+            return physicalWorkspace
 
         if path == observations:
-            return physical_observations
+            return physicalObservations
 
-        return original_resolve(path, *args, **kwargs)
+        return originalResolve(path, *args, **kwargs)
 
     def Inspect(root):
         """Observe a mocked read handoff without actual stores or workspace mutations."""

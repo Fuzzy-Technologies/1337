@@ -116,10 +116,10 @@ class EvidenceProvenance:
         if self.tool_version is not None:
             RequireText(self.tool_version, "tool_version")
 
-        started_at = NormalizeEvidenceTime(self.started_at)
-        finished_at = NormalizeEvidenceTime(self.finished_at)
+        startedAt = NormalizeEvidenceTime(self.started_at)
+        finishedAt = NormalizeEvidenceTime(self.finished_at)
 
-        if finished_at < started_at:
+        if finishedAt < startedAt:
             raise ValueError("finished_at must not precede started_at")
 
         if self.invocation_sha256 is not None:
@@ -139,8 +139,8 @@ class EvidenceProvenance:
             ):
                 raise ValueError("execution duration must be a finite non-negative number")
 
-        object.__setattr__(self, "started_at", started_at)
-        object.__setattr__(self, "finished_at", finished_at)
+        object.__setattr__(self, "started_at", startedAt)
+        object.__setattr__(self, "finished_at", finishedAt)
 
     def ToDict(self) -> dict[str, object]:
         """Return detached schema-v1 metadata with no automatic secret collection.
@@ -192,9 +192,9 @@ class EvidenceRecord:
         if not isinstance(self.provenance, EvidenceProvenance):
             raise ValueError("provenance must be an EvidenceProvenance")
 
-        expected_locator = f"blobs/sha256/{self.reference.sha256}"
+        expectedLocator = f"blobs/sha256/{self.reference.sha256}"
 
-        if self.reference.locator != expected_locator:
+        if self.reference.locator != expectedLocator:
             raise ValueError("reference locator must match the canonical content address")
 
         digest = hashlib.sha256(self.Serialize()).hexdigest()
@@ -321,19 +321,19 @@ def ParseEvidenceManifest(data: bytes) -> EvidenceRecord:
             "started_at", "finished_at", "invocation_sha256", "execution",
         })
         execution = provenance["execution"]
-        parsed_execution = None
+        parsedExecution = None
 
         if execution is not None:
-            execution_fields = RequireManifestFields(
+            executionFields = RequireManifestFields(
                 execution, {"state", "exit_code", "duration_seconds"},
             )
-            parsed_execution = AdapterExecution(
-                state=ExecutionState(execution_fields["state"]),  # type: ignore[arg-type]
-                exit_code=execution_fields["exit_code"],  # type: ignore[arg-type]
-                duration_seconds=execution_fields["duration_seconds"],  # type: ignore[arg-type]
+            parsedExecution = AdapterExecution(
+                state=ExecutionState(executionFields["state"]),  # type: ignore[arg-type]
+                exit_code=executionFields["exit_code"],  # type: ignore[arg-type]
+                duration_seconds=executionFields["duration_seconds"],  # type: ignore[arg-type]
             )
 
-        parsed_provenance = EvidenceProvenance(
+        parsedProvenance = EvidenceProvenance(
             workspace_id=provenance["workspace_id"],  # type: ignore[arg-type]
             scope_reference=provenance["scope_reference"],  # type: ignore[arg-type]
             source_id=provenance["source_id"],  # type: ignore[arg-type]
@@ -342,11 +342,11 @@ def ParseEvidenceManifest(data: bytes) -> EvidenceRecord:
             started_at=provenance["started_at"],  # type: ignore[arg-type]
             finished_at=provenance["finished_at"],  # type: ignore[arg-type]
             invocation_sha256=provenance["invocation_sha256"],  # type: ignore[arg-type]
-            execution=parsed_execution,
+            execution=parsedExecution,
         )
         record = EvidenceRecord(
             reference=EvidenceReference(**reference),  # type: ignore[arg-type]
-            provenance=parsed_provenance,
+            provenance=parsedProvenance,
             schema_version=manifest["schema_version"],  # type: ignore[arg-type]
         )
 
@@ -375,14 +375,14 @@ def CheckStorageEntry(path: Path, directory: bool) -> os.stat_result:
     """
 
     metadata = path.lstat()
-    reparse_point = getattr(metadata, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+    reparsePoint = getattr(metadata, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
 
-    if stat.S_ISLNK(metadata.st_mode) or reparse_point:
+    if stat.S_ISLNK(metadata.st_mode) or reparsePoint:
         raise EvidenceIntegrityError("evidence paths must not contain links or reparse points")
 
-    correct_kind = stat.S_ISDIR(metadata.st_mode) if directory else stat.S_ISREG(metadata.st_mode)
+    correctKind = stat.S_ISDIR(metadata.st_mode) if directory else stat.S_ISREG(metadata.st_mode)
 
-    if not correct_kind:
+    if not correctKind:
         raise EvidenceIntegrityError("evidence path has an unexpected filesystem object kind")
 
     return metadata
@@ -537,14 +537,14 @@ class LocalEvidenceStore:
             provenance,
         )
 
-        manifest_data = record.Serialize()
+        manifestData = record.Serialize()
 
-        if len(manifest_data) > EVIDENCE_MANIFEST_MAX_BYTES:
+        if len(manifestData) > EVIDENCE_MANIFEST_MAX_BYTES:
             raise ValueError("evidence manifest exceeds the 1 MiB schema limit")
 
         try:
             self.PublishStoredBytes(("blobs", "sha256", digest), data)
-            self.PublishStoredBytes(("records", f"{record.evidence_id[7:]}.json"), manifest_data)
+            self.PublishStoredBytes(("records", f"{record.evidence_id[7:]}.json"), manifestData)
 
         except OSError as error:
             raise EvidenceStorageError("filesystem could not publish immutable evidence") from error

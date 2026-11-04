@@ -63,12 +63,12 @@ def CreateOwnedImage(tmp_path: Path, scenario: str = "success") -> OwnedImage:
         Existing initialized workspace, selected fixture files and approved ARTIFACT scope.
     """
 
-    module_spec = importlib.util.spec_from_file_location(
+    moduleSpec = importlib.util.spec_from_file_location(
         "owned_image_archive_fixture", FIXTURE_ROOT / "fixture_image.py"
     )
-    assert module_spec is not None and module_spec.loader is not None, "Owned fixture is importable"
-    module = importlib.util.module_from_spec(module_spec)
-    module_spec.loader.exec_module(module)
+    assert moduleSpec is not None and moduleSpec.loader is not None, "Owned fixture is importable"
+    module = importlib.util.module_from_spec(moduleSpec)
+    moduleSpec.loader.exec_module(module)
     selected = tmp_path.resolve() / "selected image fixture"
     archive, material = module.CreateFixture(selected, scenario)
     root = tmp_path.resolve() / "owned image workspace"
@@ -120,9 +120,9 @@ async def CollectOwnedImagePair(owned: OwnedImage, *, resources: ExecutionResour
             timeout_seconds=3 if operation is ArtifactOperation.VERSION else 1,
             resources=resources, version_proof=proof)
         grant = engine.Authorize(prepared, stage, owned.context, at=datetime.now(UTC))
-        started_at = datetime.now(UTC).isoformat()
+        startedAt = datetime.now(UTC).isoformat()
         outcome = await facade.Execute(prepared, stage, grant, lambda: owned.context)
-        capture = ImageOperationCapture(outcome, prepared, stage, started_at,
+        capture = ImageOperationCapture(outcome, prepared, stage, startedAt,
             datetime.now(UTC).isoformat())
         captures.append(capture)
         roles = ("provider-version", "provider-version-stderr", "artifact-version-receipt") if (

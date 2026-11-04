@@ -105,18 +105,18 @@ def Setup(config: dict) -> dict:
     root = Path(config["workspace"])
     CreateWorkspace(root, WORKSPACE_ID, "Independent native crawl acceptance")
     seed = urlsplit(config["seed_url"])
-    prior_template = RequestTemplate(Endpoint(WORKSPACE_ID, f"http://{seed.netloc}",
+    priorTemplate = RequestTemplate(Endpoint(WORKSPACE_ID, f"http://{seed.netloc}",
         seed.path, "GET"), body_kind=BodyKind.JSON)
-    prior_provenance = ModelProvenance("fixture.native-crawl",
+    priorProvenance = ModelProvenance("fixture.native-crawl",
         "setup:independent-existing-request", datetime.now(UTC).isoformat(), "scope:crawl",
         Target(TargetKind.URL, config["seed_url"]).Reference(), "1")
-    prior_endpoint = ProjectRequests((prior_template,), provenance=(prior_provenance,))
-    prior_endpoint = replace(prior_endpoint, attributes={**dict(prior_endpoint.attributes),
+    priorEndpoint = ProjectRequests((priorTemplate,), provenance=(priorProvenance,))
+    priorEndpoint = replace(priorEndpoint, attributes={**dict(priorEndpoint.attributes),
         "independent_existing_attribute": "preserve-existing-structural-state"})
-    model_store = LocalModelStore(root)
-    model = model_store.Open()
-    proposed, _ = model.Apply(objects=(prior_endpoint,))
-    model_store.Save(proposed, expected_revision=model.revision)
+    modelStore = LocalModelStore(root)
+    model = modelStore.Open()
+    proposed, _ = model.Apply(objects=(priorEndpoint,))
+    modelStore.Save(proposed, expected_revision=model.revision)
     selected = tuple(Target(TargetKind.URL, url) for url in config["selected_urls"])
     address = Target(TargetKind.IP, seed.hostname)
     targets = (*selected, address)
@@ -158,9 +158,9 @@ def Crawl(config: dict) -> dict:
     negative = config.get("negative")
     actor = OWNER
     executions, saves = [], []
-    original_execute = LocalExecutor.Execute
-    original_save = LocalModelStore.Save
-    original_authorize = PolicyEngine.Authorize
+    originalExecute = LocalExecutor.Execute
+    originalSave = LocalModelStore.Save
+    originalAuthorize = PolicyEngine.Authorize
     limits = NativeCrawlLimits(**config.get("limits", {}))
 
     def CurrentOwner() -> str:
@@ -173,7 +173,7 @@ def Crawl(config: dict) -> dict:
         unchanged."""
 
         nonlocal actor
-        result = await original_execute(executor, request, **options)
+        result = await originalExecute(executor, request, **options)
         executions.append({"request": Detached(request), "execution": Detached(result.execution),
             "termination": result.termination.value, "stdout_hex": result.stdout.hex(),
             "stderr_hex": result.stderr.hex(), "events": [{"sequence": event.sequence,
@@ -191,7 +191,7 @@ def Crawl(config: dict) -> dict:
         return."""
 
         prior = store.Open()
-        actual = original_save(store, proposed, expected_revision=expected_revision)
+        actual = originalSave(store, proposed, expected_revision=expected_revision)
         saves.append({"expected_revision": expected_revision, "prior_revision": prior.revision,
             "proposed_revision": proposed.revision, "acknowledged_revision": actual.revision,
             "exact_acknowledgement": actual == proposed})
@@ -205,7 +205,7 @@ def Crawl(config: dict) -> dict:
         """Return the real original grant, then change only the independent current actor reader."""
 
         nonlocal actor
-        grant = original_authorize(engine, *args, **kwargs)
+        grant = originalAuthorize(engine, *args, **kwargs)
 
         if negative == "owner-grant-launch":
             actor = "actor:changed-after-real-grant"
@@ -235,9 +235,9 @@ def Crawl(config: dict) -> dict:
         exception = type(error).__name__
 
     finally:
-        LocalExecutor.Execute = original_execute
-        LocalModelStore.Save = original_save
-        PolicyEngine.Authorize = original_authorize
+        LocalExecutor.Execute = originalExecute
+        LocalModelStore.Save = originalSave
+        PolicyEngine.Authorize = originalAuthorize
 
     identities = () if summary is None else tuple(item.evidence_id for item in summary.records)
     evidence = LocalEvidenceStore(root / "evidence")
@@ -262,15 +262,15 @@ def Git(config: dict) -> dict:
     plan = PlanNativeWebScan(root, "git-check", target, OWNER, lambda: Policy(config, git=True))
     confirmation = None if config.get("confirm") is False else PolicyConfirmation(
         plan.policy_plan.intent_sha256, "approval:separate-native-git")
-    original_save = LocalModelStore.Save
-    own_codes = {original_save.__code__: "model-save",
+    originalSave = LocalModelStore.Save
+    ownCodes = {originalSave.__code__: "model-save",
         LocalModelStore.Open.__code__: "model-open",
         LocalModelStore.ValidatePaths.__code__: "model-validate-paths",
         LocalModelStore.WriteState.__code__: "model-write-state"}
-    sync = original_save.__globals__.get("SyncStorageDirectory")
+    sync = originalSave.__globals__.get("SyncStorageDirectory")
 
     if callable(sync) and hasattr(sync, "__code__"):
-        own_codes[sync.__code__] = "sync-storage-directory"
+        ownCodes[sync.__code__] = "sync-storage-directory"
 
     failures = []
     overflow = 0
@@ -281,12 +281,12 @@ def Git(config: dict) -> dict:
         nonlocal overflow
 
         try:
-            return original_save(store, proposed, expected_revision=expected_revision)
+            return originalSave(store, proposed, expected_revision=expected_revision)
 
         except Exception as error:
             if len(failures) < 4:
                 try:
-                    metadata = diagnostic.OriginalGitSaveFailure(error, own_codes, {
+                    metadata = diagnostic.OriginalGitSaveFailure(error, ownCodes, {
                         WorkspaceBusyError: "WorkspaceBusyError",
                         WorkspaceConflictError: "WorkspaceConflictError"})
 
@@ -300,7 +300,7 @@ def Git(config: dict) -> dict:
 
             raise
 
-    own_codes[ObserveGitSave.__code__] = "observe-git-save"
+    ownCodes[ObserveGitSave.__code__] = "observe-git-save"
     LocalModelStore.Save = ObserveGitSave
 
     try:
@@ -308,7 +308,7 @@ def Git(config: dict) -> dict:
             lambda: Policy(config, git=True), confirmation=confirmation))
 
     finally:
-        LocalModelStore.Save = original_save
+        LocalModelStore.Save = originalSave
 
     return {"summary": summary.ToDict(), "plan": plan.ToDict(), "state": Inspect(root),
             "provider_version": plan.invocation.provider_version,
@@ -359,13 +359,13 @@ def Cancel(config: dict) -> dict:
     root = Path(config["workspace"])
     readiness = Path(config["request_ready"])
     executions, saves = [], []
-    original_execute = LocalExecutor.Execute
-    original_save = LocalModelStore.Save
+    originalExecute = LocalExecutor.Execute
+    originalSave = LocalModelStore.Save
 
     async def ObserveExecution(executor, request, **options):
         """Return the actual original terminal result unchanged after real worker/socket cleanup."""
 
-        result = await original_execute(executor, request, **options)
+        result = await originalExecute(executor, request, **options)
         executions.append({"request": Detached(request), "execution": Detached(result.execution),
             "termination": result.termination.value, "stdout_hex": result.stdout.hex(),
             "stderr_hex": result.stderr.hex()})
@@ -375,7 +375,7 @@ def Cancel(config: dict) -> dict:
     def ObserveSave(store, proposed, *, expected_revision):
         """Observe actual model writes; no fabricated ACK can satisfy a cancellation assertion."""
 
-        result = original_save(store, proposed, expected_revision=expected_revision)
+        result = originalSave(store, proposed, expected_revision=expected_revision)
         saves.append({"expected_revision": expected_revision, "actual_revision": result.revision})
 
         return result
@@ -386,7 +386,7 @@ def Cancel(config: dict) -> dict:
         task = asyncio.create_task(RunNativeCrawl(root, "crawl", config["seed_url"],
             tuple(config["selected_urls"]), OWNER, lambda: Policy(config), approve_safe_crawl=True))
         deadline = time.monotonic() + 3
-        cancel_requests = 0
+        cancelRequests = 0
 
         try:
             while not readiness.exists():
@@ -399,17 +399,17 @@ def Cancel(config: dict) -> dict:
                 await asyncio.sleep(0.01)
 
             task.cancel()
-            cancel_requests += 1
+            cancelRequests += 1
 
             await asyncio.sleep(0)
 
             if not task.done():
                 task.cancel()
-                cancel_requests += 1
+                cancelRequests += 1
 
             summary = await asyncio.wait_for(asyncio.shield(task), timeout=3)
 
-            return summary, task.done(), cancel_requests
+            return summary, task.done(), cancelRequests
 
         finally:
             if not task.done():
@@ -421,25 +421,25 @@ def Cancel(config: dict) -> dict:
     LocalModelStore.Save = ObserveSave
 
     try:
-        summary, settled, cancel_requests = asyncio.run(Run())
+        summary, settled, cancelRequests = asyncio.run(Run())
 
     finally:
-        LocalExecutor.Execute = original_execute
-        LocalModelStore.Save = original_save
+        LocalExecutor.Execute = originalExecute
+        LocalModelStore.Save = originalSave
 
     identities = tuple(item.evidence_id for item in summary.records)
 
     return {"summary": summary.ToDict(), "state": Inspect(root, identities),
         "executions": executions, "actual_model_saves": saves,
-        "sdk_task_settled": settled, "caller_cancel_requests": cancel_requests}
+        "sdk_task_settled": settled, "caller_cancel_requests": cancelRequests}
 
 
 def Main() -> int:
     """Execute one fixed consumer operation and emit genuine results without acceptance
     fabrication."""
 
-    mode, config_path = sys.argv[1:]
-    config = json.loads(Path(config_path).read_bytes())
+    mode, configPath = sys.argv[1:]
+    config = json.loads(Path(configPath).read_bytes())
     root = Path(config["workspace"])
 
     if mode == "identity":
@@ -477,9 +477,9 @@ def Main() -> int:
     for name in ("adapters/native_crawl.py", "native_crawl_worker.py", "native_crawl.py",
                  "native_crawl_workflow.py", "native_crawl_commands.py", "native_web.py"):
         module = importlib.import_module("fuzzy1337." + name[:-3].replace("/", "."))
-        source_path = Path(module.__file__)
-        output["installed_sources"][name] = {"path": str(source_path),
-            "sha256": hashlib.sha256(source_path.read_bytes()).hexdigest()}
+        sourcePath = Path(module.__file__)
+        output["installed_sources"][name] = {"path": str(sourcePath),
+            "sha256": hashlib.sha256(sourcePath.read_bytes()).hexdigest()}
     sys.stdout.buffer.write(json.dumps(output, sort_keys=True, separators=(",", ":"),
                                       ensure_ascii=True, allow_nan=False).encode("ascii"))
 

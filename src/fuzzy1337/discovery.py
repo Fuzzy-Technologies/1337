@@ -310,12 +310,12 @@ class NativeDiscoveryProvider:
         context.CheckCancellation()
         report = AdapterReport(invocation, result.execution, (artifact.evidence.reference,))
         host = "host:" + address
-        natural_port = f"{host}/tcp/{port}"
+        naturalPort = f"{host}/tcp/{port}"
         bindings = {
             host: ObjectIdentity(context.Spec.workspace_id, ObjectKind.HOST, address),
-            natural_port: ObjectIdentity(context.Spec.workspace_id, ObjectKind.PORT, natural_port),
-            natural_port + "/service": ObjectIdentity(
-                context.Spec.workspace_id, ObjectKind.SERVICE, natural_port,
+            naturalPort: ObjectIdentity(context.Spec.workspace_id, ObjectKind.PORT, naturalPort),
+            naturalPort + "/service": ObjectIdentity(
+                context.Spec.workspace_id, ObjectKind.SERVICE, naturalPort,
             ),
             target.Reference(): ObjectIdentity(context.Spec.workspace_id, ObjectKind.ENDPOINT,
                                                target.value),

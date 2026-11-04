@@ -36,9 +36,9 @@ def ConfigurationCliArguments(root: Path, selection: ConfigurationScanSelection,
                               *, approval: bool = True) -> list[str]:
     """Select exact reviewed source/runtime/worker/material and consent through the product."""
 
-    source_type = "dockerfile" if selection.profile is ArtifactProfile.SYNTHETIC_DOCKERFILE else (
+    sourceType = "dockerfile" if selection.profile is ArtifactProfile.SYNTHETIC_DOCKERFILE else (
         "kubernetes")
-    arguments = ["scan", "config", str(root), "--profile", "synthetic", "--type", source_type,
+    arguments = ["scan", "config", str(root), "--profile", "synthetic", "--type", sourceType,
         "--logical-path", selection.logical_path, "--source", str(selection.source),
         "--scope", "config-scope", "--owner", "owner:test",
         "--executable", str(selection.executable), "--producer", str(selection.producer),
@@ -117,7 +117,7 @@ def test_ActualConsoleCreatesScopeCollectsEveryReviewedCaseReopensAndReplays(
         "Configuration assets remain in the reviewed synthetic source family"
     )
     store = LocalEvidenceStore(root / "evidence")
-    records = tuple(store.Get(record_id) for record_id in workspace.evidence_record_references)
+    records = tuple(store.Get(recordId) for recordId in workspace.evidence_record_references)
     assert len(records) == 4 and {record.reference.role for record in records} == {
         "configuration-stdout", "configuration-stderr", "configuration-receipt",
         "configuration-source",
@@ -263,7 +263,7 @@ def test_ActualConfigurationCliOutputOverflowRetainsBoundedProcessFacts(
     )
     workspace = LocalWorkspaceStore(root).Open()
     store = LocalEvidenceStore(root / "evidence")
-    records = tuple(store.Get(record_id) for record_id in workspace.evidence_record_references)
+    records = tuple(store.Get(recordId) for recordId in workspace.evidence_record_references)
     replay = VerifySyntheticConfigurationReplay(records, root)
     assert replay.acceptance.refusal is not None, "Replay retains the original refused overflow run"
     stdout = next(record for record in records if record.reference.role == "configuration-stdout")
@@ -277,8 +277,8 @@ def test_ActualConfigurationCliStorageFailureReportsRealCommittedRevision(
     """Lost acknowledgements and CAS refusal retain real process/model truth with failed job."""
 
     root, selection, _ = LiveConfiguration(tmp_path)
-    store_type = LocalWorkspaceStore if failure == "workspace-lost-ack" else LocalModelStore
-    original = store_type.Save
+    storeType = LocalWorkspaceStore if failure == "workspace-lost-ack" else LocalModelStore
+    original = storeType.Save
 
     def Save(self, *args, **options):
         """Exercise original durable CAS save before losing its caller acknowledgement."""
@@ -290,7 +290,7 @@ def test_ActualConfigurationCliStorageFailureReportsRealCommittedRevision(
 
         raise OSError("Owned synthetic lost acknowledgement")
 
-    monkeypatch.setattr(store_type, "Save", Save)
+    monkeypatch.setattr(storeType, "Save", Save)
     output = tmp_path / "not-run.json"
     assert Main([*ConfigurationCliArguments(root, selection), "--json", "--report-format", "json",
         "--report-output", str(output)]) == 4, "Failed durable job retains storage failure status"

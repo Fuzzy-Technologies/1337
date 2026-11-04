@@ -343,17 +343,17 @@ def MasterChecks(commit: str, fetch: Callable[[str], dict] = GitHubJson, *,
         raise ValueError("Master evidence requires one full commit SHA")
 
     if profile == "current":
-        required_jobs = MASTER_JOBS
+        requiredJobs = MASTER_JOBS
 
     elif profile == "v0.3.0-original" and commit == ORIGINAL_V030_COMMIT:
-        required_jobs = ORIGINAL_MASTER_JOBS
+        requiredJobs = ORIGINAL_MASTER_JOBS
 
     else:
         raise ValueError("Master evidence requires a supported source-bound gate profile")
 
     accepted = []
 
-    for filename, required in required_jobs.items():
+    for filename, required in requiredJobs.items():
         query = urllib.parse.urlencode({"head_sha": commit, "event": "push",
                                        "branch": "master", "per_page": 100})
         value = fetch(f"/repos/{REPOSITORY}/actions/workflows/{filename}/runs?{query}")
@@ -378,7 +378,7 @@ def MasterChecks(commit: str, fetch: Callable[[str], dict] = GitHubJson, *,
         if type(jobs["total_count"]) is not int or jobs["total_count"] != len(jobs["jobs"]):
             raise ValueError("Master job evidence must be complete within one bounded page")
 
-        for name, required_steps in required.items():
+        for name, requiredSteps in required.items():
             matches = [job for job in jobs["jobs"] if job["name"] == name]
 
             if len(matches) != 1 or matches[0]["status"] != "completed" or (
@@ -392,7 +392,7 @@ def MasterChecks(commit: str, fetch: Callable[[str], dict] = GitHubJson, *,
                        for step in steps) or any(not any(
                 step["name"] == expected and step["status"] == "completed"
                 and step["conclusion"] == "success" for step in steps)
-                for expected in required_steps):
+                for expected in requiredSteps):
                 raise ValueError("Required actual master execution steps have not succeeded")
 
         accepted.append({"workflow": filename, "run_id": run["id"],
@@ -600,17 +600,17 @@ def Seal(root: Path, source: dict, checks: dict, smoke: dict, card: bytes,
         raise ValueError("Original documentation artifact must contain only its "
                          "exact transfer pair")
 
-    owned_documentation = root / "api-docs"
-    owned_documentation.mkdir()
+    ownedDocumentation = root / "api-docs"
+    ownedDocumentation.mkdir()
 
     for suffix in (".tar.gz", ".manifest.json"):
         filename = f"{PROJECT}-{version}-api-docs" + suffix
 
-        with (owned_documentation / filename).open("xb") as output:
+        with (ownedDocumentation / filename).open("xb") as output:
             output.write(Read(documentation / filename, MAX_JSON_BYTES if suffix == ".manifest.json"
                               else MAX_DOCUMENTATION_BYTES))
 
-    VerifyDocumentationTransfer(owned_documentation, source)
+    VerifyDocumentationTransfer(ownedDocumentation, source)
 
     if card.decode().count(VALIDATION_MARKER) != 1:
         raise ValueError("Release notes require exactly one validation marker")

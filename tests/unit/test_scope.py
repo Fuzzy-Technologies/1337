@@ -505,13 +505,13 @@ def test_ConstructionAndOperationsRejectInvalidStorageRootsAndIdentifiers(tmp_pa
 
     assert not root.exists(), "Constructing the store performed filesystem mutation"
 
-    for unsafe_root in ("not-a-path", tmp_path / ".." / "outside", Path(tmp_path.anchor)):
+    for unsafeRoot in ("not-a-path", tmp_path / ".." / "outside", Path(tmp_path.anchor)):
         with pytest.raises(ValueError):
-            LocalScopeStore(unsafe_root)
+            LocalScopeStore(unsafeRoot)
 
-    for scope_id in ("../outside", "scope:testing", "UPPER", "testing/other"):
+    for scopeId in ("../outside", "scope:testing", "UPPER", "testing/other"):
         with pytest.raises(ValueError):
-            store.Open(scope_id)
+            store.Open(scopeId)
 
     with pytest.raises(ValueError):
         store.Create({})
@@ -524,13 +524,13 @@ def test_AbandonedWriterLockFailsClosedWithoutStealingOrBlockingReads(tmp_path):
     """A stale lock is operator-owned recovery work; reads remain available."""
 
     store, snapshot = CreateStore(tmp_path)
-    lock_path = RecordPath(store).parent / ".testing.write-lock"
-    lock_path.mkdir()
+    lockPath = RecordPath(store).parent / ".testing.write-lock"
+    lockPath.mkdir()
 
     with pytest.raises(ScopeBusyError):
         store.Save(snapshot)
 
-    assert lock_path.is_dir(), "Store stole an existing writer's lock"
+    assert lockPath.is_dir(), "Store stole an existing writer's lock"
     assert store.Open("testing") == snapshot, "Writer ownership incorrectly blocked reads"
 
 
@@ -540,7 +540,7 @@ def test_CompetingWritersCannotLoseAnUpdate(tmp_path, monkeypatch):
     store, initial = CreateStore(tmp_path)
     entered = Event()
     release = Event()
-    original_write = LocalScopeStore.Write
+    originalWrite = LocalScopeStore.Write
 
     def BlockedWrite(self, path, snapshot):
         """Keep the first writer inside its owned transaction until the test releases it."""
@@ -550,7 +550,7 @@ def test_CompetingWritersCannotLoseAnUpdate(tmp_path, monkeypatch):
         if not release.wait(timeout=5):
             raise AssertionError("The test did not release its writer")
 
-        original_write(self, path, snapshot)
+        originalWrite(self, path, snapshot)
 
     monkeypatch.setattr(LocalScopeStore, "Write", BlockedWrite)
 

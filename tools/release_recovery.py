@@ -80,7 +80,7 @@ def DispatchContext(expected_sha: str, *, operational: bool) -> None:
 
     reference = "refs/tags/" + RECOVERY_TAG if operational else "refs/heads/" + RECOVERY_BRANCH
     filename = "release.yml" if operational else "release-finalize.yml"
-    expected_workflow = delivery.REPOSITORY + "/.github/workflows/" + filename + "@" + reference
+    expectedWorkflow = delivery.REPOSITORY + "/.github/workflows/" + filename + "@" + reference
 
     if delivery.COMMIT.fullmatch(expected_sha) is None or (
         os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch"
@@ -89,7 +89,7 @@ def DispatchContext(expected_sha: str, *, operational: bool) -> None:
         or os.environ.get("GITHUB_RUN_ATTEMPT") != "1"
         or os.environ.get("GITHUB_SHA") != expected_sha
         or os.environ.get("GITHUB_WORKFLOW_SHA") != expected_sha
-        or os.environ.get("GITHUB_WORKFLOW_REF") != expected_workflow
+        or os.environ.get("GITHUB_WORKFLOW_REF") != expectedWorkflow
     ):
         raise ValueError("Recovery needs the original exact reviewed workflow dispatch")
 
@@ -183,8 +183,8 @@ def RecoveryChecks(recovery_sha: str, fetch: Callable[[str], dict] = delivery.Gi
 
     accepted = []
 
-    for filename, master_required in delivery.ORIGINAL_MASTER_JOBS.items():
-        required = {name: steps for name, steps in master_required.items()
+    for filename, masterRequired in delivery.ORIGINAL_MASTER_JOBS.items():
+        required = {name: steps for name, steps in masterRequired.items()
                     if name != "deploy-pages"}
         query = urllib.parse.urlencode({"head_sha": recovery_sha, "event": "pull_request",
                                        "branch": RECOVERY_BRANCH, "per_page": 100})
@@ -230,8 +230,8 @@ def RecoveryChecks(recovery_sha: str, fetch: Callable[[str], dict] = delivery.Gi
                        for s in steps):
                 raise ValueError("Recovery required actual execution step did not succeed")
 
-            for step_name in expected:
-                matches = [s for s in steps if s["name"] == step_name]
+            for stepName in expected:
+                matches = [s for s in steps if s["name"] == stepName]
 
                 if len(matches) != 1 or matches[0]["status"] != "completed" or (
                     matches[0]["conclusion"] != "success"
@@ -282,12 +282,12 @@ def OriginalProducer(fetch: Callable[[str], dict] = delivery.GitHubJson) -> dict
         "Publish the existing-tag release card and exact assets": ("skipped", None),
     }
 
-    for name, (conclusion, job_id) in required.items():
+    for name, (conclusion, jobId) in required.items():
         matches = [j for j in jobs["jobs"] if j["name"] == name]
 
         if len(matches) != 1 or matches[0]["status"] != "completed" or (
             matches[0]["conclusion"] != conclusion
-            or job_id is not None and matches[0]["id"] != job_id
+            or jobId is not None and matches[0]["id"] != jobId
         ):
             raise ValueError("Original producer build or failed publication identity differs")
 
@@ -430,7 +430,7 @@ def Validate(code_root: Path, product_root: Path, bundle: Path, expected_sha: st
     RequireRemote(code_root, expected_sha, tagged=True)
     checks = RecoveryChecks(expected_sha, fetch)
     producer = OriginalProducer(fetch)
-    master_checks = delivery.MasterChecks(PRODUCT_COMMIT, fetch, profile="v0.3.0-original")
+    masterChecks = delivery.MasterChecks(PRODUCT_COMMIT, fetch, profile="v0.3.0-original")
     manifest = delivery.Verify(bundle, CHECKSUMS_SHA256)
     source = facts["product_source"]
 
@@ -438,7 +438,7 @@ def Validate(code_root: Path, product_root: Path, bundle: Path, expected_sha: st
         bundle / "source.json", delivery.MAX_JSON_BYTES
     )) != source or delivery.Json(delivery.Read(
         bundle / "master-checks.json", delivery.MAX_JSON_BYTES
-    )) != master_checks:
+    )) != masterChecks:
         raise ValueError("Original bundle source or master execution evidence differs")
 
     delivery.VerifyDocumentationTransfer(bundle / "api-docs", source)
@@ -457,12 +457,12 @@ def Validate(code_root: Path, product_root: Path, bundle: Path, expected_sha: st
         raise ValueError("Recovery source changed during original-artifact validation")
 
     RequireRemote(code_root, expected_sha, tagged=True)
-    index_observation = IndexAbsent()
+    indexObservation = IndexAbsent()
 
     return {"schema_version": 1, "state": "verified-original-publication-handoff", **facts,
-        "producer": producer, "recovery_checks": checks, "master_checks": master_checks,
+        "producer": producer, "recovery_checks": checks, "master_checks": masterChecks,
         "checksums_sha256": CHECKSUMS_SHA256, "wheel_sha256": WHEEL_SHA256,
-        "index_observation": index_observation}
+        "index_observation": indexObservation}
 
 
 def RecoveryJson(path: str) -> dict:
@@ -586,13 +586,13 @@ def FinalizeRecovery(code_root: Path, product_root: Path, expected_sha: str,
     RequireRemote(code_root, expected_sha, tagged=False)
     checks = RecoveryChecks(expected_sha, fetch)
     producer = OriginalProducer(fetch)
-    master_checks = delivery.MasterChecks(PRODUCT_COMMIT, fetch, profile="v0.3.0-original")
+    masterChecks = delivery.MasterChecks(PRODUCT_COMMIT, fetch, profile="v0.3.0-original")
 
     if CodeFacts(code_root, product_root, expected_sha) != facts:
         raise ValueError("Recovery source changed after execution acceptance")
 
     RequireRemote(code_root, expected_sha, tagged=False)
-    index_observation = IndexAbsent()
+    indexObservation = IndexAbsent()
     subprocess.run(["git", "-c", "core.fsmonitor=false", "-c", "user.name=github-actions[bot]",
         "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com", "tag", "-a",
         RECOVERY_TAG, expected_sha, "-m", "Operational same-byte publication recovery for v0.3.0"],
@@ -609,8 +609,8 @@ def FinalizeRecovery(code_root: Path, product_root: Path, expected_sha: str,
 
     return {"schema_version": 1, "state": "acknowledged-operational-tag", **facts,
         "operational_tag_object": delivery.Git(code_root, "rev-parse", "refs/tags/" + RECOVERY_TAG),
-        "producer": producer, "recovery_checks": checks, "master_checks": master_checks,
-        "index_observation": index_observation}
+        "producer": producer, "recovery_checks": checks, "master_checks": masterChecks,
+        "index_observation": indexObservation}
 
 
 def Main(arguments: list[str] | None = None) -> int:

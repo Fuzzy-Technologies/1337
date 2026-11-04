@@ -280,15 +280,15 @@ def portable_workflow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         (now - timedelta(minutes=1)).isoformat(), (now + timedelta(minutes=10)).isoformat(),
     ), targets=(target, Target(TargetKind.IP, "127.0.0.1")),
         allow=(target, Target(TargetKind.IP, "127.0.0.1"))))
-    template_path = root / "reviewed-get.yaml"
+    templatePath = root / "reviewed-get.yaml"
     raw = (Path(__file__).parents[1] / "fixtures/nuclei/reviewed-get.yaml").read_bytes()
-    template_path.write_bytes(raw)
-    config_path = root / "nuclei-empty.yaml"
-    config_path.write_bytes(b"{}\n")
+    templatePath.write_bytes(raw)
+    configPath = root / "nuclei-empty.yaml"
+    configPath.write_bytes(b"{}\n")
     profile = NucleiProfile("owned-synthetic", (NucleiTemplate(
-        "owned-http-marker", str(template_path), hashlib.sha256(raw).hexdigest(), len(raw),
+        "owned-http-marker", str(templatePath), hashlib.sha256(raw).hexdigest(), len(raw),
         "fixture:owned-review", "1", "review:source-controlled-exact-get", "single-get-exact-url",
-    ),), str(config_path))
+    ),), str(configPath))
     executable = str(root / "synthetic-executor-boundary")
     probe = {"mode": "match", "executed": False, "mutate": None}
 
@@ -612,7 +612,7 @@ def test_PortableFilesystemPermissionFailuresNeverBecomeAuthorityDenial(
 
     root, target, profile, executable, approval, probe = portable_workflow
     calls = [0]
-    selected_call = {"authorize": 2, "launch": 3, "save": 4}[stage]
+    selectedCall = {"authorize": 2, "launch": 3, "save": 4}[stage]
 
     def ReadPolicy():
         """Read the actual selected policy or model an OS file-permission failure."""
@@ -620,7 +620,7 @@ def test_PortableFilesystemPermissionFailuresNeverBecomeAuthorityDenial(
         if reader == "policy":
             calls[0] += 1
 
-            if calls[0] == selected_call:
+            if calls[0] == selectedCall:
                 raise PermissionError(13, "synthetic-private-policy-path")
 
         return Policy()
@@ -633,7 +633,7 @@ def test_PortableFilesystemPermissionFailuresNeverBecomeAuthorityDenial(
 
             calls[0] += 1
 
-            if calls[0] == selected_call:
+            if calls[0] == selectedCall:
                 raise PermissionError(13, "synthetic-private-material-path")
 
             return original(self, request)
@@ -664,10 +664,10 @@ def test_CliPreflightDistinguishesFilesystemPermissionFromOperatorDenial(
     """Sanitized CLI preflight separates OS storage failure from its typed current-owner denial."""
 
     root, target, profile, executable, _, probe = portable_workflow
-    profile_file = root / "profile.json"
-    policy_file = root / "policy.json"
-    profile_file.write_text(SerializeContract(profile), encoding="utf-8")
-    policy_file.write_text(SerializeContract(Policy()), encoding="utf-8")
+    profileFile = root / "profile.json"
+    policyFile = root / "policy.json"
+    profileFile.write_text(SerializeContract(profile), encoding="utf-8")
+    policyFile.write_text(SerializeContract(Policy()), encoding="utf-8")
 
     def Denied(*args, **kwargs):
         """Represent an actual metadata-file OS access failure without reflecting its path."""
@@ -683,7 +683,7 @@ def test_CliPreflightDistinguishesFilesystemPermissionFromOperatorDenial(
     output = io.StringIO()
     code = RunCommands("scan", ["nuclei", str(root), "--scope", "local", "--owner",
         "operator:other" if kind == "owner" else "operator:owned", "--target", target.value,
-        "--profile", str(profile_file), "--policy", str(policy_file), "--executable", executable,
+        "--profile", str(profileFile), "--policy", str(policyFile), "--executable", executable,
         "--plan"], output)
     failure = json.loads(output.getvalue())["failure"]
     assert code == (3 if kind == "owner" else 4), "Only genuine typed operator denial exits three."

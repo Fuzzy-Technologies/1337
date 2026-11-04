@@ -70,15 +70,15 @@ def Setup(root: Path, target: Target | None = None) -> tuple[Target, NucleiProfi
     ), targets=(target, Target(TargetKind.IP, "127.0.0.1")),
         allow=(target, Target(TargetKind.IP, "127.0.0.1"))))
     raw = (FIXTURES / "reviewed-get.yaml").read_bytes()
-    template_path = root / "reviewed-get.yaml"
-    template_path.write_bytes(raw)
-    configuration_path = root / "nuclei-empty.yaml"
-    configuration_path.write_bytes(b"{}\n")
+    templatePath = root / "reviewed-get.yaml"
+    templatePath.write_bytes(raw)
+    configurationPath = root / "nuclei-empty.yaml"
+    configurationPath.write_bytes(b"{}\n")
     profile = NucleiProfile("owned-synthetic", (NucleiTemplate(
-        "owned-http-marker", str(template_path), hashlib.sha256(raw).hexdigest(), len(raw),
+        "owned-http-marker", str(templatePath), hashlib.sha256(raw).hexdigest(), len(raw),
         "fixture:reviewed-get", "1", "review:source-controlled-exact-get",
         "single-get-exact-url",
-    ),), str(configuration_path))
+    ),), str(configurationPath))
     executable = root / "owned-nuclei-producer"
     executable.write_text(f"#!{sys.executable}\n"
                           + (FIXTURES / "workflow_nuclei.py").read_text(encoding="utf-8"),
@@ -256,12 +256,12 @@ def test_CurrentAuthorityAndMaterialRecheckedAtLaunchAndSave(
             Path(profile.templates[0].path).write_bytes(b"changed-reviewed-template")
 
         else:
-            scope_store = LocalScopeStore(root)
-            scope = scope_store.Open("local")
+            scopeStore = LocalScopeStore(root)
+            scope = scopeStore.Open("local")
             authorization = replace(scope.authorization,
                 authority_reference="operator:changed") if mutation == "owner" else replace(
                     scope.authorization, state=AuthorizationState.REVOKED)
-            scope_store.Save(replace(scope, authorization=authorization))
+            scopeStore.Save(replace(scope, authorization=authorization))
 
     if stage == "launch":
         original = PolicyEngine.Authorize
@@ -277,12 +277,12 @@ def test_CurrentAuthorityAndMaterialRecheckedAtLaunchAndSave(
         monkeypatch.setattr(PolicyEngine, "Authorize", Authorize)
 
     else:
-        original_ingest = nucleiscan.ApplyVerifiedFindings
+        originalIngest = nucleiscan.ApplyVerifiedFindings
 
         def Apply(*args, **kwargs):
             """Mutate after actual raw evidence has been read and pure Findings projected."""
 
-            result = original_ingest(*args, **kwargs)
+            result = originalIngest(*args, **kwargs)
             Mutate()
 
             return result
@@ -399,8 +399,8 @@ def test_DurableStorageFailureBlocksTerminalSuccess(
     target, profile, executable = Setup(root)
     confirmation = Confirm(root, target, profile, executable)
 
-    storage_owner = LocalModelStore if owner == "model" else LocalWorkspaceStore
-    original = storage_owner.Save
+    storageOwner = LocalModelStore if owner == "model" else LocalWorkspaceStore
+    original = storageOwner.Save
 
     def FailSave(*args, **kwargs):
         """Inject actual producer storage/acknowledgement failure at the selected owner."""
@@ -410,7 +410,7 @@ def test_DurableStorageFailureBlocksTerminalSuccess(
 
         raise error_type(13, "private-storage-path")
 
-    monkeypatch.setattr(storage_owner, "Save", FailSave)
+    monkeypatch.setattr(storageOwner, "Save", FailSave)
     summary = asyncio.run(RunNucleiScan(root, "local", target, "operator:owned", profile,
                                        executable, Policy, confirmation=confirmation))
     assert summary.ExitCode() == 4, "Actual storage failure must prevent terminal completion."
@@ -433,20 +433,20 @@ def test_CliPlanExplicitConfirmationAndReopen(tmp_path: Path) -> None:
 
     root = tmp_path / "workspace"
     target, profile, executable = Setup(root)
-    profile_file = root / "profile.json"
-    profile_file.write_text(SerializeContract(profile), encoding="utf-8")
-    policy_file = root / "policy.json"
-    policy_file.write_text(SerializeContract(Policy()), encoding="utf-8")
+    profileFile = root / "profile.json"
+    profileFile.write_text(SerializeContract(profile), encoding="utf-8")
+    policyFile = root / "policy.json"
+    policyFile.write_text(SerializeContract(Policy()), encoding="utf-8")
     argv = ["nuclei", str(root), "--scope", "local", "--owner", "operator:owned",
-            "--target", target.value, "--profile", str(profile_file), "--policy", str(policy_file),
+            "--target", target.value, "--profile", str(profileFile), "--policy", str(policyFile),
             "--executable", executable]
     planned = io.StringIO()
     assert RunCommands("scan", [*argv, "--plan"], planned) == 0, (
         "Planning must succeed without scanning."
     )
     document = json.loads(planned.getvalue())
-    contract_root = Path(__file__).parents[2] / "contracts"
-    Draft202012Validator(json.loads((contract_root / "nuclei-scan-plan.schema.json").read_text()),
+    contractRoot = Path(__file__).parents[2] / "contracts"
+    Draft202012Validator(json.loads((contractRoot / "nuclei-scan-plan.schema.json").read_text()),
                          format_checker=FormatChecker()).validate(document)
     assert document["state"] == "planned", "Read-only plans must not report completed scans."
     output = io.StringIO()
@@ -455,8 +455,8 @@ def test_CliPlanExplicitConfirmationAndReopen(tmp_path: Path) -> None:
         "The exact confirmed product namespace must execute the owned synthetic provider."
     )
     lines = [json.loads(line) for line in output.getvalue().splitlines()]
-    summary_schema = json.loads((contract_root / "nuclei-scan-summary.schema.json").read_text())
-    Draft202012Validator(summary_schema, format_checker=FormatChecker()).validate(
+    summarySchema = json.loads((contractRoot / "nuclei-scan-summary.schema.json").read_text())
+    Draft202012Validator(summarySchema, format_checker=FormatChecker()).validate(
         lines[-1]["summary"],
     )
     assert lines[0]["event"]["data"] == "queued", "Live output begins with an actual queued event."

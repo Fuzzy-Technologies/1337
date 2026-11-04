@@ -219,9 +219,9 @@ def Main() -> int:
     # Establish kernel support before starting any owned daemon.
     descriptor = os.pidfd_open(os.getpid(), 0)
     os.close(descriptor)
-    own_process = Process(os.getpid())
-    if own_process is None or own_process.parent != os.getppid() or (
-        own_process.group != os.getpgrp()
+    ownProcess = Process(os.getpid())
+    if ownProcess is None or ownProcess.parent != os.getppid() or (
+        ownProcess.group != os.getpgrp()
     ):
         raise ValueError("Original kernel identity is unavailable before daemon launch")
     network = RequireNoEgress(args.host_netns)
@@ -244,12 +244,12 @@ def Main() -> int:
     os.chown(output, args.uid, args.gid)
     lifecycle = output / "lifecycle"
     lifecycle.mkdir(mode=0o755)
-    root_parent = Path("/run")
-    parent_identity = ProtectedParent(root_parent)
-    root = Path(tempfile.mkdtemp(prefix="1337-local-image-owned-", dir=root_parent))
+    rootParent = Path("/run")
+    parentIdentity = ProtectedParent(rootParent)
+    root = Path(tempfile.mkdtemp(prefix="1337-local-image-owned-", dir=rootParent))
     root.chmod(0o750)
     os.chown(root, 0, args.gid)
-    root_identity = (root.stat().st_dev, root.stat().st_ino)
+    rootIdentity = (root.stat().st_dev, root.stat().st_ino)
     home = root / "home"
     home.mkdir(mode=0o700)
     config = root / "client"
@@ -258,21 +258,21 @@ def Main() -> int:
     (config / "config.json").chmod(0o600)
     os.chown(config, args.uid, args.gid)
     os.chown(config / "config.json", args.uid, args.gid)
-    containerd_config = root / "containerd.toml"
-    containerd_config.write_text('version = 2\ndisabled_plugins = ["io.containerd.grpc.v1.cri"]\n')
-    containerd_config.chmod(0o600)
-    daemon_config = root / "daemon.json"
-    daemon_config.write_text('{"features":{"containerd-snapshotter":false}}\n')
-    daemon_config.chmod(0o600)
+    containerdConfig = root / "containerd.toml"
+    containerdConfig.write_text('version = 2\ndisabled_plugins = ["io.containerd.grpc.v1.cri"]\n')
+    containerdConfig.chmod(0o600)
+    daemonConfig = root / "daemon.json"
+    daemonConfig.write_text('{"features":{"containerd-snapshotter":false}}\n')
+    daemonConfig.chmod(0o600)
     endpoint = root / "docker.sock"
     environment = {"PATH": "/usr/bin:/bin", "HOME": str(home), "LANG": "C", "LC_ALL": "C",
                    "XDG_CONFIG_HOME": str(home), "XDG_RUNTIME_DIR": str(home)}
     processes: list[subprocess.Popen] = []
     streams = []
     known: dict[int, ProcessFact] = {}
-    reaped_statuses: list[tuple[int, int]] = []
+    reapedStatuses: list[tuple[int, int]] = []
     status = 4
-    cleanup_confirmed = False
+    cleanupConfirmed = False
     failure: str | None = None
     started = time.monotonic()
 
@@ -321,7 +321,7 @@ def Main() -> int:
 
     try:
         containerd = Launch("containerd", [str(binaries["containerd"][0]), "--config",
-            str(containerd_config), "--root", str(root / "containerd-root"), "--state",
+            str(containerdConfig), "--root", str(root / "containerd-root"), "--state",
             str(root / "containerd-state"), "--address", str(root / "containerd.sock")])
         deadline = time.monotonic() + 15
         while not (root / "containerd.sock").exists():
@@ -330,7 +330,7 @@ def Main() -> int:
                 raise ValueError("Owned private containerd did not become ready within its budget")
             time.sleep(0.05)
         daemon = Launch("dockerd", [str(binaries["dockerd"][0]), "--config-file",
-            str(daemon_config),
+            str(daemonConfig),
             "--host", "unix://" + str(endpoint), "--containerd", str(root / "containerd.sock"),
             "--data-root", str(root / "docker-data"), "--exec-root", str(root / "docker-exec"),
             "--pidfile", str(root / "dockerd.pid"), "--storage-driver", "vfs", "--group",
@@ -353,37 +353,37 @@ def Main() -> int:
                     server = json.loads(probe.stdout)
                     break
             time.sleep(0.05)
-        socket_info = endpoint.lstat()
-        if not stat.S_ISSOCK(socket_info.st_mode) or stat.S_IMODE(socket_info.st_mode) != 0o660:
+        socketInfo = endpoint.lstat()
+        if not stat.S_ISSOCK(socketInfo.st_mode) or stat.S_IMODE(socketInfo.st_mode) != 0o660:
             raise ValueError("Owned Docker endpoint is not the selected private 0660 Unix socket")
         receipt = {"schema_version": 1, "owned_daemon": True, "ambient_containerd": False,
-            "network_namespace": network, "root_identity": root_identity,
+            "network_namespace": network, "root_identity": rootIdentity,
             "source_commit": args.source_head,
             "docker_client_sha256": binaries["docker"][1], "server": server,
             "binaries": {key: {"path": str(value[0]), "sha256": value[1]}
                          for key, value in binaries.items()},
-            "socket_mode_inode": list(socket_info[:2]),
+            "socket_mode_inode": list(socketInfo[:2]),
             "processes": [asdict(fact) for fact in Observe().values()]}
-        receipt_path = lifecycle / "startup.json"
-        receipt_path.write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
-        test_env = {**environment, "HOME": str(config),
+        receiptPath = lifecycle / "startup.json"
+        receiptPath.write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
+        testEnv = {**environment, "HOME": str(config),
             "FUZZY1337_RUN_LOCAL_IMAGE_PRODUCT_ACCEPTANCE": "1",
             "FUZZY1337_RUN_NATIVE_IMAGE_PRODUCT_ACCEPTANCE": "1",
             "FUZZY1337_LOCAL_DOCKER_BINARY": str(binaries["docker"][0]),
             "FUZZY1337_LOCAL_DOCKER_SOCKET": str(endpoint),
             "FUZZY1337_LOCAL_DOCKER_CONFIG": str(config),
-            "FUZZY1337_LOCAL_DOCKER_PROVENANCE": str(receipt_path),
+            "FUZZY1337_LOCAL_DOCKER_PROVENANCE": str(receiptPath),
             "FUZZY1337_TRIVY_HOST_NETNS": args.host_netns}
         for name in ("BINARY", "CACHE", "PROVISIONING"):
             key = "FUZZY1337_TRIVY_" + name
             selected = os.environ.get(key)
             if not selected:
                 raise ValueError("Required pinned Trivy fixture material is absent")
-            test_env[key] = selected
+            testEnv[key] = selected
         test = Launch("pytest", ["/usr/bin/setpriv", "--reuid=" + str(args.uid),
             "--regid=" + str(args.gid), "--clear-groups", str(args.python), "-m", "pytest",
             "tests/functional/test_local_image_product.py", "-q", "-n", "0", "--no-cov",
-            "-o", "addopts=", "--junitxml=" + str(output / "pytest.xml")], env=test_env)
+            "-o", "addopts=", "--junitxml=" + str(output / "pytest.xml")], env=testEnv)
         deadline = time.monotonic() + 240
         while test.poll() is None:
             Observe()
@@ -398,32 +398,32 @@ def Main() -> int:
             direct = {process.pid: known[process.pid] for process in processes
                       if process.pid in known}
             SignalOriginalChildren(direct, signal.SIGTERM)
-            for grace, selected_signal in ((5, signal.SIGTERM), (5, signal.SIGKILL)):
+            for grace, selectedSignal in ((5, signal.SIGTERM), (5, signal.SIGKILL)):
                 deadline = time.monotonic() + grace
                 while True:
                     current = Observe(enforce_log_budget=False)
                     for process in processes:
                         process.poll()
-                    SignalOriginalChildren(current, selected_signal)
-                    reaped_statuses.extend(ReapAdoptedChildren(
+                    SignalOriginalChildren(current, selectedSignal)
+                    reapedStatuses.extend(ReapAdoptedChildren(
                         current, {process.pid for process in processes}))
                     if not Descendants() and all(process.poll() is not None
                                                  for process in processes):
-                        cleanup_confirmed = True
+                        cleanupConfirmed = True
                         break
                     if time.monotonic() >= deadline:
                         break
                     time.sleep(0.05)
-                if cleanup_confirmed:
+                if cleanupConfirmed:
                     break
-            if not cleanup_confirmed:
+            if not cleanupConfirmed:
                 raise ValueError("Owned descendants remain after bounded cleanup")
-            if ProtectedParent(root_parent) != parent_identity:
+            if ProtectedParent(rootParent) != parentIdentity:
                 raise ValueError("Owned daemon parent identity changed before cleanup")
-            current_root = root.lstat()
-            if stat.S_ISLNK(current_root.st_mode) or (
-                current_root.st_dev, current_root.st_ino
-            ) != root_identity:
+            currentRoot = root.lstat()
+            if stat.S_ISLNK(currentRoot.st_mode) or (
+                currentRoot.st_dev, currentRoot.st_ino
+            ) != rootIdentity:
                 raise ValueError("Owned daemon root identity changed before cleanup")
             mounts = [line.split()[4].replace("\\040", " ") for line in
                       Path("/proc/self/mountinfo").read_text().splitlines()]
@@ -431,13 +431,13 @@ def Main() -> int:
                 raise ValueError("Owned daemon root has an unknown nested mount; retained")
             shutil.rmtree(root)
         except Exception as error:
-            cleanup_confirmed = False
+            cleanupConfirmed = False
             failure = "Cleanup" + type(error).__name__
         for stream in streams:
             stream.close()
-        final = {"schema_version": 1, "cleanup_confirmed": cleanup_confirmed,
+        final = {"schema_version": 1, "cleanup_confirmed": cleanupConfirmed,
             "pytest_exit_code": status, "failure_category": failure,
-            "reaped_wait_statuses": reaped_statuses,
+            "reaped_wait_statuses": reapedStatuses,
             "process_exit_codes": [{"pid": process.pid, "exit_code": process.returncode}
                                    for process in processes],
             "duration_seconds": time.monotonic() - started,
@@ -452,7 +452,7 @@ def Main() -> int:
                 stream.seek(max(0, log.stat().st_size - 16384))
                 sys.stdout.buffer.write(stream.read(16384))
         sys.stdout.flush()
-    return status if cleanup_confirmed and failure is None else 4
+    return status if cleanupConfirmed and failure is None else 4
 
 
 if __name__ == "__main__":

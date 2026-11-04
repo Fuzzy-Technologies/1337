@@ -99,6 +99,11 @@ jobs:
           tests/unit/test_native_image_workflow.py
           tests/integration/test_owned_response_worker_execution.py
           --junitxml=functional-evidence/owned-response-protocol.xml
+      - name: Run Python naming gate
+        if: >-
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
+        run: uv run --locked --extra dev python tools/python_naming.py
       - name: Run repository quality gate
         if: >-
           github.event_name == 'push' || (github.event_name == 'pull_request'

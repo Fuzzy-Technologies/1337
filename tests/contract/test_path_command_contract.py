@@ -79,13 +79,13 @@ def test_HandwrittenTwoPathAndTwoCutOracleThroughRealHandler(tmp_path):
     assert analysis["search"]["complete"] and analysis["cuts"]["complete"] and (
         analysis["nonblocked_returned_candidates"] == 2
     ), "Small selected-graph coverage or structural denominator changed"
-    expected_counts = {("node", objects["pivot"].Reference()): 2,
+    expectedCounts = {("node", objects["pivot"].Reference()): 2,
         ("node", objects["left"].Reference()): 1, ("node", objects["right"].Reference()): 1,
         **{("relation", item.Reference()): 2 if alias == "source-pivot" else 1
            for alias, item in relations.items()}}
     assert {(item["kind"], item["reference"]): len(item["removed_path_references"])
-        for item in analysis["removal_leverage"]} == expected_counts and all(
-        item["remaining_candidate_count"] == 2 - expected_counts[(item["kind"], item["reference"])]
+        for item in analysis["removal_leverage"]} == expectedCounts and all(
+        item["remaining_candidate_count"] == 2 - expectedCounts[(item["kind"], item["reference"])]
         for item in analysis["removal_leverage"]
     ), "Product single-removal structural counts differ from the handwritten two-path graph"
     participation = {(item["kind"], item["reference"]): item

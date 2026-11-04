@@ -43,9 +43,9 @@ def test_ActualFileBehaviorMatchesIndependentOracle(tmp_path, case):
 
     with OwnedWebFileAccessTarget(tmp_path) as target:
         assert not target.Observe()["requests"], "Readiness must not hide an extra target request"
-        status, content_type, body = Request(target.Url(case))
+        status, contentType, body = Request(target.Url(case))
         expected = case["expected_behavior"]
-        assert (status, content_type, body.decode()) == (
+        assert (status, contentType, body.decode()) == (
             case["expected_status"], expected["content_type"], expected["body"],
         ), "Actual HTTP response must agree with the independently authored mechanism oracle"
         observed = target.Observe()
@@ -79,11 +79,11 @@ def test_PrivateDisclosureChangesWithOwnedFileAndFixedDenialPrecedesFilesystem(t
         assert target.Observe()["file_reads"][0]["sha256"] == hashlib.sha256(changed).hexdigest(), (
             "Independent read metadata must describe the actual changed file"
         )
-        fixed_url = target.Url("fixed-traversal")
+        fixedUrl = target.Url("fixed-traversal")
 
         with patch.object(Path, "open", side_effect=AssertionError("unexpected file open")):
             with patch.object(Path, "stat", side_effect=AssertionError("unexpected file stat")):
-                assert Request(fixed_url)[0] == 403, "Fixed containment must precede filesystem IO"
+                assert Request(fixedUrl)[0] == 403, "Fixed containment must precede filesystem IO"
 
         assert len(target.Observe()["file_reads"]) == 1, "A fixed refusal must add no file read"
 
@@ -263,9 +263,9 @@ def test_PartialHeaderHasBoundedCleanupWithoutExecutingTheFileRequest(tmp_path, 
     reading = Event()
     accepted: list[socket.socket] = []
     interruptions: list[bool] = []
-    read_timeouts: list[float] = []
+    readTimeouts: list[float] = []
     read_count = 0
-    read_into = socket.SocketIO.readinto
+    readInto = socket.SocketIO.readinto
     shutdown = socket.socket.shutdown
 
     def ReadInto(reader, buffer):
@@ -289,11 +289,11 @@ def test_PartialHeaderHasBoundedCleanupWithoutExecutingTheFileRequest(tmp_path, 
                     reading.set()
 
         try:
-            return read_into(reader, buffer)
+            return readInto(reader, buffer)
 
         except TimeoutError:
             if owned in accepted:
-                read_timeouts.append(owned.gettimeout())
+                readTimeouts.append(owned.gettimeout())
 
             raise
 
@@ -328,7 +328,7 @@ def test_PartialHeaderHasBoundedCleanupWithoutExecutingTheFileRequest(tmp_path, 
         assert interruptions == [not shutdown_error], "Owned shutdown outcome differs from case"
 
         if shutdown_error:
-            assert read_timeouts == [2], "Fallback must observe the real existing socket deadline"
+            assert readTimeouts == [2], "Fallback must observe the real existing socket deadline"
 
         try:
             remaining = connection.recv(1)
@@ -349,7 +349,7 @@ def test_PartialHeaderHasBoundedCleanupWithoutExecutingTheFileRequest(tmp_path, 
 
     except AssertionError as error:
         error.add_note(f"Owned read limits={[request.gettimeout() for request in accepted]}; "
-                       f"shutdown outcomes={interruptions}; actual read timeouts={read_timeouts}")
+                       f"shutdown outcomes={interruptions}; actual read timeouts={readTimeouts}")
 
         raise
 

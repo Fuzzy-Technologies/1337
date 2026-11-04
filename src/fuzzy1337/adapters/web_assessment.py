@@ -30,6 +30,7 @@ class ReflectionParser(HTMLParser):
         self.inert: list[str] = []
         self.matches = 0
 
+    # HTMLParser dispatches through these three standard-library callback names.
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         """Count complete raw markers outside excluded lexical contexts.
 
@@ -69,19 +70,19 @@ class ReflectionParser(HTMLParser):
             self.inert.pop()
 
 
-def MatchesHtmlReflection(status: int, media_type: str, body: bytes) -> bool:
+def MatchesHtmlReflection(status: int, mediaType: str, body: bytes) -> bool:
     """Recognize one lexical element from a complete bounded UTF-8 HTML response.
 
     Args:
         status: Actual complete HTTP response status.
-        media_type: Normalized response media category.
+        mediaType: Normalized response media category.
         body: Complete bounded transient response body.
 
     Returns:
         Whether exactly one supported inert marker occupies ordinary HTML element content.
     """
 
-    if (status != 200 or media_type != "text/html" or b"<![" in body
+    if (status != 200 or mediaType != "text/html" or b"<![" in body
         or REFLECTION_MARKER.encode() not in body):
         return False
 

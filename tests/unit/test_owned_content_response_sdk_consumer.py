@@ -45,10 +45,10 @@ def test_CaptureRetainsOriginalReturnAndFailureWithoutAutomaticAnalysis(
     """The observer returns the original result unchanged and never manufactures later analysis."""
 
     config = CaptureSelection(tmp_path / "workspace")
-    original_result = object()
+    originalResult = object()
     document = {"state": state, "original_receipt_id": None,
         "model_persistence_status": "unconfirmed"}
-    original_execute = executors.LocalExecutor.Execute
+    originalExecute = executors.LocalExecutor.Execute
 
     def Actor():
         """Expose only the explicitly mocked current actor, never a derived attester identity."""
@@ -58,7 +58,7 @@ def test_CaptureRetainsOriginalReturnAndFailureWithoutAutomaticAnalysis(
     async def Execute(_executor, request, **options):
         """Return one explicitly mocked executor object without process or worker execution."""
 
-        return original_result
+        return originalResult
 
     async def Capture(root, scope, url, owner, policy, **options):
         """Observe exact independent selection forwarding, including false opt-ins."""
@@ -68,7 +68,7 @@ def test_CaptureRetainsOriginalReturnAndFailureWithoutAutomaticAnalysis(
         assert options == {"approve_safe_content_response_capture": False, "retain_response": False,
             "current_owner_provider": Actor}, "Acquisition may not invent approvals or retention"
         assert policy() == "mock-policy", "The actual SDK receives a current policy reader"
-        assert await executors.LocalExecutor.Execute(None, "mock-request") is original_result, (
+        assert await executors.LocalExecutor.Execute(None, "mock-request") is originalResult, (
             "Observing the executor must not replace its original result")
 
         if state == "exception":
@@ -79,7 +79,7 @@ def test_CaptureRetainsOriginalReturnAndFailureWithoutAutomaticAnalysis(
     def Original(request, result):
         """Detach only the known mocked original while proving its identity was preserved."""
 
-        assert request == "mock-request" and result is original_result, "No replacement observation"
+        assert request == "mock-request" and result is originalResult, "No replacement observation"
 
         return {"mock_original_observed": True}
 
@@ -109,7 +109,7 @@ def test_CaptureRetainsOriginalReturnAndFailureWithoutAutomaticAnalysis(
     assert observed["exception_type"] == ("RuntimeError" if state == "exception" else None), (
         "Unexpected failure remains observable and is reraised")
     assert executors.LocalExecutor.Execute is Execute, "The original observer owner is restored"
-    assert original_execute is not Execute, "This test substitutes the executor without running it"
+    assert originalExecute is not Execute, "This test substitutes the executor without running it"
 
 
 @pytest.mark.parametrize("state", ["denied", "partial", "completed"])
@@ -225,7 +225,7 @@ def test_ObservationOwnerReuseRefusesBeforeSdkAndPreservesOriginalFailure(
     monkeypatch.setattr(owned_response_workflow, "ReplayOwnedContentResponse", Summary)
     monkeypatch.setattr(native_response_header_workflow, "ReplayOwnedResponseHeaderCheck", Summary)
     config = CaptureSelection(tmp_path / "workspace")
-    observation_owner = tmp_path / "one-attempt"
+    observationOwner = tmp_path / "one-attempt"
 
     if operation == "analyze":
         del config["approve_safe_content_response_capture"], config["retain_response"]
@@ -241,11 +241,11 @@ def test_ObservationOwnerReuseRefusesBeforeSdkAndPreservesOriginalFailure(
         """Invoke exactly one separately selected consumer operation with controlled SDK doubles."""
 
         if operation == "capture":
-            return consumer_runner.run(consumer.Capture(config, observation_owner, enabled=True))
+            return consumer_runner.run(consumer.Capture(config, observationOwner, enabled=True))
 
         callback = consumer.Analyze if operation == "analyze" else consumer.Replay
 
-        return callback(config, observation_owner, enabled=True)
+        return callback(config, observationOwner, enabled=True)
 
     if first_failure:
         with pytest.raises(RuntimeError):
@@ -255,7 +255,7 @@ def test_ObservationOwnerReuseRefusesBeforeSdkAndPreservesOriginalFailure(
         Attempt()
 
     name = "replay" if operation == "replay-source-to-header" else operation
-    original = (observation_owner / (name + ".json")).read_bytes()
+    original = (observationOwner / (name + ".json")).read_bytes()
 
     if operation == "replay-source-to-header":
         config["kind"] = "header"
@@ -264,7 +264,7 @@ def test_ObservationOwnerReuseRefusesBeforeSdkAndPreservesOriginalFailure(
         Attempt()
 
     assert calls == ["sdk"], "A reused observation owner must refuse before any second SDK effect"
-    assert (observation_owner / (name + ".json")).read_bytes() == original, (
+    assert (observationOwner / (name + ".json")).read_bytes() == original, (
         "The first original outcome and failure record must remain byte-identical")
 
 

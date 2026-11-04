@@ -212,27 +212,27 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
     transcript = bytearray()
     environment = {"PATH": os.defpath, "TERM": "xterm", "INPUTRC": str(configuration),
                    "EDITRC": str(configuration)}
-    release_read, release_write = os.pipe() if ending == "interrupt" else (-1, -1)
+    releaseRead, releaseWrite = os.pipe() if ending == "interrupt" else (-1, -1)
 
     try:
         process = subprocess.Popen(
-            [executable, "-I", "-c", CHILD, str(ROOT / "src"), mode, ending, str(release_read)],
+            [executable, "-I", "-c", CHILD, str(ROOT / "src"), mode, ending, str(releaseRead)],
             cwd=ROOT, env=environment, stdin=slave, stdout=slave, stderr=slave,
-            start_new_session=True, pass_fds=(release_read,) if release_read >= 0 else (),
+            start_new_session=True, pass_fds=(releaseRead,) if releaseRead >= 0 else (),
         )
 
     except BaseException:
         os.close(master)
         os.close(slave)
 
-        if release_write >= 0:
-            os.close(release_write)
+        if releaseWrite >= 0:
+            os.close(releaseWrite)
 
         raise
 
     finally:
-        if release_read >= 0:
-            os.close(release_read)
+        if releaseRead >= 0:
+            os.close(releaseRead)
 
     os.close(slave)
 
@@ -246,10 +246,10 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
             if b"NATIVE-UNAVAILABLE" in transcript:
                 pytest.skip("This interpreter has no optional native line editor.")
 
-            for command_index, line in enumerate(lines, 1):
+            for commandIndex, line in enumerate(lines, 1):
                 transcript.clear()
                 os.write(master, line + b"\n")
-                completed = b"NATIVE-COMMAND-DONE:" + str(command_index).encode() + b":"
+                completed = b"NATIVE-COMMAND-DONE:" + str(commandIndex).encode() + b":"
                 ReadUntil(master, b"probe> " if mode == "capped-over-budget" else b"1337> ",
                           process, transcript,
                           after=b"" if mode == "capped-over-budget" else completed)
@@ -268,7 +268,7 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
                 ))
                 if ending == "interrupt":
                     ReadUntil(master, b"NATIVE-LOOP-EXIT", process, transcript)
-                    os.write(release_write, b"1")
+                    os.write(releaseWrite, b"1")
 
                 ReadUntil(master, b"probe> ", process, transcript)
             os.write(master, b"owned-after-loop\n")
@@ -290,8 +290,8 @@ def RunTerminal(tmp_path: Path, lines: tuple[bytes, ...], *, mode: str = "enable
 
         os.close(master)
 
-        if release_write >= 0:
-            os.close(release_write)
+        if releaseWrite >= 0:
+            os.close(releaseWrite)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Native terminal regression requires a POSIX PTY.")

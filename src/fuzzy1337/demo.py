@@ -269,7 +269,7 @@ class OwnedDemoTarget:
         with self.lock:
             connections = tuple(self.connections)
 
-        close_failed = False
+        closeFailed = False
 
         for connection in connections:
             try:
@@ -284,7 +284,7 @@ class OwnedDemoTarget:
                     connection.close()
 
                 except OSError:
-                    close_failed = True
+                    closeFailed = True
 
         try:
             if self.server is not None and self.thread is not None and self.thread.is_alive():
@@ -304,7 +304,7 @@ class OwnedDemoTarget:
                         all(connection.fileno() == -1 for connection in self.connections)
                     )
 
-        if close_failed or not self.stopped:
+        if closeFailed or not self.stopped:
             raise OSError("demo target thread was not reaped")
 
     def Receipt(self) -> dict[str, object]:
@@ -534,10 +534,10 @@ def RunLocalDemo(
             Invoke("workspace", ["open", str(workspace)], "workspace-open.json")
             phase = "export"
 
-            for format_name, name in (("json", "model.json"), ("sarif", "model.sarif")):
+            for formatName, name in (("json", "model.json"), ("sarif", "model.sarif")):
                 captured = StringIO()
                 status = RunReportCommands(
-                    ["export", str(workspace), "--format", format_name,
+                    ["export", str(workspace), "--format", formatName,
                      "--output", str(root / "reports" / name)], captured, json_output=True,
                 )
                 receipt = json.loads(captured.getvalue())
@@ -547,7 +547,7 @@ def RunLocalDemo(
                 if receipt["output_published"]:
                     artifacts.append("reports/" + name)
 
-                SaveDemoArtifact(root, f"reports/{format_name}-export.json", receipt, artifacts)
+                SaveDemoArtifact(root, f"reports/{formatName}-export.json", receipt, artifacts)
 
                 if status:
                     raise DemoFailure("export", status)

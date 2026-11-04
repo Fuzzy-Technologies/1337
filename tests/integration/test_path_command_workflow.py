@@ -308,7 +308,7 @@ def test_SubstitutedSupportMetadataRefusesBeforeItsRawRead(tmp_path, monkeypatch
     declaration = fixture.Declaration("source-portal")
     declaration["basis"][0]["evidence_manifest_ids"] = [substituted.evidence_id]
     record = fixture.Assessment(fixture.Envelope([declaration]))
-    owning_read = LocalEvidenceStore.Read
+    owningRead = LocalEvidenceStore.Read
 
     def Read(owner, reference):
         """Permit original assessment parsing but expose a premature substituted support read."""
@@ -316,7 +316,7 @@ def test_SubstitutedSupportMetadataRefusesBeforeItsRawRead(tmp_path, monkeypatch
         if reference.sha256 == substituted.reference.sha256:
             raise AssertionError("Substituted path support reached raw reading")
 
-        return owning_read(owner, reference)
+        return owningRead(owner, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", Read)
     status, result = Run(Selected(fixture, (record,)))

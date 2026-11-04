@@ -8,7 +8,7 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
-### Patch 25 — v0.4.25 — 2026-11-04
+### Patch 26 — v0.4.26 — 2026-11-04
 
 #### Digest
 
@@ -21,7 +21,7 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Verify stable, true and false responses on independently declared vulnerable
   and parameterized SQLite targets. Retain broken responses as failed jobs.
 
-### Patch 24 — v0.4.24 — 2026-11-04
+### Patch 25 — v0.4.25 — 2026-11-04
 
 #### Digest
 
@@ -33,6 +33,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   existing governed scan, worker evidence and model pipeline.
 - Exercise raw, escaped, comment and broken-target controls through the actual
   native CLI. Malformed transport remains a failed job.
+
+### Patch 24 — v0.4.24 — 2026-11-04
+
+#### Digest
+
+- Align Python local names with the project naming contract.
+
+#### Changed
+
+- Use lowerCamelCase for owned local bindings and selected internal parameters.
+- Synchronize diagnostic docstrings and the API localization inventory.
+- Check naming drift in CI while preserving explicit compatibility spellings.
 
 ### Patch 23 — v0.4.23 — 2026-11-04
 

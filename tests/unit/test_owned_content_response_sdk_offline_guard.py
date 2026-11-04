@@ -41,7 +41,7 @@ def test_UnitSocketInventoryIsolatesPriorProcessSocketsWithoutWeakeningRefusal(
     class ExistingSocket:
         """Represent an unrelated prior socket without creating a file descriptor or listener."""
 
-    prior_socket = ExistingSocket()
+    priorSocket = ExistingSocket()
     observed = []
 
     def ProcessInventory():
@@ -49,7 +49,7 @@ def test_UnitSocketInventoryIsolatesPriorProcessSocketsWithoutWeakeningRefusal(
 
         observed.append(True)
 
-        return (prior_socket,)
+        return (priorSocket,)
 
     monkeypatch.setattr(guard, "_SOCKET_TYPE", ExistingSocket)
     monkeypatch.setattr(guard, "gc", SimpleNamespace(get_objects=ProcessInventory))
@@ -109,7 +109,7 @@ def test_AnalysisRetainsOriginalSaveObjectsAndRestoresForbiddenAliases(failure, 
         return returned
 
     monkeypatch.setattr(LocalModelStore, "Save", Save)
-    original_socket = socket.socket
+    originalSocket = socket.socket
     record = None
 
     try:
@@ -137,7 +137,7 @@ def test_AnalysisRetainsOriginalSaveObjectsAndRestoresForbiddenAliases(failure, 
             "cancellation."
         )
 
-    assert socket.socket is original_socket and LocalModelStore.Save is Save, (
+    assert socket.socket is originalSocket and LocalModelStore.Save is Save, (
         "Guard cleanup must restore both the original socket constructor and model Save callback."
     )
     detached = DetachedGuard(record)

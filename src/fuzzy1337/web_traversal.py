@@ -92,18 +92,18 @@ class LocalWebTraversalProvider:
             ValueError: Selection, nested contracts or budgets are invalid or noncanonical.
         """
 
-        seed, seed_target = WebSource(source)
+        seed, seedTarget = WebSource(source)
 
         if type(pages) is not tuple or not 1 <= len(pages) <= 16 or (
             type(limits) is not WebTraversalLimits
         ):
             raise ValueError("web traversal requires exact bounded selected pages and limits")
 
-        checked_limits = WebTraversalLimits(limits.max_pages, limits.max_depth, limits.concurrency,
+        checkedLimits = WebTraversalLimits(limits.max_pages, limits.max_depth, limits.concurrency,
             limits.max_total_body_bytes, limits.start_interval_seconds, limits.timeout_seconds)
         providers: dict[str, LocalPageCaptureProvider] = {}
-        body_sizes: dict[str, int] = {}
-        selected_sources: dict[str, RequestTemplate] = {}
+        bodySizes: dict[str, int] = {}
+        selectedSources: dict[str, RequestTemplate] = {}
 
         for page in pages:
             if type(page) is not OwnedTraversalPage:
@@ -121,20 +121,20 @@ class LocalWebTraversalProvider:
             providers[target.value] = LocalPageCaptureProvider(workspace_root, selected,
                 page.expected_body, scope_id, policy, limits=page_limits,
                 frontier_limits=frontier_limits, clock=clock)
-            body_sizes[target.value] = page.expected_body.size_bytes
-            selected_sources[target.value] = selected
+            bodySizes[target.value] = page.expected_body.size_bytes
+            selectedSources[target.value] = selected
 
-        if seed_target.value not in providers or (
-            selected_sources[seed_target.value] != seed
+        if seedTarget.value not in providers or (
+            selectedSources[seedTarget.value] != seed
         ):
             raise ValueError("web traversal seed must have its exact explicit page selection")
 
         self._providers = providers
-        self._body_sizes = body_sizes
-        self._seed_url = seed_target.value
+        self._body_sizes = bodySizes
+        self._seed_url = seedTarget.value
         self._scope_id = scope_id
         self._workspace_id = seed.endpoint.workspace_id
-        self._limits = checked_limits
+        self._limits = checkedLimits
         self._completed_urls: tuple[str, ...] = ()
         self._unselected_count = 0
         self._started = False
@@ -216,8 +216,8 @@ class LocalWebTraversalProvider:
         pending = {self._seed_url: 0}
         visited: set[str] = set()
         unselected: set[str] = set()
-        reserved_bytes = 0
-        next_start = [asyncio.get_running_loop().time()]
+        reservedBytes = 0
+        nextStart = [asyncio.get_running_loop().time()]
         context.Progress(0)
 
         while pending:
@@ -225,22 +225,22 @@ class LocalWebTraversalProvider:
             depth = min(pending.values())
             wave = tuple(sorted(url for url in pending if pending[url] == depth)[
                 :self._limits.concurrency])
-            wave_bytes = sum(self._body_sizes[url] for url in wave)
+            waveBytes = sum(self._body_sizes[url] for url in wave)
 
             if depth > self._limits.max_depth or (
                 len(visited) + len(wave) > self._limits.max_pages
-                or reserved_bytes + wave_bytes > self._limits.max_total_body_bytes
+                or reservedBytes + waveBytes > self._limits.max_total_body_bytes
             ):
                 raise JobError(JobFailure(JobFailureCode.OUTPUT_LIMIT,
                     "Web traversal budget omitted reachable selected pages; prior pages retained"))
 
-            reserved_bytes += wave_bytes
+            reservedBytes += waveBytes
             visited.update(wave)
 
             for url in wave:
                 del pending[url]
 
-            frontiers = await self.AcquireWave(context, wave, next_start)
+            frontiers = await self.AcquireWave(context, wave, nextStart)
 
             for frontier in frontiers:
                 if not frontier.complete:
@@ -278,14 +278,14 @@ class LocalWebTraversalProvider:
             JobError: A page failed; siblings are drained before its fixed owning failure escapes.
         """
 
-        start_lock = asyncio.Lock()
-        commit_condition = asyncio.Condition()
-        next_commit = [0]
+        startLock = asyncio.Lock()
+        commitCondition = asyncio.Condition()
+        nextCommit = [0]
 
         async def AcquirePage(index: int, url: str) -> CapturedWebFrontier:
             """Rate-limit actual launch and order the final synchronous owner commit phase."""
 
-            async with start_lock:
+            async with startLock:
                 while True:
                     context.CheckCancellation()
                     remaining = next_start[0] - asyncio.get_running_loop().time()
@@ -302,8 +302,8 @@ class LocalWebTraversalProvider:
             async def BeforeCommit() -> None:
                 """Wait for every earlier sorted page commit before composing the current model."""
 
-                async with commit_condition:
-                    await commit_condition.wait_for(lambda: next_commit[0] == index
+                async with commitCondition:
+                    await commitCondition.wait_for(lambda: nextCommit[0] == index
                         or context.Cancellation.is_set())
 
                 context.CheckCancellation()
@@ -323,9 +323,9 @@ class LocalWebTraversalProvider:
             self._completed_urls += (url,)
             context.Progress(len(self._completed_urls))
 
-            async with commit_condition:
-                next_commit[0] += 1
-                commit_condition.notify_all()
+            async with commitCondition:
+                nextCommit[0] += 1
+                commitCondition.notify_all()
 
             return frontier
 
@@ -336,18 +336,18 @@ class LocalWebTraversalProvider:
 
             await context.Cancellation.wait()
 
-            async with commit_condition:
-                commit_condition.notify_all()
+            async with commitCondition:
+                commitCondition.notify_all()
 
-        cancellation_task = asyncio.create_task(WakeCancelledWaiters())
+        cancellationTask = asyncio.create_task(WakeCancelledWaiters())
 
         try:
             async with asyncio.TaskGroup() as group:
                 for index, url in enumerate(wave):
                     tasks.append(group.create_task(AcquirePage(index, url)))
 
-        except ExceptionGroup as group_error:
-            failures = group_error.subgroup(JobError)
+        except ExceptionGroup as groupError:
+            failures = groupError.subgroup(JobError)
 
             if failures is not None:
                 failure = failures.exceptions[0]
@@ -358,9 +358,9 @@ class LocalWebTraversalProvider:
                 "Web traversal page task failed; owned workers were drained")) from None
 
         finally:
-            cancellation_task.cancel()
+            cancellationTask.cancel()
 
-            await asyncio.gather(cancellation_task, return_exceptions=True)
+            await asyncio.gather(cancellationTask, return_exceptions=True)
 
         context.CheckCancellation()
 

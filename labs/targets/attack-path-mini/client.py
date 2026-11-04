@@ -54,13 +54,13 @@ def RequestJson(
 ) -> tuple[int, dict[str, object]]:
     """Execute one bounded internal-lab request and preserve error payloads."""
 
-    request_headers = {AUTHORIZATION_HEADER: AUTHORIZATION_VALUE, **(headers or {})}
+    requestHeaders = {AUTHORIZATION_HEADER: AUTHORIZATION_VALUE, **(headers or {})}
     data = None
     if payload is not None:
         data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        request_headers["Content-Type"] = "application/json"
+        requestHeaders["Content-Type"] = "application/json"
 
-    request = Request(url, data=data, headers=request_headers, method=method)
+    request = Request(url, data=data, headers=requestHeaders, method=method)
     try:
         with urlopen(request, timeout=2) as response:
             return response.status, json.load(response)
@@ -161,13 +161,13 @@ def Health() -> dict[str, object]:
     """Verify every service through the controlled internal network."""
 
     targets = {}
-    for name, base_url in (
+    for name, baseUrl in (
         ("portal", PORTAL_URL),
         ("identity", IDENTITY_URL),
         ("billing", BILLING_URL),
         ("events", EVENTS_URL),
     ):
-        status, result = RequestJson(f"{base_url}/health")
+        status, result = RequestJson(f"{baseUrl}/health")
         if status != HTTPStatus.OK:
             raise RuntimeError(f"Health check failed for {name}: {result}")
         targets[name] = result["target"]

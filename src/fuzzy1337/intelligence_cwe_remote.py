@@ -375,24 +375,24 @@ def AcquireHttpsCweSelection(
     RequireReferenceText(scope_reference, "scope_reference")
     owner = LocalWorkspaceStore(workspace_root).Open()
     store = LocalEvidenceStore(workspace_root / "evidence")
-    started_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
-    payload, receive_state, http_status = ReceiveIsolatedHttps(
+    startedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    payload, receiveState, httpStatus = ReceiveIsolatedHttps(
         request.source.SourceUrl, request.max_bytes, request.timeout_seconds, accept_kind="zip",
     )
 
     if type(payload) is not bytes or len(payload) > request.max_bytes or (
-        type(receive_state) is not str or receive_state not in RECEIVE_STATES
+        type(receiveState) is not str or receiveState not in RECEIVE_STATES
     ):
         raise ValueError("CWE isolated receiver returned invalid bounded facts")
 
-    complete = receive_state == "succeeded"
-    finished_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    complete = receiveState == "succeeded"
+    finishedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     provenance = EvidenceProvenance(owner.workspace_id, scope_reference, IMPORTER_ID,
-                                    IMPORTER_VERSION, None, started_at, finished_at)
+                                    IMPORTER_VERSION, None, startedAt, finishedAt)
     outcome = CweHttpsOutcome(
-        CweHttpsState(receive_state),
-        request.source, request.requested_ids, started_at, finished_at, len(payload),
-        complete, request.max_bytes, request.timeout_seconds, receive_state, http_status,
+        CweHttpsState(receiveState),
+        request.source, request.requested_ids, startedAt, finishedAt, len(payload),
+        complete, request.max_bytes, request.timeout_seconds, receiveState, httpStatus,
     )
 
     try:
@@ -425,10 +425,10 @@ def AcquireHttpsCweSelection(
                     outcome = replace(outcome, envelope=envelope, selection_record=record,
                                       selection_ack=CweHttpsAcknowledgement.CONFIRMED)
 
-        serialized_receipt = BoundedEncode(outcome.ReceiptContent(), MAX_RECEIPT_BYTES)
+        serializedReceipt = BoundedEncode(outcome.ReceiptContent(), MAX_RECEIPT_BYTES)
 
         outcome = replace(outcome, receipt_ack=CweHttpsAcknowledgement.UNKNOWN)
-        receipt = store.Put(serialized_receipt, RECEIPT_ROLE, "application/json", provenance)
+        receipt = store.Put(serializedReceipt, RECEIPT_ROLE, "application/json", provenance)
 
         return replace(outcome, receipt=receipt, receipt_ack=CweHttpsAcknowledgement.CONFIRMED)
 
@@ -483,30 +483,30 @@ def LoadHttpsCweSelection(
     receipts = BoundedCweEvidenceStore(
         workspace_root / "evidence", RECEIPT_ROLE, "application/json", MAX_RECEIPT_BYTES,
     )
-    selected_record = store.Get(selection_id)
+    selectedRecord = store.Get(selection_id)
     receipt = receipts.Get(receipt_id)
-    RequireRecord(selected_record, ENVELOPE_ROLE, "application/json")
+    RequireRecord(selectedRecord, ENVELOPE_ROLE, "application/json")
     RequireRecord(receipt, RECEIPT_ROLE, "application/json")
 
-    if selected_record.provenance != receipt.provenance or (
+    if selectedRecord.provenance != receipt.provenance or (
         receipt.provenance.workspace_id != owner.workspace_id
     ):
         raise ValueError("CWE selected custody requires identical owning acquisition provenance")
 
     document = JsonObject(
-        ReadBounded(store, selected_record, MAX_ENVELOPE_BYTES), MAX_ENVELOPE_BYTES,
+        ReadBounded(store, selectedRecord, MAX_ENVELOPE_BYTES), MAX_ENVELOPE_BYTES,
     )
     terminal = JsonObject(ReadBounded(receipts, receipt, MAX_RECEIPT_BYTES), MAX_RECEIPT_BYTES)
     source = DecodeSource(document.get("source"))
     limits = RequireManifestFields(document.get("limits"),
                                    {"max_zip_bytes", "timeout_seconds"})
     selection = DecodeSelection(document.get("selection"))
-    requested_ids = selection.requested_ids
-    request = CweHttpsRequest(source, requested_ids, cast(int, limits["max_zip_bytes"]),
+    requestedIds = selection.requested_ids
+    request = CweHttpsRequest(source, requestedIds, cast(int, limits["max_zip_bytes"]),
                              cast(float, limits["timeout_seconds"]))
     raw = ParseEvidenceManifest(CanonicalReferenceJson(document.get("raw")))
 
-    if raw.provenance != selected_record.provenance or (
+    if raw.provenance != selectedRecord.provenance or (
         raw.reference.size_bytes > request.max_bytes
     ):
         raise ValueError("CWE original raw facts disagree with selected receipt constraints")
@@ -514,11 +514,11 @@ def LoadHttpsCweSelection(
     envelope = CweHttpsSelection(source, raw, selection, request.max_bytes,
                                 request.timeout_seconds)
     expected = CweHttpsOutcome(
-        CweHttpsState.SUCCEEDED, source, requested_ids,
+        CweHttpsState.SUCCEEDED, source, requestedIds,
         receipt.provenance.started_at, receipt.provenance.finished_at,
         raw.reference.size_bytes, True, request.max_bytes, request.timeout_seconds,
         "succeeded", 200, raw=raw, envelope=envelope,
-        selection_record=selected_record, raw_ack=CweHttpsAcknowledgement.CONFIRMED,
+        selection_record=selectedRecord, raw_ack=CweHttpsAcknowledgement.CONFIRMED,
         selection_ack=CweHttpsAcknowledgement.CONFIRMED,
     )
 
@@ -535,7 +535,7 @@ def LoadHttpsCweSelection(
         raise ValueError("CWE original acquisition manifest is missing or foreign")
 
     reparsed = ParseCweSelection(
-        ReadBounded(originals, raw, request.max_bytes), requested_ids,
+        ReadBounded(originals, raw, request.max_bytes), requestedIds,
         catalog_version=source.catalog_version,
     )
 

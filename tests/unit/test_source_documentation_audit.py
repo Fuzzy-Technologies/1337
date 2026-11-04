@@ -120,8 +120,8 @@ def test_Example(tmp_path):
 def test_LanguageAndStalenessAreBoundedHeuristics(tmp_path: Path) -> None:
     """Report script/debt evidence without certifying prose or semantic staleness."""
 
-    non_latin = chr(0x0410)
-    source = CLEAN_MODULE + f"\n# {non_latin}\n# TO" + "DO: pending contract\n"
+    nonLatin = chr(0x0410)
+    source = CLEAN_MODULE + f"\n# {nonLatin}\n# TO" + "DO: pending contract\n"
     report = audit.Audit(Repository(tmp_path, source))
     assert report["counts"]["LANGUAGE_REVIEW"] == 1, "Script heuristic failed to flag review."
     assert report["counts"]["COMMENT_DEBT_MARKER"] == 1, "Debt marker policy was not diagnosed."
@@ -136,13 +136,13 @@ def test_ShebangMatchesExecutableOwnership(tmp_path: Path) -> None:
 
     root = Repository(tmp_path)
     path = root / "src" / "fixture.py"
-    original_stat = Path.stat
+    originalStat = Path.stat
     mode = 0o755
 
     def SourceMode(candidate: Path, **kwargs: object) -> os.stat_result:
         """Emulate executable mode bits independently of the host platform."""
 
-        result = original_stat(candidate, **kwargs)
+        result = originalStat(candidate, **kwargs)
 
         if candidate != path:
             return result
@@ -196,7 +196,7 @@ def test_ParseFailureAndTraversalFailureRemainErrors(tmp_path: Path) -> None:
     root = Repository(tmp_path)
     missing = audit.AuditFile(root / "src" / "missing.py", root)
     assert missing["findings"][0]["rule"] == "SOURCE_UNREADABLE", "Read failure was not preserved."
-    real_walk = audit.os.walk
+    realWalk = audit.os.walk
 
     def FailingWalk(directory: Path, **kwargs: object) -> object:
         """Emulate denied traversal without depending on local privilege levels."""
@@ -205,7 +205,7 @@ def test_ParseFailureAndTraversalFailureRemainErrors(tmp_path: Path) -> None:
         assert callable(callback), "Traversal must install a fail-closed error callback."
         callback(PermissionError(13, "denied"))
 
-        return real_walk(directory, **kwargs)
+        return realWalk(directory, **kwargs)
 
     with patch.object(audit.os, "walk", FailingWalk):
         report = audit.Audit(root)

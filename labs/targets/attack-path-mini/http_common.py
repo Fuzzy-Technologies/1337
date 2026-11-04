@@ -29,9 +29,9 @@ class LabRequestHandler(BaseHTTPRequestHandler):
     def ReadJson(self) -> dict[str, object] | None:
         """Read one bounded JSON object or emit a deterministic client error."""
 
-        raw_length = self.headers.get("Content-Length", "0")
+        rawLength = self.headers.get("Content-Length", "0")
         try:
-            length = int(raw_length)
+            length = int(rawLength)
 
         except ValueError:
             self.SendJson({"error": "invalid-content-length"}, HTTPStatus.BAD_REQUEST)

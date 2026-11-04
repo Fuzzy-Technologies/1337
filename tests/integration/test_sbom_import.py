@@ -40,10 +40,10 @@ def test_OriginalRelocatedReplayIsByteExactNoopAndUsesNoFileClock(tmp_path):
     """Original manifest, model, custody and workspace survive relocation and exact replay."""
 
     owned, original = Imported(tmp_path)
-    model_path = owned.root / "state/model/model.json"
-    model_bytes = model_path.read_bytes()
+    modelPath = owned.root / "state/model/model.json"
+    modelBytes = modelPath.read_bytes()
     record = LocalEvidenceStore(owned.root / "evidence").Get(original["evidence_id"])
-    manifest_bytes = record.Serialize()
+    manifestBytes = record.Serialize()
     moved = tmp_path / "relocated workspace"
     owned.root.rename(moved)
     owned = OwnedSbom(moved, owned.source)
@@ -58,8 +58,8 @@ def test_OriginalRelocatedReplayIsByteExactNoopAndUsesNoFileClock(tmp_path):
         outcome["model_revision"] == original["model_revision"]
         and outcome["workspace_revision"] == original["workspace_revision"]
     ), "Exact original portable replay must remain a no-op for both independent saved owners"
-    assert (moved / "state/model/model.json").read_bytes() == model_bytes and (
-        LocalEvidenceStore(moved / "evidence").Get(record.evidence_id).Serialize() == manifest_bytes
+    assert (moved / "state/model/model.json").read_bytes() == modelBytes and (
+        LocalEvidenceStore(moved / "evidence").Get(record.evidence_id).Serialize() == manifestBytes
     ), "Relocation/replay must preserve actual saved model and original manifest bytes"
 
 
@@ -382,10 +382,10 @@ def test_EveryKnownOriginalSbomAndAliasPreflightsBeforeGenericReadInBothModes(
 
     store = LocalWorkspaceStore(owned.root)
     state = store.Open()
-    record_ids = tuple(sorted({*state.evidence_record_references, old.evidence_id}))
+    recordIds = tuple(sorted({*state.evidence_record_references, old.evidence_id}))
     store.Save(replace(state,
         evidence_references=(*state.evidence_references, old.reference, *aliases),
-        evidence_record_references=record_ids))
+        evidence_record_references=recordIds))
     selected = imported["evidence_id"] if source_mode == "retained" else None
     arguments = Arguments(owned, evidence_id=selected)
     calls = []
@@ -415,15 +415,15 @@ def test_OlderOriginalKeepsItsOwnScopeMediaAndSourceContext(tmp_path, source_mod
     old = evidence.Put(b"old original owned SPDX bytes", "sbom", "application/vnd.spdx+json",
         EvidenceProvenance("owned-sbom", "scope:other", "old.sbom", "older-version", "older-tool",
                            "2026-10-14T00:00:00Z", "2026-10-14T00:00:01Z"))
-    original_manifest = old.Serialize()
+    originalManifest = old.Serialize()
     store = LocalWorkspaceStore(owned.root)
     state = store.Open()
-    record_ids = tuple(sorted({*state.evidence_record_references, old.evidence_id}))
+    recordIds = tuple(sorted({*state.evidence_record_references, old.evidence_id}))
     store.Save(replace(state, evidence_references=(*state.evidence_references, old.reference),
-        evidence_record_references=record_ids))
+        evidence_record_references=recordIds))
     selected = imported["evidence_id"] if source_mode == "retained" else None
     status, _ = Run(Arguments(owned, evidence_id=selected))
-    assert status == 0 and evidence.Get(old.evidence_id).Serialize() == original_manifest and (
+    assert status == 0 and evidence.Get(old.evidence_id).Serialize() == originalManifest and (
         old.evidence_id in store.Open().evidence_record_references
     ), "Older own-scope source/media/version metadata remains original under both current modes"
 
@@ -485,8 +485,8 @@ def test_EachActualOwnerPreservesIndependentUnknownAcknowledgement(
     arguments = Arguments(owned)
     selected = {"acquisition": (commands.SbomEvidenceStore, "Put"),
                 "model": (LocalModelStore, "Save"), "workspace": (LocalWorkspaceStore, "Save")}
-    store_type, method = selected[owner]
-    original = getattr(store_type, method)
+    storeType, method = selected[owner]
+    original = getattr(storeType, method)
 
     def Save(self, *args, **kwargs):
         """Fail before the owning call or lose acknowledgement after its real durable operation."""
@@ -499,15 +499,15 @@ def test_EachActualOwnerPreservesIndependentUnknownAcknowledgement(
 
         raise OSError("Owned storage acknowledgement failure")
 
-    monkeypatch.setattr(store_type, method, Save)
+    monkeypatch.setattr(storeType, method, Save)
     status, outcome = Run(arguments)
     assert status == (130 if interrupted else 4) and outcome[owner + "_commit"] == "unknown", (
         "An unreturned owning acknowledgement must remain unknown even if actual bytes committed"
     )
-    expected_model = int(owner == "workspace" or owner == "model" and after)
-    expected_workspace = int(owner == "workspace" and after)
-    assert LocalModelStore(owned.root).Open().revision == expected_model and (
-        LocalWorkspaceStore(owned.root).Open().revision == expected_workspace
+    expectedModel = int(owner == "workspace" or owner == "model" and after)
+    expectedWorkspace = int(owner == "workspace" and after)
+    assert LocalModelStore(owned.root).Open().revision == expectedModel and (
+        LocalWorkspaceStore(owned.root).Open().revision == expectedWorkspace
     ), "Independent read-back retains actual durable owners without fabricating rollback"
     assert outcome["model_commit"] == ("confirmed" if owner == "workspace" else (
         "unknown" if owner == "model" else "not-attempted")), (

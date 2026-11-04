@@ -40,18 +40,18 @@ def ValidateElf(raw: bytes) -> None:
     if not 64 <= len(raw) <= 2 * 1024 * 1024 or raw[:7] != b"\x7fELF\x02\x01\x01":
         raise ValueError("inert fixture is not bounded ELF64 little-endian")
 
-    elf_type, machine, version = struct.unpack_from("<HHI", raw, 16)
-    program_offset = struct.unpack_from("<Q", raw, 32)[0]
-    program_size, program_count = struct.unpack_from("<HH", raw, 54)
+    elfType, machine, version = struct.unpack_from("<HHI", raw, 16)
+    programOffset = struct.unpack_from("<Q", raw, 32)[0]
+    programSize, programCount = struct.unpack_from("<HH", raw, 54)
 
-    if (elf_type, machine, version) != (2, 62, 1) or program_size != 56 or not (
-        1 <= program_count <= 32 and program_offset >= 64
-        and program_offset + program_size * program_count <= len(raw)
+    if (elfType, machine, version) != (2, 62, 1) or programSize != 56 or not (
+        1 <= programCount <= 32 and programOffset >= 64
+        and programOffset + programSize * programCount <= len(raw)
     ):
         raise ValueError("inert fixture ELF program header differs")
 
-    for index in range(program_count):
-        kind = struct.unpack_from("<I", raw, program_offset + index * program_size)[0]
+    for index in range(programCount):
+        kind = struct.unpack_from("<I", raw, programOffset + index * programSize)[0]
 
         if kind in {2, 3}:
             raise ValueError("inert fixture has dynamic or interpreter material")
@@ -86,7 +86,7 @@ def ValidateMembers(members: list[tarfile.TarInfo]) -> None:
         raise ValueError("bubblewrap source inventory exceeds its fixed cap")
 
     prefix = "bubblewrap-0.13.0"
-    license_names = {prefix + "/COPYING.LIB", prefix + "/LICENSE"}
+    licenseNames = {prefix + "/COPYING.LIB", prefix + "/LICENSE"}
     inventory = {}
 
     for index, member in enumerate(members):
@@ -109,7 +109,7 @@ def ValidateMembers(members: list[tarfile.TarInfo]) -> None:
             raise ValueError(f"bubblewrap source root type refused at member {index}")
 
         if member.issym():
-            if name not in license_names or member.linkname != "COPYING" or member.size != 0:
+            if name not in licenseNames or member.linkname != "COPYING" or member.size != 0:
                 raise ValueError(f"bubblewrap source license link refused at member {index}")
 
         elif member.isdir():
@@ -168,8 +168,8 @@ def AdmitMembers(members: list[tarfile.TarInfo], report_path: Path) -> None:
     inventory = []
 
     for index, member in enumerate(members[:256]):
-        valid_size = type(member.size) is int and -(2 ** 63) <= member.size < 2 ** 64
-        size = member.size if valid_size else "invalid-size"
+        validSize = type(member.size) is int and -(2 ** 63) <= member.size < 2 ** 64
+        size = member.size if validSize else "invalid-size"
         inventory.append({"index": index, "name": InventoryText(member.name),
             "type_hex": member.type.hex() if type(member.type) is bytes and len(member.type) == 1
             else "invalid-type", "size": size, "linkname": InventoryText(member.linkname)})
@@ -241,7 +241,7 @@ def Main() -> int:
 
     root = Path(sys.argv[1]).resolve()
     root.mkdir(mode=0o700)
-    archive_path = root / "bubblewrap-0.13.0.tar.xz"
+    archivePath = root / "bubblewrap-0.13.0.tar.xz"
 
     with urlopen(ARCHIVE_URL, timeout=20) as source:
         raw = source.read(ARCHIVE_SIZE + 1)
@@ -249,14 +249,14 @@ def Main() -> int:
     if len(raw) != ARCHIVE_SIZE or hashlib.sha256(raw).hexdigest() != ARCHIVE_SHA256:
         raise ValueError("bubblewrap archive differs from its exact source pin")
 
-    archive_path.write_bytes(raw)
+    archivePath.write_bytes(raw)
 
-    with tarfile.open(archive_path, "r:xz") as archive:
+    with tarfile.open(archivePath, "r:xz") as archive:
         AdmitMembers(archive.getmembers(), root / INVENTORY_REPORT_NAME)
         archive.extractall(root, filter="data")
 
-    source_root = root / "bubblewrap-0.13.0"
-    build_root, prefix = root / "build", root / "runtime"
+    sourceRoot = root / "bubblewrap-0.13.0"
+    buildRoot, prefix = root / "build", root / "runtime"
     meson = shutil.which("meson")
     ninja = shutil.which("ninja")
     compiler = shutil.which("gcc")
@@ -265,12 +265,12 @@ def Main() -> int:
         "--wrap-mode=nodownload", "-Dselinux=disabled", "-Dman=disabled",
         "-Dbash_completion=disabled", "-Dzsh_completion=disabled", "-Dtests=false",
         "-Ddebug_logging=false", "-Dassume_kernel=", "-Dpython=" + sys.executable)
-    Command((meson, "setup", str(build_root), str(source_root), *options))
-    Command((ninja, "-C", str(build_root), "-j2"))
-    Command((meson, "install", "-C", str(build_root)))
-    fixture_source = Path(__file__).with_name("inert.c")
+    Command((meson, "setup", str(buildRoot), str(sourceRoot), *options))
+    Command((ninja, "-C", str(buildRoot), "-j2"))
+    Command((meson, "install", "-C", str(buildRoot)))
+    fixtureSource = Path(__file__).with_name("inert.c")
     fixture = prefix / "inert"
-    Command((compiler, *FIXTURE_FLAGS, str(fixture_source), "-o", str(fixture)))
+    Command((compiler, *FIXTURE_FLAGS, str(fixtureSource), "-o", str(fixture)))
     fixture.chmod(0o700)
     ValidateElf(fixture.read_bytes())
     bwrap = prefix / "bin/bwrap"
@@ -285,7 +285,7 @@ def Main() -> int:
 
     provenance = {"source_archive_sha256": ARCHIVE_SHA256, "source_archive_bytes": ARCHIVE_SIZE,
         "source_commit": "719a4fd474d44b26906bcf2b1b0fb6eddd8d56d0",
-        "fixture_source_sha256": hashlib.sha256(fixture_source.read_bytes()).hexdigest(),
+        "fixture_source_sha256": hashlib.sha256(fixtureSource.read_bytes()).hexdigest(),
         "fixture_sha256": hashlib.sha256(fixture.read_bytes()).hexdigest(),
         "bwrap_sha256": hashlib.sha256(bwrap.read_bytes()).hexdigest(),
         "fixture_flags": FIXTURE_FLAGS, "meson_options": options,

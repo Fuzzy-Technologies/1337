@@ -239,22 +239,22 @@ def SyncStorageDirectory(path: Path) -> None:
     if os.name != "posix":
         return
 
-    directory_flag = getattr(os, "O_DIRECTORY", None)
+    directoryFlag = getattr(os, "O_DIRECTORY", None)
 
     if (
-        isinstance(directory_flag, bool)
-        or not isinstance(directory_flag, int)
-        or directory_flag <= 0
+        isinstance(directoryFlag, bool)
+        or not isinstance(directoryFlag, int)
+        or directoryFlag <= 0
     ):
         raise OSError("POSIX directory synchronization requires a valid O_DIRECTORY flag")
 
-    directory_fd = os.open(path, os.O_RDONLY | directory_flag)
+    directoryFd = os.open(path, os.O_RDONLY | directoryFlag)
 
     try:
-        os.fsync(directory_fd)
+        os.fsync(directoryFd)
 
     finally:
-        os.close(directory_fd)
+        os.close(directoryFd)
 
 
 @dataclass(frozen=True, slots=True)
@@ -274,11 +274,11 @@ class WorkspaceConfiguration:
         if not isinstance(self.selected_lens, WorkspaceLens):
             raise ValueError("selected_lens must be a WorkspaceLens")
 
-        for field_name in ("view_reference", "report_context_reference"):
-            value = getattr(self, field_name)
+        for fieldName in ("view_reference", "report_context_reference"):
+            value = getattr(self, fieldName)
 
             if value is not None:
-                RequireWorkspaceText(value, field_name)
+                RequireWorkspaceText(value, fieldName)
 
     def ToDict(self) -> dict[str, object]:
         """Render configuration fields without exposing resolved context or credentials.
@@ -313,8 +313,8 @@ class WorkspaceConfiguration:
             {"display_name", "selected_lens", "view_reference", "report_context_reference"},
             "configuration",
         )
-        view_reference = record["view_reference"]
-        report_reference = record["report_context_reference"]
+        viewReference = record["view_reference"]
+        reportReference = record["report_context_reference"]
 
         return cls(
             display_name=RequireWorkspaceText(record["display_name"], "display_name"),
@@ -322,12 +322,12 @@ class WorkspaceConfiguration:
                 RequireWorkspaceText(record["selected_lens"], "selected_lens")
             ),
             view_reference=(
-                None if view_reference is None
-                else RequireWorkspaceText(view_reference, "view_reference")
+                None if viewReference is None
+                else RequireWorkspaceText(viewReference, "view_reference")
             ),
             report_context_reference=(
-                None if report_reference is None
-                else RequireWorkspaceText(report_reference, "report_context_reference")
+                None if reportReference is None
+                else RequireWorkspaceText(reportReference, "report_context_reference")
             ),
         )
 
@@ -354,20 +354,20 @@ class WorkspaceState:
         if not isinstance(self.configuration, WorkspaceConfiguration):
             raise ValueError("configuration must be a WorkspaceConfiguration")
 
-        for field_name in ("scope_references", "object_references", "job_references"):
+        for fieldName in ("scope_references", "object_references", "job_references"):
             object.__setattr__(
-                self, field_name, WorkspaceReferences(getattr(self, field_name), field_name)
+                self, fieldName, WorkspaceReferences(getattr(self, fieldName), fieldName)
             )
 
-        record_references = WorkspaceReferences(
+        recordReferences = WorkspaceReferences(
             self.evidence_record_references, "evidence_record_references"
         )
 
-        for record_reference in record_references:
-            if not EVIDENCE_RECORD_REFERENCE_PATTERN.fullmatch(record_reference):
+        for recordReference in recordReferences:
+            if not EVIDENCE_RECORD_REFERENCE_PATTERN.fullmatch(recordReference):
                 raise ValueError("evidence record references must be sha256:<lowercase hex digest>")
 
-        object.__setattr__(self, "evidence_record_references", record_references)
+        object.__setattr__(self, "evidence_record_references", recordReferences)
 
         if not isinstance(self.evidence_references, (tuple, list)):
             raise ValueError("evidence_references must be an evidence sequence")
@@ -446,9 +446,9 @@ class WorkspaceState:
             "workspace state",
         )
 
-        schema_version = RequireWorkspaceInteger(record["schema_version"], "schema_version")
+        schemaVersion = RequireWorkspaceInteger(record["schema_version"], "schema_version")
 
-        if schema_version != WORKSPACE_SCHEMA_VERSION:
+        if schemaVersion != WORKSPACE_SCHEMA_VERSION:
             raise ValueError("unsupported workspace schema version")
 
         evidence = record["evidence_references"]
@@ -655,10 +655,10 @@ class LocalWorkspaceStore:
             raise ValueError("state must be a WorkspaceState")
 
         self.ValidateStoragePaths()
-        lock_path = self.root / ".write-lock"
+        lockPath = self.root / ".write-lock"
 
         try:
-            lock_path.mkdir(mode=0o700)
+            lockPath.mkdir(mode=0o700)
 
         except FileExistsError as error:
             raise WorkspaceBusyError(
@@ -679,7 +679,7 @@ class LocalWorkspaceStore:
             return committed
 
         finally:
-            lock_path.rmdir()
+            lockPath.rmdir()
 
     def WriteState(self, state: WorkspaceState) -> None:
         """Write internal state durably; lifecycle consumers must use Create or Save.
@@ -704,21 +704,21 @@ class LocalWorkspaceStore:
         if len(payload) > MAX_STATE_BYTES:
             raise ValueError("workspace state exceeds the metadata size limit")
 
-        temporary_path: Path | None = None
+        temporaryPath: Path | None = None
 
         try:
             with tempfile.NamedTemporaryFile(
                 mode="wb", dir=self.root, prefix=".workspace-", suffix=".json", delete=False
             ) as stream:
-                temporary_path = Path(stream.name)
+                temporaryPath = Path(stream.name)
                 stream.write(payload)
                 stream.flush()
                 os.fsync(stream.fileno())
 
-            os.replace(temporary_path, self.root / "workspace.json")
+            os.replace(temporaryPath, self.root / "workspace.json")
 
             SyncStorageDirectory(self.root)
 
         finally:
-            if temporary_path is not None:
-                temporary_path.unlink(missing_ok=True)
+            if temporaryPath is not None:
+                temporaryPath.unlink(missing_ok=True)

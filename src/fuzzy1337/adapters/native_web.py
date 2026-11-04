@@ -152,11 +152,11 @@ def NativeWebEndpoint(
 
     result = Endpoint(value)
 
-    owned_paths = _OWNED_CHECK_PATHS.get(check_id)
+    ownedPaths = _OWNED_CHECK_PATHS.get(check_id)
 
-    if owned_paths is not None and (
+    if ownedPaths is not None and (
         not ipaddress.ip_address(result[1]).is_loopback
-        or urlsplit(result[0].value).path not in owned_paths
+        or urlsplit(result[0].value).path not in ownedPaths
     ):
         raise ValueError("native owned web check requires an exact owned-loopback probe URL")
 
@@ -402,13 +402,13 @@ def ParseNativeWebRecord(
             ):
                 raise ValueError
 
-        allowed_media = NATIVE_WEB_MEDIA_TYPES
+        allowedMedia = NATIVE_WEB_MEDIA_TYPES
 
         if check_id in NATIVE_HTML_CHECKS:
-            allowed_media = allowed_media | {"text/html"}
+            allowedMedia = allowedMedia | {"text/html"}
 
         elif check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID:
-            allowed_media = frozenset({"application/json"})
+            allowedMedia = frozenset({"application/json"})
 
         if set(record) != expected or record["check_id"] != check.check_id or (
             record["profile_version"] != NATIVE_WEB_VERSION
@@ -419,7 +419,7 @@ def ParseNativeWebRecord(
             or type(record["body_bytes"]) is not int
             or not 0 <= record["body_bytes"] <= check.max_body_bytes
             or type(record["media_type"]) is not str
-            or record["media_type"] not in allowed_media
+            or record["media_type"] not in allowedMedia
             or type(record["body_sha256"]) is not str
             or _SHA256.fullmatch(record["body_sha256"]) is None
             or (record["matched"] is not None if check.predicate is None
@@ -514,12 +514,12 @@ class NativeWebAdapter:
             ValueError: Capability, target, credentials or selected parameters are unsupported.
         """
 
-        check_id = request.parameters.get("check_id", NATIVE_WEB_CHECK_ID)
+        checkId = request.parameters.get("check_id", NATIVE_WEB_CHECK_ID)
 
-        if type(check_id) is not str:
+        if type(checkId) is not str:
             raise ValueError("native web requires an exact registered check")
 
-        check = NativeWebCheckFor(check_id)
+        check = NativeWebCheckFor(checkId)
 
         if request.capability != check.capability or (
             request.impact is not ImpactLevel.STANDARD or request.credential_references
@@ -528,32 +528,32 @@ class NativeWebAdapter:
 
         expected = {"url", "timeout_seconds"}
 
-        if check_id in NATIVE_EXPLICIT_CHECKS:
+        if checkId in NATIVE_EXPLICIT_CHECKS:
             expected.add("check_id")
 
-        if check_id == NATIVE_FILE_CANARY_CHECK_ID:
+        if checkId == NATIVE_FILE_CANARY_CHECK_ID:
             expected.update({"check_id", "request_profile", "request_template",
                              "injection_reference"})
 
         if set(request.parameters) != expected:
             raise ValueError("native web requires exact check-specific parameters")
 
-        target, _, _, _ = NativeWebEndpoint(request.parameters.get("url"), check_id=check_id)
+        target, _, _, _ = NativeWebEndpoint(request.parameters.get("url"), check_id=checkId)
         timeout = RequestTimeout(request.parameters["timeout_seconds"])
         suffix: tuple[str, ...] = ()
-        workspace_id = None
+        workspaceId = None
 
-        if check_id in NATIVE_EXPLICIT_CHECKS:
-            suffix = (check_id,)
+        if checkId in NATIVE_EXPLICIT_CHECKS:
+            suffix = (checkId,)
 
-        if check_id == NATIVE_FILE_CANARY_CHECK_ID:
+        if checkId == NATIVE_FILE_CANARY_CHECK_ID:
             template = RequestTemplate.FromDict(JsonValue(
                 request.parameters.get("request_template")))
-            workspace_id = template.endpoint.workspace_id
-            suffix = (check_id, workspace_id)
+            workspaceId = template.endpoint.workspace_id
+            suffix = (checkId, workspaceId)
 
         if JsonValue(request.parameters) != NativeWebParameters(target.value, timeout,
-            check_id=check_id, workspace_id=workspace_id):
+            check_id=checkId, workspace_id=workspaceId):
             raise ValueError("native web request differs from its exact check profile")
 
         if request.target_reference != target.Reference():
@@ -606,14 +606,14 @@ class NativeWebAdapter:
 
         parameters = report.invocation.request.parameters
         check = NativeWebCheckFor(str(parameters.get("check_id", NATIVE_WEB_CHECK_ID)))
-        workspace_id = None
+        workspaceId = None
 
         if check.check_id == NATIVE_FILE_CANARY_CHECK_ID:
-            workspace_id = RequestTemplate.FromDict(JsonValue(
+            workspaceId = RequestTemplate.FromDict(JsonValue(
                 parameters["request_template"])).endpoint.workspace_id
 
         record = ParseNativeWebRecord(values[0], str(parameters["url"]),
-                                      check_id=check.check_id, workspace_id=workspace_id)
+                                      check_id=check.check_id, workspace_id=workspaceId)
 
         if "error" in record:
             raise NativeWebRecordError("a failed response check cannot produce findings")

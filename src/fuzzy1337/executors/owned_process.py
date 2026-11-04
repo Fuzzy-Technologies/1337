@@ -59,10 +59,10 @@ def RequireLinuxOwnership() -> None:
     if sys.platform != "linux" or not hasattr(os, "memfd_create"):
         raise LocalExecutionError("Owned descendant execution requires supported Linux primitives")
 
-    own_pid = os.getpid()
+    ownPid = os.getpid()
 
     try:
-        descriptor = os.open(f"/proc/{own_pid}/task/{own_pid}/children", os.O_RDONLY | os.O_CLOEXEC)
+        descriptor = os.open(f"/proc/{ownPid}/task/{ownPid}/children", os.O_RDONLY | os.O_CLOEXEC)
         os.close(descriptor)
 
     except OSError:
@@ -330,13 +330,13 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
 
     import fcntl
 
-    configuration_fd = read_fd = write_fd = gate_read_fd = gate_write_fd = -1
+    configuration_fd = read_fd = write_fd = gate_read_fd = gateWriteFd = -1
     ready_read_fd = ready_write_fd = -1
     process: asyncio.subprocess.Process | None = None
     owned: OwnedExecution | None = None
-    launch_task: asyncio.Task[asyncio.subprocess.Process] | None = None
+    launchTask: asyncio.Task[asyncio.subprocess.Process] | None = None
     phase = "configuration"
-    handoff_attempted = False
+    handoffAttempted = False
 
     try:
         raw = CanonicalControl({"schema_version": 1, "parent_pid": os.getpid(),
@@ -365,17 +365,17 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
             raise OSError("private configuration seals were not established")
         phase = "control-pipes"
         read_fd, write_fd = os.pipe()
-        gate_read_fd, gate_write_fd = os.pipe()
+        gate_read_fd, gateWriteFd = os.pipe()
         ready_read_fd, ready_write_fd = os.pipe()
         digest = hashlib.sha256(raw).hexdigest()
         phase = "supervisor-launch"
-        launch_task = asyncio.create_task(asyncio.create_subprocess_exec(sys.executable, "-I", "-m",
+        launchTask = asyncio.create_task(asyncio.create_subprocess_exec(sys.executable, "-I", "-m",
             "fuzzy1337.executors.descendant_supervisor", str(configuration_fd), str(write_fd),
             digest, str(gate_read_fd), str(ready_write_fd), cwd=workspace, env=helper_environment,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE, start_new_session=True,
             pass_fds=(configuration_fd, write_fd, gate_read_fd, ready_write_fd)))
-        process = await asyncio.shield(launch_task)
+        process = await asyncio.shield(launchTask)
         owned = OwnedExecution(process, read_fd, digest, ready_fd=ready_read_fd)
         read_fd = ready_read_fd = -1
 
@@ -396,20 +396,20 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
                 raise LocalExecutionError("Owned final launch check must return None")
 
         phase = "start-handoff"
-        handoff_attempted = True
+        handoffAttempted = True
 
-        if os.write(gate_write_fd, b"1") != 1:
+        if os.write(gateWriteFd, b"1") != 1:
             raise OSError("owned worker start handoff failed")
 
         return owned
 
     except BaseException as error:
         # Closing the gate before awaiting startup prevents any interrupted payload launch.
-        if gate_write_fd >= 0:
-            os.close(gate_write_fd)
-            gate_write_fd = -1
+        if gateWriteFd >= 0:
+            os.close(gateWriteFd)
+            gateWriteFd = -1
 
-        if launch_task is not None:
+        if launchTask is not None:
             async def AbortHandoff() -> None:
                 """Finish owned startup, then verify an unstarted worker and exited supervisor."""
 
@@ -418,7 +418,7 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
 
                 if process is None:
                     try:
-                        process = await asyncio.wait_for(asyncio.shield(launch_task),
+                        process = await asyncio.wait_for(asyncio.shield(launchTask),
                                                          OWNED_PARENT_GRACE_SECONDS)
 
                     except (OSError, ValueError):
@@ -431,7 +431,7 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
 
                 configuration_fd = write_fd = gate_read_fd = ready_write_fd = -1
 
-                if handoff_attempted and process.returncode is None:
+                if handoffAttempted and process.returncode is None:
                     try:
                         process.terminate()
 
@@ -467,21 +467,21 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
 
                 owned.Close()
 
-            cleanup_task = asyncio.create_task(AbortHandoff())
+            cleanupTask = asyncio.create_task(AbortHandoff())
 
-            while not cleanup_task.done():
+            while not cleanupTask.done():
                 try:
-                    await asyncio.shield(cleanup_task)
+                    await asyncio.shield(cleanupTask)
 
                 except asyncio.CancelledError:
                     continue
 
             try:
-                cleanup_task.result()
+                cleanupTask.result()
 
             except BaseException:
-                if not launch_task.done():
-                    launch_task.cancel()
+                if not launchTask.done():
+                    launchTask.cancel()
 
                 if owned is not None:
                     owned.Close()
@@ -493,13 +493,13 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
             (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
             raise
 
-        error_number = getattr(error, "errno", None)
-        diagnostic = str(error_number) if type(error_number) is int else "unavailable"
+        errorNumber = getattr(error, "errno", None)
+        diagnostic = str(errorNumber) if type(errorNumber) is int else "unavailable"
         raise LocalExecutionError(f"Owned execution failed at {phase} (errno {diagnostic})") \
             from None
 
     finally:
-        if launch_task is not None and not launch_task.done():
+        if launchTask is not None and not launchTask.done():
             reserved = (configuration_fd, write_fd, gate_read_fd, ready_write_fd)
             configuration_fd = write_fd = gate_read_fd = ready_write_fd = -1
 
@@ -517,9 +517,9 @@ async def StartOwnedExecution(argv: tuple[str, ...], workspace: Path,
                 if not task.cancelled():
                     task.exception()
 
-            launch_task.add_done_callback(ReleaseAfterStartup)
+            launchTask.add_done_callback(ReleaseAfterStartup)
 
-        for descriptor in (configuration_fd, read_fd, write_fd, gate_read_fd, gate_write_fd,
+        for descriptor in (configuration_fd, read_fd, write_fd, gate_read_fd, gateWriteFd,
                            ready_read_fd, ready_write_fd):
             if descriptor >= 0:
                 os.close(descriptor)

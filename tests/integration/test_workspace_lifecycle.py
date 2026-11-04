@@ -24,15 +24,15 @@ def test_WorkspaceLifecycleSurvivesReopenDerivedStateRemovalAndRelocation(tmp_pa
         "Synthetic investigation", WorkspaceLens.DFIR, "view:object-list", "report:summary"
     )
     initial = store.Create(configuration, "synthetic-investigation")
-    raw_payload = b"Synthetic immutable raw evidence\n"
-    digest = hashlib.sha256(raw_payload).hexdigest()
+    rawPayload = b"Synthetic immutable raw evidence\n"
+    digest = hashlib.sha256(rawPayload).hexdigest()
     locator = "blobs/sha256/" + digest
     artifact = store.root / "evidence" / locator
     artifact.parent.mkdir(parents=True)
-    artifact.write_bytes(raw_payload)
-    domain_marker = store.root / "state" / "domain-owner-fixture"
-    domain_marker.write_bytes(b"independent owner fixture")
-    reference = EvidenceReference("stdout", locator, digest, "text/plain", len(raw_payload))
+    artifact.write_bytes(rawPayload)
+    domainMarker = store.root / "state" / "domain-owner-fixture"
+    domainMarker.write_bytes(b"independent owner fixture")
+    reference = EvidenceReference("stdout", locator, digest, "text/plain", len(rawPayload))
     saved = store.Save(replace(
         initial,
         scope_references=("scope:synthetic-authorized-fixture",),
@@ -57,7 +57,7 @@ def test_WorkspaceLifecycleSurvivesReopenDerivedStateRemovalAndRelocation(tmp_pa
         "evidence_record_references": ["sha256:" + "a" * 64, "sha256:" + "b" * 64],
         "evidence_references": [{
             "role": "stdout", "locator": locator, "sha256": digest,
-            "media_type": "text/plain", "size_bytes": len(raw_payload),
+            "media_type": "text/plain", "size_bytes": len(rawPayload),
         }],
     }, "The independently decoded document violates the initial workspace schema"
 
@@ -65,15 +65,15 @@ def test_WorkspaceLifecycleSurvivesReopenDerivedStateRemovalAndRelocation(tmp_pa
         (store.root / partition).rmdir()
 
     assert LocalWorkspaceStore(store.root).Open() == saved, "Derived state was required to reopen"
-    relocated_root = tmp_path / "relocated"
-    store.root.rename(relocated_root)
-    reopened = LocalWorkspaceStore(relocated_root).Open()
+    relocatedRoot = tmp_path / "relocated"
+    store.root.rename(relocatedRoot)
+    reopened = LocalWorkspaceStore(relocatedRoot).Open()
 
     assert reopened == saved, "Relocating the portable workspace lost authoritative context"
-    assert (relocated_root / "evidence" / locator).read_bytes() == raw_payload, (
+    assert (relocatedRoot / "evidence" / locator).read_bytes() == rawPayload, (
         "Workspace lifecycle mutated independently owned immutable evidence"
     )
-    assert (relocated_root / "state" / "domain-owner-fixture").read_bytes() == (
+    assert (relocatedRoot / "state" / "domain-owner-fixture").read_bytes() == (
         b"independent owner fixture"
     ), "Metadata lifecycle modified independently owned domain state"
     assert str(tmp_path) not in json.dumps(document), "Metadata contains machine-local paths"

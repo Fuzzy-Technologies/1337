@@ -191,6 +191,6 @@ print(json.dumps(result, sort_keys=True))
         "status": 200,
     }, "web micro target exposes deterministic safe observations invariant failed."
     assert observations["statuses"] == {
-        str(status_code): {"body": {"status": status_code}, "status": status_code}
-        for status_code in (400, 401, 403, 404, 500)
+        str(statusCode): {"body": {"status": statusCode}, "status": statusCode}
+        for statusCode in (400, 401, 403, 404, 500)
     }, "web micro target exposes deterministic safe observations invariant failed."

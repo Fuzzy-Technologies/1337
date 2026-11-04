@@ -119,11 +119,11 @@ def RunAcceptance(output: Path) -> dict[str, object]:
         raise ValueError("Pinned installed CVE HTTPS fetch did not succeed")
 
     document = VerifyFetch(json.loads(result.stdout, object_pairs_hook=UniqueReferenceObject))
-    selection_id, receipt_id = str(document["selection_id"]), str(document["receipt_id"])
-    received = remote.LoadHttpsCveSelection(workspace, selection_id, receipt_id)
-    expected_source = remote.CveHttpsSource(SOURCE_COMMIT, SOURCE_IDENTIFIER, EXPECTED_SHA256)
+    selectionId, receiptId = str(document["selection_id"]), str(document["receipt_id"])
+    received = remote.LoadHttpsCveSelection(workspace, selectionId, receiptId)
+    expectedSource = remote.CveHttpsSource(SOURCE_COMMIT, SOURCE_IDENTIFIER, EXPECTED_SHA256)
 
-    if received.source != expected_source or received.source.ToDict() != document["source"] or (
+    if received.source != expectedSource or received.source.ToDict() != document["source"] or (
         received.max_bytes != EXPECTED_BYTES or received.timeout_seconds != 30
     ):
         raise ValueError("Original CVE source differs from the pinned terminal source")
@@ -158,29 +158,29 @@ def RunAcceptance(output: Path) -> dict[str, object]:
 
     moved = output / "relocated-workspace"
     shutil.move(str(workspace), moved)
-    original_receiver = getattr(remote, "ReceiveIsolatedHttps")
+    originalReceiver = getattr(remote, "ReceiveIsolatedHttps")
     setattr(remote, "ReceiveIsolatedHttps", NoReceive)
 
     try:
-        reopened = remote.LoadHttpsCveSelection(moved, selection_id, receipt_id)
-        inspected_output = StringIO()
+        reopened = remote.LoadHttpsCveSelection(moved, selectionId, receiptId)
+        inspectedOutput = StringIO()
         status = RunCveHttpsCommands([
-            "inspect", str(moved), "--selection", selection_id, "--receipt", receipt_id,
-        ], inspected_output, json_output=True)
-        (output / "inspect.json").write_text(inspected_output.getvalue(), encoding="utf-8")
-        inspected = json.loads(inspected_output.getvalue(), object_pairs_hook=UniqueReferenceObject)
+            "inspect", str(moved), "--selection", selectionId, "--receipt", receiptId,
+        ], inspectedOutput, json_output=True)
+        (output / "inspect.json").write_text(inspectedOutput.getvalue(), encoding="utf-8")
+        inspected = json.loads(inspectedOutput.getvalue(), object_pairs_hook=UniqueReferenceObject)
 
     finally:
-        setattr(remote, "ReceiveIsolatedHttps", original_receiver)
+        setattr(remote, "ReceiveIsolatedHttps", originalReceiver)
 
-    expected_inspection = {"profile": "cve-https-selected-cli", "status": "succeeded",
+    expectedInspection = {"profile": "cve-https-selected-cli", "status": "succeeded",
         "command": "intel.cve.https.inspect", "publisher_authentication": "not-assessed",
         "model_commit": "not-attempted", "raw_ack": "confirmed", "selection_ack": "confirmed",
         "receipt_ack": "confirmed", "http_status": 200, "body_complete": True,
         "receive_state": "succeeded", "transport": "https"}
 
     if not isinstance(inspected, dict) or reopened != received or status != 0 or (
-        any(inspected.get(key) != value for key, value in expected_inspection.items())
+        any(inspected.get(key) != value for key, value in expectedInspection.items())
         or inspected.get("source") != document["source"]
         or inspected.get("snapshot") != snapshot
         or inspected.get("selection_reference") != received.Reference()
@@ -190,12 +190,12 @@ def RunAcceptance(output: Path) -> dict[str, object]:
     ):
         raise ValueError("Relocated original CVE inspection changed custody or model state")
 
-    production_hashes = {}
+    productionHashes = {}
 
     for name in ("intelligence_cve_remote.py", "intelligence_cve_https_commands.py",
                  "intelligence_commands.py", "intelligence_receiver.py",
                  "intelligence_transport.py"):
-        production_hashes[name] = hashlib.sha256(
+        productionHashes[name] = hashlib.sha256(
             Path(remote.__file__).with_name(name).read_bytes(),
         ).hexdigest()
 
@@ -203,12 +203,12 @@ def RunAcceptance(output: Path) -> dict[str, object]:
         "source": received.source.ToDict(), "source_sha256": EXPECTED_SHA256,
         "received_bytes": EXPECTED_BYTES, "http_status": document["http_status"],
         "record_count": 1, "source_state": "PUBLISHED", "source_data_version": "5.2",
-        "selection_id": selection_id, "receipt_id": receipt_id,
+        "selection_id": selectionId, "receipt_id": receiptId,
         "selection_reference": received.Reference(),
         "snapshot_reference": received.snapshot.Reference(),
         "offline_relocated_reopen": True, "installed_offline_inspect": True,
         "canonical_model_unchanged": True, "publisher_authentication": "not-assessed",
-        "legal_rights": "not-assessed", "production_hashes": production_hashes}
+        "legal_rights": "not-assessed", "production_hashes": productionHashes}
     (output / "acceptance.json").write_bytes(CanonicalReferenceJson(facts))
 
     return facts

@@ -62,8 +62,8 @@ def test_PersistedFindingBindsReviewedContextWithoutPublishingClaimsOrChangingEv
     )
     state, delta = state.Apply(objects=(subject,))
     store.Save(state, expected_revision=delta.previous_revision)
-    evidence_store = LocalEvidenceStore(root / "evidence")
-    evidence = evidence_store.Put(
+    evidenceStore = LocalEvidenceStore(root / "evidence")
+    evidence = evidenceStore.Put(
         b'{"synthetic_classification":"explicitly-supplied"}', "stdout", "application/json",
         EvidenceProvenance(
             "synthetic", "scope:owned", "synthetic", "1", None,
@@ -87,9 +87,9 @@ def test_PersistedFindingBindsReviewedContextWithoutPublishingClaimsOrChangingEv
         ), "Synthetic operator disposition",
     )
     store.Save(state, expected_revision=delta.previous_revision)
-    model_path = root / "state" / "model" / "model.json"
-    model_before = model_path.read_bytes()
-    raw_before = evidence_store.Read(evidence.reference)
+    modelPath = root / "state" / "model" / "model.json"
+    modelBefore = modelPath.read_bytes()
+    rawBefore = evidenceStore.Read(evidence.reference)
     entity = store.Open().Objects(ObjectKind.FINDING)[0]
 
     pack = MappingPack.FromBytes(ReviewedBaseline().ToBytes())
@@ -106,8 +106,8 @@ def test_PersistedFindingBindsReviewedContextWithoutPublishingClaimsOrChangingEv
                ) for record, binding in zip(portable, bindings, strict=True)), (
         "Serialized finding context lost its exact mapping revision or external review decision"
     )
-    assert model_path.read_bytes() == model_before, "Mapping context modified canonical model state"
-    assert evidence_store.Read(evidence.reference) == raw_before, (
+    assert modelPath.read_bytes() == modelBefore, "Mapping context modified canonical model state"
+    assert evidenceStore.Read(evidence.reference) == rawBefore, (
         "Mapping context rewrote raw evidence"
     )
     assert Finding.FromObject(entity).status is FindingStatus.DISMISSED, (
