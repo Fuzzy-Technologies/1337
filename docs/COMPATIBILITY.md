@@ -1005,3 +1005,31 @@ hashes; the demo does not add HTTP body retention. Existing `demo local`, SAFE
 approval, source/model schemas, native check identifiers and report contracts
 retain their current behavior. See [the demo guide](DEMO.md); the complete
 canonical attack-path showcase remains separate work.
+
+
+## 1337Scope native web CI profile
+
+The additive Experimental `ci scan --profile native-web` selection uses the
+existing native Git HEAD or Prometheus workflow and its unchanged exact STANDARD
+plan-confirmation, scope, consent and policy controls. The Experimental
+`fuzzy1337.ci_native_web.EvaluateNativeWebCriterion` consumer verifies the original
+current successful job, exact selected owner and deadlines, invocation, stdout/stderr
+manifests and bytes, and exact
+saved source/detection observations before selecting current-run Findings.
+It preserves saved manual triage and excludes an earlier retained positive from
+a current negative execution's predicate.
+
+The distinct `native-web:<sha256>` reference binds the original job, invocation
+and acquisition references; existing artifact/native-image result identities and
+report schemas are unchanged. Re-normalization verifies original worker metadata,
+not an HTTP-body predicate whose source body was deliberately not retained.
+This result identity grants no authority and establishes no publisher
+authentication, global scan completeness, whole-application accuracy or reachable
+risk. Current permission and the complete saved-model basis are rechecked during
+publication. JSON/SARIF/JUnit contain that same complete snapshot; historical
+Findings remain report facts without entering an unrelated current-run criterion.
+
+Existing configuration/image profiles retain their required input contracts,
+refusal codes and no-clobber exports; native-web rejects artifact-only options.
+See [CI scanning](CI_SCAN.md) and
+[ADR 0138](adr/0138-current-run-native-web-ci-predicate.md).

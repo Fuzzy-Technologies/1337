@@ -242,10 +242,10 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="ci",
-            summary="Evaluate an explicit current-run finding predicate with verified reports.",
+            summary="Gate current-run findings, including explicit 1337Scope web checks.",
             usage=(
                 "1337 ci scan <workspace> --profile "
-                "<synthetic-dockerfile|synthetic-kubernetes|synthetic-image>"
+                "<synthetic-dockerfile|synthetic-kubernetes|synthetic-image|native-trivy|native-web>"
             ),
             capabilities=("workbench.selected-finding-gate",),
         ),
