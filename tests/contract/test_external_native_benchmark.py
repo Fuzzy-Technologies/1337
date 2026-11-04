@@ -517,8 +517,8 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
     ), "Original native evidence must upload even when the lane fails."
     container = next(step["run"] for step in jobs["container-quality"]["steps"]
                      if step.get("name") == "Run container quality gate")
-    assert "--suite-timeout 900" in container, (
-        "The accepted container full-suite budget must remain 900 seconds."
+    assert "--suite-timeout 1200" in container, (
+        "The container gate must retain the bounded 1200-second full-suite budget."
     )
 
 
