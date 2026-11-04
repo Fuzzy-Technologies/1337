@@ -11,6 +11,7 @@ import subprocess
 from dataclasses import replace
 from io import StringIO
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 import yaml
@@ -87,6 +88,19 @@ def test_NonObjectFetchFactsRefuse(document: object) -> None:
         acceptance.VerifyFetch(document)
 
 
+def OwnedCvePayload(identifier: str) -> bytes:
+    """Build one deliberately fictional CVE Record for local acceptance fixtures."""
+
+    source = {"dataType": "CVE_RECORD", "dataVersion": "5.2",
+        "cveMetadata": {"cveId": identifier, "state": "PUBLISHED",
+                        "dateUpdated": "2026-10-12T10:00:00Z"},
+        "containers": {"cna": {"providerMetadata": {"orgId": "owned-acceptance"},
+            "descriptions": [{"lang": "en", "value": "Explicitly fictional acceptance fixture"}],
+            "problemTypes": [{"descriptions": [{"cweId": "CWE-79"}]}]}}}
+
+    return json.dumps(source, indent=2).encode("utf-8")
+
+
 def OwnedBoundary(monkeypatch: pytest.MonkeyPatch, mutation: str | None = None) -> dict:
     """Keep the CLI, SDK, source loader and evidence owners real beneath controlled seams.
 
@@ -98,13 +112,7 @@ def OwnedBoundary(monkeypatch: pytest.MonkeyPatch, mutation: str | None = None) 
         Original synthetic bytes, actual terminal documents and observed receiver/process calls.
     """
 
-    source = {"dataType": "CVE_RECORD", "dataVersion": "5.2",
-        "cveMetadata": {"cveId": "CVE-1900-9999", "state": "PUBLISHED",
-                        "dateUpdated": "2026-10-12T10:00:00Z"},
-        "containers": {"cna": {"providerMetadata": {"orgId": "owned-acceptance"},
-            "descriptions": [{"lang": "en", "value": "Explicitly fictional acceptance fixture"}],
-            "problemTypes": [{"descriptions": [{"cweId": "CWE-79"}]}]}}}
-    payload = json.dumps(source, indent=2).encode("utf-8")
+    payload = OwnedCvePayload("CVE-1900-9999")
 
     for name, value in {"SOURCE_COMMIT": "a" * 40, "SOURCE_IDENTIFIER": "CVE-1900-9999",
         "EXPECTED_SHA256": hashlib.sha256(payload).hexdigest(), "EXPECTED_BYTES": len(payload),
@@ -567,3 +575,215 @@ def test_CveSourceLaneRequiresExplicitDraftSameRepositoryReadOnlyAuthority() -> 
         ".tmp/cve-installed/bin/python -I tools/cve_https_acceptance.py" in commands
         and "--require-hashes" in commands
     ), "The source checkpoint bypassed deterministic tests or the exact installed product"
+
+
+def test_BatchCheckpointRequiresOneExplicitMarkerAndExactPullRequestHead() -> None:
+    """Keep the same read-only admission and select a single isolated evidence mode."""
+
+    root = Path(__file__).resolve().parents[2]
+    workflow = yaml.load((root / ".github/workflows/intel-source-acceptance.yml").read_text(),
+                         Loader=yaml.BaseLoader)
+    job = workflow["jobs"]["pinned-cve"]
+    single = "contains(github.event.pull_request.body, '[cve-source-acceptance-checkpoint]')"
+    paired = "contains(github.event.pull_request.body, '[cve-batch-source-acceptance-checkpoint]')"
+    assert " ".join(job["if"].split()) == (
+        "github.event.pull_request.draft && "
+        "github.event.pull_request.head.repo.full_name == github.repository && "
+        f"({single} != {paired})"
+    ), "Batch and single CVE modes require mutually exclusive same-repository Draft admission"
+    steps = job["steps"]
+    assert steps[0]["with"]["ref"] == "${{ github.event.pull_request.head.sha }}", (
+        "The checkpoint must build the exact requested source revision"
+    )
+    batchStep = next(step for step in steps if step.get("if") == paired)
+    assert batchStep["timeout-minutes"] == "2" and (
+        'test "$(git rev-parse HEAD)" = "$ACCEPTANCE_HEAD"' in batchStep["run"]
+        and ".tmp/cve-installed/bin/python -I tools/cve_https_acceptance.py" in batchStep["run"]
+        and "--batch-wheel functional-evidence/cve-wheel/*.whl" in batchStep["run"]
+    ), "Batch verification lost its bounded exact-head installed wheel"
+    assert sum(step.get("if") == single for step in steps) == 1, (
+        "The single-record receive must run only in its own explicitly selected mode"
+    )
+    assert "pinned-cve-https-batch-source-acceptance" in steps[-1]["with"]["name"], (
+        "Paired evidence must have a separate custody artifact name"
+    )
+
+
+def BatchWheel(temporaryPath: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Own a disposable wheel and installed byte seam for exact-source verification."""
+
+    root = Path(__file__).resolve().parents[2]
+    prefix = temporaryPath / "isolated-venv"
+    package = prefix / "fuzzy1337"
+    package.mkdir(parents=True)
+    wheel = temporaryPath / "owned-wheel.whl"
+
+    with ZipFile(wheel, "w") as archive:
+        for name in acceptance.BATCH_MODULES:
+            relative = "fuzzy1337/" + name
+            data = (root / "src" / relative).read_bytes()
+            (package / name).write_bytes(data)
+            archive.writestr(relative, data)
+
+    monkeypatch.setattr(acceptance.sys, "prefix", str(prefix))
+    monkeypatch.setattr(acceptance.batch, "__file__", str(package / "intelligence_cve_batch.py"))
+
+    return wheel
+
+
+def BatchBoundary(monkeypatch: pytest.MonkeyPatch, failSecond: bool = False) -> list[str]:
+    """Use the actual batch SDK and store beneath an owned deterministic receiver."""
+
+    identifiers = ("CVE-1900-9999", "CVE-1900-9998")
+    payloads = tuple(OwnedCvePayload(identifier) for identifier in identifiers)
+    pins = tuple((identifier, len(payload), hashlib.sha256(payload).hexdigest())
+                 for identifier, payload in zip(identifiers, payloads, strict=True))
+    monkeypatch.setattr(acceptance, "BATCH_PINS", pins)
+    calls: list[str] = []
+
+    def Receive(url: str, maximum: int, timeout: float) -> tuple[bytes, str, int | None]:
+        """Admit each exact fixture locator once, in caller order, with its declared bound."""
+
+        index = len(calls)
+        identifier, size, digest = pins[index]
+        source = remote.CveHttpsSource(acceptance.SOURCE_COMMIT, identifier, digest)
+        assert (url, maximum, timeout) == (source.SourceUrl, size, 30), (
+            "Batch receive changed source, order or independent bounds"
+        )
+        calls.append(identifier)
+
+        if failSecond and index == 1:
+            return b"", "transport-failed", None
+
+        return payloads[index], "succeeded", 200
+
+    monkeypatch.setattr(remote, "ReceiveIsolatedHttps", Receive)
+
+    return calls
+
+
+def test_BatchCheckpointRetainsSuccessfulOriginalReparseAfterMove(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Require both original source members and byte-preserving read-only relocation."""
+
+    batchWheel = BatchWheel(tmp_path, monkeypatch)
+    calls = BatchBoundary(monkeypatch)
+    output = tmp_path / "complete"
+    assert acceptance.Main(["--batch-wheel", str(batchWheel), "--output", str(output)]) == 0, (
+        "Complete original batch proof did not reach the acceptance entry point"
+    )
+    terminal = json.loads((output / "batch-terminal.json").read_bytes())
+    accepted = json.loads((output / "acceptance.json").read_bytes())
+    assert terminal["batch_state"] == "succeeded" and accepted["reparsed_members"] == 2 and (
+        accepted["offline_relocated_reopen"] and accepted["canonical_model_unchanged"]
+    ), "Acceptance lost the exact member count, offline proof or canonical model facts"
+    assert tuple(calls) == ("CVE-1900-9999", "CVE-1900-9998") and (
+        set(terminal["production_hashes"]) == set(acceptance.BATCH_MODULES)
+    ), "Acceptance changed receive order or omitted exercised production hashes"
+    assert (output / "relocated-workspace").is_dir() and not (output / "workspace").exists(), (
+        "Batch acceptance must re-open relocated original evidence"
+    )
+
+
+def test_BatchCheckpointPreservesFailedReceiveAndRefusesAcceptance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep actual partial member custody and transport failure without a success record."""
+
+    batchWheel = BatchWheel(tmp_path, monkeypatch)
+    calls = BatchBoundary(monkeypatch, failSecond=True)
+    output = tmp_path / "failed"
+    assert acceptance.Main(["--batch-wheel", str(batchWheel), "--output", str(output)]) == 1, (
+        "An incomplete pair cannot pass the genuine source checkpoint"
+    )
+    terminal = json.loads((output / "batch-terminal.json").read_bytes())
+    first, second = terminal["members"]
+    assert terminal["batch_state"] == "partial" and first["selection_ack"] == "confirmed", (
+        "The incomplete batch erased the verified first member"
+    )
+    assert second["receive_state"] == "transport-failed" and (
+        second["receipt_ack"] == "confirmed" and second["received_bytes"] == 0
+        and second["selection_ack"] == "not-attempted"
+        and second["http_status"] is None and second["body_complete"] is False
+    ), "The second member lost its original no-HTTP-response acquisition facts"
+    assert len(calls) == 2 and not (output / "acceptance.json").exists(), (
+        "The failed receive retried or gained successful acceptance"
+    )
+    assert json.loads((output / "acceptance-failed.json").read_bytes()) == {
+        "status": "failed", "profile": acceptance.BATCH_PROFILE,
+    }, "The batch failure must remain distinct from single-record acceptance"
+
+
+@pytest.mark.parametrize("mutation", ["wheel", "installed", "source-path"])
+def test_BatchRefusesUnverifiedProductionBeforeReceive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """Fail before acquisition when installed production bytes lack exact wheel identity."""
+
+    batchWheel = BatchWheel(tmp_path, monkeypatch)
+    calls = BatchBoundary(monkeypatch)
+    installed = Path(acceptance.batch.__file__)
+
+    if mutation == "wheel":
+        batchWheel.write_bytes(b"not a wheel")
+
+    elif mutation == "installed":
+        installed.write_bytes(b"modified install")
+
+    else:
+        monkeypatch.setattr(acceptance.batch, "__file__", str(tmp_path / "outside.py"))
+
+    output = tmp_path / "preflight-failed"
+    assert acceptance.Main(["--batch-wheel", str(batchWheel), "--output", str(output)]) == 1, (
+        "The checkpoint accepted an unverified production installation"
+    )
+    assert calls == [] and not (output / "batch-terminal.json").exists(), (
+        "Production byte preflight must precede all source operations"
+    )
+
+
+@pytest.mark.parametrize("mutation", ["unconfirmed-handle", "mixed-receipt", "replay-write"])
+def test_BatchCheckpointRejectsInconsistentOriginalCustody(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """Refuse altered member custody and relocated reads that modify original files."""
+
+    batchWheel = BatchWheel(tmp_path, monkeypatch)
+    calls = BatchBoundary(monkeypatch)
+    acquire = acceptance.batch.AcquireHttpsCveBatch
+    reopen = remote.LoadHttpsCveSelection
+
+    def AlteredAcquire(*args: object, **kwargs: object):
+        """Return real SDK outcomes with exactly one altered acceptance boundary."""
+
+        actual = acquire(*args, **kwargs)
+        first, second = actual.members
+
+        if mutation == "unconfirmed-handle":
+            first = replace(first, rawAck=remote.CveHttpsAcknowledgement.UNKNOWN)
+
+        elif mutation == "mixed-receipt":
+            first = replace(first, outcome=replace(first.outcome, receipt=second.outcome.receipt))
+
+        return replace(actual, members=(first, second))
+
+    def AlteredReopen(root: Path, selection: str, receipt: str):
+        """Exercise the actual receipt join before an optional forbidden read-side write."""
+
+        original = reopen(root, selection, receipt)
+
+        if mutation == "replay-write":
+            (root / "unexpected-replay-write").write_bytes(b"changed")
+
+        return original
+
+    monkeypatch.setattr(acceptance.batch, "AcquireHttpsCveBatch", AlteredAcquire)
+    monkeypatch.setattr(remote, "LoadHttpsCveSelection", AlteredReopen)
+    output = tmp_path / "custody-failed"
+    assert acceptance.Main(["--batch-wheel", str(batchWheel), "--output", str(output)]) == 1, (
+        "Mismatched custody or a replay write cannot become accepted source evidence"
+    )
+    assert len(calls) == 2 and (output / "batch-terminal.json").is_file() and (
+        not (output / "acceptance.json").exists()
+    ), "The checkpoint erased actual terminal evidence or re-acquired on failed replay"
