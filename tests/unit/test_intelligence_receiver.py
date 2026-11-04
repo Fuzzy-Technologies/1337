@@ -179,7 +179,7 @@ def test_ZipMediaGatePreservesOriginalBytesAndExactNegotiation(monkeypatch, medi
     body = b"PK\x03\x04\x00owned-original\xff"
     raw = b"HTTP/1.1 200 OK\r\nContent-Type: " + media + b"\r\n\r\n" + body
     result, output, connection = ReceiveWire(monkeypatch, raw)
-    assert (result, output) == (0, b'{"status": 200}\n' + body)
+    assert (result, output) == (0, b'{"status": 200}\n' + body), "ZIP bytes or framing changed"
     assert connection.headers == {
         "Accept": "application/zip, application/octet-stream", "Accept-Encoding": "identity",
         "Connection": "close", "User-Agent": "1337-intelligence-acquisition/1",
@@ -223,8 +223,8 @@ def test_ZipMediaRejectsNonStringParsedValues(monkeypatch, values):
     ))
     output = io.BytesIO()
     assert transport.Receive("https://example.invalid/x", 100, 1, output,
-                             accept_kind="zip") == transport.FORMAT_EXIT
-    assert output.getvalue() == b'{"status": 200}\n'
+                             accept_kind="zip") == transport.FORMAT_EXIT, "Invalid media admitted"
+    assert output.getvalue() == b'{"status": 200}\n', "Rejected media released body bytes"
 
 
 @pytest.mark.parametrize("wire,maximum,state,body,reads", [
@@ -252,8 +252,8 @@ def test_ZipModePreservesStatusFramingAndFiniteBodyLimits(
     """ZIP admission cannot weaken earlier status/framing gates or bounded streaming failures."""
 
     result, output, connection = ReceiveWire(monkeypatch, wire, maximum)
-    assert result == state and output.partition(b"\n")[2] == body
-    assert bool(connection.read_calls) is reads
+    assert result == state and output.partition(b"\n")[2] == body, "ZIP status or bounds changed"
+    assert bool(connection.read_calls) is reads, "ZIP body read violated admission ordering"
 
 
 @pytest.mark.parametrize("kind,accept", [("json", "application/json"),
@@ -265,8 +265,8 @@ def test_LegacyModesStillIgnoreMissingOrMalformedMedia(monkeypatch, kind, accept
         result, output, connection = ReceiveWire(
             monkeypatch, b"HTTP/1.1 200 OK\r\n" + fields + b"\r\noriginal", kind=kind,
         )
-        assert (result, output) == (0, b'{"status": 200}\noriginal')
-        assert connection.headers["Accept"] == accept
+        assert (result, output) == (0, b'{"status": 200}\noriginal'), "Legacy media changed"
+        assert connection.headers["Accept"] == accept, "Legacy resource negotiation changed"
 
 
 @pytest.mark.parametrize("payload,exit_code,expected", [
@@ -286,7 +286,7 @@ def test_ZipParentPreservesBoundedStatusOnlyProtocol(
            f"import sys\nsys.stdout.buffer.write({payload!r})\nraise SystemExit({exit_code})\n")
     assert receiver.ReceiveIsolatedHttps(
         "https://example.invalid/owned.zip", 64, 2.0, accept_kind="zip",
-    ) == expected
+    ) == expected, "ZIP parent changed worker protocol or partial-result semantics"
 
 
 def test_ZipSocketTimeoutPreservesObservedStatusAndNoBody(monkeypatch):
@@ -302,8 +302,8 @@ def test_ZipSocketTimeoutPreservesObservedStatusAndNoBody(monkeypatch):
     ))
     output = io.BytesIO()
     assert transport.Receive("https://example.invalid/x", 100, 1, output,
-                             accept_kind="zip") == transport.TIMEOUT_EXIT
-    assert output.getvalue() == b'{"status": 200}\n' and connection.closed
+                             accept_kind="zip") == transport.TIMEOUT_EXIT, "Body timeout was hidden"
+    assert output.getvalue() == b'{"status": 200}\n' and connection.closed, "Timeout cleanup failed"
 
 
 def test_ZipTotalDeadlineKillsAndDrainsTheRealWorker(tmp_path, monkeypatch):
@@ -319,7 +319,7 @@ def test_ZipTotalDeadlineKillsAndDrainsTheRealWorker(tmp_path, monkeypatch):
     def Popen(*args, **kwargs):
         """Capture the actual child for termination and isolation assertions."""
 
-        assert kwargs["env"] == {} and args[0][1:3] == ["-I", "-S"]
+        assert kwargs["env"] == {} and args[0][1:3] == ["-I", "-S"], "ZIP worker lost isolation"
         process = original(*args, **kwargs)
         processes.append(process)
 
@@ -328,5 +328,5 @@ def test_ZipTotalDeadlineKillsAndDrainsTheRealWorker(tmp_path, monkeypatch):
     monkeypatch.setattr(receiver.subprocess, "Popen", Popen)
     assert receiver.ReceiveIsolatedHttps(
         "https://example.invalid/owned.zip", 64, 1.0, accept_kind="zip",
-    ) == (b"partial", "timed-out", 200)
-    assert len(processes) == 1 and processes[0].poll() is not None
+    ) == (b"partial", "timed-out", 200), "Total deadline lost observed partial bytes or status"
+    assert len(processes) == 1 and processes[0].poll() is not None, "Timed-out ZIP worker survived"
