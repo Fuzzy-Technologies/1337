@@ -33,13 +33,13 @@ results from its individually confirmed calls.
 
 Compare verified complete worker body digests only:
 
-| Evidence | Assessment |
-| --- | --- |
-| Baselines differ | Unstable baseline |
-| Stable baselines and equal true and false samples | No differential observed |
-| Stable baselines equal the true sample and differ from the false sample | Differential candidate |
-| Other complete combinations | Inconclusive |
-| A missing or unsuccessful sample | Partial |
+| Evidence                                                                | Assessment               |
+| ----------------------------------------------------------------------- | ------------------------ |
+| Baselines differ                                                        | Unstable baseline        |
+| Stable baselines and equal true and false samples                       | No differential observed |
+| Stable baselines equal the true sample and differ from the false sample | Differential candidate   |
+| Other complete combinations                                             | Inconclusive             |
+| A missing or unsuccessful sample                                        | Partial                  |
 
 A candidate describes this finite response pattern. Bodies are transient in the
 current worker contract. Digest metadata supports only this comparison, while
