@@ -8,6 +8,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 31 — v0.4.31 — 2026-11-04
+
+#### Digest
+
+- Keep frameset documents out of native lexical reflection matches.
+
+#### Fixed
+
+- Exclude parsed frameset openers and retain matches when the same text occurs
+  only in a comment or attribute.
+
+
 ### Patch 30 — v0.4.30 — 2026-11-04
 
 #### Digest

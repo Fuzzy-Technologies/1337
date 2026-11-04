@@ -43,7 +43,10 @@ class ReflectionParser(HTMLParser):
             attrs: Parsed attributes. The raw marker spelling determines eligibility.
         """
 
-        if tag in _INERT:
+        if tag == "frameset":
+            self.unsupported = True
+
+        elif tag in _INERT:
             self.inert.append(tag)
 
         elif tag == REFLECTION_TAG and not self.inert:
@@ -75,8 +78,8 @@ class ReflectionParser(HTMLParser):
         if tag in _INERT:
             self.inert.append(tag)
 
-        if tag == "script":
-            # HTML ignores the slash, while HTMLParser does not enter script-data mode.
+        if tag in {"script", "frameset"}:
+            # The slash cannot establish ordinary HTML content after either opener.
             self.unsupported = True
 
     def handle_endtag(self, tag: str) -> None:

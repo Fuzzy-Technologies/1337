@@ -347,10 +347,11 @@ Select the exact scoped loopback URL from the
 The check records one lexical observation from the original worker evidence.
 Positive evidence is the exact inert probe element in complete UTF-8 HTML.
 The fixed and decoy controls exercise escaping, comment insertion and script
-data. Documents with ambiguous double-escaped script data or a self-closing
-script opener cannot establish a match in this lexical profile. The malformed
-or unavailable controls produce failed jobs. Browser execution and XSS Findings
-are outside this profile. See [ADR 0143](adr/0143-owned-html-reflection-observation.md).
+data. Documents with ambiguous double-escaped script data, a self-closing
+script opener or a parsed frameset opener cannot establish a match in this
+lexical profile. The malformed or unavailable controls produce failed jobs.
+Browser execution and XSS Findings are outside this profile.
+See [ADR 0143](adr/0143-owned-html-reflection-observation.md).
 
 ## Owned SQL boolean response sampling
 
