@@ -8,6 +8,27 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 16 — v0.4.16 — 2026-11-04
+
+#### Digest
+
+- Add an opt-in ZIP media gate to the internal intelligence transport as a
+  prerequisite for future bounded remote CWE acquisition.
+
+#### Added
+
+- Admit the fixed `zip` resource preference while retaining exact original
+  bytes, status-only worker framing and existing finite transport limits.
+- Exercise actual standard-library response parsing and isolated worker argv,
+  malformed protocol, partial timeout and cleanup with deterministic fixtures.
+
+#### Security
+
+- Refuse missing, duplicate, parameterized, folded, non-ASCII or oversized ZIP
+  media values before reading a response body. Preserve legacy JSON/gzip
+  headers, argv and media behavior; add no remote CWE SDK or HTTPS acceptance.
+
+
 ### Patch 13 — v0.4.13 — 2026-11-04
 
 #### Digest
