@@ -1022,3 +1022,9 @@ module = "fuzzy1337.demo_assessment"
 source = "src/fuzzy1337/demo_assessment.py"
 mode = "authored"
 page = "api/fuzzy1337.demo_assessment.md"
+
+[[surfaces]]
+module = "fuzzy1337.ci_native_web"
+source = "src/fuzzy1337/ci_native_web.py"
+mode = "authored"
+page = "api/fuzzy1337.ci_native_web.md"

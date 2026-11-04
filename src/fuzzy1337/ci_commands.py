@@ -91,18 +91,24 @@ def CiParser() -> argparse.ArgumentParser:
     parser.add_argument("action", choices=("scan",))
     parser.add_argument("workspace", type=Path)
     parser.add_argument("--profile", choices=("synthetic-dockerfile", "synthetic-kubernetes",
-                                             "synthetic-image", "native-trivy"), required=True)
+                                             "synthetic-image", "native-trivy", "native-web"),
+                        required=True)
     parser.add_argument("--logical-path")
     parser.add_argument("--source", type=Path)
     parser.add_argument("--archive")
-    parser.add_argument("--executable", type=Path, required=True)
+    parser.add_argument("--executable", type=Path)
     parser.add_argument("--producer", type=Path)
     parser.add_argument("--material", type=Path)
     parser.add_argument("--cache-directory")
     parser.add_argument("--policy", type=Path)
     parser.add_argument("--scope", required=True)
     parser.add_argument("--owner", required=True)
-    parser.add_argument("--read-consent-reference", required=True)
+    parser.add_argument("--read-consent-reference")
+    parser.add_argument("--check", choices=("git-head-exposure", "prometheus-exposition"))
+    parser.add_argument("--target")
+    parser.add_argument("--request-timeout", type=float)
+    parser.add_argument("--confirm-plan")
+    parser.add_argument("--confirmation-reference")
     parser.add_argument("--approve-safe-configuration", action="store_true")
     parser.add_argument("--approve-safe-image", action="store_true")
     parser.add_argument("--timeout", type=int, default=30)
@@ -259,6 +265,18 @@ def RunCiCommands(
 
     try:
         options = parser.parse_args(arguments)
+
+        if options.profile == "native-web":
+            from fuzzy1337.ci_native_web import RunNativeWebCiCommands
+
+            return RunNativeWebCiCommands(options, output, json_output=json_output)
+
+        if options.executable is None or options.read_consent_reference is None or any(
+            value is not None for value in (options.check, options.target, options.request_timeout,
+                options.confirm_plan, options.confirmation_reference)
+        ):
+            raise ReportFailure("configuration", 2)
+
         criterion = CiFindingCriterion(tuple(FindingSeverity(item) for item in options.severity),
             tuple(FindingStatus(item) for item in options.status), options.max_matches,
             options.acknowledge_unassessed_completeness)
