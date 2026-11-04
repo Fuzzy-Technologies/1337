@@ -23,8 +23,10 @@ from fuzzy1337.adapters.native_web import (
     NATIVE_FILE_CANARY_CAPABILITY,
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_FILE_CANARY_PROFILE,
+    NATIVE_HTML_REFLECTION_CAPABILITY,
     NATIVE_PROMETHEUS_CAPABILITY,
     NATIVE_PROMETHEUS_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CAPABILITY,
     NATIVE_WEB_CAPABILITY,
     NATIVE_WEB_CHECK_ID,
     CanonicalRecord,
@@ -297,6 +299,8 @@ def test_DescriptorRequiresOnlyItsDeclaredStandardChecks() -> None:
     assert adapter.Descriptor.capabilities == (
         NATIVE_WEB_CAPABILITY, NATIVE_FILE_CANARY_CAPABILITY, NATIVE_PROMETHEUS_CAPABILITY,
         NATIVE_DIRECTORY_INDEX_CAPABILITY,
+        NATIVE_HTML_REFLECTION_CAPABILITY,
+        NATIVE_SQL_BOOLEAN_SAMPLE_CAPABILITY,
     ), (
         "The native descriptor silently added a hidden execution capability."
     )

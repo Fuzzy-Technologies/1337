@@ -16641,7 +16641,7 @@ state = "missing"
 id = "symbol:fuzzy1337.adapters.native_web.NativeWebCheck"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/native_web.py"
-sourceHash = "sha256:adef858392c1c794a79a4f52f3b7a678089759d65a8437010b6b62a59bcf3912"
+sourceHash = "sha256:07855dc4c5197dfde3f22942250dfdbe57001527bade0779ffcd6bb551053857"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -27720,6 +27720,72 @@ id = "symbol:fuzzy1337.intelligence_cwe_https_commands.WriteCweHttpsDetails"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/intelligence_cwe_https_commands.py"
 sourceHash = "sha256:f00675a3d2eda4152d40ee733fa90d8e5ffdbebe29dcb4f4c946de7a28bdef25"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.adapters.web-assessment"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.adapters.web_assessment.md"
+sourceHash = "sha256:638d73585875ca84d396553b364bb3a9b57136e37631d559ab9713f21c0545e3"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.web_assessment.MatchesHtmlReflection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/web_assessment.py"
+sourceHash = "sha256:2b320d6ffa9e3cca4daf5186f46d39f4315635d49f82ee1371dec0a8687ccd3a"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.web_assessment.ReflectionParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/web_assessment.py"
+sourceHash = "sha256:8a36fd00e32cf61cc96678ff8b08007464b5a99b58788e176402f3366d09f115"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.web_assessment.ReflectionParser.handle_endtag"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/web_assessment.py"
+sourceHash = "sha256:e3970e5fed39788f4161696e85b15694c3f2ca08b79802563a21044dc8755d75"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.web_assessment.ReflectionParser.handle_startendtag"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/web_assessment.py"
+sourceHash = "sha256:1fd9b3bdad9a43096f544a2e85b0b1ff1433ac2e1f7255129700d4ca85305d7b"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.adapters.web_assessment.ReflectionParser.handle_starttag"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/adapters/web_assessment.py"
+sourceHash = "sha256:917b92e85117e8dd923acf651512814ca9fc2f1d4427553b6b34effe670111ba"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

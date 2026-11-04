@@ -337,3 +337,25 @@ wheel with source/wheel/installed-byte agreement. Final integration still requir
 the actual shared CI gate for the proposed revision. These finite owned cases do
 not establish Juice Shop `/ftp`, arbitrary server formats or complete #53/#59;
 genuine pinned external-app acceptance remains separate.
+
+## Owned HTML reflection profile
+
+The Experimental `scan web --check html-reflection` profile uses
+`web.html-reflection-check` and the existing STANDARD confirmation flow.
+Select the exact scoped loopback URL from the
+[owned target oracle](../labs/targets/web-vulnerable/oracle.v1.json).
+The check records one lexical observation from the original worker evidence.
+Positive evidence is the exact inert probe element in complete UTF-8 HTML.
+The fixed and decoy controls exercise escaping and comment insertion. The
+malformed or unavailable controls produce failed jobs. Browser execution
+and XSS Findings are outside this profile. See [ADR 0143](adr/0143-owned-html-reflection-observation.md).
+
+## Owned SQL boolean response sampling
+
+The Experimental `scan web --check sql-boolean-sample` profile uses
+`web.sql-boolean-sample` and selects one exact URL from the loopback
+[SQLite target oracle](../labs/targets/web-vulnerable/oracle.v1.json). Review
+and confirm every baseline or control request separately. The original worker
+record retains a complete JSON response's digest, status and size. The
+observation has `matched: null` because a single sample cannot establish a
+SQL injection verdict. See [ADR 0144](adr/0144-owned-sql-boolean-response-sampling.md).
