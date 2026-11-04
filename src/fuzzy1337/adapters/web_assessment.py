@@ -52,7 +52,7 @@ class ReflectionParser(HTMLParser):
             if self.lines[line - 1].startswith(REFLECTION_MARKER, column):
                 self.matches += 1
 
-    def _HandleData(self, data: str) -> None:
+    def HandleData(self, data: str) -> None:
         """Exclude script data whose closing boundary the lexical parser cannot establish.
 
         Args:
@@ -62,7 +62,7 @@ class ReflectionParser(HTMLParser):
         if self.inert and self.inert[-1] == "script" and _AMBIGUOUS_SCRIPT_DATA.search(data):
             self.unsupported = True
 
-    handle_data = _HandleData
+    handle_data = HandleData
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         """Treat a trailing slash conservatively for inert HTML elements.
