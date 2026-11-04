@@ -177,14 +177,23 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
     assert " ".join(container["if"].split()) == INTEGRATION_CONDITION, (
         "The complete container gate must retain its original Ready/push condition."
     )
-    command = next(step["run"] for step in container["steps"]
+    gate = next(step for step in container["steps"]
         if step.get("name") == "Run container quality gate")
+    command = gate["run"]
     assert " ".join(command.split()) == (
         'LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" '
         "docker compose --profile quality run --rm quality 1337-dev check --fail-fast "
         "--suite-timeout 900"
     ), "Container CI must keep mapped ownership and run the same complete supported check."
     assert container["timeout-minutes"] == 20, "Container CI must retain its finite job ceiling."
+    diagnostic = container["steps"][container["steps"].index(gate) + 1]
+    assert diagnostic["if"] == f"failure() && steps.{gate['id']}.outcome == 'failure'", (
+        "Diagnostic upload must follow and depend on the actual failed container gate."
+    )
+    assert diagnostic["with"]["path"].split() == [
+        "coverage/parallel-tests.progress/summary.json",
+        "coverage/serial-tests.progress/summary.json",
+    ], "Only bounded progress summaries may be published by the failure step."
 
     for selected in (full["run"], command):
         assert not any(option in selected for option in (
