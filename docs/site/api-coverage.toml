@@ -1042,3 +1042,10 @@ module = "fuzzy1337.ci_native_web"
 source = "src/fuzzy1337/ci_native_web.py"
 mode = "authored"
 page = "api/fuzzy1337.ci_native_web.md"
+
+[[surfaces]]
+# Internal bounded lexical predicate for the owned HTML reflection profile.
+module = "fuzzy1337.adapters.web_assessment"
+source = "src/fuzzy1337/adapters/web_assessment.py"
+mode = "authored"
+page = "api/fuzzy1337.adapters.web_assessment.md"
