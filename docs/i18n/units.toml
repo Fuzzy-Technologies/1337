@@ -25872,7 +25872,7 @@ state = "missing"
 id = "page:api.fuzzy1337.intelligence-cve-remote"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_cve_remote.md"
-sourceHash = "sha256:e94c836a48ebecca8161a5126f59ef2fcfe4308d66464e2aed824575227e42c0"
+sourceHash = "sha256:9e1665d47051a3929beb7731d059588476258406af6a8f32e91d72349d57a31f"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
@@ -27786,6 +27786,149 @@ id = "symbol:fuzzy1337.adapters.web_assessment.ReflectionParser.handle_starttag"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/adapters/web_assessment.py"
 sourceHash = "sha256:917b92e85117e8dd923acf651512814ca9fc2f1d4427553b6b34effe670111ba"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.intelligence-cve-batch"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_cve_batch.md"
+sourceHash = "sha256:e04c80189b97d10ec30ef24c819a7cf5a9fbf50e790a02bd4e96ae713b0cf0d6"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_batch.AcquireHttpsCveBatch"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_batch.py"
+sourceHash = "sha256:b10b441db4f79990495b5f2205228a2a4b4397ef346d39770f44ebeb59887f64"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_batch.CveHttpsBatchMember"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_batch.py"
+sourceHash = "sha256:b940fcd081addeba01f47c6aa112032f98a74d0bec1ee52d375bbc74a644a919"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_batch.CveHttpsBatchMemberState"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_batch.py"
+sourceHash = "sha256:c548a9e52a355628af13bff6acc86545c7fea237e48d24bc545294f8d8628aab"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_batch.CveHttpsBatchOutcome"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_batch.py"
+sourceHash = "sha256:2bde22fc77b512a1d8dd936661a6aa3b11e010e010cfec6c33c7d26daff880bf"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_batch.AcceptMember"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_batch.py"
+sourceHash = "sha256:2e4fbfd57b3016a6499f1c961f9f6e7002c211d8cec4ae0ed76cb30821a7a1c4"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_batch.MatchesHandles"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_batch.py"
+sourceHash = "sha256:3551c2e9dc631a60906380884319c47ba0fa67407e7805016ec51d17053f1b25"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_batch.ValidateBatch"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_batch.py"
+sourceHash = "sha256:196a014dd2a181836d6e9227dc07490e0e7f44ebe19e0b9420762a4903fb652e"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_remote.AcquireHttpsCveSelectionForComposition"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_remote.py"
+sourceHash = "sha256:b42c202ba82f07f6235cbe8fb365b18619decd6fd9d3bd4a9d36b84422f1cbf2"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_remote.CveHttpsOwnershipStop"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_remote.py"
+sourceHash = "sha256:33b37c7ca53ebdcdf911ca764e34be1dc5a36b86ef18f7faa088cea124d38b23"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_remote.CveHttpsReceiveFacts"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_remote.py"
+sourceHash = "sha256:aed31e42942ccb47c713b77b196fd8c08c25743f25f953d5bd04dd00901fa950"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_remote.CveHttpsReceiveFacts.FromOutcome"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_remote.py"
+sourceHash = "sha256:980b7a062bb08dd6ec48146ee6ce099d50602d696298da23fbedd79c18c7f24d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cve_remote.OpenExpectedWorkspace"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cve_remote.py"
+sourceHash = "sha256:54fd12bd07b506b26498dae2254dda9f832f56e0eabc9fb1947f3e5f9d678464"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

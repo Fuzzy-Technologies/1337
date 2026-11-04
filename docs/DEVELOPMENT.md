@@ -257,20 +257,17 @@ container CI checks stop on the first test failure, leaving subsequent work
 unassessed. Successful checks retain every quality phase, test layer and coverage
 requirement, with unchanged worker/per-test defaults and no retries.
 
-The Windows and container CI profiles use a 900-second suite budget and a
-20-minute job limit. Container CI runs the same complete check explicitly as
-`docker compose --profile quality run --rm quality 1337-dev check --fail-fast --suite-timeout 900`
-with the existing local UID/GID mapping. Its previous 600-second aggregate budget
-expired after 9,980 of 9,997 collected tests completed; no assertion failure was
-identified in that incomplete invocation. Per-test deadlines, automatic workers,
-test selection and coverage requirements remain unchanged.
-Recent successful Windows suites took 529–540 seconds; a larger invocation reached
-the previous 600-second bound near completion. Other quality-matrix
-platforms retain the 600-second suite budget and 15-minute job limit. These finite
-CI budgets leave room for later gates and evidence upload; the suite limit applies
-to each pytest invocation rather than all quality phases together. Local defaults
-and focused pre-commit validation are unchanged. A separate collection probe remains
-bounded at 300 seconds.
+The Windows and container CI profiles use a 1200-second suite budget and a
+25-minute job limit. Container CI runs the complete check as
+`docker compose --profile quality run --rm quality 1337-dev check --fail-fast --suite-timeout 1200`
+with the existing local UID/GID mapping. Two complete container attempts reached
+99% at the former 900-second deadline. The Ubuntu Python 3.13 matrix entry uses a
+900-second suite budget and a 20-minute job limit. Other quality-matrix platforms
+use a 600-second suite budget and a 15-minute job limit.
+
+The suite limit applies separately to each pytest invocation. The job limit also
+covers later quality phases and evidence upload. Local validation uses the CLI
+defaults above, and the separate collection probe has a 300-second limit.
 
 The terminal summary is deterministic: `total`, `passed`, `failed`, `skipped`,
 `timeout`, and `duration`. Any failure, timeout, or process-start error produces

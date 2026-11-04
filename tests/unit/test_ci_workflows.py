@@ -193,9 +193,9 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
     assert " ".join(command.split()) == (
         'LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" '
         "docker compose --profile quality run --rm quality 1337-dev check --fail-fast "
-        "--suite-timeout 900"
+        "--suite-timeout 1200"
     ), "Container CI must keep mapped ownership and run the same complete supported check."
-    assert container["timeout-minutes"] == 20, "Container CI must retain its finite job ceiling."
+    assert container["timeout-minutes"] == 25, "Container CI must retain its finite job ceiling."
     diagnostic = container["steps"][container["steps"].index(gate) + 1]
     assert diagnostic["if"] == f"failure() && steps.{gate['id']}.outcome == 'failure'", (
         "Diagnostic upload must follow and depend on the actual failed container gate."
