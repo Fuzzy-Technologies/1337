@@ -135,6 +135,23 @@ directory aliases are allowed. The tool reads no embedded paths, contacts no
 targets and leaves the reports intact. The separate native benchmark report
 with `pack_id` and `cells` uses a different schema.
 
+The [first-party Git acceptance](../tests/functional/test_native_web_checks.py)
+exercises this tool with reports from real, policy-approved scanner jobs on the
+same [version 1 target oracle](../labs/targets/web-vulnerable/oracle.v1.json).
+The baseline executes all four Git cases. The candidate executes the fixed
+control and repeats the exposed check after removing the owned `HEAD` file.
+Only the fixed pair is scored (unchanged true negative). The exposed candidate
+retains its failed execution and duration as `crashed`; the decoy and redirect
+remain `not-run`. None of those three rows receives finite counts. Generated
+`report.json`, `candidate-report.json`, and `comparison.json` are retained under
+`functional-evidence/native-web-checks/`. This exercises reproducibility within
+one scanner build and does not establish performance relative to other scanners.
+
+```bash
+uv run --locked --extra dev pytest tests/functional/test_native_web_checks.py \
+  -k FirstPartyGitChecksMatchIndependentOracleAndDurablyReopen
+```
+
 ## Genuine reviewed web checks
 
 The separate [reviewed web-check acceptance](NUCLEI_WEB_CHECKS.md) executes actual

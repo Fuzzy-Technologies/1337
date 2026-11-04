@@ -9,7 +9,8 @@ import asyncio
 import hashlib
 import json
 import shutil
-import time
+import subprocess
+import sys
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -127,6 +128,132 @@ def PersistNativeMatrix(scenarios, runs):
     return report
 
 
+def NativeComparisonCandidate(root, cases):
+    """Collect a completed control and a failed positive using the same actual native worker."""
+
+    selected = {case["id"]: case for case in cases}
+    runs = []
+
+    with OwnedWebVulnerabilityTarget(root / "target") as service:
+        for scenarioId in ("git-fixed", "git-exposed"):
+            case = selected[scenarioId]
+            broken = scenarioId == "git-exposed"
+
+            if broken:
+                (service.root / "public/.git/HEAD").unlink()
+
+            workspace = root / scenarioId
+            target = NativeWorkspace(workspace, service.Url(case))
+            before = service.Observe()
+            plan, summary = ConfirmedNativeRun(workspace, target)
+            observed = service.Observe()
+            raw = NativeRunEvidence(workspace, plan, summary)
+            assert observed["requests"][len(before["requests"]):] == [case["route"]], (
+                f"{scenarioId}: candidate changed or retried its exact approved GET."
+            )
+            assert {item.role for item in raw} == {"stdout", "stderr", "invocation"}, (
+                f"{scenarioId}: candidate lost a worker stream or the invocation."
+            )
+            assert Findings(LocalModelStore(workspace).Open()) == (), (
+                f"{scenarioId}: fixed or broken target unexpectedly persisted a Finding."
+            )
+            worker = json.loads(next(item.content for item in raw if item.role == "stdout"))
+
+            if broken:
+                assert summary.ExitCode() != 0 and summary.snapshot.state is JobState.FAILED, (
+                    "A target mechanism failure must be a failed native run."
+                )
+                assert summary.snapshot.failure is not None and (
+                    summary.snapshot.failure.code is not JobFailureCode.TIMEOUT
+                ), "The owned HEAD failure must not be mistaken for a timeout."
+                assert observed["errors"] == ["owned-head-unavailable"] and worker == {
+                    "schema_version": 1, "error": "response-policy",
+                }, "The actual target failure and terminal worker response must agree."
+                status = RunStatus.CRASHED
+
+            else:
+                assert summary.ExitCode() == 0 and summary.snapshot.state is JobState.COMPLETED, (
+                    "The actual fixed control must complete as an assessed negative."
+                )
+                assert not observed["errors"] and not observed["file_reads"], (
+                    "The fixed control must deny access without reading the owned HEAD file."
+                )
+                assert worker["status"] == case["expected_status"] and worker["matched"] is False, (
+                    "The actual fixed control must preserve its HTTP status and negative match."
+                )
+                status = RunStatus.COMPLETED
+
+            runs.append(NativeCheckRun(scenarioId, plan.invocation.provider_version, status,
+                summary.duration_seconds, detected_checks=(), evidence=raw))
+
+    return runs
+
+
+def VerifyNativeReportComparison(scenarios, baselineRuns, candidateRuns):
+    """Compare actual saved reports without awarding finite counts to absent or failed runs."""
+
+    baseline = EVIDENCE / "report.json"
+    candidate = EVIDENCE / "candidate-report.json"
+    candidate.write_text(SerializeReport(BuildReport(scenarios, candidateRuns)), encoding="utf-8")
+    original = baseline.read_bytes(), candidate.read_bytes()
+    profile = "owned.native-git.v1"
+    scanner = baselineRuns[0].scanner_id
+    release = baselineRuns[0].release_id
+    assert all(run.release_id == release and run.scanner_id == scanner
+               for run in (*baselineRuns, *candidateRuns)), "Native scanner identity drifted."
+    tool = Path(__file__).resolve().parents[2] / "tools/compare_functional_reports.py"
+    compared = subprocess.run([sys.executable, str(tool), str(baseline), str(candidate),
+        "--scanner", scanner, "--baseline-release", release, "--candidate-release", release,
+        "--baseline-profile", profile, "--candidate-profile", profile],
+        capture_output=True, check=True, timeout=10)
+    (EVIDENCE / "comparison.json").write_bytes(compared.stdout)
+    comparison = json.loads(compared.stdout)
+    assert original == (baseline.read_bytes(), candidate.read_bytes()), (
+        "Offline comparison changed its source reports."
+    )
+    assert (comparison["baseline"]["report_sha256"], comparison["candidate"]["report_sha256"]) == (
+        hashlib.sha256(original[0]).hexdigest(), hashlib.sha256(original[1]).hexdigest(),
+    ), "The comparison must bind the original saved bytes of each report."
+
+    rows = {row["scenario_id"]: row for row in comparison["scenarios"]}
+    assert set(rows) == {scenario.identifier for scenario in scenarios}, (
+        "The comparison must preserve every scenario in the versioned oracle."
+    )
+
+    for side, runs in (("baseline", baselineRuns), ("candidate", candidateRuns)):
+        assert (comparison[side]["release_id"], comparison[side]["profile_id"]) == (
+            release, profile,
+        ), f"{side}: comparison lost the actual scanner release or declared profile."
+        measured = {run.scenario_id: run.duration_seconds for run in runs}
+        assert {scenarioId: row[side]["duration_seconds"] for scenarioId, row in rows.items()} == {
+            scenarioId: measured.get(scenarioId) for scenarioId in rows
+        }, f"{side}: comparison changed a measured duration or invented one for an absent run."
+
+    fixed = rows["git-fixed"]
+    assert fixed["state"] == "comparable" and fixed["reason"] is None, (
+        "Two completed fixed controls on the same oracle must be comparable."
+    )
+    assert fixed["checks"] == [
+        {"check_id": "git-fixed", "baseline": "tn", "candidate": "tn", "change": "unchanged"},
+    ], "Both fixed controls must retain an unchanged true negative."
+    assert fixed["baseline"]["finite_counts"] == fixed["candidate"]["finite_counts"] == (
+        {"tp": 0, "fp": 0, "fn": 0, "tn": 1}
+    ), "Only the one fixed check may contribute a finite count on each side."
+
+    for scenarioId in ("git-exposed", "git-decoy", "git-redirect"):
+        row = rows[scenarioId]
+        failed = scenarioId == "git-exposed"
+        assert row["state"] == "incomparable" and not row["checks"], (
+            f"{scenarioId}: an unassessed candidate must have no per-check deltas."
+        )
+        assert (row["reason"], row["candidate"]["state"]) == (
+            ("incomplete-run", "crashed") if failed else ("missing-run", "not-run")
+        ), f"{scenarioId}: comparison confused a missing run and an actual failed run."
+        assert row["baseline"]["state"] == "completed" and (
+            row["baseline"]["finite_counts"] is row["candidate"]["finite_counts"] is None
+        ), f"{scenarioId}: comparison invented finite counts without two completed runs."
+
+
 def HoldOwnedFileRead(service, monkeypatch):
     """Pause the owned target read until released, without changing scanner behavior."""
 
@@ -150,7 +277,7 @@ def HoldOwnedFileRead(service, monkeypatch):
 
 
 def test_FirstPartyGitChecksMatchIndependentOracleAndDurablyReopen(tmp_path):
-    """Run actual native checks, score persisted Findings, and verify original worker evidence."""
+    """Verify actual native Findings, original worker evidence, and offline report comparison."""
 
     metadata = Oracle()
     cases = [case for case in metadata["cases"] if case["family"] == "git"]
@@ -168,7 +295,6 @@ def test_FirstPartyGitChecksMatchIndependentOracleAndDurablyReopen(tmp_path):
             assert plan.invocation.adapter_id == NATIVE_WEB_PROVIDER_ID, (
                 "Native acceptance must run the packaged first-party worker rather than Nuclei."
             )
-            started = time.monotonic()
             summary = asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned",
                 NativePolicy, confirmation=PolicyConfirmation(
                     plan.policy_plan.intent_sha256, "approval:owned-" + case["id"])))
@@ -183,7 +309,7 @@ def test_FirstPartyGitChecksMatchIndependentOracleAndDurablyReopen(tmp_path):
             )
             raw = NativeRunEvidence(root, plan, summary)
             runs.append(NativeCheckRun(case["id"], plan.invocation.provider_version, status,
-                time.monotonic() - started, detected_checks=detected, evidence=raw))
+                summary.duration_seconds, detected_checks=detected, evidence=raw))
             report = PersistNativeMatrix(scenarios, runs)
             output = EVIDENCE / case["id"]
             output.mkdir(parents=True, exist_ok=True)
@@ -249,6 +375,8 @@ def test_FirstPartyGitChecksMatchIndependentOracleAndDurablyReopen(tmp_path):
     assert not service.root.exists() and not service.thread.is_alive(), (
         "Native functional acceptance must remove owned files and join its target thread."
     )
+    VerifyNativeReportComparison(scenarios, runs,
+        NativeComparisonCandidate(tmp_path / "candidate", cases))
 
 
 def test_NativeCheckRequiresConfirmationBeforeAnyTargetContact(tmp_path):
