@@ -76,7 +76,7 @@ def IsFrameworkFunction(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Return whether Python or a framework owns a callback name."""
 
     name = node.name
-    is_pytest_fixture = any(
+    isPytestFixture = any(
         (isinstance(decorator, ast.Name) and decorator.id == "fixture")
         or (isinstance(decorator, ast.Attribute) and decorator.attr == "fixture")
         or (
@@ -87,7 +87,7 @@ def IsFrameworkFunction(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
         for decorator in node.decorator_list
     )
     return (
-        is_pytest_fixture
+        isPytestFixture
         or name in FRAMEWORK_FUNCTIONS
         or name.startswith("do_")
         or (name.startswith("__") and name.endswith("__"))
@@ -202,11 +202,11 @@ def test_ProjectOwnedIdentifiersFollowStyleContract():
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if node.name.startswith("test_"):
-                    valid_name = TEST_FUNCTION_PATTERN.fullmatch(node.name)
+                    validName = TEST_FUNCTION_PATTERN.fullmatch(node.name)
 
                 else:
-                    valid_name = IsFrameworkFunction(node) or PASCAL_PATTERN.fullmatch(node.name)
-                if not valid_name:
+                    validName = IsFrameworkFunction(node) or PASCAL_PATTERN.fullmatch(node.name)
+                if not validName:
                     violations.append(f"{Relative(path)}:{node.lineno}: function {node.name}")
 
                 arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
@@ -267,8 +267,8 @@ def test_NoCyrillicTextAppearsInPythonSources():
 
     violations = []
     for path in PythonFiles():
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        for lineNumber, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             if CYRILLIC_PATTERN.search(line):
-                violations.append(f"{Relative(path)}:{line_number}")
+                violations.append(f"{Relative(path)}:{lineNumber}")
 
     assert not violations, "Cyrillic text found in Python sources:\n" + "\n".join(violations)

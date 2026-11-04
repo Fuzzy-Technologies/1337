@@ -45,7 +45,7 @@ def ProbeExternalTarget(lab: ExternalTargetLab) -> dict[str, object]:
         ),
     )
     started = time.monotonic()
-    observation_start = len(lab.observations)
+    observationStart = len(lab.observations)
     detected = []
     failure = ""
 
@@ -73,12 +73,12 @@ def ProbeExternalTarget(lab: ExternalTargetLab) -> dict[str, object]:
         failure = f"{type(error).__name__}: {error}"
 
     duration = time.monotonic() - started
-    failed_requests = [
-        observation for observation in lab.observations[observation_start:] if observation.error
+    failedRequests = [
+        observation for observation in lab.observations[observationStart:] if observation.error
     ]
     status = (
-        RunStatus.TIMED_OUT if any(observation.timed_out for observation in failed_requests)
-        else RunStatus.CRASHED if failure or failed_requests else RunStatus.COMPLETED
+        RunStatus.TIMED_OUT if any(observation.timed_out for observation in failedRequests)
+        else RunStatus.CRASHED if failure or failedRequests else RunStatus.COMPLETED
     )
     run = FunctionalRun(
         scenario_id=oracle.identifier,

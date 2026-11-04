@@ -342,8 +342,8 @@ class SyntheticConfigurationWorkflow:
             context.CheckCancellation()
             phase = JobFailureCode.AUTHORIZATION
             self.CurrentContext()
-            stage_root = self.workspace_root / ("configuration-stage-" + uuid4().hex)
-            stage = self.selection.Stage(stage_root)
+            stageRoot = self.workspace_root / ("configuration-stage-" + uuid4().hex)
+            stage = self.selection.Stage(stageRoot)
             prepared = PrepareArtifact(stage, self.workspace_root,
                                        timeout_seconds=self.timeout_seconds)
             selected = stage.input.manifest.files[0]
@@ -523,8 +523,8 @@ async def RunSyntheticConfigurationScan(workspace_root: Path, scope_id: str, own
 
     store = LocalWorkspaceStore(workspace_root)
     workspace = store.Open()
-    model_store = LocalModelStore(store.root)
-    model = model_store.Open()
+    modelStore = LocalModelStore(store.root)
+    model = modelStore.Open()
     scope = LocalScopeStore(store.root).Open(scope_id)
     capability = ProfileCapability(selection.profile)
     policy = ImpactPolicy("synthetic-configuration-safe-v1", permissions=(CapabilityPermission(
@@ -545,7 +545,7 @@ async def RunSyntheticConfigurationScan(workspace_root: Path, scope_id: str, own
     workflow = SyntheticConfigurationWorkflow(store.root, scope_id, owner_reference, selection,
         policy, timeout_seconds, workspace, model, Snapshot, clock)
     job = ScanJob(spec, workflow, evidence_store=LocalEvidenceStore(store.root / "evidence"))
-    started_at = datetime.now(UTC).isoformat()
+    startedAt = datetime.now(UTC).isoformat()
     started = time.monotonic()
     first_update: float | None = None
     cursor = -1
@@ -583,7 +583,7 @@ async def RunSyntheticConfigurationScan(workspace_root: Path, scope_id: str, own
         raise
 
     snapshot = await job.Wait()
-    actual = model_store.Open()
+    actual = modelStore.Open()
     report = None
 
     if report_format is not None and report_output is not None and (
@@ -597,7 +597,7 @@ async def RunSyntheticConfigurationScan(workspace_root: Path, scope_id: str, own
                                             model_revision=actual.revision,
                                     failure="scan-not-completed")
 
-    return ConfigurationScanSummary(snapshot, started_at, datetime.now(UTC).isoformat(),
+    return ConfigurationScanSummary(snapshot, startedAt, datetime.now(UTC).isoformat(),
         time.monotonic() - started, first_update, actual.revision,
         tuple((kind.value, len(actual.Objects(kind))) for kind in ObjectKind),
         job.EventsSince(), tuple(workflow.captures), report)

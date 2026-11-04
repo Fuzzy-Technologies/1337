@@ -229,24 +229,24 @@ def CheckPrepared(engine: ArtifactPolicyEngine, prepared: PreparedLocalImageOper
     if {item.name for item in config.iterdir()} != {"config.json"}:
         raise ValueError("local image config must contain only the explicit empty operator file")
 
-    config_file = config / "config.json"
-    info = ArtifactPathInfo(config_file)
+    configFile = config / "config.json"
+    info = ArtifactPathInfo(configFile)
 
     if PhysicalIdentity(info) != prepared.config_identity or (
         stat.S_IMODE(info.st_mode) != 0o600 or info.st_size != 3
-        or ReadArtifactFile(config_file, "config.json", max_bytes=3).sha256
+        or ReadArtifactFile(configFile, "config.json", max_bytes=3).sha256
         != hashlib.sha256(b"{}\n").hexdigest()
     ):
         raise ValueError("local image operator configuration differs from its fixed empty bytes")
 
-    image_id = None
+    imageId = None
 
     if prepared.operation is not LocalImageOperation.INSPECT:
         resolution = prepared.resolution
-        original_claim = None if resolution is None else EngineState(engine).resolutions.get(
+        originalClaim = None if resolution is None else EngineState(engine).resolutions.get(
             resolution)
-        prior = (EngineState(engine).claims.get(original_claim)
-                 if original_claim is not None else None)
+        prior = (EngineState(engine).claims.get(originalClaim)
+                 if originalClaim is not None else None)
 
         if resolution is None or prior is None or not prior.completed or (
             prior.prepared.operation is not LocalImageOperation.INSPECT
@@ -257,7 +257,7 @@ def CheckPrepared(engine: ArtifactPolicyEngine, prepared: PreparedLocalImageOper
             raise ValueError("local image requires its original completed inspect association")
 
         if prepared.operation is LocalImageOperation.EXPORT:
-            image_id = resolution.image_config_id
+            imageId = resolution.image_config_id
 
         elif not any(EngineState(engine).claims[claim].completed and (
             EngineState(engine).claims[claim].prepared.observer is prepared.observer
@@ -270,7 +270,7 @@ def CheckPrepared(engine: ArtifactPolicyEngine, prepared: PreparedLocalImageOper
         raise ValueError("local image inspect cannot borrow a prior resolution")
 
     expected = PrepareLocalImageInvocation(prepared.observer.selection, prepared.operation,
-                                          config, image_id=image_id)
+                                          config, image_id=imageId)
 
     if prepared.invocation != expected:
         raise ValueError("local image prepared invocation differs from the fixed recipe")
@@ -295,10 +295,10 @@ def PrepareLocalImageOperation(
         Fresh exact fixed recipe whose future claim cannot be reused.
     """
 
-    image_id = resolution.image_config_id if operation is LocalImageOperation.EXPORT and (
+    imageId = resolution.image_config_id if operation is LocalImageOperation.EXPORT and (
         resolution is not None) else None
     invocation = PrepareLocalImageInvocation(observer.selection, operation,
-                                            scratch / "docker-config", image_id=image_id)
+                                            scratch / "docker-config", image_id=imageId)
     prepared = PreparedLocalImageOperation("local-image-operation:" + uuid4().hex,
         operation, observer, proof, scratch, (PrivateDirectory(scratch),
             PrivateDirectory(scratch / "home"), PrivateDirectory(scratch / "docker-config")),
@@ -359,17 +359,17 @@ def PlanLocalImageOperation(engine: ArtifactPolicyEngine, prepared: PreparedLoca
 
     if prepared.resolution is not None:
         state = EngineState(engine)
-        original_inspect = state.claims[state.resolutions[prepared.resolution]]
-        ValidateLocalImageOperation(engine, original_inspect.grant, original_inspect.prepared,
+        originalInspect = state.claims[state.resolutions[prepared.resolution]]
+        ValidateLocalImageOperation(engine, originalInspect.grant, originalInspect.prepared,
                                     context, at=at)
 
         if prepared.operation is LocalImageOperation.RECHECK:
             for claim in state.exports:
-                original_export = state.claims[claim]
+                originalExport = state.claims[claim]
 
-                if original_export.prepared.resolution is prepared.resolution:
-                    ValidateLocalImageOperation(engine, original_export.grant,
-                                                original_export.prepared, context, at=at)
+                if originalExport.prepared.resolution is prepared.resolution:
+                    ValidateLocalImageOperation(engine, originalExport.grant,
+                                                originalExport.prepared, context, at=at)
 
     return LocalImageOperationPlan(Digest(prepared.Payload()), Digest(scope.ToDict()),
         Digest(context.policy), scope.Reference(), context.policy.Reference(),
@@ -619,13 +619,13 @@ def AcceptLocalImageExecution(engine: ArtifactPolicyEngine, claim: LocalImageExe
     value: LocalImageResolution | LocalImageArchivePin | None = None
 
     if prepared.operation is LocalImageOperation.INSPECT:
-        config_id = InspectConfigId(result.stdout)
+        configId = InspectConfigId(result.stdout)
         selected = prepared.observer.selection.reference
 
-        if selected.startswith("sha256:") and selected != config_id:
+        if selected.startswith("sha256:") and selected != configId:
             raise ValueError("local image original inspect differs from the selected immutable ID")
 
-        value = LocalImageResolution(config_id, hashlib.sha256(result.stdout).hexdigest(),
+        value = LocalImageResolution(configId, hashlib.sha256(result.stdout).hexdigest(),
                                      prepared.proof.operation_reference)
         EngineState(engine).resolutions[value] = claim
 

@@ -116,16 +116,16 @@ def InterpretSeverity(value: float | None) -> SeverityInterpretation:
         raise ValueError("CVSS base score must be a finite number in 0..10 or None")
 
     score = float(value)
-    normalized_value = score / 10.0
-    result = CreateUniversalFuzzyScale().Fuzzify(normalized_value, UniversalFuzzyScalePolicy())
+    normalizedValue = score / 10.0
+    result = CreateUniversalFuzzyScale().Fuzzify(normalizedValue, UniversalFuzzyScalePolicy())
     grades = {item.term.name: float(item.grade) for item in result.memberships}
     memberships = tuple(
         SeverityMembership(level, label, term, grades[term]) for level, label, term in _LEVELS
     )
     selected = result.selectedTerms[0].name
-    selected_membership = next(item for item in memberships if item.library_term == selected)
+    selectedMembership = next(item for item in memberships if item.library_term == selected)
 
     return SeverityInterpretation(
-        "interpreted", score, normalized_value, selected_membership.level,
-        selected_membership.label, memberships, float(result.confidence),
+        "interpreted", score, normalizedValue, selectedMembership.level,
+        selectedMembership.label, memberships, float(result.confidence),
     )

@@ -156,12 +156,12 @@ def Layout(references: tuple[str, ...], transitions: list[dict[str, Any]],
                 ranks[following] = ranks[current] + 1
                 pending.append(following)
 
-    final_rank = max(ranks.values()) + 1
+    finalRank = max(ranks.values()) + 1
     rows: dict[int, int] = {}
     positions = {}
 
     for reference in references:
-        rank = ranks.get(reference, final_rank)
+        rank = ranks.get(reference, finalRank)
         row = rows.get(rank, 0)
         positions[reference] = (320 + rank * 260, 120 + row * 140)
         rows[rank] = row + 1
@@ -262,13 +262,13 @@ def GraphSvg(document: dict[str, Any], model: ModelState) -> tuple[str, str]:
         if state not in {"CONFIRMED", "LIKELY", "POTENTIAL", "BLOCKED", "UNKNOWN"}:
             raise ValueError("selected transition has an unsupported state")
 
-        path, label_x, label_y = EdgeGeometry(positions[transition["source_reference"]],
+        path, labelX, labelY = EdgeGeometry(positions[transition["source_reference"]],
                                             positions[transition["target_reference"]])
         label = state + (" · CUT" if reference in cuts else "")
         svg.append(f'<a class="edge inspect {state}" href="#{Anchor(reference)}" '
             f'aria-label="{escape(label + " " + reference, quote=True)}">'
             f'<path d="{path}" marker-end="url(#arrow)"/>'
-            f'<text x="{label_x}" y="{label_y}" '
+            f'<text x="{labelX}" y="{labelY}" '
             f'text-anchor="middle" textLength="{len(label) * 8}" '
             f'lengthAdjust="spacingAndGlyphs">{escape(label)}</text></a>')
         details.append(f'<details id="{Anchor(reference)}" open><summary>'
@@ -325,8 +325,8 @@ def RenderPathHtml(outcome: dict[str, object], model: ModelState) -> str:
     raw = CanonicalModelJson(outcome) + b"\n"
     embedded = raw.decode("utf-8").replace("&", "\\u0026").replace("<", "\\u003c").replace(
         ">", "\\u003e").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
-    script_hash = base64.b64encode(hashlib.sha256(SCRIPT.encode()).digest()).decode("ascii")
-    csp = ("default-src 'none'; script-src 'sha256-" + script_hash + "'; "
+    scriptHash = base64.b64encode(hashlib.sha256(SCRIPT.encode()).digest()).decode("ascii")
+    csp = ("default-src 'none'; script-src 'sha256-" + scriptHash + "'; "
            "style-src 'unsafe-inline'; "
            "base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'")
     summary = {key: value for key, value in document.items() if key != "analysis"}

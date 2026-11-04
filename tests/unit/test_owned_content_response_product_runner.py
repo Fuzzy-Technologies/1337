@@ -314,8 +314,8 @@ def test_SourceFactsRejectAlteredOrUnboundedDeadlineArithmetic(mutation: str) ->
 
     name, url, main, sentinel, other = SourceFacts()
     record = main["contacts"][0]
-    accepted_at = 31.277030088
-    record.update(accepted_at=accepted_at, deadline_at=accepted_at + 7)
+    acceptedAt = 31.277030088
+    record.update(accepted_at=acceptedAt, deadline_at=acceptedAt + 7)
 
     if mutation in {"earlier", "later"}:
         record["deadline_at"] = math.nextafter(record["deadline_at"],
@@ -325,8 +325,8 @@ def test_SourceFactsRejectAlteredOrUnboundedDeadlineArithmetic(mutation: str) ->
         record.update(accepted_at=-1.0, deadline_at=6.0)
 
     else:
-        kind, clock_name = mutation.split("-")
-        record[clock_name + "_at"] = {"bool": True, "text": "31.277030088",
+        kind, clockName = mutation.split("-")
+        record[clockName + "_at"] = {"bool": True, "text": "31.277030088",
             "nan": math.nan, "infinite": math.inf}[kind]
 
     with pytest.raises(AssertionError, match="Original source deadline is immutable"):

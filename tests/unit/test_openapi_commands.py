@@ -149,11 +149,11 @@ def test_RetainedSelectionCannotAdoptOrChangeOriginalCustody(tmp_path, monkeypat
     if selection == "unknown":
         root, source = context
         evidence = LocalEvidenceStore(root / "evidence")
-        source_context = EvidenceProvenance("openapi-owned", "scope:local", "openapi-import",
+        sourceContext = EvidenceProvenance("openapi-owned", "scope:local", "openapi-import",
             "1", None, (NOW + timedelta(seconds=1)).isoformat(),
             (NOW + timedelta(seconds=1)).isoformat())
         identity = evidence.Put(source.read_bytes(), "openapi-json", "application/json",
-                                 source_context).evidence_id
+                                 sourceContext).evidence_id
 
     arguments = Arguments(context, evidence=identity)
 
@@ -233,16 +233,16 @@ def test_NewOriginalFileCannotPublishAnAliasOfExistingWorkspaceCustody(
     root = context[0]
     source = context[1] if profile == "openapi-json" else context[4]
     workspace = LocalWorkspaceStore(root).Open()
-    scope_id = "local" if profile == "openapi-json" else "owned"
+    scopeId = "local" if profile == "openapi-json" else "owned"
     evidence = LocalEvidenceStore(root / "evidence")
     previous = evidence.Put(source.read_bytes(), "other-original", "application/json",
-        EvidenceProvenance(workspace.workspace_id, "scope:" + scope_id, "owned.original", "1",
+        EvidenceProvenance(workspace.workspace_id, "scope:" + scopeId, "owned.original", "1",
             None, NOW.isoformat(), NOW.isoformat()))
     workspace = LocalWorkspaceStore(root).Save(replace(workspace,
         evidence_references=(previous.reference,),
         evidence_record_references=(previous.evidence_id,)))
     basis = LocalModelStore(root).Open()
-    original_read = LocalEvidenceStore.Read
+    originalRead = LocalEvidenceStore.Read
     roles = []
 
     def Observe(store, reference):
@@ -250,7 +250,7 @@ def test_NewOriginalFileCannotPublishAnAliasOfExistingWorkspaceCustody(
 
         roles.append(reference.role)
 
-        return original_read(store, reference)
+        return originalRead(store, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", Observe)
     arguments = Arguments(context) if profile == "openapi-json" else GraphQlArguments(context)
@@ -412,17 +412,17 @@ def test_GraphQlAndOpenApiOriginalProfilesCoexistAndReplayIndependently(tmp_path
     source = tmp_path / "graphql.json"
     source.write_bytes((Path(__file__).parents[1] /
         "contract/fixtures/graphql_introspection.owned.json").read_bytes())
-    graphql_context = root, LocalModelStore(root).Open(), scope,
-    graphql_context = (*graphql_context, LocalEvidenceStore(root / "evidence"), source)
-    arguments = GraphQlArguments(graphql_context)
+    graphqlContext = root, LocalModelStore(root).Open(), scope,
+    graphqlContext = (*graphqlContext, LocalEvidenceStore(root / "evidence"), source)
+    arguments = GraphQlArguments(graphqlContext)
     arguments[arguments.index("--scope") + 1] = "local"
-    status, first_graphql = GraphQlRun(arguments, clock=lambda: NOW)
-    assert status == 0, first_graphql
-    status, first_openapi = Run(Arguments(context))
-    assert status == 0, first_openapi
-    status, replay = Run(Arguments(context, evidence=first_openapi["evidence_id"]))
+    status, firstGraphql = GraphQlRun(arguments, clock=lambda: NOW)
+    assert status == 0, firstGraphql
+    status, firstOpenapi = Run(Arguments(context))
+    assert status == 0, firstOpenapi
+    status, replay = Run(Arguments(context, evidence=firstOpenapi["evidence_id"]))
     assert status == 0, replay
-    arguments = GraphQlArguments(graphql_context, evidence_id=first_graphql["evidence_id"])
+    arguments = GraphQlArguments(graphqlContext, evidence_id=firstGraphql["evidence_id"])
     arguments[arguments.index("--scope") + 1] = "local"
     status, replay = GraphQlRun(arguments, clock=lambda: NOW)
     assert status == 0, replay

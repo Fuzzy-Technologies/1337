@@ -120,12 +120,12 @@ def AssertContentInstallation(installation: dict, imported: dict, *, commit: str
     for name in SOURCE_MODULES:
         item = observed[name]
         path = AbsoluteRuntimePath(item["path"])
-        module_parts = PurePosixPath(name).parts
-        suffix = ("site-packages", "fuzzy1337", *module_parts)
+        moduleParts = PurePosixPath(name).parts
+        suffix = ("site-packages", "fuzzy1337", *moduleParts)
         assert path.parts[-len(suffix):] == suffix, (
             "Checkout, editable, relative and fallback imports are not installed acceptance")
         assert item["sha256"] == wheel[name], "Imported bytes must match the retained actual wheel"
-        roots.add(path.parents[len(module_parts) - 1])
+        roots.add(path.parents[len(moduleParts) - 1])
 
     assert len(roots) == 1, "All observed imports must belong to one installed package"
 
@@ -291,9 +291,9 @@ def AssertContentSourceFacts(name: str, url: str, main: dict, sentinel: dict, *,
     host = "[::1]" if parsed.hostname == "::1" else "127.0.0.1"
     assert url == f"http://{host}:{parsed.port}{case.path}", "Selected source URL must remain exact"
     other = urlsplit(sentinel_origin)
-    other_host = "[::1]" if other.hostname == "::1" else "127.0.0.1"
+    otherHost = "[::1]" if other.hostname == "::1" else "127.0.0.1"
     assert other.hostname in ("127.0.0.1", "::1") and other.port is not None and (
-        1024 <= other.port <= 65535 and sentinel_origin == f"http://{other_host}:{other.port}"
+        1024 <= other.port <= 65535 and sentinel_origin == f"http://{otherHost}:{other.port}"
         and sentinel_origin != origin), "A distinct literal sentinel owner is required"
     AssertFinalSourceOwner(main, origin, 1)
     AssertFinalSourceOwner(sentinel, sentinel_origin, 0)

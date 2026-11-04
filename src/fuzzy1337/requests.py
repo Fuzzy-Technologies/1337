@@ -164,9 +164,9 @@ class SessionReference:
     def __post_init__(self) -> None:
         """Require bounded identifiers without reading credentials or session state."""
 
-        for field_name in ("workspace_id", "session_id"):
-            value = getattr(self, field_name)
-            RequireIdentifier(value, field_name)
+        for fieldName in ("workspace_id", "session_id"):
+            value = getattr(self, fieldName)
+            RequireIdentifier(value, fieldName)
 
             if len(value) > 64:
                 raise ValueError("session identifiers must not exceed 64 characters")
@@ -224,8 +224,8 @@ class Endpoint:
         """Canonicalize an offline origin/method and reject inline values or ambiguous paths."""
 
         RequireIdentifier(self.workspace_id, "workspace_id")
-        canonical_url = NormalizeTarget(TargetKind.URL, self.origin)
-        parsed = urlsplit(canonical_url)
+        canonicalUrl = NormalizeTarget(TargetKind.URL, self.origin)
+        parsed = urlsplit(canonicalUrl)
 
         if parsed.path != "/" or parsed.query or "?" in self.origin:
             raise ValueError("endpoint origin must contain only an HTTP(S) authority")
@@ -602,15 +602,15 @@ class RequestTemplate:
         if operation is not None and not isinstance(operation, str):
             raise ValueError("graphql_operation must be a name or null")
 
-        body_kind = RequireWorkspaceText(record["body_kind"], "body_kind")
+        bodyKind = RequireWorkspaceText(record["body_kind"], "body_kind")
 
-        if body_kind not in tuple(item.value for item in BodyKind):
+        if bodyKind not in tuple(item.value for item in BodyKind):
             raise ValueError("body_kind must select a supported encoding")
 
         template = cls(
             Endpoint.FromDict(record["endpoint"]),
             tuple(InjectionPoint.FromDict(point) for point in record["injection_points"]),
-            BodyKind(body_kind),
+            BodyKind(bodyKind),
             None if record["session_reference"] is None else SessionReference.FromDict(
                 record["session_reference"],
             ),

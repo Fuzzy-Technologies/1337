@@ -108,14 +108,14 @@ def ConfigDigest(archive: bytes) -> str:
     """Read only the existing inert archive's bounded config bytes without extraction."""
 
     with tarfile.open(fileobj=io.BytesIO(archive)) as stream:
-        manifest_file = stream.extractfile("manifest.json")
-        assert manifest_file is not None, "Owned archive must contain its literal manifest"
-        manifest = json.loads(manifest_file.read(4096))
+        manifestFile = stream.extractfile("manifest.json")
+        assert manifestFile is not None, "Owned archive must contain its literal manifest"
+        manifest = json.loads(manifestFile.read(4096))
         assert len(manifest) == 1, "The existing owned fixture has one image only"
         name = manifest[0]["Config"]
-        config_file = stream.extractfile(name)
-        assert config_file is not None, "Owned image must contain its exact selected config"
-        config = config_file.read(4096)
+        configFile = stream.extractfile(name)
+        assert configFile is not None, "Owned image must contain its exact selected config"
+        config = configFile.read(4096)
 
     digest = hashlib.sha256(config).hexdigest()
     assert name == digest + ".json", "The Docker-save config filename must identify actual bytes"
@@ -127,8 +127,8 @@ def OwnedSelection(root: Path, case: dict, runtime) -> NativeTrivySelection:
     """Copy only the fixed approved binary/DB selections and the unchanged inert archive."""
 
     executable, cache, provisioning, _ = runtime
-    workspace_id = "native-product-" + case["package_version"].replace(".", "")
-    CreateWorkspace(root, workspace_id, "Owned genuine native image product acceptance")
+    workspaceId = "native-product-" + case["package_version"].replace(".", "")
+    CreateWorkspace(root, workspaceId, "Owned genuine native image product acceptance")
     archive = ArchiveBytes(case["package_version"])
     assert len(archive) == case["archive_size_bytes"] and hashlib.sha256(archive).hexdigest() == (
         case["archive_sha256"]
@@ -157,9 +157,9 @@ def RegisterScope(root: Path, case: dict) -> Target:
     """Register the handwritten oracle's literal manifest target with an independent attester."""
 
     target = Target(TargetKind.ARTIFACT, case["artifact_target_value"])
-    workspace_id = LocalWorkspaceStore(root).Open().workspace_id
+    workspaceId = LocalWorkspaceStore(root).Open().workspace_id
     now = datetime.now(UTC)
-    LocalScopeStore(root).Create(ScopeSnapshot("local", workspace_id, ScopeAuthorization(
+    LocalScopeStore(root).Create(ScopeSnapshot("local", workspaceId, ScopeAuthorization(
         AuthorizationState.GRANTED, "attester:owned-product-consent",
         "consent:owned-native-product",
         (now - timedelta(minutes=1)).isoformat(), (now + timedelta(minutes=30)).isoformat(),
@@ -201,16 +201,16 @@ def CheckPair(root: Path, records: tuple, case: dict, target: Target, provisioni
     scan = json.loads(raw["native-scan-receipt"])
     executable = str(root / "selected-trivy")
     cache = str(root / "trivy-cache")
-    version_argv = [executable, "--cache-dir", cache, "--config=", "--version", "--format", "json"]
-    scan_argv = [executable, "--cache-dir", cache, "--config=", "image", "--input",
+    versionArgv = [executable, "--cache-dir", cache, "--config=", "--version", "--format", "json"]
+    scanArgv = [executable, "--cache-dir", cache, "--config=", "image", "--input",
         str(root / "owned.tar"), "--format", "json", "--scanners", "vuln", "--disable-telemetry",
         "--offline-scan", "--skip-db-update", "--skip-java-db-update", "--skip-check-update",
         "--skip-version-check", "--skip-vex-repo-update", "--ignorefile=", "--list-all-pkgs",
         "--exit-code", "0", "--no-progress", "--timeout", str(SCAN_TIMEOUT) + "s"]
 
-    for receipt, operation, wanted_argv, stream_roles in (
-        (version, "version", version_argv, ("provider-version", "provider-version-stderr")),
-        (scan, "scan", scan_argv, ("stdout", "stderr")),
+    for receipt, operation, wantedArgv, streamRoles in (
+        (version, "version", versionArgv, ("provider-version", "provider-version-stderr")),
+        (scan, "scan", scanArgv, ("stdout", "stderr")),
     ):
         assert receipt["schema_version"] == 1 and receipt["operation"] == operation, (
             "Product custody must preserve the original schema-one operation discriminator"
@@ -220,7 +220,7 @@ def CheckPair(root: Path, records: tuple, case: dict, target: Target, provisioni
         ), "Genuine original successful execution is required; empty/refused output is unassessed"
         request = receipt["request"]
         invocation = request["invocation"]
-        assert invocation["argv"] == wanted_argv, "The product changed its finite offline argv"
+        assert invocation["argv"] == wantedArgv, "The product changed its finite offline argv"
         assert invocation["request"]["target_reference"] == target.Reference(), (
             "Original execution must bind the literal independently registered artifact target"
         )
@@ -256,17 +256,17 @@ def CheckPair(root: Path, records: tuple, case: dict, target: Target, provisioni
             "Original process lifecycle must remain complete"
         )
 
-        for kind, role in zip(("stdout", "stderr"), stream_roles, strict=True):
+        for kind, role in zip(("stdout", "stderr"), streamRoles, strict=True):
             joined = b"".join(bytes.fromhex(event["data_hex"]) for event in events
                               if event["kind"] == kind)
             assert joined == raw[role], "Original event chunks must reconstruct exact streams"
 
         assert {item["evidence_id"] for item in receipt["streams"]} == {
-            roles[role].evidence_id for role in stream_roles
+            roles[role].evidence_id for role in streamRoles
         }, "Original receipts must retain their original stream acquisition manifest IDs"
-        receipt_role = "native-version-receipt" if operation == "version" else "native-scan-receipt"
+        receiptRole = "native-version-receipt" if operation == "version" else "native-scan-receipt"
 
-        for role in (*stream_roles, receipt_role):
+        for role in (*streamRoles, receiptRole):
             provenance = roles[role].provenance
             assert provenance.source_id == "native.trivy" and provenance.tool_version == "0.75.0", (
                 "Original custody must retain the actual genuine provider identity/version"
@@ -318,14 +318,14 @@ def CheckModel(root: Path, case: dict, records: tuple):
     assets = state.Objects(ObjectKind.ASSET)
     images = [item for item in assets if item.attributes.get("asset_type") == "image"]
     packages = [item for item in assets if item.attributes.get("asset_type") == "package"]
-    image_digest = ConfigDigest(ArchiveBytes(case["package_version"]))
-    assert len(images) == 1 and images[0].identity.key == "image-config:" + image_digest, (
+    imageDigest = ConfigDigest(ArchiveBytes(case["package_version"]))
+    assert len(images) == 1 and images[0].identity.key == "image-config:" + imageDigest, (
         "Canonical image identity must retain the owned config digest, distinct from archive/DB"
     )
-    package_fields = {"ecosystem": "pypi", "name": "requests", "version": case["package_version"],
+    packageFields = {"ecosystem": "pypi", "name": "requests", "version": case["package_version"],
                       "namespace": "", "qualifiers": []}
-    package_key = "package-version:" + hashlib.sha256(Canonical(package_fields)).hexdigest()
-    assert len(packages) == 1 and packages[0].identity.key == package_key and (
+    packageKey = "package-version:" + hashlib.sha256(Canonical(packageFields)).hexdigest()
+    assert len(packages) == 1 and packages[0].identity.key == packageKey and (
         packages[0].attributes["name"] == "requests" and
         packages[0].attributes["version"] == case["package_version"]
     ), "Canonical installed package identity must use independently selected name/version fields"
@@ -420,23 +420,23 @@ def test_GenuineSdkAndInstalledCliPreserveOriginalPairTriageAndRelocatedReopen(
     ), "The genuine governed SDK pair must complete with confirmed original custody"
     assert list(summary.events) == observed, "Actual SDK job events must preserve their owner order"
     assert len(summary.captures) == 2, "The product must preserve both typed original captures"
-    sdk_records = tuple(record for capture in summary.captures for record in capture.records)
-    assert {record.evidence_id for record in sdk_records} == {
+    sdkRecords = tuple(record for capture in summary.captures for record in capture.records)
+    assert {record.evidence_id for record in sdkRecords} == {
         record.evidence_id for record in summary.retained_records
     }, "Original acquisition IDs cannot be republished as substitutes"
-    sdk_replay, sdk_roles, _ = CheckPair(root, sdk_records, case, target, provisioning)
+    sdkReplay, sdkRoles, _ = CheckPair(root, sdkRecords, case, target, provisioning)
 
     for capture in summary.captures:
         role = ("native-version-receipt" if capture.operation.value == "version" else
                 "native-scan-receipt")
-        assert capture.Digest() == sdk_roles[role].reference.sha256, (
+        assert capture.Digest() == sdkRoles[role].reference.sha256, (
             "Typed original capture must agree with its exact retained receipt blob"
         )
         assert capture.outcome.execution.state is ExecutionState.SUCCEEDED, (
             "Canonical success cannot be manufactured from a refused or failed original execution"
         )
 
-    state, findings = CheckModel(root, case, sdk_records)
+    state, findings = CheckModel(root, case, sdkRecords)
 
     for finding in findings:
         triaged = replace(finding, status=FindingStatus.CONFIRMED,
@@ -445,47 +445,47 @@ def test_GenuineSdkAndInstalledCliPreserveOriginalPairTriageAndRelocatedReopen(
         state = LocalModelStore(root).Save(proposal, expected_revision=state.revision)
 
     identities = {item.Reference() for item in state.objects}
-    retained_before = set(LocalWorkspaceStore(root).Open().evidence_record_references)
-    policy_path = root / "explicit-native-policy.json"
-    policy_path.write_text(SerializeContract(Policy()), encoding="utf-8")
+    retainedBefore = set(LocalWorkspaceStore(root).Open().evidence_record_references)
+    policyPath = root / "explicit-native-policy.json"
+    policyPath.write_text(SerializeContract(Policy()), encoding="utf-8")
     arguments = ["scan", "image", str(root), "--profile", "native", "--scope", "local",
         "--owner", OWNER, "--archive", "owned.tar", "--cache-directory", "trivy-cache",
         "--executable", str(selection.executable), "--read-consent-reference",
-        selection.read_consent.record_ref, "--policy", str(policy_path),
+        selection.read_consent.record_ref, "--policy", str(policyPath),
         "--timeout", str(SCAN_TIMEOUT)]
     selection.executable.chmod(0o600)
-    cli_plan = Console([*arguments, "--plan"], output, "cli-plan")
-    assert cli_plan["phase"] == "scoped-version-plan" and (
-        cli_plan["target"]["value"] == case["artifact_target_value"] and
-        cli_plan["execution_authorized"] is False
+    cliPlan = Console([*arguments, "--plan"], output, "cli-plan")
+    assert cliPlan["phase"] == "scoped-version-plan" and (
+        cliPlan["target"]["value"] == case["artifact_target_value"] and
+        cliPlan["execution_authorized"] is False
     ), "The actual installed CLI must plan successfully with a kernel-nonexecutable provider"
     selection.executable.chmod(0o700)
-    cli_summary = Console([*arguments, "--approve-safe-image"], output, "cli-run")
-    assert cli_summary["workflow"] == "native-image" and (
-        cli_summary["source_id"] == "native.trivy" and
-        cli_summary["state"] == "completed" and not cli_summary["custody_uncertain"]
+    cliSummary = Console([*arguments, "--approve-safe-image"], output, "cli-run")
+    assert cliSummary["workflow"] == "native-image" and (
+        cliSummary["source_id"] == "native.trivy" and
+        cliSummary["state"] == "completed" and not cliSummary["custody_uncertain"]
     ), "The actual installed native CLI must complete its separately authorized original pair"
     current = LocalWorkspaceStore(root).Open()
-    new_ids = set(current.evidence_record_references) - retained_before
-    cli_records = tuple(LocalEvidenceStore(root / "evidence").Get(identifier)
-                        for identifier in cli_summary["retained_evidence_ids"])
-    assert {record.evidence_id for record in cli_records} == new_ids and len(new_ids) == 6, (
+    newIds = set(current.evidence_record_references) - retainedBefore
+    cliRecords = tuple(LocalEvidenceStore(root / "evidence").Get(identifier)
+                        for identifier in cliSummary["retained_evidence_ids"])
+    assert {record.evidence_id for record in cliRecords} == newIds and len(newIds) == 6, (
         "CLI must persist exactly its own six original acquisitions and retain the SDK IDs"
     )
-    cli_replay, cli_roles, _ = CheckPair(root, cli_records, case, target, provisioning)
+    cliReplay, cliRoles, _ = CheckPair(root, cliRecords, case, target, provisioning)
 
-    for operation in cli_summary["operations"]:
+    for operation in cliSummary["operations"]:
         role = ("native-version-receipt" if operation["operation"] == "version" else
                 "native-scan-receipt")
-        assert operation["capture_sha256"] == cli_roles[role].reference.sha256, (
+        assert operation["capture_sha256"] == cliRoles[role].reference.sha256, (
             "CLI summary must name the original captured receipt digest"
         )
 
-    repeated, repeated_findings = CheckModel(root, case, cli_records)
+    repeated, repeatedFindings = CheckModel(root, case, cliRecords)
     assert {item.Reference() for item in repeated.objects} == identities, (
         "Repeated genuine SDK/CLI scans must preserve canonical logical object identities"
     )
-    assert all(item.status is FindingStatus.CONFIRMED for item in repeated_findings), (
+    assert all(item.status is FindingStatus.CONFIRMED for item in repeatedFindings), (
         "Repeated genuine scanning must preserve independently confirmed selected Finding triage"
     )
     canonical = CanonicalModelJson(repeated)
@@ -503,8 +503,8 @@ def test_GenuineSdkAndInstalledCliPreserveOriginalPairTriageAndRelocatedReopen(
     assert CanonicalModelJson(LocalModelStore(relocated).Open()) == canonical, (
         "Saved native canonical model must reopen identically without historical selected material"
     )
-    assert VerifyNativeTrivyImageReplay(sdk_records, relocated) == sdk_replay and (
-        VerifyNativeTrivyImageReplay(cli_records, relocated) == cli_replay
+    assert VerifyNativeTrivyImageReplay(sdkRecords, relocated) == sdkReplay and (
+        VerifyNativeTrivyImageReplay(cliRecords, relocated) == cliReplay
     ), "Relocated replay must retain original custody without executable/cache/archive reads"
     assert Console(["workspace", "open", str(relocated)], output, "cli-reopen") == reopened, (
         "Installed isolated CLI and SDK must independently agree on relocated offline reopening"

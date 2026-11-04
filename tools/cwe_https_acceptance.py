@@ -105,13 +105,13 @@ def VerifyInstallation(root: Path, wheel: Path) -> dict[str, object]:
     """
 
     package = Path(fuzzy1337.__file__).resolve().parent
-    prefix_path = Path(sys.prefix).resolve()
+    prefixPath = Path(sys.prefix).resolve()
 
-    if sys.prefix == sys.base_prefix or not package.is_relative_to(prefix_path):
+    if sys.prefix == sys.base_prefix or not package.is_relative_to(prefixPath):
         raise ValueError("Acceptance requires the installed package in a separate environment")
 
     prefix = "src/fuzzy1337/"
-    wheel_bytes = _Read(wheel, ARTIFACT_LIMIT)
+    wheelBytes = _Read(wheel, ARTIFACT_LIMIT)
     records = _Git(root, "ls-tree", "-r", "-z", "HEAD", "--", "src/fuzzy1337").split(b"\0")
     source: dict[str, str] = {}
 
@@ -126,7 +126,7 @@ def VerifyInstallation(root: Path, wheel: Path) -> dict[str, object]:
 
     installed: dict[str, str] = {}
 
-    with ZipFile(BytesIO(wheel_bytes)) as archive:
+    with ZipFile(BytesIO(wheelBytes)) as archive:
         members = [item for item in archive.infolist()
                    if item.filename.startswith("fuzzy1337/") and not item.is_dir()]
 
@@ -139,10 +139,10 @@ def VerifyInstallation(root: Path, wheel: Path) -> dict[str, object]:
         for item in members:
             name = item.filename
             original = _Git(root, "cat-file", "blob", source[name])
-            wheel_member = archive.read(item)
-            installed_path = package / name.removeprefix("fuzzy1337/")
+            wheelMember = archive.read(item)
+            installedPath = package / name.removeprefix("fuzzy1337/")
 
-            if original != wheel_member or _Read(installed_path, ARTIFACT_LIMIT) != original:
+            if original != wheelMember or _Read(installedPath, ARTIFACT_LIMIT) != original:
                 raise ValueError("Installed or wheel bytes differ from committed source")
 
             installed[name] = _Digest(original)
@@ -156,7 +156,7 @@ def VerifyInstallation(root: Path, wheel: Path) -> dict[str, object]:
 
     return {"source_sha": _Git(root, "rev-parse", "HEAD").decode().strip(),
             "source_tree": _Git(root, "rev-parse", "HEAD^{tree}").decode().strip(),
-            "wheel_sha256": _Digest(wheel_bytes), "installed_package_hashes": installed}
+            "wheel_sha256": _Digest(wheelBytes), "installed_package_hashes": installed}
 
 
 def _Equal(actual: dict[str, object], expected: dict[str, object]) -> bool:
@@ -215,7 +215,7 @@ def VerifyTerminal(payload: bytes, pin: CwePin, *, inspect: bool = False) -> dic
 
     selection = document.get("selection")
     weakness, category, grouping, view = pin.counts
-    expected_selection = {"catalog_version": pin.version, "cwe_schema_version": pin.schema,
+    expectedSelection = {"catalog_version": pin.version, "cwe_schema_version": pin.schema,
         "xml_namespace": pin.namespace, "member_name": f"cwec_v{pin.version}.xml",
         "raw_sha256": pin.raw_sha256, "raw_size": pin.size, "decoded_sha256": pin.decoded_sha256,
         "decoded_size": pin.decoded_size, "decoded_crc32": pin.decoded_crc32,
@@ -224,7 +224,7 @@ def VerifyTerminal(payload: bytes, pin: CwePin, *, inspect: bool = False) -> dic
         "unsupported_entries": [{"identifier": "CWE-1000", "source_kind": "View"}],
         "unmatched_ids": ["CWE-9999999999"]}
 
-    if not isinstance(selection, dict) or not _Equal(selection, expected_selection):
+    if not isinstance(selection, dict) or not _Equal(selection, expectedSelection):
         raise ValueError("CWE decoder or selected partitions differ from the original oracle")
 
     return document
@@ -309,12 +309,12 @@ def _VerifyOriginal(
 ) -> remote.CweHttpsSelection:
     """Match the terminal proof to original bytes and the independently reopened envelope."""
 
-    raw_id, selection_id, receipt_id = (cast(str, document[key]) for key in HANDLES)
-    original = remote.LoadHttpsCweSelection(workspace, selection_id, receipt_id)
+    rawId, selectionId, receiptId = (cast(str, document[key]) for key in HANDLES)
+    original = remote.LoadHttpsCweSelection(workspace, selectionId, receiptId)
     store = LocalEvidenceStore(workspace / "evidence")
     raw = original.raw
 
-    if raw.evidence_id != raw_id:
+    if raw.evidence_id != rawId:
         raise ValueError("CWE terminal raw manifest differs from original custody")
 
     payload = store.Read(raw.reference)
@@ -345,10 +345,10 @@ def _Replay(
     workspace.rename(moved)
     before = _Inventory(moved)
     _Save(output / "relocated-before.json", before)
-    selection_id, receipt_id = (cast(str, document[key]) for key in HANDLES[1:])
+    selectionId, receiptId = (cast(str, document[key]) for key in HANDLES[1:])
     stdout = StringIO()
-    argv = ["cwe", "https", "inspect", str(moved), "--selection", selection_id,
-            "--receipt", receipt_id]
+    argv = ["cwe", "https", "inspect", str(moved), "--selection", selectionId,
+            "--receipt", receiptId]
     status = None
     started = monotonic()
 
@@ -360,7 +360,7 @@ def _Replay(
           (output / "inspect.stderr").open("x", encoding="utf-8") as stderr,
           patch.object(sys, "stderr", stderr)):
         try:
-            reopened = remote.LoadHttpsCweSelection(moved, selection_id, receipt_id)
+            reopened = remote.LoadHttpsCweSelection(moved, selectionId, receiptId)
             status = RunIntelCommands(argv, stdout, json_output=True)
 
         finally:

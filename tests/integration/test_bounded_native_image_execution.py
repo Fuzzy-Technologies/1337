@@ -146,8 +146,8 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
     del actual_linux_owner
     root = tmp_path / "workspace"
     workspace = LocalWorkspaceStore(root)
-    workspace_before = workspace.Create(WorkspaceConfiguration("Owned bounded wire"), WORKSPACE)
-    original_model = LocalModelStore(root).Create()
+    workspaceBefore = workspace.Create(WorkspaceConfiguration("Owned bounded wire"), WORKSPACE)
+    originalModel = LocalModelStore(root).Create()
     database = root / "trivy-cache" / "db"
     database.mkdir(parents=True)
     (database / "trivy.db").write_bytes(b"owned simulated database bytes")
@@ -155,8 +155,8 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
     (root / "owned.tar").write_bytes(b"owned fixed fixture")
     fixture = Path(__file__).parents[1] / "fixtures/trivy/native_capture_wire.py"
     executable = root / "owned-bounded-wire"
-    executable_bytes = f"#!{sys.executable}\n".encode() + fixture.read_bytes()
-    executable.write_bytes(executable_bytes)
+    executableBytes = f"#!{sys.executable}\n".encode() + fixture.read_bytes()
+    executable.write_bytes(executableBytes)
     executable.chmod(0o700)
     selection = NativeTrivySelection(root, executable, "owned.tar", "trivy-cache",
         ArtifactReadConsent(OWNER, "read:owned-bounded-wire"))
@@ -164,8 +164,8 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
     observer = NativeImageMaterialObserver(selection, WORKSPACE, OWNER)
     budget = NativeImageObservationBudget(overall_deadline=time.monotonic() + 64)
     executions = []
-    provider_results = []
-    retained_before_post = []
+    providerResults = []
+    retainedBeforePost = []
     execute = LocalExecutor.Execute
 
     async def ObserveExecution(executor, request, **options):
@@ -175,29 +175,29 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
             "fuzzy1337.native_image_material_worker")
         assert options.get("own_descendants") is True, "Every process needs descendant ownership"
 
-        if helper and provider_results:
-            original_request, original = provider_results[-1]
+        if helper and providerResults:
+            originalRequest, original = providerResults[-1]
             journals = tuple(root.glob("native-image-bounded-*/outcome.journal"))
             assert len(journals) == 1, "Only this operation's private journal may be active"
             journal = journals[0]
-            operation_directory = journal.parent
-            assert Path(request.invocation.argv[4]).parent != operation_directory, (
+            operationDirectory = journal.parent
+            assert Path(request.invocation.argv[4]).parent != operationDirectory, (
                 "The observation owner must not borrow the collector's original-custody directory"
             )
-            assert root / original_request.workspace != operation_directory, (
+            assert root / originalRequest.workspace != operationDirectory, (
                 "Historical root-level provider scratch must stay separate from its private journal"
             )
             frames = JournalFrames(journal)
             header, complete = frames
             assert header["control"]["pair_reference"] == PAIR and (
                 header["control"]["request"]["authorization"]["authorization_id"]
-                == original_request.authorization.authorization_id
+                == originalRequest.authorization.authorization_id
             ), "Private custody must bind the exact original operation before another helper starts"
             assert complete["stdout_hex"] == original.stdout.hex() and (
                 complete["stderr_hex"] == original.stderr.hex()
                 and complete["events"] == OriginalEvents(original)
             ), "Original streams and events must be durable before post-material observation"
-            retained_before_post.append(journal)
+            retainedBeforePost.append(journal)
 
         elif not helper:
             assert request.invocation.argv[0] == str(executable), (
@@ -208,14 +208,14 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
         executions.append((request, helper, outcome))
 
         if not helper:
-            provider_results.append((request, outcome))
+            providerResults.append((request, outcome))
 
         return outcome
 
     monkeypatch.setattr(LocalExecutor, "Execute", ObserveExecution)
     invocations = []
     authorizations = {}
-    authority_checks = []
+    authorityChecks = []
 
     def ValidateAuthority(request) -> None:
         """Confirm the caller's original explicit decision at each fresh owner callback."""
@@ -224,7 +224,7 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
         assert request.authorization == expected and (
             expected.invocation_sha256 == InvocationDigest(request.invocation)
         ), "Actual launch must retain the caller's exact original invocation-bound decision"
-        authority_checks.append(request.authorization.authorization_id)
+        authorityChecks.append(request.authorization.authorization_id)
 
     async def CapturePair():
         """Share one observer, pair reference and ledger through exactly three actual reads."""
@@ -257,20 +257,20 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
 
         return initial, captured[0], captured[1]
 
-    initial, version_result, scan_result = asyncio.run(CapturePair())
-    version, scan = version_result.capture, scan_result.capture
+    initial, versionResult, scanResult = asyncio.run(CapturePair())
+    version, scan = versionResult.capture, scanResult.capture
     assert [helper for _, helper, _ in executions] == [True, False, True, False, True], (
         "The actual pair must use exactly three installed readers and two owned wire processes"
     )
     assert budget.ObservationCount == 3 and not budget.Failed and budget.SpentSeconds <= 45 and (
         budget.FinalizationSeconds <= 9
     ), "The actual pair must share three observations and one cumulative finalization reserve"
-    assert len(retained_before_post) == 2 and all(
-        not path.exists() for path in retained_before_post
+    assert len(retainedBeforePost) == 2 and all(
+        not path.exists() for path in retainedBeforePost
     ), (
         "Both originals must precede post-read and confirmed publication must remove their journals"
     )
-    assert set(authority_checks) == set(authorizations) and len(authorizations) == 2, (
+    assert set(authorityChecks) == set(authorizations) and len(authorizations) == 2, (
         "VERSION and SCAN must retain their separately checked original execution authorizations"
     )
     assert invocations[0].argv == (str(executable), "--cache-dir", str(root / "trivy-cache"),
@@ -290,16 +290,16 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
     ), (
         "SCAN must bind the actual original owned-wire VERSION without rewriting that invocation"
     )
-    proofs = (initial, version_result.material_proof, scan_result.material_proof)
+    proofs = (initial, versionResult.material_proof, scanResult.material_proof)
     assert len({proof.observation_id for proof in proofs}) == 3 and all(
         proof.operation_reference == PAIR and proof.facts == initial.facts for proof in proofs
     ), "Three distinct real observations must retain one pair association and unchanged material"
-    expected_material = (("archive", root / "owned.tar", b"owned fixed fixture"),
-        ("executable", executable, executable_bytes),
+    expectedMaterial = (("archive", root / "owned.tar", b"owned fixed fixture"),
+        ("executable", executable, executableBytes),
         ("database", database / "trivy.db", b"owned simulated database bytes"),
         ("database-metadata", database / "metadata.json", METADATA))
 
-    for fact, (role, path, raw) in zip(initial.facts, expected_material, strict=True):
+    for fact, (role, path, raw) in zip(initial.facts, expectedMaterial, strict=True):
         info = path.stat(follow_symlinks=False)
         assert (fact.role, fact.path, fact.size_bytes, fact.sha256, fact.physical_identity) == (
             role, str(path), len(raw), hashlib.sha256(raw).hexdigest(),
@@ -312,12 +312,12 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
         "native-scan-receipt"], (
         "The bounded pair must preserve exactly the six original canonical custody roles"
     )
-    expected_raw = {}
+    expectedRaw = {}
 
-    for capture, (original_request, original), expected_stdout, expected_stderr in zip(
-        (version, scan), provider_results, (VERSION_STDOUT, SCAN_STDOUT),
+    for capture, (originalRequest, original), expectedStdout, expectedStderr in zip(
+        (version, scan), providerResults, (VERSION_STDOUT, SCAN_STDOUT),
         (b"", SCAN_STDERR), strict=True):
-        assert capture.refusal is None and capture.request == original_request and (
+        assert capture.refusal is None and capture.request == originalRequest and (
             capture.outcome == original
             and capture.material_before == capture.material_after == initial.facts
         ) and (
@@ -325,21 +325,21 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
             and original.execution.exit_code == 0
             and original.termination is ExecutionTermination.PROCESS_EXIT
         ), "Accepted custody must retain the actual unchanged successful owned-wire terminal result"
-        assert original.stdout == expected_stdout and original.stderr == expected_stderr, (
+        assert original.stdout == expectedStdout and original.stderr == expectedStderr, (
             "Actual owned-wire bytes differ from the independent closed VERSION/SCAN oracle"
         )
         assert b"".join(event.data for event in original.events
-            if event.kind is ExecutionEventKind.STDOUT) == expected_stdout and (
+            if event.kind is ExecutionEventKind.STDOUT) == expectedStdout and (
             b"".join(event.data for event in original.events
-                if event.kind is ExecutionEventKind.STDERR) == expected_stderr
+                if event.kind is ExecutionEventKind.STDERR) == expectedStderr
         ), "Original event chunks must retain both exact streams without rechunking assumptions"
 
         for record in capture.records:
             raw = store.Read(record.reference)
             expected = SerializeContract(capture.Envelope()).encode() if (
                 record.reference.role.endswith("-receipt")) else (
-                    expected_stderr if record.reference.role.endswith("stderr")
-                    else expected_stdout)
+                    expectedStderr if record.reference.role.endswith("stderr")
+                    else expectedStdout)
             assert raw == expected and store.Get(record.evidence_id) == record, (
                 "Every original stream and canonical receipt must reopen with exact immutable bytes"
             )
@@ -348,18 +348,18 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
             ) and record.provenance.execution == original.execution, (
                 "Every original role must preserve its invocation and terminal outcome provenance"
             )
-            expected_raw[record.evidence_id] = raw
+            expectedRaw[record.evidence_id] = raw
 
     replay = VerifyNativeTrivyImageReplay(records, root)
     assert replay.version_request == version.request and replay.scan_request == scan.request, (
         "The unchanged historical replay owner must accept both exact original bounded requests"
     )
-    proposal, delta = ApplyVerifiedNativeTrivyImages(original_model, version, scan, root)
-    assert proposal.revision == delta.revision == original_model.revision + 1 and (
+    proposal, delta = ApplyVerifiedNativeTrivyImages(originalModel, version, scan, root)
+    assert proposal.revision == delta.revision == originalModel.revision + 1 and (
         not proposal.Objects(ObjectKind.FINDING)
     ), "The fixed empty-vulnerability wire must form an in-memory compatibility proposal only"
-    assert LocalModelStore(root).Open() == original_model and (
-        workspace.Open() == workspace_before
+    assert LocalModelStore(root).Open() == originalModel and (
+        workspace.Open() == workspaceBefore
     ), (
         "Historical pure proposal verification must not save model or workspace state"
     )
@@ -368,7 +368,7 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
     ), (
         "Confirmed helper and collector owners must clean their completed private directories"
     )
-    assert all(not (root / request.workspace).exists() for request, _ in provider_results), (
+    assert all(not (root / request.workspace).exists() for request, _ in providerResults), (
         "Both historical provider scratch directories must be removed after confirmed publication"
     )
 
@@ -382,9 +382,9 @@ def test_RealInstalledReadersAndOwnedWirePairPreserveOriginalCustody(
 
     for record in records:
         assert reopened.Get(record.evidence_id) == record and (
-            reopened.Read(record.reference) == expected_raw[record.evidence_id]
+            reopened.Read(record.reference) == expectedRaw[record.evidence_id]
         ), "Original custody must reopen after selected inputs disappear and workspace relocation"
 
     assert VerifyNativeTrivyImageReplay(records, moved) == replay and (
-        LocalModelStore(moved).Open() == original_model
+        LocalModelStore(moved).Open() == originalModel
     ), "Historical replay and the unsaved original model must survive target removal and relocation"

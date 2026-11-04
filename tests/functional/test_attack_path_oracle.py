@@ -90,14 +90,14 @@ def test_BlockedNegativePathOracleIsExact():
     controls = IndexById(scenario["controls"])
     expected = oracle["blocked_negative_path"]
     path = paths[expected["path_id"]]
-    blocking_relation = relations[path["relation_ids"][-1]]
+    blockingRelation = relations[path["relation_ids"][-1]]
 
     assert path["node_ids"] == expected["node_ids"], "blocked negative path changed."
-    assert blocking_relation["reachability"] is False, "negative path edge must be unreachable."
-    assert blocking_relation["blocking_control_id"] in expected["blocking_control_ids"], (
+    assert blockingRelation["reachability"] is False, "negative path edge must be unreachable."
+    assert blockingRelation["blocking_control_id"] in expected["blocking_control_ids"], (
         "negative path must name the exact blocking control."
     )
-    assert controls[blocking_relation["blocking_control_id"]]["status"] == "effective", (
+    assert controls[blockingRelation["blocking_control_id"]]["status"] == "effective", (
         "negative path control must be effective."
     )
 

@@ -87,14 +87,14 @@ def test_ExitSignalRaceRetainsActualJobReasonAndRawEvidence(
         """Release only the owned child at the signal boundary and inspect durable job truth."""
 
         marker = tmp_path / "owned-child-release"
-        evidence_root = tmp_path / "evidence"
-        evidence_root.mkdir()
-        store = LocalEvidenceStore(evidence_root)
+        evidenceRoot = tmp_path / "evidence"
+        evidenceRoot.mkdir()
+        store = LocalEvidenceStore(evidenceRoot)
         executor = LocalExecutor(tmp_path)
         processes = []
         signals = []
         start = executor.StartProcess
-        original_signal = local.KillProcessGroup
+        originalSignal = local.KillProcessGroup
 
         async def Start(request, workspace, environment):
             """Capture the actual owned process without changing launch or policy parameters."""
@@ -122,7 +122,7 @@ def test_ExitSignalRaceRetainsActualJobReasonAndRawEvidence(
             assert selected == 0 and processes[0].returncode is not None, (
                 "The only further group operation must be non-mutating proof after observed exit."
             )
-            original_signal(process_id, selected)
+            originalSignal(process_id, selected)
 
         monkeypatch.setattr(executor, "StartProcess", Start)
         monkeypatch.setattr(local, "KillProcessGroup", Signal)
@@ -151,8 +151,8 @@ def test_ExitSignalRaceRetainsActualJobReasonAndRawEvidence(
                             job.Cancel("owner:test")
 
             result = await asyncio.wait_for(job.Wait(), 3)
-            expected_state = JobState.CANCELLED if outcome == "cancellation" else JobState.FAILED
-            assert result.state is expected_state, (
+            expectedState = JobState.CANCELLED if outcome == "cancellation" else JobState.FAILED
+            assert result.state is expectedState, (
                 "An exit race must preserve actual terminal truth."
             )
 
@@ -168,8 +168,8 @@ def test_ExitSignalRaceRetainsActualJobReasonAndRawEvidence(
             stdout = next(item.evidence for item in result.artifacts if (
                 item.evidence.reference.role == "stdout"
             ))
-            expected_output = b"x" * 1024 if outcome == "output_limit" else b"partial\n"
-            assert store.Read(stdout.reference) == expected_output, (
+            expectedOutput = b"x" * 1024 if outcome == "output_limit" else b"partial\n"
+            assert store.Read(stdout.reference) == expectedOutput, (
                 "Recovered cleanup must preserve exact bounded or partial stdout evidence."
             )
             assert stdout.provenance.execution is not None and (
@@ -187,7 +187,7 @@ def test_ExitSignalRaceRetainsActualJobReasonAndRawEvidence(
 
         finally:
             marker.touch()
-            monkeypatch.setattr(local, "KillProcessGroup", original_signal)
+            monkeypatch.setattr(local, "KillProcessGroup", originalSignal)
 
             for process in processes:
                 drains = [asyncio.create_task(reader.read()) for reader in (
@@ -212,7 +212,7 @@ def test_JobSeparatesLaunchAuthorityFromLiveChildCleanupDenial(
         executor = LocalExecutor(tmp_path)
         processes = []
         start = executor.StartProcess
-        original_signal = local.KillProcessGroup
+        originalSignal = local.KillProcessGroup
 
         async def Start(request, workspace, environment):
             """Capture only the actual child launched by this isolated fixture."""
@@ -274,7 +274,7 @@ def test_JobSeparatesLaunchAuthorityFromLiveChildCleanupDenial(
             assert asyncio.all_tasks() == {asyncio.current_task()}, "No owned waiter may remain."
 
         finally:
-            monkeypatch.setattr(local, "KillProcessGroup", original_signal)
+            monkeypatch.setattr(local, "KillProcessGroup", originalSignal)
 
             for process in processes:
                 drains = [asyncio.create_task(reader.read()) for reader in (
@@ -338,13 +338,13 @@ def test_RealLocalExecutionPreservesEvidenceBeforeSharedModelUpdates(tmp_path: P
             "The shared model must contain the host fact."
         )
         events = job.EventsSince()
-        artifact_sequence = max(
+        artifactSequence = max(
             event.sequence for event in events if event.kind is JobEventKind.ARTIFACT
         )
-        delta_sequence = next(
+        deltaSequence = next(
             event.sequence for event in events if event.kind is JobEventKind.MODEL_DELTA
         )
-        assert artifact_sequence < delta_sequence, (
+        assert artifactSequence < deltaSequence, (
             "Raw evidence must precede interpreted model deltas."
         )
 
@@ -489,14 +489,14 @@ def test_ProcessLaunchAndNormalizationFailuresRemainClassified(tmp_path: Path) -
         """Exercise both classified paths without optional tools or network dependencies."""
 
         request = Request("print('synthetic')")
-        invalid_invocation = replace(request.invocation, argv=(str(tmp_path / "absent-tool"),))
-        invalid_request = replace(
-            request, invocation=invalid_invocation,
+        invalidInvocation = replace(request.invocation, argv=(str(tmp_path / "absent-tool"),))
+        invalidRequest = replace(
+            request, invocation=invalidInvocation,
             authorization=replace(request.authorization,
-                                  invocation_sha256=InvocationDigest(invalid_invocation)),
+                                  invocation_sha256=InvocationDigest(invalidInvocation)),
         )
         invalid = ScanJob(
-            Spec(), LocalExecutionJob(invalid_request, LocalExecutor(tmp_path).Execute),
+            Spec(), LocalExecutionJob(invalidRequest, LocalExecutor(tmp_path).Execute),
             evidence_store=LocalEvidenceStore(tmp_path),
         )
         invalid.Start()

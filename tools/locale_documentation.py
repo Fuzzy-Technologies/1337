@@ -126,8 +126,8 @@ def _ProjectPath(
 def _ValidateManifestPaths(project_root: Path, manifest: dict) -> None:
     """Validate all declared local input/output roots without reading their content."""
 
-    for field_name in ("contentRoot", "unitManifest", "apiCoverageManifest", "buildRoot"):
-        _ProjectPath(project_root, manifest[field_name])
+    for fieldName in ("contentRoot", "unitManifest", "apiCoverageManifest", "buildRoot"):
+        _ProjectPath(project_root, manifest[fieldName])
 
     _ProjectPath(project_root, manifest["branding"]["assetRoot"])
 
@@ -156,17 +156,17 @@ def CanonicalHash(unit: CanonicalUnit) -> str:
         A sha256-prefixed digest using the unchanged fuzzy-doc-unit-v1 payload.
     """
 
-    signature_bytes = unit.signature.encode()
-    body_bytes = unit.body.encode()
+    signatureBytes = unit.signature.encode()
+    bodyBytes = unit.body.encode()
     payload = (
         f"{HASH_SCHEME}\n"
         f"id:{unit.identifier}\n"
         f"kind:{unit.kind}\n"
-        f"signature-length:{len(signature_bytes)}\n"
+        f"signature-length:{len(signatureBytes)}\n"
     ).encode()
-    payload += signature_bytes
-    payload += f"\nbody-length:{len(body_bytes)}\n".encode()
-    payload += body_bytes
+    payload += signatureBytes
+    payload += f"\nbody-length:{len(bodyBytes)}\n".encode()
+    payload += bodyBytes
 
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
@@ -174,8 +174,8 @@ def CanonicalHash(unit: CanonicalUnit) -> str:
 def _PageIdentifier(path: Path, content_root: Path) -> str:
     """Derive the default stable page ID for a newly discovered English page."""
 
-    relative_path = path.relative_to(content_root).with_suffix("")
-    parts = list(relative_path.parts)
+    relativePath = path.relative_to(content_root).with_suffix("")
+    parts = list(relativePath.parts)
 
     if parts[-1] == "index":
         parts.pop()
@@ -205,7 +205,7 @@ def _ClassSignature(node: ast.ClassDef) -> str:
         if keyword.arg is not None
     )
     suffix = f"({', '.join(arguments)})" if arguments else ""
-    public_fields = []
+    publicFields = []
 
     for member in node.body:
         if (
@@ -218,14 +218,14 @@ def _ClassSignature(node: ast.ClassDef) -> str:
             if member.value is not None:
                 field += f" = {ast.unparse(member.value)}"
 
-            public_fields.append(field)
+            publicFields.append(field)
 
         elif isinstance(member, ast.Assign):
             for target in member.targets:
                 if isinstance(target, ast.Name) and not target.id.startswith("_"):
-                    public_fields.append(f"{target.id} = {ast.unparse(member.value)}")
+                    publicFields.append(f"{target.id} = {ast.unparse(member.value)}")
 
-    fields = f"; public-fields: {'; '.join(public_fields)}" if public_fields else ""
+    fields = f"; public-fields: {'; '.join(publicFields)}" if publicFields else ""
 
     return f"class {node.name}{suffix}{fields}"
 
@@ -265,16 +265,16 @@ def _NodeUnit(
 def _FindModulePath(module_name: str, project_root: Path) -> Path:
     """Resolve a project-owned module path without importing the package."""
 
-    relative_path = Path(*module_name.split("."))
-    module_path = _ProjectPath(project_root, relative_path.with_suffix(".py"))
+    relativePath = Path(*module_name.split("."))
+    modulePath = _ProjectPath(project_root, relativePath.with_suffix(".py"))
 
-    if module_path.is_file():
-        return module_path
+    if modulePath.is_file():
+        return modulePath
 
-    package_path = _ProjectPath(project_root, relative_path / "__init__.py")
+    packagePath = _ProjectPath(project_root, relativePath / "__init__.py")
 
-    if package_path.is_file():
-        return package_path
+    if packagePath.is_file():
+        return packagePath
 
     raise ValueError(f"cannot resolve project module {module_name}")
 
@@ -301,7 +301,7 @@ def _AuthoredUnits(
 ) -> tuple[CanonicalUnit, ...]:
     """Return public authored definitions and class members as symbol units."""
 
-    relative_path = _Relative(source_path, project_root)
+    relativePath = _Relative(source_path, project_root)
     syntax = ast.parse(_ReadCanonicalText(source_path), filename=str(source_path))
     units = []
 
@@ -312,13 +312,13 @@ def _AuthoredUnits(
         if node.name.startswith("_"):
             continue
 
-        symbol_name = f"{module_name}.{node.name}"
-        units.append(_NodeUnit(f"symbol:{symbol_name}", relative_path, node))
+        symbolName = f"{module_name}.{node.name}"
+        units.append(_NodeUnit(f"symbol:{symbolName}", relativePath, node))
 
         if not isinstance(node, ast.ClassDef):
             continue
 
-        seen_members = set()
+        seenMembers = set()
 
         for member in node.body:
             if not isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -326,16 +326,16 @@ def _AuthoredUnits(
 
             if (
                 member.name.startswith("_")
-                or member.name in seen_members
+                or member.name in seenMembers
                 or _IsPropertySetter(member)
             ):
                 continue
 
-            seen_members.add(member.name)
+            seenMembers.add(member.name)
             units.append(
                 _NodeUnit(
-                    f"symbol:{symbol_name}.{member.name}",
-                    relative_path,
+                    f"symbol:{symbolName}.{member.name}",
+                    relativePath,
                     member,
                 )
             )
@@ -379,30 +379,30 @@ def _ExportUnits(
     """Return root-package aliases bound to their authored English contracts."""
 
     syntax = ast.parse(_ReadCanonicalText(source_path), filename=str(source_path))
-    export_targets = {}
+    exportTargets = {}
 
     for node in syntax.body:
         if not isinstance(node, ast.ImportFrom) or not node.module:
             continue
 
-        for imported_name in node.names:
-            public_name = imported_name.asname or imported_name.name
-            export_targets[public_name] = (node.module, imported_name.name)
+        for importedName in node.names:
+            publicName = importedName.asname or importedName.name
+            exportTargets[publicName] = (node.module, importedName.name)
 
     units = []
 
-    for public_name in _LiteralExports(syntax, source_path):
-        if public_name not in export_targets:
-            raise ValueError(f"{source_path}: export {public_name} has no static import target")
+    for publicName in _LiteralExports(syntax, source_path):
+        if publicName not in exportTargets:
+            raise ValueError(f"{source_path}: export {publicName} has no static import target")
 
-        target_module, target_name = export_targets[public_name]
-        target_path = _FindModulePath(target_module, project_root)
-        target_node = _FindTopLevelNode(target_path, target_name)
+        targetModule, targetName = exportTargets[publicName]
+        targetPath = _FindModulePath(targetModule, project_root)
+        targetNode = _FindTopLevelNode(targetPath, targetName)
         units.append(
             _NodeUnit(
-                f"symbol:{module_name}.{public_name}",
-                _Relative(target_path, project_root),
-                target_node,
+                f"symbol:{module_name}.{publicName}",
+                _Relative(targetPath, project_root),
+                targetNode,
             )
         )
 
@@ -431,71 +431,71 @@ def DiscoverCanonicalUnits(
     """
 
     _ValidateManifestPaths(project_root, project_manifest)
-    content_root = _ProjectPath(project_root, Path(project_manifest["contentRoot"]) / "en")
+    contentRoot = _ProjectPath(project_root, Path(project_manifest["contentRoot"]) / "en")
     known_page_ids = known_page_ids or {}
     units = []
 
-    for content_path in sorted(content_root.rglob("*")):
-        _ProjectPath(project_root, content_path, allow_absolute=True)
+    for contentPath in sorted(contentRoot.rglob("*")):
+        _ProjectPath(project_root, contentPath, allow_absolute=True)
 
-    for page_path in sorted(content_root.rglob("*.md")):
-        page_path = _ProjectPath(project_root, page_path, allow_absolute=True)
-        relative_path = _Relative(page_path, project_root)
+    for pagePath in sorted(contentRoot.rglob("*.md")):
+        pagePath = _ProjectPath(project_root, pagePath, allow_absolute=True)
+        relativePath = _Relative(pagePath, project_root)
         units.append(
             CanonicalUnit(
                 identifier=known_page_ids.get(
-                    relative_path,
-                    _PageIdentifier(page_path, content_root),
+                    relativePath,
+                    _PageIdentifier(pagePath, contentRoot),
                 ),
                 kind="page",
-                source_path=relative_path,
+                source_path=relativePath,
                 signature="",
-                body=_ReadCanonicalText(page_path),
+                body=_ReadCanonicalText(pagePath),
             )
         )
 
-    coverage_path = _ProjectPath(project_root, project_manifest["apiCoverageManifest"])
-    coverage = tomllib.loads(_ReadCanonicalText(coverage_path))
+    coveragePath = _ProjectPath(project_root, project_manifest["apiCoverageManifest"])
+    coverage = tomllib.loads(_ReadCanonicalText(coveragePath))
     exclusions = {
         exclusion.get("symbol") for exclusion in coverage.get("exclusions", ())
     }
 
     for surface in coverage.get("surfaces", ()):
-        module_name = surface.get("module", "")
-        source_path = _ProjectPath(project_root, surface.get("source", ""))
+        moduleName = surface.get("module", "")
+        sourcePath = _ProjectPath(project_root, surface.get("source", ""))
         mode = surface.get("mode", "")
-        package_name = module_name.partition(".")[0]
+        packageName = moduleName.partition(".")[0]
 
-        if package_name not in project_manifest["packageNames"]:
+        if packageName not in project_manifest["packageNames"]:
             raise ValueError(
-                f"{coverage_path}: module {module_name!r} is outside declared "
+                f"{coveragePath}: module {moduleName!r} is outside declared "
                 f"packageNames {project_manifest['packageNames']!r}"
             )
 
         if mode == "authored":
-            surface_units = _AuthoredUnits(module_name, source_path, project_root)
+            surfaceUnits = _AuthoredUnits(moduleName, sourcePath, project_root)
 
         elif mode == "exports":
-            surface_units = _ExportUnits(module_name, source_path, project_root)
+            surfaceUnits = _ExportUnits(moduleName, sourcePath, project_root)
 
         else:
-            raise ValueError(f"{coverage_path}: invalid surface mode {mode!r}")
+            raise ValueError(f"{coveragePath}: invalid surface mode {mode!r}")
 
         units.extend(
             unit
-            for unit in surface_units
+            for unit in surfaceUnits
             if unit.identifier.removeprefix("symbol:") not in exclusions
         )
 
     identifiers = [unit.identifier for unit in units]
 
     if len(identifiers) != len(set(identifiers)):
-        duplicate_ids = sorted(
+        duplicateIds = sorted(
             identifier
             for identifier in set(identifiers)
             if identifiers.count(identifier) > 1
         )
-        raise ValueError(f"duplicate discovered unit IDs: {', '.join(duplicate_ids)}")
+        raise ValueError(f"duplicate discovered unit IDs: {', '.join(duplicateIds)}")
 
     return tuple(sorted(units, key=lambda unit: unit.identifier))
 
@@ -508,7 +508,7 @@ def _LoadProjectManifest(path: Path) -> dict:
     if manifest.get("schemaVersion") != 1:
         raise ValueError(f"{path}: schemaVersion must be 1")
 
-    required_text = (
+    requiredText = (
         "projectId",
         "projectName",
         "sourceLocale",
@@ -519,9 +519,9 @@ def _LoadProjectManifest(path: Path) -> dict:
         "publicationPath",
     )
 
-    for field_name in required_text:
-        if not isinstance(manifest.get(field_name), str) or not manifest[field_name]:
-            raise ValueError(f"{path}: {field_name} must be a non-empty string")
+    for fieldName in requiredText:
+        if not isinstance(manifest.get(fieldName), str) or not manifest[fieldName]:
+            raise ValueError(f"{path}: {fieldName} must be a non-empty string")
 
     locales = manifest.get("locales")
 
@@ -542,21 +542,21 @@ def _LoadProjectManifest(path: Path) -> dict:
             "and containing at least one target locale"
         )
 
-    package_names = manifest.get("packageNames")
+    packageNames = manifest.get("packageNames")
 
     if (
-        not isinstance(package_names, list)
-        or not package_names
-        or not all(isinstance(name, str) and name.strip() for name in package_names)
+        not isinstance(packageNames, list)
+        or not packageNames
+        or not all(isinstance(name, str) and name.strip() for name in packageNames)
     ):
         raise ValueError(f"{path}: packageNames must be a non-empty string list")
 
-    publication_path = manifest["publicationPath"]
+    publicationPath = manifest["publicationPath"]
 
     if (
-        not publication_path.startswith("/")
-        or (publication_path != "/" and publication_path.endswith("/"))
-        or ".." in Path(publication_path).parts
+        not publicationPath.startswith("/")
+        or (publicationPath != "/" and publicationPath.endswith("/"))
+        or ".." in Path(publicationPath).parts
     ):
         raise ValueError(
             f"{path}: publicationPath must be an absolute URL path without a trailing slash"
@@ -567,18 +567,18 @@ def _LoadProjectManifest(path: Path) -> dict:
     if not isinstance(branding, dict):
         raise TypeError(f"{path}: branding must be a table")
 
-    for field_name in ("organization", "assetRoot"):
-        if not isinstance(branding.get(field_name), str) or not branding[field_name].strip():
-            raise ValueError(f"{path}: branding.{field_name} must be a non-empty string")
+    for fieldName in ("organization", "assetRoot"):
+        if not isinstance(branding.get(fieldName), str) or not branding[fieldName].strip():
+            raise ValueError(f"{path}: branding.{fieldName} must be a non-empty string")
 
     glossaries = manifest.get("glossaries", {})
 
-    target_locales = set(locales[1:])
+    targetLocales = set(locales[1:])
 
-    if set(glossaries) != target_locales:
+    if set(glossaries) != targetLocales:
         raise ValueError(
             f"{path}: glossaries must match target locales "
-            f"{', '.join(sorted(target_locales))}"
+            f"{', '.join(sorted(targetLocales))}"
         )
 
     return manifest
@@ -591,12 +591,12 @@ def _ValidTimestamp(value) -> bool:
         return False
 
     try:
-        parsed_value = datetime.fromisoformat(value)
+        parsedValue = datetime.fromisoformat(value)
 
     except ValueError:
         return False
 
-    return parsed_value.utcoffset() is not None
+    return parsedValue.utcoffset() is not None
 
 
 def _ValidateGlossaries(
@@ -606,33 +606,33 @@ def _ValidateGlossaries(
     """Return deterministic cross-locale glossary integrity violations."""
 
     diagnostics = []
-    concept_sets = {}
-    english_terms = {}
+    conceptSets = {}
+    englishTerms = {}
 
-    target_locales = tuple(project_manifest["locales"][1:])
+    targetLocales = tuple(project_manifest["locales"][1:])
 
-    for locale in target_locales:
-        glossary_label = str(project_manifest["glossaries"][locale])
+    for locale in targetLocales:
+        glossaryLabel = str(project_manifest["glossaries"][locale])
 
         try:
-            glossary_path = _ProjectPath(project_root, project_manifest["glossaries"][locale])
-            glossary_label = _Relative(glossary_path, project_root)
-            glossary = tomllib.loads(_ReadCanonicalText(glossary_path))
+            glossaryPath = _ProjectPath(project_root, project_manifest["glossaries"][locale])
+            glossaryLabel = _Relative(glossaryPath, project_root)
+            glossary = tomllib.loads(_ReadCanonicalText(glossaryPath))
 
         except (OSError, UnicodeError, ValueError, tomllib.TOMLDecodeError) as error:
-            diagnostics.append(f"{glossary_label}: cannot load glossary: {error}")
+            diagnostics.append(f"{glossaryLabel}: cannot load glossary: {error}")
             continue
 
         if glossary.get("schemaVersion") != 1:
-            diagnostics.append(f"{glossary_label}: schemaVersion must be 1")
+            diagnostics.append(f"{glossaryLabel}: schemaVersion must be 1")
 
         if glossary.get("locale") != locale:
-            diagnostics.append(f"{glossary_label}: locale must be {locale}")
+            diagnostics.append(f"{glossaryLabel}: locale must be {locale}")
 
-        concept_ids = []
+        conceptIds = []
 
         for index, term in enumerate(glossary.get("terms", ())):
-            term_label = f"{glossary_label}:terms[{index}]"
+            termLabel = f"{glossaryLabel}:terms[{index}]"
             identifier = term.get("id", "")
             english = term.get("english", "")
             preferred = term.get("preferred", "")
@@ -640,76 +640,76 @@ def _ValidateGlossaries(
             references = term.get("references", ())
 
             if not CONCEPT_ID_FORMAT.fullmatch(identifier):
-                diagnostics.append(f"{term_label}: invalid concept ID {identifier!r}")
+                diagnostics.append(f"{termLabel}: invalid concept ID {identifier!r}")
 
-            concept_ids.append(identifier)
+            conceptIds.append(identifier)
 
             if not isinstance(english, str) or not english.strip():
-                diagnostics.append(f"{term_label}: english must be non-empty")
+                diagnostics.append(f"{termLabel}: english must be non-empty")
 
             if not isinstance(preferred, str) or not preferred.strip():
-                diagnostics.append(f"{term_label}: preferred must be non-empty")
+                diagnostics.append(f"{termLabel}: preferred must be non-empty")
 
             if not isinstance(avoid, list) or not all(
                 isinstance(value, str) and value.strip() for value in avoid
             ):
-                diagnostics.append(f"{term_label}: avoid must be a string list")
+                diagnostics.append(f"{termLabel}: avoid must be a string list")
 
             elif preferred in avoid:
-                diagnostics.append(f"{term_label}: preferred term cannot be prohibited")
+                diagnostics.append(f"{termLabel}: preferred term cannot be prohibited")
 
             if not isinstance(references, list) or not references:
-                diagnostics.append(f"{term_label}: at least one reference is required")
+                diagnostics.append(f"{termLabel}: at least one reference is required")
 
             else:
                 for reference in references:
                     try:
-                        reference_path = _ProjectPath(project_root, reference)
+                        referencePath = _ProjectPath(project_root, reference)
 
                     except ValueError as error:
                         diagnostics.append(
-                            f"{term_label}: invalid reference {reference!r}: {error}"
+                            f"{termLabel}: invalid reference {reference!r}: {error}"
                         )
                         continue
 
-                    if not isinstance(reference, str) or not reference_path.is_file():
+                    if not isinstance(reference, str) or not referencePath.is_file():
                         diagnostics.append(
-                            f"{term_label}: missing reference {reference!r}"
+                            f"{termLabel}: missing reference {reference!r}"
                         )
 
-            if identifier in english_terms and english_terms[identifier] != english:
+            if identifier in englishTerms and englishTerms[identifier] != english:
                 diagnostics.append(
-                    f"{term_label}: canonical English term differs across locales"
+                    f"{termLabel}: canonical English term differs across locales"
                 )
 
-            english_terms[identifier] = english
+            englishTerms[identifier] = english
 
-        if len(concept_ids) != len(set(concept_ids)):
-            diagnostics.append(f"{glossary_label}: duplicate concept IDs")
+        if len(conceptIds) != len(set(conceptIds)):
+            diagnostics.append(f"{glossaryLabel}: duplicate concept IDs")
 
-        concept_sets[locale] = frozenset(concept_ids)
+        conceptSets[locale] = frozenset(conceptIds)
 
-    if len(concept_sets) == len(target_locales) and len(set(concept_sets.values())) > 1:
+    if len(conceptSets) == len(targetLocales) and len(set(conceptSets.values())) > 1:
         diagnostics.append("docs/i18n/glossaries: target locale concept IDs must match")
 
     return tuple(diagnostics)
 
 
 def _TranslationDiagnostic(
-    unit_id: str,
+    unitId: str,
     locale: str,
     source_path: str,
     translation_path: str,
-    expected_hash: str,
-    actual_hash: str,
+    expectedHash: str,
+    actualHash: str,
     action: str,
 ) -> str:
     """Format one complete stale-translation diagnostic."""
 
     return (
-        f"unit={unit_id} locale={locale} source={source_path} "
+        f"unit={unitId} locale={locale} source={source_path} "
         f"translation={translation_path or '<missing>'} "
-        f"expected={expected_hash or '<missing>'} actual={actual_hash} "
+        f"expected={expectedHash or '<missing>'} actual={actualHash} "
         f"action={action}"
     )
 
@@ -738,24 +738,24 @@ def ValidateLocales(
             else "docs/i18n/project.toml",
             allow_absolute=project_manifest_path is not None,
         )
-        project_manifest = _LoadProjectManifest(project_manifest_path)
-        _ValidateManifestPaths(project_root, project_manifest)
-        target_locales = tuple(project_manifest["locales"][1:])
-        unit_manifest_path = _ProjectPath(project_root, project_manifest["unitManifest"])
-        unit_manifest = tomllib.loads(_ReadCanonicalText(unit_manifest_path))
+        projectManifest = _LoadProjectManifest(project_manifest_path)
+        _ValidateManifestPaths(project_root, projectManifest)
+        targetLocales = tuple(projectManifest["locales"][1:])
+        unitManifestPath = _ProjectPath(project_root, projectManifest["unitManifest"])
+        unitManifest = tomllib.loads(_ReadCanonicalText(unitManifestPath))
 
-        for record in unit_manifest.get("units", ()):
+        for record in unitManifest.get("units", ()):
             _ProjectPath(project_root, record.get("sourcePath", ""))
 
-        known_page_ids = {
+        knownPageIds = {
             record.get("sourcePath", ""): record.get("id", "")
-            for record in unit_manifest.get("units", ())
+            for record in unitManifest.get("units", ())
             if record.get("kind") == "page"
         }
-        discovered_units = DiscoverCanonicalUnits(
+        discoveredUnits = DiscoverCanonicalUnits(
             project_root,
-            project_manifest,
-            known_page_ids,
+            projectManifest,
+            knownPageIds,
         )
 
     except (
@@ -768,151 +768,151 @@ def ValidateLocales(
     ) as error:
         return ValidationReport((str(error),), {})
 
-    unit_manifest_label = _Relative(unit_manifest_path, project_root)
+    unitManifestLabel = _Relative(unitManifestPath, project_root)
 
-    if unit_manifest.get("schemaVersion") != 1:
-        diagnostics.append(f"{unit_manifest_label}: schemaVersion must be 1")
+    if unitManifest.get("schemaVersion") != 1:
+        diagnostics.append(f"{unitManifestLabel}: schemaVersion must be 1")
 
-    discovered_by_id = {unit.identifier: unit for unit in discovered_units}
-    records = unit_manifest.get("units", ())
-    records_by_id = {}
-    active_source_paths = {}
+    discoveredById = {unit.identifier: unit for unit in discoveredUnits}
+    records = unitManifest.get("units", ())
+    recordsById = {}
+    activeSourcePaths = {}
 
     for index, record in enumerate(records):
         identifier = record.get("id", "")
-        record_label = f"{unit_manifest_label}:units[{index}]"
+        recordLabel = f"{unitManifestLabel}:units[{index}]"
 
-        if identifier in records_by_id:
-            diagnostics.append(f"{record_label}: duplicate unit ID {identifier}")
+        if identifier in recordsById:
+            diagnostics.append(f"{recordLabel}: duplicate unit ID {identifier}")
 
-        records_by_id[identifier] = record
+        recordsById[identifier] = record
 
         if record.get("kind") == "page":
-            source_path = record.get("sourcePath", "")
-            prior_id = active_source_paths.get(source_path)
+            sourcePath = record.get("sourcePath", "")
+            priorId = activeSourcePaths.get(sourcePath)
 
-            if prior_id:
+            if priorId:
                 diagnostics.append(
-                    f"{record_label}: sourcePath {source_path!r} is already owned by {prior_id}"
+                    f"{recordLabel}: sourcePath {sourcePath!r} is already owned by {priorId}"
                 )
 
-            active_source_paths[source_path] = identifier
+            activeSourcePaths[sourcePath] = identifier
 
-    missing_ids = sorted(set(discovered_by_id) - set(records_by_id))
-    unexpected_ids = sorted(set(records_by_id) - set(discovered_by_id))
+    missingIds = sorted(set(discoveredById) - set(recordsById))
+    unexpectedIds = sorted(set(recordsById) - set(discoveredById))
 
-    for identifier in missing_ids:
-        unit = discovered_by_id[identifier]
+    for identifier in missingIds:
+        unit = discoveredById[identifier]
         diagnostics.append(
-            f"{unit_manifest_label}: missing canonical unit {identifier} "
+            f"{unitManifestLabel}: missing canonical unit {identifier} "
             f"source={unit.source_path} action=add exactly one manifest record"
         )
 
-    for identifier in unexpected_ids:
+    for identifier in unexpectedIds:
         diagnostics.append(
-            f"{unit_manifest_label}: unknown or retired-unmarked unit {identifier} "
+            f"{unitManifestLabel}: unknown or retired-unmarked unit {identifier} "
             "action=remove it or implement an explicit retired-unit contract"
         )
 
-    for identifier in sorted(set(discovered_by_id) & set(records_by_id)):
-        unit = discovered_by_id[identifier]
-        record = records_by_id[identifier]
-        record_label = f"{unit_manifest_label}:{identifier}"
-        current_hash = CanonicalHash(unit)
-        recorded_hash = record.get("sourceHash", "")
-        source_path = record.get("sourcePath", "")
-        review_class = record.get("reviewClass", "")
+    for identifier in sorted(set(discoveredById) & set(recordsById)):
+        unit = discoveredById[identifier]
+        record = recordsById[identifier]
+        recordLabel = f"{unitManifestLabel}:{identifier}"
+        currentHash = CanonicalHash(unit)
+        recordedHash = record.get("sourceHash", "")
+        sourcePath = record.get("sourcePath", "")
+        reviewClass = record.get("reviewClass", "")
 
-        identifier_format = PAGE_ID_FORMAT if unit.kind == "page" else SYMBOL_ID_FORMAT
+        identifierFormat = PAGE_ID_FORMAT if unit.kind == "page" else SYMBOL_ID_FORMAT
 
-        if not identifier_format.fullmatch(identifier):
-            diagnostics.append(f"{record_label}: invalid stable ID")
+        if not identifierFormat.fullmatch(identifier):
+            diagnostics.append(f"{recordLabel}: invalid stable ID")
 
         if record.get("kind") != unit.kind:
-            diagnostics.append(f"{record_label}: kind must be {unit.kind}")
+            diagnostics.append(f"{recordLabel}: kind must be {unit.kind}")
 
-        if source_path != unit.source_path:
+        if sourcePath != unit.source_path:
             diagnostics.append(
-                f"{record_label}: sourcePath={source_path!r} actual={unit.source_path!r} "
+                f"{recordLabel}: sourcePath={sourcePath!r} actual={unit.source_path!r} "
                 "action=preserve the stable ID and update its canonical source path"
             )
 
-        if not HASH_FORMAT.fullmatch(recorded_hash):
-            diagnostics.append(f"{record_label}: invalid sourceHash {recorded_hash!r}")
+        if not HASH_FORMAT.fullmatch(recordedHash):
+            diagnostics.append(f"{recordLabel}: invalid sourceHash {recordedHash!r}")
 
-        elif recorded_hash != current_hash:
+        elif recordedHash != currentHash:
             diagnostics.append(
-                f"{record_label}: canonical source drift expected={recorded_hash} "
-                f"actual={current_hash} source={unit.source_path} "
+                f"{recordLabel}: canonical source drift expected={recordedHash} "
+                f"actual={currentHash} source={unit.source_path} "
                 "action=review the English change and refresh sourceHash"
             )
 
-        if review_class not in REVIEW_CLASSES:
-            diagnostics.append(f"{record_label}: invalid reviewClass {review_class!r}")
+        if reviewClass not in REVIEW_CLASSES:
+            diagnostics.append(f"{recordLabel}: invalid reviewClass {reviewClass!r}")
 
         translations = record.get("translations", {})
-        unexpected_locales = sorted(set(translations) - set(target_locales))
+        unexpectedLocales = sorted(set(translations) - set(targetLocales))
 
-        for locale in unexpected_locales:
-            diagnostics.append(f"{record_label}: unsupported locale {locale}")
+        for locale in unexpectedLocales:
+            diagnostics.append(f"{recordLabel}: unsupported locale {locale}")
 
         states[identifier] = {}
 
-        for locale in target_locales:
+        for locale in targetLocales:
             translation = translations.get(locale)
 
             if not isinstance(translation, dict):
-                diagnostics.append(f"{record_label}: missing {locale} translation state")
+                diagnostics.append(f"{recordLabel}: missing {locale} translation state")
                 states[identifier][locale] = "invalid"
                 continue
 
             state = translation.get("state", "")
-            translation_path = translation.get("path", "")
+            translationPath = translation.get("path", "")
             reviews = translation.get("reviews", ())
 
-            if translation_path:
+            if translationPath:
                 try:
-                    _ProjectPath(project_root, translation_path)
+                    _ProjectPath(project_root, translationPath)
 
                 except ValueError as error:
-                    diagnostics.append(f"{record_label}: invalid {locale} path: {error}")
+                    diagnostics.append(f"{recordLabel}: invalid {locale} path: {error}")
                     states[identifier][locale] = "invalid"
                     continue
 
             if state not in TRANSLATION_STATES:
-                diagnostics.append(f"{record_label}: invalid {locale} state {state!r}")
+                diagnostics.append(f"{recordLabel}: invalid {locale} state {state!r}")
                 states[identifier][locale] = "invalid"
                 continue
 
             states[identifier][locale] = state
 
             if state == "missing":
-                if translation_path or reviews:
+                if translationPath or reviews:
                     diagnostics.append(
-                        f"{record_label}: {locale} missing state cannot carry a path or reviews"
+                        f"{recordLabel}: {locale} missing state cannot carry a path or reviews"
                     )
 
                 continue
 
             if state == "retired":
                 diagnostics.append(
-                    f"{record_label}: active canonical unit cannot have retired {locale} state"
+                    f"{recordLabel}: active canonical unit cannot have retired {locale} state"
                 )
                 continue
 
-            resolved_translation = (
-                _ProjectPath(project_root, translation_path) if translation_path else None
+            resolvedTranslation = (
+                _ProjectPath(project_root, translationPath) if translationPath else None
             )
 
-            if resolved_translation is None or not resolved_translation.is_file():
+            if resolvedTranslation is None or not resolvedTranslation.is_file():
                 diagnostics.append(
                     _TranslationDiagnostic(
                         identifier,
                         locale,
                         unit.source_path,
-                        translation_path,
-                        recorded_hash,
-                        current_hash,
+                        translationPath,
+                        recordedHash,
+                        currentHash,
                         "add the locale file or use state=missing",
                     )
                 )
@@ -920,71 +920,71 @@ def ValidateLocales(
             if state != "approved":
                 continue
 
-            required_roles = REVIEW_ROLES.get(review_class, frozenset())
-            reviewed_roles = set()
-            mismatched_review_hash = False
+            requiredRoles = REVIEW_ROLES.get(reviewClass, frozenset())
+            reviewedRoles = set()
+            mismatchedReviewHash = False
 
             if not isinstance(reviews, list):
-                diagnostics.append(f"{record_label}: {locale} reviews must be a list")
+                diagnostics.append(f"{recordLabel}: {locale} reviews must be a list")
                 reviews = ()
 
-            for review_index, review in enumerate(reviews):
-                review_label = f"{record_label}:{locale}:reviews[{review_index}]"
+            for reviewIndex, review in enumerate(reviews):
+                reviewLabel = f"{recordLabel}:{locale}:reviews[{reviewIndex}]"
                 role = review.get("role", "")
-                review_hash = review.get("reviewedSourceHash", "")
+                reviewHash = review.get("reviewedSourceHash", "")
 
-                if role in reviewed_roles:
-                    diagnostics.append(f"{review_label}: duplicate review role {role}")
+                if role in reviewedRoles:
+                    diagnostics.append(f"{reviewLabel}: duplicate review role {role}")
 
-                reviewed_roles.add(role)
+                reviewedRoles.add(role)
 
                 if not isinstance(review.get("reviewer"), str) or not review["reviewer"].strip():
-                    diagnostics.append(f"{review_label}: reviewer must be non-empty")
+                    diagnostics.append(f"{reviewLabel}: reviewer must be non-empty")
 
                 if not _ValidTimestamp(review.get("reviewedAt")):
-                    diagnostics.append(f"{review_label}: reviewedAt must be a UTC timestamp")
+                    diagnostics.append(f"{reviewLabel}: reviewedAt must be a UTC timestamp")
 
-                if review_hash != current_hash:
-                    mismatched_review_hash = True
+                if reviewHash != currentHash:
+                    mismatchedReviewHash = True
 
-            missing_roles = sorted(required_roles - reviewed_roles)
+            missingRoles = sorted(requiredRoles - reviewedRoles)
 
-            if missing_roles:
+            if missingRoles:
                 diagnostics.append(
-                    f"{record_label}: {locale} approved state lacks review roles "
-                    f"{', '.join(missing_roles)}"
+                    f"{recordLabel}: {locale} approved state lacks review roles "
+                    f"{', '.join(missingRoles)}"
                 )
 
-            if recorded_hash != current_hash or mismatched_review_hash:
+            if recordedHash != currentHash or mismatchedReviewHash:
                 states[identifier][locale] = "stale"
                 diagnostics.append(
                     _TranslationDiagnostic(
                         identifier,
                         locale,
                         unit.source_path,
-                        translation_path,
-                        recorded_hash,
-                        current_hash,
+                        translationPath,
+                        recordedHash,
+                        currentHash,
                         "set state=stale and obtain new accountable human reviews",
                     )
                 )
 
-    diagnostics.extend(_ValidateGlossaries(project_root, project_manifest))
+    diagnostics.extend(_ValidateGlossaries(project_root, projectManifest))
 
     return ValidationReport(tuple(sorted(set(diagnostics))), states)
 
 
-def _WriteReport(report: ValidationReport, output_path: Path) -> None:
+def _WriteReport(report: ValidationReport, outputPath: Path) -> None:
     """Write deterministic machine-readable validation evidence."""
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    outputPath.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "schemaVersion": 1,
         "status": "pass" if not report.diagnostics else "fail",
         "diagnostics": list(report.diagnostics),
         "states": report.states,
     }
-    output_path.write_text(
+    outputPath.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -1027,39 +1027,39 @@ def Main(arguments: list[str] | None = None) -> int:
     """
 
     options = ParseArguments(arguments)
-    project_manifest_path = options.project_manifest
+    projectManifestPath = options.project_manifest
 
     if options.command == "inventory":
         try:
-            project_manifest_path = _ProjectPath(
+            projectManifestPath = _ProjectPath(
                 options.project_root,
-                project_manifest_path if project_manifest_path is not None
+                projectManifestPath if projectManifestPath is not None
                 else "docs/i18n/project.toml",
-                allow_absolute=project_manifest_path is not None,
+                allow_absolute=projectManifestPath is not None,
             )
-            project_manifest = _LoadProjectManifest(project_manifest_path)
-            _ValidateManifestPaths(options.project_root, project_manifest)
-            unit_manifest_path = _ProjectPath(
-                options.project_root, project_manifest["unitManifest"]
+            projectManifest = _LoadProjectManifest(projectManifestPath)
+            _ValidateManifestPaths(options.project_root, projectManifest)
+            unitManifestPath = _ProjectPath(
+                options.project_root, projectManifest["unitManifest"]
             )
-            known_page_ids = {}
+            knownPageIds = {}
 
-            if unit_manifest_path.is_file():
-                unit_manifest = tomllib.loads(_ReadCanonicalText(unit_manifest_path))
+            if unitManifestPath.is_file():
+                unitManifest = tomllib.loads(_ReadCanonicalText(unitManifestPath))
 
-                for record in unit_manifest.get("units", ()):
+                for record in unitManifest.get("units", ()):
                     _ProjectPath(options.project_root, record.get("sourcePath", ""))
 
-                known_page_ids = {
+                knownPageIds = {
                     record.get("sourcePath", ""): record.get("id", "")
-                    for record in unit_manifest.get("units", ())
+                    for record in unitManifest.get("units", ())
                     if record.get("kind") == "page"
                 }
 
             units = DiscoverCanonicalUnits(
                 options.project_root,
-                project_manifest,
-                known_page_ids,
+                projectManifest,
+                knownPageIds,
             )
 
         except (
@@ -1088,7 +1088,7 @@ def Main(arguments: list[str] | None = None) -> int:
 
         return 0
 
-    report = ValidateLocales(options.project_root, project_manifest_path)
+    report = ValidateLocales(options.project_root, projectManifestPath)
 
     if options.output:
         _WriteReport(report, options.output)

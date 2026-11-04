@@ -62,11 +62,11 @@ def OwnedReadonlyDatabase() -> Iterator[sqlite3.Connection]:
                       database_name: str | None, trigger: str | None) -> int:
             """Confine query execution to SELECT and the three fixture-owned columns."""
 
-            allowed_read = (action == sqlite3.SQLITE_READ and first == "records"
+            allowedRead = (action == sqlite3.SQLITE_READ and first == "records"
                             and second in ("label", "is_hidden", "marker")
                             and database_name == "main")
 
-            return sqlite3.SQLITE_OK if action == sqlite3.SQLITE_SELECT or allowed_read else (
+            return sqlite3.SQLITE_OK if action == sqlite3.SQLITE_SELECT or allowedRead else (
                 sqlite3.SQLITE_DENY)
 
         def BoundInstructions() -> int:

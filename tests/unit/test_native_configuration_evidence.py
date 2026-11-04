@@ -212,12 +212,12 @@ def test_HistoricalFactsCannotCreateFreshModelWriteAuthority(
     root, selection, context, settings = controlled_runtime
     summary = Run(configuration_runner, controlled_runtime)
     version, scan = summary.captures
-    invented_claim = object.__new__(NativeConfigurationExecutionClaim)
+    inventedClaim = object.__new__(NativeConfigurationExecutionClaim)
     prerequisite = NativeConfigurationVersionPrerequisite(version.prepared, version.grant,
-                                                          invented_claim, version)
+                                                          inventedClaim, version)
 
     with pytest.raises(ValueError, match="claim is not original"):
         ApplyVerifiedNativeConfiguration(LocalModelStore(root).Open(), scan,
             summary.retained_records, root, engine=ArtifactPolicyEngine(),
-            version_prerequisite=prerequisite, scan_claim=invented_claim,
+            version_prerequisite=prerequisite, scan_claim=inventedClaim,
             observer=None, material_proof=None, context_provider=lambda: context)

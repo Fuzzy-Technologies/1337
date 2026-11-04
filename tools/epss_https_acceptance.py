@@ -127,13 +127,13 @@ def RunAcceptance(output: Path) -> dict[str, object]:
         raise ValueError("Pinned installed HTTPS fetch did not succeed")
 
     document = VerifyFetch(json.loads(result.stdout, object_pairs_hook=UniqueReferenceObject))
-    selected_id, receipt_id = str(document["selection_id"]), str(document["receipt_id"])
-    received = remote.LoadHttpsEpssSelection(workspace, selected_id, receipt_id)
-    expected_source = remote.EpssHttpsSource(
+    selectedId, receiptId = str(document["selection_id"]), str(document["receipt_id"])
+    received = remote.LoadHttpsEpssSelection(workspace, selectedId, receiptId)
+    expectedSource = remote.EpssHttpsSource(
         SOURCE_COMMIT, SOURCE_DAY, SOURCE_MODEL, EXPECTED_SHA256,
     )
 
-    if received.source != expected_source or received.source.ToDict() != document["source"]:
+    if received.source != expectedSource or received.source.ToDict() != document["source"]:
         raise ValueError("Original HTTPS source differs from the pinned terminal source")
 
     selection = received.selection
@@ -163,24 +163,24 @@ def RunAcceptance(output: Path) -> dict[str, object]:
 
     moved = output / "relocated-workspace"
     shutil.move(str(workspace), moved)
-    original_receiver = getattr(remote, "ReceiveIsolatedHttps")
+    originalReceiver = getattr(remote, "ReceiveIsolatedHttps")
     setattr(remote, "ReceiveIsolatedHttps", NoReceive)
 
     try:
-        reopened = remote.LoadHttpsEpssSelection(moved, selected_id, receipt_id)
+        reopened = remote.LoadHttpsEpssSelection(moved, selectedId, receiptId)
 
     finally:
-        setattr(remote, "ReceiveIsolatedHttps", original_receiver)
+        setattr(remote, "ReceiveIsolatedHttps", originalReceiver)
 
     if reopened != received or LocalModelStore(moved).Open() != before:
         raise ValueError("Relocated original-source reopening changed custody or model state")
 
-    production_hashes = {}
+    productionHashes = {}
 
     for name in ("intelligence_epss_remote.py", "intelligence_receiver.py",
                  "intelligence_transport.py", "intelligence_acquisition.py",
                  "intelligence_epss_https_commands.py"):
-        production_hashes[name] = hashlib.sha256(
+        productionHashes[name] = hashlib.sha256(
             Path(remote.__file__).with_name(name).read_bytes(),
         ).hexdigest()
 
@@ -188,10 +188,10 @@ def RunAcceptance(output: Path) -> dict[str, object]:
         "source": received.source.ToDict(), "source_sha256": EXPECTED_SHA256,
         "received_bytes": EXPECTED_BYTES, "http_status": document["http_status"],
         "received_rows": selection.row_count, "selection_reference": received.Reference(),
-        "selection_id": selected_id, "receipt_id": receipt_id,
+        "selection_id": selectedId, "receipt_id": receiptId,
         "decoder": selection.ToDict(), "offline_relocated_reopen": True,
         "canonical_model_unchanged": True, "publisher_authentication": "not-assessed",
-        "production_hashes": production_hashes}
+        "production_hashes": productionHashes}
     (output / "acceptance.json").write_bytes(CanonicalReferenceJson(facts))
 
     return facts

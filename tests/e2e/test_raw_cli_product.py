@@ -59,10 +59,10 @@ def test_InstalledRawCliPreservesSyntheticSuccessFailureDenialAndRelocatedCustod
         "Original synthetic stderr must remain byte-exact and separate")
     assert len(LocalModelStore(root).Open().Objects(ObjectKind.PORT)) == 2, (
         "Successful original XML must enter the existing canonical object model")
-    failed_native = ["127.0.0.1", *NATIVE[:-1]]
-    failed_plan = json.loads(Console(["plan", *prefix, "--", *failed_native]).stdout)
-    failure = Console(["run", *prefix, "--json", "--confirm-plan", failed_plan["intent_sha256"],
-        "--confirmation-reference", "approval:raw-synthetic-failure", "--", *failed_native])
+    failedNative = ["127.0.0.1", *NATIVE[:-1]]
+    failedPlan = json.loads(Console(["plan", *prefix, "--", *failedNative]).stdout)
+    failure = Console(["run", *prefix, "--json", "--confirm-plan", failedPlan["intent_sha256"],
+        "--confirmation-reference", "approval:raw-synthetic-failure", "--", *failedNative])
     outcome = json.loads(failure.stdout)
     assert failure.returncode == 7 and outcome["native_exit_code"] == 7, (
         "Actual synthetic process rejection must retain native seven after complete custody")

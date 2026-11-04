@@ -564,12 +564,12 @@ class NativeLoopbackPageAdapter:
 
         target, _, _, _, _ = Destination(request.parameters["url"])
         timeout = Seconds(request.parameters["timeout_seconds"], 5)
-        fixture_id = request.parameters["fixture_id"]
+        fixtureId = request.parameters["fixture_id"]
 
-        if type(fixture_id) is not str:
+        if type(fixtureId) is not str:
             raise ValueError("page capture requires an exact text fixture identifier")
 
-        body = KnownSyntheticHtmlBody(fixture_id)
+        body = KnownSyntheticHtmlBody(fixtureId)
         maximum = Integer(request.parameters["max_body_bytes"], 1, MAX_BODY_BYTES)
 
         if body.size_bytes > maximum or request.target_reference != target.Reference():

@@ -214,12 +214,12 @@ def test_DirectPeerIdentityHasNoNumericReopenFallback(monkeypatch, case):
     ready = CONTRACT.READY.pack(b"1337ZRD1", bytes(16), bytes(32), 7, 9, 4096, 16384, 1024)
     closed = []
     calls = []
-    original_os = owner.os
-    fake_os = SimpleNamespace(close=closed.append, getuid=lambda: 1001, getgid=lambda: 1001,
+    originalOs = owner.os
+    fakeOs = SimpleNamespace(close=closed.append, getuid=lambda: 1001, getgid=lambda: 1001,
         fstat=lambda _: SimpleNamespace(st_mode=0o40700, st_uid=1001, st_dev=7, st_ino=9),
-        O_RDONLY=original_os.O_RDONLY, O_ACCMODE=original_os.O_ACCMODE,
-        O_PATH=original_os.O_PATH)
-    monkeypatch.setattr(owner, "os", fake_os)
+        O_RDONLY=originalOs.O_RDONLY, O_ACCMODE=originalOs.O_ACCMODE,
+        O_PATH=originalOs.O_PATH)
+    monkeypatch.setattr(owner, "os", fakeOs)
 
     def Flags(descriptor, operation):
         """Return only the specific expected readonly/CLOEXEC descriptor facts."""
@@ -410,11 +410,11 @@ def test_PartialTestPublicationPreservesAdmittedWritesWithoutRetryOrControl(monk
 
         return len(raw)
 
-    original_os = owner.os
+    originalOs = owner.os
     monkeypatch.setattr(owner, "os", SimpleNamespace(open=Open, write=Write,
-        close=closed.append, fsync=lambda _: None, O_WRONLY=original_os.O_WRONLY,
-        O_CREAT=original_os.O_CREAT, O_EXCL=original_os.O_EXCL,
-        O_NOFOLLOW=original_os.O_NOFOLLOW, O_CLOEXEC=original_os.O_CLOEXEC))
+        close=closed.append, fsync=lambda _: None, O_WRONLY=originalOs.O_WRONLY,
+        O_CREAT=originalOs.O_CREAT, O_EXCL=originalOs.O_EXCL,
+        O_NOFOLLOW=originalOs.O_NOFOLLOW, O_CLOEXEC=originalOs.O_CLOEXEC))
     execution = SimpleNamespace(stdout=b"original-out", stderr=b"original-error",
         termination=SimpleNamespace(value="cancellation"), execution=SimpleNamespace(
             state=SimpleNamespace(value="cancelled"), exit_code=-15))
@@ -439,7 +439,7 @@ def test_KnownPeerInspectionUsesOriginalFdAndRejectsChangedFacts(monkeypatch, ch
         pytest.skip("Linux-specific known-peer kernel observation contract")
 
     owner = Load("owner")
-    original_os = owner.os
+    originalOs = owner.os
     closed = []
     liveness = []
     info = SimpleNamespace(st_dev=7, st_ino=9, st_mode=0o40700, st_uid=1001,
@@ -558,7 +558,7 @@ def test_KnownPeerInspectionUsesOriginalFdAndRejectsChangedFacts(monkeypatch, ch
 
         assert path == "report" and kwargs == {"dir_fd": 17}, (
             "Late absence inspection must stay relative to the original quota descriptor")
-        assert flags & original_os.O_NOFOLLOW and flags & original_os.O_DIRECTORY, (
+        assert flags & originalOs.O_NOFOLLOW and flags & originalOs.O_DIRECTORY, (
             "Late absence inspection must refuse directory symlinks")
 
         return 30
@@ -586,9 +586,9 @@ def test_KnownPeerInspectionUsesOriginalFdAndRejectsChangedFacts(monkeypatch, ch
         getgid=lambda: 1001, readlink=Readlink, stat=Stat, lstat=Stat, fstat=lambda _: info,
         fstatvfs=lambda _: SimpleNamespace(f_frsize=4096, f_blocks=16384,
             f_files=1000 if changed == "quota" else 1024), scandir=lambda _: Entries(),
-        open=Open, close=closed.append, O_RDONLY=original_os.O_RDONLY,
-        O_DIRECTORY=original_os.O_DIRECTORY, O_NOFOLLOW=original_os.O_NOFOLLOW,
-        O_CLOEXEC=original_os.O_CLOEXEC))
+        open=Open, close=closed.append, O_RDONLY=originalOs.O_RDONLY,
+        O_DIRECTORY=originalOs.O_DIRECTORY, O_NOFOLLOW=originalOs.O_NOFOLLOW,
+        O_CLOEXEC=originalOs.O_CLOEXEC))
     arguments = (4321, 20, 17, (7, 9, 4096, 16384, 1024), b"original fixed request", materials)
 
     if changed in {None, "absolute-alias", "consumed-fd3"}:
@@ -660,17 +660,17 @@ def OracleOutcome(case):
     denials = b"".join(b"DENIED " + name + b" 1\n" for name in (b"quota-remount",
         b"new-tmpfs", b"new-userns", b"new-mountns", b"new-netns", b"root-write", b"input-write"))
     stdout = denials + b"NETWORK host-refused private-connected\nLATE original-identity\n"
-    termination, state, exit_code = "process_exit", "succeeded", 0
+    termination, state, exitCode = "process_exit", "succeeded", 0
     complete, report, failure = True, CONTRACT.REPORT_BYTES, None
 
     if case in {"timeout", "cancel", "kill"}:
         stdout += b"OWNED_CHILD 2\n"
-        termination, state, exit_code = {"timeout": ("timeout", "timed_out", -15),
+        termination, state, exitCode = {"timeout": ("timeout", "timed_out", -15),
             "cancel": ("cancellation", "cancelled", -15), "kill": ("process_exit", "failed", 137)
         }[case]
 
     if case in {"deny", "missing"}:
-        termination, state, exit_code = "cancellation", "cancelled", -15
+        termination, state, exitCode = "cancellation", "cancelled", -15
         complete, report = False, None
         failure = "ValueError" if case == "deny" else "missing-late-report"
         stdout = b"" if case == "deny" else b"ACK_WITHOUT_REPORT\n"
@@ -685,7 +685,7 @@ def OracleOutcome(case):
         stdout += b"QUOTA inodes 1000 ENOSPC\n"
 
     execution = SimpleNamespace(termination=SimpleNamespace(value=termination), stdout=stdout,
-        execution=SimpleNamespace(state=SimpleNamespace(value=state), exit_code=exit_code))
+        execution=SimpleNamespace(state=SimpleNamespace(value=state), exit_code=exitCode))
 
     return SimpleNamespace(execution=execution, observations=observed, report=report,
         setup=CONTRACT.SETUP_BYTES, complete=complete, failure=failure, cleanup_confirmed=True)
@@ -1006,8 +1006,8 @@ def test_UnknownCleanupPublicationHasNoInventedTerminalOrCompleteStreams(monkeyp
 
         return len(raw)
 
-    original_os = owner.os
-    flags = {name: getattr(original_os, name) for name in (
+    originalOs = owner.os
+    flags = {name: getattr(originalOs, name) for name in (
         "O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC", "O_RDONLY", "O_DIRECTORY")}
     monkeypatch.setattr(owner, "os", SimpleNamespace(**flags, open=Open, write=Write,
         close=closed.append, fsync=lambda _: None))
@@ -1126,21 +1126,21 @@ def test_WorkflowRunnerContextStaysInGenuineStepEnvironment():
     """Prevent unsupported runner expressions in job env while binding both genuine test steps."""
 
     workflow = yaml.safe_load((ROOT / ".github/workflows/zap-inert-acceptance.yml").read_text())
-    context_reference = re.compile(r"\brunner\s*(?:\.|\[)")
-    test_steps = []
+    contextReference = re.compile(r"\brunner\s*(?:\.|\[)")
+    testSteps = []
 
     for job in workflow["jobs"].values():
-        assert all(context_reference.search(str(value)) is None
+        assert all(contextReference.search(str(value)) is None
             for value in job.get("env", {}).values()), (
             "GitHub runner context is unavailable in jobs.<job>.env")
 
         for step in job.get("steps", []):
             if "tests/integration/test_zap_inert_isolation.py" in step.get("run", ""):
-                test_steps.append(step)
+                testSteps.append(step)
 
-    assert len(test_steps) == 2, "Both serial and parallel genuine proof steps require material"
+    assert len(testSteps) == 2, "Both serial and parallel genuine proof steps require material"
 
-    for step in test_steps:
+    for step in testSteps:
         assert step.get("env", {}).get("FUZZY1337_ZAP_INERT_MATERIAL") == (
             "${{ runner.temp }}/zap-inert-build/runtime"
         ), "Genuine test material must use runner context only in the supported step env"

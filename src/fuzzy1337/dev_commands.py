@@ -181,23 +181,23 @@ def Run(command: str, test_options: TestOptions | None = None) -> int:
         return 2
 
     if command == "check":
-        for nested_command in ("compile", "lint", "typecheck", "performance", "test", "build"):
-            nested_result = Run(nested_command, test_options)
+        for nestedCommand in ("compile", "lint", "typecheck", "performance", "test", "build"):
+            nestedResult = Run(nestedCommand, test_options)
 
-            if nested_result:
-                return nested_result
+            if nestedResult:
+                return nestedResult
 
         return 0
 
     if command in {"unit", "test"}:
         Path("coverage/coverage.json").unlink(missing_ok=True)
-        test_result = RunTests(
+        testResult = RunTests(
             "tests/unit" if command == "unit" else "tests",
             test_options or TestOptions(),
         )
 
-        if test_result:
-            return 128 - test_result if test_result < 0 else test_result
+        if testResult:
+            return 128 - testResult if testResult < 0 else testResult
 
     for step in COMMANDS[command]:
         print(f"Running: {step.Display()}", flush=True)
@@ -292,7 +292,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
                              "successful checks retain all phases.")
     arguments = parser.parse_args(argv)
     try:
-        test_options = TestOptions(
+        testOptions = TestOptions(
             jobs=arguments.jobs,
             timeout_seconds=arguments.timeout,
             serial_only=arguments.serial,
@@ -304,14 +304,14 @@ def Main(argv: Sequence[str] | None = None) -> int:
         parser.error(str(error))
 
     if arguments.command == "check":
-        if test_options != TestOptions(fail_fast=arguments.fail_fast,
+        if testOptions != TestOptions(fail_fast=arguments.fail_fast,
                                        suite_timeout_seconds=arguments.suite_timeout):
             parser.error("'check' accepts only --suite-timeout and --fail-fast among test options")
 
-    elif arguments.command not in {"unit", "test"} and test_options != TestOptions():
+    elif arguments.command not in {"unit", "test"} and testOptions != TestOptions():
         parser.error("test execution options are only valid with 'unit' or 'test'")
 
-    return Run(arguments.command, test_options)
+    return Run(arguments.command, testOptions)
 
 
 if __name__ == "__main__":

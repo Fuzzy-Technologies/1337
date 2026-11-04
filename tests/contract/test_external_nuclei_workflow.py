@@ -145,9 +145,9 @@ def test_GovernedWorkflowGateRequiresExactExecutedOriginals(tmp_path, mutation):
     junit += ('<testcase classname="tests.functional.test_external_nuclei_governed_prerequisites" '
         'name="test_InstalledImageRunsExactGovernedEnvironmentWithoutHome"/></testsuite></testsuites>')
     (tmp_path / "functional-evidence/nuclei-governed-prerequisites.xml").write_text(junit)
-    script_path = tmp_path / "read-original-no-home-gate.py"
-    script_path.write_text(script)
-    argv = [sys.executable, "-I", "-B", str(script_path), head, head + "\n" + tree]
+    scriptPath = tmp_path / "read-original-no-home-gate.py"
+    scriptPath.write_text(script)
+    argv = [sys.executable, "-I", "-B", str(scriptPath), head, head + "\n" + tree]
     result = subprocess.run(argv, cwd=tmp_path, capture_output=True, check=False, timeout=5)
     assert (result.returncode == 0) is (mutation is None), (
         "Only one exact executed no-HOME prerequisite with complete source/cleanup may pass"
@@ -231,8 +231,8 @@ def test_ApplicationCheckpointEnrollsOnlySixCasesAndTheSameOriginalGate():
         "Draft diagnosis must execute the same six ordinary installed product cases as final CI"
     )
     gate = steps[5]
-    final_gate = final["Require six original Nuclei application observations"]
-    assert gate["run"] == final_gate["run"] and gate["timeout-minutes"] == 1 and (
+    finalGate = final["Require six original Nuclei application observations"]
+    assert gate["run"] == finalGate["run"] and gate["timeout-minutes"] == 1 and (
         gate["env"] == {"NUCLEI_COMPARISON_SOURCE_HEAD": (
             "${{ github.event.pull_request.head.sha }}")}
         and "if" not in gate

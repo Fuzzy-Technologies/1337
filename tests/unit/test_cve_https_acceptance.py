@@ -130,10 +130,10 @@ def OwnedBoundary(monkeypatch: pytest.MonkeyPatch, mutation: str | None = None) 
         commit = "b" * 40 if mutation == "alternate-source" else acceptance.SOURCE_COMMIT
         selected = remote.CveHttpsSource(commit, acceptance.SOURCE_IDENTIFIER,
                                         acceptance.EXPECTED_SHA256)
-        expected_bytes = len(payload) + 1 if mutation == "different-byte-limit" else len(payload)
-        expected_timeout = 31 if mutation == "different-timeout" else 30
+        expectedBytes = len(payload) + 1 if mutation == "different-byte-limit" else len(payload)
+        expectedTimeout = 31 if mutation == "different-timeout" else 30
         assert (url, max_bytes, timeout_seconds, accept_kind) == (
-            selected.SourceUrl, expected_bytes, expected_timeout, "json",
+            selected.SourceUrl, expectedBytes, expectedTimeout, "json",
         ), "The wrapper bypassed explicit immutable source admission or finite JSON limits"
         observed["receives"].append(url)
 
@@ -218,7 +218,7 @@ def OwnedBoundary(monkeypatch: pytest.MonkeyPatch, mutation: str | None = None) 
     monkeypatch.setattr(acceptance.subprocess, "run", Run)
 
     if mutation == "relocated-corruption":
-        original_move = acceptance.shutil.move
+        originalMove = acceptance.shutil.move
 
         def Move(source: str, destination: Path) -> str:
             """Relocate actual original owners, then corrupt the retained original source blob.
@@ -231,7 +231,7 @@ def OwnedBoundary(monkeypatch: pytest.MonkeyPatch, mutation: str | None = None) 
                 Actual filesystem move result after controlled original-body corruption.
             """
 
-            result = original_move(source, destination)
+            result = originalMove(source, destination)
             locator = observed["original"].raw.reference.locator
             (destination / "evidence" / locator).write_bytes(b"x" * len(payload))
 
@@ -524,8 +524,8 @@ def test_DocumentationLaneExercisesCveAcceptanceWithoutWeakeningCoverage() -> No
     workflow = yaml.safe_load((Path(__file__).resolve().parents[2]
                               / ".github/workflows/documentation.yml").read_text())
     steps = workflow["jobs"]["deterministic-documentation"]["steps"]
-    step_name = "Exercise documentation boundaries and enforce per-tool branch coverage"
-    selected = [step["run"] for step in steps if step.get("name") == step_name]
+    stepName = "Exercise documentation boundaries and enforce per-tool branch coverage"
+    selected = [step["run"] for step in steps if step.get("name") == stepName]
     assert len(selected) == 1 and "tests/unit/test_cve_https_acceptance.py" in selected[0], (
         "The explicit documentation selection omitted CVE HTTPS acceptance tool tests"
     )

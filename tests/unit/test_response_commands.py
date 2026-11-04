@@ -131,13 +131,13 @@ def test_ControlledCliUsesScopedPortableParentViewWithoutChangingGlobalPlatform(
 ):
     """A controlled unsupported-host view still needs the shared parent fixture before execution."""
 
-    original_platform = sys.platform
+    originalPlatform = sys.platform
     monkeypatch.setattr(parent, "sys", SimpleNamespace(platform="darwin",
                                                       executable=sys.executable))
     status = Main([*Arguments(response_cli.root), "--approve-safe-response-capture", "--json"])
     capsys.readouterr()
     assert status == 0, "The controlled CLI must request its shared portable parent fixture."
-    assert sys.platform == original_platform, "Portable units cannot change global platform state."
+    assert sys.platform == originalPlatform, "Portable units cannot change global platform state."
 
 
 @pytest.mark.parametrize("presentation", ["json", "events", "human"])
@@ -158,12 +158,12 @@ def test_SharedCliCaptureAndShellReplayPreserveOriginalAssociations(
         assert "Response capture: completed" in output, "Human output describes source acquisition."
         source = next(item for item in LocalModelStore(root).Open().observations
                       if item.kind == "owned-response-source")
-        receipt_id = source.attributes["original_receipt_id"]
+        receiptId = source.attributes["original_receipt_id"]
 
     else:
         rows = [json.loads(line) for line in output.splitlines()]
         summary = rows[-1]["summary"] if presentation == "events" else rows[-1]
-        receipt_id = summary["original_receipt_id"]
+        receiptId = summary["original_receipt_id"]
         assert summary["state"] == "completed" and summary["acquisition_outcome"] == "captured", (
             "Only complete guarded acquisition and persistence may produce completed capture."
         )
@@ -174,9 +174,9 @@ def test_SharedCliCaptureAndShellReplayPreserveOriginalAssociations(
     assert "Reviewed non-secret response." not in output, "Raw response cannot become a job event."
     sink = io.StringIO()
     shell = InteractiveShell(stdout=sink)
-    shell.onecmd("response " + shlex.join(["replay", str(root), "--receipt", receipt_id, "--json"]))
+    shell.onecmd("response " + shlex.join(["replay", str(root), "--receipt", receiptId, "--json"]))
     replay = json.loads(sink.getvalue())
-    assert replay["state"] == "verified" and replay["original_receipt_id"] == receipt_id, (
+    assert replay["state"] == "verified" and replay["original_receipt_id"] == receiptId, (
         "The foreground shell must use the same original offline receipt verification route."
     )
     assert replay["original_job_id"] in LocalWorkspaceStore(root).Open().job_references, (
@@ -212,9 +212,9 @@ def test_ResponseHelpAndRegistryDistinguishAcquisitionFromOfflineHeaderCapabilit
     with pytest.raises(SystemExit) as caught:
         Main(["response", "--help"])
 
-    help_text = capsys.readouterr().out
+    helpText = capsys.readouterr().out
     descriptor = COMMAND_REGISTRY.Resolve("response")
-    assert caught.value.code == 0 and all(action in help_text for action in (
+    assert caught.value.code == 0 and all(action in helpText for action in (
         "capture", "replay", "check-headers", "replay-headers"
     )), (
         "Every distinct source/check/replay operation must remain discoverable."

@@ -201,9 +201,9 @@ def EvaluateNativeWebCriterion(
 
     snapshot = summary.snapshot
     invocation = plan.invocation
-    check_id = str(invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID))
+    checkId = str(invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID))
 
-    if snapshot.state is not JobState.COMPLETED or summary.check_id != check_id or (
+    if snapshot.state is not JobState.COMPLETED or summary.check_id != checkId or (
         len(snapshot.artifacts) != 2 or snapshot.spec.workspace_id != model.workspace_id
         or snapshot.spec.scope_reference != plan.policy_plan.scope_reference
         or summary.model_revision != model.revision
@@ -272,21 +272,21 @@ def EvaluateNativeWebCriterion(
     provenance = ModelProvenance(NATIVE_WEB_PROVIDER_ID, snapshot.spec.job_id,
         observed.provenance.observed_at, snapshot.spec.scope_reference,
         invocation.request.target_reference, NATIVE_WEB_VERSION, references, original.execution)
-    expected_observation = normalized.observations[0]
+    expectedObservation = normalized.observations[0]
     objects = {item.Reference(): item for item in rebuilt.objects}
     endpoint = objects.get(subject.Reference())
 
-    if observed != Observation(expected_observation.kind, subject.Reference(),
-        dict(expected_observation.attributes), provenance) or endpoint is None or (
+    if observed != Observation(expectedObservation.kind, subject.Reference(),
+        dict(expectedObservation.attributes), provenance) or endpoint is None or (
         endpoint.attributes.get("url") != target or provenance not in endpoint.provenance
     ):
         raise ValueError("CI native web saved endpoint/source proof differs from original metadata")
 
     selected = []
-    detection_references = set()
+    detectionReferences = set()
 
     for item in normalized.findings:
-        candidate = Finding(subject.Reference(), check_id, target, item.summary,
+        candidate = Finding(subject.Reference(), checkId, target, item.summary,
                             (provenance,), severity=FindingSeverity.LOW)
         reference = candidate.ToObject(model.workspace_id).Reference()
         entity = objects.get(reference)
@@ -299,34 +299,34 @@ def EvaluateNativeWebCriterion(
             raise ValueError("CI native web has no exact saved current detection proof")
 
         current = Finding.FromObject(entity)
-        actual_attributes = current.ToAttributes()
-        expected_attributes = candidate.ToAttributes()
+        actualAttributes = current.ToAttributes()
+        expectedAttributes = candidate.ToAttributes()
 
-        for field_name in ("status", "status_reason"):
-            actual_attributes.pop(field_name)
-            expected_attributes.pop(field_name)
+        for fieldName in ("status", "status_reason"):
+            actualAttributes.pop(fieldName)
+            expectedAttributes.pop(fieldName)
 
-        if actual_attributes != expected_attributes:
+        if actualAttributes != expectedAttributes:
             raise ValueError("CI native web saved finding differs from its original detection")
 
         selected.append(current)
-        detection_references.add(detection.Reference())
+        detectionReferences.add(detection.Reference())
 
-    actual_detections = {item.Reference() for item in rebuilt.observations
+    actualDetections = {item.Reference() for item in rebuilt.observations
         if item.kind == "finding-detection"
         and item.provenance.run_reference == snapshot.spec.job_id}
 
-    if actual_detections != detection_references:
+    if actualDetections != detectionReferences:
         raise ValueError("CI native web current detections differ from the original worker verdict")
 
-    run_digest = hashlib.sha256(CanonicalModelJson({"profile": "native-web", "schema_version": 1,
+    runDigest = hashlib.sha256(CanonicalModelJson({"profile": "native-web", "schema_version": 1,
         "job_id": snapshot.spec.job_id, "workspace_id": model.workspace_id,
         "invocation_sha256": InvocationDigest(invocation),
         "stdout": SerializeContract(records[0].reference),
         "stderr": SerializeContract(records[1].reference)})).hexdigest()
 
     return EvaluatePredicate(rebuilt, tuple(selected), criterion, expected_snapshot_sha256,
-                             "native-web:" + run_digest)
+                             "native-web:" + runDigest)
 
 
 def RunNativeWebCiCommands(
@@ -373,8 +373,8 @@ def RunNativeWebCiCommands(
         limits = NativeWebScanLimits(3.0 if options.request_timeout is None else (
             options.request_timeout), options.timeout)
         root = RequireReportPath(options.workspace)
-        check_id = _CHECKS[options.check]
-        NativeWebEndpoint(options.target, check_id=check_id)
+        checkId = _CHECKS[options.check]
+        NativeWebEndpoint(options.target, check_id=checkId)
         target = Target(TargetKind.URL, options.target)
         destinations = {name: ReportOutputPath(getattr(options, "report_" + name), root)
                         for name in reports}
@@ -394,7 +394,7 @@ def RunNativeWebCiCommands(
                 return ReadNucleiPolicy(options.policy)
 
             return PlanNativeWebScan(root, options.scope, target, options.owner, Policy,
-                                     check_id=check_id, limits=limits)
+                                     check_id=checkId, limits=limits)
 
         phase = "authorization"
         plan = CurrentPlan()
@@ -414,7 +414,7 @@ def RunNativeWebCiCommands(
             return ReadNucleiPolicy(options.policy)
 
         summary = asyncio.run(RunNativeWebScan(root, options.scope, target, options.owner,
-            Policy, confirmation=confirmation, check_id=check_id, limits=limits))
+            Policy, confirmation=confirmation, check_id=checkId, limits=limits))
         RequireNativeSummary(summary)
         outcome["scan"] = summary.ToDict()
         outcome["model_revision"] = summary.model_revision

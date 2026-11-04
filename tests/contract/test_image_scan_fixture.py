@@ -119,35 +119,35 @@ def test_IndependentNamespaceOracleCoversAllCollidingNativeAssetsAndTriage():
         "The reviewed synthetic namespace is fixed, never selected by emitted provider labels."
     )
     baseline = ORACLE["native_namespace_baseline"]
-    native_keys = {seed["natural_key"] for seed in baseline["asset_seeds"]}
-    synthetic_keys = set(facts["synthetic_asset_keys"].values())
-    assert len(native_keys) == len(synthetic_keys) == 6, (
+    nativeKeys = {seed["natural_key"] for seed in baseline["asset_seeds"]}
+    syntheticKeys = set(facts["synthetic_asset_keys"].values())
+    assert len(nativeKeys) == len(syntheticKeys) == 6, (
         "Config, manifest, package, OS, layer and license all need collision coverage."
     )
-    assert synthetic_keys == {prefix + key for key in native_keys}, (
+    assert syntheticKeys == {prefix + key for key in nativeKeys}, (
         "Each colliding native identity must have exactly one separately namespaced fixture key."
     )
-    assert synthetic_keys.isdisjoint(native_keys), "No fixture asset may reuse a native key."
-    os_bytes = json.dumps({"family": "alpine", "name": "3.20"},
+    assert syntheticKeys.isdisjoint(nativeKeys), "No fixture asset may reuse a native key."
+    osBytes = json.dumps({"family": "alpine", "name": "3.20"},
                           sort_keys=True, separators=(",", ":")).encode()
-    os_key = "operating-system:" + hashlib.sha256(os_bytes).hexdigest()
-    license_key = "license-declaration:" + hashlib.sha256(b"MIT").hexdigest()
-    assert prefix + os_key == facts["synthetic_asset_keys"]["operating_system"], (
+    osKey = "operating-system:" + hashlib.sha256(osBytes).hexdigest()
+    licenseKey = "license-declaration:" + hashlib.sha256(b"MIT").hexdigest()
+    assert prefix + osKey == facts["synthetic_asset_keys"]["operating_system"], (
         "The independent OS oracle must retain the accepted domain hash semantics."
     )
-    assert prefix + license_key == facts["synthetic_asset_keys"]["license"], (
+    assert prefix + licenseKey == facts["synthetic_asset_keys"]["license"], (
         "License identity must describe its exact declared expression, not image or package IDs."
     )
-    native_finding = baseline["triaged_finding"]
-    synthetic_finding = facts["finding"]
-    assert native_finding["subject_object_key"] in native_keys and (
-        synthetic_finding["subject_object_key"] == facts["synthetic_asset_keys"]["package"]
+    nativeFinding = baseline["triaged_finding"]
+    syntheticFinding = facts["finding"]
+    assert nativeFinding["subject_object_key"] in nativeKeys and (
+        syntheticFinding["subject_object_key"] == facts["synthetic_asset_keys"]["package"]
     ), "Native and synthetic Findings must retain their respective exact package subjects."
-    assert synthetic_finding["check_id"] == "synthetic.supply-chain.vulnerability" and (
-        native_finding["check_id"] == "supply-chain.vulnerability"
+    assert syntheticFinding["check_id"] == "synthetic.supply-chain.vulnerability" and (
+        nativeFinding["check_id"] == "supply-chain.vulnerability"
     ), "Finding fingerprints need distinct checks as well as isolated subject identities."
-    assert native_finding["location_key"] == synthetic_finding["location_key"] and (
-        native_finding["status"] == "dismissed" and synthetic_finding["status"] == "open"
+    assert nativeFinding["location_key"] == syntheticFinding["location_key"] and (
+        nativeFinding["status"] == "dismissed" and syntheticFinding["status"] == "open"
     ), "The future collision test must cover an already triaged overlapping advisory."
 
 

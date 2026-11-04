@@ -217,19 +217,19 @@ def test_FileModeKnownOriginalPreflightPreservesEachAcquisitionScope(tmp_path):
 
     context, first = Imported(tmp_path)
     root, basis, scope, evidence, source = context
-    another_scope = replace(scope, scope_id="another")
-    LocalScopeStore(root).Create(another_scope)
+    anotherScope = replace(scope, scope_id="another")
+    LocalScopeStore(root).Create(anotherScope)
     status, second = Run(Value(Arguments(context), "--scope", "another"),
                          clock=lambda: TIME + timedelta(seconds=2))
     assert status == 0 and second["evidence_id"] != first["evidence_id"], (
         "Known original inherited the new selection's different scope"
     )
-    other = root, basis, another_scope, evidence, source
+    other = root, basis, anotherScope, evidence, source
     before = Files(root)
 
-    for selected, selected_scope in ((first, "owned"), (second, "another")):
+    for selected, selectedScope in ((first, "owned"), (second, "another")):
         status, outcome = Run(Value(Arguments(other, evidence_id=selected["evidence_id"]),
-                                    "--scope", selected_scope))
+                                    "--scope", selectedScope))
         assert status == 0 and outcome["created"] == outcome["updated"] == 0, (
             "Known originals under different scopes did not replay independently"
         )

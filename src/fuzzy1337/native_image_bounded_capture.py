@@ -196,20 +196,20 @@ class OriginalEvents:
             raise ValueError("native event identity differs")
 
         terminal = event.kind is ExecutionEventKind.COMPLETED
-        maximum_count = self.maximum if terminal else self.maximum - 1
-        maximum_bytes = self.maximum_bytes if terminal else (
+        maximumCount = self.maximum if terminal else self.maximum - 1
+        maximumBytes = self.maximum_bytes if terminal else (
             self.maximum_bytes - TERMINAL_EVENT_BYTES)
         destination = self.stdout if event.kind is ExecutionEventKind.STDOUT else self.stderr
         limit = (self.resources.max_stdout_bytes if event.kind is ExecutionEventKind.STDOUT
                  else self.resources.max_stderr_bytes)
 
-        if len(self.events) >= maximum_count or len(event.data) > limit - len(destination):
+        if len(self.events) >= maximumCount or len(event.data) > limit - len(destination):
             raise ValueError("native event count or stream ceiling exceeded")
 
-        raw = EncodeBounded(EventValue(event), maximum_bytes)
+        raw = EncodeBounded(EventValue(event), maximumBytes)
         added = len(raw) + bool(self.events)
 
-        if added > maximum_bytes - self.encoded_bytes:
+        if added > maximumBytes - self.encoded_bytes:
             raise ValueError("native event serialization ceiling exceeded")
 
         self.events.append(event)
@@ -349,19 +349,19 @@ class OutcomeJournal:
     def SyncDirectory(self) -> None:
         """Durably acknowledge the private journal's original owning directory entry."""
 
-        directory_fd = os.open(self.directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) |
+        directoryFd = os.open(self.directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) |
                                getattr(os, "O_NOFOLLOW", 0))
 
         try:
-            os.fsync(directory_fd)
+            os.fsync(directoryFd)
 
         finally:
-            os.close(directory_fd)
+            os.close(directoryFd)
 
     def Verify(self) -> None:
         """Verify exact finite journal length, private identities and every original frame hash."""
 
-        path_before, handle_before = self.Check()
+        pathBefore, handleBefore = self.Check()
         os.lseek(self.descriptor, 0, os.SEEK_SET)
         raw = bytearray()
 
@@ -392,10 +392,10 @@ class OutcomeJournal:
 
             offset += size
 
-        path_after, handle_after = self.Check()
+        pathAfter, handleAfter = self.Check()
 
-        if PhysicalIdentity(path_after) != PhysicalIdentity(path_before) or (
-            PhysicalIdentity(handle_after) != PhysicalIdentity(handle_before)
+        if PhysicalIdentity(pathAfter) != PhysicalIdentity(pathBefore) or (
+            PhysicalIdentity(handleAfter) != PhysicalIdentity(handleBefore)
         ):
             raise ValueError("native private journal changed during readback")
 
@@ -678,7 +678,7 @@ async def CaptureBoundedNativeTrivyOperation(
                 workspace=journal.scratch.relative_to(selection.workspace_root).as_posix(),
                 environment=environment, resources=resources)
             events = OriginalEvents(operation, resources)
-            started_at = datetime.now(UTC).isoformat()
+            startedAt = datetime.now(UTC).isoformat()
             header = {"schema_version": 1, "pair_reference": operation_reference,
                 "operation": operation, "workspace_id": workspace_id,
                 "owner_reference": owner_reference, "request": request,
@@ -690,7 +690,7 @@ async def CaptureBoundedNativeTrivyOperation(
                 "execution_scratch": str(journal.scratch),
                 "execution_scratch_identity": journal.scratch_identity,
                 "parent_identity": journal.parent_identity,
-                "material_before": material, "started_at": started_at}
+                "material_before": material, "started_at": startedAt}
             # Paths are explicit JSON strings, never a serializer extension or selected-file read.
             header["selection"] = {"workspace_root": str(selection.workspace_root),
                 "executable": str(selection.executable), "archive": selection.archive,
@@ -745,12 +745,12 @@ async def CaptureBoundedNativeTrivyOperation(
 
                     raise
 
-        execution_task = asyncio.create_task(LocalExecutor(selection.workspace_root).Execute(
+        executionTask = asyncio.create_task(LocalExecutor(selection.workspace_root).Execute(
             request, cancellation=signal, pre_launch=Validate, on_event=Observe,
             own_descendants=True))
 
         try:
-            outcome = await AwaitOwned(execution_task, signal, interrupted)
+            outcome = await AwaitOwned(executionTask, signal, interrupted)
 
         except BaseException:
             with Finalization(budget):
@@ -765,28 +765,28 @@ async def CaptureBoundedNativeTrivyOperation(
 
         # No await may precede this complete synchronous durable original-outcome transfer.
         with Finalization(budget):
-            finished_at = datetime.now(UTC).isoformat()
+            finishedAt = datetime.now(UTC).isoformat()
             events.Confirm(outcome)
-            journal.Append({"state": "complete", "finished_at": finished_at,
+            journal.Append({"state": "complete", "finished_at": finishedAt,
                 "execution": outcome.execution, "termination": outcome.termination,
                 "stdout_hex": outcome.stdout.hex(), "stderr_hex": outcome.stderr.hex(),
                 "events": tuple(EventValue(value) for value in outcome.events)}, complete=True)
 
-        after_proof = None
+        afterProof = None
         after = None
-        observed_version = None
+        observedVersion = None
         refusal = None
 
         try:
             Validate(request)
-            observation_task = asyncio.create_task(observer.Observe(budget,
+            observationTask = asyncio.create_task(observer.Observe(budget,
                 operation_reference=operation_reference, cancellation=signal))
-            after_proof = await AwaitOwned(observation_task, signal, interrupted)
+            afterProof = await AwaitOwned(observationTask, signal, interrupted)
 
             with Finalization(budget):
                 CheckSelection(observer, selection)
-                observer.CheckCurrent(after_proof, operation_reference=operation_reference)
-                after = after_proof.facts
+                observer.CheckCurrent(afterProof, operation_reference=operation_reference)
+                after = afterProof.facts
 
                 if after != material:
                     refusal = "material-changed"
@@ -797,11 +797,11 @@ async def CaptureBoundedNativeTrivyOperation(
                     refusal = "execution-not-successful"
 
                 elif operation is NativeTrivyOperation.VERSION:
-                    observed_version = PureVersion(outcome.stdout, after_proof)
+                    observedVersion = PureVersion(outcome.stdout, afterProof)
 
         except (Exception, asyncio.CancelledError):
             refusal = "material-or-version-unverified"
-            after_proof = None
+            afterProof = None
             after = None
 
         with Finalization(budget):
@@ -814,10 +814,10 @@ async def CaptureBoundedNativeTrivyOperation(
             if signal.is_set():
                 refusal = "authority-unverified"
 
-            version = observed_version if operation is NativeTrivyOperation.VERSION else (
+            version = observedVersion if operation is NativeTrivyOperation.VERSION else (
                 invocation.provider_version)
             provenance = EvidenceProvenance(workspace_id, authorization.scope_reference,
-                "native.trivy", "1", version, started_at, finished_at,
+                "native.trivy", "1", version, startedAt, finishedAt,
                 InvocationDigest(invocation), outcome.execution)
             roles = (
                 ("provider-version", "provider-version-stderr", "native-version-receipt")
@@ -828,22 +828,22 @@ async def CaptureBoundedNativeTrivyOperation(
             records = tuple(PreparedRecord(raw, role, media, provenance)
                             for raw, role, media in originals)
             capture = NativeTrivyOperationCapture(operation, request, outcome, workspace_id,
-                owner_reference, selection, material, after, started_at, finished_at,
+                owner_reference, selection, material, after, startedAt, finishedAt,
                 prerequisite, version, refusal, records)
             envelope = capture.Envelope()
             control = {key: value for key, value in envelope.items() if key != "events"}
             EncodeBounded(control, CONTROL_BYTES)
-            receipt_bytes = EncodeBounded(envelope, events.receipt_maximum)
-            receipt_record = PreparedRecord(receipt_bytes, roles[2], "application/json", provenance)
+            receiptBytes = EncodeBounded(envelope, events.receipt_maximum)
+            receiptRecord = PreparedRecord(receiptBytes, roles[2], "application/json", provenance)
 
             try:
                 for raw, role, media in (*originals,
-                    (receipt_bytes, roles[2], "application/json")):
+                    (receiptBytes, roles[2], "application/json")):
                     actual = store.Put(raw, role, media, provenance)
-                    expected_record = receipt_record if role == roles[2] else (
+                    expectedRecord = receiptRecord if role == roles[2] else (
                         records[0] if role == roles[0] else records[1])
 
-                    if actual != expected_record or store.Get(actual.evidence_id) != actual or (
+                    if actual != expectedRecord or store.Get(actual.evidence_id) != actual or (
                         store.Read(actual.reference) != raw
                     ):
                         raise ValueError("native original publication acknowledgement differs")
@@ -853,14 +853,14 @@ async def CaptureBoundedNativeTrivyOperation(
                     outcome_retained=journal.outcome_retained) from None
 
             complete = NativeTrivyOperationCapture(operation, request, outcome, workspace_id,
-                owner_reference, selection, material, after, started_at, finished_at,
-                prerequisite, version, refusal, (*records, receipt_record))
+                owner_reference, selection, material, after, startedAt, finishedAt,
+                prerequisite, version, refusal, (*records, receiptRecord))
             journal.RemoveConfirmed()
 
         if interrupted:
             raise interrupted[0]
 
-        return BoundedNativeTrivyOperationCapture(complete, after_proof)
+        return BoundedNativeTrivyOperationCapture(complete, afterProof)
 
     except NativeImageObservationError:
         if journal is not None:

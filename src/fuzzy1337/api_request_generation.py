@@ -388,12 +388,12 @@ class RequestGenerationContext:
         } and not _JSON_MEDIA.fullmatch(media)):
             raise ValueError("body media token is outside the generation profile")
 
-        legacy_form = self.parser.legacy and any(
+        legacyForm = self.parser.legacy and any(
             record.get("in") == "formData" for record, _ in parameters
         )
         generated: object
 
-        if legacy_form:
+        if legacyForm:
             generated = self.LegacyForm(parameters)
 
         elif self.parser.legacy:
@@ -412,10 +412,10 @@ class RequestGenerationContext:
             if "encoding" in representation and ApiImportObject(representation["encoding"]):
                 raise ValueError("custom body encodings are outside the generation profile")
 
-            schema_pointer = ApiImportPointer(
+            schemaPointer = ApiImportPointer(
                 ApiImportPointer(ApiImportPointer(pointer, "content"), media), "schema",
             )
-            generated = self.Value(representation.get("schema"), schema_pointer)
+            generated = self.Value(representation.get("schema"), schemaPointer)
 
         if kind is BodyKind.JSON:
             return CanonicalModelJson(generated), media
@@ -433,7 +433,7 @@ class RequestGenerationContext:
             value = fields[name]
 
             if isinstance(value, list):
-                if not legacy_form or kind is not BodyKind.FORM:
+                if not legacyForm or kind is not BodyKind.FORM:
                     raise ValueError("only legacy URL-encoded primitive form arrays are supported")
 
                 descriptor = next(
@@ -492,14 +492,14 @@ class RequestGenerationContext:
             raise ValueError("synthetic generation cannot resolve session bindings")
 
         source = self.operation.source_pointer
-        path_pointer = source.rsplit("/", 1)[0]
+        pathPointer = source.rsplit("/", 1)[0]
         operation = self.Pointer(source)
-        path = self.Pointer(path_pointer)
+        path = self.Pointer(pathPointer)
         parameters = self.parser.Parameters(
             path.get("parameters", []), operation.get("parameters", []),
-            ApiImportPointer(path_pointer, "parameters"), ApiImportPointer(source, "parameters"),
+            ApiImportPointer(pathPointer, "parameters"), ApiImportPointer(source, "parameters"),
         )
-        actual_path = self.operation.template.endpoint.path_template
+        actualPath = self.operation.template.endpoint.path_template
         query: list[str] = []
         headers: list[tuple[str, str]] = []
         cookies: list[str] = []
@@ -515,7 +515,7 @@ class RequestGenerationContext:
             encoded = [quote(item, safe="-._~") for item in items]
 
             if location is InjectionLocation.PATH:
-                actual_path = actual_path.replace("{" + name + "}", ",".join(encoded))
+                actualPath = actualPath.replace("{" + name + "}", ",".join(encoded))
 
             elif location is InjectionLocation.QUERY:
                 components = encoded if isinstance(value, list) and descriptor.explode else [
@@ -529,23 +529,23 @@ class RequestGenerationContext:
             else:
                 cookies.append(quote(name, safe="-._~") + "=" + encoded[0])
 
-        body, content_type = self.Body(operation, parameters)
+        body, contentType = self.Body(operation, parameters)
 
         if cookies:
             headers.append(("cookie", "; ".join(cookies)))
 
-        if content_type is not None:
-            headers.append(("content-type", content_type))
+        if contentType is not None:
+            headers.append(("content-type", contentType))
 
         endpoint = self.operation.template.endpoint
-        query_suffix = "?" + "&".join(query) if query else ""
-        target = Target(TargetKind.URL, endpoint.origin + actual_path + query_suffix)
-        header_bytes = sum(len(f"{name}: {value}\r\n".encode("ascii")) for name, value in headers)
-        url_bytes = len(target.value.encode("utf-8"))
+        querySuffix = "?" + "&".join(query) if query else ""
+        target = Target(TargetKind.URL, endpoint.origin + actualPath + querySuffix)
+        headerBytes = sum(len(f"{name}: {value}\r\n".encode("ascii")) for name, value in headers)
+        urlBytes = len(target.value.encode("utf-8"))
 
-        if url_bytes > MAX_GENERATED_URL_BYTES or header_bytes > MAX_GENERATED_HEADER_BYTES or (
+        if urlBytes > MAX_GENERATED_URL_BYTES or headerBytes > MAX_GENERATED_HEADER_BYTES or (
             len(body) > MAX_GENERATED_BODY_BYTES
-            or url_bytes + header_bytes + len(body) > MAX_GENERATED_REQUEST_BYTES
+            or urlBytes + headerBytes + len(body) > MAX_GENERATED_REQUEST_BYTES
         ):
             raise ValueError("generated request exceeds its encoded byte budget")
 

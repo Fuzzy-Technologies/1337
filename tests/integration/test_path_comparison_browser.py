@@ -70,12 +70,12 @@ def test_RequiredActualChromiumRendersStaticPairProofDownloadsAndNoScript(tmp_pa
         assert page.locator("section.phase").count() == 2 and page.locator("img").count() == 2, (
             "Original Before/After images or independent proof panels disappeared."
         )
-        focus_states = [next(transition["state"]
+        focusStates = [next(transition["state"]
             for transition in comparison[side]["analysis"]["transitions"]
             if transition["relation_reference"] == comparison["focus_transition"])
             for side in ("before", "after")]
-        readable_states = ["Focus state: " + state for state in focus_states]
-        assert page.locator("section.phase .focus-state").all_text_contents() == readable_states, (
+        readableStates = ["Focus state: " + state for state in focusStates]
+        assert page.locator("section.phase .focus-state").all_text_contents() == readableStates, (
             "Readable focus labels differ from the original selected transition states."
         )
 
@@ -128,8 +128,8 @@ def test_RequiredActualChromiumRendersStaticPairProofDownloadsAndNoScript(tmp_pa
         output.mkdir(exist_ok=True)
         (output / "path-comparison.html").write_text(rendered.stdout, encoding="utf-8")
         page.screenshot(path=str(output / "path-comparison.png"), full_page=True)
-        no_script_context = browser.new_context(java_script_enabled=False)
-        static = no_script_context.new_page()
+        noScriptContext = browser.new_context(java_script_enabled=False)
+        static = noScriptContext.new_page()
         static.goto(artifact.as_uri(), wait_until="load")
         assert static.locator("img").evaluate_all(
             "images => images.length === 2 && images.every(image => image.complete && "
@@ -138,18 +138,18 @@ def test_RequiredActualChromiumRendersStaticPairProofDownloadsAndNoScript(tmp_pa
             "body"
         ).inner_text(), "No-script artifact lost original graph images or labelled proof text."
         assert static.locator("section.phase .focus-state").all_text_contents() == (
-            readable_states
+            readableStates
         ), (
             "Script-disabled presentation lost its readable original focus states."
         )
-        facts["focus_states"] = focus_states
+        facts["focus_states"] = focusStates
         facts["proof_json_indentation"] = 2
         facts["no_script_readable"] = True
         facts["external_requests"] = external
         facts["page_errors"] = errors
         (output / "path-comparison-browser-facts.json").write_text(
             json.dumps(facts, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-        no_script_context.close()
+        noScriptContext.close()
         context.close()
         browser.close()
 

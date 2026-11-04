@@ -121,7 +121,7 @@ def test_ActualStoredSourceCannotBeReplacedByPinnedTerminalSource(
 
     monkeypatch.setattr(remote, "ReceiveIsolatedHttps", lambda *args, **kwargs:
                         (payload, "succeeded", 200))
-    observed_sources = []
+    observedSources = []
 
     def Run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         """Publish genuine fixture custody, then spoof only the terminal's declared source.
@@ -147,7 +147,7 @@ def test_ActualStoredSourceCannotBeReplacedByPinnedTerminalSource(
         assert remote.LoadHttpsEpssSelection(
             root, acquired.selection_record.evidence_id, acquired.receipt.evidence_id,
         ) == acquired.envelope, "The alternate-source fixture must independently reopen"
-        observed_sources.append(acquired.envelope.source.commit)
+        observedSources.append(acquired.envelope.source.commit)
         document = Document()
         document.update({
             "raw_id": acquired.raw.evidence_id,
@@ -164,7 +164,7 @@ def test_ActualStoredSourceCannotBeReplacedByPinnedTerminalSource(
     with pytest.raises(ValueError):
         acceptance.RunAcceptance(tmp_path / "acceptance")
 
-    assert observed_sources == ["b" * 40], "The refusal must follow actual alternate custody"
+    assert observedSources == ["b" * 40], "The refusal must follow actual alternate custody"
     assert not (tmp_path / "acceptance" / "acceptance.json").exists(), (
         "A spoofed terminal source published a successful acceptance marker"
     )
@@ -283,7 +283,7 @@ def OwnedBoundary(monkeypatch: pytest.MonkeyPatch, mutation: str | None = None) 
     monkeypatch.setattr(acceptance.subprocess, "run", Run)
 
     if mutation in ("relocated-model", "relocated-corruption"):
-        original_move = acceptance.shutil.move
+        originalMove = acceptance.shutil.move
 
         def Move(source: str, destination: Path) -> str:
             """Move the complete real workspace, then introduce an owned offline inconsistency.
@@ -296,7 +296,7 @@ def OwnedBoundary(monkeypatch: pytest.MonkeyPatch, mutation: str | None = None) 
                 The actual filesystem move result after the controlled mutation.
             """
 
-            result = original_move(source, destination)
+            result = originalMove(source, destination)
 
             if mutation == "relocated-model":
                 model = LocalModelStore(destination)
@@ -511,8 +511,8 @@ def test_DocumentationLaneIncludesAcceptanceTestsInPerToolCoverage() -> None:
     workflow = yaml.safe_load((Path(__file__).resolve().parents[2]
                               / ".github/workflows/documentation.yml").read_text())
     steps = workflow["jobs"]["deterministic-documentation"]["steps"]
-    step_name = "Exercise documentation boundaries and enforce per-tool branch coverage"
-    selected = [step["run"] for step in steps if step.get("name") == step_name]
+    stepName = "Exercise documentation boundaries and enforce per-tool branch coverage"
+    selected = [step["run"] for step in steps if step.get("name") == stepName]
     assert len(selected) == 1 and "tests/unit/test_epss_https_acceptance.py" in selected[0], (
         "The explicit documentation suite omitted the EPSS HTTPS acceptance tool's tests"
     )

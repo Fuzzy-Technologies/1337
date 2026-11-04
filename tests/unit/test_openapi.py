@@ -205,14 +205,14 @@ def test_PathBindingDuplicatesOperationIdentityAndNullableDialectValidation():
     """Parameter overrides retain exact coordinate identity and dialect-specific nullable flags."""
 
     document = Document()
-    path_parameter = Operation(document)["parameters"][0]
-    path_parameter["required"] = False
+    pathParameter = Operation(document)["parameters"][0]
+    pathParameter["required"] = False
 
     with pytest.raises(ValueError, match="required"):
         Import(document)
 
-    path_parameter["required"] = True
-    path_parameter["name"] = "other"
+    pathParameter["required"] = True
+    pathParameter["name"] = "other"
 
     with pytest.raises(ValueError):
         Import(document)

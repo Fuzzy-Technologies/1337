@@ -45,9 +45,9 @@ def test_PreparedFixtureExecutionEvidenceAndNormalization(tmp_path):
     executable.write_text(f"#!{sys.executable}\n" + fixture.read_text(encoding="utf-8"),
                           encoding="utf-8")
     executable.chmod(0o700)
-    evidence_root = root / "evidence"
-    evidence_root.mkdir()
-    store = LocalEvidenceStore(evidence_root)
+    evidenceRoot = root / "evidence"
+    evidenceRoot.mkdir()
+    store = LocalEvidenceStore(evidenceRoot)
     adapter = NmapAdapter(store.Read, str(executable), "7.95-synthetic")
     health = adapter.CheckHealth()
 
@@ -63,14 +63,14 @@ def test_PreparedFixtureExecutionEvidenceAndNormalization(tmp_path):
     digest = InvocationDigest(invocation)
     authorization = ExecutionAuthorization("authorization:owned-fixture", "scope:owned-fixture",
                                            "policy:synthetic-only", digest)
-    execution_request = LocalExecutionRequest(invocation,
+    executionRequest = LocalExecutionRequest(invocation,
         CapabilityDescriptors(adapter.Descriptor)[0], authorization)
-    started_at = datetime.now(timezone.utc).isoformat()
-    captured = asyncio.run(LocalExecutor(root).Execute(execution_request))
-    finished_at = datetime.now(timezone.utc).isoformat()
+    startedAt = datetime.now(timezone.utc).isoformat()
+    captured = asyncio.run(LocalExecutor(root).Execute(executionRequest))
+    finishedAt = datetime.now(timezone.utc).isoformat()
     provenance = EvidenceProvenance("workspace:synthetic", authorization.scope_reference,
         adapter.Descriptor.adapter_id, adapter.Descriptor.version, "7.95-synthetic",
-        started_at, finished_at, digest, captured.execution)
+        startedAt, finishedAt, digest, captured.execution)
     stdout = store.Put(captured.stdout, "stdout", "application/xml", provenance)
     stderr = store.Put(captured.stderr, "stderr", "text/plain", provenance)
     report = AdapterReport(invocation, captured.execution, (stdout.reference, stderr.reference))

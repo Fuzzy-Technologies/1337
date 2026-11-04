@@ -59,9 +59,9 @@ def test_ScopeSchemaHasExactPortableFieldsAndExplicitUnknownConsent():
     )
     assert not decision.Allowed(), "Unknown consent became allowed membership"
 
-    for unknown_version in (0, 2, "1", True):
+    for unknownVersion in (0, 2, "1", True):
         with pytest.raises(ValueError):
-            ScopeSnapshot.FromDict({**expected, "schema_version": unknown_version})
+            ScopeSnapshot.FromDict({**expected, "schema_version": unknownVersion})
 
 
 def test_StoredTargetIdentityCannotChangeDuringDecode():

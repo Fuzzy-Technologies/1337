@@ -168,7 +168,7 @@ def test_FindingCollisionCannotOverwriteAnotherObjectKind(monkeypatch):
 
     host = State().Objects(ObjectKind.HOST)[0]
     state = ModelState("synthetic", objects=(host,))
-    real_reference = model.ModelReference
+    realReference = model.ModelReference
 
     def CollidingReference(namespace, value):
         """Inject a finding identity collision without changing the legitimate subject reference."""
@@ -178,7 +178,7 @@ def test_FindingCollisionCannotOverwriteAnotherObjectKind(monkeypatch):
         ):
             return host.Reference()
 
-        return real_reference(namespace, value)
+        return realReference(namespace, value)
 
     monkeypatch.setattr(model, "ModelReference", CollidingReference)
     finding = Finding.FromAttributes(Document(), (Provenance(),))
@@ -222,16 +222,16 @@ def test_GenericUpdatesEnforceEvidenceAndDispositionLifecycle():
 
     state = State()
     first = Findings(state)[0]
-    no_evidence = replace(first, provenance=(replace(Provenance(), evidence_references=()),))
-    subject_only = ModelState("synthetic", objects=state.Objects(ObjectKind.HOST))
+    noEvidence = replace(first, provenance=(replace(Provenance(), evidence_references=()),))
+    subjectOnly = ModelState("synthetic", objects=state.Objects(ObjectKind.HOST))
 
     with pytest.raises(ValueError, match="evidence"):
-        subject_only.Apply(objects=(no_evidence.ToObject("synthetic"),))
+        subjectOnly.Apply(objects=(noEvidence.ToObject("synthetic"),))
 
     triaged = replace(first, status=FindingStatus.CONFIRMED, status_reason="Checked")
 
     with pytest.raises(ValueError, match="open"):
-        subject_only.Apply(objects=(triaged.ToObject("synthetic"),))
+        subjectOnly.Apply(objects=(triaged.ToObject("synthetic"),))
 
     reference = state.Objects(ObjectKind.FINDING)[0].Reference()
     resolved, _ = TransitionFinding(

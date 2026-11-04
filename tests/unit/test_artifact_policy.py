@@ -101,30 +101,30 @@ def test_DetachedImageOriginalPathFlavorsReplayOnAnyHost(detached_image_payloads
     """Original Windows and POSIX path roots retain their syntax on any replay reader."""
 
     metadata, prepared, stage = copy.deepcopy(detached_image_payloads)
-    old_root = stage["root"]
-    old_executable = stage["executable"]
+    oldRoot = stage["root"]
+    oldExecutable = stage["executable"]
     separator = "\\" if flavor == "windows" else "/"
-    new_root = r"C:\owned\workspace\image-stage" if flavor == "windows" else (
+    newRoot = r"C:\owned\workspace\image-stage" if flavor == "windows" else (
         "//owned/workspace/image-stage"
     )
-    new_executable = r"D:\runtime\python.exe" if flavor == "windows" else "//runtime/python"
-    stage["root"] = new_root
-    stage["executable"] = new_executable
+    newExecutable = r"D:\runtime\python.exe" if flavor == "windows" else "//runtime/python"
+    stage["root"] = newRoot
+    stage["executable"] = newExecutable
     prepared["workspace_root"] = r"C:\owned\workspace" if flavor == "windows" else (
         "//owned/workspace"
     )
     prepared["workspace"] = "image-stage/scratch"
     prepared["invocation"]["argv"] = [
-        new_executable if value == old_executable else (
-            new_root + value[len(old_root):].replace("\\", "/").replace("/", separator)
-            if value.startswith(old_root) else value
+        newExecutable if value == oldExecutable else (
+            newRoot + value[len(oldRoot):].replace("\\", "/").replace("/", separator)
+            if value.startswith(oldRoot) else value
         ) for value in prepared["invocation"]["argv"]
     ]
 
     for name, value in prepared["environment"].items():
-        if value.startswith(old_root):
-            suffix = value[len(old_root):].replace("\\", "/").replace("/", separator)
-            prepared["environment"][name] = new_root + suffix
+        if value.startswith(oldRoot):
+            suffix = value[len(oldRoot):].replace("\\", "/").replace("/", separator)
+            prepared["environment"][name] = newRoot + suffix
 
     prepared["environment"]["SYSTEMROOT"] = r"C:\Windows"
     prepared["environment"]["WINDIR"] = r"C:\Windows"
@@ -168,7 +168,7 @@ def test_RehashedDetachedImageUnsupportedFactoryFactsDeny(detached_image_payload
     metadata, prepared, stage = copy.deepcopy(detached_image_payloads)
     plan = metadata["grant"]["plan"]
     invocation = prepared["invocation"]
-    input_partition, scanner_partition, material_partition = stage["partitions"]
+    inputPartition, scannerPartition, materialPartition = stage["partitions"]
 
     if change == "argv":
         invocation["argv"] = ["unsupported-synthetic-command"]
@@ -261,54 +261,54 @@ def test_RehashedDetachedImageUnsupportedFactoryFactsDeny(detached_image_payload
         stage["partitions"].pop()
 
     elif change == "consent":
-        input_partition["consent"]["actor_ref"] = ""
+        inputPartition["consent"]["actor_ref"] = ""
 
     elif change == "directory-alias":
-        material_partition["directory_identity"] = input_partition["directory_identity"]
+        materialPartition["directory_identity"] = inputPartition["directory_identity"]
 
     elif change == "file-alias":
-        material_partition["identities"][0][1][:2] = input_partition["identities"][0][1][:2]
+        materialPartition["identities"][0][1][:2] = inputPartition["identities"][0][1][:2]
 
     elif change == "runtime-alias":
         stage["executable_identity"][:2] = stage["root_identity"]
 
     elif change == "file-size":
-        input_partition["identities"][0][1][2] += 1
+        inputPartition["identities"][0][1][2] += 1
 
     elif change == "identity-order":
-        scanner_partition["identities"].reverse()
+        scannerPartition["identities"].reverse()
 
     elif change == "identity-width":
-        input_partition["directory_identity"].append(1)
+        inputPartition["directory_identity"].append(1)
 
     elif change == "identity-zero":
-        input_partition["directory_identity"][1] = 0
+        inputPartition["directory_identity"][1] = 0
 
     elif change == "identity-negative-size":
-        input_partition["identities"][0][1][2] = -1
+        inputPartition["identities"][0][1][2] = -1
 
     elif change == "identity-shape":
-        input_partition["directory_identity"] = {}
+        inputPartition["directory_identity"] = {}
 
     elif change == "manifest-binding":
         metadata["manifests"][0]["files"][0]["sha256"] = "0" * 64
 
     elif change in {"producer", "input-name", "policy-name", "archive-budget", "policy-budget"}:
-        partition = scanner_partition if change == "producer" else (
-            input_partition if change in {"input-name", "archive-budget"} else material_partition
+        partition = scannerPartition if change == "producer" else (
+            inputPartition if change in {"input-name", "archive-budget"} else materialPartition
         )
         index = 1 if change == "producer" else 0
-        file_record = partition["manifest"]["files"][index]
+        fileRecord = partition["manifest"]["files"][index]
 
         if change == "producer":
-            file_record["sha256"] = "0" * 64
+            fileRecord["sha256"] = "0" * 64
 
         elif change in {"input-name", "policy-name"}:
-            file_record["name"] = partition["identities"][index][0] = "unsupported.bin"
+            fileRecord["name"] = partition["identities"][index][0] = "unsupported.bin"
 
         else:
-            file_record["size_bytes"] = 128 * 1024 + 1 if change == "archive-budget" else 513
-            partition["identities"][index][1][2] = file_record["size_bytes"]
+            fileRecord["size_bytes"] = 128 * 1024 + 1 if change == "archive-budget" else 513
+            partition["identities"][index][1][2] = fileRecord["size_bytes"]
 
         metadata["manifests"] = [item["manifest"] for item in stage["partitions"]]
 
@@ -533,11 +533,11 @@ def test_ArbitraryProducerAndExecutableSubstitutionCannotBecomeSafe(tmp_path):
     with pytest.raises(ArtifactDeniedError):
         PrepareArtifact(alternate, root)
 
-    fake_runtime = tmp_path.resolve() / "fake-runtime"
-    fake_runtime.write_bytes(b"owned-invalid-executable")
+    fakeRuntime = tmp_path.resolve() / "fake-runtime"
+    fakeRuntime.write_bytes(b"owned-invalid-executable")
 
     with pytest.raises(ArtifactDeniedError):
-        PrepareArtifact(replace(stage, executable=fake_runtime), prepared.workspace_root)
+        PrepareArtifact(replace(stage, executable=fakeRuntime), prepared.workspace_root)
 
 
 def test_NetworkContextAndIssuanceCannotUseArtifactAuthority(tmp_path):
@@ -723,7 +723,7 @@ def test_GrantExpiryDuringFinalMaterialHashingCannotLaunch(tmp_path, monkeypatch
     """A fresh clock after expensive final hashing denies contact before any run marker."""
 
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
-    actual_verify = ArtifactStage.Verify
+    actualVerify = ArtifactStage.Verify
     now = AT
     calls = 0
 
@@ -731,7 +731,7 @@ def test_GrantExpiryDuringFinalMaterialHashingCannotLaunch(tmp_path, monkeypatch
         """Advance only this owned stage's clock after its final full hash check."""
 
         nonlocal now, calls
-        actual_verify(selected, **options)
+        actualVerify(selected, **options)
         calls += 1
 
         if calls == 2:
@@ -756,7 +756,7 @@ def test_AuthorityChangedDuringFinalHashingIsRefreshedBeforeLaunch(tmp_path, mon
     """Current owner and same-revision policy cannot drift during an expensive hash window."""
 
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
-    actual_verify = ArtifactStage.Verify
+    actualVerify = ArtifactStage.Verify
     current = context
     calls = 0
 
@@ -764,7 +764,7 @@ def test_AuthorityChangedDuringFinalHashingIsRefreshedBeforeLaunch(tmp_path, mon
         """Change only owned authority after its final real material verification."""
 
         nonlocal current, calls
-        actual_verify(selected, **options)
+        actualVerify(selected, **options)
         calls += 1
 
         if calls != 2:
@@ -851,7 +851,7 @@ def test_FinalLaunchComparesActualRequestWithRebuiltCanonicalRequest(tmp_path, m
     """The captured request alone cannot substitute unapproved process-affecting fields."""
 
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
-    actual_request = PreparedArtifact.Request
+    actualRequest = PreparedArtifact.Request
     calls = 0
 
     def Request(selected, authorization):
@@ -859,7 +859,7 @@ def test_FinalLaunchComparesActualRequestWithRebuiltCanonicalRequest(tmp_path, m
 
         nonlocal calls
         calls += 1
-        canonical = actual_request(selected, authorization)
+        canonical = actualRequest(selected, authorization)
 
         if calls == 1:
             return replace(
@@ -890,7 +890,7 @@ def test_AuthorityChangedDuringScratchSetupCannotLaunch(tmp_path, monkeypatch, m
     """The final cheap guard refreshes authority and time after owned directory setup."""
 
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
-    actual_mkdir = Path.mkdir
+    actualMkdir = Path.mkdir
     current = context
     now = AT
 
@@ -898,7 +898,7 @@ def test_AuthorityChangedDuringScratchSetupCannotLaunch(tmp_path, monkeypatch, m
         """Mutate only owned authority after the last scratch directory is initialized."""
 
         nonlocal current, now
-        actual_mkdir(path, *args, **options)
+        actualMkdir(path, *args, **options)
 
         if path != stage.root / "scratch/cache":
             return
@@ -946,7 +946,7 @@ def test_ReceiptMarkerMetadataIsFiniteAndFreezesCallerAlias(tmp_path):
     """A receipt never consumes an unbounded marker iterable or retains a mutable alias."""
 
     _, stage, _, _, grant = OwnedArtifact(tmp_path)
-    caller_identity = [0, 0, 0, 0, 0]
+    callerIdentity = [0, 0, 0, 0, 0]
     receipt = ArtifactAcceptance(
         "artifact-run:owned",
         grant.authorization.authorization_id,
@@ -954,9 +954,9 @@ def test_ReceiptMarkerMetadataIsFiniteAndFreezesCallerAlias(tmp_path):
         "0" * 64,
         AT.isoformat(),
         None,
-        caller_identity,
+        callerIdentity,
     )
-    caller_identity[0] = 1
+    callerIdentity[0] = 1
 
     assert receipt.marker_identity == (0, 0, 0, 0, 0), "Caller alias changed physical marker facts"
 
@@ -980,8 +980,8 @@ def test_CoherentEnvelopeCannotChangeCanonicalOriginalLifetime(tmp_path, mutatio
 
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
     engine = ArtifactPolicyEngine()
-    issued_at = grant.issued_at
-    valid_until = (AT + timedelta(hours=1)).isoformat()
+    issuedAt = grant.issued_at
+    validUntil = (AT + timedelta(hours=1)).isoformat()
 
     if mutation == "consent-limit":
         scope = replace(
@@ -993,20 +993,20 @@ def test_CoherentEnvelopeCannotChangeCanonicalOriginalLifetime(tmp_path, mutatio
         scope = LocalScopeStore(root).Save(scope)
         context = replace(context, scope=scope)
         grant = engine.Authorize(prepared, stage, context, at=AT)
-        valid_until = (AT + timedelta(seconds=300)).isoformat()
+        validUntil = (AT + timedelta(seconds=300)).isoformat()
 
     elif mutation == "shorter":
-        valid_until = (AT + timedelta(seconds=1)).isoformat()
+        validUntil = (AT + timedelta(seconds=1)).isoformat()
 
     elif mutation == "outside-consent":
-        issued_at = (AT - timedelta(seconds=1)).isoformat()
-        valid_until = (AT + timedelta(seconds=299)).isoformat()
+        issuedAt = (AT - timedelta(seconds=1)).isoformat()
+        validUntil = (AT + timedelta(seconds=299)).isoformat()
 
     changed = replace(
         grant,
-        issued_at=issued_at,
-        valid_until=valid_until,
-        authorization=engine.Envelope(grant.plan, issued_at, valid_until),
+        issued_at=issuedAt,
+        valid_until=validUntil,
+        authorization=engine.Envelope(grant.plan, issuedAt, validUntil),
     )
 
     with pytest.raises(ArtifactDeniedError):

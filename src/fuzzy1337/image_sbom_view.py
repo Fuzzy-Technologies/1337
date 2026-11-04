@@ -70,12 +70,12 @@ def ImageSbomView(model: ModelState, image: ImageIdentity) -> dict[str, object]:
     while frontier:
         source = frontier.pop()
 
-        for target, relation_reference in children.get(source, ()):
+        for target, relationReference in children.get(source, ()):
             # Another image's inventory cannot be borrowed through an arbitrary contains edge.
             if objects[target].attributes.get("asset_type") != "package":
                 continue
 
-            containment.add(relation_reference)
+            containment.add(relationReference)
 
             if target not in visited:
                 visited.add(target)
@@ -128,11 +128,11 @@ def ImageLicensePolicyView(model: ModelState, image: ImageIdentity, packages: Se
         ValueError: Original source context or profile cannot be revalidated.
     """
 
-    image_reference = image.Object(model.workspace_id).Reference()
+    imageReference = image.Object(model.workspace_id).Reference()
     selected = set(packages)
     assertions = [item for item in model.observations if item.kind == "spdx-package-license"
         and item.subject_reference in selected
-        and item.attributes.get("image_reference") == image_reference]
+        and item.attributes.get("image_reference") == imageReference]
 
     if len(packages) > MAX_IMAGE_LICENSE_ASSERTIONS or len(assertions) > (
         MAX_IMAGE_LICENSE_ASSERTIONS
@@ -141,36 +141,36 @@ def ImageLicensePolicyView(model: ModelState, image: ImageIdentity, packages: Se
 
     store = SbomEvidenceStore(root / "evidence")
     originals: dict[tuple[str, bytes], set[str]] = {}
-    retained_observations = {item.Reference() for item in model.observations}
+    retainedObservations = {item.Reference() for item in model.observations}
     results: dict[str, list[dict[str, object]]] = {reference: [] for reference in sorted(selected)}
 
     for assertion in sorted(assertions, key=lambda item: item.Reference()):
-        evidence_id = assertion.attributes.get("evidence_id")
+        evidenceId = assertion.attributes.get("evidence_id")
 
-        if evidence_id is None:
+        if evidenceId is None:
             results[assertion.subject_reference].append({
                 "observation_reference": assertion.Reference(), "status": "unknown",
                 "reason": "unsupported-source-profile"})
 
             continue
 
-        if type(evidence_id) is not str or evidence_id not in workspace.evidence_record_references:
+        if type(evidenceId) is not str or evidenceId not in workspace.evidence_record_references:
             raise SbomFailure("license-source")
 
-        key = (evidence_id, CanonicalModelJson(assertion.provenance))
+        key = (evidenceId, CanonicalModelJson(assertion.provenance))
 
         if key not in originals:
             if len(originals) >= MAX_IMAGE_LICENSE_SOURCES:
                 raise SbomFailure("limit")
 
-            record = store.Get(evidence_id)
+            record = store.Get(evidenceId)
             SourceFact(model, record, assertion.provenance, image, None)
             raw = VerifyRecords(model, assertion.provenance, (record,), root)["sbom"]
             _, _, facts = GraphCandidates(raw, model.workspace_id, record,
                                           assertion.provenance, image)
             aliases = {item.Reference() for item in facts if item.kind == "spdx-source-alias"}
 
-            if not aliases.issubset(retained_observations):
+            if not aliases.issubset(retainedObservations):
                 raise SbomFailure("license-source")
 
             originals[key] = {item.Reference() for item in facts
@@ -195,7 +195,7 @@ def ImageLicensePolicyView(model: ModelState, image: ImageIdentity, packages: Se
 
         results[assertion.subject_reference].append({
             "observation_reference": assertion.Reference(),
-            "evidence_id": evidence_id, "source_sha256": assertion.attributes["document_sha256"],
+            "evidence_id": evidenceId, "source_sha256": assertion.attributes["document_sha256"],
             "source_spdx_id": assertion.attributes["spdx_id"],
             "source_id": assertion.provenance.source_id, **roles})
 

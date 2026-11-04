@@ -74,9 +74,9 @@ def Report(raw=XML, state=ExecutionState.SUCCEEDED):
     reference = EvidenceReference("stdout", "fixture/nmap.xml", hashlib.sha256(raw).hexdigest(),
                                   "application/xml", len(raw))
     adapter = NmapAdapter(lambda item: raw, provider_version="7.95")
-    exit_code = 0 if state is ExecutionState.SUCCEEDED else 7
+    exitCode = 0 if state is ExecutionState.SUCCEEDED else 7
     report = AdapterReport(adapter.PrepareInvocation(Request()),
-                           AdapterExecution(state, exit_code, 0.25), (reference,))
+                           AdapterExecution(state, exitCode, 0.25), (reference,))
 
     return adapter, report
 
@@ -302,10 +302,10 @@ def test_RejectDuplicateHostAndPortFacts():
     """Repeated object elements are ambiguous and cannot silently overwrite observations."""
 
     port = b'<port protocol="tcp" portid="80"><state state="open"/></port>'
-    duplicate_port = XML.replace(b"</ports>", port + b"</ports>")
-    duplicate_host = XML.replace(b"</host>", b"</host><host/>")
+    duplicatePort = XML.replace(b"</ports>", port + b"</ports>")
+    duplicateHost = XML.replace(b"</host>", b"</host><host/>")
 
-    for raw in (duplicate_port, duplicate_host):
+    for raw in (duplicatePort, duplicateHost):
         adapter, report = Report(raw)
 
         with pytest.raises(NmapReportError):
@@ -321,8 +321,8 @@ def test_EmptyHostAndNoServiceDoNotInventObjects():
     assert adapter.NormalizeReport(report).object_enrichments == (), (
         "A completed empty scan must not fabricate any host or port."
     )
-    without_service = XML.replace(XML[XML.index(b"<service"):XML.index(b"</service>") + 10], b"")
-    adapter, report = Report(without_service)
+    withoutService = XML.replace(XML[XML.index(b"<service"):XML.index(b"</service>") + 10], b"")
+    adapter, report = Report(withoutService)
 
     assert len(adapter.NormalizeReport(report).object_enrichments) == 2, (
         "Missing service details must leave exactly the reported host and port."
@@ -348,31 +348,31 @@ def test_RejectEvidenceAndInvocationMismatch():
     """Evidence integrity and exact invocation matching are checked before parsing."""
 
     adapter, report = Report()
-    bad_invocations = (replace(report.invocation, argv=("nmap", "-A")),
+    badInvocations = (replace(report.invocation, argv=("nmap", "-A")),
                        replace(report.invocation, timeout_seconds=11),
                        replace(report.invocation, adapter_id="other.adapter"))
 
-    for invocation in bad_invocations:
+    for invocation in badInvocations:
         with pytest.raises(NmapReportError, match="invocation"):
             adapter.NormalizeReport(replace(report, invocation=invocation))
 
     with pytest.raises(NmapReportError, match="exactly one stdout"):
         adapter.NormalizeReport(replace(report, evidence=()))
 
-    other_reference = replace(report.evidence[0], locator="fixture/other.xml")
+    otherReference = replace(report.evidence[0], locator="fixture/other.xml")
 
     with pytest.raises(NmapReportError, match="exactly one stdout"):
-        adapter.NormalizeReport(replace(report, evidence=(*report.evidence, other_reference)))
+        adapter.NormalizeReport(replace(report, evidence=(*report.evidence, otherReference)))
 
-    wrong_digest = replace(report.evidence[0], sha256="0" * 64)
-
-    with pytest.raises(NmapReportError, match="evidence reference"):
-        adapter.NormalizeReport(replace(report, evidence=(wrong_digest,)))
-
-    wrong_length = replace(report.evidence[0], size_bytes=len(XML) - 1)
+    wrongDigest = replace(report.evidence[0], sha256="0" * 64)
 
     with pytest.raises(NmapReportError, match="evidence reference"):
-        adapter.NormalizeReport(replace(report, evidence=(wrong_length,)))
+        adapter.NormalizeReport(replace(report, evidence=(wrongDigest,)))
+
+    wrongLength = replace(report.evidence[0], size_bytes=len(XML) - 1)
+
+    with pytest.raises(NmapReportError, match="evidence reference"):
+        adapter.NormalizeReport(replace(report, evidence=(wrongLength,)))
 
 
 @pytest.mark.parametrize("executable,version", [("", None), ("nmap\nother", None), ("nmap", "")])
@@ -459,8 +459,8 @@ def test_HealthProbePreservesVersionFailureAndResourceBudgets(
     """
 
     # A tiny portable real pipe models process output; large data is read from a bounded buffer.
-    read_fd, write_fd = os.pipe()
-    os.close(write_fd)
+    readFd, writeFd = os.pipe()
+    os.close(writeFd)
     remaining = bytearray(payload)
     calls = []
 
@@ -470,7 +470,7 @@ def test_HealthProbePreservesVersionFailureAndResourceBudgets(
         def __init__(self):
             """Initialize exact synthetic terminal facts and an owned descriptor."""
 
-            self.stdout = os.fdopen(read_fd, "rb", buffering=0)
+            self.stdout = os.fdopen(readFd, "rb", buffering=0)
             self.returncode = exit_code
             self.first_wait = True
 
@@ -528,7 +528,7 @@ def test_HealthProbePreservesVersionFailureAndResourceBudgets(
             ValueError: A deterministic closed-pipe race.
         """
 
-        assert fd == read_fd, "Only the explicitly owned version pipe may be read."
+        assert fd == readFd, "Only the explicitly owned version pipe may be read."
 
         if failure == "read":
             raise OSError("synthetic pipe read failure")
@@ -565,8 +565,8 @@ def test_HealthProbePreservesVersionFailureAndResourceBudgets(
     assert health.state is expected, "Health classification must preserve observed failure."
     assert calls[0] == 3, "The local version command must have a fixed three-second deadline."
     assert nmap.NMAP_HEALTH_MAX_BYTES == 16 * 1024, "Health capture must stay limited to 16 KiB."
-    expected_version = "7.95" if expected is AdapterHealthState.AVAILABLE else None
+    expectedVersion = "7.95" if expected is AdapterHealthState.AVAILABLE else None
 
-    assert health.provider_version == expected_version, (
+    assert health.provider_version == expectedVersion, (
         "Unhealthy probes must not supply a trusted provider version."
     )

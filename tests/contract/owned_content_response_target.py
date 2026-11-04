@@ -158,21 +158,21 @@ class ContentResponseState(CrawlGraphState):
 
         with self.lock:
             self.contact_count += 1
-            accepted_at = self.clock()
-            deadline_at = accepted_at + SOURCE_REQUEST_SECONDS
+            acceptedAt = self.clock()
+            deadlineAt = acceptedAt + SOURCE_REQUEST_SECONDS
             index = None
 
             if len(self.requests) < MAX_REQUESTS:
                 index = len(self.requests)
                 self.requests.append(GraphRequestObservation(self.contact_count,
-                    self.graph.variant, accepted_at, deadline_at))
-                self.original_deadlines[connection] = deadline_at
+                    self.graph.variant, acceptedAt, deadlineAt))
+                self.original_deadlines[connection] = deadlineAt
 
             else:
                 self.contact_overflow += 1
                 self.RecordErrorLocked("owned-contact-limit")
 
-            self.connections[connection] = GraphSocketOwner(index, deadline_at)
+            self.connections[connection] = GraphSocketOwner(index, deadlineAt)
             self.UpdateIdleLocked()
 
             if self.closing.is_set():
@@ -414,9 +414,9 @@ def OwnedContentResponseTarget(evidence: NativeCaseEvidence, *, address: str = "
 
     server = thread = None
     yielded = False
-    cleanup_returned = False
-    cleanup_failure = None
-    idle_before_close = None
+    cleanupReturned = False
+    cleanupFailure = None
+    idleBeforeClose = None
 
     def Serve(owner: ContentResponseServer, ready: Event) -> None:
         """Signal already-bound readiness and keep listener mechanism failures through teardown."""
@@ -447,7 +447,7 @@ def OwnedContentResponseTarget(evidence: NativeCaseEvidence, *, address: str = "
         try:
             if server is not None:
                 try:
-                    idle_before_close = server.state.WaitOriginalIdle()
+                    idleBeforeClose = server.state.WaitOriginalIdle()
 
                 finally:
                     if thread is None:
@@ -456,16 +456,16 @@ def OwnedContentResponseTarget(evidence: NativeCaseEvidence, *, address: str = "
                     else:
                         server.Settle(thread)
 
-                cleanup_returned = True
+                cleanupReturned = True
 
         except BaseException as error:
-            cleanup_failure = type(error).__name__ if type(error) in (
+            cleanupFailure = type(error).__name__ if type(error) in (
                 OSError, RuntimeError, AssertionError) else "other"
 
             raise
 
         finally:
             final = FinalSourceFacts(server, thread, yielded)
-            final.update(cleanup_returned=cleanup_returned, cleanup_failure=cleanup_failure,
-                idle_before_local_close=idle_before_close)
+            final.update(cleanup_returned=cleanupReturned, cleanup_failure=cleanupFailure,
+                idle_before_local_close=idleBeforeClose)
             evidence.Json("content-source-final.json", final)

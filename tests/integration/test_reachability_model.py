@@ -51,10 +51,10 @@ def test_RealOwningProofReadsNeverWriteModelEvidenceScopeOrWorkspace(tmp_path):
     assert Bytes(fixture.root) == before, "Proof projection or query mutated owned storage"
     assert LocalModelStore(fixture.root).Open() == fixture.model, "Canonical model changed"
     assert b"synthetic-private-source-value" not in repr(result).encode(), "Raw support repr leaked"
-    assessment_refs = {CanonicalModelJson(record.reference) for record in records}
-    retained_refs = {CanonicalModelJson(reference) for observation in fixture.model.observations
+    assessmentRefs = {CanonicalModelJson(record.reference) for record in records}
+    retainedRefs = {CanonicalModelJson(reference) for observation in fixture.model.observations
                      for reference in observation.provenance.evidence_references}
-    assert not assessment_refs & retained_refs, (
+    assert not assessmentRefs & retainedRefs, (
         "Assessment artifact became its own circular model support proof"
     )
 

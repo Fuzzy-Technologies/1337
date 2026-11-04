@@ -590,7 +590,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     for entity in report.state.Objects(ObjectKind.FINDING):
         finding = Finding.FromObject(entity)
         reference = entity.Reference()
-        status_explanation = {
+        statusExplanation = {
             FindingStatus.OPEN: "Retained interpretation awaiting an operator disposition.",
             FindingStatus.CONFIRMED: "An operator confirmed this interpretation.",
             FindingStatus.DISMISSED: "An operator dismissed this interpretation; "
@@ -606,7 +606,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
             "<p>Subject: " + ObjectLink(finding.subject_reference,
                                         ObjectLabel(objects[finding.subject_reference])) + "</p>",
             f"<p>Check: {Html(finding.check_id)} · location: {Html(finding.location_key)}</p>",
-            "<p>Disposition: " + status_explanation + " Reason: "
+            "<p>Disposition: " + statusExplanation + " Reason: "
             + Html(finding.status_reason or "No reason recorded") + "</p>",
             f"<p>Attributed confidence: {finding.confidence}. This retained detector metadata "
             "is not a probability of compromise.</p>",
@@ -628,9 +628,9 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         lines.append("<h4>Evidence for this interpretation</h4><ul>")
         references = {item for record in entity.provenance for item in record.evidence_references}
 
-        for index, evidence_reference in enumerate(sorted(references, key=CanonicalModelJson), 1):
-            lines.append(f'<li><a href="#{EvidenceId(evidence_reference)}">'
-                         f"Evidence {index}: {Html(evidence_reference.role)}</a></li>")
+        for index, evidenceReference in enumerate(sorted(references, key=CanonicalModelJson), 1):
+            lines.append(f'<li><a href="#{EvidenceId(evidenceReference)}">'
+                         f"Evidence {index}: {Html(evidenceReference.role)}</a></li>")
 
         lines.append("</ul>")
         binding = bindings.get(reference)
@@ -640,12 +640,12 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                          "<p>Context links do not prove classification, observed behavior, "
                          "exploitability, or control fulfillment.</p><ul>")
 
-            for external_reference in binding.references:
-                lines.append(f'<li><a href="{Html(external_reference.Url())}" '
+            for externalReference in binding.references:
+                lines.append(f'<li><a href="{Html(externalReference.Url())}" '
                              'rel="noopener noreferrer">'
-                             f'{Html(external_reference.external_id)}</a>'
-                             f" · catalog {Html(external_reference.catalog_version)}"
-                             f" · {Html(external_reference.ToDict()['link_revision'])}</li>")
+                             f'{Html(externalReference.external_id)}</a>'
+                             f" · catalog {Html(externalReference.catalog_version)}"
+                             f" · {Html(externalReference.ToDict()['link_revision'])}</li>")
 
             lines.append("</ul><details><summary>Reference attribution</summary>"
                          + JsonBlock(binding.ToDict()) + "</details>")
@@ -664,21 +664,21 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<div class="table"><table><thead><tr><th>Evidence</th><th>Role</th><th>Size</th>'
         '<th>Integrity</th><th>Technical reference</th></tr></thead><tbody>',
     ])
-    integrity_metadata = cast(dict[str, object], document["evidence_integrity"])
+    integrityMetadata = cast(dict[str, object], document["evidence_integrity"])
     checked = {CanonicalModelJson(item) for item in cast(
-        list[object], integrity_metadata["checked_references"],
+        list[object], integrityMetadata["checked_references"],
     )}
 
-    for index, evidence_reference in enumerate(report.EvidenceReferences(), 1):
+    for index, evidenceReference in enumerate(report.EvidenceReferences(), 1):
         integrity = (
-            "verified bytes" if CanonicalModelJson(evidence_reference) in checked
+            "verified bytes" if CanonicalModelJson(evidenceReference) in checked
             else "not verified"
         )
-        lines.append(f'<tr id="{EvidenceId(evidence_reference)}">'
-                     f"<td>Evidence {index}</td><td>{Html(evidence_reference.role)}</td>"
-                     f"<td>{evidence_reference.size_bytes} bytes</td><td>{integrity}</td>"
+        lines.append(f'<tr id="{EvidenceId(evidenceReference)}">'
+                     f"<td>Evidence {index}</td><td>{Html(evidenceReference.role)}</td>"
+                     f"<td>{evidenceReference.size_bytes} bytes</td><td>{integrity}</td>"
                      "<td><details><summary>Digest and metadata</summary>"
-                     + JsonBlock(JsonValue(evidence_reference)) + "</details></td></tr>")
+                     + JsonBlock(JsonValue(evidenceReference)) + "</details></td></tr>")
 
     lines.extend([
         '</tbody></table></div></section><section id="relations"><h2>Stored relationships</h2>',

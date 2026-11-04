@@ -34,24 +34,24 @@ def Import(value: str):
 def test_ExplicitYamlPreservesIndependentJsonSemanticsAndExactSourceBytes(name):
     """Hand-written flow/block YAML matches the independent source tree without source rewriting."""
 
-    fixture_root = ROOT / "tests/contract/fixtures"
-    yaml_text = (fixture_root / f"api_request_generation.{name}.yaml").read_text(encoding="utf-8")
-    json_text = (fixture_root / f"api_request_generation.{name}.json").read_text(encoding="utf-8")
-    document, version, legacy, digest = DecodeApiDocument(yaml_text, document_format="yaml")
-    assert document == json.loads(json_text), "YAML scalar/key semantics changed the JSON oracle"
+    fixtureRoot = ROOT / "tests/contract/fixtures"
+    yamlText = (fixtureRoot / f"api_request_generation.{name}.yaml").read_text(encoding="utf-8")
+    jsonText = (fixtureRoot / f"api_request_generation.{name}.json").read_text(encoding="utf-8")
+    document, version, legacy, digest = DecodeApiDocument(yamlText, document_format="yaml")
+    assert document == json.loads(jsonText), "YAML scalar/key semantics changed the JSON oracle"
     assert version == ("3.1.0" if name == "oas" else "2.0") and legacy == (name == "swagger"), (
         "YAML changed the declared OpenAPI dialect"
     )
-    assert digest == "sha256:" + hashlib.sha256(yaml_text.encode()).hexdigest(), (
+    assert digest == "sha256:" + hashlib.sha256(yamlText.encode()).hexdigest(), (
         "YAML source identity must use exact original UTF-8 bytes"
     )
-    yaml_import = Import(yaml_text)
-    json_import = ImportOpenApi(json_text, workspace_id="owned")
-    assert [item.template for item in yaml_import.operations] == [
-        item.template for item in json_import.operations
+    yamlImport = Import(yamlText)
+    jsonImport = ImportOpenApi(jsonText, workspace_id="owned")
+    assert [item.template for item in yamlImport.operations] == [
+        item.template for item in jsonImport.operations
     ], "Equivalent YAML changed canonical structural request identities"
     assert all(a.Reference() != b.Reference() for a, b in zip(
-        yaml_import.operations, json_import.operations, strict=True
+        yamlImport.operations, jsonImport.operations, strict=True
     )), "Different raw YAML/JSON bytes lost their independent operation attribution"
 
 

@@ -17,28 +17,28 @@ from tests.unit.test_owned_content_response_sdk_oracle import Bundle
 def Fixture(case="missing", include_detection=True):
     """Build explicitly synthetic original/persisted documents, never actual runtime evidence."""
 
-    url, receipt, originals, source_attrs = Bundle(case)
+    url, receipt, originals, sourceAttrs = Bundle(case)
     refs = [item["manifest"]["reference"] for item in originals.values()]
-    endpoint_id = {"workspace_id": "unit-only", "kind": "endpoint", "key": url}
-    endpoint = oracle.Reference("object", endpoint_id)
+    endpointId = {"workspace_id": "unit-only", "kind": "endpoint", "key": url}
+    endpoint = oracle.Reference("object", endpointId)
     target = "target:" + hashlib.sha256(oracle.Canonical({"kind": "url", "value": url})).hexdigest()
     ip = "target:" + hashlib.sha256(oracle.Canonical({"kind": "ip",
         "value": "127.0.0.1"})).hexdigest()
-    source_provenance = {"source_id": "native.loopback-content-response", "run_reference": (
-        source_attrs["original_job_id"]), "observed_at": "2026-10-24T00:00:01+00:00",
+    sourceProvenance = {"source_id": "native.loopback-content-response", "run_reference": (
+        sourceAttrs["original_job_id"]), "observed_at": "2026-10-24T00:00:01+00:00",
         "scope_reference": "scope:unit-only", "target_reference": target, "provider_version": "1",
         "evidence_references": refs, "execution": {"state": "succeeded", "exit_code": 0}}
     source = {"kind": "owned-content-response-source", "subject_reference": endpoint,
-        "attributes": source_attrs, "provenance": source_provenance}
+        "attributes": sourceAttrs, "provenance": sourceProvenance}
     source["reference"] = oracle.Reference("observation", copy.deepcopy(source))
     native = {"reference": "object:synthetic-native-only", "identity": {"kind": "finding"},
         "attributes": {"check_id": "unrelated-native", "status": "confirmed"}, "provenance": []}
     before = {"model": {"workspace_id": "unit-only", "revision": 4,
-        "objects": [{"reference": endpoint, "identity": endpoint_id, "attributes": {},
-            "provenance": [source_provenance]}, native], "relations": [], "observations": [source]},
+        "objects": [{"reference": endpoint, "identity": endpointId, "attributes": {},
+            "provenance": [sourceProvenance]}, native], "relations": [], "observations": [source]},
         "workspace": {"workspace_id": "unit-only", "revision": 2,
             "object_references": [endpoint, native["reference"]],
-            "job_references": [source_attrs["original_job_id"]],
+            "job_references": [sourceAttrs["original_job_id"]],
             "scope_references": ["scope:unit-only"],
             "evidence_record_references": list(originals), "evidence_references": refs},
         "originals": originals}
@@ -66,15 +66,15 @@ def Fixture(case="missing", include_detection=True):
         "issued_at": "2026-10-24T00:00:02+00:00", "checked_at": "2026-10-24T00:00:03+00:00",
         "expires_at": "2026-10-24T00:00:32+00:00", "source_profile": oracle.SOURCE_PROFILE}
     absent = case != "fixed"
-    provenance = {**source_provenance, "source_id": oracle.PROVIDER, "run_reference": analysis,
+    provenance = {**sourceProvenance, "source_id": oracle.PROVIDER, "run_reference": analysis,
         "observed_at": "2026-10-24T00:00:03+00:00", "execution": None}
     attrs = {"schema_version": 2, "profile": oracle.PROFILE,
         "source_profile": oracle.SOURCE_PROFILE,
         "check_id": oracle.CHECK, "analysis_reference": analysis, "original_receipt_id": receipt,
-        "original_job_id": source_attrs["original_job_id"], "source_observation_reference": source[
-            "reference"], "original_role_ids": source_attrs["original_role_ids"],
-        "header_sha256": source_attrs and hashlib.sha256(bytes.fromhex(originals[
-            source_attrs["original_role_ids"]["owned-response-headers"]]["data_hex"])).hexdigest(),
+        "original_job_id": sourceAttrs["original_job_id"], "source_observation_reference": source[
+            "reference"], "original_role_ids": sourceAttrs["original_role_ids"],
+        "header_sha256": sourceAttrs and hashlib.sha256(bytes.fromhex(originals[
+            sourceAttrs["original_role_ids"]["owned-response-headers"]]["data_hex"])).hexdigest(),
         "condition_observed": absent, "authority_basis": basis}
     fact = {"kind": oracle.ASSESSMENT, "subject_reference": endpoint, "attributes": attrs,
         "provenance": provenance}
@@ -82,7 +82,7 @@ def Fixture(case="missing", include_detection=True):
     after = copy.deepcopy(before)
     after["model"]["revision"] += 1
     after["model"]["observations"].append(fact)
-    finding_reference = None
+    findingReference = None
 
     if absent:
         location = url + "#response-header:x-content-type-options"
@@ -90,8 +90,8 @@ def Fixture(case="missing", include_detection=True):
             "subject_reference": endpoint, "check_id": oracle.CHECK,
             "location_key": location})).hexdigest()
         identity = {"workspace_id": "unit-only", "kind": "finding", "key": fingerprint}
-        finding_reference = oracle.Reference("object", identity)
-        after["model"]["objects"].append({"reference": finding_reference, "identity": identity,
+        findingReference = oracle.Reference("object", identity)
+        after["model"]["objects"].append({"reference": findingReference, "identity": identity,
             "attributes": {"schema_version": 1, "fingerprint": fingerprint,
                 "subject_reference": endpoint, "check_id": oracle.CHECK, "location_key": location,
                 "summary": "Captured response omitted X-Content-Type-Options",
@@ -99,15 +99,15 @@ def Fixture(case="missing", include_detection=True):
                 "remediation": {"summary": None, "steps": [], "references": []}},
             "provenance": [provenance]})
         after["workspace"]["revision"] += 1
-        after["workspace"]["object_references"].append(finding_reference)
-        update = {"kind": "object-update", "subject_reference": finding_reference,
+        after["workspace"]["object_references"].append(findingReference)
+        update = {"kind": "object-update", "subject_reference": findingReference,
             "attributes": copy.deepcopy(after["model"]["objects"][-1]["attributes"]),
             "provenance": provenance}
         update["reference"] = oracle.Reference("observation", copy.deepcopy(update))
         after["model"]["observations"].insert(-1, update)
 
         if include_detection:
-            detection = {"kind": "finding-detection", "subject_reference": finding_reference,
+            detection = {"kind": "finding-detection", "subject_reference": findingReference,
                 "attributes": copy.deepcopy(after["model"]["objects"][-1]["attributes"]),
                 "provenance": provenance}
             detection["reference"] = oracle.Reference("observation", copy.deepcopy(detection))
@@ -116,7 +116,7 @@ def Fixture(case="missing", include_detection=True):
     summary = {"schema_version": 1, "state": "completed", "profile": oracle.PROFILE,
         "source_profile": oracle.SOURCE_PROFILE, "condition_observed": absent,
         "original_receipt_id": receipt, "analysis_reference": analysis,
-        "assessment_reference": fact["reference"], "finding_reference": finding_reference,
+        "assessment_reference": fact["reference"], "finding_reference": findingReference,
         "model_revision": after["model"]["revision"],
         "workspace_revision": after["workspace"]["revision"],
         "model_commit": "acknowledged", "workspace_commit": (

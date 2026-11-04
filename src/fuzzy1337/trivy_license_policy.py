@@ -121,7 +121,7 @@ def EvaluateVerifiedTrivyLicenses(
     payload = ParseJson(raw["stdout"], IMAGE_IMPORT_MAX_BYTES)
     metadata = Record(payload["Metadata"])
     image = ImageIdentity(Text(metadata["ImageID"]))
-    os_fields = Record(metadata.get("OS", {}))
+    osFields = Record(metadata.get("OS", {}))
     results = Items(payload.get("Results", []))
     count = 0
 
@@ -154,15 +154,15 @@ def EvaluateVerifiedTrivyLicenses(
     if size > MAX_TRIVY_LICENSE_POLICY_BYTES:
         raise ValueError("trivy-license-policy-limit")
 
-    for result_index, value in enumerate(results):
+    for resultIndex, value in enumerate(results):
         native = Record(value)
         ecosystem = Text(native["Type"])
 
-        for package_index, item in enumerate(Items(native.get("Packages") or [])):
+        for packageIndex, item in enumerate(Items(native.get("Packages") or [])):
             package = Record(item)
-            identity = PackageRecord(package, ecosystem, os_fields)
+            identity = PackageRecord(package, ecosystem, osFields)
             row: dict[str, object] = {
-                "result_index": result_index, "package_index": package_index,
+                "result_index": resultIndex, "package_index": packageIndex,
                 "package_reference": identity.Object(state.workspace_id).Reference(),
                 "assertions": [],
             }
@@ -174,8 +174,8 @@ def EvaluateVerifiedTrivyLicenses(
             assertions: list[dict[str, object]] = []
             licenses = Items(package.get("Licenses") or [])
 
-            for license_index, text in enumerate(licenses):
-                assertion = {"license_index": license_index, "source_field": "Licenses",
+            for licenseIndex, text in enumerate(licenses):
+                assertion = {"license_index": licenseIndex, "source_field": "Licenses",
                     "source_text": text, "source_role": "not-classified",
                     "evaluation": EvaluateLicenseExpression(text, policy)}
                 size += len(CanonicalModelJson(assertion)) + bool(assertions)
@@ -186,13 +186,13 @@ def EvaluateVerifiedTrivyLicenses(
                 assertions.append(assertion)
 
             if not licenses:
-                information_state = "omitted" if "Licenses" not in package else (
+                informationState = "omitted" if "Licenses" not in package else (
                     "null" if package["Licenses"] is None else "empty"
                 )
                 assertion = {"license_index": None, "source_field": "Licenses",
                     "source_text": None, "source_role": "not-classified",
-                    "information_state": information_state,
-                    "evaluation": {"status": "unknown", "reason": "source-" + information_state,
+                    "information_state": informationState,
+                    "evaluation": {"status": "unknown", "reason": "source-" + informationState,
                                    "atoms": []}}
                 size += len(CanonicalModelJson(assertion))
 

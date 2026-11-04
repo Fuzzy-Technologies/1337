@@ -111,11 +111,11 @@ def CheckArtifacts(root, parent, outcome, case, target, runtime, evidence):
     replay, _, _ = CheckPair(root, records, case, target, provisioning)
     saved, _ = CheckModel(root, case, records)
     findings = saved.Objects(ObjectKind.FINDING)
-    expected_refs = sorted(item.Reference() for item in findings)
+    expectedRefs = sorted(item.Reference() for item in findings)
     matched = sorted(item.Reference() for item in findings if item.attributes["status"] == "open"
                      and item.attributes["severity"] in SEVERITIES)
     criterion = outcome["criterion"]
-    assert criterion["selected_findings"] == expected_refs and (
+    assert criterion["selected_findings"] == expectedRefs and (
         criterion["matched_findings"] == matched and criterion["matched_count"] == len(matched)
     ), "Independent saved-field conjunction must equal only the current original native detections"
     assert criterion["run_reference"] == replay.provenance.run_reference, (
@@ -171,14 +171,14 @@ def test_GenuineInstalledCiPreservesPredicateArtifactsAndNoOptinRefusal(
     evidence.mkdir(parents=True, exist_ok=True)
     limit = 0 if case["expected_selected_advisory_match"] else 1024
     arguments = Arguments(root, selection, policy, tmp_path, limit)
-    before_workspace, before_model = LocalWorkspaceStore(root).Open(), LocalModelStore(root).Open()
+    beforeWorkspace, beforeModel = LocalWorkspaceStore(root).Open(), LocalModelStore(root).Open()
     denied = [item for item in arguments if item != "--approve-safe-image"]
     status, outcome = Console(denied, evidence, "no-optin")
     assert status == 3 and outcome["scan"] is None and (
         outcome["criterion"]["status"] == "indeterminate"
     ), "Independent recorded read consent and policy cannot replace native workflow approval"
-    assert LocalWorkspaceStore(root).Open() == before_workspace and (
-        LocalModelStore(root).Open() == before_model
+    assert LocalWorkspaceStore(root).Open() == beforeWorkspace and (
+        LocalModelStore(root).Open() == beforeModel
         and not (root / "native-image-claims").exists()
         and not any(item["output_published"] for item in outcome["reports"].values())
     ), "No-optin refusal must leave canonical state, claims and report publications unchanged"

@@ -103,15 +103,15 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
     target = ScopedWorkspace(root)
     limits = PortScanLimits(timeout_seconds=15)
     EVIDENCE.mkdir(parents=True, exist_ok=True)
-    policy_path = root / "owned-policy.json"
-    policy_path.write_text(SerializeContract(Policy()), encoding="utf-8")
+    policyPath = root / "owned-policy.json"
+    policyPath.write_text(SerializeContract(Policy()), encoding="utf-8")
 
     with socket.socket() as listening, socket.socket() as closed:
         listening.bind(("127.0.0.1", 0))
         listening.listen(8)
         closed.bind(("127.0.0.1", 0))
-        open_port, closed_port = listening.getsockname()[1], closed.getsockname()[1]
-        ports = (open_port, closed_port)
+        openPort, closedPort = listening.getsockname()[1], closed.getsockname()[1]
+        ports = (openPort, closedPort)
         plan = PlanPortScan(root, "local", target, "operator:owned", ports, selected,
                             Policy, limits=limits)
         NoConnection(listening)
@@ -157,11 +157,11 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
         explicit = {int(item.get("portid")): item.find("state").get("state")
                     for item in host.findall("ports/port")}
         assert set(explicit) <= set(ports), "Original tool output escaped the selected finite ports"
-        assert explicit.get(open_port) == "open", "The known listening socket must be detected"
-        closed_assessment = explicit.get(closed_port)
-        assert closed_assessment in (None, "closed"), "The bound non-listener cannot be open"
+        assert explicit.get(openPort) == "open", "The known listening socket must be detected"
+        closedAssessment = explicit.get(closedPort)
+        assert closedAssessment in (None, "closed"), "The bound non-listener cannot be open"
 
-        if closed_assessment is None:
+        if closedAssessment is None:
             assert any(item.get("state") == "closed" and item.get("count") == "1"
                        for item in host.findall("ports/extraports")), (
                 "A grouped closed result must retain its actual original provider observation"
@@ -172,11 +172,11 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
         assert len(hosts) == 1 and hosts[0].identity.key == "127.0.0.1", (
             "Canonical Host must use the existing exact address identity"
         )
-        actual_ports = {int(item.attributes["number"]): item
+        actualPorts = {int(item.attributes["number"]): item
                         for item in state.Objects(ObjectKind.PORT)}
-        assert set(actual_ports) == set(explicit), "Grouped output cannot invent individual ports"
+        assert set(actualPorts) == set(explicit), "Grouped output cannot invent individual ports"
 
-        for port, item in actual_ports.items():
+        for port, item in actualPorts.items():
             assert item.identity.key == f"host:127.0.0.1/tcp/{port}", "Canonical Port key differs"
             assert item.attributes["state"] == explicit[port], "Canonical port state was invented"
             assert item.provenance and item.provenance[-1].evidence_references, (
@@ -187,14 +187,14 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
         identities = {item.Reference() for item in state.objects}
         arguments = ["scan", "ports", str(root), "--scope", "local", "--owner", "operator:owned",
             "--target", "127.0.0.1", "--ports", ",".join(map(str, ports)), "--timeout", "15",
-            "--policy", str(policy_path), "--executable", selected]
-        cli_plan = Console([*arguments, "--plan"])
-        assert cli_plan["intent_sha256"] == plan.policy_plan.intent_sha256, (
+            "--policy", str(policyPath), "--executable", selected]
+        cliPlan = Console([*arguments, "--plan"])
+        assert cliPlan["intent_sha256"] == plan.policy_plan.intent_sha256, (
             "Installed CLI and SDK must present the same exact operation intent"
         )
-        cli_summary = Console([*arguments, "--confirm-plan", cli_plan["intent_sha256"],
+        cliSummary = Console([*arguments, "--confirm-plan", cliPlan["intent_sha256"],
                               "--confirmation-reference", "approval:owned-nmap-console"])
-        assert cli_summary["state"] == "completed" and cli_summary["workflow"] == "ports", (
+        assert cliSummary["state"] == "completed" and cliSummary["workflow"] == "ports", (
             "The installed genuine port-scan command did not complete its owned workflow"
         )
         repeated = LocalModelStore(root).Open()
@@ -204,7 +204,7 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
         assert not Findings(repeated), "Repeated port discovery cannot create vulnerabilities"
         (EVIDENCE / "sdk-summary.json").write_text(
             json.dumps(summary.ToDict(), sort_keys=True), encoding="utf-8")
-        (EVIDENCE / "cli-summary.json").write_text(json.dumps(cli_summary, sort_keys=True),
+        (EVIDENCE / "cli-summary.json").write_text(json.dumps(cliSummary, sort_keys=True),
                                                   encoding="utf-8")
         canonical = CanonicalModelJson(repeated)
 
@@ -219,10 +219,10 @@ def test_GenuineSdkAndInstalledConsolePreserveOwnedTwoPortOracleAndRelocatedReop
         "Installed CLI and SDK must independently verify the same relocated workspace"
     )
     oracle = {"schema_version": 1, "profile": "nmap-owned-two-port-product.v1",
-        "target": "127.0.0.1", "open_port": open_port, "bound_closed_port": closed_port,
+        "target": "127.0.0.1", "open_port": openPort, "bound_closed_port": closedPort,
         "expected": {"listening": "open", "bound_nonlistener": "closed_or_grouped_unassessed",
                      "findings": 0}, "observed": {"explicit_ports": explicit,
-                     "bound_closed_assessment": closed_assessment},
+                     "bound_closed_assessment": closedAssessment},
         "provider_version": PINNED_VERSION, "invocation_sha256": InvocationDigest(plan.invocation),
         "relocated_reopen": reopened, "result": "passed"}
     (EVIDENCE / "oracle.json").write_text(json.dumps(oracle, sort_keys=True), encoding="utf-8")

@@ -211,7 +211,7 @@ def test_PublicationLossNeverBecomesFalseCompleteCustody(tmp_path, monkeypatch, 
         raise EvidenceError("untrusted-value publication failure")
 
     monkeypatch.setattr(LocalEvidenceStore, "Put", Put)
-    before_model = model.Open()
+    beforeModel = model.Open()
     status, outcome = Run(ImportArguments(model.root, source))
     assert status == 4 and outcome["status"] == "failed" and outcome[
         "acquisition_state"
@@ -232,7 +232,7 @@ def test_PublicationLossNeverBecomesFalseCompleteCustody(tmp_path, monkeypatch, 
             "Receipt failure erased the independently acknowledged selected artifact."
         )
 
-    assert "untrusted-value" not in json.dumps(outcome) and model.Open() == before_model, (
+    assert "untrusted-value" not in json.dumps(outcome) and model.Open() == beforeModel, (
         "Storage failure leaked exception details or changed authoritative model state."
     )
 

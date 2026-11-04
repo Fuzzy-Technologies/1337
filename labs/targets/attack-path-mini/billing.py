@@ -72,7 +72,7 @@ class BillingRequestHandler(LabRequestHandler):
         )
         try:
             with urlopen(request, timeout=2) as response:
-                event_result = json.load(response)
+                eventResult = json.load(response)
 
         except (HTTPError, URLError, TimeoutError):
             self.SendJson({"error": "event-store-unavailable"}, HTTPStatus.BAD_GATEWAY)
@@ -80,7 +80,7 @@ class BillingRequestHandler(LabRequestHandler):
 
         self.SendJson(
             {
-                "business_event": event_result,
+                "business_event": eventResult,
                 "evidence_id": "evidence.authorized-validation",
                 "relation_id": "relation.billing-api-business-event",
                 "state": "CONFIRMED",

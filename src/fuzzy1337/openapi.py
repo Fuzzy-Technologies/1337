@@ -378,7 +378,7 @@ class ApiImportContext:
         }):
             raise ValueError("API schema composition or dynamic identities are unsupported")
 
-        value_type = record.get("type", "object" if "properties" in record else "unspecified")
+        valueType = record.get("type", "object" if "properties" in record else "unspecified")
         nullable = ApiImportBoolean(record.get("nullable", False))
 
         if self.legacy and "nullable" in record:
@@ -387,30 +387,30 @@ class ApiImportContext:
         if self.version.startswith("3.1.") and "nullable" in record:
             raise ValueError("OpenAPI 3.1 nullable flags require an explicit null type")
 
-        if isinstance(value_type, list):
-            if not self.version.startswith("3.1.") or len(value_type) != 2 or (
-                value_type.count("null") != 1
+        if isinstance(valueType, list):
+            if not self.version.startswith("3.1.") or len(valueType) != 2 or (
+                valueType.count("null") != 1
             ):
                 raise ValueError("only one nullable schema type is supported")
 
-            value_type = next(item for item in value_type if item != "null")
+            valueType = next(item for item in valueType if item != "null")
             nullable = True
 
-        if not isinstance(value_type, str) or value_type not in _TYPES | {"unspecified", "file"}:
+        if not isinstance(valueType, str) or valueType not in _TYPES | {"unspecified", "file"}:
             raise ValueError("unsupported API structural schema type")
 
-        if value_type == "file" and not self.legacy:
+        if valueType == "file" and not self.legacy:
             raise ValueError("file schema type is supported only for Swagger multipart inputs")
 
-        if value_type == "null" and not self.version.startswith("3.1."):
+        if valueType == "null" and not self.version.startswith("3.1."):
             raise ValueError("null schema types require OpenAPI 3.1")
 
-        if value_type == "null":
+        if valueType == "null":
             nullable = True
 
         constrained = bool(set(record) & (_CONSTRAINTS | {"items"}))
 
-        return record, pointer, trail, value_type, nullable, constrained
+        return record, pointer, trail, valueType, nullable, constrained
 
     def Parameters(
         self, parent: object, operation: object, parent_pointer: str, operation_pointer: str,
@@ -481,32 +481,32 @@ class ApiImportContext:
             raise ValueError("API path parameters must be required")
 
         schema = record if self.legacy else record.get("schema", {})
-        _, _, _, value_type, nullable, constrained = self.Schema(schema, pointer)
+        _, _, _, valueType, nullable, constrained = self.Schema(schema, pointer)
 
-        if self.legacy and value_type not in {"string", "number", "integer", "boolean", "array"}:
+        if self.legacy and valueType not in {"string", "number", "integer", "boolean", "array"}:
             raise ValueError("Swagger parameters require explicit supported primitive/array types")
 
-        if value_type == "file":
+        if valueType == "file":
             raise ValueError("file parameters require a multipart body")
 
         if self.legacy:
             serialization, explode = SwaggerCollectionFormat(record, location)
 
-            return ApiInput(point, pointer, value_type, required, nullable, constrained,
+            return ApiInput(point, pointer, valueType, required, nullable, constrained,
                             serialization, explode)
 
-        default_style = "simple" if location in {"path", "header"} else "form"
-        style = ApiImportText(record.get("style", default_style))
+        defaultStyle = "simple" if location in {"path", "header"} else "form"
+        style = ApiImportText(record.get("style", defaultStyle))
         explode = ApiImportBoolean(record.get("explode", style == "form"))
 
-        if style != default_style or ApiImportBoolean(record.get("allowReserved", False)):
+        if style != defaultStyle or ApiImportBoolean(record.get("allowReserved", False)):
             raise ValueError("nondefault parameter styles or reserved-value expansion unsupported")
 
-        if value_type == "object":
-            schema_record, _, _ = self.Resolve(schema, pointer)
-            constrained = constrained or bool(set(schema_record) & {"properties", "required"})
+        if valueType == "object":
+            schemaRecord, _, _ = self.Resolve(schema, pointer)
+            constrained = constrained or bool(set(schemaRecord) & {"properties", "required"})
 
-        return ApiInput(point, pointer, value_type, required, nullable, constrained, style, explode)
+        return ApiInput(point, pointer, valueType, required, nullable, constrained, style, explode)
 
     def BodyInputs(
         self, value: object, pointer: str, kind: BodyKind, required: bool,
@@ -534,7 +534,7 @@ class ApiImportContext:
         if depth > 16:
             raise ValueError("API body schema nesting exceeds its bound")
 
-        record, pointer, trail, value_type, nullable, constrained = self.Schema(
+        record, pointer, trail, valueType, nullable, constrained = self.Schema(
             value, pointer, trail,
         )
         constrained = constrained or inherited_constraints
@@ -544,7 +544,7 @@ class ApiImportContext:
 
         properties = ApiImportObject(record.get("properties", {}))
 
-        if value_type == "object" and properties:
+        if valueType == "object" and properties:
             names = ApiImportArray(record.get("required", []))
 
             if not all(isinstance(name, str) and name in properties for name in names) or (
@@ -555,7 +555,7 @@ class ApiImportContext:
             inputs = []
 
             for name in sorted(properties):
-                child_selector = ApiImportPointer(selector, name) if kind is BodyKind.JSON else name
+                childSelector = ApiImportPointer(selector, name) if kind is BodyKind.JSON else name
 
                 if kind is not BodyKind.JSON and selector:
                     raise ValueError("nested form/multipart property expansion is unsupported")
@@ -563,7 +563,7 @@ class ApiImportContext:
                 inputs.extend(self.BodyInputs(
                     properties[name],
                     ApiImportPointer(ApiImportPointer(pointer, "properties"), name), kind,
-                    required and name in names, child_selector, trail, depth + 1, constrained,
+                    required and name in names, childSelector, trail, depth + 1, constrained,
                     name in names,
                 ))
 
@@ -572,7 +572,7 @@ class ApiImportContext:
         if kind in {BodyKind.FORM, BodyKind.MULTIPART} and not selector:
             raise ValueError("form and multipart schemas require declared named properties")
 
-        if value_type == "file" and kind is not BodyKind.MULTIPART:
+        if valueType == "file" and kind is not BodyKind.MULTIPART:
             raise ValueError("file schema requires a multipart body")
 
         location = {
@@ -581,7 +581,7 @@ class ApiImportContext:
         }[kind]
 
         return [ApiInput(
-            ApiImportPoint(location, selector), pointer, value_type, required, nullable,
+            ApiImportPoint(location, selector), pointer, valueType, required, nullable,
             constrained, "body", False, schema_required,
         )]
 
@@ -611,17 +611,17 @@ class ApiImportContext:
             content = ApiImportObject(body.get("content"))
 
         else:
-            body_parameters = [
+            bodyParameters = [
                 (item, source) for item, source in parameters if item.get("in") == "body"
             ]
-            form_parameters = [
+            formParameters = [
                 (item, source) for item, source in parameters if item.get("in") == "formData"
             ]
 
-            if len(body_parameters) > 1 or (body_parameters and form_parameters):
+            if len(bodyParameters) > 1 or (bodyParameters and formParameters):
                 raise ValueError("Swagger permits one body or form parameters, not both")
 
-            if not body_parameters and not form_parameters:
+            if not bodyParameters and not formParameters:
                 return [(None, BodyKind.NONE, [], False)]
 
             media = ApiImportArray(operation.get("consumes", self.document.get("consumes", [])), 8)
@@ -629,84 +629,84 @@ class ApiImportContext:
             if not media or not all(isinstance(item, str) for item in media):
                 raise ValueError("Swagger request bodies require explicit supported consumes types")
 
-            media_names = [ApiImportText(item) for item in media]
+            mediaNames = [ApiImportText(item) for item in media]
 
-            if body_parameters:
-                body, source = body_parameters[0]
+            if bodyParameters:
+                body, source = bodyParameters[0]
                 required = ApiImportBoolean(body.get("required", False))
-                content = {item: {"schema": body.get("schema", {})} for item in media_names}
+                content = {item: {"schema": body.get("schema", {})} for item in mediaNames}
 
             else:
-                properties = {ApiImportText(item.get("name")): item for item, _ in form_parameters}
-                required_names = [name for name, item in properties.items()
+                properties = {ApiImportText(item.get("name")): item for item, _ in formParameters}
+                requiredNames = [name for name, item in properties.items()
                                   if ApiImportBoolean(item.get("required", False))]
                 source = ApiImportPointer(pointer, "parameters")
-                required = bool(required_names)
+                required = bool(requiredNames)
                 content = {item: {"schema": {
-                    "type": "object", "properties": properties, "required": required_names,
-                }} for item in media_names}
+                    "type": "object", "properties": properties, "required": requiredNames,
+                }} for item in mediaNames}
 
         if not 1 <= len(content) <= 8:
             raise ValueError("API body content must have between one and eight media variants")
 
         variants: list[tuple[str | None, BodyKind, list[ApiInput], bool]] = []
 
-        for media_type in sorted(content):
-            ApiImportText(media_type)
+        for mediaType in sorted(content):
+            ApiImportText(mediaType)
             kind = {
                 "application/json": BodyKind.JSON,
                 "application/x-www-form-urlencoded": BodyKind.FORM,
                 "multipart/form-data": BodyKind.MULTIPART, "text/plain": BodyKind.TEXT,
-            }.get(media_type)
+            }.get(mediaType)
 
-            if kind is None and media_type.startswith("application/") and (
-                media_type.endswith("+json")
+            if kind is None and mediaType.startswith("application/") and (
+                mediaType.endswith("+json")
             ):
                 kind = BodyKind.JSON
 
             if kind is None:
                 raise ValueError("unsupported API request body media type")
 
-            media_record = ApiImportObject(content[media_type])
+            mediaRecord = ApiImportObject(content[mediaType])
 
-            if media_record.get("encoding"):
+            if mediaRecord.get("encoding"):
                 raise ValueError("custom form/multipart encodings are unsupported")
 
-            if self.legacy and form_parameters and kind not in {BodyKind.FORM, BodyKind.MULTIPART}:
+            if self.legacy and formParameters and kind not in {BodyKind.FORM, BodyKind.MULTIPART}:
                 raise ValueError("Swagger formData requires a form or multipart media type")
 
-            schema_pointer = source if self.legacy else ApiImportPointer(
-                ApiImportPointer(source, "content"), media_type,
+            schemaPointer = source if self.legacy else ApiImportPointer(
+                ApiImportPointer(source, "content"), mediaType,
             )
 
-            if "schema" in media_record:
-                schema_pointer = ApiImportPointer(schema_pointer, "schema")
+            if "schema" in mediaRecord:
+                schemaPointer = ApiImportPointer(schemaPointer, "schema")
 
-            if self.legacy and form_parameters:
+            if self.legacy and formParameters:
                 inputs: list[ApiInput] = []
 
-                for item, item_source in form_parameters:
-                    _, _, _, value_type, _, _ = self.Schema(item, item_source)
+                for item, itemSource in formParameters:
+                    _, _, _, valueType, _, _ = self.Schema(item, itemSource)
 
-                    if value_type not in {
+                    if valueType not in {
                         "string", "number", "integer", "boolean", "array", "file",
                     }:
                         raise ValueError("Swagger formData requires primitive/array/file types")
 
                     serialization, explode = SwaggerCollectionFormat(item, "formData")
-                    declared_inputs = self.BodyInputs(
-                        item, item_source, kind, ApiImportBoolean(item.get("required", False)),
+                    declaredInputs = self.BodyInputs(
+                        item, itemSource, kind, ApiImportBoolean(item.get("required", False)),
                         ApiImportText(item.get("name")),
                     )
                     inputs.extend(replace(value, serialization=serialization, explode=explode)
-                                  for value in declared_inputs)
+                                  for value in declaredInputs)
 
             else:
                 inputs = self.BodyInputs(
-                    media_record.get("schema", {}), schema_pointer, kind, required,
+                    mediaRecord.get("schema", {}), schemaPointer, kind, required,
                 )
 
-            variants.append((media_type, kind, inputs, required))
+            variants.append((mediaType, kind, inputs, required))
 
         return variants
 
@@ -746,11 +746,11 @@ class ApiImportContext:
                     raise ValueError("API authentication scopes/scheme references are invalid")
 
                 scheme, _, _ = self.Resolve(definitions[name], "#/securitySchemes")
-                scheme_type = ApiImportText(scheme.get("type"))
+                schemeType = ApiImportText(scheme.get("type"))
                 location: str | None = None
                 selector: str | None = None
 
-                if scheme_type == "apiKey":
+                if schemeType == "apiKey":
                     location = ApiImportText(scheme.get("in"))
 
                     if location not in {"header", "query", "cookie"} or (
@@ -762,30 +762,30 @@ class ApiImportContext:
                         InjectionLocation(location), ApiImportText(scheme.get("name")),
                     ).selector
 
-                elif scheme_type == "http" and not self.legacy:
-                    http_scheme = ApiImportText(scheme.get("scheme")).lower()
+                elif schemeType == "http" and not self.legacy:
+                    httpScheme = ApiImportText(scheme.get("scheme")).lower()
 
-                    if http_scheme not in {"basic", "bearer"}:
+                    if httpScheme not in {"basic", "bearer"}:
                         raise ValueError("unsupported HTTP authentication scheme")
 
-                    scheme_type = "http-" + http_scheme
+                    schemeType = "http-" + httpScheme
 
-                elif scheme_type == "basic" and self.legacy:
-                    scheme_type = "http-basic"
+                elif schemeType == "basic" and self.legacy:
+                    schemeType = "http-basic"
 
-                elif scheme_type not in {"oauth2", "openIdConnect", "mutualTLS"} or (
-                    self.legacy and scheme_type != "oauth2"
+                elif schemeType not in {"oauth2", "openIdConnect", "mutualTLS"} or (
+                    self.legacy and schemeType != "oauth2"
                 ):
                     raise ValueError("unsupported API authentication scheme type")
 
-                if scheme_type == "mutualTLS" and not self.version.startswith("3.1."):
+                if schemeType == "mutualTLS" and not self.version.startswith("3.1."):
                     raise ValueError("mutual TLS annotations require OpenAPI 3.1")
 
-                if scopes and scheme_type not in {"oauth2", "openIdConnect"}:
+                if scopes and schemeType not in {"oauth2", "openIdConnect"}:
                     raise ValueError("non-OAuth authentication cannot declare scopes")
 
                 entries.append(ApiSecurityRequirement(
-                    name, scheme_type, location, selector, scopes,
+                    name, schemeType, location, selector, scopes,
                 ))
 
             alternatives.append(tuple(entries))
@@ -838,15 +838,15 @@ def ApiImportServers(
     context = ApiImportBaseUrl(base_url) if base_url is not None else None
 
     if legacy:
-        context_parts = urlsplit(context) if context is not None else None
-        host = document.get("host", context_parts.netloc if context_parts else None)
+        contextParts = urlsplit(context) if context is not None else None
+        host = document.get("host", contextParts.netloc if contextParts else None)
         host = ApiImportText(host, 256)
 
         if any(char in host for char in "/\\?#@"):
             raise ValueError("Swagger host must be an authority without paths or credentials")
 
         schemes = ApiImportArray(operation.get("schemes", document.get(
-            "schemes", [context_parts.scheme] if context_parts else [],
+            "schemes", [contextParts.scheme] if contextParts else [],
         )), 4)
 
         if not schemes or any(
@@ -854,12 +854,12 @@ def ApiImportServers(
         ):
             raise ValueError("Swagger requires explicit supported schemes or a base URL context")
 
-        base_path = ApiImportText(document.get("basePath", "/"), 1024)
+        basePath = ApiImportText(document.get("basePath", "/"), 1024)
 
-        if not base_path.startswith("/") or "{" in base_path or "}" in base_path:
+        if not basePath.startswith("/") or "{" in basePath or "}" in basePath:
             raise ValueError("Swagger basePath must be a literal absolute path")
 
-        return tuple(sorted({ApiImportBaseUrl(f"{scheme}://{ApiImportText(host, 256)}{base_path}")
+        return tuple(sorted({ApiImportBaseUrl(f"{scheme}://{ApiImportText(host, 256)}{basePath}")
                              for scheme in schemes}))
 
     servers = ApiImportArray(
@@ -917,13 +917,13 @@ def DecodeApiDocument(
             raise ValueError("API input exceeds its byte bound")
 
         if document_format == "yaml":
-            parsed_document = DecodeOpenApiYaml(
+            parsedDocument = DecodeOpenApiYaml(
                 value, maximum_nodes=MAX_OPENAPI_NODES, maximum_depth=MAX_OPENAPI_DEPTH,
             )
 
         else:
             try:
-                parsed_document = json.loads(
+                parsedDocument = json.loads(
                     value, object_pairs_hook=UniqueWorkspaceObject,
                     parse_constant=RejectWorkspaceConstant,
                 )
@@ -931,7 +931,7 @@ def DecodeApiDocument(
             except ValueError:
                 raise ValueError("API JSON syntax, keys or numeric constants are invalid") from None
 
-        document = ApiImportObject(parsed_document)
+        document = ApiImportObject(parsedDocument)
         pending: list[tuple[object, int]] = [(document, 0)]
         count = 0
 
@@ -999,35 +999,35 @@ def ImportOpenApi(
     context = ApiImportContext(document, version)
     paths = ApiImportObject(document.get("paths"))
     operations = []
-    operation_ids: set[str] = set()
+    operationIds: set[str] = set()
 
     for route in sorted(paths):
         if route.startswith("x-"):
             continue
 
         Endpoint(workspace_id, "http://127.0.0.1", route)
-        path, path_pointer, _ = context.Resolve(paths[route], ApiImportPointer("#/paths", route))
+        path, pathPointer, _ = context.Resolve(paths[route], ApiImportPointer("#/paths", route))
 
         for method in sorted(set(path) & _METHODS):
             if legacy and method == "trace":
                 raise ValueError("Swagger 2.0 does not define trace operations")
 
             operation = ApiImportObject(path[method])
-            pointer = ApiImportPointer(path_pointer, method)
-            raw_operation_id = operation.get("operationId")
-            operation_id: str | None = None
+            pointer = ApiImportPointer(pathPointer, method)
+            rawOperationId = operation.get("operationId")
+            operationId: str | None = None
 
-            if raw_operation_id is not None:
-                operation_id = ApiImportText(raw_operation_id)
+            if rawOperationId is not None:
+                operationId = ApiImportText(rawOperationId)
 
-                if operation_id in operation_ids:
+                if operationId in operationIds:
                     raise ValueError("API operationId values must be unique")
 
-                operation_ids.add(operation_id)
+                operationIds.add(operationId)
 
             parameters = context.Parameters(
                 path.get("parameters", []), operation.get("parameters", []),
-                ApiImportPointer(path_pointer, "parameters"),
+                ApiImportPointer(pathPointer, "parameters"),
                 ApiImportPointer(pointer, "parameters"),
             )
             ordinary = [context.Input(record, source) for record, source in parameters
@@ -1043,20 +1043,20 @@ def ImportOpenApi(
                 parsed = urlsplit(server)
                 origin = f"{parsed.scheme}://{parsed.netloc}"
                 endpoint = Endpoint(workspace_id, origin, parsed.path.rstrip("/") + route, method)
-                path_names = {item.point.selector for item in ordinary
+                pathNames = {item.point.selector for item in ordinary
                               if item.point.location is InjectionLocation.PATH}
 
-                if path_names != set(endpoint.PathVariables()):
+                if pathNames != set(endpoint.PathVariables()):
                     raise ValueError("API path parameters must match every declared path variable")
 
-                for media_type, body_kind, body_inputs, body_required in bodies:
+                for mediaType, bodyKind, bodyInputs, bodyRequired in bodies:
                     inputs = tuple(sorted(
-                        (*ordinary, *body_inputs), key=lambda item: item.point.Coordinate(),
+                        (*ordinary, *bodyInputs), key=lambda item: item.point.Coordinate(),
                     ))
                     template = RequestTemplate(endpoint, tuple(item.point for item in inputs),
-                                               body_kind, session_reference)
-                    operations.append(ApiOperation(operation_id, pointer, digest, media_type,
-                                                   template, inputs, security, body_required))
+                                               bodyKind, session_reference)
+                    operations.append(ApiOperation(operationId, pointer, digest, mediaType,
+                                                   template, inputs, security, bodyRequired))
 
                     if len(operations) > MAX_OPENAPI_OPERATIONS:
                         raise ValueError("API operation variants exceed their count bound")

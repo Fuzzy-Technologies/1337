@@ -92,12 +92,12 @@ def ValidatePublicationWorkflow(workflow: Mapping[str, Any]) -> list[str]:
     build = jobs["deterministic-documentation"]
     deploy = jobs["deploy-pages"]
 
-    recovery_source = any(
+    recoverySource = any(
         str(step.get("uses", "")).startswith("actions/download-artifact@")
         or "RECOVERY_DOCUMENTATION" in step.get("env", {}) for step in build.get("steps", [])
     )
 
-    if (build.get("permissions", READ_PERMISSIONS) != READ_PERMISSIONS or recovery_source) and not (
+    if (build.get("permissions", READ_PERMISSIONS) != READ_PERMISSIONS or recoverySource) and not (
         RecoveryReadBoundary(build)
     ):
         violations.append("PR documentation builds require contents-only or exact recovery reads")

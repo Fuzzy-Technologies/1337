@@ -272,17 +272,17 @@ def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False, container_paths
     def ExpectedContainerArguments(executable, path, template, configuration):
         """Bind only declared fixture artifact slots to an independent fixed Linux argv oracle."""
 
-        expected_files = (arguments[2], scan / "prometheus-exposition.yaml",
+        expectedFiles = (arguments[2], scan / "prometheus-exposition.yaml",
                           scan / "operator-config.yaml")
 
-        if (executable, template, configuration) != expected_files or path != "/metrics":
+        if (executable, template, configuration) != expectedFiles or path != "/metrics":
             raise ValueError("Inert application argv requires exact selected fixture paths")
 
         expected = list(StandaloneArguments(CONTAINER_EXECUTABLE, path,
             CONTAINER_TEMPLATE, CONTAINER_CONFIGURATION))
 
         if track == "whole1337":
-            expected[0], expected[-1], expected[4] = map(str, expected_files)
+            expected[0], expected[-1], expected[4] = map(str, expectedFiles)
 
         return tuple(expected)
 
@@ -305,18 +305,18 @@ def ProducedBundle(tmp_path, monkeypatch, track, *, empty=False, container_paths
     )
     inventory = originals.Json(root, "scan/installed-inventory.json") if (
         track == "whole1337") else {}
-    runtime_hash = inventory.pop("whole1337_runtime_sha256", "f" * 64)
+    runtimeHash = inventory.pop("whole1337_runtime_sha256", "f" * 64)
     manifest = {"source_revision": "a" * 40, "installed": {"installed": inventory},
-        "support_sha256": {"external_nuclei_runtime.py": runtime_hash},
+        "support_sha256": {"external_nuclei_runtime.py": runtimeHash},
         "material": {"executable": {"path": str(arguments[2]), "sha256": arguments[5]},
                      "profile": ProfileDocument(arguments[3], arguments[4])}}
-    manifest_raw = json.dumps(manifest).encode()
-    (root / "image-provisioning.json").write_bytes(manifest_raw)
+    manifestRaw = json.dumps(manifest).encode()
+    (root / "image-provisioning.json").write_bytes(manifestRaw)
     WriteJson(root / "case-selection.json", selected)
     WriteJson(root / "outcome.json", outcome)
     monkeypatch.setattr(originals, "SCAN", root / "scan")
 
-    return root, manifest_raw, outcome
+    return root, manifestRaw, outcome
 
 
 @pytest.mark.parametrize("track", ["whole1337", "external-nuclei"])
@@ -358,12 +358,12 @@ def test_ActualProducerOriginalsBindThroughV2WithoutInvocationRewriting(
 ):
     """Real producer/model/evidence paths preserve originals under inert execution."""
 
-    root, manifest_raw, outcome = ProducedBundle(tmp_path, monkeypatch, track, empty=empty,
+    root, manifestRaw, outcome = ProducedBundle(tmp_path, monkeypatch, track, empty=empty,
                                                 container_paths=container_paths)
     original = (root / "scan/invocation.json").read_bytes()
     imported = tmp_path / "imported"
     bundle = originals.BindApplicationBundle(ExportBundle(root, outcome).encode(), imported,
-        manifest_raw, "a" * 40, track, "/metrics", "d" * 64, OWNER)
+        manifestRaw, "a" * 40, track, "/metrics", "d" * 64, OWNER)
     assert (imported / "scan/invocation.json").read_bytes() == original, (
         "The v2 assembler must consume unchanged original producer invocation bytes"
     )
@@ -394,7 +394,7 @@ def test_OriginalAssemblyRejectsConsistentlyRehashedButContradictoryClaims(
 ):
     """Valid transport hashes cannot replace exact case/source/flags or original raw identities."""
 
-    root, manifest_raw, outcome = ProducedBundle(tmp_path, monkeypatch, "external-nuclei",
+    root, manifestRaw, outcome = ProducedBundle(tmp_path, monkeypatch, "external-nuclei",
                                                 container_paths=container_paths)
 
     if mutation == "kind":
@@ -411,7 +411,7 @@ def test_OriginalAssemblyRejectsConsistentlyRehashedButContradictoryClaims(
         (root / "scan/stdout.raw").write_bytes(b"")
 
     elif mutation == "source":
-        manifest = json.loads(manifest_raw)
+        manifest = json.loads(manifestRaw)
         manifest["source_revision"] = "0" * 40
         (root / "image-provisioning.json").write_text(json.dumps(manifest))
 
@@ -429,7 +429,7 @@ def test_OriginalAssemblyRejectsConsistentlyRehashedButContradictoryClaims(
 
     with pytest.raises(ValueError):
         originals.BindApplicationBundle(ExportBundle(root, outcome).encode(), tmp_path / "imported",
-            manifest_raw, "a" * 40, "external-nuclei", "/metrics", "d" * 64, OWNER)
+            manifestRaw, "a" * 40, "external-nuclei", "/metrics", "d" * 64, OWNER)
 
 
 def InertApplicationHost(tmp_path, monkeypatch, fault=None):
@@ -629,12 +629,12 @@ def test_LateHostTerminalFailureRetainsProviderFactsWithoutCompletionCredit(
     """An original provider match cannot overrule failed enclosing Docker terminal facts."""
 
     host, events = InertApplicationHost(tmp_path, monkeypatch)
-    original_inspect, original_command = host.Inspect, host.Command
+    originalInspect, originalCommand = host.Inspect, host.Command
 
     async def Inspect(kind, identifier, role):
         """Change only the independently observed late container state in this inert fixture."""
 
-        value = await original_inspect(kind, identifier, role)
+        value = await originalInspect(kind, identifier, role)
 
         if role == "case-after":
             if fault == "container-exit":
@@ -654,7 +654,7 @@ def test_LateHostTerminalFailureRetainsProviderFactsWithoutCompletionCredit(
     async def Command(role, arguments, **options):
         """Keep original bundle bytes while changing only the inert attach terminal code."""
 
-        result, raw = await original_command(role, arguments, **options)
+        result, raw = await originalCommand(role, arguments, **options)
 
         if role == "case-attach" and fault.startswith("attach-"):
             result["exit_code"] = {"attach-exit": 1, "attach-missing-exit": None,

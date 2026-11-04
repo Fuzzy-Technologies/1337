@@ -138,7 +138,7 @@ class LocalExecutor:
 
         workspace = self.ResolveWorkspace(request.workspace)
         owned: OwnedExecution | None = None
-        grace_seconds = request.resources.terminate_grace_seconds
+        graceSeconds = request.resources.terminate_grace_seconds
         events: list[ExecutionEvent] = []
 
         async def Emit(
@@ -185,10 +185,10 @@ class LocalExecutor:
                 events=tuple(events),
             )
 
-        inherited_environment = {
+        inheritedEnvironment = {
             name: os.environ[name] for name in _INHERITED_ENVIRONMENT if name in os.environ
         }
-        environment = {**inherited_environment, **request.environment}
+        environment = {**inheritedEnvironment, **request.environment}
 
         if pre_launch is not None:
             response = cast(Callable[[LocalExecutionRequest], object], pre_launch)(request)
@@ -205,7 +205,7 @@ class LocalExecutor:
                 StartOwnedExecution,
             )
 
-            grace_seconds = max(grace_seconds, OWNED_PARENT_GRACE_SECONDS)
+            graceSeconds = max(graceSeconds, OWNED_PARENT_GRACE_SECONDS)
 
             def BeforeWorkerStart() -> None:
                 """Recheck current authority after helper readiness and before the worker gate."""
@@ -220,7 +220,7 @@ class LocalExecutor:
                         raise LocalExecutionError("pre_launch must return None")
 
             owned = await StartOwnedExecution(request.invocation.argv, workspace, environment,
-                inherited_environment, before_worker_start=BeforeWorkerStart)
+                inheritedEnvironment, before_worker_start=BeforeWorkerStart)
             process = owned.process
 
         else:
@@ -229,8 +229,8 @@ class LocalExecutor:
         stdout = bytearray()
         stderr = bytearray()
 
-        output_limit = asyncio.Event()
-        emit_lock = asyncio.Lock()
+        outputLimit = asyncio.Event()
+        emitLock = asyncio.Lock()
 
         async def Pump(
             reader: asyncio.StreamReader,
@@ -261,17 +261,17 @@ class LocalExecutor:
                 if retained:
                     destination.extend(retained)
 
-                    async with emit_lock:
+                    async with emitLock:
                         await Emit(kind, data=retained)
 
                 if len(chunk) > remaining:
                     limited = True
-                    output_limit.set()
+                    outputLimit.set()
 
         assert process.stdout is not None, "Subprocess stdout pipe must be available."
         assert process.stderr is not None, "Subprocess stderr pipe must be available."
 
-        stdout_task = asyncio.create_task(
+        stdoutTask = asyncio.create_task(
             Pump(
                 process.stdout,
                 stdout,
@@ -279,7 +279,7 @@ class LocalExecutor:
                 ExecutionEventKind.STDOUT,
             )
         )
-        stderr_task = asyncio.create_task(
+        stderrTask = asyncio.create_task(
             Pump(
                 process.stderr,
                 stderr,
@@ -288,20 +288,20 @@ class LocalExecutor:
             )
         )
 
-        process_task = asyncio.create_task(process.wait() if owned is None else owned.Wait())
-        output_limit_task = asyncio.create_task(output_limit.wait())
-        cancellation_task = (
+        processTask = asyncio.create_task(process.wait() if owned is None else owned.Wait())
+        outputLimitTask = asyncio.create_task(outputLimit.wait())
+        cancellationTask = (
             asyncio.create_task(cancellation.wait()) if cancellation is not None else None
         )
 
-        waiters = {process_task, output_limit_task, stdout_task, stderr_task}
+        waiters = {processTask, outputLimitTask, stdoutTask, stderrTask}
 
-        if cancellation_task is not None:
-            waiters.add(cancellation_task)
+        if cancellationTask is not None:
+            waiters.add(cancellationTask)
 
         termination = ExecutionTermination.PROCESS_EXIT
         state = ExecutionState.FAILED
-        owned_tasks = (stdout_task, stderr_task, process_task, output_limit_task, cancellation_task)
+        ownedTasks = (stdoutTask, stderrTask, processTask, outputLimitTask, cancellationTask)
 
         async def Join(*awaitables: Awaitable[object]) -> None:
             """Bound owned exit/pipe joins by the configured termination grace.
@@ -316,14 +316,14 @@ class LocalExecutor:
             try:
                 await asyncio.wait_for(
                     asyncio.gather(*awaitables),
-                    timeout=grace_seconds,
+                    timeout=graceSeconds,
                 )
 
             except (TimeoutError, OSError) as error:
                 raise LocalExecutionError("Owned execution cleanup could not complete") from error
 
         try:
-            async with emit_lock:
+            async with emitLock:
                 await Emit(ExecutionEventKind.STARTED)
 
             deadline = time.monotonic() + request.invocation.timeout_seconds
@@ -335,13 +335,13 @@ class LocalExecutor:
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
-                for stream_task in (stdout_task, stderr_task):
-                    if stream_task in done:
-                        stream_task.result()
-                        waiters.discard(stream_task)
+                for streamTask in (stdoutTask, stderrTask):
+                    if streamTask in done:
+                        streamTask.result()
+                        waiters.discard(streamTask)
 
                 if not done or done.intersection(
-                    {process_task, output_limit_task, cancellation_task}
+                    {processTask, outputLimitTask, cancellationTask}
                 ):
                     break
 
@@ -349,46 +349,46 @@ class LocalExecutor:
                 termination = ExecutionTermination.TIMEOUT
                 state = ExecutionState.TIMED_OUT
 
-                await self.Terminate(process, grace_seconds)
+                await self.Terminate(process, graceSeconds)
 
-            elif output_limit_task in done and output_limit.is_set():
+            elif outputLimitTask in done and outputLimit.is_set():
                 termination = ExecutionTermination.OUTPUT_LIMIT
                 state = ExecutionState.CANCELLED
 
-                await self.Terminate(process, grace_seconds)
+                await self.Terminate(process, graceSeconds)
 
             elif (
-                cancellation_task is not None
-                and cancellation_task in done
+                cancellationTask is not None
+                and cancellationTask in done
                 and cancellation is not None
                 and cancellation.is_set()
-                and not process_task.done()
+                and not processTask.done()
             ):
                 termination = ExecutionTermination.CANCELLATION
                 state = ExecutionState.CANCELLED
 
-                await self.Terminate(process, grace_seconds)
+                await self.Terminate(process, graceSeconds)
 
             else:
-                natural_return_code = await process_task
+                naturalReturnCode = await processTask
                 state = (
-                    ExecutionState.SUCCEEDED if natural_return_code == 0 else ExecutionState.FAILED
+                    ExecutionState.SUCCEEDED if naturalReturnCode == 0 else ExecutionState.FAILED
                 )
 
-            await Join(process_task)
+            await Join(processTask)
 
-            await asyncio.gather(stdout_task, stderr_task)
+            await asyncio.gather(stdoutTask, stderrTask)
 
         except BaseException:
             async def Abort() -> None:
                 """Stop observers, drain bounded chunks and reap the owned child."""
 
-                for task in owned_tasks:
+                for task in ownedTasks:
                     if task is not None and not task.done():
                         task.cancel()
 
                 await asyncio.gather(
-                    *(task for task in owned_tasks if task is not None), return_exceptions=True,
+                    *(task for task in ownedTasks if task is not None), return_exceptions=True,
                 )
 
                 async def Drain(reader: asyncio.StreamReader) -> None:
@@ -407,7 +407,7 @@ class LocalExecutor:
                 ]
 
                 try:
-                    await self.Terminate(process, grace_seconds)
+                    await self.Terminate(process, graceSeconds)
 
                     if owned is not None:
                         owned.Verify()
@@ -421,43 +421,43 @@ class LocalExecutor:
 
                     await asyncio.gather(*drains, return_exceptions=True)
 
-            cleanup_task = asyncio.create_task(Abort())
+            cleanupTask = asyncio.create_task(Abort())
 
-            while not cleanup_task.done():
+            while not cleanupTask.done():
                 try:
-                    await asyncio.shield(cleanup_task)
+                    await asyncio.shield(cleanupTask)
 
                 except asyncio.CancelledError:
                     continue
 
-            cleanup_task.result()
+            cleanupTask.result()
 
             raise
 
         finally:
-            for task in owned_tasks:
+            for task in ownedTasks:
                 if task is not None and not task.done():
                     task.cancel()
 
             await asyncio.gather(
-                *(task for task in owned_tasks if task is not None),
+                *(task for task in ownedTasks if task is not None),
                 return_exceptions=True,
             )
 
             if owned is not None:
                 owned.Close()
 
-        final_return_code = process.returncode if owned is None else owned.worker_returncode
+        finalReturnCode = process.returncode if owned is None else owned.worker_returncode
 
-        if state in {ExecutionState.TIMED_OUT, ExecutionState.CANCELLED} and final_return_code == 0:
-            final_return_code = None
+        if state in {ExecutionState.TIMED_OUT, ExecutionState.CANCELLED} and finalReturnCode == 0:
+            finalReturnCode = None
 
         await Emit(ExecutionEventKind.COMPLETED, termination=termination)
 
         return LocalExecutionResult(
             execution=AdapterExecution(
                 state=state,
-                exit_code=final_return_code,
+                exit_code=finalReturnCode,
                 duration_seconds=time.perf_counter() - started,
             ),
             termination=termination,
@@ -646,18 +646,18 @@ class LocalExecutor:
                 try:
                     KillProcessGroup(process.pid, 0)
 
-                except ProcessLookupError as proof_error:
-                    if proof_error.errno == errno.ESRCH:
+                except ProcessLookupError as proofError:
+                    if proofError.errno == errno.ESRCH:
                         return True
 
                     raise LocalExecutionError(
                         "Could not confirm process group disappearance"
-                    ) from proof_error
+                    ) from proofError
 
-                except OSError as proof_error:
+                except OSError as proofError:
                     raise LocalExecutionError(
                         "Could not confirm process group disappearance"
-                    ) from proof_error
+                    ) from proofError
 
                 raise LocalExecutionError(
                     "Denied process group remains after child exit"

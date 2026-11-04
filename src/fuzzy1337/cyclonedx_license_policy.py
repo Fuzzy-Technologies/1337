@@ -52,9 +52,9 @@ def LicenseChoice(choice: dict[str, object], policy: LicensePolicy) -> dict[str,
 
     else:
         field = "license.id"
-        license_record = Record(choice["license"])
-        text = license_record["id"]
-        supported = set(choice) == {"license"} and set(license_record) == {"id"}
+        licenseRecord = Record(choice["license"])
+        text = licenseRecord["id"]
+        supported = set(choice) == {"license"} and set(licenseRecord) == {"id"}
 
     evaluation: dict[str, object]
 
@@ -128,24 +128,24 @@ def EvaluateVerifiedCycloneDxLicenses(
 
     projected = []
 
-    for component_index, value in enumerate(components):
+    for componentIndex, value in enumerate(components):
         component = Record(value)
         identity = PackageIdentity.FromPurl(component["purl"])
         choices = Items(component.get("licenses", []))
         assertions = []
 
-        for license_index, choice in enumerate(choices):
-            assertions.append({"license_index": license_index,
+        for licenseIndex, choice in enumerate(choices):
+            assertions.append({"license_index": licenseIndex,
                                **LicenseChoice(Record(choice), policy)})
 
         if not choices:
-            information_state = "empty" if "licenses" in component else "omitted"
+            informationState = "empty" if "licenses" in component else "omitted"
             assertions.append({"license_index": None, "source_field": None, "source_text": None,
-                "source_role": "not-classified", "information_state": information_state,
-                "evaluation": {"status": "unknown", "reason": "source-" + information_state,
+                "source_role": "not-classified", "information_state": informationState,
+                "evaluation": {"status": "unknown", "reason": "source-" + informationState,
                                "atoms": []}})
 
-        projected.append({"component_index": component_index,
+        projected.append({"component_index": componentIndex,
                           "source_bom_ref": component["bom-ref"],
                           "package_reference": identity.Object(state.workspace_id).Reference(),
                           "assertions": assertions})

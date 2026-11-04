@@ -709,7 +709,7 @@ def ClaimNativeConfigurationExecution(
     except FileExistsError:
         pass
 
-    namespace_identity = PrivateDirectory(namespace)
+    namespaceIdentity = PrivateDirectory(namespace)
     controls = []
 
     for kind, identity in (("operation", prepared.operation_id),
@@ -722,7 +722,7 @@ def ClaimNativeConfigurationExecution(
     directory = namespace / uuid4().hex
     directory.mkdir(mode=0o700)
     directories = ((prepared.workspace_root, PrivateDirectory(prepared.workspace_root)),
-                   (namespace, namespace_identity), (directory, PrivateDirectory(directory)))
+                   (namespace, namespaceIdentity), (directory, PrivateDirectory(directory)))
     controls.append(WriteControl(directory / "reservation.json", prepared.Payload()))
     claim = object.__new__(NativeConfigurationExecutionClaim)
     EngineState(engine).claims[claim] = ConfigurationClaimState(prepared, grant, observer,
@@ -815,10 +815,10 @@ def BindNativeConfigurationRequest(
     if request != expected:
         raise ValueError("Native configuration request differs from its fixed factory")
 
-    scratch_identity = PrivateDirectory(prepared.scratch)
+    scratchIdentity = PrivateDirectory(prepared.scratch)
     directory = state.directories[-1][0]
     control = WriteControl(directory / "request.json", request)
-    state.directories = (*state.directories, (prepared.scratch, scratch_identity))
+    state.directories = (*state.directories, (prepared.scratch, scratchIdentity))
     state.controls = (*state.controls, control)
     state.request = request
 

@@ -76,11 +76,11 @@ def Selection(action: str, root: Path, outcome: dict) -> list[str]:
 def ApplyArguments(model: LocalModelStore, finding: str, outcome: dict) -> list[str]:
     """Select one finding, source, exact association, model revision and interpretation time."""
 
-    as_of = (datetime.fromisoformat(outcome["finished_at"]) + timedelta(seconds=1)).isoformat()
+    asOf = (datetime.fromisoformat(outcome["finished_at"]) + timedelta(seconds=1)).isoformat()
 
     return [*Selection("apply", model.root, outcome), "--finding", finding,
             "--identifier", "CVE-1900-9999", "--expected-revision", str(model.Open().revision),
-            "--as-of", as_of, "--max-age-seconds", "86400", "--scope", "scope:owned",
+            "--as-of", asOf, "--max-age-seconds", "86400", "--scope", "scope:owned",
             "--run", "run:cli-fixture"]
 
 
@@ -92,7 +92,7 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     source = tmp_path / "source.data"
     raw = FeedBody(feed)
     source.write_bytes(raw)
-    before_model = model.Open()
+    beforeModel = model.Open()
     status, imported = Run([
         *ImportArguments(model.root, source, feed), "--expected-sha256",
         hashlib.sha256(raw).hexdigest(), "--max-bytes", str(len(raw)),
@@ -131,7 +131,7 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     ]["target_applicability"] == "not-evaluated", (
         "Actual selected source absence became target applicability or disappeared."
     )
-    assert model.Open() == before_model and Files(model.root) == before, (
+    assert model.Open() == beforeModel and Files(model.root) == before, (
         "Import or inspection implicitly enriched the model or mutated retained acquisitions."
     )
     relocated = tmp_path / "relocated"
@@ -140,9 +140,9 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     assert status == 0 and moved["snapshot_id"] == imported["snapshot_id"], (
         "A portable owning workspace lost its immutable snapshot identity after relocation."
     )
-    status, moved_details = Run([*Selection("inspect", relocated, imported),
+    status, movedDetails = Run([*Selection("inspect", relocated, imported),
                                  "--identifier", identifier])
-    assert status == 0 and moved_details["details"]["records"] == selected["details"]["records"], (
+    assert status == 0 and movedDetails["details"]["records"] == selected["details"]["records"], (
         "Workspace relocation changed selected source assertions or required reacquisition."
     )
 
@@ -159,8 +159,8 @@ def test_ExplicitApplyPersistsOneVerifiedObservationAndPreservesExistingTriage(t
         "Owned fixture disposition",
     )
     model.Save(state, expected_revision=delta.previous_revision)
-    original_finding = state.Objects(ObjectKind.FINDING)[0]
-    evidence_before = Files(model.root / "evidence")
+    originalFinding = state.Objects(ObjectKind.FINDING)[0]
+    evidenceBefore = Files(model.root / "evidence")
     arguments = ApplyArguments(model, reference, imported)
     status, applied = Run(arguments)
     saved = model.Open()
@@ -168,7 +168,7 @@ def test_ExplicitApplyPersistsOneVerifiedObservationAndPreservesExistingTriage(t
         "Explicit verified enrichment did not commit through the owning model store."
     )
     assert saved.revision == state.revision + 1 and saved.Objects(ObjectKind.FINDING) == (
-        original_finding,
+        originalFinding,
     ), "Intelligence interpretation rewrote identity, severity, confidence, or operator triage."
     observations = [item for item in saved.observations if item.kind == "finding-intelligence"]
     assert len(observations) == 1 and observations[0].subject_reference == reference, (
@@ -181,16 +181,16 @@ def test_ExplicitApplyPersistsOneVerifiedObservationAndPreservesExistingTriage(t
     assert assertions[0]["association_state"] == "candidate", (
         "A caller-declared source match became exploit applicability or a reviewed assertion."
     )
-    assert Files(model.root / "evidence") == evidence_before, (
+    assert Files(model.root / "evidence") == evidenceBefore, (
         "Interpretation changed or reacquired the original detector/source evidence."
     )
-    before_replay = Files(model.root)
+    beforeReplay = Files(model.root)
     arguments[arguments.index("--expected-revision") + 1] = str(saved.revision)
     status, replay = Run(arguments)
     assert status == 0 and replay["model_revision"] == saved.revision, (
         "An exact interpretation replay invented another observation or revision."
     )
-    assert Files(model.root) == before_replay, "Idempotent interpretation rewrote saved bytes."
+    assert Files(model.root) == beforeReplay, "Idempotent interpretation rewrote saved bytes."
 
 
 @pytest.mark.parametrize("failure", ["digest", "parse", "size"])
@@ -209,7 +209,7 @@ def test_FailedActualImportRetainsHonestTerminalAndOriginalBoundedBytes(tmp_path
     elif failure == "size":
         arguments.extend(["--max-bytes", "7"])
 
-    before_model = model.Open()
+    beforeModel = model.Open()
     status, outcome = Run(arguments)
     assert status == 4 and outcome["status"] == "failed" and outcome["snapshot_id"] is None, (
         "Failed actual acquisition supplied a usable snapshot or false success."
@@ -219,15 +219,15 @@ def test_FailedActualImportRetainsHonestTerminalAndOriginalBoundedBytes(tmp_path
         "The CLI replaced the actual terminal state with an invented complete import."
     )
     store = LocalEvidenceStore(model.root / "evidence")
-    raw_record = store.Get(outcome["raw_id"])
+    rawRecord = store.Get(outcome["raw_id"])
     receipt = store.Get(outcome["receipt_id"])
-    assert store.Read(raw_record.reference) == (raw[:7] if failure == "size" else raw), (
+    assert store.Read(rawRecord.reference) == (raw[:7] if failure == "size" else raw), (
         "Failed acquisition lost the bounded original source bytes."
     )
     assert json.loads(store.Read(receipt.reference))["state"] == expected[failure], (
         "The retained immutable receipt does not match the reported terminal failure."
     )
-    assert model.Open() == before_model, "Rejected acquisition mutated existing finding state."
+    assert model.Open() == beforeModel, "Rejected acquisition mutated existing finding state."
 
 
 @pytest.mark.parametrize("failure", [

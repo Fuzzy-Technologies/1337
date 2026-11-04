@@ -122,11 +122,11 @@ def Image(archive_path: Path, root: Path) -> tuple[dict[str, object], str]:
 
     with tarfile.open(fileobj=BytesIO(raw), mode="r:") as archive:
         for member in archive:
-            allowed_name = member.name in {
+            allowedName = member.name in {
                 "manifest.json", "oci-manifest.json", "1337-fixture.json",
             } or re.fullmatch(r"[a-f0-9]{64}(?:\.json|/layer\.tar)", member.name)
 
-            if not allowed_name or len(members) >= 5 or member.name in members or (
+            if not allowedName or len(members) >= 5 or member.name in members or (
                 not member.isfile()
             ) or (
                 member.size < 0 or member.size > MAX_MEMBER_BYTES
@@ -141,19 +141,19 @@ def Image(archive_path: Path, root: Path) -> tuple[dict[str, object], str]:
             with stream:
                 members[member.name] = stream.read(MAX_MEMBER_BYTES + 1)
 
-    docker_manifest = ParseJson(members["manifest.json"])
+    dockerManifest = ParseJson(members["manifest.json"])
 
-    if not isinstance(docker_manifest, list) or len(docker_manifest) != 1:
+    if not isinstance(dockerManifest, list) or len(dockerManifest) != 1:
         raise ValueError("fixture has exactly one image")
 
-    image = docker_manifest[0]
-    config_name = image["Config"]
+    image = dockerManifest[0]
+    configName = image["Config"]
     layers = image["Layers"]
 
-    if not re.fullmatch(r"[a-f0-9]{64}\.json", config_name) or len(layers) != 1 or (
+    if not re.fullmatch(r"[a-f0-9]{64}\.json", configName) or len(layers) != 1 or (
         not re.fullmatch(r"[a-f0-9]{64}/layer\.tar", layers[0])
     ) or set(members) != {
-        "manifest.json", config_name, layers[0], "oci-manifest.json", "1337-fixture.json",
+        "manifest.json", configName, layers[0], "oci-manifest.json", "1337-fixture.json",
     }:
         raise ValueError("fixture members differ from the closed image profile")
 
@@ -164,12 +164,12 @@ def Image(archive_path: Path, root: Path) -> tuple[dict[str, object], str]:
     ):
         raise ValueError("fixture scenario must be an enumerated inert value")
 
-    config_digest = "sha256:" + hashlib.sha256(members[config_name]).hexdigest()
-    layer_digest = "sha256:" + hashlib.sha256(members[layers[0]]).hexdigest()
-    manifest_digest = "sha256:" + hashlib.sha256(members["oci-manifest.json"]).hexdigest()
-    metadata = {"ImageID": config_digest, "OS": {"Family": "alpine", "Name": "3.20"},
-                "RepoDigests": ["owned.invalid/synthetic@" + manifest_digest],
-                "DiffIDs": [layer_digest]}
+    configDigest = "sha256:" + hashlib.sha256(members[configName]).hexdigest()
+    layerDigest = "sha256:" + hashlib.sha256(members[layers[0]]).hexdigest()
+    manifestDigest = "sha256:" + hashlib.sha256(members["oci-manifest.json"]).hexdigest()
+    metadata = {"ImageID": configDigest, "OS": {"Family": "alpine", "Name": "3.20"},
+                "RepoDigests": ["owned.invalid/synthetic@" + manifestDigest],
+                "DiffIDs": [layerDigest]}
 
     return metadata, scenario["scenario"]
 
@@ -218,12 +218,12 @@ def Main(arguments: list[str] | None = None) -> int:
             raise ValueError("unsupported fixture profile")
 
         Version(policy, root)
-        image_path = Path(arguments[7])
+        imagePath = Path(arguments[7])
 
-        if image_path != root / "input" / "image.tar":
+        if imagePath != root / "input" / "image.tar":
             raise ValueError("fixture requires the exact declared image input name")
 
-        metadata, scenario = Image(image_path, root)
+        metadata, scenario = Image(imagePath, root)
         package = {"ID": "owned-1", "Name": "Owned_Lib", "Version": "1.0",
                    "Identifier": {"PURL": "pkg:pypi/owned-lib@1.0"}, "Licenses": ["MIT"]}
         vulnerability = {"VulnerabilityID": "CVE-2099-0001", "PkgID": "owned-1",

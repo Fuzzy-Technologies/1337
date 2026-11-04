@@ -77,13 +77,13 @@ def installed_worker(tmp_path_factory):
     """Build and install the actual current wheel offline into a clean isolated interpreter."""
 
     root = tmp_path_factory.mktemp("installed-owned-response")
-    wheel_directory = root / "wheel"
-    wheel_directory.mkdir()
+    wheelDirectory = root / "wheel"
+    wheelDirectory.mkdir()
     built = subprocess.run((sys.executable, "-m", "build", "--wheel", "--no-isolation",
-        "--outdir", str(wheel_directory)), cwd=REPOSITORY_ROOT, capture_output=True,
+        "--outdir", str(wheelDirectory)), cwd=REPOSITORY_ROOT, capture_output=True,
         timeout=30, check=False)
     assert built.returncode == 0, "Offline worker wheel build failed: " + repr(built.stderr)
-    wheels = tuple(wheel_directory.glob("*.whl"))
+    wheels = tuple(wheelDirectory.glob("*.whl"))
     assert len(wheels) == 1, "The actual isolated worker needs exactly one freshly built wheel"
     environment = root / "environment"
     created = subprocess.run((sys.executable, "-m", "venv", str(environment)),
@@ -335,8 +335,8 @@ def test_InstalledWorkerRefusesRejectedWireWithoutPublishingItsBytesOrHashes(
 
     expected = Canonical({"schema_version": 1, "profile": "owned-response-capture.v1",
         "outcome": "refused", "error": error})
-    no_rejected_material = result.stdout == expected and result.stderr == b""
-    assert result.returncode == 2 and no_rejected_material, (
+    noRejectedMaterial = result.stdout == expected and result.stderr == b""
+    assert result.returncode == 2 and noRejectedMaterial, (
         "Refusal must expose only the exact closed error, without raw bytes, hashes or diagnostics"
     )
     assert listener.accepted == 1 and listener.requests == [ExpectedRequest(listener, "missing")], (
@@ -358,8 +358,8 @@ def test_InstalledWorkerRejectsUnselectedQueryBeforeAnyConnection(installed_work
 
     expected = Canonical({"schema_version": 1, "profile": "owned-response-capture.v1",
         "outcome": "refused", "error": "input"})
-    no_rejected_material = result.stdout == expected and result.stderr == b""
-    assert result.returncode == 2 and no_rejected_material, (
+    noRejectedMaterial = result.stdout == expected and result.stderr == b""
+    assert result.returncode == 2 and noRejectedMaterial, (
         "Invalid selection must emit only canonical input refusal without rejected URL diagnostics"
     )
     assert listener.accepted == 0 and listener.requests == [], (

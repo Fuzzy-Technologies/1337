@@ -208,7 +208,7 @@ def CheckInstalledCore() -> ComponentHealth:
     """
 
     try:
-        detected_version = version("1337")
+        detectedVersion = version("1337")
 
     except (PackageNotFoundError, OSError, ValueError):
         return ComponentHealth(
@@ -220,7 +220,7 @@ def CheckInstalledCore() -> ComponentHealth:
             "Installed 1337 distribution metadata is missing or unreadable.",
         )
 
-    if not isinstance(detected_version, str) or not detected_version.strip():
+    if not isinstance(detectedVersion, str) or not detectedVersion.strip():
         return ComponentHealth(
             "core.1337",
             ComponentKind.CORE,
@@ -234,7 +234,7 @@ def CheckInstalledCore() -> ComponentHealth:
         "core.1337",
         ComponentKind.CORE,
         HealthStatus.HEALTHY,
-        detected_version.strip(),
+        detectedVersion.strip(),
         True,
         "Installed distribution metadata is available; latest release is not checked.",
     )

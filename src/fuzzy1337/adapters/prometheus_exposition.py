@@ -63,14 +63,14 @@ def Sample(line: str) -> tuple[str, frozenset[str]] | None:
 
     name = match[0]
     index = match.end()
-    label_start = index
+    labelStart = index
     labels: set[str] = set()
 
-    while label_start < len(line) and line[label_start] in " \t":
-        label_start += 1
+    while labelStart < len(line) and line[labelStart] in " \t":
+        labelStart += 1
 
-    if label_start < len(line) and line[label_start] == "{":
-        index = label_start + 1
+    if labelStart < len(line) and line[labelStart] == "{":
+        index = labelStart + 1
 
         while True:
             while index < len(line) and line[index] in " \t":
@@ -153,19 +153,19 @@ def SupportedExposition(body: bytes) -> bool:
     except UnicodeError:
         return False
 
-    help_names: set[str] = set()
+    helpNames: set[str] = set()
     types: dict[str, str] = {}
     sampled: set[str] = set()
     matched = False
 
-    for raw_line in text.split("\n")[:-1]:
-        if len(raw_line.encode("utf-8")) > MAX_PROMETHEUS_LINE_BYTES:
+    for rawLine in text.split("\n")[:-1]:
+        if len(rawLine.encode("utf-8")) > MAX_PROMETHEUS_LINE_BYTES:
             return False
 
-        if any(ord(character) < 32 and character != "\t" for character in raw_line):
+        if any(ord(character) < 32 and character != "\t" for character in rawLine):
             return False
 
-        line = raw_line.strip(" \t")
+        line = rawLine.strip(" \t")
 
         if not line:
             continue
@@ -191,10 +191,10 @@ def SupportedExposition(body: bytes) -> bool:
                 return False
 
             if directive == "HELP":
-                if name in help_names or not EscapedText(value):
+                if name in helpNames or not EscapedText(value):
                     return False
 
-                help_names.add(name)
+                helpNames.add(name)
 
             else:
                 if name in types or value not in _TYPES:
@@ -229,16 +229,16 @@ def SupportedExposition(body: bytes) -> bool:
                         family = candidate
                         break
 
-        sample_type = types.get(family)
+        sampleType = types.get(family)
 
-        if sample_type == "histogram" and (name == family or (
+        if sampleType == "histogram" and (name == family or (
             name.endswith("_bucket") and "le" not in labels
-        )) or sample_type == "summary" and name == family and "quantile" not in labels:
+        )) or sampleType == "summary" and name == family and "quantile" not in labels:
             return False
 
         sampled.update((name, family))
 
-        if family in help_names and sample_type is not None:
+        if family in helpNames and sampleType is not None:
             matched = True
 
     return matched

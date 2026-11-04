@@ -261,10 +261,10 @@ class ProgressRecorder:
             report: Pytest phase report; captured output is never inspected or retained.
         """
 
-        node_id, phase, outcome, duration = (
+        nodeId, phase, outcome, duration = (
             report.nodeid, report.when, report.outcome, report.duration,
         )
-        if (not isinstance(node_id, str) or len(node_id) > 8192
+        if (not isinstance(nodeId, str) or len(nodeId) > 8192
                 or phase not in ("setup", "call", "teardown")
                 or outcome not in ("passed", "failed", "skipped")
                 or type(duration) not in (int, float)
@@ -273,35 +273,35 @@ class ProgressRecorder:
             self.pending = None
             self.Append(["incomplete"])
             return
-        duration_ms = round(duration * 1000)
+        durationMs = round(duration * 1000)
         if phase == "setup":
             if self.pending is not None:
                 self.Append(["incomplete"])
-            self.pending = (node_id, outcome, duration_ms, phase, outcome)
+            self.pending = (nodeId, outcome, durationMs, phase, outcome)
             return
-        if self.pending is None or self.pending[0] != node_id:
+        if self.pending is None or self.pending[0] != nodeId:
             self.Append(["incomplete"])
             self.pending = None
             return
-        _, previous, elapsed, last_phase, setup = self.pending
+        _, previous, elapsed, lastPhase, setup = self.pending
         combined = "failed" if "failed" in (previous, outcome) else (
             "skipped" if "skipped" in (previous, outcome) else "passed"
         )
-        elapsed += duration_ms
+        elapsed += durationMs
         if elapsed > MAX_DURATION_MS or (
-            phase == "call" and (last_phase != "setup" or setup != "passed")
+            phase == "call" and (lastPhase != "setup" or setup != "passed")
         ):
             self.pending = None
             self.Append(["incomplete"])
         elif phase == "teardown":
-            if last_phase == "call" or (last_phase == "setup" and setup != "passed"):
-                digest = hashlib.sha256(node_id.encode("utf-8", errors="surrogatepass")).hexdigest()
-                self.Append([digest, SafeLabel(node_id), elapsed, combined])
+            if lastPhase == "call" or (lastPhase == "setup" and setup != "passed"):
+                digest = hashlib.sha256(nodeId.encode("utf-8", errors="surrogatepass")).hexdigest()
+                self.Append([digest, SafeLabel(nodeId), elapsed, combined])
             else:
                 self.Append(["incomplete"])
             self.pending = None
         else:
-            self.pending = (node_id, combined, elapsed, phase, setup)
+            self.pending = (nodeId, combined, elapsed, phase, setup)
 
     def pytest_sessionfinish(self) -> None:
         """Persist the last chunk while keeping interrupted cases explicitly incomplete."""
@@ -321,10 +321,10 @@ def ConfigureProgress(config: Config) -> None:
 
     if not config.getoption("--1337-progress", default=False):
         return
-    worker_input = getattr(config, "workerinput", None)
-    if worker_input is None and config.getoption("numprocesses", default=0):
+    workerInput = getattr(config, "workerinput", None)
+    if workerInput is None and config.getoption("numprocesses", default=0):
         return
-    worker = worker_input.get("workerid") if isinstance(worker_input, dict) else "serial"
+    worker = workerInput.get("workerid") if isinstance(workerInput, dict) else "serial"
     destination = config.getoption("xmlpath", default=None)
     if worker not in WORKERS or not isinstance(destination, str):
         return

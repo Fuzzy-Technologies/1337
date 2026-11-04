@@ -72,8 +72,8 @@ def Probe(url: str) -> dict[str, object]:
         OSError: The single direct connection or send/receive operation fails.
     """
 
-    address, port, _, _, case_id = Destination(url)
-    expected_headers, expected_body = ReviewedResponse(case_id)
+    address, port, _, _, caseId = Destination(url)
+    expectedHeaders, expectedBody = ReviewedResponse(caseId)
     request = RequestBytes(url)
     deadline = time.monotonic() + 5.0
     family = socket.AF_INET6 if address == "::1" else socket.AF_INET
@@ -114,18 +114,18 @@ def Probe(url: str) -> dict[str, object]:
 
         headers = bytes(buffer[:boundary + 4])
 
-        if headers != expected_headers:
+        if headers != expectedHeaders:
             raise CaptureRefusal("response-policy")
 
         body = bytearray(buffer[boundary + 4:])
 
         while True:
-            if len(body) > MAX_BODY_BYTES or len(body) > len(expected_body):
+            if len(body) > MAX_BODY_BYTES or len(body) > len(expectedBody):
                 raise CaptureRefusal("protocol")
 
             connection.settimeout(Remaining(deadline))
             chunk = connection.recv(min(4096, MAX_BODY_BYTES - len(body),
-                                        len(expected_body) + 1 - len(body)))
+                                        len(expectedBody) + 1 - len(body)))
             Remaining(deadline)
 
             if not chunk:
@@ -133,20 +133,20 @@ def Probe(url: str) -> dict[str, object]:
 
             body.extend(chunk)
 
-    observed_body = bytes(body)
+    observedBody = bytes(body)
 
-    if len(observed_body) != len(expected_body):
+    if len(observedBody) != len(expectedBody):
         raise CaptureRefusal("protocol")
 
-    if observed_body != expected_body:
+    if observedBody != expectedBody:
         raise CaptureRefusal("body-policy")
 
-    response = headers + observed_body
+    response = headers + observedBody
 
     return {"schema_version": 1, "profile": OWNED_RESPONSE_PROFILE, "outcome": "captured",
-        "catalog_sha256": OWNED_RESPONSE_CATALOG_SHA256, "case_id": case_id, "url": url,
+        "catalog_sha256": OWNED_RESPONSE_CATALOG_SHA256, "case_id": caseId, "url": url,
         "address": address, "port": port, "request": BytePart(request),
-        "response_headers": BytePart(headers), "response_body": BytePart(observed_body),
+        "response_headers": BytePart(headers), "response_body": BytePart(observedBody),
         "response": {"size_bytes": len(response), "sha256": hashlib.sha256(response).hexdigest()}}
 
 

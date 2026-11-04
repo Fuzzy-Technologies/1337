@@ -87,12 +87,12 @@ def Receive(url: str, max_bytes: int, timeout_seconds: float, output: BinaryIO, 
             return SIZE_EXIT
 
         if accept_kind == "zip":
-            media_values = response.headers.get_all("Content-Type", [])
+            mediaValues = response.headers.get_all("Content-Type", [])
 
-            if len(media_values) != 1:
+            if len(mediaValues) != 1:
                 return FORMAT_EXIT
 
-            media = media_values[0]
+            media = mediaValues[0]
 
             if (type(media) is not str or not media.isascii() or len(media) > 128
                 or media.strip(" \t").lower() not in (

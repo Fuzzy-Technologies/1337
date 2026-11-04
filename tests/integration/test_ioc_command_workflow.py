@@ -30,7 +30,7 @@ def test_ActualImportAndRelocatedReadOnlyInspectRetainOriginals(tmp_path, monkey
     """Run real SDK/store boundaries and independently check the source occurrence oracle."""
 
     root, source = Owned(tmp_path)
-    core_before = {name: Files(root)[name] for name in (
+    coreBefore = {name: Files(root)[name] for name in (
         "workspace.json", "state/model/model.json")}
     monkeypatch.setattr(socket, "socket", Denied)
     monkeypatch.setattr(socket, "getaddrinfo", Denied)
@@ -64,7 +64,7 @@ def test_ActualImportAndRelocatedReadOnlyInspectRetainOriginals(tmp_path, monkey
         "evidence_commit"
     ] == "not-attempted", "Inspection rediscovered input or attempted evidence publication"
     assert Files(moved) == before and all(before[name] == content
-        for name, content in core_before.items()), "IOC product workflow wrote Core/owning state"
+        for name, content in coreBefore.items()), "IOC product workflow wrote Core/owning state"
 
 
 @pytest.mark.parametrize("raw,pin,state", [(b"bad-source", None, "parse-rejected"),
@@ -103,19 +103,19 @@ def test_CoherentAlternativeReceiptAndSnapshotCannotReplaceIndependentAnchor(tmp
     store = LocalEvidenceStore(root / "evidence")
     receipt = store.Get(result["receipt_id"])
     original = LoadIocArtifact(root, result["snapshot_id"], result["receipt_id"])
-    forged_source = replace(original.source, license_name="forged-license")
+    forgedSource = replace(original.source, license_name="forged-license")
     document = json.loads(store.Read(receipt.reference))
-    document["source"] = forged_source.ToDict()
-    document["request_sha256"] = commands.RequestPin(forged_source, original.limits)
-    forged_receipt = store.Put(json.dumps(document, sort_keys=True, separators=(",", ":")).encode(),
+    document["source"] = forgedSource.ToDict()
+    document["request_sha256"] = commands.RequestPin(forgedSource, original.limits)
+    forgedReceipt = store.Put(json.dumps(document, sort_keys=True, separators=(",", ":")).encode(),
                               "ioc-acquisition", "application/json", receipt.provenance)
-    forged = replace(original, source=forged_source,
-                     acquisition_evidence_id=forged_receipt.evidence_id)
-    forged_snapshot = store.Put(forged.Serialize(), "ioc-snapshot", "application/json",
+    forged = replace(original, source=forgedSource,
+                     acquisition_evidence_id=forgedReceipt.evidence_id)
+    forgedSnapshot = store.Put(forged.Serialize(), "ioc-snapshot", "application/json",
                                 receipt.provenance)
     before = Files(root)
     status, rejected = Run(["ioc", "inspect", str(root), "--snapshot",
-        forged_snapshot.evidence_id, "--receipt", result["receipt_id"]])
+        forgedSnapshot.evidence_id, "--receipt", result["receipt_id"]])
     assert status == 4 and rejected["failure"] == "integrity" and Files(root) == before, (
         "Product inspect inferred its trusted receipt from coherently replaced candidate metadata"
     )

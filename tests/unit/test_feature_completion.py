@@ -349,12 +349,12 @@ def test_PostMergeWorkflowChainsTrustedReconciliationWithoutCancellingTaskClosur
 
     root = Path(__file__).resolve().parents[2]
     workflow = (root / ".github/workflows/close-merged-tasks.yml").read_text(encoding="utf-8")
-    task_job, feature_job = workflow.split("  complete-parent-features:", 1)
+    taskJob, featureJob = workflow.split("  complete-parent-features:", 1)
 
-    assert 'issue.type?.name !== "Task"' in task_job, "PR references can bypass Feature checks"
-    assert "concurrency:" not in task_job, "Coalescing can drop a Task-closing event"
-    assert "needs: close-linked-tasks" in feature_job, "Features can run before Task closure"
-    assert "ref: develop" in feature_job, "The write-enabled job no longer uses trusted source"
-    assert "cancel-in-progress: false" in feature_job, "Feature writes can be interrupted"
-    assert "persist-credentials: false" in feature_job, "Checkout persisted repository credentials"
-    assert "github.event.pull_request.head" not in feature_job, "Unmerged code obtained authority"
+    assert 'issue.type?.name !== "Task"' in taskJob, "PR references can bypass Feature checks"
+    assert "concurrency:" not in taskJob, "Coalescing can drop a Task-closing event"
+    assert "needs: close-linked-tasks" in featureJob, "Features can run before Task closure"
+    assert "ref: develop" in featureJob, "The write-enabled job no longer uses trusted source"
+    assert "cancel-in-progress: false" in featureJob, "Feature writes can be interrupted"
+    assert "persist-credentials: false" in featureJob, "Checkout persisted repository credentials"
+    assert "github.event.pull_request.head" not in featureJob, "Unmerged code obtained authority"

@@ -75,22 +75,22 @@ def test_SpdxReusesOtherInventoryKeysPreservesTriageAndPortableRawProvenance(tmp
             {"alg": "SHA-256", "content": IMAGE.digest[7:]}]}}, "components": [
             {"type": "library", "bom-ref": "owned-1", "name": "Owned_Lib", "version": "1.0",
              "purl": PURL, "licenses": [{"license": {"id": "MIT"}}]}]}
-    cyclone_record = store.Put(CanonicalModelJson(cyclone), "sbom", "application/json",
+    cycloneRecord = store.Put(CanonicalModelJson(cyclone), "sbom", "application/json",
         EvidenceProvenance("sbom-test", "scope:owned", "inventory.cyclonedx", "1", None,
                            "2026-10-13T00:00:00Z", "2026-10-13T00:00:01Z"))
-    cyclone_context = ModelProvenance("inventory.cyclonedx", "run:cdx",
-        cyclone_record.provenance.finished_at, "scope:owned", "target:owned",
-        evidence_references=(cyclone_record.reference,))
-    interpreted, _ = ApplyVerifiedCycloneDx(state, cyclone_record, cyclone_context, IMAGE, root)
+    cycloneContext = ModelProvenance("inventory.cyclonedx", "run:cdx",
+        cycloneRecord.provenance.finished_at, "scope:owned", "target:owned",
+        evidence_references=(cycloneRecord.reference,))
+    interpreted, _ = ApplyVerifiedCycloneDx(state, cycloneRecord, cycloneContext, IMAGE, root)
     state = model.Save(interpreted, expected_revision=state.revision)
 
     raw = (ROOT / "tests/contract/fixtures/spdx.image.v2.3.json").read_bytes()
     record = store.Put(raw, "sbom", "application/json", EvidenceProvenance("sbom-test",
         "scope:owned", "inventory.spdx", "1", None,
         "2026-10-13T00:00:00Z", "2026-10-13T00:00:01Z"))
-    spdx_context = ModelProvenance("inventory.spdx", "run:spdx", record.provenance.finished_at,
+    spdxContext = ModelProvenance("inventory.spdx", "run:spdx", record.provenance.finished_at,
         "scope:owned", "target:owned", evidence_references=(record.reference,))
-    interpreted, _ = ApplyVerifiedSpdx(state, record, spdx_context, IMAGE, root)
+    interpreted, _ = ApplyVerifiedSpdx(state, record, spdxContext, IMAGE, root)
     state = model.Save(interpreted, expected_revision=state.revision)
     packages = [item for item in state.objects if item.attributes.get("asset_type") == "package"]
     assert len(packages) == 1 and {item.source_id for item in packages[0].provenance} == {
@@ -99,7 +99,7 @@ def test_SpdxReusesOtherInventoryKeysPreservesTriageAndPortableRawProvenance(tmp
     assert len(Findings(state)) == 1 and Findings(state)[0].status is FindingStatus.RESOLVED, (
         "Inventory changed the owner's prior finding disposition"
     )
-    replayed, delta = ApplyVerifiedSpdx(state, record, spdx_context, IMAGE, root)
+    replayed, delta = ApplyVerifiedSpdx(state, record, spdxContext, IMAGE, root)
     assert replayed == state and not delta.created and not delta.updated, (
         "Exact replay changed state"
     )
@@ -107,11 +107,11 @@ def test_SpdxReusesOtherInventoryKeysPreservesTriageAndPortableRawProvenance(tmp
     assert "SYNTHETIC_PRIVATE_MARKER" not in json.dumps(state.ToDict()), (
         "Private fields were persisted"
     )
-    saved_bytes = (root / "state/model/model.json").read_bytes()
+    savedBytes = (root / "state/model/model.json").read_bytes()
     moved = tmp_path / "relocated"
     root.rename(moved)
     assert LocalModelStore(moved).Open() == state, "Portable model consumer lost the source joins"
-    assert (moved / "state/model/model.json").read_bytes() == saved_bytes, (
+    assert (moved / "state/model/model.json").read_bytes() == savedBytes, (
         "Relocation rewrote state"
     )
     assert LocalEvidenceStore(moved / "evidence").Read(record.reference) == raw, (

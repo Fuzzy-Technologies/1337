@@ -47,7 +47,7 @@ def RequireChildren(case: Path, helpers: dict) -> list[dict]:
         raise ValueError("The original source checkpoint must bind the selected wheel inventory")
 
     children = []
-    original_installation = None
+    originalInstallation = None
 
     for index, operation in enumerate(OPERATIONS, start=3):
         paths = list(case.glob(f"process-{index:03d}-sdk-{operation}"))
@@ -72,10 +72,10 @@ def RequireChildren(case: Path, helpers: dict) -> list[dict]:
             ensure_ascii=True, allow_nan=False).encode("ascii")
 
         if installed["manifest_sha256"] != hashlib.sha256(manifest).hexdigest() or (
-            original_installation is not None and installed != original_installation):
+            originalInstallation is not None and installed != originalInstallation):
             raise ValueError("Original children must retain the same actual installation manifest")
 
-        original_installation = installed
+        originalInstallation = installed
 
         if terminal["returncode"] != 0 or (root / "stderr.bin").stat().st_size != 0 or (
             terminal["timeout_seconds"] != 35 or invocation != {"schema_version": 1,
@@ -146,9 +146,9 @@ def RequireOutcome(junit: Path, retained: Path) -> dict:
     if helpers[ACTOR_HELPER]["sha256"] != ACTOR_HELPER_SHA256:
         raise ValueError("The unchanged reviewed installed entrypoint must own this CAS selection")
 
-    setup_child, capture_child, acquired_child, child, after_child = RequireChildren(case, helpers)
-    setup, acquired, after = setup_child["summary"], acquired_child["summary"][
-        "original_inspection"], after_child["summary"]["original_inspection"]
+    setupChild, captureChild, acquiredChild, child, afterChild = RequireChildren(case, helpers)
+    setup, acquired, after = setupChild["summary"], acquiredChild["summary"][
+        "original_inspection"], afterChild["summary"]["original_inspection"]
     policy = setup["policies"]["analysis"]
 
     if plan["selection"]["scenario"] != "stale-model-revision" or plan["selection"]["case"] != (
@@ -167,7 +167,7 @@ def RequireOutcome(junit: Path, retained: Path) -> dict:
     capture = ReadJson(case / "sdk-capture-original.json")
 
     if capture["exception_type"] is not None or Canonical(capture["summary"]) != Canonical(
-        capture_child["summary"]):
+        captureChild["summary"]):
         raise ValueError("Actual capture and retained original Save observations must agree")
 
     original = capture["summary"]

@@ -42,14 +42,14 @@ def Artifacts(tmp_path: Path) -> tuple[Path, Path, Path]:
     )
 
     for locale in ("en", "ru", "zh-cn"):
-        locale_root = api / locale
-        locale_root.mkdir(parents=True)
-        (locale_root / "index.html").write_text(
+        localeRoot = api / locale
+        localeRoot.mkdir(parents=True)
+        (localeRoot / "index.html").write_text(
             '<h1 id="reference">Reference</h1><img src="assets/brand.svg">'
             '<a href="../../../#vision">Product</a>', encoding="utf-8",
         )
-        (locale_root / "assets").mkdir()
-        (locale_root / "assets/brand.svg").write_text('<svg id="brand"/>', encoding="utf-8")
+        (localeRoot / "assets").mkdir()
+        (localeRoot / "assets/brand.svg").write_text('<svg id="brand"/>', encoding="utf-8")
 
     return product, api, tmp_path / "composed"
 
@@ -61,10 +61,10 @@ def test_DeterministicCompositionPreservesProductAndRecordsIdentity(tmp_path: Pa
     product, api, output = Artifacts(tmp_path)
     revision = "a" * 40
     first = module.ComposeDocumentation(product, api, output, revision)
-    second_output = tmp_path / "second"
-    second = module.ComposeDocumentation(product, api, second_output, revision)
+    secondOutput = tmp_path / "second"
+    second = module.ComposeDocumentation(product, api, secondOutput, revision)
     assert first == second, "Identical inputs must generate identical provenance"
-    assert module.Inventory(output) == module.Inventory(second_output), (
+    assert module.Inventory(output) == module.Inventory(secondOutput), (
         "Artifact byte inventory must be deterministic across destination directories"
     )
     assert (output / "index.html").read_bytes() == (product / "index.html").read_bytes(), (
@@ -179,11 +179,11 @@ def test_SymlinkInputAndNestedSymlinksFailClosed(tmp_path: Path):
         module.ComposeDocumentation(product, api, output, "a" * 40)
 
     (product / "linked.html").unlink()
-    linked_product = tmp_path / "linked-product"
-    linked_product.symlink_to(product, target_is_directory=True)
+    linkedProduct = tmp_path / "linked-product"
+    linkedProduct.symlink_to(product, target_is_directory=True)
 
     with pytest.raises(module.DocumentationError, match="Symlink"):
-        module.ComposeDocumentation(linked_product, api, output, "a" * 40)
+        module.ComposeDocumentation(linkedProduct, api, output, "a" * 40)
 
     assert not output.exists(), "Symlink validation must leave output absent"
 
@@ -211,7 +211,7 @@ def test_PublicationFailureRemovesOwnedPartialOutput(
 
     module = Composer()
     product, api, output = Artifacts(tmp_path)
-    original_rename = Path.rename
+    originalRename = Path.rename
     calls = 0
 
     def FailSecondRename(self: Path, target: Path) -> Path:
@@ -223,7 +223,7 @@ def test_PublicationFailureRemovesOwnedPartialOutput(
         if calls == 2:
             raise OSError("Synthetic publication failure")
 
-        return original_rename(self, target)
+        return originalRename(self, target)
 
     monkeypatch.setattr(Path, "rename", FailSecondRename)
 
@@ -269,12 +269,12 @@ def test_ConcurrentDestinationCreationIsPreserved(tmp_path: Path, monkeypatch: p
 
     module = Composer()
     product, api, output = Artifacts(tmp_path)
-    original_validate = module.ValidateLinks
+    originalValidate = module.ValidateLinks
 
     def CreateOtherOutput(site_root: Path, base_path: str) -> dict[str, int]:
         """Create a competing artifact after validation but before output reservation."""
 
-        counts = original_validate(site_root, base_path)
+        counts = originalValidate(site_root, base_path)
         output.mkdir()
         (output / "other-producer.txt").write_text("Keep this", encoding="utf-8")
 
@@ -295,7 +295,7 @@ def test_SourceMutationDuringCopyFailsClosed(tmp_path: Path, monkeypatch: pytest
 
     module = Composer()
     product, api, output = Artifacts(tmp_path)
-    original_copy = module.shutil.copytree
+    originalCopy = module.shutil.copytree
     changed = False
 
     def MutateBeforeCopy(
@@ -309,7 +309,7 @@ def test_SourceMutationDuringCopyFailsClosed(tmp_path: Path, monkeypatch: pytest
             changed = True
             (product / "changed.txt").write_text("Changed source", encoding="utf-8")
 
-        return original_copy(source, destination, *arguments, **kwargs)
+        return originalCopy(source, destination, *arguments, **kwargs)
 
     monkeypatch.setattr(module.shutil, "copytree", MutateBeforeCopy)
 
@@ -614,19 +614,19 @@ def test_ReleaseTransferRequiresExactSelectedTagOrMasterRunIdentity(
     root = VersionArtifact(tmp_path / "original")
     archive = tmp_path / "1337-0.3.0-api-docs.tar.gz"
     VersionArchive(root, archive)
-    transfer_path = tmp_path / "transfer.json"
-    transfer = TransferManifest(root, archive, transfer_path)
+    transferPath = tmp_path / "transfer.json"
+    transfer = TransferManifest(root, archive, transferPath)
 
     if field is not None:
         transfer[field] = "changed"
-        transfer_path.write_text(json.dumps(transfer))
+        transferPath.write_text(json.dumps(transfer))
 
         with pytest.raises(module.DocumentationError):
-            module.VerifyVersionTransfer(archive, transfer_path, "a" * 40, "b" * 40, "0.3.0", 123)
+            module.VerifyVersionTransfer(archive, transferPath, "a" * 40, "b" * 40, "0.3.0", 123)
 
     else:
         assert module.VerifyVersionTransfer(
-            archive, transfer_path, "a" * 40, "b" * 40, "0.3.0", 123,
+            archive, transferPath, "a" * 40, "b" * 40, "0.3.0", 123,
         ) == transfer, (
             'Valid transfer verification must return the exact independently bound original '
             'manifest'

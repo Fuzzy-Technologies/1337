@@ -55,9 +55,9 @@ def private_control(tmp_path, monkeypatch):
     path = tmp_path / "control.json"
 
     if os.name == "nt":
-        selected_os = SimpleNamespace(**vars(os))
-        selected_os.fchmod = lambda descriptor, mode: None
-        monkeypatch.setattr(native, "os", selected_os)
+        selectedOs = SimpleNamespace(**vars(os))
+        selectedOs.fchmod = lambda descriptor, mode: None
+        monkeypatch.setattr(native, "os", selectedOs)
         monkeypatch.setattr(native, "stat", SimpleNamespace(S_IMODE=lambda mode: 0o600))
         monkeypatch.setattr(native, "SyncDirectory", lambda directory: None)
 
@@ -94,12 +94,12 @@ def test_PrivateControlRetainsPathIdentityAcrossSeparateStableCtimeViews(
         path.write_bytes(raw)
         path.chmod(0o600)
 
-    original_handle = native.ArtifactHandleInfo
+    originalHandle = native.ArtifactHandleInfo
 
     def Handle(descriptor):
         """Expose a stable distinct handle ctime without changing the original path observation."""
 
-        info = original_handle(descriptor)
+        info = originalHandle(descriptor)
 
         return ControlIdentityView(info, st_ctime_ns=info.st_ctime_ns + 1)
 
@@ -144,15 +144,15 @@ def test_PrivateControlRejectsEverySameApiIdentityMutation(
         path.write_bytes(raw)
         path.chmod(0o600)
 
-    original_path = native.ArtifactPathInfo
-    original_handle = native.ArtifactHandleInfo
-    identity = None if operation == "write" else native.PhysicalIdentity(original_path(path))
+    originalPath = native.ArtifactPathInfo
+    originalHandle = native.ArtifactHandleInfo
+    identity = None if operation == "write" else native.PhysicalIdentity(originalPath(path))
     calls = {"path": 0, "handle": 0}
 
     def Handle(descriptor):
         """Change only the selected second handle observation after a stable initial view."""
 
-        info = original_handle(descriptor)
+        info = originalHandle(descriptor)
         info = ControlIdentityView(info, st_ctime_ns=info.st_ctime_ns + 1)
         calls["handle"] += 1
 
@@ -162,7 +162,7 @@ def test_PrivateControlRejectsEverySameApiIdentityMutation(
     def PathInfo(selected_path, **options):
         """Change only the selected second path observation, without touching owned disk bytes."""
 
-        info = original_path(selected_path, **options)
+        info = originalPath(selected_path, **options)
 
         if selected_path == path:
             calls["path"] += 1
@@ -210,9 +210,9 @@ def authority(collector, monkeypatch):
 
     if os.name == "nt":
         # These are portable protocol units, not actual Windows private-mode/fsync acceptance.
-        selected_os = SimpleNamespace(**vars(os))
-        selected_os.fchmod = lambda descriptor, mode: None
-        monkeypatch.setattr(native, "os", selected_os)
+        selectedOs = SimpleNamespace(**vars(os))
+        selectedOs.fchmod = lambda descriptor, mode: None
+        monkeypatch.setattr(native, "os", selectedOs)
         monkeypatch.setattr(native, "stat", SimpleNamespace(S_IMODE=lambda mode:
             0o700 if stat.S_ISDIR(mode) else 0o600))
         monkeypatch.setattr(native, "SyncDirectory", lambda path: None)
@@ -371,14 +371,14 @@ def test_ClaimReservationConsumesAcrossFreshEnginesAndNeverReleasesAfterSetupFai
         "Reservation must precede collector setup and its first actual full request"
     )
     second = ArtifactPolicyEngine()
-    second_grant = second.AuthorizeNativeImageOperation(authority.prepared, authority.context,
+    secondGrant = second.AuthorizeNativeImageOperation(authority.prepared, authority.context,
         approve_safe_image=True, **authority.arguments)
-    assert second_grant.authorization == grant.authorization, (
+    assert secondGrant.authorization == grant.authorization, (
         "The cross-engine duplicate test must target the exact same canonical original grant ID"
     )
 
     with pytest.raises(ArtifactDeniedError):
-        second.ClaimNativeImageExecution(second_grant, authority.prepared, authority.context,
+        second.ClaimNativeImageExecution(secondGrant, authority.prepared, authority.context,
                                          **authority.arguments)
 
     with pytest.raises(ArtifactDeniedError):
@@ -528,13 +528,13 @@ def test_ActualBoundedPairUsesFreshClaimsAndFinalValidationAfterScratchCleanup(
         operation_reference=authority.prepared.operation_reference,
         version_prerequisite=prerequisite, timeout_seconds=30,
         observer=options["observer"], material_proof=options["material_proof"])
-    scan_grant = authority.Grant(prepared, proof=version.material_proof)
-    scan_claim = authority.Claim(scan_grant, prepared, proof=version.material_proof)
-    scan = authority.Run(prepared, scan_grant, scan_claim, version.material_proof)
-    authority.engine.ValidateNativeImagePairFresh(prerequisite, prepared, scan_grant,
-        scan_claim, scan.capture, authority.context,
+    scanGrant = authority.Grant(prepared, proof=version.material_proof)
+    scanClaim = authority.Claim(scanGrant, prepared, proof=version.material_proof)
+    scan = authority.Run(prepared, scanGrant, scanClaim, version.material_proof)
+    authority.engine.ValidateNativeImagePairFresh(prerequisite, prepared, scanGrant,
+        scanClaim, scan.capture, authority.context,
         **dict(options, material_proof=scan.material_proof))
-    assert grant.authorization.authorization_id != scan_grant.authorization.authorization_id, (
+    assert grant.authorization.authorization_id != scanGrant.authorization.authorization_id, (
         "Original VERSION and SCAN require distinct grants and persistent execution claims"
     )
     assert authority.collector.budget.ObservationCount == 3, (
@@ -548,24 +548,24 @@ def test_ActualBoundedPairUsesFreshClaimsAndFinalValidationAfterScratchCleanup(
     )
 
     with pytest.raises(ArtifactDeniedError):
-        authority.engine.ValidateNativeImagePairFresh(replace(prerequisite), prepared, scan_grant,
-            scan_claim, scan.capture, authority.context,
+        authority.engine.ValidateNativeImagePairFresh(replace(prerequisite), prepared, scanGrant,
+            scanClaim, scan.capture, authority.context,
             **dict(options, material_proof=scan.material_proof))
 
     with pytest.raises(ArtifactDeniedError):
         authority.engine.AcceptNativeImageVersion(claim, replace(version.capture),
                                                    authority.context, **options)
 
-    index = native.OriginalClaim(authority.engine, scan_claim).indexes[-1]
-    original_index = index.path.read_bytes()
-    index.path.write_bytes(original_index[:-1])
+    index = native.OriginalClaim(authority.engine, scanClaim).indexes[-1]
+    originalIndex = index.path.read_bytes()
+    index.path.write_bytes(originalIndex[:-1])
 
     with pytest.raises(ArtifactDeniedError):
-        authority.engine.ValidateNativeImagePairFresh(prerequisite, prepared, scan_grant,
-            scan_claim, scan.capture, authority.context,
+        authority.engine.ValidateNativeImagePairFresh(prerequisite, prepared, scanGrant,
+            scanClaim, scan.capture, authority.context,
             **dict(options, material_proof=scan.material_proof))
 
-    assert index.path.read_bytes() == original_index[:-1], (
+    assert index.path.read_bytes() == originalIndex[:-1], (
         "Final validation after scratch cleanup must reject changed indexes without repairing them"
     )
 
@@ -605,7 +605,7 @@ def test_PartialExclusiveControlConsumesGrantWithoutRepairOrRetry(authority, mon
     grant = authority.Grant()
     claim = authority.Claim(grant) if phase == "binding" else None
     request = authority.Request(grant) if phase == "binding" else None
-    original_os = native.os
+    originalOs = native.os
     calls = []
 
     def Partial(descriptor, raw):
@@ -616,11 +616,11 @@ def test_PartialExclusiveControlConsumesGrantWithoutRepairOrRetry(authority, mon
         if len(calls) > 1:
             raise OSError("controlled private metadata write failure")
 
-        return original_os.write(descriptor, raw[:len(raw) // 2])
+        return originalOs.write(descriptor, raw[:len(raw) // 2])
 
-    selected_os = SimpleNamespace(**vars(original_os))
-    selected_os.write = Partial
-    original_write = native.WriteControl
+    selectedOs = SimpleNamespace(**vars(originalOs))
+    selectedOs.write = Partial
+    originalWrite = native.WriteControl
 
     def SelectedWrite(path, value):
         """Inject partial storage only into the selected immutable acquisition stage."""
@@ -629,12 +629,12 @@ def test_PartialExclusiveControlConsumesGrantWithoutRepairOrRetry(authority, mon
             path.name == phase + ".json")
 
         if selected:
-            with monkeypatch.context() as isolated_os:
-                isolated_os.setattr(native, "os", selected_os)
+            with monkeypatch.context() as isolatedOs:
+                isolatedOs.setattr(native, "os", selectedOs)
 
-                return original_write(path, value)
+                return originalWrite(path, value)
 
-        return original_write(path, value)
+        return originalWrite(path, value)
 
     with monkeypatch.context() as isolated:
         isolated.setattr(native, "WriteControl", SelectedWrite)
@@ -712,8 +712,8 @@ def test_NativeSurplusPolicyPrivilegesRefuseBeforeUnusableGrant(authority, metho
 def test_PersistentFreshnessRefusesNewGrantWithConsumedOperationOrObservation(authority, reuse):
     """Later issuance time or a fresh engine cannot bypass either consumed original identity."""
 
-    original_grant = authority.Grant()
-    authority.Claim(original_grant)
+    originalGrant = authority.Grant()
+    authority.Claim(originalGrant)
     selected = authority.prepared
     proof = authority.collector.initial
 
@@ -731,7 +731,7 @@ def test_PersistentFreshnessRefusesNewGrantWithConsumedOperationOrObservation(au
     arguments = dict(authority.arguments, material_proof=proof, at=AT + timedelta(seconds=1))
     grant = engine.AuthorizeNativeImageOperation(selected, authority.context,
         approve_safe_image=True, **arguments)
-    assert grant.authorization.authorization_id != original_grant.authorization.authorization_id, (
+    assert grant.authorization.authorization_id != originalGrant.authorization.authorization_id, (
         "The freshness test must target a genuinely different grant rather than per-grant exclusion"
     )
 

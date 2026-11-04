@@ -75,12 +75,12 @@ def Headers(
     ):
         raise NativeWebProtocolError
 
-    status_match = _STATUS.fullmatch(lines[0])
+    statusMatch = _STATUS.fullmatch(lines[0])
 
-    if status_match is None:
+    if statusMatch is None:
         raise NativeWebProtocolError
 
-    status = int(status_match[1])
+    status = int(statusMatch[1])
     values: dict[bytes, bytes] = {}
 
     for line in lines[1:]:
@@ -100,7 +100,7 @@ def Headers(
     ):
         raise NativeWebResponseError
 
-    length_text = values.get(b"content-length", b"")
+    lengthText = values.get(b"content-length", b"")
 
     if streaming and b"transfer-encoding" in values:
         if b"content-length" in values or values[b"transfer-encoding"].lower() != b"chunked":
@@ -112,23 +112,23 @@ def Headers(
         size = "eof"
 
     else:
-        length_pattern = rb"(?:0|[1-9][0-9]{0,5})" if streaming else _LENGTH
+        lengthPattern = rb"(?:0|[1-9][0-9]{0,5})" if streaming else _LENGTH
 
-        if re.fullmatch(length_pattern, length_text) is None:
+        if re.fullmatch(lengthPattern, lengthText) is None:
             raise NativeWebProtocolError
 
-        size = int(length_text)
+        size = int(lengthText)
 
         if size > NativeWebCheckFor(check_id).max_body_bytes:
             raise NativeWebProtocolError
 
     media = values.get(b"content-type", b"").split(b";", 1)[0].strip().lower()
-    media_types = {b"text/plain", b"application/octet-stream"}
+    mediaTypes = {b"text/plain", b"application/octet-stream"}
 
     if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID:
-        media_types.add(b"text/html")
+        mediaTypes.add(b"text/html")
 
-    category = media.decode("ascii") if media in media_types else "other"
+    category = media.decode("ascii") if media in mediaTypes else "other"
 
     return status, category, size
 
@@ -352,10 +352,10 @@ def Probe(
             raise NativeWebProtocolError
 
         parsed = urlsplit(target.value)
-        request_target = parsed.path + ("?" + parsed.query if template is not None else "")
+        requestTarget = parsed.path + ("?" + parsed.query if template is not None else "")
         accept = "text/html" if check_id == NATIVE_DIRECTORY_INDEX_CHECK_ID else (
             "text/plain, application/octet-stream")
-        request = (f"GET {request_target} HTTP/1.1\r\nHost: {parsed.netloc}\r\n"
+        request = (f"GET {requestTarget} HTTP/1.1\r\nHost: {parsed.netloc}\r\n"
                    f"Connection: close\r\nAccept: {accept}\r\n"
                    "Accept-Encoding: identity\r\n\r\n")
         connection.settimeout(Remaining(deadline))
@@ -378,13 +378,13 @@ def Probe(
             incoming.extend(part)
 
         boundary = incoming.index(b"\r\n\r\n") + 4
-        status, media_type, length = Headers(bytes(incoming[:boundary]), check_id=check_id)
+        status, mediaType, length = Headers(bytes(incoming[:boundary]), check_id=check_id)
         body = incoming[boundary:]
 
         if check_id == NATIVE_PROMETHEUS_CHECK_ID:
             Remaining(deadline)
             reader = PrometheusBodyReader(connection, deadline, bytes(body), boundary)
-            raw_body = reader.Body(length)
+            rawBody = reader.Body(length)
             Remaining(deadline)
 
         else:
@@ -405,9 +405,9 @@ def Probe(
             if connection.recv(1):
                 raise NativeWebProtocolError
 
-            raw_body = bytes(body)
+            rawBody = bytes(body)
 
-        matched = check.predicate(status, media_type, raw_body)
+        matched = check.predicate(status, mediaType, rawBody)
 
         if check_id == NATIVE_PROMETHEUS_CHECK_ID:
             Remaining(deadline)
@@ -415,8 +415,8 @@ def Probe(
         record: dict[str, object] = {
             "schema_version": 1, "check_id": check.check_id,
             "profile_version": NATIVE_WEB_VERSION, "url": target.value, "address": peer,
-            "port": port, "scheme": scheme, "status": status, "media_type": media_type,
-            "body_bytes": len(raw_body), "body_sha256": hashlib.sha256(raw_body).hexdigest(),
+            "port": port, "scheme": scheme, "status": status, "media_type": mediaType,
+            "body_bytes": len(rawBody), "body_sha256": hashlib.sha256(rawBody).hexdigest(),
             "matched": matched,
         }
 

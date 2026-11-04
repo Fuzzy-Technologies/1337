@@ -57,7 +57,7 @@ def test_ContractPureParsingAndSerializationHaveNoIoOrCoreWrites(monkeypatch):
         isolated.setattr(subprocess, "Popen", Denied)
         isolated.setattr(LocalWorkspaceStore, "Open", Denied)
         candidates = ParseIocArtifact(RAW, source)
-        selection_pin = ioc.RequestPin(source, IocLimits())
+        selectionPin = ioc.RequestPin(source, IocLimits())
         snapshot = IocSnapshot("sha256:" + "a" * 64, "sha256:" + "b" * 64, source,
                                IocLimits(), candidates)
         serialized = snapshot.Serialize()
@@ -66,7 +66,7 @@ def test_ContractPureParsingAndSerializationHaveNoIoOrCoreWrites(monkeypatch):
     assert decoded["candidates"][0]["normalized_token"] == "example.invalid", (
         "Pure parser/serializer failed its explicit synthetic candidate oracle"
     )
-    assert len(selection_pin) == 64, "Pure selection description lost its canonical digest shape"
+    assert len(selectionPin) == 64, "Pure selection description lost its canonical digest shape"
     assert set(decoded) == {"schema_version", "family", "profile", "parser_id", "parser_version",
                            "raw_evidence_id", "acquisition_evidence_id", "source", "limits",
                            "candidates"}, "IOC interchange gained inferred incident/model semantics"

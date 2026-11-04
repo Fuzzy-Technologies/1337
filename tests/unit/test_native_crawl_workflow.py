@@ -149,14 +149,14 @@ def owned(tmp_path, monkeypatch, crawl_runner):
 
     root = tmp_path / "workspace"
     workspace = LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Native crawl"), "crawl")
-    model_store = LocalModelStore(root)
-    initial = model_store.Create()
+    modelStore = LocalModelStore(root)
+    initial = modelStore.Create()
     unrelated = SecurityObject(ObjectIdentity("crawl", ObjectKind.ASSET, "asset:operator"),
         {"operator_note": "preserve unrelated state"},
         (ModelProvenance("operator.seed", "run:seed", AT.isoformat(), "scope:seed",
                           "target:seed"),))
     model, _ = initial.Apply(objects=(unrelated,))
-    model_store.Save(model, expected_revision=initial.revision)
+    modelStore.Save(model, expected_revision=initial.revision)
     targets = tuple(Target(TargetKind.URL, url) for url in URLS)
     address = Target(TargetKind.IP, "127.0.0.1")
     LocalScopeStore(root).Create(ScopeSnapshot("local", "crawl", ScopeAuthorization(
@@ -456,8 +456,8 @@ def test_ActualTerminationPrecedesEvenACompleteLateReport(owned, termination, ex
 def test_LostAcknowledgementReportsActualCommitAndNeverRetries(owned, monkeypatch, which):
     """A post-replacement exception retains actual state and makes one original attempt."""
 
-    store_type = LocalModelStore if which == "model" else LocalWorkspaceStore
-    original = store_type.Save
+    storeType = LocalModelStore if which == "model" else LocalWorkspaceStore
+    original = storeType.Save
     calls = []
 
     def Save(self, value, *args, **kwargs):
@@ -467,7 +467,7 @@ def test_LostAcknowledgementReportsActualCommitAndNeverRetries(owned, monkeypatc
         original(self, value, *args, **kwargs)
         raise OSError("controlled lost acknowledgement")
 
-    monkeypatch.setattr(store_type, "Save", Save)
+    monkeypatch.setattr(storeType, "Save", Save)
     summary = Run(owned)
     assert summary.ExitCode() == 4 and len(calls) == 1, summary.ToDict()
     assert LocalModelStore(owned.root).Open().revision == owned.model.revision + (
@@ -755,10 +755,10 @@ def test_LastCustodyReadDriftCannotBypassTheFinalOriginalSaveGuard(
 
     actor, clock = ["actor:operator"], [AT]
     armed = {"boundary": False, "control": False, "reads": 0, "changed": False}
-    original_page = parent.NativeCrawlProvider.ValidatePage
-    original_persistence = parent.NativeCrawlProvider.ValidatePersistence
-    original_verify = parent.NativeCrawlProvider.VerifyRecord
-    original_read = parent.NativeCrawlEvidenceStore.Read
+    originalPage = parent.NativeCrawlProvider.ValidatePage
+    originalPersistence = parent.NativeCrawlProvider.ValidatePersistence
+    originalVerify = parent.NativeCrawlProvider.VerifyRecord
+    originalRead = parent.NativeCrawlEvidenceStore.Read
 
     if boundary == "workspace" and drift == "grant-expiry":
         owned.validation_clock = lambda: clock[0]
@@ -779,7 +779,7 @@ def test_LastCustodyReadDriftCannotBypassTheFinalOriginalSaveGuard(
             armed["boundary"] = True
 
         try:
-            return original_page(self, context, page)
+            return originalPage(self, context, page)
 
         finally:
             if boundary == "model":
@@ -792,7 +792,7 @@ def test_LastCustodyReadDriftCannotBypassTheFinalOriginalSaveGuard(
             armed["boundary"] = True
 
         try:
-            return original_persistence(self, context)
+            return originalPersistence(self, context)
 
         finally:
             armed["boundary"] = False
@@ -805,7 +805,7 @@ def test_LastCustodyReadDriftCannotBypassTheFinalOriginalSaveGuard(
         armed["reads"] = 0
 
         try:
-            return original_verify(self, record)
+            return originalVerify(self, record)
 
         finally:
             armed["control"] = False
@@ -813,7 +813,7 @@ def test_LastCustodyReadDriftCannotBypassTheFinalOriginalSaveGuard(
     def Read(self, reference):
         """Introduce actual authority drift during the final bounded owning custody Read."""
 
-        data = original_read(self, reference)
+        data = originalRead(self, reference)
 
         if armed["control"]:
             armed["reads"] += 1
@@ -869,8 +869,8 @@ def test_FinalValidAuthorityCallbackCancellationCannotReachEitherSave(
 
     active = [None]
     cancelled = []
-    original_page = parent.NativeCrawlProvider.ValidatePage
-    original_persistence = parent.NativeCrawlProvider.ValidatePersistence
+    originalPage = parent.NativeCrawlProvider.ValidatePage
+    originalPersistence = parent.NativeCrawlProvider.ValidatePersistence
 
     def ValidatePage(self, context, page):
         """Arm only the exact callback-bearing pre-model-Save guard."""
@@ -881,7 +881,7 @@ def test_FinalValidAuthorityCallbackCancellationCannotReachEitherSave(
             active[0] = context
 
         try:
-            return original_page(self, context, page)
+            return originalPage(self, context, page)
 
         finally:
             if boundary == "model":
@@ -894,7 +894,7 @@ def test_FinalValidAuthorityCallbackCancellationCannotReachEitherSave(
             active[0] = context
 
         try:
-            return original_persistence(self, context)
+            return originalPersistence(self, context)
 
         finally:
             active[0] = None
@@ -951,7 +951,7 @@ def test_CancelledFailureRetentionCannotReplaceTheOriginalStorageFailure(owned, 
     """A denied cancellation-finalizer Save preserves the original already-classified failure."""
 
     active = [None]
-    original_guard = parent.NativeCrawlProvider.ValidatePersistence
+    originalGuard = parent.NativeCrawlProvider.ValidatePersistence
     calls = []
 
     def Guard(self, context):
@@ -960,7 +960,7 @@ def test_CancelledFailureRetentionCannotReplaceTheOriginalStorageFailure(owned, 
         active[0] = context
 
         try:
-            return original_guard(self, context)
+            return originalGuard(self, context)
 
         finally:
             active[0] = None
@@ -1001,20 +1001,20 @@ def test_OwnedPageCancellationRetainsOnlyTheOriginalReturnedExecutorOutcome(
         """Reproduce the actual LocalExecutor distinction through the public SDK and real job."""
 
         started, cleaning, release, cleaned = (asyncio.Event() for _ in range(4))
-        original_acquire = parent.NativeCrawlProvider.Acquire
-        page_task, executor_tasks, actual_results, direct_cancels = [], [], [], []
+        originalAcquire = parent.NativeCrawlProvider.Acquire
+        pageTask, executorTasks, actualResults, directCancels = [], [], [], []
 
         async def Acquire(self, context, url):
             """Identify only the exact owned page task that the original scheduler may cancel."""
 
-            page_task.append(asyncio.current_task())
+            pageTask.append(asyncio.current_task())
 
-            return await original_acquire(self, context, url)
+            return await originalAcquire(self, context, url)
 
         async def Execute(_self, request, **kwargs):
             """Mirror LocalExecutor abort/re-raise versus signal/return without a process."""
 
-            executor_tasks.append(asyncio.current_task())
+            executorTasks.append(asyncio.current_task())
             kwargs["context_provider"]()
             started.set()
 
@@ -1025,7 +1025,7 @@ def test_OwnedPageCancellationRetainsOnlyTheOriginalReturnedExecutorOutcome(
                 await release.wait()
 
             except asyncio.CancelledError:
-                direct_cancels.append(True)
+                directCancels.append(True)
                 cleaning.set()
 
                 await release.wait()
@@ -1037,7 +1037,7 @@ def test_OwnedPageCancellationRetainsOnlyTheOriginalReturnedExecutorOutcome(
             document = ParseCrawlInput(request.invocation.argv[-1].encode("ascii"))
             result = (Result(CanonicalRecord(Record(document, ()))) if late_success else
                 Result(b"", exit_code=-15, termination=ExecutionTermination.CANCELLATION))
-            actual_results.append(result)
+            actualResults.append(result)
 
             return result
 
@@ -1050,7 +1050,7 @@ def test_OwnedPageCancellationRetainsOnlyTheOriginalReturnedExecutorOutcome(
             await asyncio.wait_for(started.wait(), 1)
 
             # Force the exact scheduler abort before a shared job signal can hide the defect.
-            page_task[0].cancel()
+            pageTask[0].cancel()
 
             await asyncio.wait_for(cleaning.wait(), 1)
 
@@ -1068,20 +1068,20 @@ def test_OwnedPageCancellationRetainsOnlyTheOriginalReturnedExecutorOutcome(
             release.set()
             summary = await asyncio.wait_for(asyncio.shield(task), 2)
             assert summary.snapshot.state is JobState.CANCELLED, summary.ToDict()
-            assert cleaned.is_set() and len(actual_results) == 1 and not direct_cancels, (
+            assert cleaned.is_set() and len(actualResults) == 1 and not directCancels, (
                 "Only cooperative execution returns an actual result; direct abort returns none."
             )
-            assert executor_tasks[0] is not page_task[0] and executor_tasks[0].done(), (
+            assert executorTasks[0] is not pageTask[0] and executorTasks[0].done(), (
                 "A distinct original executor task must remain owned until its actual result."
             )
             control = next(item for item in summary.records
                            if item.reference.role == "native-crawl-control")
             value = json.loads((owned.root / "evidence" / control.reference.locator).read_bytes())
             assert value["execution"] == json.loads(SerializeContract(
-                actual_results[0].execution)), (
+                actualResults[0].execution)), (
                 "Control custody must preserve actual returned state/exit, including late success."
             )
-            assert value["termination"] == actual_results[0].termination.value, (
+            assert value["termination"] == actualResults[0].termination.value, (
                 "Parent cancellation must not fabricate an executor termination or event stream."
             )
             assert not summary.completed_urls and LocalModelStore(owned.root).Open() == (
@@ -1123,13 +1123,13 @@ def test_SelfCancelledOriginalExecutorRemainsUnknownWithoutFabricatedCustody(own
 def test_SiblingAbortUsesPrivateSignalWithoutReplacingTheOriginalFailure(owned, monkeypatch):
     """One refused page drains a sibling through its original executor, keeping the first error."""
 
-    original_execute = GovernedLocalExecutor.Execute
+    originalExecute = GovernedLocalExecutor.Execute
     observed = []
 
     async def Scenario():
         """Coordinate only known executor doubles on the actual public SDK's owning loop."""
 
-        sibling_started = asyncio.Event()
+        siblingStarted = asyncio.Event()
 
         async def Execute(self, request, **kwargs):
             """Hold the sibling until its private signal, then return its exact actual outcome."""
@@ -1139,7 +1139,7 @@ def test_SiblingAbortUsesPrivateSignalWithoutReplacingTheOriginalFailure(owned, 
             if document["source_url"] == URLS[0]:
                 kwargs["context_provider"]()
 
-                await sibling_started.wait()
+                await siblingStarted.wait()
 
                 return Result(CanonicalRecord({"schema_version": 1,
                     "profile": NATIVE_CRAWL_PROFILE, "outcome": "refused",
@@ -1147,7 +1147,7 @@ def test_SiblingAbortUsesPrivateSignalWithoutReplacingTheOriginalFailure(owned, 
 
             if document["source_url"] == URLS[1]:
                 kwargs["context_provider"]()
-                sibling_started.set()
+                siblingStarted.set()
 
                 await kwargs["cancellation"].wait()
 
@@ -1156,7 +1156,7 @@ def test_SiblingAbortUsesPrivateSignalWithoutReplacingTheOriginalFailure(owned, 
 
                 return actual
 
-            return await original_execute(self, request, **kwargs)
+            return await originalExecute(self, request, **kwargs)
 
         monkeypatch.setattr(GovernedLocalExecutor, "Execute", Execute)
 

@@ -48,9 +48,9 @@ def test_SeedAndFrozenSourcesHaveIndependentThreeLinkOneZeroOneTruth() -> None:
     for case in target.CASES:
         wire = graph.Response("/zap-passive/" + case).Wire()
         assert wire == originals[case]["response"], "Frozen original wire must remain exact"
-        original_header, original_body = wire.split(b"\r\n\r\n", 1)
-        observed.append(HeaderAbsent(original_header + b"\r\n\r\n"))
-        assert original_body == originals[case]["body"], "Original body bytes must remain exact"
+        originalHeader, originalBody = wire.split(b"\r\n\r\n", 1)
+        observed.append(HeaderAbsent(originalHeader + b"\r\n\r\n"))
+        assert originalBody == originals[case]["body"], "Original body bytes must remain exact"
 
     assert observed == [True, False, True], "Complete field names determine one/zero/one truth"
     assert originals["missing"]["body"] == originals["fixed"]["body"], "Bodies do not decide truth"

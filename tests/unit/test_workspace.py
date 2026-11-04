@@ -245,22 +245,22 @@ def test_AbandonedWriterLockRemainsExplicitAndReadable(tmp_path, kind):
     """Do not steal an existing lock or prevent readers from opening completed state."""
 
     store, state = CreateStore(tmp_path)
-    lock_path = store.root / ".write-lock"
+    lockPath = store.root / ".write-lock"
 
     if kind == "directory":
-        lock_path.mkdir()
+        lockPath.mkdir()
 
     elif kind == "file":
-        lock_path.write_text("operator-owned", encoding="utf-8")
+        lockPath.write_text("operator-owned", encoding="utf-8")
 
     else:
-        lock_path.symlink_to(tmp_path / "missing")
+        lockPath.symlink_to(tmp_path / "missing")
 
     with pytest.raises(WorkspaceBusyError):
         store.Save(state)
 
     assert store.Open() == state, "A writer lock incorrectly blocked reading a complete snapshot"
-    assert lock_path.exists() or lock_path.is_symlink(), "Save stole an existing writer lock"
+    assert lockPath.exists() or lockPath.is_symlink(), "Save stole an existing writer lock"
 
 
 def test_CooperatingConcurrentWritersCannotLoseAnUpdate(tmp_path, monkeypatch):
@@ -269,7 +269,7 @@ def test_CooperatingConcurrentWritersCannotLoseAnUpdate(tmp_path, monkeypatch):
     store, state = CreateStore(tmp_path)
     entered = Event()
     release = Event()
-    original_write = LocalWorkspaceStore.WriteState
+    originalWrite = LocalWorkspaceStore.WriteState
 
     def ControlledWrite(self, proposal):
         """Hold a single writer while its owned lock protects the old snapshot."""
@@ -279,7 +279,7 @@ def test_CooperatingConcurrentWritersCannotLoseAnUpdate(tmp_path, monkeypatch):
         if not release.wait(timeout=5):
             raise RuntimeError("controlled writer was never released")
 
-        original_write(self, proposal)
+        originalWrite(self, proposal)
 
     monkeypatch.setattr(LocalWorkspaceStore, "WriteState", ControlledWrite)
 
@@ -349,7 +349,7 @@ def test_PostReplacementSyncFailureRequiresReopening(tmp_path, monkeypatch):
     """Expose failure after replacement without pretending the old revision is still current."""
 
     store, state = CreateStore(tmp_path)
-    original_sync = os.fsync
+    originalSync = os.fsync
     calls = 0
 
     def RejectDirectorySync(descriptor):
@@ -361,7 +361,7 @@ def test_PostReplacementSyncFailureRequiresReopening(tmp_path, monkeypatch):
         if calls == 2:
             raise OSError("synthetic directory synchronization failure")
 
-        original_sync(descriptor)
+        originalSync(descriptor)
 
     monkeypatch.setattr(os, "fsync", RejectDirectorySync)
 
@@ -497,15 +497,15 @@ def test_ReparsePointMetadataIsRejectedWithoutFollowingIt(tmp_path, monkeypatch)
     """Exercise Windows reparse-point detection with deterministic non-following metadata."""
 
     store, _ = CreateStore(tmp_path)
-    original_lstat = Path.lstat
-    state_path = store.root / "workspace.json"
+    originalLstat = Path.lstat
+    statePath = store.root / "workspace.json"
 
     def SimulateReparse(self, *args, **kwargs):
         """Represent an observed reparse file using the platform-independent attribute flag."""
 
-        metadata = original_lstat(self, *args, **kwargs)
+        metadata = originalLstat(self, *args, **kwargs)
 
-        if self == state_path:
+        if self == statePath:
             return SimpleNamespace(st_mode=metadata.st_mode, st_file_attributes=0x400)
 
         return metadata
@@ -540,10 +540,10 @@ def test_PosixDirectorySyncRejectsInvalidFlagsWithoutOpeningFiles(
 
         raise AssertionError("Invalid POSIX directory flags must fail before opening storage")
 
-    synthetic_os = SimpleNamespace(
+    syntheticOs = SimpleNamespace(
         name="posix", O_DIRECTORY=directory_flag, O_RDONLY=os.O_RDONLY, open=RejectOpen
     )
-    monkeypatch.setattr(workspace, "os", synthetic_os)
+    monkeypatch.setattr(workspace, "os", syntheticOs)
 
     with pytest.raises(OSError, match="valid O_DIRECTORY"):
         workspace.SyncStorageDirectory(tmp_path)

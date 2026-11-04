@@ -160,7 +160,7 @@ def owned(tmp_path, monkeypatch):
 
     selection = NativeTrivySelection(root, root / "never-executed", "owned.tar", "cache",
         ArtifactReadConsent(OWNER, "read:four-owned-files"))
-    selection_fields = {"workspace_root": str(root), "executable": str(selection.executable),
+    selectionFields = {"workspace_root": str(root), "executable": str(selection.executable),
         "archive": "owned.tar", "cache_directory": "cache",
         "read_consent": {"actor_ref": OWNER, "record_ref": "read:four-owned-files"}}
     manifest = {"schema_version": 1, "profile": "trivy.image-archive-offline.v1",
@@ -174,7 +174,7 @@ def owned(tmp_path, monkeypatch):
     policy = ImpactPolicy("native-oracle", maximum_impact=ImpactLevel.SAFE,
         permissions=(CapabilityPermission("image.archive-vulnerabilities", "native.trivy",
             ImpactLevel.SAFE),), max_authorization_seconds=60)
-    result = SimpleNamespace(root=root, selection=selection, selection_fields=selection_fields,
+    result = SimpleNamespace(root=root, selection=selection, selection_fields=selectionFields,
         facts=tuple(facts), manifest=manifest, target=target, scope=scope, policy=policy,
         context=ArtifactPolicyContext(scope, policy, OWNER), engine=ArtifactPolicyEngine(),
         store=LocalEvidenceStore(root / "evidence"),
@@ -279,20 +279,20 @@ def test_LiteralVersionPlanAndEnvelopeBindManifestAndAllStableFacts(owned):
     """Check the native plan against primitive handwritten projections and independent hashes."""
 
     prepared = owned.prepared
-    target_reference = "target:" + Sha({"kind": "artifact",
+    targetReference = "target:" + Sha({"kind": "artifact",
         "value": "manifest-sha256:" + Sha(owned.manifest)})
     invocation = {"adapter_id": "native.trivy", "request": {
-        "capability": "image.archive-vulnerabilities", "target_reference": target_reference,
+        "capability": "image.archive-vulnerabilities", "target_reference": targetReference,
         "impact": "SAFE", "parameters": {"archive": "owned.tar", "timeout_seconds": 3},
         "credential_references": []}, "argv": [str(owned.selection.executable), "--cache-dir",
         str(owned.root / "cache"), "--config=", "--version", "--format", "json"],
         "timeout_seconds": 3, "provider_version": None}
     material = [asdict(fact) for fact in owned.facts]
-    manifest_dataclass = {key: value for key, value in owned.manifest.items()
+    manifestDataclass = {key: value for key, value in owned.manifest.items()
                           if key != "schema_version"}
     payload = {"schema_version": 1, "family": "native-image-authority-v1",
         "operation_id": prepared.operation_id, "operation": "version",
-        "selection": owned.selection_fields, "input_manifest": manifest_dataclass,
+        "selection": owned.selection_fields, "input_manifest": manifestDataclass,
         "workspace_id": "native-oracle", "owner_reference": OWNER,
         "operation_reference": PAIR, "invocation": invocation,
         "resources": {"max_stdout_bytes": 16384, "max_stderr_bytes": 16384,
@@ -309,7 +309,7 @@ def test_LiteralVersionPlanAndEnvelopeBindManifestAndAllStableFacts(owned):
             "maximum_impact": "SAFE", "permissions": [{"capability_id":
                 "image.archive-vulnerabilities", "adapter_id": "native.trivy",
                 "maximum_impact": "SAFE", "granted_privileges": []}],
-            "max_authorization_seconds": 60}), "target_reference": target_reference,
+            "max_authorization_seconds": 60}), "target_reference": targetReference,
         "input_manifest_sha256": Sha(owned.manifest),
         "material_sha256": Sha({"selection": owned.selection_fields, "material": material}),
         "request_profile_sha256": Sha(payload), "invocation_sha256": Sha(invocation),
@@ -325,7 +325,7 @@ def test_LiteralVersionPlanAndEnvelopeBindManifestAndAllStableFacts(owned):
     assert prepared.input_manifest.ToDict() == owned.manifest, (
         "IMAGE/INPUT identity must use logical image.tar and the original archive bytes"
     )
-    assert prepared.input_manifest.Target().Reference() == target_reference, (
+    assert prepared.input_manifest.Target().Reference() == targetReference, (
         "Scope must use the canonical logical manifest target rather than a selected blob hash"
     )
     assert json.loads(SerializeContract(plan)) == json.loads(Canonical(expected)), (
@@ -493,13 +493,13 @@ def test_ReservationIsPrivateDurableAndExclusiveAcrossFreshEngines(owned):
         Claim(owned, grant)
 
     owned.engine = ArtifactPolicyEngine()
-    reopened_grant = Decision(owned)
-    assert reopened_grant == grant and reopened_grant is not grant, (
+    reopenedGrant = Decision(owned)
+    assert reopenedGrant == grant and reopenedGrant is not grant, (
         "Equivalent new owner approval must still collide with the durably consumed authorization"
     )
 
     with pytest.raises(ArtifactDeniedError):
-        Claim(owned, reopened_grant)
+        Claim(owned, reopenedGrant)
 
     assert marker.read_bytes() == raw and not (directory / "binding.json").exists(), (
         "Duplicate or cancelled-before-capture attempts must not repair, reset or bind the marker"
@@ -507,7 +507,7 @@ def test_ReservationIsPrivateDurableAndExclusiveAcrossFreshEngines(owned):
     marker.unlink()
 
     with pytest.raises(ArtifactDeniedError):
-        Claim(owned, reopened_grant)
+        Claim(owned, reopenedGrant)
 
     assert not marker.exists(), (
         "A partial existing claim directory must never be repaired for retry"
@@ -520,12 +520,12 @@ def test_ReservationIsPrivateDurableAndExclusiveAcrossFreshEngines(owned):
 def test_LaterApprovalCannotReuseAConsumedOperationOrObservation(owned, reuse, fresh_engine):
     """Distinct later grants cannot resume consumed attempts, including another engine owner."""
 
-    original_grant = Decision(owned)
-    Claim(owned, original_grant)
+    originalGrant = Decision(owned)
+    Claim(owned, originalGrant)
     namespace = owned.root / "native-image-claims"
     originals = {path: (path.read_bytes(), Physical(path))
         for path in namespace.rglob("*.json")}
-    reservation = (namespace / Sha(original_grant.authorization.authorization_id)
+    reservation = (namespace / Sha(originalGrant.authorization.authorization_id)
         / "reservation.json")
     indexes = {"observations": owned.proof.Digest(), "operations": Sha(owned.prepared.operation_id)}
     assert set(originals) == {reservation, *(namespace / kind / (key + ".json")
@@ -548,7 +548,7 @@ def test_LaterApprovalCannotReuseAConsumedOperationOrObservation(owned, reuse, f
             "trivy.image-archive-offline.v1", kind, key, owned.proof.Digest(), "initial"), (
             "Index path and original proof correlation must match the handwritten closed identities"
         )
-        assert payload["grant"] == json.loads(SerializeContract(original_grant)) and (
+        assert payload["grant"] == json.loads(SerializeContract(originalGrant)) and (
             payload["prepared"] == json.loads(reservation.read_bytes())["prepared"]
             and payload["workspace_identity"] == list(Physical(owned.root)[:2])
             and payload["namespace_identity"] == list(Physical(namespace)[:2])
@@ -567,21 +567,21 @@ def test_LaterApprovalCannotReuseAConsumedOperationOrObservation(owned, reuse, f
         owned.engine = ArtifactPolicyEngine()
 
     later = AT + timedelta(seconds=1)
-    retry_grant = Decision(owned, prepared=prepared, proof=proof, at=later)
-    assert retry_grant.authorization.authorization_id != (
-        original_grant.authorization.authorization_id), (
+    retryGrant = Decision(owned, prepared=prepared, proof=proof, at=later)
+    assert retryGrant.authorization.authorization_id != (
+        originalGrant.authorization.authorization_id), (
         "The refused retry must have a distinct legitimately issued later grant"
     )
 
     with pytest.raises((ArtifactDeniedError, FileExistsError)):
-        Claim(owned, retry_grant, prepared=prepared, proof=proof, at=later)
+        Claim(owned, retryGrant, prepared=prepared, proof=proof, at=later)
 
     for path, (raw, identity) in originals.items():
         assert path.read_bytes() == raw and Physical(path) == identity, (
             "A later grant must not rewrite or replace any consumed original claim control"
         )
 
-    assert not (namespace / Sha(retry_grant.authorization.authorization_id)).exists(), (
+    assert not (namespace / Sha(retryGrant.authorization.authorization_id)).exists(), (
         "A reused operation or observation must refuse before a new grant reservation is issued"
     )
 
@@ -602,11 +602,11 @@ def test_PartialConsumptionIndexesAreNeverRepairedOrAdopted(owned, kind):
     marker.chmod(0o600)
     identity = Physical(marker)
 
-    for fresh_engine in (False, True):
-        if fresh_engine:
+    for freshEngine in (False, True):
+        if freshEngine:
             owned.engine = ArtifactPolicyEngine()
 
-        at = AT + timedelta(seconds=int(fresh_engine))
+        at = AT + timedelta(seconds=int(freshEngine))
         grant = Decision(owned, at=at)
 
         with pytest.raises((ArtifactDeniedError, FileExistsError)):
@@ -674,10 +674,10 @@ def test_PreexistingIdenticalBindingIsNotAnIdempotentRetry(owned):
     request = Request(owned, grant)
     directory = owned.root / "native-image-claims" / Sha(grant.authorization.authorization_id)
     reservation = (directory / "reservation.json").read_bytes()
-    request_payload = json.loads(SerializeContract(request))
+    requestPayload = json.loads(SerializeContract(request))
     expected = {"schema_version": 1, "family": "native-image-authority-v1",
-        "claim_sha256": hashlib.sha256(reservation).hexdigest(), "request": request_payload,
-        "request_sha256": Sha(request_payload),
+        "claim_sha256": hashlib.sha256(reservation).hexdigest(), "request": requestPayload,
+        "request_sha256": Sha(requestPayload),
         "workspace_identity": Physical(owned.root)[:2],
         "scratch_identity": Physical(owned.root / request.workspace)[:2],
         "proof_sha256": owned.proof.Digest(), "observation_id": "initial"}
@@ -685,12 +685,12 @@ def test_PreexistingIdenticalBindingIsNotAnIdempotentRetry(owned):
     raw = Canonical(expected)
     marker.write_bytes(raw)
     marker.chmod(0o600)
-    original_identity = Physical(marker)
+    originalIdentity = Physical(marker)
 
     with pytest.raises(FileExistsError):
         Bind(owned, claim, request)
 
-    assert marker.read_bytes() == raw and Physical(marker) == original_identity, (
+    assert marker.read_bytes() == raw and Physical(marker) == originalIdentity, (
         "An existing identical binding must stay untouched and cannot issue live request authority"
     )
 
@@ -781,73 +781,73 @@ def SyntheticCapture(owned, prepared, grant, request):
 def test_OriginalVersionPrerequisiteAndPairRemainFreshAfterScratchCleanup(owned):
     """Validate simulated original custody across fresh proof nonces and legitimate cleanup."""
 
-    version_grant = Decision(owned)
-    version_claim = Claim(owned, version_grant)
-    version_request = Request(owned, version_grant, name="native-image-version")
-    Bind(owned, version_claim, version_request)
-    version_capture = SyntheticCapture(owned, owned.prepared, version_grant, version_request)
-    shutil.rmtree(owned.root / version_request.workspace)
-    post_version = IssueSyntheticProof(owned, "post-version")
-    scan_at = AT + timedelta(seconds=1)
-    prerequisite = owned.engine.AcceptNativeImageVersion(version_claim, version_capture,
-        owned.context, observer=owned.observer, material_proof=post_version, at=scan_at)
+    versionGrant = Decision(owned)
+    versionClaim = Claim(owned, versionGrant)
+    versionRequest = Request(owned, versionGrant, name="native-image-version")
+    Bind(owned, versionClaim, versionRequest)
+    versionCapture = SyntheticCapture(owned, owned.prepared, versionGrant, versionRequest)
+    shutil.rmtree(owned.root / versionRequest.workspace)
+    postVersion = IssueSyntheticProof(owned, "post-version")
+    scanAt = AT + timedelta(seconds=1)
+    prerequisite = owned.engine.AcceptNativeImageVersion(versionClaim, versionCapture,
+        owned.context, observer=owned.observer, material_proof=postVersion, at=scanAt)
 
     for substituted in (replace(prerequisite), NativeImageVersionPrerequisite(
-        owned.prepared, version_grant, version_claim, version_capture)):
+        owned.prepared, versionGrant, versionClaim, versionCapture)):
         prepared = PrepareNativeImageOperation(NativeTrivyOperation.SCAN, owned.selection,
-            owned.store, observer=owned.observer, material_proof=post_version,
+            owned.store, observer=owned.observer, material_proof=postVersion,
             operation_reference=PAIR, version_prerequisite=substituted, timeout_seconds=3)
 
         with pytest.raises(ArtifactDeniedError):
-            Decision(owned, prepared=prepared, proof=post_version, at=scan_at)
+            Decision(owned, prepared=prepared, proof=postVersion, at=scanAt)
 
     scan = PrepareNativeImageOperation(NativeTrivyOperation.SCAN, owned.selection, owned.store,
-        observer=owned.observer, material_proof=post_version, operation_reference=PAIR,
+        observer=owned.observer, material_proof=postVersion, operation_reference=PAIR,
         version_prerequisite=prerequisite, timeout_seconds=3)
-    expected_tail = ("image", "--input", str(owned.root / "owned.tar"), "--format", "json",
+    expectedTail = ("image", "--input", str(owned.root / "owned.tar"), "--format", "json",
         "--scanners", "vuln", "--disable-telemetry", "--offline-scan", "--skip-db-update",
         "--skip-java-db-update", "--skip-check-update", "--skip-version-check",
         "--skip-vex-repo-update", "--ignorefile=", "--list-all-pkgs", "--exit-code", "0",
         "--no-progress", "--timeout", "3s")
     assert scan.invocation.argv == (str(owned.selection.executable), "--cache-dir",
-        str(owned.root / "cache"), "--config=", *expected_tail), (
+        str(owned.root / "cache"), "--config=", *expectedTail), (
         "Native SCAN must use the fixed offline original archive recipe and no caller command"
     )
     assert scan.invocation.provider_version == "0.75.0", (
         "SCAN version comes only from the exact original accepted VERSION association"
     )
-    scan_grant = Decision(owned, prepared=scan, proof=post_version, at=scan_at)
-    scan_claim = Claim(owned, scan_grant, prepared=scan, proof=post_version, at=scan_at)
-    scan_request = Request(owned, scan_grant, prepared=scan, name="native-image-scan")
-    Bind(owned, scan_claim, scan_request, proof=post_version, at=scan_at)
-    scan_capture = SyntheticCapture(owned, scan, scan_grant, scan_request)
-    shutil.rmtree(owned.root / scan_request.workspace)
-    post_scan = IssueSyntheticProof(owned, "post-scan")
-    final_at = AT + timedelta(seconds=2)
-    owned.engine.ValidateNativeImagePairFresh(prerequisite, scan, scan_grant, scan_claim,
-        scan_capture, owned.context, observer=owned.observer, material_proof=post_scan, at=final_at)
-    assert version_grant.authorization.authorization_id != (
-        scan_grant.authorization.authorization_id), (
+    scanGrant = Decision(owned, prepared=scan, proof=postVersion, at=scanAt)
+    scanClaim = Claim(owned, scanGrant, prepared=scan, proof=postVersion, at=scanAt)
+    scanRequest = Request(owned, scanGrant, prepared=scan, name="native-image-scan")
+    Bind(owned, scanClaim, scanRequest, proof=postVersion, at=scanAt)
+    scanCapture = SyntheticCapture(owned, scan, scanGrant, scanRequest)
+    shutil.rmtree(owned.root / scanRequest.workspace)
+    postScan = IssueSyntheticProof(owned, "post-scan")
+    finalAt = AT + timedelta(seconds=2)
+    owned.engine.ValidateNativeImagePairFresh(prerequisite, scan, scanGrant, scanClaim,
+        scanCapture, owned.context, observer=owned.observer, material_proof=postScan, at=finalAt)
+    assert versionGrant.authorization.authorization_id != (
+        scanGrant.authorization.authorization_id), (
         "VERSION and SCAN must retain distinct original separately consumed authorizations"
     )
-    assert tuple(record.reference.role for record in (*version_capture.records,
-        *scan_capture.records)) == ("provider-version", "provider-version-stderr",
+    assert tuple(record.reference.role for record in (*versionCapture.records,
+        *scanCapture.records)) == ("provider-version", "provider-version-stderr",
         "native-version-receipt", "stdout", "stderr", "native-scan-receipt"), (
         "Final authority validation must retain all six original canonical evidence roles"
     )
 
     with pytest.raises(ArtifactDeniedError):
-        owned.engine.ValidateNativeImagePairFresh(prerequisite, scan, scan_grant, scan_claim,
-            replace(scan_capture), owned.context, observer=owned.observer,
-            material_proof=post_scan, at=final_at)
+        owned.engine.ValidateNativeImagePairFresh(prerequisite, scan, scanGrant, scanClaim,
+            replace(scanCapture), owned.context, observer=owned.observer,
+            material_proof=postScan, at=finalAt)
 
-    directory = owned.root / "native-image-claims" / Sha(scan_grant.authorization.authorization_id)
+    directory = owned.root / "native-image-claims" / Sha(scanGrant.authorization.authorization_id)
     (directory / "binding.json").unlink()
 
     with pytest.raises((ArtifactDeniedError, OSError, ValueError)):
-        owned.engine.ValidateNativeImagePairFresh(prerequisite, scan, scan_grant, scan_claim,
-            scan_capture, owned.context, observer=owned.observer,
-            material_proof=post_scan, at=final_at)
+        owned.engine.ValidateNativeImagePairFresh(prerequisite, scan, scanGrant, scanClaim,
+            scanCapture, owned.context, observer=owned.observer,
+            material_proof=postScan, at=finalAt)
 
 
 def test_NewNativePreparationCannotEnterTheExistingSyntheticProfileGate(owned):

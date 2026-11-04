@@ -57,10 +57,10 @@ def ResponseParser() -> ProductArgumentParser:
     headers.add_argument("--policy", type=Path, required=True)
     headers.add_argument("--analysis-reference", required=True)
     headers.add_argument("--approve-passive-header-check", action="store_true")
-    header_replay = actions.add_parser("replay-headers",
+    headerReplay = actions.add_parser("replay-headers",
         help="Verify a retained original-header assessment offline; no Save.")
-    header_replay.add_argument("workspace", type=Path)
-    header_replay.add_argument("--assessment", required=True)
+    headerReplay.add_argument("workspace", type=Path)
+    headerReplay.add_argument("--assessment", required=True)
 
     return parser
 

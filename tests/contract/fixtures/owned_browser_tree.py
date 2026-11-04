@@ -26,23 +26,23 @@ def RecordTree(root: Path) -> None:
     visited = set()
 
     while pending:
-        process_id = pending.pop()
+        processId = pending.pop()
 
-        if process_id in visited:
+        if processId in visited:
             continue
 
-        visited.add(process_id)
-        process_root = Path(f"/proc/{process_id}")
+        visited.add(processId)
+        processRoot = Path(f"/proc/{processId}")
 
         try:
-            stat = (process_root / "stat").read_text(encoding="ascii")
+            stat = (processRoot / "stat").read_text(encoding="ascii")
             name = stat.split("(", 1)[1].rsplit(")", 1)[0]
             started = int(stat.rsplit(")", 1)[1].split()[19])
-            executable = os.readlink(process_root / "exe").rsplit("/", 1)[-1]
-            records.append({"pid": process_id, "started_ticks": started, "name": name,
+            executable = os.readlink(processRoot / "exe").rsplit("/", 1)[-1]
+            records.append({"pid": processId, "started_ticks": started, "name": name,
                             "executable": executable})
 
-            for task in (process_root / "task").iterdir():
+            for task in (processRoot / "task").iterdir():
                 children = (task / "children").read_text(encoding="ascii")
                 pending.extend(int(child) for child in children.split())
 

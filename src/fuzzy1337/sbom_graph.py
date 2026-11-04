@@ -153,10 +153,10 @@ def GraphCatalog(payload: dict[str, object], image_identity: ImageIdentity) -> S
 
     for index, value in enumerate(Items(payload.get("relationships", []))):
         relation = Record(value)
-        original_source = SpdxIdentifier(relation.get("spdxElementId"), document=True)
-        original_target = SpdxIdentifier(relation.get("relatedSpdxElement"), document=True)
-        original_kind = Text(relation.get("relationshipType"))
-        source, kind, target = original_source, original_kind, original_target
+        originalSource = SpdxIdentifier(relation.get("spdxElementId"), document=True)
+        originalTarget = SpdxIdentifier(relation.get("relatedSpdxElement"), document=True)
+        originalKind = Text(relation.get("relationshipType"))
+        source, kind, target = originalSource, originalKind, originalTarget
 
         if kind in _INVERSES:
             source, kind, target = target, _INVERSES[kind], source
@@ -174,7 +174,7 @@ def GraphCatalog(payload: dict[str, object], image_identity: ImageIdentity) -> S
             described.add(target)
 
         elif kind in {"CONTAINS", "DEPENDS_ON"} and source in packages and target in packages:
-            edges.append(SourceEdge(index, original_source, original_kind, original_target,
+            edges.append(SourceEdge(index, originalSource, originalKind, originalTarget,
                                     source, kind, target))
 
         else:
@@ -183,21 +183,21 @@ def GraphCatalog(payload: dict[str, object], image_identity: ImageIdentity) -> S
     if len(described) != 1 or (declared and set(declared) != described):
         raise ValueError("SPDX graph requires one consistently described container root")
 
-    root_id = next(iter(described))
+    rootId = next(iter(described))
 
-    if root_id not in packages or packages[root_id].get("primaryPackagePurpose") != "CONTAINER":
+    if rootId not in packages or packages[rootId].get("primaryPackagePurpose") != "CONTAINER":
         raise ValueError("SPDX graph described root must resolve to a CONTAINER package")
 
     if any(package.get("primaryPackagePurpose") == "CONTAINER" for identifier, package
-           in packages.items() if identifier != root_id):
+           in packages.items() if identifier != rootId):
         raise ValueError("SPDX graph supports exactly one container package")
 
-    CheckContainment(root_id, set(packages), {
+    CheckContainment(rootId, set(packages), {
         (edge.source, edge.target) for edge in edges if edge.kind == "CONTAINS"
     })
     hashes = []
 
-    for value in Items(packages[root_id].get("checksums")):
+    for value in Items(packages[rootId].get("checksums")):
         checksum = Record(value)
 
         if Text(checksum.get("algorithm")) == "SHA256":
@@ -206,7 +206,7 @@ def GraphCatalog(payload: dict[str, object], image_identity: ImageIdentity) -> S
     if hashes != [image_identity.digest]:
         raise ValueError("SPDX graph root requires one explicitly bound SHA256 checksum")
 
-    return SourceCatalog(root_id, packages, tuple(edges))
+    return SourceCatalog(rootId, packages, tuple(edges))
 
 
 def RevalidateInputs(state: ModelState, record: EvidenceRecord, provenance: ModelProvenance,
@@ -237,10 +237,10 @@ def RevalidateInputs(state: ModelState, record: EvidenceRecord, provenance: Mode
     ):
         raise ValueError("SPDX graph requires exact original offline sbom acquisition fields")
 
-    for field_name, expected in (
+    for fieldName, expected in (
         ("objects", SecurityObject), ("relations", Relation), ("observations", Observation),
     ):
-        values = getattr(state, field_name)
+        values = getattr(state, fieldName)
 
         if type(values) is not tuple or any(type(value) is not expected for value in values):
             raise ValueError("SPDX graph basis requires exact typed model collections")
@@ -272,13 +272,13 @@ def RevalidateInputs(state: ModelState, record: EvidenceRecord, provenance: Mode
             raise ValueError("SPDX graph basis requires exact typed provenance and references")
 
     try:
-        rebuilt_record = ParseEvidenceManifest(record.Serialize())
-        rebuilt_provenance = ModelProvenance.FromDict(JsonValue(provenance))
-        rebuilt_image = ImageIdentity(image_identity.digest, image_identity.digest_kind)
-        rebuilt_state = ModelState.FromDict(state.ToDict())
+        rebuiltRecord = ParseEvidenceManifest(record.Serialize())
+        rebuiltProvenance = ModelProvenance.FromDict(JsonValue(provenance))
+        rebuiltImage = ImageIdentity(image_identity.digest, image_identity.digest_kind)
+        rebuiltState = ModelState.FromDict(state.ToDict())
 
-        if rebuilt_record != record or rebuilt_provenance != provenance or (
-            rebuilt_image != image_identity or rebuilt_state != state
+        if rebuiltRecord != record or rebuiltProvenance != provenance or (
+            rebuiltImage != image_identity or rebuiltState != state
         ):
             raise ValueError("changed frozen graph input")
 

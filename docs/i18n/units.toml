@@ -3627,7 +3627,7 @@ state = "missing"
 id = "symbol:fuzzy1337.doctor.CollectDoctorReport"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/doctor.py"
-sourceHash = "sha256:387a3be883c86f548008473284ef1120c636522b82e572608fc4f36afa240dc1"
+sourceHash = "sha256:0e0548f2e9355368217067ae02604831cabcc0808acf085a121a7daa2ea0de9e"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"

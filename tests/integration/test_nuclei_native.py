@@ -73,15 +73,15 @@ def test_GenuineInstalledNucleiReviewedExactGetAndDurableFindings(
 ) -> None:
     """Run the actual selected binary with unchanged finite flags and retain raw evidence."""
 
-    supplied_binary = os.environ.get("FUZZY1337_NUCLEI_BINARY")
+    suppliedBinary = os.environ.get("FUZZY1337_NUCLEI_BINARY")
 
-    if supplied_binary is None:
+    if suppliedBinary is None:
         pytest.skip("Genuine provider acceptance requires explicit FUZZY1337_NUCLEI_BINARY")
 
-    executable = Path(supplied_binary).absolute()
+    executable = Path(suppliedBinary).absolute()
     assert executable.is_file(), "Opt-in native acceptance requires an actual installed binary."
-    base_url, requests = native_marker_service
-    target = Target(TargetKind.URL, base_url + route)
+    baseUrl, requests = native_marker_service
+    target = Target(TargetKind.URL, baseUrl + route)
     root = tmp_path / "workspace"
     _, profile, _ = Setup(root, target)
     plan = PlanNucleiScan(root, "local", target, "operator:owned", profile, str(executable), Policy)
@@ -115,8 +115,8 @@ def test_GenuineInstalledNucleiReviewedExactGetAndDurableFindings(
     assert OpenWorkspace(root)["verified_evidence_records"] == 2, (
         "Native raw acquisitions must reopen."
     )
-    verified_report = VerifyReportEvidence(ReportSnapshot(model), root)
-    assert len(verified_report.EvidenceReferences()) == 2, (
+    verifiedReport = VerifyReportEvidence(ReportSnapshot(model), root)
+    assert len(verifiedReport.EvidenceReferences()) == 2, (
         "Reports verify actual native terminal streams."
     )
     assert all(record.evidence.provenance.tool_version == plan.invocation.provider_version

@@ -36,7 +36,7 @@ def test_ActualProductRetainsOriginalAndReopensAfterCallerDeletionAndRelocation(
     raw = Body()
     source = tmp_path / "owned.zip"
     source.write_bytes(raw)
-    before_model = model.Open()
+    beforeModel = model.Open()
     status, imported = Run([*Arguments(model.root, source, raw), "--max-bytes", str(len(raw))])
     assert status == 0 and imported["ack_basis"] == "sdk-returned", "Actual CLI import failed"
     assert all(imported[key] == "confirmed"
@@ -62,7 +62,7 @@ def test_ActualProductRetainsOriginalAndReopensAfterCallerDeletionAndRelocation(
     assert inspected["ack_basis"] == "verified-present", (
         "Inspection rewrote historical returned ACKs"
     )
-    assert Files(model.root) == before and model.Open() == before_model, (
+    assert Files(model.root) == before and model.Open() == beforeModel, (
         "Inspection or import saved model"
     )
     source.unlink()
@@ -115,8 +115,8 @@ def test_ActualRedirectedCodePagePreservesCompleteJsonAndHumanOutput(tmp_path, c
         "The child did not use the requested actual narrow output codec"
     )
     model, _ = Context(tmp_path)
-    expected_name = "Owned é ▼ 😀 source"
-    original = Body(name=expected_name)
+    expectedName = "Owned é ▼ 😀 source"
+    original = Body(name=expectedName)
     source = tmp_path / "owned.zip"
     source.write_bytes(original)
     imported = subprocess.run(
@@ -128,7 +128,7 @@ def test_ActualRedirectedCodePagePreservesCompleteJsonAndHumanOutput(tmp_path, c
         "Actual redirected JSON failed or leaked a traceback on the requested code page"
     )
     document = json.loads(imported.stdout)
-    assert document["selection"]["records"][0]["name"] == expected_name, (
+    assert document["selection"]["records"][0]["name"] == expectedName, (
         "The real portable JSON process changed source Unicode characters"
     )
     assert "▼" in document["source"]["notice_bundle"]["text"], (

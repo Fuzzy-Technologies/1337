@@ -140,9 +140,9 @@ def ExportConfigDigest(raw: bytes) -> str:
 
     assert 1 <= len(raw) <= 64 * 1024 * 1024, "Exported archive must remain bounded."
     with tarfile.open(fileobj=io.BytesIO(raw), mode="r:") as archive:
-        manifest_file = archive.extractfile("manifest.json")
-        assert manifest_file is not None, "Docker-save must contain its exact manifest."
-        manifest = json.loads(manifest_file.read(64 * 1024 + 1))
+        manifestFile = archive.extractfile("manifest.json")
+        assert manifestFile is not None, "Docker-save must contain its exact manifest."
+        manifest = json.loads(manifestFile.read(64 * 1024 + 1))
         assert len(manifest) == 1, "Owned exported archive must identify one image only."
         name = manifest[0]["Config"]
         assert not name.startswith("/") and ".." not in name.split("/"), (
@@ -152,9 +152,9 @@ def ExportConfigDigest(raw: bytes) -> str:
         assert member.isfile() and 1 <= member.size <= 1024 * 1024, (
             "The selected config must remain ordinary and bounded."
         )
-        config_file = archive.extractfile(member)
-        assert config_file is not None, "The selected config bytes must exist."
-        config = config_file.read(1024 * 1024 + 1)
+        configFile = archive.extractfile(member)
+        assert configFile is not None, "The selected config bytes must exist."
+        config = configFile.read(1024 * 1024 + 1)
         assert len(config) == member.size, "Selected config bytes must be complete."
     return "sha256:" + hashlib.sha256(config).hexdigest()
 
@@ -169,8 +169,8 @@ def Register(root: Path, scope_id: str, target: Target) -> None:
     """
 
     now = datetime.now(UTC)
-    workspace_id = LocalWorkspaceStore(root).Open().workspace_id
-    LocalScopeStore(root).Create(ScopeSnapshot(scope_id, workspace_id,
+    workspaceId = LocalWorkspaceStore(root).Open().workspace_id
+    LocalScopeStore(root).Create(ScopeSnapshot(scope_id, workspaceId,
         ScopeAuthorization(AuthorizationState.GRANTED, "attester:separate-local-image",
             "consent:" + scope_id, (now - timedelta(minutes=1)).isoformat(),
             (now + timedelta(minutes=15)).isoformat()), targets=(target,), allow=(target,)))
@@ -229,7 +229,7 @@ def test_InstalledLocalExportThenExplicitNativeScanPreservesConfigAndFinding(
     root = tmp_path / "workspace"
     CreateWorkspace(root, "local-image-" + case["package_version"].replace(".", ""),
                     "Owned two-phase local image product")
-    before_model = LocalModelStore(root).Open()
+    beforeModel = LocalModelStore(root).Open()
     output = OUTPUT / case["case_id"]
     output.mkdir(parents=True, exist_ok=True)
 
@@ -243,55 +243,55 @@ def test_InstalledLocalExportThenExplicitNativeScanPreservesConfigAndFinding(
 
     request.addfinalizer(RetainPartialStores)
     original = ArchiveBytes(case["package_version"])
-    expected_id = ConfigDigest(original)
+    expectedId = ConfigDigest(original)
     assert hashlib.sha256(original).hexdigest() == case["archive_sha256"], (
         "The daemon may receive only the unchanged independently pinned inert image fixture."
     )
     Client(local_runtime, "image", "load", data=original)
     reference = "owned-local-m2:requests-" + case["package_version"]
-    Client(local_runtime, "image", "tag", expected_id, reference)
+    Client(local_runtime, "image", "tag", expectedId, reference)
     observed = json.loads(Client(local_runtime, "image", "inspect", "--format", "{{json .}}",
                                  reference))
-    assert observed["Id"] == expected_id, (
+    assert observed["Id"] == expectedId, (
         "Owned fixture setup must resolve the independent config ID."
     )
     docker, endpoint, _, runtime = local_runtime
-    source_arguments = ["image", "export-local", str(root), "--reference", reference, "--owner",
+    sourceArguments = ["image", "export-local", str(root), "--reference", reference, "--owner",
         OWNER, "--executable", str(docker), "--socket", str(endpoint), "--read-consent-reference",
         "read:owned-local-source"]
-    plan = Console([*source_arguments, "--plan"], output, "source-plan")
-    assert plan["execution_authorized"] is False and LocalModelStore(root).Open() == before_model, (
+    plan = Console([*sourceArguments, "--plan"], output, "source-plan")
+    assert plan["execution_authorized"] is False and LocalModelStore(root).Open() == beforeModel, (
         "Source planning must not contact a daemon or change the model."
     )
-    source_target = Target(TargetKind.ARTIFACT, plan["target"]["value"])
-    Register(root, "local-source", source_target)
-    source_policy = ImpactPolicy("local-source", permissions=(CapabilityPermission(
+    sourceTarget = Target(TargetKind.ARTIFACT, plan["target"]["value"])
+    Register(root, "local-source", sourceTarget)
+    sourcePolicy = ImpactPolicy("local-source", permissions=(CapabilityPermission(
         "image.local-reference-export", "native.docker-local", ImpactLevel.SAFE,
         ("local-docker-read",)),))
-    policy_path = root / "source-policy.json"
-    policy_path.write_text(SerializeContract(source_policy))
-    exported = Console([*source_arguments, "--scope", "local-source", "--policy", str(policy_path),
+    policyPath = root / "source-policy.json"
+    policyPath.write_text(SerializeContract(sourcePolicy))
+    exported = Console([*sourceArguments, "--scope", "local-source", "--policy", str(policyPath),
         "--approve-local-image"], output, "export")
     assert exported["state"] == "completed" and exported["workspace_acknowledged"] is True and (
-        exported["image_config_id"] == expected_id
+        exported["image_config_id"] == expectedId
     ), "A genuine export must confirm authority, config and actual workspace persistence."
     if case["expected_selected_advisory_match"]:
-        missing_arguments = list(source_arguments)
-        missing_arguments[missing_arguments.index(reference)] = "owned-local-m2:missing-image"
-        missing_plan = Console([*missing_arguments, "--plan"], output, "missing-plan")
+        missingArguments = list(sourceArguments)
+        missingArguments[missingArguments.index(reference)] = "owned-local-m2:missing-image"
+        missingPlan = Console([*missingArguments, "--plan"], output, "missing-plan")
         Register(root, "missing-source", Target(TargetKind.ARTIFACT,
-                                                missing_plan["target"]["value"]))
-        missing = Console([*missing_arguments, "--scope", "missing-source", "--policy",
-            str(policy_path), "--approve-local-image"], output, "missing-image", expected=4)
+                                                missingPlan["target"]["value"]))
+        missing = Console([*missingArguments, "--scope", "missing-source", "--policy",
+            str(policyPath), "--approve-local-image"], output, "missing-image", expected=4)
         assert missing["state"] == "failed" and missing["archive_sha256"] is None, (
             "An absent local reference must refuse without pulling or accepting an archive."
         )
     archive = root / exported["archive_relative_path"]
     actual = archive.read_bytes()
     assert hashlib.sha256(actual).hexdigest() == exported["archive_sha256"] and (
-        ExportConfigDigest(actual) == expected_id and LocalModelStore(root).Open() == before_model
+        ExportConfigDigest(actual) == expectedId and LocalModelStore(root).Open() == beforeModel
     ), "Exported bytes and config must verify independently before any scan/model transition."
-    assert LocalScopeStore(root).Open("local-source").targets == (source_target,), (
+    assert LocalScopeStore(root).Open("local-source").targets == (sourceTarget,), (
         "Export permission must never silently register the resulting archive target."
     )
     manifest = {"schema_version": 1, "profile": "trivy.image-archive-offline.v1", "role": "input",
@@ -306,24 +306,24 @@ def test_InstalledLocalExportThenExplicitNativeScanPreservesConfigAndFinding(
         "The separately reviewed archive target must match independent canonical manifest bytes."
     )
     executable, cache, _, _ = runtime
-    selected_trivy = root / "selected-trivy"
-    shutil.copyfile(executable, selected_trivy)
-    selected_trivy.chmod(0o700)
+    selectedTrivy = root / "selected-trivy"
+    shutil.copyfile(executable, selectedTrivy)
+    selectedTrivy.chmod(0o700)
     shutil.copytree(cache, root / "trivy-cache")
-    scan_policy = root / "scan-policy.json"
-    scan_policy.write_text(SerializeContract(ImpactPolicy("local-archive", permissions=(
+    scanPolicy = root / "scan-policy.json"
+    scanPolicy.write_text(SerializeContract(ImpactPolicy("local-archive", permissions=(
         CapabilityPermission("image.archive-vulnerabilities", "native.trivy", ImpactLevel.SAFE),))))
-    scan_arguments = ["scan", "image", str(root), "--profile", "native", "--owner", OWNER,
+    scanArguments = ["scan", "image", str(root), "--profile", "native", "--owner", OWNER,
         "--archive", exported["archive_relative_path"], "--cache-directory", "trivy-cache",
-        "--executable", str(selected_trivy), "--read-consent-reference", "read:owned-export-scan",
-        "--expected-config-id", expected_id, "--policy", str(scan_policy)]
-    denied = Console([*scan_arguments, "--scope", "local-source", "--approve-safe-image"],
+        "--executable", str(selectedTrivy), "--read-consent-reference", "read:owned-export-scan",
+        "--expected-config-id", expectedId, "--policy", str(scanPolicy)]
+    denied = Console([*scanArguments, "--scope", "local-source", "--approve-safe-image"],
                      output, "scan-unregistered", expected=3)
-    assert denied["state"] == "failed" and LocalModelStore(root).Open() == before_model, (
+    assert denied["state"] == "failed" and LocalModelStore(root).Open() == beforeModel, (
         "An export receipt alone must never authorize scanning an unregistered archive target."
     )
     Register(root, "local-archive", target)
-    scanned = Console([*scan_arguments, "--scope", "local-archive", "--approve-safe-image"],
+    scanned = Console([*scanArguments, "--scope", "local-archive", "--approve-safe-image"],
                       output, "scan")
     assert scanned["state"] == "completed", (
         "The genuine separately approved native scan must complete."
@@ -331,7 +331,7 @@ def test_InstalledLocalExportThenExplicitNativeScanPreservesConfigAndFinding(
     store = LocalEvidenceStore(root / "evidence")
     records = tuple(store.Get(identity) for identity in scanned["retained_evidence_ids"])
     model, findings = CheckModel(root, case, records)
-    assert model.revision == before_model.revision + 1 and bool(findings) is (
+    assert model.revision == beforeModel.revision + 1 and bool(findings) is (
         case["expected_selected_advisory_match"]
     ), "The original selected advisory boundary must survive local export without a ranking claim."
     Console(["workspace", "open", str(root)], output, "reopen")
@@ -345,7 +345,7 @@ def test_InstalledLocalExportThenExplicitNativeScanPreservesConfigAndFinding(
         "The actual artifact must reopen the same saved model without selected tools or caches."
     )
     (output / "result.json").write_bytes(Canonical({"case_id": case["case_id"],
-        "outcome": "selected-two-phase-assertions-passed", "config_id": expected_id,
+        "outcome": "selected-two-phase-assertions-passed", "config_id": expectedId,
         "archive_sha256": exported["archive_sha256"], "model_revision": model.revision,
         "selected_advisory_match": bool(findings), "scan_completeness": "not-assessed",
         "saved_workspace_files": inventory}))

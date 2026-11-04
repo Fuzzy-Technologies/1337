@@ -45,30 +45,30 @@ def test_ActualSourcePreviewAndTypedRequestsSurviveModelEvidenceReplayAndRelocat
 
     root = tmp_path / "workspace"
     LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned GraphQL"), "graphql-model")
-    model_store = LocalModelStore(root)
-    initial = model_store.Create()
+    modelStore = LocalModelStore(root)
+    initial = modelStore.Create()
     source = FIXTURE.read_bytes()
     imported = ImportGraphQl(source, workspace_id=initial.workspace_id, endpoint_url=ENDPOINT)
     operation = next(item for item in imported.operations if item.field_name == field_name)
     preview = GenerateGraphQlRequest(source, operation.Reference(),
                                     workspace_id=initial.workspace_id, endpoint_url=ENDPOINT)
-    evidence_store = LocalEvidenceStore(root / "evidence")
-    evidence_provenance = EvidenceProvenance(initial.workspace_id, "scope:owned",
+    evidenceStore = LocalEvidenceStore(root / "evidence")
+    evidenceProvenance = EvidenceProvenance(initial.workspace_id, "scope:owned",
         "graphql-import", "1", None, "2026-10-13T00:00:00Z", "2026-10-13T00:00:01Z")
-    source_record = evidence_store.Put(source, "graphql-introspection", "application/json",
-                                       evidence_provenance)
+    sourceRecord = evidenceStore.Put(source, "graphql-introspection", "application/json",
+                                       evidenceProvenance)
     metadata = CanonicalModelJson(preview.Metadata())
-    metadata_record = evidence_store.Put(metadata, "graphql-preview-metadata", "application/json",
-                                         evidence_provenance)
-    assert imported.source_digest == "sha256:" + source_record.reference.sha256, (
+    metadataRecord = evidenceStore.Put(metadata, "graphql-preview-metadata", "application/json",
+                                         evidenceProvenance)
+    assert imported.source_digest == "sha256:" + sourceRecord.reference.sha256, (
         "Actual source evidence does not bind the importer to its original description bytes"
     )
     provenance = ModelProvenance("graphql-import", "run:owned", "2026-10-13T00:00:01Z",
         "scope:owned", preview.target.Reference(), "1",
-        (source_record.reference, metadata_record.reference))
+        (sourceRecord.reference, metadataRecord.reference))
     patch = ProjectGraphQl(imported, provenance=(provenance,))
     changed, _ = initial.Apply(objects=(patch,))
-    saved = model_store.Save(changed, expected_revision=initial.revision)
+    saved = modelStore.Save(changed, expected_revision=initial.revision)
     templates = [item for entity in saved.objects for item in RequestsFromObject(entity)]
     assert operation.template in templates, "Actual GraphQL template failed model round trip"
     assert len(templates) == 5, "Projection lost another typed query/mutation/subscription template"
@@ -78,34 +78,34 @@ def test_ActualSourcePreviewAndTypedRequestsSurviveModelEvidenceReplayAndRelocat
     assert preview.body not in stored + metadata, "Concrete synthetic request bytes were persisted"
     assert b"synthetic-private-default" not in stored + metadata, "Original default literal leaked"
     assert not Findings(saved), "Structural import manufactured security findings"
-    assert evidence_store.Read(source_record.reference) == source, "Original bytes were rewritten"
-    assert evidence_store.Read(metadata_record.reference) == metadata, "Reference evidence changed"
-    persisted_metadata = next(entity for entity in saved.objects
+    assert evidenceStore.Read(sourceRecord.reference) == source, "Original bytes were rewritten"
+    assert evidenceStore.Read(metadataRecord.reference) == metadata, "Reference evidence changed"
+    persistedMetadata = next(entity for entity in saved.objects
                               if "graphql_import" in entity.attributes).attributes["graphql_import"]
-    assert json.loads(CanonicalModelJson(persisted_metadata)) == imported.ToDict(), (
+    assert json.loads(CanonicalModelJson(persistedMetadata)) == imported.ToDict(), (
         "Typed input/operation source metadata changed in actual immutable model attributes"
     )
-    before = model_store.Open()
+    before = modelStore.Open()
     assert GenerateGraphQlRequest(
-        evidence_store.Read(source_record.reference), operation.Reference(),
+        evidenceStore.Read(sourceRecord.reference), operation.Reference(),
         workspace_id=initial.workspace_id, endpoint_url=ENDPOINT,
     ) == preview, (
         "Actual evidence replay changed deterministic synthetic encoding"
     )
-    assert model_store.Open() == before, "Pure preview preparation mutated actual model state"
+    assert modelStore.Open() == before, "Pure preview preparation mutated actual model state"
     moved = tmp_path / "relocated"
     root.rename(moved)
     reopened = LocalModelStore(moved).Open()
-    replay_store = LocalEvidenceStore(moved / "evidence")
-    replayed = ImportGraphQl(replay_store.Read(source_record.reference),
+    replayStore = LocalEvidenceStore(moved / "evidence")
+    replayed = ImportGraphQl(replayStore.Read(sourceRecord.reference),
                              workspace_id=reopened.workspace_id, endpoint_url=ENDPOINT)
     assert reopened == saved, "Persistence depends on its previous physical workspace path"
     assert replayed == imported, "Raw evidence replay changed exact source-bound typed operations"
-    assert replay_store.Read(metadata_record.reference) == metadata, (
+    assert replayStore.Read(metadataRecord.reference) == metadata, (
         "Actual relocated reference evidence failed replay"
     )
     assert GenerateGraphQlRequest(
-        replay_store.Read(source_record.reference), operation.Reference(),
+        replayStore.Read(sourceRecord.reference), operation.Reference(),
         workspace_id=reopened.workspace_id, endpoint_url=ENDPOINT,
     ) == preview, (
         "Actual relocated source replay changed the synthetic preview"
@@ -124,10 +124,10 @@ def test_PreviewStillRequiresCurrentExactEndpointWorkspaceAndConsent(tmp_path, f
     scope = ScopeSnapshot("owned", "graphql-scope", ScopeAuthorization(
         AuthorizationState.GRANTED, "operator:owned", "consent:owned",
     ))
-    scope_store = LocalScopeStore(root)
-    scope_store.Create(scope)
-    scope_before = (root / "state/scopes/owned.json").read_bytes()
-    workspace_before = (root / "workspace.json").read_bytes()
+    scopeStore = LocalScopeStore(root)
+    scopeStore.Create(scope)
+    scopeBefore = (root / "state/scopes/owned.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     preview = GenerateGraphQlRequest(source, operation.Reference(),
                                     workspace_id="graphql-scope", endpoint_url=ENDPOINT)
 
@@ -159,5 +159,5 @@ def test_PreviewStillRequiresCurrentExactEndpointWorkspaceAndConsent(tmp_path, f
     with pytest.raises(ValueError):
         CheckGraphQlTarget(operation, preview.target, permitted, at=datetime(2026, 10, 13))
 
-    assert (root / "state/scopes/owned.json").read_bytes() == scope_before, "Preview changed scope"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "Preview changed workspace"
+    assert (root / "state/scopes/owned.json").read_bytes() == scopeBefore, "Preview changed scope"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "Preview changed workspace"

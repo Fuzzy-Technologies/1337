@@ -59,13 +59,13 @@ def test_RealGovernedConfigurationMatchesIndependentOracleAndDurableRaw(tmp_path
         "Actual worker detections and coordinates must match the unchanged independent oracle"
     )
     selected = stage.input.manifest.files[0]
-    document_count = None if case_id.startswith("dockerfile.") else (
+    documentCount = None if case_id.startswith("dockerfile.") else (
         2 if case_id == "kubernetes.second-document" else 1
     )
     assert wire["file_outcomes"] == [{
         "logical_path": selected.name, "sha256": selected.sha256, "size_bytes": selected.size_bytes,
         "configuration_type": "dockerfile" if case_id.startswith("dockerfile.") else "kubernetes",
-        "document_count": document_count, "outcome": "processed",
+        "document_count": documentCount, "outcome": "processed",
     }], "A processed outcome must retain the actual selected source byte identity"
     assert wire["provider_id"] == "synthetic.trivy" and (
         wire["profile_id"] == stage.input.manifest.profile.value
@@ -81,8 +81,8 @@ def test_RealGovernedConfigurationMatchesIndependentOracleAndDurableRaw(tmp_path
         grant.plan.invocation_sha256, result.execution,
     )
     store = LocalEvidenceStore(workspace / "evidence")
-    records = tuple(store.Put(payload, role, media_type, provenance)
-        for payload, role, media_type in (
+    records = tuple(store.Put(payload, role, mediaType, provenance)
+        for payload, role, mediaType in (
             (result.stdout, "stdout", "application/json"),
             (result.stderr, "stderr", "text/plain"),
             (SerializeContract(outcome.Metadata()).encode(), "artifact-scan-receipt",
@@ -113,11 +113,11 @@ def test_ConfigurationDriftDeniesBeforeActualProcessLaunch(tmp_path, monkeypatch
     grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=AT)
 
     if change in {"source", "producer", "policy"}:
-        file_path = {"source": stage.input.directory / "Dockerfile",
+        filePath = {"source": stage.input.directory / "Dockerfile",
                      "producer": stage.scanner.directory / "producer.py",
                      "policy": stage.material.directory / "policy.json"}[change]
-        file_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        file_path.write_bytes(file_path.read_bytes() + b"\n")
+        filePath.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        filePath.write_bytes(filePath.read_bytes() + b"\n")
 
     elif change.startswith("extra-"):
         directory = stage.input.directory if change == "extra-input" else stage.material.directory
@@ -182,13 +182,13 @@ def test_ConfigurationPostRunAuthorityRefusalRetainsActualRaw(tmp_path, change):
         if change == "policy":
             return replace(context, policy=replace(context.policy, permissions=()))
 
-        current_scope = LocalScopeStore(workspace).Open(context.scope.scope_id)
+        currentScope = LocalScopeStore(workspace).Open(context.scope.scope_id)
 
-        if current_scope.authorization.state is AuthorizationState.REVOKED:
-            return replace(context, scope=current_scope)
+        if currentScope.authorization.state is AuthorizationState.REVOKED:
+            return replace(context, scope=currentScope)
 
         scope = LocalScopeStore(workspace).Save(replace(
-            current_scope, authorization=replace(
+            currentScope, authorization=replace(
                 context.scope.authorization, state=AuthorizationState.REVOKED,
             ),
         ))
@@ -278,18 +278,18 @@ def test_ConfigurationRejectsActualImageProofAndVersionBeforeMaterialIo(tmp_path
     from fuzzy1337.artifact_inputs import ArtifactOperation, ArtifactStage
     from fuzzy1337.artifact_policy import ArtifactVersionProof
 
-    image_root = tmp_path / "image"
-    image_root.mkdir()
-    image_workspace, image_stage, image_prepared, image_context, image_grant = OwnedImageArtifact(
-        image_root,
+    imageRoot = tmp_path / "image"
+    imageRoot.mkdir()
+    imageWorkspace, imageStage, imagePrepared, imageContext, imageGrant = OwnedImageArtifact(
+        imageRoot,
     )
-    image_outcome = asyncio.run(GovernedArtifactExecutor(image_workspace, clock=lambda: AT).Execute(
-        image_prepared, image_stage, image_grant, lambda: image_context,
+    imageOutcome = asyncio.run(GovernedArtifactExecutor(imageWorkspace, clock=lambda: AT).Execute(
+        imagePrepared, imageStage, imageGrant, lambda: imageContext,
     ))
-    proof = ArtifactVersionProof(image_outcome, image_prepared, image_stage)
-    config_root = tmp_path / "configuration"
-    config_root.mkdir()
-    workspace, stage, _ = OwnedConfiguration(config_root)
+    proof = ArtifactVersionProof(imageOutcome, imagePrepared, imageStage)
+    configRoot = tmp_path / "configuration"
+    configRoot.mkdir()
+    workspace, stage, _ = OwnedConfiguration(configRoot)
 
     def Forbidden(*_args, **_kwargs):
         """Trip material verification after a forbidden operation or extraneous proof."""
@@ -346,20 +346,20 @@ def test_RehashedConfigurationReplayStillEnforcesOriginalFamilyAndBounds(tmp_pat
     else:
         stderr = b"a" * 16385
 
-    input_manifest, scanner_manifest, material_manifest = (
+    inputManifest, scannerManifest, materialManifest = (
         ArtifactManifest.FromDict(item) for item in metadata["manifests"]
     )
-    plan["input_manifest_sha256"] = input_manifest.Digest()
-    plan["scanner_manifest_sha256"] = scanner_manifest.Digest()
-    plan["material_manifest_sha256"] = material_manifest.Digest()
-    plan["target_reference"] = input_manifest.Target().Reference()
+    plan["input_manifest_sha256"] = inputManifest.Digest()
+    plan["scanner_manifest_sha256"] = scannerManifest.Digest()
+    plan["material_manifest_sha256"] = materialManifest.Digest()
+    plan["target_reference"] = inputManifest.Target().Reference()
     plan["intent_sha256"] = Digest({key: value for key, value in plan.items()
                                      if key != "intent_sha256"})
-    authorization_id = "artifact-authorization:" + Digest((
+    authorizationId = "artifact-authorization:" + Digest((
         plan, metadata["grant"]["issued_at"], metadata["grant"]["valid_until"],
     ))
-    metadata["grant"]["authorization"]["authorization_id"] = authorization_id
-    metadata["acceptance"]["grant_id"] = authorization_id
+    metadata["grant"]["authorization"]["authorization_id"] = authorizationId
+    metadata["acceptance"]["grant_id"] = authorizationId
     facts = metadata["raw_facts"]
     facts["stdout_sha256"] = hashlib.sha256(stdout).hexdigest()
     facts["stdout_bytes"] = len(stdout)

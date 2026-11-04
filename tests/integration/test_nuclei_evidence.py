@@ -44,18 +44,18 @@ def test_PreparedOwnedProducerExecutionEvidenceAndNormalization(tmp_path):
                           + (fixtures / "synthetic_nuclei.py").read_text(encoding="utf-8"),
                           encoding="utf-8")
     executable.chmod(0o700)
-    template_path = root / "reviewed-get.yaml"
-    raw_template = (fixtures / "reviewed-get.yaml").read_bytes()
-    template_path.write_bytes(raw_template)
-    configuration_path = root / "nuclei-empty.yaml"
-    configuration_path.write_bytes(b"{}\n")
-    template = NucleiTemplate("owned-http-marker", str(template_path),
-        hashlib.sha256(raw_template).hexdigest(), len(raw_template), "fixture:owned-nuclei", "1",
+    templatePath = root / "reviewed-get.yaml"
+    rawTemplate = (fixtures / "reviewed-get.yaml").read_bytes()
+    templatePath.write_bytes(rawTemplate)
+    configurationPath = root / "nuclei-empty.yaml"
+    configurationPath.write_bytes(b"{}\n")
+    template = NucleiTemplate("owned-http-marker", str(templatePath),
+        hashlib.sha256(rawTemplate).hexdigest(), len(rawTemplate), "fixture:owned-nuclei", "1",
         "review:exact-source-controlled-synthetic", "single-get-exact-url")
-    profile = NucleiProfile("owned-synthetic", (template,), str(configuration_path))
-    evidence_root = root / "evidence"
-    evidence_root.mkdir()
-    store = LocalEvidenceStore(evidence_root)
+    profile = NucleiProfile("owned-synthetic", (template,), str(configurationPath))
+    evidenceRoot = root / "evidence"
+    evidenceRoot.mkdir()
+    store = LocalEvidenceStore(evidenceRoot)
     adapter = NucleiAdapter(store.Read, profile, str(executable), "3.4.10-synthetic")
     health = adapter.CheckHealth()
 
@@ -69,20 +69,20 @@ def test_PreparedOwnedProducerExecutionEvidenceAndNormalization(tmp_path):
     digest = InvocationDigest(invocation)
     authorization = ExecutionAuthorization("authorization:owned", "scope:owned-synthetic",
                                            "policy:owned-fixture-only", digest)
-    execution_request = LocalExecutionRequest(invocation,
+    executionRequest = LocalExecutionRequest(invocation,
         CapabilityDescriptors(adapter.Descriptor)[0], authorization)
     executor = LocalExecutor(root)
 
     with pytest.raises(ValueError, match="authorization"):
-        asyncio.run(executor.Execute(replace(execution_request,
+        asyncio.run(executor.Execute(replace(executionRequest,
             authorization=replace(authorization, invocation_sha256="0" * 64))))
 
-    started_at = datetime.now(timezone.utc).isoformat()
-    captured = asyncio.run(executor.Execute(execution_request))
-    finished_at = datetime.now(timezone.utc).isoformat()
+    startedAt = datetime.now(timezone.utc).isoformat()
+    captured = asyncio.run(executor.Execute(executionRequest))
+    finishedAt = datetime.now(timezone.utc).isoformat()
     provenance = EvidenceProvenance("workspace:owned", authorization.scope_reference,
         adapter.Descriptor.adapter_id, adapter.Descriptor.version, health.provider_version,
-        started_at, finished_at, digest, captured.execution)
+        startedAt, finishedAt, digest, captured.execution)
     stdout = store.Put(captured.stdout, "stdout", "application/x-ndjson", provenance)
     stderr = store.Put(captured.stderr, "stderr", "text/plain", provenance)
     report = AdapterReport(invocation, captured.execution, (stdout.reference, stderr.reference))

@@ -221,16 +221,16 @@ def ExtraFacts(payload: bytes) -> list[dict]:
         if position + 4 > len(payload):
             raise ValueError("truncated ZIP extra-field header")
 
-        field_id, length = struct.unpack_from("<HH", payload, position)
+        fieldId, length = struct.unpack_from("<HH", payload, position)
         position += 4
 
-        if field_id == 1 or field_id in seen or position + length > len(payload) or (
+        if fieldId == 1 or fieldId in seen or position + length > len(payload) or (
             len(result) >= 8
         ):
             raise ValueError("ZIP64, duplicate, malformed or excessive extra metadata")
 
-        seen.add(field_id)
-        result.append({"id": field_id, "id_hex": f"{field_id:04x}", "length": length,
+        seen.add(fieldId)
+        result.append({"id": fieldId, "id_hex": f"{fieldId:04x}", "length": length,
                        "data_hex": payload[position:position + length].hex()})
         position += length
 
@@ -248,30 +248,30 @@ def ArchiveFacts(payload: bytes, member: str) -> tuple[dict, int, int]:
     if end[0] != b"PK\x05\x06" or end[1:5] != (0, 0, 1, 1) or end[-1] != 0:
         raise ValueError("ZIP requires final comment-free single-disk single-entry EOCD")
 
-    central_size, central_offset = end[5:7]
+    centralSize, centralOffset = end[5:7]
 
-    if central_size > 16384 or central_offset + central_size != len(payload) - 22:
+    if centralSize > 16384 or centralOffset + centralSize != len(payload) - 22:
         raise ValueError("central directory is oversized or not adjacent to EOCD")
 
-    central = struct.unpack_from("<4s6H3I5H2I", payload, central_offset)
+    central = struct.unpack_from("<4s6H3I5H2I", payload, centralOffset)
     local = struct.unpack_from("<4s5H3I2H", payload, 0)
 
     if central[0] != b"PK\x01\x02" or local[0] != b"PK\x03\x04":
         raise ValueError("ZIP local or central signature mismatch")
 
-    name_length, extra_length, comment_length = central[10:13]
-    local_name_length, local_extra_length = local[9:11]
-    central_name_start = central_offset + 46
-    local_name = payload[30:30 + local_name_length]
-    central_name = payload[central_name_start:central_name_start + name_length]
-    compressed_start = 30 + local_name_length + local_extra_length
-    compressed_end = compressed_start + central[8]
+    nameLength, extraLength, commentLength = central[10:13]
+    localNameLength, localExtraLength = local[9:11]
+    centralNameStart = centralOffset + 46
+    localName = payload[30:30 + localNameLength]
+    centralName = payload[centralNameStart:centralNameStart + nameLength]
+    compressedStart = 30 + localNameLength + localExtraLength
+    compressedEnd = compressedStart + central[8]
     expected = member.encode("ascii")
 
-    if local_name != expected or central_name != expected or central[16] != 0 or (
-        comment_length != 0 or central[13] != 0
-        or 46 + name_length + extra_length != central_size
-        or compressed_end != central_offset or compressed_start > compressed_end
+    if localName != expected or centralName != expected or central[16] != 0 or (
+        commentLength != 0 or central[13] != 0
+        or 46 + nameLength + extraLength != centralSize
+        or compressedEnd != centralOffset or compressedStart > compressedEnd
     ):
         raise ValueError("ZIP filename, offset, count or exact frame adjacency mismatch")
 
@@ -280,32 +280,32 @@ def ArchiveFacts(payload: bytes, member: str) -> tuple[dict, int, int]:
     ):
         raise ValueError("ZIP local/central versions, flags, method, CRC or sizes disagree")
 
-    local_extra = payload[30 + local_name_length:compressed_start]
-    central_extra_start = central_name_start + name_length
-    central_extra = payload[central_extra_start:central_extra_start + extra_length]
-    creator_host = central[1] >> 8
-    unix_mode = central[15] >> 16
+    localExtra = payload[30 + localNameLength:compressedStart]
+    centralExtraStart = centralNameStart + nameLength
+    centralExtra = payload[centralExtraStart:centralExtraStart + extraLength]
+    creatorHost = central[1] >> 8
+    unixMode = central[15] >> 16
     violations = []
 
     if local[1] != 20:
         violations.append("proposed extraction version 20 differs from original")
 
-    if creator_host != 3 or unix_mode & 0o170000 != 0o100000 or central[15] & 0x10:
+    if creatorHost != 3 or unixMode & 0o170000 != 0o100000 or central[15] & 0x10:
         violations.append("proposed Unix creator/regular-file type policy differs from original")
 
     return {"member_name": member, "original_size": len(payload),
             "original_sha256": hashlib.sha256(payload).hexdigest(),
             "local_extract_version": local[1], "central_extract_version": central[2],
-            "creator_host": creator_host, "creator_version": central[1] & 255,
+            "creator_host": creatorHost, "creator_version": central[1] & 255,
             "flags": central[3], "method": central[4], "declared_crc32": f"{central[7]:08x}",
             "compressed_size": central[8], "declared_decoded_size": central[9],
-            "central_directory_size": central_size, "central_directory_offset": central_offset,
-            "local_extra_bytes": len(local_extra), "central_extra_bytes": len(central_extra),
-            "local_extras": ExtraFacts(local_extra), "central_extras": ExtraFacts(central_extra),
-            "external_attributes": central[15], "unix_mode_octal": oct(unix_mode),
+            "central_directory_size": centralSize, "central_directory_offset": centralOffset,
+            "local_extra_bytes": len(localExtra), "central_extra_bytes": len(centralExtra),
+            "local_extras": ExtraFacts(localExtra), "central_extras": ExtraFacts(centralExtra),
+            "external_attributes": central[15], "unix_mode_octal": oct(unixMode),
             "internal_attributes": central[14], "local_header_offset": central[16],
-            "frame_complete": True, "policy_violations": violations}, compressed_start, (
-                compressed_end
+            "frame_complete": True, "policy_violations": violations}, compressedStart, (
+                compressedEnd
             )
 
 
@@ -727,7 +727,7 @@ def DecodeFacts(payload: bytes, start: int, end: int, collector: XmlMeasurements
     decoded = 0
     xml_error = None
     notice_tail = b""
-    notice_hits = {name: [] for name in ("copyright", "mitre", "license", "termsofuse.html")}
+    noticeHits = {name: [] for name in ("copyright", "mitre", "license", "termsofuse.html")}
 
     def Emit(chunk: bytes) -> None:
         """Account for bounded output before any diagnostic XML interpretation."""
@@ -737,7 +737,7 @@ def DecodeFacts(payload: bytes, start: int, end: int, collector: XmlMeasurements
         lower = window.lower()
         base = decoded - len(notice_tail)
 
-        for word, hits in notice_hits.items():
+        for word, hits in noticeHits.items():
             position = lower.find(word.encode("ascii"))
 
             while position >= 0 and len(hits) < 16:
@@ -792,7 +792,7 @@ def DecodeFacts(payload: bytes, start: int, end: int, collector: XmlMeasurements
               "actual_crc32": f"{crc:08x}", "deflate_eof": True, "unused_data_bytes": 0,
               "max_compressed_input_chunk": CHUNK_BYTES, "max_output_chunk": CHUNK_BYTES,
               "flush_calls": 0, "xml_error": xml_error,
-              "original_xml_notice_keyword_offsets": notice_hits,
+              "original_xml_notice_keyword_offsets": noticeHits,
               "notice_keyword_presence_is_not_legal_coverage": True}
 
     if xml_error is None:

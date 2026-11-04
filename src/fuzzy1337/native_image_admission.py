@@ -243,7 +243,7 @@ def Request(value: object, selection: dict[str, Any], operation: str,
     capability["maximum_impact"] = ImpactLevel(capability["maximum_impact"])
     resources = ExecutionResources(**Fields(payload["resources"], {
         "max_stdout_bytes", "max_stderr_bytes", "terminate_grace_seconds"}))
-    expected_resources = ExecutionResources(max_stdout_bytes=16 * 1024,
+    expectedResources = ExecutionResources(max_stdout_bytes=16 * 1024,
         max_stderr_bytes=16 * 1024) if operation == "version" else (
             ExecutionResources(max_stdout_bytes=4 * 1024 * 1024, max_stderr_bytes=1024 * 1024))
     scratch = payload["workspace"]
@@ -251,12 +251,12 @@ def Request(value: object, selection: dict[str, Any], operation: str,
     if not isinstance(scratch, str) or not re.fullmatch(r"native-image-[A-Za-z0-9_-]+", scratch):
         raise ValueError("native receipt requires its original single-operation scratch")
 
-    scratch_path = str(root / scratch)
-    environment = {key: scratch_path for key in
+    scratchPath = str(root / scratch)
+    environment = {key: scratchPath for key in
                    ("HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "TMPDIR", "TEMP", "TMP")}
     environment.update({"PATH": "", "PATHEXT": "", "LANG": "C", "LC_ALL": "C"})
 
-    if resources != expected_resources or payload["environment"] != environment:
+    if resources != expectedResources or payload["environment"] != environment:
         raise ValueError("native receipt differs from original finite execution resources")
 
     return LocalExecutionRequest(expected, CapabilityDescriptor(**capability),
@@ -372,25 +372,25 @@ def VerifyOperation(records: dict[str, EvidenceRecord], raw: dict[str, bytes],
 
     outcome = LocalExecutionResult(execution, ExecutionTermination(envelope["termination"]),
         raw[roles[0]], raw[roles[1]], tuple(events))
-    pre_cancelled = (len(events) == 1 and execution.state is ExecutionState.CANCELLED
+    preCancelled = (len(events) == 1 and execution.state is ExecutionState.CANCELLED
         and outcome.termination is ExecutionTermination.CANCELLATION
         and execution.exit_code is None and not outcome.stdout and not outcome.stderr)
 
-    if not pre_cancelled and (
+    if not preCancelled and (
         events[0].kind is not ExecutionEventKind.STARTED or len(events) < 2
         or any(event.kind not in {ExecutionEventKind.STDOUT, ExecutionEventKind.STDERR}
                for event in events[1:-1])
     ):
         raise ValueError("native receipt lifecycle differs from original owned executor history")
 
-    allowed_states = {
+    allowedStates = {
         ExecutionTermination.PROCESS_EXIT: {ExecutionState.SUCCEEDED, ExecutionState.FAILED},
         ExecutionTermination.TIMEOUT: {ExecutionState.TIMED_OUT},
         ExecutionTermination.CANCELLATION: {ExecutionState.CANCELLED},
         ExecutionTermination.OUTPUT_LIMIT: {ExecutionState.CANCELLED},
     }
 
-    if execution.state not in allowed_states[outcome.termination]:
+    if execution.state not in allowedStates[outcome.termination]:
         raise ValueError("native receipt termination contradicts original executor state")
 
     for role, kind in zip(roles[:2], (ExecutionEventKind.STDOUT, ExecutionEventKind.STDERR),
@@ -438,23 +438,23 @@ def VerifyRecords(records: tuple[EvidenceRecord, ...], workspace_root: Path
     ):
         raise ValueError("native admission requires six original typed evidence records")
 
-    by_role = {record.reference.role: record for record in records}
+    byRole = {record.reference.role: record for record in records}
 
-    if set(by_role) != set(_ROLE_LIMITS):
+    if set(byRole) != set(_ROLE_LIMITS):
         raise ValueError("native admission requires its exact six distinct original roles")
 
     for record in records:
         CheckReference(record.reference)
 
     workspace = LocalWorkspaceStore(workspace_root)
-    workspace_id = workspace.Open().workspace_id
+    workspaceId = workspace.Open().workspace_id
     store = NativeEvidenceStore(workspace.root / "evidence")
     raw = {}
 
-    for role, record in by_role.items():
+    for role, record in byRole.items():
         store.Read(record.reference)
 
-        if record.provenance.workspace_id != workspace_id or (
+        if record.provenance.workspace_id != workspaceId or (
             store.Get(record.evidence_id) != record
         ):
             raise ValueError("native source differs from its original owning manifest")
@@ -462,17 +462,17 @@ def VerifyRecords(records: tuple[EvidenceRecord, ...], workspace_root: Path
         raw[role] = store.Read(record.reference)
 
     try:
-        version = VerifyOperation(by_role, raw, "version")
-        scan = VerifyOperation(by_role, raw, "scan")
-        version_envelope, scan_envelope = version.envelope, scan.envelope
-        same_fields = ("selection", "workspace_id", "owner_reference", "read_consent",
+        version = VerifyOperation(byRole, raw, "version")
+        scan = VerifyOperation(byRole, raw, "scan")
+        versionEnvelope, scanEnvelope = version.envelope, scan.envelope
+        sameFields = ("selection", "workspace_id", "owner_reference", "read_consent",
                        "material_before", "observed_version")
 
-        if version_envelope["refusal"] is not None or any(
-            version_envelope[name] != scan_envelope[name] for name in same_fields
-        ) or version_envelope["version_prerequisite_sha256"] is not None or (
-            scan_envelope["version_prerequisite_sha256"] != version.receipt_sha256
-            or version_envelope["finished_at"] > scan_envelope["started_at"]
+        if versionEnvelope["refusal"] is not None or any(
+            versionEnvelope[name] != scanEnvelope[name] for name in sameFields
+        ) or versionEnvelope["version_prerequisite_sha256"] is not None or (
+            scanEnvelope["version_prerequisite_sha256"] != version.receipt_sha256
+            or versionEnvelope["finished_at"] > scanEnvelope["started_at"]
             or version.request.invocation.request.target_reference != (
                 scan.request.invocation.request.target_reference)
             or version.request.workspace == scan.request.workspace
@@ -488,23 +488,23 @@ def VerifyRecords(records: tuple[EvidenceRecord, ...], workspace_root: Path
         wire = ParseJson(raw["provider-version"], 16 * 1024)
         database = Record(wire.get("VulnerabilityDB"))
 
-        if wire.get("Version") != version_envelope["observed_version"] or (
+        if wire.get("Version") != versionEnvelope["observed_version"] or (
             type(database.get("Version")) is not int or database["Version"] != 2
         ):
             raise ValueError("native pair differs from its original observed version/database")
 
         NormalizeEvidenceTime(Text(database.get("UpdatedAt")))
         provenance = ModelProvenance("native.trivy", "native-scan:" + scan.receipt_sha256,
-            scan_envelope["finished_at"], scan.request.authorization.scope_reference,
-            scan.request.invocation.request.target_reference, scan_envelope["observed_version"],
+            scanEnvelope["finished_at"], scan.request.authorization.scope_reference,
+            scan.request.invocation.request.target_reference, scanEnvelope["observed_version"],
             tuple(record.reference for record in records), scan.outcome.execution)
 
     except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
         raise ValueError("native original receipt or pair facts are inconsistent") from None
 
-    replay = NativeImageReplay(workspace_id, scan_envelope["owner_reference"], version.request,
+    replay = NativeImageReplay(workspaceId, scanEnvelope["owner_reference"], version.request,
         scan.request, version.outcome.execution, scan.outcome.execution, scan.outcome.termination,
-        scan_envelope["refusal"], version.receipt_sha256, provenance,
+        scanEnvelope["refusal"], version.receipt_sha256, provenance,
         tuple(sorted(records, key=lambda record: record.reference.role)))
 
     return replay, version, scan
@@ -568,10 +568,10 @@ def ApplyVerifiedNativeTrivyImages(state: ModelState, version: NativeTrivyOperat
     ):
         raise ValueError("native admission expected image must be an exact config identity")
 
-    facts, original_version, original_scan = VerifyRecords((*version.records, *scan.records),
+    facts, originalVersion, originalScan = VerifyRecords((*version.records, *scan.records),
                                                           workspace_root)
 
-    for capture, original in ((version, original_version), (scan, original_scan)):
+    for capture, original in ((version, originalVersion), (scan, originalScan)):
         if capture.Envelope() != original.envelope or capture.request != original.request or (
             capture.outcome != original.outcome
         ):

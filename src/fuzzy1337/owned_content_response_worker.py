@@ -111,14 +111,14 @@ def Probe(url: str) -> dict[str, object]:
         if extra:
             raise ContentResponsePolicyError("protocol")
 
-    original_body = bytes(body)
-    AdmitBody(original_body, length)
-    response = headers + original_body
+    originalBody = bytes(body)
+    AdmitBody(originalBody, length)
+    response = headers + originalBody
 
     return {"schema_version": 1, "profile": OWNED_CONTENT_RESPONSE_PROFILE, "outcome": "captured",
         "url": url, "address": address, "port": port, "media_type": media,
         "request": BytePart(request), "response_headers": BytePart(headers),
-        "response_body": BytePart(original_body),
+        "response_body": BytePart(originalBody),
         "response": {"size_bytes": len(response), "sha256": hashlib.sha256(response).hexdigest()}}
 
 

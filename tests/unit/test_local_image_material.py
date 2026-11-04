@@ -50,18 +50,18 @@ def SelectedMaterial(tmp_path, monkeypatch, request):
     if projected:
         from fuzzy1337 import local_image_policy, local_image_workflow, native_image_policy
 
-        selected_os = SimpleNamespace(**vars(os))
-        selected_os.O_NOFOLLOW = 0
-        selected_os.O_DIRECTORY = 0
-        selected_os.fchmod = lambda descriptor, mode: None
-        selected_stat = SimpleNamespace(**vars(stat))
-        selected_stat.S_IMODE = lambda mode: 0o700 if stat.S_ISDIR(mode) else 0o600
-        monkeypatch.setattr(native_image_policy, "os", selected_os)
-        monkeypatch.setattr(local_image_workflow, "os", selected_os)
-        monkeypatch.setattr(native_image_policy, "stat", selected_stat)
-        monkeypatch.setattr(local_image_policy, "stat", selected_stat)
+        selectedOs = SimpleNamespace(**vars(os))
+        selectedOs.O_NOFOLLOW = 0
+        selectedOs.O_DIRECTORY = 0
+        selectedOs.fchmod = lambda descriptor, mode: None
+        selectedStat = SimpleNamespace(**vars(stat))
+        selectedStat.S_IMODE = lambda mode: 0o700 if stat.S_ISDIR(mode) else 0o600
+        monkeypatch.setattr(native_image_policy, "os", selectedOs)
+        monkeypatch.setattr(local_image_workflow, "os", selectedOs)
+        monkeypatch.setattr(native_image_policy, "stat", selectedStat)
+        monkeypatch.setattr(local_image_policy, "stat", selectedStat)
         monkeypatch.setattr(native_image_policy, "SyncDirectory", lambda path: None)
-        original_chmod = Path.chmod
+        originalChmod = Path.chmod
 
         def Chmod(path, mode, *, follow_symlinks=True):
             """Project only selected executable permission semantics while retaining real bytes."""
@@ -69,7 +69,7 @@ def SelectedMaterial(tmp_path, monkeypatch, request):
             if path == executable:
                 permissions["executable"] = mode
 
-            return original_chmod(path, mode, follow_symlinks=follow_symlinks)
+            return originalChmod(path, mode, follow_symlinks=follow_symlinks)
 
         monkeypatch.setattr(Path, "chmod", Chmod)
 

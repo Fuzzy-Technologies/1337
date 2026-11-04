@@ -212,14 +212,14 @@ def test_OwningStorePublicationFaultPreservesOnlyReturnedHandles(
     monkeypatch.setattr(remote, "ReceiveIsolatedHttps",
                         lambda *args, **kwargs: (raw, "succeeded", 200))
     original = LocalEvidenceStore.Put
-    failed_writes = []
+    failedWrites = []
 
     def Put(store, payload, record_role, media_type, provenance):
         """Refuse acknowledgement at one owning-store stage."""
 
         if record_role == role:
             if committed:
-                failed_writes.append(original(store, payload, record_role, media_type, provenance))
+                failedWrites.append(original(store, payload, record_role, media_type, provenance))
 
             raise EvidenceError("Owned publication failure")
 
@@ -234,7 +234,7 @@ def test_OwningStorePublicationFaultPreservesOnlyReturnedHandles(
     assert tuple(outcome[key] is not None for key in ("raw_id", "selection_id", "receipt_id")) == (
         tuple(ack == "confirmed" for ack in acks)
     ), "CLI exposed an unreturned handle or lost a returned one"
-    assert bool(failed_writes) is committed, "The fault seam did not exercise its intended timing"
+    assert bool(failedWrites) is committed, "The fault seam did not exercise its intended timing"
     RequireNoSelection(outcome)
 
 

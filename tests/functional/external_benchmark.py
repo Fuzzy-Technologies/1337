@@ -186,10 +186,10 @@ def PartitionFindings(observation: dict, case: dict, track: dict) -> tuple[list,
     mapped, unadjudicated = [], []
 
     for finding in execution["findings"] if execution else ():
-        exact_input = observation["schema_version"] == 1 or (
+        exactInput = observation["schema_version"] == 1 or (
             finding["target_url"] == execution["target_url"]
         )
-        destination = mapped if exact_input and finding["path"] == case["path"] and (
+        destination = mapped if exactInput and finding["path"] == case["path"] and (
             finding["rule_id"] in track["rule_ids"]
         ) else unadjudicated
         destination.append(finding)
@@ -238,10 +238,10 @@ def ValidateHostAttempt(observation: dict, target: dict, case: dict, evidence_ro
     if type(original.get("start_attempted")) is not bool:
         raise ValueError("Original host attempt requires an exact recorded start boolean")
 
-    required_command = {"exit_code", "cleanup_confirmed", "streams_complete", "timed_out",
+    requiredCommand = {"exit_code", "cleanup_confirmed", "streams_complete", "timed_out",
                         "launch_error", "capture_error", "interrupted", "duration_seconds"}
 
-    if not required_command <= command.keys() or any(type(command[key]) is not bool for key in (
+    if not requiredCommand <= command.keys() or any(type(command[key]) is not bool for key in (
         "cleanup_confirmed", "streams_complete", "timed_out"
     )) or (command["exit_code"] is not None and type(command["exit_code"]) is not int):
         raise ValueError("Failed host attempt requires its original explicit capture lifecycle")
@@ -358,11 +358,11 @@ def ValidateObservation(pack: dict, target: dict, observation: dict, evidence_ro
         ):
             raise ValueError("Executed rule differs from the independently pinned artifact")
 
-        operation_budget = execution["effective_budget"]["operation_timeout_seconds"]
+        operationBudget = execution["effective_budget"]["operation_timeout_seconds"]
 
         if type(execution["exit_code"]) is not int or execution["exit_code"] != 0 or (
             execution["request_count"] != 1 or
-            execution["duration_seconds"] > operation_budget
+            execution["duration_seconds"] > operationBudget
             or not REQUIRED_ROLES <= evidence.keys()
         ):
             raise ValueError("Completed comparison requires bounded execution and evidence")
@@ -427,16 +427,16 @@ def BuildComparison(pack: dict, target: dict, observations: list[dict],
                     evidence_root: Path) -> dict:
     """Count only finite adjudicated completed cases and keep all missing work visible."""
 
-    by_identity = {}
+    byIdentity = {}
 
     for observation in observations:
         ValidateObservation(pack, target, observation, evidence_root)
         identity = (observation["case_id"], observation["scanner_track"])
 
-        if identity in by_identity:
+        if identity in byIdentity:
             raise ValueError("A case/scanner comparison may contain only one observation")
 
-        by_identity[identity] = observation
+        byIdentity[identity] = observation
 
     cells = []
     counts = {}
@@ -445,7 +445,7 @@ def BuildComparison(pack: dict, target: dict, observations: list[dict],
         totals = dict.fromkeys(("tp", "fp", "fn", "tn", "unscored", "coverage_gaps"), 0)
 
         for case in pack["cases"]:
-            observation = by_identity.get((case["id"], track["id"]))
+            observation = byIdentity.get((case["id"], track["id"]))
             status = observation["status"] if observation else (
                 case["applicability"] if case["applicability"] != "applicable" else "not-run"
             )

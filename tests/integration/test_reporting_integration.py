@@ -169,7 +169,7 @@ def test_ReportIntegrityVerificationFailsClosedOnInvalidEvidence(tmp_path, failu
     """Artifact failures never return a partially verified projection or rewrite source state."""
 
     root, report, evidence, _ = Context(tmp_path)
-    model_bytes = (root / "state" / "model" / "model.json").read_bytes()
+    modelBytes = (root / "state" / "model" / "model.json").read_bytes()
     artifact = root / "evidence" / evidence.reference.locator
 
     if failure == "missing":
@@ -204,7 +204,7 @@ def test_ReportIntegrityVerificationFailsClosedOnInvalidEvidence(tmp_path, failu
     assert report.ToDict()["evidence_integrity"]["checked_references"] == [], (
         "Failed verification mutated the original pure report"
     )
-    assert (root / "state" / "model" / "model.json").read_bytes() == model_bytes, (
+    assert (root / "state" / "model" / "model.json").read_bytes() == modelBytes, (
         "Failed report verification wrote source model state"
     )
 
@@ -247,12 +247,12 @@ def test_GeneratedSarifValidatesAgainstPinnedOfficialSchema(tmp_path):
     """The actual report adapter matches the official offline SARIF 2.1.0 schema."""
 
     _, report, _, _ = Context(tmp_path)
-    schema_path = (
+    schemaPath = (
         Path(__file__).parents[1] / "contract" / "fixtures" / "reporting"
         / "sarif-schema-2.1.0.json"
     )
-    schema = json.loads(schema_path.read_text("utf-8"))
-    assert hashlib.sha256(schema_path.read_bytes()).hexdigest() == (
+    schema = json.loads(schemaPath.read_text("utf-8"))
+    assert hashlib.sha256(schemaPath.read_bytes()).hexdigest() == (
         "ad6db49878699b091f3eeb765b6e29e92a34bad4da88664d000c923b549c3a25"
     ), "Official SARIF schema content changed without provenance review"
     validator = validator_for(schema)(schema)
@@ -274,7 +274,7 @@ def test_RealParsedAndVerifiedEnrichmentFeedsReadableHtmlWithoutChangingFinding(
 
     root, report, _, _ = Context(tmp_path)
     raw = Payload(feed)
-    source_evidence = LocalEvidenceStore(root / "evidence").Put(
+    sourceEvidence = LocalEvidenceStore(root / "evidence").Put(
         raw, "intelligence-source", "application/octet-stream", EvidenceProvenance(
             report.state.workspace_id, "scope:local", "synthetic.intel", "1", None,
             "2026-10-13T00:00:01Z", "2026-10-13T00:00:01Z",
@@ -282,11 +282,11 @@ def test_RealParsedAndVerifiedEnrichmentFeedsReadableHtmlWithoutChangingFinding(
     )
     source = ReferenceSource(
         SourceOrigin.SYNTHETIC, "1337 synthetic fixture", "https://example.invalid/source",
-        source_evidence.reference.sha256, "Apache-2.0 (synthetic fixture only)",
+        sourceEvidence.reference.sha256, "Apache-2.0 (synthetic fixture only)",
         "https://example.invalid/LICENSE", "2026-10-13T00:00:01Z", "synthetic-importer", "1",
     )
     snapshot = ParseIntelligenceSnapshot(raw, feed, VERSIONS[feed], source,
-                                         source_evidence.reference)
+                                         sourceEvidence.reference)
     finding = report.state.Objects(ObjectKind.FINDING)[0]
     provenance = replace(finding.provenance[0], source_id="synthetic.intel",
                          run_reference="run:intel", observed_at="2026-10-13T00:00:02Z",

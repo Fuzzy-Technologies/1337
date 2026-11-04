@@ -354,14 +354,14 @@ def test_SameViewCtimeDriftRefusesBeforeEvidencePublication(tmp_path, monkeypatc
     """
 
     context = Context(tmp_path)
-    original_path, original_handle = commands.CheckStorageEntry, commands.os.fstat
+    originalPath, originalHandle = commands.CheckStorageEntry, commands.os.fstat
     calls = 0
 
     def Observe(*args, **kwargs):
         """Change only the selected physical view's second ctime observation."""
 
         nonlocal calls
-        result = (original_path if view == "path" else original_handle)(*args, **kwargs)
+        result = (originalPath if view == "path" else originalHandle)(*args, **kwargs)
 
         if view == "handle" or args[0] == context[4]:
             calls += 1
@@ -466,7 +466,7 @@ def test_OccupiedIncompatibleEndpointIsRefusedWithoutReplacingCollections(tmp_pa
     patch = SecurityObject(projection.identity, attributes, (attribution,))
     changed, _ = context[1].Apply(objects=(patch,))
     saved = LocalModelStore(context[0]).Save(changed, expected_revision=context[1].revision)
-    workspace_before = (context[0] / "workspace.json").read_bytes()
+    workspaceBefore = (context[0] / "workspace.json").read_bytes()
     status, outcome = Run(Arguments(context))
     assert status == 4 and outcome["failure"] == "occupied-endpoint", (
         "Incompatible collection updated"
@@ -475,7 +475,7 @@ def test_OccupiedIncompatibleEndpointIsRefusedWithoutReplacingCollections(tmp_pa
         outcome["model_commit"] == "not-attempted"
     ), "Occupied refusal guessed acquisition/model commit truth"
     assert LocalModelStore(context[0]).Open() == saved, "Occupied collection was replaced"
-    assert (context[0] / "workspace.json").read_bytes() == workspace_before, (
+    assert (context[0] / "workspace.json").read_bytes() == workspaceBefore, (
         "Occupied refusal saved owner"
     )
 
@@ -574,14 +574,14 @@ def test_GrownSelectedBlobRefusesBeforeAnyGenericRetainedRead(tmp_path, monkeypa
     blob = root / "evidence" / record.reference.locator
     blob.write_bytes(b"x" * (512 * 1024 + 1))
     before = LocalModelStore(root).Open()
-    workspace_before = (root / "workspace.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     monkeypatch.setattr(commands, "OpenReportInput", RefuseRead)
     monkeypatch.setattr(LocalEvidenceStore, "Read", RefuseRead)
     status, outcome = Run(Arguments(context, evidence_id=record.evidence_id))
     assert status == 4 and outcome["failure"] == "integrity", "Grown blob reached raw access"
     assert outcome["acquisition_commit"] == "not-attempted", "Grown blob was acknowledged"
     assert LocalModelStore(root).Open() == before, "Grown selected blob changed model state"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "Grown blob saved workspace"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "Grown blob saved workspace"
 
 
 @pytest.mark.parametrize("owner", ["workspace", "model"])
@@ -609,14 +609,14 @@ def test_LargerSameBlobAliasRefusesBeforeAnyGenericRetainedRead(tmp_path, monkey
         LocalModelStore(root).Save(changed, expected_revision=basis.revision)
 
     before = LocalModelStore(root).Open()
-    workspace_before = (root / "workspace.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     monkeypatch.setattr(commands, "OpenReportInput", RefuseRead)
     monkeypatch.setattr(LocalEvidenceStore, "Read", RefuseRead)
     status, outcome = Run(Arguments(context, evidence_id=record.evidence_id))
     assert status == 4 and outcome["failure"] == "integrity", "Larger alias reached raw access"
     assert outcome["acquisition_commit"] == "not-attempted", "Refused alias was acknowledged"
     assert LocalModelStore(root).Open() == before, "Alias refusal changed the actual model owner"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "Alias saved workspace"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "Alias saved workspace"
 
 
 @pytest.mark.parametrize("selection", ["file", "retained"])
@@ -672,7 +672,7 @@ def test_KnownGraphQlCustodyCannotRelabelOversizedNonProfileOriginal(
     changed, _ = basis.Apply(observations=(substituted,))
     LocalModelStore(root).Save(changed, expected_revision=basis.revision)
     before = Files(root)
-    owning_read = LocalEvidenceStore.Read
+    owningRead = LocalEvidenceStore.Read
 
     def Read(store, reference):
         """Expose the claimed non-profile original at the actual generic raw-reader boundary."""
@@ -680,7 +680,7 @@ def test_KnownGraphQlCustodyCannotRelabelOversizedNonProfileOriginal(
         if reference == unrelated.reference:
             RefuseRead()
 
-        return owning_read(store, reference)
+        return owningRead(store, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", Read)
     arguments = Arguments(context, evidence_id=first["evidence_id"]
@@ -706,7 +706,7 @@ def test_FileModePreflightsKnownGraphQlOriginalBeforeGenericReportRead(tmp_path,
     LocalWorkspaceStore(root).Save(replace(workspace, evidence_references=(alias,)))
     (root / "evidence" / reference.locator).write_bytes(b"x" * (512 * 1024 + 1))
     before = LocalModelStore(root).Open()
-    workspace_before = (root / "workspace.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     monkeypatch.setattr(commands, "OpenReportInput", RefuseRead)
     monkeypatch.setattr(LocalEvidenceStore, "Read", RefuseRead)
     monkeypatch.setattr(commands, "ReadOwnedGraphQl", RefuseRead)
@@ -714,7 +714,7 @@ def test_FileModePreflightsKnownGraphQlOriginalBeforeGenericReportRead(tmp_path,
     assert status == 4 and outcome["failure"] == "integrity", "File mode reached known grown blob"
     assert outcome["acquisition_commit"] == "not-attempted", "File mode skipped source guard"
     assert LocalModelStore(root).Open() == before, "File-mode guard changed the model owner"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "File guard saved workspace"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "File guard saved workspace"
 
 
 @pytest.mark.parametrize("known_by", ["manifest-only", "model-reference", "custody-only"])
@@ -755,11 +755,11 @@ def test_FileModePreflightsKnownGraphQlWithoutAdoptingCustody(tmp_path, monkeypa
 
     (root / "evidence" / reference.locator).write_bytes(b"x" * (512 * 1024 + 1))
     before = LocalModelStore(root).Open()
-    workspace_before = (root / "workspace.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     monkeypatch.setattr(commands, "OpenReportInput", RefuseRead)
     monkeypatch.setattr(LocalEvidenceStore, "Read", RefuseRead)
     monkeypatch.setattr(commands, "ReadOwnedGraphQl", RefuseRead)
     status, outcome = Run(Arguments(context))
     assert status == 4 and outcome["failure"] == "integrity", "Known GraphQL blob reached raw"
     assert LocalModelStore(root).Open() == before, "Budget preflight adopted or changed SDK custody"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "Budget guard saved state"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "Budget guard saved state"

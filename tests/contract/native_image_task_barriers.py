@@ -53,24 +53,24 @@ async def OwnedTaskAtReadiness(
     """
 
     task = asyncio.create_task(operation)
-    ready_waiter = asyncio.create_task(readiness.wait())
+    readyWaiter = asyncio.create_task(readiness.wait())
 
     try:
-        done, _ = await asyncio.wait((task, ready_waiter), timeout=timeout_seconds,
+        done, _ = await asyncio.wait((task, readyWaiter), timeout=timeout_seconds,
                                      return_when=asyncio.FIRST_COMPLETED)
 
         if task in done:
             raise EarlyOperationCompletion(task.result())
 
-        if ready_waiter not in done:
+        if readyWaiter not in done:
             raise TimeoutError("Owned operation neither became ready nor terminated")
 
         yield task
 
     finally:
-        ready_waiter.cancel()
+        readyWaiter.cancel()
 
         if not task.done():
             task.cancel()
 
-        await asyncio.gather(ready_waiter, task, return_exceptions=True)
+        await asyncio.gather(readyWaiter, task, return_exceptions=True)

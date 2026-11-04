@@ -552,9 +552,9 @@ async def CaptureCommand(directory: Path, argv: tuple[str, ...], cwd: Path,
                         # returncode can be set before asyncio's pipe transports finish.
                         await asyncio.wait_for(owned.process.wait(), timeout=3)
 
-                    except Exception as forced_error:
+                    except Exception as forcedError:
                         error.add_note("Forced supervisor wait unconfirmed: "
-                                       + type(forced_error).__name__)
+                                       + type(forcedError).__name__)
 
                     if primary is None:
                         primary = error
@@ -769,10 +769,10 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str, *,
         for field in ("invocation.json", "process.json", "stdout.raw", "stderr.raw"))}
     exported = {record["path"] for record in bundle["files"]}
 
-    generated_prefixes = ("home/", "version/", "validate/") if governed_no_home else ("home/",)
+    generatedPrefixes = ("home/", "version/", "validate/") if governed_no_home else ("home/",)
 
     if not required <= exported or any(
-        name not in required and not name.startswith(generated_prefixes) for name in exported
+        name not in required and not name.startswith(generatedPrefixes) for name in exported
     ):
         raise ValueError("Nuclei original bundle contains missing or undeclared prerequisite files")
 
@@ -801,7 +801,7 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str, *,
         "actual_import_modules": list(MODULES), "excluded_generated": ["__pycache__/**", "*.pyc"],
         "excluded_content": ["distribution metadata", "dependencies"]}
     wheel = origin["wheel"]
-    package_path = Path(origin["package_path"])
+    packagePath = Path(origin["package_path"])
 
     if type(manifest["schema_version"]) is not int or manifest["schema_version"] != 1 or (
         manifest["status"] != "material-prepared-prerequisites-not-run"
@@ -809,8 +809,8 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str, *,
         or manifest["asset_url"] != ASSET_URL or manifest["support_sha256"] != support
         or manifest["recipe_sha256"] != source[RECIPE_PATH]["sha256"]
         or installed["package_files"] != package or installed["coverage"] != coverage
-        or not package_path.is_relative_to("/opt/benchmark-runtime")
-        or "site-packages" not in package_path.parts or package_path.name != "fuzzy1337"
+        or not packagePath.is_relative_to("/opt/benchmark-runtime")
+        or "site-packages" not in packagePath.parts or packagePath.name != "fuzzy1337"
         or Path(wheel["path"]).parent != Path("/opt/benchmark-wheel")
         or not Path(wheel["path"]).name.endswith(".whl")
         or re.fullmatch("[a-f0-9]{64}", wheel["sha256"]) is None
@@ -834,7 +834,7 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str, *,
     binary = material["executable"]
     profile = material["profile"]
     template = profile["templates"]
-    executable_members = [member for member in material["release_inventory"]
+    executableMembers = [member for member in material["release_inventory"]
                           if member["name"] == "nuclei"]
 
     if binary["path"] != "/opt/benchmark-material/nuclei" or (
@@ -849,10 +849,10 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str, *,
             != TEMPLATE_SHA256
         or material["version_probe"] != "not-run"
         or material["go_template_validation"] != "not-run"
-        or len(executable_members) != 1
-        or executable_members[0]["size_bytes"] != binary["size_bytes"]
-        or executable_members[0]["crc_verified"] is not True
-        or re.fullmatch("[a-f0-9]{8}", executable_members[0]["crc32"]) is None
+        or len(executableMembers) != 1
+        or executableMembers[0]["size_bytes"] != binary["size_bytes"]
+        or executableMembers[0]["crc_verified"] is not True
+        or re.fullmatch("[a-f0-9]{8}", executableMembers[0]["crc32"]) is None
     ):
         raise ValueError("Nuclei binary/template/configuration material identity is incompatible")
 
@@ -871,7 +871,7 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str, *,
         invocation = StrictJson((output / name / "invocation.json").read_bytes())
         process = StrictJson((output / name / "process.json").read_bytes())
         maximum = 16384 if name == "version" else 2 * 1024 * 1024
-        expected_invocation = {"argv": argv, "environment": environment,
+        expectedInvocation = {"argv": argv, "environment": environment,
             "provider_timeout_seconds": 3, "stdout_capture_bytes": 4 * 1024 * 1024,
             "stderr_capture_bytes": 65536, "stdout_interpretation_bytes": maximum,
             "stderr_interpretation_bytes": 16384, "original_file_ceiling_bytes": 2 * 1024 * 1024,
@@ -879,18 +879,18 @@ def BindBundle(raw: bytes, output: Path, source: dict, revision: str, *,
                      "target-free-explicit-home-prerequisite"}
 
         if governed_no_home:
-            expected_invocation["cwd"] = "/tmp/nuclei-governed-prerequisites/" + name
+            expectedInvocation["cwd"] = "/tmp/nuclei-governed-prerequisites/" + name
 
         stdout = (output / name / "stdout.raw").read_bytes()
         stderr = (output / name / "stderr.raw").read_bytes()
 
-        expected_process = {"exit_code": 0, "streams_complete": True, "timed_out": False,
+        expectedProcess = {"exit_code": 0, "streams_complete": True, "timed_out": False,
             "capture_exhausted": None, "launch_error": None, "capture_error": None,
             "interrupted": None, "cleanup_error": None}
 
-        if Canonical(invocation) != Canonical(expected_invocation) or (
-            Canonical({key: process[key] for key in expected_process})
-                != Canonical(expected_process)
+        if Canonical(invocation) != Canonical(expectedInvocation) or (
+            Canonical({key: process[key] for key in expectedProcess})
+                != Canonical(expectedProcess)
             or type(process["duration_seconds"]) not in (int, float)
             or not 0 <= process["duration_seconds"] <= 8
             or len(stdout) > maximum or len(stderr) > 16384
@@ -1095,12 +1095,12 @@ class PrerequisiteHost:
         if len(identifier) > 80 or re.fullmatch(rb"sha256:[a-f0-9]{64}\n?", identifier) is None:
             raise ValueError("Nuclei completed build omitted its exact immutable image ID")
 
-        image_id = identifier.decode("ascii").strip()
-        self.images[tag] = image_id
-        value = await self.Inspect("image", image_id, role + "-id-inspect")
+        imageId = identifier.decode("ascii").strip()
+        self.images[tag] = imageId
+        value = await self.Inspect("image", imageId, role + "-id-inspect")
         tagged = await self.Inspect("image", tag, role + "-tag-inspect")
 
-        if value["Id"] != image_id or tagged["Id"] != image_id or (
+        if value["Id"] != imageId or tagged["Id"] != imageId or (
             value["Config"]["Labels"].get(OWNER_LABEL) != self.owner
             or value["Config"]["Labels"].get(SOURCE_LABEL) != self.revision
         ):
@@ -1308,10 +1308,10 @@ class PrerequisiteHost:
             "--file", str(self.context / RECIPE_PATH),
             "--build-arg", "WORKBENCH_IMAGE=" + self.tags[0], "--build-arg",
             "SOURCE_REVISION=" + self.revision), 180)
-        base_after = await self.Inspect("image", self.tags[0], "base-tag-after")
-        runner_after = await self.Inspect("image", self.tags[1], "runner-tag-after")
+        baseAfter = await self.Inspect("image", self.tags[0], "base-tag-after")
+        runnerAfter = await self.Inspect("image", self.tags[1], "runner-tag-after")
 
-        if base_after["Id"] != base["Id"] or runner_after["Id"] != runner["Id"] or (
+        if baseAfter["Id"] != base["Id"] or runnerAfter["Id"] != runner["Id"] or (
             await self.Source("after") != (self.revision, self.tree)
         ):
             raise ValueError("Nuclei source/base/runner transport tag changed during build")

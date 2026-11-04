@@ -103,15 +103,15 @@ def ComparePathOutcomes(
     changes = []
 
     for reference in sorted(selected[0][1]):
-        before_state = selected[0][1][reference]["state"]
-        after_state = selected[1][1][reference]["state"]
+        beforeState = selected[0][1][reference]["state"]
+        afterState = selected[1][1][reference]["state"]
 
-        if before_state != after_state:
+        if beforeState != afterState:
             if reference != focus_transition:
                 raise ValueError("comparison state change exceeds the selected focus")
 
-            changes.append({"relation_reference": reference, "before_state": before_state,
-                            "after_state": after_state})
+            changes.append({"relation_reference": reference, "before_state": beforeState,
+                            "after_state": afterState})
 
     result: dict[str, object] = {
         "schema_version": 1, "profile_version": 1, "profile": COMPARISON_PROFILE,
@@ -163,11 +163,11 @@ def RenderPathComparisonHtml(comparison: dict[str, object], model: ModelState) -
         encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
         analysis = document["analysis"]
         search, cuts = analysis["search"], analysis["cuts"]
-        focus_state = next(transition["state"] for transition in analysis["transitions"]
+        focusState = next(transition["state"] for transition in analysis["transitions"]
                            if transition["relation_reference"] == comparison["focus_transition"])
         proof = json.dumps(original, ensure_ascii=False, allow_nan=False, sort_keys=True, indent=2)
         parts.append('<section class="phase"><h2>' + label
-            + '</h2><p class="focus-state"><strong>Focus state: ' + escape(focus_state)
+            + '</h2><p class="focus-state"><strong>Focus state: ' + escape(focusState)
             + '</strong></p><p>Returned candidate paths: '
             + str(len(search["paths"])) + '; enumeration complete: '
             + str(search["complete"]).lower() + '; cut checks complete: '
@@ -179,7 +179,7 @@ def RenderPathComparisonHtml(comparison: dict[str, object], model: ModelState) -
         downloads.append(Download(svg.encode("utf-8"), "image/svg+xml",
                                   label.lower() + "-path.svg", "Download " + label + " SVG"))
 
-    state_text = "Observed focus state change" if comparison["observed_state_change"] else (
+    stateText = "Observed focus state change" if comparison["observed_state_change"] else (
         "No observed transition-state change")
     csp = ("default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'none'; "
            "base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'")
@@ -192,7 +192,7 @@ def RenderPathComparisonHtml(comparison: dict[str, object], model: ModelState) -
         'max-width:100%;border:1px solid #a7b5c7;padding:12px;overflow:hidden}'
         'img{display:block;width:100%;height:auto}pre{white-space:pre-wrap;overflow-wrap:anywhere;'
         'max-height:480px;overflow:auto}a.download{display:inline-block;margin:8px}'
-        '</style></head><body><h1>Selected-path state comparison</h1><p>' + state_text
+        '</style></head><body><h1>Selected-path state comparison</h1><p>' + stateText
         + '. Before/after are caller-selected roles. Chronology, one changed control, causality, '
         'physical access, global completeness, risk and remediation efficacy are unassessed.</p>'
         '<p>Focus: <code>' + escape(str(comparison["focus_transition"])) + '</code></p>'

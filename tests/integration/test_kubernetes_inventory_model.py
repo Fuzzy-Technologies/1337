@@ -81,12 +81,12 @@ def test_KubernetesRefreshedAdvisoryPreservesExplicitOperatorTriage(tmp_path):
     triaged, _ = TransitionFinding(imported, finding.ToObject(imported.workspace_id).Reference(),
         FindingStatus.DISMISSED, decision, "Owned fixture disposition")
     saved = LocalModelStore(root).Save(triaged, expected_revision=imported.revision)
-    refreshed_record = evidence.Put(evidence.Read(record.reference), record.reference.role,
+    refreshedRecord = evidence.Put(evidence.Read(record.reference), record.reference.role,
         record.reference.media_type, replace(record.provenance,
             started_at="2026-10-14T12:00:01Z", finished_at="2026-10-14T12:00:01Z"))
-    refreshed_provenance = replace(provenance, observed_at="2026-10-14T12:00:01Z",
-                                  evidence_references=(refreshed_record.reference,))
-    refreshed, delta = ApplyVerifiedKubernetesList(saved, refreshed_record, refreshed_provenance,
+    refreshedProvenance = replace(provenance, observed_at="2026-10-14T12:00:01Z",
+                                  evidence_references=(refreshedRecord.reference,))
+    refreshed, delta = ApplyVerifiedKubernetesList(saved, refreshedRecord, refreshedProvenance,
         cluster_reference=cluster.Reference(), workspace_root=root)
     LocalModelStore(root).Save(refreshed, expected_revision=saved.revision)
     current = next(item for item in Findings(LocalModelStore(root).Open())
@@ -182,11 +182,11 @@ def test_KubernetesSameUidInDifferentDeclaredClustersDoesNotCorrelate(tmp_path):
 
     left = OwnedKubernetesContext(tmp_path / "left", cluster_id="left")
     right = OwnedKubernetesContext(tmp_path / "right", cluster_id="right")
-    left_model, _, _ = ImportKubernetes(left)
-    right_model, _, _ = ImportKubernetes(right)
-    left_refs = {item.Reference() for item in left_model.objects
+    leftModel, _, _ = ImportKubernetes(left)
+    rightModel, _, _ = ImportKubernetes(right)
+    leftRefs = {item.Reference() for item in leftModel.objects
                  if item.attributes.get("resource_kind") == "Pod"}
-    right_refs = {item.Reference() for item in right_model.objects
+    rightRefs = {item.Reference() for item in rightModel.objects
                   if item.attributes.get("resource_kind") == "Pod"}
-    assert len(left_refs) == 4 and len(right_refs) == 4, "Identical fixture UID set changed"
-    assert not left_refs & right_refs, "Cluster-separated UID identities were correlated"
+    assert len(leftRefs) == 4 and len(rightRefs) == 4, "Identical fixture UID set changed"
+    assert not leftRefs & rightRefs, "Cluster-separated UID identities were correlated"

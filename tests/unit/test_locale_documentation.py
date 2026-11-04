@@ -238,8 +238,8 @@ def test_PortableDiscoveryPreservesAliasesExclusionsAndStableIDs(tmp_path: Path)
     assert "page:guide.topic-name" in report.states, "Stable underscore page normalization changed."
     project = ReadToml(root / "docs/i18n/project.toml")
     units = LOCALE.DiscoverCanonicalUnits(root, project)
-    value_units = [unit for unit in units if unit.identifier == "symbol:package.api.Item.Value"]
-    assert len(value_units) == 1, "Property setter duplicated the getter's canonical unit."
+    valueUnits = [unit for unit in units if unit.identifier == "symbol:package.api.Item.Value"]
+    assert len(valueUnits) == 1, "Property setter duplicated the getter's canonical unit."
     item = next(unit for unit in units if unit.identifier == "symbol:package.api.Item")
     assert "value: int = 1" in item.signature and "title = 'item'" in item.signature, (
         "Public field contracts must participate in canonical class signatures."
@@ -517,8 +517,8 @@ def test_StaticSurfaceContractsRejectUnresolvableInventories(
     root = FixtureProject(tmp_path)
     path = root / "docs/coverage.toml"
     coverage = ReadToml(path)
-    export_path = root / "package/__init__.py"
-    exports = export_path.read_text()
+    exportPath = root / "package/__init__.py"
+    exports = exportPath.read_text()
 
     if mutation == "foreign-module":
         coverage["surfaces"][0]["module"] = "foreign.api"
@@ -530,22 +530,22 @@ def test_StaticSurfaceContractsRejectUnresolvableInventories(
         coverage["surfaces"].append(dict(coverage["surfaces"][0]))
 
     elif mutation == "missing-export":
-        export_path.write_text(exports.replace('__all__ = ["ConvertAlias", "ItemAlias"]', ""))
+        exportPath.write_text(exports.replace('__all__ = ["ConvertAlias", "ItemAlias"]', ""))
 
     elif mutation == "duplicate-export":
-        export_path.write_text(exports.replace('"ItemAlias"]', '"ConvertAlias"]'))
+        exportPath.write_text(exports.replace('"ItemAlias"]', '"ConvertAlias"]'))
 
     elif mutation == "invalid-export":
-        export_path.write_text(exports.replace('["ConvertAlias", "ItemAlias"]', "[1]"))
+        exportPath.write_text(exports.replace('["ConvertAlias", "ItemAlias"]', "[1]"))
 
     elif mutation == "unbound-export":
-        export_path.write_text(exports.replace('"ItemAlias"]', '"Unbound"]'))
+        exportPath.write_text(exports.replace('"ItemAlias"]', '"Unbound"]'))
 
     elif mutation == "missing-module":
-        export_path.write_text(exports.replace("from package.api", "from package.missing"))
+        exportPath.write_text(exports.replace("from package.api", "from package.missing"))
 
     else:
-        export_path.write_text(exports.replace("import Convert as", "import Missing as"))
+        exportPath.write_text(exports.replace("import Convert as", "import Missing as"))
 
     WriteToml(path, coverage)
     report = LOCALE.ValidateLocales(root)
@@ -559,9 +559,9 @@ def test_StablePageIDsSurviveMovesButNotDuplicateOwnership(tmp_path: Path) -> No
     path = root / "docs/i18n/units.toml"
     manifest = ReadToml(path)
     record = next(unit for unit in manifest["units"] if unit["id"] == "page:index")
-    old_page = root / record["sourcePath"]
-    new_page = root / "docs/content/en/renamed.md"
-    old_page.rename(new_page)
+    oldPage = root / record["sourcePath"]
+    newPage = root / "docs/content/en/renamed.md"
+    oldPage.rename(newPage)
     record["sourcePath"] = "docs/content/en/renamed.md"
     WriteToml(path, manifest)
     report = LOCALE.ValidateLocales(root)
@@ -595,10 +595,10 @@ def test_BOMInvalidStableIDsAndCLIReportsFailHonestly(
     assert any('"sourceHash"' in line for line in lines), (
         "Canonical hashes were absent from inventory."
     )
-    units_path = root / "docs/i18n/units.toml"
-    manifest = ReadToml(units_path)
+    unitsPath = root / "docs/i18n/units.toml"
+    manifest = ReadToml(unitsPath)
     next(unit for unit in manifest["units"] if unit["id"] == "page:index")["id"] = "page:Invalid"
-    WriteToml(units_path, manifest)
+    WriteToml(unitsPath, manifest)
     assert HasDiagnostic(LOCALE.ValidateLocales(root), "invalid stable ID"), (
         "Manifest-controlled invalid page identity escaped stable ID validation."
     )
@@ -606,8 +606,8 @@ def test_BOMInvalidStableIDsAndCLIReportsFailHonestly(
         "CLI silently accepted invalid stable identity."
     )
     assert json.loads(output.read_text())["status"] == "fail", "Failed evidence reported pass."
-    project_path = root / "docs/i18n/project.toml"
-    project_path.write_bytes(b"\xef\xbb\xbf" + project_path.read_bytes())
+    projectPath = root / "docs/i18n/project.toml"
+    projectPath.write_bytes(b"\xef\xbb\xbf" + projectPath.read_bytes())
     assert LOCALE.Main(["inventory", *argv]) == 1, "BOM manifest silently passed CLI inventory."
     assert "byte-order marks are not allowed" in capsys.readouterr().err, "BOM diagnosis was lost."
 
@@ -616,9 +616,9 @@ def test_CustomManifestAndMissingUnitInventoryAreSupported(tmp_path: Path) -> No
     """Resolve locale-specific project configuration explicitly without modifying hashes."""
 
     root = FixtureProject(tmp_path)
-    project_path = root / "docs/i18n/project.toml"
+    projectPath = root / "docs/i18n/project.toml"
     custom = root / "custom-project.toml"
-    project_path.rename(custom)
+    projectPath.rename(custom)
     report = LOCALE.ValidateLocales(root, custom)
     assert not report.diagnostics, f"Explicit portable manifest was ignored: {report.diagnostics}"
     (root / "docs/i18n/units.toml").unlink()
@@ -681,8 +681,8 @@ def test_ManifestPathsCannotReadOrApproveOutsideTheProject(tmp_path: Path, locat
     WriteToml(external / "units.toml", ReadToml(root / "docs/i18n/units.toml"))
     WriteToml(external / "coverage.toml", ReadToml(root / "docs/coverage.toml"))
     WriteToml(external / "glossary.toml", ReadToml(root / "docs/i18n/ru.toml"))
-    manifest_path = root / "docs/i18n/project.toml"
-    manifest = ReadToml(manifest_path)
+    manifestPath = root / "docs/i18n/project.toml"
+    manifest = ReadToml(manifestPath)
 
     if location in {"contentRoot", "unitManifest", "apiCoverageManifest"}:
         targets = {
@@ -690,17 +690,17 @@ def test_ManifestPathsCannotReadOrApproveOutsideTheProject(tmp_path: Path, locat
             "apiCoverageManifest": "../outside/coverage.toml",
         }
         manifest[location] = targets[location]
-        WriteToml(manifest_path, manifest)
+        WriteToml(manifestPath, manifest)
 
     elif location == "glossary":
         manifest["glossaries"]["ru"] = "../outside/glossary.toml"
-        WriteToml(manifest_path, manifest)
+        WriteToml(manifestPath, manifest)
 
     elif location == "surface":
-        coverage_path = root / "docs/coverage.toml"
-        coverage = ReadToml(coverage_path)
+        coveragePath = root / "docs/coverage.toml"
+        coverage = ReadToml(coveragePath)
         coverage["surfaces"][0]["source"] = "../outside/api.py"
-        WriteToml(coverage_path, coverage)
+        WriteToml(coveragePath, coverage)
 
     elif location in {"sourcePath", "translation"}:
         units = ApprovePage(root)
@@ -715,28 +715,28 @@ def test_ManifestPathsCannotReadOrApproveOutsideTheProject(tmp_path: Path, locat
         WriteToml(root / "docs/i18n/units.toml", units)
 
     else:
-        glossary_path = root / "docs/i18n/ru.toml"
-        glossary = ReadToml(glossary_path)
+        glossaryPath = root / "docs/i18n/ru.toml"
+        glossary = ReadToml(glossaryPath)
         glossary["terms"][0]["references"] = ["../outside/reference.md"]
-        WriteToml(glossary_path, glossary)
+        WriteToml(glossaryPath, glossary)
 
-    original_reader = LOCALE._ReadCanonicalText
-    external_reads = []
+    originalReader = LOCALE._ReadCanonicalText
+    externalReads = []
 
     def ConfinedReader(path: Path) -> str:
         """Record attempted escape before any external fixture contents can be read."""
 
         if not path.resolve().is_relative_to(root.resolve()):
-            external_reads.append(path)
+            externalReads.append(path)
             raise AssertionError("Validator attempted to read outside the selected project.")
 
-        return original_reader(path)
+        return originalReader(path)
 
     with patch.object(LOCALE, "_ReadCanonicalText", ConfinedReader):
         report = LOCALE.ValidateLocales(root)
 
     assert report.diagnostics, f"Escaped {location} path was accepted without a failing diagnosis."
-    assert not external_reads, f"Escaped {location} path was read before rejection."
+    assert not externalReads, f"Escaped {location} path was read before rejection."
 
 
 @pytest.mark.parametrize("location", ["source", "content", "translation", "root"])
@@ -750,7 +750,7 @@ def test_SymlinkedSourceOrTranslationCannotBypassTheProjectBoundary(
     external.mkdir()
     target = external / "source.py"
     target.write_text(FIXTURE_API)
-    selected_root = root
+    selectedRoot = root
 
     if location == "source":
         link = root / "package/api.py"
@@ -772,7 +772,7 @@ def test_SymlinkedSourceOrTranslationCannotBypassTheProjectBoundary(
     else:
         link = tmp_path / "linked-root"
         target = root
-        selected_root = link
+        selectedRoot = link
 
     try:
         link.symlink_to(target, target_is_directory=location == "root")
@@ -780,7 +780,7 @@ def test_SymlinkedSourceOrTranslationCannotBypassTheProjectBoundary(
     except (OSError, NotImplementedError):
         pytest.skip("Controlled symlink contracts require filesystem support and privileges.")
 
-    original_reader = LOCALE._ReadCanonicalText
+    originalReader = LOCALE._ReadCanonicalText
 
     def ConfinedReader(path: Path) -> str:
         """Fail immediately if the validator attempts to read a linked external source."""
@@ -789,10 +789,10 @@ def test_SymlinkedSourceOrTranslationCannotBypassTheProjectBoundary(
             "Validator followed an external symlink before rejecting its project path."
         )
 
-        return original_reader(path)
+        return originalReader(path)
 
     with patch.object(LOCALE, "_ReadCanonicalText", ConfinedReader):
-        report = LOCALE.ValidateLocales(selected_root)
+        report = LOCALE.ValidateLocales(selectedRoot)
 
     assert report.diagnostics, (
         f"Linked {location} contract was accepted without a failing diagnosis."

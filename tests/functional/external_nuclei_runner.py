@@ -371,12 +371,12 @@ def RunStandalone(root: Path, path: str, executable: Path, template: Path, confi
             raise ValueError("Standalone workspace cannot traverse symbolic links")
 
     root.mkdir(mode=0o700)
-    copied_template = root / "prometheus-exposition.yaml"
-    copied_configuration = root / "operator-config.yaml"
-    shutil.copyfile(template, copied_template)
-    shutil.copyfile(configuration, copied_configuration)
-    profile = ProfileDocument(copied_template, copied_configuration)
-    argv = StandaloneArguments(executable, path, copied_template, copied_configuration)
+    copiedTemplate = root / "prometheus-exposition.yaml"
+    copiedConfiguration = root / "operator-config.yaml"
+    shutil.copyfile(template, copiedTemplate)
+    shutil.copyfile(configuration, copiedConfiguration)
+    profile = ProfileDocument(copiedTemplate, copiedConfiguration)
+    argv = StandaloneArguments(executable, path, copiedTemplate, copiedConfiguration)
     home = root / "runtime-home"
     home.mkdir(mode=0o700)
 
@@ -398,22 +398,22 @@ def RunStandalone(root: Path, path: str, executable: Path, template: Path, confi
         "original_file_ceiling_bytes": MAX_FILE_BYTES, "environment": environment})
     process = OwnStandaloneProcess(root, argv, environment)
     findings = []
-    invalid_output = False
+    invalidOutput = False
     oversized = (root / "stdout.raw").stat().st_size > MAX_FILE_BYTES
 
     if not oversized:
         raw = (root / "stdout.raw").read_bytes()
         lines = raw.splitlines()
-        invalid_output = len(lines) > MAX_RECORDS
+        invalidOutput = len(lines) > MAX_RECORDS
 
         for line in lines[:MAX_RECORDS]:
             try:
                 findings.extend(ProjectStandaloneMatches(line + b"\n"))
 
             except (ValueError, UnicodeError):
-                invalid_output = True
+                invalidOutput = True
 
-    failed = oversized or invalid_output or process["exit_code"] != 0 or (
+    failed = oversized or invalidOutput or process["exit_code"] != 0 or (
         process["timed_out"] or process["capture_exhausted"] is not None
         or process["launch_error"] is not None or process["capture_error"] is not None
         or process["cleanup_error"] is not None
@@ -424,7 +424,7 @@ def RunStandalone(root: Path, path: str, executable: Path, template: Path, confi
     status = "failed" if failed else "completed" if mapped else "unproven"
     outcome = {"status": status, "exit_code": process["exit_code"],
                "duration_seconds": process["duration_seconds"], "target_url": ExactUrl(path),
-               "invalid_output": invalid_output, "oversized_original": oversized,
+               "invalid_output": invalidOutput, "oversized_original": oversized,
                "findings": findings,
                "reason": "Execution failed; retained bytes receive no score" if failed else (
                    "Explicit exact-input rule match" if mapped else

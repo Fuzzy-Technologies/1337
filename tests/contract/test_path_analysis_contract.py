@@ -119,9 +119,9 @@ def test_MixedBlockedPathsUseOnlyNonblockedReturnedDenominator(tmp_path):
     assert counts["detour-identity"] == counts["identity-billing"] == 2, (
         "Independent available routes changed after the barrier"
     )
-    node_cuts = {aliases[item.reference] for item in result.choke_points.verified
+    nodeCuts = {aliases[item.reference] for item in result.choke_points.verified
                  if item.kind == "node"}
-    assert node_cuts == {"detour", "identity", "billing"}, "Admitted barrier did not constrain cuts"
+    assert nodeCuts == {"detour", "identity", "billing"}, "Admitted barrier did not constrain cuts"
 
 
 @pytest.mark.parametrize("limits", [ReachabilityLimits(max_paths=1),
@@ -198,8 +198,8 @@ def test_DeclaredGroupingRetainsEveryOriginalObjectEdgeDirectionAndState(tmp_pat
         oracle["internal_relations"]), "Internal group edges were dropped"
     assert {aliases[edge.relation_reference] for edge in outbound.transitions} == set(
         oracle["to_identity_relations"]), "Parallel presentation relations were collapsed"
-    all_members = [member for group in result.groups for member in group.member_references]
-    assert sorted(all_members) == list(projection.nodes), "Grouping lost or duplicated a basis node"
+    allMembers = [member for group in result.groups for member in group.member_references]
+    assert sorted(allMembers) == list(projection.nodes), "Grouping lost or duplicated a basis node"
     bundled = [edge for bundle in result.transition_bundles for edge in bundle.transitions]
     actual = sorted(bundled, key=lambda edge: edge.relation_reference)
     assert actual == list(projection.transitions), (

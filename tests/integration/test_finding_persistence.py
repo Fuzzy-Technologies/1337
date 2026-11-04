@@ -87,14 +87,14 @@ def test_DedupeEvidenceAndDispositionSurviveWorkspaceRelocation(tmp_path, outcom
     """Acquisitions converge on one object and retain verified portable evidence and outcomes."""
 
     store, initial, subject = Context(tmp_path)
-    workspace_bytes = (store.root / "workspace.json").read_bytes()
+    workspaceBytes = (store.root / "workspace.json").read_bytes()
     first, evidence, envelope = Detection(store, subject, outcome=outcome)
-    first_state, delta = ApplyVerifiedFindings(initial, (first,), store.root)
-    store.Save(first_state, expected_revision=delta.previous_revision)
+    firstState, delta = ApplyVerifiedFindings(initial, (first,), store.root)
+    store.Save(firstState, expected_revision=delta.previous_revision)
     second, _, _ = Detection(store, subject, source_id="other-provider", outcome=outcome)
-    second_state, delta = ApplyVerifiedFindings(store.Open(), (second,), store.root)
-    store.Save(second_state, expected_revision=delta.previous_revision)
-    reference = second_state.Objects(ObjectKind.FINDING)[0].Reference()
+    secondState, delta = ApplyVerifiedFindings(store.Open(), (second,), store.root)
+    store.Save(secondState, expected_revision=delta.previous_revision)
+    reference = secondState.Objects(ObjectKind.FINDING)[0].Reference()
     operator = ModelProvenance(
         "operator", "decision:one", "2026-10-11T10:01:00Z", "scope:local", "target:local",
     )
@@ -102,13 +102,13 @@ def test_DedupeEvidenceAndDispositionSurviveWorkspaceRelocation(tmp_path, outcom
         store.Open(), reference, FindingStatus.CONFIRMED, operator, "Local evidence reviewed",
     )
     store.Save(triaged, expected_revision=delta.previous_revision)
-    snapshot_bytes = (store.root / "state" / "model" / "model.json").read_bytes()
-    moved_root = tmp_path / "moved-workspace"
-    shutil.move(str(store.root), moved_root)
-    moved_store = LocalModelStore(moved_root)
-    reopened = moved_store.Open()
-    replayed, replay_delta = ApplyVerifiedFindings(reopened, (second,), moved_root)
-    moved_store.Save(replayed, expected_revision=replay_delta.previous_revision)
+    snapshotBytes = (store.root / "state" / "model" / "model.json").read_bytes()
+    movedRoot = tmp_path / "moved-workspace"
+    shutil.move(str(store.root), movedRoot)
+    movedStore = LocalModelStore(movedRoot)
+    reopened = movedStore.Open()
+    replayed, replayDelta = ApplyVerifiedFindings(reopened, (second,), movedRoot)
+    movedStore.Save(replayed, expected_revision=replayDelta.previous_revision)
     finding = Findings(reopened)[0]
     acquisition = [record for record in finding.provenance if record.execution is not None]
 
@@ -119,16 +119,16 @@ def test_DedupeEvidenceAndDispositionSurviveWorkspaceRelocation(tmp_path, outcom
     ), (
         "Deduplication erased acquisitions or turned failed execution into success"
     )
-    assert LocalEvidenceStore(moved_root / "evidence").Read(evidence.reference) == (
+    assert LocalEvidenceStore(movedRoot / "evidence").Read(evidence.reference) == (
         b'{"synthetic_tls_policy":"not-satisfied"}'
     ), "Portable finding evidence could not be integrity-verified after relocation"
-    assert (moved_root / "workspace.json").read_bytes() == workspace_bytes, (
+    assert (movedRoot / "workspace.json").read_bytes() == workspaceBytes, (
         "Finding publication changed workspace metadata"
     )
-    assert (moved_root / "state" / "model" / "model.json").read_bytes() == snapshot_bytes, (
+    assert (movedRoot / "state" / "model" / "model.json").read_bytes() == snapshotBytes, (
         "Exact rediscovery rewrote canonical triaged state after relocation"
     )
-    assert replayed == reopened and replay_delta.created == replay_delta.updated == (), (
+    assert replayed == reopened and replayDelta.created == replayDelta.updated == (), (
         "Exact rediscovery changed findings or retained duplicate observations"
     )
     assert envelope.kind == "provider-check" and envelope.attributes["raw_severity"] == (
@@ -169,19 +169,19 @@ def test_VerifiedBatchFailsAtomicallyAfterOneValidEvidenceCheck(tmp_path):
 
     store, initial, subject = Context(tmp_path)
     first, _, _ = Detection(store, subject)
-    missing_reference = replace(
+    missingReference = replace(
         first.provenance[0].evidence_references[0], locator="blobs/sha256/" + "f" * 64,
         sha256="f" * 64,
     )
     second = replace(first, location_key="tcp/8443", provenance=(replace(
-        first.provenance[0], evidence_references=(missing_reference,),
+        first.provenance[0], evidence_references=(missingReference,),
     ),))
-    snapshot_bytes = (store.root / "state" / "model" / "model.json").read_bytes()
+    snapshotBytes = (store.root / "state" / "model" / "model.json").read_bytes()
 
     with pytest.raises(EvidenceError):
         ApplyVerifiedFindings(initial, (first, second), store.root)
 
-    assert (store.root / "state" / "model" / "model.json").read_bytes() == snapshot_bytes, (
+    assert (store.root / "state" / "model" / "model.json").read_bytes() == snapshotBytes, (
         "A rejected batch wrote part of its finding set"
     )
 
@@ -190,11 +190,11 @@ def test_VerifiedIngestionChecksWorkspaceOwnership(tmp_path):
     """A caller cannot use another workspace as the finding evidence authority."""
 
     store, initial, subject = Context(tmp_path)
-    other_store, _, _ = Context(tmp_path, "foreign")
+    otherStore, _, _ = Context(tmp_path, "foreign")
     finding, _, _ = Detection(store, subject)
 
     with pytest.raises(ValueError, match="workspace"):
-        ApplyVerifiedFindings(initial, (finding,), other_store.root)
+        ApplyVerifiedFindings(initial, (finding,), otherStore.root)
 
     assert store.Open() == initial, "Foreign evidence ownership changed the original workspace"
 
@@ -219,20 +219,20 @@ def test_DispositionReplayIsPortableAndPreservesLaterCanonicalState(tmp_path):
         state, delta = TransitionFinding(store.Open(), reference, status, provenance, reason)
         store.Save(state, expected_revision=delta.previous_revision)
 
-    snapshot_bytes = (store.root / "state" / "model" / "model.json").read_bytes()
-    moved_root = tmp_path / "moved-workspace"
-    shutil.move(str(store.root), moved_root)
-    moved_store = LocalModelStore(moved_root)
-    reopened = moved_store.Open()
+    snapshotBytes = (store.root / "state" / "model" / "model.json").read_bytes()
+    movedRoot = tmp_path / "moved-workspace"
+    shutil.move(str(store.root), movedRoot)
+    movedStore = LocalModelStore(movedRoot)
+    reopened = movedStore.Open()
     replayed, delta = TransitionFinding(
         reopened, reference, FindingStatus.CONFIRMED, first, "First review",
     )
-    moved_store.Save(replayed, expected_revision=delta.previous_revision)
+    movedStore.Save(replayed, expected_revision=delta.previous_revision)
 
     assert replayed == reopened and delta.created == delta.updated == (), (
         "Persisted decision replay changed a newer disposition after workspace relocation"
     )
-    assert (moved_root / "state" / "model" / "model.json").read_bytes() == snapshot_bytes, (
+    assert (movedRoot / "state" / "model" / "model.json").read_bytes() == snapshotBytes, (
         "Old decision retry rewrote the persisted snapshot"
     )
     decisions = [item for item in reopened.observations if item.kind == "finding-disposition"]
@@ -271,11 +271,11 @@ def test_CompetingFindingProposalsUseExistingRevisionConflictBoundary(tmp_path):
     first, _, _ = Detection(store, subject)
     second = replace(first, location_key="tcp/8443")
     proposal, delta = ApplyVerifiedFindings(initial, (first,), store.root)
-    stale_proposal, stale_delta = ApplyVerifiedFindings(initial, (second,), store.root)
+    staleProposal, staleDelta = ApplyVerifiedFindings(initial, (second,), store.root)
     store.Save(proposal, expected_revision=delta.previous_revision)
 
     with pytest.raises(WorkspaceConflictError):
-        store.Save(stale_proposal, expected_revision=stale_delta.previous_revision)
+        store.Save(staleProposal, expected_revision=staleDelta.previous_revision)
 
     assert store.Open() == proposal, "A stale finding proposal replaced newer canonical state"
 

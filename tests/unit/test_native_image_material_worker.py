@@ -239,22 +239,22 @@ def test_SeparateStableCtimeViewsOnlyMatchOnWindows(
 
     path = material_control[0]
     target = path if selected == "request" else path.parent.parent / "cache/db/metadata.json"
-    handle_ctime = target.lstat().st_ctime_ns + 1
+    handleCtime = target.lstat().st_ctime_ns + 1
     original = worker.ArtifactHandleInfo
-    original_matcher = worker.MatchesArtifactReadIdentity
+    originalMatcher = worker.MatchesArtifactReadIdentity
 
     def HandleView(descriptor):
         """Retain an actual opened descriptor's identity with one stable API-view difference."""
 
-        return IdentityView(original(descriptor), st_ctime_ns=handle_ctime)
+        return IdentityView(original(descriptor), st_ctime_ns=handleCtime)
 
     def MatchWorkerRead(path_info, handle_info):
         """Apply simulated API matching only to the worker, after actual material preparation."""
 
-        with monkeypatch.context() as match_mode:
-            match_mode.setattr(artifact_inputs, "_WINDOWS_STAT_VIEWS", windows)
+        with monkeypatch.context() as matchMode:
+            matchMode.setattr(artifact_inputs, "_WINDOWS_STAT_VIEWS", windows)
 
-            return original_matcher(path_info, handle_info)
+            return originalMatcher(path_info, handle_info)
 
     monkeypatch.setattr(worker, "MatchesArtifactReadIdentity", MatchWorkerRead)
     monkeypatch.setattr(worker, "ArtifactHandleInfo", HandleView)
@@ -288,15 +288,15 @@ def test_EverySameApiIdentityMutationStillRefusesWindowsViews(
 
     path = material_control[0]
     target = path if selected == "request" else path.parent.parent / "cache/db/metadata.json"
-    handle_ctime = target.lstat().st_ctime_ns + 1
-    original_path = worker.ArtifactPathInfo
-    original_handle = worker.ArtifactHandleInfo
+    handleCtime = target.lstat().st_ctime_ns + 1
+    originalPath = worker.ArtifactPathInfo
+    originalHandle = worker.ArtifactHandleInfo
     calls = {"path": 0, "handle": 0}
 
     def Handle(descriptor):
         """Observe the real descriptor twice and alter only the chosen second API observation."""
 
-        info = IdentityView(original_handle(descriptor), st_ctime_ns=handle_ctime)
+        info = IdentityView(originalHandle(descriptor), st_ctime_ns=handleCtime)
         calls["handle"] += 1
 
         return IdentityView(info, **{field: getattr(info, field) + 1}) if (
@@ -306,7 +306,7 @@ def test_EverySameApiIdentityMutationStillRefusesWindowsViews(
     def PathInfo(selected_path, **options):
         """Observe only the owned target path and alter its chosen second observation."""
 
-        info = original_path(selected_path, **options)
+        info = originalPath(selected_path, **options)
         if selected_path == target:
             calls["path"] += 1
             if view == "path" and calls["path"] == 2:

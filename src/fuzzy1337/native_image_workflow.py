@@ -543,8 +543,8 @@ class NativeImageWorkflow:
                         raise EvidenceError("native image original retained manifest differs")
                     references[(record.reference.locator, record.reference.role)] = record.reference
                     identities.add(record.evidence_id)
-            object_refs = {item.Reference() for item in model.objects}
-            if not set(workspace.object_references) <= object_refs:
+            objectRefs = {item.Reference() for item in model.objects}
+            if not set(workspace.object_references) <= objectRefs:
                 raise ValueError("native image prior object reference is missing")
             if validate_success is not None:
                 validate_success()
@@ -552,7 +552,7 @@ class NativeImageWorkflow:
             store.Save(replace(workspace,
                 scope_references=tuple(sorted({*workspace.scope_references,
                                                context.Spec.scope_reference})),
-                object_references=tuple(sorted(object_refs)),
+                object_references=tuple(sorted(objectRefs)),
                 evidence_references=tuple(references[key] for key in sorted(references)),
                 evidence_record_references=tuple(sorted(identities)),
                 job_references=tuple(sorted({*workspace.job_references, context.Spec.job_id}))))
@@ -634,9 +634,9 @@ class NativeImageWorkflow:
                                                 self.owner_reference)
         pair = "operation:native-image-" + uuid4().hex
         prerequisite: NativeImageVersionPrerequisite | None = None
-        scan_grant: NativeImageOperationGrant | None = None
-        scan_claim: NativeImageExecutionClaim | None = None
-        scan_prepared: PreparedNativeImageOperation | None = None
+        scanGrant: NativeImageOperationGrant | None = None
+        scanClaim: NativeImageExecutionClaim | None = None
+        scanPrepared: PreparedNativeImageOperation | None = None
         latest: NativeImageMaterialProof | None = None
         try:
             VerifyWorkspaceEvidence(self.initial_workspace,
@@ -661,14 +661,14 @@ class NativeImageWorkflow:
                     claim = self.engine.ClaimNativeImageExecution(grant, prepared, self.Context(),
                         observer=observer, material_proof=latest, at=self.clock())
                     context.CheckCancellation()
-                original_proof = latest
-                validate = self.LaunchValidator(claim, observer, original_proof)
+                originalProof = latest
+                validate = self.LaunchValidator(claim, observer, originalProof)
                 phase = JobFailureCode.PROVIDER
                 result = await CaptureBoundedNativeTrivyOperation(operation, self.selection,
                     prepared.invocation, grant.authorization, self.bridge,
                     context.Spec.workspace_id, self.owner_reference,
                     observer=observer, budget=budget,
-                    material_proof=original_proof, operation_reference=pair,
+                    material_proof=originalProof, operation_reference=pair,
                     version_prerequisite=None if prerequisite is None else prerequisite.capture,
                     cancellation=context.Cancellation, validate_authority=validate)
                 capture = result.capture
@@ -690,12 +690,12 @@ class NativeImageWorkflow:
                     else:
                         self.engine.ValidateNativeImageCapture(claim, capture, self.Context(),
                             observer=observer, material_proof=latest, at=self.clock())
-                        scan_prepared, scan_grant, scan_claim = prepared, grant, claim
+                        scanPrepared, scanGrant, scanClaim = prepared, grant, claim
                 context.Progress(len(self.captures), 2)
-            assert prerequisite is not None and scan_grant is not None and scan_claim is not None, (
+            assert prerequisite is not None and scanGrant is not None and scanClaim is not None, (
                 "An accepted original pair must exist before native final projection."
             )
-            assert scan_prepared is not None and latest is not None, (
+            assert scanPrepared is not None and latest is not None, (
                 "The original SCAN and latest issued material proof must remain attached."
             )
 
@@ -703,8 +703,8 @@ class NativeImageWorkflow:
                 """Require both current original grants and cleanup-safe persistent bindings."""
 
                 context.CheckCancellation()
-                self.engine.ValidateNativeImagePairFresh(prerequisite, scan_prepared, scan_grant,
-                    scan_claim, self.captures[-1], self.Context(), observer=observer,
+                self.engine.ValidateNativeImagePairFresh(prerequisite, scanPrepared, scanGrant,
+                    scanClaim, self.captures[-1], self.Context(), observer=observer,
                     material_proof=latest, at=self.clock())
 
             with Finalization(budget):
@@ -822,7 +822,7 @@ async def ScanNativeImage(
     workflow = NativeImageWorkflow(workspace_root, scope_id, owner_reference, selection,
         policy_provider, timeout_seconds, workspace, model, Snapshot, clock, intent)
     job = ScanJob(spec, workflow, evidence_store=LocalEvidenceStore(workspace_root / "evidence"))
-    started_at = datetime.now(UTC).isoformat()
+    startedAt = datetime.now(UTC).isoformat()
     started = time.monotonic()
     first_update: float | None = None
     cursor = -1
@@ -875,7 +875,7 @@ async def ScanNativeImage(
         _NATIVE_IMAGE_ACCEPTANCES[acceptance] = (
             tuple(workflow.captures), workspace_root, workflow.acceptance_validator)
 
-    return NativeImageScanSummary(snapshot, started_at, datetime.now(UTC).isoformat(),
+    return NativeImageScanSummary(snapshot, startedAt, datetime.now(UTC).isoformat(),
         time.monotonic() - started, first_update, actual.revision,
         tuple((kind.value, len(actual.Objects(kind))) for kind in ObjectKind), job.EventsSince(),
         tuple(workflow.captures), workflow.Records(), workflow.custody_uncertain or (

@@ -603,14 +603,14 @@ def test_FinalClockMutationPrecedesFreshAuthorityBeforeEitherSave(
     """A valid final clock callback can change authority without changing time or the window."""
 
     environment = FakeOriginalEnvironment(monkeypatch)
-    original_check = workflow.HeaderAdmission.Check
-    original_bases = workflow.HeaderAttempt.RequireBases
+    originalCheck = workflow.HeaderAdmission.Check
+    originalBases = workflow.HeaderAttempt.RequireBases
     state = {'after_bases': 0, 'boundary': None, 'inside': False, 'clocks': 0, 'changed': False}
 
     def Bases(self, model, workspace):
         """Select the exact model or conditional workspace final original-basis fence."""
 
-        result = original_bases(self, model, workspace)
+        result = originalBases(self, model, workspace)
         state['boundary'] = 'model' if environment.model_saves == 0 else 'workspace'
         state['after_bases'] = 0
 
@@ -626,7 +626,7 @@ def test_FinalClockMutationPrecedesFreshAuthorityBeforeEitherSave(
         state['clocks'] = 0
 
         try:
-            return original_check(self)
+            return originalCheck(self)
 
         finally:
             state['inside'] = False
@@ -667,14 +667,14 @@ def test_FinalFullAuthorityIsLastCallbackBoundaryBeforeBothSaves(monkeypatch):
 
     environment = FakeOriginalEnvironment(monkeypatch)
     trace = []
-    original_scope = workflow.LocalScopeStore.Open
+    originalScope = workflow.LocalScopeStore.Open
 
     def Scope(self, scope_id):
         """Record the fresh selected scope read without changing its actual fake value."""
 
         trace.append('scope')
 
-        return original_scope(self, scope_id)
+        return originalScope(self, scope_id)
 
     def Policy():
         """Record the unchanged current typed policy reader."""
@@ -724,16 +724,16 @@ def test_FinalAuthorityReadTimeIsFencedBeforeEitherOriginalSave(monkeypatch, bou
 
     environment = FakeOriginalEnvironment(monkeypatch)
     issued = environment.now
-    original_check = workflow.HeaderAdmission.Check
-    original_bases = workflow.HeaderAttempt.RequireBases
+    originalCheck = workflow.HeaderAdmission.Check
+    originalBases = workflow.HeaderAttempt.RequireBases
     state = {'boundary': None, 'after_bases': 0, 'inside': False,
         'entered': False, 'advanced': False, 'window': None}
-    save_times = []
+    saveTimes = []
 
     def Bases(self, model, workspace):
         """Select the actual final original-basis fence without touching any real store."""
 
-        result = original_bases(self, model, workspace)
+        result = originalBases(self, model, workspace)
         state['boundary'] = 'model' if environment.model_saves == 0 else 'workspace'
         state['after_bases'] = 0
 
@@ -751,7 +751,7 @@ def test_FinalAuthorityReadTimeIsFencedBeforeEitherOriginalSave(monkeypatch, bou
             state['window'] = self.issued, self.expires
 
         try:
-            return original_check(self)
+            return originalCheck(self)
 
         finally:
             state['inside'] = False
@@ -776,8 +776,8 @@ def test_FinalAuthorityReadTimeIsFencedBeforeEitherOriginalSave(monkeypatch, bou
 
     monkeypatch.setattr(workflow.HeaderAttempt, 'RequireBases', Bases)
     monkeypatch.setattr(workflow.HeaderAdmission, 'Check', Check)
-    environment.on_model_save = lambda: save_times.append(('model', environment.now))
-    environment.on_workspace_save = lambda: save_times.append(('workspace', environment.now))
+    environment.on_model_save = lambda: saveTimes.append(('model', environment.now))
+    environment.on_workspace_save = lambda: saveTimes.append(('workspace', environment.now))
     result = workflow.ApplyOwnedResponseHeaderCheck(environment.root, 'unit-scope',
         environment.receipt_id, environment.target, environment.owner, Policy,
         analysis_reference='analysis:final-reader-time',
@@ -792,7 +792,7 @@ def test_FinalAuthorityReadTimeIsFencedBeforeEitherOriginalSave(monkeypatch, bou
         environment.workspace_saves == 0
     ), (
         'Final unchanged-policy read expiry must precede either protected original Save')
-    assert all(moment < issued + timedelta(seconds=10) for _, moment in save_times), (
+    assert all(moment < issued + timedelta(seconds=10) for _, moment in saveTimes), (
         'No protected Save may occur after reader-consumed original expiry')
     assert result.failure == 'admission-expired', result.ToDict()
     assert result.state == ('denied' if boundary == 'model' else 'partial'), result.ToDict()

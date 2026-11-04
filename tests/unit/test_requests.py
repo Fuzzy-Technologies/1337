@@ -50,8 +50,8 @@ def test_EndpointReusesWorkspaceBoundSOMIdentity(origin, canonical):
     """Offline authority aliases converge while methods, paths and workspaces remain distinct."""
 
     endpoint = Endpoint("demo", origin, "/api/{item_id}", "post")
-    canonical_endpoint = Endpoint("demo", canonical, "/api/{item_id}", "POST")
-    assert endpoint == canonical_endpoint and endpoint.origin == canonical, "Origin alias drift"
+    canonicalEndpoint = Endpoint("demo", canonical, "/api/{item_id}", "POST")
+    assert endpoint == canonicalEndpoint and endpoint.origin == canonical, "Origin alias drift"
     assert endpoint.Identity().kind is ObjectKind.ENDPOINT, "A second object family was introduced"
     assert Endpoint.FromDict(endpoint.ToDict()) == endpoint, "Endpoint round trip changed identity"
     assert endpoint.Identity() != replace(endpoint, workspace_id="other").Identity(), (
@@ -202,13 +202,13 @@ def test_CanonicalPointOrderAndRepeatedFieldIdentity():
     reordered = replace(template, injection_points=tuple(reversed(template.injection_points)))
     assert reordered == template and reordered.ToJson() == template.ToJson(), "Producer order drift"
     point = InjectionPoint(InjectionLocation.HEADER, "X-Test", ValueBinding("one"))
-    same_coordinate = replace(point, selector="x-TEST", binding=ValueBinding("two"))
+    sameCoordinate = replace(point, selector="x-TEST", binding=ValueBinding("two"))
 
     with pytest.raises(ValueError, match="unique"):
-        RequestTemplate(template.endpoint, (point, same_coordinate))
+        RequestTemplate(template.endpoint, (point, sameCoordinate))
 
-    different_occurrence = replace(point, occurrence=1)
-    repeated = RequestTemplate(template.endpoint, (point, different_occurrence))
+    differentOccurrence = replace(point, occurrence=1)
+    repeated = RequestTemplate(template.endpoint, (point, differentOccurrence))
     assert len(repeated.injection_points) == 2, (
         "Different repeated-field occurrences were incorrectly collapsed"
     )
@@ -291,13 +291,13 @@ def test_TemplateSizeBoundAppliesBeforeStorage():
     assert RequestTemplate(Template().endpoint, points, BodyKind.JSON).ToJson(), (
         "Valid bounded aggregate template was unexpectedly rejected"
     )
-    larger_points = tuple(
+    largerPoints = tuple(
         replace(point, selector=f"/{index}/" + "\u0080" * 240)
         for index, point in enumerate(points)
     )
 
     with pytest.raises(ValueError, match="size bound"):
-        RequestTemplate(Template().endpoint, larger_points, BodyKind.JSON)
+        RequestTemplate(Template().endpoint, largerPoints, BodyKind.JSON)
 
 
 def test_ModelProjectionGroupsTemplatesAndRejectsForeignObjects():
@@ -338,11 +338,11 @@ def test_ProjectionConsumerRejectsMalformedForeignOrDuplicateTemplates():
     ordered = sorted(records, key=lambda record: record["request_reference"])
     foreign = replace(first, endpoint=replace(first.endpoint, workspace_id="other"))
 
-    invalid_records = (
+    invalidRecords = (
         {}, [first.ToDict(), first.ToDict()], list(reversed(ordered)), [foreign.ToDict()],
     )
 
-    for records in invalid_records:
+    for records in invalidRecords:
         with pytest.raises(ValueError):
             RequestsFromObject(SecurityObject(
                 first.endpoint.Identity(), {"request_templates": records}, Attribution(),

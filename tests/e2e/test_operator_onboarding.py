@@ -27,13 +27,13 @@ def installed_onboarding(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Build once, install offline in a clean environment and return its isolated interpreter."""
 
     parent = tmp_path_factory.mktemp("installed-onboarding")
-    wheel_directory = parent / "wheel"
+    wheelDirectory = parent / "wheel"
     build = subprocess.run(
         [sys.executable, "-m", "build", "--wheel", "--no-isolation", "--outdir",
-         str(wheel_directory)], cwd=ROOT, capture_output=True, text=True, timeout=90, check=False,
+         str(wheelDirectory)], cwd=ROOT, capture_output=True, text=True, timeout=90, check=False,
     )
     assert build.returncode == 0, build.stderr
-    wheel, = wheel_directory.glob("*.whl")
+    wheel, = wheelDirectory.glob("*.whl")
     created = subprocess.run([sys.executable, "-m", "venv", str(parent / "venv")],
                              capture_output=True, text=True, timeout=60, check=False)
     assert created.returncode == 0, created.stderr

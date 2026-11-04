@@ -310,11 +310,11 @@ def test_MockedFailuresStopWithoutRetryOrLaterStages(tmp_path, monkeypatch, muta
 
     plan = pipeline.Plan(Selection(tmp_path))
     mock = MockSequence(plan, monkeypatch)
-    maximum_calls = 5
+    maximumCalls = 5
 
     if mutation == "consent":
         mock.scope["authorization"]["record_reference"] = "consent:historical"
-        maximum_calls = 1
+        maximumCalls = 1
 
     elif mutation == "offline-call":
         mock.analysis["guard"]["calls"]["socket.audit"] = 1
@@ -330,7 +330,7 @@ def test_MockedFailuresStopWithoutRetryOrLaterStages(tmp_path, monkeypatch, muta
 
     elif mutation == "old-root-remains":
         mock.relocated["original_root_absent"] = False
-        maximum_calls = 6
+        maximumCalls = 6
 
     elif mutation == "relocation-claim":
         def Claimed(operation, selection, observations):
@@ -343,7 +343,7 @@ def test_MockedFailuresStopWithoutRetryOrLaterStages(tmp_path, monkeypatch, muta
 
             return value
 
-        maximum_calls = 6
+        maximumCalls = 6
 
     elif mutation == "relocation-repairs":
         mock.interpreted["originals"]["unexpected"] = "repair"
@@ -358,24 +358,24 @@ def test_MockedFailuresStopWithoutRetryOrLaterStages(tmp_path, monkeypatch, muta
 
             return value
 
-        maximum_calls = 7
+        maximumCalls = 7
 
     else:
         mock.replay["guard"]["saves"].append({"mock_forbidden_write": True})
-        maximum_calls = 8
+        maximumCalls = 8
 
-    selected_handoff = mock.Handoff
+    selectedHandoff = mock.Handoff
 
     if mutation == "relocation-repairs":
-        selected_handoff = Relocated
+        selectedHandoff = Relocated
 
     elif mutation == "relocation-claim":
-        selected_handoff = Claimed
+        selectedHandoff = Claimed
 
     with pytest.raises(AssertionError):
-        pipeline.Run(plan, selected_handoff, enabled=True)
+        pipeline.Run(plan, selectedHandoff, enabled=True)
 
-    assert len(mock.calls) <= maximum_calls, "No failing operation may trigger a retry"
+    assert len(mock.calls) <= maximumCalls, "No failing operation may trigger a retry"
 
 
 @pytest.mark.parametrize("enabled", [False, None, 1, "yes"])

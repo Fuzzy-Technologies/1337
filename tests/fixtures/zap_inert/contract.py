@@ -85,12 +85,12 @@ def Decode(raw: bytes) -> Envelope:
     if len(raw) != REQUEST.size or raw[9:12] != b"\0\0\0":
         raise ValueError("invalid inert request length or reserved bytes")
 
-    magic, mode, sink_port, private_port, nonce, digest = REQUEST.unpack(raw)
+    magic, mode, sinkPort, privatePort, nonce, digest = REQUEST.unpack(raw)
 
     if magic != REQUEST_MAGIC or mode >= len(MODES):
         raise ValueError("invalid inert request version or mode")
 
-    envelope = Envelope(MODES[mode], sink_port, private_port, nonce, digest)
+    envelope = Envelope(MODES[mode], sinkPort, privatePort, nonce, digest)
 
     if envelope.Encode() != raw:
         raise ValueError("noncanonical inert request")
@@ -115,15 +115,15 @@ def ParseReady(raw: bytes, envelope: Envelope) -> tuple[int, int, int, int, int]
     if len(raw) != READY.size:
         raise ValueError("invalid inert READY length")
 
-    magic, nonce, digest, device, inode, block_size, blocks, files = READY.unpack(raw)
+    magic, nonce, digest, device, inode, blockSize, blocks, files = READY.unpack(raw)
 
     if (magic, nonce, digest) != (READY_MAGIC, envelope.nonce, envelope.digest) or (
-        device < 1 or inode < 1 or block_size < 1 or block_size * blocks != QUOTA_BYTES
+        device < 1 or inode < 1 or blockSize < 1 or blockSize * blocks != QUOTA_BYTES
         or files != QUOTA_INODES
     ):
         raise ValueError("inert READY binding or quota mismatch")
 
-    return device, inode, block_size, blocks, files
+    return device, inode, blockSize, blocks, files
 
 
 def BwrapArguments(binary: str, own_handles: tuple[int, int, int, int]) -> tuple[str, ...]:

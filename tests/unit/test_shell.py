@@ -509,12 +509,12 @@ def test_ProductHistoryAndReplayUseActualDispatchGrammar(monkeypatch, namespace,
 
     monkeypatch.setattr(InteractiveShell, "RunLocalCommand", ObserveDispatcher)
     line = namespace + separator + " " + marker
-    _, expected_argument, _ = shell.parseline(line)
+    _, expectedArgument, _ = shell.parseline(line)
     assert not shell.onecmd(line), "Product dispatch cannot terminate the workbench."
-    assert arguments == [expected_argument], "Sanitization must preserve actual dispatch grammar."
+    assert arguments == [expectedArgument], "Sanitization must preserve actual dispatch grammar."
     assert shell.lastcmd == namespace, "No malformed argument can enter the framework replay state."
     shell.onecmd("")
-    assert arguments == [expected_argument, ""], "Empty-line repeat may replay only the namespace."
+    assert arguments == [expectedArgument, ""], "Empty-line repeat may replay only the namespace."
     shell.onecmd("history")
     assert output.getvalue().splitlines() == [namespace, namespace], (
         "History must retain the parsed protected namespace, regardless of raw prefix punctuation."
@@ -625,14 +625,14 @@ def test_CappedRetirementGapUsesFiniteLookupAndRefusesUnidentifiedTip(additions)
     cursor = NativeInputHistory.Open(editor)
     shell = InteractiveShell(stdout=StringIO())
     queried = []
-    original_item = editor.get_history_item
+    originalItem = editor.get_history_item
 
     def Observe(index):
         """Count only the independent oracle's public lookup calls and absolute positions."""
 
         queried.append(index)
 
-        return original_item(index)
+        return originalItem(index)
 
     editor.get_history_item = Observe
     entries[:] = [(7 + additions, "scope; synthetic-unowned-command-addition")]

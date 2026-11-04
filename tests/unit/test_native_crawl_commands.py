@@ -125,8 +125,8 @@ def test_InstalledCommandHelpRegistryAndShellListTheActualCrawlAction(capsys):
         Main(["scan", "crawl", "--help"])
 
     assert caught.value.code == 0, "Nested crawl help must need no workspace or policy."
-    help_text = capsys.readouterr().out
-    assert all(flag in help_text for flag in (
+    helpText = capsys.readouterr().out
+    assert all(flag in helpText for flag in (
         "--seed", "--selected", "--approve-safe-crawl", "--policy", "--request-timeout-ms",
     )), "Selected action help must describe independent authority and finite limits."
     descriptor = COMMAND_REGISTRY.Resolve("scan")

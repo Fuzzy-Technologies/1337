@@ -21,7 +21,7 @@ from tests.unit.test_owned_content_response_ci_denial import Fixture as PolicyFi
 def Fixture(tmp_path):
     """Select only the synthetic actor identity with valid authority and a pinned fixture helper."""
 
-    junit, retained, _policy_case, documents = PolicyFixture(tmp_path)
+    junit, retained, _policyCase, documents = PolicyFixture(tmp_path)
     junit.write_text(junit.read_text().replace(POLICY_CASE_NAME, evidence.CASE_NAME))
     case = retained / "run-mock-only/actor-denied"
     plan = documents["pipeline-plan.json"]

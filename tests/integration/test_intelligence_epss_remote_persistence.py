@@ -319,7 +319,7 @@ def test_SameWorkspaceDistinctAcquisitionsCannotSpliceOwningCustody(
     )
 
     if splice == "roots":
-        selected_id, receipt_id = first.selection_record.evidence_id, second.receipt.evidence_id
+        selectedId, receiptId = first.selection_record.evidence_id, second.receipt.evidence_id
 
     else:
         wrapper = store.Put(first.envelope.Serialize(), ENVELOPE_ROLE, "application/json",
@@ -327,10 +327,10 @@ def test_SameWorkspaceDistinctAcquisitionsCannotSpliceOwningCustody(
         changed = replace(second, raw=first.raw, envelope=first.envelope, selection_record=wrapper)
         receipt = store.Put(CanonicalReferenceJson(changed.ReceiptContent()), RECEIPT_ROLE,
                             "application/json", second.raw.provenance)
-        selected_id, receipt_id = wrapper.evidence_id, receipt.evidence_id
+        selectedId, receiptId = wrapper.evidence_id, receipt.evidence_id
 
     with pytest.raises(ValueError, match="provenance"):
-        LoadHttpsEpssSelection(root, selected_id, receipt_id)
+        LoadHttpsEpssSelection(root, selectedId, receiptId)
 
 
 @pytest.mark.parametrize("artifact", ["raw", "selection_record", "receipt"])
@@ -376,12 +376,12 @@ def test_RoleMediaAndBudgetRefuseBeforeOwningGetAllocatesBlobContent(
         return original(store, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", Read)
-    selected_id = (malicious.evidence_id if role == ENVELOPE_ROLE
+    selectedId = (malicious.evidence_id if role == ENVELOPE_ROLE
                    else outcome.selection_record.evidence_id)
-    receipt_id = malicious.evidence_id if role == RECEIPT_ROLE else outcome.receipt.evidence_id
+    receiptId = malicious.evidence_id if role == RECEIPT_ROLE else outcome.receipt.evidence_id
 
     with pytest.raises(ValueError, match="role-specific"):
-        LoadHttpsEpssSelection(root, selected_id, receipt_id)
+        LoadHttpsEpssSelection(root, selectedId, receiptId)
 
     assert malicious.reference.sha256 not in reads, (
         'Invalid role, media or budget delegated actual malicious blob loading'
@@ -431,18 +431,18 @@ def test_HttpsLoaderRefusesOriginalLocalProfileRootsBeforeBlobReads(
     )
 
     root, outcome = Imported(tmp_path, monkeypatch)
-    local_source = EpssLocalSource(SourceOrigin.SYNTHETIC, "Fixture",
+    localSource = EpssLocalSource(SourceOrigin.SYNTHETIC, "Fixture",
         "https://example.invalid/source", "Fixture only", "https://example.invalid/LICENSE",
         ("https://example.invalid/terms",), "synthetic-model", "2026-11-02")
-    request = EpssLocalRequest(local_source, PAYLOAD, (FIRST, MISSING))
+    request = EpssLocalRequest(localSource, PAYLOAD, (FIRST, MISSING))
     local = AcquireLocalEpssSelection(root, request, scope_reference="scope:local")
-    selected_id = (local.selection_record.evidence_id if root_kind == "selection"
+    selectedId = (local.selection_record.evidence_id if root_kind == "selection"
                    else outcome.selection_record.evidence_id)
-    receipt_id = (local.receipt.evidence_id if root_kind == "receipt"
+    receiptId = (local.receipt.evidence_id if root_kind == "receipt"
                   else outcome.receipt.evidence_id)
 
     with pytest.raises(ValueError, match="role-specific"):
-        LoadHttpsEpssSelection(root, selected_id, receipt_id)
+        LoadHttpsEpssSelection(root, selectedId, receiptId)
 
 
 @pytest.mark.parametrize("root_kind", ["selection", "receipt"])
@@ -456,12 +456,12 @@ def test_ForeignImporterRootIsRejectedBeforeNestedInterpretation(
     original = outcome.selection_record if root_kind == "selection" else outcome.receipt
     forged = store.Put(store.Read(original.reference), original.reference.role, "application/json",
         replace(original.provenance, source_id="foreign"))
-    selected_id = (forged.evidence_id if root_kind == "selection"
+    selectedId = (forged.evidence_id if root_kind == "selection"
                    else outcome.selection_record.evidence_id)
-    receipt_id = forged.evidence_id if root_kind == "receipt" else outcome.receipt.evidence_id
+    receiptId = forged.evidence_id if root_kind == "receipt" else outcome.receipt.evidence_id
 
     with pytest.raises(ValueError, match="provenance"):
-        LoadHttpsEpssSelection(root, selected_id, receipt_id)
+        LoadHttpsEpssSelection(root, selectedId, receiptId)
 
 
 @pytest.mark.parametrize("content", [b"[]", b'{"duplicate":1,"duplicate":2}', b'{"x":NaN}'])

@@ -86,12 +86,12 @@ def test_FiniteOracleCountsAndRatiosPreserveUnexpectedAndDuplicateDetections():
     assert metrics["evidence_completeness"] == 1, "Empty stderr is valid preserved evidence."
 
     expanded = replace(Run(), detected_checks=Run().detected_checks + ("another.alarm",))
-    expanded_metrics = ScoreRun(Oracle(), expanded)
+    expandedMetrics = ScoreRun(Oracle(), expanded)
 
-    assert expanded_metrics["unexpected_detection_count"] == 2, (
+    assert expandedMetrics["unexpected_detection_count"] == 2, (
         "Additional outside-oracle detections must remain separately measurable."
     )
-    assert all(expanded_metrics[key] == metrics[key] for key in (
+    assert all(expandedMetrics[key] == metrics[key] for key in (
         "tp", "fp", "fn", "tn", "recall_tpr", "false_positive_rate", "precision", "accuracy"
     )), "Outside-oracle observations must never change the finite denominator across releases."
 
@@ -130,21 +130,21 @@ def test_QualitativeTargetsAndEmptyPopulationsNeverFabricateAbsoluteAccuracy():
     qualitative = replace(
         Oracle(), complete=False, checks=(OracleCheck("positive.hit", "web.canary", None),)
     )
-    qualitative_metrics = ScoreRun(qualitative, Run())
+    qualitativeMetrics = ScoreRun(qualitative, Run())
     empty = replace(Oracle(), checks=(), required_evidence=())
-    empty_metrics = ScoreRun(empty, replace(Run(), detected_checks=(), discovered_objects=()))
+    emptyMetrics = ScoreRun(empty, replace(Run(), detected_checks=(), discovered_objects=()))
 
-    assert qualitative_metrics["tp"] is None, "Incomplete app oracles cannot supply TP counts."
-    assert qualitative_metrics["accuracy_reason"] == "incomplete-oracle", (
+    assert qualitativeMetrics["tp"] is None, "Incomplete app oracles cannot supply TP counts."
+    assert qualitativeMetrics["accuracy_reason"] == "incomplete-oracle", (
         "Qualitative target state must distinguish incomplete truth from a failed run."
     )
-    assert empty_metrics["tp"] is None and not empty_metrics["accuracy_available"], (
+    assert emptyMetrics["tp"] is None and not emptyMetrics["accuracy_available"], (
         "An empty oracle cannot supply a meaningful accuracy population."
     )
-    assert empty_metrics["accuracy_reason"] == "empty-oracle", (
+    assert emptyMetrics["accuracy_reason"] == "empty-oracle", (
         "An empty complete oracle must explain why accuracy is withheld."
     )
-    assert all(empty_metrics[key] is None for key in (
+    assert all(emptyMetrics[key] is None for key in (
         "recall_tpr", "false_positive_rate", "precision", "accuracy", "evidence_completeness"
     )), "Undefined denominators must serialize as null."
     report = BuildReport((empty,), (replace(Run(), detected_checks=()),))

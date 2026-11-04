@@ -184,10 +184,10 @@ class RuntimeEvidenceStore(LocalEvidenceStore):
         data = self.ReadStoredBytes(("records", evidence_id[7:] + ".json"),
                                     EVIDENCE_MANIFEST_MAX_BYTES)
         record = ParseEvidenceManifest(data)
-        source_id, source_version, _ = RuntimeProfile(self.profile)
+        sourceId, sourceVersion, _ = RuntimeProfile(self.profile)
 
-        if record.evidence_id != evidence_id or record.provenance.source_id != source_id or (
-            record.provenance.source_version != source_version
+        if record.evidence_id != evidence_id or record.provenance.source_id != sourceId or (
+            record.provenance.source_version != sourceVersion
             or record.provenance.execution is not None
             or record.provenance.invocation_sha256 is not None
         ):
@@ -229,7 +229,7 @@ def PreflightKnownRuntimeReferences(state: ModelState, workspace: WorkspaceState
     contexts.extend(item.provenance for item in state.observations)
     references = {*workspace.evidence_references,
                   *(item for context in contexts for item in context.evidence_references)}
-    record_ids = set(workspace.evidence_record_references)
+    recordIds = set(workspace.evidence_record_references)
     custody: dict[str, list[Observation]] = {}
 
     for fact in state.observations:
@@ -237,51 +237,51 @@ def PreflightKnownRuntimeReferences(state: ModelState, workspace: WorkspaceState
             continue
 
         profile = fact.attributes.get("profile")
-        evidence_id = fact.attributes.get("evidence_id")
+        evidenceId = fact.attributes.get("evidence_id")
 
-        if type(profile) is not str or profile not in _PROFILES or type(evidence_id) is not str:
+        if type(profile) is not str or profile not in _PROFILES or type(evidenceId) is not str:
             raise RuntimeFailure("source-context")
 
-        custody.setdefault(evidence_id, []).append(fact)
-        record_ids.add(evidence_id)
+        custody.setdefault(evidenceId, []).append(fact)
+        recordIds.add(evidenceId)
 
-    if len(record_ids) > MAX_EXPORT_ACQUISITIONS:
+    if len(recordIds) > MAX_EXPORT_ACQUISITIONS:
         raise RuntimeFailure("limit")
 
-    for evidence_id in sorted(record_ids):
-        if not evidence_id.startswith("sha256:"):
+    for evidenceId in sorted(recordIds):
+        if not evidenceId.startswith("sha256:"):
             raise RuntimeFailure("integrity")
 
-        digest = evidence_id[7:]
+        digest = evidenceId[7:]
         RequireEvidenceDigest(digest)
         record = ParseEvidenceManifest(evidence.ReadStoredBytes(
             ("records", digest + ".json"), EVIDENCE_MANIFEST_MAX_BYTES,
         ))
 
-        if record.evidence_id != evidence_id:
+        if record.evidence_id != evidenceId:
             raise RuntimeFailure("integrity")
 
         reference, source = record.reference, record.provenance
-        original_facts = custody.get(evidence_id, [])
+        originalFacts = custody.get(evidenceId, [])
 
-        if any(fact.attributes["profile"] != reference.role for fact in original_facts):
+        if any(fact.attributes["profile"] != reference.role for fact in originalFacts):
             raise RuntimeFailure("source-context" if reference.role in _PROFILES else "integrity")
 
         if reference.role not in _PROFILES:
             continue
 
-        source_id, source_version, _ = RuntimeProfile(reference.role)
+        sourceId, sourceVersion, _ = RuntimeProfile(reference.role)
 
-        if source.workspace_id != workspace.workspace_id or source.source_id != source_id or (
-            source.source_version != source_version or source.execution is not None
+        if source.workspace_id != workspace.workspace_id or source.source_id != sourceId or (
+            source.source_version != sourceVersion or source.execution is not None
             or source.invocation_sha256 is not None
         ):
             raise RuntimeFailure("integrity")
 
-        for fact in original_facts:
+        for fact in originalFacts:
             try:
                 anchor = RequireRuntimeAnchor(state, reference.role, fact.subject_reference)
-                provenance = ModelProvenance(source_id, fact.provenance.run_reference,
+                provenance = ModelProvenance(sourceId, fact.provenance.run_reference,
                     source.finished_at, source.scope_reference, anchor, source.tool_version,
                     (reference,))
                 SourceFact(state, record, provenance, None, profile=reference.role)
@@ -327,12 +327,12 @@ def RequireRuntimeAnchor(state: ModelState, profile: str, reference: str) -> str
         if entity is None or entity.identity.kind is not ObjectKind.ASSET:
             raise RuntimeFailure("cluster", 2)
 
-        cluster_id = entity.attributes.get("cluster_id")
+        clusterId = entity.attributes.get("cluster_id")
 
         if entity.attributes.get("asset_type") != "kubernetes-cluster" or (
-            type(cluster_id) is not str
-            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}", cluster_id)
-            or entity.identity.key != "kubernetes-cluster:" + cluster_id
+            type(clusterId) is not str
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,252}", clusterId)
+            or entity.identity.key != "kubernetes-cluster:" + clusterId
         ):
             raise RuntimeFailure("cluster", 2)
 
@@ -400,7 +400,7 @@ def ReadOwnedInspect(path: Path, consent: ArtifactReadConsent,
     if not 1 <= before.st_size <= maximum:
         raise RuntimeFailure("limit")
 
-    started_at = clock().isoformat()
+    startedAt = clock().isoformat()
 
     with selected.open("rb") as stream:
         opened = os.fstat(stream.fileno())
@@ -409,7 +409,7 @@ def ReadOwnedInspect(path: Path, consent: ArtifactReadConsent,
             raise RuntimeFailure("source-changed")
 
         raw = stream.read(maximum + 1)
-        finished_at = clock().isoformat()
+        finishedAt = clock().isoformat()
         finished = os.fstat(stream.fileno())
 
     after = CheckStorageEntry(selected, directory=False)
@@ -421,7 +421,7 @@ def ReadOwnedInspect(path: Path, consent: ArtifactReadConsent,
     ):
         raise RuntimeFailure("source-changed")
 
-    return raw, started_at, finished_at
+    return raw, startedAt, finishedAt
 
 
 def RuntimeParser() -> argparse.ArgumentParser:
@@ -513,7 +513,7 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
         RuntimeFailure: Existing original manifest or compatible SDK attribution changes context.
     """
 
-    source_id, source_version, _ = RuntimeProfile(profile)
+    sourceId, sourceVersion, _ = RuntimeProfile(profile)
     facts = [item for item in state.observations if item.kind == "runtime-import-source"
              and item.attributes.get("evidence_id") == record.evidence_id]
 
@@ -526,24 +526,24 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
             }
             or facts[0].attributes.get("profile") != profile
             or facts[0].attributes.get("source_sha256") != record.reference.sha256
-            or facts[0].attributes.get("source_version") != source_version
+            or facts[0].attributes.get("source_version") != sourceVersion
         ):
             raise RuntimeFailure("source-context")
 
         actor = facts[0].attributes["read_actor_reference"]
-        read_reference = facts[0].attributes["read_consent_reference"]
+        readReference = facts[0].attributes["read_consent_reference"]
 
-        if actor is not None or read_reference is not None:
-            if not isinstance(actor, str) or not isinstance(read_reference, str):
+        if actor is not None or readReference is not None:
+            if not isinstance(actor, str) or not isinstance(readReference, str):
                 raise RuntimeFailure("source-context")
 
             try:
-                original_consent = ArtifactReadConsent(actor, read_reference)
+                originalConsent = ArtifactReadConsent(actor, readReference)
 
             except ValueError:
                 raise RuntimeFailure("source-context") from None
 
-            if consent is not None and original_consent != consent:
+            if consent is not None and originalConsent != consent:
                 raise RuntimeFailure("source-context")
 
         elif consent is not None:
@@ -552,7 +552,7 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
         return facts[0]
 
     contexts = [item.provenance for item in state.observations
-                if item.provenance.source_id == source_id
+                if item.provenance.source_id == sourceId
                 and item.provenance.observed_at == record.provenance.finished_at
                 and record.reference in item.provenance.evidence_references]
 
@@ -561,7 +561,7 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
 
     return Observation("runtime-import-source", provenance.target_reference, {
         "profile": profile, "evidence_id": record.evidence_id,
-        "source_sha256": record.reference.sha256, "source_version": source_version,
+        "source_sha256": record.reference.sha256, "source_version": sourceVersion,
         "read_actor_reference": consent.actor_ref if consent is not None else None,
         "read_consent_reference": consent.record_ref if consent is not None else None,
     }, provenance)
@@ -655,7 +655,7 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
 
     try:
         options = parser.parse_args(arguments)
-        source_id, source_version, maximum = RuntimeProfile(options.profile)
+        sourceId, sourceVersion, maximum = RuntimeProfile(options.profile)
         outcome["command"] = "runtime.import." + options.profile
 
         if (options.profile == "docker-inspect" and options.host is None) or (
@@ -701,10 +701,10 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
         evidence = RuntimeEvidenceStore(root / "evidence", profile=options.profile)
 
         if options.evidence is not None:
-            selected_record = evidence.Manifest(options.evidence)
+            selectedRecord = evidence.Manifest(options.evidence)
 
-            if selected_record.provenance.workspace_id != workspace.workspace_id or (
-                selected_record.provenance.scope_reference != scope.Reference()
+            if selectedRecord.provenance.workspace_id != workspace.workspace_id or (
+                selectedRecord.provenance.scope_reference != scope.Reference()
             ):
                 raise RuntimeFailure("integrity")
 
@@ -726,8 +726,8 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
                 raise RuntimeFailure("configuration", 2)
 
             raw, started, finished = ReadOwnedInspect(options.file, consent, clock, maximum=maximum)
-            source = EvidenceProvenance(workspace.workspace_id, scope.Reference(), source_id,
-                                       source_version, options.provider_version, started, finished)
+            source = EvidenceProvenance(workspace.workspace_id, scope.Reference(), sourceId,
+                                       sourceVersion, options.provider_version, started, finished)
             digest = hashlib.sha256(raw).hexdigest()
             expected = EvidenceRecord(EvidenceReference(options.profile,
                 "blobs/sha256/" + digest, digest,
@@ -744,8 +744,8 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
 
         source = record.provenance
 
-        if source.workspace_id != basis.workspace_id or source.source_id != source_id or (
-            source.source_version != source_version or source.scope_reference != scope.Reference()
+        if source.workspace_id != basis.workspace_id or source.source_id != sourceId or (
+            source.source_version != sourceVersion or source.scope_reference != scope.Reference()
             or source.invocation_sha256 is not None or source.execution is not None
             or evidence.Get(record.evidence_id) != record
         ):
@@ -755,7 +755,7 @@ def RunRuntimeCommands(arguments: Sequence[str], output: TextIO, *, json_output:
                         "source_sha256": record.reference.sha256,
                         "received_bytes": record.reference.size_bytes,
                         "started_at": source.started_at, "finished_at": source.finished_at})
-        provenance = ModelProvenance(source_id, options.run, source.finished_at,
+        provenance = ModelProvenance(sourceId, options.run, source.finished_at,
             source.scope_reference, anchor, source.tool_version, (record.reference,))
         fact = SourceFact(basis, record, provenance, consent, profile=options.profile)
         phase = "normalization"

@@ -411,23 +411,23 @@ def test_ScratchAggregateOverflowRejectedBeforeReadingScratchBytes(selected, mon
     (stage.root / "scratch/a").write_bytes(b"x" * 10)
     (stage.root / "scratch/b").write_bytes(b"x" * 10)
     monkeypatch.setattr(inputs, "MAX_ARTIFACT_TOTAL_BYTES", 16)
-    actual_read = inputs.ReadArtifactFile
-    scratch_reads = []
+    actualRead = inputs.ReadArtifactFile
+    scratchReads = []
 
     def Read(path, name, *args, **options):
         """Observe only whether the bounded checker reads this owned oversized scratch."""
 
         if path.parent == stage.root / "scratch":
-            scratch_reads.append(path)
+            scratchReads.append(path)
 
-        return actual_read(path, name, *args, **options)
+        return actualRead(path, name, *args, **options)
 
     monkeypatch.setattr(inputs, "ReadArtifactFile", Read)
 
     with pytest.raises(ValueError):
         stage.Verify(after_run=True)
 
-    assert not scratch_reads, "Oversized scratch was fully read before aggregate denial"
+    assert not scratchReads, "Oversized scratch was fully read before aggregate denial"
 
 
 def test_UnboundedIteratorsAreRejectedWithoutConsumption(selected):
@@ -490,12 +490,12 @@ def test_CtimeViewDifferenceIsLimitedToWindowsAndStillHashesExactBytes(
     """Creation versus change-time semantics do not remove original-path or same-method checks."""
 
     _, source, _ = selected
-    actual_handle = inputs.ArtifactHandleInfo
+    actualHandle = inputs.ArtifactHandleInfo
 
     def Handle(descriptor):
         """Expose only the documented creation/change-time API discrepancy."""
 
-        info = actual_handle(descriptor)
+        info = actualHandle(descriptor)
 
         return ObservedInfo(info, st_ctime_ns=info.st_ctime_ns + 1)
 
@@ -519,12 +519,12 @@ def test_CommonOriginalPathIdentityCannotBeNormalizedAway(selected, monkeypatch,
     """Different device/inode/content observations refuse even in the Windows ctime branch."""
 
     _, source, _ = selected
-    actual_handle = inputs.ArtifactHandleInfo
+    actualHandle = inputs.ArtifactHandleInfo
 
     def Handle(descriptor):
         """Alter exactly one otherwise valid opened-file observation."""
 
-        info = actual_handle(descriptor)
+        info = actualHandle(descriptor)
 
         return ObservedInfo(info, **{field: getattr(info, field) + 1})
 
@@ -545,26 +545,26 @@ def test_WrongHandlesCannotRelabelOriginalPathAndAllDescriptorsClose(selected, m
     root, source, _ = selected
     other = root / "other"
     other.write_bytes(b"b" * len(source.read_bytes()))
-    source_info = source.stat()
-    os.utime(other, ns=(source_info.st_atime_ns, source_info.st_mtime_ns))
-    actual_open = os.open
+    sourceInfo = source.stat()
+    os.utime(other, ns=(sourceInfo.st_atime_ns, sourceInfo.st_mtime_ns))
+    actualOpen = os.open
     opened = []
 
     def Open(path, *args, **options):
         """Expose owned B during selected opens while all guarded path observations remain A."""
 
-        selected_path = path
+        selectedPath = path
 
         if path == source:
             if which == "both" or opened:
-                selected_path = other
+                selectedPath = other
 
-            descriptor = actual_open(selected_path, *args, **options)
+            descriptor = actualOpen(selectedPath, *args, **options)
             opened.append(descriptor)
 
             return descriptor
 
-        return actual_open(path, *args, **options)
+        return actualOpen(path, *args, **options)
 
     monkeypatch.setattr(inputs.os, "open", Open)
     monkeypatch.setattr(inputs, "_WINDOWS_STAT_VIEWS", True)
@@ -586,13 +586,13 @@ def test_FullHandleMutationChecksRemainActiveAcrossWindowsViews(selected, monkey
     """Every handle identity field remains checked after actual bounded bytes are read."""
 
     _, source, _ = selected
-    actual_handle = inputs.ArtifactHandleInfo
+    actualHandle = inputs.ArtifactHandleInfo
     changed = False
 
     def Handle(descriptor):
         """Expose a handle-only change after the owned copy callback."""
 
-        info = actual_handle(descriptor)
+        info = actualHandle(descriptor)
 
         return ObservedInfo(info, **({field: getattr(info, field) + 1} if changed else {}))
 
@@ -621,14 +621,14 @@ def test_FullPathMetadataRemainsCheckedAtEveryReadBoundary(selected, monkeypatch
     """Original path change-time stays checked within its own API at all three boundaries."""
 
     _, source, _ = selected
-    actual_path = inputs.ArtifactPathInfo
+    actualPath = inputs.ArtifactPathInfo
     calls = 0
 
     def Info(path, **options):
         """Change only this selected path's own metadata at one deterministic boundary."""
 
         nonlocal calls
-        info = actual_path(path, **options)
+        info = actualPath(path, **options)
 
         if path == source:
             calls += 1
@@ -652,11 +652,11 @@ def test_OpenedHandleMustRetainRegularUniqueNonReparseIdentity(selected, monkeyp
     """A path's earlier validation cannot validate unsafe or unavailable opened-handle metadata."""
 
     _, source, _ = selected
-    actual_fstat = os.fstat
+    actualFstat = os.fstat
 
     with source.open("rb") as stream:
         descriptor = stream.fileno()
-        info = actual_fstat(descriptor)
+        info = actualFstat(descriptor)
         changes = {
             "type": {"st_mode": stat.S_IFIFO},
             "links": {"st_nlink": 2},
@@ -671,7 +671,7 @@ def test_OpenedHandleMustRetainRegularUniqueNonReparseIdentity(selected, monkeyp
             if selected_descriptor == descriptor:
                 return ObservedInfo(info, **changes)
 
-            return actual_fstat(selected_descriptor)
+            return actualFstat(selected_descriptor)
 
         monkeypatch.setattr(inputs.os, "fstat", Fstat)
 
@@ -683,12 +683,12 @@ def test_ActualOpenedFileBoundIsCheckedBeforeAnyCopy(selected, monkeypatch):
     """A stale smaller path observation cannot defer an excessive actual-handle bound to reading."""
 
     _, source, _ = selected
-    actual_handle = inputs.ArtifactHandleInfo
+    actualHandle = inputs.ArtifactHandleInfo
 
     def Handle(descriptor):
         """Expose only a larger actual opened-file length."""
 
-        return ObservedInfo(actual_handle(descriptor), st_size=inputs.MAX_ARTIFACT_FILE_BYTES + 1)
+        return ObservedInfo(actualHandle(descriptor), st_size=inputs.MAX_ARTIFACT_FILE_BYTES + 1)
 
     monkeypatch.setattr(inputs, "ArtifactHandleInfo", Handle)
     destination = io.BytesIO()

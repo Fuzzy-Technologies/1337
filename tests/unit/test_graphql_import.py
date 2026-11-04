@@ -94,8 +94,8 @@ def test_TypedOperationsPreserveIndependentCoordinateAndRequestOracle():
     assert RequestTemplate.FromDict(operation.template.ToDict()) == operation.template, (
         "Existing request consumer cannot decode the actual producer"
     )
-    filter_type = next(item for item in imported.types if item.name == "Filter")
-    assert next(item for item in filter_type.input_fields if item.name == "tag").has_default, (
+    filterType = next(item for item in imported.types if item.name == "Filter")
+    assert next(item for item in filterType.input_fields if item.name == "tag").has_default, (
         "Default presence was discarded"
     )
     assert b"synthetic-private-default" not in json.dumps(imported.ToDict()).encode(), (
@@ -130,8 +130,8 @@ def test_ActualSyntheticBodyMatchesIndependentGraphQlAndJsonOracle(
     assert preview.target.value == ENDPOINT, "Schema content changed the caller-selected endpoint"
     assert b"synthetic-private-default" not in preview.body, "Default literal entered actual body"
     assert preview.Reference() == Preview(field_name).Reference(), "Preview identity is unstable"
-    expected_body_digest = "sha256:" + hashlib.sha256(preview.body).hexdigest()
-    assert preview.Metadata()["body_sha256"] == expected_body_digest, (
+    expectedBodyDigest = "sha256:" + hashlib.sha256(preview.body).hexdigest()
+    assert preview.Metadata()["body_sha256"] == expectedBodyDigest, (
         "Reference metadata no longer identifies actual generated body bytes"
     )
     assert "query" not in preview.Metadata() and "variables" not in preview.Metadata(), (
@@ -224,20 +224,20 @@ def test_ExactOriginalBytesWorkspaceAndEndpointBindGenerationReference():
     original = Imported()
     operation = next(item for item in original.operations if item.field_name == "lookup")
     spaced = Source() + b"\n"
-    same_shape = Imported(spaced)
-    other = next(item for item in same_shape.operations if item.field_name == "lookup")
+    sameShape = Imported(spaced)
+    other = next(item for item in sameShape.operations if item.field_name == "lookup")
     assert other.template.Reference() == operation.template.Reference(), (
         "Identical symbolic request structure changed identity"
     )
     assert other.Reference() != operation.Reference(), "Original source bytes lost identity binding"
 
-    for source, workspace_id, endpoint_url in [
+    for source, workspaceId, endpointUrl in [
         (spaced, "owned", ENDPOINT), (Source(), "different", ENDPOINT),
         (Source(), "owned", "http://127.0.0.1:8080/other"),
     ]:
         with pytest.raises(ValueError):
             graphql.GenerateGraphQlRequest(source, operation.Reference(),
-                workspace_id=workspace_id, endpoint_url=endpoint_url)
+                workspace_id=workspaceId, endpoint_url=endpointUrl)
 
 
 def test_DirectSchemaEnvelopeUsesRealPointersAndDistinctSourceIdentity():
@@ -426,8 +426,8 @@ def test_ReplacedArgumentAndNamedDefinitionCannotContradictActualProducerTypes()
                                 "scope:owned", operation.target.Reference(), "1", ())
     argument = operation.arguments[0]
     malformed = replace(argument, value_type=replace(argument.value_type, wrappers=["LIST"]))
-    forged_operation = replace(operation, arguments=(malformed, *operation.arguments[1:]))
-    operations = tuple(forged_operation if item == operation else item
+    forgedOperation = replace(operation, arguments=(malformed, *operation.arguments[1:]))
+    operations = tuple(forgedOperation if item == operation else item
                        for item in imported.operations)
 
     with pytest.raises(ValueError):

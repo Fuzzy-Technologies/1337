@@ -52,8 +52,8 @@ def OwnedArtifact(
     source.write_bytes(
         b"FROM scratch\n" if profile == ArtifactProfile.SYNTHETIC_DOCKERFILE else b"owned-input"
     )
-    policy_file = root / "policy.json"
-    policy_file.write_text(
+    policyFile = root / "policy.json"
+    policyFile.write_text(
         json.dumps(
             {
                 "schema_version": 1,
@@ -63,7 +63,7 @@ def OwnedArtifact(
         )
     )
     if policy_payload is not None:
-        policy_file.write_bytes(policy_payload)
+        policyFile.write_bytes(policy_payload)
 
     name = (
         "image.tar"
@@ -79,7 +79,7 @@ def OwnedArtifact(
         (ArtifactSelection(name, source),),
         ArtifactSelection("executable", Path(sys.executable).resolve()),
         "0.75.0-synthetic",
-        material=(ArtifactSelection("policy.json", policy_file),),
+        material=(ArtifactSelection("policy.json", policyFile),),
         producer=ArtifactSelection("producer.py", Path(artifact_fixture_worker.__file__).resolve()),
     )
     target = stage.input.manifest.Target()
@@ -140,7 +140,7 @@ def OwnedImageArtifact(
     if policy_payload is not None:
         material.write_bytes(policy_payload)
 
-    fresh_workspace = workspace is None
+    freshWorkspace = workspace is None
 
     if workspace is None:
         workspace = tmp_path.resolve() / "workspace"
@@ -157,11 +157,11 @@ def OwnedImageArtifact(
         material=(ArtifactSelection("policy.json", material),),
         producer=ArtifactSelection("producer.py", fixtures / "producer.py"),
     )
-    scope_store = LocalScopeStore(workspace)
+    scopeStore = LocalScopeStore(workspace)
 
-    if fresh_workspace:
+    if freshWorkspace:
         target = stage.input.manifest.Target()
-        scope = scope_store.Create(
+        scope = scopeStore.Create(
             ScopeSnapshot(
                 "artifact-scope", "owned-artifact", targets=(target,), allow=(target,),
                 authorization=ScopeAuthorization(
@@ -172,7 +172,7 @@ def OwnedImageArtifact(
         )
 
     else:
-        scope = scope_store.Open("artifact-scope")
+        scope = scopeStore.Open("artifact-scope")
 
     capability = ProfileCapability(profile)
     policy = ImpactPolicy(

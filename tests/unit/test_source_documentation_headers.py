@@ -74,27 +74,27 @@ def DocumentationFailures(source: str, require_contracts: bool) -> tuple[str, ..
     except SyntaxError:
         return (*failures, "source must parse before documentation can pass")
 
-    def Inspect(node: ast.AST, public: bool, nested_function: bool = False) -> None:
+    def Inspect(node: ast.AST, public: bool, nestedFunction: bool = False) -> None:
         """Walk authored scopes while distinguishing public and nested callables.
 
         Args:
             node: AST node to inspect without evaluating its contents.
             public: Whether all enclosing names have a public spelling.
-            nested_function: Whether a function ancestor makes this a local helper.
+            nestedFunction: Whether a function ancestor makes this a local helper.
         """
 
-        is_scope = isinstance(
+        isScope = isinstance(
             node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
         )
-        is_function = isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        name = getattr(node, "name", "module") if is_scope else "module"
+        isFunction = isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        name = getattr(node, "name", "module") if isScope else "module"
         public = public and not name.startswith("_")
-        docstring = ast.get_docstring(node) if is_scope else None
+        docstring = ast.get_docstring(node) if isScope else None
 
-        if is_scope and not docstring:
+        if isScope and not docstring:
             failures.append(f"{name}: missing authored docstring")
 
-        if is_function and require_contracts and public and not nested_function:
+        if isFunction and require_contracts and public and not nestedFunction:
             assert isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)), (
                 "Callable contract checks require a function AST node."
             )
@@ -128,7 +128,7 @@ def DocumentationFailures(source: str, require_contracts: bool) -> tuple[str, ..
                     failures.append(f"{name}: missing nonempty Returns or Yields section")
 
         for child in ast.iter_child_nodes(node):
-            Inspect(child, public, nested_function or is_function)
+            Inspect(child, public, nestedFunction or isFunction)
 
     Inspect(tree, True)
 

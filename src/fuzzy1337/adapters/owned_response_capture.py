@@ -234,7 +234,7 @@ def ParseOwnedResponseCapture(raw: bytes, expected_url: str) -> dict[str, object
     """
 
     try:
-        address, port, _, _, case_id = Destination(expected_url)
+        address, port, _, _, caseId = Destination(expected_url)
 
         if type(raw) is not bytes or not 1 <= len(raw) <= MAX_RECORD_BYTES:
             raise OwnedResponseRecordError("owned response record is unadmitted")
@@ -262,16 +262,16 @@ def ParseOwnedResponseCapture(raw: bytes, expected_url: str) -> dict[str, object
             OWNED_RESPONSE_CATALOG_SHA256
         ) or record["url"] != expected_url or record["address"] != address or (
             type(record["port"]) is not int or record["port"] != port
-            or record["case_id"] != case_id
+            or record["case_id"] != caseId
         ):
             raise OwnedResponseRecordError("owned response record is unadmitted")
 
-        headers, body = ReviewedResponse(case_id)
+        headers, body = ReviewedResponse(caseId)
         VerifyPart(record["request"], RequestBytes(expected_url), MAX_REQUEST_BYTES)
-        verified_headers = VerifyPart(record["response_headers"], headers, MAX_HEADER_BYTES)
-        verified_body = VerifyPart(record["response_body"], body, MAX_BODY_BYTES)
+        verifiedHeaders = VerifyPart(record["response_headers"], headers, MAX_HEADER_BYTES)
+        verifiedBody = VerifyPart(record["response_body"], body, MAX_BODY_BYTES)
         response = Fields(record["response"], {"size_bytes", "sha256"})
-        joined = verified_headers + verified_body
+        joined = verifiedHeaders + verifiedBody
 
         if type(response["size_bytes"]) is not int or response["size_bytes"] != len(joined) or (
             type(response["sha256"]) is not str

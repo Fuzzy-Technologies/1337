@@ -234,8 +234,8 @@ def test_OriginalUrlIsValidatedBeforeTargetNormalizationOrStateReads(boundary, u
 def test_HeaderHandoffUsesCurrentBasesAndFreshExplicitPolicyWithoutRetry(boundary, capsys):
     """Each command selects one pair of original revisions and preserves the SDK result exactly."""
 
-    for model_revision, workspace_revision in ((11, 7), (23, 13)):
-        boundary.model_revision, boundary.workspace_revision = model_revision, workspace_revision
+    for modelRevision, workspaceRevision in ((11, 7), (23, 13)):
+        boundary.model_revision, boundary.workspace_revision = modelRevision, workspaceRevision
         assert Main([*Arguments(boundary.root), "--approve-passive-header-check", "--json"]) == 0, (
             "A mocked completed owner result must preserve its actual CLI success classification."
         )
@@ -248,8 +248,8 @@ def test_HeaderHandoffUsesCurrentBasesAndFreshExplicitPolicyWithoutRetry(boundar
             "SDK selection must preserve the exact receipt, source, scope and operator."
         )
         assert kwargs == {"analysis_reference": "analysis:independent",
-            "expected_model_revision": model_revision,
-            "expected_workspace_revision": workspace_revision,
+            "expected_model_revision": modelRevision,
+            "expected_workspace_revision": workspaceRevision,
             "approve_passive_header_check": True}, (
             "The CLI must use its one current original basis, not cached revisions or a retry."
         )

@@ -143,7 +143,7 @@ def CaseMatrix() -> tuple[ContentCase, ...]:
     body = b"<p>Owned content alpha.</p>\n"
     decoy = b"<pre>X-Content-Type-Options: nosniff</pre>\n"
     marker = REJECTED_MARKER
-    maximum_marker_body = marker + b"m" * (65536 - len(marker))
+    maximumMarkerBody = marker + b"m" * (65536 - len(marker))
     rejected = Headers(marker)
     mixed = (b"HTTP/1.1 200 OK\r\ncOnNeCtIoN:\tCLOSE \t\r\n"
         b"X-CONTENT-TYPE-OPTIONS:\t \r\ncontent-length:\t" + str(len(body)).encode() +
@@ -195,7 +195,7 @@ def CaseMatrix() -> tuple[ContentCase, ...]:
         ContentCase("invalid-utf8", Headers(marker + b"\xff"), marker + b"\xff", "body-policy"),
         ContentCase("early-eof", Headers(marker + b"x"), marker, "protocol"),
         ContentCase("extra-byte", rejected, marker, "protocol", extra=b"!"),
-        ContentCase("extra-byte-at-maximum", Headers(maximum_marker_body), maximum_marker_body,
+        ContentCase("extra-byte-at-maximum", Headers(maximumMarkerBody), maximumMarkerBody,
             "protocol", extra=b"!"),
         ContentCase("second-response", rejected, marker, "protocol",
             extra=b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"),

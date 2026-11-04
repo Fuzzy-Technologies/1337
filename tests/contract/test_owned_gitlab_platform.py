@@ -520,7 +520,7 @@ def test_OfficialRunnerRequiresExactOriginalLengthAndUnchangedChecksum(monkeypat
     """An inert transport proves admission before any runner bytes can be written or executed."""
 
     payload = b"inert-provider-binary"
-    expected_size = len(payload)
+    expectedSize = len(payload)
     observed = []
 
     class Response(io.BytesIO):
@@ -550,7 +550,7 @@ def test_OfficialRunnerRequiresExactOriginalLengthAndUnchangedChecksum(monkeypat
             assert request == platform.RUNNER_URL, (
                 "Acquisition cannot change the pinned provider URL")
             header = {} if fault == "missing-length" else {"Content-Length": str(
-                expected_size + (1 if fault == "wrong-length" else 0))}
+                expectedSize + (1 if fault == "wrong-length" else 0))}
             body = payload[:-1] if fault == "truncated" else payload + (
                 b"X" if fault == "overrun" else b"")
 
@@ -558,7 +558,7 @@ def test_OfficialRunnerRequiresExactOriginalLengthAndUnchangedChecksum(monkeypat
 
         open = Open
 
-    monkeypatch.setattr(platform, "RUNNER_SIZE_BYTES", expected_size)
+    monkeypatch.setattr(platform, "RUNNER_SIZE_BYTES", expectedSize)
     monkeypatch.setattr(platform, "RUNNER_SHA256", "0" * 64 if fault == "checksum" else
         hashlib.sha256(payload).hexdigest())
     monkeypatch.setattr(platform.urllib.request, "build_opener", lambda *handlers: Opener())

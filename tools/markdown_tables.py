@@ -266,11 +266,11 @@ def Main(arguments: Sequence[str] | None = None) -> int:
     parser.add_argument("--project-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--write", action="store_true", help="Apply table alignment locally")
     options = parser.parse_args(arguments)
-    project_root = options.project_root.absolute()
+    projectRoot = options.project_root.absolute()
 
     try:
         if options.write:
-            for path in TrackedMarkdown(project_root):
+            for path in TrackedMarkdown(projectRoot):
                 text = ReadMarkdown(path)
                 aligned = AlignMarkdown(text)
 
@@ -278,9 +278,9 @@ def Main(arguments: Sequence[str] | None = None) -> int:
                     with path.open("w", encoding="utf-8", newline="") as stream:
                         stream.write(aligned)
 
-                    print(path.relative_to(project_root))
+                    print(path.relative_to(projectRoot))
 
-        diagnostics = CheckMarkdownTables(project_root)
+        diagnostics = CheckMarkdownTables(projectRoot)
 
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Markdown table alignment: ERROR: {error}", file=sys.stderr)

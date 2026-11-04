@@ -278,12 +278,12 @@ def Metadata(stream: io.StringIO, model_version: str, score_date: str) -> tuple[
     ):
         raise ValueError("EPSS source model does not match its explicit selection")
 
-    effective_at = EpssScoreTime(metadata["score_date"])
+    effectiveAt = EpssScoreTime(metadata["score_date"])
 
     if metadata["score_date"][:10] != score_date:
         raise ValueError("EPSS source calendar day does not match its dated selection")
 
-    return line, effective_at
+    return line, effectiveAt
 
 
 def ParseEpssSelection(
@@ -309,7 +309,7 @@ def ParseEpssSelection(
 
     try:
         stream = io.StringIO(decoded.decode("utf-8"), newline="")
-        metadata, effective_at = Metadata(stream, model_version, score_date)
+        metadata, effectiveAt = Metadata(stream, model_version, score_date)
         reader = csv.reader(stream, strict=True)
 
         if next(reader, None) != ["cve", "epss", "percentile"]:
@@ -340,7 +340,7 @@ def ParseEpssSelection(
         unmatched = tuple(identifier for identifier in requested if identifier not in selected)
 
         return EpssSelection(
-            requested, records, unmatched, model_version, score_date, effective_at, metadata,
+            requested, records, unmatched, model_version, score_date, effectiveAt, metadata,
             hashlib.sha256(payload).hexdigest(), len(payload),
             hashlib.sha256(decoded).hexdigest(), len(decoded), len(seen),
         )

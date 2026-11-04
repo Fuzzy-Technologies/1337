@@ -119,9 +119,9 @@ def Main() -> int:
             if line.startswith(key + ":")), 16):
             raise ValueError("host capabilities are forbidden")
 
-    request_path = Path(sys.argv[1])
-    request_info = request_path.lstat()
-    raw = ReadFixed(request_path, Identity(request_info), 4096)
+    requestPath = Path(sys.argv[1])
+    requestInfo = requestPath.lstat()
+    raw = ReadFixed(requestPath, Identity(requestInfo), 4096)
     request = json.loads(raw)
     keys = {"operation", "request_sha256", "materials"}
 
@@ -131,7 +131,7 @@ def Main() -> int:
 
     operation = Path(request["operation"])
 
-    if request_path != operation / "bootstrap.json" or operation.resolve() != operation or (
+    if requestPath != operation / "bootstrap.json" or operation.resolve() != operation or (
         operation.stat().st_uid != os.getuid() or stat.S_IMODE(operation.stat().st_mode) != 0o700
     ):
         raise ValueError("inert operation identity refused")
@@ -175,11 +175,11 @@ def Main() -> int:
     sys.modules[spec.name] = contract
     spec.loader.exec_module(contract)
     contract.Decode(paths["request"].read_bytes())
-    original_uid, original_gid = os.getuid(), os.getgid()
+    originalUid, originalGid = os.getuid(), os.getgid()
     Call("unshare", CLONE_NEWUSER)
     Path("/proc/self/setgroups").write_text("deny", encoding="ascii")
-    Path("/proc/self/uid_map").write_text(f"0 {original_uid} 1\n", encoding="ascii")
-    Path("/proc/self/gid_map").write_text(f"0 {original_gid} 1\n", encoding="ascii")
+    Path("/proc/self/uid_map").write_text(f"0 {originalUid} 1\n", encoding="ascii")
+    Path("/proc/self/gid_map").write_text(f"0 {originalGid} 1\n", encoding="ascii")
     Call("unshare", CLONE_NEWNS)
     Call("mount", None, b"/", None, ctypes.c_ulong(MS_REC | MS_PRIVATE), None)
     work = operation / "work"

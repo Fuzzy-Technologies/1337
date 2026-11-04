@@ -31,7 +31,7 @@ def IndependentExists(edges, source, target, removed):
     seen = set()
 
     while frontier:
-        next_frontier = set()
+        nextFrontier = set()
 
         for node in frontier:
             if node == target:
@@ -44,10 +44,10 @@ def IndependentExists(edges, source, target, removed):
                 )
 
                 if not excluded and edge.source_reference == node:
-                    next_frontier.add(edge.target_reference)
+                    nextFrontier.add(edge.target_reference)
 
         seen.update(frontier)
-        frontier = next_frontier - seen
+        frontier = nextFrontier - seen
 
     return False
 

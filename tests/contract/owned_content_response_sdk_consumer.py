@@ -136,17 +136,17 @@ async def Capture(config: dict, observations: Path, *, enabled: bool = False,
     from fuzzy1337.owned_response_workflow import RunOwnedContentResponseCapture
     from fuzzy1337.workspace import LocalWorkspaceStore
 
-    original_execute = LocalExecutor.Execute
-    original_model_save, original_workspace_save = LocalModelStore.Save, LocalWorkspaceStore.Save
+    originalExecute = LocalExecutor.Execute
+    originalModelSave, originalWorkspaceSave = LocalModelStore.Save, LocalWorkspaceStore.Save
     originals = []
     saves = []
     document = None
-    exception_type = None
+    exceptionType = None
 
     async def Observe(executor, request, **options):
         """Return the same original result, without inspecting or changing its control flow."""
 
-        result = await original_execute(executor, request, **options)
+        result = await originalExecute(executor, request, **options)
         originals.append((request, result))
 
         return result
@@ -172,13 +172,13 @@ async def Capture(config: dict, observations: Path, *, enabled: bool = False,
     def ModelSave(store, state, *, expected_revision):
         """Observe the original explicit model CAS keyword without substituting a proposal."""
 
-        return Save("model", original_model_save, store, state, expected_revision,
+        return Save("model", originalModelSave, store, state, expected_revision,
             {"expected_revision": expected_revision})
 
     def WorkspaceSave(store, state):
         """Observe the original workspace proposal revision; its owner increments on commit."""
 
-        return Save("workspace", original_workspace_save, store, state, state.revision, {})
+        return Save("workspace", originalWorkspaceSave, store, state, state.revision, {})
 
     LocalExecutor.Execute = Observe
     LocalModelStore.Save, LocalWorkspaceStore.Save = ModelSave, WorkspaceSave
@@ -194,17 +194,17 @@ async def Capture(config: dict, observations: Path, *, enabled: bool = False,
         return document
 
     except BaseException as error:
-        exception_type = type(error).__name__
+        exceptionType = type(error).__name__
 
         raise
 
     finally:
-        LocalExecutor.Execute = original_execute
-        LocalModelStore.Save = original_model_save
-        LocalWorkspaceStore.Save = original_workspace_save
+        LocalExecutor.Execute = originalExecute
+        LocalModelStore.Save = originalModelSave
+        LocalWorkspaceStore.Save = originalWorkspaceSave
         detached = [{**row, "proposal": row["proposal"].ToDict(), "returned": (
             None if row["returned"] is None else row["returned"].ToDict())} for row in saves]
-        Observation(observations, "capture", {"summary": document, "exception_type": exception_type,
+        Observation(observations, "capture", {"summary": document, "exception_type": exceptionType,
             "executions": [OriginalExecution(request, result) for request, result in originals],
             "store_saves": detached})
 
@@ -237,7 +237,7 @@ def Analyze(config: dict, observations: Path, *, enabled: bool = False,
     target = Target(TargetKind.URL, config["url"])
     assert target.value == config["url"], "Analysis cannot normalize a selected original source URL"
     document = None
-    exception_type = None
+    exceptionType = None
 
     try:
         summary = ApplyOwnedResponseHeaderCheck(root, config["scope_id"],
@@ -255,13 +255,13 @@ def Analyze(config: dict, observations: Path, *, enabled: bool = False,
         return document
 
     except BaseException as error:
-        exception_type = type(error).__name__
+        exceptionType = type(error).__name__
 
         raise
 
     finally:
         Observation(observations, "analyze", {"summary": document,
-            "exception_type": exception_type})
+            "exception_type": exceptionType})
 
 
 def Replay(config: dict, observations: Path, *, enabled: bool = False) -> dict:
@@ -286,7 +286,7 @@ def Replay(config: dict, observations: Path, *, enabled: bool = False) -> dict:
     from fuzzy1337.owned_response_workflow import ReplayOwnedContentResponse
 
     document = None
-    exception_type = None
+    exceptionType = None
 
     try:
         summary = (ReplayOwnedContentResponse(root, config["reference"]) if config["kind"] == (
@@ -300,9 +300,9 @@ def Replay(config: dict, observations: Path, *, enabled: bool = False) -> dict:
         return document
 
     except BaseException as error:
-        exception_type = type(error).__name__
+        exceptionType = type(error).__name__
 
         raise
 
     finally:
-        Observation(observations, "replay", {"summary": document, "exception_type": exception_type})
+        Observation(observations, "replay", {"summary": document, "exception_type": exceptionType})

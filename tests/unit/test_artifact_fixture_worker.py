@@ -24,31 +24,31 @@ def test_LifecycleWireBypassesPlatformTextNewlineTranslation(tmp_path, monkeypat
     monkeypatch.setattr(sys, "argv", Arguments(tmp_path, policy))
     stdout = io.BytesIO()
     stderr = io.BytesIO()
-    stdout_text = io.TextIOWrapper(stdout, encoding="utf-8", newline="\r\n")
-    stderr_text = io.TextIOWrapper(stderr, encoding="utf-8", newline="\r\n")
-    monkeypatch.setattr(sys, "stdout", stdout_text)
-    monkeypatch.setattr(sys, "stderr", stderr_text)
+    stdoutText = io.TextIOWrapper(stdout, encoding="utf-8", newline="\r\n")
+    stderrText = io.TextIOWrapper(stderr, encoding="utf-8", newline="\r\n")
+    monkeypatch.setattr(sys, "stdout", stdoutText)
+    monkeypatch.setattr(sys, "stderr", stderrText)
     monkeypatch.setattr(worker.time, "sleep", lambda _seconds: None)
     code = worker.Main()
-    stdout_text.flush()
-    stderr_text.flush()
-    raw_stdout = stdout.getvalue()
-    raw_stderr = stderr.getvalue()
+    stdoutText.flush()
+    stderrText.flush()
+    rawStdout = stdout.getvalue()
+    rawStderr = stderr.getvalue()
 
-    assert b"\r" not in raw_stdout + raw_stderr, (
+    assert b"\r" not in rawStdout + rawStderr, (
         "Text newline translation changed raw protocol bytes"
     )
-    assert raw_stdout.endswith(b"\n"), "The portable byte protocol lost its exact LF delimiter"
+    assert rawStdout.endswith(b"\n"), "The portable byte protocol lost its exact LF delimiter"
 
     if mode == "failure":
-        assert code == 7 and raw_stdout == b"owned-partial-output\n", "Failure stdout changed"
-        assert raw_stderr == b"owned-failure\n", "Failure stderr changed"
+        assert code == 7 and rawStdout == b"owned-partial-output\n", "Failure stdout changed"
+        assert rawStderr == b"owned-failure\n", "Failure stderr changed"
 
     elif mode == "wait":
-        assert raw_stdout.startswith(b"owned-ready\n"), "Cancellation readiness delimiter changed"
+        assert rawStdout.startswith(b"owned-ready\n"), "Cancellation readiness delimiter changed"
 
     elif mode == "overflow":
-        assert raw_stdout.startswith(b"x" * 65536 + b"\n"), "Overflow byte fixture changed"
+        assert rawStdout.startswith(b"x" * 65536 + b"\n"), "Overflow byte fixture changed"
 
 
 def Arguments(tmp_path, policy):

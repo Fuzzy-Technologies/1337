@@ -464,7 +464,7 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
         "core_mutation": "none", "evidence_mutation": "none", "authority": "none"}
     status = 4
     phase = "configuration"
-    html_document = None
+    htmlDocument = None
 
     try:
         options = parser.parse_args(arguments)
@@ -489,9 +489,9 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
         context, scope = Text(options.context), Text(options.scope_reference)
         at = Time(options.as_of)
         age = Integer(options.max_age_seconds, 0, 604800)
-        search_limits = ReachabilityLimits(options.max_depth, options.max_paths, options.max_work,
+        searchLimits = ReachabilityLimits(options.max_depth, options.max_paths, options.max_work,
                                           options.max_frontier)
-        cut_limits = PathAnalysisLimits(options.max_cut_work)
+        cutLimits = PathAnalysisLimits(options.max_cut_work)
         root = RuntimePath(options.workspace)
         phase = "basis"
         workspace = LocalWorkspaceStore(root).Open()
@@ -523,7 +523,7 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
             at=at, max_age_seconds=age)
         projection = ProjectReachability(model, transitions, claims, expected_model_version=version)
         result = AnalyzeReachabilityPaths(projection, model, source, target,
-                                         search_limits=search_limits, cut_limits=cut_limits)
+                                         search_limits=searchLimits, cut_limits=cutLimits)
         phase = "output"
         document = PathDocument(result)
 
@@ -546,7 +546,7 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
             from fuzzy1337.path_rendering import RenderPathHtml
 
             try:
-                html_document = RenderPathHtml(outcome, model)
+                htmlDocument = RenderPathHtml(outcome, model)
 
             except ValueError as error:
                 raise RuntimeFailure("output-limit") from error
@@ -571,8 +571,8 @@ def RunPathCommands(arguments: Sequence[str], output: TextIO, *, json_output: bo
 
     outcome["exit_code"] = status
 
-    if html_document is not None:
-        output.write(html_document)
+    if htmlDocument is not None:
+        output.write(htmlDocument)
 
     elif json_output:
         output.write(CanonicalModelJson(outcome).decode("utf-8") + "\n")

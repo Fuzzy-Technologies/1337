@@ -252,11 +252,11 @@ def ObserveControl(value: dict[str, object], digest: str,
 
     selection = SelectionFromControl(value)
     facts = selection.Material()
-    metadata_fact = facts[-1]
+    metadataFact = facts[-1]
     metadata: dict[str, object] | None = None
 
-    if metadata_fact.sha256 is not None:
-        path = Path(metadata_fact.path)
+    if metadataFact.sha256 is not None:
+        path = Path(metadataFact.path)
         before = ArtifactPathInfo(path)
         flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
 
@@ -271,9 +271,9 @@ def ObserveControl(value: dict[str, object], digest: str,
             if PhysicalIdentity(ArtifactHandleInfo(source.fileno())) != PhysicalIdentity(opened):
                 raise ValueError("native material metadata changed during read")
 
-        if PhysicalIdentity(before) != metadata_fact.physical_identity or (
+        if PhysicalIdentity(before) != metadataFact.physical_identity or (
             PhysicalIdentity(ArtifactPathInfo(path)) != PhysicalIdentity(before) or
-            hashlib.sha256(raw).hexdigest() != metadata_fact.sha256
+            hashlib.sha256(raw).hexdigest() != metadataFact.sha256
         ):
             raise ValueError("native material metadata changed after observation")
 

@@ -75,14 +75,14 @@ def ReceiveIsolatedHttps(
     except OSError:
         return b"", 'transport-failed', None
 
-    timed_out = False
+    timedOut = False
 
     try:
         remaining = max(0.0, timeout_seconds - (time.monotonic() - started))
         output, _ = process.communicate(timeout=remaining)
 
     except subprocess.TimeoutExpired:
-        timed_out = True
+        timedOut = True
         process.kill()
         output, _ = process.communicate()
 
@@ -110,7 +110,7 @@ def ReceiveIsolatedHttps(
 
     if status is None or len(body) > max_bytes:
         return b"", (
-            'timed-out' if timed_out else 'transport-failed'
+            'timed-out' if timedOut else 'transport-failed'
         ), status
 
     state = {
@@ -119,7 +119,7 @@ def ReceiveIsolatedHttps(
         SIZE_EXIT: 'size-exceeded', TIMEOUT_EXIT: 'timed-out',
     }.get(process.returncode, 'transport-failed')
 
-    if timed_out:
+    if timedOut:
         state = 'timed-out'
 
     if state == 'succeeded' and status != 200:

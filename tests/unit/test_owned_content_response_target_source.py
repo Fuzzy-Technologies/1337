@@ -125,9 +125,9 @@ def NormalTailCase(terminal: bytes | OSError | Callable[[], bytes],
     *, clock: list[float] | None = None):
     """Run only the original normal handler using finite explicitly selected fake receive facts."""
 
-    selected_clock = [10.0] if clock is None else clock
+    selectedClock = [10.0] if clock is None else clock
     source = target.MutableContentSource("http://127.0.0.1:15432", "missing")
-    state = target.ContentResponseState(source, clock=lambda: selected_clock[0])
+    state = target.ContentResponseState(source, clock=lambda: selectedClock[0])
     request = RequestBytes(source.Url())
     connection = FakeContentConnection(request, terminal)
     state.Accept(connection)
@@ -146,9 +146,9 @@ def test_NormalRequestTailIsObservedAndNeverCreditedAsOneCompleteGet(tail) -> No
     state, connection, handler, request = NormalTailCase(tail)
     handler.Handle()
     observation, = state.Observe()
-    expected_prefix = (request + tail)[:2049]
-    assert observation.request_bytes == expected_prefix and observation.received_bytes == (
-        len(expected_prefix)), "Actual late request bytes must be retained within the original cap"
+    expectedPrefix = (request + tail)[:2049]
+    assert observation.request_bytes == expectedPrefix and observation.received_bytes == (
+        len(expectedPrefix)), "Actual late request bytes must be retained within the original cap"
     assert observation.failure is not None and observation.completion_sequence is None and (
         state.Counters()["completed_responses"] == 0), "A late follow-up cannot pass strict one GET"
     signal = state.EndpointFacts()[0]["peer_terminal"]
@@ -206,9 +206,9 @@ def test_NormalRequestTailLateOrLocalReadNeverCompletesOriginalDeadline(mode) ->
     assert observation.failure is not None and observation.completion_sequence is None, (
         "Late/local returns must not manufacture timely normal request completion")
     signal = state.EndpointFacts()[0]["peer_terminal"]
-    expected_kind = {"late-eof": "eof", "late-data": "unexpected-data",
+    expectedKind = {"late-eof": "eof", "late-data": "unexpected-data",
         "local-close-eof": "local-teardown"}[mode]
-    assert signal["kind"] == expected_kind and signal["within_hold"] is (mode == (
+    assert signal["kind"] == expectedKind and signal["within_hold"] is (mode == (
         "local-close-eof")), "Retain actual EOF/data/local and original deadline facts separately"
     assert observation.request_bytes == request + (b"x" if mode == "late-data" else b""), (
         "Even a late rejected receive remains original target-side byte evidence")
@@ -239,10 +239,10 @@ def test_MutableSameUrlRejectsEveryFalseIdleOriginalOwner(owner) -> None:
     state.connections.clear()
     state.running_handlers.clear()
     state.dispatch_owners.clear()
-    original_url = source.Url()
-    original_wire = source.Response(PRIMARY_PATH).Wire()
+    originalUrl = source.Url()
+    originalWire = source.Response(PRIMARY_PATH).Wire()
     source.SetCase("fixed")
-    assert source.Url() == original_url and source.Response(PRIMARY_PATH).Wire() != original_wire, (
+    assert source.Url() == originalUrl and source.Response(PRIMARY_PATH).Wire() != originalWire, (
         "A local mutation changes actual bytes while preserving the exact selected URL")
 
 
@@ -372,7 +372,7 @@ def test_TargetFinallyRetainsOriginalOwnerStateAndCleanupFailure(monkeypatch, fa
     else:
         assert final["owner_state"] == "settled" and final["counters"]["contacts"] == 0, (
             "Actual modeled physical state and original accepted count remain visible")
-        refused_cleanup = failure in ("cleanup", "wait")
-        assert final["cleanup_returned"] is (not refused_cleanup) and (
-            final["cleanup_failure"] == ("RuntimeError" if refused_cleanup else None)), (
+        refusedCleanup = failure in ("cleanup", "wait")
+        assert final["cleanup_returned"] is (not refusedCleanup) and (
+            final["cleanup_failure"] == ("RuntimeError" if refusedCleanup else None)), (
                 "Settled physical owners never erase an actual cleanup failure")

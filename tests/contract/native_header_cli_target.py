@@ -85,7 +85,7 @@ class HeaderPipelineServer(CrawlGraphServer):
 def HeaderPipelineTarget(evidence: NativeCaseEvidence) -> Iterator[OwnedCrawlGraph]:
     """Always settle and retain both held origins, including consumer or cleanup failures."""
 
-    target = server = sentinel = thread = sentinel_thread = None
+    target = server = sentinel = thread = sentinelThread = None
     yielded = False
 
     def Serve(owner: CrawlGraphServer, gate: Event) -> None:
@@ -103,16 +103,16 @@ def HeaderPipelineTarget(evidence: NativeCaseEvidence) -> Iterator[OwnedCrawlGra
     try:
         server = HeaderPipelineServer()
         sentinel = CrawlGraphServer(sentinel_only=True)
-        ready, sentinel_ready = Event(), Event()
+        ready, sentinelReady = Event(), Event()
         thread = Thread(target=Serve, args=(server, ready), daemon=False)
-        sentinel_thread = Thread(target=Serve, args=(sentinel, sentinel_ready), daemon=False)
+        sentinelThread = Thread(target=Serve, args=(sentinel, sentinelReady), daemon=False)
         target = OwnedCrawlGraph(server.state, thread, server.state.graph, sentinel.state,
-            sentinel_thread, sentinel.state.graph.origin)
+            sentinelThread, sentinel.state.graph.origin)
         thread.start()
-        sentinel_thread.start()
+        sentinelThread.start()
 
-        if not ready.wait(2) or not sentinel_ready.wait(2) or (
-            not thread.is_alive() or not sentinel_thread.is_alive()
+        if not ready.wait(2) or not sentinelReady.wait(2) or (
+            not thread.is_alive() or not sentinelThread.is_alive()
         ):
             raise RuntimeError("Both pipeline-owned origins must become ready")
 
@@ -132,11 +132,11 @@ def HeaderPipelineTarget(evidence: NativeCaseEvidence) -> Iterator[OwnedCrawlGra
         finally:
             try:
                 if sentinel is not None:
-                    if sentinel_thread is None:
+                    if sentinelThread is None:
                         sentinel.server_close()
 
                     else:
-                        sentinel.Settle(sentinel_thread)
+                        sentinel.Settle(sentinelThread)
 
             finally:
                 final = FinalNativeTargetFacts(target)

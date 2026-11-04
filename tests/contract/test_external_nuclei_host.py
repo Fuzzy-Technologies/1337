@@ -1385,7 +1385,7 @@ def test_HostLifecycleCommandBindsLocalAuthorityAndOriginalBytes(tmp_path, monke
     monkeypatch.setenv("DOCKER_HOST", "tcp://inert.invalid:2375")
     monkeypatch.setenv("DOCKER_CONTEXT", "inert-foreign")
     _, raw = asyncio.run(runtime.Command("metadata", ("version",)))
-    argv, environment, seconds, stdout_bytes, stderr_bytes = captured[0]
+    argv, environment, seconds, stdoutBytes, stderrBytes = captured[0]
     assert argv == ("/usr/bin/docker", "--host", host.LOCAL_DOCKER, "--config",
                     str(runtime.config), "version"), (
         "Inherited remote Docker routing must never replace the explicit local endpoint."
@@ -1393,7 +1393,7 @@ def test_HostLifecycleCommandBindsLocalAuthorityAndOriginalBytes(tmp_path, monke
     assert environment == runtime.environment and "DOCKER_HOST" not in environment, (
         "Only the explicit owned process environment may cross the supervisor boundary."
     )
-    assert raw == b"\xffinert" and (seconds, stdout_bytes, stderr_bytes) == (15, 262144, 262144), (
+    assert raw == b"\xffinert" and (seconds, stdoutBytes, stderrBytes) == (15, 262144, 262144), (
         "Metadata capture must retain original binary bytes within its declared finite budgets."
     )
 

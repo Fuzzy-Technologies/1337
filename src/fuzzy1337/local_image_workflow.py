@@ -250,11 +250,11 @@ class LocalImageExportWorkflow:
             with config.open("xb") as stream:
                 stream.write(b"{}\n")
             config.chmod(0o600)
-            run_identity = PrivateDirectory(run)
+            runIdentity = PrivateDirectory(run)
             claims: list[LocalImageExecutionClaim] = []
             resolution: LocalImageResolution | None = None
             pin: LocalImageArchivePin | None = None
-            archive_raw: bytes | None = None
+            archiveRaw: bytes | None = None
             for completed, operation in enumerate(LocalImageOperation, 1):
                 context.CheckCancellation()
                 phase = JobFailureCode.AUTHORIZATION
@@ -318,16 +318,16 @@ class LocalImageExportWorkflow:
                 elif operation is LocalImageOperation.EXPORT:
                     if type(accepted) is not LocalImageArchivePin:
                         raise ValueError("local image archive pin is missing")
-                    pin, archive_raw = accepted, result.stdout
+                    pin, archiveRaw = accepted, result.stdout
                 context.Progress(completed, 3)
-            if resolution is None or pin is None or archive_raw is None:
+            if resolution is None or pin is None or archiveRaw is None:
                 raise ValueError("local image export original phase association is missing")
 
             def Validate() -> None:
                 """Require original completed custody and current authority before publication."""
 
                 context.CheckCancellation()
-                if resolution is None or pin is None or PrivateDirectory(run) != run_identity:
+                if resolution is None or pin is None or PrivateDirectory(run) != runIdentity:
                     raise ValueError("local image export publication association changed")
                 ValidateCompletedLocalExport(self.engine, tuple(claims), resolution, pin,
                     self.Context(), at=self.clock())
@@ -339,7 +339,7 @@ class LocalImageExportWorkflow:
             descriptor = os.open(archive, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                                  getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
             with os.fdopen(descriptor, "wb") as stream:
-                stream.write(archive_raw)
+                stream.write(archiveRaw)
                 stream.flush()
                 os.fsync(stream.fileno())
             identity = PhysicalIdentity(ArtifactPathInfo(archive))

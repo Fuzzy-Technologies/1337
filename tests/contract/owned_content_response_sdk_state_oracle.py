@@ -82,9 +82,9 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         )
         assert row["exception_type"] is None and row["returned"] is not None, (
             "Observed commits or missing Save returns cannot establish acknowledgement")
-        expected_proposal = {**actual, "revision": prior["revision"]} if owner == (
+        expectedProposal = {**actual, "revision": prior["revision"]} if owner == (
             "workspace") else actual
-        assert Canonical(row["proposal"]) == Canonical(expected_proposal) and Canonical(
+        assert Canonical(row["proposal"]) == Canonical(expectedProposal) and Canonical(
             row["returned"]) == Canonical(actual), (
                 "Original proposal and returned/reopened state must retain actual owner semantics")
         assert summary[owner + "_persistence_status"] == "acknowledged", (
@@ -112,16 +112,16 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
             if key not in mutable}) == Canonical({key: value for key, value in after[owner].items()
             if key not in mutable}), "Acquisition must preserve unrelated owner configuration"
 
-    prior_objects = ByReference(before["model"]["objects"])
-    added_objects = [row for row in after["model"]["objects"] if row["reference"] not in (
-        prior_objects)]
-    assert len(added_objects) == 1 and added_objects[0]["identity"]["kind"] == "endpoint", (
+    priorObjects = ByReference(before["model"]["objects"])
+    addedObjects = [row for row in after["model"]["objects"] if row["reference"] not in (
+        priorObjects)]
+    assert len(addedObjects) == 1 and addedObjects[0]["identity"]["kind"] == "endpoint", (
         "A fresh source acquisition adds one Endpoint and no Findings")
-    endpoint_identity = {"workspace_id": workspace_id, "kind": "endpoint", "key": url}
-    endpoint_reference = "object:" + hashlib.sha256(Canonical({"namespace": "object",
-        "identity": endpoint_identity})).hexdigest()
-    assert Canonical(added_objects[0]["identity"]) == Canonical(endpoint_identity) and (
-        added_objects[0]["reference"] == endpoint_reference), (
+    endpointIdentity = {"workspace_id": workspace_id, "kind": "endpoint", "key": url}
+    endpointReference = "object:" + hashlib.sha256(Canonical({"namespace": "object",
+        "identity": endpointIdentity})).hexdigest()
+    assert Canonical(addedObjects[0]["identity"]) == Canonical(endpointIdentity) and (
+        addedObjects[0]["reference"] == endpointReference), (
             "The new Endpoint must identify the independently selected original URL/workspace")
 
     for identity, original in before["originals"].items():
@@ -136,8 +136,8 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         assert len(set(actual)) == len(actual) and prior <= set(actual), (
             "Original workspace associations cannot disappear or duplicate")
 
-    job_id, receipt_id = summary["original_job_id"], summary["original_receipt_id"]
-    assert type(job_id) is str and job_id and job_id in workspace["job_references"], (
+    jobId, receiptId = summary["original_job_id"], summary["original_receipt_id"]
+    assert type(jobId) is str and jobId and jobId in workspace["job_references"], (
         "The actual nonempty capture job ID must already be attached to the acknowledged "
         "workspace."
     )
@@ -153,13 +153,13 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         "Capture must add only its exact selected scope while preserving all prior scope "
         "references."
     )
-    assert job["spec"]["job_id"] == job_id and job["state"] == "completed" and (
+    assert job["spec"]["job_id"] == jobId and job["state"] == "completed" and (
         job["failure"] is None and job["cancellation_requested"] is False), (
         "Original capture job must be completed without failure or a cancellation request."
     )
     roles = summary["original_role_ids"]
     assert len(roles) == len(set(roles.values())) == 7 and roles[
-        "owned-response-receipt"] == receipt_id, (
+        "owned-response-receipt"] == receiptId, (
         "Complete source custody requires seven distinct original role IDs including the exact "
         "receipt."
     )
@@ -178,7 +178,7 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         "Every original evidence reference must remain attached to the reopened workspace."
     )
     facts = [row for row in after["model"]["observations"] if row["kind"] == (
-        "owned-content-response-source") and row["attributes"]["original_receipt_id"] == receipt_id]
+        "owned-content-response-source") and row["attributes"]["original_receipt_id"] == receiptId]
     assert len(facts) == 1, "One durable original content source association is required"
     fact = facts[0]
     assert Canonical(fact["attributes"]) == Canonical(summary["source_facts"]), (
@@ -187,7 +187,7 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
     assert Canonical(fact["attributes"]["original_role_ids"]) == Canonical(roles), (
         "Persisted source role IDs must equal the independently verified original custody mapping."
     )
-    assert fact["attributes"]["original_job_id"] == fact["provenance"]["run_reference"] == job_id, (
+    assert fact["attributes"]["original_job_id"] == fact["provenance"]["run_reference"] == jobId, (
         "Source attributes and provenance must retain the same actual capture job ID."
     )
     assert fact["provenance"]["source_id"] == "native.loopback-content-response", (
@@ -209,7 +209,7 @@ def AssertSdkSaveTransition(before: dict, after: dict, summary: dict, saves: lis
         "subject_reference"] in ByReference(after["model"]["objects"]), (
         "The source endpoint must remain present in both reopened model and workspace references."
     )
-    assert fact["subject_reference"] == added_objects[0]["reference"], (
+    assert fact["subject_reference"] == addedObjects[0]["reference"], (
         "Capture must project the source fact onto the exact independently identified new "
         "endpoint."
     )

@@ -135,10 +135,10 @@ def RunNative(root: Path, executable: Path, package_version: str):
 
     (root / "evidence").mkdir()
     store = LocalEvidenceStore(root / "evidence")
-    probe_adapter = TrivyAdapter(store.Read, root, str(executable))
-    version_started = datetime.now(UTC).isoformat()
-    probe = probe_adapter.ProbeHealth()
-    version_finished = datetime.now(UTC).isoformat()
+    probeAdapter = TrivyAdapter(store.Read, root, str(executable))
+    versionStarted = datetime.now(UTC).isoformat()
+    probe = probeAdapter.ProbeHealth()
+    versionFinished = datetime.now(UTC).isoformat()
     assert probe.health.state is AdapterHealthState.AVAILABLE, (
         "Actual installed version probe must pass"
     )
@@ -156,14 +156,14 @@ def RunNative(root: Path, executable: Path, package_version: str):
         "scope:pytest-owned-native-image", "policy:pytest-native-acceptance", digest)
     scratch = root / "scratch"
     scratch.mkdir()
-    execution_request = LocalExecutionRequest(invocation,
+    executionRequest = LocalExecutionRequest(invocation,
         CapabilityDescriptors(adapter.Descriptor)[0], authority,
         environment={"HOME": str(scratch), "XDG_CONFIG_HOME": str(scratch),
             "XDG_CACHE_HOME": str(scratch), "TMPDIR": str(scratch), "PATH": "/usr/bin:/bin"},
         resources=ExecutionResources(max_stdout_bytes=4 * 1024 * 1024,
                                     max_stderr_bytes=1024 * 1024))
     started = datetime.now(UTC).isoformat()
-    captured = asyncio.run(LocalExecutor(root).Execute(execution_request))
+    captured = asyncio.run(LocalExecutor(root).Execute(executionRequest))
     finished = datetime.now(UTC).isoformat()
     provenance = EvidenceProvenance("workspace:owned-native-acceptance", authority.scope_reference,
         adapter.Descriptor.adapter_id, adapter.Descriptor.version, probe.health.provider_version,
@@ -173,11 +173,11 @@ def RunNative(root: Path, executable: Path, package_version: str):
     version = store.Put(probe.stdout, "provider-version", "application/json", EvidenceProvenance(
         "workspace:owned-native-acceptance", authority.scope_reference,
         adapter.Descriptor.adapter_id, adapter.Descriptor.version, probe.health.provider_version,
-        version_started, version_finished))
+        versionStarted, versionFinished))
     report = AdapterReport(invocation, captured.execution,
         (stdout.reference, stderr.reference, version.reference))
 
-    return adapter, report, captured, probe, execution_request
+    return adapter, report, captured, probe, executionRequest
 
 
 def PreservePair(root: Path, label: str, version, scan, provisioning: dict, network: dict) -> Path:
@@ -207,20 +207,20 @@ def RunNativePair(root: Path, executable: Path, package_version: str,
     (root / "evidence").mkdir(exist_ok=True)
     (root / "owned.tar").write_bytes(ArchiveBytes(package_version))
     store = LocalEvidenceStore(root / "evidence")
-    workspace_id = LocalWorkspaceStore(root).Open().workspace_id
+    workspaceId = LocalWorkspaceStore(root).Open().workspace_id
     owner = "owner:pytest-owned-native-image"
     selection = NativeTrivySelection(root, executable, "owned.tar", "trivy-cache",
         ArtifactReadConsent(owner, "read:pytest-owned-pinned-native-material"))
     adapter = selection.Adapter(store)
-    version_request = AdapterRequest("image.archive-vulnerabilities",
+    versionRequest = AdapterRequest("image.archive-vulnerabilities",
         "target:pytest-owned-native-image", ImpactLevel.SAFE,
         {"archive": "owned.tar", "timeout_seconds": 3})
-    invocation = adapter.PrepareVersionInvocation(version_request)
+    invocation = adapter.PrepareVersionInvocation(versionRequest)
     authority = ExecutionAuthorization("authorization:pytest-native-version",
         "scope:pytest-owned-native-image", "policy:pytest-native-acceptance",
         InvocationDigest(invocation))
     version = asyncio.run(CaptureNativeTrivyOperation(NativeTrivyOperation.VERSION, selection,
-        invocation, authority, store, workspace_id, owner))
+        invocation, authority, store, workspaceId, owner))
     PreservePair(root, package_version, version, None, provisioning, network)
     assert version.refusal is None, "Actual executed VERSION must establish original custody"
     assert version.observed_version == ORACLE["provider_version"], "Pinned VERSION is required"
@@ -232,7 +232,7 @@ def RunNativePair(root: Path, executable: Path, package_version: str,
         "scope:pytest-owned-native-image", "policy:pytest-native-acceptance",
         InvocationDigest(invocation))
     scan = asyncio.run(CaptureNativeTrivyOperation(NativeTrivyOperation.SCAN, selection,
-        invocation, authority, store, workspace_id, owner,
+        invocation, authority, store, workspaceId, owner,
         version_prerequisite=version))
     output = PreservePair(root, package_version, version, scan, provisioning, network)
     assert scan.refusal is None, "Actual SCAN requires unchanged original VERSION/material custody"
@@ -275,17 +275,17 @@ def PreserveRun(root: Path, label: str, report, captured, probe, request,
 def test_GenuinePinnedTrivyInventoryAndAdvisoryBoundaryOffline(tmp_path, native_runtime, case):
     """Decode owned metadata and match an independently selected real advisory without egress."""
 
-    executable, supplied_cache, provisioning, network = native_runtime
+    executable, suppliedCache, provisioning, network = native_runtime
     root = tmp_path / "workspace"
-    workspace_store = LocalWorkspaceStore(root)
-    workspace_store.Create(WorkspaceConfiguration("Owned genuine native acceptance"),
+    workspaceStore = LocalWorkspaceStore(root)
+    workspaceStore.Create(WorkspaceConfiguration("Owned genuine native acceptance"),
                            "owned-native-acceptance")
     initial = LocalModelStore(root).Create()
     cache = root / "trivy-cache" / "db"
     cache.mkdir(parents=True)
 
     for name in ("metadata.json", "trivy.db"):
-        shutil.copyfile(supplied_cache / "db" / name, cache / name)
+        shutil.copyfile(suppliedCache / "db" / name, cache / name)
 
     before = {name: FileDigest(cache / name) for name in ("metadata.json", "trivy.db")}
     assert before == provisioning["database_files"], (
@@ -302,15 +302,15 @@ def test_GenuinePinnedTrivyInventoryAndAdvisoryBoundaryOffline(tmp_path, native_
     assert FileDigest(executable) == provisioning["executable_sha256"], (
         "Actual native execution must preserve the selected pinned executable bytes"
     )
-    selected_metadata = json.loads((cache / "metadata.json").read_bytes())
-    observed_metadata = json.loads(version.outcome.stdout)["VulnerabilityDB"]
-    assert selected_metadata.get("Version") == 2 and isinstance(
-        selected_metadata.get("UpdatedAt"), str
+    selectedMetadata = json.loads((cache / "metadata.json").read_bytes())
+    observedMetadata = json.loads(version.outcome.stdout)["VulnerabilityDB"]
+    assert selectedMetadata.get("Version") == 2 and isinstance(
+        selectedMetadata.get("UpdatedAt"), str
     ), "Selected native database must explicitly declare schema 2 and its update timestamp"
 
     for field in ("Version", "UpdatedAt", "NextUpdate", "DownloadedAt"):
-        if field in selected_metadata:
-            assert observed_metadata.get(field) == selected_metadata[field], (
+        if field in selectedMetadata:
+            assert observedMetadata.get(field) == selectedMetadata[field], (
                 f"Actual native version DB metadata must match the selected cache field {field}"
             )
 
@@ -336,27 +336,27 @@ def test_GenuinePinnedTrivyInventoryAndAdvisoryBoundaryOffline(tmp_path, native_
     assert LocalModelStore(root).Open() == saved and delta.revision == saved.revision, (
         "Genuine original custody must compose into canonical CAS-save and independent reopening"
     )
-    package_assets = [item for item in saved.objects if item.identity.kind is ObjectKind.ASSET
+    packageAssets = [item for item in saved.objects if item.identity.kind is ObjectKind.ASSET
                       and item.attributes.get("asset_type") == "package"]
-    assert len(package_assets) == 1 and package_assets[0].attributes["name"] == (
+    assert len(packageAssets) == 1 and packageAssets[0].attributes["name"] == (
         ORACLE["package_name"]
-    ) and package_assets[0].attributes["version"] == case["version"], (
+    ) and packageAssets[0].attributes["version"] == case["version"], (
         "Canonical native inventory must contain the exact independently selected package version"
     )
-    canonical_findings = [Finding.FromObject(item) for item in saved.objects
+    canonicalFindings = [Finding.FromObject(item) for item in saved.objects
                           if item.identity.kind is ObjectKind.FINDING]
-    matches = [item for item in canonical_findings if item.location_key == ORACLE["advisory_id"]]
+    matches = [item for item in canonicalFindings if item.location_key == ORACLE["advisory_id"]]
     assert bool(matches) is case["expected_advisory_match"], (
         "Canonical genuine findings must preserve the independently selected advisory boundary"
     )
     records = (*version.records, *scan.records)
 
-    for finding in canonical_findings:
-        assert finding.subject_reference == package_assets[0].Reference() and (
+    for finding in canonicalFindings:
+        assert finding.subject_reference == packageAssets[0].Reference() and (
             len(finding.provenance[0].evidence_references) == 6
         ), "Genuine canonical findings must bind the package and all original executed-pair roles"
 
-    workspace_store.Save(replace(workspace_store.Open(),
+    workspaceStore.Save(replace(workspaceStore.Open(),
         object_references=tuple(sorted(item.Reference() for item in saved.objects)),
         evidence_references=tuple(record.reference for record in records),
         evidence_record_references=tuple(record.evidence_id for record in records)))

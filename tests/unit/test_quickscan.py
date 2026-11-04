@@ -42,8 +42,8 @@ from fuzzy1337.workspace import LocalWorkspaceStore
 def runner() -> Iterator[asyncio.Runner]:
     """Initialize loop resources before the unit network guard, then own their teardown."""
 
-    with asyncio.Runner() as owned_runner:
-        yield owned_runner
+    with asyncio.Runner() as ownedRunner:
+        yield ownedRunner
 
 
 def Workspace(root: Path) -> tuple[Target, ...]:

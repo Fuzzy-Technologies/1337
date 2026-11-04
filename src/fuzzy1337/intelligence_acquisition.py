@@ -287,7 +287,7 @@ def AcquireIntelligenceSnapshot(
     workspace = LocalWorkspaceStore(workspace_root)
     owner = workspace.Open()
     store = LocalEvidenceStore(workspace.root / "evidence")
-    started_at = AcquisitionTime()
+    startedAt = AcquisitionTime()
 
     if request.payload is None:
         payload, state, status = FetchRemoteBytes(request)
@@ -300,16 +300,16 @@ def AcquireIntelligenceSnapshot(
         )
         status = None
 
-    finished_at = AcquisitionTime()
+    finishedAt = AcquisitionTime()
     outcome = AcquisitionOutcome(
-        state, request.source, started_at, finished_at, len(payload),
+        state, request.source, startedAt, finishedAt, len(payload),
         state is AcquisitionState.SUCCEEDED, status,
         "https" if request.payload is None else "local-bytes",
         request.max_bytes, request.timeout_seconds,
     )
     provenance = EvidenceProvenance(
         owner.workspace_id, scope_reference, IMPORTER_ID, IMPORTER_VERSION, None,
-        started_at, finished_at,
+        startedAt, finishedAt,
     )
 
     try:
@@ -333,7 +333,7 @@ def AcquireIntelligenceSnapshot(
                 source = ReferenceSource(
                     request.source.origin, request.source.publisher, request.source.source_url,
                     outcome.raw.reference.sha256, request.source.license_name,
-                    request.source.license_url, finished_at, IMPORTER_ID, IMPORTER_VERSION,
+                    request.source.license_url, finishedAt, IMPORTER_ID, IMPORTER_VERSION,
                 )
 
                 try:
@@ -347,10 +347,10 @@ def AcquireIntelligenceSnapshot(
                     outcome = replace(outcome, state=AcquisitionState.PARSE_FAILED)
 
                 else:
-                    snapshot_record = store.Put(
+                    snapshotRecord = store.Put(
                         serialized, "intelligence-snapshot", "application/json", provenance,
                     )
-                    outcome = replace(outcome, snapshot=snapshot, snapshot_record=snapshot_record)
+                    outcome = replace(outcome, snapshot=snapshot, snapshot_record=snapshotRecord)
 
         receipt = store.Put(
             CanonicalModelJson(outcome.ToDict()), "intelligence-acquisition", "application/json",
@@ -433,9 +433,9 @@ def LoadAcquiredSnapshot(workspace_root: Path, evidence_id: str) -> Intelligence
     ):
         raise ValueError("snapshot acquisition attribution must match original receiver provenance")
 
-    raw_record = EvidenceRecord(snapshot.evidence, record.provenance)
+    rawRecord = EvidenceRecord(snapshot.evidence, record.provenance)
 
-    if store.Get(raw_record.evidence_id) != raw_record:
+    if store.Get(rawRecord.evidence_id) != rawRecord:
         raise ValueError("snapshot must retain the exact owning original acquisition manifest")
 
     reparsed = ParseIntelligenceSnapshot(

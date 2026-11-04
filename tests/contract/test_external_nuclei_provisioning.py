@@ -455,7 +455,7 @@ def test_MaterialCleanupFailurePreservesOriginalRefusal(tmp_path, monkeypatch):
     """An owned unlink failure annotates the primary profile refusal instead of replacing it."""
 
     arguments = Material(tmp_path, monkeypatch)
-    original_unlink = Path.unlink
+    originalUnlink = Path.unlink
 
     def Profile(template, configuration):
         """Refuse only the copied profile after executable extraction and chmod completed."""
@@ -471,7 +471,7 @@ def test_MaterialCleanupFailurePreservesOriginalRefusal(tmp_path, monkeypatch):
         if path == arguments[3] / "nuclei":
             raise PermissionError("inert owned-file cleanup denial")
 
-        return original_unlink(path, *arguments_for_unlink, **options)
+        return originalUnlink(path, *arguments_for_unlink, **options)
 
     monkeypatch.setattr(provisioning, "ProfileDocument", Profile)
     monkeypatch.setattr(Path, "unlink", Unlink)

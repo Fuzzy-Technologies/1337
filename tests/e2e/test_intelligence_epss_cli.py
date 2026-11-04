@@ -71,7 +71,7 @@ def test_ActualSelectedImportReopensOriginalGzipAfterRelocationAndSourceDeletion
     source = tmp_path / "owned.csv.gz"
     raw = Body()
     source.write_bytes(raw)
-    before_model = model.Open()
+    beforeModel = model.Open()
     status, imported = Run([
         *ImportArguments(model.root, source), "--expected-sha256", hashlib.sha256(raw).hexdigest(),
         "--max-bytes", str(len(raw)),
@@ -115,7 +115,7 @@ def test_ActualSelectedImportReopensOriginalGzipAfterRelocationAndSourceDeletion
     assert status == 0 and inspected["selection"] == selected, (
         "Actual read-only selected inspection did not reparse the immutable original gzip."
     )
-    assert Files(model.root) == before and model.Open() == before_model, (
+    assert Files(model.root) == before and model.Open() == beforeModel, (
         "Import or inspection silently changed authoritative model or retained evidence."
     )
     relocated = tmp_path / "relocated"
@@ -150,7 +150,7 @@ def test_ActualFailedImportKeepsHonestOriginalBytesAndNoUsableSelection(tmp_path
         )
         arguments[arguments.index(option) + 1] = value
 
-    before_model = model.Open()
+    beforeModel = model.Open()
     status, outcome = Run(arguments)
     expected = {"digest": "digest-mismatch", "parse": "parse-failed", "size": "size-exceeded",
                 "model": "parse-failed", "day": "parse-failed"}[failure]
@@ -158,15 +158,15 @@ def test_ActualFailedImportKeepsHonestOriginalBytesAndNoUsableSelection(tmp_path
         "selection_id"
     ] is None, "Rejected actual import invented a usable selection or successful terminal state."
     store = LocalEvidenceStore(model.root / "evidence")
-    raw_record = store.Get(outcome["raw_id"])
-    assert store.Read(raw_record.reference) == (raw[:7] if failure == "size" else raw), (
+    rawRecord = store.Get(outcome["raw_id"])
+    assert store.Read(rawRecord.reference) == (raw[:7] if failure == "size" else raw), (
         "Failed actual acquisition changed its bounded original bytes."
     )
     receipt = store.Get(outcome["receipt_id"])
     assert json.loads(store.Read(receipt.reference))["state"] == expected, (
         "The product output disagrees with its retained terminal receipt."
     )
-    assert model.Open() == before_model, "Rejected actual source import changed model state."
+    assert model.Open() == beforeModel, "Rejected actual source import changed model state."
 
 
 def test_ActualInspectionRejectsMissingReceiptAndScopeReplacementWithoutWrites(tmp_path):

@@ -73,14 +73,14 @@ def test_AllFiveImpactLevelsRequireExplicitPolicyAndHigherImpactConfirmation(imp
     invocation, capability, context = Inputs(impact)
     engine = PolicyEngine()
     plan = engine.Plan(invocation, capability, context, at=AT)
-    confirmation_required = impact in (
+    confirmationRequired = impact in (
         ImpactLevel.STANDARD, ImpactLevel.ACTIVE, ImpactLevel.INTRUSIVE
     )
-    assert plan.confirmation_required == confirmation_required, (
+    assert plan.confirmation_required == confirmationRequired, (
         'Policy invariant failed: plan.confirmation_required == confirmation_required'
     )
 
-    if confirmation_required:
+    if confirmationRequired:
         with pytest.raises(PolicyDeniedError) as denied:
             engine.Authorize(invocation, capability, context, at=AT)
 

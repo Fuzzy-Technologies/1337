@@ -278,9 +278,9 @@ def RunCweIntelCommands(
 
     if list(arguments) in (["--help"], ["-h"], ["import", "--help"], ["import", "-h"],
                            ["inspect", "--help"], ["inspect", "-h"]):
-        help_output = StringIO()
-        CweIntelParser(arguments[0]).print_help(file=help_output)
-        output.write(help_output.getvalue())
+        helpOutput = StringIO()
+        CweIntelParser(arguments[0]).print_help(file=helpOutput)
+        output.write(helpOutput.getvalue())
 
         return 0
 

@@ -237,18 +237,18 @@ def VerifyDockerSave(raw: bytes, expected_config_id: str) -> LocalImageArchivePi
             if type(manifest) is not list or len(manifest) != 1 or type(manifest[0]) is not dict:
                 raise ValueError("local image tar requires one Docker-save image manifest")
 
-            config_name = manifest[0].get("Config")
+            configName = manifest[0].get("Config")
 
-            if type(config_name) is not str:
+            if type(configName) is not str:
                 raise ValueError("local image tar manifest lacks its explicit config member")
 
-            config = Read(ArtifactName(config_name), 1024 * 1024)
-            observed_id = "sha256:" + hashlib.sha256(config).hexdigest()
+            config = Read(ArtifactName(configName), 1024 * 1024)
+            observedId = "sha256:" + hashlib.sha256(config).hexdigest()
 
-            if observed_id != expected_config_id:
+            if observedId != expected_config_id:
                 raise ValueError("local image archive config differs from original inspect")
 
-            return LocalImageArchivePin(observed_id, hashlib.sha256(raw).hexdigest(), len(raw))
+            return LocalImageArchivePin(observedId, hashlib.sha256(raw).hexdigest(), len(raw))
 
     except (tarfile.TarError, KeyError, OSError, OverflowError) as error:
         raise ValueError("local image original Docker-save archive is invalid") from error

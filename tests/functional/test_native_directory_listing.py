@@ -134,9 +134,9 @@ def test_ActualNativeJobsDistinguishFilesystemIndexControlsAndUnassessedTranspor
 ):
     """Execute the actual isolated worker, preserve truthful outcomes and reopen exact evidence."""
 
-    server, base_url = directory_target
+    server, baseUrl = directory_target
     root = tmp_path / "workspace"
-    target = NativeWorkspace(root, base_url + case["route"])
+    target = NativeWorkspace(root, baseUrl + case["route"])
     plan = PlanNativeWebScan(root, "local", target, "operator:owned", DirectoryPolicy,
                              check_id=NATIVE_DIRECTORY_INDEX_CHECK_ID)
     assert server.Observe()["requests"] == [], "Read-only planning contacted the owned listener."
@@ -230,9 +230,9 @@ def test_NewCheckStillRequiresItsOwnCapabilityCurrentConsentAndOperator(
 ):
     """Refuse each authority change before any listener contact or new exposure Finding."""
 
-    server, base_url = directory_target
+    server, baseUrl = directory_target
     root = tmp_path / "workspace"
-    target = NativeWorkspace(root, base_url + "/listing/listed/")
+    target = NativeWorkspace(root, baseUrl + "/listing/listed/")
     owner = "operator:changed" if denial == "wrong-owner" else "operator:owned"
 
     if denial == "revoked-consent":
@@ -272,15 +272,15 @@ def test_InstalledCliPlansConfirmsExecutesAndReopensTheNewCheck(
 ):
     """Exercise separate real CLI processes with no target contact before exact STD confirmation."""
 
-    server, base_url = directory_target
+    server, baseUrl = directory_target
     case = next(case for case in DirectoryOracle()["cases"] if case["id"] == case_id)
     root = tmp_path / "workspace with spaces"
-    url = base_url + case["route"]
+    url = baseUrl + case["route"]
     NativeWorkspace(root, url)
-    policy_path = tmp_path / "directory-policy.json"
-    policy_path.write_text(SerializeContract(DirectoryPolicy()), encoding="utf-8")
+    policyPath = tmp_path / "directory-policy.json"
+    policyPath.write_text(SerializeContract(DirectoryPolicy()), encoding="utf-8")
     arguments = ["scan", "web", str(root), "--check", "directory-index", "--scope", "local",
-        "--owner", "operator:owned", "--target", url, "--policy", str(policy_path)]
+        "--owner", "operator:owned", "--target", url, "--policy", str(policyPath)]
     planned = DirectoryCli([*arguments, "--plan"])
     assert planned.returncode == 0, "Actual installed CLI failed its new read-only selection."
     plan = json.loads(planned.stdout)

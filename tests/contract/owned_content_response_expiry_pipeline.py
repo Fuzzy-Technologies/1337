@@ -240,13 +240,13 @@ def RunInstalled(installed: Any, directory: Path, evidence: Any, *, fixture_id: 
         installed.installation), "The selected original installed identity must remain unchanged"
     directory.mkdir(parents=True, exist_ok=False)
     environment = NativeEnvironment(directory / "owned-state")
-    source_status = NativeProcess(evidence, "pipeline-source-status",
+    sourceStatus = NativeProcess(evidence, "pipeline-source-status",
         ("git", "status", "--porcelain"), cwd=REPOSITORY, environment=environment, timeout=5)
     checkpoint = NativeProcess(evidence, "pipeline-checkpoint",
         ("git", "rev-parse", "HEAD", "HEAD^{tree}"), cwd=REPOSITORY,
         environment=environment, timeout=5)
-    assert source_status.returncode == checkpoint.returncode == 0 and (
-        source_status.stdout == b"" and checkpoint.stdout.decode("ascii").split() == [
+    assert sourceStatus.returncode == checkpoint.returncode == 0 and (
+        sourceStatus.stdout == b"" and checkpoint.stdout.decode("ascii").split() == [
             installed.commit, installed.tree]), "Runtime requires the exact clean installed tree"
     from tests.contract import owned_content_response_sdk_entrypoint as entrypoint
 
@@ -291,18 +291,18 @@ def RunInstalled(installed: Any, directory: Path, evidence: Any, *, fixture_id: 
         )
         helper = EXPIRY_HELPER if operation == OPERATION else (
             "owned_content_response_sdk_entrypoint.py")
-        input_path = directory / f"stage-{calls:02d}-input.json"
+        inputPath = directory / f"stage-{calls:02d}-input.json"
 
-        with input_path.open("xb") as output:
+        with inputPath.open("xb") as output:
             output.write(CanonicalNative(envelope))
 
         argv = (str(installed.python), "-I", "-B", sources[helper]["path"], operation,
-            str(input_path), "--execute")
+            str(inputPath), "--execute")
         assert NativeInstallation(installed.python) == installed.installation, (
             'Original expiry invariant differs: NativeInstallation(installed.python) == '
             'installed.installation'
         )
-        retained_names = (("expiry-analysis.json", "original"),) if operation == OPERATION else (
+        retainedNames = (("expiry-analysis.json", "original"),) if operation == OPERATION else (
             (operation + ".json", "original"),)
 
         try:
@@ -311,7 +311,7 @@ def RunInstalled(installed: Any, directory: Path, evidence: Any, *, fixture_id: 
                 installation=installed.installation)
 
         finally:
-            for name, role in retained_names:
+            for name, role in retainedNames:
                 path = observations / name
                 label = "sdk-" + operation + "-" + role
                 evidence.Json(label + "-retention.json", {"observation_present": path.is_file()})
@@ -385,14 +385,14 @@ def RunInstalled(installed: Any, directory: Path, evidence: Any, *, fixture_id: 
                     "consent_valid_from": now.isoformat(),
                     "consent_valid_until": (now + timedelta(seconds=300)).isoformat()})
                 evidence.Json("pipeline-plan.json", plan)
-                sentinel_origin = other.graph.origin
+                sentinelOrigin = other.graph.origin
                 result = Run(plan, Handoff, enabled=True)
 
     finally:
         finals = RetainSourceFinal(evidence, {"main": main, "sentinel": sentinel})
 
     delivery = AssertContentSourceFacts("missing", plan["selection"]["url"], finals["main"],
-        finals["sentinel"], sentinel_origin=sentinel_origin)
+        finals["sentinel"], sentinel_origin=sentinelOrigin)
     result.update(runtime_acceptance="passed", source_delivery=delivery)
     evidence.Json("pipeline-result.json", result)
 

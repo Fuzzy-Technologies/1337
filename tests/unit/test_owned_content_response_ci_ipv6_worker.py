@@ -39,9 +39,9 @@ def Fixture(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
         "source_tree": identity["source_tree"], "python": "/owned/environment/bin/python"}
     local = "/mock-only/case"
     _, url, main, sentinel, _ = SourceFacts("missing", "::1")
-    original_worker = Process(launcher.CASES["missing"].ExpectedStdout(url), url, 0)
-    original_worker.update(cwd=local + "/launch", timeout_seconds=10, installation=envelope)
-    result = {"installation": envelope, "process": original_worker,
+    originalWorker = Process(launcher.CASES["missing"].ExpectedStdout(url), url, 0)
+    originalWorker.update(cwd=local + "/launch", timeout_seconds=10, installation=envelope)
+    result = {"installation": envelope, "process": originalWorker,
         "sources": {"main": main, "sentinel": sentinel}, "source_delivery": "normal-eof",
         "worker_case": "missing", "address": "::1", "evidence_paths": {"local": local,
             "retained": "/mock-only/owned-content-sdk/run-unit-only/ipv6-worker-missing",
@@ -71,7 +71,7 @@ def Fixture(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
             installed: Synthetic manifest envelope for the one worker process only.
         """
 
-        terminal = original_worker if installed is not None else Process(stdout, url, 0)
+        terminal = originalWorker if installed is not None else Process(stdout, url, 0)
         terminal.update(argv=list(argv), cwd=cwd, timeout_seconds=timeout, installation=installed)
         documents[prefix + "/process.json"] = terminal
         documents[prefix + "/invocation.json"] = {"schema_version": 1, "argv": list(argv),

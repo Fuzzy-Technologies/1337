@@ -250,8 +250,8 @@ def FetchRelease(kind: str, url: str, deadline: float,
 
     for hop in range(4):
         maximum = ReleaseSource(kind, url)
-        call_deadline = min(deadline, time.monotonic() + RELEASE_CALL_SECONDS)
-        remaining = call_deadline - time.monotonic()
+        callDeadline = min(deadline, time.monotonic() + RELEASE_CALL_SECONDS)
+        remaining = callDeadline - time.monotonic()
 
         if remaining <= 0:
             raise DocumentationError("Retained API acquisition deadline exhausted")
@@ -273,7 +273,7 @@ def FetchRelease(kind: str, url: str, deadline: float,
         except subprocess.TimeoutExpired:
             raise DocumentationError("Retained API HTTP call exceeded its deadline") from None
 
-        if completed.returncode != 0 or time.monotonic() > call_deadline or (
+        if completed.returncode != 0 or time.monotonic() > callDeadline or (
             len(completed.stdout) > maximum + MAX_RELEASE_CONTROL_BYTES
         ):
             raise DocumentationError("Retained API original HTTP response is unverified")
@@ -394,15 +394,15 @@ def SelectVersionSource(root: Path) -> dict[str, str]:
         selected = annotation.get("object")
 
     commit = ReleaseJson(RELEASE_API + "/git/commits/" + revision, deadline, token)
-    tree_value = commit.get("tree")
+    treeValue = commit.get("tree")
     committer = commit.get("committer")
 
-    if type(tree_value) is not dict or type(committer) is not dict or type(
+    if type(treeValue) is not dict or type(committer) is not dict or type(
         committer.get("date")
     ) is not str:
         raise DocumentationError("Retained API source commit metadata is malformed")
 
-    tree = tree_value.get("sha")
+    tree = treeValue.get("sha")
 
     if commit.get("sha") != revision or type(tree) is not str or not re.fullmatch(
         r"[0-9a-f]{40}", tree,
@@ -671,12 +671,12 @@ def LinkTarget(root: Path, page: Path, reference: str, base_path: str) -> tuple[
         raise DocumentationError(f"Unsupported URL scheme in {page}: {reference}")
 
     if parsed.netloc or parsed.scheme in {"http", "https"}:
-        canonical_host = urlsplit(SITE_ORIGIN).netloc
-        is_local = parsed.netloc.lower() == canonical_host and (
+        canonicalHost = urlsplit(SITE_ORIGIN).netloc
+        isLocal = parsed.netloc.lower() == canonicalHost and (
             not base_path or parsed.path == base_path or parsed.path.startswith(base_path + "/")
         )
 
-        if not is_local:
+        if not isLocal:
             return None
 
     elif parsed.scheme in {"mailto", "tel", "data"}:
@@ -685,22 +685,22 @@ def LinkTarget(root: Path, page: Path, reference: str, base_path: str) -> tuple[
     if re.search(r"%(?![0-9A-Fa-f]{2})", parsed.path + parsed.fragment):
         raise DocumentationError(f"Malformed percent escape in {page}: {reference}")
 
-    url_path = unquote(parsed.path, errors="strict")
+    urlPath = unquote(parsed.path, errors="strict")
 
-    if "\\" in url_path or "\x00" in url_path:
+    if "\\" in urlPath or "\x00" in urlPath:
         raise DocumentationError(f"Invalid URL path in {page}: {reference}")
 
-    if url_path.startswith("/"):
-        if base_path and url_path != base_path and not url_path.startswith(base_path + "/"):
+    if urlPath.startswith("/"):
+        if base_path and urlPath != base_path and not urlPath.startswith(base_path + "/"):
             raise DocumentationError(f"Link escapes Pages base path in {page}: {reference}")
 
-        parts = PurePosixPath(url_path[len(base_path):].lstrip("/")).parts
+        parts = PurePosixPath(urlPath[len(base_path):].lstrip("/")).parts
 
-    elif not url_path:
+    elif not urlPath:
         return page, unquote(parsed.fragment)
 
     else:
-        parts = (*page.parent.relative_to(root).parts, *PurePosixPath(url_path).parts)
+        parts = (*page.parent.relative_to(root).parts, *PurePosixPath(urlPath).parts)
 
     normalized: list[str] = []
 
@@ -767,9 +767,9 @@ def ValidateLinks(site_root: Path, base_path: str = "/1337") -> dict[str, int]:
                 counts["external_references"] += 1
                 continue
 
-            target_path, fragment = target
+            targetPath, fragment = target
 
-            if fragment and target_path in pages and fragment not in pages[target_path].anchors:
+            if fragment and targetPath in pages and fragment not in pages[targetPath].anchors:
                 raise DocumentationError(f"Missing HTML anchor in {page}: {reference}")
 
             counts["internal_references"] += 1
@@ -814,13 +814,13 @@ def ValidateVersionArtifact(root: Path) -> dict:
     """
 
     inventory = ValidateArtifact(root)
-    provenance_path = root / VERSION_PROVENANCE
+    provenancePath = root / VERSION_PROVENANCE
 
-    if provenance_path.stat().st_size > 4 * 1024 * 1024:
+    if provenancePath.stat().st_size > 4 * 1024 * 1024:
         raise DocumentationError("API version provenance exceeds its byte limit")
 
     try:
-        record = json.loads(provenance_path.read_text(encoding="utf-8"))
+        record = json.loads(provenancePath.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, UnicodeError) as error:
         raise DocumentationError("Invalid API version provenance encoding") from error
 
@@ -1032,11 +1032,11 @@ def VerifyVersionTransfer(
         raise DocumentationError("API transfer differs from its selected release source or bytes")
 
     with tempfile.TemporaryDirectory(prefix=".api-transfer-", dir=archive.parent) as temporary:
-        actual_version, provenance = ExtractVersionArchive(
+        actualVersion, provenance = ExtractVersionArchive(
             archive, transfer["sha256"], Path(temporary) / "verified",
         )
 
-        if actual_version != version or any(provenance[key] != transfer[key] for key in (
+        if actualVersion != version or any(provenance[key] != transfer[key] for key in (
             "revision", "tree", "base_path", "locales", "source_date_epoch", "provenance_sha256",
         )):
             raise DocumentationError("Embedded API provenance differs from the original transfer")
@@ -1102,10 +1102,10 @@ def ComposeDocumentation(
     if (version_root is not None or retained_archive is not None) and base_path != "/1337":
         raise DocumentationError("Immutable API composition must retain the /1337 mount")
 
-    product_inventory = Inventory(product_site)
-    api_inventory = Inventory(api_root)
+    productInventory = Inventory(product_site)
+    apiInventory = Inventory(api_root)
 
-    if "index.html" not in product_inventory:
+    if "index.html" not in productInventory:
         raise DocumentationError("Product artifact is missing index.html")
 
     if (product_site / MANIFEST_NAME).exists() or (product_site / "api/latest").exists():
@@ -1120,7 +1120,7 @@ def ComposeDocumentation(
         raise DocumentationError(f"Unexpected API locale entries: {sorted(unexpected)}")
 
     for locale in LOCALES:
-        if f"{locale}/index.html" not in api_inventory:
+        if f"{locale}/index.html" not in apiInventory:
             raise DocumentationError(f"API artifact is missing {locale}/index.html")
 
     current = ValidateVersionArtifact(version_root) if version_root is not None else None
@@ -1138,7 +1138,7 @@ def ComposeDocumentation(
             shutil.copytree(api_root / locale, staging / "api/latest" / locale, symlinks=True)
 
         versions = {}
-        version_files = {}
+        versionFiles = {}
 
         if current is not None:
             version = current["version"]
@@ -1148,7 +1148,7 @@ def ComposeDocumentation(
 
             shutil.copytree(version_root, staging / "api" / version, symlinks=True)
             versions[version] = current
-            version_files.update({f"api/{version}/{name}": digest for name, digest in {
+            versionFiles.update({f"api/{version}/{name}": digest for name, digest in {
                 **current["files"], VERSION_PROVENANCE: current["provenance_sha256"],
             }.items()})
 
@@ -1167,30 +1167,30 @@ def ComposeDocumentation(
             else:
                 shutil.copytree(retained, target, symlinks=True)
                 versions[version] = previous
-                version_files.update({f"api/{version}/{name}": digest for name, digest in {
+                versionFiles.update({f"api/{version}/{name}": digest for name, digest in {
                     **previous["files"], VERSION_PROVENANCE: previous["provenance_sha256"],
                 }.items()})
 
-        link_counts = ValidateLinks(staging, base_path or "/")
+        linkCounts = ValidateLinks(staging, base_path or "/")
         files = Inventory(staging)
-        expected_files = {**product_inventory, **{
-            f"api/latest/{path}": digest for path, digest in api_inventory.items()
-        }, **version_files}
+        expectedFiles = {**productInventory, **{
+            f"api/latest/{path}": digest for path, digest in apiInventory.items()
+        }, **versionFiles}
 
-        if files != dict(sorted(expected_files.items())):
+        if files != dict(sorted(expectedFiles.items())):
             raise DocumentationError("Source artifacts changed while being copied")
 
-        identity_source = json.dumps(files, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        identitySource = json.dumps(files, sort_keys=True, separators=(",", ":")).encode("utf-8")
         manifest: dict[str, object] = {
             "schema_version": 1,
             "revision": revision,
             "base_path": base_path or "/",
             "api_mount": "api/latest",
             "locales": list(LOCALES),
-            "sources": {"product": product_inventory, "api": api_inventory},
+            "sources": {"product": productInventory, "api": apiInventory},
             "files": files,
-            "artifact_sha256": hashlib.sha256(identity_source).hexdigest(),
-            "validation": link_counts,
+            "artifact_sha256": hashlib.sha256(identitySource).hexdigest(),
+            "validation": linkCounts,
         }
         if versions:
             manifest["api_versions"] = versions

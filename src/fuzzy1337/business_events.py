@@ -331,14 +331,14 @@ def ReadBusinessEventDefinition(
     if type(references) is not list:
         raise ValueError("business event source membership requires an explicit JSON array")
 
-    declared_at = NormalizeEvidenceTime(Text(fields["declared_at"], 128))
+    declaredAt = NormalizeEvidenceTime(Text(fields["declared_at"], 128))
 
-    if declared_at > provenance.started_at:
+    if declaredAt > provenance.started_at:
         raise ValueError("business event declaration time must not follow original acquisition")
 
     definition = BusinessEventDefinition("", expected_model_version, key,
         Text(fields["definition_version"], 128), Text(fields["owner_reference"], 1024),
-        Text(fields["title"], 512), Text(fields["unacceptable_outcome"], 4096), declared_at,
+        Text(fields["title"], 512), Text(fields["unacceptable_outcome"], 4096), declaredAt,
         References(tuple(references)), stored, _VERIFIED, "")
     identity = "business-event:" + Digest({"definition": DefinitionFields(definition),
                                          "evidence_id": stored.evidence_id})
@@ -460,11 +460,11 @@ def AnalyzeBusinessEventPaths(
     ):
         raise ValueError("business event technical projection requires matching scope and basis")
 
-    declaration_refs = {item.Reference() for item in model.objects
+    declarationRefs = {item.Reference() for item in model.objects
                         if item.attributes.get("asset_type") == _ASSET_TYPE}
 
-    if any(edge.source_reference in declaration_refs or edge.target_reference in declaration_refs
-           for edge in projection.transitions) or set(attackers) & declaration_refs:
+    if any(edge.source_reference in declarationRefs or edge.target_reference in declarationRefs
+           for edge in projection.transitions) or set(attackers) & declarationRefs:
         raise ValueError("business event declaration links cannot become technical transitions")
 
     critical = definition.critical_asset_references

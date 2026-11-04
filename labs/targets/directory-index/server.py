@@ -23,10 +23,10 @@ def IndexDocument(path: str, entries: tuple[str, ...], *, hidden: bool = False) 
 
     links = "\n".join('<a href="' + quote(name, safe="/") + '">'
                       + html.escape(name) + "</a>" for name in entries)
-    body_attributes = ' hidden="hidden"' if hidden else ""
+    bodyAttributes = ' hidden="hidden"' if hidden else ""
 
     return ('<!DOCTYPE html><html><head><title>Index of ' + path + '</title></head><body'
-            + body_attributes + '><h1>Index of ' + path + '</h1><hr><pre>'
+            + bodyAttributes + '><h1>Index of ' + path + '</h1><hr><pre>'
             + '<a href="../">Parent Directory</a>\n' + links + '</pre><hr></body></html>').encode()
 
 

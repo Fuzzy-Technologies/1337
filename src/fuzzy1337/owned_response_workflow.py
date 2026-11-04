@@ -99,9 +99,9 @@ def CurrentAuthority(root: Path, scope_id: str, url: str, owner: str,
 
     address = ResponseDestination(url, _family)[0]
     RequireWorkspaceText(owner, "owner_reference")
-    current_owner = owner if current_owner_provider is None else current_owner_provider()
+    currentOwner = owner if current_owner_provider is None else current_owner_provider()
 
-    if type(current_owner) is not str or current_owner != owner:
+    if type(currentOwner) is not str or currentOwner != owner:
         raise OwnedResponseAuthorityDeniedError("owned response current actor attribution changed")
 
     policy = policy_provider()
@@ -584,8 +584,8 @@ async def RunResponseCapture(
 
     store = LocalWorkspaceStore(workspace_root)
     workspace = store.Open()
-    model_store = LocalModelStore(store.root)
-    model = model_store.Open()
+    modelStore = LocalModelStore(store.root)
+    model = modelStore.Open()
     evidence = LocalEvidenceStore(store.root / "evidence")
     VerifyWorkspaceEvidence(workspace, evidence)
     authority = CurrentAuthority(store.root, scope_id, url, owner_reference, policy_provider, True,
@@ -645,16 +645,16 @@ async def RunResponseCapture(
     snapshot = await job.Wait()
 
     try:
-        actual_model = model_store.Open()
+        actualModel = modelStore.Open()
 
     except (OSError, ValueError):
-        actual_model = None
+        actualModel = None
 
     try:
-        actual_workspace = store.Open()
+        actualWorkspace = store.Open()
 
     except (OSError, ValueError):
-        actual_workspace = None
+        actualWorkspace = None
 
     records = tuple(artifact.evidence for artifact in snapshot.artifacts)
 
@@ -666,14 +666,14 @@ async def RunResponseCapture(
 
     capture = provider.capture
     roles = {item.reference.role for item in records}
-    expected_roles = {"stdout", "stderr", "owned-response-receipt"}
+    expectedRoles = {"stdout", "stderr", "owned-response-receipt"}
 
     if capture is not None and capture.refusal is None:
-        expected_roles |= {"owned-response-request", "owned-response-headers",
+        expectedRoles |= {"owned-response-request", "owned-response-headers",
                            "owned-response-body", "owned-response-wire"}
 
     complete = capture is not None and capture.receipt_id is not None and verified and (
-        roles == expected_roles and (capture.refusal is None or capture.refusal in ERROR_CODES)
+        roles == expectedRoles and (capture.refusal is None or capture.refusal in ERROR_CODES)
     )
     facts = (None if workflow.source_fact is None else
              json.loads(SerializeContract(workflow.source_fact.attributes)))
@@ -684,11 +684,11 @@ async def RunResponseCapture(
 
     return OwnedResponseCaptureSummary(snapshot, records,
         None if capture is None else capture.receipt_id,
-        None if actual_model is None else actual_model.revision,
-        None if actual_workspace is None else actual_workspace.revision,
-        PersistenceStatus(actual_model, model, workflow.model_proposed, workflow.model_attempted,
+        None if actualModel is None else actualModel.revision,
+        None if actualWorkspace is None else actualWorkspace.revision,
+        PersistenceStatus(actualModel, model, workflow.model_proposed, workflow.model_attempted,
                           workflow.model_acknowledged),
-        PersistenceStatus(actual_workspace, workspace, workflow.workspace_proposed,
+        PersistenceStatus(actualWorkspace, workspace, workflow.workspace_proposed,
                           workflow.workspace_attempted, workflow.workspace_acknowledged), facts,
         outcome,
         "complete" if complete else "incomplete", provider.prepared is not None,
@@ -744,22 +744,22 @@ def ReplayResponse(
     """
 
     RequireResponseFamily(_family)
-    workspace_store = LocalWorkspaceStore(workspace_root)
-    workspace = workspace_store.Open()
-    model = LocalModelStore(workspace_store.root).Open()
+    workspaceStore = LocalWorkspaceStore(workspace_root)
+    workspace = workspaceStore.Open()
+    model = LocalModelStore(workspaceStore.root).Open()
 
     if original_receipt_id not in workspace.evidence_record_references:
         raise ValueError("owned response original receipt association is unknown")
 
-    store = OwnedResponseEvidenceStore(workspace_store.root / "evidence", _family=_family)
+    store = OwnedResponseEvidenceStore(workspaceStore.root / "evidence", _family=_family)
     replay = ReplayOwnedResponseCapture(store, original_receipt_id)
 
-    original_ids = (*replay.original_ids, replay.receipt_id)
+    originalIds = (*replay.original_ids, replay.receipt_id)
 
-    if any(identity not in workspace.evidence_record_references for identity in original_ids):
+    if any(identity not in workspace.evidence_record_references for identity in originalIds):
         raise ValueError("owned response original role association is unknown")
 
-    records = tuple(store.Get(identity) for identity in original_ids)
+    records = tuple(store.Get(identity) for identity in originalIds)
     receipt = next(item for item in records if item.evidence_id == original_receipt_id)
     facts = tuple(item for item in model.observations if item.kind == _family.source_kind and
                   item.attributes.get("original_receipt_id") == original_receipt_id)
@@ -768,9 +768,9 @@ def ReplayResponse(
         raise ValueError("owned response original source/job association is unknown")
 
     fact = facts[0]
-    job_id = fact.provenance.run_reference
+    jobId = fact.provenance.run_reference
 
-    if job_id not in workspace.job_references:
+    if jobId not in workspace.job_references:
         raise ValueError("owned response original job association is unknown")
 
     request = json.loads(replay.record_json)
@@ -779,7 +779,7 @@ def ReplayResponse(
     if record["outcome"] != "captured":
         raise ValueError("owned response historical acquisition was refused")
 
-    expected = SourceFact(workspace.workspace_id, record, records, original_receipt_id, job_id,
+    expected = SourceFact(workspace.workspace_id, record, records, original_receipt_id, jobId,
                           _family=_family)
     endpoint = next((item for item in model.objects if item.Reference() == fact.subject_reference),
                     None)
@@ -787,7 +787,7 @@ def ReplayResponse(
     if fact != expected or endpoint is None or fact.provenance not in endpoint.provenance:
         raise ValueError("owned response original source fact differs")
 
-    return OwnedResponseReplaySummary(job_id, original_receipt_id, records,
+    return OwnedResponseReplaySummary(jobId, original_receipt_id, records,
         json.loads(SerializeContract(fact.attributes)), model.revision, workspace.revision, _family)
 
 

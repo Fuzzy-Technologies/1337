@@ -369,18 +369,18 @@ def AcquireHttpsEpssSelection(
     RequireReferenceText(scope_reference, "scope_reference")
     owner = LocalWorkspaceStore(workspace_root).Open()
     store = LocalEvidenceStore(workspace_root / "evidence")
-    started_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
-    payload, receive_state, http_status = ReceiveIsolatedHttps(
+    startedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    payload, receiveState, httpStatus = ReceiveIsolatedHttps(
         request.source.SourceUrl, request.max_bytes, request.timeout_seconds, accept_kind="gzip",
     )
-    finished_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
-    complete = receive_state == "succeeded"
+    finishedAt = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    complete = receiveState == "succeeded"
     provenance = EvidenceProvenance(owner.workspace_id, scope_reference, IMPORTER_ID,
-                                    IMPORTER_VERSION, None, started_at, finished_at)
+                                    IMPORTER_VERSION, None, startedAt, finishedAt)
     outcome = EpssHttpsOutcome(
-        EpssHttpsState(receive_state),
-        request.source, request.requested_ids, started_at, finished_at, len(payload),
-        complete, request.max_bytes, request.timeout_seconds, receive_state, http_status,
+        EpssHttpsState(receiveState),
+        request.source, request.requested_ids, startedAt, finishedAt, len(payload),
+        complete, request.max_bytes, request.timeout_seconds, receiveState, httpStatus,
     )
 
     try:
@@ -411,13 +411,13 @@ def AcquireHttpsEpssSelection(
                     outcome = replace(outcome, envelope=envelope, selection_record=record,
                                       selection_ack=EpssHttpsAcknowledgement.CONFIRMED)
 
-        serialized_receipt = CanonicalReferenceJson(outcome.ReceiptContent())
+        serializedReceipt = CanonicalReferenceJson(outcome.ReceiptContent())
 
-        if len(serialized_receipt) > MAX_RECEIPT_BYTES:
+        if len(serializedReceipt) > MAX_RECEIPT_BYTES:
             return replace(outcome, state=EpssHttpsState.STORAGE_FAILED, envelope=None)
 
         outcome = replace(outcome, receipt_ack=EpssHttpsAcknowledgement.UNKNOWN)
-        receipt = store.Put(serialized_receipt, RECEIPT_ROLE, "application/json", provenance)
+        receipt = store.Put(serializedReceipt, RECEIPT_ROLE, "application/json", provenance)
 
         return replace(outcome, receipt=receipt, receipt_ack=EpssHttpsAcknowledgement.CONFIRMED)
 
@@ -470,24 +470,24 @@ def LoadHttpsEpssSelection(
     receipts = BoundedEpssEvidenceStore(
         workspace_root / "evidence", RECEIPT_ROLE, "application/json", MAX_RECEIPT_BYTES,
     )
-    selected_record = store.Get(selection_id)
+    selectedRecord = store.Get(selection_id)
     receipt = receipts.Get(receipt_id)
-    RequireRecord(selected_record, ENVELOPE_ROLE, "application/json")
+    RequireRecord(selectedRecord, ENVELOPE_ROLE, "application/json")
     RequireRecord(receipt, RECEIPT_ROLE, "application/json")
 
-    if selected_record.provenance != receipt.provenance or (
+    if selectedRecord.provenance != receipt.provenance or (
         receipt.provenance.workspace_id != owner.workspace_id
     ):
         raise ValueError("EPSS selected custody requires identical owning acquisition provenance")
 
     document = JsonObject(
-        ReadBounded(store, selected_record, MAX_ENVELOPE_BYTES), MAX_ENVELOPE_BYTES,
+        ReadBounded(store, selectedRecord, MAX_ENVELOPE_BYTES), MAX_ENVELOPE_BYTES,
     )
     terminal = JsonObject(ReadBounded(receipts, receipt, MAX_RECEIPT_BYTES), MAX_RECEIPT_BYTES)
     raw = ParseEvidenceManifest(CanonicalReferenceJson(document.get("raw")))
     RequireRecord(raw, RAW_ROLE, "application/gzip")
 
-    if raw.provenance != selected_record.provenance:
+    if raw.provenance != selectedRecord.provenance:
         raise ValueError("EPSS original raw facts disagree with selected receipt provenance")
 
     source = DecodeHttpsSource(document.get("source"))
@@ -507,7 +507,7 @@ def LoadHttpsEpssSelection(
         receipt.provenance.started_at, receipt.provenance.finished_at,
         raw.reference.size_bytes, True, request.max_bytes, request.timeout_seconds,
         "succeeded", 200, raw=raw, envelope=envelope,
-        selection_record=selected_record, raw_ack=EpssHttpsAcknowledgement.CONFIRMED,
+        selection_record=selectedRecord, raw_ack=EpssHttpsAcknowledgement.CONFIRMED,
         selection_ack=EpssHttpsAcknowledgement.CONFIRMED,
     )
 

@@ -80,8 +80,8 @@ def native_configuration_runtime():
         "Required native config proof needs the ordinary nonroot Linux owner"
     )
     RequireLinuxOwnership()
-    current_namespace = os.readlink("/proc/self/ns/net")
-    assert current_namespace != selected[2], "Config execution reused the provisioning namespace"
+    currentNamespace = os.readlink("/proc/self/ns/net")
+    assert currentNamespace != selected[2], "Config execution reused the provisioning namespace"
     interfaces = socket.if_nameindex()
     assert interfaces == [(1, "lo")] and NoIpv4Routes(Path("/proc/net/route").read_text()), (
         "Native config compatibility requires only loopback and no IPv4 route"
@@ -108,7 +108,7 @@ def native_configuration_runtime():
         "The actual native binary must match its original pinned-release provisioning receipt"
     )
 
-    return executable, provisioning, {"host": selected[2], "scan": current_namespace,
+    return executable, provisioning, {"host": selected[2], "scan": currentNamespace,
         "interfaces": interfaces, "no_ipv4_routes": True, "no_external_ipv6_routes": True}
 
 
@@ -118,7 +118,7 @@ def test_GenuinePinnedConfigurationProcessesOriginalSourcesWithEmbeddedChecks(
 ):
     """Real VERSION/config retain original custody and independent native file/rule facts."""
 
-    original_binary, provisioning, network = native_configuration_runtime
+    originalBinary, provisioning, network = native_configuration_runtime
     RequireOwnedSpecimen(case)
     assert len(case["inputs"]) == 1 and case["scanner"] in {"dockerfile", "kubernetes"}, (
         "The independent compatibility catalog must retain its closed one-file selections"
@@ -129,7 +129,7 @@ def test_GenuinePinnedConfigurationProcessesOriginalSourcesWithEmbeddedChecks(
     inputs.mkdir(mode=0o700)
     cache.mkdir(mode=0o700)
     executable = root / "selected-trivy"
-    shutil.copyfile(original_binary, executable)
+    shutil.copyfile(originalBinary, executable)
     executable.chmod(0o700)
     assert FileDigest(executable) == provisioning["executable_sha256"], (
         "Each owned case must use the exact independently provisioned provider bytes"
@@ -140,13 +140,13 @@ def test_GenuinePinnedConfigurationProcessesOriginalSourcesWithEmbeddedChecks(
     assert len(raw) == item["sizeBytes"] and hashlib.sha256(raw).hexdigest() == item["sha256"], (
         "The five original inert specimens must not change to fit actual native output"
     )
-    selected_source = inputs / item["logicalPath"]
-    selected_source.write_bytes(raw)
+    selectedSource = inputs / item["logicalPath"]
+    selectedSource.write_bytes(raw)
     evidence = EVIDENCE / case["caseId"]
     evidence.mkdir(parents=True, exist_ok=True)
     (evidence / "original-source").write_bytes(raw)
-    before_inputs, before_cache = Inventory(inputs), Inventory(cache)
-    assert len(before_inputs) == 1 and before_cache == [], (
+    beforeInputs, beforeCache = Inventory(inputs), Inventory(cache)
+    assert len(beforeInputs) == 1 and beforeCache == [], (
         "Each compatibility process must begin with exactly one input and wholly empty check cache"
     )
     facts = {"classification": "test-only-native-configuration-compatibility",
@@ -156,8 +156,8 @@ def test_GenuinePinnedConfigurationProcessesOriginalSourcesWithEmbeddedChecks(
         "release_asset_sha256": provisioning["release_asset_sha256"],
         "executable_sha256": provisioning["executable_sha256"],
         "checks_source": ORACLE["checksSource"], "loader_source": ORACLE["trivySource"],
-        "network_namespace": network, "inputs_before": before_inputs,
-        "cache_before": before_cache, "outcome": "unassessed"}
+        "network_namespace": network, "inputs_before": beforeInputs,
+        "cache_before": beforeCache, "outcome": "unassessed"}
 
     try:
         version = asyncio.run(CaptureOriginal(root, executable, cache, inputs, case["scanner"],
@@ -166,8 +166,8 @@ def test_GenuinePinnedConfigurationProcessesOriginalSourcesWithEmbeddedChecks(
             version.execution.exit_code == 0
             and version.termination is ExecutionTermination.PROCESS_EXIT
         ), "Original native VERSION must succeed with confirmed owned process termination"
-        actual_version = ParseJson(version.stdout, max_bytes=MAX_VERSION_STDOUT_BYTES)
-        assert actual_version["Version"] == ORACLE["providerVersion"] == "0.75.0", (
+        actualVersion = ParseJson(version.stdout, max_bytes=MAX_VERSION_STDOUT_BYTES)
+        assert actualVersion["Version"] == ORACLE["providerVersion"] == "0.75.0", (
             "Only the actual originally observed pinned provider version establishes compatibility"
         )
         assert Inventory(cache) == [], "VERSION cannot populate the selected empty checks cache"
@@ -179,7 +179,7 @@ def test_GenuinePinnedConfigurationProcessesOriginalSourcesWithEmbeddedChecks(
         ), "Native config failure/timeout/overflow cannot become successful empty interpretation"
         facts["embedded_loader"] = VerifyEmbeddedChecks(config.stderr)
         facts["interpretation"] = VerifyNativeInterpretation(config.stdout, case)
-        assert Inventory(inputs) == before_inputs and FileDigest(executable) == (
+        assert Inventory(inputs) == beforeInputs and FileDigest(executable) == (
             provisioning["executable_sha256"]
         ), "Selected source and provider bytes must remain unchanged after actual execution"
         facts["outcome"] = "selected-compatibility-assertions-passed"

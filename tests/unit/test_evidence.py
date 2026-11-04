@@ -293,8 +293,8 @@ def test_CorruptRawBytesCannotBeReadOrOverwritten(tmp_path, replacement):
 
     store = LocalEvidenceStore(tmp_path)
     record = store.Put(b"original", "stdout", "text/plain", Provenance())
-    blob_path = tmp_path / record.reference.locator
-    blob_path.write_bytes(replacement)
+    blobPath = tmp_path / record.reference.locator
+    blobPath.write_bytes(replacement)
 
     with pytest.raises(EvidenceIntegrityError, match="digest or length"):
         store.Get(record.evidence_id)
@@ -302,7 +302,7 @@ def test_CorruptRawBytesCannotBeReadOrOverwritten(tmp_path, replacement):
     with pytest.raises(EvidenceIntegrityError):
         store.Put(b"original", "stdout", "text/plain", Provenance())
 
-    assert blob_path.read_bytes() == replacement, "Put must not erase existing corrupt evidence."
+    assert blobPath.read_bytes() == replacement, "Put must not erase existing corrupt evidence."
     assert not list(tmp_path.rglob("*.pending")), "Failed publication must clean temporary bytes."
 
 
@@ -436,7 +436,7 @@ def test_ObservedSymlinksCannotEscapeEvidenceRoot(tmp_path, location):
 def test_WindowsReparseAttributeIsRejectedOnEveryPlatform(tmp_path, monkeypatch):
     """Exercise Windows junction/reparse detection without privileged link creation."""
 
-    original_lstat = Path.lstat
+    originalLstat = Path.lstat
 
     def ReparseStat(path):
         """Return a reparse attribute only for the owned evidence root."""
@@ -444,7 +444,7 @@ def test_WindowsReparseAttributeIsRejectedOnEveryPlatform(tmp_path, monkeypatch)
         if path == tmp_path:
             return SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0x400)
 
-        return original_lstat(path)
+        return originalLstat(path)
 
     monkeypatch.setattr(Path, "lstat", ReparseStat)
 
@@ -455,7 +455,7 @@ def test_WindowsReparseAttributeIsRejectedOnEveryPlatform(tmp_path, monkeypatch)
 def test_ManifestPublicationFailureLeavesOnlyValidOrphanBlob(tmp_path, monkeypatch):
     """Preserve a valid raw blob but never report success after manifest publication failure."""
 
-    original_link = os.link
+    originalLink = os.link
 
     def FailManifestLink(source, destination):
         """Deny only the manifest's actual no-overwrite publication operation."""
@@ -463,7 +463,7 @@ def test_ManifestPublicationFailureLeavesOnlyValidOrphanBlob(tmp_path, monkeypat
         if Path(destination).parent.name == "records":
             raise OSError("synthetic manifest publication failure")
 
-        return original_link(source, destination)
+        return originalLink(source, destination)
 
     monkeypatch.setattr(os, "link", FailManifestLink)
     store = LocalEvidenceStore(tmp_path)
@@ -512,7 +512,7 @@ def test_UnreadableEvidenceIsAnExplicitStorageFailure(tmp_path, monkeypatch, art
 
     store = LocalEvidenceStore(tmp_path)
     record = store.Put(b"marker", "stdout", "text/plain", Provenance())
-    original_open = Path.open
+    originalOpen = Path.open
 
     def DenySelectedRead(path, *args, **kwargs):
         """Deny one owned artifact without changing other filesystem observations."""
@@ -520,7 +520,7 @@ def test_UnreadableEvidenceIsAnExplicitStorageFailure(tmp_path, monkeypatch, art
         if (path.parent.name == "records") == (artifact == "manifest"):
             raise PermissionError("synthetic read failure")
 
-        return original_open(path, *args, **kwargs)
+        return originalOpen(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "open", DenySelectedRead)
 
@@ -539,7 +539,7 @@ def test_OversizedCorruptArtifactIsRejectedBeforeOpening(tmp_path, monkeypatch, 
         else tmp_path / "records" / f"{record.evidence_id[7:]}.json"
     )
     path.write_bytes(b"x" * (EVIDENCE_MANIFEST_MAX_BYTES + 1))
-    original_open = Path.open
+    originalOpen = Path.open
 
     def ForbidCorruptRead(candidate, *args, **kwargs):
         """Fail the test if oversized corrupt bytes reach the open boundary."""
@@ -547,7 +547,7 @@ def test_OversizedCorruptArtifactIsRejectedBeforeOpening(tmp_path, monkeypatch, 
         if candidate == path:
             pytest.fail("Oversized corrupt evidence must be rejected before reading bytes.")
 
-        return original_open(candidate, *args, **kwargs)
+        return originalOpen(candidate, *args, **kwargs)
 
     monkeypatch.setattr(Path, "open", ForbidCorruptRead)
 

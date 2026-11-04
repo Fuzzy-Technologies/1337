@@ -257,13 +257,13 @@ def RunPytest(
     from fuzzy1337.test_progress import PrepareProgress, SaveProgressSummary
 
     report_path.unlink(missing_ok=True)
-    progress_ready = PrepareProgress(report_path)
-    selected_workers = next((arguments[index + 1] for index, value in enumerate(arguments[:-1])
+    progressReady = PrepareProgress(report_path)
+    selectedWorkers = next((arguments[index + 1] for index, value in enumerate(arguments[:-1])
                              if value == "-n"), "auto")
-    worker_digits = selected_workers.lstrip("0") or "0"
-    worker_limit_exceeded = (selected_workers.isdecimal()
-                             and (len(worker_digits) > 2 or int(worker_digits) > 12))
-    if not progress_ready:
+    workerDigits = selectedWorkers.lstrip("0") or "0"
+    workerLimitExceeded = (selectedWorkers.isdecimal()
+                             and (len(workerDigits) > 2 or int(workerDigits) > 12))
+    if not progressReady:
         arguments = [argument for argument in arguments if argument != "--1337-progress"]
         print("Partial pytest diagnostic unavailable; JUnit acceptance unchanged.", flush=True)
     started = time.monotonic()
@@ -276,9 +276,9 @@ def RunPytest(
         )
 
     except subprocess.TimeoutExpired:
-        if progress_ready:
+        if progressReady:
             diagnostic = SaveProgressSummary(
-                report_path, timed_out=True, worker_limit_exceeded=worker_limit_exceeded,
+                report_path, timed_out=True, worker_limit_exceeded=workerLimitExceeded,
             )
             print("Partial pytest diagnostic (not JUnit): "
                   f"completed={diagnostic['completed']} "
@@ -287,13 +287,13 @@ def RunPytest(
         return 124, TestSummary(failed=1, timeout=1, duration_seconds=time.monotonic() - started)
 
     except OSError:
-        if progress_ready:
+        if progressReady:
             SaveProgressSummary(report_path, timed_out=False,
-                                worker_limit_exceeded=worker_limit_exceeded)
+                                worker_limit_exceeded=workerLimitExceeded)
         return 127, TestSummary(failed=1, duration_seconds=time.monotonic() - started)
-    if progress_ready:
+    if progressReady:
         SaveProgressSummary(report_path, timed_out=False,
-                            worker_limit_exceeded=worker_limit_exceeded)
+                            worker_limit_exceeded=workerLimitExceeded)
     summary = ReadJunitSummary(report_path)
 
     return result.returncode or (1 if summary.failed else 0), summary
@@ -354,7 +354,7 @@ def RunTests(target: str, options: TestOptions) -> int:
     reports = Path("coverage")
     reports.mkdir(exist_ok=True)
     summary = TestSummary()
-    return_codes: list[int] = []
+    returnCodes: list[int] = []
     if not options.serial_only:
         code, result = RunPytest(
             PytestArguments(target, options, reports / "parallel-tests.xml", serial=False),
@@ -362,15 +362,15 @@ def RunTests(target: str, options: TestOptions) -> int:
             options.suite_timeout_seconds,
         )
         summary = summary.Combine(result)
-        return_codes.append(code)
-    run_serial = options.serial_only or not options.fail_fast or not any(return_codes)
-    if run_serial and HasSerialTests(target):
+        returnCodes.append(code)
+    runSerial = options.serial_only or not options.fail_fast or not any(returnCodes)
+    if runSerial and HasSerialTests(target):
         code, result = RunPytest(
             PytestArguments(target, options, reports / "serial-tests.xml", serial=True),
             reports / "serial-tests.xml",
             options.suite_timeout_seconds,
         )
         summary = summary.Combine(result)
-        return_codes.append(code)
+        returnCodes.append(code)
     print(summary.Display(), flush=True)
-    return next((code for code in return_codes if code), 0)
+    return next((code for code in returnCodes if code), 0)

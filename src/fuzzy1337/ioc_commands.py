@@ -211,10 +211,10 @@ def VerifiedAcquisition(root: Path, acquired: IocAcquisition,
     ) or any(type(record) is not EvidenceRecord for record in (acquired.raw, acquired.receipt)):
         raise ValueError("IOC command requires original terminal records and state")
 
-    workspace_id = LocalWorkspaceStore(root).Open().workspace_id
+    workspaceId = LocalWorkspaceStore(root).Open().workspace_id
     store = IocEvidenceStore(root / "evidence", request.limits.max_bytes)
-    raw = OriginalRecord(acquired.raw, workspace_id, store, "ioc-source")
-    receipt = Header(Metadata(OriginalRecord(acquired.receipt, workspace_id, store,
+    raw = OriginalRecord(acquired.raw, workspaceId, store, "ioc-source")
+    receipt = Header(Metadata(OriginalRecord(acquired.receipt, workspaceId, store,
         "ioc-acquisition"), 8192), {"state", "transport", "authentication", "raw_evidence_id",
             "source", "limits", "provenance", "request_sha256"})
 
@@ -246,16 +246,16 @@ def VerifiedAcquisition(root: Path, acquired: IocAcquisition,
         ):
             raise ValueError("IOC command snapshot differs from original replay")
 
-        OriginalRecord(acquired.snapshot_record, workspace_id, store, "ioc-snapshot")
+        OriginalRecord(acquired.snapshot_record, workspaceId, store, "ioc-snapshot")
 
     else:
         if acquired.snapshot is not None or acquired.snapshot_record is not None:
             raise ValueError("IOC command refused acquisition cannot supply a usable snapshot")
 
-        expected_state = "digest-rejected"
+        expectedState = "digest-rejected"
 
         if acquired.raw.reference.sha256 == request.source.expected_sha256:
-            expected_state = "parse-rejected"
+            expectedState = "parse-rejected"
 
             try:
                 ParseIocArtifact(raw, request.source, request.limits)
@@ -266,7 +266,7 @@ def VerifiedAcquisition(root: Path, acquired: IocAcquisition,
             else:
                 raise ValueError("IOC refusal contradicts independently reparsed original bytes")
 
-        if acquired.state != expected_state:
+        if acquired.state != expectedState:
             raise ValueError("IOC refusal contradicts the original declared and observed digest")
 
 

@@ -289,12 +289,12 @@ class LensDescriptor:
         if any(not isinstance(action, LensAction) for action in actions):
             raise ValueError("contextual_actions must contain LensAction values")
 
-        typed_actions = tuple(action for action in actions if isinstance(action, LensAction))
+        typedActions = tuple(action for action in actions if isinstance(action, LensAction))
 
-        if len({action.identifier for action in typed_actions}) != len(typed_actions):
+        if len({action.identifier for action in typedActions}) != len(typedActions):
             raise ValueError("contextual_actions must have unique identifiers")
 
-        object.__setattr__(self, "contextual_actions", typed_actions)
+        object.__setattr__(self, "contextual_actions", typedActions)
         object.__setattr__(self, "preferred_capabilities", LensNames(
             self.preferred_capabilities, "preferred_capabilities",
         ))
@@ -406,18 +406,18 @@ class LensDescriptor:
         ):
             raise ValueError("Project requires a ModelState and optional LensQuery")
 
-        selected_query = self.default_query if query is None else query
-        objects = tuple(item for item in state.objects if selected_query.Matches(item))
-        object_references = {item.Reference() for item in objects}
+        selectedQuery = self.default_query if query is None else query
+        objects = tuple(item for item in state.objects if selectedQuery.Matches(item))
+        objectReferences = {item.Reference() for item in objects}
         relations = tuple(
             item for item in state.relations
-            if (not selected_query.relation_kinds or item.kind in selected_query.relation_kinds)
-            and {item.source_reference, item.target_reference} <= object_references
+            if (not selectedQuery.relation_kinds or item.kind in selectedQuery.relation_kinds)
+            and {item.source_reference, item.target_reference} <= objectReferences
         )
-        subjects = object_references | {item.Reference() for item in relations}
+        subjects = objectReferences | {item.Reference() for item in relations}
         observations = tuple(
             item for item in state.observations
-            if selected_query.include_observations and item.subject_reference in subjects
+            if selectedQuery.include_observations and item.subject_reference in subjects
         )
 
         if self.presentation.observation_order == "observed-at":
@@ -430,7 +430,7 @@ class LensDescriptor:
             "lens": self.identifier,
             "workspace_id": state.workspace_id,
             "revision": state.revision,
-            "query": selected_query.ToDict(),
+            "query": selectedQuery.ToDict(),
             "object_references": [item.Reference() for item in objects],
             "relation_references": [item.Reference() for item in relations],
             "observation_references": [item.Reference() for item in observations],

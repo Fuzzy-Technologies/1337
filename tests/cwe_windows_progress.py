@@ -173,13 +173,13 @@ class Recorder:
 def pytest_configure(config: Config) -> None:
     """Register only bounded xdist workers; explicitly ignore the controller and serial runs."""
 
-    worker_input = getattr(config, "workerinput", None)
+    workerInput = getattr(config, "workerinput", None)
 
-    if not isinstance(worker_input, dict) or worker_input.get("workerid") not in WORKERS:
+    if not isinstance(workerInput, dict) or workerInput.get("workerid") not in WORKERS:
         return
 
     try:
-        recorder = Recorder(Directory(ROOT), worker_input["workerid"])
+        recorder = Recorder(Directory(ROOT), workerInput["workerid"])
 
     except OSError:
         return

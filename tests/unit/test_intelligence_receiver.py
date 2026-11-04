@@ -73,10 +73,10 @@ def test_RealIsolatedWorkerReceivesOnlyTheFixedOptionalArgument(tmp_path, monkey
            f'import sys\nassert sys.argv[4:] == {expected!r}\n'
            'assert sys.flags.isolated and sys.flags.no_site\n'
            'sys.stdout.buffer.write(b\'{"status":200}\\noriginal-gzip-body\')\n')
-    body, state, http_status = receiver.ReceiveIsolatedHttps(
+    body, state, httpStatus = receiver.ReceiveIsolatedHttps(
         "https://example.invalid/owned.gz", 100, 2.0, accept_kind=kind,
     )
-    assert (body, state, http_status) == (b"original-gzip-body", "succeeded", 200), (
+    assert (body, state, httpStatus) == (b"original-gzip-body", "succeeded", 200), (
         "The actual isolated process lost the explicit gzip selection or original bytes"
     )
 

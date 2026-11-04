@@ -363,7 +363,7 @@ def ModelSnapshotSize(model: ModelState) -> int:
     pending: list[Iterator[tuple[object, str | None]]] = [iter(
         (value, namespace) for _, value, namespace in envelope
     )]
-    record_types = (SecurityObject, Relation, Observation, ObjectIdentity, ModelProvenance,
+    recordTypes = (SecurityObject, Relation, Observation, ObjectIdentity, ModelProvenance,
                     EvidenceReference, AdapterExecution)
 
     while pending:
@@ -377,7 +377,7 @@ def ModelSnapshotSize(model: ModelState) -> int:
         if isinstance(value, Enum):
             value = value.value
 
-        if isinstance(value, record_types):
+        if isinstance(value, recordTypes):
             members = fields(value)
             persisted = namespace is not None and namespace.startswith("persisted:")
             count = len(members) + int(persisted)
@@ -398,8 +398,8 @@ def ModelSnapshotSize(model: ModelState) -> int:
 
         elif isinstance(value, (tuple, list)):
             Add(2 + max(0, len(value) - 1))
-            child_namespace = "persisted:" + namespace if namespace is not None else None
-            pending.append(Sequence(value, child_namespace))
+            childNamespace = "persisted:" + namespace if namespace is not None else None
+            pending.append(Sequence(value, childNamespace))
 
         else:
             Add(JsonScalarSize(value, MAX_MODEL_BYTES - size))
@@ -1369,8 +1369,8 @@ def ReadReachabilityClaims(
         EvidenceError: A selected owning manifest or original blob cannot be verified.
     """
 
-    current_at = Time(at)
-    maximum_age = Integer(max_age_seconds, 0, 604800)
+    currentAt = Time(at)
+    maximumAge = Integer(max_age_seconds, 0, 604800)
     context = Text(context_reference)
     scope = Text(scope_reference)
 
@@ -1385,9 +1385,9 @@ def ReadReachabilityClaims(
 
     CurrentBasis(model, expected_model_version, workspace_root)
     directory = LocalModelStore(workspace_root).root / "evidence"
-    assessment_store = BoundedEvidenceStore(directory, _ASSESSMENT_BYTES)
-    reader = ProofReader(model, BoundedEvidenceStore(directory, _SUPPORT_BYTES), current_at,
-                         maximum_age, scope,
+    assessmentStore = BoundedEvidenceStore(directory, _ASSESSMENT_BYTES)
+    reader = ProofReader(model, BoundedEvidenceStore(directory, _SUPPORT_BYTES), currentAt,
+                         maximumAge, scope,
                          {item.Reference(): item for item in model.observations})
     objects = {item.Reference(): item for item in model.objects}
     relations = {item.Reference(): item for item in model.relations}
@@ -1403,7 +1403,7 @@ def ReadReachabilityClaims(
 
             continue
 
-        record = VerifiedRecord(assessment_store, identity)
+        record = VerifiedRecord(assessmentStore, identity)
 
         if record != supplied:
             raise ValueError("reachability supplied record differs from the stored manifest")
@@ -1421,7 +1421,7 @@ def ReadReachabilityClaims(
             raise ValueError("reachability assessment belongs to another workspace or scope")
 
         try:
-            raw = assessment_store.Read(record.reference)
+            raw = assessmentStore.Read(record.reference)
 
         except EvidenceError as error:
             raise type(error)("reachability assessment bytes could not be verified") from None
@@ -1448,19 +1448,19 @@ def ReadReachabilityClaims(
         seen: set[str] = set()
         header = {key: value for key, value in envelope.items() if key != "claims"}
 
-        for supplied_declaration in declarations:
-            declaration = Declaration(supplied_declaration)
-            claim_id = Digest({"assessment_manifest_id": identity, "envelope": header,
+        for suppliedDeclaration in declarations:
+            declaration = Declaration(suppliedDeclaration)
+            claimId = Digest({"assessment_manifest_id": identity, "envelope": header,
                                "declaration": declaration})
 
-            if claim_id in seen:
+            if claimId in seen:
                 raise ValueError("reachability declaration identity repeats within one artifact")
 
-            seen.add(claim_id)
+            seen.add(claimId)
             reference = cast(str, declaration["relation_reference"])
             relation = relations.get(reference)
             state = ReachabilityState(cast(str, declaration["state"]))
-            reasons = TimeReasons(record, current_at, maximum_age, "assessment")
+            reasons = TimeReasons(record, currentAt, maximumAge, "assessment")
 
             if version != expected_model_version:
                 reasons.add("stale-model")
@@ -1477,9 +1477,9 @@ def ReadReachabilityClaims(
             basis: list[ReachabilityBasis] = []
 
             for entry in cast(list[dict[str, object]], declaration["basis"]):
-                proof, proof_reasons = reader.Basis(entry, reference, record)
+                proof, proofReasons = reader.Basis(entry, reference, record)
                 basis.append(proof)
-                reasons.update(proof_reasons)
+                reasons.update(proofReasons)
 
             if state is not ReachabilityState.UNKNOWN:
                 if not basis:
@@ -1491,8 +1491,8 @@ def ReadReachabilityClaims(
             controls: list[ReachabilityControl] = []
 
             for entry in cast(list[dict[str, object]], declaration["blocking_controls"]):
-                control_ref = cast(str, entry["control_reference"])
-                control = objects.get(control_ref)
+                controlRef = cast(str, entry["control_reference"])
+                control = objects.get(controlRef)
 
                 if control is None:
                     reasons.add("missing-control")
@@ -1502,17 +1502,17 @@ def ReadReachabilityClaims(
                 ):
                     raise ValueError("reachability barrier requires a modeled control asset")
 
-                proof, proof_reasons = reader.Basis(entry, control_ref, record)
-                reasons.update(proof_reasons)
-                controls.append(ReachabilityControl(control_ref, proof))
+                proof, proofReasons = reader.Basis(entry, controlRef, record)
+                reasons.update(proofReasons)
+                controls.append(ReachabilityControl(controlRef, proof))
 
             claims.append(ReachabilityClaim(
-                claim_id, reference, state, cast(int | float, declaration["confidence"]),
+                claimId, reference, state, cast(int | float, declaration["confidence"]),
                 cast(str | None, declaration["inference_rule"]), version, record, tuple(basis),
                 tuple(controls), tuple(sorted(reasons)),
             ))
 
-    result = ReachabilityClaims(expected_model_version, context, scope, current_at, maximum_age,
+    result = ReachabilityClaims(expected_model_version, context, scope, currentAt, maximumAge,
                                 tuple(sorted(claims, key=lambda claim: claim.claim_reference)),
                                 _VERIFIED, "")
 
@@ -1579,10 +1579,10 @@ def ProjectReachability(
 
     eligible = set(nodes)
     relations = {item.Reference(): item for item in model.relations}
-    by_relation: dict[str, list[ReachabilityClaim]] = {}
+    byRelation: dict[str, list[ReachabilityClaim]] = {}
 
     for claim in claims.claims:
-        by_relation.setdefault(claim.relation_reference, []).append(claim)
+        byRelation.setdefault(claim.relation_reference, []).append(claim)
 
     transitions: list[ReachabilityTransition] = []
 
@@ -1594,7 +1594,7 @@ def ProjectReachability(
         ):
             raise ValueError("reachability edges require eligible existing RELATED_TO endpoints")
 
-        declarations = tuple(sorted(by_relation.get(reference, ()), key=lambda item:
+        declarations = tuple(sorted(byRelation.get(reference, ()), key=lambda item:
                                     item.claim_reference))
         states = {claim.state for claim in declarations if not claim.reasons}
         reasons = {reason for claim in declarations for reason in claim.reasons}
@@ -1705,9 +1705,9 @@ def SearchReachabilityPaths(
     reasons: set[str] = set()
     work = 0
     unexamined = 0
-    depth_cuts = 0
+    depthCuts = 0
     stopped = False
-    deferred_prefix = 0
+    deferredPrefix = 0
 
     while queue and not stopped:
         nodes, hops = queue.popleft()
@@ -1717,7 +1717,7 @@ def SearchReachabilityPaths(
             if work == limits.max_work:
                 reasons.add("work-limit")
                 unexamined = len(successors) - index
-                deferred_prefix = 1
+                deferredPrefix = 1
                 stopped = True
                 break
 
@@ -1728,19 +1728,19 @@ def SearchReachabilityPaths(
 
             if len(hops) == limits.max_depth:
                 reasons.add("depth-limit")
-                depth_cuts += 1
+                depthCuts += 1
                 continue
 
-            next_nodes = (*nodes, transition.target_reference)
-            next_hops = (*hops, transition)
+            nextNodes = (*nodes, transition.target_reference)
+            nextHops = (*hops, transition)
 
             if transition.target_reference == target:
-                paths.append(CandidatePath(projection, next_nodes, next_hops))
+                paths.append(CandidatePath(projection, nextNodes, nextHops))
 
                 if len(paths) == limits.max_paths and (index + 1 < len(successors) or queue):
                     reasons.add("path-limit")
                     unexamined = len(successors) - index - 1
-                    deferred_prefix = int(bool(unexamined))
+                    deferredPrefix = int(bool(unexamined))
                     stopped = True
                     break
 
@@ -1748,11 +1748,11 @@ def SearchReachabilityPaths(
                 if len(queue) == limits.max_frontier:
                     reasons.add("frontier-limit")
                     unexamined = len(successors) - index - 1
-                    deferred_prefix = 1 + int(bool(unexamined))
+                    deferredPrefix = 1 + int(bool(unexamined))
                     stopped = True
                     break
 
-                queue.append((next_nodes, next_hops))
+                queue.append((nextNodes, nextHops))
 
     paths.sort(key=lambda path: (len(path.hops), tuple(hop.relation_reference
                                                     for hop in path.hops)))
@@ -1761,5 +1761,5 @@ def SearchReachabilityPaths(
 
     return ReachabilitySearch(identity, projection, source, target, limits, tuple(paths),
         not reasons, not reasons and not paths, tuple(sorted(reasons)), work,
-        len(queue) + deferred_prefix,
-        unexamined, depth_cuts)
+        len(queue) + deferredPrefix,
+        unexamined, depthCuts)

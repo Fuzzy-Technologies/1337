@@ -26,11 +26,11 @@ def test_OptionRegistrationRequiresNoApplicationImport():
     assert captured[0][1]["action"] == "store_true", "The option must not accept paths or code."
     tree = ast.parse(Path(bootstrap.__file__).read_text(encoding="utf-8"))
     imports = [node for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))]
-    imported_names = [node.module for node in imports
+    importedNames = [node.module for node in imports
                       if isinstance(node, ast.ImportFrom) and node.module is not None]
-    imported_names.extend(alias.name for node in imports if isinstance(node, ast.Import)
+    importedNames.extend(alias.name for node in imports if isinstance(node, ast.Import)
                           for alias in node.names)
-    assert not any(name.startswith("fuzzy1337") for name in imported_names), (
+    assert not any(name.startswith("fuzzy1337") for name in importedNames), (
         "The explicit early plugin import must have no application-package dependency."
     )
 

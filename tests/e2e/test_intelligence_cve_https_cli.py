@@ -84,7 +84,7 @@ def test_ActualCveFetchOwnsWorkerAndOfflineInspectReopensAfterRelocation(
     """The assembled product preserves source assertions and original read-only remote custody."""
 
     model, _ = Context(tmp_path)
-    before_model = model.Open()
+    beforeModel = model.Open()
     processes, worker = OwnedWorker(tmp_path, monkeypatch)
     monkeypatch.setattr(LocalModelStore, "Save", Refuse)
     status, acquired = Run(["cve", "https", *Arguments(model.root)], capsys)
@@ -142,16 +142,16 @@ def test_ActualCveFetchOwnsWorkerAndOfflineInspectReopensAfterRelocation(
     assert status == 0 and inspected["snapshot"] == snapshot and inspected[
         "source"
     ] == acquired["source"], "Offline relocation changed source facts or required the input."
-    assert Files(relocated) == before and LocalModelStore(relocated).Open() == before_model, (
+    assert Files(relocated) == before and LocalModelStore(relocated).Open() == beforeModel, (
         "Read-only source inspection changed model or retained original custody."
     )
     (relocated / "evidence" / raw.reference.locator).write_bytes(b"x" * raw.reference.size_bytes)
-    corrupt_before = Files(relocated)
+    corruptBefore = Files(relocated)
     status, rejected = Run(Selection(relocated, acquired), capsys)
     assert status == 4 and rejected["failure"] == "integrity" and "snapshot" not in rejected, (
         "Offline CVE inspection trusted normalized assertions despite corrupt original source."
     )
-    assert Files(relocated) == corrupt_before, "Integrity refusal rewrote original source storage."
+    assert Files(relocated) == corruptBefore, "Integrity refusal rewrote original source storage."
 
 
 @pytest.mark.parametrize("case,expected", [("digest", "digest-mismatch"),
@@ -182,20 +182,20 @@ def test_ActualCveFailureKeepsTransportAndIndependentCustodyFacts(
 
         raw = json.dumps(document).encode()
 
-    http_status = 503 if case == "http" else 200
-    exit_code = 3 if case == "http" else (1 if case == "partial" else 0)
-    processes, _ = OwnedWorker(tmp_path, monkeypatch, raw=raw, status=http_status,
-                              exit_code=exit_code)
+    httpStatus = 503 if case == "http" else 200
+    exitCode = 3 if case == "http" else (1 if case == "partial" else 0)
+    processes, _ = OwnedWorker(tmp_path, monkeypatch, raw=raw, status=httpStatus,
+                              exit_code=exitCode)
     arguments = Arguments(model.root)
     arguments[arguments.index("--expected-sha256") + 1] = (
         "0" * 64 if case == "digest" else hashlib.sha256(raw).hexdigest()
     )
-    before_model = model.Open()
+    beforeModel = model.Open()
     status, outcome = Run(["cve", "https", *arguments], capsys)
     assert status == 4 and outcome["acquisition_state"] == expected and (
         outcome["status"] == "failed" and "snapshot" not in outcome
     ), "Actual failed CVE acquisition exposed successful source assertions."
-    assert outcome["http_status"] == http_status and outcome["received_bytes"] == len(raw), (
+    assert outcome["http_status"] == httpStatus and outcome["received_bytes"] == len(raw), (
         "Failed CVE output discarded actual HTTP status or original byte count."
     )
     assert outcome["body_complete"] == (case not in ("http", "partial")) and outcome[
@@ -203,7 +203,7 @@ def test_ActualCveFailureKeepsTransportAndIndependentCustodyFacts(
     ] == "not-attempted", "Source rejection was confused with transport or publication success."
     assert outcome["raw_ack"] == outcome["receipt_ack"] == "confirmed" and outcome[
         "selection_id"
-    ] is None and model.Open() == before_model, "Failed CVE acquisition invented model custody."
+    ] is None and model.Open() == beforeModel, "Failed CVE acquisition invented model custody."
     assert len(processes) == 1 and processes[0].poll() is not None, "Failed receiver child leaked."
     store = LocalEvidenceStore(model.root / "evidence")
     assert store.Read(store.Get(outcome["raw_id"]).reference) == raw, (

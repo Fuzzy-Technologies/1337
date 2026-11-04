@@ -108,8 +108,8 @@ def Prepare(repository: Path, root: Path) -> None:
                     "-r", str(requirements)], root, environment)
     shared.Command([uv, "pip", "install", "--python", str(interpreter), "--no-deps", str(wheel)],
                    root, environment)
-    run_directory = root / "run"
-    run_directory.mkdir(mode=0o700)
+    runDirectory = root / "run"
+    runDirectory.mkdir(mode=0o700)
     files = {"test_native_configuration_product.py": repository / TEST_PATH,
         "product_acceptance.py": Path(__file__).absolute(),
         "native_configuration_material_acceptance.py": Path(shared.__file__).absolute(),
@@ -118,14 +118,14 @@ def Prepare(repository: Path, root: Path) -> None:
     copied = {}
 
     for name, source in files.items():
-        shutil.copyfile(source, run_directory / name)
+        shutil.copyfile(source, runDirectory / name)
         copied[name] = shared.Digest(source)
 
     corpus = repository / "tests/contract/fixtures/configuration_profiles"
 
     for relative in ("dockerfile/unsafe/Dockerfile", "dockerfile/safe/Dockerfile",
                      "kubernetes/unsafe.yaml", "kubernetes/safe.yaml", "kubernetes/multi.yaml"):
-        destination = run_directory / "specimens" / relative
+        destination = runDirectory / "specimens" / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(corpus / relative, destination)
 
@@ -138,7 +138,7 @@ def Prepare(repository: Path, root: Path) -> None:
     evidence.mkdir(mode=0o700)
     context = {"schema_version": 1, **state, "repository": str(repository), "root": str(root),
         "interpreter": str(interpreter), "environment": str(installed),
-        "run_directory": str(run_directory), "evidence": str(evidence),
+        "run_directory": str(runDirectory), "evidence": str(evidence),
         "wheel": {"name": wheel.name, "sha256": shared.Digest(wheel)},
         "source_hashes": hashes, "copied_hashes": copied,
         "requirements_sha256": shared.Digest(requirements), "provisioning": provisioning,

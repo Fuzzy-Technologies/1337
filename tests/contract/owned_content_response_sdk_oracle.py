@@ -95,9 +95,9 @@ def AssertContentParts(name: str, url: str, receipt_id: str, originals: dict,
     assert set(receipt) == {"schema_version", "profile", "custody", "workspace_id",
         "owner_reference", "started_at", "finished_at", "request", "execution", "termination",
         "events", "evidence_ids", "refusal"}, "Original receipt schema must remain closed"
-    receipt_raw = json.dumps(receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    receiptRaw = json.dumps(receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
         allow_nan=False).encode("ascii")
-    assert receipt_raw == selected[RECEIPT_ROLE], (
+    assert receiptRaw == selected[RECEIPT_ROLE], (
         "Duplicate keys or substituted receipt serialization are not original canonical bytes")
     assert type(receipt["schema_version"]) is int and receipt["schema_version"] == 1, (
         "Receipt schema requires an exact integer")
@@ -112,12 +112,12 @@ def AssertContentParts(name: str, url: str, receipt_id: str, originals: dict,
         receipt[key] == provenance[key] for key in ("workspace_id", "started_at", "finished_at")), (
             "Receipt execution and collection identity must match all original part manifests")
     invocation = receipt["request"]["invocation"]
-    target_reference = "target:" + hashlib.sha256(Canonical({"kind": "url",
+    targetReference = "target:" + hashlib.sha256(Canonical({"kind": "url",
         "value": url})).hexdigest()
     assert invocation["adapter_id"] == "native.loopback-content-response" and invocation[
         "request"]["parameters"]["retain_response"] is True and Canonical(invocation[
             "request"]) == Canonical({"capability": "http.owned-content-response-capture",
-            "target_reference": target_reference, "impact": "SAFE", "parameters": {
+            "target_reference": targetReference, "impact": "SAFE", "parameters": {
                 "url": url, "retain_response": True}, "credential_references": []}), (
                     "Original receipt must select this exact content provider and URL")
     assert invocation["argv"][1:] == ["-I", "-B", "-m", (
