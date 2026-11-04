@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "check_id": "native.git-head-exposure",
+  "cases": [
+    {
+      "id": "exposed-head",
+      "path": "/repository/.git/HEAD",
+      "status": 200,
+      "body": "ref: refs/heads/owned-control\n",
+      "finding": true
+    },
+    {
+      "id": "soft-404-nonce-a",
+      "path": "/absent/nonce-a/.git/HEAD",
+      "status": 200,
+      "body": "Resource unavailable (nonce-a)\nExample only: ref: refs/heads/owned-control\n",
+      "finding": false
+    },
+    {
+      "id": "soft-404-nonce-b",
+      "path": "/absent/nonce-b/.git/HEAD",
+      "status": 200,
+      "body": "Resource unavailable (nonce-b)\nExample only: ref: refs/heads/owned-control\n",
+      "finding": false
+    },
+    {
+      "id": "generic-login",
+      "path": "/private/.git/HEAD",
+      "status": 200,
+      "body": "Sign in to continue\n",
+      "finding": false
+    },
+    {
+      "id": "explicit-404",
+      "path": "/missing/.git/HEAD",
+      "status": 404,
+      "body": "ref: refs/heads/owned-control\n",
+      "finding": false
+    },
+    {
+      "id": "unfollowed-redirect",
+      "path": "/redirect/.git/HEAD",
+      "status": 302,
+      "body": "ref: refs/heads/owned-control\n",
+      "finding": false
+    }
+  ]
+}
