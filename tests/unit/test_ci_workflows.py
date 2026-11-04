@@ -164,8 +164,18 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
     """Full gates retain all checks and finite profile budgets with fail-fast execution."""
 
     jobs = Workflow("python-quality.yml")["jobs"]
-    full = next(step for step in jobs["quality"]["steps"]
-        if step.get("name") == "Run repository quality gate")
+    steps = jobs["quality"]["steps"]
+    full = next(step for step in steps if step.get("name") == "Run repository quality gate")
+    naming = next(step for step in steps if step.get("name") == "Run Python naming gate")
+    assert steps.index(naming) < steps.index(full), (
+        "The naming check must run separately before the full integration gate."
+    )
+    assert " ".join(naming["if"].split()) == INTEGRATION_CONDITION, (
+        "The naming gate must use the established Ready/push condition."
+    )
+    assert naming["run"] == "uv run --locked --extra dev python tools/python_naming.py", (
+        "The naming gate must run as a standalone command."
+    )
     assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
         "Only existing Ready/push integration events may start the full Python check."
     )

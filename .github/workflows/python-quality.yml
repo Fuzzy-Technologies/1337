@@ -99,6 +99,11 @@ jobs:
           tests/unit/test_native_image_workflow.py
           tests/integration/test_owned_response_worker_execution.py
           --junitxml=functional-evidence/owned-response-protocol.xml
+      - name: Run Python naming gate
+        if: >-
+          github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false)
+        run: uv run --locked --extra dev python tools/python_naming.py
       - name: Run repository quality gate
         if: >-
           github.event_name == 'push' || (github.event_name == 'pull_request'
@@ -107,7 +112,6 @@ jobs:
           FUZZY1337_RUN_DESCENDANT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
           FUZZY1337_RUN_OWNED_RESPONSE_PRODUCT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
         run: >-
-          uv run --locked --extra dev python tools/python_naming.py
           uv run --locked --extra dev 1337-dev check --fail-fast
           --suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}
       - name: Preserve test and package evidence
