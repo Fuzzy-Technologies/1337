@@ -347,11 +347,14 @@ def test_NativeReflectionRecordsOnlyTheOwnedLexicalObservation(tmp_path, capsys,
 @pytest.mark.parametrize(("prefix", "suffix", "matched"), [
     (b"<script><!--<script></script>", b"</script>", False),
     (b"<script><!-- ordinary text --></script>", b"", True),
-], ids=["marker-in-script-data", "marker-after-script"])
-def test_NativeReflectionSeparatesScriptDataFromElementContent(
+    (b"<frameset><frame></frameset>", b"", False),
+    (b"<!-- <frameset> -->", b"", True),
+], ids=["marker-in-script-data", "marker-after-script", "marker-after-frameset",
+        "marker-after-comment"])
+def test_NativeReflectionDistinguishesSupportedElementContent(
     tmp_path, capsys, prefix, suffix, matched,
 ):
-    """Compare real loopback responses with the marker on either side of a script boundary."""
+    """Compare real loopback responses that place the marker in supported or excluded contexts."""
 
     route = next(case["route"] for case in Oracle()["cases"] if case["id"] == "reflection-raw")
     body = prefix + b"<fuzzy1337-probe>owned</fuzzy1337-probe>" + suffix
@@ -399,7 +402,7 @@ def test_NativeReflectionSeparatesScriptDataFromElementContent(
             observed = [item for item in model.observations
                         if item.kind == "native.web-response-check"]
             assert len(observed) == 1 and observed[0].attributes["matched"] is matched, (
-                "The stored lexical observation disagreed with the script context control."
+                "The stored lexical observation disagreed with the HTML context control."
             )
             assert not Findings(model), "Neither control establishes a browser-confirmed Finding."
             assert Main(["workspace", "open", str(root), "--json"]) == 0, (
