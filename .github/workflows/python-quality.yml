@@ -669,27 +669,53 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Select Python for owned lab acceptance
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
       - name: Start isolated safe target
         run: docker compose --profile lab up --build --wait lab-web-safe
       - name: Verify safe target contract
         run: >-
           docker compose exec -T lab-web-safe python -c
           "from urllib.request import urlopen; import json; response = urlopen('http://127.0.0.1:8080/health', timeout=1); assert json.load(response) == {'status': 'ok', 'target': 'web-safe'}"
-      - name: Start attack-path mini lab
-        run: >-
-          docker compose --profile attack-path up --build --wait
-          lab-attack-portal lab-attack-identity lab-attack-events
-          lab-attack-billing lab-attack-client
       - name: Verify attack-path mini lifecycle
         run: |
-          docker compose exec -T lab-attack-client python client.py reset
-          docker compose exec -T lab-attack-client python client.py validate
-          docker compose exec -T lab-attack-client python client.py negative
-          docker compose exec -T lab-attack-client python client.py remediate
-          docker compose exec -T lab-attack-client python client.py reset
+          evidence=functional-evidence/attack-path-mini
+          mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/source-commit.txt"
+          sha256sum labs/targets/attack-path-mini/{scenario,oracle}.v1.json > "$evidence/fixture-sha256.txt"
+          uv run --locked --extra dev pytest -o addopts='' -n 0 --no-cov -q \
+            tests/functional/test_attack_path_lab.py --junitxml="$evidence/junit.xml"
+      - name: Require executed successful attack-path cases
+        shell: python
+        run: |
+          from xml.etree import ElementTree
+
+          report = ElementTree.parse("functional-evidence/attack-path-mini/junit.xml")
+          cases = list(report.iter("testcase"))
+          required = {
+              "test_AttackPathLabConfirmsCanonicalPathAndBlocksSigningKey",
+              "test_AttackPathLabRemediationAndResetAreDeterministic",
+          }
+          if not required <= {case.get("name") for case in cases} or any(
+              list(report.iter(kind)) for kind in ("skipped", "failure", "error")
+          ):
+              raise SystemExit("Every attack-path mini case must execute and pass")
       - name: Stop synthetic lab
         if: always()
         run: docker compose --profile lab --profile attack-path down --volumes --remove-orphans
+      - name: Preserve attack-path mini command evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: attack-path-mini-lifecycle
+          path: functional-evidence/attack-path-mini/
+          retention-days: 14
+          if-no-files-found: warn
 
   external-targets:
     if: >-

@@ -88,3 +88,26 @@ All credentials, tokens, subjects, and events are fixed synthetic values. The la
 no host port, privileged container, host-network mode, or dependency on an Internet
 target. Restarting the containers or running `client.py reset` restores deterministic
 state.
+
+## Rehearse the owned lifecycle
+
+On Linux with Docker Compose, run the isolated lab assertions from the repository
+root. Pytest owns startup, health checks and teardown.
+
+```bash
+uv run --locked --extra dev pytest -o addopts='' -n 0 --no-cov \
+  tests/functional/test_attack_path_lab.py
+```
+
+The tests compare actual command payloads with the versioned oracle and inspect
+the Business Event store independently. After hardening, a separate attempt
+must report the declared blocked relation and leave the event store empty. A
+fresh reset must restore the path and create exactly one expected event.
+The fixture limits Compose startup and each client invocation to 60 seconds.
+Each internal client HTTP request has a two-second timeout.
+
+The Synthetic lab lifecycle CI job requires all selected cases to execute and
+retains their JUnit result, source commit, scenario and oracle SHA-256 digests,
+and raw Compose command records in its `attack-path-mini-lifecycle` artifact.
+This rehearsal covers fixture behavior. 1337 discovery, Core graph projection
+and operator-authorized validation have separate acceptance requirements.
