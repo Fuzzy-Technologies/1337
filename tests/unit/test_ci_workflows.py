@@ -177,14 +177,23 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
     assert " ".join(container["if"].split()) == INTEGRATION_CONDITION, (
         "The complete container gate must retain its original Ready/push condition."
     )
-    command = next(step["run"] for step in container["steps"]
+    gate = next(step for step in container["steps"]
         if step.get("name") == "Run container quality gate")
+    command = gate["run"]
     assert " ".join(command.split()) == (
         'LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" '
         "docker compose --profile quality run --rm quality 1337-dev check --fail-fast "
         "--suite-timeout 900"
     ), "Container CI must keep mapped ownership and run the same complete supported check."
     assert container["timeout-minutes"] == 20, "Container CI must retain its finite job ceiling."
+    diagnostic = container["steps"][container["steps"].index(gate) + 1]
+    assert diagnostic["if"] == f"failure() && steps.{gate['id']}.outcome == 'failure'", (
+        "Diagnostic upload must follow and depend on the actual failed container gate."
+    )
+    assert diagnostic["with"]["path"].split() == [
+        "coverage/parallel-tests.progress/summary.json",
+        "coverage/serial-tests.progress/summary.json",
+    ], "Only bounded progress summaries may be published by the failure step."
 
     for selected in (full["run"], command):
         assert not any(option in selected for option in (
@@ -1099,8 +1108,8 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
         and "strategy" not in job and not job.get("continue-on-error", False)
     ), "Final external acceptance must retain prior windows plus the bounded new six-case step."
     steps = {step["name"]: step for step in job["steps"]}
-    assert len(steps) == len(job["steps"]) == 12, (
-        "The prior ten steps must remain alongside the two final comparative steps."
+    assert len(steps) == len(job["steps"]) == 13, (
+        "The prior twelve steps must remain alongside original native acceptance."
     )
     checkout = steps["Check out source"]
     assert checkout["with"] == {"persist-credentials": False,
@@ -1114,6 +1123,9 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
         "Execute installed native scanner against three fresh pinned targets": (
             "github.event_name != 'pull_request' || github.event.pull_request.draft == false "
             "|| !contains(github.event.pull_request.body, '[native-external-metrics-diagnostic]')"),
+        "Require original 1337Scope native application acceptance": (
+            "github.event_name != 'pull_request' || github.event.pull_request.draft == false "
+            "|| !contains(github.event.pull_request.body, '[native-external-metrics-diagnostic]')"),
         "Capture one separate fresh-target metrics diagnostic": (
             "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
             "&& contains(github.event.pull_request.body, '[native-external-metrics-diagnostic]')"),
@@ -1123,6 +1135,20 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
         assert " ".join(steps[name]["if"].split()) == f"!({mode}) && ({condition})", (
             "Prerequisite mode must suppress all old work, including mixed-marker bodies."
         )
+
+    native_gate = steps["Require original 1337Scope native application acceptance"]
+    assert native_gate["timeout-minutes"] == 1 and not native_gate.get("continue-on-error"), (
+        "Original native proof must fail closed within its separate bounded step."
+    )
+    assert native_gate["env"] == {"NATIVE_ACCEPTANCE_HEAD": (
+        "${{ github.event_name == 'pull_request' "
+        "&& github.event.pull_request.head.sha || github.sha }}")}, (
+        "Native application proof must bind the exact proposed source revision."
+    )
+    assert native_gate["run"] == (
+        "python tests/functional/external_native_acceptance_gate.py "
+        '--head "$NATIVE_ACCEPTANCE_HEAD" --identity "$(git rev-parse HEAD HEAD^{tree})"'
+    ), "The native proof step must consume originals and read-only checkout identity only."
 
     selected = steps["Execute one target-free installed Nuclei prerequisite"]
     gate = steps["Require original target-free Nuclei prerequisite evidence"]

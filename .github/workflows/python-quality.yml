@@ -635,10 +635,21 @@ jobs:
       - name: Build locked development image
         run: docker compose build
       - name: Run container quality gate
+        id: container_gate
         run: >-
           LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
           docker compose --profile quality run --rm quality 1337-dev check --fail-fast
           --suite-timeout 900
+      - name: Preserve bounded container failure diagnostics
+        if: failure() && steps.container_gate.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: container-quality-failure-diagnostics
+          path: |
+            coverage/parallel-tests.progress/summary.json
+            coverage/serial-tests.progress/summary.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   synthetic-lab:
     if: >-
@@ -721,6 +732,18 @@ jobs:
           uv run --locked --extra dev pytest tests/functional/test_external_native_benchmark.py
           -o addopts='' --no-cov -n 0 -v
           --junitxml=functional-evidence/external-native-benchmark/pytest.xml
+      - name: Require original 1337Scope native application acceptance
+        if: >-
+          !(github.event_name == 'pull_request' && github.event.pull_request.draft == true
+          && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false
+          || !contains(github.event.pull_request.body, '[native-external-metrics-diagnostic]'))
+        timeout-minutes: 1
+        env:
+          NATIVE_ACCEPTANCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python tests/functional/external_native_acceptance_gate.py
+          --head "$NATIVE_ACCEPTANCE_HEAD"
+          --identity "$(git rev-parse HEAD HEAD^{tree})"
       - name: Capture one separate fresh-target metrics diagnostic
         if: >-
           !(github.event_name == 'pull_request' && github.event.pull_request.draft == true

@@ -1,14 +1,15 @@
 # Explicit governed CI scan
 
-`1337 ci scan` runs one explicitly selected governed configuration or image
+`1337 ci scan` runs one explicitly selected governed configuration, image or web
 profile, saves its canonical model and evidence, evaluates a caller-selected
 finding predicate, and publishes JSON, SARIF and JUnit from the same saved
 snapshot. Profiles are `synthetic-dockerfile`, `synthetic-kubernetes`,
-`synthetic-image`, and the explicit `native-trivy` image profile. Synthetic
-profiles use reviewed closed fixture families. Native configuration and
+`synthetic-image`, the explicit `native-trivy` image profile, and `native-web`.
+Synthetic profiles use reviewed closed fixture families. Native configuration and
 reachable-risk acceptance remain outside these profiles.
 
-The workspace and artifact scope must already exist. The current recorded owner,
+For artifact-backed profiles, the workspace and artifact scope must already exist.
+The current recorded owner,
 selected input-manifest target, scope consent and SAFE capability opt-in are
 verified by the existing artifact workflow. For synthetic profiles select the
 original source, trusted current CPython executable, reviewed first-party configuration worker and exact
@@ -88,7 +89,7 @@ target must already be registered in the selected scope.
   --report-junit /owned/reports/native-image.xml --json
 ```
 
-Native selection excludes synthetic `--producer`, `--material`, `--source`,
+`native-trivy` selection excludes synthetic `--producer`, `--material`, `--source`,
 `--logical-path` and configuration approval. Synthetic selection excludes native
 `--cache-directory` and `--policy`. CI retains its existing one-through-sixty
 second selected scan timeout; the native workflow's bounded observation,
@@ -119,14 +120,115 @@ It exercises the installed isolated CLI, both unchanged inert archive cases,
 no-opt-in refusal, three real artifacts and a deliberately injected late policy
 refusal after publication. Missing required runtime prerequisites fail this lane.
 
+## 1337Scope native web current-run predicate
+
+The Experimental `native-web` profile runs one selected native Git HEAD or
+Prometheus response check through the ordinary 1337Scope web workflow. It uses
+an existing workspace, exact URL/IP scope, current recorded owner and consent,
+and a selected absolute policy file permitting that STANDARD capability.
+Planning contacts no target. Execution requires the exact prior plan intent and
+an independent confirmation reference; a SAFE approval flag cannot substitute.
+
+Use only an endpoint you own and have registered in the selected scope. First
+review the exact operation using the same check, URL, policy and time budgets:
+
+```bash
+native_web_plan=$(1337 scan web /owned/workspace \
+  --check git-head-exposure \
+  --target http://127.0.0.1:8080/.git/HEAD \
+  --scope native-web-scope --owner actor:local \
+  --policy /owned/policies/web.json \
+  --request-timeout 3 --timeout 10 --plan --json)
+printf '%s\n' "$native_web_plan"
+```
+
+After reviewing that plan, the following command evaluates LOW/OPEN findings
+from its one actual request. The report directory must already exist, and all
+three output files must be new:
+
+```bash
+native_web_intent=$(printf '%s' "$native_web_plan" | \
+  python -c 'import json,sys; print(json.load(sys.stdin)["policy_plan"]["intent_sha256"])')
+1337 ci scan /owned/workspace \
+  --profile native-web --check git-head-exposure \
+  --target http://127.0.0.1:8080/.git/HEAD \
+  --scope native-web-scope --owner actor:local \
+  --policy /owned/policies/web.json --request-timeout 3 --timeout 10 \
+  --confirm-plan "$native_web_intent" --confirmation-reference approval:owned-web-ci \
+  --severity low --status open --max-matches 0 \
+  --acknowledge-unassessed-completeness \
+  --report-json /owned/reports/native-web.json \
+  --report-sarif /owned/reports/native-web.sarif \
+  --report-junit /owned/reports/native-web.xml --json
+```
+
+In PowerShell, obtain and review the same plan before the second command:
+
+```powershell
+$nativeWebPlan = 1337 scan web C:\owned\workspace `
+  --check git-head-exposure --target http://127.0.0.1:8080/.git/HEAD `
+  --scope native-web-scope --owner actor:local --policy C:\owned\policies\web.json `
+  --request-timeout 3 --timeout 10 --plan --json | ConvertFrom-Json
+$nativeWebPlan | ConvertTo-Json -Depth 20
+```
+
+```powershell
+1337 ci scan C:\owned\workspace `
+  --profile native-web --check git-head-exposure `
+  --target http://127.0.0.1:8080/.git/HEAD `
+  --scope native-web-scope --owner actor:local --policy C:\owned\policies\web.json `
+  --request-timeout 3 --timeout 10 `
+  --confirm-plan $nativeWebPlan.policy_plan.intent_sha256 `
+  --confirmation-reference approval:owned-web-ci `
+  --severity low --status open --max-matches 0 --acknowledge-unassessed-completeness `
+  --report-json C:\owned\reports\native-web.json `
+  --report-sarif C:\owned\reports\native-web.sarif `
+  --report-junit C:\owned\reports\native-web.xml --json
+```
+
+For Prometheus, select `--check prometheus-exposition` and the exact metrics URL
+in both operations, with the matching policy permission. This CI profile accepts
+only these two checks. It rejects executable, archive, producer, material,
+artifact read-consent and artifact SAFE approval options before execution.
+Existing configuration/image profiles still require their original inputs and
+reject native-web-only options. Use matching explicit time budgets in both
+commands; changing the intent inputs requires a new reviewed plan.
+
+An observed LOW/OPEN exposure returns **1** for this zero-match criterion while
+retaining the completed scan and all three reports. A successful negative returns
+**0**. Missing or stale confirmation refuses before contact with **3**; malformed
+or incomplete transport returns **4**, with no satisfied predicate. Missing
+completeness acknowledgement is configuration error **2**. Cancellation remains
+**130**. The complete taxonomy below also applies to this profile.
+
+The predicate verifies the original successful current job, exact invocation,
+stdout/stderr acquisition manifests and bytes, provider/execution metadata and
+the complete saved-model pin. It re-normalizes that original worker report and
+requires the exact current source and detection observations in the saved model.
+The distinct `native-web:<sha256>` identity binds that original job and evidence.
+Worker metadata verification does not replay the deliberately unretained HTTP
+body or authenticate a publisher.
+
+Saved manual Finding dispositions remain authoritative. An earlier positive at
+the same endpoint remains in the full reports but does not enter a current
+negative scan's predicate. Current scope/policy and saved-snapshot identity are
+rechecked before publication and at the final barrier. A late refusal or partial
+publication remains nonzero; already published files retain their independent
+known outcomes. The profile adds no generic target discovery, file retrieval,
+whole-application accuracy or reachable-risk verdict. See
+[ADR 0138](adr/0138-current-run-native-web-ci-predicate.md).
+
+## Shared criterion and artifacts
+
 The severity and disposition sets are required, nonempty and unique. Their
 conjunction selects matching current source findings. `--max-matches` explicitly
 allows from zero through 1024 matches. No severity ranking, score, weighted
 aggregation or default risk threshold is inferred. The existing saved operator
 disposition remains authoritative when this source is detected again.
 
-Gate selection requires verified original acquisitions, original receipt and
-capture equality, current original-grant acceptance, exact saved processed-source
+For artifact-backed profiles, gate selection requires verified original
+acquisitions, original receipt and capture equality, current original-grant
+acceptance, exact saved processed-source
 inventory and current-run detection proof. Namespace prefixes and finding counts
 alone are insufficient. Unrelated retained findings and historical detections
 absent from this execution remain in the full snapshot reports and keep their

@@ -34,7 +34,7 @@ def ReceiveIsolatedHttps(
         url: Canonical query-free HTTPS locator already selected by a typed owning profile.
         max_bytes: Positive retained-body ceiling, at most the existing 16 MiB transport bound.
         timeout_seconds: Total process lifetime budget from 0.05 through 60 seconds.
-        accept_kind: Fixed json or gzip resource preference; HTTP encoding remains identity.
+        accept_kind: Fixed json, gzip or zip resource preference; HTTP encoding remains identity.
 
     Returns:
         Original complete or partial bytes, explicit transport-state token and observed status.
@@ -54,15 +54,15 @@ def ReceiveIsolatedHttps(
         or not 0.05 <= timeout_seconds <= 60):
         raise ValueError("isolated receiver timeout must be finite and within 0.05..60 seconds")
 
-    if type(accept_kind) is not str or accept_kind not in ("json", "gzip"):
-        raise ValueError("isolated receiver resource kind must be json or gzip")
+    if type(accept_kind) is not str or accept_kind not in ("json", "gzip", "zip"):
+        raise ValueError("isolated receiver resource kind must be json, gzip or zip")
 
     worker = Path(__file__).with_name("intelligence_transport.py")
     arguments = [sys.executable, "-I", "-S", str(worker), url,
                  str(max_bytes), str(timeout_seconds)]
 
-    if accept_kind == "gzip":
-        arguments.append("gzip")
+    if accept_kind != "json":
+        arguments.append(accept_kind)
 
     started = time.monotonic()
 

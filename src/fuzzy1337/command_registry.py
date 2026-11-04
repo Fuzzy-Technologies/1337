@@ -200,10 +200,11 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="scan",
-            summary=("Run governed discovery, owned content crawl, checks, "
+            summary=("Run governed discovery, owned content crawl, 1337Scope web checks, "
                      "synthetic/native images or configurations."),
             usage="1337 scan <quick|crawl|ports|web|nuclei|image|config> <workspace>",
             capabilities=("http.endpoint-discovery", "web.git-head-check",
+                          "web.directory-index-check",
                           "http.owned-loopback-crawl",
                           "network.tcp-connect",
                           "image.archive-vulnerabilities",
@@ -233,16 +234,18 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="demo",
-            summary="Run an explicitly approved command-owned local SAFE discovery demo.",
-            usage="1337 demo local <new-output-root> [--approve-safe-http]",
+            summary=("Run owned SAFE discovery or STANDARD 1337Scope assessment "
+                     "with separate approval."),
+            usage=("1337 demo local <new-output-root> [--approve-safe-http] | "
+                   "1337 demo assessment <new-output-root> [--approve-standard-http]"),
             capabilities=("workbench.local-demo",),
         ),
         CommandDescriptor(
             identifier="ci",
-            summary="Evaluate an explicit current-run finding predicate with verified reports.",
+            summary="Gate current-run findings, including explicit 1337Scope web checks.",
             usage=(
                 "1337 ci scan <workspace> --profile "
-                "<synthetic-dockerfile|synthetic-kubernetes|synthetic-image>"
+                "<synthetic-dockerfile|synthetic-kubernetes|synthetic-image|native-trivy|native-web>"
             ),
             capabilities=("workbench.selected-finding-gate",),
         ),

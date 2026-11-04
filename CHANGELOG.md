@@ -8,7 +8,7 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
-### Patch 15 — v0.4.15 — 2026-11-04
+### Patch 22 — v0.4.22 — 2026-11-04
 
 #### Digest
 
@@ -21,6 +21,171 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   distinctive detector requirements, source hashes and concrete owning issues.
 - Retain historical readiness separately from current run evidence, and reuse
   existing report projections to display unexecuted cases as not run.
+
+
+### Patch 21 — v0.4.21 — 2026-11-04
+
+#### Digest
+
+- Require original installed 1337Scope acceptance evidence for the three existing
+  pinned Juice Shop cases before the external-target lane can pass.
+
+#### Changed
+
+- Join exact current-head JUnit cases, installed wheel/source bytes, original
+  Docker bundle, worker reports and retained Findings in a read-only final gate.
+- Require one true positive and two distinct negative controls, with zero skips;
+  keep other scanner tracks and whole-application accuracy explicitly unassessed.
+
+#### Security
+
+- Reject missing, stale, swapped or contradictory source/evidence identities
+  without starting another target or scanner execution.
+
+
+### Patch 20 — v0.4.20 — 2026-11-04
+
+#### Digest
+
+- Expose bounded selected CWE HTTPS acquisition and exact offline replay through
+  a separate experimental CLI profile.
+
+#### Added
+
+- Add `intel cwe https fetch` and `intel cwe https inspect` for fixed pinned
+  catalog sources and verified original evidence roots.
+- Show the full captured notice, independent custody acknowledgements and
+  matched, unsupported and unmatched selected identifiers in portable output.
+
+#### Security
+
+- Reject invalid source and selection inputs before storage or transport work.
+  Preserve known custody facts without usable selection output after failure.
+
+
+### Patch 17 — v0.4.17 — 2026-11-04
+
+#### Digest
+
+- Add a separate bounded selected-CWE HTTPS custody SDK with original-byte
+  replay and explicit evidence publication uncertainty.
+
+#### Added
+
+- Define fixed CWE version URLs, caller-pinned source/notice declarations,
+  canonical selected requests and a separate remote envelope/receipt family.
+- Preserve raw bytes, selected partitions and finite acquisition limits across
+  verified offline relocation without changing the local importer or legacy
+  JSON/gzip source families.
+
+#### Security
+
+- Bind original source, provenance, request, transport outcome and selected
+  content; refuse mixed or corrupted custody and changed canonical limits.
+- Keep independent raw/envelope/receipt acknowledgements and truthful partial,
+  digest, parse and storage failures. Provide no retry, local fallback, CLI,
+  publisher authentication or genuine HTTPS acceptance claim.
+
+
+### Patch 16 — v0.4.16 — 2026-11-04
+
+#### Digest
+
+- Add an opt-in ZIP media gate to the internal intelligence transport as a
+  prerequisite for future bounded remote CWE acquisition.
+
+#### Added
+
+- Admit the fixed `zip` resource preference while retaining exact original
+  bytes, status-only worker framing and existing finite transport limits.
+- Exercise actual standard-library response parsing and isolated worker argv,
+  malformed protocol, partial timeout and cleanup with deterministic fixtures.
+
+#### Security
+
+- Refuse missing, duplicate, parameterized, folded, non-ASCII or oversized ZIP
+  media values before reading a response body. Preserve legacy JSON/gzip
+  headers, argv and media behavior; add no remote CWE SDK or HTTPS acceptance.
+
+
+### Patch 13 — v0.4.13 — 2026-11-04
+
+#### Digest
+
+- Add an explicit 1337Scope native web CI predicate over original current-run
+  evidence, preserving manual triage and complete saved-snapshot reports.
+
+#### Added
+
+- Expose `ci scan --profile native-web` for the existing Git HEAD and Prometheus
+  checks, with ordinary exact STANDARD plan confirmation and explicit
+  severity/status/count selections.
+- Publish JSON/SARIF/JUnit from one verified saved model for both criterion
+  satisfaction and violation; retain independent partial publication outcomes.
+
+#### Security
+
+- Revalidate original successful job/invocation/acquisition and exact current
+  source/detection observations before selecting Findings. Earlier retained
+  positives cannot become detections in a new negative execution.
+- Keep metadata re-normalization separate from unavailable HTTP-body replay,
+  publisher authentication, global scan completeness and reachable-risk claims.
+- Preserve current authority, report no-clobber and truthful refusal, failure,
+  uncertainty and cancellation outcomes.
+
+
+### Patch 12 — v0.4.12 — 2026-11-04
+
+#### Digest
+
+- Add a command-owned 1337Scope assessment demo connecting actual native
+  vulnerability detection, verified original evidence and readable offline HTML.
+
+#### Added
+
+- Expose `demo assessment <new-output-root> --approve-standard-http` for one
+  inert Git HEAD exposure and a separately confirmed fixed-endpoint control.
+- Retain the actual open LOW Finding, original worker metadata and hashes,
+  per-endpoint plans and receipts, evidence index and JSON/HTML/SARIF exports.
+- Verify the clean installed CLI, offline reopen, existing-root refusal,
+  expired consent, changed confirmation, corruption and failure cleanup.
+
+#### Security
+
+- Require separate explicit STANDARD approval before acquiring resources;
+  preserve existing SAFE-only `demo local` behavior and ordinary policy checks.
+- Bind the Finding to the exact exposed endpoint, successful job, scope and
+  registered original evidence. Stop the target before offline processing and
+  require one pinned workspace/model snapshot across every export.
+- Preserve actual partial publication and lost-acknowledgement outcomes;
+  a different fixed endpoint does not resolve the original Finding or establish
+  attack paths, remediation, CVE applicability or complete scanner coverage.
+
+
+### Patch 11 — v0.4.11 — 2026-11-03
+
+#### Digest
+
+- Add an explicit 1337Scope classic directory-index observation through the
+  existing governed native web workflow.
+
+#### Added
+
+- Expose `scan web --check directory-index` and the corresponding SDK selection
+  with a bounded complete-HTML predicate, original worker metadata and a LOW
+  descriptive Finding.
+- Add an independent filesystem-backed local target/oracle covering genuine
+  enumeration, fixed/decoy controls, truthful failed transport and installed
+  SDK/CLI plus offline-reopen acceptance.
+
+#### Security
+
+- Preserve exact target scope, current consent, STANDARD confirmation and one
+  bounded GET without following redirects or listed entries. Filenames and
+  response contents remain transient; unsupported formats do not prove safety.
+- Keep previous native profile media/framing behavior and shared limits intact.
+  The finite profile does not establish sensitive-file contents, general scanner
+  completion or genuine external-application acceptance.
 
 
 ### Patch 10 — v0.4.10 — 2026-11-03
