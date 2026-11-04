@@ -251,14 +251,18 @@ Project-owned Python naming:
 
 - functions and methods: `PascalCase`, including `Main()`;
 - classes, protocols, and enums: `PascalCase`;
-- variables, parameters, and fields: `snake_case`; a leading underscore is allowed for internal
+- variables, parameters, and fields: `lowerCamelCase`; a leading underscore is allowed for internal
   implementation details;
 - constants: `UPPER_SNAKE_CASE` with underscores between words;
 - test files retain `test_*.py`; test functions retain the required `test_` prefix and use
   `PascalCase` after that prefix.
 
-Project-owned non-callable identifiers use normal Python `snake_case`. Project-owned function and
-method names remain `PascalCase` and must not be converted to `snake_case`.
+Project-owned non-callable identifiers use `lowerCamelCase`, for example
+`workingDirectory` and `installedVersion`. Function and method names remain
+`PascalCase`. The CI naming audit examines compiler bindings across the
+repository. Its checked inventory retains existing signatures and ambiguous
+bindings during the migration. New entries require a documented compatibility
+reason. When migrating an existing name, remove its obsolete inventory entry.
 
 Preserve externally imposed naming where it is part of a contract. This includes Python dunder
 names such as `__name__` and framework callbacks or fixtures. Do **not** mechanically rename:
