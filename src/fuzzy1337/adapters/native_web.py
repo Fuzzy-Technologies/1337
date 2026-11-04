@@ -55,8 +55,12 @@ NATIVE_DIRECTORY_INDEX_CHECK_ID = "native.directory-index"
 NATIVE_DIRECTORY_INDEX_CAPABILITY = "web.directory-index-check"
 NATIVE_HTML_REFLECTION_CHECK_ID = "native.html-reflection"
 NATIVE_HTML_REFLECTION_CAPABILITY = "web.html-reflection-check"
+NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID = "native.sql-boolean-sample"
+NATIVE_SQL_BOOLEAN_SAMPLE_CAPABILITY = "web.sql-boolean-sample"
 NATIVE_HTML_CHECKS = frozenset({NATIVE_DIRECTORY_INDEX_CHECK_ID, NATIVE_HTML_REFLECTION_CHECK_ID})
-NATIVE_EXPLICIT_CHECKS = NATIVE_HTML_CHECKS | {NATIVE_PROMETHEUS_CHECK_ID}
+NATIVE_EXPLICIT_CHECKS = NATIVE_HTML_CHECKS | {
+    NATIVE_PROMETHEUS_CHECK_ID, NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
+}
 MAX_NATIVE_WEB_RECORD_BYTES = 4096
 MAX_NATIVE_WEB_BODY_BYTES = 4096
 NATIVE_WEB_MEDIA_TYPES = frozenset({"text/plain", "application/octet-stream", "other"})
@@ -76,9 +80,19 @@ _FILE_CANARY = b"owned-private-file-canary\n"
 _REFLECTION_PATHS = frozenset(
     f"/reflect/{mode}/" + quote(REFLECTION_MARKER, safe="/")
     for mode in ("vulnerable", "fixed", "decoy")
-) | frozenset({
+)
+_OWNED_FAILURE_PATHS = frozenset({
     "/broken/header", "/broken/framing", "/broken/truncated", "/broken/status",
     "/broken/unavailable",
+})
+_SQL_BOOLEAN_SAMPLE_PATHS = frozenset(
+    f"/sql-boolean/{mode}/" + quote(value, safe="=")
+    for mode in ("vulnerable", "fixed")
+    for value in ("public", "public' AND 1=1 AND 'a'='a", "public' AND 1=0 AND 'a'='a")
+)
+_OWNED_CHECK_PATHS = MappingProxyType({
+    NATIVE_HTML_REFLECTION_CHECK_ID: _REFLECTION_PATHS | _OWNED_FAILURE_PATHS,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID: _SQL_BOOLEAN_SAMPLE_PATHS | _OWNED_FAILURE_PATHS,
 })
 
 
@@ -90,7 +104,7 @@ class NativeWebCheck:
     capability: str
     finding_id: str | None
     title: str
-    predicate: Callable[[int, str, bytes], bool]
+    predicate: Callable[[int, str, bytes], bool] | None
     request_profile: str | None = None
     max_body_bytes: int = MAX_NATIVE_WEB_BODY_BYTES
 
@@ -138,11 +152,13 @@ def NativeWebEndpoint(
 
     result = Endpoint(value)
 
-    if check_id == NATIVE_HTML_REFLECTION_CHECK_ID and (
+    owned_paths = _OWNED_CHECK_PATHS.get(check_id)
+
+    if owned_paths is not None and (
         not ipaddress.ip_address(result[1]).is_loopback
-        or urlsplit(result[0].value).path not in _REFLECTION_PATHS
+        or urlsplit(result[0].value).path not in owned_paths
     ):
-        raise ValueError("native HTML reflection requires an exact owned-loopback probe URL")
+        raise ValueError("native owned web check requires an exact owned-loopback probe URL")
 
     if value != result[0].value:
         raise ValueError("native web requires an already canonical exact URL")
@@ -247,6 +263,8 @@ _CHECKS = MappingProxyType({
     NATIVE_HTML_REFLECTION_CHECK_ID: NativeWebCheck(NATIVE_HTML_REFLECTION_CHECK_ID,
         NATIVE_HTML_REFLECTION_CAPABILITY, None,
         "Owned HTML probe observed as a lexical element", MatchesHtmlReflection),
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID: NativeWebCheck(NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
+        NATIVE_SQL_BOOLEAN_SAMPLE_CAPABILITY, None, "Owned SQL response sample", None),
 })
 _DESCRIPTOR = AdapterDescriptor(
     NATIVE_WEB_PROVIDER_ID, "Native bounded response checks", NATIVE_WEB_VERSION,
@@ -384,6 +402,14 @@ def ParseNativeWebRecord(
             ):
                 raise ValueError
 
+        allowed_media = NATIVE_WEB_MEDIA_TYPES
+
+        if check_id in NATIVE_HTML_CHECKS:
+            allowed_media = allowed_media | {"text/html"}
+
+        elif check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID:
+            allowed_media = frozenset({"application/json"})
+
         if set(record) != expected or record["check_id"] != check.check_id or (
             record["profile_version"] != NATIVE_WEB_VERSION
             or record["url"] != target.value or record["address"] != address
@@ -393,11 +419,11 @@ def ParseNativeWebRecord(
             or type(record["body_bytes"]) is not int
             or not 0 <= record["body_bytes"] <= check.max_body_bytes
             or type(record["media_type"]) is not str
-            or record["media_type"] not in (NATIVE_WEB_MEDIA_TYPES | {"text/html"}
-                if check_id in NATIVE_HTML_CHECKS else NATIVE_WEB_MEDIA_TYPES)
+            or record["media_type"] not in allowed_media
             or type(record["body_sha256"]) is not str
             or _SHA256.fullmatch(record["body_sha256"]) is None
-            or type(record["matched"]) is not bool
+            or (record["matched"] is not None if check.predicate is None
+                else type(record["matched"]) is not bool)
         ):
             raise ValueError
 
@@ -419,9 +445,19 @@ def ParseNativeWebRecord(
         ):
             raise ValueError
 
+        if check_id == NATIVE_HTML_REFLECTION_CHECK_ID and (
+            record["status"] != 200 or record["media_type"] != "text/html"
+        ):
+            raise ValueError
+
         if check_id in NATIVE_HTML_CHECKS and record["matched"] and (
             record["status"] != 200 or record["media_type"] != "text/html"
             or record["body_bytes"] == 0
+        ):
+            raise ValueError
+
+        if check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID and (
+            record["status"] != 200 or record["body_bytes"] == 0
         ):
             raise ValueError
 

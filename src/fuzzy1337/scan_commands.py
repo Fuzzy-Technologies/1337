@@ -20,6 +20,7 @@ from fuzzy1337.adapters.native_web import (
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_HTML_REFLECTION_CHECK_ID,
     NATIVE_PROMETHEUS_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
     NATIVE_WEB_CHECK_ID,
     NativeWebEndpoint,
 )
@@ -354,7 +355,7 @@ def CommandParser(command: str) -> argparse.ArgumentParser:
         web.add_argument("path", type=Path)
         web.add_argument("--check", choices=("git-head-exposure", "file-canary-disclosure",
                                            "prometheus-exposition", "directory-index",
-                                           "html-reflection"),
+                                           "html-reflection", "sql-boolean-sample"),
                          required=True)
         web.add_argument("--scope", required=True)
         web.add_argument("--owner", required=True)
@@ -625,6 +626,9 @@ def RunCommands(
 
                 if arguments.action == "web" and arguments.check == "html-reflection":
                     check_id = NATIVE_HTML_REFLECTION_CHECK_ID
+
+                if arguments.action == "web" and arguments.check == "sql-boolean-sample":
+                    check_id = NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID
 
                 if arguments.action == "ports":
                     target = Target(TargetKind.IP, arguments.target)

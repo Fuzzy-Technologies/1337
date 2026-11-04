@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import ipaddress
+import json
 import re
 import socket
 import ssl
@@ -23,6 +24,7 @@ from fuzzy1337.adapters.native_web import (
     NATIVE_HTML_CHECKS,
     NATIVE_HTML_REFLECTION_CHECK_ID,
     NATIVE_PROMETHEUS_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
     NATIVE_WEB_CHECK_ID,
     NATIVE_WEB_ERROR_EXITS,
     NATIVE_WEB_VERSION,
@@ -129,6 +131,9 @@ def Headers(
 
     if check_id in NATIVE_HTML_CHECKS:
         media_types.add(b"text/html")
+
+    elif check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID:
+        media_types.add(b"application/json")
 
     category = media.decode("ascii") if media in media_types else "other"
 
@@ -355,8 +360,13 @@ def Probe(
 
         parsed = urlsplit(target.value)
         request_target = parsed.path + ("?" + parsed.query if template is not None else "")
-        accept = "text/html" if check_id in NATIVE_HTML_CHECKS else (
-            "text/plain, application/octet-stream")
+        accept = "text/plain, application/octet-stream"
+
+        if check_id in NATIVE_HTML_CHECKS:
+            accept = "text/html"
+
+        elif check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID:
+            accept = "application/json"
         request = (f"GET {request_target} HTTP/1.1\r\nHost: {parsed.netloc}\r\n"
                    f"Connection: close\r\nAccept: {accept}\r\n"
                    "Accept-Encoding: identity\r\n\r\n")
@@ -419,7 +429,19 @@ def Probe(
             except UnicodeError as error:
                 raise NativeWebResponseError from error
 
-        matched = check.predicate(status, media_type, raw_body)
+        elif check_id == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID:
+            if status != 200 or media_type != "application/json":
+                raise NativeWebResponseError
+
+            try:
+                if type(json.loads(raw_body.decode("utf-8"))) is not dict:
+                    raise ValueError
+
+            except (ValueError, RecursionError) as error:
+                raise NativeWebResponseError from error
+
+        matched = (check.predicate(status, media_type, raw_body)
+                   if check.predicate is not None else None)
 
         if check_id == NATIVE_PROMETHEUS_CHECK_ID:
             Remaining(deadline)

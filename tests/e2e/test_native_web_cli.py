@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shlex
 from datetime import UTC, datetime, timedelta
@@ -19,6 +20,8 @@ from fuzzy1337.adapters.native_web import (
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_HTML_REFLECTION_CAPABILITY,
     NATIVE_HTML_REFLECTION_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CAPABILITY,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
 )
 from fuzzy1337.cli import Main
 from fuzzy1337.findings import Findings
@@ -49,6 +52,7 @@ def Setup(root: Path, url: str, *, check: str = "git-head-exposure") -> list[str
         "git-head-exposure": NATIVE_WEB_CAPABILITY,
         "file-canary-disclosure": NATIVE_FILE_CANARY_CAPABILITY,
         "html-reflection": NATIVE_HTML_REFLECTION_CAPABILITY,
+        "sql-boolean-sample": NATIVE_SQL_BOOLEAN_SAMPLE_CAPABILITY,
     }[check]
     policy = ImpactPolicy("owned-native-web", maximum_impact=ImpactLevel.STANDARD,
         permissions=(CapabilityPermission(capability, NATIVE_WEB_PROVIDER_ID,
@@ -309,12 +313,13 @@ def test_NativeReflectionRecordsOnlyTheOwnedLexicalObservation(tmp_path, capsys,
 
 
 @pytest.mark.parametrize("case", Oracle()["failure_cases"], ids=lambda case: case["route"])
-def test_NativeReflectionFailsClosedOnBrokenOwnedTargets(tmp_path, capsys, case):
+@pytest.mark.parametrize("check", ["html-reflection", "sql-boolean-sample"])
+def test_NativeAssessmentFailsClosedOnBrokenOwnedTargets(tmp_path, capsys, case, check):
     """Retain a failed job and its original worker error without a clean observation."""
 
     with OwnedWebVulnerabilityTarget(tmp_path / "target") as service:
         root = tmp_path / "workspace"
-        args = Setup(root, service.base_url + case["route"], check="html-reflection")
+        args = Setup(root, service.base_url + case["route"], check=check)
         assert Main(["scan", *Confirm(args, Plan(args)), "--json"]) == 4, (
             "Broken transport must fail the assessment instead of becoming a clean response."
         )
@@ -330,3 +335,61 @@ def test_NativeReflectionFailsClosedOnBrokenOwnedTargets(tmp_path, capsys, case)
             "The exact original worker failure must survive the job."
         )
         assert service.Observe()["requests"] == [case["route"]], "Only one contact is allowed."
+        assert Main(["workspace", "open", str(root), "--json"]) == 0, (
+            "Failed jobs and acquired diagnostics must remain readable."
+        )
+        capsys.readouterr()
+        args = Setup(tmp_path / "recovery", service.Url("git-exposed"))
+        assert Main(["scan", *Confirm(args, Plan(args)), "--json"]) == 0, (
+            "A subsequent valid scan must still work against the same listener."
+        )
+
+
+@pytest.mark.parametrize("mode", ["vulnerable", "fixed"])
+def test_OwnedSqlBooleanSamplingCapturesSeparateActualResponses(tmp_path, capsys, mode):
+    """Plan each SQLite sample independently and compare its evidence with the owned oracle."""
+
+    cases = [case for case in Oracle()["sql_boolean_cases"] if case["mode"] == mode]
+
+    with OwnedWebVulnerabilityTarget(tmp_path / "target") as service:
+        digests = []
+
+        for index, case in enumerate([*cases, cases[0]]):
+            root = tmp_path / f"sample-{index}"
+            args = Setup(root, service.base_url + case["route"], check="sql-boolean-sample")
+            before = service.Observe()
+            plan = Plan(args)
+            assert service.Observe() == before, "Planning must never send a SQL sample."
+            assert Main(["scan", *args, "--json"]) == 3, "Each sample needs exact approval."
+            capsys.readouterr()
+            assert service.Observe() == before, "A sample escaped its approval boundary."
+            assert Main(["scan", *Confirm(args, plan), "--json"]) == 0, (
+                "An admitted owned SQL sample should complete."
+            )
+            result = json.loads(capsys.readouterr().out)
+            assert result["check_id"] == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID, (
+                "SQL sampling must bind its own capability and invocation."
+            )
+            model = LocalModelStore(root).Open()
+            observations = [item for item in model.observations
+                            if item.kind == "native.web-response-check"]
+            expected_body = json.dumps({"rows": case["rows"]},
+                                       separators=(",", ":")).encode()
+            assert not Findings(model) and len(observations) == 1, (
+                "Individual SQL samples cannot create a differential Finding."
+            )
+            attributes = observations[0].attributes
+            assert attributes["matched"] is None, "Sampling must remain distinct from a verdict."
+            digest = hashlib.sha256(expected_body).hexdigest()
+            assert attributes["body_sha256"] == digest, "The response digest must bind real rows."
+            digests.append(digest)
+
+        baseline, true_control, false_control, repeated_baseline = digests
+        assert baseline == repeated_baseline, "The fixture baseline must be independently stable."
+        assert (baseline == true_control != false_control if mode == "vulnerable"
+                else true_control == false_control != baseline), (
+            "The actual samples must distinguish the vulnerable and parameterized queries."
+        )
+        assert [item["parameterized"] for item in service.Observe()["queries"]] == [
+            mode == "fixed"
+        ] * 4, "SQLite execution must use the actual declared parameterization."

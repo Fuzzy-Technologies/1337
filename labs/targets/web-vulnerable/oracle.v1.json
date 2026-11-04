@@ -196,5 +196,49 @@
       "route": "/broken/unavailable",
       "expected_error": "response-policy"
     }
+  ],
+  "sql_boolean_cases": [
+    {
+      "mode": "vulnerable",
+      "sample": "baseline",
+      "route": "/sql-boolean/vulnerable/public",
+      "rows": [
+        "owned-public-row"
+      ]
+    },
+    {
+      "mode": "vulnerable",
+      "sample": "true",
+      "route": "/sql-boolean/vulnerable/public%27%20AND%201=1%20AND%20%27a%27=%27a",
+      "rows": [
+        "owned-public-row"
+      ]
+    },
+    {
+      "mode": "vulnerable",
+      "sample": "false",
+      "route": "/sql-boolean/vulnerable/public%27%20AND%201=0%20AND%20%27a%27=%27a",
+      "rows": []
+    },
+    {
+      "mode": "fixed",
+      "sample": "baseline",
+      "route": "/sql-boolean/fixed/public",
+      "rows": [
+        "owned-public-row"
+      ]
+    },
+    {
+      "mode": "fixed",
+      "sample": "true",
+      "route": "/sql-boolean/fixed/public%27%20AND%201=1%20AND%20%27a%27=%27a",
+      "rows": []
+    },
+    {
+      "mode": "fixed",
+      "sample": "false",
+      "route": "/sql-boolean/fixed/public%27%20AND%201=0%20AND%20%27a%27=%27a",
+      "rows": []
+    }
   ]
 }

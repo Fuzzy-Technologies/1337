@@ -8,6 +8,19 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 25 — v0.4.25 — 2026-11-04
+
+#### Digest
+
+- Sample owned SQLite boolean responses with exact native scope and evidence.
+
+#### Added
+
+- Add an Experimental native sampling profile that preserves the status and
+  body digest of one approved response without producing an injection verdict.
+- Verify stable, true and false responses on independently declared vulnerable
+  and parameterized SQLite targets. Retain broken responses as failed jobs.
+
 ### Patch 24 — v0.4.24 — 2026-11-04
 
 #### Digest
