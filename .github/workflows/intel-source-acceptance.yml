@@ -152,7 +152,8 @@ jobs:
     if: >-
       github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.body, '[cve-source-acceptance-checkpoint]')
+      (contains(github.event.pull_request.body, '[cve-source-acceptance-checkpoint]') !=
+      contains(github.event.pull_request.body, '[cve-batch-source-acceptance-checkpoint]'))
     name: Pinned CVE installed HTTPS original-source receipt verification
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -160,6 +161,7 @@ jobs:
       - name: Check out the proposed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Select Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -186,15 +188,30 @@ jobs:
           uv pip install --python .tmp/cve-installed/bin/python --no-deps functional-evidence/cve-wheel/*.whl
           uv pip check --python .tmp/cve-installed/bin/python
       - name: Fetch the exact selected record once and inspect original HTTPS custody offline
+        if: contains(github.event.pull_request.body, '[cve-source-acceptance-checkpoint]')
         timeout-minutes: 2
         run: >-
           .tmp/cve-installed/bin/python -I tools/cve_https_acceptance.py
           --output functional-evidence/cve-https-source
+      - name: Fetch two exact same-commit CVE records and replay original custody after relocation
+        if: contains(github.event.pull_request.body, '[cve-batch-source-acceptance-checkpoint]')
+        timeout-minutes: 2
+        env:
+          ACCEPTANCE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$ACCEPTANCE_HEAD"
+          mkdir -p functional-evidence
+          printf '%s\n' "$ACCEPTANCE_HEAD" > functional-evidence/cve-batch-source-revision.txt
+          .tmp/cve-installed/bin/python -I tools/cve_https_acceptance.py \
+            --batch-wheel functional-evidence/cve-wheel/*.whl \
+            --output functional-evidence/cve-https-batch
       - name: Preserve original transport and custody evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: pinned-cve-https-source-acceptance
+          name: >-
+            ${{ contains(github.event.pull_request.body, '[cve-batch-source-acceptance-checkpoint]')
+            && 'pinned-cve-https-batch-source-acceptance' || 'pinned-cve-https-source-acceptance' }}
           path: functional-evidence/
           if-no-files-found: warn
           retention-days: 7
