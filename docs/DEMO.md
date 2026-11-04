@@ -223,6 +223,40 @@ destinations are also refused. Successful files can remain after a later
 failure: inspect the original command receipts, `output_published` and the
 terminal outcome rather than treating file presence as successful completion.
 
+### Review the assessment from another directory
+
+After the assessment exits successfully, move the whole bundle into a new
+review directory. Keep `workspace/`, its evidence, and the original receipts
+together. Use a fresh `artifacts/assessment-review` directory and run from the
+checkout root.
+
+Bash on Linux or macOS:
+
+```bash
+mkdir artifacts/assessment-review &&
+  mv artifacts/assessment-demo artifacts/assessment-review/
+```
+
+PowerShell on Windows:
+
+```powershell
+$reviewDirectory = New-Item -ItemType Directory artifacts/assessment-review -ErrorAction Stop
+Move-Item artifacts/assessment-demo -Destination $reviewDirectory.FullName -ErrorAction Stop
+```
+
+Both shells can use the same offline commands:
+
+```text
+uv run --locked python -m fuzzy1337 workspace open artifacts/assessment-review/assessment-demo/workspace --json
+uv run --locked python -m fuzzy1337 report export artifacts/assessment-review/assessment-demo/workspace --format html --output artifacts/assessment-review/assessment-demo/reports/relocated-model.html --json
+```
+
+Expect exit **0**, model revision **2**, and four verified acquisitions. In the
+new export receipt, `output_published` is `true`, and `snapshot_sha256` and
+`report_sha256` match the original `reports/html-export.json`. Open
+`reports/relocated-model.html` within the moved bundle to review the same open
+LOW Finding. These commands need no scanner, fixture or fresh approval.
+
 ## Failure and interruption truth
 
 | Exit status | Meaning                                                                   |
