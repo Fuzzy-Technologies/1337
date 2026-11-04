@@ -122,7 +122,9 @@ def test_ActualNativeGitCheckDistinguishesCalibrationControls(
     assert requests == [], "Read-only planning contacted the fixture."
     summary = asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", NativePolicy,
         confirmation=PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-control")))
-    assert summary.ExitCode() == 0 and summary.snapshot.state is JobState.COMPLETED
+    assert summary.ExitCode() == 0 and summary.snapshot.state is JobState.COMPLETED, (
+        f"The worker did not complete the approved {case['id']} control."
+    )
     assert requests == [f"GET {case['path']} HTTP/1.1\r\n".encode("ascii")], (
         "The check retried, expanded scope, or followed an unapproved redirect."
     )
@@ -133,8 +135,16 @@ def test_ActualNativeGitCheckDistinguishesCalibrationControls(
     evidence = NativeRunEvidence(root, plan, summary)
     report = json.loads(next(item.content for item in evidence if item.role == "stdout"))
     expectedBody = case["body"].encode("ascii")
-    assert report["url"] == target.value and report["check_id"] == ORACLE["check_id"]
-    assert report["status"] == case["status"] and report["matched"] is case["finding"]
-    assert report["body_bytes"] == len(expectedBody)
-    assert report["body_sha256"] == hashlib.sha256(expectedBody).hexdigest()
-    assert OpenWorkspace(root)["verified_evidence_records"] == 2
+    assert report["url"] == target.value and report["check_id"] == ORACLE["check_id"], (
+        "The retained worker report belongs to a different URL or check."
+    )
+    assert report["status"] == case["status"] and report["matched"] is case["finding"], (
+        f"The worker status or match disagreed with the {case['id']} oracle."
+    )
+    assert report["body_bytes"] == len(expectedBody), "The retained body length drifted."
+    assert report["body_sha256"] == hashlib.sha256(expectedBody).hexdigest(), (
+        "The retained body digest did not identify the exact fixture response."
+    )
+    assert OpenWorkspace(root)["verified_evidence_records"] == 2, (
+        "Reopening the workspace did not verify both original worker streams."
+    )
