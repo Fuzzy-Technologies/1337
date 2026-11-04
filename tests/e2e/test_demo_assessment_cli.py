@@ -707,6 +707,27 @@ def test_CleanInstalledAssessmentCliRefusesThenDetectsAndReopensOffline(
         "Installed repeated approval must preserve all acquired material after no-clobber refusal"
     )
 
+    reviewDirectory = tmp_path / "review"
+    reviewDirectory.mkdir()
+    relocated = root.rename(reviewDirectory / root.name)
+    assert not root.exists(), "Offline review must succeed with the original path absent"
+    moved = Console(["workspace", "open", str(relocated / "workspace"), "--json"], 0)
+    assert moved == reopened, "Moving the bundle must preserve the verified workspace outcome"
+
+    html = relocated / "reports" / "relocated-model.html"
+    export = Console(["report", "export", str(relocated / "workspace"), "--format", "html",
+                      "--output", str(html), "--json"], 0)
+    original = Read(relocated, "reports/html-export.json")
+    assert export == original and export["verified_retained_acquisitions"] == 4, (
+        "The relocated export must verify the same four acquisitions and pin the same snapshot"
+    )
+    assert html.read_bytes() == before["reports/model.html"], (
+        "Offline HTML must render the same retained Finding byte-for-byte at the new location"
+    )
+    assert Files(relocated) == {**before, str(html.relative_to(relocated)): html.read_bytes()}, (
+        "Offline review must preserve the original bundle and publish only the requested new file"
+    )
+
 
 def test_RootCliHumanAssessmentNamesActualFindingAndHtml(tmp_path, capsys):
     """Human root routing exposes the new actual assessment without changing machine commands."""
