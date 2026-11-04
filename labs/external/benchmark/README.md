@@ -29,18 +29,17 @@ version/root controls reuse the existing target contract. Source inspection
 does not prove what the running image returns; preserve actual status, media,
 body attribution, and transfer framing in the eventual scanner evidence.
 
-| Track           | Mapping                                       | Current state                 |
-| --------------- | --------------------------------------------- | ----------------------------- |
-| Native engine   | `native.prometheus-exposition`                | Available; three cases passed |
-| Whole 1337      | Governed Nuclei workflow + candidate template | Candidate                     |
-| External Nuclei | Standalone real binary + same template        | Candidate                     |
+| Track           | Mapping                                      | Verified finite outcome |
+| --------------- | -------------------------------------------- | ----------------------- |
+| Native engine   | `native.prometheus-exposition`               | 1 TP, 2 TN              |
+| Whole 1337      | Governed Nuclei workflow + reviewed template | 1 TP, 2 `unproven`      |
+| External Nuclei | Standalone Nuclei + same template            | 1 TP, 2 `unproven`      |
 
-The candidate checks a standard process CPU metric family; the native detector
-associates generic HELP/TYPE/sample names. They assess the same application
-property with different recognition coverage. The two Nuclei tracks compare
-orchestration, not independent detector algorithms. The template is lab-local,
-not an addition to the packaged scanner registry. Review and pin its digest
-and the genuine binary before enabling execution.
+The lab-local template checks a standard process CPU metric family. The native
+detector associates generic HELP/TYPE/sample names. Both assess the same
+application property with different recognition coverage. Governed and standalone
+execution use the same pinned Nuclei binary and template to compare orchestration.
+See [reproducing the shared CI comparison](#reproduce-the-shared-ci-comparison).
 
 `tests/functional/external_benchmark.py` validates observations and generates
 finite comparison data only. Required acquisition files stay under an explicit
@@ -73,9 +72,8 @@ invocation and leaves independent server contacts unknown. Artifact reads enforc
 the unchanged 2 MiB per-file ceiling and reject oversize bytes without truncation
 or splitting. These schema and inert contract fixtures do not establish
 application execution. The bounded standalone and governed producers, fresh
-target host loop and complete original v2 assembly now have reviewed source.
-Both track implementations are available for explicit selection; application
-runtime remains **UNRUN** until the six actual comparative cases execute.
+target host loop and complete original v2 assembly have reviewed source. The
+shared CI record below supplies separate evidence of application execution.
 
 ## Original 1337Scope native acceptance
 
@@ -141,8 +139,9 @@ authority, plan, worker and Findings identities are retained.
 The installed native lane includes the independently reviewed detector from
 ADR 0103 and its available native mapping. Availability records accepted source,
 not scanner execution. With the variable unset it skips before Docker discovery;
-enabling it while prerequisites or accepted mapping are missing fails. The other
-two scanner tracks remain unrun. The ordinary fixture-owned invocation is:
+enabling it while prerequisites or accepted mapping are missing fails. The
+native-only report records the other two tracks as unrun. The ordinary
+fixture-owned invocation is:
 
 ```bash
 FUZZY1337_EXTERNAL_NATIVE_BENCHMARK=juice-shop uv run --locked --extra dev pytest \
@@ -175,8 +174,8 @@ acceptance. This earlier checkpoint archive remains separately identified.
 The original false negative is preserved separately in
 [artifact 12828328221](https://github.com/Fuzzy-Technologies/1337/actions/runs/40717160124/artifacts/12828328221).
 The corrected predicate admits valid unsigned NaN casing, including `Nan`;
-the original oracle and prior evidence are unchanged. The two candidate Nuclei
-tracks still have no runtime acceptance.
+the original oracle and prior evidence are unchanged. This checkpoint ran the
+native track only.
 
 The existing `external-targets` job in `.github/workflows/python-quality.yml`
 runs the original target smoke followed by these three installed native cases
@@ -208,7 +207,7 @@ Focused offline contract checks:
 uv run --locked --extra dev pytest tests/contract/test_external_benchmark.py --no-cov -n 2
 ```
 
-## Finite two-track Nuclei application source
+## Finite two-track Nuclei application acceptance
 
 The installed image now has a finite application mode for the existing
 `whole1337` and `external-nuclei` tracks, over the same three unchanged cases.
@@ -221,9 +220,9 @@ The separate genuine no-HOME prerequisite passed on source `5887666f`, tree
 `9079e87f`, in [run 40879355362](https://github.com/Fuzzy-Technologies/1337/actions/runs/40879355362).
 It establishes exact version/Go validation with unchanged PATH/LANG and a private
 working directory. The earlier explicit-HOME prerequisite and native three-case
-results remain independently identified above. Neither supplies new application
-case credit. The six application invocations remain UNRUN until supported-runtime
-CI executes their exact final source.
+results remain independently identified above. The six Nuclei application
+invocations were still unrun at the no-HOME checkpoint. Their later runtime
+evidence is recorded in the shared CI comparison below.
 
 After independent source acceptance, select only the six new cases with:
 
@@ -263,3 +262,50 @@ step has a twenty-minute bound with a 900-second pytest signal deadline, followe
 by a one-minute gate; the twenty-five-minute job includes setup and evidence
 retention. Final readiness runs these six cases inside the original external job
 with its prior forty-minute allocation plus twenty-one minutes for the new work.
+
+## Reproduce the shared CI comparison
+
+On 4 November 2026, the exact PR #437 head
+`0f1699430db29a53bf6113e59969f91d3fd7bfbe` and tree
+`87ca8752f47456707ff6dc5767ed72237fb32473` passed both original-evidence gates in
+[run 41839682394, job 126616575525](https://github.com/Fuzzy-Technologies/1337/actions/runs/41839682394/job/126616575525).
+The [original archive 13328626463](https://github.com/Fuzzy-Technologies/1337/actions/runs/41839682394/artifacts/13328626463)
+contains all nine invocations. They used nine fresh Juice Shop 20.2.0 instances
+with the same upstream source, image index, Linux amd64 platform and reset pins.
+
+| Route                             | 1337Scope | Governed Nuclei 3.4.10 | Standalone Nuclei 3.4.10 |
+| --------------------------------- | --------- | ---------------------- | ------------------------ |
+| `/metrics`                        | TP        | TP                     | TP                       |
+| `/rest/admin/application-version` | TN        | `unproven`             | `unproven`               |
+| `/`                               | TN        | `unproven`             | `unproven`               |
+
+An `unproven` result records an exit-zero invocation with empty matching output
+and no independently verified response verdict. It receives no TN or FN credit.
+Each mode used a three-second request limit and one approved GET. The native
+operation limit was 10 seconds with a 256 KiB response ceiling. Both Nuclei modes
+used 3 seconds and 1 MiB. Those differences rule out equal-budget speed or
+accuracy comparisons. The application-wide oracle remains incomplete.
+
+Run the comparison from a checkout containing the offline module. If Git does
+not have the exact CI commit locally, fetch it first with
+`git fetch origin refs/pull/437/head`. Use a fresh worktree for the archive:
+
+```bash
+comparison_head=0f1699430db29a53bf6113e59969f91d3fd7bfbe
+comparison_tree=87ca8752f47456707ff6dc5767ed72237fb32473
+comparison_archive=/absolute/path/to/external-juice-shop.zip
+comparison_checkout=../1337-comparison-original
+
+printf '%s  %s\n' 6d78e55915c85c3123238b7a66f2401d55d341be4d13add6cf285d5ef9ff80a6 \
+  "$comparison_archive" | sha256sum --check &&
+  git worktree add --detach "$comparison_checkout" "$comparison_head" &&
+  unzip -n "$comparison_archive" -d "$comparison_checkout/functional-evidence" &&
+  uv run --locked --extra dev python -m tests.functional.external_scanner_comparison_view \
+    --repository "$comparison_checkout" --head "$comparison_head" --tree "$comparison_tree"
+```
+
+The view reruns both offline gates, validates the original observations, and
+writes JSON to stdout with the two report hashes, target pins, scanner and rule
+identities, effective budgets and per-case outcomes. It starts no scanner or
+target. After GitHub's retention window, reproduction requires a retained copy
+of the original archive with the same digest.

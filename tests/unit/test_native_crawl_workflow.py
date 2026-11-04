@@ -538,12 +538,15 @@ def test_RepeatedCallerCancelSettlesOriginalCleanupAndPreservesFirstFailure(
             )
             release.set()
 
+            # Settlement includes real workspace persistence on the hosted filesystem.
+            settlementTimeout = 10
+
             if presentation_error:
                 with pytest.raises(RuntimeError, match="original presentation error"):
-                    await asyncio.wait_for(asyncio.shield(task), 1)
+                    await asyncio.wait_for(asyncio.shield(task), settlementTimeout)
 
             else:
-                summary = await asyncio.wait_for(asyncio.shield(task), 1)
+                summary = await asyncio.wait_for(asyncio.shield(task), settlementTimeout)
                 assert summary.snapshot.state is JobState.CANCELLED, summary.ToDict()
 
             assert cleaned.is_set(), "Public SDK settlement requires actual original cleanup."
