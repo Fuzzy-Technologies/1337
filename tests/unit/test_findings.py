@@ -29,7 +29,7 @@ from fuzzy1337.model import (
 )
 
 
-def Provenance(source_id="native", run_reference="run:one", evidence=True):
+def Provenance(sourceId="native", runReference="run:one", evidence=True):
     """Supply typed synthetic acquisition or operator context without accessing storage."""
 
     references = (EvidenceReference(
@@ -37,16 +37,16 @@ def Provenance(source_id="native", run_reference="run:one", evidence=True):
     ),) if evidence else ()
 
     return ModelProvenance(
-        source_id, run_reference, "2026-10-11T10:00:00Z", "scope:local", "target:local",
+        sourceId, runReference, "2026-10-11T10:00:00Z", "scope:local", "target:local",
         evidence_references=references,
     )
 
 
-def Host(workspace_id="synthetic"):
+def Host(workspaceId="synthetic"):
     """Create a canonical subject already attributable to the synthetic workspace."""
 
     return SecurityObject(
-        ObjectIdentity(workspace_id, ObjectKind.HOST, "127.0.0.1"), {}, (Provenance(),),
+        ObjectIdentity(workspaceId, ObjectKind.HOST, "127.0.0.1"), {}, (Provenance(),),
     )
 
 

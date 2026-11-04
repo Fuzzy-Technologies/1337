@@ -32,11 +32,11 @@ from fuzzy1337.workspace import (
 )
 
 
-def Provenance(source_id: str = "native", run_reference: str = "run:one") -> ModelProvenance:
+def Provenance(sourceId: str = "native", runReference: str = "run:one") -> ModelProvenance:
     """Build explicit synthetic acquisition context without resolving authorization."""
 
     return ModelProvenance(
-        source_id, run_reference, "2026-10-05T23:00:00+03:00", "scope:local",
+        sourceId, runReference, "2026-10-05T23:00:00+03:00", "scope:local",
         "target:" + "a" * 64,
     )
 
@@ -49,10 +49,10 @@ def Host(address: str = "127.0.0.1") -> SecurityObject:
     )
 
 
-def Store(tmp_path: Path) -> tuple[LocalModelStore, ModelState]:
+def Store(tmpPath: Path) -> tuple[LocalModelStore, ModelState]:
     """Create a real isolated workspace and an independently owned empty model."""
 
-    root = tmp_path / "workspace"
+    root = tmpPath / "workspace"
     LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Synthetic model"), "synthetic")
     store = LocalModelStore(root)
 
