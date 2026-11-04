@@ -8,6 +8,21 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 23 — v0.4.23 — 2026-11-04
+
+#### Digest
+
+- Compare saved 1337Scope functional results with explicit scanner, release and
+  profile selections.
+
+#### Added
+
+- Add an offline repository tool that binds both original report hashes,
+  compares exact compatible oracles and retains per-check outcome changes.
+- Keep missing and incompatible cases, partial runs and measured scanner
+  durations visible while withholding ineligible finite counts.
+
+
 ### Patch 21 — v0.4.21 — 2026-11-04
 
 #### Digest
