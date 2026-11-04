@@ -16,6 +16,7 @@ from fuzzy1337 import native_web_worker as worker
 from fuzzy1337.adapters.native_web import (
     NATIVE_FILE_CANARY_CHECK_ID,
     NATIVE_PROMETHEUS_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
     CanonicalRecord,
     NativeFileCanaryTemplate,
 )
@@ -216,6 +217,25 @@ def test_HttpsUsesVerifiedDefaultTrustAndLiteralServerName(monkeypatch: pytest.M
     assert worker.Probe("https://127.0.0.1:8080/.git/HEAD", 1.0)["matched"], (
         "Verified TLS response did not reach the unchanged predicate."
     )
+
+
+@pytest.mark.parametrize("token", [b"NaN", b"Infinity", b"-Infinity"])
+def test_SqlSampleRejectsNonJsonConstants(
+    monkeypatch: pytest.MonkeyPatch, token: bytes,
+) -> None:
+    """Python JSON extensions never produce a successful SQL response sample."""
+
+    body = b'{"rows":[' + token + b"]}"
+    header = (b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
+              + str(len(body)).encode("ascii") + b"\r\n\r\n")
+    transport = FakeSocket([header + body])
+    monkeypatch.setattr(worker.socket, "socket", lambda *_: transport)
+
+    with pytest.raises(worker.NativeWebResponseError):
+        worker.Probe("http://127.0.0.1:8080/sql-boolean/vulnerable/public", 1.0,
+                     check_id=NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID)
+
+    assert transport.closed, "Rejecting an invalid SQL response leaked its socket."
 
 
 @pytest.mark.parametrize("error,code,name", [

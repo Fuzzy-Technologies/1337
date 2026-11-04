@@ -22,7 +22,9 @@ from urllib.parse import quote, unquote
 HEAD_BYTES = b"ref: refs/heads/owned-fixture\n"
 SQL_TRUE = "' OR is_hidden=1 --"
 SQL_FALSE = "' OR is_hidden=2 --"
-SQL_INPUTS = frozenset(("public", SQL_TRUE, SQL_FALSE))
+SQL_BOOLEAN_TRUE = "public' AND 1=1 AND 'a'='a"
+SQL_BOOLEAN_FALSE = "public' AND 1=0 AND 'a'='a"
+SQL_INPUTS = frozenset(("public", SQL_TRUE, SQL_FALSE, SQL_BOOLEAN_TRUE, SQL_BOOLEAN_FALSE))
 REFLECTION_INPUT = "<fuzzy1337-probe>owned</fuzzy1337-probe>"
 GIT_ROUTES = {
     "/git/vulnerable/.git/HEAD": "vulnerable",
@@ -36,11 +38,27 @@ SQL_ROUTES = {
     "/sql/fixed/" + quote(SQL_TRUE, safe="="): "fixed",
     "/sql/decoy/" + quote(SQL_TRUE, safe="="): "decoy",
 }
+SQL_BOOLEAN_ROUTES = {
+    f"/sql-boolean/{mode}/" + quote(value, safe="="): mode
+    for mode in ("vulnerable", "fixed")
+    for value in ("public", SQL_BOOLEAN_TRUE, SQL_BOOLEAN_FALSE)
+}
 REFLECTION_ROUTES = {
     f"/reflect/{mode}/" + quote(REFLECTION_INPUT, safe="/"): mode
     for mode in ("vulnerable", "fixed", "decoy")
 }
-KNOWN_ROUTES = frozenset((*GIT_ROUTES, *SQL_ROUTES, *REFLECTION_ROUTES, "/redirect"))
+BROKEN_RESPONSES = {
+    "/broken/header": b"HTTP/1.1 200 OK\r\nInvalid Header\r\n\r\n",
+    "/broken/framing": (b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\n"
+                         b"Content-Length: 2\r\n\r\nx"),
+    "/broken/truncated": b"HTTP/1.1 200 OK\r\nContent-Length: 8\r\n\r\nshort",
+    "/broken/status": b"not-an-http-response\r\n\r\n",
+}
+KNOWN_ROUTES = frozenset((
+    *GIT_ROUTES, *SQL_ROUTES, *SQL_BOOLEAN_ROUTES, *REFLECTION_ROUTES, *BROKEN_RESPONSES,
+    "/broken/unavailable",
+    "/redirect",
+))
 MAX_PATH_BYTES = 1024
 MAX_FILE_BYTES = 256
 
@@ -187,12 +205,18 @@ class WebVulnerabilityHandler(BaseHTTPRequestHandler):
             self.Reply(302, b"owned-redirect", "text/plain",
                        location="/git/vulnerable/.git/HEAD")
 
+        elif self.path in BROKEN_RESPONSES:
+            self.wfile.write(BROKEN_RESPONSES[self.path])
+
+        elif self.path == "/broken/unavailable":
+            self.Reply(503, b"owned-configuration-unavailable", "text/plain")
+
         elif self.path in GIT_ROUTES:
             self.GitHead(state, GIT_ROUTES[self.path])
 
-        elif self.path in SQL_ROUTES:
-            mode = SQL_ROUTES[self.path]
-            value = unquote(self.path.removeprefix(f"/sql/{mode}/"), errors="strict")
+        elif self.path in SQL_ROUTES or self.path in SQL_BOOLEAN_ROUTES:
+            mode = SQL_ROUTES.get(self.path) or SQL_BOOLEAN_ROUTES[self.path]
+            value = unquote(self.path.split("/", 3)[3], errors="strict")
             rows = SelectRows(value, parameterized=mode != "vulnerable")
             state.Record("queries", {
                 "input": value, "parameterized": mode != "vulnerable", "rows": rows,
