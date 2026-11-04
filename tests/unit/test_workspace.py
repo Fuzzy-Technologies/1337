@@ -29,10 +29,10 @@ from fuzzy1337.workspace import (
 )
 
 
-def CreateStore(tmp_path: Path) -> tuple[LocalWorkspaceStore, WorkspaceState]:
+def CreateStore(tmpPath: Path) -> tuple[LocalWorkspaceStore, WorkspaceState]:
     """Create an isolated real store and its initial authoritative snapshot."""
 
-    store = LocalWorkspaceStore(tmp_path / "workspace")
+    store = LocalWorkspaceStore(tmpPath / "workspace")
     state = store.Create(WorkspaceConfiguration("Synthetic investigation"), "synthetic-case")
 
     return store, state
