@@ -58,6 +58,8 @@ not prove publisher authentication, legal entitlement, full XSD conformance or
 coverage of the complete normalized catalog.
 
 SDK tests against synthetic responses or retained catalog bytes do not establish
-a fresh HTTPS acquisition. CLI acquisition, installed-wheel acceptance and actual
-HTTPS acceptance are separate work. #43/#47 remain open until their broader
+a fresh HTTPS acquisition. Clean installed-wheel verification over retained bytes
+is recorded in [source acceptance](INTELLIGENCE_SOURCE_ACCEPTANCE.md); it does not
+establish remote availability. CLI acquisition and actual HTTPS acceptance remain
+separate work. #43/#47 remain open until their broader
 source-profile and product acceptance criteria are met.
