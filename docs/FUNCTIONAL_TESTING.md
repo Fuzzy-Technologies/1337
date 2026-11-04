@@ -59,6 +59,11 @@ stderr, argv, and exit status.
 
 ## Oracle metrics and capability matrix
 
+The [1337Scope preservation ledger](LEGACY_PRESERVATION.md) separately records
+reviewed historical detector families and authored QA case identities. Its
+historical readiness annotations do not establish current native acceptance;
+the existing report projections retain those cases as not run.
+
 `fuzzy1337.functional_metrics` is a Development-stability report contract,
 schema version 1, defined by [ADR 0018](adr/0018-oracle-derived-functional-metrics.md).
 `ScenarioOracle` declares check identifiers, capabilities, positive/negative

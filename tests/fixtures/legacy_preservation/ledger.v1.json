@@ -1,0 +1,2525 @@
+{
+  "schema_version": 1,
+  "id": "1337scope.legacy-preservation",
+  "reviewed_source_date": "2026-11-03",
+  "current_reference_commit": "c016e2f169b8fdf5142181d289a08db39faa606e",
+  "owning_issue": 409,
+  "input_sources": [
+    {
+      "id": "engine-archive",
+      "name": "1337-scaner-draft.zip",
+      "sha256": "e6fb46b7ec0a98532c046ca8cd5f27e51bf1c24ea77d12eeee524be9f6a47171",
+      "size_bytes": 65168318
+    },
+    {
+      "id": "qa-archive",
+      "name": "wiki_QAA_25_06_14.zip",
+      "sha256": "8deb85adeac6c60b3f601c676bb859b63ed863081adc8fac4f9449c0d9d0ecb1",
+      "size_bytes": 34006992
+    }
+  ],
+  "qa_sources": [
+    {
+      "id": "qa-procedure",
+      "input_id": "qa-archive",
+      "path": "QAA/6160593.html",
+      "sha256": "1cb4b8182f5a71307e8bf5aff36470e1aaae4f8e6d5f3e7498f9622f7482e4c8"
+    },
+    {
+      "id": "qa-test-layers",
+      "input_id": "qa-archive",
+      "path": "QAA/6160675.html",
+      "sha256": "23e9c4969eeeaaf309e953adb92b750b54feb8436178750c3ee0c2bf5417fcb6"
+    },
+    {
+      "id": "qa-trap-design",
+      "input_id": "qa-archive",
+      "path": "QAA/6160574.html",
+      "sha256": "08f52d192e6dc5da1cdb06961c4b9fd5f7550488c752e61f3e80f5db0b1f49d9"
+    },
+    {
+      "id": "qa-browser-design",
+      "input_id": "qa-archive",
+      "path": "QAA/8749561.html",
+      "sha256": "c933006fc8bc3d9dd979b173aae82b4a676d1a1b0030335b39561233db0498d4"
+    },
+    {
+      "id": "qa-transport-design",
+      "input_id": "qa-archive",
+      "path": "QAA/6160683.html",
+      "sha256": "35085e8c8bd887c904f6bc076f82c5d1aba11fb22c92f9908c1e3a53aa3772a5"
+    },
+    {
+      "id": "qa-auth-design",
+      "input_id": "qa-archive",
+      "path": "QAA/6160688.html",
+      "sha256": "96423a555dab2f83be484efda5cea18475ee1b4546e62513b8566825c6adc288"
+    },
+    {
+      "id": "qa-result-states",
+      "input_id": "qa-archive",
+      "path": "QAA/8749557.html",
+      "sha256": "fe6846f27afc524fcc475ebe2b5cfada30e7bc9aab0d3986eee3b1a0ae70cdad"
+    },
+    {
+      "id": "qa-xss-design",
+      "input_id": "qa-archive",
+      "path": "QAA/XSS_10947262.html",
+      "sha256": "e608344746f0b73d2eeb286f41a38b64f1fd60c9dc98dc3dcd51c0e8bbacebb0"
+    },
+    {
+      "id": "qa-sqli-design",
+      "input_id": "qa-archive",
+      "path": "QAA/SQLi_9472806.html",
+      "sha256": "46aac70fba9f282a49ce5d36b46073eff6c12bec5bfecfb3b38bf5caa65d2343"
+    },
+    {
+      "id": "qa-xss-mindmap",
+      "input_id": "qa-archive",
+      "path": "QAA/attachments/10947262/11142093.png",
+      "sha256": "fbc0b0fc85981f11b931a14ded5c86d88b223993c24df09f92e3e912bf943dea"
+    }
+  ],
+  "families": [
+    {
+      "id": "legacy.family.delivery-coordinates",
+      "title": "Request delivery and composite injection coordinates",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/utils/channels/channels.py",
+        "sha256": "e59789fe686dbbd77791b5527a24b7169b6053e59e99a2bf1bb0a98be83d15af",
+        "line_anchors": [
+          16,
+          88,
+          129,
+          159,
+          178,
+          200,
+          232,
+          248,
+          273,
+          289,
+          321,
+          348
+        ]
+      },
+      "owner_issues": [
+        58,
+        207
+      ],
+      "disposition": "partial",
+      "current_scope": "Structural query/form/header/cookie/path coordinates are accepted; live composite mutation remains planned.",
+      "current_source_paths": [
+        "src/fuzzy1337/requests.py"
+      ],
+      "current_test_refs": [
+        "tests/contract/test_request_contract.py::test_ExampleAndProducerAgreeWithVersionedSchema"
+      ],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Preserve exact location, type, occurrence and array/composite identity.",
+        "Record raw/encoded channel assembly without silently changing authorization."
+      ]
+    },
+    {
+      "id": "legacy.family.structured-mutation",
+      "title": "Recursive JSON and XML mutation",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/transport/query_values.py",
+        "sha256": "711b0e44c73744f9391014225d4b3a2879aedeefa3eaf8c1feddbdfe1a7dce9f",
+        "line_anchors": [
+          124,
+          153,
+          201,
+          271,
+          294,
+          396
+        ]
+      },
+      "owner_issues": [
+        207
+      ],
+      "disposition": "partial",
+      "current_scope": "Explicit JSON, JSON-in-string and Base64 preparation is accepted; XML selectors and live execution remain planned.",
+      "current_source_paths": [
+        "src/fuzzy1337/structured_mutations.py"
+      ],
+      "current_test_refs": [
+        "tests/contract/test_structured_mutations_contract.py::test_ExplicitJsonStringDecodingChangesOnlyTheSelectedInnerScalar"
+      ],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Preserve recursive JSON and explicitly selected nested encodings.",
+        "Plan finite XML element/attribute names, values, text/tail and repeated selectors.",
+        "Keep offline preparation separate from live transmission and retain transformation provenance."
+      ]
+    },
+    {
+      "id": "legacy.family.crawler-and-forms",
+      "title": "Discovery, extraction, forms and combinations",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/init/crawler/crawling.py",
+        "sha256": "926e274cffd4eb04081e8069c5a48210e36fb043980722bbe8e533583c1c41e2",
+        "line_anchors": [
+          32,
+          50,
+          94,
+          141,
+          163,
+          195,
+          249,
+          270
+        ]
+      },
+      "owner_issues": [
+        59,
+        155,
+        157
+      ],
+      "disposition": "partial",
+      "current_scope": "Closed-catalog traversal and captured-source interpretation do not establish general authenticated crawling.",
+      "current_source_paths": [
+        "src/fuzzy1337/captured_web.py",
+        "src/fuzzy1337/web_traversal.py"
+      ],
+      "current_test_refs": [
+        "tests/contract/test_captured_web_contract.py::test_HandwrittenSourceAndOracleBindEveryReturnedStructuralCandidate"
+      ],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Preserve independent expected link/form/request sets.",
+        "Bound depth, exclusions, loops, duplicate links and malformed markup.",
+        "Treat AJAX events, form controls and stateful browser traffic as explicit supported profiles."
+      ]
+    },
+    {
+      "id": "legacy.family.authentication",
+      "title": "Supplied authentication and session success",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/auth/auto_form.py",
+        "sha256": "9528e808b1235b938f068333dfed28f1bc4fa665aaa3754f74c05335fac7e0b3",
+        "line_anchors": [
+          44,
+          87
+        ]
+      },
+      "owner_issues": [
+        146,
+        155,
+        157
+      ],
+      "disposition": "planned",
+      "current_scope": "Session references and prepared journeys do not establish authenticated execution or safe automatic form filling.",
+      "current_source_paths": [
+        "src/fuzzy1337/requests.py"
+      ],
+      "current_test_refs": [
+        "tests/contract/test_request_contract.py::test_ExampleAndProducerAgreeWithVersionedSchema"
+      ],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Classify safe form fields using explicit supplied values.",
+        "Distinguish actual session success, false-success login pages, expiry and failure.",
+        "Declare supplied auth modes and redact credential/session contents."
+      ]
+    },
+    {
+      "id": "legacy.family.response-calibration",
+      "title": "Soft-404 and dynamic error calibration",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/utils/fingerprint404/fingerprint.py",
+        "sha256": "05bf4c496e0ca6c2baf750b14645e1ea28b6b166039717465e5faa7e630202c9",
+        "line_anchors": [
+          44,
+          55,
+          80
+        ]
+      },
+      "owner_issues": [
+        410
+      ],
+      "disposition": "planned",
+      "current_scope": "Independent dynamic/noise/redirect baseline controls require a bounded native profile.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Distinguish soft-404 HTTP 200 from actual resources using bounded baselines.",
+        "Retain dynamic-fragment, nonce, status, generic-error and redirect controls.",
+        "An unstable or insufficient baseline remains unknown."
+      ]
+    },
+    {
+      "id": "legacy.family.technology-observation",
+      "title": "Technology and version observations",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/appfingerprint/fingerprint.py",
+        "sha256": "96d6ab54af9313502a388a3f8b66529fff3de898cc0e4390b831072e7b605fa8",
+        "line_anchors": [
+          54,
+          95,
+          117,
+          138,
+          170,
+          216,
+          264,
+          429
+        ]
+      },
+      "owner_issues": [
+        410,
+        47
+      ],
+      "disposition": "planned",
+      "current_scope": "Observed technology and version must remain separate from vulnerability applicability; old signature datasets are not copied.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Retain source-attributed application/server technology and observed versions.",
+        "Separate observation from affected-product matching and vulnerability applicability.",
+        "Do not migrate unreviewed embedded signature or CVE datasets."
+      ]
+    },
+    {
+      "id": "legacy.family.sqli-error-and-differential",
+      "title": "SQL error and boolean differential inference",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/sqli/vulner.py",
+        "sha256": "aa51a267b88a7b68196d8f09940d4990e78c05e9f930559b0c0fc7338050772e",
+        "line_anchors": [
+          26,
+          73,
+          162,
+          181
+        ]
+      },
+      "owner_issues": [
+        411,
+        207
+      ],
+      "disposition": "planned",
+      "current_scope": "The external-provider result canary does not implement native baseline/true/false inference.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Preserve baseline/true/false comparison and response-similarity reasoning.",
+        "Account for injected-input reflection/removal rather than treating reflected probes as SQL proof.",
+        "Distinguish actual query errors from static SQL error pages, fixed queries and equivalent responses."
+      ]
+    },
+    {
+      "id": "legacy.family.sqli-timing",
+      "title": "Bounded SQL timing inference",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/sqli/vulner.py",
+        "sha256": "aa51a267b88a7b68196d8f09940d4990e78c05e9f930559b0c0fc7338050772e",
+        "line_anchors": [
+          209,
+          244,
+          274,
+          290
+        ]
+      },
+      "owner_issues": [
+        411
+      ],
+      "disposition": "planned",
+      "current_scope": "Timing needs a separately selected finite noise/latency profile; a timeout is not proof.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Keep timing inference distinct from boolean/error inference.",
+        "Use bounded repeated/noise controls, finite request/rate/deadline budgets and supported dialects.",
+        "Unrelated latency or timeout alone cannot establish injection."
+      ]
+    },
+    {
+      "id": "legacy.family.xss-context",
+      "title": "Reflected XSS context and filter inference",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/xss/common/locator.py",
+        "sha256": "91720175a00a26f0059e5c10a87fba649e58577f267b628b35829c64bd29e19e",
+        "line_anchors": [
+          39,
+          144,
+          162
+        ]
+      },
+      "owner_issues": [
+        412
+      ],
+      "disposition": "planned",
+      "current_scope": "Finite provider reflection coverage does not establish native context inference or browser execution.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Locate HTML text, tag, attribute, event and script output contexts.",
+        "Retain quote/encoding/filter distinctions and independent non-executable controls.",
+        "Reflection alone cannot establish executable XSS."
+      ]
+    },
+    {
+      "id": "legacy.family.xss-browser-and-storage",
+      "title": "Browser confirmation and stored XSS correlation",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/xss/vulner/__init__.py",
+        "sha256": "cd4daf167ba39ba317e3afcea058c28b0ec61a391b6a75ebd688763fe0c238b8",
+        "line_anchors": [
+          58,
+          122
+        ]
+      },
+      "owner_issues": [
+        412,
+        155,
+        157
+      ],
+      "disposition": "planned",
+      "current_scope": "A separate governed browser-canary profile and exact stored write/read correlation remain required.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Require actual governed browser-canary events for browser-confirmed claims.",
+        "Bind stored writes, later reads, session and exact current source evidence.",
+        "Clean owned stored state on every terminal outcome."
+      ]
+    },
+    {
+      "id": "legacy.family.file-boundary",
+      "title": "File inclusion, traversal and resource proof",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/fileops/vulner/include_resource.py",
+        "sha256": "6da45d2230dd7ea3220d2ea34822e7266e8ce5229ce54d6d643d16851d42af69",
+        "line_anchors": [
+          17,
+          35,
+          54
+        ]
+      },
+      "owner_issues": [
+        413,
+        147
+      ],
+      "disposition": "partial",
+      "current_scope": "Only the exact owned non-secret file-canary profile is accepted; broader path transformations remain planned.",
+      "current_source_paths": [
+        "src/fuzzy1337/native_web.py"
+      ],
+      "current_test_refs": [
+        "tests/functional/test_native_file_canary.py::test_OwnedCanaryMatrixUsesActualReadsAndReopensOriginalEvidenceOffline"
+      ],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Retain prefix/suffix, extension, encoding and path-transformation distinctions.",
+        "Require actual owned resource reads and known source content.",
+        "Separate missing-resource/error-path hints from confirmed file-boundary behavior."
+      ]
+    },
+    {
+      "id": "legacy.family.upload-lifecycle",
+      "title": "Inert upload and returned-resource validation",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/fileupload/tools.py",
+        "sha256": "6c26753738f505309d48b03fa96ebda40e218a2a1dce7226f19f9fd88cf9169e",
+        "line_anchors": [
+          10,
+          34,
+          41,
+          58,
+          70
+        ]
+      },
+      "owner_issues": [
+        413
+      ],
+      "disposition": "planned",
+      "current_scope": "Simulation canaries are target contracts; native upload acceptance, retrieval and cleanup remain planned.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Keep upload acceptance, returned-resource retrievability and execution distinct.",
+        "Use finite inert owned content, generated names and bounded state lifetime.",
+        "Clean uploaded state on success, failure, cancellation and timeout."
+      ]
+    },
+    {
+      "id": "legacy.family.open-redirect",
+      "title": "HTTP and meta redirect assessment",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/openredirect/vulner.py",
+        "sha256": "d27e19e877c1f3bb2a072ca7b7ef23e24c026c78229be7d95d565454545a389d",
+        "line_anchors": [
+          46,
+          73,
+          101,
+          120
+        ]
+      },
+      "owner_issues": [
+        414
+      ],
+      "disposition": "planned",
+      "current_scope": "Transport redirect refusal is preserved but is not an open-redirect detector.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Interpret HTTP Location and meta-refresh destinations under explicit normalization rules.",
+        "Distinguish actual destination behavior from body reflection and same-origin restrictions.",
+        "Never automatically follow an unapproved destination to establish a positive."
+      ]
+    },
+    {
+      "id": "legacy.family.response-injection",
+      "title": "Header injection and response splitting",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/httpheaderinj/hhi_vulner.py",
+        "sha256": "741ec6f30b74aeea30fd57c1ce58202d4013fffd0913ddaa38da73824f5987c2",
+        "line_anchors": [
+          29,
+          81
+        ]
+      },
+      "owner_issues": [
+        414,
+        97
+      ],
+      "disposition": "planned",
+      "current_scope": "Passive header posture is separate from bounded marker-only injection proof.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Keep injected-header and response-splitting observations distinct from passive header posture.",
+        "Use marker-only independent framing/response controls.",
+        "Do not weaken global transport framing to reproduce an old check."
+      ]
+    },
+    {
+      "id": "legacy.family.server-execution",
+      "title": "Code, command, SSI and historical execution variants",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/rce_lib/vulner.py",
+        "sha256": "4bbe108b822fe65f14219d16ae9ba89cf7f1a51e30e5bb8559d9857bfb09b4bd",
+        "line_anchors": [
+          76,
+          124,
+          146
+        ]
+      },
+      "owner_issues": [
+        415,
+        98
+      ],
+      "disposition": "planned",
+      "current_scope": "Owned inert postconditions need explicit profiles; obsolete variants require deliberate defer/retire decisions.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Inventory code, OS-command and SSI families separately.",
+        "Use finite owned inert postconditions; distinguish result confirmation, suspicion and timing.",
+        "Give historical Shellshock and obsolete variants explicit defer/retire decisions."
+      ]
+    },
+    {
+      "id": "legacy.family.xml-entities",
+      "title": "XML parser and entity-resolution assessment",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/xxe/vulner.py",
+        "sha256": "c54d72288181c3f4a5b1a1b5dd21ec0e9846028ffe2389efd3c24796c06a24b9",
+        "line_anchors": [
+          11
+        ]
+      },
+      "owner_issues": [
+        416,
+        207
+      ],
+      "disposition": "planned",
+      "current_scope": "A finite local resolver/canary profile remains planned; parser errors do not establish XXE.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Distinguish XML parser errors from actual local entity resolution.",
+        "Use a non-sensitive owned canary/resolver and finite document/expansion/output bounds.",
+        "Never infer general SSRF or arbitrary file access from the local profile."
+      ]
+    },
+    {
+      "id": "legacy.family.session-form-posture",
+      "title": "Session, cookie, URL and HTTPS form posture",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/sessionchecks/tools.py",
+        "sha256": "eba05c684562b9a76581d463e4bea1ab24fb523d5725b6d288027bcf19622967",
+        "line_anchors": [
+          22,
+          52,
+          60,
+          73,
+          85
+        ]
+      },
+      "owner_issues": [
+        417,
+        146,
+        155
+      ],
+      "disposition": "planned",
+      "current_scope": "Passive observations and any reversible CSRF confirmation require separate evidence; token absence is insufficient.",
+      "current_source_paths": [],
+      "current_test_refs": [],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Retain cookie attributes, URL-session and HTTPS-form observations.",
+        "Keep posture, authentication success and CSRF confirmation separate.",
+        "Any CSRF confirmation requires an explicitly authorized reversible action and observed postcondition."
+      ]
+    },
+    {
+      "id": "legacy.family.exposure-discovery",
+      "title": "Error exposure and bounded hidden resources",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/modules/infoexposure/checks.py",
+        "sha256": "6bfa7ec5f392bb3a5aa8eb6aa76e061e860631114dcf604990e7a76189e71d52",
+        "line_anchors": [
+          4,
+          18,
+          32,
+          45
+        ]
+      },
+      "owner_issues": [
+        410
+      ],
+      "disposition": "partial",
+      "current_scope": "Accepted Git HEAD and Prometheus checks are finite profiles; remaining exposure and hidden-resource inference remain planned.",
+      "current_source_paths": [
+        "src/fuzzy1337/native_web.py"
+      ],
+      "current_test_refs": [
+        "tests/functional/test_native_web_checks.py::test_FirstPartyGitChecksMatchIndependentOracleAndDurablyReopen",
+        "tests/functional/test_native_prometheus.py::test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings"
+      ],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Retain error, stack, SQL and server-information exposure categories.",
+        "Bound hidden-resource filename variations and declare dictionary provenance.",
+        "Use soft-404 calibration and fixed/decoy controls before reporting exposure."
+      ]
+    },
+    {
+      "id": "legacy.family.shared-evidence-lifecycle",
+      "title": "Evidence, findings, jobs and deduplication",
+      "source": {
+        "input_id": "engine-archive",
+        "path": "webengine-cross.4.0.320-master/wngnx/reporter/writers.py",
+        "sha256": "1274ff8cbbd9831c9bf6766b57d9d0e8b3a4f9d67636ac93d9a2fce689784522",
+        "line_anchors": [
+          1
+        ]
+      },
+      "owner_issues": [
+        53,
+        57,
+        59,
+        92,
+        95,
+        96,
+        97
+      ],
+      "disposition": "shared-foundation",
+      "current_scope": "Existing shared contracts own modern evidence and lifecycle behavior; old global registries, retries and runtime state are not migrated.",
+      "current_source_paths": [
+        "src/fuzzy1337/evidence.py",
+        "src/fuzzy1337/jobs.py",
+        "src/fuzzy1337/findings.py"
+      ],
+      "current_test_refs": [
+        "tests/contract/test_scan_job_contract.py::test_JobEventWireContractIsVersionedContiguousAndDeterministic"
+      ],
+      "current_run_evidence": null,
+      "preserved_requirements": [
+        "Keep raw evidence separate from canonical findings and manual triage.",
+        "Retain job, exact invocation, cancellation, failure and partial-result truth.",
+        "Reuse modern deduplication and evidence owners instead of old global state or automatic retries."
+      ]
+    }
+  ],
+  "xss_cases": [
+    {
+      "id": "legacy.xss.001",
+      "source_id": "qa-xss-design",
+      "source_row": 1,
+      "historical_label_sha256": "d8d2726921cbb84b4bf7412cd6f774c7234929a7b7f67ebbc6946ed2c7f994d3",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.002",
+      "source_id": "qa-xss-design",
+      "source_row": 2,
+      "historical_label_sha256": "3d96b0f0d946e3a46222436d61d5b466b273388c18098ab1281487f299e5873d",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.003",
+      "source_id": "qa-xss-design",
+      "source_row": 3,
+      "historical_label_sha256": "b4ee95d54820307171a70a917f4b05c24aa5d00a69952dd412922dbec85c2bff",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.004",
+      "source_id": "qa-xss-design",
+      "source_row": 4,
+      "historical_label_sha256": "f3e603381b9bb9023cda1e6cd87659667f84abe1e78001cf71d45346c573b9b1",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.005",
+      "source_id": "qa-xss-design",
+      "source_row": 5,
+      "historical_label_sha256": "8650eb128ac1a77c73c7423617397e9b4403127e485d239d684a932308cdf4b9",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.006",
+      "source_id": "qa-xss-design",
+      "source_row": 6,
+      "historical_label_sha256": "0f1f3633b2c839d840a52f6dd4488aefda3401b61df017696c91fa07663dca75",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.007",
+      "source_id": "qa-xss-design",
+      "source_row": 7,
+      "historical_label_sha256": "99c7b708362d39cb4a4a42fcb6ca3a660e9f54319fd667097eff96d71fa9a777",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.008",
+      "source_id": "qa-xss-design",
+      "source_row": 8,
+      "historical_label_sha256": "5244868819cd87f0164f654518f9e928c88dacc38bab905d6a463f1510f6e2e1",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.009",
+      "source_id": "qa-xss-design",
+      "source_row": 9,
+      "historical_label_sha256": "fdc89573fff7e76838823df91e5bb1eae7781bd53dc93438f726910e1cf12c51",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.010",
+      "source_id": "qa-xss-design",
+      "source_row": 10,
+      "historical_label_sha256": "148feb4e368224b1df020d56cef22488d35b54a76f194c7da80e711c4066cea4",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.011",
+      "source_id": "qa-xss-design",
+      "source_row": 11,
+      "historical_label_sha256": "48a88f616545a41f246c018415d853ea5d6bff2c742df02e57ff238875ed5626",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.012",
+      "source_id": "qa-xss-design",
+      "source_row": 12,
+      "historical_label_sha256": "11ec1e71d8b4a1713735e51f2fada5ec25183b5fe843fa0084b86285c1aba4e3",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.013",
+      "source_id": "qa-xss-design",
+      "source_row": 13,
+      "historical_label_sha256": "ceb6b60d76d21396fb9d60a7a59413d33a869606ac420cd347658455740f445f",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.014",
+      "source_id": "qa-xss-design",
+      "source_row": 14,
+      "historical_label_sha256": "95e2c4e7d6f31d9aae59c7c304798a3d6e5585399e4d2ac26d43b5db98e1394d",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.015",
+      "source_id": "qa-xss-design",
+      "source_row": 15,
+      "historical_label_sha256": "ad75f320bf14af502d2806cad5665afb22758b816c0f6d757a34394f3a7b953c",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.016",
+      "source_id": "qa-xss-design",
+      "source_row": 16,
+      "historical_label_sha256": "0cbdf6860b18e260cd04e478c1724e068a33d631afb45ea853ebf547042c9c69",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.017",
+      "source_id": "qa-xss-design",
+      "source_row": 17,
+      "historical_label_sha256": "54d977eb8b621dc1ccf48d74863dbe67faf1d9db781f489aa0f49eef0de34ffb",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.018",
+      "source_id": "qa-xss-design",
+      "source_row": 18,
+      "historical_label_sha256": "4034c5cd15b9d1aaf9011765e7bd666222046acbda624252029a39e9beb758c6",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.019",
+      "source_id": "qa-xss-design",
+      "source_row": 19,
+      "historical_label_sha256": "e3517a27e484ed230b4e56b5ea4145382c173bd28537b5ebec3554b0b489f74c",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.020",
+      "source_id": "qa-xss-design",
+      "source_row": 20,
+      "historical_label_sha256": "b522099a6ecafdea6eb52355750ad18e465699c3bf6fdd0911b9624428154b5c",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.021",
+      "source_id": "qa-xss-design",
+      "source_row": 21,
+      "historical_label_sha256": "5312f24de46322eba857903cd0d0ac1ee7dcd10fb30cdd0d08b43be23426dc38",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.022",
+      "source_id": "qa-xss-design",
+      "source_row": 22,
+      "historical_label_sha256": "76bab5a31dfa6c3438e88ba6f4f59f65d0bdd8221c1074327db0aef5cc7a6438",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.023",
+      "source_id": "qa-xss-design",
+      "source_row": 23,
+      "historical_label_sha256": "717cca8e012af195c0c724ea44eb417dcec4313b6f1fb64c1d26d2c070fbf1a7",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.024",
+      "source_id": "qa-xss-design",
+      "source_row": 24,
+      "historical_label_sha256": "2d4098332f05e682778abddd0dc4b00d1d039022ab0f82e9423011f08f594cd8",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.025",
+      "source_id": "qa-xss-design",
+      "source_row": 25,
+      "historical_label_sha256": "081e89d71585016dfa43e5f427ac5c051833f33435fd0d68ef4d7d5757a66da2",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.026",
+      "source_id": "qa-xss-design",
+      "source_row": 26,
+      "historical_label_sha256": "dbbcda7b2bf1366ad65d1cb735d4bf1caf34b88d30cca30e646804d2e09954a8",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.027",
+      "source_id": "qa-xss-design",
+      "source_row": 27,
+      "historical_label_sha256": "06744101854854b93fda9bcbb0ea597909bdffa9477550cd8e1c29218306e6f5",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.028",
+      "source_id": "qa-xss-design",
+      "source_row": 28,
+      "historical_label_sha256": "e627e53ca59cd3a8e5d612e0befd051851c2a1a875d466ab7bb1d0f9a6df9a10",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.029",
+      "source_id": "qa-xss-design",
+      "source_row": 29,
+      "historical_label_sha256": "1fd2b3f70dd61baa25b43846146000f6af6169c7ac5e6e7ae2f5b0f5f790d738",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": true,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.030",
+      "source_id": "qa-xss-design",
+      "source_row": 30,
+      "historical_label_sha256": "2fb03f226291814277f323c12f0ec093b4aa8b15597eba60ce76c6da8da2b5fe",
+      "kind": "reflected",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.031",
+      "source_id": "qa-xss-design",
+      "source_row": 31,
+      "historical_label_sha256": "0e5ad395415ea3a5a164bdebaa44e7e30bb66a603b27772c085f3e022a81910e",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.032",
+      "source_id": "qa-xss-design",
+      "source_row": 32,
+      "historical_label_sha256": "a76d87dc34e72b734a73c5f03647f4096ffb28f5f084d8c86d27edcf2840df0e",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.033",
+      "source_id": "qa-xss-design",
+      "source_row": 33,
+      "historical_label_sha256": "3443ed91d9743d667571ddea1dd61ab2451ba04e7ab600bb66bf6323e9f83e28",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.034",
+      "source_id": "qa-xss-design",
+      "source_row": 34,
+      "historical_label_sha256": "a1c9cdbbd50546802bd85b0cf86c6c5c8e066451deb7e5570d10da3b9996d31b",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.035",
+      "source_id": "qa-xss-design",
+      "source_row": 35,
+      "historical_label_sha256": "af367bd00581e3cff0147cdb34707a00cefbb08d12ec93b96db0342217cf609b",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "html-text",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.036",
+      "source_id": "qa-xss-design",
+      "source_row": 36,
+      "historical_label_sha256": "cea3f68c9ac05e054c14faa1eed4faebbfc07d1b7cce38f4b655c34c83f272fb",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.037",
+      "source_id": "qa-xss-design",
+      "source_row": 37,
+      "historical_label_sha256": "440d49a1e7a927a23e7571df675a11f6e8de47422b3efd1e78d0ddf8e313abc2",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.038",
+      "source_id": "qa-xss-design",
+      "source_row": 38,
+      "historical_label_sha256": "2c20939d321839c068cde9f755cbd6769b39e26a65710a7653ae76d9c4f1b964",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.039",
+      "source_id": "qa-xss-design",
+      "source_row": 39,
+      "historical_label_sha256": "cd962c224f939c0e5b7de04ad84fa5b76d2c31a161e7f53a69a5e37fe128927d",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.040",
+      "source_id": "qa-xss-design",
+      "source_row": 40,
+      "historical_label_sha256": "64faff94871be7e1e5b1d41a81eecb4af64fc72ef5369bcb4a8c90e0ef27785b",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "html-attribute",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.041",
+      "source_id": "qa-xss-design",
+      "source_row": 41,
+      "historical_label_sha256": "6caf41665a4938d1697fca87ad1b8551c494ec832f5bd853e40b655d9541a345",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.042",
+      "source_id": "qa-xss-design",
+      "source_row": 42,
+      "historical_label_sha256": "8b58b2edb671ef2512ca13096f28629a0c0746ddcd9be8250d74990b641c5b92",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.043",
+      "source_id": "qa-xss-design",
+      "source_row": 43,
+      "historical_label_sha256": "a892a9038b8529fefd12e4db8d99b57402b6c84b8925068e436b4719c2292e3d",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.044",
+      "source_id": "qa-xss-design",
+      "source_row": 44,
+      "historical_label_sha256": "6b6655f5ed69f3facd6ad8e30583303827f8255e67c69ebc2e3a584825af6a02",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.045",
+      "source_id": "qa-xss-design",
+      "source_row": 45,
+      "historical_label_sha256": "bdca879e1d18361e363df2088b332ed610a8a09638812d789cef30d64d0a5e46",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "html-tag",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.046",
+      "source_id": "qa-xss-design",
+      "source_row": 46,
+      "historical_label_sha256": "b9883f204c4979f1e9094952efa22dac55609a376c586bf0a3a5e59a35f9271f",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.047",
+      "source_id": "qa-xss-design",
+      "source_row": 47,
+      "historical_label_sha256": "42c1d2a01a7c0fb8e5a3b72909b121efbc4eadee7c122aecaeb0509c9a828d66",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.048",
+      "source_id": "qa-xss-design",
+      "source_row": 48,
+      "historical_label_sha256": "2fb9d15c0c63708182a350a01f707d14fae42a7f44d24494142490f27c636cca",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.049",
+      "source_id": "qa-xss-design",
+      "source_row": 49,
+      "historical_label_sha256": "55c0d1cf6ec84e49cb929f1a88fba915f2cc2b19c812a3067be8b9bfc265243f",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.050",
+      "source_id": "qa-xss-design",
+      "source_row": 50,
+      "historical_label_sha256": "ea9172783b8e06b31cf7e08bcd83399905ec49a3aa5984b0df499721b508b3d0",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "ajax",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.051",
+      "source_id": "qa-xss-design",
+      "source_row": 51,
+      "historical_label_sha256": "b85b069bd214f2b3a1084d38db0a3bc257cb028376fa366a973ec565f60c7d89",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.052",
+      "source_id": "qa-xss-design",
+      "source_row": 52,
+      "historical_label_sha256": "6c922ee7c27998317cd0d9e69ad883b9a210c2a73c17b83ee94c947bc37f99fd",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.053",
+      "source_id": "qa-xss-design",
+      "source_row": 53,
+      "historical_label_sha256": "14853b6367587e92a803a9250e6de57d1663b0a7e0a374c7744391fed392a212",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.054",
+      "source_id": "qa-xss-design",
+      "source_row": 54,
+      "historical_label_sha256": "f73d6e87ffb8adacc21596d5b1d1b914c4150a9218edcc228e9675e36f5c7b9c",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.055",
+      "source_id": "qa-xss-design",
+      "source_row": 55,
+      "historical_label_sha256": "3c75523c8c74ae835249b4a5a1264afebe5cd2a2c8623fd11361bdd08b4807e6",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "redirect",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.056",
+      "source_id": "qa-xss-design",
+      "source_row": 56,
+      "historical_label_sha256": "cdd03dc428d5f499867a6eadb77ebdb49ae28dfe0cdba0a69df75fd2ca6b691a",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "get",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.057",
+      "source_id": "qa-xss-design",
+      "source_row": 57,
+      "historical_label_sha256": "b12632096aa3225faf34fc82ed99150cf7efb6e55cd77a10ee75b028c8df85f3",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "post",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.058",
+      "source_id": "qa-xss-design",
+      "source_row": 58,
+      "historical_label_sha256": "85b6b95a4d7853768bb07070935e5e2e5eb35fff7ef23c785d09a2b76b7f802c",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "cookie",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.059",
+      "source_id": "qa-xss-design",
+      "source_row": 59,
+      "historical_label_sha256": "1266fb5fa7a4978b8f1af0ee2b37a20fc3ca6bd42b1428655cbe8f1c610aca4a",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "header",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss.060",
+      "source_id": "qa-xss-design",
+      "source_row": 60,
+      "historical_label_sha256": "e85021d518f6ef32453b515a34e7750ed00fba65c4a5d7730f9130e439256bc5",
+      "kind": "stored",
+      "historical_browsers": [
+        "IE",
+        "FF",
+        "CHR"
+      ],
+      "language": "javascript",
+      "protection": "none",
+      "delivery": "url",
+      "context": "script",
+      "historical_target_ready": true,
+      "historical_autotest_ready": false,
+      "disposition": "planned",
+      "owner_issue": 412,
+      "dependencies": [
+        146,
+        155,
+        157
+      ],
+      "current_state": "not-run",
+      "current_test_ref": null,
+      "current_run_evidence": null
+    }
+  ],
+  "xss_refinements": [
+    {
+      "id": "legacy.xss-refinement.quote-and-event-contexts",
+      "source_id": "qa-xss-mindmap",
+      "owner_issues": [
+        412
+      ],
+      "disposition": "planned",
+      "requirement": "Quote and event-attribute distinctions need independently authored modern contexts.",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss-refinement.tag-context-semantics",
+      "source_id": "qa-xss-mindmap",
+      "owner_issues": [
+        412
+      ],
+      "disposition": "planned",
+      "requirement": "Tag handling must distinguish actual executable context from reflection.",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss-refinement.non-executable-controls",
+      "source_id": "qa-xss-mindmap",
+      "owner_issues": [
+        412
+      ],
+      "disposition": "planned",
+      "requirement": "Comment, iframe, textarea, noscript and plaintext-like contexts need explicit positive/fixed/decoy dispositions.",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss-refinement.redirect-meta-and-data-contexts",
+      "source_id": "qa-xss-mindmap",
+      "owner_issues": [
+        412,
+        414
+      ],
+      "disposition": "planned",
+      "requirement": "Redirect, meta and data-scheme contexts require explicit supported delivery decisions.",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss-refinement.historical-browser-variants",
+      "source_id": "qa-xss-mindmap",
+      "owner_issues": [
+        412,
+        155
+      ],
+      "disposition": "decision-required",
+      "requirement": "IE, Firefox, Chrome and Opera historical variants are not assumed to be modern supported profiles.",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.xss-refinement.protection-levels",
+      "source_id": "qa-xss-mindmap",
+      "owner_issues": [
+        412,
+        409
+      ],
+      "disposition": "planned",
+      "requirement": "The 60 rows declare no protection; protected and partially bypassable variants are additional design dimensions.",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    }
+  ],
+  "qa_requirements": [
+    {
+      "id": "legacy.qa.finite-oracle-and-protection-levels",
+      "source_id": "qa-procedure",
+      "owner_issues": [
+        409,
+        92,
+        96
+      ],
+      "disposition": "planned-continuation",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.qa.exact-discovery-sets-and-loop-dedup",
+      "source_id": "qa-test-layers",
+      "owner_issues": [
+        157
+      ],
+      "disposition": "planned-continuation",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.qa.malformed-markup-framing-mime-and-stress",
+      "source_id": "qa-trap-design",
+      "owner_issues": [
+        157,
+        97,
+        409
+      ],
+      "disposition": "planned-continuation",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.qa.ajax-events-exclusions-depth-and-forms",
+      "source_id": "qa-browser-design",
+      "owner_issues": [
+        155,
+        157,
+        146
+      ],
+      "disposition": "planned-continuation",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.qa.http-compression-tls-user-agent-and-proxy",
+      "source_id": "qa-transport-design",
+      "owner_issues": [
+        97,
+        207,
+        409
+      ],
+      "disposition": "planned-continuation",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.qa.supplied-auth-modes-success-expiry-and-failure",
+      "source_id": "qa-auth-design",
+      "owner_issues": [
+        146,
+        155
+      ],
+      "disposition": "planned-continuation",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.qa.distinct-result-states-release-comparison-and-durations",
+      "source_id": "qa-result-states",
+      "owner_issues": [
+        409,
+        96
+      ],
+      "disposition": "planned-continuation",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    },
+    {
+      "id": "legacy.qa.finite-sqli-dialect-and-environment-selection",
+      "source_id": "qa-sqli-design",
+      "owner_issues": [
+        411
+      ],
+      "disposition": "planned-continuation",
+      "current_state": "not-run",
+      "current_run_evidence": null
+    }
+  ],
+  "limits": [
+    "Historical readiness annotations are documentation facts, not executed results.",
+    "Current test references identify existing narrower contracts; they do not establish complete historical coverage.",
+    "The 60 case labels do not contain original executable targets or test programs.",
+    "Per-case result-bundle comparison, runtime mappings and complete mindmap expansion remain follow-on issue 409 work.",
+    "No legacy code, payload collection, runtime state, credentials or historical target address is included."
+  ]
+}

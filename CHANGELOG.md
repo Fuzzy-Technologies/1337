@@ -8,6 +8,21 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 22 — v0.4.22 — 2026-11-04
+
+#### Digest
+
+- Preserve reviewed historical 1337Scope detector and QA scenario identities
+  with explicit planned work and honest current execution gaps.
+
+#### Added
+
+- Add a checked ledger for 19 behavior families, 60 numbered XSS source rows,
+  distinctive detector requirements, source hashes and concrete owning issues.
+- Retain historical readiness separately from current run evidence, and reuse
+  existing report projections to display unexecuted cases as not run.
+
+
 ### Patch 21 — v0.4.21 — 2026-11-04
 
 #### Digest
