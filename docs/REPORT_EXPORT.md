@@ -57,7 +57,10 @@ source claims and finding interpretations.
 
 HTML is the existing self-contained dark report with escaped text, native
 disclosures and canonical evidence/object fragments. It includes no scripts,
-remote assets or acquired raw bytes. JUnit XML retains one case per Finding:
+remote assets or acquired raw bytes. Selected native HTML reflection and SQL
+sampling observations link to their retained response evidence. These rows
+report lexical marker observations and individual samples separately from
+browser execution and injection assessment. JUnit XML retains one case per Finding:
 open/confirmed dispositions fail and dismissed/resolved dispositions skip.
 An empty snapshot has zero cases, without inventing passed security checks.
 Report metadata retains original source failures, verified byte references,

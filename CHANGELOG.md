@@ -8,6 +8,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 29 — v0.4.29 — 2026-11-04
+
+#### Digest
+
+- Explain native response observations in the offline HTML report.
+
+#### Added
+
+- Show retained HTML reflection and SQL sampling observations with subject and
+  evidence links, alongside separate findings and execution outcomes.
+
+
 ### Patch 28 — v0.4.28 — 2026-11-04
 
 #### Digest
