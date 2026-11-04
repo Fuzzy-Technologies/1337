@@ -11,7 +11,12 @@ from http import HTTPStatus
 from typing import cast
 from xml.etree import ElementTree
 
-from fuzzy1337.adapters.contracts import EvidenceReference, JsonValue
+from fuzzy1337.adapters.contracts import EvidenceReference, ExecutionState, JsonValue
+from fuzzy1337.adapters.native_web import (
+    NATIVE_HTML_REFLECTION_CHECK_ID,
+    NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID,
+    NATIVE_WEB_PROVIDER_ID,
+)
 from fuzzy1337.assessments import InterpretSeverity
 from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus
 from fuzzy1337.intelligence import IntelligenceFeed
@@ -337,6 +342,55 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
                          + JsonBlock(outcome) + "</details></td></tr>")
 
         lines.append("</tbody></table></div>")
+
+    responseRows = []
+    objects = {entity.Reference(): entity for entity in report.state.objects}
+
+    for observation in report.state.observations:
+        provenance = observation.provenance
+        subject = objects.get(observation.subject_reference)
+
+        if (observation.kind != "native.web-response-check"
+                or subject is None or subject.identity.kind is not ObjectKind.ENDPOINT
+                or provenance.source_id != NATIVE_WEB_PROVIDER_ID
+                or provenance.execution is None
+                or provenance.execution.state is not ExecutionState.SUCCEEDED
+                or not provenance.evidence_references):
+            continue
+
+        checkId = observation.attributes.get("check_id")
+        matched = observation.attributes.get("matched")
+
+        if checkId == NATIVE_HTML_REFLECTION_CHECK_ID and isinstance(matched, bool):
+            profile = "HTML reflection"
+            result = "Lexical marker observed" if matched else "Lexical marker not observed"
+
+        elif (checkId == NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID
+                and "matched" in observation.attributes and matched is None):
+            profile = "SQL response sample"
+            result = "Response captured; assessment pending"
+
+        else:
+            continue
+
+        evidenceLinks = ", ".join(
+            f'<a href="#{EvidenceId(reference)}">{Html(reference.role)}</a>'
+            for reference in provenance.evidence_references
+        )
+        responseRows.append(f"<tr><td>{profile}</td><td>"
+                            + ObjectLink(observation.subject_reference, ObjectLabel(subject))
+                            + f"</td><td>{result}</td><td>{evidenceLinks}</td></tr>")
+
+    if responseRows:
+        lines.extend([
+            "<h3>Selected native response observations</h3>",
+            "<p>These rows describe individual retained responses. HTML reflection does not "
+            "establish browser execution. A SQL sample alone does not assess injection.</p>",
+            '<div class="table"><table><thead><tr><th>Profile</th><th>Subject</th>'
+            '<th>Observation</th><th>Evidence</th></tr></thead><tbody>',
+            *responseRows,
+            "</tbody></table></div>",
+        ])
 
     lines.append("<p>What was not checked: this report has no complete inventory of attempted "
                  "or omitted checks. Scan completeness was not assessed. Historical results "

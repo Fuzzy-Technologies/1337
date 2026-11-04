@@ -86,6 +86,25 @@ def Confirm(arguments: list[str], plan: dict) -> list[str]:
         "--confirmation-reference", "approval:owned-native-cli"]
 
 
+def AssertNativeResponseHtml(root: Path, expected: str, capsys) -> None:
+    """Exercise offline product export with a real stored response and verified artifacts."""
+
+    capsys.readouterr()
+    destination = root.parent / f"{root.name}.html"
+    assert Main(["report", "export", str(root), "--format", "html",
+                 "--output", str(destination), "--json"]) == 0, (
+        "The product could not export its retained native response."
+    )
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["verified_retained_acquisitions"] == 2, (
+        "Report export must verify both retained worker streams."
+    )
+    rendered = destination.read_text(encoding="utf-8")
+    assert "<h3>Selected native response observations</h3>" in rendered and expected in rendered, (
+        "The offline report must expose the exact supported observation in the default view."
+    )
+
+
 def test_CanaryScopeFlagsKeepExplicitAllowAndExclusion(tmp_path):
     """Dedicated registration preserves full query targets and explicit exclusion rules."""
 
@@ -316,6 +335,13 @@ def test_NativeReflectionRecordsOnlyTheOwnedLexicalObservation(tmp_path, capsys,
         assert Main(["workspace", "open", str(root), "--json"]) == 0, (
             "Reopening must verify the original worker acquisitions."
         )
+        expected = "Lexical marker observed" if case["expected_match"] else (
+            "Lexical marker not observed"
+        )
+        AssertNativeResponseHtml(root, expected, capsys)
+        assert service.Observe()["requests"] == [case["route"]], (
+            "Offline export contacted the target."
+        )
 
 
 @pytest.mark.parametrize(("prefix", "suffix", "matched"), [
@@ -457,6 +483,9 @@ def test_OwnedSqlBooleanSamplingCapturesSeparateActualResponses(tmp_path, capsys
             digest = hashlib.sha256(expectedBody).hexdigest()
             assert attributes["body_sha256"] == digest, "The response digest must bind real rows."
             digests.append(digest)
+
+            if index == 0:
+                AssertNativeResponseHtml(root, "Response captured; assessment pending", capsys)
 
         baseline, trueControl, falseControl, repeatedBaseline = digests
         assert baseline == repeatedBaseline, "The fixture baseline must be independently stable."
