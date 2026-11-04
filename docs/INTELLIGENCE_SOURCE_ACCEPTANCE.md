@@ -265,6 +265,48 @@ and relocation/no-write guards remained intact. Separate strict ASCII/CP1252
 synthetic processes cover original accented and non-BMP source names. Shared CI
 must independently pass this corrected final revision before integration.
 
+## Installed selected-CWE HTTPS SDK with retained bytes
+
+A clean non-editable offline wheel, SHA-256
+`5c7c2c41ac88805b78f4f72617edf2b85a3cd12bd45e6e7e048fc2b2b0522279`,
+was built from reviewed tree `9cdcbd0a85ccb999ccb85e45d6786d6d5cd00deb`.
+All 165 package members matched source, wheel and installation. Nine isolated
+pytest cases passed with zero failures or skips through the installed SDK and
+actual workspace/evidence stores.
+
+The receiver was explicitly replaced by a synthetic seam returning retained
+original ZIP bytes. Its HTTP 200/refusal values are test inputs, not observed
+HTTPS events. No source GET occurred. The selected originals were:
+
+| Catalog | Schema | ZIP bytes | Original ZIP SHA-256                                               |
+| ------- | ------ | --------- | ------------------------------------------------------------------ |
+| `5.0`   | `8.0`  | `2119263` | `bcda44c9abf61ff977f50c3c6649eea5a97a7b0626b0396c2c3ec4bfb973a3dc` |
+| `4.21`  | `7.4`  | `2101714` | `5225e2b4976696b5b90b62cdad0ddab4e8898103d61350971e366a377e718862` |
+
+Both pins independently preserved full notices, original raw/envelope/receipt
+joins, complete ZIP CRC/decode facts, exact inclusive source limits and confirmed
+publication acknowledgements. The oracle selected CWE-79/89 as Weakness records,
+retained CWE-1000 as unsupported View and kept CWE-9999999999 unmatched. Relocated
+replay passed with receiver, socket, process and evidence-write tripwires.
+Wrong-pin, empty transport-refusal and actual retained-blob corruption controls
+passed for each version. No original catalog is redistributed here.
+
+This verifies installed behavior over retained bytes and synthetic transport,
+not current HTTPS availability, actual remote acquisition or installed CLI use.
+The final exact-head shared gate remains separate from these focused checks.
+
+## Selected CWE HTTPS SDK boundary
+
+The [separate HTTPS custody SDK](INTELLIGENCE_CWE_HTTPS.md) uses a fixed selected
+source family, distinct from the accepted local CWE importer. Its implementation
+and deterministic tests do not establish that either official version URL was
+successfully acquired by the installed product. A later genuine acceptance must
+retain the actual unchanged receiver invocation, complete HTTP 200 response,
+matching original pin, raw/envelope/receipt joins and independent relocated replay.
+Retained original-catalog decoding is separate from fresh HTTPS availability.
+There is no local fallback, CLI acquisition or publisher-authentication claim.
+#43/#47 remain open.
+
 ## Publisher-prose regression
 
 The first real import failed honestly with `parse-failed`. The selected catalog

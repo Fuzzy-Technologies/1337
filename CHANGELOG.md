@@ -8,6 +8,50 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 20 — v0.4.20 — 2026-11-04
+
+#### Digest
+
+- Expose bounded selected CWE HTTPS acquisition and exact offline replay through
+  a separate experimental CLI profile.
+
+#### Added
+
+- Add `intel cwe https fetch` and `intel cwe https inspect` for fixed pinned
+  catalog sources and verified original evidence roots.
+- Show the full captured notice, independent custody acknowledgements and
+  matched, unsupported and unmatched selected identifiers in portable output.
+
+#### Security
+
+- Reject invalid source and selection inputs before storage or transport work.
+  Preserve known custody facts without usable selection output after failure.
+
+
+### Patch 17 — v0.4.17 — 2026-11-04
+
+#### Digest
+
+- Add a separate bounded selected-CWE HTTPS custody SDK with original-byte
+  replay and explicit evidence publication uncertainty.
+
+#### Added
+
+- Define fixed CWE version URLs, caller-pinned source/notice declarations,
+  canonical selected requests and a separate remote envelope/receipt family.
+- Preserve raw bytes, selected partitions and finite acquisition limits across
+  verified offline relocation without changing the local importer or legacy
+  JSON/gzip source families.
+
+#### Security
+
+- Bind original source, provenance, request, transport outcome and selected
+  content; refuse mixed or corrupted custody and changed canonical limits.
+- Keep independent raw/envelope/receipt acknowledgements and truthful partial,
+  digest, parse and storage failures. Provide no retry, local fallback, CLI,
+  publisher authentication or genuine HTTPS acceptance claim.
+
+
 ### Patch 16 — v0.4.16 — 2026-11-04
 
 #### Digest
