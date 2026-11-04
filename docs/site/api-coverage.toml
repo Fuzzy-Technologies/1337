@@ -1056,3 +1056,10 @@ module = "fuzzy1337.adapters.web_assessment"
 source = "src/fuzzy1337/adapters/web_assessment.py"
 mode = "authored"
 page = "api/fuzzy1337.adapters.web_assessment.md"
+
+[[surfaces]]
+# Internal evidence evaluation for the bounded owned SQL sampling profile.
+module = "fuzzy1337.sql_boolean_assessment"
+source = "src/fuzzy1337/sql_boolean_assessment.py"
+mode = "authored"
+page = "api/fuzzy1337.sql_boolean_assessment.md"
