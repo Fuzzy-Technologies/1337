@@ -34,7 +34,14 @@ MAX_FALLBACK_BYTES = 64 * 1024
 
 
 def CweHttpsParser(action: str | None = None) -> argparse.ArgumentParser:
-    """Declare closed fetch and inspect grammar without importing the remote SDK."""
+    """Declare closed fetch and inspect grammar without importing the remote SDK.
+
+    Args:
+        action: Optional exact action name for focused help.
+
+    Returns:
+        The selected action parser when known, otherwise the namespace parser.
+    """
 
     parser = IntelArgumentParser(prog="1337 intel cwe https", add_help=False, allow_abbrev=False)
     actions = parser.add_subparsers(dest="action", required=True, parser_class=IntelArgumentParser)
@@ -55,7 +62,14 @@ def CweHttpsParser(action: str | None = None) -> argparse.ArgumentParser:
 
 
 def CweHttpsCustodyComplete(acquired: CweHttpsOutcome) -> bool:
-    """Require complete HTTPS reception and all separately acknowledged SDK handles."""
+    """Require complete HTTPS reception and all separately acknowledged SDK handles.
+
+    Args:
+        acquired: The SDK outcome from the requested HTTPS acquisition.
+
+    Returns:
+        Whether reception and all three custody acknowledgements are complete.
+    """
 
     from fuzzy1337.intelligence_cwe_remote import CweHttpsAcknowledgement, CweHttpsState
 
@@ -71,7 +85,15 @@ def CweHttpsCustodyComplete(acquired: CweHttpsOutcome) -> bool:
 
 
 def WriteCweHttpsDetails(envelope: CweHttpsSelection, output: CweTerminalBuffer) -> None:
-    """Present full HTTPS source notice and distinct selected source assertions."""
+    """Present full HTTPS source notice and distinct selected source assertions.
+
+    Args:
+        envelope: Verified selection with captured source and notice metadata.
+        output: Bounded staging buffer for human-readable output.
+
+    Raises:
+        ValueError: The rendered details exceed the buffer's byte limit.
+    """
 
     from fuzzy1337.intelligence_cwe_commands import WriteCweMetadata
 
@@ -110,7 +132,20 @@ def CweHttpsTerminal(
     outcome: dict[str, object], envelope: CweHttpsSelection | None, *,
     json_output: bool, maximum: int,
 ) -> str:
-    """Stage one portable terminal document within its actual escaped byte limit."""
+    """Stage one portable terminal document within its actual escaped byte limit.
+
+    Args:
+        outcome: Structured command outcome and custody diagnostics.
+        envelope: Verified selection for human-readable success details, when present.
+        json_output: Render the structured outcome as JSON when true.
+        maximum: Maximum number of bytes after portable escaping.
+
+    Returns:
+        The complete staged terminal document.
+
+    Raises:
+        ValueError: The encoded document exceeds the byte limit or has nonfinite JSON values.
+    """
 
     from fuzzy1337.intelligence_cwe_commands import CweTerminalBuffer
 
@@ -146,7 +181,11 @@ def CweHttpsTerminal(
 
 
 def ClearCweHttpsSelection(outcome: dict[str, object]) -> None:
-    """Retain custody diagnostics while withholding all usable assertions on failure."""
+    """Retain custody diagnostics while withholding all usable assertions on failure.
+
+    Args:
+        outcome: Mutable terminal outcome whose selection is cleared and status set to failed.
+    """
 
     for name in ("source", "selection", "selection_reference"):
         outcome.pop(name, None)
@@ -167,6 +206,9 @@ def RunCweHttpsCommands(
     Returns:
         Zero for complete custody or exact help, two for configuration, four for acquisition,
         integrity or presentation refusal, and 130 for interruption.
+
+    Raises:
+        OSError: The caller's stream rejects the write or reports an incomplete write.
     """
 
     if list(arguments) in (["--help"], ["-h"], ["fetch", "--help"], ["fetch", "-h"],
