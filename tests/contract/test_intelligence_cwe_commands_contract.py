@@ -26,7 +26,7 @@ def Run(arguments, *, human=False):
 
 @pytest.mark.parametrize("arguments", [
     [], ["bogus", "--help"], ["import", "extra", "--help"], ["--help", "import"],
-    ["import", "--help", "--help"], ["https", "fetch"], ["apply"],
+    ["import", "--help", "--help"], ["apply"],
 ])
 def test_ForwardedGrammarRejectsNonexactHelpAndUnsupportedActions(arguments):
     """The adapter rejects only grammar still observable after global normalization."""
@@ -34,6 +34,17 @@ def test_ForwardedGrammarRejectsNonexactHelpAndUnsupportedActions(arguments):
     status, result = Run(arguments)
     assert status == 2 and result["failure"] == "configuration", "Invalid forwarded grammar passed"
     assert result["profile"] == "cwe-local-selected-cli", "Legacy terminal profile was reused"
+
+
+@pytest.mark.parametrize("sequence", [list, tuple])
+def test_HttpsPrefixSelectsSeparateFacade(sequence):
+    """The exact HTTPS prefix takes precedence over the local CWE command family."""
+
+    output = StringIO()
+    status = RunIntelCommands(sequence(["cwe", "https", "fetch"]), output, json_output=True)
+    result = json.loads(output.getvalue())
+    assert status == 2 and result["failure"] == "configuration", "Missing fetch arguments passed"
+    assert result["profile"] == "cwe-https-selected-cli", "HTTPS prefix reached the local facade"
 
 
 @pytest.mark.parametrize("arguments", [["--help"], ["-h"], ["import", "--help"],

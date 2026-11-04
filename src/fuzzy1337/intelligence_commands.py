@@ -465,6 +465,11 @@ def RunIntelCommands(
         or 130 for interruption. A failed save may have committed; the outcome states uncertainty.
     """
 
+    if list(arguments[:2]) == ["cwe", "https"]:
+        from fuzzy1337.intelligence_cwe_https_commands import RunCweHttpsCommands
+
+        return RunCweHttpsCommands(arguments[2:], output, json_output=json_output)
+
     if arguments and arguments[0] == "cwe":
         from fuzzy1337.intelligence_cwe_commands import RunCweIntelCommands
 

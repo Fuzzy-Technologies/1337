@@ -295,6 +295,25 @@ This verifies installed behavior over retained bytes and synthetic transport,
 not current HTTPS availability, actual remote acquisition or installed CLI use.
 The final exact-head shared gate remains separate from these focused checks.
 
+## Hosted CWE HTTPS checkpoint
+
+The same-repository Draft checkpoint with the
+`[cwe-https-source-acceptance-checkpoint]` marker builds and installs the exact
+proposed wheel. It runs the installed CLI once for each pinned CWE 5.0 and 4.21
+archive, using each archive's retained original size and SHA-256 and the
+15-second receiver budget. The two outcomes are retained separately.
+
+The verifier requires complete HTTP 200 custody, distinct confirmed raw,
+selection and receipt records, the full captured notice and exact selected
+decoder facts. It then relocates the workspace and verifies read-only CLI
+inspection with resource tripwires. The checkpoint preserves its wheel,
+source and installed identities, bounded terminal captures and original
+custody evidence. An overall acceptance record requires both pins to pass.
+
+The checkpoint is separate from final integration CI and from synthetic or
+retained-byte tests. Actual source availability and acceptance are established
+only by the executed checkpoint and independently verified original artifacts.
+
 ## Selected CWE HTTPS SDK boundary
 
 The [separate HTTPS custody SDK](INTELLIGENCE_CWE_HTTPS.md) uses a fixed selected

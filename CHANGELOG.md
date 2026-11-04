@@ -8,6 +8,26 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 20 — v0.4.20 — 2026-11-04
+
+#### Digest
+
+- Expose bounded selected CWE HTTPS acquisition and exact offline replay through
+  a separate experimental CLI profile.
+
+#### Added
+
+- Add `intel cwe https fetch` and `intel cwe https inspect` for fixed pinned
+  catalog sources and verified original evidence roots.
+- Show the full captured notice, independent custody acknowledgements and
+  matched, unsupported and unmatched selected identifiers in portable output.
+
+#### Security
+
+- Reject invalid source and selection inputs before storage or transport work.
+  Preserve known custody facts without usable selection output after failure.
+
+
 ### Patch 17 — v0.4.17 — 2026-11-04
 
 #### Digest
