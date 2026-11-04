@@ -60,8 +60,8 @@ def test_ActualOriginalSixPhaseOutputMatchesJsonAndSurvivesRelocation(tmp_path, 
     arguments = Selected(fixture, records)
     before = Files(fixture.root)
     status, original = Run(arguments)
-    html_status, html = Html(arguments)
-    assert status == html_status == 0 and Embedded(html) == original, (
+    htmlStatus, html = Html(arguments)
+    assert status == htmlStatus == 0 and Embedded(html) == original, (
         "HTML is not a presentation of the actual original selected graph explanation"
     )
     assert "synthetic-private-source-value" not in html and "_seal" not in html, (
@@ -76,8 +76,8 @@ def test_ActualOriginalSixPhaseOutputMatchesJsonAndSurvivesRelocation(tmp_path, 
     moved = tmp_path / "moved workspace"
     shutil.move(fixture.root, moved)
     fixture.root = moved
-    relocated_status, relocated = Html(Selected(fixture, records))
-    assert relocated_status == 0 and relocated == html and Files(moved) == before, (
+    relocatedStatus, relocated = Html(Selected(fixture, records))
+    assert relocatedStatus == 0 and relocated == html and Files(moved) == before, (
         "Standalone selected-graph HTML changed after relocation or mutated original stores"
     )
 
@@ -107,10 +107,10 @@ def test_ActualOppositeAttestationsAndSelfLoopKeepIndependentVisibleGeometry(tmp
     root = etree.fromstring(svg)
     namespace = {"svg": "http://www.w3.org/2000/svg"}
     links = {item.attrib["href"]: item for item in root.findall("svg:a", namespace)}
-    forward_ref = fixture.relations["portal-identity"].Reference()
-    reverse_ref = fixture.relations["identity-portal-cycle"].Reference()
-    forward = links["#" + rendering.Anchor(forward_ref)]
-    reverse = links["#" + rendering.Anchor(reverse_ref)]
+    forwardRef = fixture.relations["portal-identity"].Reference()
+    reverseRef = fixture.relations["identity-portal-cycle"].Reference()
+    forward = links["#" + rendering.Anchor(forwardRef)]
+    reverse = links["#" + rendering.Anchor(reverseRef)]
     assert "BLOCKED" in forward.attrib["class"] and "CONFIRMED" in reverse.attrib["class"], (
         "Original opposite-edge states were combined or promoted"
     )
@@ -118,8 +118,8 @@ def test_ActualOppositeAttestationsAndSelfLoopKeepIndependentVisibleGeometry(tmp
         "svg:path", namespace).attrib["d"] and forward.find("svg:text", namespace).attrib != (
         reverse.find("svg:text", namespace).attrib
     ), "Opposite original transitions hide each other's visible curve/state label"
-    self_ref = fixture.relations["detour-self-cycle"].Reference()
-    assert "#" + rendering.Anchor(self_ref) in links, "Original selected self-loop disappeared"
+    selfRef = fixture.relations["detour-self-cycle"].Reference()
+    assert "#" + rendering.Anchor(selfRef) in links, "Original selected self-loop disappeared"
 
 
 @pytest.mark.parametrize("disconnected", [False, True])
@@ -155,8 +155,8 @@ def test_ActualSameRankCurvesAndAllLabelsFitHtmlAndDownloadedStaticSvg(tmp_path,
                           tuple(item.Reference() for item in relations))
     before = Files(root)
     status, ordinary = Run(arguments)
-    html_status, html = Html(arguments)
-    assert status == html_status == 0 and Embedded(html) == ordinary, (
+    htmlStatus, html = Html(arguments)
+    assert status == htmlStatus == 0 and Embedded(html) == ordinary, (
         "Geometry presentation changed the original graph analysis or machine-readable outcome"
     )
     svg = re.search(r'(<svg\b.*?</svg>)', html, re.DOTALL).group(1)
@@ -182,8 +182,8 @@ def test_ActualSameRankCurvesAndAllLabelsFitHtmlAndDownloadedStaticSvg(tmp_path,
 
         for text in document.findall("svg:a/svg:text", namespace):
             x, y = float(text.attrib["x"]), float(text.attrib["y"])
-            half_width = float(text.attrib["textLength"]) / 2
-            assert 0 <= x - half_width <= x + half_width <= width and (
+            halfWidth = float(text.attrib["textLength"]) / 2
+            assert 0 <= x - halfWidth <= x + halfWidth <= width and (
                 0 <= y - 16 <= y + 16 <= height
             ), "An original state or typed-node label is clipped outside the static canvas"
 

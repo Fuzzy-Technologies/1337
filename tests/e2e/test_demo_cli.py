@@ -72,9 +72,9 @@ def ValidateSuccess(root: Path, outcome: dict) -> None:
     assert json.loads((root / "demo-summary.json").read_bytes()) == outcome, (
         "Retained final summary must match the terminal demo outcome."
     )
-    workspace_root = root / "workspace"
-    workspace = LocalWorkspaceStore(workspace_root).Open()
-    model = LocalModelStore(workspace_root).Open()
+    workspaceRoot = root / "workspace"
+    workspace = LocalWorkspaceStore(workspaceRoot).Open()
+    model = LocalModelStore(workspaceRoot).Open()
     scan = json.loads((root / "scan-summary.json").read_bytes())
     assert scan["state"] == "completed" and scan["model_revision"] == model.revision == 3, (
         "The completed scan must reopen the exact persisted third revision."

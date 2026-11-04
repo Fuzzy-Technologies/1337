@@ -110,7 +110,7 @@ def ReadAssessmentExecution(
             or not isinstance(artifacts, list) or len(artifacts) != 2):
         raise DemoFailure("assessment")
 
-    job_id = spec["job_id"]
+    jobId = spec["job_id"]
     saved = LocalWorkspaceStore(workspace).Open()
     evidence = LocalEvidenceStore(workspace / "evidence")
     references = []
@@ -118,7 +118,7 @@ def ReadAssessmentExecution(
     execution: AdapterExecution | None = None
 
     for artifact in artifacts:
-        if (not isinstance(artifact, dict) or artifact.get("job_id") != job_id
+        if (not isinstance(artifact, dict) or artifact.get("job_id") != jobId
                 or artifact.get("workspace_id") != ASSESSMENT_WORKSPACE_ID):
             raise DemoFailure("assessment")
 
@@ -169,7 +169,7 @@ def ReadAssessmentExecution(
             or response.get("body_sha256") != hashlib.sha256(body).hexdigest()):
         raise DemoFailure("assessment")
 
-    return job_id, tuple(references), execution
+    return jobId, tuple(references), execution
 
 
 def ReadAssessmentFinding(
@@ -189,7 +189,7 @@ def ReadAssessmentFinding(
         DemoFailure: The actual native check did not preserve the finite Finding invariant.
     """
 
-    job_id, references, execution = ReadAssessmentExecution(
+    jobId, references, execution = ReadAssessmentExecution(
         workspace, exposed_url, exposed_scan, matched=True,
     )
     model = LocalModelStore(workspace).Open()
@@ -215,7 +215,7 @@ def ReadAssessmentFinding(
 
     provenance = finding.provenance[0]
 
-    if (provenance.run_reference != job_id or provenance.source_id != NATIVE_WEB_PROVIDER_ID
+    if (provenance.run_reference != jobId or provenance.source_id != NATIVE_WEB_PROVIDER_ID
             or provenance.scope_reference != "scope:" + ASSESSMENT_SCOPE_ID
             or provenance.target_reference != Target(TargetKind.URL, exposed_url).Reference()
             or provenance.provider_version != "1" or provenance.execution != execution
@@ -311,7 +311,7 @@ def RunAssessmentDemo(
                                                   ImpactLevel.STANDARD),))
             SaveDemoArtifact(root, "policy.json", json.loads(SerializeContract(policy)), artifacts)
             original: dict[str, object] | None = None
-            exposed_scan: dict[str, object] = {}
+            exposedScan: dict[str, object] = {}
 
             for label, url in zip(("exposed", "fixed"), urls, strict=True):
                 arguments = ["web", str(workspace), "--check", "git-head-exposure",
@@ -320,26 +320,26 @@ def RunAssessmentDemo(
                              "--request-timeout", "2", "--timeout", "10"]
                 phase = label + "-plan"
                 plan = Invoke("scan", [*arguments, "--plan"], label + "-plan.json")
-                policy_plan = plan.get("policy_plan")
+                policyPlan = plan.get("policy_plan")
 
-                if not isinstance(policy_plan, dict) or not isinstance(
-                    policy_plan.get("intent_sha256"), str
+                if not isinstance(policyPlan, dict) or not isinstance(
+                    policyPlan.get("intent_sha256"), str
                 ):
                     raise DemoFailure("plan")
 
                 phase = label + "-scan"
-                scan = Invoke("scan", [*arguments, "--confirm-plan", policy_plan["intent_sha256"],
+                scan = Invoke("scan", [*arguments, "--confirm-plan", policyPlan["intent_sha256"],
                                        "--confirmation-reference",
                                        "approval:owned-assessment-" + label], label + "-scan.json")
                 phase = "assessment"
 
                 if label == "exposed":
-                    exposed_scan = scan
+                    exposedScan = scan
 
                 else:
                     ReadAssessmentExecution(workspace, url, scan, matched=False)
 
-                finding = ReadAssessmentFinding(workspace, urls[0], exposed_scan)
+                finding = ReadAssessmentFinding(workspace, urls[0], exposedScan)
 
                 if original is not None and finding != original:
                     raise DemoFailure("assessment")
@@ -370,14 +370,14 @@ def RunAssessmentDemo(
             phase = "reopen"
             Invoke("workspace", ["open", str(workspace)], "workspace-open.json")
             phase = "assessment"
-            report_input = OpenReportInput(workspace)
+            reportInput = OpenReportInput(workspace)
 
-            if ReadAssessmentFinding(workspace, urls[0], exposed_scan) != original:
+            if ReadAssessmentFinding(workspace, urls[0], exposedScan) != original:
                 raise DemoFailure("assessment")
 
-            CheckReportSnapshot(workspace, report_input)
-            snapshot = report_input.report.SnapshotDigest()
-            revision = report_input.report.state.revision
+            CheckReportSnapshot(workspace, reportInput)
+            snapshot = reportInput.report.SnapshotDigest()
+            revision = reportInput.report.state.revision
             checks = {"schema_version": 1, "finding": original, "finding_count": 1,
                       "control": "different endpoint; no additional Finding",
                       "original_finding": "open", "resolution": "not-assessed",
@@ -387,12 +387,12 @@ def RunAssessmentDemo(
             outcome["assessment"] = checks
             phase = "export"
 
-            for format_name, name in (("json", "model.json"), ("html", "model.html"),
+            for formatName, name in (("json", "model.json"), ("html", "model.html"),
                                       ("sarif", "model.sarif")):
-                CheckReportSnapshot(workspace, report_input)
+                CheckReportSnapshot(workspace, reportInput)
                 captured = StringIO()
                 status = RunReportCommands(
-                    ["export", str(workspace), "--format", format_name,
+                    ["export", str(workspace), "--format", formatName,
                      "--output", str(root / "reports" / name)], captured, json_output=True,
                 )
                 receipt = json.loads(captured.getvalue())
@@ -402,7 +402,7 @@ def RunAssessmentDemo(
                 if receipt["output_published"]:
                     artifacts.append("reports/" + name)
 
-                SaveDemoArtifact(root, f"reports/{format_name}-export.json", receipt, artifacts)
+                SaveDemoArtifact(root, f"reports/{formatName}-export.json", receipt, artifacts)
 
                 if status:
                     raise DemoFailure("export", status)
@@ -411,11 +411,11 @@ def RunAssessmentDemo(
                         or receipt.get("model_revision") != revision):
                     raise ReportFailure("input-changed")
 
-                CheckReportSnapshot(workspace, report_input)
+                CheckReportSnapshot(workspace, reportInput)
 
             phase = "index"
             SaveDemoArtifact(root, "evidence-index.json", EvidenceIndex(workspace), artifacts)
-            CheckReportSnapshot(workspace, report_input)
+            CheckReportSnapshot(workspace, reportInput)
             outcome.update({"state": "completed", "exit_status": 0,
                             "phase": "completed", "failure": None})
 

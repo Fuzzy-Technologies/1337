@@ -132,17 +132,17 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     assert set(jobs) == expected, "The integration job inventory changed unexpectedly."
     assert workflow["permissions"] == {"contents": "read"}, "PR authority expanded."
 
-    for job_id in WORKFLOWS[name]:
-        job = jobs[job_id]
+    for jobId in WORKFLOWS[name]:
+        job = jobs[jobId]
         condition = " ".join(str(job.get("if", "")).split())
-        expected_condition = (
-            EXTERNAL_NATIVE_FEATURE_CONDITION if job_id == "external-targets"
-            else BROWSER_FEATURE_CONDITION if job_id == "browser-page-quality"
-            else PORTABLE_PROTOCOL_FEATURE_CONDITION if job_id == "quality"
+        expectedCondition = (
+            EXTERNAL_NATIVE_FEATURE_CONDITION if jobId == "external-targets"
+            else BROWSER_FEATURE_CONDITION if jobId == "browser-page-quality"
+            else PORTABLE_PROTOCOL_FEATURE_CONDITION if jobId == "quality"
             else NATIVE_CONFIGURATION_FEATURE_CONDITION if name == "trivy-acceptance.yml"
             else INTEGRATION_CONDITION)
-        assert condition == expected_condition, (
-            f"{name}/{job_id} lost its final gate or explicit feature checkpoint."
+        assert condition == expectedCondition, (
+            f"{name}/{jobId} lost its final gate or explicit feature checkpoint."
         )
         assert job.get("continue-on-error", False) is False, "Full gate failures became advisory."
         assert job["steps"], "Required integration work was replaced with an empty job."
@@ -164,8 +164,18 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
     """Full gates retain all checks and finite profile budgets with fail-fast execution."""
 
     jobs = Workflow("python-quality.yml")["jobs"]
-    full = next(step for step in jobs["quality"]["steps"]
-        if step.get("name") == "Run repository quality gate")
+    steps = jobs["quality"]["steps"]
+    full = next(step for step in steps if step.get("name") == "Run repository quality gate")
+    naming = next(step for step in steps if step.get("name") == "Run Python naming gate")
+    assert steps.index(naming) < steps.index(full), (
+        "The naming check must run separately before the full integration gate."
+    )
+    assert " ".join(naming["if"].split()) == INTEGRATION_CONDITION, (
+        "The naming gate must use the established Ready/push condition."
+    )
+    assert naming["run"] == "uv run --locked --extra dev python tools/python_naming.py", (
+        "The naming gate must run as a standalone command."
+    )
     assert " ".join(full["if"].split()) == INTEGRATION_CONDITION, (
         "Only existing Ready/push integration events may start the full Python check."
     )
@@ -294,20 +304,20 @@ def test_TraversalRateCheckpointKeepsExactBoundedWindowsSelectionsAndOriginalEvi
 
     units = steps["Run pure rate deadline and timeout classification regressions"]
     genuine = steps["Run the two affected genuine traversal cases"]
-    unit_tokens, genuine_tokens = shlex.split(units["run"]), shlex.split(genuine["run"])
-    unit_selectors = {token for token in unit_tokens if token.startswith("tests/")}
-    expected_rate = {
+    unitTokens, genuineTokens = shlex.split(units["run"]), shlex.split(genuine["run"])
+    unitSelectors = {token for token in unitTokens if token.startswith("tests/")}
+    expectedRate = {
         f"tests/unit/{module}::test_RateGateRechecksOriginalDeadlineAfterEarlyWake[{outcome}]"
         for module in ("test_web_traversal.py", "test_native_crawl.py")
         for outcome in ("complete", "cancel", "budget")
     }
-    assert unit_selectors == expected_rate | {
+    assert unitSelectors == expectedRate | {
         "tests/unit/test_test_runner.py::"
         "test_IncidentalTimeoutTextCannotRelabelAnOrdinaryJunitFailure",
         "tests/unit/test_test_runner.py::"
         "test_PinnedPytestTimeoutFailureMessagesRetainCallAndFixtureExpiry",
     }, "Only the six new rate cases and the two new parser parameter groups may run."
-    assert {token for token in genuine_tokens if token.startswith("tests/")} == {
+    assert {token for token in genuineTokens if token.startswith("tests/")} == {
         "tests/integration/test_web_traversal_execution.py::"
         "test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle",
         "tests/functional/test_native_crawl_product.py::"
@@ -581,14 +591,14 @@ def test_NativeConfigurationCheckpointPreservesFullReadyGateAndSkipsImageDatabas
     steps = {step["name"]: step for step in job["steps"]}
     provision = steps["Provision checksum-pinned Trivy and digest-pinned official database"]["run"]
     tree = ast.parse(provision.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0])
-    database_calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+    databaseCalls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
         and node.func.value.id == "subprocess" and node.func.attr == "run"]
-    guarded_calls = [node for statement in tree.body if isinstance(statement, ast.If)
+    guardedCalls = [node for statement in tree.body if isinstance(statement, ast.If)
         and ast.unparse(statement.test) == "not configuration_only" for node in ast.walk(statement)
-        if node in database_calls]
-    assert len(database_calls) == len(guarded_calls) == 1 and (
-        "--download-db-only" in ast.unparse(database_calls[0])
+        if node in databaseCalls]
+    assert len(databaseCalls) == len(guardedCalls) == 1 and (
+        "--download-db-only" in ast.unparse(databaseCalls[0])
     ), "Config-only proof cannot download an image DB; full acceptance must retain provisioning"
     run = steps["Run genuine adapter acceptance with no external network interface or route"]["run"]
     assert 'if [[ "$CONFIGURATION_CHECKPOINT" == "1" ]]; then\n' in run and (
@@ -624,10 +634,10 @@ def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> No
 
     workflow = Workflow("owned-content-header-acceptance.yml")
     jobs = workflow["jobs"]
-    old_jobs = {"installed-content-header", "actor-denied-content-header",
+    oldJobs = {"installed-content-header", "actor-denied-content-header",
         "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
         "approval-denied-content-header"}
-    assert set(jobs) == old_jobs | {"stale-model-cas-content-header",
+    assert set(jobs) == oldJobs | {"stale-model-cas-content-header",
         "post-model-ack-expiry-content-header", "ipv6-worker-content-header",
         "content-unit-windows-checkpoint"}, (
         "The finite workflow must retain six original jobs and separate CAS/expiry cases."
@@ -638,7 +648,7 @@ def test_ContentHeaderStaleModelCheckpointSelectsOnlyItsInstalledCasCase() -> No
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
         f"&& contains(github.event.pull_request.body, '{marker}')"
     ), "Only the explicit draft CAS marker may launch this one genuine case."
-    assert all(marker not in jobs[name]["if"] for name in old_jobs), (
+    assert all(marker not in jobs[name]["if"] for name in oldJobs), (
         "The CAS marker cannot enroll an already accepted cohort."
     )
     events = workflow.get("on", workflow.get(True))
@@ -705,21 +715,21 @@ def test_ContentHeaderPostModelAckExpiryCheckpointSelectsOnlyItsInstalledPartial
 
     workflow = Workflow("owned-content-header-acceptance.yml")
     jobs = workflow["jobs"]
-    job_id = "post-model-ack-expiry-content-header"
-    old_jobs = {"installed-content-header", "actor-denied-content-header",
+    jobId = "post-model-ack-expiry-content-header"
+    oldJobs = {"installed-content-header", "actor-denied-content-header",
         "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
         "approval-denied-content-header", "stale-model-cas-content-header"}
-    assert set(jobs) == old_jobs | {job_id, "ipv6-worker-content-header",
+    assert set(jobs) == oldJobs | {jobId, "ipv6-worker-content-header",
         "content-unit-windows-checkpoint"}, (
         "Only one expiry job may extend the seven existing jobs."
     )
-    job = jobs[job_id]
+    job = jobs[jobId]
     marker = "[owned-content-header-post-model-ack-expiry-checkpoint]"
     assert " ".join(job["if"].split()) == (
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
         f"&& contains(github.event.pull_request.body, '{marker}')"
     ), "Only the explicit draft expiry marker may launch this one installed partial-state case."
-    assert all(marker not in jobs[name]["if"] for name in old_jobs), (
+    assert all(marker not in jobs[name]["if"] for name in oldJobs), (
         "The expiry marker cannot reenroll an already accepted case."
     )
     events = workflow.get("on", workflow.get(True))
@@ -780,21 +790,21 @@ def test_ContentHeaderIpv6WorkerCheckpointSelectsOnlyItsInstalledWorkerCase() ->
 
     workflow = Workflow("owned-content-header-acceptance.yml")
     jobs = workflow["jobs"]
-    job_id = "ipv6-worker-content-header"
-    old_jobs = {"installed-content-header", "actor-denied-content-header",
+    jobId = "ipv6-worker-content-header"
+    oldJobs = {"installed-content-header", "actor-denied-content-header",
         "policy-denied-content-header", "fixed-content-header", "body-decoy-content-header",
         "approval-denied-content-header", "stale-model-cas-content-header",
         "post-model-ack-expiry-content-header"}
-    assert set(jobs) == old_jobs | {job_id, "content-unit-windows-checkpoint"}, (
+    assert set(jobs) == oldJobs | {jobId, "content-unit-windows-checkpoint"}, (
         "Only one worker-only IPv6 job may extend the eight existing finite cases."
     )
-    job = jobs[job_id]
+    job = jobs[jobId]
     marker = "[owned-content-header-ipv6-worker-checkpoint]"
     assert " ".join(job["if"].split()) == (
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
         f"&& contains(github.event.pull_request.body, '{marker}')"
     ), "Only this draft worker marker may enroll IPv6; ready behavior stays exact."
-    assert all(marker not in jobs[name]["if"] for name in old_jobs), (
+    assert all(marker not in jobs[name]["if"] for name in oldJobs), (
         "The worker-only IPv6 marker cannot reenroll any accepted case."
     )
     events = workflow.get("on", workflow.get(True))
@@ -855,15 +865,15 @@ def test_ContentUnitWindowsCheckpointRequiresOnlyExplicitDraftAdmission() -> Non
     """Keep focused Windows diagnostics separate from installed cases and final full gates."""
 
     workflow = Workflow("owned-content-header-acceptance.yml")
-    job_id = "content-unit-windows-checkpoint"
-    job = workflow["jobs"][job_id]
+    jobId = "content-unit-windows-checkpoint"
+    job = workflow["jobs"][jobId]
     marker = "[owned-content-unit-windows-checkpoint]"
     assert " ".join(job["if"].split()) == (
         "github.event_name == 'pull_request' && github.event.pull_request.draft == true "
         f"&& contains(github.event.pull_request.body, '{marker}')"
     ), "Only the explicit draft Windows marker may launch focused unit diagnostics."
     assert all(marker not in value["if"] for name, value in workflow["jobs"].items()
-        if name != job_id), "The Windows marker cannot reenroll any installed acceptance case."
+        if name != jobId), "The Windows marker cannot reenroll any installed acceptance case."
     assert set(job) == {"if", "name", "runs-on", "timeout-minutes", "steps"} and (
         job["runs-on"] == "windows-2022" and job["timeout-minutes"] == 8
     ), "Focused Windows diagnostics require one bounded non-advisory runner without opt-in effects."
@@ -1085,8 +1095,8 @@ def test_InstalledConfigurationReportGateRejectsIncompleteOrUnexecutedCases(
     cases = helper.CASE_IDS[:-1] if mutation == "missing-case" else helper.CASE_IDS
     child = "<skipped/>" if mutation == "skipped" else "<error/>" if mutation == "error" else ""
     xml = "<testsuites><testsuite>" + "".join(
-        f'<testcase name="test_InstalledMaterialLifecycle[{case_id}]">{child}</testcase>'
-        for case_id in cases) + "</testsuite></testsuites>"
+        f'<testcase name="test_InstalledMaterialLifecycle[{caseId}]">{child}</testcase>'
+        for caseId in cases) + "</testsuite></testsuites>"
     (evidence / "pytest.xml").write_text(xml)
 
     with pytest.raises(ValueError, match="current workflow revision|without skips/errors"):
@@ -1136,16 +1146,16 @@ def test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode() -> None:
             "Prerequisite mode must suppress all old work, including mixed-marker bodies."
         )
 
-    native_gate = steps["Require original 1337Scope native application acceptance"]
-    assert native_gate["timeout-minutes"] == 1 and not native_gate.get("continue-on-error"), (
+    nativeGate = steps["Require original 1337Scope native application acceptance"]
+    assert nativeGate["timeout-minutes"] == 1 and not nativeGate.get("continue-on-error"), (
         "Original native proof must fail closed within its separate bounded step."
     )
-    assert native_gate["env"] == {"NATIVE_ACCEPTANCE_HEAD": (
+    assert nativeGate["env"] == {"NATIVE_ACCEPTANCE_HEAD": (
         "${{ github.event_name == 'pull_request' "
         "&& github.event.pull_request.head.sha || github.sha }}")}, (
         "Native application proof must bind the exact proposed source revision."
     )
-    assert native_gate["run"] == (
+    assert nativeGate["run"] == (
         "python tests/functional/external_native_acceptance_gate.py "
         '--head "$NATIVE_ACCEPTANCE_HEAD" --identity "$(git rev-parse HEAD HEAD^{tree})"'
     ), "The native proof step must consume originals and read-only checkout identity only."
@@ -1299,13 +1309,13 @@ def test_NucleiPrerequisiteGateRejectsSyntheticIncompleteOrForeignEvidence(
     assert imports == {"json", "re", "sys", "pathlib", "xml.etree"}, (
         "Evidence gate may only read originals with stdlib; no host/helper/runtime imports."
     )
-    script_path = tmp_path / "read_only_gate.py"
-    script_path.write_text(script)
-    head, source_tree, owner = "a" * 40, "b" * 40, "c" * 32
-    base_id, image_id, container_id = "sha256:" + "d" * 64, "sha256:" + "e" * 64, "f" * 64
+    scriptPath = tmp_path / "read_only_gate.py"
+    scriptPath.write_text(script)
+    head, sourceTree, owner = "a" * 40, "b" * 40, "c" * 32
+    baseId, imageId, containerId = "sha256:" + "d" * 64, "sha256:" + "e" * 64, "f" * 64
     run = "functional-evidence/external-nuclei-prerequisites/run-" + owner[:12] + "/"
     host = {"status": "completed-prerequisites", "source_revision": head,
-        "source_tree": source_tree, "image_id": image_id, "container_id": container_id,
+        "source_tree": sourceTree, "image_id": imageId, "container_id": containerId,
         "configured_target_inputs": [], "governed_no_home_compatibility": "not-established",
         "cleanup": [{"container_absent": True},
             {"tag": "fuzzy1337-nuclei-runner-" + owner, "absent": True},
@@ -1313,9 +1323,9 @@ def test_NucleiPrerequisiteGateRejectsSyntheticIncompleteOrForeignEvidence(
     outcome = {"status": "completed-prerequisites", "version_probe": "completed",
         "go_template_validation": "completed", "governed_no_home_compatibility": "not-established",
         "configured_target_inputs": [], "independent_server_contact_count": None}
-    documents = {run + "host.json": host, run + "base.iid": (base_id + "\n").encode(),
-        run + "runner.iid": (image_id + "\n").encode(), run + "context-inventory.json": {
-            "revision": head, "tree": source_tree}, run + "imported/prerequisites.json": outcome,
+    documents = {run + "host.json": host, run + "base.iid": (baseId + "\n").encode(),
+        run + "runner.iid": (imageId + "\n").encode(), run + "context-inventory.json": {
+            "revision": head, "tree": sourceTree}, run + "imported/prerequisites.json": outcome,
         run + "imported/image-provisioning.json": {"source_revision": head,
             "installed": {"installed": {"source_revision": head}}}}
     arguments = {"version": ["/opt/benchmark-material/nuclei", "-version", "-duc"],
@@ -1339,7 +1349,7 @@ def test_NucleiPrerequisiteGateRejectsSyntheticIncompleteOrForeignEvidence(
         '<testcase classname="tests.functional.test_external_nuclei_prerequisites" '
         'name="test_InstalledImageRunsOfflineExactNucleiPrerequisites"/>'
         '</testsuite></testsuites>')
-    actual_identity = head + "\n" + source_tree
+    actualIdentity = head + "\n" + sourceTree
 
     if mutation == "skip":
         junit = junit.replace('skipped="0"', 'skipped="1"')
@@ -1375,10 +1385,10 @@ def test_NucleiPrerequisiteGateRejectsSyntheticIncompleteOrForeignEvidence(
             "container": "container_id"}[mutation]] = "0" * 40
 
     elif mutation == "checkout":
-        actual_identity = "0" * 40 + "\n" + source_tree
+        actualIdentity = "0" * 40 + "\n" + sourceTree
 
     elif mutation == "iid":
-        documents[run + "runner.iid"] = (base_id + "\n").encode()
+        documents[run + "runner.iid"] = (baseId + "\n").encode()
 
     elif mutation == "cleanup":
         host["cleanup"][0]["container_absent"] = False
@@ -1423,7 +1433,7 @@ def test_NucleiPrerequisiteGateRejectsSyntheticIncompleteOrForeignEvidence(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(junit)
 
-    result = subprocess.run([sys.executable, "-I", "-B", str(script_path), head, actual_identity],
+    result = subprocess.run([sys.executable, "-I", "-B", str(scriptPath), head, actualIdentity],
         cwd=tmp_path, capture_output=True, timeout=5, check=False)
     assert (result.returncode == 0) is (mutation is None), (
         "Only complete synthetic prerequisite facts may pass the inert gate predicate."

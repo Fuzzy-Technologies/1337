@@ -284,13 +284,13 @@ def test_LaterTlsFailurePreservesEarlierHttpFactsAndBothOriginalAcquisitions(tmp
         assert status == 4 and summary["state"] == "failed" and (
             summary["job"]["failure"]["code"] == case["failure_code"]
         ), "Later TLS failure was hidden by an earlier successful HTTP observation"
-        expected_contact = {"connections": 1, "client_hellos": 1, "errors": []}
+        expectedContact = {"connections": 1, "client_hellos": 1, "errors": []}
 
         if case["mode"] == "untrusted-self-signed":
-            expected_contact = {"connections": 1, "handshake_attempts": 1,
+            expectedContact = {"connections": 1, "handshake_attempts": 1,
                 "certificate_rejections": 1, "completed_handshakes": 0, "errors": []}
 
-        assert packet["test_only_tls"] == expected_contact and (
+        assert packet["test_only_tls"] == expectedContact and (
             proxy.Observe() == (["/transparent"], ["/owned-resource"])
         ), "Partial TLS failure contacted an unselected target or repeated acquisition"
         state = LocalModelStore(root).Open()
@@ -311,7 +311,7 @@ def test_LaterTlsFailurePreservesEarlierHttpFactsAndBothOriginalAcquisitions(tmp
 def test_InterruptedTlsFixtureReleasesRealStalledHandshakeAndJoinsItsThread():
     """Exception teardown releases the actual TLS client and closes the owned listener."""
 
-    client_errors = []
+    clientErrors = []
     client = None
 
     try:
@@ -330,10 +330,10 @@ def test_InterruptedTlsFixtureReleasesRealStalledHandshakeAndJoinsItsThread():
                             with context.wrap_socket(
                                 connection, server_hostname="127.0.0.1",
                             ):
-                                client_errors.append("unexpected-success")
+                                clientErrors.append("unexpected-success")
 
                     except OSError:
-                        client_errors.append("expected-refusal")
+                        clientErrors.append("expected-refusal")
 
                 client = Thread(target=Connect, daemon=False)
                 client.start()
@@ -346,7 +346,7 @@ def test_InterruptedTlsFixtureReleasesRealStalledHandshakeAndJoinsItsThread():
             client.join(timeout=3)
             assert not client.is_alive(), "Interrupted TLS fixture abandoned its waiting client"
 
-    assert tls.listener.fileno() == -1 and client_errors == ["expected-refusal"], (
+    assert tls.listener.fileno() == -1 and clientErrors == ["expected-refusal"], (
         "Interrupted TLS fixture leaked its listener or incorrectly completed a handshake"
     )
 
@@ -421,18 +421,18 @@ def test_PartialTlsHeaderInterruptionClosesTheOwnedAcceptedSocket(mode):
 def test_TlsTeardownBeforeHandshakeKeepsSslStateWithItsOwningThread(monkeypatch):
     """Actual TCP interruption cannot clear SSL state before its owner starts the handshake."""
 
-    entered, peer_closed = threading.Event(), threading.Event()
+    entered, peerClosed = threading.Event(), threading.Event()
     original = ssl.SSLSocket.do_handshake
-    thread_errors, secure_sockets, owners, peer_results = [], [], [], []
+    threadErrors, secureSockets, owners, peerResults = [], [], [], []
     client, peer = None, None
 
     def HoldHandshake(connection, block=False):
         """Resume the actual handshake only after the peer observes real transport shutdown."""
 
-        secure_sockets.append(connection)
+        secureSockets.append(connection)
         owners.append(threading.current_thread())
         entered.set()
-        assert peer_closed.wait(timeout=3), "The peer never observed actual TCP interruption"
+        assert peerClosed.wait(timeout=3), "The peer never observed actual TCP interruption"
 
         return original(connection, block)
 
@@ -441,15 +441,15 @@ def test_TlsTeardownBeforeHandshakeKeepsSslStateWithItsOwningThread(monkeypatch)
 
         try:
             assert connection.recv(1) == b"", "Interrupted TLS fixture returned unexpected bytes"
-            peer_results.append("eof")
+            peerResults.append("eof")
 
         except ConnectionResetError:
-            peer_results.append("reset")
+            peerResults.append("reset")
 
-        peer_closed.set()
+        peerClosed.set()
 
     monkeypatch.setattr(ssl.SSLSocket, "do_handshake", HoldHandshake)
-    monkeypatch.setattr(threading, "excepthook", thread_errors.append)
+    monkeypatch.setattr(threading, "excepthook", threadErrors.append)
 
     try:
         with OwnedTls("untrusted-self-signed") as tls:
@@ -467,9 +467,9 @@ def test_TlsTeardownBeforeHandshakeKeepsSslStateWithItsOwningThread(monkeypatch)
             peer.join(timeout=3)
             assert not peer.is_alive(), "The independent peer observer was not reaped"
 
-    assert not thread_errors, "TLS teardown caused an unhandled owning-thread exception"
-    assert peer_results in (["eof"], ["reset"]), "No actual transport interruption was observed"
-    assert len(secure_sockets) == len(owners) == 1 and secure_sockets[0].fileno() == -1, (
+    assert not threadErrors, "TLS teardown caused an unhandled owning-thread exception"
+    assert peerResults in (["eof"], ["reset"]), "No actual transport interruption was observed"
+    assert len(secureSockets) == len(owners) == 1 and secureSockets[0].fileno() == -1, (
         "The owning server did not close its single wrapped TLS socket"
     )
     assert not owners[0].is_alive() and tls.listener.fileno() == -1, (

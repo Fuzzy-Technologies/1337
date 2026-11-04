@@ -95,7 +95,7 @@ class LocalImageMaterialObserver:
         hostile-writer exclusion or real-time deadline and contact no daemon.
         """
 
-        socket_identity = SocketIdentity(self.selection)
+        socketIdentity = SocketIdentity(self.selection)
         root = ArtifactPathInfo(self.selection.workspace_root, directory=True)
         workspace = LocalWorkspaceStore(self.selection.workspace_root).Open()
         info = ArtifactPathInfo(self.selection.executable)
@@ -105,7 +105,7 @@ class LocalImageMaterialObserver:
 
         executable = SelectedFile(self.selection.executable, "docker-executable",
                                   MAX_DOCKER_EXECUTABLE_BYTES)
-        proof = LocalImageMaterialProof(executable, socket_identity, (root.st_dev, root.st_ino),
+        proof = LocalImageMaterialProof(executable, socketIdentity, (root.st_dev, root.st_ino),
             workspace.workspace_id, self.owner_reference, self.operation_reference)
         self._issued.append(proof)
         self.CheckCurrent(proof)

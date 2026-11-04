@@ -76,15 +76,15 @@ class Remediation:
         if self.summary is not None:
             RequireWorkspaceText(self.summary, "remediation summary")
 
-        for field_name in ("steps", "references"):
-            values = tuple(RequireWorkspaceText(value, field_name) for value in ModelSequence(
-                getattr(self, field_name), field_name,
+        for fieldName in ("steps", "references"):
+            values = tuple(RequireWorkspaceText(value, fieldName) for value in ModelSequence(
+                getattr(self, fieldName), fieldName,
             ))
 
-            if field_name == "references":
+            if fieldName == "references":
                 values = tuple(sorted(set(values)))
 
-            object.__setattr__(self, field_name, values)
+            object.__setattr__(self, fieldName, values)
 
         ModelAttributes(cast(dict[str, object], JsonValue(self)))
 
@@ -311,19 +311,19 @@ def ValidateFindingTransition(previous: object, following: object) -> None:
         ValueError: Creation is triaged or a closed disposition is changed without reopening.
     """
 
-    next_status = FindingStatus(cast(str, following))
+    nextStatus = FindingStatus(cast(str, following))
 
     if previous is None:
-        if next_status is not FindingStatus.OPEN:
+        if nextStatus is not FindingStatus.OPEN:
             raise ValueError("new finding must have open status")
 
         return
 
-    current_status = FindingStatus(cast(str, previous))
+    currentStatus = FindingStatus(cast(str, previous))
 
     if (
-        current_status in (FindingStatus.DISMISSED, FindingStatus.RESOLVED)
-        and next_status not in (current_status, FindingStatus.OPEN)
+        currentStatus in (FindingStatus.DISMISSED, FindingStatus.RESOLVED)
+        and nextStatus not in (currentStatus, FindingStatus.OPEN)
     ):
         raise ValueError("dismissed or resolved finding must reopen before changing disposition")
 
@@ -376,7 +376,7 @@ def ApplyFindings(
     )}
     objects = []
     observations = []
-    known_observations = {item.Reference() for item in state.observations}
+    knownObservations = {item.Reference() for item in state.observations}
 
     for finding in ModelSequence(findings, "findings"):
         if not isinstance(finding, Finding):
@@ -396,8 +396,8 @@ def ApplyFindings(
                 "finding-detection", reference, finding.ToAttributes(), provenance,
             )
             observations.append(observation)
-            novel = novel or observation.Reference() not in known_observations
-            known_observations.add(observation.Reference())
+            novel = novel or observation.Reference() not in knownObservations
+            knownObservations.add(observation.Reference())
 
         if not novel:
             continue
@@ -439,7 +439,7 @@ def ApplyVerifiedFindings(
     if workspace.Open().workspace_id != state.workspace_id:
         raise ValueError("finding evidence must belong to the model workspace")
 
-    evidence_store = LocalEvidenceStore(workspace.root / "evidence")
+    evidenceStore = LocalEvidenceStore(workspace.root / "evidence")
     batch = ModelSequence(findings, "findings")
     verified = set()
 
@@ -450,7 +450,7 @@ def ApplyVerifiedFindings(
         for provenance in finding.provenance:
             for reference in provenance.evidence_references:
                 if reference not in verified:
-                    evidence_store.Read(reference)
+                    evidenceStore.Read(reference)
                     verified.add(reference)
 
     return ApplyFindings(state, cast(tuple[Finding, ...], batch))

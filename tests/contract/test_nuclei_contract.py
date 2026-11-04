@@ -20,28 +20,28 @@ from fuzzy1337.executors import CapabilityDescriptors, InvocationDigest
 def test_ProfileDigestBindsEveryReviewAndArtifactField(tmp_path):
     """Different review or source provenance cannot reuse an invocation authorization digest."""
 
-    template_path = tmp_path / "owned.yaml"
+    templatePath = tmp_path / "owned.yaml"
     raw = (Path(__file__).parents[1] / "fixtures/nuclei/reviewed-get.yaml").read_bytes()
-    template_path.write_bytes(raw)
-    configuration_path = tmp_path / "empty.yaml"
-    configuration_path.write_bytes(b"{}\n")
-    template = NucleiTemplate("owned-http-marker", str(template_path),
+    templatePath.write_bytes(raw)
+    configurationPath = tmp_path / "empty.yaml"
+    configurationPath.write_bytes(b"{}\n")
+    template = NucleiTemplate("owned-http-marker", str(templatePath),
         hashlib.sha256(raw).hexdigest(), len(raw), "fixture:owned", "1",
         "review:exact-source-controlled-fixture", "single-get-exact-url")
-    profile = NucleiProfile("owned-http", (template,), str(configuration_path))
+    profile = NucleiProfile("owned-http", (template,), str(configurationPath))
     request = AdapterRequest("web.http-template-check", "target:fixture", ImpactLevel.STANDARD,
         {"url": "http://127.0.0.1:8080/", "profile_sha256": profile.Digest,
          "timeout_seconds": 10, "rate_limit": 1})
     adapter = NucleiAdapter(lambda reference: b"", profile, provider_version="3.4.10")
     invocation = adapter.PrepareInvocation(request)
     changed = replace(profile, templates=(replace(template, review_reference="review:new"),))
-    changed_request = replace(request, parameters={**request.parameters,
+    changedRequest = replace(request, parameters={**request.parameters,
                                                    "profile_sha256": changed.Digest})
-    changed_invocation = NucleiAdapter(lambda reference: b"", changed,
-        provider_version="3.4.10").PrepareInvocation(changed_request)
+    changedInvocation = NucleiAdapter(lambda reference: b"", changed,
+        provider_version="3.4.10").PrepareInvocation(changedRequest)
 
     assert profile.Digest != changed.Digest, "Review changes must invalidate selected provenance."
-    assert InvocationDigest(invocation) != InvocationDigest(changed_invocation), (
+    assert InvocationDigest(invocation) != InvocationDigest(changedInvocation), (
         "Authorization must bind the reviewed set even when argv paths are identical."
     )
     assert json.loads(SerializeContract(invocation))["provider_version"] == "3.4.10", (

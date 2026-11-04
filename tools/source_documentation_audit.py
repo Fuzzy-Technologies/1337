@@ -169,12 +169,12 @@ def AuditFile(path: Path, root: Path) -> dict[str, Any]:
         return record
 
     lines = text.splitlines()
-    header_lines = lines[:5]
+    headerLines = lines[:5]
 
-    if COPYRIGHT_HEADER not in header_lines:
+    if COPYRIGHT_HEADER not in headerLines:
         Add(1, "<module>", "SPDX_COPYRIGHT", "Required ownership header is absent or differs.")
 
-    if LICENSE_HEADER not in header_lines:
+    if LICENSE_HEADER not in headerLines:
         Add(1, "<module>", "SPDX_LICENSE", "Required Apache-2.0 header is absent or differs.")
 
     shebang = lines[0] if lines and lines[0].startswith("#!") else ""
@@ -191,29 +191,29 @@ def AuditFile(path: Path, root: Path) -> dict[str, Any]:
         Add(1, "<module>", "SHEBANG_INTERPRETER", "Interpreter is outside the accepted Python set.")
 
     exports: list[str] = []
-    authored_bindings: list[str] = []
-    explicit_exports: list[str] | None = None
-    export_declaration = "implicit-public-definitions"
+    authoredBindings: list[str] = []
+    explicitExports: list[str] | None = None
+    exportDeclaration = "implicit-public-definitions"
 
     for statement in tree.body:
         if isinstance(statement, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-            authored_bindings.append(statement.name)
+            authoredBindings.append(statement.name)
 
         elif isinstance(statement, (ast.Import, ast.ImportFrom)):
-            authored_bindings.extend(
+            authoredBindings.extend(
                 alias.asname or alias.name.split(".")[0] for alias in statement.names
             )
 
         if isinstance(statement, (ast.Assign, ast.AnnAssign)):
             targets = statement.targets if isinstance(statement, ast.Assign) else [statement.target]
 
-            authored_bindings.extend(
+            authoredBindings.extend(
                 node.id for target in targets for node in ast.walk(target)
                 if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
             )
 
             if any(isinstance(target, ast.Name) and target.id == "__all__" for target in targets):
-                export_declaration = "explicit-literal"
+                exportDeclaration = "explicit-literal"
 
                 try:
                     declared = ast.literal_eval(statement.value) if statement.value else None
@@ -222,24 +222,24 @@ def AuditFile(path: Path, root: Path) -> dict[str, Any]:
                         isinstance(name, str) for name in declared
                     ):
                         raise ValueError("Non-string export declaration")
-                    explicit_exports = list(declared)
+                    explicitExports = list(declared)
 
                 except (ValueError, TypeError, SyntaxError, RecursionError):
-                    export_declaration = "computed-unresolved"
+                    exportDeclaration = "computed-unresolved"
                     Add(
                         statement.lineno, "__all__", "EXPORT_REVIEW",
                         "Computed exports need review."
                     )
 
-    exports = explicit_exports if explicit_exports is not None else [
-        binding for binding in authored_bindings if not binding.startswith("_")
+    exports = explicitExports if explicitExports is not None else [
+        binding for binding in authoredBindings if not binding.startswith("_")
     ]
-    record["authored_bindings"] = sorted(set(authored_bindings))
+    record["authored_bindings"] = sorted(set(authoredBindings))
     record["exports"] = sorted(set(exports))
-    record["export_declaration"] = export_declaration
+    record["export_declaration"] = exportDeclaration
 
     symbols = Symbols(tree)
-    scope_types = {name: type(node) for name, node in symbols}
+    scopeTypes = {name: type(node) for name, node in symbols}
 
     for name, node in symbols:
         line = getattr(node, "lineno", 1)
@@ -258,15 +258,15 @@ def AuditFile(path: Path, root: Path) -> dict[str, Any]:
 
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        is_interface = not relative.startswith("tests/") and all(
+        isInterface = not relative.startswith("tests/") and all(
             not part.startswith("_") for part in name.split(".")
         ) and not any(
-            scope_types.get(".".join(name.split(".")[:index])) in {
+            scopeTypes.get(".".join(name.split(".")[:index])) in {
                 ast.FunctionDef, ast.AsyncFunctionDef
             }
             for index in range(1, len(name.split(".")))
         )
-        severity = "error" if is_interface else "review"
+        severity = "error" if isInterface else "review"
         parameters = Parameters(node)
         sections = Sections(docstring or "")
         documented = set()
@@ -324,20 +324,20 @@ def Audit(root: Path) -> dict[str, Any]:
     """
 
     files: list[dict[str, Any]] = []
-    boundary_findings: list[dict[str, Any]] = []
+    boundaryFindings: list[dict[str, Any]] = []
     exclusions: list[str] = []
-    absent_optional_roots: list[str] = []
+    absentOptionalRoots: list[str] = []
 
-    for source_root in SOURCE_ROOTS:
-        directory = root / source_root
+    for sourceRoot in SOURCE_ROOTS:
+        directory = root / sourceRoot
 
-        if not directory.is_symlink() and not directory.exists() and source_root in OPTIONAL_ROOTS:
-            absent_optional_roots.append(source_root)
+        if not directory.is_symlink() and not directory.exists() and sourceRoot in OPTIONAL_ROOTS:
+            absentOptionalRoots.append(sourceRoot)
             continue
 
         if directory.is_symlink() or not directory.is_dir():
-            boundary_findings.append(asdict(Finding(
-                source_root, 1, "<root>", "ROOT_UNSAFE", "Required root is missing or linked."
+            boundaryFindings.append(asdict(Finding(
+                sourceRoot, 1, "<root>", "ROOT_UNSAFE", "Required root is missing or linked."
             )))
             continue
 
@@ -348,8 +348,8 @@ def Audit(root: Path) -> dict[str, Any]:
                 error: Filesystem traversal exception.
             """
 
-            boundary_findings.append(asdict(Finding(
-                source_root, 1, "<directory>", "TRAVERSAL_FAILED",
+            boundaryFindings.append(asdict(Finding(
+                sourceRoot, 1, "<directory>", "TRAVERSAL_FAILED",
                 f"Directory traversal failed with errno {error.errno}."
             )))
 
@@ -357,14 +357,14 @@ def Audit(root: Path) -> dict[str, Any]:
             directory, followlinks=False, onerror=WalkError
         ):
             directories.sort()
-            safe_directories = []
+            safeDirectories = []
 
             for name in directories:
                 candidate = Path(current) / name
                 relative = candidate.relative_to(root).as_posix()
 
                 if candidate.is_symlink():
-                    boundary_findings.append(asdict(Finding(
+                    boundaryFindings.append(asdict(Finding(
                         relative, 1, "<directory>", "SYMLINK_REFUSED",
                         "Linked directory not scanned."
                     )))
@@ -373,9 +373,9 @@ def Audit(root: Path) -> dict[str, Any]:
                     exclusions.append(relative)
 
                 else:
-                    safe_directories.append(name)
+                    safeDirectories.append(name)
 
-            directories[:] = safe_directories
+            directories[:] = safeDirectories
 
             for name in sorted(filenames):
                 if not name.endswith(".py"):
@@ -383,14 +383,14 @@ def Audit(root: Path) -> dict[str, Any]:
                 path = Path(current) / name
 
                 if path.is_symlink() or not path.is_file():
-                    boundary_findings.append(asdict(Finding(
+                    boundaryFindings.append(asdict(Finding(
                         path.relative_to(root).as_posix(), 1, "<file>", "SYMLINK_REFUSED",
                         "Linked or nonregular Python file not scanned."
                     )))
                     continue
                 files.append(AuditFile(path, root))
 
-    findings = boundary_findings + [finding for file in files for finding in file["findings"]]
+    findings = boundaryFindings + [finding for file in files for finding in file["findings"]]
     findings.sort(key=lambda finding: (
         finding["path"], finding["line"], finding["symbol"], finding["rule"], finding["detail"]
     ))
@@ -401,17 +401,17 @@ def Audit(root: Path) -> dict[str, Any]:
         "schema_version": 1, "status": "FAIL" if any(
             finding["severity"] == "error" for finding in findings
         ) else "PASS",
-        "roots": list(SOURCE_ROOTS), "absent_optional_roots": absent_optional_roots,
+        "roots": list(SOURCE_ROOTS), "absent_optional_roots": absentOptionalRoots,
         "optional_roots": list(OPTIONAL_ROOTS),
         "excluded_directory_names": list(EXCLUDED_DIRECTORIES),
         "excluded_paths": sorted(exclusions), "limitations": list(LIMITATIONS),
         "files": sorted(files, key=lambda file: file["path"]), "findings": findings,
         "counts": counts,
-        "role_counts": {source_root: {
-            severity: sum(finding["path"].split("/")[0] == source_root
+        "role_counts": {sourceRoot: {
+            severity: sum(finding["path"].split("/")[0] == sourceRoot
                           and finding["severity"] == severity for finding in findings)
             for severity in ("error", "review")
-        } for source_root in SOURCE_ROOTS},
+        } for sourceRoot in SOURCE_ROOTS},
     }
 
 
@@ -466,10 +466,10 @@ def Main(argv: Sequence[str] | None = None) -> int:
             raise ValueError("Linked repository root is not accepted.")
         root = arguments.root.resolve(strict=True)
         output = arguments.output if arguments.output.is_absolute() else root / arguments.output
-        relative_output = output.relative_to(root)
+        relativeOutput = output.relative_to(root)
         cursor = root
 
-        for component in relative_output.parts:
+        for component in relativeOutput.parts:
             cursor = cursor / component
 
             if cursor.is_symlink():

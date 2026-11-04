@@ -62,8 +62,8 @@ def VerifyWorkspaceEvidence(workspace: WorkspaceState, evidence: LocalEvidenceSt
     for reference in workspace.evidence_references:
         evidence.Read(reference)
 
-    for record_id in workspace.evidence_record_references:
-        record = evidence.Get(record_id)
+    for recordId in workspace.evidence_record_references:
+        record = evidence.Get(recordId)
 
         if record.provenance.workspace_id != workspace.workspace_id:
             raise ValueError("retained evidence belongs to another workspace")
@@ -186,7 +186,7 @@ class QuickScanWorkflow:
             references = {
                 (item.locator, item.role): item for item in workspace.evidence_references
             }
-            record_ids = set(workspace.evidence_record_references)
+            recordIds = set(workspace.evidence_record_references)
 
             for artifact in snapshot.artifacts:
                 record = artifact.evidence
@@ -198,7 +198,7 @@ class QuickScanWorkflow:
                 references.setdefault((record.reference.locator, record.reference.role),
                                       record.reference)
 
-                record_ids.add(record.evidence_id)
+                recordIds.add(record.evidence_id)
 
             store.Save(replace(
                 workspace,
@@ -208,7 +208,7 @@ class QuickScanWorkflow:
                                                 *(item.Reference() for item in model.objects)})),
                 job_references=(*workspace.job_references, snapshot.spec.job_id),
                 evidence_references=tuple(references[key] for key in sorted(references)),
-                evidence_record_references=tuple(sorted(record_ids)),
+                evidence_record_references=tuple(sorted(recordIds)),
             ))
 
         except (
@@ -255,13 +255,13 @@ async def RunQuickScan(
     if type(approve_safe_http) is not bool:
         raise ValueError("approve_safe_http must be an explicit boolean")
 
-    workspace_store = LocalWorkspaceStore(workspace_root)
-    workspace = workspace_store.Open()
-    evidence_store = LocalEvidenceStore(workspace_store.root / "evidence")
-    VerifyWorkspaceEvidence(workspace, evidence_store)
-    model_store = LocalModelStore(workspace_store.root)
-    model_store.Open()
-    scope = LocalScopeStore(workspace_store.root).Open(scope_id)
+    workspaceStore = LocalWorkspaceStore(workspace_root)
+    workspace = workspaceStore.Open()
+    evidenceStore = LocalEvidenceStore(workspaceStore.root / "evidence")
+    VerifyWorkspaceEvidence(workspace, evidenceStore)
+    modelStore = LocalModelStore(workspaceStore.root)
+    modelStore.Open()
+    scope = LocalScopeStore(workspaceStore.root).Open(scope_id)
     policy = ImpactPolicy(
         "quick-safe-http",
         permissions=(CapabilityPermission(
@@ -276,7 +276,7 @@ async def RunQuickScan(
             raise PermissionError("Operator does not match current scope authority")
 
     native = NativeDiscoveryProvider(
-        workspace_store.root, targets, scope_id, policy, limits=limits, clock=clock,
+        workspaceStore.root, targets, scope_id, policy, limits=limits, clock=clock,
         context_validator=ValidateOwner,
     )
 
@@ -290,12 +290,12 @@ async def RunQuickScan(
 
         return job.Snapshot()
 
-    workflow = QuickScanWorkflow(native, workspace_store.root, scope_id, owner_reference, Snapshot)
+    workflow = QuickScanWorkflow(native, workspaceStore.root, scope_id, owner_reference, Snapshot)
     job = ScanJob(
-        spec, workflow, evidence_store=evidence_store,
+        spec, workflow, evidence_store=evidenceStore,
     )
 
-    started_at = datetime.now(UTC).isoformat()
+    startedAt = datetime.now(UTC).isoformat()
     started = time.monotonic()
     first_update: float | None = None
     observed_cursor = -1
@@ -329,10 +329,10 @@ async def RunQuickScan(
         raise
 
     snapshot = await job.Wait()
-    model = model_store.Open()
+    model = modelStore.Open()
 
     return QuickScanSummary(
-        snapshot, started_at, datetime.now(UTC).isoformat(), time.monotonic() - started,
+        snapshot, startedAt, datetime.now(UTC).isoformat(), time.monotonic() - started,
         first_update, limits.FirstUpdateBudgetSeconds, model.revision,
         tuple((kind.value, len(model.Objects(kind))) for kind in ObjectKind), job.EventsSince(),
     )

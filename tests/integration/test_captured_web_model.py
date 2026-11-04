@@ -47,8 +47,8 @@ def test_RealModelSaveReopenPreservesExistingRequestsAttributesAndSourceFacts(tm
     """Structural discovery uses actual owner interfaces and never drops existing templates."""
 
     fixture = Fixture.Create(tmp_path / "workspace")
-    model_store = LocalModelStore(fixture.root)
-    initial = model_store.Create()
+    modelStore = LocalModelStore(fixture.root)
+    initial = modelStore.Create()
     frontier = Read(fixture)
     alpha = frontier.entries[0].template
     prior = RequestTemplate(alpha.endpoint, (
@@ -57,24 +57,24 @@ def test_RealModelSaveReopenPreservesExistingRequestsAttributesAndSourceFacts(tm
     provenance = ModelProvenance("synthetic-existing", "run:earlier",
         fixture.capture.provenance.started_at, fixture.scope.Reference(),
         frontier.entries[0].target.Reference(), "old-parser-v2")
-    old_object = ProjectRequests((prior,), provenance=(provenance,))
-    old_object = replace(old_object, attributes={**old_object.attributes, "unrelated": "preserved"})
-    seeded, _ = initial.Apply(objects=(old_object,))
-    current = model_store.Save(seeded, expected_revision=initial.revision)
-    projection = ProjectCapturedWebFrontier(frontier, existing=(old_object,))
+    oldObject = ProjectRequests((prior,), provenance=(provenance,))
+    oldObject = replace(oldObject, attributes={**oldObject.attributes, "unrelated": "preserved"})
+    seeded, _ = initial.Apply(objects=(oldObject,))
+    current = modelStore.Save(seeded, expected_revision=initial.revision)
+    projection = ProjectCapturedWebFrontier(frontier, existing=(oldObject,))
     updated, delta = current.Apply(objects=projection.object_patches,
                                    observations=projection.observations)
-    saved = model_store.Save(updated, expected_revision=current.revision)
+    saved = modelStore.Save(updated, expected_revision=current.revision)
     reopened = LocalModelStore(fixture.root).Open()
     assert reopened == saved, "Structural candidates did not survive actual model persistence"
     assert delta.revision > current.revision, "Real source interpretation produced no model delta"
     assert len(reopened.Objects(ObjectKind.ENDPOINT)) == 5, "Logical candidate identities changed"
-    alpha_object = next(item for item in reopened.objects
+    alphaObject = next(item for item in reopened.objects
                         if item.identity == alpha.endpoint.Identity())
-    assert set(RequestsFromObject(alpha_object)) == {prior, alpha}, (
+    assert set(RequestsFromObject(alphaObject)) == {prior, alpha}, (
         "Complete request composition dropped the existing template"
     )
-    assert alpha_object.attributes["unrelated"] == "preserved", "Unrelated data was overwritten"
+    assert alphaObject.attributes["unrelated"] == "preserved", "Unrelated data was overwritten"
     links = tuple(item for item in reopened.observations if item.kind == "web.lexical-link")
     assert len(links) == 5 and not reopened.relations, "Lexical input invented connectivity"
     assert all(item.provenance.target_reference == frontier.source_target.Reference()
@@ -95,9 +95,9 @@ def test_RealModelSaveReopenPreservesExistingRequestsAttributesAndSourceFacts(tm
     assert all("status" not in item.attributes and "reachable" not in item.attributes
                for item in reopened.objects), "Lexical templates acquired observed network facts"
     repeated = ProjectCapturedWebFrontier(frontier, existing=reopened.Objects(ObjectKind.ENDPOINT))
-    replayed, replay_delta = reopened.Apply(objects=repeated.object_patches,
+    replayed, replayDelta = reopened.Apply(objects=repeated.object_patches,
                                             observations=repeated.observations)
-    assert replayed == reopened and replay_delta.revision == reopened.revision, (
+    assert replayed == reopened and replayDelta.revision == reopened.revision, (
         "Exact source/projection replay changed attribution history"
     )
 
@@ -106,22 +106,22 @@ def test_SameBodyDifferentCollectionManifestRetainsDistinctOriginHistory(tmp_pat
     """Raw-content deduplication does not collapse separate collector/version attribution."""
 
     fixture = Fixture.Create(tmp_path / "workspace")
-    model_store = LocalModelStore(fixture.root)
-    initial = model_store.Create()
+    modelStore = LocalModelStore(fixture.root)
+    initial = modelStore.Create()
     first = Read(fixture)
-    first_projection = ProjectCapturedWebFrontier(first)
-    state, _ = initial.Apply(objects=first_projection.object_patches,
-                            observations=first_projection.observations)
+    firstProjection = ProjectCapturedWebFrontier(first)
+    state, _ = initial.Apply(objects=firstProjection.object_patches,
+                            observations=firstProjection.observations)
     evidence = LocalEvidenceStore(fixture.root / "evidence")
-    second_record = evidence.Put(evidence.Read(fixture.capture.reference),
+    secondRecord = evidence.Put(evidence.Read(fixture.capture.reference),
         "response-body", "text/html",
         replace(fixture.capture.provenance, source_version="synthetic-html-v8",
                 tool_version="fixture-collector-v4"))
-    second = Read(replace(fixture, capture=second_record))
-    second_projection = ProjectCapturedWebFrontier(second,
+    second = Read(replace(fixture, capture=secondRecord))
+    secondProjection = ProjectCapturedWebFrontier(second,
                                                    existing=state.Objects(ObjectKind.ENDPOINT))
-    combined, _ = state.Apply(objects=second_projection.object_patches,
-                              observations=second_projection.observations)
+    combined, _ = state.Apply(objects=secondProjection.object_patches,
+                              observations=secondProjection.observations)
     assert first.capture.reference == second.capture.reference, "Identical bytes lost blob identity"
     assert first.capture.evidence_id != second.capture.evidence_id, "Collector identity changed"
     assert len(combined.Objects(ObjectKind.ENDPOINT)) == 5, "Repeated source duplicated endpoints"
@@ -191,8 +191,8 @@ def test_PreparedScopeDigestIsHistoricalAndNewPreparationUsesChangedCurrentRules
 
     fixture = Fixture.Create(tmp_path / "workspace")
     prepared = Read(fixture)
-    alpha_target = prepared.entries[0].target
-    changed = replace(fixture.scope, exclusions=(alpha_target,))
+    alphaTarget = prepared.entries[0].target
+    changed = replace(fixture.scope, exclusions=(alphaTarget,))
     current = LocalScopeStore(fixture.root).Save(changed)
     later = Read(fixture)
     assert later.scope_revision == current.revision and (
@@ -200,7 +200,7 @@ def test_PreparedScopeDigestIsHistoricalAndNewPreparationUsesChangedCurrentRules
     ), (
         "Full scope identity became a permanent revision-only grant"
     )
-    assert alpha_target not in tuple(entry.target for entry in later.entries), (
+    assert alphaTarget not in tuple(entry.target for entry in later.entries), (
         "A new source preparation ignored current exact target exclusions"
     )
     assert dict(later.exclusion_counts)["scope.excluded"] == 3, "Denied duplicate count changed"

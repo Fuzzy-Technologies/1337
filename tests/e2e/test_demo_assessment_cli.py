@@ -85,12 +85,12 @@ def AssertSuccess(root: Path, outcome: dict) -> None:
         {"method": "GET", "path": "/.git/HEAD", "status": 200},
         {"method": "GET", "path": "/fixed/.git/HEAD", "status": 404},
     ], "The fixture must receive precisely the separately confirmed exposed and control requests"
-    exposed_plan = Read(root, "exposed-plan.json")
-    fixed_plan = Read(root, "fixed-plan.json")
-    assert exposed_plan["policy_plan"]["intent_sha256"] != (
-        fixed_plan["policy_plan"]["intent_sha256"]
+    exposedPlan = Read(root, "exposed-plan.json")
+    fixedPlan = Read(root, "fixed-plan.json")
+    assert exposedPlan["policy_plan"]["intent_sha256"] != (
+        fixedPlan["policy_plan"]["intent_sha256"]
     ), "Different endpoints must receive independent actual invocation confirmation identities"
-    assert exposed_plan["impact"] == fixed_plan["impact"] == "STANDARD", (
+    assert exposedPlan["impact"] == fixedPlan["impact"] == "STANDARD", (
         "The real predicate must preserve ordinary STANDARD policy classification"
     )
     exposed = Read(root, "exposed-scan.json")

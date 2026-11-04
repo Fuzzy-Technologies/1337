@@ -104,14 +104,14 @@ def test_ExactVersionAndDirectionPreventTransitiveOrHistoricalInference():
                                include_candidates=True) == (), (
         'Lookup preserves upstream catalog versions and never reverses or chains relations.'
     )
-    capec_bindings = BindFindingMappings(pack, FINDING_REFERENCE,
+    capecBindings = BindFindingMappings(pack, FINDING_REFERENCE,
                                         StandardIdentity("capec", "3.9", "CAPEC-66"),
                                         include_candidates=True)
 
-    assert len(capec_bindings) == 1, (
+    assert len(capecBindings) == 1, (
         'Lookup preserves upstream catalog versions and never reverses or chains relations.'
     )
-    assert capec_bindings[0].mapping.target.external_id == "T1190", (
+    assert capecBindings[0].mapping.target.external_id == "T1190", (
         'Lookup preserves upstream catalog versions and never reverses or chains relations.'
     )
 
@@ -255,8 +255,8 @@ def test_ReviewCannotPrecedeAcquisitionOfAnyCitedSource(state):
     """A claimed decision cannot cover source material retrieved after the decision time."""
 
     mapping = CandidateBaseline().mappings[0]
-    later_source = replace(mapping.provenance[0], retrieved_at="2026-10-11T16:00:00+03:00")
-    mapping = replace(mapping, provenance=(later_source, *mapping.provenance[1:]))
+    laterSource = replace(mapping.provenance[0], retrieved_at="2026-10-11T16:00:00+03:00")
+    mapping = replace(mapping, provenance=(laterSource, *mapping.provenance[1:]))
     review = MappingReview(
         state, "synthetic-reviewer", "2026-10-11T12:59:59Z",
         mapping.Reference(), "synthetic-decision:too-early",
@@ -523,8 +523,8 @@ def test_CandidateRejectedAndStaleDecisionsCannotBecomeDefaultFindingBindings():
     finding = FindingObject()
 
     for selected in (candidate, rejected):
-        selected_pack = MappingPack("synthetic.review-state", "1", (selected,))
-        assert BindFindingObjectMappings(selected_pack, finding, mapping.source) == (), (
+        selectedPack = MappingPack("synthetic.review-state", "1", (selected,))
+        assert BindFindingObjectMappings(selectedPack, finding, mapping.source) == (), (
             "A missing or rejected decision reached the default finding consumer"
         )
 

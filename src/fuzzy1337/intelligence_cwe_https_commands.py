@@ -213,11 +213,11 @@ def RunCweHttpsCommands(
 
     if list(arguments) in (["--help"], ["-h"], ["fetch", "--help"], ["fetch", "-h"],
                            ["inspect", "--help"], ["inspect", "-h"]):
-        help_output = StringIO()
-        CweHttpsParser(arguments[0]).print_help(file=help_output)
-        help_text = help_output.getvalue()
+        helpOutput = StringIO()
+        CweHttpsParser(arguments[0]).print_help(file=helpOutput)
+        helpText = helpOutput.getvalue()
 
-        if output.write(help_text) != len(help_text):
+        if output.write(helpText) != len(helpText):
             raise OSError("Incomplete CWE HTTPS terminal write")
 
         return 0

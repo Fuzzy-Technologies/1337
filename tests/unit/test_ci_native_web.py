@@ -345,32 +345,32 @@ def test_RevokedPolicyAfterScanCannotYieldCriterionSuccess(
 
     monkeypatch.setattr(ci_native_web.asyncio, "run", runner.run)
     arguments = Arguments(workflow, tmp_path)
-    policy_path = workflow[0] / "native-policy.json"
+    policyPath = workflow[0] / "native-policy.json"
 
     def Revoke():
         """Remove only this owned policy's finite capability permission."""
 
-        policy_path.write_text(SerializeContract(replace(Policy(), permissions=())),
+        policyPath.write_text(SerializeContract(replace(Policy(), permissions=())),
                                encoding="utf-8")
 
     if after_first_export:
-        original_publish = ci_native_web.PublishReport
+        originalPublish = ci_native_web.PublishReport
 
         def PublishThenRevoke(destination, payload):
             """Perform the real first publication before changing the independent current policy."""
 
-            original_publish(destination, payload)
+            originalPublish(destination, payload)
             Revoke()
 
         monkeypatch.setattr(ci_native_web, "PublishReport", PublishThenRevoke)
 
     else:
-        original_run = ci_native_web.RunNativeWebScan
+        originalRun = ci_native_web.RunNativeWebScan
 
         async def ScanThenRevoke(*args, **kwargs):
             """Retain the actual completed native result, then change current permission."""
 
-            summary = await original_run(*args, **kwargs)
+            summary = await originalRun(*args, **kwargs)
             Revoke()
 
             return summary
@@ -396,12 +396,12 @@ def test_CorruptedOriginalWorkerBlobFailsBeforeAnyReport(
 
     monkeypatch.setattr(ci_native_web.asyncio, "run", runner.run)
     arguments = Arguments(workflow, tmp_path)
-    original_run = ci_native_web.RunNativeWebScan
+    originalRun = ci_native_web.RunNativeWebScan
 
     async def ScanThenCorrupt(*args, **kwargs):
         """Replace one owned original blob after the genuine job/evidence/model path completed."""
 
-        summary = await original_run(*args, **kwargs)
+        summary = await originalRun(*args, **kwargs)
         reference = summary.snapshot.artifacts[0].evidence.reference
         (workflow[0] / "evidence" / reference.locator).write_bytes(b"corrupt\n")
 
@@ -425,7 +425,7 @@ def test_ReportPublicationFailureRetainsActualCompletedPrefix(
 
     monkeypatch.setattr(ci_native_web.asyncio, "run", runner.run)
     arguments = Arguments(workflow, tmp_path)
-    original_publish = ci_native_web.PublishReport
+    originalPublish = ci_native_web.PublishReport
     published = []
 
     def PartialPublication(destination, payload):
@@ -433,11 +433,11 @@ def test_ReportPublicationFailureRetainsActualCompletedPrefix(
 
         if len(published) == 1:
             if ack_lost:
-                original_publish(destination, payload)
+                originalPublish(destination, payload)
 
             raise ReportFailure("publication", published=ack_lost)
 
-        original_publish(destination, payload)
+        originalPublish(destination, payload)
         published.append(destination)
 
     monkeypatch.setattr(ci_native_web, "PublishReport", PartialPublication)
@@ -459,12 +459,12 @@ def test_ActualCallerCancellationSettlesNativeJobAndReturns130(
     monkeypatch.setattr(ci_native_web.asyncio, "run", runner.run)
     arguments = Arguments(workflow, tmp_path)
     workflow[3]["mode"] = "wait"
-    original_run = ci_native_web.RunNativeWebScan
+    originalRun = ci_native_web.RunNativeWebScan
 
     async def CancelOwnedRun(*args, **kwargs):
         """Cancel only after the controlled native execution has actually started."""
 
-        task = asyncio.create_task(original_run(*args, **kwargs))
+        task = asyncio.create_task(originalRun(*args, **kwargs))
 
         async with asyncio.timeout(2):
             while not workflow[3]["executed"]:

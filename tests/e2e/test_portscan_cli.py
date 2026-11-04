@@ -41,8 +41,8 @@ def Setup(root: Path) -> list[str]:
     policy = ImpactPolicy("ports-cli", maximum_impact=ImpactLevel.STANDARD,
         permissions=(CapabilityPermission(PORT_SCAN_CAPABILITY, PORT_SCAN_PROVIDER_ID,
                                           ImpactLevel.STANDARD),))
-    policy_path = root / "policy.json"
-    policy_path.write_text(SerializeContract(policy), encoding="utf-8")
+    policyPath = root / "policy.json"
+    policyPath.write_text(SerializeContract(policy), encoding="utf-8")
     fixture = Path(__file__).parents[1] / "fixtures/nmap/synthetic_nmap.py"
     executable = root / "owned synthetic nmap"
     executable.write_text(f"#!{sys.executable}\n" + fixture.read_text(encoding="utf-8"),
@@ -51,7 +51,7 @@ def Setup(root: Path) -> list[str]:
 
     return ["ports", str(root), "--scope", "local", "--owner", "operator:owned",
         "--target", "127.0.0.1", "--ports", "443,80", "--timeout", "10",
-        "--policy", str(policy_path), "--executable", str(executable)]
+        "--policy", str(policyPath), "--executable", str(executable)]
 
 
 @pytest.mark.parametrize("value", ["", "80-90", "http", "80,", "+80", "80, 443", "８０"])

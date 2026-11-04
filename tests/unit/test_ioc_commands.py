@@ -203,10 +203,10 @@ def test_RefusalReceiptContradictingActualParserIsRejected(tmp_path, pin):
     store = commands.IocEvidenceStore(root / "evidence")
     document = commands.json.loads(store.Read(acquired.receipt.reference))
     document["state"] = "parse-rejected"
-    forged_receipt = store.Put(commands.json.dumps(document, sort_keys=True,
+    forgedReceipt = store.Put(commands.json.dumps(document, sort_keys=True,
         separators=(",", ":")).encode(), "ioc-acquisition", "application/json",
         acquired.receipt.provenance)
-    forged = commands.IocAcquisition("parse-rejected", acquired.raw, forged_receipt, None, None)
+    forged = commands.IocAcquisition("parse-rejected", acquired.raw, forgedReceipt, None, None)
 
     with pytest.raises(ValueError, match="contradict"):
         commands.VerifiedAcquisition(root, forged, request, "scope:owned")

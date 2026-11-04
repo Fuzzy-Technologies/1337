@@ -64,14 +64,14 @@ def test_RealOwnedExecutorRetainsBothFreshAuthorityCheckpoints(
     async def Audit(self, request, **options):
         """Observe the original executor without replacing its process, result or callbacks."""
 
-        original_check = options["pre_launch"]
+        originalCheck = options["pre_launch"]
 
         def Check(actual):
             """Retain each real initial/READY boundary and delegate unchanged fresh authority."""
 
             checkpoints.append(request.invocation.request.parameters["operation"])
 
-            return original_check(actual)
+            return originalCheck(actual)
 
         options["pre_launch"] = Check
         outcome = await ORIGINAL_EXECUTE(self, request, **options)

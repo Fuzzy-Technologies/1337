@@ -374,9 +374,9 @@ def test_ExactReplayDeduplicatesButIndependentProvenanceNeverDisappears(fixture)
 def test_OneStaleSourceCannotBeHiddenByAnotherCurrentSource(fixture):
     """Conservative admission keeps every source and quarantines the entire affected hop."""
 
-    stale_envelope = fixture.Envelope([fixture.Declaration("source-portal")])
-    stale_envelope["model_version"]["snapshot_sha256"] = "0" * 64
-    stale = fixture.Assessment(stale_envelope)
+    staleEnvelope = fixture.Envelope([fixture.Declaration("source-portal")])
+    staleEnvelope["model_version"]["snapshot_sha256"] = "0" * 64
+    stale = fixture.Assessment(staleEnvelope)
     fresh = fixture.Assessment(source_id="second-reachability-attester")
     projection = Projection(fixture, (stale, fresh))
     edge = Edge(projection, fixture)
@@ -419,7 +419,7 @@ def test_ActualParsedManifestSizesAreGuardedBeforeOwningBlobAllocation(tmp_path,
         original = fixture.Assessment(raw=b" " * (256 * 1024 + 1))
         record = copy.copy(original)
         object.__setattr__(record, "reference", replace(record.reference, size_bytes=1))
-    owner_read = LocalEvidenceStore.Read
+    ownerRead = LocalEvidenceStore.Read
     allocations = []
 
     def ObserveAllocation(store, reference):
@@ -434,7 +434,7 @@ def test_ActualParsedManifestSizesAreGuardedBeforeOwningBlobAllocation(tmp_path,
         """
 
         allocations.append(reference.size_bytes)
-        return owner_read(store, reference)
+        return ownerRead(store, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", ObserveAllocation)
     with pytest.raises(ValueError):
@@ -566,12 +566,12 @@ def test_ExactRetainedProofSubjectsAndCoverageCannotBeSubstituted(fixture, case)
             updated = replace(original, provenance=replace(original.provenance,
                                                            scope_reference="scope:other"))
         else:
-            evidence_store = LocalEvidenceStore(fixture.root / "evidence")
-            old_record = fixture.records["source-portal"]
-            extra = evidence_store.Put(b"additional-independent-witness", "second-witness",
-                "application/octet-stream", old_record.provenance)
+            evidenceStore = LocalEvidenceStore(fixture.root / "evidence")
+            oldRecord = fixture.records["source-portal"]
+            extra = evidenceStore.Put(b"additional-independent-witness", "second-witness",
+                "application/octet-stream", oldRecord.provenance)
             updated = replace(original, provenance=replace(original.provenance,
-                evidence_references=(old_record.reference, extra.reference)))
+                evidence_references=(oldRecord.reference, extra.reference)))
         changed, _ = fixture.model.Apply(observations=(updated,))
         fixture.model = LocalModelStore(fixture.root).Save(changed,
                                                          expected_revision=fixture.model.revision)
@@ -717,9 +717,9 @@ def test_CopyingVerifiedWrappersCannotAlterDeclaredStateProofOrGraph(fixture):
         ProjectReachability(fixture.model, (), replace(claims, claims=(altered,)),
                             expected_model_version=claims.model_version)
     graph = Projection(fixture, (record,))
-    changed_hop = replace(graph.transitions[0], state=ReachabilityState.BLOCKED)
+    changedHop = replace(graph.transitions[0], state=ReachabilityState.BLOCKED)
     with pytest.raises(ValueError):
-        SearchReachabilityPaths(replace(graph, transitions=(changed_hop, *graph.transitions[1:])),
+        SearchReachabilityPaths(replace(graph, transitions=(changedHop, *graph.transitions[1:])),
             fixture.model, fixture.objects["source"].Reference(),
             fixture.objects["portal"].Reference())
 
@@ -731,7 +731,7 @@ def test_RealIndependentProofJoinStopsBeforeThe257thSupportingManifest(fixture, 
     original = fixture.observations["source-portal"]
     observations = []
     declarations = []
-    support_ids = set()
+    supportIds = set()
     for index in range(257):
         record = store.Put(("independent-witness:" + str(index)).encode(), "transition-witness",
             "application/octet-stream", fixture.records["source-portal"].provenance)
@@ -743,13 +743,13 @@ def test_RealIndependentProofJoinStopsBeforeThe257thSupportingManifest(fixture, 
         claim["basis"] = [{"observation_reference": observation.Reference(),
                            "evidence_manifest_ids": [record.evidence_id]}]
         declarations.append(claim)
-        support_ids.add(record.evidence_id)
+        supportIds.add(record.evidence_id)
     changed, _ = fixture.model.Apply(observations=tuple(observations))
     fixture.model = LocalModelStore(fixture.root).Save(changed,
                                                      expected_revision=fixture.model.revision)
     assessments = tuple(fixture.Assessment(fixture.Envelope(declarations[start:start + 120]))
                         for start in range(0, len(declarations), 120))
-    owner_get = LocalEvidenceStore.Get
+    ownerGet = LocalEvidenceStore.Get
     joined = []
 
     def CountJoin(evidence, identity):
@@ -763,9 +763,9 @@ def test_RealIndependentProofJoinStopsBeforeThe257thSupportingManifest(fixture, 
             Actual canonical owning manifest after original verification.
         """
 
-        if identity in support_ids:
+        if identity in supportIds:
             joined.append(identity)
-        return owner_get(evidence, identity)
+        return ownerGet(evidence, identity)
 
     monkeypatch.setattr(LocalEvidenceStore, "Get", CountJoin)
     with pytest.raises(ValueError):
@@ -787,9 +787,9 @@ def test_FullModelSnapshotUsesTheExistingEightMiBSizeBoundary(fixture):
 def test_CanonicalSerializationFailuresUseSanitizedValueError(fixture):
     """Unserializable giant direct revision integers do not expose a parser cause or raw value."""
 
-    oversized_revision = replace(fixture.model, revision=10 ** 10000)
+    oversizedRevision = replace(fixture.model, revision=10 ** 10000)
     with pytest.raises(ValueError):
-        ReachabilityModelVersion.FromModel(oversized_revision)
+        ReachabilityModelVersion.FromModel(oversizedRevision)
 
 
 def test_EqualStringStateCopiesCannotEraseTheNamedBlockingProof(fixture):
@@ -947,12 +947,12 @@ def BoundaryModel(fixture, delta):
     provenance = original.objects[0].provenance
     empty = SecurityObject(ObjectIdentity(original.workspace_id, ObjectKind.ASSET, "budget:0000"),
                            {"padding": ""}, provenance)
-    base_size = len(CanonicalModelJson(original.ToDict()))
-    unit_size = len(CanonicalModelJson(replace(original, objects=(
+    baseSize = len(CanonicalModelJson(original.ToDict()))
+    unitSize = len(CanonicalModelJson(replace(original, objects=(
         *original.objects, empty,
-    )).ToDict())) - base_size
+    )).ToDict())) - baseSize
     block = 60000
-    count = (MAX_MODEL_BYTES - base_size - unit_size) // (block + unit_size)
+    count = (MAX_MODEL_BYTES - baseSize - unitSize) // (block + unitSize)
     padding = "x" * block
     full = tuple(SecurityObject(ObjectIdentity(original.workspace_id, ObjectKind.ASSET,
         f"budget:{index:04d}"), {"padding": padding}, provenance) for index in range(count))
@@ -1009,8 +1009,8 @@ def test_OversizedCallerModelRefusesBeforeFullMaterialization(fixture, monkeypat
     with monkeypatch.context() as guard:
         guard.setattr(type(model), "ToDict", Refuse)
         guard.setattr(module, "CanonicalModelJson", Refuse)
-        for record_type in (ObjectIdentity, SecurityObject, Relation, Observation):
-            guard.setattr(record_type, "Reference", Refuse)
+        for recordType in (ObjectIdentity, SecurityObject, Relation, Observation):
+            guard.setattr(recordType, "Reference", Refuse)
         with pytest.raises(ValueError):
             ReachabilityModelVersion.FromModel(model)
     assert not attempted, "Size admission delegated oversized caller data to an allocating owner"

@@ -30,43 +30,43 @@ def test_SaveObserversReturnOriginalObjectsRetainFailuresAndRestoreOwners(
 ):
     """Only explicit store doubles execute; acknowledged and uncertain returns remain distinct."""
 
-    model_proposal = SimpleNamespace(ToDict=lambda: {"revision": 5})
-    model_return = SimpleNamespace(ToDict=lambda: {"revision": 5})
-    workspace_proposal = SimpleNamespace(revision=8, ToDict=lambda: {"revision": 8})
-    workspace_return = SimpleNamespace(ToDict=lambda: {"revision": 9})
+    modelProposal = SimpleNamespace(ToDict=lambda: {"revision": 5})
+    modelReturn = SimpleNamespace(ToDict=lambda: {"revision": 5})
+    workspaceProposal = SimpleNamespace(revision=8, ToDict=lambda: {"revision": 8})
+    workspaceReturn = SimpleNamespace(ToDict=lambda: {"revision": 9})
 
     def ModelSave(store, proposal, *, expected_revision):
         """Observe the exact original model inputs and return a distinct original object."""
 
-        assert proposal is model_proposal and expected_revision == 4, (
+        assert proposal is modelProposal and expected_revision == 4, (
             "Observed model Save must receive the original model proposal and selected CAS basis."
         )
 
         if failure == "model":
             raise OSError("synthetic lost model acknowledgement")
 
-        return model_return
+        return modelReturn
 
     def WorkspaceSave(store, proposal):
         """Keep actual proposal/returned revisions distinct without performing storage work."""
 
-        assert proposal is workspace_proposal and proposal.revision == 8, (
+        assert proposal is workspaceProposal and proposal.revision == 8, (
             "Observed workspace Save must receive its original proposal and revision."
         )
 
         if failure == "workspace":
             raise OSError("synthetic lost workspace acknowledgement")
 
-        return workspace_return
+        return workspaceReturn
 
     async def Capture(*args, **kwargs):
         """Exercise only the installed-boundary doubles; no SDK, executor or policy is invoked."""
 
-        assert model.LocalModelStore.Save(None, model_proposal, expected_revision=4) is (
-            model_return), (
+        assert model.LocalModelStore.Save(None, modelProposal, expected_revision=4) is (
+            modelReturn), (
             "The model observer must return the original model acknowledgement object unchanged."
         )
-        assert workspace.LocalWorkspaceStore.Save(None, workspace_proposal) is workspace_return, (
+        assert workspace.LocalWorkspaceStore.Save(None, workspaceProposal) is workspaceReturn, (
             "The workspace observer must return the original workspace acknowledgement object "
             "unchanged."
         )

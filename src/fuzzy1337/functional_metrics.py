@@ -165,13 +165,13 @@ class FunctionalRun:
         ):
             raise ValueError("duration must be finite and nonnegative")
 
-        for field_name in ("detected_checks", "discovered_objects"):
-            values = tuple(getattr(self, field_name))
+        for fieldName in ("detected_checks", "discovered_objects"):
+            values = tuple(getattr(self, fieldName))
 
             for value in values:
-                RequireIdentifier(value, field_name)
+                RequireIdentifier(value, fieldName)
 
-            object.__setattr__(self, field_name, values)
+            object.__setattr__(self, fieldName, values)
 
         evidence = tuple(self.evidence)
         UniqueIdentifiers(tuple(record.role for record in evidence), "evidence roles")
@@ -222,7 +222,7 @@ def ScoreRun(oracle: ScenarioOracle, run: FunctionalRun) -> dict[str, object]:
     }
     declared = {check.identifier for check in oracle.checks if check.applicable}
     unexpected = detected - declared
-    missing_evidence = sorted(set(oracle.required_evidence) - {item.role for item in run.evidence})
+    missingEvidence = sorted(set(oracle.required_evidence) - {item.role for item in run.evidence})
     eligible = oracle.complete and run.status is RunStatus.COMPLETED and bool(declared)
     tp = len(positives & detected)
     fp = len(negatives & detected)
@@ -252,11 +252,11 @@ def ScoreRun(oracle: ScenarioOracle, run: FunctionalRun) -> dict[str, object]:
         "crashes": int(run.status is RunStatus.CRASHED),
         "timeouts": int(run.status is RunStatus.TIMED_OUT),
         "evidence_expected": len(oracle.required_evidence),
-        "evidence_present": len(oracle.required_evidence) - len(missing_evidence),
+        "evidence_present": len(oracle.required_evidence) - len(missingEvidence),
         "evidence_completeness": Ratio(
-            len(oracle.required_evidence) - len(missing_evidence), len(oracle.required_evidence)
+            len(oracle.required_evidence) - len(missingEvidence), len(oracle.required_evidence)
         ),
-        "missing_evidence": missing_evidence,
+        "missing_evidence": missingEvidence,
     }
 
 
@@ -295,18 +295,18 @@ def BuildReport(
 
     capabilities = sorted({check.capability for item in scenarios for check in item.checks})
     columns: list[dict[str, object]] = []
-    cells_by_capability: dict[str, list[dict[str, object]]] = {key: [] for key in capabilities}
-    scored_runs: list[dict[str, object]] = []
+    cellsByCapability: dict[str, list[dict[str, object]]] = {key: [] for key in capabilities}
+    scoredRuns: list[dict[str, object]] = []
 
-    for scenario_id, oracle in sorted(oracles.items()):
-        scenario_runs = sorted(
-            grouped[scenario_id], key=lambda item: (item.scanner_id, item.release_id)
+    for scenarioId, oracle in sorted(oracles.items()):
+        scenarioRuns = sorted(
+            grouped[scenarioId], key=lambda item: (item.scanner_id, item.release_id)
         )
-        column_runs: Sequence[FunctionalRun | None] = scenario_runs or (None,)
+        columnRuns: Sequence[FunctionalRun | None] = scenarioRuns or (None,)
 
-        for run in column_runs:
+        for run in columnRuns:
             columns.append({
-                "scenario_id": scenario_id,
+                "scenario_id": scenarioId,
                 "target_pack": oracle.target_pack,
                 "target_version": oracle.target_version,
                 "scanner_id": run.scanner_id if run else None,
@@ -314,7 +314,7 @@ def BuildReport(
             })
 
             if run is not None:
-                scored_runs.append({"run": asdict(run), "metrics": ScoreRun(oracle, run)})
+                scoredRuns.append({"run": asdict(run), "metrics": ScoreRun(oracle, run)})
 
             for capability in capabilities:
                 checks = [item for item in oracle.checks if item.capability == capability]
@@ -333,7 +333,7 @@ def BuildReport(
                 ):
                     state = "unexpected-detection"
 
-                cells_by_capability[capability].append({
+                cellsByCapability[capability].append({
                     "applicable": applicable,
                     "state": state,
                     "checks": [
@@ -350,11 +350,11 @@ def BuildReport(
     return {
         "schema_version": FUNCTIONAL_REPORT_VERSION,
         "scenarios": [asdict(item) for _, item in sorted(oracles.items())],
-        "runs": scored_runs,
+        "runs": scoredRuns,
         "matrix": {
             "columns": columns,
             "rows": [
-                {"capability": key, "cells": cells_by_capability[key]} for key in capabilities
+                {"capability": key, "cells": cellsByCapability[key]} for key in capabilities
             ],
         },
     }

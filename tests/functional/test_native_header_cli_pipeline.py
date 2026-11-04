@@ -293,20 +293,20 @@ def test_InstalledOwnNativePipelineRetainsDistinctSourcesTriageAndRelocatedRepla
                 "Selected structural and exact-URL identities must remain distinct")
 
     assert len(positive) == 2, "Actual original-header grammar must yield two native Findings"
-    selected_finding = positive[0].ToObject(WORKSPACE).Reference()
+    selectedFinding = positive[0].ToObject(WORKSPACE).Reference()
     CliControl(installed_header_cli, tmp_path, evidence, "triage", {"workspace": str(root),
-        "finding_reference": selected_finding})
-    before_model, before_workspace = LocalModelStore(root).Open(), LocalWorkspaceStore(root).Open()
+        "finding_reference": selectedFinding})
+    beforeModel, beforeWorkspace = LocalModelStore(root).Open(), LocalWorkspaceStore(root).Open()
     url, receipt = captured["missing"]
     reused = CliJson(installed_header_cli, tmp_path, evidence, "reuse",
         (*CheckArguments(root, receipt, url, policies["header"], "analysis:joined-cli-missing"),
             "--approve-passive-header-check"), offline=True)
     metrics = json.loads((tmp_path / "reuse-offline-metrics.json").read_bytes())
     assert reused["state"] == "already-applied" and metrics["saves"] == [] and (
-        LocalModelStore(root).Open() == before_model and
-        LocalWorkspaceStore(root).Open() == before_workspace), "Reuse cannot Save or change triage"
-    finding = next(item for item in Findings(before_model)
-        if item.ToObject(WORKSPACE).Reference() == selected_finding)
+        LocalModelStore(root).Open() == beforeModel and
+        LocalWorkspaceStore(root).Open() == beforeWorkspace), "Reuse cannot Save or change triage"
+    finding = next(item for item in Findings(beforeModel)
+        if item.ToObject(WORKSPACE).Reference() == selectedFinding)
     assert finding.status is FindingStatus.CONFIRMED, "Attributed operator triage must survive"
     originals = {case: OriginalState(root, item[1])["bytes"] for case, item in captured.items()}
     relocated = tmp_path / "relocated-workspace"
@@ -317,25 +317,25 @@ def test_InstalledOwnNativePipelineRetainsDistinctSourcesTriageAndRelocatedRepla
         replay = CliJson(installed_header_cli, tmp_path, evidence, "relocated-" + case,
             ("response", "replay-headers", str(relocated), "--assessment", assessment),
             offline=True)
-        metrics_path = tmp_path / ("relocated-" + case + "-offline-metrics.json")
-        metrics = json.loads(metrics_path.read_bytes())
+        metricsPath = tmp_path / ("relocated-" + case + "-offline-metrics.json")
+        metrics = json.loads(metricsPath.read_bytes())
         assert replay["state"] == "verified" and metrics["saves"] == [], (
             "Relocated historical replay verifies actual originals without persistence")
         assert OriginalState(relocated, captured[case][1])["bytes"] == originals[case], (
             "Relocation must retain every original source byte and identity")
 
-    report_path = tmp_path / "actual-native-report.json"
+    reportPath = tmp_path / "actual-native-report.json"
     report = CliJson(installed_header_cli, tmp_path, evidence, "report",
-        ("report", "export", str(relocated), "--format", "json", "--output", str(report_path)),
+        ("report", "export", str(relocated), "--format", "json", "--output", str(reportPath)),
         offline=True)
-    raw_report = report_path.read_bytes()
-    evidence.Write("actual-native-report.json", raw_report)
-    rendered = json.loads(raw_report)
+    rawReport = reportPath.read_bytes()
+    evidence.Write("actual-native-report.json", rawReport)
+    rendered = json.loads(rawReport)
     assert report["status"] == "completed" and report["report_sha256"] == (
-        hashlib.sha256(raw_report).hexdigest()) and rendered["summary"]["findings"] == 2, (
+        hashlib.sha256(rawReport).hexdigest()) and rendered["summary"]["findings"] == 2, (
             "Installed report export must describe the two actual persisted native Findings")
-    assert LocalModelStore(relocated).Open() == before_model and (
-        LocalWorkspaceStore(relocated).Open() == before_workspace and
+    assert LocalModelStore(relocated).Open() == beforeModel and (
+        LocalWorkspaceStore(relocated).Open() == beforeWorkspace and
         target.state.Counters()["contacts"] == 7 and
         json.loads((evidence.local / "target-final.json").read_bytes()) == final), (
             "Offline replay/report changes no model, originals, requests or contacts")

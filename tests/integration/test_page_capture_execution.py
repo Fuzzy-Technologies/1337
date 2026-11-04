@@ -197,12 +197,12 @@ def test_ExactOwnedWireWorkerOracleEvidenceModelAndEvents(tmp_path, owned_wire):
     assert snapshot.state is JobState.COMPLETED, snapshot.failure
     oracle = Oracle()
     authority = server.origin.removeprefix("http://")
-    expected_request = (
+    expectedRequest = (
         f"GET /docs/index HTTP/1.1\r\nHost: {authority}\r\nConnection: close\r\n"
         "Accept: text/html\r\nAccept-Encoding: identity\r\n\r\n"
     ).encode()
     assert (
-        server.requests == [expected_request] and server.accepted == 1
+        server.requests == [expectedRequest] and server.accepted == 1
     ), (
         'Expected invariant: server.requests == [expected_request] and '
         'server.accepted == 1'
@@ -370,21 +370,21 @@ def test_UnicodeConsentRetainsDistinctOwningDigestsAndPinnedSnapshot(tmp_path, o
     assert snapshot.state is JobState.COMPLETED, snapshot.failure
     state = LocalModelStore(fixture.root).Open()
     source = next(item for item in state.observations if item.kind == "http.synthetic-page")
-    policy_digest = Digest(before.ToDict())
-    frontier_digest = hashlib.sha256(CanonicalModelJson(before.ToDict())).hexdigest()
+    policyDigest = Digest(before.ToDict())
+    frontierDigest = hashlib.sha256(CanonicalModelJson(before.ToDict())).hexdigest()
     assert (
-        policy_digest != frontier_digest
+        policyDigest != frontierDigest
     ), (
         'Expected invariant: policy_digest != frontier_digest'
     )
     assert (
-        source.attributes["launch_policy_scope_sha256"] == policy_digest
+        source.attributes["launch_policy_scope_sha256"] == policyDigest
     ), (
         'Expected invariant: source.attributes["launch_policy_scope_sha256"] == '
         'policy_digest'
     )
     assert (
-        source.attributes["frontier_scope_sha256"] == frontier_digest
+        source.attributes["frontier_scope_sha256"] == frontierDigest
     ), (
         'Expected invariant: source.attributes["frontier_scope_sha256"] == '
         'frontier_digest'
@@ -405,17 +405,17 @@ def test_CompleteSourceAndCandidateRequestsAttributesAndHistorySurvive(tmp_path,
     model = LocalModelStore(fixture.root)
     initial = model.Open()
     alpha = replace(fixture.source.endpoint, path_template="/alpha")
-    prior_source = RequestTemplate(fixture.source.endpoint, (
+    priorSource = RequestTemplate(fixture.source.endpoint, (
         InjectionPoint(InjectionLocation.QUERY, "existing_source", ValueBinding("source-input")),
     ))
-    prior_alpha = RequestTemplate(alpha, (
+    priorAlpha = RequestTemplate(alpha, (
         InjectionPoint(InjectionLocation.QUERY, "existing_candidate", ValueBinding("alpha-input")),
     ))
     attribution = ModelProvenance("synthetic-existing", "run:previous", NOW.isoformat(),
         fixture.scope.Reference(), fixture.scope.targets[0].Reference(), "old-v1")
     patches = tuple(replace(ProjectRequests((template,), provenance=(attribution,)),
         attributes={**ProjectRequests((template,), provenance=(attribution,)).attributes,
-                    "unrelated": "retained"}) for template in (prior_source, prior_alpha))
+                    "unrelated": "retained"}) for template in (priorSource, priorAlpha))
     seeded, _ = initial.Apply(objects=patches)
     model.Save(seeded, expected_revision=initial.revision)
     snapshot = Run(fixture.Job())
@@ -427,7 +427,7 @@ def test_CompleteSourceAndCandidateRequestsAttributesAndHistorySurvive(tmp_path,
         'Expected invariant: reopened.revision == seeded.revision + 1'
     )
 
-    for template in (prior_source, prior_alpha):
+    for template in (priorSource, priorAlpha):
         obj = next(item for item in reopened.objects
                    if item.identity == template.endpoint.Identity())
         assert (
@@ -456,10 +456,10 @@ def test_CompleteSourceAndCandidateRequestsAttributesAndHistorySurvive(tmp_path,
         'seeded.observations) <= { item.Reference() for item in '
         'reopened.observations }'
     )
-    body_capture = Captures(snapshot)["response-body"]
-    frontier = ReadCapturedWebFrontier(fixture.root, fixture.source, body_capture, "local", at=NOW)
-    candidate_ids = {entry.template.endpoint.Identity().Reference() for entry in frontier.entries}
-    existing = tuple(obj for obj in reopened.objects if obj.Reference() in candidate_ids)
+    bodyCapture = Captures(snapshot)["response-body"]
+    frontier = ReadCapturedWebFrontier(fixture.root, fixture.source, bodyCapture, "local", at=NOW)
+    candidateIds = {entry.template.endpoint.Identity().Reference() for entry in frontier.entries}
+    existing = tuple(obj for obj in reopened.objects if obj.Reference() in candidateIds)
     projection = ProjectCapturedWebFrontier(frontier, existing=existing)
     replayed, delta = reopened.Apply(objects=projection.object_patches,
                                      observations=projection.observations)
@@ -670,15 +670,15 @@ def test_FinalFreshAuthorityAfterAllModelAndEvidenceWork(tmp_path, owned_wire,
     server = owned_wire()
     fixture = Fixture.Create(tmp_path / "workspace", server.origin, unicode_consent=True,
         valid_until=(NOW + timedelta(seconds=1)).isoformat())
-    current_time = [NOW]
-    provider = fixture.Provider(clock=lambda: current_time[0])
+    currentTime = [NOW]
+    provider = fixture.Provider(clock=lambda: currentTime[0])
     original = provider.FinalAuthority
 
     def ChangeAtBoundary(*args, **kwargs):
         """Move actual owning revision/metadata or decision clock after prior successful checks."""
 
         if change == "expiry":
-            current_time[0] += timedelta(seconds=1)
+            currentTime[0] += timedelta(seconds=1)
 
         else:
             scopes = LocalScopeStore(fixture.root)
@@ -724,15 +724,15 @@ def test_SaveAcknowledgementFailureReopensAndReportsActualKnownState(tmp_path, o
     server = owned_wire()
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
     provider = fixture.Provider()
-    original_save = provider._model.Save
-    original_open = provider._model.Open
+    originalSave = provider._model.Save
+    originalOpen = provider._model.Open
     saving = [False]
 
     def SaveWithFailure(self, state, *, expected_revision):
         """Inject prewrite/conflict or postcommit lost acknowledgement at the actual owner seam."""
 
         if failure in ("after", "unknown"):
-            original_save(state, expected_revision=expected_revision)
+            originalSave(state, expected_revision=expected_revision)
 
         saving[0] = True
 
@@ -747,7 +747,7 @@ def test_SaveAcknowledgementFailureReopensAndReportsActualKnownState(tmp_path, o
         if self is provider._model and saving[0] and failure == "unknown":
             raise OSError("synthetic-private-context")
 
-        return original_open()
+        return originalOpen()
 
     monkeypatch.setattr(LocalModelStore, "Save", SaveWithFailure)
     monkeypatch.setattr(LocalModelStore, "Open", OpenWithUncertainty)

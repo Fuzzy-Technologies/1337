@@ -125,12 +125,12 @@ def Sbom(context, payload=SBOM):
 def test_SyntheticCandidatesIsolateAllAssetFamiliesAndEveryGraphReference(context):
     """Pure candidate transformation never overlays matching native identities or provenance."""
 
-    _, native_provenance, _ = Native(context)
-    provenance = replace(native_provenance, source_id="synthetic.trivy")
+    _, nativeProvenance, _ = Native(context)
+    provenance = replace(nativeProvenance, source_id="synthetic.trivy")
     version = {"Version": "0.75.0-synthetic"}
     database = {"UpdatedAt": "2026-10-01T00:00:00Z"}
     original = TrivyCandidates("image-test", NATIVE, version, database, provenance)
-    original_bytes = CanonicalModelJson(original)
+    originalBytes = CanonicalModelJson(original)
     objects, relations, observations, findings = SyntheticTrivyCandidates(
         "image-test", NATIVE, version, database, provenance
     )
@@ -141,26 +141,26 @@ def test_SyntheticCandidatesIsolateAllAssetFamiliesAndEveryGraphReference(contex
     assert {item.identity.key for item in objects} == {
         prefix + item.identity.key for item in original[0]
     }, "Synthetic identity must use the fixed family for every candidate asset"
-    synthetic_refs = {item.Reference() for item in objects}
-    native_refs = {item.Reference() for item in original[0]}
-    assert synthetic_refs.isdisjoint(native_refs), "Fixture hints cannot reuse native identities"
-    assert all({item.source_reference, item.target_reference} <= synthetic_refs
+    syntheticRefs = {item.Reference() for item in objects}
+    nativeRefs = {item.Reference() for item in original[0]}
+    assert syntheticRefs.isdisjoint(nativeRefs), "Fixture hints cannot reuse native identities"
+    assert all({item.source_reference, item.target_reference} <= syntheticRefs
                for item in relations), "Every relation endpoint must stay synthetic"
-    assert all(item.subject_reference in synthetic_refs for item in observations), (
+    assert all(item.subject_reference in syntheticRefs for item in observations), (
         "Observation subjects cannot link into the native graph"
     )
-    assert all(item.attributes.get("image_reference") in synthetic_refs
+    assert all(item.attributes.get("image_reference") in syntheticRefs
                for item in observations if "image_reference" in item.attributes), (
         "Reference-bearing interpretation attributes must be rewritten consistently"
     )
-    assert all(item.subject_reference in synthetic_refs and
+    assert all(item.subject_reference in syntheticRefs and
                item.check_id == "synthetic.supply-chain.vulnerability" for item in findings), (
         "Finding fingerprints must separate both subjects and check identity"
     )
     assert all(item.provenance == (provenance,) for item in objects), (
         "Original execution-bearing synthetic provenance cannot be erased or relabelled"
     )
-    assert CanonicalModelJson(original) == original_bytes, (
+    assert CanonicalModelJson(original) == originalBytes, (
         "Transformation mutated native candidates"
     )
 
@@ -223,9 +223,9 @@ def test_ImagePackageIdentityDedupAndPersistence(context):
     root, initial, store = context
     report, provenance, records = Native(context)
     state, delta = ApplyVerifiedTrivyImages(initial, report, provenance, records, root)
-    replay, no_change = ApplyVerifiedTrivyImages(state, report, provenance, records, root)
+    replay, noChange = ApplyVerifiedTrivyImages(state, report, provenance, records, root)
 
-    assert replay == state and not no_change.created and not no_change.updated, (
+    assert replay == state and not noChange.created and not noChange.updated, (
         "Exact evidence replay must preserve state, revisions and observation history."
     )
     assert delta.revision == initial.revision + 1, "One import must produce one transition."
@@ -245,16 +245,16 @@ def test_ImagePackageIdentityDedupAndPersistence(context):
     ), "Config and manifest hash semantics must identify distinct image assets."
     model = LocalModelStore(root)
     model.Save(state, expected_revision=initial.revision)
-    previous_revision = state.revision
-    record, sbom_context = Sbom(context)
-    state, _ = ApplyVerifiedCycloneDx(state, record, sbom_context, ImageIdentity(IMAGE), root)
+    previousRevision = state.revision
+    record, sbomContext = Sbom(context)
+    state, _ = ApplyVerifiedCycloneDx(state, record, sbomContext, ImageIdentity(IMAGE), root)
     package = PackageIdentity.FromPurl(PURL).Object(state.workspace_id).Reference()
     entities = [item for item in state.objects if item.Reference() == package]
 
     assert len(entities) == 1 and len(entities[0].provenance) == 2, (
         "Native and SBOM inventory must share identity while retaining both source origins."
     )
-    model.Save(state, expected_revision=previous_revision)
+    model.Save(state, expected_revision=previousRevision)
 
     assert LocalModelStore(root).Open() == state, "Canonical state must survive durable reopening."
 
@@ -651,15 +651,15 @@ def test_UntrustedNativeDiagnosticFieldsDoNotLeakThroughTracebacks(context, fiel
     root, state, _ = context
     marker = "synthetic-private-source-value"
     payload = deepcopy(NATIVE)
-    version_fields = None
+    versionFields = None
 
     if field == "severity":
         payload["Results"][0]["Vulnerabilities"][0]["Severity"] = marker
 
     else:
-        version_fields = {"VulnerabilityDB": {"Version": 2, "UpdatedAt": marker}}
+        versionFields = {"VulnerabilityDB": {"Version": 2, "UpdatedAt": marker}}
 
-    report, provenance, records = Native(context, payload, version_fields=version_fields)
+    report, provenance, records = Native(context, payload, version_fields=versionFields)
 
     with pytest.raises(ValueError) as caught:
         ApplyVerifiedTrivyImages(state, report, provenance, records, root)

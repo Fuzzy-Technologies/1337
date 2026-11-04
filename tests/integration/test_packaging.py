@@ -55,12 +55,12 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
         members = archive.namelist()
         from fuzzy1337 import artifact_fixture_worker, artifact_policy
 
-        worker_bytes = archive.read("fuzzy1337/artifact_fixture_worker.py")
-        assert worker_bytes == Path(artifact_fixture_worker.__file__).read_bytes(), (
+        workerBytes = archive.read("fuzzy1337/artifact_fixture_worker.py")
+        assert workerBytes == Path(artifact_fixture_worker.__file__).read_bytes(), (
             "Built wheel changed reviewed closed producer source bytes"
         )
-        assert b"\r\n" not in worker_bytes, "Reviewed producer did not preserve LF bytes"
-        assert hashlib.sha256(worker_bytes).hexdigest() in artifact_policy._REVIEWED_PRODUCERS, (
+        assert b"\r\n" not in workerBytes, "Reviewed producer did not preserve LF bytes"
+        assert hashlib.sha256(workerBytes).hexdigest() in artifact_policy._REVIEWED_PRODUCERS, (
             "Built wheel producer does not match the closed reviewed allowlist"
         )
         assert "fuzzy1337/cli.py" in members, "sdist wheel and clean installation invariant failed."
@@ -178,15 +178,15 @@ def test_SdistWheelAndCleanInstallation(tmp_path):
         "sdist wheel and clean installation invariant failed."
     )
 
-    web_check_files = (
+    webCheckFiles = (
         "manifest.v1.json", "git-head-exposure.yaml", "owned-sql-canary-disclosure.yaml",
         "unsafe-html-reflection.yaml",
     )
-    expected_web_checks = {
+    expectedWebChecks = {
         name: hashlib.sha256((ROOT / "src/fuzzy1337/data/nuclei" / name).read_bytes()).hexdigest()
-        for name in web_check_files
+        for name in webCheckFiles
     }
-    installed_web_checks = Invoke(
+    installedWebChecks = Invoke(
         [str(executable), "-I", "-c", '''
 """Read actual check resources from the clean installed wheel without checkout imports."""
 
@@ -202,6 +202,6 @@ print(json.dumps({name: hashlib.sha256(root.joinpath(name).read_bytes()).hexdige
 '''],
         tmp_path,
     )
-    assert json.loads(installed_web_checks) == expected_web_checks, (
+    assert json.loads(installedWebChecks) == expectedWebChecks, (
         "Clean installed wheel omitted or changed the exact reviewed web-check resources"
     )

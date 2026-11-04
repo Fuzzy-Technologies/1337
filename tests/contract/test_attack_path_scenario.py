@@ -53,9 +53,9 @@ def IndexById(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 def test_AttackPathDocumentsMatchPublishedSchemas():
     """Validate the scenario and oracle against their versioned schemas."""
 
-    for document_name in ("scenario", "oracle"):
-        schema = LoadJson(f"{document_name}.schema.json")
-        document = LoadJson(f"{document_name}.v1.json")
+    for documentName in ("scenario", "oracle"):
+        schema = LoadJson(f"{documentName}.schema.json")
+        document = LoadJson(f"{documentName}.v1.json")
         Draft202012Validator.check_schema(schema)
         Draft202012Validator(schema).validate(document)
 
@@ -63,55 +63,55 @@ def test_AttackPathDocumentsMatchPublishedSchemas():
 def test_AttackPathSchemasRejectUnknownVersionsAndFields():
     """Reject unsupported versions and undeclared root fields instead of guessing."""
 
-    for document_name in ("scenario", "oracle"):
-        schema = LoadJson(f"{document_name}.schema.json")
-        document = LoadJson(f"{document_name}.v1.json")
+    for documentName in ("scenario", "oracle"):
+        schema = LoadJson(f"{documentName}.schema.json")
+        document = LoadJson(f"{documentName}.v1.json")
         validator = Draft202012Validator(schema)
 
-        invalid_version = copy.deepcopy(document)
-        invalid_version["schema_version"] = 2
+        invalidVersion = copy.deepcopy(document)
+        invalidVersion["schema_version"] = 2
         with pytest.raises(ValidationError):
-            validator.validate(invalid_version)
+            validator.validate(invalidVersion)
 
-        unexpected_field = copy.deepcopy(document)
-        unexpected_field["unexpected"] = True
+        unexpectedField = copy.deepcopy(document)
+        unexpectedField["unexpected"] = True
         with pytest.raises(ValidationError):
-            validator.validate(unexpected_field)
+            validator.validate(unexpectedField)
 
-        if document_name == "scenario":
-            unexpected_nested_field = copy.deepcopy(document)
-            unexpected_nested_field["zones"][0]["unexpected"] = True
+        if documentName == "scenario":
+            unexpectedNestedField = copy.deepcopy(document)
+            unexpectedNestedField["zones"][0]["unexpected"] = True
             with pytest.raises(ValidationError):
-                validator.validate(unexpected_nested_field)
+                validator.validate(unexpectedNestedField)
 
 
 def test_AttackPathInventoryHasStableTypedIdentifiers():
     """Require every contract object to expose a unique stable identifier and type."""
 
     scenario = LoadJson("scenario.v1.json")
-    all_ids: list[str] = []
+    allIds: list[str] = []
 
-    for collection_name in ENTITY_COLLECTIONS:
-        collection = scenario[collection_name]
+    for collectionName in ENTITY_COLLECTIONS:
+        collection = scenario[collectionName]
         identifiers = [item["id"] for item in collection]
 
-        if collection_name in LEXICALLY_ORDERED_COLLECTIONS:
+        if collectionName in LEXICALLY_ORDERED_COLLECTIONS:
             assert identifiers == sorted(identifiers), (
-                f"{collection_name} must use deterministic identifier ordering."
+                f"{collectionName} must use deterministic identifier ordering."
             )
         assert all(item.get("type") for item in collection), (
-            f"{collection_name} must expose stable object types."
+            f"{collectionName} must expose stable object types."
         )
-        all_ids.extend(identifiers)
+        allIds.extend(identifiers)
 
-    assert len(all_ids) == len(set(all_ids)), "stable identifiers must be globally unique."
+    assert len(allIds) == len(set(allIds)), "stable identifiers must be globally unique."
 
 
 def test_AttackPathNodesAndEdgesDeclareProvenance():
     """Distinguish seeded, discovered, and inferred graph facts explicitly."""
 
     scenario = LoadJson("scenario.v1.json")
-    graph_collections = (
+    graphCollections = (
         "zones",
         "assets",
         "services",
@@ -122,12 +122,12 @@ def test_AttackPathNodesAndEdgesDeclareProvenance():
     )
     observed = set()
 
-    for collection_name in graph_collections:
-        for item in scenario[collection_name]:
+    for collectionName in graphCollections:
+        for item in scenario[collectionName]:
             provenance = item.get("provenance")
 
             assert provenance in PROVENANCE_KINDS, (
-                f"{collection_name} object must declare canonical provenance."
+                f"{collectionName} object must declare canonical provenance."
             )
             observed.add(provenance)
 
@@ -141,14 +141,14 @@ def test_AttackPathReferencesAreClosedAndPathsAreContinuous():
 
     scenario = LoadJson("scenario.v1.json")
     indexes = {name: IndexById(scenario[name]) for name in ENTITY_COLLECTIONS}
-    node_ids = set().union(
+    nodeIds = set().union(
         indexes["zones"],
         indexes["assets"],
         indexes["services"],
         indexes["identities"],
     )
-    evidence_ids = set(indexes["evidence"])
-    control_ids = set(indexes["controls"])
+    evidenceIds = set(indexes["evidence"])
+    controlIds = set(indexes["controls"])
 
     for asset in scenario["assets"]:
         assert asset["zone_id"] in indexes["zones"], "asset zone must resolve."
@@ -167,9 +167,9 @@ def test_AttackPathReferencesAreClosedAndPathsAreContinuous():
         assert evidence["provenance"] in PROVENANCE_KINDS, "evidence provenance must be allowed."
 
     for relation in scenario["relations"]:
-        assert relation["source_id"] in node_ids, "relation source must resolve."
-        assert relation["target_id"] in node_ids, "relation target must resolve."
-        assert set(relation["evidence_ids"]) <= evidence_ids, "relation evidence must resolve."
+        assert relation["source_id"] in nodeIds, "relation source must resolve."
+        assert relation["target_id"] in nodeIds, "relation target must resolve."
+        assert set(relation["evidence_ids"]) <= evidenceIds, "relation evidence must resolve."
         assert relation["provenance"] in PROVENANCE_KINDS, "relation provenance must be allowed."
 
         if relation["provenance"] == "inferred":
@@ -177,7 +177,7 @@ def test_AttackPathReferencesAreClosedAndPathsAreContinuous():
 
         for field in ("blocking_control_id", "remediated_by_control_id"):
             if field in relation:
-                assert relation[field] in control_ids, "relation control must resolve."
+                assert relation[field] in controlIds, "relation control must resolve."
 
     for path in scenario["attack_paths"]:
         assert path["source_id"] == path["node_ids"][0], "path source must be its first node."
@@ -186,8 +186,8 @@ def test_AttackPathReferencesAreClosedAndPathsAreContinuous():
             "path node and relation counts must describe one continuous route."
         )
 
-        for index, relation_id in enumerate(path["relation_ids"]):
-            relation = indexes["relations"][relation_id]
+        for index, relationId in enumerate(path["relation_ids"]):
+            relation = indexes["relations"][relationId]
 
             assert relation["source_id"] == path["node_ids"][index], (
                 "path relation source must match the preceding node."
@@ -208,17 +208,17 @@ def test_AttackPathMetadataIsAttributableAndBusinessRelevant():
     """Require attributable MITRE metadata and explicit business impact."""
 
     scenario = LoadJson("scenario.v1.json")
-    endpoint_ids = set(IndexById(scenario["endpoints"]))
-    evidence_ids = set(IndexById(scenario["evidence"]))
-    impact_ids = set(IndexById(scenario["business_impacts"]))
-    asset_ids = set(IndexById(scenario["assets"]))
+    endpointIds = set(IndexById(scenario["endpoints"]))
+    evidenceIds = set(IndexById(scenario["evidence"]))
+    impactIds = set(IndexById(scenario["business_impacts"]))
+    assetIds = set(IndexById(scenario["assets"]))
 
     for finding in scenario["findings"]:
         mitre = finding["mitre"]
 
-        assert finding["endpoint_id"] in endpoint_ids, "finding endpoint must resolve."
-        assert set(finding["evidence_ids"]) <= evidence_ids, "finding evidence must resolve."
-        assert set(finding["business_impact_ids"]) <= impact_ids, (
+        assert finding["endpoint_id"] in endpointIds, "finding endpoint must resolve."
+        assert set(finding["evidence_ids"]) <= evidenceIds, "finding evidence must resolve."
+        assert set(finding["business_impact_ids"]) <= impactIds, (
             "finding business impact must resolve."
         )
         assert mitre["framework"] == "MITRE ATT&CK Enterprise", (
@@ -230,7 +230,7 @@ def test_AttackPathMetadataIsAttributableAndBusinessRelevant():
         )
 
     for impact in scenario["business_impacts"]:
-        assert impact["asset_id"] in asset_ids, "business-impact asset must resolve."
+        assert impact["asset_id"] in assetIds, "business-impact asset must resolve."
         assert impact["business_process"], "business process must be explicit."
         assert impact["consequence"], "business consequence must be explicit."
 
@@ -240,23 +240,23 @@ def test_AttackPathStatesMeetConfidenceEvidenceAndInferenceRules():
 
     scenario = LoadJson("scenario.v1.json")
     requirements = scenario["state_requirements"]
-    evidence_ids = set(IndexById(scenario["evidence"]))
-    control_ids = set(IndexById(scenario["controls"]))
-    path_ids = set(IndexById(scenario["attack_paths"]))
-    observed_states = {
+    evidenceIds = set(IndexById(scenario["evidence"]))
+    controlIds = set(IndexById(scenario["controls"]))
+    pathIds = set(IndexById(scenario["attack_paths"]))
+    observedStates = {
         assessment["state"]
         for phase in scenario["phases"]
         for assessment in phase["assessments"]
     }
-    observed_provenance = {
+    observedProvenance = {
         assessment["provenance"]
         for phase in scenario["phases"]
         for assessment in phase["assessments"]
     }
 
     assert set(requirements) == PATH_STATES, "state requirements must cover the canonical set."
-    assert observed_states == PATH_STATES, "fixture lifecycle must exercise every path state."
-    assert observed_provenance == PROVENANCE_KINDS, (
+    assert observedStates == PATH_STATES, "fixture lifecycle must exercise every path state."
+    assert observedProvenance == PROVENANCE_KINDS, (
         "fixture lifecycle must exercise seeded, discovered, and inferred provenance."
     )
 
@@ -265,7 +265,7 @@ def test_AttackPathStatesMeetConfidenceEvidenceAndInferenceRules():
             state = assessment["state"]
             requirement = requirements[state]
 
-            assert assessment["path_id"] in path_ids, "assessment path must resolve."
+            assert assessment["path_id"] in pathIds, "assessment path must resolve."
             assert assessment["provenance"] in PROVENANCE_KINDS, (
                 "assessment provenance must be allowed."
             )
@@ -278,7 +278,7 @@ def test_AttackPathStatesMeetConfidenceEvidenceAndInferenceRules():
             assert len(assessment["evidence_ids"]) >= requirement["minimum_evidence"], (
                 "assessment does not meet its evidence requirement."
             )
-            assert set(assessment["evidence_ids"]) <= evidence_ids, (
+            assert set(assessment["evidence_ids"]) <= evidenceIds, (
                 "assessment evidence must resolve."
             )
 
@@ -291,10 +291,10 @@ def test_AttackPathStatesMeetConfidenceEvidenceAndInferenceRules():
                 )
 
             if requirement["blocking_control_required"]:
-                blocking_controls = set(assessment.get("blocking_control_ids", []))
+                blockingControls = set(assessment.get("blocking_control_ids", []))
 
-                assert blocking_controls, "blocked assessment must name a control."
-                assert blocking_controls <= control_ids, "blocking controls must resolve."
+                assert blockingControls, "blocked assessment must name a control."
+                assert blockingControls <= controlIds, "blocking controls must resolve."
 
 
 def test_AttackPathTransitionsAreContiguousEvidenceBackedAndAuthorized():
@@ -302,7 +302,7 @@ def test_AttackPathTransitionsAreContiguousEvidenceBackedAndAuthorized():
 
     scenario = LoadJson("scenario.v1.json")
     phases = scenario["phases"]
-    phase_ids = [phase["id"] for phase in phases]
+    phaseIds = [phase["id"] for phase in phases]
     evidence = IndexById(scenario["evidence"])
     transitions = scenario["transitions"]
 
@@ -311,10 +311,10 @@ def test_AttackPathTransitionsAreContiguousEvidenceBackedAndAuthorized():
     )
 
     for index, transition in enumerate(transitions):
-        assert transition["from_phase_id"] == phase_ids[index], (
+        assert transition["from_phase_id"] == phaseIds[index], (
             "transition source must match lifecycle order."
         )
-        assert transition["to_phase_id"] == phase_ids[index + 1], (
+        assert transition["to_phase_id"] == phaseIds[index + 1], (
             "transition target must match lifecycle order."
         )
         assert transition["evidence_ids"], "transition must be evidence-backed."
@@ -322,12 +322,12 @@ def test_AttackPathTransitionsAreContiguousEvidenceBackedAndAuthorized():
             "transition evidence must resolve."
         )
 
-        target_evidence = {
-            evidence_id
-            for evidence_id in transition["evidence_ids"]
-            if evidence[evidence_id]["phase_id"] == transition["to_phase_id"]
+        targetEvidence = {
+            evidenceId
+            for evidenceId in transition["evidence_ids"]
+            if evidence[evidenceId]["phase_id"] == transition["to_phase_id"]
         }
-        assert target_evidence, "transition must add evidence attributable to its target phase."
+        assert targetEvidence, "transition must add evidence attributable to its target phase."
 
         if transition["to_phase_id"] == "phase.finding-confirmation":
             assert transition.get("inference_rule"), (
@@ -335,12 +335,12 @@ def test_AttackPathTransitionsAreContiguousEvidenceBackedAndAuthorized():
             )
 
         if transition["requires_authorization"]:
-            authorization_id = transition.get("authorization_evidence_id")
+            authorizationId = transition.get("authorization_evidence_id")
 
-            assert authorization_id in transition["evidence_ids"], (
+            assert authorizationId in transition["evidence_ids"], (
                 "authorized transition must include its authorization evidence."
             )
-            assert evidence[authorization_id]["type"] == "authorization-record", (
+            assert evidence[authorizationId]["type"] == "authorization-record", (
                 "authorized transition must reference an authorization record."
             )
 

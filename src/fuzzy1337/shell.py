@@ -118,16 +118,16 @@ def FuzzyScore(query: str, candidate: str) -> int | None:
         return 0
 
     cursor = 0
-    previous_index = -1
+    previousIndex = -1
     score = 0
     for character in query:
         index = candidate.find(character, cursor)
         if index < 0:
             return None
 
-        score += index - previous_index - 1
+        score += index - previousIndex - 1
         cursor = index + 1
-        previous_index = index
+        previousIndex = index
 
     return score
 
@@ -158,17 +158,17 @@ class NativeInputHistory:
         if not count:
             return cls(editor, 0)
 
-        for first_index in range(1, HISTORY_LIMIT + 1):
-            if editor.get_history_item(first_index) is None:
+        for firstIndex in range(1, HISTORY_LIMIT + 1):
+            if editor.get_history_item(firstIndex) is None:
                 continue
 
-            last_index = first_index + count - 1
+            lastIndex = firstIndex + count - 1
 
             if (
-                editor.get_history_item(last_index) is not None
-                and editor.get_history_item(last_index + 1) is None
+                editor.get_history_item(lastIndex) is not None
+                and editor.get_history_item(lastIndex + 1) is None
             ):
-                return cls(editor, last_index)
+                return cls(editor, lastIndex)
 
         raise RuntimeError("Native terminal history cannot be identified safely.")
 
@@ -204,26 +204,26 @@ class NativeInputHistory:
 
             entries.append((index, value))
 
-        last_index = entries[-1][0] if entries else self.last_index
+        lastIndex = entries[-1][0] if entries else self.last_index
 
         if (
             not entries and line == "" and self.last_index
             and self.editor.get_history_item(self.last_index) is None
         ):
-            for previous_index in range(
+            for previousIndex in range(
                 self.last_index - 1, max(0, self.last_index - HISTORY_LIMIT - 1), -1
             ):
-                if self.editor.get_history_item(previous_index) is not None:
-                    last_index = previous_index
+                if self.editor.get_history_item(previousIndex) is not None:
+                    lastIndex = previousIndex
                     break
 
-        first_index = last_index - count + 1
+        firstIndex = lastIndex - count + 1
 
         if (
-            count <= 0 or first_index <= 0
-            or self.editor.get_history_item(first_index) is None
-            or self.editor.get_history_item(last_index) is None
-            or self.editor.get_history_item(last_index + 1) is not None
+            count <= 0 or firstIndex <= 0
+            or self.editor.get_history_item(firstIndex) is None
+            or self.editor.get_history_item(lastIndex) is None
+            or self.editor.get_history_item(lastIndex + 1) is not None
             or int(self.editor.get_current_history_length()) != count
         ):
             raise RuntimeError("Native terminal history cannot be identified safely.")
@@ -239,14 +239,14 @@ class NativeInputHistory:
                 "workspace", "scope", "scan", "report", "demo", "intel", "ci", "runtime",
                 "paths", "sbom", "api", "trace", "raw", "image"
             }:
-                position = index - first_index
+                position = index - firstIndex
 
                 if not 0 <= position < count:
                     raise RuntimeError("Native terminal input no longer has an owned position.")
 
                 self.editor.replace_history_item(position, command)
 
-        self.last_index = last_index
+        self.last_index = lastIndex
 
 
 class InteractiveShell(cmd.Cmd):
@@ -380,11 +380,11 @@ class InteractiveShell(cmd.Cmd):
             ValueError: The object identifier is empty.
         """
 
-        normalized_object_id = object_id.strip()
-        if not normalized_object_id:
+        normalizedObjectId = object_id.strip()
+        if not normalizedObjectId:
             raise ValueError("Object identifiers must be non-empty")
 
-        self._context_actions[normalized_object_id] = tuple(actions)
+        self._context_actions[normalizedObjectId] = tuple(actions)
 
     def onecmd(self, line: str) -> bool:
         """Run a command while retaining bounded operator history for local search.
@@ -401,8 +401,8 @@ class InteractiveShell(cmd.Cmd):
         """
 
         normalized = line.strip()
-        parsed_command, argument, _ = self.parseline(normalized)
-        command = parsed_command.lower() if parsed_command else ""
+        parsedCommand, argument, _ = self.parseline(normalized)
+        command = parsedCommand.lower() if parsedCommand else ""
 
         if normalized and command != "history":
             self._history.append(
@@ -507,10 +507,10 @@ class InteractiveShell(cmd.Cmd):
             self.Write("usage: context")
             return
 
-        selected_object = self._state.selected_object or "none"
+        selectedObject = self._state.selected_object or "none"
         self.Write(f"Lens: {self._state.lens}")
         self.Write(f"View: {self._state.view}")
-        self.Write(f"Selected object: {selected_object}")
+        self.Write(f"Selected object: {selectedObject}")
         self.Write(f"Pending updates: {len(self._updates)}")
 
     def do_help(self, argument: str) -> None:
@@ -521,7 +521,7 @@ class InteractiveShell(cmd.Cmd):
         """
 
         topic = argument.strip().lower()
-        help_text = {
+        helpText = {
             "": (
                 "api import graphql-introspection, ci scan, commands, context, demo local, "
                 "history [query], image export-local, lens [<name>] [--json], "
@@ -603,7 +603,7 @@ class InteractiveShell(cmd.Cmd):
             "view": "view <name> [--json]: select context, updates, or model; JSON requires model.",
             "quit": "quit: leave the interactive shell.",
         }
-        message = help_text.get(topic)
+        message = helpText.get(topic)
         if message is None:
             self.Write(f"No shell help for: {topic}")
             return
@@ -623,86 +623,86 @@ class InteractiveShell(cmd.Cmd):
             separator = (arguments.index("--") if command == "raw" and "--" in arguments
                          else len(arguments))
             prefix, native = arguments[:separator], arguments[separator:]
-            json_output = "--json" in prefix
+            jsonOutput = "--json" in prefix
             arguments = [item for item in prefix if item != "--json"] + native
 
             if command == "raw":
                 from fuzzy1337.raw_commands import RunRawCommands
 
                 status = RunRawCommands(arguments, cast(TextIO, self.stdout),
-                                        json_output=json_output)
+                                        json_output=jsonOutput)
 
             elif command == "image":
                 from fuzzy1337.local_image_commands import RunLocalImageCommands
 
                 status = RunLocalImageCommands(arguments, cast(TextIO, self.stdout),
-                                               json_output=json_output)
+                                               json_output=jsonOutput)
 
             elif command == "paths":
                 from fuzzy1337.path_commands import RunPathCommands
 
                 status = RunPathCommands(arguments, cast(TextIO, self.stdout),
-                                         json_output=json_output)
+                                         json_output=jsonOutput)
 
             elif command == "sbom":
                 from fuzzy1337.sbom_commands import RunSbomCommands
 
                 status = RunSbomCommands(arguments, cast(TextIO, self.stdout),
-                                         json_output=json_output)
+                                         json_output=jsonOutput)
 
             elif command == "api":
                 from fuzzy1337.api_commands import RunApiCommands
 
                 status = RunApiCommands(arguments, cast(TextIO, self.stdout),
-                                        json_output=json_output)
+                                        json_output=jsonOutput)
 
             elif command == "response":
                 from fuzzy1337.response_commands import RunResponseCommands
 
                 status = RunResponseCommands(arguments, cast(TextIO, self.stdout),
-                                             json_output=json_output)
+                                             json_output=jsonOutput)
 
             elif command == "runtime":
                 from fuzzy1337.runtime_commands import RunRuntimeCommands
 
                 status = RunRuntimeCommands(arguments, cast(TextIO, self.stdout),
-                                            json_output=json_output)
+                                            json_output=jsonOutput)
 
             elif command == "trace":
                 from fuzzy1337.ioc_commands import RunIocCommands
 
                 status = RunIocCommands(arguments, cast(TextIO, self.stdout),
-                                        json_output=json_output)
+                                        json_output=jsonOutput)
 
             elif command == "ci":
                 from fuzzy1337.ci_commands import RunCiCommands
 
                 status = RunCiCommands(arguments, cast(TextIO, self.stdout),
-                                       json_output=json_output)
+                                       json_output=jsonOutput)
 
             elif command == "intel":
                 from fuzzy1337.intelligence_commands import RunIntelCommands
 
                 status = RunIntelCommands(arguments, cast(TextIO, self.stdout),
-                                          json_output=json_output)
+                                          json_output=jsonOutput)
 
             elif command == "report":
                 from fuzzy1337.report_commands import RunReportCommands
 
                 status = RunReportCommands(arguments, cast(TextIO, self.stdout),
-                                           json_output=json_output)
+                                           json_output=jsonOutput)
 
             elif command == "demo":
                 from fuzzy1337.demo_commands import RunDemoCommands
 
                 status = RunDemoCommands(arguments, cast(TextIO, self.stdout),
-                                         json_output=json_output)
+                                         json_output=jsonOutput)
 
             else:
                 from fuzzy1337.scan_commands import RunCommands
 
                 status = RunCommands(command, arguments, cast(TextIO, self.stdout),
-                                     json_output=json_output)
+                                     json_output=jsonOutput)
 
             if status:
                 self.Write(f"Command exit status: {status}")
@@ -875,9 +875,9 @@ class InteractiveShell(cmd.Cmd):
         """
 
         parts = argument.strip().lower().split()
-        json_output = bool(parts and parts[-1] == "--json")
+        jsonOutput = bool(parts and parts[-1] == "--json")
 
-        if json_output:
+        if jsonOutput:
             parts.pop()
 
         if len(parts) > 1:
@@ -887,7 +887,7 @@ class InteractiveShell(cmd.Cmd):
 
         lens = parts[0] if parts else ""
 
-        if not lens and json_output:
+        if not lens and jsonOutput:
             self.Write(CanonicalModelJson(ResolveLens(self._state.lens).ToDict()).decode("utf-8"))
 
             return
@@ -902,7 +902,7 @@ class InteractiveShell(cmd.Cmd):
 
         self._state = replace(self._state, lens=lens)
 
-        if json_output:
+        if jsonOutput:
             self.Write(CanonicalModelJson(ResolveLens(lens).ToDict()).decode("utf-8"))
 
             return
@@ -945,25 +945,25 @@ class InteractiveShell(cmd.Cmd):
         """
 
         query = argument.strip()
-        command_matches = FuzzyMatches(query, SHELL_COMMANDS)
-        registry_matches = tuple(
+        commandMatches = FuzzyMatches(query, SHELL_COMMANDS)
+        registryMatches = tuple(
             descriptor.identifier
             for descriptor in self._registry.Search(query)
-            if descriptor.identifier not in command_matches
+            if descriptor.identifier not in commandMatches
         )
-        contextual_matches = self.MatchingContextActions(query)
+        contextualMatches = self.MatchingContextActions(query)
 
-        if not (command_matches or registry_matches or contextual_matches):
+        if not (commandMatches or registryMatches or contextualMatches):
             self.Write("No palette matches.")
             return
 
-        for command in command_matches:
+        for command in commandMatches:
             self.Write(f"command: {command}")
 
-        for command in registry_matches:
+        for command in registryMatches:
             self.Write(f"cli: {command}")
 
-        for action in contextual_matches:
+        for action in contextualMatches:
             self.Write(f"action: {action.identifier} — {action.summary}")
 
     def do_select(self, argument: str) -> None:
@@ -973,13 +973,13 @@ class InteractiveShell(cmd.Cmd):
             argument: Nonempty opaque object identifier to retain in local shell state.
         """
 
-        object_id = argument.strip()
-        if not object_id:
+        objectId = argument.strip()
+        if not objectId:
             self.Write("usage: select <object-id>")
             return
 
-        self._state = replace(self._state, selected_object=object_id)
-        self.Write(f"Selected object: {object_id}")
+        self._state = replace(self._state, selected_object=objectId)
+        self.Write(f"Selected object: {objectId}")
 
     def do_updates(self, argument: str) -> None:
         """Render currently queued updates without blocking the shell.
@@ -1018,12 +1018,12 @@ class InteractiveShell(cmd.Cmd):
         """
 
         parts = argument.strip().lower().split()
-        json_output = bool(parts and parts[-1] == "--json")
+        jsonOutput = bool(parts and parts[-1] == "--json")
 
-        if json_output:
+        if jsonOutput:
             parts.pop()
 
-        if len(parts) > 1 or (json_output and parts != ["model"]):
+        if len(parts) > 1 or (jsonOutput and parts != ["model"]):
             self.Write("usage: view <name> [--json]")
 
             return
@@ -1045,7 +1045,7 @@ class InteractiveShell(cmd.Cmd):
         self._state = replace(self._state, view=view)
 
         if view == "model":
-            self.RenderModel(json_output=json_output)
+            self.RenderModel(json_output=jsonOutput)
 
             return
 
@@ -1147,14 +1147,14 @@ class InteractiveShell(cmd.Cmd):
             Cached matches in configured order, or empty when no object is selected.
         """
 
-        object_id = self._state.selected_object
-        if object_id is None:
+        objectId = self._state.selected_object
+        if objectId is None:
             return ()
 
         normalized = query.lower()
         return tuple(
             action
-            for action in self._context_actions.get(object_id, ())
+            for action in self._context_actions.get(objectId, ())
             if not normalized
             or normalized in action.identifier.lower()
             or normalized in action.summary.lower()

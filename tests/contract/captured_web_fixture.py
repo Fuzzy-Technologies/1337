@@ -49,10 +49,10 @@ class Fixture:
         """
 
         oracle = json.loads((FIXTURES / "captured-web.oracle.v1.json").read_text())
-        workspace_id = oracle["workspace_id"]
-        source = RequestTemplate(Endpoint(workspace_id, "http://127.0.0.1:19091", "/docs/index"))
+        workspaceId = oracle["workspace_id"]
+        source = RequestTemplate(Endpoint(workspaceId, "http://127.0.0.1:19091", "/docs/index"))
         LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned captured HTML"),
-                                         workspace_id)
+                                         workspaceId)
 
         def Targets(field: str) -> tuple[Target, ...]:
             """Build exact declared synthetic URLs without discovering or authorizing any target.
@@ -67,7 +67,7 @@ class Fixture:
             return tuple(Target(TargetKind.URL, source.endpoint.origin + path)
                          for path in oracle[field])
 
-        scope = ScopeSnapshot(oracle["scope_id"], workspace_id,
+        scope = ScopeSnapshot(oracle["scope_id"], workspaceId,
             ScopeAuthorization(AuthorizationState.GRANTED, "operator:synthetic",
                                "consent:synthetic"),
             targets=Targets("registered_paths"), allow=Targets("allowed_paths"),
@@ -75,7 +75,7 @@ class Fixture:
         saved = LocalScopeStore(root).Create(scope)
         data = (FIXTURES / "captured-web.v1.html").read_bytes() if raw is None else raw
         capture = LocalEvidenceStore(root / "evidence").Put(data, "response-body", "text/html",
-            EvidenceProvenance(workspace_id, saved.Reference(), "synthetic-html-collector",
+            EvidenceProvenance(workspaceId, saved.Reference(), "synthetic-html-collector",
                 oracle["source_version"], oracle["tool_version"],
                 oracle["capture_started_at"], oracle["capture_finished_at"]))
 

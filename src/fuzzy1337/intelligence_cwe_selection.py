@@ -285,14 +285,14 @@ class CweSelection:
 
         counts = (self.weakness_count, self.category_count, self.grouping_count, self.view_count)
         total = sum(counts)
-        retained_counts = {kind: sum(item.source_kind == kind for item in self.unsupported_entries)
+        retainedCounts = {kind: sum(item.source_kind == kind for item in self.unsupported_entries)
                            for kind in ("Category", "Grouping", "View")}
-        selected_attribute_sizes = [12 + len(item.identifier[4:]) + len(item.name.encode())
+        selectedAttributeSizes = [12 + len(item.identifier[4:]) + len(item.name.encode())
                                     + len(item.status) for item in self.records]
-        root_attribute_size = 15 + len(self.catalog_name.encode()) + len(self.catalog_version) + 10
+        rootAttributeSize = 15 + len(self.catalog_name.encode()) + len(self.catalog_version) + 10
 
         if total > MAX_ENTRIES or self.weakness_count < len(self.records) or any(
-            count < retained_counts[kind] for count, kind in zip(counts[1:], retained_counts)
+            count < retainedCounts[kind] for count, kind in zip(counts[1:], retainedCounts)
         ) or self.catalog_version == "4.21" and self.grouping_count != 0:
             raise ValueError("CWE selection source-kind counts disagree with retained items")
 
@@ -308,8 +308,8 @@ class CweSelection:
             or self.maximum_comment_pi_bytes > self.decoded_size
             or self.maximum_reference_bytes not in (0, 4, 5, 6, 7, 8, 9, 10)
             or self.maximum_reference_bytes > self.decoded_size
-            or self.maximum_entry_text_attribute_bytes < max(selected_attribute_sizes, default=0)
-            or self.xml_attribute_bytes < root_attribute_size + sum(selected_attribute_sizes)
+            or self.maximum_entry_text_attribute_bytes < max(selectedAttributeSizes, default=0)
+            or self.xml_attribute_bytes < rootAttributeSize + sum(selectedAttributeSizes)
         ):
             raise ValueError("CWE selection counters have inconsistent zero or containment facts")
 

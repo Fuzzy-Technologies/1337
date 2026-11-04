@@ -862,7 +862,7 @@ def test_AdapterNormalizationRefusesSubstitutedNestedReportFields(variant):
 
     raw = CanonicalRecord(Record())
     report = Report(raw)
-    reader_raw = raw
+    readerRaw = raw
 
     if variant == "state":
         report = replace(report, execution=AdapterExecution(ExecutionState.FAILED, 1, 0.1))
@@ -891,14 +891,14 @@ def test_AdapterNormalizationRefusesSubstitutedNestedReportFields(variant):
                          size_bytes=MAX_RECORD_BYTES + 1),))
 
     elif variant == "reader-mismatch":
-        reader_raw = raw + b"!"
+        readerRaw = raw + b"!"
 
     elif variant == "reader-type":
-        reader_raw = "unsupported"
+        readerRaw = "unsupported"
 
     elif variant == "failed-record":
-        reader_raw = CanonicalRecord({"schema_version": 1, "error": "protocol"})
-        report = Report(reader_raw)
+        readerRaw = CanonicalRecord({"schema_version": 1, "error": "protocol"})
+        report = Report(readerRaw)
 
     else:
         execution = copy.copy(report.execution)
@@ -912,7 +912,7 @@ def test_AdapterNormalizationRefusesSubstitutedNestedReportFields(variant):
         report = replace(report, execution=execution)
 
     with pytest.raises(PageCaptureRecordError):
-        Adapter(reader_raw).NormalizeReport(report)
+        Adapter(readerRaw).NormalizeReport(report)
 
 
 def test_ExecutionRefusesUnrelatedWrappers():
@@ -928,17 +928,17 @@ def Result(raw: bytes | None = None, *, error: str | None = None,
     """Build finite real owner records for an isolated deterministic executor seam."""
 
     output = CanonicalRecord(Record()) if raw is None else raw
-    state, exit_code = ExecutionState.SUCCEEDED, 0
+    state, exitCode = ExecutionState.SUCCEEDED, 0
 
     if error is not None:
         output = CanonicalRecord({"schema_version": 1, "error": error})
-        state, exit_code = ExecutionState.FAILED, ERROR_EXITS[error]
+        state, exitCode = ExecutionState.FAILED, ERROR_EXITS[error]
 
     if termination in (ExecutionTermination.CANCELLATION, ExecutionTermination.OUTPUT_LIMIT):
-        state, exit_code = ExecutionState.CANCELLED, None
+        state, exitCode = ExecutionState.CANCELLED, None
 
     elif termination is ExecutionTermination.TIMEOUT:
-        state, exit_code = ExecutionState.TIMED_OUT, None
+        state, exitCode = ExecutionState.TIMED_OUT, None
 
     events = [ExecutionEvent(0, ExecutionEventKind.STARTED)]
 
@@ -951,7 +951,7 @@ def Result(raw: bytes | None = None, *, error: str | None = None,
     events.append(ExecutionEvent(len(events), ExecutionEventKind.COMPLETED,
                                  termination=termination))
 
-    return LocalExecutionResult(AdapterExecution(state, exit_code, 0.1), termination,
+    return LocalExecutionResult(AdapterExecution(state, exitCode, 0.1), termination,
                                 output, stderr, tuple(events))
 
 

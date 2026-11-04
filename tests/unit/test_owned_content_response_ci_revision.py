@@ -147,12 +147,12 @@ def test_SyntheticCasArgumentsPreserveExactRecordedPathFlavor(tmp_path, monkeypa
     """Bind exact arguments in both path flavors and reject self-consistent foreign separators."""
 
     junit, retained, case, documents = Fixture(tmp_path, runtime_path=runtime_path)
-    original_path = evidence.Path
+    originalPath = evidence.Path
 
     def RecordedPath(value):
         """Model only the recorded runtime cwd; actual artifact I/O retains the host Path owner."""
 
-        return runtime_path(value) if value == "/mock-only/pipeline" else original_path(value)
+        return runtime_path(value) if value == "/mock-only/pipeline" else originalPath(value)
 
     monkeypatch.setattr(evidence, "Path", RecordedPath)
 
@@ -166,9 +166,9 @@ def test_SyntheticCasArgumentsPreserveExactRecordedPathFlavor(tmp_path, monkeypa
 
     assert evidence.RequireOutcome(junit, retained)["state"] == "checked-revision-conflict", (
         "Each explicit runtime path flavor must preserve exact original child argv admission")
-    other_path = PureWindowsPath if runtime_path is PurePosixPath else PurePosixPath
+    otherPath = PureWindowsPath if runtime_path is PurePosixPath else PurePosixPath
     changed = documents["process-006-sdk-analyze-offline/process.json"]
-    changed["argv"][5] = str(other_path(changed["cwd"]) / "stage-04-input.json")
+    changed["argv"][5] = str(otherPath(changed["cwd"]) / "stage-04-input.json")
 
     for name in ("process.json", "invocation.json"):
         key = "process-006-sdk-analyze-offline/" + name

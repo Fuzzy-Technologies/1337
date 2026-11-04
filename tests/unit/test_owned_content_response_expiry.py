@@ -389,7 +389,7 @@ def Artifact(tmp_path: Path, *, runtime_path=Path) -> tuple[Path, Path, Path, di
         Synthetic JUnit, retained root, case directory and mutable document mapping.
     """
 
-    _, retained, old_case, documents = RevisionFixture(tmp_path, runtime_path=runtime_path)
+    _, retained, oldCase, documents = RevisionFixture(tmp_path, runtime_path=runtime_path)
     before, after, summary, _, options, control = Partial()
     setup = copy.deepcopy(documents["process-003-sdk-fresh-setup/stdout.bin"]["summary"])
     captured = documents["sdk-capture-original.json"]
@@ -403,12 +403,12 @@ def Artifact(tmp_path: Path, *, runtime_path=Path) -> tuple[Path, Path, Path, di
         for name, digest in {**checker.OLD_PINS,
             checker.EXPIRY_HELPER: checker.EXPIRY_HELPER_SHA256,
             checker.PIPELINE: checker.PIPELINE_SHA256}.items()}
-    checker_name = Path(checker.__file__).name
-    helpers[checker_name] = {"path": "/mock-only/tests/contract/" + checker_name,
+    checkerName = Path(checker.__file__).name
+    helpers[checkerName] = {"path": "/mock-only/tests/contract/" + checkerName,
         "sha256": hashlib.sha256(Path(checker.__file__).read_bytes()).hexdigest()}
     identity = copy.deepcopy(documents["process-003-sdk-fresh-setup/stdout.bin"][
         "installed_identity"])
-    terminal_template = copy.deepcopy(documents["process-003-sdk-fresh-setup/process.json"])
+    terminalTemplate = copy.deepcopy(documents["process-003-sdk-fresh-setup/process.json"])
     documents = {key: value for key, value in documents.items() if not key.startswith((
         "process-", "sdk-analyze-offline"))}
     identities = {key: summary[key] for key in ("original_receipt_id", "analysis_reference",
@@ -445,7 +445,7 @@ def Artifact(tmp_path: Path, *, runtime_path=Path) -> tuple[Path, Path, Path, di
 
         helper = checker.EXPIRY_HELPER if operation == checker.OPERATION else (
             "owned_content_response_sdk_entrypoint.py")
-        terminal = copy.deepcopy(terminal_template)
+        terminal = copy.deepcopy(terminalTemplate)
         argv = [identity["python"], "-I", "-B", helpers[helper]["path"], operation,
             str(runtime_path(terminal["cwd"]) / f"stage-{index - 2:02d}-input.json"), "--execute"]
         terminal["argv"] = argv
@@ -465,7 +465,7 @@ def Artifact(tmp_path: Path, *, runtime_path=Path) -> tuple[Path, Path, Path, di
         f'<testcase classname="{checker.CASE_CLASS}" name="{checker.CASE_NAME}"/>'
         '</testsuite></testsuites>')
 
-    return junit, retained, old_case.with_name(checker.SCENARIO), documents
+    return junit, retained, oldCase.with_name(checker.SCENARIO), documents
 
 
 @pytest.mark.parametrize("runtime_path", [PurePosixPath, PureWindowsPath], ids=["posix", "windows"])
@@ -475,12 +475,12 @@ def test_SyntheticExpiryArgumentsPreserveExactRecordedPathFlavor(
     """Both runtime path flavors pass unchanged strict checks; foreign separators still refuse."""
 
     junit, retained, case, documents = Artifact(tmp_path, runtime_path=runtime_path)
-    original_path = checker.Path
+    originalPath = checker.Path
 
     def RecordedPath(value):
         """Select the synthetic cwd flavor while retaining the actual artifact filesystem owner."""
 
-        return runtime_path(value) if value == "/mock-only/pipeline" else original_path(value)
+        return runtime_path(value) if value == "/mock-only/pipeline" else originalPath(value)
 
     monkeypatch.setattr(checker, "Path", RecordedPath)
 
@@ -495,9 +495,9 @@ def test_SyntheticExpiryArgumentsPreserveExactRecordedPathFlavor(
     assert checker.RequireOutcome(junit, retained)["state"] == (
         "checked-post-model-ack-expiry-partial"), (
         "Explicit runtime path flavor must retain exact child argv and partial-state admission")
-    other_path = PureWindowsPath if runtime_path is PurePosixPath else PurePosixPath
+    otherPath = PureWindowsPath if runtime_path is PurePosixPath else PurePosixPath
     changed = documents["process-006-sdk-analyze-expiry-offline/process.json"]
-    changed["argv"][5] = str(other_path(changed["cwd"]) / "stage-04-input.json")
+    changed["argv"][5] = str(otherPath(changed["cwd"]) / "stage-04-input.json")
 
     for name in ("process.json", "invocation.json"):
         key = "process-006-sdk-analyze-expiry-offline/" + name
@@ -522,7 +522,7 @@ def test_SyntheticOriginalArtifactNeedsExactChildrenSourcesAndPartialState(
     """
 
     junit, retained, case, documents = Artifact(tmp_path)
-    child_output = documents["process-006-sdk-analyze-expiry-offline/stdout.bin"]
+    childOutput = documents["process-006-sdk-analyze-expiry-offline/stdout.bin"]
 
     if mutation == "skip":
         junit.write_text(junit.read_text().replace('skipped="0"', 'skipped="1"'))
@@ -541,10 +541,10 @@ def test_SyntheticOriginalArtifactNeedsExactChildrenSourcesAndPartialState(
         documents["pipeline-helper-sources.json"][checker.PIPELINE]["sha256"] = "0" * 64
 
     elif mutation == "child-source":
-        child_output["consumer_sources"][checker.EXPIRY_HELPER]["sha256"] = "0" * 64
+        childOutput["consumer_sources"][checker.EXPIRY_HELPER]["sha256"] = "0" * 64
 
     elif mutation == "installed-source":
-        next(iter(child_output["installed_identity"]["installed_sources"].values()))[
+        next(iter(childOutput["installed_identity"]["installed_sources"].values()))[
             "sha256"] = "0" * 64
 
     elif mutation == "terminal-digest":
@@ -574,10 +574,10 @@ def test_SyntheticOriginalArtifactNeedsExactChildrenSourcesAndPartialState(
         documents["stage-04-input.json"]["selection"]["expected_model_revision"] -= 1
 
     elif mutation == "child-control":
-        child_output["control"]["clock"]["duration_seconds"] = 31
+        childOutput["control"]["clock"]["duration_seconds"] = 31
 
     elif mutation == "child-summary":
-        child_output["summary"]["state"] = "completed"
+        childOutput["summary"]["state"] = "completed"
 
     elif mutation == "bool-count":
         documents["pipeline-result.json"]["expected_findings"] = True

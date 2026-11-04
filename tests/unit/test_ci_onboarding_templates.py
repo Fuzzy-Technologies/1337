@@ -188,8 +188,8 @@ def test_TemplateDockerInvocationPropagatesOnlyExplicitCallerApproval(
     assert arguments[arguments.index("--user") + 1] == f"{os.getuid()}:{os.getgid()}", (
         "Container evidence must remain owned/readable by the real artifact-uploading runner"
     )
-    expected_name = "1337-demo-123-1" if platform == "github-actions" else "1337-demo-123"
-    assert arguments[arguments.index("--name") + 1] == expected_name, (
+    expectedName = "1337-demo-123-1" if platform == "github-actions" else "1337-demo-123"
+    assert arguments[arguments.index("--name") + 1] == expectedName, (
         'The container invocation must use exactly the job-owned name needed for scoped cleanup'
     )
     value = arguments[arguments.index("-e") + 1]

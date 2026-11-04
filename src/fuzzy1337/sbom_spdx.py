@@ -176,9 +176,9 @@ def SpdxPurl(record: dict[str, object], *, root: bool = False) -> PackageIdentit
     for value in Items(record.get("externalRefs", [])):
         reference = Record(value)
         category = Text(reference.get("referenceCategory"))
-        reference_type = Text(reference.get("referenceType"))
+        referenceType = Text(reference.get("referenceType"))
 
-        if reference_type == "purl":
+        if referenceType == "purl":
             if category != "PACKAGE-MANAGER":
                 raise ValueError("SPDX PURL references require PACKAGE-MANAGER category")
 
@@ -280,20 +280,20 @@ def SpdxGraph(payload: dict[str, object], image_identity: ImageIdentity) -> Spdx
     if len(described) != 1 or (declared and set(declared) != described):
         raise ValueError("SPDX inventory requires one consistently described container root")
 
-    root_id = next(iter(described))
+    rootId = next(iter(described))
 
-    if root_id not in packages or packages[root_id].get("primaryPackagePurpose") != "CONTAINER":
+    if rootId not in packages or packages[rootId].get("primaryPackagePurpose") != "CONTAINER":
         raise ValueError("SPDX described root must resolve to a CONTAINER package")
 
     if any(package.get("primaryPackagePurpose") == "CONTAINER" for identifier, package
-           in packages.items() if identifier != root_id) or containment != {
-        (root_id, identifier) for identifier in packages if identifier != root_id
+           in packages.items() if identifier != rootId) or containment != {
+        (rootId, identifier) for identifier in packages if identifier != rootId
     }:
         raise ValueError("SPDX packages require explicit complete flat image containment")
 
     hashes = []
 
-    for value in Items(packages[root_id].get("checksums")):
+    for value in Items(packages[rootId].get("checksums")):
         checksum = Record(value)
 
         if Text(checksum.get("algorithm")) == "SHA256":
@@ -302,7 +302,7 @@ def SpdxGraph(payload: dict[str, object], image_identity: ImageIdentity) -> Spdx
     if hashes != [image_identity.digest]:
         raise ValueError("SPDX root requires one explicitly bound SHA256 checksum")
 
-    return SpdxCatalog(root_id, packages)
+    return SpdxCatalog(rootId, packages)
 
 
 def SpdxLicense(value: object, *, present: bool) -> dict[str, object]:

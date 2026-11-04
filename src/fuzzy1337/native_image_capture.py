@@ -333,41 +333,41 @@ def ObserveVersion(raw: bytes, material: tuple[NativeFileFact, ...]) -> str:
     if not isinstance(version, str) or not re.fullmatch(r"0\.75\.[0-9]+", version):
         raise ValueError("native VERSION wire requires the supported genuine release envelope")
 
-    metadata_fact = material[-1]
+    metadataFact = material[-1]
 
-    if metadata_fact.sha256 is None or material[-2].sha256 is None:
+    if metadataFact.sha256 is None or material[-2].sha256 is None:
         raise ValueError("native VERSION requires selected offline database material")
 
-    metadata_path = Path(metadata_fact.path)
-    before = ArtifactPathInfo(metadata_path)
+    metadataPath = Path(metadataFact.path)
+    before = ArtifactPathInfo(metadataPath)
 
-    if PhysicalIdentity(before) != metadata_fact.physical_identity:
+    if PhysicalIdentity(before) != metadataFact.physical_identity:
         raise ValueError("native database metadata changed before bounded verification")
 
     flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
 
-    with os.fdopen(os.open(metadata_fact.path, flags), "rb") as source:
+    with os.fdopen(os.open(metadataFact.path, flags), "rb") as source:
         opened = ArtifactHandleInfo(source.fileno())
 
         if not MatchesArtifactReadIdentity(before, opened):
             raise ValueError("native database metadata changed before bounded verification")
 
-        metadata_raw = source.read(16 * 1024 + 1)
+        metadataRaw = source.read(16 * 1024 + 1)
 
         if PhysicalIdentity(ArtifactHandleInfo(source.fileno())) != (
             PhysicalIdentity(opened)
         ):
             raise ValueError("native database metadata changed during bounded verification")
 
-    if PhysicalIdentity(ArtifactPathInfo(metadata_path)) != PhysicalIdentity(before):
+    if PhysicalIdentity(ArtifactPathInfo(metadataPath)) != PhysicalIdentity(before):
         raise ValueError("native database metadata changed after bounded verification")
 
-    if len(metadata_raw) > 16 * 1024 or hashlib.sha256(metadata_raw).hexdigest() != (
-        metadata_fact.sha256
+    if len(metadataRaw) > 16 * 1024 or hashlib.sha256(metadataRaw).hexdigest() != (
+        metadataFact.sha256
     ):
         raise ValueError("native database metadata changed after material observation")
 
-    metadata = ParseJson(metadata_raw, 16 * 1024)
+    metadata = ParseJson(metadataRaw, 16 * 1024)
     observed = document.get("VulnerabilityDB")
 
     if not isinstance(observed, dict) or type(metadata.get("Version")) is not int or (
@@ -466,8 +466,8 @@ async def CaptureNativeTrivyOperation(
     resources = ExecutionResources(max_stdout_bytes=16 * 1024, max_stderr_bytes=16 * 1024) if (
         operation is NativeTrivyOperation.VERSION
     ) else ExecutionResources(max_stdout_bytes=4 * 1024 * 1024, max_stderr_bytes=1024 * 1024)
-    started_at = ""
-    finished_at = ""
+    startedAt = ""
+    finishedAt = ""
 
     with tempfile.TemporaryDirectory(
         prefix="native-image-", dir=selection.workspace_root
@@ -492,14 +492,14 @@ async def CaptureNativeTrivyOperation(
             if validate_authority is not None:
                 validate_authority(actual)
 
-        started_at = datetime.now(UTC).isoformat()
+        startedAt = datetime.now(UTC).isoformat()
 
         outcome = await LocalExecutor(selection.workspace_root).Execute(
             request, cancellation=cancellation, pre_launch=Validate)
 
-    finished_at = datetime.now(UTC).isoformat()
+    finishedAt = datetime.now(UTC).isoformat()
     after = None
-    observed_version = None
+    observedVersion = None
     refusal = None
 
     try:
@@ -514,7 +514,7 @@ async def CaptureNativeTrivyOperation(
             refusal = "execution-not-successful"
 
         elif operation is NativeTrivyOperation.VERSION:
-            observed_version = ObserveVersion(outcome.stdout, material)
+            observedVersion = ObserveVersion(outcome.stdout, material)
 
     except (OSError, ValueError):
         refusal = "material-or-version-unverified"
@@ -526,10 +526,10 @@ async def CaptureNativeTrivyOperation(
         except Exception:
             refusal = "authority-unverified"
 
-    version = observed_version if operation is NativeTrivyOperation.VERSION else (
+    version = observedVersion if operation is NativeTrivyOperation.VERSION else (
         invocation.provider_version)
     provenance = EvidenceProvenance(workspace_id, authorization.scope_reference,
-        "native.trivy", "1", version, started_at, finished_at,
+        "native.trivy", "1", version, startedAt, finishedAt,
         InvocationDigest(invocation), outcome.execution)
     roles = ("provider-version", "provider-version-stderr", "native-version-receipt") if (
         operation is NativeTrivyOperation.VERSION
@@ -537,13 +537,13 @@ async def CaptureNativeTrivyOperation(
     records = tuple(store.Put(raw, role, media, provenance) for raw, role, media in (
         (outcome.stdout, roles[0], "application/json"), (outcome.stderr, roles[1], "text/plain")))
     capture = NativeTrivyOperationCapture(operation, request, outcome,
-        workspace_id, owner_reference, selection, material, after, started_at, finished_at,
+        workspace_id, owner_reference, selection, material, after, startedAt, finishedAt,
         prerequisite, version, refusal, records)
     receipt = store.Put(SerializeContract(capture.Envelope()).encode(), roles[2],
                         "application/json", provenance)
 
     return NativeTrivyOperationCapture(operation, request, outcome,
-        workspace_id, owner_reference, selection, material, after, started_at, finished_at,
+        workspace_id, owner_reference, selection, material, after, startedAt, finishedAt,
         prerequisite, version, refusal, (*records, receipt))
 
 

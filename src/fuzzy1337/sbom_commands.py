@@ -344,18 +344,18 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
     if reference is not None:
         store.CheckReference(reference)
 
-    record_ids = set(workspace.evidence_record_references)
+    recordIds = set(workspace.evidence_record_references)
     custody = [item for item in model.observations if item.kind == "sbom-import-source"]
 
     for fact in custody:
-        evidence_id = fact.attributes.get("evidence_id")
+        evidenceId = fact.attributes.get("evidence_id")
 
-        if type(evidence_id) is not str:
+        if type(evidenceId) is not str:
             raise SbomFailure("source-context")
 
-        record_ids.add(evidence_id)
+        recordIds.add(evidenceId)
 
-    if len(record_ids) > MAX_EXPORT_ACQUISITIONS:
+    if len(recordIds) > MAX_EXPORT_ACQUISITIONS:
         raise SbomFailure("limit")
 
     references = [*workspace.evidence_references, *ReportSnapshot(model).EvidenceReferences()]
@@ -369,9 +369,9 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
 
     originals = {}
 
-    for record_id in sorted(record_ids):
-        original = store.Manifest(record_id, selected=False)
-        originals[record_id] = original
+    for recordId in sorted(recordIds):
+        original = store.Manifest(recordId, selected=False)
+        originals[recordId] = original
         references.append(original.reference)
         scopes.add(original.provenance.scope_reference)
 
@@ -382,18 +382,18 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
         original = originals[str(fact.attributes["evidence_id"])]
         source = original.provenance
         digest = fact.attributes.get("image_digest")
-        digest_kind = fact.attributes.get("image_digest_kind")
+        digestKind = fact.attributes.get("image_digest_kind")
 
-        if type(digest) is not str or type(digest_kind) is not str or (
+        if type(digest) is not str or type(digestKind) is not str or (
             source.invocation_sha256 is not None or source.execution is not None
         ):
             raise SbomFailure("source-context")
 
         store.CheckReference(original.reference)
-        image = ImageIdentity(digest, digest_kind)
-        image_reference = image.Object(model.workspace_id).Reference()
+        image = ImageIdentity(digest, digestKind)
+        imageReference = image.Object(model.workspace_id).Reference()
         attribution = ModelProvenance(source.source_id, fact.provenance.run_reference,
-            source.finished_at, source.scope_reference, image_reference,
+            source.finished_at, source.scope_reference, imageReference,
             source.tool_version, (original.reference,))
         SourceFact(model, original, attribution, image, None)
 
@@ -409,33 +409,33 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
     protected = {} if reference is None else {reference.sha256: reference}
     known = set()
 
-    for original_reference in references:
-        if original_reference.role != "sbom":
+    for originalReference in references:
+        if originalReference.role != "sbom":
             continue
 
-        if original_reference.locator != "blobs/sha256/" + original_reference.sha256 or (
-            type(original_reference.size_bytes) is not int
-            or not 1 <= original_reference.size_bytes <= IMAGE_IMPORT_MAX_BYTES
+        if originalReference.locator != "blobs/sha256/" + originalReference.sha256 or (
+            type(originalReference.size_bytes) is not int
+            or not 1 <= originalReference.size_bytes <= IMAGE_IMPORT_MAX_BYTES
         ):
             raise SbomFailure("selected-source")
 
-        if original_reference.sha256 in protected and (
-            protected[original_reference.sha256] != original_reference
+        if originalReference.sha256 in protected and (
+            protected[originalReference.sha256] != originalReference
         ):
             raise SbomFailure("selected-source-alias")
 
-        protected[original_reference.sha256] = original_reference
-        known.add(original_reference.sha256)
+        protected[originalReference.sha256] = originalReference
+        known.add(originalReference.sha256)
 
-    by_locator = {item.locator: item for item in protected.values()}
+    byLocator = {item.locator: item for item in protected.values()}
 
     for alias in references:
-        protected_reference = protected.get(alias.sha256) or by_locator.get(alias.locator)
+        protectedReference = protected.get(alias.sha256) or byLocator.get(alias.locator)
 
-        if protected_reference is not None and alias != protected_reference:
+        if protectedReference is not None and alias != protectedReference:
             raise SbomFailure("selected-source-alias")
 
-    for original_reference in protected.values():
+    for originalReference in protected.values():
         parent = store.root
         present = True
 
@@ -449,11 +449,11 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
 
             CheckStorageEntry(parent, directory=True)
 
-        path = parent / original_reference.sha256
+        path = parent / originalReference.sha256
         metadata = StoragePathInfo(path) if present else None
 
         if metadata is None:
-            if original_reference.sha256 in known:
+            if originalReference.sha256 in known:
                 raise SbomFailure("selected-source")
 
             continue
@@ -461,7 +461,7 @@ def CheckKnownSbomSources(store: SbomEvidenceStore, reference: EvidenceReference
         metadata = CheckStorageEntry(path, directory=False)
 
         if metadata.st_nlink != 1 or not 1 <= metadata.st_size <= IMAGE_IMPORT_MAX_BYTES or (
-            metadata.st_size != original_reference.size_bytes
+            metadata.st_size != originalReference.size_bytes
         ):
             raise SbomFailure("selected-source")
 
@@ -502,12 +502,12 @@ def SourceFact(state: ModelState, record: EvidenceRecord, provenance: ModelProve
             raise SbomFailure("source-context")
 
         actor = fact.attributes["read_actor_reference"]
-        read_reference = fact.attributes["read_consent_reference"]
+        readReference = fact.attributes["read_consent_reference"]
 
-        if type(actor) is not str or type(read_reference) is not str:
+        if type(actor) is not str or type(readReference) is not str:
             raise SbomFailure("source-context")
 
-        original = ArtifactReadConsent(actor, read_reference)
+        original = ArtifactReadConsent(actor, readReference)
 
         if consent is not None and consent != original:
             raise SbomFailure("source-context")

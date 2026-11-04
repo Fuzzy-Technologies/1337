@@ -237,15 +237,15 @@ class PackageIdentity:
             raise ValueError("package identity requires a versioned PURL without subpath")
 
         body, _, query = text[4:].partition("?")
-        name_path, separator, version = body.rpartition("@")
-        ecosystem, slash, package_path = name_path.partition("/")
+        namePath, separator, version = body.rpartition("@")
+        ecosystem, slash, packagePath = namePath.partition("/")
 
-        if not separator or not slash or "@" in package_path:
+        if not separator or not slash or "@" in packagePath:
             raise ValueError("package PURL requires a name and installed version")
 
         try:
-            parts = [Text(unquote(part, errors="strict")) for part in package_path.split("/")]
-            decoded_version = Text(unquote(version, errors="strict"))
+            parts = [Text(unquote(part, errors="strict")) for part in packagePath.split("/")]
+            decodedVersion = Text(unquote(version, errors="strict"))
             qualifiers = []
 
             for entry in query.split("&") if query else ():
@@ -262,7 +262,7 @@ class PackageIdentity:
         if any("/" in part or part in {".", ".."} for part in parts):
             raise ValueError("package PURL name components must be unambiguous")
 
-        return cls(ecosystem, parts[-1], decoded_version, "/".join(parts[:-1]), tuple(qualifiers))
+        return cls(ecosystem, parts[-1], decodedVersion, "/".join(parts[:-1]), tuple(qualifiers))
 
 
 def VerifyRecords(state: ModelState, provenance: ModelProvenance,
@@ -289,10 +289,10 @@ def VerifyRecords(state: ModelState, provenance: ModelProvenance,
     ):
         raise ValueError("image import requires typed state, attribution and evidence records")
 
-    expected_roles = {"sbom"} if report is None else {"stdout", "stderr", "provider-version"}
+    expectedRoles = {"sbom"} if report is None else {"stdout", "stderr", "provider-version"}
 
-    if len(records) != len(expected_roles) or {item.reference.role for item in records} != (
-        expected_roles
+    if len(records) != len(expectedRoles) or {item.reference.role for item in records} != (
+        expectedRoles
     ) or workspace.Open().workspace_id != state.workspace_id:
         raise ValueError("image evidence requires exact source roles in the owning workspace")
 
@@ -506,10 +506,10 @@ def LicenseObjects(workspace_id: str, package: SecurityObject, licenses: list[ob
     relations = []
 
     for value in Items(licenses):
-        license_text = Text(value)
-        key = hashlib.sha256(license_text.encode("utf-8")).hexdigest()
+        licenseText = Text(value)
+        key = hashlib.sha256(licenseText.encode("utf-8")).hexdigest()
         entity = Asset(workspace_id, f"license-declaration:{key}",
-                       {"asset_type": "license", "expression": license_text}, provenance)
+                       {"asset_type": "license", "expression": licenseText}, provenance)
         objects.append(entity)
         relations.append(Relation(RelationKind.RELATED_TO, package.Reference(), entity.Reference(),
                                   {"association": "declared-license"}, (provenance,)))
@@ -547,9 +547,9 @@ def TrivyCandidates(workspace_id: str, payload: dict[str, object],
         raise ValueError("native Trivy report version contradicts collected version evidence")
 
     metadata = Record(payload.get("Metadata"))
-    image_identity = ImageIdentity(Digest(metadata.get("ImageID")))
-    image = SecurityObject(image_identity.Object(workspace_id),
-        {"asset_type": "image", "digest": image_identity.digest, "digest_kind": "config"},
+    imageIdentity = ImageIdentity(Digest(metadata.get("ImageID")))
+    image = SecurityObject(imageIdentity.Object(workspace_id),
+        {"asset_type": "image", "digest": imageIdentity.digest, "digest_kind": "config"},
         (provenance,))
     objects = [image]
     relations = []
@@ -557,16 +557,16 @@ def TrivyCandidates(workspace_id: str, payload: dict[str, object],
         {"provider_version": version["Version"], "database_updated_at": database["UpdatedAt"]},
         provenance)]
     findings = []
-    os_fields = Record(metadata.get("OS", {}))
+    osFields = Record(metadata.get("OS", {}))
 
-    if os_fields:
-        family, name = Text(os_fields.get("Family")), Text(os_fields.get("Name"))
+    if osFields:
+        family, name = Text(osFields.get("Family")), Text(osFields.get("Name"))
         key = hashlib.sha256(CanonicalModelJson({"family": family, "name": name})).hexdigest()
-        operating_system = Asset(workspace_id, f"operating-system:{key}",
+        operatingSystem = Asset(workspace_id, f"operating-system:{key}",
             {"asset_type": "operating-system", "family": family, "version": name}, provenance)
-        objects.append(operating_system)
+        objects.append(operatingSystem)
         relations.append(Relation(RelationKind.CONTAINS, image.Reference(),
-                                  operating_system.Reference(), provenance=(provenance,)))
+                                  operatingSystem.Reference(), provenance=(provenance,)))
 
     for value in Items(metadata.get("RepoDigests", [])):
         _, separator, digest = Text(value).rpartition("@")
@@ -574,16 +574,16 @@ def TrivyCandidates(workspace_id: str, payload: dict[str, object],
         if not separator:
             raise ValueError("repo digest requires an explicit digest suffix")
 
-        manifest_identity = ImageIdentity(Digest(digest), "manifest")
-        alias = SecurityObject(manifest_identity.Object(workspace_id),
+        manifestIdentity = ImageIdentity(Digest(digest), "manifest")
+        alias = SecurityObject(manifestIdentity.Object(workspace_id),
             {"asset_type": "image", "digest": digest, "digest_kind": "manifest"}, (provenance,))
         objects.append(alias)
         relations.append(Relation(RelationKind.RELATED_TO, alias.Reference(), image.Reference(),
                                   {"association": "provider-reported-config"}, (provenance,)))
 
-    diff_ids = [Digest(item) for item in Items(metadata.get("DiffIDs", []))]
+    diffIds = [Digest(item) for item in Items(metadata.get("DiffIDs", []))]
 
-    for digest in diff_ids:
+    for digest in diffIds:
         layer = Asset(workspace_id, f"image-layer-diffid:{digest}",
                       {"asset_type": "image-layer", "diff_id": digest}, provenance)
         objects.append(layer)
@@ -591,33 +591,33 @@ def TrivyCandidates(workspace_id: str, payload: dict[str, object],
                                   provenance=(provenance,)))
 
     observations.append(Observation("image-layer-order", image.Reference(),
-                                    {"diff_ids": diff_ids}, provenance))
+                                    {"diff_ids": diffIds}, provenance))
 
     for native in Items(payload.get("Results", [])):
         result = Record(native)
         ecosystem = Text(result.get("Type"))
         packages = []
 
-        native_packages = result.get("Packages")
+        nativePackages = result.get("Packages")
 
-        for value in Items([] if native_packages is None else native_packages):
+        for value in Items([] if nativePackages is None else nativePackages):
             package = Record(value)
-            identity = PackageRecord(package, ecosystem, os_fields)
+            identity = PackageRecord(package, ecosystem, osFields)
             entity = SecurityObject(identity.Object(workspace_id), PackageFields(identity),
                                     (provenance,))
             objects.append(entity)
             packages.append((package, identity, entity))
             relations.append(Relation(RelationKind.CONTAINS, image.Reference(), entity.Reference(),
                                       provenance=(provenance,)))
-            native_licenses = package.get("Licenses")
-            licenses, license_relations = LicenseObjects(workspace_id, entity,
-                Items([] if native_licenses is None else native_licenses), provenance)
+            nativeLicenses = package.get("Licenses")
+            licenses, licenseRelations = LicenseObjects(workspace_id, entity,
+                Items([] if nativeLicenses is None else nativeLicenses), provenance)
             objects.extend(licenses)
-            relations.extend(license_relations)
+            relations.extend(licenseRelations)
 
-        native_vulnerabilities = result.get("Vulnerabilities")
+        nativeVulnerabilities = result.get("Vulnerabilities")
 
-        for value in Items([] if native_vulnerabilities is None else native_vulnerabilities):
+        for value in Items([] if nativeVulnerabilities is None else nativeVulnerabilities):
             vulnerability = Record(value)
             name = Text(vulnerability.get("PkgName"))
             installed = Text(vulnerability.get("InstalledVersion"))
@@ -631,20 +631,20 @@ def TrivyCandidates(workspace_id: str, payload: dict[str, object],
                 raise ValueError("vulnerability requires exactly one installed package identity")
 
             subject = matches[0].Reference()
-            vulnerability_id = Text(vulnerability.get("VulnerabilityID"))
-            severity_text = Text(vulnerability.get("Severity")).lower()
+            vulnerabilityId = Text(vulnerability.get("VulnerabilityID"))
+            severityText = Text(vulnerability.get("Severity")).lower()
 
-            if severity_text not in {item.value for item in FindingSeverity}:
+            if severityText not in {item.value for item in FindingSeverity}:
                 raise ValueError("image vulnerability severity is unsupported")
 
-            severity = FindingSeverity(severity_text)
+            severity = FindingSeverity(severityText)
             fixed = vulnerability.get("FixedVersion")
             remediation = Remediation(summary=f"Upgrade to {Text(fixed)}" if fixed else None)
-            findings.append(Finding(subject, "supply-chain.vulnerability", vulnerability_id,
-                f"{vulnerability_id} in {name} {installed}", (provenance,), severity=severity,
+            findings.append(Finding(subject, "supply-chain.vulnerability", vulnerabilityId,
+                f"{vulnerabilityId} in {name} {installed}", (provenance,), severity=severity,
                 remediation=remediation))
             observations.append(Observation("image-vulnerability", subject,
-                {"image_reference": image.Reference(), "vulnerability_id": vulnerability_id,
+                {"image_reference": image.Reference(), "vulnerability_id": vulnerabilityId,
                  "installed_version": installed, "fixed_version": Text(fixed) if fixed else None},
                 provenance))
 
@@ -694,10 +694,10 @@ def SyntheticTrivyCandidates(workspace_id: str, payload: dict[str, object],
         key=_SYNTHETIC_IMAGE_PREFIX + item.identity.key)) for item in objects]
     references = {old.Reference(): new.Reference()
                   for old, new in zip(objects, isolated, strict=True)}
-    isolated_relations = [replace(item,
+    isolatedRelations = [replace(item,
         source_reference=references[item.source_reference],
         target_reference=references[item.target_reference]) for item in relations]
-    isolated_observations = []
+    isolatedObservations = []
 
     for item in observations:
         attributes = dict(item.attributes)
@@ -705,13 +705,13 @@ def SyntheticTrivyCandidates(workspace_id: str, payload: dict[str, object],
         if "image_reference" in attributes:
             attributes["image_reference"] = references[cast(str, attributes["image_reference"])]
 
-        isolated_observations.append(replace(item,
+        isolatedObservations.append(replace(item,
             subject_reference=references[item.subject_reference], attributes=attributes))
 
-    isolated_findings = [replace(item, subject_reference=references[item.subject_reference],
+    isolatedFindings = [replace(item, subject_reference=references[item.subject_reference],
         check_id="synthetic.supply-chain.vulnerability") for item in findings]
 
-    return isolated, isolated_relations, isolated_observations, isolated_findings
+    return isolated, isolatedRelations, isolatedObservations, isolatedFindings
 
 
 def ApplyVerifiedTrivyImages(state: ModelState, report: AdapterReport,
@@ -741,10 +741,10 @@ def ApplyVerifiedTrivyImages(state: ModelState, report: AdapterReport,
 
     raw = VerifyRecords(state, provenance, records, workspace_root, report)
 
-    probe_record = next(item for item in records if item.reference.role == "provider-version")
-    stream_record = next(item for item in records if item.reference.role == "stdout")
+    probeRecord = next(item for item in records if item.reference.role == "provider-version")
+    streamRecord = next(item for item in records if item.reference.role == "stdout")
 
-    if probe_record.provenance.finished_at > stream_record.provenance.started_at:
+    if probeRecord.provenance.finished_at > streamRecord.provenance.started_at:
         raise ValueError("Trivy database probe must precede the attributed scan")
 
     if not re.fullmatch(r"0\.75\.[0-9]+(?:[.+_-][0-9A-Za-z._-]+)?",
@@ -857,19 +857,19 @@ def ApplyVerifiedCycloneDx(state: ModelState, record: EvidenceRecord,
         declared: list[object] = []
 
         for value in Items(component.get("licenses", [])):
-            license_record = Record(value)
+            licenseRecord = Record(value)
 
-            if {"license", "expression"}.issubset(license_record):
+            if {"license", "expression"}.issubset(licenseRecord):
                 raise ValueError("CycloneDX license choices must not combine ID and expression")
 
-            declared.append(Text(license_record["expression"] if "expression" in license_record
-                else Record(license_record.get("license")).get("id")))
+            declared.append(Text(licenseRecord["expression"] if "expression" in licenseRecord
+                else Record(licenseRecord.get("license")).get("id")))
 
-        licenses, license_relations = LicenseObjects(
+        licenses, licenseRelations = LicenseObjects(
             state.workspace_id, entity, declared, provenance,
         )
         objects.extend(licenses)
-        relations.extend(license_relations)
+        relations.extend(licenseRelations)
 
     observation = Observation("image-sbom-inventory", image.Reference(),
                               {"format": "CycloneDX", "spec_version": "1.6"}, provenance)

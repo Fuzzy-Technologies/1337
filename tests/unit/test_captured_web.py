@@ -488,8 +488,8 @@ def test_RawTextBudgetUsesWholeArtifactWhileUnicodeTokenBudgetUsesExactUtf8(tmp_
     assert frontier.anchor_count == 1, "Raw-text contents consumed markup/anchor work"
     exact = b"<div title='" + bytes.fromhex("cea9") * 2041 + b"'>"
     assert len(exact) == 4096, "Independent Unicode fixture did not hit the exact token boundary"
-    unicode_fixture = Fixture.Create(tmp_path / "unicode-workspace", raw=exact)
-    assert Read(unicode_fixture).complete, "Exact multibyte token admission was lost"
+    unicodeFixture = Fixture.Create(tmp_path / "unicode-workspace", raw=exact)
+    assert Read(unicodeFixture).complete, "Exact multibyte token admission was lost"
 
     with pytest.raises(ValueError):
         Read(Fixture.Create(tmp_path / "over-workspace", raw=exact[:-2] + b"x'>"))

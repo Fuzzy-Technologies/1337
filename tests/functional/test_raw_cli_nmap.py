@@ -83,8 +83,8 @@ def test_GenuineRawProfilesRetainExactArgvCustodyAndRelocatedOfflineReplay(tmp_p
     policy = ImpactPolicy("owned-raw-nmap", maximum_impact=ImpactLevel.STANDARD,
         permissions=tuple(CapabilityPermission(capability, "native.nmap", ImpactLevel.STANDARD)
             for capability in ("network.tcp-connect", "network.service-discovery")))
-    policy_path = root / "raw-policy.json"
-    policy_path.write_text(SerializeContract(policy), encoding="utf-8")
+    policyPath = root / "raw-policy.json"
+    policyPath.write_text(SerializeContract(policy), encoding="utf-8")
 
     with OwnedServer(("127.0.0.1", 0), OwnedHandler) as server, socket.socket() as closed:
         closed.bind(("127.0.0.1", 0))
@@ -100,10 +100,10 @@ def test_GenuineRawProfilesRetainExactArgvCustodyAndRelocatedOfflineReplay(tmp_p
                 native += ["--version-light", "-sV"]
 
             prefix = [str(root), "--tool", "nmap", "--scope", "local", "--owner",
-                "operator:owned", "--policy", str(policy_path), "--executable", executable]
-            plan_result = Console(["plan", *prefix, "--", *native])
-            assert plan_result.returncode == 0, "Genuine raw native planning failed"
-            plan = json.loads(plan_result.stdout)
+                "operator:owned", "--policy", str(policyPath), "--executable", executable]
+            planResult = Console(["plan", *prefix, "--", *native])
+            assert planResult.returncode == 0, "Genuine raw native planning failed"
+            plan = json.loads(planResult.stdout)
             assert plan["invocation"]["argv"] == [executable, *native], (
                 "Genuine plan must bind original reordered native tokens without canonical rewrite")
             assert plan["invocation"]["provider_version"] == PINNED_VERSION, (
@@ -154,12 +154,12 @@ def test_GenuineRawProfilesRetainExactArgvCustodyAndRelocatedOfflineReplay(tmp_p
     model = LocalModelStore(root).Open()
     assert len(model.Objects(ObjectKind.HOST)) == 1 and not model.Objects(ObjectKind.FINDING), (
         "Genuine raw host/port/service facts must never invent vulnerability Findings")
-    actual_ports = {int(item.attributes["number"]): item
+    actualPorts = {int(item.attributes["number"]): item
         for item in model.Objects(ObjectKind.PORT)}
-    assert set(actual_ports) == set(states), (
+    assert set(actualPorts) == set(states), (
         "Grouped native counts invented individual Port objects")
 
-    for number, item in actual_ports.items():
+    for number, item in actualPorts.items():
         assert item.attributes["state"] == states[number] and item.provenance, (
             "Canonical Port facts must match their actual original native evidence")
 

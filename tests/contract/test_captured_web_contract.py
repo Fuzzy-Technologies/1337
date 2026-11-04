@@ -55,8 +55,8 @@ def test_HandwrittenSourceAndOracleBindEveryReturnedStructuralCandidate(tmp_path
     assert frontier.capture.provenance.tool_version == "fixture-collector-v3", (
         "Collector version changed"
     )
-    scope_digest = hashlib.sha256(CanonicalModelJson(fixture.scope.ToDict())).hexdigest()
-    assert frontier.scope_sha256 == scope_digest, (
+    scopeDigest = hashlib.sha256(CanonicalModelJson(fixture.scope.ToDict())).hexdigest()
+    assert frontier.scope_sha256 == scopeDigest, (
         "Full scope contents were replaced with a revision-only pin"
     )
     assert frontier.source == fixture.source and (
@@ -76,8 +76,8 @@ def test_IndependentSoftLimitOracleRemainsTruthfulAtExactExhaustion(tmp_path, ca
     frontier = ReadCapturedWebFrontier(fixture.root, fixture.source, fixture.capture,
                                       fixture.scope.scope_id, at=fixture.at, limits=limits)
     assert frontier.processed_anchors == case["processed_anchors"], "Anchor work count changed"
-    actual_paths = [entry.template.endpoint.path_template for entry in frontier.entries]
-    assert actual_paths == case["entry_paths"], (
+    actualPaths = [entry.template.endpoint.path_template for entry in frontier.entries]
+    assert actualPaths == case["entry_paths"], (
         "Bounded selection did not retain sorted canonical candidates"
     )
     assert [list(entry.ordinals) for entry in frontier.entries] == case["entry_ordinals"], (
@@ -86,6 +86,6 @@ def test_IndependentSoftLimitOracleRemainsTruthfulAtExactExhaustion(tmp_path, ca
     assert list(frontier.truncation_reasons) == case["truncation_reasons"], "Partial reason changed"
     assert frontier.complete is (not case["truncation_reasons"]), "Exact completeness changed"
     assert frontier.discarded_candidates == case["discarded_candidates"], "Discarded count changed"
-    expected_counts = (fixture.oracle["complete_exclusion_counts"] if
+    expectedCounts = (fixture.oracle["complete_exclusion_counts"] if
                        case.get("exclusion_counts_use_complete") else case["exclusion_counts"])
-    assert dict(frontier.exclusion_counts) == expected_counts, "Excluded counts changed"
+    assert dict(frontier.exclusion_counts) == expectedCounts, "Excluded counts changed"

@@ -545,7 +545,7 @@ class NativeCrawlProvider:
             if event.kind in (ExecutionEventKind.STARTED, ExecutionEventKind.COMPLETED):
                 context.Heartbeat()
 
-        started_at = self.clock().isoformat()
+        startedAt = self.clock().isoformat()
         interrupted = False
 
         try:
@@ -587,7 +587,7 @@ class NativeCrawlProvider:
                 "Native crawl executor result violated its original control contract")) from None
         provenance = EvidenceProvenance(self.workspace_id, context.Spec.scope_reference,
             NATIVE_CRAWL_PROVIDER_ID, NATIVE_CRAWL_VERSION, NATIVE_CRAWL_VERSION,
-            started_at, self.clock().isoformat(), InvocationDigest(invocation),
+            startedAt, self.clock().isoformat(), InvocationDigest(invocation),
             result.execution)
         originals: list[EvidenceRecord] = []
         parsed = None
@@ -609,7 +609,7 @@ class NativeCrawlProvider:
         except (ValueError, TypeError):
             invalid = True
 
-        publication_error: BaseException | None = None
+        publicationError: BaseException | None = None
 
         try:
             if not invalid:
@@ -619,7 +619,7 @@ class NativeCrawlProvider:
                     "application/octet-stream", provenance))
 
         except BaseException as error:
-            publication_error = error
+            publicationError = error
 
         try:
             # This receipt is parent control metadata, never fabricated worker stdout/stderr.
@@ -642,7 +642,7 @@ class NativeCrawlProvider:
                                            "application/json", provenance))
 
         except BaseException:
-            if publication_error is None:
+            if publicationError is None:
                 raise
 
         if result.termination is ExecutionTermination.CANCELLATION:
@@ -656,8 +656,8 @@ class NativeCrawlProvider:
         if interrupted:
             raise asyncio.CancelledError
 
-        if publication_error is not None:
-            raise publication_error
+        if publicationError is not None:
+            raise publicationError
 
         if invalid or parsed is None:
             raise JobError(JobFailure(JobFailureCode.NORMALIZATION,
@@ -705,14 +705,14 @@ class NativeCrawlProvider:
             NATIVE_CRAWL_VERSION, tuple(item.reference for item in page.records),
             page.result.execution)
         source = CrawlTemplate(self.workspace_id, document["source_url"])
-        by_identity = {item.Reference(): item for item in state.Objects(ObjectKind.ENDPOINT)}
+        byIdentity = {item.Reference(): item for item in state.Objects(ObjectKind.ENDPOINT)}
         templates = (source, *(CrawlTemplate(self.workspace_id, entry["url"])
                                for entry in record["frontier"]["entries"]))
         patches = []
 
         for template in templates:
             identity = template.endpoint.Identity().Reference()
-            previous = RequestsFromObject(by_identity[identity]) if identity in by_identity else ()
+            previous = RequestsFromObject(byIdentity[identity]) if identity in byIdentity else ()
             complete = {item.Reference(): item for item in (*previous, template)}
             patches.append(ProjectRequests(tuple(complete[key] for key in sorted(complete)),
                                            provenance=(provenance,)))
@@ -796,7 +796,7 @@ class NativeCrawlProvider:
         pending = {self.seed_url: 0}
         visited: set[str] = set()
         reserved = 0
-        next_start = asyncio.get_running_loop().time()
+        nextStart = asyncio.get_running_loop().time()
         context.Progress(0)
 
         while pending:
@@ -805,17 +805,17 @@ class NativeCrawlProvider:
             depth = min(pending.values())
             wave = tuple(sorted(url for url in pending if pending[url] == depth)[
                 :self.limits.concurrency])
-            wave_bytes = len(wave) * self.limits.max_body_bytes
+            waveBytes = len(wave) * self.limits.max_body_bytes
 
             if depth > self.limits.max_depth or (
                 len(visited) + len(wave) > self.limits.max_pages
             ) or (
-                reserved + wave_bytes > self.limits.max_total_body_bytes
+                reserved + waveBytes > self.limits.max_total_body_bytes
             ):
                 raise JobError(JobFailure(JobFailureCode.OUTPUT_LIMIT,
                     "Native crawl budget omitted reachable selected work"))
 
-            reserved += wave_bytes
+            reserved += waveBytes
             visited.update(wave)
             tasks: list[asyncio.Task[NativeCrawlPage]] = []
 
@@ -824,7 +824,7 @@ class NativeCrawlProvider:
                     while True:
                         self.CheckBudget()
                         context.CheckCancellation()
-                        delay = next_start - asyncio.get_running_loop().time()
+                        delay = nextStart - asyncio.get_running_loop().time()
 
                         if delay <= 0:
                             break
@@ -835,7 +835,7 @@ class NativeCrawlProvider:
                     context.CheckCancellation()
                     del pending[url]
                     tasks.append(asyncio.create_task(self.Acquire(context, url)))
-                    next_start = asyncio.get_running_loop().time() + (
+                    nextStart = asyncio.get_running_loop().time() + (
                         self.limits.start_interval_seconds)
 
                 for task in tasks:

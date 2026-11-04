@@ -30,12 +30,12 @@ SPEC.loader.exec_module(API)
 def test_DocumentationDirectRequirementMatchesHashedLock(requirement: str) -> None:
     """Prevent documentation upgrades from silently using an outdated renderer lock."""
 
-    locked_requirements = {
+    lockedRequirements = {
         line.split(" ", 1)[0]
         for line in (ROOT / "docs/requirements-api.lock").read_text(encoding="utf-8").splitlines()
         if line and not line.startswith(("#", " "))
     }
-    assert requirement in locked_requirements, (
+    assert requirement in lockedRequirements, (
         f"{requirement} is absent from the documentation lock; regenerate the hashed lock "
         "before validating or publishing upgraded documentation tooling"
     )
@@ -265,15 +265,15 @@ def test_OutputRequiresSourceAndFormulaResources(tmp_path: Path) -> None:
     (tmp_path / "search").mkdir()
     (tmp_path / "search/search_index.json").write_text("{}")
     (tmp_path / "api").mkdir()
-    api_page = tmp_path / "api/index.html"
-    api_page.write_text('<h1 id="docfixture">Fixture</h1>')
+    apiPage = tmp_path / "api/index.html"
+    apiPage.write_text('<h1 id="docfixture">Fixture</h1>')
     (tmp_path / "index.html").write_text('<p class="arithmatex">Formula</p>')
     module = {"module": "docfixture", "page": "api.md", "symbols": []}
 
     with pytest.raises(ValueError, match="statically analyzed source blocks"):
         API.CheckOutput(tmp_path, [module], "/1337/api/latest/en/")
 
-    api_page.write_text(api_page.read_text() + '<details class="mkdocstrings-source"></details>')
+    apiPage.write_text(apiPage.read_text() + '<details class="mkdocstrings-source"></details>')
 
     with pytest.raises(ValueError, match="locally hosted SVG renderer"):
         API.CheckOutput(tmp_path, [module], "/1337/api/latest/en/")
@@ -612,9 +612,9 @@ def test_ExternalBuildOrchestrationRejectsAmbiguousOrMutableResults(
     (root / "tools/locale_documentation.py").write_text(
         '\"\"\"Validator process fixture for build orchestration.\"\"\"\n'
     )
-    fake_uv = FakeBuildExecutables(tmp_path / "executables")
+    fakeUv = FakeBuildExecutables(tmp_path / "executables")
     receipts = tmp_path / "receipts.jsonl"
-    monkeypatch.setenv("PATH", str(fake_uv.parent) + ":" + str(Path(shutil.which("git")).parent))
+    monkeypatch.setenv("PATH", str(fakeUv.parent) + ":" + str(Path(shutil.which("git")).parent))
     monkeypatch.setenv("DOCUMENTATION_FIXTURE_MODE", mode)
     monkeypatch.setenv("DOCUMENTATION_FIXTURE_RECEIPTS", str(receipts))
 
@@ -640,12 +640,12 @@ def test_ExternalBuildOrchestrationRejectsAmbiguousOrMutableResults(
         assert calls[1][:5] == [
             "export", "--locked", "--no-default-groups", "--no-emit-project", "--format",
         ], "Only base runtime requirements may be exported without changing the product lock"
-        runtime_requirements = calls[1][calls[1].index("--output-file") + 1]
+        runtimeRequirements = calls[1][calls[1].index("--output-file") + 1]
         requirements = [
             calls[2][index + 1] for index, value in enumerate(calls[2]) if value == "-r"
         ]
         assert "--require-hashes" in calls[2] and requirements == [
-            str(root / "docs/requirements-api.lock"), runtime_requirements,
+            str(root / "docs/requirements-api.lock"), runtimeRequirements,
         ], "Documentation and runtime dependencies must resolve together under their exact hashes"
         assert "--no-deps" in calls[3], (
             "Wheel installation must not resolve dependencies beyond the exported runtime lock"
@@ -667,9 +667,9 @@ def test_InventoryCoversEverySourceModule() -> None:
 
     surfaces = API.ValidateInventory(ROOT, API.ReadManifest(ROOT))
 
-    source_paths = {path.relative_to(ROOT).as_posix() for path in (ROOT / "src").rglob("*.py")}
+    sourcePaths = {path.relative_to(ROOT).as_posix() for path in (ROOT / "src").rglob("*.py")}
     assert {surface["source"] for surface in surfaces} == (
-        source_paths - {"src/fuzzy1337/__main__.py"}
+        sourcePaths - {"src/fuzzy1337/__main__.py"}
     ), "API inventory must cover all source modules and exclude only the CLI entry point"
     assert all(surface["mode"] == "authored" for surface in surfaces), (
         "Authored source owns canonical symbol documentation without duplicate package aliases"
@@ -827,8 +827,8 @@ def test_ImmutableRenderPinsUrlsLanguagesSearchSitemapSourceAndArchive(
     ], cwd=root, check=True)
     monkeypatch.setattr(sys, "meta_path", list(sys.meta_path))
     API.Render(root, installed, "0.3.0")
-    version_root = root / "_build/api-versions/0.3.0"
-    provenance = json.loads((version_root / "api-version-provenance.json").read_bytes())
+    versionRoot = root / "_build/api-versions/0.3.0"
+    provenance = json.loads((versionRoot / "api-version-provenance.json").read_bytes())
     assert provenance["revision"] == subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=root, text=True,
     ).strip(), (
@@ -845,7 +845,7 @@ def test_ImmutableRenderPinsUrlsLanguagesSearchSitemapSourceAndArchive(
 
     for locale in ("en", "ru", "zh-cn"):
         latest = (root / f"_build/api-reference/{locale}/index.html").read_text(encoding="utf-8")
-        immutable = (version_root / locale / "index.html").read_text(encoding="utf-8")
+        immutable = (versionRoot / locale / "index.html").read_text(encoding="utf-8")
         assert f"/1337/api/latest/{locale}/" in latest, (
             'The latest API rendering must retain its own locale-specific latest base route'
         )
@@ -860,22 +860,22 @@ def test_ImmutableRenderPinsUrlsLanguagesSearchSitemapSourceAndArchive(
             'Latest API source links must continue to identify the development source branch'
         )
         assert f"/1337/api/0.3.0/{locale}/" in (
-            version_root / locale / "sitemap.xml"
+            versionRoot / locale / "sitemap.xml"
         ).read_text(encoding="utf-8"), (
             'Each immutable locale sitemap must contain its release-specific route'
         )
-        search = json.loads((version_root / locale / "search/search_index.json").read_bytes())
+        search = json.loads((versionRoot / locale / "search/search_index.json").read_bytes())
         assert any("docfixture.Execute" in str(document) for document in search["docs"]), (
             'Each immutable locale search index must expose the documented fixture symbol'
         )
-        assert (version_root / locale / "assets/images/1337-logo.png").is_file(), (
+        assert (versionRoot / locale / "assets/images/1337-logo.png").is_file(), (
             'Each immutable locale must include the approved project logo asset'
         )
 
     first = tmp_path / "first.tar.gz"
     second = tmp_path / "second.tar.gz"
-    manifest = API.SealVersionArchive(version_root, first)
-    API.SealVersionArchive(version_root, second)
+    manifest = API.SealVersionArchive(versionRoot, first)
+    API.SealVersionArchive(versionRoot, second)
     assert first.read_bytes() == second.read_bytes(), "Archive filename cannot affect sealed bytes"
     assert (
         manifest["revision"] == provenance["revision"] and manifest["tree"] == provenance["tree"]

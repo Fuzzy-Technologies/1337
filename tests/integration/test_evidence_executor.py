@@ -60,12 +60,12 @@ def PhysicalTmpPath(tmp_path):
 def test_LocalExecutorRawOutputRoundTripsWithFailureAttribution(tmp_path, exit_code):
     """Persist real captured bytes and keep failed execution separate from storage success."""
 
-    script_path = tmp_path / "owned_evidence_fixture.py"
-    script_path.write_text(FIXTURE_SCRIPT, encoding="utf-8")
+    scriptPath = tmp_path / "owned_evidence_fixture.py"
+    scriptPath.write_text(FIXTURE_SCRIPT, encoding="utf-8")
     invocation = AdapterInvocation(
         adapter_id="native.evidence-fixture",
         request=AdapterRequest("test.evidence", "target:owned-local-process", ImpactLevel.PASSIVE),
-        argv=(sys.executable, str(script_path), str(exit_code)),
+        argv=(sys.executable, str(scriptPath), str(exit_code)),
         timeout_seconds=5,
         provider_version=f"{sys.version_info.major}.{sys.version_info.minor}",
     )
@@ -80,9 +80,9 @@ def test_LocalExecutorRawOutputRoundTripsWithFailureAttribution(tmp_path, exit_c
         ),
         authorization=authorization,
     )
-    started_at = datetime.now(timezone.utc).isoformat()
+    startedAt = datetime.now(timezone.utc).isoformat()
     result = asyncio.run(LocalExecutor(tmp_path).Execute(request))
-    finished_at = datetime.now(timezone.utc).isoformat()
+    finishedAt = datetime.now(timezone.utc).isoformat()
     root = tmp_path / "evidence"
     root.mkdir()
     store = LocalEvidenceStore(root)
@@ -92,8 +92,8 @@ def test_LocalExecutorRawOutputRoundTripsWithFailureAttribution(tmp_path, exit_c
         source_id=invocation.adapter_id,
         source_version="1",
         tool_version=invocation.provider_version,
-        started_at=started_at,
-        finished_at=finished_at,
+        started_at=startedAt,
+        finished_at=finishedAt,
         invocation_sha256=digest,
         execution=result.execution,
     )
@@ -120,8 +120,8 @@ def test_LocalExecutorRawOutputRoundTripsWithFailureAttribution(tmp_path, exit_c
     assert stdout.provenance.execution.exit_code == exit_code, (
         'Evidence invariant failed: stdout.provenance.execution.exit_code == exit_code'
     )
-    expected_state = ExecutionState.SUCCEEDED if exit_code == 0 else ExecutionState.FAILED
+    expectedState = ExecutionState.SUCCEEDED if exit_code == 0 else ExecutionState.FAILED
 
-    assert stdout.provenance.execution.state is expected_state, (
+    assert stdout.provenance.execution.state is expectedState, (
         "Successful evidence storage must not turn a failed tool execution into success."
     )

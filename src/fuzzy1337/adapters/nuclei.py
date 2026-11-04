@@ -231,8 +231,8 @@ def CanonicalUrl(value: object) -> str:
     try:
         parsed = urlsplit(value)
         address = ipaddress.ip_address(parsed.hostname or "")
-        supplied_port = parsed.port
-        port = supplied_port if supplied_port is not None else (
+        suppliedPort = parsed.port
+        port = suppliedPort if suppliedPort is not None else (
             443 if parsed.scheme == "https" else 80
         )
 
@@ -249,30 +249,30 @@ def CanonicalUrl(value: object) -> str:
 
     host = f"[{address}]" if address.version == 6 else str(address)
     path = parsed.path or "/"
-    path_error = "Nuclei URL requires an exact provider-stable ASCII path"
+    pathError = "Nuclei URL requires an exact provider-stable ASCII path"
 
     if re.search(r"%(?![0-9A-Fa-f]{2})", path):
-        raise ValueError(path_error)
+        raise ValueError(pathError)
 
     try:
-        decoded_path = unquote_to_bytes(path).decode("ascii")
+        decodedPath = unquote_to_bytes(path).decode("ascii")
 
     except UnicodeError as error:
-        raise ValueError(path_error) from error
+        raise ValueError(pathError) from error
 
     if any(ord(character) < 32 or ord(character) == 127 or character in "%?#\\{}"
-           for character in decoded_path):
-        raise ValueError(path_error)
+           for character in decodedPath):
+        raise ValueError(pathError)
 
     # Nuclei 3.4.10 interpolates decoded BaseURL, then reparses it. Go preserves
     # valid RawPath, including apostrophes, or escapes the complete decoded path.
-    wire_path = decoded_path if all(character in _GO_RAW_PATH_CHARACTERS
-                                   for character in decoded_path) else (
-        quote(decoded_path, safe=_GO_PATH_SAFE)
+    wirePath = decodedPath if all(character in _GO_RAW_PATH_CHARACTERS
+                                   for character in decodedPath) else (
+        quote(decodedPath, safe=_GO_PATH_SAFE)
     )
 
-    if path != wire_path:
-        raise ValueError(path_error)
+    if path != wirePath:
+        raise ValueError(pathError)
 
     return f"{parsed.scheme}://{host}:{port}{path}"
 
@@ -345,7 +345,7 @@ def ReadVersion(executable: str) -> AdapterHealth:
     assert process.stdout is not None, "PIPE must create a bounded capture handle"
     pipe = process.stdout
     output: list[bytes] = []
-    capture_failed = threading.Event()
+    captureFailed = threading.Event()
 
     def Capture() -> None:
         """Drain a finite version output without accumulating unbounded bytes."""
@@ -366,17 +366,17 @@ def ReadVersion(executable: str) -> AdapterHealth:
                 process.kill()
 
         except (OSError, ValueError):
-            capture_failed.set()
+            captureFailed.set()
 
     worker = threading.Thread(target=Capture, daemon=True)
     worker.start()
-    timed_out = False
+    timedOut = False
 
     try:
         process.wait(timeout=NUCLEI_HEALTH_TIMEOUT_SECONDS)
 
     except subprocess.TimeoutExpired:
-        timed_out = True
+        timedOut = True
 
         try:
             process.kill()
@@ -391,7 +391,7 @@ def ReadVersion(executable: str) -> AdapterHealth:
     raw = b"".join(output)
     match = _HEALTH_VERSION_PATTERN.search(raw.decode("utf-8", errors="replace"))
 
-    if timed_out or worker.is_alive() or capture_failed.is_set() or (
+    if timedOut or worker.is_alive() or captureFailed.is_set() or (
         len(raw) > NUCLEI_HEALTH_MAX_BYTES or process.returncode != 0 or match is None
     ):
         return AdapterHealth(_DESCRIPTOR.adapter_id, AdapterHealthState.DEGRADED,
@@ -698,7 +698,7 @@ class NucleiAdapter:
 
         template = next((item for item in self._profile.templates
                          if item.template_id == record.get("template-id")), None)
-        expected_url = CanonicalUrl(report.invocation.request.parameters["url"])
+        expectedUrl = CanonicalUrl(report.invocation.request.parameters["url"])
         info = record.get("info")
 
         if template is None or record.get("type") != "http" or (
@@ -707,33 +707,33 @@ class NucleiAdapter:
         ):
             raise NucleiReportError("Nuclei match is outside the reviewed HTTP template set")
 
-        if CanonicalUrl(record.get("matched-at")) != expected_url:
+        if CanonicalUrl(record.get("matched-at")) != expectedUrl:
             raise NucleiReportError("Nuclei match URL differs from the exact approved target")
 
-        endpoint = urlsplit(expected_url)
-        expected_path = endpoint.path
+        endpoint = urlsplit(expectedUrl)
+        expectedPath = endpoint.path
 
         if record.get("host") == endpoint.netloc:
-            expected_path = unquote_to_bytes(endpoint.path).decode("ascii")
-            context_url = f"{endpoint.scheme}://{endpoint.netloc}{expected_path}"
+            expectedPath = unquote_to_bytes(endpoint.path).decode("ascii")
+            contextUrl = f"{endpoint.scheme}://{endpoint.netloc}{expectedPath}"
 
-            if (record.get("url") != context_url or record.get("scheme") != endpoint.scheme
+            if (record.get("url") != contextUrl or record.get("scheme") != endpoint.scheme
                 or record.get("port") != str(endpoint.port)):
                 raise NucleiReportError("Nuclei authority requires exact destination fields")
 
         else:
-            if "host" in record and CanonicalUrl(record["host"]) != expected_url:
+            if "host" in record and CanonicalUrl(record["host"]) != expectedUrl:
                 raise NucleiReportError("Nuclei input host differs from the exact approved target")
 
-            if "url" in record and CanonicalUrl(record["url"]) != expected_url:
+            if "url" in record and CanonicalUrl(record["url"]) != expectedUrl:
                 raise NucleiReportError("Nuclei input URL differs from the exact approved target")
 
         if "scheme" in record and record["scheme"] != endpoint.scheme or (
             "port" in record and record["port"] != str(endpoint.port)
-        ) or ("path" in record and record["path"] != expected_path):
+        ) or ("path" in record and record["path"] != expectedPath):
             raise NucleiReportError("Nuclei endpoint components contradict the approved target")
 
-        if "ip" in record and record["ip"] != urlsplit(expected_url).hostname:
+        if "ip" in record and record["ip"] != urlsplit(expectedUrl).hostname:
             raise NucleiReportError("Nuclei reported address differs from the approved literal IP")
 
         if "template-path" in record and record["template-path"] != template.path:
@@ -750,7 +750,7 @@ class NucleiAdapter:
 
         RequireText(summary, "Nuclei summary")
         identity = hashlib.sha256(SerializeContract({"template_id": template.template_id,
-            "template_sha256": template.sha256, "url": expected_url, "matcher": matcher,
+            "template_sha256": template.sha256, "url": expectedUrl, "matcher": matcher,
         }).encode("utf-8")).hexdigest()
         attributes: dict[str, object] = {
             "provider": _DESCRIPTOR.adapter_id,
@@ -759,15 +759,15 @@ class NucleiAdapter:
             "template_sha256": template.sha256, "template_source": template.source_reference,
             "template_revision": template.source_revision,
             "template_review": template.review_reference,
-            "profile_sha256": self._profile.Digest, "matched_at": expected_url,
+            "profile_sha256": self._profile.Digest, "matched_at": expectedUrl,
             "matcher_name": matcher, "severity": severity,
             "complete": report.execution.state is ExecutionState.SUCCEEDED,
             "execution_state": report.execution.state.value,
         }
 
-        for field_name in ("description", "reference", "tags", "classification", "metadata"):
-            if field_name in info:
-                attributes[field_name] = info[field_name]
+        for fieldName in ("description", "reference", "tags", "classification", "metadata"):
+            if fieldName in info:
+                attributes[fieldName] = info[fieldName]
 
         return NormalizedFinding("web.template-match", report.invocation.request.target_reference,
                                  summary, attributes)

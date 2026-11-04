@@ -32,10 +32,10 @@ async def AwaitBrowserReadiness(
         Ready, execution-complete or readiness-deadline, without hiding early execution failure.
     """
 
-    ready_waiter = asyncio.create_task(readiness.wait())
+    readyWaiter = asyncio.create_task(readiness.wait())
 
     try:
-        await asyncio.wait((execution, ready_waiter), timeout=timeout_seconds,
+        await asyncio.wait((execution, readyWaiter), timeout=timeout_seconds,
             return_when=asyncio.FIRST_COMPLETED)
 
         if readiness.is_set():
@@ -47,9 +47,9 @@ async def AwaitBrowserReadiness(
         return "readiness-deadline"
 
     finally:
-        ready_waiter.cancel()
+        readyWaiter.cancel()
 
-        await asyncio.gather(ready_waiter, return_exceptions=True)
+        await asyncio.gather(readyWaiter, return_exceptions=True)
 
 
 def OriginalEvents(events: tuple[ExecutionEvent, ...]) -> list[dict]:

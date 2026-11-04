@@ -106,9 +106,9 @@ class ImagePair:
 def CaptureRecords(root, outcome, prepared, stage, started, finished):
     """Store actual streams and complete original payloads around the observed call window."""
 
-    is_version = prepared.operation == ArtifactOperation.VERSION
+    isVersion = prepared.operation == ArtifactOperation.VERSION
     roles = ("provider-version", "provider-version-stderr", "artifact-version-receipt") if (
-        is_version
+        isVersion
     ) else ("stdout", "stderr", "artifact-scan-receipt")
     source = EvidenceProvenance(
         outcome.grant.plan.workspace_id, outcome.grant.plan.scope_reference, "synthetic.trivy", "1",
@@ -134,20 +134,20 @@ def CollectImagePair(tmp_path, *, scenario="success", workspace=None, prefix="ow
                      cancelled=False):
     """Execute reviewed VERSION and SCAN workers through their actual canonical SDK path."""
 
-    root, version_stage, version_prepared, context, version_grant = OwnedImageArtifact(
+    root, versionStage, versionPrepared, context, versionGrant = OwnedImageArtifact(
         tmp_path, workspace=workspace, stage_name=prefix + "-version", scenario=scenario,
     )
-    model_store = LocalModelStore(root)
-    state = model_store.Create() if workspace is None else model_store.Open()
-    version_started = AT
-    version_executor = GovernedArtifactExecutor(root, clock=lambda: version_started)
-    version = asyncio.run(version_executor.Execute(
-        version_prepared, version_stage, version_grant, lambda: context,
+    modelStore = LocalModelStore(root)
+    state = modelStore.Create() if workspace is None else modelStore.Open()
+    versionStarted = AT
+    versionExecutor = GovernedArtifactExecutor(root, clock=lambda: versionStarted)
+    version = asyncio.run(versionExecutor.Execute(
+        versionPrepared, versionStage, versionGrant, lambda: context,
     ))
-    version_finished = AT + timedelta(milliseconds=1)
-    proof = ArtifactVersionProof(version, version_prepared, version_stage)
-    version_records = CaptureRecords(
-        root, version, version_prepared, version_stage, version_started, version_finished,
+    versionFinished = AT + timedelta(milliseconds=1)
+    proof = ArtifactVersionProof(version, versionPrepared, versionStage)
+    versionRecords = CaptureRecords(
+        root, version, versionPrepared, versionStage, versionStarted, versionFinished,
     )
     _, stage, prepared, _, _ = OwnedImageArtifact(
         tmp_path, workspace=root, stage_name=prefix + "-scan", scenario=scenario,
@@ -157,20 +157,20 @@ def CollectImagePair(tmp_path, *, scenario="success", workspace=None, prefix="ow
     if scenario == "hold":
         prepared = PrepareArtifact(stage, root, timeout_seconds=1, version_proof=proof)
 
-    scan_started = AT + timedelta(milliseconds=10)
-    grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=scan_started)
+    scanStarted = AT + timedelta(milliseconds=10)
+    grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=scanStarted)
     cancellation = asyncio.Event() if cancelled else None
 
     if cancellation is not None:
         cancellation.set()
 
-    executor = GovernedArtifactExecutor(root, clock=lambda: scan_started)
+    executor = GovernedArtifactExecutor(root, clock=lambda: scanStarted)
     outcome = asyncio.run(executor.Execute(
         prepared, stage, grant, lambda: context, cancellation=cancellation,
     ))
-    scan_finished = AT + timedelta(milliseconds=11)
-    records = version_records + CaptureRecords(
-        root, outcome, prepared, stage, scan_started, scan_finished,
+    scanFinished = AT + timedelta(milliseconds=11)
+    records = versionRecords + CaptureRecords(
+        root, outcome, prepared, stage, scanStarted, scanFinished,
     )
 
     return ImagePair(root, state, context, proof, outcome, prepared, stage, records)
@@ -236,7 +236,7 @@ def test_LiveActualPairCreatesIsolatedInMemoryGraphWithoutSavingOrWritingEvidenc
     """Actual capture enables an isolated model proposal while durable stores remain unchanged."""
 
     original = CanonicalModelJson(pair.state.ToDict())
-    records_before = {path.name for path in (pair.root / "evidence/records").iterdir()}
+    recordsBefore = {path.name for path in (pair.root / "evidence/records").iterdir()}
     state, delta = Apply(pair)
     assets = state.Objects(ObjectKind.ASSET)
     prefix = "synthetic.trivy:owned-synthetic-image-wire-v1:"
@@ -250,14 +250,14 @@ def test_LiveActualPairCreatesIsolatedInMemoryGraphWithoutSavingOrWritingEvidenc
     assert delta.revision == pair.state.revision + 1, "One proposal needs one aggregate revision"
     assert CanonicalModelJson(pair.state.ToDict()) == original, "Proposal mutated its input model"
     assert LocalModelStore(pair.root).Open() == pair.state, "Pure import unexpectedly saved state"
-    assert {path.name for path in (pair.root / "evidence/records").iterdir()} == records_before, (
+    assert {path.name for path in (pair.root / "evidence/records").iterdir()} == recordsBefore, (
         "The interpretation boundary wrote or replaced raw evidence"
     )
     assert b"producer.py" not in CanonicalModelJson(state.ToDict()), (
         "Physical request/stage facts escaped receipt evidence into the normalized model"
     )
-    replayed, no_change = Apply(pair, state=state)
-    assert replayed == state and no_change.revision == state.revision, (
+    replayed, noChange = Apply(pair, state=state)
+    assert replayed == state and noChange.revision == state.revision, (
         "Repeated live acceptance duplicated identical interpretations or history"
     )
 
@@ -330,8 +330,8 @@ def test_RelocatedHistoricalReplayCannotInspectLiveStagesReauthorizeApplyOrSave(
     monkeypatch.setattr(LocalModelStore, "Save", Forbidden)
     monkeypatch.setattr(ModelState, "Apply", Forbidden)
     replay = VerifySyntheticTrivyImageReplay(pair.records, copied)
-    original_records = tuple(sorted(pair.records, key=lambda record: record.reference.role))
-    assert replay.records == original_records, (
+    originalRecords = tuple(sorted(pair.records, key=lambda record: record.reference.role))
+    assert replay.records == originalRecords, (
         "Relocation replaced original acquisitions or original attribution"
     )
 
@@ -377,11 +377,11 @@ def test_ActualSyntheticImportAndReplayPreserveEntireNativeCollisionObjectsAndTr
                                    for reference, content in before.items()), (
         "Synthetic image detection altered native asset attributes, provenance or operator triage"
     )
-    native_refs = set(before)
-    assert all(item.subject_reference not in native_refs for item in state.observations if (
+    nativeRefs = set(before)
+    assert all(item.subject_reference not in nativeRefs for item in state.observations if (
         item.provenance.source_id == "synthetic.trivy"
     )), "Synthetic observation linked into the seeded native graph"
-    assert all(not ({item.source_reference, item.target_reference} & native_refs)
+    assert all(not ({item.source_reference, item.target_reference} & nativeRefs)
                for item in state.relations), "Synthetic relation promoted a colliding native object"
     original = next(finding for finding in Findings(state) if finding.check_id == (
         "supply-chain.vulnerability"
@@ -569,43 +569,43 @@ def test_RecordedPairRefusesSelfConsistentReusedPhysicalCopies(pair, alias):
     store = LocalEvidenceStore(pair.root / "evidence")
     envelopes = {record.reference.role: json.loads(store.Read(record.reference))
                  for record in pair.records if record.reference.role.endswith("receipt")}
-    version_stage = envelopes["artifact-version-receipt"]["stage_payload"]
+    versionStage = envelopes["artifact-version-receipt"]["stage_payload"]
     scan = deepcopy(envelopes["artifact-scan-receipt"])
 
     if alias == "partition":
         scan["stage_payload"]["partitions"][0]["directory_identity"] = (
-            version_stage["partitions"][0]["directory_identity"]
+            versionStage["partitions"][0]["directory_identity"]
         )
 
     elif alias == "selected-copy":
         scan["stage_payload"]["partitions"][0]["identities"] = (
-            version_stage["partitions"][0]["identities"]
+            versionStage["partitions"][0]["identities"]
         )
 
     elif alias == "rotated-directory":
         for index, partition in enumerate(scan["stage_payload"]["partitions"]):
-            partition["directory_identity"] = version_stage["partitions"][(index + 1) % 3][
+            partition["directory_identity"] = versionStage["partitions"][(index + 1) % 3][
                 "directory_identity"
             ]
 
     elif alias == "cross-role-file":
         scan["stage_payload"]["partitions"][0]["identities"][0][1][:2] = (
-            version_stage["partitions"][1]["identities"][0][1][:2]
+            versionStage["partitions"][1]["identities"][0][1][:2]
         )
 
     elif alias == "root-to-directory":
         scan["stage_payload"]["partitions"][0]["directory_identity"] = (
-            version_stage["root_identity"]
+            versionStage["root_identity"]
         )
 
     else:
-        version_marker = envelopes["artifact-version-receipt"]["artifact_metadata"][
+        versionMarker = envelopes["artifact-version-receipt"]["artifact_metadata"][
             "acceptance"
         ]["marker_identity"]
-        scan_marker = scan["artifact_metadata"]["acceptance"]["marker_identity"]
-        scan_marker[:2] = version_marker[:2]
-        scan_marker[4] = version_marker[4] + 1
-        assert scan_marker != version_marker, (
+        scanMarker = scan["artifact_metadata"]["acceptance"]["marker_identity"]
+        scanMarker[:2] = versionMarker[:2]
+        scanMarker[4] = versionMarker[4] + 1
+        assert scanMarker != versionMarker, (
             "The marker alias probe must retain distinct snapshots of one physical device/inode"
         )
 
@@ -663,14 +663,14 @@ def test_ActualOwningManifestReadIsRoleBoundedBeforeAllocatingItsRawBytes(pair, 
     copied = replace(original)
     object.__setattr__(copied, "evidence_id", actual.evidence_id)
     records = tuple(copied if record.reference.role == role else record for record in pair.records)
-    base_read = LocalEvidenceStore.Read
+    baseRead = LocalEvidenceStore.Read
 
     def Read(selected, reference):
         """Expose any attempted raw allocation of the oversized actual owning source record."""
 
         assert reference != actual.reference, "Consumer reached oversized owning raw allocation"
 
-        return base_read(selected, reference)
+        return baseRead(selected, reference)
 
     monkeypatch.setattr(LocalEvidenceStore, "Read", Read)
 
@@ -684,15 +684,15 @@ def test_CurrentAuthorityChangedDuringCandidatesCannotApply(tmp_path, monkeypatc
 
     selected = CollectImagePair(tmp_path)
     current = selected.context
-    original_candidates = synthetic_images.SyntheticTrivyCandidates
-    apply_calls = []
-    original_apply = ModelState.Apply
+    originalCandidates = synthetic_images.SyntheticTrivyCandidates
+    applyCalls = []
+    originalApply = ModelState.Apply
 
     def Candidates(*arguments):
         """Change only owned current authority once candidate interpretation has completed."""
 
         nonlocal current
-        candidates = original_candidates(*arguments)
+        candidates = originalCandidates(*arguments)
 
         if mutation == "owner":
             current = replace(current, owner_ref="owner:changed")
@@ -714,9 +714,9 @@ def test_CurrentAuthorityChangedDuringCandidatesCannotApply(tmp_path, monkeypatc
     def ModelApply(state, **arguments):
         """Record any premature attempted in-memory model application after failed freshness."""
 
-        apply_calls.append(state)
+        applyCalls.append(state)
 
-        return original_apply(state, **arguments)
+        return originalApply(state, **arguments)
 
     monkeypatch.setattr(synthetic_images, "SyntheticTrivyCandidates", Candidates)
     monkeypatch.setattr(ModelState, "Apply", ModelApply)
@@ -724,7 +724,7 @@ def test_CurrentAuthorityChangedDuringCandidatesCannotApply(tmp_path, monkeypatc
     with pytest.raises(ArtifactDeniedError):
         Apply(selected, context_provider=lambda: current)
 
-    assert not apply_calls, "Stale authority reached pure model application"
+    assert not applyCalls, "Stale authority reached pure model application"
     assert LocalModelStore(selected.root).Open() == selected.state, "Denial changed saved state"
 
 
@@ -732,13 +732,13 @@ def test_FinalCanonicalBarrierAllowsOnlyPureApplicationAfterwards(pair, monkeypa
     """No evidence read, workspace lookup, callback or model save occurs after fresh acceptance."""
 
     passed = False
-    original_validate = GovernedArtifactExecutor.ValidatePairAcceptanceFresh
+    originalValidate = GovernedArtifactExecutor.ValidatePairAcceptanceFresh
 
     def Validate(executor, version, scan, provider):
         """Use the actual canonical validator before activating post-barrier I/O tripwires."""
 
         nonlocal passed
-        original_validate(executor, version, scan, provider)
+        originalValidate(executor, version, scan, provider)
         passed = True
 
     def Context():
@@ -748,14 +748,14 @@ def test_FinalCanonicalBarrierAllowsOnlyPureApplicationAfterwards(pair, monkeypa
 
         return pair.context
 
-    original_read = LocalEvidenceStore.Read
+    originalRead = LocalEvidenceStore.Read
 
     def Read(store, reference):
         """Reject evidence I/O after all exact candidate/evidence validation has completed."""
 
         assert not passed, "Consumer performed evidence I/O after its final freshness barrier"
 
-        return original_read(store, reference)
+        return originalRead(store, reference)
 
     monkeypatch.setattr(GovernedArtifactExecutor, "ValidatePairAcceptanceFresh", Validate)
     monkeypatch.setattr(LocalEvidenceStore, "Read", Read)
@@ -791,10 +791,10 @@ def test_RepeatedActualCollectionsPreserveSyntheticOperatorDisposition(tmp_path)
     previous = Findings(state)[0]
     operator = ModelProvenance("operator", "decision:owned", AT.isoformat(),
         first.context.scope.Reference(), first.stage.input.manifest.Target().Reference())
-    before_triage = state.revision
+    beforeTriage = state.revision
     state, _ = TransitionFinding(state, previous.ToObject(state.workspace_id).Reference(),
         FindingStatus.RESOLVED, operator, "Owned synthetic disposition")
-    store.Save(state, expected_revision=before_triage)
+    store.Save(state, expected_revision=beforeTriage)
     second = CollectImagePair(tmp_path, workspace=first.root, prefix="second")
     updated, _ = Apply(second, state=state)
     finding = Findings(updated)[0]
@@ -870,15 +870,15 @@ def test_CurrentMaterialLossRetainsDenialWithoutPrivatePhysicalPath(tmp_path, mo
     """A missing original file refuses live application without leaking its physical location."""
 
     selected = CollectImagePair(tmp_path / "OWNED_PRIVATE_STAGE_MARKER")
-    original_candidates = synthetic_images.SyntheticTrivyCandidates
+    originalCandidates = synthetic_images.SyntheticTrivyCandidates
 
     def Candidates(*arguments):
         """Remove only owned VERSION fixture material after original candidate construction."""
 
-        candidates = original_candidates(*arguments)
-        policy_path = selected.proof.stage.root / "material/policy.json"
-        policy_path.chmod(0o600)
-        policy_path.unlink()
+        candidates = originalCandidates(*arguments)
+        policyPath = selected.proof.stage.root / "material/policy.json"
+        policyPath.chmod(0o600)
+        policyPath.unlink()
 
         return candidates
 

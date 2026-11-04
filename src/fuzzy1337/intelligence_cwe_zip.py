@@ -90,58 +90,58 @@ def MemberFrame(payload: bytes, member_name: bytes) -> tuple[int, int, int, int]
     if len(payload) < _LOCAL.size + _CENTRAL.size + _END.size:
         raise ValueError("CWE ZIP framing is incomplete")
 
-    end_offset = len(payload) - _END.size
-    (signature, disk, central_disk, disk_count, total_count, central_size, central_offset,
-     comment) = _END.unpack_from(payload, end_offset)
+    endOffset = len(payload) - _END.size
+    (signature, disk, centralDisk, diskCount, totalCount, centralSize, centralOffset,
+     comment) = _END.unpack_from(payload, endOffset)
 
-    if signature != b"PK\x05\x06" or disk != 0 or central_disk != 0 or disk_count != 1 or (
-        total_count != 1 or comment != 0 or not _CENTRAL.size <= central_size
-        <= MAX_CENTRAL_DIRECTORY_BYTES or central_offset < _LOCAL.size
-        or central_offset + central_size != end_offset
+    if signature != b"PK\x05\x06" or disk != 0 or centralDisk != 0 or diskCount != 1 or (
+        totalCount != 1 or comment != 0 or not _CENTRAL.size <= centralSize
+        <= MAX_CENTRAL_DIRECTORY_BYTES or centralOffset < _LOCAL.size
+        or centralOffset + centralSize != endOffset
     ):
         raise ValueError("CWE ZIP end record is outside its profile")
 
-    (signature, creator, extraction, flags, method, _time, _day, crc32, compressed_size,
-     declared_size, name_size, extra_size, member_comment, member_disk, attributes,
-     external, local_offset) = _CENTRAL.unpack_from(payload, central_offset)
+    (signature, creator, extraction, flags, method, _time, _day, crc32, compressedSize,
+     declaredSize, nameSize, extraSize, memberComment, memberDisk, attributes,
+     external, localOffset) = _CENTRAL.unpack_from(payload, centralOffset)
 
     if signature != b"PK\x01\x02" or creator >> 8 != 3 or extraction != 20 or flags != 0 or (
-        method != 8 or member_disk != 0 or attributes not in (0, 1) or external & 0x18
-        or stat.S_IFMT(external >> 16) != stat.S_IFREG or local_offset != 0
-        or member_comment != 0 or name_size != len(member_name) or extra_size > MAX_EXTRA_BYTES
-        or central_size != _CENTRAL.size + name_size + extra_size
-        or not 1 <= compressed_size <= MAX_ZIP_BYTES or declared_size > MAX_XML_BYTES
+        method != 8 or memberDisk != 0 or attributes not in (0, 1) or external & 0x18
+        or stat.S_IFMT(external >> 16) != stat.S_IFREG or localOffset != 0
+        or memberComment != 0 or nameSize != len(member_name) or extraSize > MAX_EXTRA_BYTES
+        or centralSize != _CENTRAL.size + nameSize + extraSize
+        or not 1 <= compressedSize <= MAX_ZIP_BYTES or declaredSize > MAX_XML_BYTES
     ):
         raise ValueError("CWE ZIP member header is outside its profile")
 
-    name_offset = central_offset + _CENTRAL.size
+    nameOffset = centralOffset + _CENTRAL.size
 
-    if payload[name_offset:name_offset + name_size] != member_name:
+    if payload[nameOffset:nameOffset + nameSize] != member_name:
         raise ValueError("CWE ZIP requires its exact fixed member basename")
 
-    ValidateExtras(payload[name_offset + name_size:central_offset + central_size])
-    (signature, local_extraction, local_flags, local_method, _local_time, _local_day,
-     local_crc32, local_compressed, local_declared, local_name_size, local_extra_size) = (
+    ValidateExtras(payload[nameOffset + nameSize:centralOffset + centralSize])
+    (signature, localExtraction, localFlags, localMethod, _localTime, _localDay,
+     localCrc32, localCompressed, localDeclared, localNameSize, localExtraSize) = (
         _LOCAL.unpack_from(payload)
     )
 
-    if signature != b"PK\x03\x04" or local_extraction != 20 or local_flags != 0 or (
-        local_method != 8 or (local_crc32, local_compressed, local_declared)
-        != (crc32, compressed_size, declared_size) or local_name_size != len(member_name)
-        or local_extra_size > MAX_EXTRA_BYTES
+    if signature != b"PK\x03\x04" or localExtraction != 20 or localFlags != 0 or (
+        localMethod != 8 or (localCrc32, localCompressed, localDeclared)
+        != (crc32, compressedSize, declaredSize) or localNameSize != len(member_name)
+        or localExtraSize > MAX_EXTRA_BYTES
     ):
         raise ValueError("CWE ZIP local header does not match its member")
 
-    compressed_start = _LOCAL.size + local_name_size + local_extra_size
+    compressedStart = _LOCAL.size + localNameSize + localExtraSize
 
-    if compressed_start + compressed_size != central_offset or payload[
-        _LOCAL.size:_LOCAL.size + local_name_size
+    if compressedStart + compressedSize != centralOffset or payload[
+        _LOCAL.size:_LOCAL.size + localNameSize
     ] != member_name:
         raise ValueError("CWE ZIP member ranges or basenames do not match")
 
-    ValidateExtras(payload[_LOCAL.size + local_name_size:compressed_start])
+    ValidateExtras(payload[_LOCAL.size + localNameSize:compressedStart])
 
-    return compressed_start, compressed_size, declared_size, crc32
+    return compressedStart, compressedSize, declaredSize, crc32
 
 
 def ConsumeCweZip(
@@ -168,15 +168,15 @@ def ConsumeCweZip(
     ):
         raise ValueError("CWE ZIP input is outside its closed profile")
 
-    start, compressed_size, declared_size, declared_crc32 = MemberFrame(
+    start, compressedSize, declaredSize, declaredCrc32 = MemberFrame(
         payload, member_name.encode("ascii"),
     )
-    end = start + compressed_size
+    end = start + compressedSize
     offset = start
     pending = b""
     decoder = zlib.decompressobj(-zlib.MAX_WBITS)
     digest = hashlib.sha256()
-    decoded_size = 0
+    decodedSize = 0
     crc32 = 0
 
     while True:
@@ -184,7 +184,7 @@ def ConsumeCweZip(
             pending = payload[offset:min(offset + CHUNK_BYTES, end)]
             offset += len(pending)
 
-        previous_size = len(pending)
+        previousSize = len(pending)
 
         try:
             decoded = decoder.decompress(pending, CHUNK_BYTES)
@@ -195,12 +195,12 @@ def ConsumeCweZip(
         pending = decoder.unconsumed_tail
 
         if decoded:
-            following_size = decoded_size + len(decoded)
+            followingSize = decodedSize + len(decoded)
 
-            if following_size > MAX_XML_BYTES or following_size > declared_size:
+            if followingSize > MAX_XML_BYTES or followingSize > declaredSize:
                 raise ValueError("CWE ZIP actual expansion exceeds its profile")
 
-            decoded_size = following_size
+            decodedSize = followingSize
             digest.update(decoded)
             crc32 = zlib.crc32(decoded, crc32)
             sink(decoded)
@@ -209,14 +209,14 @@ def ConsumeCweZip(
             if decoder.unused_data or pending or offset != end:
                 raise ValueError("CWE ZIP has unused or trailing member data")
 
-            if decoded_size != declared_size or crc32 != declared_crc32:
+            if decodedSize != declaredSize or crc32 != declaredCrc32:
                 raise ValueError("CWE ZIP actual decoded size or CRC does not match")
 
             break
 
-        if not decoded and previous_size <= len(pending):
+        if not decoded and previousSize <= len(pending):
             raise ValueError("CWE ZIP DEFLATE is incomplete or made no progress")
 
     return CweZipFacts(hashlib.sha256(payload).hexdigest(), len(payload), member_name,
-        compressed_size, declared_size, f"{declared_crc32:08x}", digest.hexdigest(),
-        decoded_size, f"{crc32:08x}")
+        compressedSize, declaredSize, f"{declaredCrc32:08x}", digest.hexdigest(),
+        decodedSize, f"{crc32:08x}")

@@ -207,21 +207,21 @@ def DecodeReport(
     oracles: dict[str, ScenarioOracle] = {}
     runs: dict[str, FunctionalRun] = {}
     identities: set[tuple[str, str, str]] = set()
-    total_checks = 0
-    check_fields = {field.name for field in fields(OracleCheck)}
-    evidence_fields = {field.name for field in fields(RawEvidence)}
-    run_fields = {field.name for field in fields(FunctionalRun)}
-    scenario_fields = {field.name for field in fields(ScenarioOracle)}
+    totalChecks = 0
+    checkFields = {field.name for field in fields(OracleCheck)}
+    evidenceFields = {field.name for field in fields(RawEvidence)}
+    runFields = {field.name for field in fields(FunctionalRun)}
+    scenarioFields = {field.name for field in fields(ScenarioOracle)}
 
     for row in Array(payload["scenarios"], MAX_SCENARIOS):
-        data = Record(row, scenario_fields)
-        check_rows = Array(data["checks"], MAX_CHECKS)
-        total_checks += len(check_rows)
+        data = Record(row, scenarioFields)
+        checkRows = Array(data["checks"], MAX_CHECKS)
+        totalChecks += len(checkRows)
 
-        if total_checks > MAX_TOTAL_CHECKS:
+        if totalChecks > MAX_TOTAL_CHECKS:
             raise ValueError("report exceeds its total check limit")
 
-        checks = tuple(OracleCheck(**Record(item, check_fields)) for item in check_rows)
+        checks = tuple(OracleCheck(**Record(item, checkFields)) for item in checkRows)
         roles = tuple(Array(data["required_evidence"], MAX_RECORD_ITEMS))
         oracle = ScenarioOracle(**(data | {"checks": checks, "required_evidence": roles}))
 
@@ -236,8 +236,8 @@ def DecodeReport(
         if not isinstance(scored["metrics"], dict):
             raise ValueError("expected a report metrics object")
 
-        data = Record(scored["run"], run_fields)
-        evidence = tuple(RawEvidence(**Record(item, evidence_fields))
+        data = Record(scored["run"], runFields)
+        evidence = tuple(RawEvidence(**Record(item, evidenceFields))
                          for item in Array(data["evidence"], MAX_RECORD_ITEMS))
         run = FunctionalRun(**(data | {
             "status": RunStatus(data["status"]),
@@ -342,7 +342,7 @@ def CompareScenario(
         "candidate": candidate,
         "state": "incomparable", "reason": None, "checks": []}
 
-    finite_counts = []
+    finiteCounts = []
 
     for side, oracle, run in ((baseline, before_oracle, before_run),
                               (candidate, after_oracle, after_run)):
@@ -351,7 +351,7 @@ def CompareScenario(
             side["unexpected_detections"] = metrics["unexpected_detections"]
             side["missing_evidence"] = metrics["missing_evidence"]
             side["evidence_completeness"] = metrics["evidence_completeness"]
-            finite_counts.append({name: metrics[name] for name in ("tp", "fp", "fn", "tn")})
+            finiteCounts.append({name: metrics[name] for name in ("tp", "fp", "fn", "tn")})
 
     if before_oracle is None or after_oracle is None:
         row["reason"] = "missing-scenario"
@@ -384,16 +384,16 @@ def CompareScenario(
 
     else:
         row["state"] = "comparable"
-        before_detected = set(before_run.detected_checks)
-        after_detected = set(after_run.detected_checks)
+        beforeDetected = set(before_run.detected_checks)
+        afterDetected = set(after_run.detected_checks)
         checks = []
 
         for check in sorted(before_oracle.checks, key=lambda item: item.identifier):
             if not check.applicable:
                 continue
 
-            before = Outcome(check.expected is True, check.identifier in before_detected)
-            after = Outcome(check.expected is True, check.identifier in after_detected)
+            before = Outcome(check.expected is True, check.identifier in beforeDetected)
+            after = Outcome(check.expected is True, check.identifier in afterDetected)
             change = "unchanged" if before == after else (
                 "improved" if after in {"tp", "tn"} else "regressed"
             )
@@ -401,7 +401,7 @@ def CompareScenario(
                 "change": change})
 
         row["checks"] = checks
-        baseline["finite_counts"], candidate["finite_counts"] = finite_counts
+        baseline["finite_counts"], candidate["finite_counts"] = finiteCounts
 
     return row
 
@@ -424,10 +424,10 @@ def CompareReports(
     """
 
     RequireIdentifier(scanner_id, "scanner identifier")
-    before_oracles, before_runs = DecodeReport(baseline, scanner_id, baseline_selection)
-    after_oracles, after_runs = DecodeReport(candidate, scanner_id, candidate_selection)
-    same_profile = baseline_selection.profile_id == candidate_selection.profile_id
-    scenarios = sorted(before_oracles.keys() | after_oracles.keys())
+    beforeOracles, beforeRuns = DecodeReport(baseline, scanner_id, baseline_selection)
+    afterOracles, afterRuns = DecodeReport(candidate, scanner_id, candidate_selection)
+    sameProfile = baseline_selection.profile_id == candidate_selection.profile_id
+    scenarios = sorted(beforeOracles.keys() | afterOracles.keys())
 
     return {
         "kind": "functional-report-comparison",
@@ -438,10 +438,10 @@ def CompareReports(
         "candidate": asdict(candidate_selection)
         | {"report_sha256": hashlib.sha256(candidate).hexdigest()},
         "scenarios": [
-            CompareScenario(scenario_id, before_oracles.get(scenario_id),
-                before_runs.get(scenario_id), after_oracles.get(scenario_id),
-                after_runs.get(scenario_id), same_profile)
-            for scenario_id in scenarios
+            CompareScenario(scenarioId, beforeOracles.get(scenarioId),
+                beforeRuns.get(scenarioId), afterOracles.get(scenarioId),
+                afterRuns.get(scenarioId), sameProfile)
+            for scenarioId in scenarios
         ],
     }
 

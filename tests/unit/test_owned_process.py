@@ -114,15 +114,15 @@ def Receipt(**changes):
 def Reader(record, *, wrapper_status=0):
     """Use actual private pipe bytes and a fixed already-exited supervisor observation."""
 
-    read_fd, write_fd = os.pipe()
+    readFd, writeFd = os.pipe()
 
     try:
-        os.write(write_fd, record if isinstance(record, bytes) else owned.CanonicalControl(record))
+        os.write(writeFd, record if isinstance(record, bytes) else owned.CanonicalControl(record))
 
     finally:
-        os.close(write_fd)
+        os.close(writeFd)
 
-    return owned.OwnedExecution(SimpleNamespace(returncode=wrapper_status), read_fd, DIGEST)
+    return owned.OwnedExecution(SimpleNamespace(returncode=wrapper_status), readFd, DIGEST)
 
 
 @pytest.mark.parametrize("status", [0, 17, 125, -9, -15])
@@ -273,7 +273,7 @@ def test_BoundedSetupFailuresNeverAcknowledgeAWorkerOrLeakRawDiagnostics(
     """Finite config, seal and launch failures remain errors before the approved worker starts."""
 
     processes = []
-    original_write = owned.os.write
+    originalWrite = owned.os.write
 
     async def Spawn(*arguments, **kwargs):
         """Model only an acquired helper or an explicit original process-creation failure."""
@@ -281,7 +281,7 @@ def test_BoundedSetupFailuresNeverAcknowledgeAWorkerOrLeakRawDiagnostics(
         if mode == "launch":
             raise OSError(5, "PRIVATE_SETUP_MARKER")
 
-        process = FakeSupervisor(arguments, write=original_write,
+        process = FakeSupervisor(arguments, write=originalWrite,
                                  ready=b"0" if mode == "readiness" else b"1")
         processes.append(process)
 
@@ -293,7 +293,7 @@ def test_BoundedSetupFailuresNeverAcknowledgeAWorkerOrLeakRawDiagnostics(
         if mode == "configuration-write" and raw != b"1" or mode == "gate-write" and raw == b"1":
             return 0
 
-        return original_write(descriptor, raw)
+        return originalWrite(descriptor, raw)
 
     monkeypatch.setattr(owned.asyncio, "create_subprocess_exec", Spawn)
     monkeypatch.setattr(owned.os, "write", Write)
@@ -325,13 +325,13 @@ class FakeSupervisor:
         self.corrupt = corrupt
         self.waits = 0
         self.terminated = False
-        ready_fd = os.dup(int(arguments[8]))
+        readyFd = os.dup(int(arguments[8]))
 
         try:
-            (os.write if write is None else write)(ready_fd, ready)
+            (os.write if write is None else write)(readyFd, ready)
 
         finally:
-            os.close(ready_fd)
+            os.close(readyFd)
 
     def Terminate(self):
         """Model a stop request against the explicitly acquired supervisor handle."""
@@ -381,12 +381,12 @@ def test_InterruptedHandoffClosesPrivateDescriptorsAndNeverStartsTheApprovedWork
     async def Spawn(*arguments, **kwargs):
         """Inspect synthetic sealed control, then model an actual acquired helper handle."""
 
-        configuration_fd = int(arguments[4])
+        configurationFd = int(arguments[4])
         captured["original_fds"] = tuple(kwargs["pass_fds"])
-        captured["payload"] = supervisor.ReadConfiguration(configuration_fd, arguments[6])
+        captured["payload"] = supervisor.ReadConfiguration(configurationFd, arguments[6])
         captured["helper_environment"] = kwargs["env"]
         captured["process"] = FakeSupervisor(arguments, corrupt=mode == "bad-cleanup",
-                                              write=original_write)
+                                              write=originalWrite)
         entered.set()
 
         if mode == "creation-cancel":
@@ -394,7 +394,7 @@ def test_InterruptedHandoffClosesPrivateDescriptorsAndNeverStartsTheApprovedWork
 
         return captured["process"]
 
-    original_write = os.write
+    originalWrite = os.write
 
     def Write(descriptor, raw):
         """Fail only the parent start handoff; other private control bytes stay unchanged."""
@@ -403,11 +403,11 @@ def test_InterruptedHandoffClosesPrivateDescriptorsAndNeverStartsTheApprovedWork
             raise OSError(5, "PRIVATE_HANDOFF_MARKER")
 
         if mode == "ack-lost" and raw == b"1":
-            original_write(descriptor, raw)
+            originalWrite(descriptor, raw)
 
             raise OSError(5, "PRIVATE_HANDOFF_MARKER")
 
-        return original_write(descriptor, raw)
+        return originalWrite(descriptor, raw)
 
     monkeypatch.setattr(owned.asyncio, "create_subprocess_exec", Spawn)
     monkeypatch.setattr(owned.os, "write", Write)
@@ -466,9 +466,9 @@ def test_ReadinessUsesASeparateExactByteAndCannotConsumeTheCleanupReceipt(
     """An invalid or interrupted readiness handoff leaves original receipt framing intact."""
 
     proof = Reader(Receipt())
-    proof.ready_fd, write_fd = os.pipe()
-    os.write(write_fd, raw)
-    os.close(write_fd)
+    proof.ready_fd, writeFd = os.pipe()
+    os.write(writeFd, raw)
+    os.close(writeFd)
 
     if raw == b"1":
         owned_runner.run(proof.AwaitReady())
@@ -488,14 +488,14 @@ def test_UnfinishedReadinessClosesOnlyItsOwnDescriptor(
     """Cancellation or a bounded readiness deadline cannot consume a later cleanup receipt."""
 
     proof = Reader(Receipt())
-    proof.ready_fd, write_fd = os.pipe()
+    proof.ready_fd, writeFd = os.pipe()
     monkeypatch.setattr(owned, "OWNED_PARENT_GRACE_SECONDS", 0.01)
-    running_loop = owned.asyncio.get_running_loop
+    runningLoop = owned.asyncio.get_running_loop
 
     def NotReady():
         """Retain an unreadable private pipe rather than scheduling a synthetic read event."""
 
-        selected = running_loop()
+        selected = runningLoop()
         selected.add_reader = lambda descriptor, callback: None
 
         return selected
@@ -523,7 +523,7 @@ def test_UnfinishedReadinessClosesOnlyItsOwnDescriptor(
         assert proof.ready_fd == -1 and proof.Verify() == 0, "Readiness changed final proof."
 
     finally:
-        os.close(write_fd)
+        os.close(writeFd)
         proof.Close()
 
 

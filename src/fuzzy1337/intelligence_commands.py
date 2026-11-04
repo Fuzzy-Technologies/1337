@@ -166,13 +166,13 @@ def VerifiedIntelSelection(
 
     owner = LocalWorkspaceStore(root).Open()
     store = BoundedIntelEvidenceStore(root / "evidence")
-    snapshot_record = store.Get(snapshot_id)
+    snapshotRecord = store.Get(snapshot_id)
     receipt = store.Get(receipt_id)
 
     if (
         receipt.reference.role != "intelligence-acquisition"
         or receipt.reference.media_type != "application/json"
-        or receipt.provenance != snapshot_record.provenance
+        or receipt.provenance != snapshotRecord.provenance
         or receipt.provenance.workspace_id != owner.workspace_id
         or receipt.provenance.source_id != IMPORTER_ID
         or receipt.provenance.source_version != IMPORTER_VERSION
@@ -188,50 +188,50 @@ def VerifiedIntelSelection(
         raise IntelFailure("integrity")
 
     limits = document.get("limits")
-    source_fields = document.get("source")
+    sourceFields = document.get("source")
 
-    if not isinstance(limits, dict) or not isinstance(source_fields, dict):
+    if not isinstance(limits, dict) or not isinstance(sourceFields, dict):
         raise IntelFailure("integrity")
 
     # Check receipt constraints before Get and the loader verify original source bytes.
-    bounded_snapshot = IntelligenceSnapshot.Deserialize(store.Read(snapshot_record.reference))
+    boundedSnapshot = IntelligenceSnapshot.Deserialize(store.Read(snapshotRecord.reference))
     source = SnapshotSource(
-        bounded_snapshot.feed, bounded_snapshot.catalog_version, bounded_snapshot.source.origin,
-        bounded_snapshot.source.publisher, bounded_snapshot.source.source_url,
-        bounded_snapshot.source.license_name, bounded_snapshot.source.license_url,
-        source_fields.get("expected_sha256"),
+        boundedSnapshot.feed, boundedSnapshot.catalog_version, boundedSnapshot.source.origin,
+        boundedSnapshot.source.publisher, boundedSnapshot.source.source_url,
+        boundedSnapshot.source.license_name, boundedSnapshot.source.license_url,
+        sourceFields.get("expected_sha256"),
     )
-    max_bytes = limits.get("max_bytes")
-    timeout_seconds = limits.get("receiver_timeout_seconds")
+    maxBytes = limits.get("max_bytes")
+    timeoutSeconds = limits.get("receiver_timeout_seconds")
 
-    if type(max_bytes) is not int or not isinstance(timeout_seconds, (int, float)):
+    if type(maxBytes) is not int or not isinstance(timeoutSeconds, (int, float)):
         raise IntelFailure("integrity")
 
     request = SnapshotRequest(
-        source, b"", max_bytes=max_bytes, timeout_seconds=timeout_seconds,
+        source, b"", max_bytes=maxBytes, timeout_seconds=timeoutSeconds,
     )
 
-    if bounded_snapshot.evidence.size_bytes > request.max_bytes or (
+    if boundedSnapshot.evidence.size_bytes > request.max_bytes or (
         source.expected_sha256 is not None
-        and source.expected_sha256 != bounded_snapshot.evidence.sha256
+        and source.expected_sha256 != boundedSnapshot.evidence.sha256
     ):
         raise IntelFailure("integrity")
 
-    raw_record = store.Get(EvidenceRecord(
-        bounded_snapshot.evidence, snapshot_record.provenance,
+    rawRecord = store.Get(EvidenceRecord(
+        boundedSnapshot.evidence, snapshotRecord.provenance,
     ).evidence_id)
     snapshot = LoadAcquiredSnapshot(root, snapshot_id)
     expected = AcquisitionOutcome(
         AcquisitionState.SUCCEEDED, source, receipt.provenance.started_at,
-        receipt.provenance.finished_at, raw_record.reference.size_bytes, True, None,
+        receipt.provenance.finished_at, rawRecord.reference.size_bytes, True, None,
         "local-bytes", request.max_bytes, request.timeout_seconds,
-        raw_record, snapshot, snapshot_record,
+        rawRecord, snapshot, snapshotRecord,
     )
 
     if CanonicalModelJson(document) != CanonicalModelJson(expected.ToDict()):
         raise IntelFailure("integrity")
 
-    return snapshot, raw_record, receipt
+    return snapshot, rawRecord, receipt
 
 
 def IntelIdentifiers(values: Sequence[str]) -> tuple[str, ...]:

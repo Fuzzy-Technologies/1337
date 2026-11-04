@@ -84,12 +84,12 @@ def test_CompleteTokenAtExact64KiBCeilingAcceptsAndNextByteRefuses(kind):
 
     if kind == "xml-declaration":
         xml = Catalog(declaration=token)
-        too_large = Catalog(declaration=token.replace(b"?>", b" ?>"))
+        tooLarge = Catalog(declaration=token.replace(b"?>", b" ?>"))
 
     else:
         xml = Catalog(b"<External_References><External_Reference>" + token
                       + b"</External_Reference></External_References>")
-        too_large = xml.replace(token, prefix + b" " * (65537 - len(prefix) - len(suffix)) + suffix)
+        tooLarge = xml.replace(token, prefix + b" " * (65537 - len(prefix) - len(suffix)) + suffix)
 
     result = Selected(xml)
     observed = (result.maximum_markup_token_bytes if kind in ("tag", "xml-declaration")
@@ -97,7 +97,7 @@ def test_CompleteTokenAtExact64KiBCeilingAcceptsAndNextByteRefuses(kind):
     assert observed == 65536, "Exact token-boundary observation was truncated or refused"
 
     with pytest.raises(ValueError, match="token"):
-        Selected(too_large)
+        Selected(tooLarge)
 
 
 @pytest.mark.integration
@@ -117,9 +117,9 @@ def test_OriginalZipCompletionMustSucceedBeforeXmlFinishCanExposeFacts(monkeypat
 
     xml = Catalog(b"<Weaknesses>" + Entry() + b"</Weaknesses>")
     raw = bytearray(Archive(xml))
-    central_offset = struct.unpack_from("<I", raw, len(raw) - 6)[0]
+    centralOffset = struct.unpack_from("<I", raw, len(raw) - 6)[0]
     struct.pack_into("<I", raw, 14, 0)
-    struct.pack_into("<I", raw, central_offset + 16, 0)
+    struct.pack_into("<I", raw, centralOffset + 16, 0)
     collector = CweXmlCollector("5.0", ("CWE-79",))
     finish = Mock(wraps=collector.Finish)
     collector.Finish = finish

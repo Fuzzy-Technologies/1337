@@ -210,10 +210,10 @@ def Participation(search: ReachabilitySearch) -> tuple[
     leverage = []
 
     for (kind, reference), paths in sorted(members.items()):
-        path_refs = tuple(sorted(path for path, _ in paths))
+        pathRefs = tuple(sorted(path for path, _ in paths))
         counts = tuple((state, sum(label is state for _, label in paths))
                        for state in ReachabilityState)
-        participation.append(PathParticipation(kind, reference, path_refs, counts))
+        participation.append(PathParticipation(kind, reference, pathRefs, counts))
         removed = tuple(sorted(path for path, state in paths
                                if state is not ReachabilityState.BLOCKED))
 

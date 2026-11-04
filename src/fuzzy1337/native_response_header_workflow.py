@@ -269,9 +269,9 @@ class HeaderAdmission:
         self.CheckTime()
 
         try:
-            observed_scope = LocalScopeStore(self.root).Open(self.scope_id)
-            observed_policy = self.policy_provider()
-            observed_owner = self.owner if self.current_owner_provider is None else (
+            observedScope = LocalScopeStore(self.root).Open(self.scope_id)
+            observedPolicy = self.policy_provider()
+            observedOwner = self.owner if self.current_owner_provider is None else (
                 self.current_owner_provider())
             now = self.CheckTime()
             scope = LocalScopeStore(self.root).Open(self.scope_id)
@@ -279,13 +279,13 @@ class HeaderAdmission:
             owner = self.owner if self.current_owner_provider is None else (
                 self.current_owner_provider())
 
-            if type(observed_policy) is not ImpactPolicy or type(observed_owner) is not str or (
-                observed_owner != self.owner or type(policy) is not ImpactPolicy
+            if type(observedPolicy) is not ImpactPolicy or type(observedOwner) is not str or (
+                observedOwner != self.owner or type(policy) is not ImpactPolicy
                 or type(owner) is not str or owner != self.owner
             ):
                 raise HeaderAdmissionDeniedError()
 
-            if (scope, policy, owner) != (observed_scope, observed_policy, observed_owner):
+            if (scope, policy, owner) != (observedScope, observedPolicy, observedOwner):
                 raise HeaderAdmissionDeniedError()
 
             if self.approved is not True or scope.workspace_id != self.workspace.workspace_id or (
@@ -464,8 +464,8 @@ def ReadHeaderSource(root: Path, workspace: WorkspaceState, model: ModelState, r
         product.original_job_id, _family=_family)
     facts = tuple(item for item in model.observations if item.kind == _family.source_kind and
         item.attributes.get("original_receipt_id") == receipt_id)
-    endpoint_id = ObjectIdentity(workspace.workspace_id, ObjectKind.ENDPOINT, target.value)
-    endpoint = next((item for item in model.objects if item.identity == endpoint_id), None)
+    endpointId = ObjectIdentity(workspace.workspace_id, ObjectKind.ENDPOINT, target.value)
+    endpoint = next((item for item in model.objects if item.identity == endpointId), None)
 
     if facts != (expected,) or endpoint is None or (
         expected.provenance not in endpoint.provenance or
@@ -617,12 +617,12 @@ def VerifyHeaderAssessment(workspace: WorkspaceState, model: ModelState,
 
     issued, checked, expires = times
     observed = AwareTime(datetime.fromisoformat(provenance.observed_at))
-    expected_provenance = ModelProvenance(NATIVE_RESPONSE_PROVIDER_ID, provenance.run_reference,
+    expectedProvenance = ModelProvenance(NATIVE_RESPONSE_PROVIDER_ID, provenance.run_reference,
         provenance.observed_at, source.fact.provenance.scope_reference, source.target.Reference(),
         NATIVE_RESPONSE_VERSION, tuple(item.reference for item in source.records), None)
 
     if not issued <= observed <= checked < expires or (
-        expires - issued > timedelta(seconds=3600) or provenance != expected_provenance or
+        expires - issued > timedelta(seconds=3600) or provenance != expectedProvenance or
         type(attributes["analysis_reference"]) is not str
         or attributes["analysis_reference"] != provenance.run_reference
         or provenance.run_reference == source.job_id
@@ -818,30 +818,30 @@ class HeaderAttempt:
             Honest ACK and observed persistence state, preserving uncertainty.
         """
 
-        actual_model = None
-        actual_workspace = None
+        actualModel = None
+        actualWorkspace = None
 
         try:
-            actual_model = LocalModelStore(self.root).Open()
+            actualModel = LocalModelStore(self.root).Open()
 
         except Exception:
             pass
 
         try:
-            actual_workspace = LocalWorkspaceStore(self.root).Open()
+            actualWorkspace = LocalWorkspaceStore(self.root).Open()
 
         except Exception:
             pass
 
-        model_status = PersistenceStatus(actual_model, self.model, self.model_proposed,
+        modelStatus = PersistenceStatus(actualModel, self.model, self.model_proposed,
             self.model_attempted, self.model_acknowledged)
-        workspace_status = PersistenceStatus(actual_workspace, self.workspace,
+        workspaceStatus = PersistenceStatus(actualWorkspace, self.workspace,
             self.workspace_proposed, self.workspace_attempted, self.workspace_acknowledged)
-        retained = self.assessment is not None and actual_model is not None and (
-            self.assessment in actual_model.observations)
+        retained = self.assessment is not None and actualModel is not None and (
+            self.assessment in actualModel.observations)
         condition = cast(bool, self.assessment.attributes["condition_observed"]) if retained and (
             self.assessment is not None) else None
-        committed = model_status in ("acknowledged", "observed-committed")
+        committed = modelStatus in ("acknowledged", "observed-committed")
 
         if state is None:
             state = "completed" if failure is None else "partial" if committed else (
@@ -851,9 +851,9 @@ class HeaderAttempt:
         return OwnedResponseHeaderCheckSummary(state, self.receipt_id, self.analysis,
             self.target.Reference(), condition,
             self.assessment.Reference() if retained and self.assessment is not None else None,
-            self.finding_reference if retained else None, model_status, workspace_status,
-            actual_model.revision if actual_model is not None else None,
-            actual_workspace.revision if actual_workspace is not None else None, failure,
+            self.finding_reference if retained else None, modelStatus, workspaceStatus,
+            actualModel.revision if actualModel is not None else None,
+            actualWorkspace.revision if actualWorkspace is not None else None, failure,
             self._family)
 
     def Run(self, scope_id: str, owner: str, policy: Callable[[], ImpactPolicy], approved: bool,
@@ -878,11 +878,11 @@ class HeaderAttempt:
         phase = "storage"
 
         try:
-            workspace_store = LocalWorkspaceStore(self.root)
-            self.root = workspace_store.root
-            workspace = self.workspace = workspace_store.Open()
-            model_store = LocalModelStore(self.root)
-            model = self.model = model_store.Open()
+            workspaceStore = LocalWorkspaceStore(self.root)
+            self.root = workspaceStore.root
+            workspace = self.workspace = workspaceStore.Open()
+            modelStore = LocalModelStore(self.root)
+            model = self.model = modelStore.Open()
 
             if model.workspace_id != workspace.workspace_id or model.revision != model_revision or (
                 workspace.revision != workspace_revision
@@ -909,10 +909,10 @@ class HeaderAttempt:
                     raise NativeResponseHeaderError("analysis identity is already bound")
 
                 assessment = previous[0]
-                prior_basis = assessment.attributes.get("authority_basis")
+                priorBasis = assessment.attributes.get("authority_basis")
 
-                if not isinstance(prior_basis, Mapping) or (
-                    prior_basis.get("owner_reference") != owner
+                if not isinstance(priorBasis, Mapping) or (
+                    priorBasis.get("owner_reference") != owner
                 ):
                     raise NativeResponseHeaderError("analysis identity is already bound")
 
@@ -944,8 +944,8 @@ class HeaderAttempt:
             proposed, _ = SourceCall(admission, lambda: ApplyVerifiedFindings(model,
                 (finding,) if finding is not None else (), self.root))
             SourceCall(admission, lambda: self.RequireBases(model, workspace))
-            final_basis = admission.Check()
-            self.assessment = HeaderAssessment(source, provenance, condition, final_basis)
+            finalBasis = admission.Check()
+            self.assessment = HeaderAssessment(source, provenance, condition, finalBasis)
             self.finding_reference = finding.ToObject(workspace.workspace_id).Reference() if (
                 finding is not None) else None
             self.model_proposed, _ = model.Apply(objects=proposed.objects,
@@ -953,7 +953,7 @@ class HeaderAttempt:
                 observations=(*proposed.observations, self.assessment))
             phase = "storage"
             self.model_attempted = True
-            acknowledged = model_store.Save(self.model_proposed, expected_revision=model.revision)
+            acknowledged = modelStore.Save(self.model_proposed, expected_revision=model.revision)
 
             if acknowledged != self.model_proposed:
                 raise NativeResponseHeaderError("model acknowledgement differs")
@@ -966,13 +966,13 @@ class HeaderAttempt:
                 references = tuple(sorted((*references, self.finding_reference)))
                 proposal = replace(workspace, object_references=references)
                 self.workspace_proposed = replace(proposal, revision=workspace.revision + 1)
-                committed_model = self.model_proposed
-                SourceCall(admission, lambda: self.RequireBases(committed_model, workspace))
+                committedModel = self.model_proposed
+                SourceCall(admission, lambda: self.RequireBases(committedModel, workspace))
                 admission.Check()
                 self.workspace_attempted = True
-                acknowledged_workspace = workspace_store.Save(proposal)
+                acknowledgedWorkspace = workspaceStore.Save(proposal)
 
-                if acknowledged_workspace != self.workspace_proposed:
+                if acknowledgedWorkspace != self.workspace_proposed:
                     raise NativeResponseHeaderError("workspace acknowledgement differs")
 
                 self.workspace_acknowledged = True
@@ -1072,9 +1072,9 @@ def ReplayOwnedResponseHeaderCheck(
         ):
             raise ValueError("selection")
 
-        workspace_store = LocalWorkspaceStore(workspace_root)
-        workspace = workspace_store.Open()
-        model = LocalModelStore(workspace_store.root).Open()
+        workspaceStore = LocalWorkspaceStore(workspace_root)
+        workspace = workspaceStore.Open()
+        model = LocalModelStore(workspaceStore.root).Open()
         matches = tuple(item for item in model.observations if
             item.Reference() == original_assessment_reference)
 
@@ -1091,16 +1091,16 @@ def ReplayOwnedResponseHeaderCheck(
 
         target = Target(TargetKind.URL, endpoint.identity.key)
         HeaderSourceDestination(target.value, family)
-        receipt_id = assessment.attributes.get("original_receipt_id")
+        receiptId = assessment.attributes.get("original_receipt_id")
 
-        if type(receipt_id) is not str or _RECEIPT_ID.fullmatch(receipt_id) is None:
+        if type(receiptId) is not str or _RECEIPT_ID.fullmatch(receiptId) is None:
             raise ValueError("receipt")
 
-        source = ReadHeaderSource(workspace_store.root, workspace, model, receipt_id, target,
+        source = ReadHeaderSource(workspaceStore.root, workspace, model, receiptId, target,
                                   _family=family)
         reference = VerifyHeaderAssessment(workspace, model, assessment, source)
 
-        return OwnedResponseHeaderReplaySummary(receipt_id,
+        return OwnedResponseHeaderReplaySummary(receiptId,
             cast(str, assessment.attributes["analysis_reference"]), assessment.Reference(),
             cast(bool, assessment.attributes["condition_observed"]), reference,
             model.revision, workspace.revision, family)

@@ -59,10 +59,10 @@ def Junit(repository: Path) -> None:
     suite = ElementTree.SubElement(root, "testsuite", tests="3", failures="0", errors="0",
                                   skipped="0")
 
-    for case_id in gate.CASES:
+    for caseId in gate.CASES:
         ElementTree.SubElement(suite, "testcase",
             classname="tests.functional.test_external_native_benchmark",
-            name="test_InstalledNativeScannerMatchesRealApplicationCases[" + case_id + "]")
+            name="test_InstalledNativeScannerMatchesRealApplicationCases[" + caseId + "]")
 
     selected = repository / gate.ROOT / "pytest.xml"
     selected.parent.mkdir(parents=True, exist_ok=True)
@@ -88,23 +88,23 @@ def NativeGateFixture(tmp_path):
     runtime.image_id = IMAGE
     modules = {name: gate.Digest((repository / "src/fuzzy1337" / (
         name.replace(".", "/") + ".py")).read_bytes()) for name in gate.MODULES}
-    wheel_bytes = FixtureWheel(repository)
+    wheelBytes = FixtureWheel(repository)
     observations = []
 
     for index, case in enumerate(pack["cases"]):
-        case_id, path = case["id"], case["path"]
-        directory = runtime.output / case_id
+        caseId, path = case["id"], case["path"]
+        directory = runtime.output / caseId
         scanner = directory / "scanner"
         scanner.mkdir(parents=True)
         wheel = scanner / "1337-0.3.0-py3-none-any.whl"
-        wheel.write_bytes(wheel_bytes)
+        wheel.write_bytes(wheelBytes)
         source = {"source_revision": HEAD, "package_path": (
             "/opt/benchmark-runtime/lib/python3.13/site-packages/fuzzy1337"),
             "distribution_version": "0.3.0", "python_sha256": "e" * 64,
             "runner_sha256": gate.Digest((repository / files[0]).read_bytes()),
             "effective_body_bytes": 262144, "module_sha256": modules,
-            "wheel": {"filename": wheel.name, "size_bytes": len(wheel_bytes),
-                      "sha256": gate.Digest(wheel_bytes)}}
+            "wheel": {"filename": wheel.name, "size_bytes": len(wheelBytes),
+                      "sha256": gate.Digest(wheelBytes)}}
         url = "http://127.0.0.1:3000" + path
         body = (b"# HELP sample fixture\n# TYPE sample counter\nsample 1\n" if index == 0 else
                 b'{"version":"20.2.0"}' if index == 1 else b"<html>OWASP Juice Shop</html>")

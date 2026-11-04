@@ -8,6 +8,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 24 — v0.4.24 — 2026-11-04
+
+#### Digest
+
+- Align Python local names with the project naming contract.
+
+#### Changed
+
+- Use lowerCamelCase for owned local bindings and selected internal parameters.
+- Synchronize diagnostic docstrings and the API localization inventory.
+- Check naming drift in CI while preserving explicit compatibility spellings.
+
 ### Patch 23 — v0.4.23 — 2026-11-04
 
 #### Digest

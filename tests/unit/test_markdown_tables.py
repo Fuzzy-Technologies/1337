@@ -46,13 +46,13 @@ def test_TableAlignmentPreservesEscapedPipesInsideCode() -> None:
 
     text = "| Cell | Note |\n| :--- | ---: |\n| `left\\|right` | escaped \\| pipe |\n"
     aligned = AlignMarkdown(text)
-    aligned_rows = [SplitRow(line) for line in aligned.splitlines()]
+    alignedRows = [SplitRow(line) for line in aligned.splitlines()]
 
-    assert aligned_rows[0] == ["Cell", "Note"], "Formatting must preserve header content"
-    assert aligned_rows[2] == ["`left\\|right`", "escaped \\| pipe"], "Escapes must survive"
-    assert aligned_rows[1] is not None, "The separator must remain a valid table row"
-    assert aligned_rows[1][0].startswith(":"), "Left alignment must survive"
-    assert aligned_rows[1][1].endswith(":"), "Right alignment must survive"
+    assert alignedRows[0] == ["Cell", "Note"], "Formatting must preserve header content"
+    assert alignedRows[2] == ["`left\\|right`", "escaped \\| pipe"], "Escapes must survive"
+    assert alignedRows[1] is not None, "The separator must remain a valid table row"
+    assert alignedRows[1][0].startswith(":"), "Left alignment must survive"
+    assert alignedRows[1][1].endswith(":"), "Right alignment must survive"
     assert AlignMarkdown(aligned) == aligned, "A second formatting pass must have no changes"
 
 

@@ -57,8 +57,8 @@ def test_SchemaAndSameScopeSnapshotSupportOnlyExactArtifactTarget():
     """Artifact targets reuse scope schema1 without matching CIDRs, URLs or OCI strings."""
 
     manifest = Manifest()
-    schema_path = Path(__file__).resolve().parents[2] / "contracts/artifact-manifest.schema.json"
-    jsonschema.Draft202012Validator(json.loads(schema_path.read_text())).validate(manifest.ToDict())
+    schemaPath = Path(__file__).resolve().parents[2] / "contracts/artifact-manifest.schema.json"
+    jsonschema.Draft202012Validator(json.loads(schemaPath.read_text())).validate(manifest.ToDict())
     target = manifest.Target()
     scope = ScopeSnapshot("artifact", "owned", targets=(target,), allow=(target,))
 

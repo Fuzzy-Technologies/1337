@@ -652,25 +652,25 @@ def CandidateBaseline() -> MappingPack:
     acquired = "2026-10-11T12:48:30+00:00"
     cwe = StandardIdentity("cwe", "4.20", "CWE-89")
     capec = StandardIdentity("capec", "3.9", "CAPEC-66")
-    cwe_source = MappingSource("MITRE", "4.20", "https://cwe.mitre.org/data/definitions/89.html",
+    cweSource = MappingSource("MITRE", "4.20", "https://cwe.mitre.org/data/definitions/89.html",
                                "CWE-89 definition", acquired)
-    capec_source = MappingSource("MITRE", "3.9", "https://capec.mitre.org/data/definitions/66.html",
+    capecSource = MappingSource("MITRE", "3.9", "https://capec.mitre.org/data/definitions/66.html",
                                  "Related Weaknesses: CWE-89", acquired)
-    asvs_source = MappingSource(
+    asvsSource = MappingSource(
         "OWASP", "4.0.3",
         "https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/"
         "0x13-V5-Validation-Sanitization-Encoding.md",
         "V5.3.4 CWE column: 89", acquired,
     )
-    top10_source = MappingSource(
+    top10Source = MappingSource(
         "OWASP", "2021", "https://top10.owasp.org/2021/A03_2021-Injection/",
         "Overview and mapped CWEs: CWE-89", acquired,
     )
-    nist_source = MappingSource(
+    nistSource = MappingSource(
         "NIST", "2.0", "https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf",
         "Appendix A, ID.RA-01, printed page 18", acquired,
     )
-    attack_source = MappingSource(
+    attackSource = MappingSource(
         "MITRE", "19", "https://attack.mitre.org/versions/v19/techniques/T1190/",
         "T1190 version 2.8, SQL injection procedure context", acquired,
     )
@@ -679,28 +679,28 @@ def CandidateBaseline() -> MappingPack:
                          StandardIdentity("owasp-top10", "2021", "A03:2021"),
                          MappingRelation.CLASSIFIED_BY,
                          "OWASP lists CWE-89 within its injection category.",
-                         (cwe_source, top10_source)),
+                         (cweSource, top10Source)),
         StandardsMapping("sql-injection.asvs", cwe,
                          StandardIdentity("owasp-asvs", "4.0.3", "V5.3.4"),
                          MappingRelation.RELEVANT_CONTROL,
                          "ASVS associates database injection protection with CWE-89.",
-                         (cwe_source, asvs_source)),
+                         (cweSource, asvsSource)),
         StandardsMapping("sql-injection.capec", cwe, capec,
                          MappingRelation.RELATED_ATTACK_PATTERN,
                          "CAPEC-66 explicitly lists CWE-89 as a related weakness.",
-                         (cwe_source, capec_source)),
+                         (cweSource, capecSource)),
         StandardsMapping("sql-injection.nist", cwe,
                          StandardIdentity("nist-csf", "2.0", "ID.RA-01"),
                          MappingRelation.RELEVANT_CONTROL,
                          "1337 interpretation: recording a validated SQL injection finding can "
                          "inform vulnerability identification; it does not fulfill the outcome.",
-                         (cwe_source, nist_source)),
+                         (cweSource, nistSource)),
         StandardsMapping("sql-injection.attack-context", capec,
                          StandardIdentity("attack", "19", "T1190"),
                          MappingRelation.RELATED_TECHNIQUE,
                          "1337 interpretation: SQL injection can be relevant to public-facing "
                          "application exploitation; exposure and exploitation require evidence.",
-                         (capec_source, attack_source)),
+                         (capecSource, attackSource)),
     )
 
     return MappingPack("fuzzy1337.baseline", "0.1.0-candidate", mappings)

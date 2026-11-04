@@ -38,7 +38,7 @@ def OriginalGitSaveFailure(
     seen: list[BaseException] = []
     current: BaseException | None = error
     relation = "original"
-    own_count = 0
+    ownCount = 0
 
     while current is not None and len(chain) < MAX_CHAIN:
         if any(previous is current for previous in seen):
@@ -58,11 +58,11 @@ def OriginalGitSaveFailure(
             phase = own_codes.get(trace.tb_frame.f_code)
             line = trace.tb_lineno
 
-            if phase in OWN_PHASES and own_count < MAX_OWN_FRAMES and (
+            if phase in OWN_PHASES and ownCount < MAX_OWN_FRAMES and (
                 type(line) is int and 1 <= line <= 1000000
             ):
                 frames.append({"phase": phase, "line": line})
-                own_count += 1
+                ownCount += 1
 
             walked += 1
             trace = trace.tb_next
@@ -84,4 +84,4 @@ def OriginalGitSaveFailure(
 
     return {"phase": "git-model-save", "chain": chain,
         "chain_truncated_or_cyclic": current is not None,
-        "own_frame_limit_reached": own_count == MAX_OWN_FRAMES}
+        "own_frame_limit_reached": ownCount == MAX_OWN_FRAMES}

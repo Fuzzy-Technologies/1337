@@ -57,6 +57,7 @@ jobs:
             tests/unit/test_compose_documentation.py tests/unit/test_source_documentation_audit.py \
             tests/unit/test_product_site_preparation.py tests/unit/test_documentation_publication_policy.py \
             tests/unit/test_documentation_render.py tests/unit/test_markdown_tables.py \
+            tests/unit/test_python_naming.py \
             tests/unit/test_feature_completion.py tests/unit/test_pytest_progress_bootstrap.py \
             tests/unit/test_intel_source_acceptance.py tests/unit/test_epss_https_acceptance.py \
             tests/unit/test_cve_https_acceptance.py tests/unit/test_cwe_https_acceptance.py \

@@ -134,14 +134,14 @@ def test_RealIsolatedWireMatchesIndependentFiveCaseOracle(tmp_path, case_id):
     assert wire["scan_completeness"] == "not-assessed", "No fixture becomes a clean-scan claim."
     expected = [dict(item, outcome="failed") for item in CASES[case_id]["expected_findings"]]
     assert wire["findings"] == expected, "Finding coordinates must match the independent oracle."
-    document_count = None if source.name == "Dockerfile" else (
+    documentCount = None if source.name == "Dockerfile" else (
         2 if case_id == "kubernetes.second-document" else 1
     )
     assert wire["file_outcomes"] == [{
         "logical_path": source.name, "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         "size_bytes": source.stat().st_size,
         "configuration_type": "dockerfile" if source.name == "Dockerfile" else "kubernetes",
-        "document_count": document_count, "outcome": "processed",
+        "document_count": documentCount, "outcome": "processed",
     }], "Each selected file must have its actual byte identity and explicit processed outcome."
     assert ORACLE["raw_only_marker"].encode() not in result.stdout and (
         str(root).encode() not in result.stdout and b"owned.invalid" not in result.stdout
@@ -216,7 +216,7 @@ def test_PolicyAmbiguityAndUnsupportedDataHaveSanitizedAtomicRefusal(tmp_path, c
     root = tmp_path / change
     source, policy = Stage(root)
     value = json.loads(policy.read_bytes())
-    changed_fields = {
+    changedFields = {
         "boolean-schema": ("schema_version", True), "floating-schema": ("schema_version", 1.0),
         "wrong-version": ("provider_version", PRIVATE), "wrong-family": ("fixture_id", PRIVATE),
         "wrong-profile": ("profile_id", PRIVATE), "unknown-case": ("case_id", PRIVATE),
@@ -225,8 +225,8 @@ def test_PolicyAmbiguityAndUnsupportedDataHaveSanitizedAtomicRefusal(tmp_path, c
         "surrogate-key": ("\ud800", PRIVATE),
     }
 
-    if change in changed_fields:
-        key, replacement = changed_fields[change]
+    if change in changedFields:
+        key, replacement = changedFields[change]
         value[key] = replacement
         raw = json.dumps(value).encode()
 
@@ -323,16 +323,16 @@ def test_WindowsCrossMethodCtimeExceptionRetainsFullSameMethodFacts(tmp_path, mo
     path.write_bytes(b"owned")
     module = Module()
     metadata = path.stat()
-    different_ctime = Metadata(metadata, st_ctime_ns=metadata.st_ctime_ns + 100)
+    differentCtime = Metadata(metadata, st_ctime_ns=metadata.st_ctime_ns + 100)
     monkeypatch.setattr(module, "IS_WINDOWS", True)
-    module.BindHandle(metadata, different_ctime)
-    assert module.Identity(metadata) != module.Identity(different_ctime), (
+    module.BindHandle(metadata, differentCtime)
+    assert module.Identity(metadata) != module.Identity(differentCtime), (
         "Same-method before/after ctime changes must remain part of the full identity."
     )
     monkeypatch.setattr(module, "IS_WINDOWS", False)
 
     with pytest.raises(ValueError):
-        module.BindHandle(metadata, different_ctime)
+        module.BindHandle(metadata, differentCtime)
 
 
 def test_ReparseAndHardlinkMetadataStayFailClosed(tmp_path):

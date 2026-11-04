@@ -21,7 +21,7 @@ from tests.unit.test_owned_content_response_ci_actor import Fixture as ActorFixt
 def Fixture(tmp_path):
     """Select explicit False approval while preserving the independently granted mock authority."""
 
-    junit, retained, _actor_case, documents = ActorFixture(tmp_path)
+    junit, retained, _actorCase, documents = ActorFixture(tmp_path)
     junit.write_text(junit.read_text().replace(ACTOR_CASE_NAME, evidence.CASE_NAME))
     case = retained / "run-mock-only/approval-denied"
     documents["pipeline-plan.json"]["selection"]["scenario"] = "approval-denied"

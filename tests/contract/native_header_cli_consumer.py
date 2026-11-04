@@ -132,29 +132,29 @@ def OfflineEntry(metrics_path: Path, arguments: list[str]) -> int:
 
         raise AssertionError("Offline installed CLI attempted forbidden acquisition or publication")
 
-    def ObserveStore(store_type, kind):
+    def ObserveStore(storeType, kind):
         """Delegate actual owner reads/Saves unchanged and retain actual returned revisions."""
 
-        original_open, original_save = store_type.Open, store_type.Save
+        originalOpen, originalSave = storeType.Open, storeType.Save
 
         def Open(store, *args, **kwargs):
             """Record a real Open before delegating its unchanged result or failure."""
 
             metrics["store_reads"].append(kind)
 
-            return original_open(store, *args, **kwargs)
+            return originalOpen(store, *args, **kwargs)
 
         def Save(store, proposed, *args, **kwargs):
             """Record the actual acknowledged Save, with no retries or synthetic ACK metadata."""
 
             record = {"kind": kind, "acknowledgement_returned": False}
             metrics["saves"].append(record)
-            result = original_save(store, proposed, *args, **kwargs)
+            result = originalSave(store, proposed, *args, **kwargs)
             record.update(acknowledgement_returned=True, revision=result.revision)
 
             return result
 
-        store_type.Open, store_type.Save = Open, Save
+        storeType.Open, storeType.Save = Open, Save
 
     ObserveStore(LocalModelStore, "model")
     ObserveStore(LocalWorkspaceStore, "workspace")

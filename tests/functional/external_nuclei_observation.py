@@ -58,14 +58,14 @@ def BindApplicationBundle(raw: bytes, output: Path, manifest_raw: bytes, revisio
 
     invocation = Json(output, "scan/invocation.json")
     origin = manifest["installed"]["installed"]
-    expected_argv = StandaloneArguments(Path(manifest["material"]["executable"]["path"]), path,
+    expectedArgv = StandaloneArguments(Path(manifest["material"]["executable"]["path"]), path,
         SCAN / "prometheus-exposition.yaml", SCAN / "operator-config.yaml")
     fields = {"scanner_id": "nuclei" if track == "external-nuclei" else "native.nuclei",
         "scanner_version": VERSION, "scanner_sha256": manifest["material"]["executable"]["sha256"],
         "rule_sha256": TEMPLATE_SHA256, "product_revision": None if (
             track == "external-nuclei") else revision, "effective_budget": EffectiveBudget()}
 
-    if invocation["argv"] != list(expected_argv) or any(
+    if invocation["argv"] != list(expectedArgv) or any(
         invocation.get(name) != value for name, value in fields.items()
     ) or invocation["provider_timeout_seconds"] != 3:
         raise ValueError("Nuclei original invocation differs from the frozen comparison profile")
@@ -77,11 +77,11 @@ def BindApplicationBundle(raw: bytes, output: Path, manifest_raw: bytes, revisio
     ):
         raise ValueError("Nuclei copied original template/configuration bytes differ")
 
-    expected_profile = json.loads(json.dumps(manifest["material"]["profile"]))
-    expected_profile["templates"][0]["path"] = str(SCAN / "prometheus-exposition.yaml")
-    expected_profile["configuration_path"] = str(SCAN / "operator-config.yaml")
+    expectedProfile = json.loads(json.dumps(manifest["material"]["profile"]))
+    expectedProfile["templates"][0]["path"] = str(SCAN / "prometheus-exposition.yaml")
+    expectedProfile["configuration_path"] = str(SCAN / "operator-config.yaml")
 
-    if Json(output, "scan/profile.json") != expected_profile or Json(
+    if Json(output, "scan/profile.json") != expectedProfile or Json(
         output, "scan/attempt-provenance.json"
     ) != AttemptProvenance(path) or Json(output, "scan/requests.json") != (
         AttemptProvenance(path)["configured_requests"]
@@ -94,13 +94,13 @@ def BindApplicationBundle(raw: bytes, output: Path, manifest_raw: bytes, revisio
         raise ValueError("Nuclei original findings differ from their enclosing producer outcome")
 
     if track == "external-nuclei":
-        expected_environment = {"HOME": str(SCAN / "runtime-home"),
+        expectedEnvironment = {"HOME": str(SCAN / "runtime-home"),
             "XDG_CONFIG_HOME": str(SCAN / "runtime-home/config"),
             "XDG_CACHE_HOME": str(SCAN / "runtime-home/cache"),
             "TMPDIR": str(SCAN / "runtime-home/tmp")}
         process = Json(output, "scan/process.json")
 
-        if invocation["environment"] != expected_environment or Json(
+        if invocation["environment"] != expectedEnvironment or Json(
             output, "scan/authorization.json"
         ) != selected["authorization"] or outcome["exit_code"] != process["exit_code"] or (
             outcome["duration_seconds"] != process["duration_seconds"]
@@ -121,7 +121,7 @@ def BindApplicationBundle(raw: bytes, output: Path, manifest_raw: bytes, revisio
         from fuzzy1337.model import LocalModelStore
 
         inventory = Json(output, "scan/installed-inventory.json")
-        expected_inventory = {**origin, "whole1337_runtime_sha256": manifest["support_sha256"][
+        expectedInventory = {**origin, "whole1337_runtime_sha256": manifest["support_sha256"][
             "external_nuclei_runtime.py"]}
         state = LocalModelStore(output / "scan/workspace").Open()
         records = Json(output, "scan/acquisitions.json")
@@ -129,7 +129,7 @@ def BindApplicationBundle(raw: bytes, output: Path, manifest_raw: bytes, revisio
         actual = tuple(evidence.Get(item["evidence_id"]) for item in records)
         streams = {item.reference.role: evidence.Read(item.reference) for item in actual}
 
-        if inventory != expected_inventory or Json(output, "scan/model.json") != state.ToDict() or (
+        if inventory != expectedInventory or Json(output, "scan/model.json") != state.ToDict() or (
             len(actual) != 2 or set(streams) != {"stdout", "stderr"}
             or json.loads(SerializeContract(actual)) != records
             or streams["stdout"] != (output / "scan/stdout.raw").read_bytes()
@@ -144,11 +144,11 @@ def BindApplicationBundle(raw: bytes, output: Path, manifest_raw: bytes, revisio
 
         plan = Json(output, "scan/plan.json")
 
-        expected_digest = hashlib.sha256(SerializeContract(plan["invocation"]).encode()).hexdigest()
+        expectedDigest = hashlib.sha256(SerializeContract(plan["invocation"]).encode()).hexdigest()
         execution = actual[0].provenance.execution
 
         if plan["invocation"]["argv"] != invocation["argv"] or any(
-            item.provenance.invocation_sha256 != expected_digest for item in actual
+            item.provenance.invocation_sha256 != expectedDigest for item in actual
         ) or actual[0].provenance != actual[1].provenance or (
             execution is None or outcome["duration_seconds"] != execution.duration_seconds
             or outcome["exit_code"] != execution.exit_code
@@ -174,10 +174,10 @@ def Observation(pack: dict, target: dict, case: dict, track: str, root: Path,
     """Assemble v2 from originals, retaining unknown contacts and failed exits."""
 
     invocation = Json(scanner, "scan/invocation.json")
-    target_facts = StrictJson(provenance.read_bytes())
+    targetFacts = StrictJson(provenance.read_bytes())
     execution = {key: invocation[key] for key in ("scanner_id", "scanner_version", "scanner_sha256",
         "rule_sha256", "product_revision", "argv", "effective_budget")}
-    execution.update({key: target_facts[key] for key in ("source_revision", "image_index_digest",
+    execution.update({key: targetFacts[key] for key in ("source_revision", "image_index_digest",
         "platform_digest", "target_url", "target_instance", "reset_contract_sha256",
         "network_internal", "published_ports")})
     execution.update(exit_code=outcome["exit_code"], duration_seconds=outcome["duration_seconds"],

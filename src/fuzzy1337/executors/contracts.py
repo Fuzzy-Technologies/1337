@@ -185,11 +185,11 @@ class ExecutionResources:
     def __post_init__(self) -> None:
         """Validate portable executor resource bounds."""
 
-        for field_name in ("max_stdout_bytes", "max_stderr_bytes"):
-            value = getattr(self, field_name)
+        for fieldName in ("max_stdout_bytes", "max_stderr_bytes"):
+            value = getattr(self, fieldName)
 
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-                raise ValueError(f"{field_name} must be a positive integer")
+                raise ValueError(f"{fieldName} must be a positive integer")
 
         if (
             isinstance(self.terminate_grace_seconds, bool)

@@ -45,12 +45,12 @@ def test_ActualCommandMatchesHandwrittenSourceOracleAndPublishesAllFormats(tmp_p
     root, selection, _ = LiveConfiguration(tmp_path, case_id)
     status, outcome = InvokeCi(CiArguments(root, selection, tmp_path))
     expected = CASES[case_id]["expected_findings"]
-    expected_status = 1 if expected else 0
+    expectedStatus = 1 if expected else 0
     saved = LocalModelStore(root).Open()
     exported = json.loads((tmp_path / "ci.json").read_bytes())
     sarif = json.loads((tmp_path / "ci.sarif").read_bytes())
     junit = ElementTree.parse(tmp_path / "ci.xml").getroot()
-    assert status == expected_status == outcome["exit_code"], (
+    assert status == expectedStatus == outcome["exit_code"], (
         "Actual terminal exit must match the independently declared high/open zero-match oracle"
     )
     assert outcome["scan"]["state"] == "completed" and saved.revision == 1, (
@@ -124,8 +124,8 @@ def test_ActualPriorTriageIsAuthoritativeAndUnrelatedFindingsStayOutsideGate(tmp
     unrelated = Finding(finding.subject_reference, "synthetic.unrelated", "position:other",
         "Owned unrelated high finding", (replace(operator, run_reference="run:unrelated"),),
         severity=FindingSeverity.HIGH)
-    with_unrelated, _ = ApplyFindings(triaged, (unrelated,))
-    store.Save(with_unrelated, expected_revision=triaged.revision)
+    withUnrelated, _ = ApplyFindings(triaged, (unrelated,))
+    store.Save(withUnrelated, expected_revision=triaged.revision)
     status, outcome = InvokeCi(CiArguments(root, selection, tmp_path))
     saved = store.Open()
     assert status == 0 and outcome["criterion"]["selected_count"] == 1 and (
@@ -213,9 +213,9 @@ def test_ActualSaveUncertaintyCannotProduceCriterionSuccess(tmp_path, monkeypatc
 
     monkeypatch.setattr(owner, "Save", Save)
     status, outcome = InvokeCi(CiArguments(root, selection, tmp_path))
-    expected_revision = 0 if mode == "conflict" else 1
-    assert status == 4 and outcome["model_revision"] == expected_revision and (
-        LocalModelStore(root).Open().revision == expected_revision
+    expectedRevision = 0 if mode == "conflict" else 1
+    assert status == 4 and outcome["model_revision"] == expectedRevision and (
+        LocalModelStore(root).Open().revision == expectedRevision
     ), "Storage failure retains reopened revision without treating lost acknowledgement as PASS"
     assert outcome["criterion"]["status"] == "indeterminate" and (
         outcome["scan"]["state"] == "failed"
@@ -361,8 +361,8 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
 
     root, selection, _ = LiveConfiguration(tmp_path)
     original = commands.EvaluateConfigurationCriterion
-    forbidden_calls = []
-    reached_gate = []
+    forbiddenCalls = []
+    reachedGate = []
 
     class ForeignModel(ModelState):
         """Hostile equivalent wrapper whose serializer must never be called."""
@@ -370,7 +370,7 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
         def ToDict(self):
             """Record an unsafe foreign serializer dispatch for the independent test oracle."""
 
-            forbidden_calls.append("model")
+            forbiddenCalls.append("model")
 
             raise AssertionError("Foreign serializer must be refused before dispatch")
 
@@ -386,7 +386,7 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
         def ToDict(self):
             """Trip forbidden foreign method execution before the canonical owner is reached."""
 
-            forbidden_calls.append("manifest")
+            forbiddenCalls.append("manifest")
 
             raise AssertionError("Foreign selected manifest must be refused before dispatch")
 
@@ -425,10 +425,10 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
 
         else:
             if mode in {"missing-inventory", "missing-detection"}:
-                missing_kind = "configuration-inventory" if mode == "missing-inventory" else (
+                missingKind = "configuration-inventory" if mode == "missing-inventory" else (
                     "finding-detection")
                 model = replace(model, observations=tuple(item for item in model.observations
-                                                         if item.kind != missing_kind))
+                                                         if item.kind != missingKind))
 
             else:
                 entity = next(item for item in model.objects if item.identity.kind.value == (
@@ -446,19 +446,19 @@ def test_ActualPublicGateRejectsForeignTypesOriginalSubstitutionAndMissingProof(
                 store = LocalModelStore(root)
                 store.WriteState(store.ValidatePaths(), model)
 
-        reached_gate.append(mode)
+        reachedGate.append(mode)
 
         return original(model, capture, records, selected_root, **options)
 
     monkeypatch.setattr(commands, "EvaluateConfigurationCriterion", Gate)
     status, outcome = InvokeCi(CiArguments(root, selection, tmp_path))
-    assert reached_gate == [mode], (
+    assert reachedGate == [mode], (
         "The hostile specimen must reach the actual gate, without constructor-error false positives"
     )
     assert status == 4 and outcome["criterion"]["status"] == "indeterminate" and (
         outcome["scan"]["state"] == "completed"
     ), "Original successful execution cannot authorize a substituted or unproven gate input"
-    assert not forbidden_calls and outcome["reports"]["json"]["status"] == "completed" and (
+    assert not forbiddenCalls and outcome["reports"]["json"]["status"] == "completed" and (
         not (tmp_path / "ci.sarif").exists()
     ), "Foreign methods must not dispatch, and failed proof cannot publish later report formats"
 
@@ -478,7 +478,7 @@ def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(
     model = LocalModelStore(root).Open()
     records = tuple(item.evidence for item in summary.snapshot.artifacts)
     source = records[0]
-    forbidden_calls = []
+    forbiddenCalls = []
 
     class ForeignRecord(EvidenceRecord):
         """A correctly initialized alternative implementation cannot borrow manifest authority."""
@@ -489,19 +489,19 @@ def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(
         def ToDict(self):
             """Trip foreign serializer dispatch after controlled specimen construction."""
 
-            forbidden_calls.append("manifest-serializer")
+            forbiddenCalls.append("manifest-serializer")
 
             raise AssertionError("Foreign selected-manifest serializer cannot execute")
 
         def Digest(self):
             """Trip foreign digest dispatch before the actual capture boundary refuses its type."""
 
-            forbidden_calls.append("manifest-digest")
+            forbiddenCalls.append("manifest-digest")
 
             raise AssertionError("Foreign selected-manifest digest cannot execute")
 
     capture = summary.captures[0]
-    expected_error = "exact original acquisition contracts"
+    expectedError = "exact original acquisition contracts"
     altered = records
 
     if kind == "record":
@@ -513,13 +513,13 @@ def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(
 
     else:
         manifest = capture.outcome.manifests[0]
-        foreign_manifest = ForeignManifest(manifest.profile, manifest.role, manifest.files)
-        assert ArtifactManifest.ToDict(foreign_manifest) == manifest.ToDict(), (
+        foreignManifest = ForeignManifest(manifest.profile, manifest.role, manifest.files)
+        assert ArtifactManifest.ToDict(foreignManifest) == manifest.ToDict(), (
             "Foreign selected-manifest construction succeeds with the same canonical source fields"
         )
         object.__setattr__(capture.outcome, "manifests",
-                           (foreign_manifest, *capture.outcome.manifests[1:]))
-        expected_error = "exact original selected manifests"
+                           (foreignManifest, *capture.outcome.manifests[1:]))
+        expectedError = "exact original selected manifests"
 
     criterion = CiFindingCriterion((FindingSeverity.HIGH,), (FindingStatus.OPEN,), 0, True)
     pin = ReportSnapshot(model).SnapshotDigest()
@@ -527,7 +527,7 @@ def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(
     def Forbidden(*_args, **_kwargs):
         """Trip any owning read or fresh authority lookup after exact foreign type refusal."""
 
-        forbidden_calls.append("reader-or-authority")
+        forbiddenCalls.append("reader-or-authority")
 
         raise AssertionError("Foreign acquisition reached a reader or authority boundary")
 
@@ -536,8 +536,8 @@ def test_ActualForeignAcquisitionRefusesBeforeAnyReaderOrAuthorityLookup(
     monkeypatch.setattr(LocalEvidenceStore, "Read", Forbidden)
     monkeypatch.setattr(GovernedArtifactExecutor, "ValidateAcceptanceFresh", Forbidden)
 
-    with pytest.raises(ValueError, match=expected_error):
+    with pytest.raises(ValueError, match=expectedError):
         commands.EvaluateConfigurationCriterion(model, capture, altered, root,
             expected_snapshot_sha256=pin, criterion=criterion, context_provider=Forbidden)
 
-    assert not forbidden_calls, "Foreign acquisition is refused before storage or authority reads"
+    assert not forbiddenCalls, "Foreign acquisition is refused before storage or authority reads"

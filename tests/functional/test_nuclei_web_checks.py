@@ -81,11 +81,11 @@ def SelectedProfile(root, family):
     record = next(item for item in MANIFEST["templates"] if item["family"] == family)
     raw = (PACK / record["filename"]).read_bytes()
     assert hashlib.sha256(raw).hexdigest() == record["sha256"], "Selected review pin drifted."
-    template_path = root / record["filename"]
-    template_path.write_bytes(raw)
+    templatePath = root / record["filename"]
+    templatePath.write_bytes(raw)
     configuration = root / "empty.yaml"
     configuration.write_bytes(b"{}\n")
-    template = NucleiTemplate(record["template_id"], str(template_path), record["sha256"],
+    template = NucleiTemplate(record["template_id"], str(templatePath), record["sha256"],
         record["size_bytes"], record["source_reference"], record["source_revision"],
         record["review_reference"], record["reviewed_profile"])
 
@@ -191,7 +191,7 @@ def test_GenuineReviewedChecksProduceIndependentOracleMetricsAndReopen(
     cases = metadata["cases"]
     scenarios = tuple(Scenario(metadata, case) for case in cases)
     runs = []
-    binary_sha256 = hashlib.sha256(native_web_check_binary.read_bytes()).hexdigest()
+    binarySha256 = hashlib.sha256(native_web_check_binary.read_bytes()).hexdigest()
     report = PersistMatrix(scenarios, runs)
 
     with OwnedWebVulnerabilityTarget(tmp_path / "target") as service:
@@ -220,10 +220,10 @@ def test_GenuineReviewedChecksProduceIndependentOracleMetricsAndReopen(
             (output / "target-observations.json").write_text(json.dumps(observed, indent=2),
                                                              encoding="utf-8")
             model = LocalModelStore(root).Open()
-            actual_findings = Findings(model)
-            expected_check_id = "nuclei." + profile.templates[0].template_id
-            detected = tuple(case["id"] if finding.check_id == expected_check_id else
-                             finding.check_id for finding in actual_findings)
+            actualFindings = Findings(model)
+            expectedCheckId = "nuclei." + profile.templates[0].template_id
+            detected = tuple(case["id"] if finding.check_id == expectedCheckId else
+                             finding.check_id for finding in actualFindings)
             status = RunStatus.COMPLETED if summary.snapshot.state is JobState.COMPLETED else (
                 RunStatus.TIMED_OUT if summary.snapshot.failure is not None and
                 summary.snapshot.failure.code is JobFailureCode.TIMEOUT else RunStatus.CRASHED
@@ -232,7 +232,7 @@ def test_GenuineReviewedChecksProduceIndependentOracleMetricsAndReopen(
             runs.append(WebCheckRun(case["id"], plan.invocation.provider_version,
                 MANIFEST["version"], status, time.monotonic() - started, detected_checks=detected,
                 evidence=(*raw, RawEvidence("provider", "application/json", json.dumps({
-                    "executable_sha256": binary_sha256,
+                    "executable_sha256": binarySha256,
                     "version": plan.invocation.provider_version,
                     "profile": json.loads(SerializeContract(profile)),
                 }, sort_keys=True)))))
@@ -245,7 +245,7 @@ def test_GenuineReviewedChecksProduceIndependentOracleMetricsAndReopen(
                 "The selected template expanded, changed or followed its exact approved GET."
             )
             assert not observed["errors"], "The owned target reported a real mechanism failure."
-            assert len(actual_findings) == int(case["expected_match"]), (
+            assert len(actualFindings) == int(case["expected_match"]), (
                 "Actual persisted findings disagree with the independently authored target oracle."
             )
             VerifyFindingProvenance(model, profile, plan)
@@ -278,8 +278,8 @@ def test_GenuineReviewedChecksProduceIndependentOracleMetricsAndReopen(
     assert sum(item["tp"] for item in metrics) == sum(case["expected_match"] for case in cases), (
         "The finite detector matrix must count actual matched positive cases only."
     )
-    expected_negatives = sum(not case["expected_match"] for case in cases)
-    assert sum(item["tn"] for item in metrics) == expected_negatives, (
+    expectedNegatives = sum(not case["expected_match"] for case in cases)
+    assert sum(item["tn"] for item in metrics) == expectedNegatives, (
         "Every declared fixed, decoy and redirect control must be a measured true negative."
     )
 

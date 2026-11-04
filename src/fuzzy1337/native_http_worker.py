@@ -135,8 +135,8 @@ def Main(argv: Sequence[str] | None = None) -> int:
     """
 
     arguments = tuple(sys.argv[1:] if argv is None else argv)
-    error_code = "input"
-    exit_code = 64
+    errorCode = "input"
+    exitCode = 64
 
     try:
         if len(arguments) != 2:
@@ -145,16 +145,16 @@ def Main(argv: Sequence[str] | None = None) -> int:
         result = Probe(arguments[0], float(arguments[1]))
 
     except (TimeoutError, socket.timeout):
-        error_code, exit_code = "timeout", 124
+        errorCode, exitCode = "timeout", 124
 
     except ssl.SSLError:
-        error_code, exit_code = "tls", 1
+        errorCode, exitCode = "tls", 1
 
     except HttpProtocolError:
-        error_code, exit_code = "protocol", 1
+        errorCode, exitCode = "protocol", 1
 
     except OSError:
-        error_code, exit_code = "connection", 1
+        errorCode, exitCode = "connection", 1
 
     except (ValueError, UnicodeError):
         pass
@@ -164,9 +164,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
 
         return 0
 
-    sys.stdout.write(json.dumps({"schema_version": 1, "error": error_code}, sort_keys=True) + "\n")
+    sys.stdout.write(json.dumps({"schema_version": 1, "error": errorCode}, sort_keys=True) + "\n")
 
-    return exit_code
+    return exitCode
 
 
 if __name__ == "__main__":

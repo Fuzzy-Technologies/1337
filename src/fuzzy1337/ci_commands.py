@@ -143,10 +143,10 @@ def RequireSummary(
         raise ValueError("CI requires the exact owning workflow summary")
 
     snapshot = summary.snapshot
-    capture_type = NativeTrivyOperationCapture if type(summary) is NativeImageScanSummary else (
+    captureType = NativeTrivyOperationCapture if type(summary) is NativeImageScanSummary else (
         ImageOperationCapture if type(summary) is ImageScanSummary else
         ConfigurationOperationCapture)
-    report_type = ConfigurationReportOutcome if type(summary) is ConfigurationScanSummary else (
+    reportType = ConfigurationReportOutcome if type(summary) is ConfigurationScanSummary else (
         ImageReportOutcome)
 
     if type(snapshot.spec) is not JobSpec or type(snapshot.state) is not JobState or (
@@ -158,8 +158,8 @@ def RequireSummary(
                or item.job_id != snapshot.spec.job_id
                or item.workspace_id != snapshot.spec.workspace_id for item in snapshot.artifacts)
         or type(summary.captures) is not tuple
-        or any(type(item) is not capture_type for item in summary.captures)
-        or summary.report is not None and type(summary.report) is not report_type
+        or any(type(item) is not captureType for item in summary.captures)
+        or summary.report is not None and type(summary.report) is not reportType
         or snapshot.failure is not None and type(snapshot.failure) is not JobFailure
         or snapshot.state is JobState.COMPLETED and (
             snapshot.failure is not None or snapshot.cancellation_requested)
@@ -250,10 +250,10 @@ def RunCiCommands(
 
         return 0
 
-    empty_report: dict[str, object] = {
+    emptyReport: dict[str, object] = {
         "status": "not-run", "model_revision": None, "snapshot_sha256": None,
         "report_sha256": None, "size_bytes": None, "output_published": False, "failure": None}
-    reports = {name: dict(empty_report) for name in ("json", "sarif", "junit")}
+    reports = {name: dict(emptyReport) for name in ("json", "sarif", "junit")}
     outcome: dict[str, object] = {"schema_version": 1, "command": "ci.scan", "status": "failed",
         "scope": "selected-profile-finding-predicate", "scan_completeness": "not-assessed",
         "acknowledge_unassessed_completeness": False, "policy": None,
@@ -315,8 +315,8 @@ def RunCiCommands(
         profile = ArtifactProfile.IMAGE if native else (
             ArtifactProfile.SYNTHETIC_IMAGE if image else ArtifactProfile.SYNTHETIC_DOCKERFILE
             if options.profile == "synthetic-dockerfile" else ArtifactProfile.SYNTHETIC_KUBERNETES)
-        configuration_selection = None
-        image_selection = None
+        configurationSelection = None
+        imageSelection = None
 
         if not native:
             assert options.producer is not None and options.material is not None, (
@@ -324,11 +324,11 @@ def RunCiCommands(
             )
 
             if image:
-                image_selection = ImageScanSelection(Path(options.archive), options.executable,
+                imageSelection = ImageScanSelection(Path(options.archive), options.executable,
                     options.producer, options.material, consent)
 
             else:
-                configuration_selection = ConfigurationScanSelection(profile,
+                configurationSelection = ConfigurationScanSelection(profile,
                     options.logical_path, options.source, options.executable, options.producer,
                     options.material, consent)
 
@@ -338,13 +338,13 @@ def RunCiCommands(
         if metadata is None or not stat.S_ISDIR(metadata.st_mode):
             raise ReportFailure("configuration", 2)
 
-        native_selection = None
+        nativeSelection = None
 
         if native:
             assert options.cache_directory is not None, "Native preflight requires explicit cache"
-            native_selection = NativeTrivySelection(root, options.executable, options.archive,
+            nativeSelection = NativeTrivySelection(root, options.executable, options.archive,
                 options.cache_directory, consent)
-            ValidateSelection(root, options.owner, native_selection, options.timeout)
+            ValidateSelection(root, options.owner, nativeSelection, options.timeout)
 
         destinations = {name: ReportOutputPath(getattr(options, "report_" + name), root)
                         for name in reports}
@@ -355,37 +355,37 @@ def RunCiCommands(
         phase = "scan"
         summary: ConfigurationScanSummary | ImageScanSummary | NativeImageScanSummary
 
-        if native_selection is not None:
+        if nativeSelection is not None:
             def NativePolicy() -> ImpactPolicy:
                 """Reopen the explicit strict policy at every original native authority check."""
 
                 return ReadNucleiPolicy(options.policy)
 
             summary = asyncio.run(ScanNativeImage(root, options.scope, options.owner,
-                native_selection, NativePolicy, approve_safe_image=options.approve_safe_image,
+                nativeSelection, NativePolicy, approve_safe_image=options.approve_safe_image,
                 timeout_seconds=options.timeout, report_format="json",
                 report_output=destinations["json"]))
 
-        elif image_selection is not None:
+        elif imageSelection is not None:
             summary = asyncio.run(RunSyntheticImageScan(root, options.scope, options.owner,
-                image_selection, approve_safe_image=options.approve_safe_image,
+                imageSelection, approve_safe_image=options.approve_safe_image,
                 timeout_seconds=options.timeout, report_format="json",
                 report_output=destinations["json"]))
 
         else:
-            assert configuration_selection is not None, "Explicit profile selects configuration"
+            assert configurationSelection is not None, "Explicit profile selects configuration"
             summary = asyncio.run(RunSyntheticConfigurationScan(root, options.scope, options.owner,
-                configuration_selection,
+                configurationSelection,
                 approve_safe_configuration=options.approve_safe_configuration,
                 timeout_seconds=options.timeout, report_format="json",
                 report_output=destinations["json"]))
 
         RequireSummary(summary)
 
-        expected_summary = NativeImageScanSummary if native else (
+        expectedSummary = NativeImageScanSummary if native else (
             ImageScanSummary if image else ConfigurationScanSummary)
 
-        if type(summary) is not expected_summary:
+        if type(summary) is not expectedSummary:
             raise ReportFailure("scan-proof")
 
         outcome["scan"] = summary.ToDict()
@@ -426,10 +426,10 @@ def RunCiCommands(
         ):
             raise ReportFailure("input-changed")
 
-        original_json = SerializeJson(original.report)
+        originalJson = SerializeJson(original.report)
 
-        if len(original_json) != summary.report.size_bytes or (
-            hashlib.sha256(original_json).hexdigest() != summary.report.report_sha256
+        if len(originalJson) != summary.report.size_bytes or (
+            hashlib.sha256(originalJson).hexdigest() != summary.report.report_sha256
         ):
             raise ReportFailure("json-export-proof")
 

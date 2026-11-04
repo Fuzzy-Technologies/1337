@@ -44,15 +44,15 @@ def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
     for path in modules:
         name = path.as_posix()
         # coverage.py keeps the platform separator in relative filenames.
-        report_key = next(
+        reportKey = next(
             (key for key in (name, str(path), name.replace("/", "\\")) if key in files),
             None,
         )
-        if report_key is None:
+        if reportKey is None:
             failures.append(f"{name}: missing coverage")
             continue
 
-        entry = files[report_key]
+        entry = files[reportKey]
         if not isinstance(entry, dict):
             raise ValueError(f"{name}: invalid coverage entry")
 
@@ -71,13 +71,13 @@ def ValidateReport(report: dict[str, Any], source: Path) -> list[str]:
         if any(type(value) is not int or value < 0 for value in counts):
             raise ValueError(f"{name}: invalid coverage counts")
 
-        covered_lines, statements, covered_branches, branches, excluded = (
+        coveredLines, statements, coveredBranches, branches, excluded = (
             int(summary[key]) for key in keys
         )
-        if covered_lines > statements or covered_branches > branches or excluded:
+        if coveredLines > statements or coveredBranches > branches or excluded:
             raise ValueError(f"{name}: inconsistent counts or undocumented exclusions")
 
-        covered = covered_lines + covered_branches
+        covered = coveredLines + coveredBranches
         total = statements + branches
         if total and covered * 5 <= total * 4:
             failures.append(

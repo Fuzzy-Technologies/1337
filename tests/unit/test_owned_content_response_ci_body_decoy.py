@@ -71,9 +71,9 @@ def Fixture(tmp_path, source_case="body-decoy"):
 def test_BodyDecoyRequiresOriginalHttpPartsAndAnAcknowledgedFinding(tmp_path, mutation):
     """A mock JUnit/result cannot hide header-like body text or missing original state evidence."""
 
-    source_case = {"substituted-missing-source": "missing",
+    sourceCase = {"substituted-missing-source": "missing",
         "substituted-fixed-source": "fixed"}.get(mutation, "body-decoy")
-    junit, retained, case, documents = Fixture(tmp_path, source_case=source_case)
+    junit, retained, case, documents = Fixture(tmp_path, source_case=sourceCase)
     result = documents["pipeline-result.json"]
 
     if mutation == "wrong-case":

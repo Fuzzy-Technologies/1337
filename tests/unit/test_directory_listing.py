@@ -243,8 +243,8 @@ def test_HtmlClassificationIsSpecificToTheNewCheckAndDoesNotChangeOldProfiles():
         "The new profile did not classify its actual HTML response media."
     )
 
-    for check_id in (NATIVE_WEB_CHECK_ID, NATIVE_FILE_CANARY_CHECK_ID, NATIVE_PROMETHEUS_CHECK_ID):
-        assert Headers(raw, check_id=check_id) == (200, "other", 0), (
+    for checkId in (NATIVE_WEB_CHECK_ID, NATIVE_FILE_CANARY_CHECK_ID, NATIVE_PROMETHEUS_CHECK_ID):
+        assert Headers(raw, check_id=checkId) == (200, "other", 0), (
             "An existing profile's original media representation changed."
         )
 

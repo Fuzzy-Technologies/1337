@@ -173,11 +173,11 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
 ):
     """Inverted worker completion cannot alter deterministic frontier, CAS or source attribution."""
 
-    beta_captured = threading.Event()
-    dispatch_starts = []
-    response_barrier = threading.Barrier(2)
-    server = owned_pages(holds={"/alpha": beta_captured},
-        barriers={"/alpha": response_barrier, "/beta": response_barrier})
+    betaCaptured = threading.Event()
+    dispatchStarts = []
+    responseBarrier = threading.Barrier(2)
+    server = owned_pages(holds={"/alpha": betaCaptured},
+        barriers={"/alpha": responseBarrier, "/beta": responseBarrier})
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
     provider = fixture.Provider(page_limits=PageCaptureLimits(request_timeout_seconds=5))
     original = LocalPageCaptureProvider.Acquire
@@ -185,13 +185,13 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
     async def ReleaseAfterBetaCapture(self, context, *, before_commit=None, publish_progress=True):
         """Release alpha's actual response only after beta is fully captured and interpreted."""
 
-        dispatch_starts.append(time.monotonic())
+        dispatchStarts.append(time.monotonic())
 
         async def Gate():
             """Signal actual inverted completion, then wait at the unchanged ordered commit gate."""
 
             if self._target.value.endswith("/beta"):
-                beta_captured.set()
+                betaCaptured.set()
 
             await before_commit()
 
@@ -205,7 +205,7 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
     assert sorted(server.requests) == ORACLE["request_paths"], "Traversal acquired wrong routes"
     assert server.maximum_active == 2, "Actual page acquisition failed to overlap asynchronously"
     assert min(later - earlier for earlier, later in
-               zip(dispatch_starts, dispatch_starts[1:], strict=False)) >= 0.049, (
+               zip(dispatchStarts, dispatchStarts[1:], strict=False)) >= 0.049, (
         "Controller page dispatch ignored its configured monotonic start interval"
     )
     assert [urlsplit(url).path for url in provider.CompletedUrls] == ORACLE["commit_paths"], (
@@ -223,7 +223,7 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
     )
     assert len(snapshot.artifacts) == ORACLE["manifest_count"], "Original acquisition count differs"
     store = LocalEvidenceStore(fixture.root / "evidence")
-    body_bytes = 0
+    bodyBytes = 0
     schema = json.loads((Path(__file__).parents[2] / "contracts" /
                          "page-capture-record.schema.json").read_bytes())
 
@@ -236,12 +236,12 @@ def test_ActualAsyncTraversalPreservesOrderedCommitsAndIndependentOracle(
         )
 
         if record.reference.role == "response-body":
-            body_bytes += len(raw)
+            bodyBytes += len(raw)
 
         else:
             jsonschema.validate(json.loads(raw), schema)
 
-    assert body_bytes == ORACLE["body_bytes"], "Measured admitted body bytes differ from oracle"
+    assert bodyBytes == ORACLE["body_bytes"], "Measured admitted body bytes differ from oracle"
     assert snapshot.progress.completed == snapshot.progress.total == 4, (
         "Traversal final progress did not use actual completed work"
     )
@@ -295,13 +295,13 @@ def test_ActualRedirectAndUnexpectedBodyRefuseWithoutDestinationAcquisition(
         "Refused page entered canonical state"
     )
     store = LocalEvidenceStore(fixture.root / "evidence")
-    failure_record = snapshot.artifacts[-1].evidence
-    raw = store.Read(store.Get(failure_record.evidence_id).reference)
+    failureRecord = snapshot.artifacts[-1].evidence
+    raw = store.Read(store.Get(failureRecord.evidence_id).reference)
     error = "response-policy" if failure == "redirect" else "body-policy"
     assert json.loads(raw) == {"error": error, "schema_version": 1}, (
         "Original truthful fixed worker refusal was not retained"
     )
-    assert failure_record.provenance.execution.state.value == "failed", (
+    assert failureRecord.provenance.execution.state.value == "failed", (
         "Failed acquisition was changed into a successful collection"
     )
     retained = b"\n".join(path.read_bytes() for path in fixture.root.rglob("*") if path.is_file())
@@ -338,14 +338,14 @@ def test_ActualCancellationDrainsConcurrentWorkersAndCommitWaiter(
 ):
     """Cancel after the later page reaches its gate; earlier slow worker and waiter both drain."""
 
-    alpha_hold = threading.Event()
-    response_barrier = threading.Barrier(2)
-    server = owned_pages(holds={"/alpha": alpha_hold},
-        barriers={"/alpha": response_barrier, "/beta": response_barrier})
+    alphaHold = threading.Event()
+    responseBarrier = threading.Barrier(2)
+    server = owned_pages(holds={"/alpha": alphaHold},
+        barriers={"/alpha": responseBarrier, "/beta": responseBarrier})
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
     provider = fixture.Provider(page_limits=PageCaptureLimits(request_timeout_seconds=5))
     job = fixture.Job(provider)
-    gate_waiting = threading.Event()
+    gateWaiting = threading.Event()
     original = LocalPageCaptureProvider.Acquire
 
     async def TrackGate(self, context, *, before_commit=None, publish_progress=True):
@@ -355,7 +355,7 @@ def test_ActualCancellationDrainsConcurrentWorkersAndCommitWaiter(
             """Signal the blocked beta commit then invoke the real condition gate."""
 
             if self._target.value.endswith("/beta"):
-                gate_waiting.set()
+                gateWaiting.set()
 
             await before_commit()
 
@@ -368,7 +368,7 @@ def test_ActualCancellationDrainsConcurrentWorkersAndCommitWaiter(
         """Cancel the real owning job only after actual beta capture has reached its gate."""
 
         job.Start()
-        seen = await asyncio.to_thread(gate_waiting.wait, 3)
+        seen = await asyncio.to_thread(gateWaiting.wait, 3)
         assert seen, "Actual beta acquisition never reached the waiting commit gate"
         assert server.wave_received.is_set(), "Cancellation must follow both actual wave requests"
         job.Cancel("owner:test")
@@ -396,7 +396,7 @@ def test_GlobalDeadlineDrainsWorkersAndRetainsPriorCommit(tmp_path, owned_pages,
     provider = fixture.Provider()
     job = fixture.Job(provider)
     original = asyncio.timeout
-    global_deadline = []
+    globalDeadline = []
 
     def ObserveDeadline(delay):
         """Retain the actual global timeout owner without replacing expiry/cancellation behavior."""
@@ -404,7 +404,7 @@ def test_GlobalDeadlineDrainsWorkersAndRetainsPriorCommit(tmp_path, owned_pages,
         deadline = original(delay)
 
         if delay == 30:
-            global_deadline.append(deadline)
+            globalDeadline.append(deadline)
 
         return deadline
 
@@ -416,13 +416,13 @@ def test_GlobalDeadlineDrainsWorkersAndRetainsPriorCommit(tmp_path, owned_pages,
         job.Start()
         seen = await asyncio.to_thread(server.wave_received.wait, 5)
         assert seen, "Both actual owned wave requests must precede the deadline test"
-        assert len(global_deadline) == 1, "The real traversal deadline was not uniquely observed"
-        global_deadline[0].reschedule(asyncio.get_running_loop().time())
+        assert len(globalDeadline) == 1, "The real traversal deadline was not uniquely observed"
+        globalDeadline[0].reschedule(asyncio.get_running_loop().time())
 
         return await asyncio.wait_for(job.Wait(), 3)
 
     snapshot = asyncio.run(ExpireAfterActualWave())
-    assert global_deadline[0].expired(), "Test did not expire the actual global timer"
+    assert globalDeadline[0].expired(), "Test did not expire the actual global timer"
     assert snapshot.state is JobState.FAILED, "Expired traversal falsely completed"
     assert snapshot.failure.code is JobFailureCode.TIMEOUT, "Whole-operation deadline was hidden"
     assert "Web traversal deadline" in snapshot.failure.message, "A different timeout was tested"
@@ -433,8 +433,8 @@ def test_GlobalDeadlineDrainsWorkersAndRetainsPriorCommit(tmp_path, owned_pages,
 def ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job):
     """Install a test-only custody barrier while preserving actual acquisition and ordered gates."""
 
-    original_acquire = LocalPageCaptureProvider.Acquire
-    beta_captured = asyncio.Event()
+    originalAcquire = LocalPageCaptureProvider.Acquire
+    betaCaptured = asyncio.Event()
 
     async def OrderCapturedSibling(self, context, *, before_commit=None, publish_progress=True):
         """Wait for actual beta custody before allowing the real alpha commit/failure boundary."""
@@ -457,19 +457,19 @@ def ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job):
                     and item.provenance == body.provenance]) == 1, (
                         "Beta signal must follow its original same-run stdout acquisition"
                     )
-                beta_captured.set()
+                betaCaptured.set()
 
             elif self._target.value.endswith("/alpha"):
-                await beta_captured.wait()
+                await betaCaptured.wait()
 
             await before_commit()
 
-        return await original_acquire(self, context, before_commit=Gate,
+        return await originalAcquire(self, context, before_commit=Gate,
                                       publish_progress=publish_progress)
 
     monkeypatch.setattr(LocalPageCaptureProvider, "Acquire", OrderCapturedSibling)
 
-    return beta_captured
+    return betaCaptured
 
 
 @pytest.mark.parametrize("failure", ["conflict", "lost-ack", "event"])
@@ -481,8 +481,8 @@ def test_OrderedSaveFailuresDrainWaitingSiblingAndPreserveActualState(
     server = owned_pages()
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
     provider = fixture.Provider()
-    original_save = LocalModelStore.Save
-    original_event = JobContext.ModelChanged
+    originalSave = LocalModelStore.Save
+    originalEvent = JobContext.ModelChanged
 
     def FailSave(self, state, *, expected_revision):
         """Fail actual alpha CAS or its acknowledgement, never substituting the real owner write."""
@@ -490,7 +490,7 @@ def test_OrderedSaveFailuresDrainWaitingSiblingAndPreserveActualState(
         if expected_revision == 1 and failure == "conflict":
             raise WorkspaceConflictError("synthetic private failure")
 
-        result = original_save(self, state, expected_revision=expected_revision)
+        result = originalSave(self, state, expected_revision=expected_revision)
 
         if expected_revision == 1 and failure == "lost-ack":
             raise OSError("synthetic private failure")
@@ -503,17 +503,17 @@ def test_OrderedSaveFailuresDrainWaitingSiblingAndPreserveActualState(
         if LocalModelStore(fixture.root).Open().revision == 2 and failure == "event":
             raise RuntimeError("synthetic private failure")
 
-        return original_event(self, delta)
+        return originalEvent(self, delta)
 
     monkeypatch.setattr(LocalModelStore, "Save", FailSave)
     monkeypatch.setattr(JobContext, "ModelChanged", FailEvent)
     job = fixture.Job(provider)
-    beta_captured = ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job)
+    betaCaptured = ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job)
     snapshot = Run(job)
-    assert beta_captured.is_set(), "The failure scenario must include a captured waiting beta"
+    assert betaCaptured.is_set(), "The failure scenario must include a captured waiting beta"
     assert snapshot.state is JobState.FAILED, "Failed predecessor released another canonical Save"
-    expected_revision = 1 if failure == "conflict" else 2
-    assert LocalModelStore(fixture.root).Open().revision == expected_revision, (
+    expectedRevision = 1 if failure == "conflict" else 2
+    assert LocalModelStore(fixture.root).Open().revision == expectedRevision, (
         "Actual CAS or post-Save state was falsely rolled back or advanced by beta"
     )
     assert len(snapshot.artifacts) == 6, "Captured waiting sibling raw evidence was erased"
@@ -529,13 +529,13 @@ def test_ExpiredConsentWhileWaitingForOrderedCommitDeniesSave(tmp_path, owned_pa
 
     server = owned_pages()
     fixture = Fixture.Create(tmp_path / "workspace", server.origin)
-    current_time = [NOW]
+    currentTime = [NOW]
     scopes = LocalScopeStore(fixture.root)
     scope = scopes.Open("local")
     scopes.Save(replace(scope, authorization=replace(scope.authorization,
         valid_until=(NOW + timedelta(seconds=1)).isoformat())))
     provider = LocalWebTraversalProvider(fixture.root, fixture.pages[0].source, fixture.pages,
-        "local", fixture.policy, clock=lambda: current_time[0])
+        "local", fixture.policy, clock=lambda: currentTime[0])
     original = JobContext.ModelChanged
 
     def ExpireAfterAlpha(self, delta):
@@ -544,13 +544,13 @@ def test_ExpiredConsentWhileWaitingForOrderedCommitDeniesSave(tmp_path, owned_pa
         original(self, delta)
 
         if LocalModelStore(fixture.root).Open().revision == 2:
-            current_time[0] += timedelta(seconds=1)
+            currentTime[0] += timedelta(seconds=1)
 
     monkeypatch.setattr(JobContext, "ModelChanged", ExpireAfterAlpha)
     job = fixture.Job(provider)
-    beta_captured = ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job)
+    betaCaptured = ObserveCapturedBetaBeforeAlpha(monkeypatch, fixture, job)
     snapshot = Run(job)
-    assert beta_captured.is_set(), "Consent expiry must follow actual waiting beta acquisition"
+    assert betaCaptured.is_set(), "Consent expiry must follow actual waiting beta acquisition"
     assert snapshot.state is JobState.FAILED, "Commit gate reused expired earlier authority"
     assert snapshot.failure.code is JobFailureCode.AUTHORIZATION, "Fresh expiry denial was hidden"
     assert LocalModelStore(fixture.root).Open().revision == 2, "Expired beta was saved"
@@ -614,20 +614,20 @@ def test_OwnedTargetCloseJoinsActualResponseFinalizerBeforeReturning(monkeypatch
     """Teardown must join an owned response thread even after its HTTP handler has returned."""
 
     server = OwnedPages()
-    response_finish = threading.Event()
-    finish_entered = threading.Event()
-    join_entered = threading.Event()
-    response_threads = []
+    responseFinish = threading.Event()
+    finishEntered = threading.Event()
+    joinEntered = threading.Event()
+    responseThreads = []
     failures = []
-    original_finish = server.server.RequestHandlerClass.finish
+    originalFinish = server.server.RequestHandlerClass.finish
 
     def HoldActualFinalizer(self):
         """Pause the actual request worker after normal buffered response cleanup."""
 
-        original_finish(self)
-        response_threads.append(threading.current_thread())
-        finish_entered.set()
-        response_finish.wait(5)
+        originalFinish(self)
+        responseThreads.append(threading.current_thread())
+        finishEntered.set()
+        responseFinish.wait(5)
 
     monkeypatch.setattr(server.server.RequestHandlerClass, "finish", HoldActualFinalizer)
 
@@ -645,27 +645,27 @@ def test_OwnedTargetCloseJoinsActualResponseFinalizerBeforeReturning(monkeypatch
     try:
         with socket.create_connection(server.server.server_address, timeout=2) as connection:
             connection.sendall(b"GET /index HTTP/1.0\r\n\r\n")
-            assert finish_entered.wait(2), "Actual request never reached its finalizer gate"
-            original_join = response_threads[0].join
+            assert finishEntered.wait(2), "Actual request never reached its finalizer gate"
+            originalJoin = responseThreads[0].join
 
             def ObserveActualJoin(timeout=None):
                 """Observe native server ownership joining the exact held response worker."""
 
-                join_entered.set()
-                original_join(timeout)
+                joinEntered.set()
+                originalJoin(timeout)
 
-            monkeypatch.setattr(response_threads[0], "join", ObserveActualJoin)
+            monkeypatch.setattr(responseThreads[0], "join", ObserveActualJoin)
             closer.start()
-            assert join_entered.wait(2), "Fixture Close omitted its live response worker join"
+            assert joinEntered.wait(2), "Fixture Close omitted its live response worker join"
             assert closer.is_alive(), "Fixture Close returned before the response finalizer drained"
-            response_finish.set()
+            responseFinish.set()
             closer.join(2)
             assert not closer.is_alive(), "Fixture Close did not finish after owned worker release"
             assert not failures, "Owned response finalizer drain raised a teardown failure"
-            assert not response_threads[0].is_alive(), "Actual response worker survived Close"
+            assert not responseThreads[0].is_alive(), "Actual response worker survived Close"
 
     finally:
-        response_finish.set()
+        responseFinish.set()
 
         if closer.ident is not None:
             closer.join(2)

@@ -31,9 +31,9 @@ def journal(tmp_path, monkeypatch):
     """Create a real tiny journal before isolated matching seams; Windows modes are unit views."""
 
     if os.name == "nt":
-        selected_os = SimpleNamespace(**vars(os))
-        selected_os.fchmod = lambda descriptor, mode: None
-        monkeypatch.setattr(bounded, "os", selected_os)
+        selectedOs = SimpleNamespace(**vars(os))
+        selectedOs.fchmod = lambda descriptor, mode: None
+        monkeypatch.setattr(bounded, "os", selectedOs)
         monkeypatch.setattr(bounded, "stat", SimpleNamespace(S_IMODE=lambda mode:
             0o700 if stat.S_ISDIR(mode) else 0o600))
         monkeypatch.setattr(bounded.OutcomeJournal, "SyncDirectory", lambda owner: None)
@@ -70,12 +70,12 @@ def test_JournalAcceptsSeparateStableCtimeViewsOnlyUnderTheCanonicalWindowsRule(
     """A stable cross-API ctime difference never changes the original journal or Linux guard."""
 
     original = bounded.ArtifactHandleInfo
-    handle_ctime = journal.path.stat().st_ctime_ns + 1
+    handleCtime = journal.path.stat().st_ctime_ns + 1
 
     def Handle(descriptor):
         """Expose a distinct stable handle ctime while retaining real owned common fields."""
 
-        return JournalIdentityView(original(descriptor), st_ctime_ns=handle_ctime)
+        return JournalIdentityView(original(descriptor), st_ctime_ns=handleCtime)
 
     monkeypatch.setattr(bounded, "ArtifactHandleInfo", Handle)
     JournalMatcher(monkeypatch, windows)
@@ -87,8 +87,8 @@ def test_JournalAcceptsSeparateStableCtimeViewsOnlyUnderTheCanonicalWindowsRule(
         return
 
     journal.Verify()
-    path_view, handle_view = journal.Check()
-    assert path_view.st_ctime_ns != handle_view.st_ctime_ns and (
+    pathView, handleView = journal.Check()
+    assert pathView.st_ctime_ns != handleView.st_ctime_ns and (
         journal.path.read_bytes() == b"1337-native-outcome-v1\n"
     ), "Canonical compatibility must retain separate complete views and exact journal bytes"
 
@@ -101,10 +101,10 @@ def test_JournalRejectsEverySameApiMutationAtAssociationAndDuringReadback(
 ):
     """Every full same-API field remains strict even when cross-API Windows ctime differs."""
 
-    original_path = bounded.ArtifactPathInfo
-    original_handle = bounded.ArtifactHandleInfo
-    original_read = bounded.os.read
-    handle_ctime = journal.path.stat().st_ctime_ns + 1
+    originalPath = bounded.ArtifactPathInfo
+    originalHandle = bounded.ArtifactHandleInfo
+    originalRead = bounded.os.read
+    handleCtime = journal.path.stat().st_ctime_ns + 1
     calls = {"path": 0, "handle": 0}
     reading = False
 
@@ -123,14 +123,14 @@ def test_JournalRejectsEverySameApiMutationAtAssociationAndDuringReadback(
     def PathInfo(path, **options):
         """Leave original private directory observations untouched."""
 
-        info = original_path(path, **options)
+        info = originalPath(path, **options)
 
         return Change(info, "path") if path == journal.path else info
 
     def Handle(descriptor):
         """Expose a full stable handle view before the declared unit mutation boundary."""
 
-        info = JournalIdentityView(original_handle(descriptor), st_ctime_ns=handle_ctime)
+        info = JournalIdentityView(originalHandle(descriptor), st_ctime_ns=handleCtime)
 
         return Change(info, "handle")
 
@@ -138,16 +138,16 @@ def test_JournalRejectsEverySameApiMutationAtAssociationAndDuringReadback(
         """Mark actual owned journal I/O so readback mutations cannot poison preparatory reads."""
 
         nonlocal reading
-        raw = original_read(descriptor, size)
+        raw = originalRead(descriptor, size)
 
         if descriptor == journal.descriptor:
             reading = True
 
         return raw
 
-    selected_os = SimpleNamespace(**vars(bounded.os))
-    selected_os.read = Read
-    monkeypatch.setattr(bounded, "os", selected_os)
+    selectedOs = SimpleNamespace(**vars(bounded.os))
+    selectedOs.read = Read
+    monkeypatch.setattr(bounded, "os", selectedOs)
     monkeypatch.setattr(bounded, "ArtifactPathInfo", PathInfo)
     monkeypatch.setattr(bounded, "ArtifactHandleInfo", Handle)
     JournalMatcher(monkeypatch, True)
@@ -180,28 +180,28 @@ def test_JournalPreservesExactRawLfAndControlZFrameBytes(journal):
 def test_JournalCreationExplicitlyRequestsThePlatformBinaryFlag(journal, monkeypatch):
     """Require binary mode at descriptor creation even on a host without a native O_BINARY flag."""
 
-    original_open = bounded.os.open
-    binary_flag = getattr(os, "O_BINARY", 1 << 28)
-    flags_seen = []
+    originalOpen = bounded.os.open
+    binaryFlag = getattr(os, "O_BINARY", 1 << 28)
+    flagsSeen = []
 
     def Open(path, flags, *args, **options):
         """Observe the second journal's exact descriptor creation and retain real local I/O."""
 
         if getattr(path, "name", None) == "outcome.journal":
-            flags_seen.append(flags)
+            flagsSeen.append(flags)
 
-        actual = flags if hasattr(os, "O_BINARY") else flags & ~binary_flag
+        actual = flags if hasattr(os, "O_BINARY") else flags & ~binaryFlag
 
-        return original_open(path, actual, *args, **options)
+        return originalOpen(path, actual, *args, **options)
 
-    selected_os = SimpleNamespace(**vars(bounded.os))
-    selected_os.O_BINARY = binary_flag
-    selected_os.open = Open
-    monkeypatch.setattr(bounded, "os", selected_os)
+    selectedOs = SimpleNamespace(**vars(bounded.os))
+    selectedOs.O_BINARY = binaryFlag
+    selectedOs.open = Open
+    monkeypatch.setattr(bounded, "os", selectedOs)
     second = bounded.OutcomeJournal(journal.directory.parent)
 
     try:
-        assert len(flags_seen) == 1 and flags_seen[0] & binary_flag, (
+        assert len(flagsSeen) == 1 and flagsSeen[0] & binaryFlag, (
             "The exact original journal descriptor must explicitly disable text translation"
         )
         second.Verify()

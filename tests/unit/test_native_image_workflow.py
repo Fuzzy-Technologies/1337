@@ -327,7 +327,7 @@ def test_NativeAcceptanceCannotBeReconstructedOrOutliveOriginalAuthority(authori
         clock=lambda: now[0]))
     assert summary.ExitCode() == 0 and summary.acceptance is not None, summary.ToDict()
     acceptance, captures, root = summary.acceptance, summary.captures, authority.root
-    original_calls = (len(selected.state.calls), len(selected.wire.calls))
+    originalCalls = (len(selected.state.calls), len(selected.wire.calls))
 
     if mode == "construct":
         with pytest.raises(TypeError):
@@ -373,7 +373,7 @@ def test_NativeAcceptanceCannotBeReconstructedOrOutliveOriginalAuthority(authori
     with pytest.raises((ValueError, PermissionError)):
         acceptance.Validate(captures, root)
 
-    assert (len(selected.state.calls), len(selected.wire.calls)) == original_calls, (
+    assert (len(selected.state.calls), len(selected.wire.calls)) == originalCalls, (
         "Refused original acceptance cannot execute, reobserve material or extend its lifetime."
     )
 
@@ -452,8 +452,8 @@ def test_DurableSaveFailuresKeepActualRevisionAndDoNotRetryOriginalCas(
 
     selected = authority.collector
     LocalModelStore(authority.root).Create()
-    original_model_save = LocalModelStore.Save
-    original_workspace_save = LocalWorkspaceStore.Save
+    originalModelSave = LocalModelStore.Save
+    originalWorkspaceSave = LocalWorkspaceStore.Save
     calls = []
 
     def ModelSave(store, state, *, expected_revision):
@@ -462,7 +462,7 @@ def test_DurableSaveFailuresKeepActualRevisionAndDoNotRetryOriginalCas(
         calls.append("model")
         if boundary == "model-before":
             raise OSError("owned-model-save-before")
-        saved = original_model_save(store, state, expected_revision=expected_revision)
+        saved = originalModelSave(store, state, expected_revision=expected_revision)
         if boundary == "model-after":
             raise OSError("owned-model-save-after")
         return saved
@@ -471,7 +471,7 @@ def test_DurableSaveFailuresKeepActualRevisionAndDoNotRetryOriginalCas(
         """Fail only after one complete workspace commit and preserve its real revision."""
 
         calls.append("workspace")
-        saved = original_workspace_save(store, state)
+        saved = originalWorkspaceSave(store, state)
         if boundary == "workspace-after":
             raise OSError("owned-workspace-save-after")
         return saved
@@ -533,10 +533,10 @@ def test_RepeatedNativeCallerCancellationWaitsForOriginalCleanupAndFirstError(
     ready, stopping, release, cleaned = (asyncio.Event() for _ in range(4))
     jobs = []
     cancellations = []
-    original_job = product.ScanJob
-    original_error = RuntimeError("controlled original native presentation failure")
+    originalJob = product.ScanJob
+    originalError = RuntimeError("controlled original native presentation failure")
 
-    class CapturedJob(original_job):
+    class CapturedJob(originalJob):
         """Keep only the actual original core coordinator for guaranteed final settlement."""
 
         def __init__(self, *args, **kwargs):
@@ -586,7 +586,7 @@ def test_RepeatedNativeCallerCancellationWaitsForOriginalCleanupAndFirstError(
         """Raise the original presentation error only after actual owned execution is active."""
 
         if presentation_failure and ready.is_set():
-            raise original_error
+            raise originalError
 
     async def Run():
         """Race readiness with terminal execution and settle the original job in every branch."""
@@ -631,7 +631,7 @@ def test_RepeatedNativeCallerCancellationWaitsForOriginalCleanupAndFirstError(
                 with pytest.raises(RuntimeError) as caught:
                     await task
 
-                assert caught.value is original_error, (
+                assert caught.value is originalError, (
                     "Later caller cancellation must preserve the first native presentation failure."
                 )
 
@@ -829,8 +829,8 @@ def test_FreshAuthorityImmediatelyBeforeEachSuccessfulSaveKeepsFailureAcquisitio
     selected = authority.collector
     LocalModelStore(authority.root).Create()
     normalize = product.ApplyVerifiedNativeTrivyImages
-    save_model = LocalModelStore.Save
-    save_workspace = LocalWorkspaceStore.Save
+    saveModel = LocalModelStore.Save
+    saveWorkspace = LocalWorkspaceStore.Save
     writes = []
 
     def Revoke():
@@ -853,7 +853,7 @@ def test_FreshAuthorityImmediatelyBeforeEachSuccessfulSaveKeepsFailureAcquisitio
         """Revoke only after the already acknowledged model if workspace is the chosen boundary."""
 
         writes.append("model")
-        saved = save_model(store, state, expected_revision=expected_revision)
+        saved = saveModel(store, state, expected_revision=expected_revision)
         if boundary == "workspace":
             Revoke()
         return saved
@@ -862,7 +862,7 @@ def test_FreshAuthorityImmediatelyBeforeEachSuccessfulSaveKeepsFailureAcquisitio
         """Count only an actual original-revision write, including acquisition-only finalization."""
 
         writes.append("workspace")
-        return save_workspace(store, state)
+        return saveWorkspace(store, state)
 
     monkeypatch.setattr(product, "ApplyVerifiedNativeTrivyImages", Normalize)
     monkeypatch.setattr(LocalModelStore, "Save", SaveModel)

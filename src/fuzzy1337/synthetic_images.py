@@ -111,10 +111,10 @@ class ImageEvidenceStore(LocalEvidenceStore):
         if type(reference) is not EvidenceReference or reference.role not in _ROLE_LIMITS:
             raise ValueError("synthetic image read requires its bounded original source role")
 
-        limit, media_type = _ROLE_LIMITS[reference.role]
+        limit, mediaType = _ROLE_LIMITS[reference.role]
 
         if type(reference.size_bytes) is not int or not 0 <= reference.size_bytes <= limit or (
-            reference.media_type != media_type
+            reference.media_type != mediaType
         ):
             raise ValueError("synthetic image actual record exceeds its role budget")
 
@@ -249,14 +249,14 @@ def VerifyPair(version: Capture, scan: Capture) -> str:
         ValueError: The original pair reuses or contradicts acquisition, content or authority facts.
     """
 
-    version_stage = version.envelope["stage_payload"]
-    scan_stage = scan.envelope["stage_payload"]
+    versionStage = version.envelope["stage_payload"]
+    scanStage = scan.envelope["stage_payload"]
     prerequisite = Digest({
         "artifact_metadata": version.envelope["artifact_metadata"],
         "prepared_payload": version.envelope["prepared_payload"],
-        "stage_payload": version_stage,
+        "stage_payload": versionStage,
     })
-    same_fields = (
+    sameFields = (
         "owner_ref", "profile", "provider_version", "input_manifest_sha256",
         "scanner_manifest_sha256", "material_manifest_sha256", "workspace_id",
         "scope_reference", "scope_revision", "scope_sha256", "policy_reference",
@@ -265,16 +265,16 @@ def VerifyPair(version: Capture, scan: Capture) -> str:
 
     if (
         version.acceptance.refusal is not None
-        or any(version.plan[name] != scan.plan[name] for name in same_fields)
+        or any(version.plan[name] != scan.plan[name] for name in sameFields)
         or version.envelope["artifact_metadata"]["manifests"] != (
             scan.envelope["artifact_metadata"]["manifests"]
         )
         or version.envelope["prepared_payload"]["workspace_root"] != (
             scan.envelope["prepared_payload"]["workspace_root"]
         )
-        or version_stage["executable"] != scan_stage["executable"]
-        or version_stage["executable_identity"] != scan_stage["executable_identity"]
-        or any(version_stage[name] == scan_stage[name]
+        or versionStage["executable"] != scanStage["executable"]
+        or versionStage["executable_identity"] != scanStage["executable_identity"]
+        or any(versionStage[name] == scanStage[name]
                for name in ("root", "root_identity", "lease"))
         or version.acceptance.run_id == scan.acceptance.run_id
         or version.acceptance.grant_id == scan.acceptance.grant_id
@@ -295,7 +295,7 @@ def VerifyPair(version: Capture, scan: Capture) -> str:
 
     ParseObservedImageVersion(version.stdout)
 
-    if StageCopies(version_stage) & StageCopies(scan_stage):
+    if StageCopies(versionStage) & StageCopies(scanStage):
         raise ValueError("synthetic image pair reuses original physical staging material")
 
     return prerequisite
@@ -346,14 +346,14 @@ def VerifyRecords(
     ):
         raise ValueError("synthetic image verification requires six original typed records")
 
-    by_role = {record.reference.role: record for record in records}
+    byRole = {record.reference.role: record for record in records}
 
-    if set(by_role) != set(_ROLE_LIMITS):
+    if set(byRole) != set(_ROLE_LIMITS):
         raise ValueError("synthetic image verification requires its six exact distinct roles")
 
     try:
         workspace = LocalWorkspaceStore(workspace_root)
-        workspace_id = workspace.Open().workspace_id
+        workspaceId = workspace.Open().workspace_id
         store = ImageEvidenceStore(workspace.root / "evidence")
 
     except (ValueError, TypeError, OverflowError, RecursionError):
@@ -364,14 +364,14 @@ def VerifyRecords(
 
     raw = {}
 
-    for role, record in by_role.items():
-        limit, media_type = _ROLE_LIMITS[role]
+    for role, record in byRole.items():
+        limit, mediaType = _ROLE_LIMITS[role]
 
-        if record.reference.size_bytes > limit or record.reference.media_type != media_type:
+        if record.reference.size_bytes > limit or record.reference.media_type != mediaType:
             raise ValueError("synthetic image record exceeds its role byte/media-type contract")
 
         try:
-            if record.provenance.workspace_id != workspace_id or (
+            if record.provenance.workspace_id != workspaceId or (
                 store.Get(record.evidence_id) != record
             ):
                 raise ValueError("synthetic image record differs from its immutable manifest")
@@ -382,8 +382,8 @@ def VerifyRecords(
             raise type(error)("synthetic image source evidence cannot be verified") from None
 
     try:
-        version = VerifyOperation(by_role, raw, "version")
-        scan = VerifyOperation(by_role, raw, "scan")
+        version = VerifyOperation(byRole, raw, "version")
+        scan = VerifyOperation(byRole, raw, "scan")
         prerequisite = VerifyPair(version, scan)
         provenance = ModelProvenance(
             "synthetic.trivy", scan.acceptance.run_id, scan.envelope["collection_finished_at"],
@@ -395,7 +395,7 @@ def VerifyRecords(
         raise ValueError("synthetic image original capture facts are inconsistent") from None
 
     facts = SyntheticImageReplay(
-        workspace_id, scan.plan["owner_ref"], version.acceptance, scan.acceptance, provenance,
+        workspaceId, scan.plan["owner_ref"], version.acceptance, scan.acceptance, provenance,
         version.envelope["collection_started_at"], version.envelope["collection_finished_at"],
         scan.envelope["collection_started_at"], scan.envelope["collection_finished_at"],
         prerequisite, tuple(sorted(records, key=lambda record: record.reference.role)),
@@ -480,11 +480,11 @@ def ApplyVerifiedSyntheticTrivyImages(
             raise ValueError("synthetic image records do not belong to these exact original runs")
 
     try:
-        version_payload = ParseJson(version.stdout, 16 * 1024)
+        versionPayload = ParseJson(version.stdout, 16 * 1024)
         payload = ParseJson(scan.stdout, 4 * 1024 * 1024)
         candidates = SyntheticTrivyCandidates(
-            state.workspace_id, payload, version_payload,
-            cast(dict[str, object], version_payload["VulnerabilityDB"]),
+            state.workspace_id, payload, versionPayload,
+            cast(dict[str, object], versionPayload["VulnerabilityDB"]),
             facts.provenance,
         )
         objects, relations, observations, findings = candidates

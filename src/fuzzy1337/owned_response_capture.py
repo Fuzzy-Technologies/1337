@@ -547,19 +547,19 @@ class OwnedResponseCaptureProvider:
 
         try:
             context.CheckCancellation()
-            owner_task = self._owner_task
+            ownerTask = self._owner_task
 
-            if owner_task is None:
+            if ownerTask is None:
                 raise PermissionError("owned response original owning task is absent")
 
-            owner_finished = owner_task.done()
+            ownerFinished = ownerTask.done()
 
             if (
                 capture is not self.capture
                 or type(capture) is not OwnedResponseCapture
                 or context is not self._context
-                or asyncio.current_task() is not owner_task
-                or owner_finished
+                or asyncio.current_task() is not ownerTask
+                or ownerFinished
                 or (
                     self.prepared is None
                     or capture.request is not self.prepared.request
@@ -637,7 +637,7 @@ class OwnedResponseCaptureProvider:
 
             started = self.Now().isoformat()
             result = await self.Execute(prepared, context, origin)
-            custody_started = self.Tick()
+            custodyStarted = self.Tick()
             ValidateControlResult(result, _family=self._family)
 
             if Canonical(prepared.request) != prepared.projection:
@@ -707,7 +707,7 @@ class OwnedResponseCaptureProvider:
             ):
                 raise asyncio.CancelledError
 
-            if self._timed_out or self.Tick() - custody_started > 8 or (self.Tick() - origin > 28):
+            if self._timed_out or self.Tick() - custodyStarted > 8 or (self.Tick() - origin > 28):
                 raise TimeoutError
 
             if refusal is not None:

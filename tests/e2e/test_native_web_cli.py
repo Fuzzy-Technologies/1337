@@ -33,22 +33,22 @@ def Setup(root: Path, url: str, *, check: str = "git-head-exposure") -> list[str
     assert RunCommands("workspace", ["create", str(root), "--id", "native-cli",
         "--name", "Owned native CLI acceptance"], output) == 0, "Workspace creation failed."
     now = datetime.now(UTC)
-    scope_flag = "--allow-canary-url" if check == "file-canary-disclosure" else "--allow-url"
-    scope_arguments = ["create", str(root), "--id", "local", scope_flag, url,
+    scopeFlag = "--allow-canary-url" if check == "file-canary-disclosure" else "--allow-url"
+    scopeArguments = ["create", str(root), "--id", "local", scopeFlag, url,
         "--allow-ip", "127.0.0.1", "--grant-consent", "--owner", "operator:owned",
         "--consent-reference", "consent:owned-native-cli",
         "--valid-from", (now - timedelta(minutes=1)).isoformat(),
         "--valid-until", (now + timedelta(minutes=10)).isoformat()]
-    assert RunCommands("scope", scope_arguments, output) == 0, "Explicit scope creation failed."
+    assert RunCommands("scope", scopeArguments, output) == 0, "Explicit scope creation failed."
     policy = ImpactPolicy("owned-native-web", maximum_impact=ImpactLevel.STANDARD,
         permissions=(CapabilityPermission(NATIVE_FILE_CANARY_CAPABILITY
             if check == "file-canary-disclosure" else NATIVE_WEB_CAPABILITY, NATIVE_WEB_PROVIDER_ID,
                                            ImpactLevel.STANDARD),))
-    policy_path = root / "native-policy.json"
-    policy_path.write_text(SerializeContract(policy), encoding="utf-8")
+    policyPath = root / "native-policy.json"
+    policyPath.write_text(SerializeContract(policy), encoding="utf-8")
 
     return ["web", str(root), "--check", check, "--scope", "local",
-        "--owner", "operator:owned", "--target", url, "--policy", str(policy_path)]
+        "--owner", "operator:owned", "--target", url, "--policy", str(policyPath)]
 
 
 def Plan(arguments: list[str]) -> dict:

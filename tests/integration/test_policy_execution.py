@@ -111,10 +111,10 @@ def Setup(tmp_path: Path, exit_code: int = 0):
 def test_GovernedRealProcessPreservesOutputEventsAndTerminalTruth(tmp_path, exit_code):
     """Policy-approved owned processes retain the existing executor's full terminal contract."""
 
-    root, marker, _, context_provider, grant, request = Setup(tmp_path, exit_code)
+    root, marker, _, contextProvider, grant, request = Setup(tmp_path, exit_code)
     observed = []
     result = asyncio.run(GovernedLocalExecutor(root, clock=lambda: AT).Execute(
-        request, grant=grant, context_provider=context_provider, on_event=observed.append
+        request, grant=grant, context_provider=contextProvider, on_event=observed.append
     ))
     assert marker.read_text(encoding="utf-8") == "launched", "Approved invocation did not launch"
     assert result.execution.exit_code == exit_code, "Policy facade changed the child's exit code"
@@ -130,13 +130,13 @@ def test_GovernedRealProcessPreservesOutputEventsAndTerminalTruth(tmp_path, exit
 def test_PersistedScopeEditDuringWorkspaceValidationIsCaughtAtLaunch(tmp_path, monkeypatch):
     """The facade reopens scope after executor preparation, rather than checking an old snapshot."""
 
-    root, marker, store, context_provider, grant, request = Setup(tmp_path)
-    original_resolve = LocalExecutor.ResolveWorkspace
+    root, marker, store, contextProvider, grant, request = Setup(tmp_path)
+    originalResolve = LocalExecutor.ResolveWorkspace
 
     def ResolveAndChangeScope(executor, workspace):
         """Simulate a consent revision during preparation immediately before launch."""
 
-        path = original_resolve(executor, workspace)
+        path = originalResolve(executor, workspace)
         store.Save(replace(store.Open("synthetic"), allow=(TARGET,)))
 
         return path
@@ -145,7 +145,7 @@ def test_PersistedScopeEditDuringWorkspaceValidationIsCaughtAtLaunch(tmp_path, m
 
     with pytest.raises(PolicyDeniedError) as denied:
         asyncio.run(GovernedLocalExecutor(root, clock=lambda: AT).Execute(
-            request, grant=grant, context_provider=context_provider
+            request, grant=grant, context_provider=contextProvider
         ))
 
     assert denied.value.reason == PolicyDenialReason.CONTEXT_CHANGED, (
@@ -157,12 +157,12 @@ def test_PersistedScopeEditDuringWorkspaceValidationIsCaughtAtLaunch(tmp_path, m
 def test_AllowlistedButChangedActualDestinationInvalidatesLaunchGrant(tmp_path):
     """Even another allowed destination requires a newly reviewed exact intent."""
 
-    root, marker, _, context_provider, grant, request = Setup(tmp_path)
+    root, marker, _, contextProvider, grant, request = Setup(tmp_path)
 
     def ChangedDestination():
         """Present a changed current destination, without broadening scope membership."""
 
-        return replace(context_provider(), destinations=(OTHER,))
+        return replace(contextProvider(), destinations=(OTHER,))
 
     with pytest.raises(PolicyDeniedError) as denied:
         asyncio.run(GovernedLocalExecutor(root, clock=lambda: AT).Execute(
@@ -178,14 +178,14 @@ def test_AllowlistedButChangedActualDestinationInvalidatesLaunchGrant(tmp_path):
 def test_DeniedCurrentScopeStopsLaunchWithoutProcessOrSuccessEvents(tmp_path):
     """Revocation immediately before execution is enforced against persisted current scope."""
 
-    root, marker, store, context_provider, grant, request = Setup(tmp_path)
+    root, marker, store, contextProvider, grant, request = Setup(tmp_path)
     scope = store.Open("synthetic")
     store.Save(replace(scope, authorization=ScopeAuthorization(AuthorizationState.REVOKED)))
     observed = []
 
     with pytest.raises(PolicyDeniedError) as denied:
         asyncio.run(GovernedLocalExecutor(root, clock=lambda: AT).Execute(
-            request, grant=grant, context_provider=context_provider, on_event=observed.append
+            request, grant=grant, context_provider=contextProvider, on_event=observed.append
         ))
 
     assert denied.value.reason == PolicyDenialReason.SCOPE_DENIED, (
@@ -198,11 +198,11 @@ def test_DeniedCurrentScopeStopsLaunchWithoutProcessOrSuccessEvents(tmp_path):
 def test_ExpiredGrantStopsLaunch(tmp_path):
     """An exact previously approved invocation still expires before process creation."""
 
-    root, marker, _, context_provider, grant, request = Setup(tmp_path)
+    root, marker, _, contextProvider, grant, request = Setup(tmp_path)
 
     with pytest.raises(PolicyDeniedError) as denied:
         asyncio.run(GovernedLocalExecutor(root, clock=lambda: AT + timedelta(minutes=5)).Execute(
-            request, grant=grant, context_provider=context_provider
+            request, grant=grant, context_provider=contextProvider
         ))
 
     assert denied.value.reason == PolicyDenialReason.GRANT_EXPIRED, (
@@ -214,14 +214,14 @@ def test_ExpiredGrantStopsLaunch(tmp_path):
 def test_SubstitutedSdkEnvelopeCannotBypassPolicyFacade(tmp_path):
     """A request with a matching invocation but unrelated envelope is rejected before launch."""
 
-    root, marker, _, context_provider, grant, request = Setup(tmp_path)
+    root, marker, _, contextProvider, grant, request = Setup(tmp_path)
     request = replace(request, authorization=replace(
         request.authorization, authorization_id="authorization:substituted"
     ))
 
     with pytest.raises(PolicyDeniedError) as denied:
         asyncio.run(GovernedLocalExecutor(root, clock=lambda: AT).Execute(
-            request, grant=grant, context_provider=context_provider
+            request, grant=grant, context_provider=contextProvider
         ))
 
     assert denied.value.reason == PolicyDenialReason.GRANT_CHANGED, (
@@ -251,11 +251,11 @@ def test_FailedCurrentContextReadNeverDegradesToSdkExecution(tmp_path):
 def test_PreCancelledPolicyExecutionRetainsNoLaunchBehavior(tmp_path):
     """A cancelled request performs no launch and cannot become a successful scan."""
 
-    root, marker, _, context_provider, grant, request = Setup(tmp_path)
+    root, marker, _, contextProvider, grant, request = Setup(tmp_path)
     cancellation = asyncio.Event()
     cancellation.set()
     result = asyncio.run(GovernedLocalExecutor(root, clock=lambda: AT).Execute(
-        request, grant=grant, context_provider=context_provider, cancellation=cancellation
+        request, grant=grant, context_provider=contextProvider, cancellation=cancellation
     ))
     assert result.execution.state == ExecutionState.CANCELLED, (
         "Precancelled execution became success"
@@ -266,21 +266,21 @@ def test_PreCancelledPolicyExecutionRetainsNoLaunchBehavior(tmp_path):
 def test_ConcurrentGovernedInvocationsKeepIndependentExactGrantBindings(tmp_path):
     """One facade can run two distinct approved invocations without mutable shared grant state."""
 
-    root, marker, _, context_provider, first_grant, first_request = Setup(tmp_path)
-    second_marker = root / "second-marker.txt"
-    second_invocation = replace(first_request.invocation, argv=(
-        *first_request.invocation.argv[:2], str(second_marker), "7"
+    root, marker, _, contextProvider, firstGrant, firstRequest = Setup(tmp_path)
+    secondMarker = root / "second-marker.txt"
+    secondInvocation = replace(firstRequest.invocation, argv=(
+        *firstRequest.invocation.argv[:2], str(secondMarker), "7"
     ))
     engine = PolicyEngine()
-    second_plan = engine.Plan(
-        second_invocation, first_request.capability, context_provider(), at=AT
+    secondPlan = engine.Plan(
+        secondInvocation, firstRequest.capability, contextProvider(), at=AT
     )
-    second_grant = engine.Authorize(
-        second_invocation, first_request.capability, context_provider(), at=AT,
-        confirmation=PolicyConfirmation(second_plan.intent_sha256, "approval:second-plan"),
+    secondGrant = engine.Authorize(
+        secondInvocation, firstRequest.capability, contextProvider(), at=AT,
+        confirmation=PolicyConfirmation(secondPlan.intent_sha256, "approval:second-plan"),
     )
-    second_request = replace(
-        first_request, invocation=second_invocation, authorization=second_grant.authorization
+    secondRequest = replace(
+        firstRequest, invocation=secondInvocation, authorization=secondGrant.authorization
     )
 
     async def RunBoth():
@@ -289,25 +289,25 @@ def test_ConcurrentGovernedInvocationsKeepIndependentExactGrantBindings(tmp_path
         executor = GovernedLocalExecutor(root, clock=lambda: AT)
 
         return await asyncio.gather(
-            executor.Execute(first_request, grant=first_grant, context_provider=context_provider),
-            executor.Execute(second_request, grant=second_grant, context_provider=context_provider),
+            executor.Execute(firstRequest, grant=firstGrant, context_provider=contextProvider),
+            executor.Execute(secondRequest, grant=secondGrant, context_provider=contextProvider),
         )
 
     results = asyncio.run(RunBoth())
     assert [item.execution.exit_code for item in results] == [0, 7], (
         "Concurrent grants crossed jobs"
     )
-    assert marker.exists() and second_marker.exists(), "Concurrent owned invocation was lost"
+    assert marker.exists() and secondMarker.exists(), "Concurrent owned invocation was lost"
 
 
 def test_UntypedPolicyGrantIsRejectedBeforeLaunch(tmp_path):
     """The launch facade requires its exact typed grant, rather than an SDK envelope alone."""
 
-    root, marker, _, context_provider, _, request = Setup(tmp_path)
+    root, marker, _, contextProvider, _, request = Setup(tmp_path)
 
     with pytest.raises(ValueError, match="PolicyGrant"):
         asyncio.run(GovernedLocalExecutor(root).Execute(
-            request, grant=None, context_provider=context_provider
+            request, grant=None, context_provider=contextProvider
         ))
 
     assert not marker.exists(), "An untyped grant reached process creation"

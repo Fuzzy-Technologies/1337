@@ -275,20 +275,20 @@ def test_MissingWorkspaceAndLaunchFailureFailClosed(tmp_path):
         asyncio.run(LocalExecutor(tmp_path).Execute(missing))
 
     invocation = missing.invocation
-    unavailable_invocation = AdapterInvocation(
+    unavailableInvocation = AdapterInvocation(
         adapter_id=invocation.adapter_id,
         request=invocation.request,
         argv=(str(tmp_path / "not-an-executable"),),
         timeout_seconds=invocation.timeout_seconds,
     )
     unavailable = LocalExecutionRequest(
-        invocation=unavailable_invocation,
+        invocation=unavailableInvocation,
         capability=missing.capability,
         authorization=ExecutionAuthorization(
             authorization_id="authorization:missing-tool",
             scope_reference="scope:localhost-fixture",
             policy_reference="policy:test-only",
-            invocation_sha256=InvocationDigest(unavailable_invocation),
+            invocation_sha256=InvocationDigest(unavailableInvocation),
         ),
     )
 
@@ -301,12 +301,12 @@ def CaptureExecutor(tmp_path, monkeypatch):
 
     executor = LocalExecutor(tmp_path)
     processes = []
-    start_process = executor.StartProcess
+    startProcess = executor.StartProcess
 
     async def Start(request, workspace, environment):
         """Record the owned child without changing real process creation."""
 
-        process = await start_process(request, workspace, environment)
+        process = await startProcess(request, workspace, environment)
         processes.append(process)
 
         return process
@@ -467,8 +467,8 @@ def test_RepeatedCancellationCannotInterruptOwnedCleanup(tmp_path, monkeypatch):
 
         executor, processes = CaptureExecutor(tmp_path, monkeypatch)
         observed = asyncio.Event()
-        cleanup_entered = asyncio.Event()
-        finish_cleanup = asyncio.Event()
+        cleanupEntered = asyncio.Event()
+        finishCleanup = asyncio.Event()
         baseline = asyncio.all_tasks()
         terminate = executor.Terminate
 
@@ -482,9 +482,9 @@ def test_RepeatedCancellationCannotInterruptOwnedCleanup(tmp_path, monkeypatch):
         async def Terminate(process, grace_seconds):
             """Pause test-owned reaping until the second cancellation is delivered."""
 
-            cleanup_entered.set()
+            cleanupEntered.set()
 
-            await finish_cleanup.wait()
+            await finishCleanup.wait()
 
             await terminate(process, grace_seconds)
 
@@ -498,14 +498,14 @@ def test_RepeatedCancellationCannotInterruptOwnedCleanup(tmp_path, monkeypatch):
 
             task.cancel()
 
-            await asyncio.wait_for(cleanup_entered.wait(), 3)
+            await asyncio.wait_for(cleanupEntered.wait(), 3)
 
             task.cancel()
 
             await asyncio.sleep(0)
 
             assert not task.done(), "Repeated cancellation abandoned in-progress reaping."
-            finish_cleanup.set()
+            finishCleanup.set()
 
             with pytest.raises(asyncio.CancelledError):
                 await asyncio.wait_for(task, 3)
@@ -514,7 +514,7 @@ def test_RepeatedCancellationCannotInterruptOwnedCleanup(tmp_path, monkeypatch):
             assert asyncio.all_tasks() == baseline, "Repeated cancellation left background tasks."
 
         finally:
-            finish_cleanup.set()
+            finishCleanup.set()
 
             if not task.done():
                 task.cancel()
@@ -537,7 +537,7 @@ def test_RepeatedCancellationCannotHideBoundedCleanupDenial(tmp_path, monkeypatc
         observed = asyncio.Event()
         denied = asyncio.Event()
         baseline = asyncio.all_tasks()
-        original_signal = local.KillProcessGroup
+        originalSignal = local.KillProcessGroup
 
         async def Observe(event) -> None:
             """Suspend at the initial handoff until cancellation requests owned cleanup."""
@@ -575,7 +575,7 @@ def test_RepeatedCancellationCannotHideBoundedCleanupDenial(tmp_path, monkeypatc
             assert asyncio.all_tasks() == baseline, "Denied cleanup must still reap owned waiters."
 
         finally:
-            monkeypatch.setattr(local, "KillProcessGroup", original_signal)
+            monkeypatch.setattr(local, "KillProcessGroup", originalSignal)
 
             if not task.done():
                 task.cancel()

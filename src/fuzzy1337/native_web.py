@@ -220,12 +220,12 @@ def PlanNativeWebScan(
     check = NativeWebCheckFor(check_id)
     NativeWebEndpoint(target.value, check_id=check_id)
     RequireWorkspaceText(owner_reference, "owner_reference")
-    workspace_store = LocalWorkspaceStore(workspace_root)
-    workspace = workspace_store.Open()
-    evidence = LocalEvidenceStore(workspace_store.root / "evidence")
+    workspaceStore = LocalWorkspaceStore(workspace_root)
+    workspace = workspaceStore.Open()
+    evidence = LocalEvidenceStore(workspaceStore.root / "evidence")
     VerifyWorkspaceEvidence(workspace, evidence)
-    LocalModelStore(workspace_store.root).Open()
-    authority = CurrentContext(workspace_store.root, scope_id, target, owner_reference,
+    LocalModelStore(workspaceStore.root).Open()
+    authority = CurrentContext(workspaceStore.root, scope_id, target, owner_reference,
                                policy_provider, check_id=check_id)
     adapter = NativeWebAdapter(evidence.Read)
     invocation = adapter.PrepareInvocation(AdapterRequest(
@@ -235,9 +235,9 @@ def PlanNativeWebScan(
     ))
     capability = next(item for item in CapabilityDescriptors(adapter.Descriptor)
                       if item.identifier == invocation.request.capability)
-    policy_plan = PolicyEngine().Plan(invocation, capability, authority, at=clock())
+    policyPlan = PolicyEngine().Plan(invocation, capability, authority, at=clock())
 
-    return NativeWebScanPlan(invocation, policy_plan)
+    return NativeWebScanPlan(invocation, policyPlan)
 
 
 @dataclass(frozen=True, slots=True)
@@ -317,9 +317,9 @@ class NativeWebWorkflow:
         if self.adapter.PrepareInvocation(self.invocation.request) != self.invocation:
             raise ValueError("native web selected invocation changed")
 
-        check_id = str(self.invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID))
+        checkId = str(self.invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID))
 
-        if check_id == NATIVE_FILE_CANARY_CHECK_ID:
+        if checkId == NATIVE_FILE_CANARY_CHECK_ID:
             template = RequestTemplate.FromDict(JsonValue(
                 self.invocation.request.parameters["request_template"]))
 
@@ -329,7 +329,7 @@ class NativeWebWorkflow:
                 raise ValueError("owned canary request differs from its current workspace")
 
         return CurrentContext(self.workspace_root, self.scope_id, self.target,
-                              self.owner_reference, self.policy_provider, check_id=check_id)
+                              self.owner_reference, self.policy_provider, check_id=checkId)
 
     async def Run(self, context: JobContext) -> None:
         """Run one exact confirmed worker and retain actual acquisitions on every terminal path.
@@ -430,9 +430,9 @@ class NativeWebWorkflow:
             NATIVE_WEB_VERSION, report.evidence, report.execution)
         store = LocalModelStore(self.workspace_root)
         state = store.Open()
-        check_id = str(self.invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID))
+        checkId = str(self.invocation.request.parameters.get("check_id", NATIVE_WEB_CHECK_ID))
 
-        if check_id == NATIVE_FILE_CANARY_CHECK_ID:
+        if checkId == NATIVE_FILE_CANARY_CHECK_ID:
             template = RequestTemplate.FromDict(JsonValue(
                 self.invocation.request.parameters["request_template"]))
 
@@ -455,7 +455,7 @@ class NativeWebWorkflow:
             normalized, {self.target.Reference(): subject}, provenance,
         )
         findings = tuple(Finding(
-            subject.Reference(), check_id, self.target.value, item.summary,
+            subject.Reference(), checkId, self.target.value, item.summary,
             (provenance,), severity=FindingSeverity.LOW,
         ) for item in normalized.findings)
         projected, _ = ApplyVerifiedFindings(projected, findings, self.workspace_root)
@@ -506,7 +506,7 @@ class NativeWebWorkflow:
             evidence = LocalEvidenceStore(self.workspace_root / "evidence")
             VerifyWorkspaceEvidence(workspace, evidence)
             references = {(item.locator, item.role): item for item in workspace.evidence_references}
-            record_ids = set(workspace.evidence_record_references)
+            recordIds = set(workspace.evidence_record_references)
 
             for artifact in snapshot.artifacts:
                 record = artifact.evidence
@@ -517,7 +517,7 @@ class NativeWebWorkflow:
                 evidence.Read(record.reference)
                 references.setdefault((record.reference.locator, record.reference.role),
                                       record.reference)
-                record_ids.add(record.evidence_id)
+                recordIds.add(record.evidence_id)
 
             store.Save(replace(workspace,
                 scope_references=tuple(sorted({*workspace.scope_references,
@@ -526,7 +526,7 @@ class NativeWebWorkflow:
                                                 *(item.Reference() for item in model.objects)})),
                 job_references=(*workspace.job_references, snapshot.spec.job_id),
                 evidence_references=tuple(references[key] for key in sorted(references)),
-                evidence_record_references=tuple(sorted(record_ids)),
+                evidence_record_references=tuple(sorted(recordIds)),
             ))
 
         except (OSError, ValueError, EvidenceError, WorkspaceBusyError,
@@ -587,7 +587,7 @@ async def RunNativeWebScan(
     provider = NativeWebWorkflow(store.root, scope_id, target, owner_reference, policy_provider,
                                 adapter, plan.invocation, confirmation, Snapshot, clock)
     job = ScanJob(spec, provider, evidence_store=evidence)
-    started_at = datetime.now(UTC).isoformat()
+    startedAt = datetime.now(UTC).isoformat()
     started = time.monotonic()
     cursor = -1
     job.Start()
@@ -619,7 +619,7 @@ async def RunNativeWebScan(
     snapshot = await job.Wait()
     model = LocalModelStore(store.root).Open()
 
-    return NativeWebScanSummary(snapshot, started_at, datetime.now(UTC).isoformat(),
+    return NativeWebScanSummary(snapshot, startedAt, datetime.now(UTC).isoformat(),
         time.monotonic() - started, model.revision,
         tuple((kind.value, len(model.Objects(kind))) for kind in ObjectKind), job.EventsSince(),
         check_id=check_id)

@@ -97,11 +97,11 @@ def test_PreparationPinsImmutableScenarioScopeRevisionAndMembershipOnly():
     prepared = PrepareJourney(scenario, scope, at=AT)
     document = scenario.ToDict()
     document["scenario_id"] = "changed"
-    later_scope = replace(scope, revision=8, deny=scenario.allowed_targets)
+    laterScope = replace(scope, revision=8, deny=scenario.allowed_targets)
 
     assert prepared.scenario == scenario, "Prepared scenario was replaced by mutable input"
     assert prepared.scenario_digest == scenario.Digest(), "Preparation lost its content binding"
-    assert prepared.scope_revision == 7 and later_scope.revision == 8, (
+    assert prepared.scope_revision == 7 and laterScope.revision == 8, (
         "Preparation did not pin the observed scope revision"
     )
     assert prepared.checked_at == AT.isoformat(), "Explicit scope-check time was lost"
@@ -336,9 +336,9 @@ def test_FillAndApiRequireFiniteDataMethodAndAssertions():
     with pytest.raises(ValueError, match="templates"):
         replace(scenario.steps[3], test_data_key="${script}")
 
-    no_data = replace(scenario.steps[3], test_data_key=None, method=JourneyHttpMethod.GET)
+    noData = replace(scenario.steps[3], test_data_key=None, method=JourneyHttpMethod.GET)
     anonymous = replace(
-        scenario, steps=(no_data,), test_data_reference=None, session_reference=None
+        scenario, steps=(noData,), test_data_reference=None, session_reference=None
     )
     assert JourneyScenario.FromJson(anonymous.ToJson()) == anonymous, (
         "Explicit unauthenticated API declarations were rejected"

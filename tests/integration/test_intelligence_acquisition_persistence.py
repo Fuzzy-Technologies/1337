@@ -208,8 +208,8 @@ def test_ProductionImportReplayAndVerifiedConsumerPreserveOriginalSourceAndFindi
 ):
     """The implemented API feeds the actual canonical consumer without changing owner triage."""
 
-    model, finding_reference = Context(tmp_path)
-    original_model = (model.root / "state/model/model.json").read_bytes()
+    model, findingReference = Context(tmp_path)
+    originalModel = (model.root / "state/model/model.json").read_bytes()
     times = iter(("2026-10-13T10:00:00.000000+00:00", "2026-10-13T10:00:01.000000+00:00"))
     monkeypatch.setattr(acquisition, "AcquisitionTime", lambda: next(times))
     outcome = AcquireIntelligenceSnapshot(
@@ -219,7 +219,7 @@ def test_ProductionImportReplayAndVerifiedConsumerPreserveOriginalSourceAndFindi
     assert outcome.state is AcquisitionState.SUCCEEDED and outcome.snapshot_record is not None, (
         "Actual production import did not publish a replayable parsed source"
     )
-    assert (model.root / "state/model/model.json").read_bytes() == original_model, (
+    assert (model.root / "state/model/model.json").read_bytes() == originalModel, (
         "Acquisition silently mutated the canonical finding/model state"
     )
     moved = tmp_path / "moved"
@@ -230,7 +230,7 @@ def test_ProductionImportReplayAndVerifiedConsumerPreserveOriginalSourceAndFindi
     provenance = ModelProvenance("intel", "run:enrichment", "2026-10-13T11:00:00Z",
                                  "scope:owned", "target:owned")
     proposal, delta = ApplyVerifiedEnrichment(
-        state, finding_reference, (CVE,), (replayed,), provenance, moved,
+        state, findingReference, (CVE,), (replayed,), provenance, moved,
         as_of="2026-10-13T11:00:00Z", max_age_seconds=86400,
     )
     model.Save(proposal, expected_revision=delta.previous_revision)

@@ -491,34 +491,34 @@ class NativeImageMaterialObserver:
             prefix="native-material-", dir=self.selection.workspace_root))
         os.chmod(directory, 0o700)
         info = ArtifactPathInfo(directory, directory=True)
-        directory_identity = info.st_dev, info.st_ino
+        directoryIdentity = info.st_dev, info.st_ino
         root = ArtifactPathInfo(self.selection.workspace_root, directory=True)
-        workspace_identity = root.st_dev, root.st_ino
+        workspaceIdentity = root.st_dev, root.st_ino
         nonce = uuid.uuid4().hex
         fields: dict[str, object] = {"schema_version": 1, "nonce": nonce,
             "operation_reference": pair, "workspace_id": self.workspace_id,
             "owner_reference": self.owner_reference, "read_consent": {
                 "actor_ref": self.selection.read_consent.actor_ref,
                 "record_ref": self.selection.read_consent.record_ref},
-            "selection": self._selection_fields, "directory_identity": directory_identity,
-            "workspace_identity": workspace_identity,
+            "selection": self._selection_fields, "directory_identity": directoryIdentity,
+            "workspace_identity": workspaceIdentity,
             "roles": ROLE_BOUNDS}
         raw = CanonicalControl(fields)
-        request_path = directory / "request.json"
+        requestPath = directory / "request.json"
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
 
-        with os.fdopen(os.open(request_path, flags, 0o600), "wb") as stream:
+        with os.fdopen(os.open(requestPath, flags, 0o600), "wb") as stream:
             stream.write(raw)
             stream.flush()
             os.fsync(stream.fileno())
 
-        request_identity = PhysicalIdentity(ArtifactPathInfo(request_path))
+        requestIdentity = PhysicalIdentity(ArtifactPathInfo(requestPath))
         digest = hashlib.sha256(raw).hexdigest()
-        invocation_request = AdapterRequest("image.material-observation", "material:" + nonce,
+        invocationRequest = AdapterRequest("image.material-observation", "material:" + nonce,
             ImpactLevel.SAFE, {"profile": "native-image-four-files-v1"})
-        invocation = AdapterInvocation("native.material-observer", invocation_request,
+        invocation = AdapterInvocation("native.material-observer", invocationRequest,
             (sys.executable, "-I", "-m", "fuzzy1337.native_image_material_worker",
-             str(request_path), digest, ",".join(str(item) for item in request_identity)), 6)
+             str(requestPath), digest, ",".join(str(item) for item in requestIdentity)), 6)
         authority = ExecutionAuthorization("read:" + nonce,
             self.selection.read_consent.record_ref, "read-consent:" + self.owner_reference,
             InvocationDigest(invocation))
@@ -542,7 +542,7 @@ class NativeImageMaterialObserver:
                 raise NativeImageObservationError("native material launch is cancelled or changed")
 
             window.WorkerSeconds()
-            ReadControl(request_path, digest, request_identity)
+            ReadControl(requestPath, digest, requestIdentity)
 
         event_count = 0
         event_bytes = 0
@@ -613,17 +613,17 @@ class NativeImageMaterialObserver:
                 raise NativeImageObservationError("native material worker did not succeed")
 
             value = ParseControl(outcome.stdout)
-            proof = self.ParseProof(value, fields, digest, request_identity,
-                directory_identity, workspace_identity, paths)
-            ReadControl(request_path, digest, request_identity)
+            proof = self.ParseProof(value, fields, digest, requestIdentity,
+                directoryIdentity, workspaceIdentity, paths)
+            ReadControl(requestPath, digest, requestIdentity)
 
         finally:
             current = ArtifactPathInfo(directory, directory=True)
 
-            if (current.st_dev, current.st_ino) != directory_identity:
+            if (current.st_dev, current.st_ino) != directoryIdentity:
                 raise NativeImageObservationError("native material private directory changed")
 
-            request_path.unlink()
+            requestPath.unlink()
             directory.rmdir()
 
         return proof
@@ -661,24 +661,24 @@ class NativeImageMaterialObserver:
         ControlIdentity(value["request_identity"])
         ControlIdentity(value["directory_identity"], 2)
         ControlIdentity(value["workspace_identity"], 2)
-        raw_facts = value["facts"]
+        rawFacts = value["facts"]
 
-        if not isinstance(raw_facts, list) or len(raw_facts) != 4:
+        if not isinstance(rawFacts, list) or len(rawFacts) != 4:
             raise NativeImageObservationError("native material result requires exactly four facts")
 
         facts: list[NativeFileFact] = []
 
-        for raw_fact, path, (role, maximum) in zip(raw_facts, paths, ROLE_BOUNDS, strict=True):
-            if not isinstance(raw_fact, dict) or set(raw_fact) != {
+        for rawFact, path, (role, maximum) in zip(rawFacts, paths, ROLE_BOUNDS, strict=True):
+            if not isinstance(rawFact, dict) or set(rawFact) != {
                 "role", "path", "size_bytes", "sha256", "physical_identity"
-            } or raw_fact["role"] != role or raw_fact["path"] != str(path):
+            } or rawFact["role"] != role or rawFact["path"] != str(path):
                 raise NativeImageObservationError("native material result roles or paths differ")
 
-            size = raw_fact["size_bytes"]
-            sha256 = raw_fact["sha256"]
+            size = rawFact["size_bytes"]
+            sha256 = rawFact["sha256"]
 
             if role in {"database", "database-metadata"} and all(
-                raw_fact[key] is None for key in ("size_bytes", "sha256", "physical_identity")
+                rawFact[key] is None for key in ("size_bytes", "sha256", "physical_identity")
             ):
                 try:
                     path.lstat()
@@ -690,7 +690,7 @@ class NativeImageMaterialObserver:
 
                 raise NativeImageObservationError("native material absence no longer matches")
 
-            identity = ControlIdentity(raw_fact["physical_identity"])
+            identity = ControlIdentity(rawFact["physical_identity"])
 
             if type(size) is not int or not 0 <= size <= maximum or (
                 not isinstance(sha256, str) or len(sha256) != 64 or
@@ -707,12 +707,12 @@ class NativeImageMaterialObserver:
             if metadata is not None:
                 raise NativeImageObservationError("absent metadata cannot supply parsed content")
 
-            metadata_json = b"null"
+            metadataJson = b"null"
 
         else:
-            metadata_json = CanonicalControl(StrictMetadata(CanonicalControl(metadata)))
+            metadataJson = CanonicalControl(StrictMetadata(CanonicalControl(metadata)))
 
-        return NativeImageMaterialProof(tuple(facts), metadata_json,
+        return NativeImageMaterialProof(tuple(facts), metadataJson,
             cast(str, value["nonce"]), cast(str, value["operation_reference"]),
             self.workspace_id, self.owner_reference, self._selection_sha256, digest,
             request_identity, directory_identity, workspace_identity, monotonic())

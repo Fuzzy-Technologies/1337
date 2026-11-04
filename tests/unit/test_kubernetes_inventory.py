@@ -340,12 +340,12 @@ def test_KubernetesFrozenMutationsAndSubclassOverridesFailBeforeOwningReads(cont
     record, provenance = AcquireKubernetes(context)
     limits = KubernetesInventoryLimits()
     object.__setattr__(limits, "max_entries", 33)
-    forged_provenance = replace(provenance)
-    object.__setattr__(forged_provenance, "run_reference", "")
-    forged_record = replace(record)
-    object.__setattr__(forged_record, "evidence_id", "sha256:" + "a" * 64)
-    forged_state = replace(context[1])
-    object.__setattr__(forged_state, "revision", -1)
+    forgedProvenance = replace(provenance)
+    object.__setattr__(forgedProvenance, "run_reference", "")
+    forgedRecord = replace(record)
+    object.__setattr__(forgedRecord, "evidence_id", "sha256:" + "a" * 64)
+    forgedState = replace(context[1])
+    object.__setattr__(forgedState, "revision", -1)
 
     def Refuse(*args, **kwargs):
         """Trip if frozen mutation or hostile subclass reaches owner reads."""
@@ -354,7 +354,7 @@ def test_KubernetesFrozenMutationsAndSubclassOverridesFailBeforeOwningReads(cont
 
     monkeypatch.setattr("fuzzy1337.kubernetes_inventory.LocalWorkspaceStore.Open", Refuse)
     variants = [{"limits": limits}, {"limits": RelaxedLimits(max_entries=33)},
-        {"provenance": forged_provenance}, {"record": forged_record}, {"state": forged_state},
+        {"provenance": forgedProvenance}, {"record": forgedRecord}, {"state": forgedState},
         {"provenance": RelaxedProvenance("inventory.kubernetes-list", "", provenance.observed_at,
             provenance.scope_reference, provenance.target_reference)}]
 
@@ -516,13 +516,13 @@ def test_KubernetesNominalNonresourceUrlWildcardKnownAnswers(context, urls, expe
     role = KubernetesResource(payload, "ClusterRole", "pod-wildcard")
     role["rules"] = [{"nonResourceURLs": urls, "verbs": ["get"]}]
     state, _ = ApplyKubernetes(context, payload)
-    role_object = next(item for item in state.objects
+    roleObject = next(item for item in state.objects
                        if item.attributes.get("name") == "pod-wildcard"
                        and item.attributes.get("resource_kind") == "ClusterRole")
     detected = any(item.check_id == "kubernetes.configured.rbac-wildcard" and
-                   item.subject_reference == role_object.Reference() for item in Findings(state))
+                   item.subject_reference == roleObject.Reference() for item in Findings(state))
     assert detected is expected, "Nominal suffix-glob wildcard oracle changed"
-    assert role_object.attributes["effective_permissions"] is None, "Wildcard became authority"
+    assert roleObject.attributes["effective_permissions"] is None, "Wildcard became authority"
 
 
 def test_KubernetesNominalMissingRbacReferencesAndSubjectDataNeverSynthesizeResources(context):
@@ -540,9 +540,9 @@ def test_KubernetesNominalMissingRbacReferencesAndSubjectDataNeverSynthesizeReso
     assert not any(edge.source_reference == resource.Reference() for edge in state.relations), (
         "Missing role or ServiceAccount namespace created an invented resource association"
     )
-    cluster_binding = next(item for item in state.objects
+    clusterBinding = next(item for item in state.objects
                            if item.attributes.get("resource_kind") == "ClusterRoleBinding")
-    assert cluster_binding.attributes["subject_counts"] is None, "Absent subjects became defaults"
+    assert clusterBinding.attributes["subject_counts"] is None, "Absent subjects became defaults"
 
 
 def test_KubernetesRoleBindingCanNominallyReferenceExportedClusterRole(context):
@@ -603,7 +603,7 @@ def test_KubernetesModelBasisRaceFailsBeforeBatchApplication(context, monkeypatc
     """The importer rechecks the actual persisted basis after interpretation and before applying."""
 
     record, provenance = AcquireKubernetes(context)
-    owner_open = LocalModelStore.Open
+    ownerOpen = LocalModelStore.Open
     reads = []
 
     def Open(self):
@@ -617,7 +617,7 @@ def test_KubernetesModelBasisRaceFailsBeforeBatchApplication(context, monkeypatc
         """
 
         reads.append(self.root)
-        state = owner_open(self)
+        state = ownerOpen(self)
 
         return state if len(reads) == 1 else replace(state, revision=state.revision + 1)
 

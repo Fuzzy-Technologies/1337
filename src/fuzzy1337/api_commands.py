@@ -96,7 +96,7 @@ def RequireApiRecord(record: EvidenceRecord, workspace_id: str, scope_reference:
     ):
         raise RuntimeFailure("integrity")
 
-    source_id, maximum = _ORIGINAL_PROFILES[profile]
+    sourceId, maximum = _ORIGINAL_PROFILES[profile]
     reference, source = record.reference, record.provenance
 
     if (
@@ -107,7 +107,7 @@ def RequireApiRecord(record: EvidenceRecord, workspace_id: str, scope_reference:
             or not 1 <= reference.size_bytes <= maximum
             or source.workspace_id != workspace_id
             or source.scope_reference != scope_reference
-            or source.source_id != source_id
+            or source.source_id != sourceId
             or source.source_version != _SOURCE_VERSION
             or source.tool_version is not None
             or source.invocation_sha256 is not None
@@ -385,12 +385,12 @@ def ApiSourceFact(
             raise RuntimeFailure("source-context")
 
         actor = fact.attributes["read_actor_reference"]
-        read_reference = fact.attributes["read_consent_reference"]
+        readReference = fact.attributes["read_consent_reference"]
 
-        if type(actor) is not str or type(read_reference) is not str:
+        if type(actor) is not str or type(readReference) is not str:
             raise RuntimeFailure("source-context")
 
-        original = ArtifactReadConsent(actor, read_reference)
+        original = ArtifactReadConsent(actor, readReference)
         attributes.update(
             {
                 "read_actor_reference": original.actor_ref,
@@ -473,38 +473,38 @@ def PreflightKnownApiReferences(state: ModelState, workspace: WorkspaceState,
     from fuzzy1337.openapi_commands import PreflightKnownOpenApiReferences
 
     PreflightKnownOpenApiReferences(state, workspace, evidence.root)
-    record_ids = set(workspace.evidence_record_references)
+    recordIds = set(workspace.evidence_record_references)
     custody: dict[str, list[Observation]] = {}
 
     for fact in state.observations:
         if fact.kind != "api-import-source":
             continue
 
-        evidence_id = fact.attributes.get("evidence_id")
+        evidenceId = fact.attributes.get("evidence_id")
 
-        if fact.attributes.get("profile") != _PROFILE or type(evidence_id) is not str:
+        if fact.attributes.get("profile") != _PROFILE or type(evidenceId) is not str:
             raise RuntimeFailure("integrity")
 
-        record_ids.add(evidence_id)
-        custody.setdefault(evidence_id, []).append(fact)
+        recordIds.add(evidenceId)
+        custody.setdefault(evidenceId, []).append(fact)
 
-    if len(record_ids) > MAX_EXPORT_ACQUISITIONS:
+    if len(recordIds) > MAX_EXPORT_ACQUISITIONS:
         raise RuntimeFailure("limit")
 
-    for evidence_id in sorted(record_ids):
-        if not evidence_id.startswith("sha256:"):
+    for evidenceId in sorted(recordIds):
+        if not evidenceId.startswith("sha256:"):
             raise RuntimeFailure("integrity")
 
-        digest = evidence_id[7:]
+        digest = evidenceId[7:]
         RequireEvidenceDigest(digest)
         record = ParseEvidenceManifest(evidence.ReadStoredBytes(
             ("records", digest + ".json"), EVIDENCE_MANIFEST_MAX_BYTES,
         ))
 
-        if record.evidence_id != evidence_id:
+        if record.evidence_id != evidenceId:
             raise RuntimeFailure("integrity")
 
-        for fact in custody.get(evidence_id, ()):
+        for fact in custody.get(evidenceId, ()):
             RequireApiRecord(record, workspace.workspace_id, record.provenance.scope_reference)
             subject = next((item for item in state.objects
                             if item.Reference() == fact.subject_reference), None)
@@ -757,10 +757,10 @@ def RunApiCommands(
         if imported.source_digest != "sha256:" + record.reference.sha256:
             raise RuntimeFailure("integrity")
 
-        current_at = clock()
+        currentAt = clock()
 
         for operation in imported.operations:
-            CheckGraphQlTarget(operation, target, scope, at=current_at)
+            CheckGraphQlTarget(operation, target, scope, at=currentAt)
 
         projection = ProjectGraphQl(imported, provenance=(provenance,))
         AdmitApiProjection(basis, projection)

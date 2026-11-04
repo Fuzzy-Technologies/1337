@@ -97,18 +97,18 @@ def native_cli(authority, monkeypatch):
     policy = root / "explicit-policy.json"
     policy.write_text(SerializeContract(authority.context.policy), encoding="utf-8")
     monkeypatch.setattr(scan_commands.asyncio, "run", authority.collector.run)
-    original_plan = product.PlanNativeImageScan
-    original_scan = product.ScanNativeImage
+    originalPlan = product.PlanNativeImageScan
+    originalScan = product.ScanNativeImage
 
     async def Plan(*args, **kwargs):
         """Keep the canonical planner while selecting the fixture's deterministic clock."""
 
-        return await original_plan(*args, **kwargs, clock=lambda: AT)
+        return await originalPlan(*args, **kwargs, clock=lambda: AT)
 
     async def Scan(*args, **kwargs):
         """Keep the canonical paired workflow while selecting the same deterministic clock."""
 
-        return await original_scan(*args, **kwargs, clock=lambda: AT)
+        return await originalScan(*args, **kwargs, clock=lambda: AT)
 
     monkeypatch.setattr(product, "PlanNativeImageScan", Plan)
     monkeypatch.setattr(product, "ScanNativeImage", Scan)
@@ -234,11 +234,11 @@ def test_ImageHelpDescribesBothExplicitProfilesWithoutImplicitProvider(capsys):
 
     with pytest.raises(SystemExit) as caught:
         Main(["scan", "image", "--help"])
-    help_text = capsys.readouterr().out
-    assert caught.value.code == 0 and "{synthetic,native}" in help_text, (
+    helpText = capsys.readouterr().out
+    assert caught.value.code == 0 and "{synthetic,native}" in helpText, (
         "Help must list both explicit image profiles without changing the required selection."
     )
-    assert "--cache-directory" in help_text and "--policy" in help_text and "--plan" in help_text, (
+    assert "--cache-directory" in helpText and "--policy" in helpText and "--plan" in helpText, (
         "Native material, authority and read-only planning options must remain discoverable."
     )
     assert "synthetic/native images" in COMMAND_REGISTRY.Resolve("scan").summary, (

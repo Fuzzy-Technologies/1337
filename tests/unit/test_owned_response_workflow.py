@@ -108,9 +108,9 @@ def test_RepeatedRealOwnerCompositionKeepsEveryOriginalSourceAndUnrelatedState(o
     ), (
         "Completion must require both exact durable acknowledgements."
     )
-    original_ids = {item.evidence_id for item in (*first.records, *second.records)}
+    originalIds = {item.evidence_id for item in (*first.records, *second.records)}
     assert len(second.records) == 7 and set(LocalWorkspaceStore(owned.root).Open(
-    ).evidence_record_references) == original_ids, (
+    ).evidence_record_references) == originalIds, (
         "Each original ID must survive; identical fixed-clock provenance may reuse canonical IDs."
     )
     assert first.stage_retained and len(tuple(owned.root.glob("owned-response-*"))) == 2, (
@@ -167,9 +167,9 @@ def test_HistoricalReplayCannotAdoptUnknownOrChangedOriginalSourceAssociation(
     fact = next(item for item in model.observations if item.kind == product.SOURCE_KIND)
 
     if change == "unenrolled-receipt":
-        workspace_store = LocalWorkspaceStore(owned.root)
-        state = workspace_store.Open()
-        workspace_store.Save(replace(state, evidence_record_references=tuple(
+        workspaceStore = LocalWorkspaceStore(owned.root)
+        state = workspaceStore.Open()
+        workspaceStore.Save(replace(state, evidence_record_references=tuple(
             value for value in state.evidence_record_references
             if value != summary.original_receipt_id)))
 
@@ -283,11 +283,11 @@ def test_RepeatedCallerCancellationCannotOutrunCleanupOrReplaceFirstPresentation
 
     ready, stopping, release, cleaned = (asyncio.Event() for _ in range(4))
     jobs = []
-    original_job = product.ScanJob
-    original_error = RuntimeError("controlled original presentation failure")
-    cancellation_calls = []
+    originalJob = product.ScanJob
+    originalError = RuntimeError("controlled original presentation failure")
+    cancellationCalls = []
 
-    class CapturedJob(original_job):
+    class CapturedJob(originalJob):
         """Retain only this test's actual original coordinator for guaranteed failure teardown."""
 
         def __init__(self, *args, **kwargs):
@@ -299,7 +299,7 @@ def test_RepeatedCallerCancellationCannotOutrunCleanupOrReplaceFirstPresentation
         async def CancelAndWait(self, requested_by, **kwargs):
             """Count original cancellation entry without issuing extra provider cancellation."""
 
-            cancellation_calls.append(requested_by)
+            cancellationCalls.append(requested_by)
 
             return await super().CancelAndWait(requested_by, **kwargs)
 
@@ -329,7 +329,7 @@ def test_RepeatedCallerCancellationCannotOutrunCleanupOrReplaceFirstPresentation
         """Fail the presentation sink only after this test's actual owned execution is active."""
 
         if presentation_failure and ready.is_set():
-            raise original_error
+            raise originalError
 
     async def Run():
         """Require public SDK ownership to outlive held cleanup, with bounded failure teardown."""
@@ -362,7 +362,7 @@ def test_RepeatedCallerCancellationCannotOutrunCleanupOrReplaceFirstPresentation
                 with pytest.raises(RuntimeError) as caught:
                     await task
 
-                assert caught.value is original_error, (
+                assert caught.value is originalError, (
                     "Later caller cancellation cannot replace the first presentation exception."
                 )
 
@@ -372,7 +372,7 @@ def test_RepeatedCallerCancellationCannotOutrunCleanupOrReplaceFirstPresentation
                     "Only original confirmed cancellation may produce the terminal SDK summary."
                 )
 
-            assert cleaned.is_set() and cancellation_calls == ["operator:execution"], (
+            assert cleaned.is_set() and cancellationCalls == ["operator:execution"], (
                 "Cleanup must finish before return and the coordinator must be cancelled only once."
             )
 
@@ -518,8 +518,8 @@ def test_SaveFailureReportsActualCommitAndNeverRetriesOriginalCas(
 ):
     """A raised Save may already have committed; summaries preserve actual reopened revisions."""
 
-    model_save = LocalModelStore.Save
-    workspace_save = LocalWorkspaceStore.Save
+    modelSave = LocalModelStore.Save
+    workspaceSave = LocalWorkspaceStore.Save
     calls = {"model": 0, "workspace": 0}
 
     def ModelSave(store, state, *, expected_revision):
@@ -530,7 +530,7 @@ def test_SaveFailureReportsActualCommitAndNeverRetriesOriginalCas(
         if boundary == "model-before":
             raise OSError("controlled original model failure before commit")
 
-        result = model_save(store, state, expected_revision=expected_revision)
+        result = modelSave(store, state, expected_revision=expected_revision)
 
         if boundary == "model-after":
             raise OSError("controlled lost model acknowledgement")
@@ -545,7 +545,7 @@ def test_SaveFailureReportsActualCommitAndNeverRetriesOriginalCas(
         if boundary == "workspace-before":
             raise OSError("controlled original workspace failure before commit")
 
-        result = workspace_save(store, state)
+        result = workspaceSave(store, state)
 
         if boundary == "workspace-after":
             raise OSError("controlled lost workspace acknowledgement")
@@ -557,16 +557,16 @@ def test_SaveFailureReportsActualCommitAndNeverRetriesOriginalCas(
     summary = Capture(owned, runner)
     assert summary.ExitCode() == 4 and summary.snapshot.state is JobState.FAILED, summary.ToDict()
     assert calls == {"model": 1, "workspace": 1}, "Neither Save may silently retry or rebase."
-    expected_model = owned.model.revision + (boundary != "model-before")
-    expected_workspace = 0 if boundary == "workspace-before" else 1
-    assert summary.model_revision == expected_model and (
-        summary.workspace_revision == expected_workspace
+    expectedModel = owned.model.revision + (boundary != "model-before")
+    expectedWorkspace = 0 if boundary == "workspace-before" else 1
+    assert summary.model_revision == expectedModel and (
+        summary.workspace_revision == expectedWorkspace
     ), (
         "The SDK must report the actual independently reopened committed revisions."
     )
     statuses = (summary.model_persistence_status, summary.workspace_persistence_status)
-    expected_status = "observed-committed" if boundary.endswith("after") else "observed-unchanged"
-    assert expected_status in statuses, (
+    expectedStatus = "observed-committed" if boundary.endswith("after") else "observed-unchanged"
+    assert expectedStatus in statuses, (
         "Lost acknowledgement must remain distinct from acknowledged completion and rollback."
     )
     assert len(summary.records) == 7 and summary.stage_retained and not any(
@@ -581,13 +581,13 @@ def test_FreshActorRevocationAtSaveBoundaryPreventsEveryLaterUnauthorizedWrite(
     """A real current-owner change cannot be ignored by forward or failure-path Save guards."""
 
     actor = ["operator:execution"]
-    original_fact = product.SourceFact
-    original_save = LocalModelStore.Save
+    originalFact = product.SourceFact
+    originalSave = LocalModelStore.Save
 
     def Fact(*args, **kwargs):
         """Change only trusted current attribution after original capture replay finishes."""
 
-        fact = original_fact(*args, **kwargs)
+        fact = originalFact(*args, **kwargs)
 
         if boundary == "before-model":
             actor[0] = "operator:changed"
@@ -597,7 +597,7 @@ def test_FreshActorRevocationAtSaveBoundaryPreventsEveryLaterUnauthorizedWrite(
     def Save(store, state, *, expected_revision):
         """Change attribution immediately after a real model acknowledgement."""
 
-        result = original_save(store, state, expected_revision=expected_revision)
+        result = originalSave(store, state, expected_revision=expected_revision)
         actor[0] = "operator:changed"
 
         return result

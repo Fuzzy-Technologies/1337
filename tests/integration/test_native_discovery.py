@@ -171,18 +171,18 @@ def test_RealDiscoveryEvidenceModelEventsRepeatAndReopen(tmp_path, owned_http):
             b"secret" not in raw and b"Location" not in raw
         ), 'Real Discovery Evidence Model Events Repeat And Reopen boundary invariant failed'
 
-    object_ids = tuple(item.Reference() for item in state.objects)
-    relation_ids = tuple(item.Reference() for item in state.relations)
+    objectIds = tuple(item.Reference() for item in state.objects)
+    relationIds = tuple(item.Reference() for item in state.relations)
     repeated = Run(Job(root, targets, policy, identifier="job:repeat"))
     assert (
         repeated.state is JobState.COMPLETED
     ), 'Real Discovery Evidence Model Events Repeat And Reopen boundary invariant failed'
     reopened = LocalModelStore(root).Open()
     assert (
-        tuple(item.Reference() for item in reopened.objects) == object_ids
+        tuple(item.Reference() for item in reopened.objects) == objectIds
     ), 'Real Discovery Evidence Model Events Repeat And Reopen boundary invariant failed'
     assert (
-        tuple(item.Reference() for item in reopened.relations) == relation_ids
+        tuple(item.Reference() for item in reopened.relations) == relationIds
     ), 'Real Discovery Evidence Model Events Repeat And Reopen boundary invariant failed'
     assert (
         len(reopened.observations) > len(state.observations)

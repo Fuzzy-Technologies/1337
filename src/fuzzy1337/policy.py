@@ -273,8 +273,8 @@ class PolicyPlan:
         """Bind an exact confirmation digest to every other immutable plan field."""
 
         payload = {
-            record_field.name: getattr(self, record_field.name)
-            for record_field in fields(self) if record_field.name != "intent_sha256"
+            recordField.name: getattr(self, recordField.name)
+            for recordField in fields(self) if recordField.name != "intent_sha256"
         }
         object.__setattr__(self, "intent_sha256", Digest(payload))
 
@@ -451,12 +451,12 @@ class PolicyEngine:
         if confirmation is not None and confirmation.intent_sha256 != plan.intent_sha256:
             raise PolicyDeniedError(PolicyDenialReason.CONFIRMATION_CHANGED)
 
-        issued_at = at.astimezone(timezone.utc).isoformat()
-        valid_until = self.Expiry(context, at)
-        confirmation_reference = confirmation.record_reference if confirmation is not None else None
-        authorization = self.Envelope(plan, issued_at, valid_until, confirmation_reference)
+        issuedAt = at.astimezone(timezone.utc).isoformat()
+        validUntil = self.Expiry(context, at)
+        confirmationReference = confirmation.record_reference if confirmation is not None else None
+        authorization = self.Envelope(plan, issuedAt, validUntil, confirmationReference)
 
-        return PolicyGrant(plan, authorization, issued_at, valid_until, confirmation_reference)
+        return PolicyGrant(plan, authorization, issuedAt, validUntil, confirmationReference)
 
     def Expiry(self, context: PolicyContext, at: datetime) -> str:
         """Limit launch validity by policy lifetime and any earlier scope expiry.
@@ -469,14 +469,14 @@ class PolicyEngine:
             Canonical UTC exclusive expiry time.
         """
 
-        valid_until = at + timedelta(seconds=context.policy.max_authorization_seconds)
+        validUntil = at + timedelta(seconds=context.policy.max_authorization_seconds)
 
         if context.scope.authorization.valid_until is not None:
-            valid_until = min(valid_until, datetime.fromisoformat(
+            validUntil = min(validUntil, datetime.fromisoformat(
                 context.scope.authorization.valid_until
             ))
 
-        return valid_until.astimezone(timezone.utc).isoformat()
+        return validUntil.astimezone(timezone.utc).isoformat()
 
     def Envelope(
         self,
@@ -497,12 +497,12 @@ class PolicyEngine:
             Existing executor SDK envelope bound to every grant metadata field.
         """
 
-        authorization_id = "authorization:" + Digest((
+        authorizationId = "authorization:" + Digest((
             plan, issued_at, valid_until, confirmation_reference
         ))
 
         return ExecutionAuthorization(
-            authorization_id=authorization_id, scope_reference=plan.scope_reference,
+            authorization_id=authorizationId, scope_reference=plan.scope_reference,
             policy_reference=plan.policy_reference, invocation_sha256=plan.invocation_sha256,
             granted_privileges=plan.granted_privileges,
         )

@@ -69,20 +69,20 @@ def test_GeneratedValuesRemainEphemeralAcrossRealStructuralModelPersistence(tmp_
         document_format=document_format,
     )
     metadata = CanonicalModelJson(generated.Metadata())
-    evidence_store = LocalEvidenceStore(root / "evidence")
-    source_evidence = evidence_store.Put(text.encode("utf-8"), "api-description",
+    evidenceStore = LocalEvidenceStore(root / "evidence")
+    sourceEvidence = evidenceStore.Put(text.encode("utf-8"), "api-description",
         "application/yaml" if document_format == "yaml" else "application/json",
         EvidenceProvenance(initial.workspace_id, "scope:owned", "api-generation", "1", None,
                            "2026-10-13T00:00:00Z", "2026-10-13T00:00:01Z"))
-    assert imported.source_digest == "sha256:" + source_evidence.reference.sha256, (
+    assert imported.source_digest == "sha256:" + sourceEvidence.reference.sha256, (
         "The original description evidence is not bound to the import's exact source bytes"
     )
-    evidence = evidence_store.Put(metadata, "synthetic-request-metadata", "application/json",
+    evidence = evidenceStore.Put(metadata, "synthetic-request-metadata", "application/json",
         EvidenceProvenance(initial.workspace_id, "scope:owned", "api-generation", "1", None,
                            "2026-10-13T00:00:00Z", "2026-10-13T00:00:01Z"))
     provenance = ModelProvenance("api-generation", "run:owned", "2026-10-13T00:00:01Z",
         "scope:owned", generated.target.Reference(), "1",
-        (source_evidence.reference, evidence.reference))
+        (sourceEvidence.reference, evidence.reference))
     patches = ProjectOpenApi(imported, provenance=(provenance,))
     changed, _ = initial.Apply(objects=patches)
     saved = store.Save(changed, expected_revision=initial.revision)
@@ -90,14 +90,14 @@ def test_GeneratedValuesRemainEphemeralAcrossRealStructuralModelPersistence(tmp_
     assert operation.template in actual, "Original symbolic template did not survive projection"
     assert all(point.binding.source is BindingSource.INPUT for template in actual
                for point in template.injection_points), "Symbolic value ownership changed"
-    stored_bytes = (root / "state/model/model.json").read_bytes()
-    assert generated.body not in stored_bytes and generated.body not in metadata, (
+    storedBytes = (root / "state/model/model.json").read_bytes()
+    assert generated.body not in storedBytes and generated.body not in metadata, (
         "Concrete generated body was persisted in structural state or reference metadata"
     )
-    assert b"synthetic-private-source-value" not in stored_bytes + metadata, "Source example leaked"
+    assert b"synthetic-private-source-value" not in storedBytes + metadata, "Source example leaked"
     assert not Findings(saved), "Synthetic generation manufactured security findings"
-    assert evidence_store.Read(evidence.reference) == metadata, "Evidence bytes were rewritten"
-    assert evidence_store.Read(source_evidence.reference) == text.encode("utf-8"), (
+    assert evidenceStore.Read(evidence.reference) == metadata, "Evidence bytes were rewritten"
+    assert evidenceStore.Read(sourceEvidence.reference) == text.encode("utf-8"), (
         "The raw API description evidence was normalized or rewritten"
     )
     before = store.Open()
@@ -114,7 +114,7 @@ def test_GeneratedValuesRemainEphemeralAcrossRealStructuralModelPersistence(tmp_
     assert LocalEvidenceStore(moved / "evidence").Read(evidence.reference) == metadata, (
         "Attributed reference evidence could not be reopened after relocation"
     )
-    assert LocalEvidenceStore(moved / "evidence").Read(source_evidence.reference) == text.encode(
+    assert LocalEvidenceStore(moved / "evidence").Read(sourceEvidence.reference) == text.encode(
         "utf-8"
     ), "Original source evidence could not be reopened after relocation"
 
@@ -128,20 +128,20 @@ def test_ActualGeneratedUrlAndQueryRequireCurrentExactScopeConsent(tmp_path, doc
     text = Source(document_format)
     imported = ImportOpenApi(text, workspace_id="generation-scope", document_format=document_format)
     operation = next(item for item in imported.operations if item.operation_id == "CreateOwned")
-    original_scope = ScopeSnapshot("owned", "generation-scope", ScopeAuthorization(
+    originalScope = ScopeSnapshot("owned", "generation-scope", ScopeAuthorization(
         AuthorizationState.GRANTED, "operator:owned", "consent:owned",
     ))
-    scope_store = LocalScopeStore(root)
-    scope_store.Create(original_scope)
-    scope_before = (root / "state/scopes/owned.json").read_bytes()
-    workspace_before = (root / "workspace.json").read_bytes()
+    scopeStore = LocalScopeStore(root)
+    scopeStore.Create(originalScope)
+    scopeBefore = (root / "state/scopes/owned.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     generated = GenerateOpenApiRequest(text, operation.Reference(), workspace_id="generation-scope",
                                        document_format=document_format)
 
     with pytest.raises(PermissionError):
-        CheckOpenApiTarget(operation, generated.target, original_scope, at=AT)
+        CheckOpenApiTarget(operation, generated.target, originalScope, at=AT)
 
-    permitted = replace(original_scope, targets=(generated.target,), allow=(generated.target,))
+    permitted = replace(originalScope, targets=(generated.target,), allow=(generated.target,))
     decision = CheckOpenApiTarget(operation, generated.target, permitted, at=AT)
     assert decision.Allowed(), "Current explicitly permitted actual URL was rejected"
     assert generated.target.value.endswith("?tags=synthetic-0&tags=synthetic-1"), (
@@ -168,8 +168,8 @@ def test_ActualGeneratedUrlAndQueryRequireCurrentExactScopeConsent(tmp_path, doc
     with pytest.raises(ValueError):
         CheckOpenApiTarget(operation, generated.target, permitted, at=datetime(2026, 10, 13))
 
-    assert (root / "state/scopes/owned.json").read_bytes() == scope_before, "Preview changed scope"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "Preview changed workspace"
+    assert (root / "state/scopes/owned.json").read_bytes() == scopeBefore, "Preview changed scope"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "Preview changed workspace"
 
 
 def test_StructuredMutationConsumesActualApiPreviewAndPreservesPersistentTruth(tmp_path):
@@ -189,9 +189,9 @@ def test_StructuredMutationConsumesActualApiPreviewAndPreservesPersistentTruth(t
     projection = ProjectOpenApi(imported, provenance=(provenance,))
     updated, _ = initial.Apply(objects=projection)
     saved = store.Save(updated, expected_revision=initial.revision)
-    source_before = text.encode("utf-8")
-    model_before = (root / "state/model/model.json").read_bytes()
-    workspace_before = (root / "workspace.json").read_bytes()
+    sourceBefore = text.encode("utf-8")
+    modelBefore = (root / "state/model/model.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     candidates = GenerateJsonMutations(operation.template, generated.body,
         (JsonMutationSelection("/a~1b~0c/count"), JsonMutationSelection("/flags/0")), seed=17)
     baseline = {"a/b~c": {"count": 1}, "flags": [True, False],
@@ -224,16 +224,16 @@ def test_StructuredMutationConsumesActualApiPreviewAndPreservesPersistentTruth(t
         )
 
     assert len(candidates) == 5, "Actual API body did not yield the expected bounded corpus"
-    assert (root / "state/model/model.json").read_bytes() == model_before, "Mutation changed model"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "Mutation changed workspace"
-    assert Source().encode("utf-8") == source_before, "Mutation rewrote the original API source"
+    assert (root / "state/model/model.json").read_bytes() == modelBefore, "Mutation changed model"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "Mutation changed workspace"
+    assert Source().encode("utf-8") == sourceBefore, "Mutation rewrote the original API source"
     assert store.Open() == saved and not Findings(saved), (
         "Mutation invented observations or findings"
     )
     metadata = CanonicalModelJson({"baseline": generated.Metadata(),
                                   "mutations": [item.Metadata() for item in candidates]})
-    evidence_store = LocalEvidenceStore(root / "evidence")
-    evidence = evidence_store.Put(metadata, "synthetic-mutation-metadata", "application/json",
+    evidenceStore = LocalEvidenceStore(root / "evidence")
+    evidence = evidenceStore.Put(metadata, "synthetic-mutation-metadata", "application/json",
         EvidenceProvenance(initial.workspace_id, "scope:owned", "json-mutation", "1", None,
                            "2026-10-15T00:00:00Z", "2026-10-15T00:00:01Z"))
     assert generated.body not in metadata, "Baseline payload leaked into reference metadata"
@@ -265,8 +265,8 @@ def test_Base64MutationWrapsActualGeneratedBytesAndReplaysAfterEvidenceRelocatio
                                 "scope:owned", generated.target.Reference(), "1")
     updated, _ = initial.Apply(objects=ProjectOpenApi(imported, provenance=(provenance,)))
     saved = store.Save(updated, expected_revision=initial.revision)
-    model_before = (root / "state/model/model.json").read_bytes()
-    workspace_before = (root / "workspace.json").read_bytes()
+    modelBefore = (root / "state/model/model.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     selection = JsonMutationSelection("/name", "/flags/0", JsonMutationEncoding.BASE64_JSON)
     candidate = GenerateJsonMutations(operation.template, source, (selection,), seed=17)[0]
     preview = replace(generated, body=candidate.body)
@@ -284,17 +284,17 @@ def test_Base64MutationWrapsActualGeneratedBytesAndReplaysAfterEvidenceRelocatio
     assert preview.target == generated.target and preview.headers == generated.headers, (
         "Offline mutation changed transport structure"
     )
-    assert (root / "state/model/model.json").read_bytes() == model_before, "Mutation wrote model"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "Mutation wrote workspace"
+    assert (root / "state/model/model.json").read_bytes() == modelBefore, "Mutation wrote model"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "Mutation wrote workspace"
     assert Source() == text and not Findings(saved), "Mutation changed source or invented findings"
-    evidence_store = LocalEvidenceStore(root / "evidence")
+    evidenceStore = LocalEvidenceStore(root / "evidence")
     custody = EvidenceProvenance(initial.workspace_id, "scope:owned", "base64-json-mutation", "1",
         None, "2026-10-16T00:00:00Z", "2026-10-16T00:00:01Z")
-    source_record = evidence_store.Put(source, "synthetic-base64-envelope", "application/json",
+    sourceRecord = evidenceStore.Put(source, "synthetic-base64-envelope", "application/json",
                                        custody)
     metadata = CanonicalModelJson({"baseline": generated.Metadata(),
                                   "mutation": candidate.Metadata()})
-    reference_record = evidence_store.Put(metadata, "synthetic-base64-reference",
+    referenceRecord = evidenceStore.Put(metadata, "synthetic-base64-reference",
         "application/json", custody)
     assert source not in metadata and generated.body not in metadata, "Reference metadata leaked"
     moved = tmp_path / "relocated"
@@ -303,9 +303,9 @@ def test_Base64MutationWrapsActualGeneratedBytesAndReplaysAfterEvidenceRelocatio
     templates = [template for entity in reopened.objects for template in RequestsFromObject(entity)]
     assert reopened == saved and operation.template in templates, "Relocation changed request truth"
     retained = LocalEvidenceStore(moved / "evidence")
-    reopened_source = retained.Read(source_record.reference)
-    reopened_metadata = json.loads(retained.Read(reference_record.reference))
-    assert ReplayJsonMutation(operation.template, reopened_source, candidate,
-        expected_reference=reopened_metadata["mutation"]["mutation_reference"]) == candidate, (
+    reopenedSource = retained.Read(sourceRecord.reference)
+    reopenedMetadata = json.loads(retained.Read(referenceRecord.reference))
+    assert ReplayJsonMutation(operation.template, reopenedSource, candidate,
+        expected_reference=reopenedMetadata["mutation"]["mutation_reference"]) == candidate, (
         "Original evidence bytes and independent retained reference cannot replay after relocation"
     )

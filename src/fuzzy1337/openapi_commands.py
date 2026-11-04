@@ -187,12 +187,12 @@ def KnownOpenApiFacts(state: ModelState, record: EvidenceRecord) -> tuple[Observ
             raise RuntimeFailure("source-context")
 
         ArtifactReadConsent(actor, consent)
-        endpoint_count = RequireWorkspaceInteger(attributes["endpoint_count"], "endpoint_count")
-        operation_count = RequireWorkspaceInteger(attributes["operation_count"], "operation_count")
+        endpointCount = RequireWorkspaceInteger(attributes["endpoint_count"], "endpoint_count")
+        operationCount = RequireWorkspaceInteger(attributes["operation_count"], "operation_count")
         current = (base, fact.provenance.run_reference, actor, consent,
-                   endpoint_count, operation_count)
+                   endpointCount, operationCount)
 
-        if endpoint_count != len(facts) or not 1 <= operation_count <= MAX_OPENAPI_OPERATIONS or (
+        if endpointCount != len(facts) or not 1 <= operationCount <= MAX_OPENAPI_OPERATIONS or (
             context is not None and context != current
         ) or fact.subject_reference in identities:
             raise RuntimeFailure("source-context")
@@ -219,7 +219,7 @@ def KnownOpenApiFacts(state: ModelState, record: EvidenceRecord) -> tuple[Observ
             raise RuntimeFailure("source-context")
 
         available = set()
-        request_references = {item.Reference() for item in RequestsFromObject(subject)}
+        requestReferences = {item.Reference() for item in RequestsFromObject(subject)}
 
         for operation in operations:
             if not isinstance(operation, Mapping):
@@ -233,7 +233,7 @@ def KnownOpenApiFacts(state: ModelState, record: EvidenceRecord) -> tuple[Observ
             )})
 
             if identity != operation.get("operation_reference") or (
-                operation.get("request_reference") not in request_references
+                operation.get("request_reference") not in requestReferences
             ):
                 raise RuntimeFailure("source-context")
 
@@ -281,7 +281,7 @@ def PreflightKnownOpenApiReferences(state: ModelState, workspace: WorkspaceState
     if len(ids) > MAX_EXPORT_ACQUISITIONS:
         raise RuntimeFailure("limit")
 
-    known_references = set()
+    knownReferences = set()
 
     for identity in sorted(ids):
         if not identity.startswith("sha256:"):
@@ -301,7 +301,7 @@ def PreflightKnownOpenApiReferences(state: ModelState, workspace: WorkspaceState
                              profile=OPENAPI_PRODUCT_PROFILE)
             KnownOpenApiFacts(state, record)
             PreflightApiReferences(state, workspace, record, original)
-            known_references.add(record.reference)
+            knownReferences.add(record.reference)
 
         elif any(item.kind == _FACT_KIND and item.attributes.get("evidence_id") == identity
                  for item in state.observations):
@@ -317,7 +317,7 @@ def PreflightKnownOpenApiReferences(state: ModelState, workspace: WorkspaceState
         if reference.role != OPENAPI_PRODUCT_PROFILE:
             continue
 
-        if reference not in known_references:
+        if reference not in knownReferences:
             raise RuntimeFailure("source-context")
 
         evidence.CheckReference(reference)

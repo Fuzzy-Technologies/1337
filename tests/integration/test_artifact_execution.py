@@ -78,13 +78,13 @@ def test_RetiredExactWorkerCannotLaunchButOriginalEvidenceStillReplays(
 ):
     """An actual historical reviewed producer keeps provenance after its live catalog retires."""
 
-    current_source = Path(artifact_fixture_worker.__file__).read_bytes()
-    retired_source = current_source.replace(
+    currentSource = Path(artifact_fixture_worker.__file__).read_bytes()
+    retiredSource = currentSource.replace(
         b"Exercise bounded synthetic lifecycle modes with exact LF byte streams.",
         b"Exercise bounded synthetic lifecycle modes through the fixed profile wire.",
     )
 
-    for byte_wire, text_wire in (
+    for byteWire, textWire in (
         (
             b'sys.stdout.buffer.write(b"owned-ready\\n")\n        sys.stdout.buffer.flush()',
             b'print("owned-ready", flush=True)',
@@ -108,25 +108,25 @@ def test_RetiredExactWorkerCannotLaunchButOriginalEvidenceStillReplays(
             b'print(json.dumps(payload, sort_keys=True), flush=True)',
         ),
     ):
-        retired_source = retired_source.replace(byte_wire, text_wire)
+        retiredSource = retiredSource.replace(byteWire, textWire)
 
     if retired_hash.startswith("6cec"):
-        retired_source = retired_source.replace(
+        retiredSource = retiredSource.replace(
             b"argparse.ArgumentParser(allow_abbrev=False)", b"argparse.ArgumentParser()"
         ).replace(b"parser.parse_intermixed_args()", b"parser.parse_args()")
 
-    assert hashlib.sha256(retired_source).hexdigest() == retired_hash, (
+    assert hashlib.sha256(retiredSource).hexdigest() == retired_hash, (
         "The historical fixture no longer equals the exact source-reviewed retired producer"
     )
 
-    historical_producer = tmp_path.resolve() / "historical-producer.py"
-    historical_producer.write_bytes(retired_source)
+    historicalProducer = tmp_path.resolve() / "historical-producer.py"
+    historicalProducer.write_bytes(retiredSource)
 
-    with monkeypatch.context() as historical_catalog:
-        historical_catalog.setattr(
+    with monkeypatch.context() as historicalCatalog:
+        historicalCatalog.setattr(
             artifact_policy, "_REVIEWED_PRODUCERS", frozenset({retired_hash})
         )
-        historical_catalog.setattr(artifact_fixture_worker, "__file__", str(historical_producer))
+        historicalCatalog.setattr(artifact_fixture_worker, "__file__", str(historicalProducer))
         root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
         executor = GovernedArtifactExecutor(root, clock=lambda: AT)
         outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
@@ -205,7 +205,7 @@ def test_CooperativeCancellationReturnsRawBeforeAcceptanceDenial(tmp_path, fragm
 
         cancelled = asyncio.Event()
         readiness = bytearray()
-        ready_marker = b"owned-ready\n"
+        readyMarker = b"owned-ready\n"
 
         def OnEvent(event):
             """Use only this owned worker's stdout event as deterministic cancellation readiness."""
@@ -213,9 +213,9 @@ def test_CooperativeCancellationReturnsRawBeforeAcceptanceDenial(tmp_path, fragm
             if event.kind != ExecutionEventKind.STDOUT:
                 return
 
-            readiness.extend(event.data[: len(ready_marker) - len(readiness)])
+            readiness.extend(event.data[: len(readyMarker) - len(readiness)])
 
-            if readiness == ready_marker:
+            if readiness == readyMarker:
                 cancelled.set()
 
         def ObservedEvent(event):
@@ -352,7 +352,7 @@ def test_FreshAcceptanceRejectsLaterRevocationAndResultReplayCannotLaunch(tmp_pa
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
     executor = GovernedArtifactExecutor(root, clock=lambda: AT)
     outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
-    original_metadata = outcome.Metadata()
+    originalMetadata = outcome.Metadata()
     scope = LocalScopeStore(root).Save(
         replace(
             context.scope,
@@ -372,7 +372,7 @@ def test_FreshAcceptanceRejectsLaterRevocationAndResultReplayCannotLaunch(tmp_pa
             at=AT,
         )
 
-    assert outcome.Metadata() == original_metadata, "Historical receipt changed during replay"
+    assert outcome.Metadata() == originalMetadata, "Historical receipt changed during replay"
 
 
 def test_DurableRawCapturePrecedesPostRunAcceptanceFailure(tmp_path):
@@ -591,10 +591,10 @@ def test_OutcomeFreezesCallerManifestListBeforeRetainingProvenance(tmp_path):
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
     executor = GovernedArtifactExecutor(root, clock=lambda: AT)
     outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
-    caller_list = list(outcome.manifests)
-    frozen = replace(outcome, manifests=caller_list)
+    callerList = list(outcome.manifests)
+    frozen = replace(outcome, manifests=callerList)
     before = frozen.Metadata()
-    caller_list[0] = replace(caller_list[0], profile=ArtifactProfile.SYNTHETIC_DOCKERFILE)
+    callerList[0] = replace(callerList[0], profile=ArtifactProfile.SYNTHETIC_DOCKERFILE)
 
     assert isinstance(frozen.manifests, tuple), "Frozen outcome retained a caller's mutable list"
     assert frozen.Metadata() == before, "Caller alias changed accepted original provenance"
@@ -612,17 +612,17 @@ def test_RebuiltExpiredOutcomeEnvelopeCannotExtendOriginalPolicyLifetime(tmp_pat
     with pytest.raises(ArtifactDeniedError):
         executor.ValidateAcceptance(outcome, prepared, stage, context, at=later)
 
-    valid_until = (AT + timedelta(hours=1)).isoformat()
-    changed_grant = replace(
+    validUntil = (AT + timedelta(hours=1)).isoformat()
+    changedGrant = replace(
         grant,
-        valid_until=valid_until,
-        authorization=ArtifactPolicyEngine().Envelope(grant.plan, grant.issued_at, valid_until),
+        valid_until=validUntil,
+        authorization=ArtifactPolicyEngine().Envelope(grant.plan, grant.issued_at, validUntil),
     )
     changed = replace(
         outcome,
-        grant=changed_grant,
+        grant=changedGrant,
         acceptance=replace(
-            outcome.acceptance, grant_id=changed_grant.authorization.authorization_id
+            outcome.acceptance, grant_id=changedGrant.authorization.authorization_id
         ),
     )
 
@@ -639,21 +639,21 @@ def test_CompletedRunCannotBeRelabeledWithAnotherCanonicalGrantWindow(tmp_path):
     executor = GovernedArtifactExecutor(root, clock=lambda: AT)
     outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
     later = AT + timedelta(seconds=301)
-    issued_at = later.isoformat()
-    valid_until = (later + timedelta(seconds=context.policy.max_authorization_seconds)).isoformat()
-    changed_grant = replace(
+    issuedAt = later.isoformat()
+    validUntil = (later + timedelta(seconds=context.policy.max_authorization_seconds)).isoformat()
+    changedGrant = replace(
         grant,
-        issued_at=issued_at,
-        valid_until=valid_until,
-        authorization=ArtifactPolicyEngine().Envelope(grant.plan, issued_at, valid_until),
+        issued_at=issuedAt,
+        valid_until=validUntil,
+        authorization=ArtifactPolicyEngine().Envelope(grant.plan, issuedAt, validUntil),
     )
     changed = replace(
         outcome,
-        grant=changed_grant,
+        grant=changedGrant,
         acceptance=replace(
             outcome.acceptance,
-            grant_id=changed_grant.authorization.authorization_id,
-            checked_at=issued_at,
+            grant_id=changedGrant.authorization.authorization_id,
+            checked_at=issuedAt,
         ),
     )
     marker = json.loads((stage.root / "scratch/run-lease.json").read_bytes())
@@ -684,7 +684,7 @@ def test_AuthorityChangedDuringPostRunHashingRefusesReceiptAndKeepsRaw(
     """The final result decision refreshes owner/policy/time after expensive after-run hashing."""
 
     root, stage, prepared, context, grant = OwnedArtifact(tmp_path)
-    actual_verify = ArtifactStage.Verify
+    actualVerify = ArtifactStage.Verify
     current = context
     now = AT
 
@@ -692,7 +692,7 @@ def test_AuthorityChangedDuringPostRunHashingRefusesReceiptAndKeepsRaw(
         """Change only owned operator state after actual final immutable material checking."""
 
         nonlocal current, now
-        actual_verify(selected, **options)
+        actualVerify(selected, **options)
 
         if not options.get("after_run"):
             return
@@ -737,11 +737,11 @@ def ImageVersion(tmp_path, *, scenario="success"):
 def ImageScan(tmp_path, root, context, executor, proof, *, scenario="success"):
     """Use a separate fresh stage and exact original VERSION prerequisite for SCAN."""
 
-    _, stage, prepared, scan_context, grant = OwnedImageArtifact(
+    _, stage, prepared, scanContext, grant = OwnedImageArtifact(
         tmp_path, scenario=scenario, workspace=root, stage_name="scan-stage",
         operation=ArtifactOperation.SCAN, version_proof=proof,
     )
-    assert scan_context == context, "Pair must retain complete current original authority"
+    assert scanContext == context, "Pair must retain complete current original authority"
     outcome = asyncio.run(executor.Execute(prepared, stage, grant, lambda: context))
 
     return outcome, prepared, stage
@@ -841,8 +841,8 @@ def test_ActualDetachedImageRehashedFactoryMutationsDeny(
         stage["partitions"][2]["directory_identity"] = stage["partitions"][0]["directory_identity"]
 
     else:
-        input_identity = stage["partitions"][0]["identities"][0][1]
-        stage["partitions"][2]["identities"][0][1][:2] = input_identity[:2]
+        inputIdentity = stage["partitions"][0]["identities"][0][1]
+        stage["partitions"][2]["identities"][0][1][:2] = inputIdentity[:2]
 
     plan["stage_sha256"] = Digest(stage)
     plan["request_sha256"] = Digest(prepared)
@@ -1017,13 +1017,13 @@ def test_SameMaterialAlternateVersionCannotReplaceIssuedScanPrerequisite(tmp_pat
 
     root, context, executor, proof = ImageVersion(tmp_path)
     scan = ImageScan(tmp_path, root, context, executor, proof)
-    _, version_stage, version_prepared, _, version_grant = OwnedImageArtifact(
+    _, versionStage, versionPrepared, _, versionGrant = OwnedImageArtifact(
         tmp_path, workspace=root, stage_name="alternate-version"
     )
-    alternate_outcome = asyncio.run(executor.Execute(
-        version_prepared, version_stage, version_grant, lambda: context
+    alternateOutcome = asyncio.run(executor.Execute(
+        versionPrepared, versionStage, versionGrant, lambda: context
     ))
-    alternate = ArtifactVersionProof(alternate_outcome, version_prepared, version_stage)
+    alternate = ArtifactVersionProof(alternateOutcome, versionPrepared, versionStage)
     assert alternate.outcome.manifests == proof.outcome.manifests, "Test changed selected content"
 
     with pytest.raises(ArtifactDeniedError):
@@ -1094,13 +1094,13 @@ def test_FinalPairBarrierRefreshesVersionAfterAllScanHashing(tmp_path, monkeypat
     outcome, prepared, stage = scan
     current = context
     now = AT
-    original_verify = ArtifactStage.Verify
+    originalVerify = ArtifactStage.Verify
 
     def Verify(selected, **options):
         """Change only the owned current authority after original scan physical hashing."""
 
         nonlocal current, now
-        original_verify(selected, **options)
+        originalVerify(selected, **options)
 
         if selected is not stage or not options.get("after_run"):
             return
@@ -1182,15 +1182,15 @@ def test_VersionExpiryDuringFinalAuthorityLookupRefusesAffectedBoundary(
     grant = ArtifactPolicyEngine().Authorize(prepared, stage, context, at=issued)
     now = issued
     completed = False
-    pair_check = False
+    pairCheck = False
     pair_scan_checks = 0
-    original_current = ArtifactPolicyEngine.ValidateCurrent
+    originalCurrent = ArtifactPolicyEngine.ValidateCurrent
 
     def ValidateCurrent(engine, actual_grant, actual_prepared, actual_stage, actual_context, *, at):
         """Advance time only after the relevant complete original SCAN authority lookup."""
 
         nonlocal now, pair_scan_checks
-        original_current(
+        originalCurrent(
             engine, actual_grant, actual_prepared, actual_stage, actual_context, at=at
         )
 
@@ -1202,7 +1202,7 @@ def test_VersionExpiryDuringFinalAuthorityLookupRefusesAffectedBoundary(
         ).is_dir()
         expires = expires or (boundary == "post-run" and completed)
 
-        if pair_check:
+        if pairCheck:
             pair_scan_checks += 1
             expires = pair_scan_checks == 2
 
@@ -1257,7 +1257,7 @@ def test_VersionExpiryDuringFinalAuthorityLookupRefusesAffectedBoundary(
 
         return
 
-    pair_check = True
+    pairCheck = True
 
     with pytest.raises(ArtifactDeniedError) as denied:
         executor.ValidatePairAcceptanceFresh(

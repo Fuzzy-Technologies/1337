@@ -109,8 +109,8 @@ def test_ImageGatePreservesPriorTriageAndUnrelatedFullReportFacts(tmp_path):
     unrelated = Finding(finding.subject_reference, "synthetic.unrelated", "position:other",
         "Owned unrelated high finding", (replace(operator, run_reference="run:unrelated"),),
         severity=FindingSeverity.HIGH)
-    with_unrelated, _ = ApplyFindings(triaged, (unrelated,))
-    store.Save(with_unrelated, expected_revision=triaged.revision)
+    withUnrelated, _ = ApplyFindings(triaged, (unrelated,))
+    store.Save(withUnrelated, expected_revision=triaged.revision)
     status, outcome = InvokeCi(ImageCiArguments(owned, tmp_path))
     current = next(item for item in Findings(store.Open()) if item.check_id == finding.check_id)
     assert status == 0 and outcome["criterion"]["selected_count"] == 1 and (
@@ -173,12 +173,12 @@ def test_ImageCurrentAuthorityRefusalCannotBecomeSatisfiedExit(tmp_path, monkeyp
         Revoke()
 
     elif mode == "before-gate":
-        original_input = commands.OpenReportInput
+        originalInput = commands.OpenReportInput
 
         def Open(root):
             """Reopen actual committed model before revoking current paired authority."""
 
-            value = original_input(root)
+            value = originalInput(root)
             Revoke()
 
             return value
@@ -227,8 +227,8 @@ def test_ImageActualStorageFailureCannotPassPredicate(tmp_path, monkeypatch, kin
     """Both actual storage owners retain truthful nonzero outcomes for missing acknowledgements."""
 
     owned = CreateOwnedImage(tmp_path)
-    selected_store = LocalModelStore if kind == "model" else LocalWorkspaceStore
-    original = selected_store.Save
+    selectedStore = LocalModelStore if kind == "model" else LocalWorkspaceStore
+    original = selectedStore.Save
 
     def Save(self, *args, **kwargs):
         """Fail before the real save or lose its acknowledgement after its durable operation."""
@@ -238,7 +238,7 @@ def test_ImageActualStorageFailureCannotPassPredicate(tmp_path, monkeypatch, kin
 
         raise OSError("Owned image storage acknowledgement failure")
 
-    monkeypatch.setattr(selected_store, "Save", Save)
+    monkeypatch.setattr(selectedStore, "Save", Save)
     status, outcome = InvokeCi(ImageCiArguments(owned, tmp_path))
     assert status == 4 and outcome["criterion"]["status"] == "indeterminate" and (
         outcome["scan"]["state"] == "failed"
@@ -285,7 +285,7 @@ def test_ImageOriginalPairAndSavedSourceProofCannotBeSubstituted(tmp_path, monke
 
     owned = CreateOwnedImage(tmp_path)
     original = commands.EvaluateImageCriterion
-    forbidden_calls = []
+    forbiddenCalls = []
 
     class ForeignCapture(ImageOperationCapture):
         """Alternative capture implementation whose serializer must not dispatch."""
@@ -293,7 +293,7 @@ def test_ImageOriginalPairAndSavedSourceProofCannotBeSubstituted(tmp_path, monke
         def Envelope(self):
             """Trip an unsafe alternative serializer at the original source boundary."""
 
-            forbidden_calls.append("capture")
+            forbiddenCalls.append("capture")
 
             raise AssertionError("Foreign capture serializer cannot execute")
 
@@ -379,7 +379,7 @@ def test_ImageOriginalPairAndSavedSourceProofCannotBeSubstituted(tmp_path, monke
     monkeypatch.setattr(commands, "EvaluateImageCriterion", Gate)
     status, outcome = InvokeCi(ImageCiArguments(owned, tmp_path))
     assert status == 4 and outcome["criterion"]["status"] == "indeterminate" and not (
-        forbidden_calls
+        forbiddenCalls
     ), "Foreign serializers, original pair substitution and missing current proof fail closed"
     assert outcome["reports"]["json"]["status"] == "completed" and not (
         tmp_path / "ci.sarif"

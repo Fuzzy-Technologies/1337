@@ -552,11 +552,11 @@ def Container(batch: InventoryBatch, record: dict[str, object], host: str,
     """
 
     identifier = FullId(record.get("Id"))
-    image_identity = ImageIdentity(cast(str, record.get("Image")))
-    image = batch.Object(image_identity.Object(batch.state.workspace_id),
-        {"asset_type": "image", "digest": image_identity.digest, "digest_kind": "config"})
+    imageIdentity = ImageIdentity(cast(str, record.get("Image")))
+    image = batch.Object(imageIdentity.Object(batch.state.workspace_id),
+        {"asset_type": "image", "digest": imageIdentity.digest, "digest_kind": "config"})
     config = OptionalFields(record.get("Config"))
-    host_config = OptionalFields(record.get("HostConfig"))
+    hostConfig = OptionalFields(record.get("HostConfig"))
     state = OptionalFields(record.get("State"))
     health = OptionalFields(state.get("Health"))
     settings = OptionalFields(record.get("NetworkSettings"))
@@ -564,14 +564,14 @@ def Container(batch: InventoryBatch, record: dict[str, object], host: str,
         "asset_type": "container", "provider": _SOURCE_ID, "container_id": identifier,
         "host_reference": host, "image_reference": image.Reference(),
         "user_category": UserCategory(config.get("User")),
-        "privileged": OptionalBool(host_config.get("Privileged")),
-        "readonly_rootfs": OptionalBool(host_config.get("ReadonlyRootfs")),
-        "cap_add": Capabilities(host_config.get("CapAdd")),
-        "cap_drop": Capabilities(host_config.get("CapDrop")),
-        "pid_mode": Namespace(host_config.get("PidMode")),
-        "ipc_mode": Namespace(host_config.get("IpcMode")),
-        "userns_mode": Namespace(host_config.get("UsernsMode")),
-        "network_mode": Namespace(host_config.get("NetworkMode")),
+        "privileged": OptionalBool(hostConfig.get("Privileged")),
+        "readonly_rootfs": OptionalBool(hostConfig.get("ReadonlyRootfs")),
+        "cap_add": Capabilities(hostConfig.get("CapAdd")),
+        "cap_drop": Capabilities(hostConfig.get("CapDrop")),
+        "pid_mode": Namespace(hostConfig.get("PidMode")),
+        "ipc_mode": Namespace(hostConfig.get("IpcMode")),
+        "userns_mode": Namespace(hostConfig.get("UsernsMode")),
+        "network_mode": Namespace(hostConfig.get("NetworkMode")),
         "reported_running": OptionalBool(state.get("Running")),
         "reported_status": Choice(state.get("Status"),
             {"created", "running", "paused", "restarting", "removing", "exited", "dead"}),
@@ -596,11 +596,11 @@ def Container(batch: InventoryBatch, record: dict[str, object], host: str,
             "Container user is configured as root; effective UID and mapping are unverified.",
             FindingSeverity.LOW)
 
-    for name, source_name in (("pid_mode", "PidMode"), ("ipc_mode", "IpcMode"),
+    for name, sourceName in (("pid_mode", "PidMode"), ("ipc_mode", "IpcMode"),
                               ("userns_mode", "UsernsMode"), ("network_mode", "NetworkMode")):
         if fields[name] == "host":
             batch.Finding(container, "host-" + name.replace("_mode", ""),
-                "HostConfig." + source_name,
+                "HostConfig." + sourceName,
                 "Container uses a configured host namespace; physical isolation is unverified.",
                 FindingSeverity.MEDIUM)
 
@@ -680,13 +680,13 @@ def Ports(batch: InventoryBatch, container: SecurityObject, value: object,
 
             for item in Items(ports[name], 16):
                 binding = Fields(item)
-                host_port = Text(binding.get("HostPort"), 5)
+                hostPort = Text(binding.get("HostPort"), 5)
 
-                if not re.fullmatch(r"[1-9][0-9]{0,4}", host_port):
+                if not re.fullmatch(r"[1-9][0-9]{0,4}", hostPort):
                     raise ValueError("Docker inventory host port must be a positive decimal port")
 
                 bindings.append({"host_address": Address(binding.get("HostIp")),
-                                 "host_port": Integer(int(host_port), 65535)})
+                                 "host_port": Integer(int(hostPort), 65535)})
 
             encoded = [CanonicalModelJson(item) for item in bindings]
 
@@ -721,9 +721,9 @@ def Mounts(batch: InventoryBatch, container: SecurityObject, value: object,
 
     for item in Items(value, limits.max_mounts):
         fields = Fields(item)
-        mount_type = Choice(fields.get("Type"), {"bind", "volume", "tmpfs"})
+        mountType = Choice(fields.get("Type"), {"bind", "volume", "tmpfs"})
 
-        if mount_type is None:
+        if mountType is None:
             raise ValueError("Docker inventory mounts require an explicit known type")
 
         destination = MountPath(fields.get("Destination"))
@@ -732,18 +732,18 @@ def Mounts(batch: InventoryBatch, container: SecurityObject, value: object,
             raise ValueError("Docker inventory mount destinations must be unique")
 
         destinations.add(destination)
-        source = MountPath(fields.get("Source")) if mount_type == "bind" else None
-        volume = Text(fields.get("Name"), 128) if mount_type == "volume" else None
+        source = MountPath(fields.get("Source")) if mountType == "bind" else None
+        volume = Text(fields.get("Name"), 128) if mountType == "volume" else None
 
         if volume is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", volume):
             raise ValueError("Docker inventory volume name is unsupported")
 
-        natural = {"host": host, "type": mount_type, "source": source, "volume": volume,
-                   "container": container.Reference() if mount_type == "tmpfs" else None,
-                   "destination": destination if mount_type == "tmpfs" else None}
+        natural = {"host": host, "type": mountType, "source": source, "volume": volume,
+                   "container": container.Reference() if mountType == "tmpfs" else None,
+                   "destination": destination if mountType == "tmpfs" else None}
         digest = hashlib.sha256(CanonicalModelJson(natural)).hexdigest()
         resource = batch.Asset("docker-mount-resource:" + digest,
-            {"asset_type": "container-mount-source", "mount_type": mount_type,
+            {"asset_type": "container-mount-source", "mount_type": mountType,
              "source_path": source, "volume_name": volume, "host_reference": host})
         batch.Edge(container.Reference(), resource.Reference(), "configured-mount",
             {"mounts": [{"destination": destination,

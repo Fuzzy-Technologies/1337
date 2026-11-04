@@ -488,21 +488,21 @@ class NativeConfigurationWorkflow:
                                           cancellation=context.Cancellation)
 
             with Finalization(budget):
-                version_prepared = PrepareNativeConfigurationOperation("version", self.selection,
+                versionPrepared = PrepareNativeConfigurationOperation("version", self.selection,
                     observer=observer, material_proof=proof, operation_reference=pair)
-                version_grant = engine.AuthorizeNativeConfigurationOperation(version_prepared,
+                versionGrant = engine.AuthorizeNativeConfigurationOperation(versionPrepared,
                     self.Context(), observer=observer, material_proof=proof, at=self.clock(),
                     approve_safe_configuration=True)
-                version_claim = engine.ClaimNativeConfigurationExecution(version_grant,
-                    version_prepared, self.Context(), observer=observer, material_proof=proof,
+                versionClaim = engine.ClaimNativeConfigurationExecution(versionGrant,
+                    versionPrepared, self.Context(), observer=observer, material_proof=proof,
                     at=self.clock())
 
-            version_capture, latest = await CaptureNativeConfigurationOperation(engine,
-                version_prepared, version_grant, version_claim, self.bridge, self.Context,
+            versionCapture, latest = await CaptureNativeConfigurationOperation(engine,
+                versionPrepared, versionGrant, versionClaim, self.bridge, self.Context,
                 observer=observer, material_proof=proof, budget=budget,
                 cancellation=context.Cancellation, clock=self.clock)
-            self.captures.append(version_capture)
-            self.RequireSuccess(version_capture)
+            self.captures.append(versionCapture)
+            self.RequireSuccess(versionCapture)
 
             if latest is None:
                 raise ValueError("Native configuration original VERSION has no verified material")
@@ -510,8 +510,8 @@ class NativeConfigurationWorkflow:
             proof = latest
 
             with Finalization(budget):
-                prerequisite = engine.AcceptNativeConfigurationVersion(version_claim,
-                    version_capture, self.Context(), observer=observer, material_proof=proof,
+                prerequisite = engine.AcceptNativeConfigurationVersion(versionClaim,
+                    versionCapture, self.Context(), observer=observer, material_proof=proof,
                     at=self.clock())
                 prepared = PrepareNativeConfigurationOperation("scan", self.selection,
                     observer=observer, material_proof=proof, operation_reference=pair,
@@ -535,8 +535,8 @@ class NativeConfigurationWorkflow:
 
             with Finalization(budget):
                 buffer = io.BytesIO()
-                source_path = proof.stage.input.directory / self.selection.logical_path
-                selected = ReadArtifactFile(source_path,
+                sourcePath = proof.stage.input.directory / self.selection.logical_path
+                selected = ReadArtifactFile(sourcePath,
                     self.selection.logical_path, buffer, max_bytes=4096)
 
                 if (selected,) != proof.stage.input.manifest.files:
@@ -593,9 +593,9 @@ class NativeConfigurationWorkflow:
                 with Finalization(budget):
                     if self.captures and "native-configuration-source" not in self.bridge.records:
                         stage = self.captures[-1].prepared
-                        input_path = proof.stage.input.directory
+                        inputPath = proof.stage.input.directory
                         buffer = io.BytesIO()
-                        observed = ReadArtifactFile(input_path / self.selection.logical_path,
+                        observed = ReadArtifactFile(inputPath / self.selection.logical_path,
                             self.selection.logical_path, buffer, max_bytes=4096)
 
                         if (observed,) == stage.input_manifest.files:
@@ -674,7 +674,7 @@ async def ScanNativeConfiguration(
     workflow = NativeConfigurationWorkflow(workspace_root, scope_id, owner_reference, selection,
         policy_provider, timeout_seconds, workspace, model, clock)
     job = ScanJob(spec, workflow, evidence_store=LocalEvidenceStore(workspace_root / "evidence"))
-    started_at = datetime.now(UTC).isoformat()
+    startedAt = datetime.now(UTC).isoformat()
     started = time.monotonic()
     first_update = None
     cursor = -1
@@ -722,7 +722,7 @@ async def ScanNativeConfiguration(
             ) else ConfigurationReportOutcome("not-run", report_format,
                 model_revision=actual.revision, failure="scan-not-completed")
 
-    return NativeConfigurationScanSummary(snapshot, started_at, datetime.now(UTC).isoformat(),
+    return NativeConfigurationScanSummary(snapshot, startedAt, datetime.now(UTC).isoformat(),
         time.monotonic() - started, first_update, actual.revision,
         tuple((kind.value, len(actual.Objects(kind))) for kind in ObjectKind), job.EventsSince(),
         tuple(workflow.captures), workflow.Records(), workflow.custody_uncertain or (

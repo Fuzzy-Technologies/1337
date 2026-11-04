@@ -75,8 +75,8 @@ class ComposeLab:
         )
         self.RequireSuccess(health, "Synthetic lab health check")
 
-        expected_payload = {"status": "ok", "target": scenario.target.identifier}
-        if json.loads(health.stdout) != expected_payload:
+        expectedPayload = {"status": "ok", "target": scenario.target.identifier}
+        if json.loads(health.stdout) != expectedPayload:
             raise RuntimeError("Synthetic lab health check returned an unexpected payload")
 
     def StartAttackPath(self, scenario: AttackPathLabScenario) -> None:
@@ -200,8 +200,8 @@ def attack_path_lab() -> Iterator[ComposeLab]:
     if not DockerComposeAvailable():
         pytest.skip("Docker Compose is required for the attack-path functional lab")
 
-    repository_root = Path(__file__).resolve().parents[2]
-    lab = ComposeLab(repository_root, repository_root / "functional-evidence" / "attack-path-mini")
+    repositoryRoot = Path(__file__).resolve().parents[2]
+    lab = ComposeLab(repositoryRoot, repositoryRoot / "functional-evidence" / "attack-path-mini")
     try:
         lab.StartAttackPath(ATTACK_PATH_MINI_LAB)
 
@@ -224,8 +224,8 @@ def StartFunctionalLab(scenario: FunctionalScenario) -> Iterator[ComposeLab]:
     if not DockerComposeAvailable():
         pytest.skip("Docker Compose is required for repository functional tests")
 
-    repository_root = Path(__file__).resolve().parents[2]
-    lab = ComposeLab(repository_root, repository_root / "functional-evidence")
+    repositoryRoot = Path(__file__).resolve().parents[2]
+    lab = ComposeLab(repositoryRoot, repositoryRoot / "functional-evidence")
     try:
         lab.Start(scenario)
 
@@ -283,10 +283,10 @@ def external_target_lab() -> Iterator[ComposeLab]:
     if shutil.which("docker") is None:
         pytest.fail("Enabled external target pack requires Docker Compose")
 
-    repository_root = Path(__file__).resolve().parents[2]
+    repositoryRoot = Path(__file__).resolve().parents[2]
     lab = ExternalTargetLab(
-        repository_root, repository_root / "functional-evidence" / "external-juice-shop",
-        LoadTarget(repository_root),
+        repositoryRoot, repositoryRoot / "functional-evidence" / "external-juice-shop",
+        LoadTarget(repositoryRoot),
     )
     lab.RequireSuccess(
         lab.Run("docker", "compose", "version", timeout_seconds=30), "Docker Compose availability",

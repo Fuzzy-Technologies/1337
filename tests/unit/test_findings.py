@@ -157,7 +157,7 @@ def test_DetectorDedupeUsesOneObjectAndRetainsAcquisitionHistory():
     )
     updated, delta = ApplyFindings(initial, (second,))
     entity = updated.Objects(ObjectKind.FINDING)[0]
-    replayed, replay_delta = ApplyFindings(updated, (second,))
+    replayed, replayDelta = ApplyFindings(updated, (second,))
     observations = [item for item in updated.observations if item.kind == "finding-detection"]
 
     assert len(Findings(updated)) == 1, "Repeated detection created a second canonical finding"
@@ -167,7 +167,7 @@ def test_DetectorDedupeUsesOneObjectAndRetainsAcquisitionHistory():
         first.summary, second.summary,
     }, "Dedupe erased earlier normalized interpretations"
     assert entity.Reference() in delta.updated, "Finding metadata change did not enter the delta"
-    assert replayed == updated and replay_delta.revision == updated.revision, (
+    assert replayed == updated and replayDelta.revision == updated.revision, (
         "Exact replay changed canonical state or created another revision"
     )
 
@@ -178,13 +178,13 @@ def test_BatchOrderingAndEmptyReplayAreExplicit():
     first = Detection()
     second = Detection(summary="Later in batch")
     state, delta = ApplyFindings(State(), (first, second))
-    unchanged, empty_delta = ApplyFindings(state, ())
+    unchanged, emptyDelta = ApplyFindings(state, ())
 
     assert len(Findings(state)) == 1 and Findings(state)[0].summary == second.summary, (
         "Ordered duplicate detections created a second finding or ignored the latest metadata"
     )
     assert delta.revision == delta.previous_revision + 1, "One batch advanced multiple revisions"
-    assert unchanged == state and empty_delta.created == empty_delta.updated == (), (
+    assert unchanged == state and emptyDelta.created == emptyDelta.updated == (), (
         "An empty batch changed canonical state"
     )
 

@@ -108,8 +108,8 @@ def test_GraphOptInRetainsDirectEdgesAliasesLicensesAndFlatRejection(context):
     assert b"SYNTHETIC_PRIVATE_MARKER" not in CanonicalModelJson(state.ToDict()), (
         "Raw-only source values escaped normalization"
     )
-    replayed, replay_delta = ApplyVerifiedSpdxGraph(state, record, provenance, IMAGE, root)
-    assert replayed == state and not replay_delta.created and not replay_delta.updated, (
+    replayed, replayDelta = ApplyVerifiedSpdxGraph(state, record, provenance, IMAGE, root)
+    assert replayed == state and not replayDelta.created and not replayDelta.updated, (
         "Exact graph replay changed canonical state"
     )
 
@@ -393,9 +393,9 @@ def test_ExistingBasisNestedTypesCannotInvokeSubclassOverrides(context, monkeypa
             object.__setattr__(entity, "provenance", (nested,))
 
         else:
-            model_context = replace(entity.provenance[0])
-            object.__setattr__(model_context, "evidence_references", (nested,))
-            object.__setattr__(entity, "provenance", (model_context,))
+            modelContext = replace(entity.provenance[0])
+            object.__setattr__(modelContext, "evidence_references", (nested,))
+            object.__setattr__(entity, "provenance", (modelContext,))
 
     def NoRead(*args, **kwargs):
         """Fail if invalid nested model input reaches original evidence access."""
@@ -420,9 +420,9 @@ def test_ManifestSubstitutionAndCorruptBytesFailWithoutSaving(context):
     with pytest.raises((ValueError, EvidenceError)):
         ApplyVerifiedSpdxGraph(state, substituted, provenance, IMAGE, root)
 
-    raw_path = store.root / record.reference.locator
-    raw_path.chmod(0o600)
-    raw_path.write_bytes(b"corrupt")
+    rawPath = store.root / record.reference.locator
+    rawPath.chmod(0o600)
+    rawPath.write_bytes(b"corrupt")
 
     with pytest.raises(EvidenceIntegrityError):
         ApplyVerifiedSpdxGraph(state, record, provenance, IMAGE, root)

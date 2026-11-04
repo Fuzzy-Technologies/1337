@@ -62,7 +62,7 @@ def ValidateRunner(value: dict, target_id: str, image_id: str) -> None:
 
     host = value.get("host", {})
     mounts = value.get("mounts") or []
-    mounts_valid = all(item.get("Type") == "tmpfs" and item.get("Destination") == "/tmp"
+    mountsValid = all(item.get("Type") == "tmpfs" and item.get("Destination") == "/tmp"
                        and not item.get("Source") for item in mounts)
 
     if value.get("image_id") != image_id or value.get("user") != "1337:1337" or (
@@ -70,7 +70,7 @@ def ValidateRunner(value: dict, target_id: str, image_id: str) -> None:
         or host.get("ReadonlyRootfs") is not True or host.get("Privileged") is not False
         or host.get("Init") is not True
         or host.get("Binds") not in (None, []) or host.get("PortBindings") not in (None, {})
-        or not mounts_valid or len(mounts) > 1
+        or not mountsValid or len(mounts) > 1
         or host.get("CapDrop") != ["ALL"]
         or host.get("CapAdd") not in (None, []) or host.get("Devices") not in (None, [])
         or host.get("VolumesFrom") not in (None, [])
@@ -88,7 +88,7 @@ def Attach(lab: ExternalTargetLab, runner_id: str, directory: Path) -> tuple[Com
 
     argv = ("docker", "start", "--attach", runner_id)
     started = time.monotonic()
-    timed_out = False
+    timedOut = False
 
     try:
         process = subprocess.run(argv, cwd=lab.repository_root, capture_output=True,
@@ -97,15 +97,15 @@ def Attach(lab: ExternalTargetLab, runner_id: str, directory: Path) -> tuple[Com
 
     except subprocess.TimeoutExpired as error:
         stdout, stderr, returncode = error.stdout or b"", error.stderr or b"", 124
-        timed_out = True
+        timedOut = True
 
     result = CommandResult(argv, returncode, stdout.decode("utf-8", errors="replace"),
-        stderr.decode("utf-8", errors="replace"), timed_out, time.monotonic() - started)
+        stderr.decode("utf-8", errors="replace"), timedOut, time.monotonic() - started)
     lab.WriteEvidence(result)
     (directory / "docker.stdout").write_bytes(stdout)
     (directory / "docker.stderr").write_bytes(stderr)
     (directory / "docker-exit.json").write_text(json.dumps({
-        "argv": argv, "returncode": returncode, "timed_out": timed_out,
+        "argv": argv, "returncode": returncode, "timed_out": timedOut,
         "duration_seconds": result.duration_seconds,
         "stdout_sha256": hashlib.sha256(stdout).hexdigest(),
         "stderr_sha256": hashlib.sha256(stderr).hexdigest(),
@@ -154,36 +154,36 @@ class NativeBenchmarkRuntime(ComposeLab):
         if untracked.stdout.strip():
             raise RuntimeError("Native benchmark image build requires clean committed source")
         unique = uuid4().hex[:12]
-        base_name = "fuzzy1337-native-base-" + unique
-        runner_name = "fuzzy1337-native-runner-" + unique
-        self.images.extend((runner_name, base_name))
-        base_id_file = self.output / "base-image.id"
-        runner_id_file = self.output / "runner-image.id"
+        baseName = "fuzzy1337-native-base-" + unique
+        runnerName = "fuzzy1337-native-runner-" + unique
+        self.images.extend((runnerName, baseName))
+        baseIdFile = self.output / "base-image.id"
+        runnerIdFile = self.output / "runner-image.id"
         self.RequireSuccess(self.Run("docker", "build", "--target", "development", "--iidfile",
-            str(base_id_file), "--tag", base_name, "--label",
+            str(baseIdFile), "--tag", baseName, "--label",
             SOURCE_REVISION_LABEL + "=" + self.source_revision, str(self.repository_root),
             timeout_seconds=300), "Current product development image build")
-        base_id = base_id_file.read_text().strip()
+        baseId = baseIdFile.read_text().strip()
 
-        if re.fullmatch("sha256:[a-f0-9]{64}", base_id) is None:
+        if re.fullmatch("sha256:[a-f0-9]{64}", baseId) is None:
             raise RuntimeError("Native base build did not produce an immutable image ID")
 
-        base_metadata = self.Run("docker", "image", "inspect", "--format", IMAGE_FORMAT,
-                                 base_id, timeout_seconds=15)
-        self.RequireSuccess(base_metadata, "Native base image provenance")
-        base = StrictJson(base_metadata.stdout.encode())
-        (self.output / "base-image.json").write_text(base_metadata.stdout)
+        baseMetadata = self.Run("docker", "image", "inspect", "--format", IMAGE_FORMAT,
+                                 baseId, timeout_seconds=15)
+        self.RequireSuccess(baseMetadata, "Native base image provenance")
+        base = StrictJson(baseMetadata.stdout.encode())
+        (self.output / "base-image.json").write_text(baseMetadata.stdout)
 
-        if base.get("id") != base_id or not base.get("layers"):
+        if base.get("id") != baseId or not base.get("layers"):
             raise RuntimeError("Native base image content identity is missing")
 
         self.RequireSuccess(self.Run("docker", "build", "--file",
             str(self.repository_root / "labs/external/benchmark/native-runner.Dockerfile"),
-            "--build-arg", "WORKBENCH_IMAGE=" + base_name, "--build-arg",
-            "SOURCE_REVISION=" + self.source_revision, "--iidfile", str(runner_id_file),
-            "--tag", runner_name, str(self.repository_root), timeout_seconds=180),
+            "--build-arg", "WORKBENCH_IMAGE=" + baseName, "--build-arg",
+            "SOURCE_REVISION=" + self.source_revision, "--iidfile", str(runnerIdFile),
+            "--tag", runnerName, str(self.repository_root), timeout_seconds=180),
             "Clean installed-wheel native runner image build")
-        self.image_id = runner_id_file.read_text().strip()
+        self.image_id = runnerIdFile.read_text().strip()
         metadata = self.Run("docker", "image", "inspect", "--format", IMAGE_FORMAT,
                             self.image_id, timeout_seconds=15)
         self.RequireSuccess(metadata, "Native scanner image provenance")
@@ -214,35 +214,35 @@ class NativeBenchmarkRuntime(ComposeLab):
         lab = ExternalTargetLab(self.repository_root, directory / "target",
                                 LoadTarget(self.repository_root))
 
-        with contextmanager(OwnExternalTarget)(lab) as target_lab:
-            control_sha256 = self.Control(case, target_lab)
-            target_id = target_lab.provenance["container_id"]
-            name = target_lab.project_name + "-native"
-            runner_id = ""
+        with contextmanager(OwnExternalTarget)(lab) as targetLab:
+            controlSha256 = self.Control(case, targetLab)
+            targetId = targetLab.provenance["container_id"]
+            name = targetLab.project_name + "-native"
+            runnerId = ""
 
             try:
-                created = lab.Run(*RunnerArguments(name, target_id, self.image_id, case["path"]),
+                created = lab.Run(*RunnerArguments(name, targetId, self.image_id, case["path"]),
                                   timeout_seconds=20)
                 lab.RequireSuccess(created, "Restricted native scanner container creation")
-                runner_id = created.stdout.strip()
+                runnerId = created.stdout.strip()
 
-                if re.fullmatch("[a-f0-9]{64}", runner_id) is None:
+                if re.fullmatch("[a-f0-9]{64}", runnerId) is None:
                     raise RuntimeError("Native scanner creation returned no exact container ID")
 
                 inspected = lab.Run("docker", "inspect", "--format", RUNNER_FORMAT,
-                                    runner_id, timeout_seconds=15)
+                                    runnerId, timeout_seconds=15)
                 lab.RequireSuccess(inspected, "Native scanner isolation readback")
-                ValidateRunner(StrictJson(inspected.stdout.encode()), target_id, self.image_id)
-                result, raw_stdout = Attach(lab, runner_id, directory)
-                imported = ImportBundle(raw_stdout, directory / "scanner")
+                ValidateRunner(StrictJson(inspected.stdout.encode()), targetId, self.image_id)
+                result, rawStdout = Attach(lab, runnerId, directory)
+                imported = ImportBundle(rawStdout, directory / "scanner")
                 (directory / "bundle-manifest.json").write_text(json.dumps({
                     "schema_version": imported["schema_version"], "outcome": imported["outcome"],
                     "files": [{key: value for key, value in record.items() if key != "data_base64"}
                               for record in imported["files"]],
                 }, indent=2))
                 lab.RequireSuccess(result, "Actual installed native scanner execution")
-                observation = self.Observation(case, directory, target_lab, imported["outcome"],
-                                               control_sha256=control_sha256)
+                observation = self.Observation(case, directory, targetLab, imported["outcome"],
+                                               control_sha256=controlSha256)
                 ValidateObservation(self.pack, self.target, observation, self.output)
                 self.observations.append(observation)
                 report = BuildComparison(self.pack, self.target, self.observations, self.output)
@@ -259,7 +259,7 @@ class NativeBenchmarkRuntime(ComposeLab):
                 raise
 
             finally:
-                removed = lab.Run("docker", "rm", "--force", "--volumes", runner_id or name,
+                removed = lab.Run("docker", "rm", "--force", "--volumes", runnerId or name,
                                   timeout_seconds=20)
                 lab.RequireSuccess(removed, "Native scanner container cleanup")
 
@@ -298,7 +298,7 @@ class NativeBenchmarkRuntime(ComposeLab):
         invocation = ReadJson(scanner / "invocation.json")
         worker = ReadJson(scanner / "worker-stdout.json")
         findings = StrictJson((scanner / "findings.json").read_bytes())
-        target_url = "http://127.0.0.1:3000" + case["path"]
+        targetUrl = "http://127.0.0.1:3000" + case["path"]
 
         if not isinstance(provisioning.get("wheel"), dict) or (
             type(provisioning["wheel"].get("filename")) is not str
@@ -312,7 +312,7 @@ class NativeBenchmarkRuntime(ComposeLab):
         wheel = scanner / provisioning["wheel"]["filename"]
 
         if outcome.get("status") != "completed" or outcome.get("exit_code") != 0 or (
-            outcome.get("target_url") != target_url or worker.get("url") != target_url
+            outcome.get("target_url") != targetUrl or worker.get("url") != targetUrl
             or worker.get("check_id") != "native.prometheus-exposition" or "error" in worker
             or type(worker.get("matched")) is not bool
             or worker.get("status") != 200
@@ -331,29 +331,29 @@ class NativeBenchmarkRuntime(ComposeLab):
 
         for module, digest in provisioning["module_sha256"].items():
             relative = module.replace(".", "/") + ".py"
-            module_path = self.repository_root / "src/fuzzy1337" / relative
+            modulePath = self.repository_root / "src/fuzzy1337" / relative
 
-            if hashlib.sha256(module_path.read_bytes()).hexdigest() != digest:
+            if hashlib.sha256(modulePath.read_bytes()).hexdigest() != digest:
                 raise RuntimeError("Installed native module differs from exact committed source")
 
         reset = {"target": self.target, "compose_sha256": hashlib.sha256(
             (self.repository_root / "labs/external/compose.yaml").read_bytes()).hexdigest()}
-        reset_hash = hashlib.sha256(json.dumps(reset, sort_keys=True).encode()).hexdigest()
+        resetHash = hashlib.sha256(json.dumps(reset, sort_keys=True).encode()).hexdigest()
         execution = {**invocation, "source_revision": self.target["source_revision"],
             "image_index_digest": self.target["index_digest"],
             "platform_digest": lab.provenance["platform_manifest_digest"],
-            "target_url": target_url, "target_instance": lab.provenance["container_id"],
-            "reset_contract_sha256": reset_hash,
+            "target_url": targetUrl, "target_instance": lab.provenance["container_id"],
+            "reset_contract_sha256": resetHash,
             "network_internal": True, "published_ports": 0, "exit_code": outcome["exit_code"],
             "duration_seconds": outcome["duration_seconds"], "request_count": 1,
             "findings": findings, "evidence": []}
-        provenance_keys = ("source_revision", "image_index_digest", "platform_digest", "target_url",
+        provenanceKeys = ("source_revision", "image_index_digest", "platform_digest", "target_url",
                            "target_instance", "reset_contract_sha256", "network_internal",
                            "published_ports")
         normalized = directory / "target-provenance.json"
-        normalized.write_text(json.dumps({key: execution[key] for key in provenance_keys}))
+        normalized.write_text(json.dumps({key: execution[key] for key in provenanceKeys}))
         requests = directory / "approved-attempts.json"
-        requests.write_text(json.dumps([{"method": "GET", "url": target_url}]))
+        requests.write_text(json.dumps([{"method": "GET", "url": targetUrl}]))
         accounting = directory / "attempt-provenance.json"
         accounting.write_text(json.dumps({"basis": REQUEST_BASIS, "approved_attempt_count": 1,
             "independent_server_contact_count": None,

@@ -66,25 +66,25 @@ def ArchiveBytes(scenario: str = "success") -> bytes:
     layer = TarBytes((
         ("1337-fixture.txt", b"Owned inert image fixture; no package installation\n"),
     ))
-    layer_digest = Digest(layer)
+    layerDigest = Digest(layer)
     config = JsonBytes({
         "architecture": "amd64", "os": "linux", "config": {},
-        "rootfs": {"type": "layers", "diff_ids": [layer_digest]},
+        "rootfs": {"type": "layers", "diff_ids": [layerDigest]},
     })
-    config_name = hashlib.sha256(config).hexdigest() + ".json"
-    layer_name = layer_digest[7:] + "/layer.tar"
+    configName = hashlib.sha256(config).hexdigest() + ".json"
+    layerName = layerDigest[7:] + "/layer.tar"
     manifest = JsonBytes({
         "schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
         "config": {"mediaType": "application/vnd.oci.image.config.v1+json",
                    "digest": Digest(config), "size": len(config)},
         "layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar",
-                    "digest": layer_digest, "size": len(layer)}],
+                    "digest": layerDigest, "size": len(layer)}],
     })
 
     return TarBytes((
-        ("manifest.json", JsonBytes([{"Config": config_name, "RepoTags": [],
-                                      "Layers": [layer_name]}])),
-        (config_name, config), (layer_name, layer), ("oci-manifest.json", manifest),
+        ("manifest.json", JsonBytes([{"Config": configName, "RepoTags": [],
+                                      "Layers": [layerName]}])),
+        (configName, config), (layerName, layer), ("oci-manifest.json", manifest),
         ("1337-fixture.json", JsonBytes({"scenario": scenario})),
     ))
 

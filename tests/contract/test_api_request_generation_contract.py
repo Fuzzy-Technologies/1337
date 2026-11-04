@@ -30,8 +30,8 @@ def test_IndependentFixtureOraclesConsumeRealGeneratedRequests(name, document_fo
     fixture = ROOT / f"tests/contract/fixtures/api_request_generation.{name}.{document_format}"
     text = fixture.read_text(encoding="utf-8")
     document = DecodeApiDocument(text, document_format=document_format)[0]
-    oracle_path = ROOT / "tests/contract/fixtures/api_request_generation.expected.json"
-    expected = json.loads(oracle_path.read_text())
+    oraclePath = ROOT / "tests/contract/fixtures/api_request_generation.expected.json"
+    expected = json.loads(oraclePath.read_text())
     imported = ImportOpenApi(text, workspace_id="generation-contract",
                              document_format=document_format)
 
@@ -74,9 +74,9 @@ def test_IndependentFixtureOraclesConsumeRealGeneratedRequests(name, document_fo
             )
 
         elif "multipart" in oracle:
-            content_type = headers["content-type"]
+            contentType = headers["content-type"]
             message = BytesParser(policy=policy.default).parsebytes(
-                f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("ascii")
+                f"Content-Type: {contentType}\r\nMIME-Version: 1.0\r\n\r\n".encode("ascii")
                 + generated.body
             )
             assert message.is_multipart() and not message.defects, "MIME framing failed"
@@ -85,8 +85,8 @@ def test_IndependentFixtureOraclesConsumeRealGeneratedRequests(name, document_fo
             for part in message.iter_parts():
                 assert part.get_content_disposition() == "form-data", "Part is not form-data"
                 assert part.get_filename() is None and not part.defects, "File part invented"
-                field_name = part.get_param("name", header="content-disposition")
-                parsed[field_name] = part.get_content().rstrip("\r\n")
+                fieldName = part.get_param("name", header="content-disposition")
+                parsed[fieldName] = part.get_content().rstrip("\r\n")
 
             assert parsed == oracle["multipart"], "Multipart values differ from oracle"
             assert b"\n" not in generated.body.replace(b"\r\n", b""), "Non-CRLF framing"

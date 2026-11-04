@@ -109,8 +109,8 @@ class JobSpec:
     def __post_init__(self) -> None:
         """Require explicit non-secret ownership and a bounded job deadline."""
 
-        for field_name in ("job_id", "scope_reference", "owner_reference"):
-            RequireReference(getattr(self, field_name), field_name)
+        for fieldName in ("job_id", "scope_reference", "owner_reference"):
+            RequireReference(getattr(self, fieldName), fieldName)
 
         RequireIdentifier(self.workspace_id, "workspace_id")
         RequireIdentifier(self.provider_id, "provider_id")
@@ -821,7 +821,7 @@ class LocalExecutionJob:
             ))
 
         context.CheckCancellation()
-        started_at = datetime.now(UTC).isoformat()
+        startedAt = datetime.now(UTC).isoformat()
 
         def OnEvent(event: ExecutionEvent) -> None:
             """Expose activity without copying raw stream bytes or arguments into events.
@@ -853,7 +853,7 @@ class LocalExecutionJob:
             source_id=spec.provider_id,
             source_version=self.request.invocation.provider_version or "unknown",
             tool_version=self.request.invocation.provider_version,
-            started_at=started_at,
+            started_at=startedAt,
             finished_at=datetime.now(UTC).isoformat(),
             invocation_sha256=InvocationDigest(self.request.invocation),
             execution=result.execution,

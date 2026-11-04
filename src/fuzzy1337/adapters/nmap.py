@@ -90,12 +90,12 @@ def ValidateParameters(request: AdapterRequest) -> tuple[str, tuple[int, ...], i
         raise ValueError("Nmap address must be one literal unscoped IP address")
 
     try:
-        parsed_address = ipaddress.ip_address(address)
+        parsedAddress = ipaddress.ip_address(address)
 
     except ValueError as error:
         raise ValueError("Nmap address must be one literal IP address") from error
 
-    if parsed_address.is_multicast or parsed_address.is_unspecified:
+    if parsedAddress.is_multicast or parsedAddress.is_unspecified:
         raise ValueError("Nmap address must be a unicast non-unspecified address")
 
     ports = request.parameters["ports"]
@@ -117,7 +117,7 @@ def ValidateParameters(request: AdapterRequest) -> tuple[str, tuple[int, ...], i
     ):
         raise ValueError("Nmap timeout_seconds must be an integer from 1 through 3600")
 
-    return str(parsed_address), tuple(sorted(ports)), timeout
+    return str(parsedAddress), tuple(sorted(ports)), timeout
 
 
 def ParseXml(raw: bytes) -> ElementTree.Element:
@@ -223,7 +223,7 @@ def ReadVersion(executable: str) -> AdapterHealth:
 
     assert process.stdout is not None, "subprocess.PIPE did not provide its stdout capture handle"
     pipe = process.stdout
-    capture_failed = threading.Event()
+    captureFailed = threading.Event()
 
     def Capture() -> None:
         """Drain at most the capture budget plus one detection byte."""
@@ -244,19 +244,19 @@ def ReadVersion(executable: str) -> AdapterHealth:
                 process.kill()
 
         except (OSError, ValueError):
-            capture_failed.set()
+            captureFailed.set()
 
             return
 
     worker = threading.Thread(target=Capture, daemon=True)
     worker.start()
-    timed_out = False
+    timedOut = False
 
     try:
         process.wait(timeout=NMAP_HEALTH_TIMEOUT_SECONDS)
 
     except subprocess.TimeoutExpired:
-        timed_out = True
+        timedOut = True
 
         try:
             process.kill()
@@ -270,7 +270,7 @@ def ReadVersion(executable: str) -> AdapterHealth:
     pipe.close()
     raw = b"".join(output)
 
-    if timed_out or worker.is_alive() or capture_failed.is_set() or (
+    if timedOut or worker.is_alive() or captureFailed.is_set() or (
         len(raw) > NMAP_HEALTH_MAX_BYTES
     ):
         return AdapterHealth(_DESCRIPTOR.adapter_id, AdapterHealthState.DEGRADED,
@@ -459,17 +459,17 @@ class NmapAdapter:
                     continue
 
                 try:
-                    reported_address = ipaddress.ip_address(item.get("addr", ""))
+                    reportedAddress = ipaddress.ip_address(item.get("addr", ""))
 
                 except ValueError as error:
                     raise NmapReportError("Nmap host address is not a literal IP") from error
 
-                if item.get("addrtype") != f"ipv{reported_address.version}" or (
-                    "%" in str(reported_address)
+                if item.get("addrtype") != f"ipv{reportedAddress.version}" or (
+                    "%" in str(reportedAddress)
                 ):
                     raise NmapReportError("Nmap host address family is inconsistent")
 
-                addresses.append(str(reported_address))
+                addresses.append(str(reportedAddress))
 
             if addresses != [address]:
                 raise NmapReportError("Nmap host address differs from the approved literal target")
@@ -479,12 +479,12 @@ class NmapAdapter:
             if status is None or status.get("state") not in {"up", "down", "unknown", "skipped"}:
                 raise NmapReportError("Nmap host status is missing or unsupported")
 
-            host_attributes: dict[str, object] = {"address": address,
+            hostAttributes: dict[str, object] = {"address": address,
                 "address_type": f"ipv{ipaddress.ip_address(address).version}",
                 "state": status.get("state"), "reason": status.get("reason"),
                 "extraports": tuple(dict(item.attrib) for item in host.findall("ports/extraports"))}
-            observations.append(NormalizedObservation("network.host", subject, host_attributes))
-            objects.append(ObjectEnrichment("host", subject, host_attributes))
+            observations.append(NormalizedObservation("network.host", subject, hostAttributes))
+            objects.append(ObjectEnrichment("host", subject, hostAttributes))
             seen: set[int] = set()
 
             for port in host.findall("ports/port"):
@@ -503,29 +503,29 @@ class NmapAdapter:
                     raise NmapReportError("Nmap port state is missing or unsupported")
 
                 seen.add(number)
-                port_reference = f"{subject}:tcp:{number}"
+                portReference = f"{subject}:tcp:{number}"
                 attributes: dict[str, object] = {"protocol": "tcp", "number": number,
                                                "state": state.get("state"),
                                                "reason": state.get("reason")}
                 observations.append(NormalizedObservation(
-                    "network.port", port_reference, attributes,
+                    "network.port", portReference, attributes,
                 ))
-                objects.append(ObjectEnrichment("port", port_reference, attributes))
-                relations.append(RelationEnrichment("has-port", subject, port_reference))
+                objects.append(ObjectEnrichment("port", portReference, attributes))
+                relations.append(RelationEnrichment("has-port", subject, portReference))
                 service = port.find("service")
 
                 if service is not None:
-                    service_attributes: dict[str, object] = dict(service.attrib)
-                    service_attributes["cpe"] = tuple(item.text for item in service.findall("cpe")
+                    serviceAttributes: dict[str, object] = dict(service.attrib)
+                    serviceAttributes["cpe"] = tuple(item.text for item in service.findall("cpe")
                                                        if item.text)
-                    service_reference = f"{port_reference}:service"
-                    observations.append(NormalizedObservation("network.service", service_reference,
-                                                              service_attributes))
+                    serviceReference = f"{portReference}:service"
+                    observations.append(NormalizedObservation("network.service", serviceReference,
+                                                              serviceAttributes))
                     objects.append(ObjectEnrichment(
-                        "service", service_reference, service_attributes,
+                        "service", serviceReference, serviceAttributes,
                     ))
-                    relations.append(RelationEnrichment("hosts-service", port_reference,
-                                                        service_reference))
+                    relations.append(RelationEnrichment("hosts-service", portReference,
+                                                        serviceReference))
 
         return AdapterResult(report, tuple(observations), object_enrichments=tuple(objects),
                              relation_enrichments=tuple(relations))

@@ -162,8 +162,8 @@ def OpenReportInput(root: Path) -> ReportInput:
     for reference in workspace.evidence_references:
         evidence.Read(reference)
 
-    for record_id in workspace.evidence_record_references:
-        record = evidence.Get(record_id)
+    for recordId in workspace.evidence_record_references:
+        record = evidence.Get(recordId)
 
         if record.provenance.workspace_id != workspace.workspace_id:
             raise EvidenceIntegrityError("report acquisition belongs to a different workspace")
@@ -180,13 +180,13 @@ def OpenReportInput(root: Path) -> ReportInput:
     if len(scopes) > MAX_EXPORT_SCOPES:
         raise ReportFailure("limit")
 
-    scope_store = LocalScopeStore(root)
+    scopeStore = LocalScopeStore(root)
 
-    for scope_reference in sorted(scopes):
-        if not scope_reference.startswith("scope:"):
+    for scopeReference in sorted(scopes):
+        if not scopeReference.startswith("scope:"):
             raise ValueError("report scope must name an existing workspace-local scope")
 
-        scope_store.Open(scope_reference[6:])
+        scopeStore.Open(scopeReference[6:])
 
     for reference in report.EvidenceReferences():
         evidence.Check(reference)
@@ -230,11 +230,11 @@ def ReportOutputPath(destination: Path, root: Path) -> Path:
     """
 
     destination = RequireReportPath(destination)
-    source_metadata = StoragePathInfo(root)
+    sourceMetadata = StoragePathInfo(root)
 
     if (
-        source_metadata is None or not stat.S_ISDIR(source_metadata.st_mode)
-        or source_metadata.st_ino <= 0 or destination.is_relative_to(root)
+        sourceMetadata is None or not stat.S_ISDIR(sourceMetadata.st_mode)
+        or sourceMetadata.st_ino <= 0 or destination.is_relative_to(root)
     ):
         raise ReportFailure("configuration", 2)
 
@@ -243,7 +243,7 @@ def ReportOutputPath(destination: Path, root: Path) -> Path:
 
         if (
             metadata is None or not stat.S_ISDIR(metadata.st_mode) or metadata.st_ino <= 0
-            or os.path.samestat(source_metadata, metadata)
+            or os.path.samestat(sourceMetadata, metadata)
         ):
             raise ReportFailure("configuration", 2)
 
@@ -308,7 +308,7 @@ def PublishReport(destination: Path, payload: bytes) -> None:
 
     temporary: Path | None = None
     published = False
-    owned_metadata: os.stat_result | None = None
+    ownedMetadata: os.stat_result | None = None
 
     try:
         with tempfile.NamedTemporaryFile(mode="wb", prefix=".1337-report-", suffix=".pending",
@@ -320,7 +320,7 @@ def PublishReport(destination: Path, payload: bytes) -> None:
 
             stream.flush()
             os.fsync(stream.fileno())
-            owned_metadata = os.fstat(stream.fileno())
+            ownedMetadata = os.fstat(stream.fileno())
 
         os.link(temporary, destination)
         published = True
@@ -330,13 +330,13 @@ def PublishReport(destination: Path, payload: bytes) -> None:
 
     except KeyboardInterrupt as error:
         if not published:
-            published = ConfirmReportPublication(destination, owned_metadata)
+            published = ConfirmReportPublication(destination, ownedMetadata)
 
         raise ReportFailure("interrupted", 130, published=published) from error
 
     except OSError as error:
         if not published:
-            published = ConfirmReportPublication(destination, owned_metadata)
+            published = ConfirmReportPublication(destination, ownedMetadata)
 
         raise ReportFailure("publication", published=published) from error
 

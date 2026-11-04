@@ -42,11 +42,11 @@ def test_RealApiProjectionPreservesRequestsMetadataAndSeparateScopeOwnership(tmp
             AuthorizationState.GRANTED, "operator:synthetic", "consent:synthetic",
         ), targets=(target,), allow=(target,),
     ))
-    scope_before = (root / "state/scopes/api.json").read_bytes()
-    workspace_before = (root / "workspace.json").read_bytes()
-    safe_bytes = json.dumps(imported.ToDict(), sort_keys=True).encode("utf-8")
+    scopeBefore = (root / "state/scopes/api.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
+    safeBytes = json.dumps(imported.ToDict(), sort_keys=True).encode("utf-8")
     evidence = LocalEvidenceStore(root / "evidence").Put(
-        safe_bytes, "api-structure", "application/json", EvidenceProvenance(
+        safeBytes, "api-structure", "application/json", EvidenceProvenance(
             "demo", scope.Reference(), "openapi", "1", "synthetic-import",
             "2026-10-13T00:00:00Z", "2026-10-13T00:00:01Z",
         ),
@@ -88,7 +88,7 @@ def test_RealApiProjectionPreservesRequestsMetadataAndSeparateScopeOwnership(tmp
 
     marker = b"synthetic-private-source-value"
     before = (root / "state/model/model.json").read_bytes()
-    assert marker not in before and marker not in safe_bytes, "Private source values were persisted"
+    assert marker not in before and marker not in safeBytes, "Private source values were persisted"
     operation = next(item for item in imported.operations if item.operation_id == "GetUser")
     assert CheckOpenApiTarget(operation, target, scope, at=datetime(
         2026, 10, 13, tzinfo=timezone.utc,
@@ -103,11 +103,11 @@ def test_RealApiProjectionPreservesRequestsMetadataAndSeparateScopeOwnership(tmp
             2026, 10, 13, tzinfo=timezone.utc,
         ))
 
-    assert (root / "state/scopes/api.json").read_bytes() == scope_before, (
+    assert (root / "state/scopes/api.json").read_bytes() == scopeBefore, (
         "OpenAPI expectation failed: (root / "
         "'state/scopes/api.json').read_bytes() == scope_before "
     )
-    assert (root / "workspace.json").read_bytes() == workspace_before, (
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, (
         "OpenAPI expectation failed: (root / "
         "'workspace.json').read_bytes() == workspace_before "
     )
@@ -121,7 +121,7 @@ def test_RealApiProjectionPreservesRequestsMetadataAndSeparateScopeOwnership(tmp
         "OpenAPI expectation failed: (moved / "
         "'state/model/model.json').read_bytes() == before "
     )
-    assert LocalEvidenceStore(moved / "evidence").Read(evidence.reference) == safe_bytes, (
+    assert LocalEvidenceStore(moved / "evidence").Read(evidence.reference) == safeBytes, (
         "OpenAPI expectation failed: LocalEvidenceStore(moved / "
         "'evidence').Read(evidence.reference) == safe_bytes "
     )

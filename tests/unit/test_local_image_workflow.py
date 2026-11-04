@@ -278,7 +278,7 @@ def test_ExactWorkspaceAcknowledgementRequiresTheOriginalProposalAndRevision(
     root = selection.workspace_root
     before = LocalWorkspaceStore(root).Open()
     model = LocalModelStore(root).Open()
-    original_save = LocalWorkspaceStore.Save
+    originalSave = LocalWorkspaceStore.Save
     writes = []
 
     class EqualityImpostor:
@@ -298,10 +298,10 @@ def test_ExactWorkspaceAcknowledgementRequiresTheOriginalProposalAndRevision(
             return store.Open()
 
         if failure == "wrong-write":
-            return original_save(store, replace(proposal, evidence_references=(),
+            return originalSave(store, replace(proposal, evidence_references=(),
                 evidence_record_references=(), scope_references=(), job_references=()))
 
-        saved = original_save(store, proposal)
+        saved = originalSave(store, proposal)
 
         if failure == "lost-ack":
             return None

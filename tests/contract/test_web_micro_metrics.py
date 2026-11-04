@@ -120,11 +120,11 @@ def test_MicroTargetRegressionRecordsMissesFalseAlarmsAndFailureTruth():
         "The same observations cannot claim accuracy without a complete oracle."
     )
 
-    for returncode, timed_out, status in (
+    for returncode, timedOut, status in (
         (1, False, RunStatus.CRASHED), (124, True, RunStatus.TIMED_OUT)
     ):
         failed = NormalizeWebMicroRun(
-            "partial invalid JSON", "error", ("probe",), returncode, 1, timed_out
+            "partial invalid JSON", "error", ("probe",), returncode, 1, timedOut
         )
 
         assert failed.status is status, "A failed probe must preserve its actual terminal state."

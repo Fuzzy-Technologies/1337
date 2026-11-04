@@ -54,10 +54,10 @@ def ArchiveBytes(package_version: str) -> bytes:
     metadata = (f"Metadata-Version: 2.1\nName: requests\nVersion: {package_version}\n"
                 "Summary: Owned inert scanner metadata fixture\nLicense: Apache-2.0\n\n").encode()
     layer = TarBytes(((base + "METADATA", metadata), (base + "RECORD", b"")))
-    diff_id = "sha256:" + hashlib.sha256(layer).hexdigest()
+    diffId = "sha256:" + hashlib.sha256(layer).hexdigest()
     config = JsonBytes({"architecture": "amd64", "os": "linux", "config": {},
-        "rootfs": {"type": "layers", "diff_ids": [diff_id]}})
-    config_name = hashlib.sha256(config).hexdigest() + ".json"
-    manifest = JsonBytes([{"Config": config_name, "RepoTags": [], "Layers": ["layer.tar"]}])
+        "rootfs": {"type": "layers", "diff_ids": [diffId]}})
+    configName = hashlib.sha256(config).hexdigest() + ".json"
+    manifest = JsonBytes([{"Config": configName, "RepoTags": [], "Layers": ["layer.tar"]}])
 
-    return TarBytes((("manifest.json", manifest), (config_name, config), ("layer.tar", layer)))
+    return TarBytes((("manifest.json", manifest), (configName, config), ("layer.tar", layer)))

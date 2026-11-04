@@ -90,9 +90,9 @@ class FileAccessState:
         if any(path.is_symlink() for path in guarded):
             raise OSError("Owned file paths cannot contain symbolic links")
 
-        canonical_root = self.root.resolve(strict=True)
+        canonicalRoot = self.root.resolve(strict=True)
         resolved = candidate.resolve(strict=False)
-        resolved.relative_to(canonical_root)
+        resolved.relative_to(canonicalRoot)
 
         if fixed:
             resolved.relative_to(public.resolve(strict=True))

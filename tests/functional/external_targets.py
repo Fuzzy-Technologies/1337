@@ -78,9 +78,9 @@ class HttpObservation:
 def LoadTarget(repository_root: Path) -> ExternalTarget:
     """Validate the external pack schema before any Docker operation occurs."""
 
-    pack_directory = repository_root / "labs" / "external"
-    schema = json.loads((pack_directory / "target.schema.json").read_text(encoding="utf-8"))
-    manifest = json.loads((pack_directory / "juice-shop.v1.json").read_text(encoding="utf-8"))
+    packDirectory = repository_root / "labs" / "external"
+    schema = json.loads((packDirectory / "target.schema.json").read_text(encoding="utf-8"))
+    manifest = json.loads((packDirectory / "juice-shop.v1.json").read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     Draft202012Validator(schema).validate(manifest)
 
@@ -122,19 +122,19 @@ def ValidateCompose(configuration: dict[str, Any], target: ExternalTarget) -> No
     service = services[target.Service]
     network = networks["external-targets"]
     limits = target.manifest["resource_limits"]
-    expected_memory_bytes = limits["memory_mib"] * 1024 * 1024
-    memory_limit = service.get("mem_limit")
-    memory_limit_valid = (
-        type(memory_limit) in (int, str)
-        and memory_limit in (expected_memory_bytes, str(expected_memory_bytes))
+    expectedMemoryBytes = limits["memory_mib"] * 1024 * 1024
+    memoryLimit = service.get("mem_limit")
+    memoryLimitValid = (
+        type(memoryLimit) in (int, str)
+        and memoryLimit in (expectedMemoryBytes, str(expectedMemoryBytes))
     )
-    expected_health_test = [
+    expectedHealthTest = [
         "CMD", "/nodejs/bin/node", "-e",
         "fetch('http://127.0.0.1:3000/rest/admin/application-version').then(async r => { "
         "const b = await r.json(); process.exit(r.status === 200 && b.version === '"
         + target.manifest["version"] + "' ? 0 : 1); }).catch(() => process.exit(1))",
     ]
-    normalized_defaults_valid = all(
+    normalizedDefaultsValid = all(
         field in NEUTRAL_COMPOSE_DEFAULTS and service[field] is NEUTRAL_COMPOSE_DEFAULTS[field]
         for field in set(service) - ALLOWED_SERVICE_FIELDS
     )
@@ -154,10 +154,10 @@ def ValidateCompose(configuration: dict[str, Any], target: ExternalTarget) -> No
         and network.get("driver") == "bridge"
         and type(service.get("cpus")) in (int, float)
         and service.get("cpus") == limits["cpus"]
-        and memory_limit_valid
+        and memoryLimitValid
         and service.get("pids_limit") == limits["pids"]
-        and service.get("healthcheck", {}).get("test") == expected_health_test
-        and normalized_defaults_valid
+        and service.get("healthcheck", {}).get("test") == expectedHealthTest
+        and normalizedDefaultsValid
     )
 
     if not valid:
@@ -232,50 +232,50 @@ class ExternalTargetLab(ComposeLab):
 
         container = self.Compose("ps", "--quiet", self.target.Service)
         self.RequireSuccess(container, "External container lookup")
-        container_id = container.stdout.strip()
+        containerId = container.stdout.strip()
 
-        if re.fullmatch(r"[a-f0-9]{12,64}", container_id) is None:
+        if re.fullmatch(r"[a-f0-9]{12,64}", containerId) is None:
             raise RuntimeError("External target must resolve to exactly one container ID")
 
-        command_budget = self.target.Budget("command")
+        commandBudget = self.target.Budget("command")
         running = self.Run(
-            "docker", "inspect", "--format", CONTAINER_METADATA_FORMAT, container_id,
-            timeout_seconds=command_budget,
+            "docker", "inspect", "--format", CONTAINER_METADATA_FORMAT, containerId,
+            timeout_seconds=commandBudget,
         )
         image = self.Run(
             "docker", "image", "inspect", "--format", IMAGE_METADATA_FORMAT,
-            self.target.ImageReference, timeout_seconds=command_budget,
+            self.target.ImageReference, timeout_seconds=commandBudget,
         )
         index = self.Run(
             "docker", "manifest", "inspect", self.target.ImageReference,
-            timeout_seconds=command_budget,
+            timeout_seconds=commandBudget,
         )
 
         for result in (running, image, index):
             self.RequireSuccess(result, "External image provenance lookup")
 
-        running_data = json.loads(running.stdout)
-        image_data = json.loads(image.stdout)
-        index_data = json.loads(index.stdout)
-        platform = f"{image_data.get('os')}/{image_data.get('architecture')}"
+        runningData = json.loads(running.stdout)
+        imageData = json.loads(image.stdout)
+        indexData = json.loads(index.stdout)
+        platform = f"{imageData.get('os')}/{imageData.get('architecture')}"
         digest = self.target.manifest["platform_digests"].get(platform)
         matches = [
-            manifest["digest"] for manifest in index_data.get("manifests", [])
-            if manifest.get("platform", {}).get("os") == image_data.get("os")
-            and manifest.get("platform", {}).get("architecture") == image_data.get("architecture")
+            manifest["digest"] for manifest in indexData.get("manifests", [])
+            if manifest.get("platform", {}).get("os") == imageData.get("os")
+            and manifest.get("platform", {}).get("architecture") == imageData.get("architecture")
         ]
-        accepted_digests = {self.target.manifest["index_digest"], digest}
+        acceptedDigests = {self.target.manifest["index_digest"], digest}
         repository = self.target.manifest["repository"]
-        repo_digests = image_data.get("repo_digests") or []
+        repoDigests = imageData.get("repo_digests") or []
         attributable = any(
-            reference == f"{repository}@{accepted}" for reference in repo_digests
-            for accepted in accepted_digests if accepted is not None
+            reference == f"{repository}@{accepted}" for reference in repoDigests
+            for accepted in acceptedDigests if accepted is not None
         )
 
         if (
-            running_data.get("running") is not True
-            or running_data.get("image_ref") != self.target.ImageReference
-            or running_data.get("image_id") != image_data.get("id")
+            runningData.get("running") is not True
+            or runningData.get("image_ref") != self.target.ImageReference
+            or runningData.get("image_id") != imageData.get("id")
             or digest is None or matches != [digest] or not attributable
         ):
             raise RuntimeError(
@@ -285,12 +285,12 @@ class ExternalTargetLab(ComposeLab):
         self.provenance = {
             "target": self.target.manifest,
             "project_name": self.project_name,
-            "container_id": container_id,
-            "container": running_data,
-            "image": image_data,
+            "container_id": containerId,
+            "container": runningData,
+            "image": imageData,
             "platform": platform,
             "platform_manifest_digest": digest,
-            "registry_index": index_data,
+            "registry_index": indexData,
         }
         self.evidence_directory.mkdir(parents=True, exist_ok=True)
         (self.evidence_directory / "provenance.json").write_text(
@@ -322,24 +322,24 @@ class ExternalTargetLab(ComposeLab):
         script = (self.repository_root / "tests/functional/external_http_probe.js").read_text(
             encoding="utf-8",
         )
-        child_budget_ms = max(1, int(budget * 750))
+        childBudgetMs = max(1, int(budget * 750))
         result = self.Compose(
             "exec", "-T", self.target.Service, "/nodejs/bin/node", "-e", script,
-            "--", path, str(self.port), str(child_budget_ms), timeout_seconds=budget,
+            "--", path, str(self.port), str(childBudgetMs), timeout_seconds=budget,
         )
         status = None
         headers: tuple[tuple[str, str], ...] = ()
         body = ""
         error = result.stderr if result.returncode else ""
 
-        timed_out = result.timed_out or result.returncode == 124
+        timedOut = result.timed_out or result.returncode == 124
 
         if result.returncode in (0, 124):
             try:
                 payload = json.loads(result.stdout)
 
             except json.JSONDecodeError:
-                if not timed_out:
+                if not timedOut:
                     raise
 
             else:
@@ -348,12 +348,12 @@ class ExternalTargetLab(ComposeLab):
                 body = payload["body"]
                 error = payload["error"]
 
-        if timed_out:
+        if timedOut:
             error = "HTTP request exceeded its subprocess wall-clock budget"
 
         observation = HttpObservation(
             "127.0.0.1", self.port, path, status, headers, body, error,
-            timed_out, result.duration_seconds,
+            timedOut, result.duration_seconds,
         )
         self.observations.append(observation)
         self.evidence_directory.mkdir(parents=True, exist_ok=True)

@@ -198,8 +198,8 @@ def Owned(root: Path, case: dict, context: dict):
     ), (
         "Owned original specimens must never be changed to fit actual scanner output"
     )
-    selected_source = root / "selected-source"
-    selected_source.write_bytes(source)
+    selectedSource = root / "selected-source"
+    selectedSource.write_bytes(source)
     executable = root / "selected-trivy"
     shutil.copyfile(Path(context["provisioning"]["executable"]), executable)
     executable.chmod(0o600)
@@ -214,7 +214,7 @@ def Owned(root: Path, case: dict, context: dict):
             "consent:owned-native-config", (now - timedelta(minutes=1)).isoformat(),
             (now + timedelta(minutes=30)).isoformat()), targets=(target,), allow=(target,)))
     selection = NativeConfigurationSelection(ArtifactProfile(profile), item["logicalPath"],
-        selected_source, executable, ArtifactReadConsent(OWNER, "read:owned-source-and-provider"))
+        selectedSource, executable, ArtifactReadConsent(OWNER, "read:owned-source-and-provider"))
 
     return selection, target, source
 
@@ -257,10 +257,10 @@ def AssertOriginalPair(root: Path, records: tuple, case: dict, source: bytes) ->
         assert len(candidates) == 1, "Native output lacks its independent required check/status"
         row = candidates[0]
 
-        for oracle_key, provider_key in (("nativeStartLine", "StartLine"),
+        for oracleKey, providerKey in (("nativeStartLine", "StartLine"),
                                           ("nativeEndLine", "EndLine")):
-            if oracle_key in expected:
-                assert row["CauseMetadata"][provider_key] == expected[oracle_key], (
+            if oracleKey in expected:
+                assert row["CauseMetadata"][providerKey] == expected[oracleKey], (
                     "Native source coordinates must match the independently authored source oracle"
                 )
 
@@ -343,9 +343,9 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
         "network_namespace": context["network_namespace"],
         "outcome": "unassessed", "native_product_acceptance": False,
         "original_operations": [], "sdk_evidence_ids": [], "cli_evidence_ids": []}
-    original_execute = LocalExecutor.Execute
-    provider_results = []
-    provider_checkpoints = []
+    originalExecute = LocalExecutor.Execute
+    providerResults = []
+    providerCheckpoints = []
 
     async def Audit(self, request, **options):
         """Observe actual provider returns and both authority checkpoints without replacing IO."""
@@ -354,21 +354,21 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
 
         if provider:
             assert options["own_descendants"] is True, "Actual native provider must own descendants"
-            original_check = options["pre_launch"]
+            originalCheck = options["pre_launch"]
 
             def Check(actual):
                 """Retain the real executor checkpoint and delegate unchanged current authority."""
 
-                provider_checkpoints.append(request.invocation.request.parameters["operation"])
+                providerCheckpoints.append(request.invocation.request.parameters["operation"])
 
-                return original_check(actual)
+                return originalCheck(actual)
 
             options["pre_launch"] = Check
 
-        outcome = await original_execute(self, request, **options)
+        outcome = await originalExecute(self, request, **options)
 
         if provider:
-            provider_results.append((request, outcome))
+            providerResults.append((request, outcome))
 
         return outcome
 
@@ -393,12 +393,12 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
             assert len([item for item in events if item.kind is JobEventKind.MODEL_DELTA]) == 1, (
                 "Actual SDK model delta must follow the acknowledged durable save"
             )
-            assert provider_checkpoints == ["version", "version", "scan", "scan"], (
+            assert providerCheckpoints == ["version", "version", "scan", "scan"], (
                 "Actual original native processes must pass both initial and READY authority checks"
             )
-            assert len(provider_results) == 2 and all(
+            assert len(providerResults) == 2 and all(
                 actual is captured.outcome and request is captured.request
-                for (request, actual), captured in zip(provider_results, summary.captures,
+                for (request, actual), captured in zip(providerResults, summary.captures,
                                                        strict=True)
             ), "SDK captures must retain exact independently observed actual executor originals"
             AssertOriginalPair(root, summary.retained_records, case, source)
@@ -422,9 +422,9 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
             assert cli["state"] == "completed" and cli["workflow"] == "native-configuration", (
                 "CLI must expose its actual native terminal workflow facts"
             )
-            cli_records = tuple(LocalEvidenceStore(root / "evidence").Get(identity)
+            cliRecords = tuple(LocalEvidenceStore(root / "evidence").Get(identity)
                                 for identity in cli["retained_evidence_ids"])
-            AssertOriginalPair(root, cli_records, case, source)
+            AssertOriginalPair(root, cliRecords, case, source)
             AssertSelectedFindings(root, case)
             facts["cli_evidence_ids"] = list(cli["retained_evidence_ids"])
             relocated = output / "relocated-workspace"
@@ -468,7 +468,7 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
             assert LocalModelStore(root).Open().revision == 0, (
                 "Refused native inputs must never save canonical model success"
             )
-            assert provider_results == [] and provider_checkpoints == [], (
+            assert providerResults == [] and providerCheckpoints == [], (
                 "Refused inputs must have no independently observed actual native provider launch"
             )
 
@@ -482,9 +482,9 @@ def test_InstalledNativeConfigurationProduct(tmp_path, installed_product, case_i
             shutil.copytree(controls, output / "original-private-controls", dirs_exist_ok=True)
 
         facts["installed_module_hashes"] = InstalledModuleHashes(context)
-        facts["provider_authority_checkpoints"] = provider_checkpoints
+        facts["provider_authority_checkpoints"] = providerCheckpoints
         facts["observed_provider_operations"] = [request.invocation.request.parameters["operation"]
-                                                   for request, _ in provider_results]
+                                                   for request, _ in providerResults]
         (output / "case.json").write_bytes(Canonical(facts))
 
 

@@ -570,9 +570,9 @@ def test_OfflineRendererErrorPathsPreserveFixedControlsAndNeverCompleteAnAssessm
     monkeypatch.setattr(worker, "RequireLinuxOwnership", lambda: None)
     monkeypatch.setattr(worker, "Probe", lambda *args: NativeRecord())
     monkeypatch.setattr(worker, "sys", SimpleNamespace(stdout=SimpleNamespace(buffer=output)))
-    selected_asyncio = SimpleNamespace(**vars(asyncio))
-    selected_asyncio.run = browser_runner.run
-    monkeypatch.setattr(worker, "asyncio", selected_asyncio)
+    selectedAsyncio = SimpleNamespace(**vars(asyncio))
+    selectedAsyncio.run = browser_runner.run
+    monkeypatch.setattr(worker, "asyncio", selectedAsyncio)
     status = worker.Main((URL, "2.0", BROWSER_FIXTURE_ID, "16384"))
     record = ParseBrowserRecord(output.getvalue(), URL,
                                 KnownSyntheticHtmlBody(BROWSER_FIXTURE_ID), 16384)

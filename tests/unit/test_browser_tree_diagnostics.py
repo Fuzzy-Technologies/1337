@@ -145,16 +145,16 @@ def test_TerminalFailureCustodyRetainsExactBinaryStreamsEventsAndFixtureFiles(
     summary = WriteBrowserTreeDiagnostics(destination, tmp_path, diagnostic_request, result=result,
         error=None, observed_events=events, ready_bytes=stdout, wait_outcome="execution-complete")
     payload = json.loads(destination.read_bytes())
-    expected_events = [{"sequence": 0, "kind": "started", "data_hex": "", "termination": None},
+    expectedEvents = [{"sequence": 0, "kind": "started", "data_hex": "", "termination": None},
         {"sequence": 1, "kind": "stdout", "data_hex": stdout.hex(), "termination": None},
         {"sequence": 2, "kind": "stderr", "data_hex": stderr.hex(), "termination": None},
         {"sequence": 3, "kind": "completed", "data_hex": "", "termination": "process_exit"}]
     assert payload["terminal_result"] == {"execution": {"state": "failed", "exit_code": 1,
         "duration_seconds": 0.25}, "termination": "process_exit", "stdout_hex": stdout.hex(),
-        "stderr_hex": stderr.hex(), "events": expected_events}, (
+        "stderr_hex": stderr.hex(), "events": expectedEvents}, (
         "Diagnostic custody must preserve every original terminal, byte and event field exactly"
     )
-    assert payload["observed_events"] == expected_events and (
+    assert payload["observed_events"] == expectedEvents and (
         payload["ready_bytes_hex"] == stdout.hex() and payload["execution_exception"] is None
     ), "Observed events must retain their own custody and agree with the original terminal result"
     assert payload["fixture_files"]["ready.json"] == {"state": "absent"} and (

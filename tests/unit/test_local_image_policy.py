@@ -178,11 +178,11 @@ def test_OriginalOperationAndLaunchBindingAreBothSingleUse(original_operation):
     with pytest.raises(ArtifactDeniedError):
         ClaimLocalImageExecution(engine, grant, prepared, context, at=NOW)
 
-    other_grant = AuthorizeLocalImageOperation(engine, prepared, context,
+    otherGrant = AuthorizeLocalImageOperation(engine, prepared, context,
         at=NOW + timedelta(seconds=1), approve_local_image=True)
 
     with pytest.raises(ArtifactDeniedError):
-        ClaimLocalImageExecution(engine, other_grant, prepared, context,
+        ClaimLocalImageExecution(engine, otherGrant, prepared, context,
                                  at=NOW + timedelta(seconds=1))
 
     with pytest.raises(ArtifactDeniedError):

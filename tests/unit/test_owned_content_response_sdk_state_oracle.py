@@ -36,23 +36,23 @@ def Transition():
     receipt = roles["owned-response-receipt"]
     attrs = {"original_receipt_id": receipt, "original_job_id": "job:unit",
         "original_role_ids": roles}
-    endpoint_identity = {"workspace_id": "unit", "kind": "endpoint", "key": URL}
-    endpoint_reference = "object:" + hashlib.sha256(Canonical({"namespace": "object",
-        "identity": endpoint_identity})).hexdigest()
+    endpointIdentity = {"workspace_id": "unit", "kind": "endpoint", "key": URL}
+    endpointReference = "object:" + hashlib.sha256(Canonical({"namespace": "object",
+        "identity": endpointIdentity})).hexdigest()
     source = {"reference": "source:unit", "kind": "owned-content-response-source",
-        "attributes": attrs, "subject_reference": endpoint_reference, "provenance": {
+        "attributes": attrs, "subject_reference": endpointReference, "provenance": {
             "run_reference": "job:unit", "source_id": "native.loopback-content-response",
             "scope_reference": "scope:unit",
             "target_reference": "target:" + hashlib.sha256(Canonical({"kind": "url",
                 "value": URL})).hexdigest(),
             "evidence_references": refs}}
     after["model"]["revision"] = after["workspace"]["revision"] = 2
-    after["model"]["objects"].append({"reference": endpoint_reference,
-        "identity": endpoint_identity})
+    after["model"]["objects"].append({"reference": endpointReference,
+        "identity": endpointIdentity})
     after["model"]["observations"].append(source)
     workspace = after["workspace"]
     workspace["scope_references"].append("scope:unit")
-    workspace["object_references"].append(endpoint_reference)
+    workspace["object_references"].append(endpointReference)
     workspace["job_references"].append("job:unit")
     workspace["evidence_record_references"] = list(roles.values())
     workspace["evidence_references"] = refs
@@ -152,11 +152,11 @@ def test_ConsistentForeignEndpointOrOwnerCannotReplaceIndependentlySelectedSourc
 
     if mutation == "endpoint":
         endpoint = after["model"]["objects"][1]
-        old_reference = endpoint["reference"]
+        oldReference = endpoint["reference"]
         endpoint["identity"]["key"] = URL + "/foreign"
         endpoint["reference"] = "object:" + hashlib.sha256(Canonical({"namespace": "object",
             "identity": endpoint["identity"]})).hexdigest()
-        after["workspace"]["object_references"].remove(old_reference)
+        after["workspace"]["object_references"].remove(oldReference)
         after["workspace"]["object_references"].append(endpoint["reference"])
         after["model"]["observations"][0]["subject_reference"] = endpoint["reference"]
 

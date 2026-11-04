@@ -163,8 +163,8 @@ def installed_context():
         'Copied case source must match the exact reviewed revision'
     )
     namespace = os.readlink("/proc/self/ns/net")
-    host_namespace = os.environ["FUZZY1337_CONFIGURATION_MATERIAL_HOST_NETNS"]
-    assert namespace != host_namespace, "Required helper lane reused its provisioning namespace"
+    hostNamespace = os.environ["FUZZY1337_CONFIGURATION_MATERIAL_HOST_NETNS"]
+    assert namespace != hostNamespace, "Required helper lane reused its provisioning namespace"
     interfaces = socket.if_nameindex()
     assert interfaces == [(1, "lo")], "Required helper namespace permits only loopback"
     routes = Path("/proc/net/route").read_text().splitlines()[1:]
@@ -200,7 +200,7 @@ def installed_context():
         'Ownership provenance must import the fixed installed supervisor'
     )
     context["module_hashes"] = ModuleHashes(context)
-    context["network"] = {"host": host_namespace, "helper": namespace, "interfaces": interfaces,
+    context["network"] = {"host": hostNamespace, "helper": namespace, "interfaces": interfaces,
                           "no_external_ipv4_routes": True, "no_external_ipv6_routes": True}
     context["parent_isolated"] = bool(sys.flags.isolated)
 
@@ -244,9 +244,9 @@ class OriginalRecorder:
         assert request.resources.terminate_grace_seconds == 3, (
             'Actual helper cleanup grace must remain three seconds'
         )
-        control_path = Path(argv[4])
+        controlPath = Path(argv[4])
 
-        with control_path.open("rb") as source:
+        with controlPath.open("rb") as source:
             raw = source.read(CONTROL_BYTES + 1)
 
         assert len(raw) <= CONTROL_BYTES, "Original private control must retain its 64 KiB bound"
@@ -254,7 +254,7 @@ class OriginalRecorder:
         assert hashlib.sha256(raw).hexdigest() == argv[5], (
             'Original private control bytes must match the fixed request digest'
         )
-        assert ",".join(str(item) for item in PhysicalIdentity(control_path.stat())) == argv[6], (
+        assert ",".join(str(item) for item in PhysicalIdentity(controlPath.stat())) == argv[6], (
             'Original private control identity must match the fixed request arguments'
         )
         self.controls.append(control)
@@ -295,8 +295,8 @@ class OriginalRecorder:
             with (self.directory / f"observation-{index}-{stream}.bin").open("xb") as output:
                 output.write(getattr(result, stream))
 
-        receipt_path = self.directory / f"observation-{index}.json"
-        WriteJson(receipt_path, {
+        receiptPath = self.directory / f"observation-{index}.json"
+        WriteJson(receiptPath, {
             "schema_version": 1, "commit": self.context["commit"],
             "request": json.loads(SerializeContract(request)), "control": control,
             "original_result_returned": True, "own_descendants": options["own_descendants"],
@@ -310,7 +310,7 @@ class OriginalRecorder:
             "events": [{"sequence": event.sequence, "kind": event.kind.value,
                 "data_hex": event.data.hex(), "termination": None if event.termination is None
                 else event.termination.value} for event in events]})
-        self.receipt_hashes.append(Digest(receipt_path))
+        self.receipt_hashes.append(Digest(receiptPath))
 
         return result
 
@@ -380,9 +380,9 @@ async def Exercise(case_id: str, context: dict, monkeypatch, facts: dict) -> Non
     root.mkdir(mode=0o700)
     source = root / "selected-source"
     source.write_bytes(b"\xff" if case_id == CASE_IDS[1] else SOURCE)
-    source_hash = Digest(source)
+    sourceHash = Digest(source)
     executable = Path(context["provisioning"]["executable"])
-    original_executable_identity = PhysicalIdentity(executable.stat())
+    originalExecutableIdentity = PhysicalIdentity(executable.stat())
     selection = NativeConfigurationSelection(ArtifactProfile.DOCKERFILE, "Dockerfile", source,
         executable, ArtifactReadConsent(OWNER, "read:installed-configuration-material"))
     observer = NativeConfigurationMaterialObserver(selection, root, "installed-helper", OWNER)
@@ -412,8 +412,8 @@ async def Exercise(case_id: str, context: dict, monkeypatch, facts: dict) -> Non
                 other.CheckCurrent(first, operation_reference=OPERATION)
 
             stage = StagePayload(first.stage, scratch_identity=first.scratch_identity)
-            staged_scanner = first.stage.scanner.directory / "executable"
-            assert stat.S_IMODE(staged_scanner.stat().st_mode) == 0o400, (
+            stagedScanner = first.stage.scanner.directory / "executable"
+            assert stat.S_IMODE(stagedScanner.stat().st_mode) == 0o400, (
                 "Staged genuine scanner bytes must retain a read-only nonexecutable snapshot"
             )
             source.unlink()
@@ -434,7 +434,7 @@ async def Exercise(case_id: str, context: dict, monkeypatch, facts: dict) -> Non
             assert StagePayload(second.stage, scratch_identity=second.scratch_identity) == stage, (
                 'Verify must preserve every original stage and manifest association'
             )
-            assert stage["partitions"]["input"]["manifest"]["files"][0]["sha256"] == source_hash, (
+            assert stage["partitions"]["input"]["manifest"]["files"][0]["sha256"] == sourceHash, (
                 'Staged input must bind the exact independently authored source bytes'
             )
             assert first.stage.scanner.manifest.files[0].sha256 == (
@@ -496,7 +496,7 @@ async def Exercise(case_id: str, context: dict, monkeypatch, facts: dict) -> Non
             with pytest.raises(NativeConfigurationMaterialError, match="partial stage is retained"):
                 observer.Close()
 
-            assert observer._stage_root.is_dir() and Digest(source) == source_hash, (
+            assert observer._stage_root.is_dir() and Digest(source) == sourceHash, (
                 'Close refusal must retain partial stage and unchanged original source'
             )
             facts.update(cleanup="partial-stage-retained-close-refused",
@@ -509,12 +509,12 @@ async def Exercise(case_id: str, context: dict, monkeypatch, facts: dict) -> Non
             original = root / "original-scratch"
             scratch.rename(original)
             scratch.mkdir(mode=0o700)
-            original_identity = original.stat().st_dev, original.stat().st_ino
-            replacement_identity = scratch.stat().st_dev, scratch.stat().st_ino
-            assert original_identity == proof.scratch_identity, (
+            originalIdentity = original.stat().st_dev, original.stat().st_ino
+            replacementIdentity = scratch.stat().st_dev, scratch.stat().st_ino
+            assert originalIdentity == proof.scratch_identity, (
                 'Renamed original scratch must retain its issued physical identity'
             )
-            assert replacement_identity != original_identity, (
+            assert replacementIdentity != originalIdentity, (
                 'Replacement scratch must have a distinct actual physical identity'
             )
 
@@ -532,11 +532,11 @@ async def Exercise(case_id: str, context: dict, monkeypatch, facts: dict) -> Non
             assert original.is_dir() and scratch.is_dir() and proof.stage.root.is_dir(), (
                 'Changed original and replacement scratch state must remain retained'
             )
-            assert not observer._proofs and Digest(source) == source_hash, (
+            assert not observer._proofs and Digest(source) == sourceHash, (
                 'Changed scratch must revoke proof without changing selected source'
             )
-            facts.update(original_scratch_identity=original_identity,
-                replacement_scratch_identity=replacement_identity, cleanup="changed-stage-retained",
+            facts.update(original_scratch_identity=originalIdentity,
+                replacement_scratch_identity=replacementIdentity, cleanup="changed-stage-retained",
                 ledger=Ledger(budget, 2, True))
 
         else:
@@ -569,7 +569,7 @@ async def Exercise(case_id: str, context: dict, monkeypatch, facts: dict) -> Non
                     'Natural-exit race must retain the actual success or failure classification'
                 )
 
-            assert Digest(source) == source_hash, (
+            assert Digest(source) == sourceHash, (
                 'Cancellation must leave the original inert selected source unchanged'
             )
             facts.update(cleanup="terminal-private-cleanup-stage-retained-if-present",
@@ -577,7 +577,7 @@ async def Exercise(case_id: str, context: dict, monkeypatch, facts: dict) -> Non
                 actual_exit_code=result.execution.exit_code,
                 ledger=Ledger(budget, 1, True), worker_body_execution="not-asserted")
 
-        assert PhysicalIdentity(executable.stat()) == original_executable_identity, (
+        assert PhysicalIdentity(executable.stat()) == originalExecutableIdentity, (
             'Original selected executable physical identity must remain unchanged'
         )
         assert stat.S_IMODE(executable.stat().st_mode) == 0o400, (

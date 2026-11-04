@@ -389,7 +389,7 @@ def RecordData(feed: IntelligenceFeed, value: object) -> Mapping[str, object]:
         Recursively immutable validated source assertion fields.
     """
 
-    fields_by_feed = {
+    fieldsByFeed = {
         IntelligenceFeed.CVE: {"state", "description", "cwe_ids", "cvss", "unsupported_metrics"},
         IntelligenceFeed.CWE: {"name", "status"},
         IntelligenceFeed.KEV: {
@@ -398,7 +398,7 @@ def RecordData(feed: IntelligenceFeed, value: object) -> Mapping[str, object]:
         },
         IntelligenceFeed.EPSS: {"probability", "percentile", "model_version"},
     }
-    data = ReferenceFields(JsonValue(value), fields_by_feed[feed])
+    data = ReferenceFields(JsonValue(value), fieldsByFeed[feed])
 
     if feed is IntelligenceFeed.CVE:
         if data["state"] not in ("PUBLISHED", "REJECTED"):
@@ -675,11 +675,11 @@ def ParseCve(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
     """
 
     document = IntelligenceObject(BoundedJson(payload))
-    format_version = IntelligenceText(document.get("dataVersion"), "CVE format version", 16)
+    formatVersion = IntelligenceText(document.get("dataVersion"), "CVE format version", 16)
 
     if (
         document.get("dataType") != "CVE_RECORD"
-        or format_version not in _CVE_FORMAT_VERSIONS
+        or formatVersion not in _CVE_FORMAT_VERSIONS
     ):
         raise ValueError("unsupported CVE Record format")
 
@@ -707,7 +707,7 @@ def ParseCve(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
 
         description = IntelligenceText(" ".join(raw.split()), "description")
 
-    cwe_ids: set[str] = set()
+    cweIds: set[str] = set()
     metrics = []
     unsupported = set()
 
@@ -718,13 +718,13 @@ def ParseCve(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
             ), "assessor", 256)
 
             for problem in IntelligenceArray(container.get("problemTypes", []), 256):
-                for problem_description in IntelligenceArray(IntelligenceObject(problem).get(
+                for problemDescription in IntelligenceArray(IntelligenceObject(problem).get(
                     "descriptions", [],
                 ), 256):
-                    cwe = IntelligenceObject(problem_description).get("cweId")
+                    cwe = IntelligenceObject(problemDescription).get("cweId")
 
                     if cwe is not None:
-                        cwe_ids.add(IntelligenceIdentifier(cwe))
+                        cweIds.add(IntelligenceIdentifier(cwe))
 
             for metric in IntelligenceArray(container.get("metrics", []), 256):
                 for name, assessment in IntelligenceObject(metric).items():
@@ -741,7 +741,7 @@ def ParseCve(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
                     elif name.startswith("cvss") or name == "other":
                         unsupported.add(IntelligenceText(name, "unsupported metric", 128))
 
-    data = {"state": state, "description": description, "cwe_ids": sorted(cwe_ids),
+    data = {"state": state, "description": description, "cwe_ids": sorted(cweIds),
             "cvss": sorted(metrics, key=CanonicalModelJson),
             "unsupported_metrics": sorted(unsupported)}
 
@@ -843,10 +843,10 @@ def ParseKev(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord, 
         item = IntelligenceObject(entry)
         prose = {}
 
-        for name, field_name in (("vendor", "vendorProject"), ("product", "product"),
+        for name, fieldName in (("vendor", "vendorProject"), ("product", "product"),
                                  ("name", "vulnerabilityName"),
                                  ("required_action", "requiredAction")):
-            value = item.get(field_name)
+            value = item.get(fieldName)
 
             if not isinstance(value, str) or len(value.encode("utf-8")) > 8192:
                 raise ValueError("KEV publisher prose must be bounded text")
@@ -885,14 +885,14 @@ def ParseEpss(payload: bytes, catalog_version: str) -> tuple[IntelligenceRecord,
 
     try:
         stream = io.StringIO(payload.decode("utf-8"), newline="")
-        metadata_line = stream.readline()
+        metadataLine = stream.readline()
 
-        if len(metadata_line) > 512 or not metadata_line.startswith("#"):
+        if len(metadataLine) > 512 or not metadataLine.startswith("#"):
             raise ValueError("EPSS requires model/version and score-date metadata")
 
         metadata = {}
 
-        for component in metadata_line.strip()[1:].split(","):
+        for component in metadataLine.strip()[1:].split(","):
             key, separator, value = component.partition(":")
 
             if not separator or key in metadata:
@@ -1052,7 +1052,7 @@ def ApplyVerifiedEnrichment(
     if workspace.Open().workspace_id != state.workspace_id:
         raise ValueError("enrichment evidence must belong to the model workspace")
 
-    evidence_store = LocalEvidenceStore(workspace.root / "evidence")
+    evidenceStore = LocalEvidenceStore(workspace.root / "evidence")
     evidence = {
         reference for record in finding.provenance for reference in record.evidence_references
     }
@@ -1072,7 +1072,7 @@ def ApplyVerifiedEnrichment(
         if snapshot.source.acquired_at > observed:
             raise ValueError("source acquisition must not follow the enrichment as-of time")
 
-        raw = evidence_store.Read(snapshot.evidence)
+        raw = evidenceStore.Read(snapshot.evidence)
         reparsed = ParseIntelligenceSnapshot(
             raw, snapshot.feed, snapshot.catalog_version, snapshot.source, snapshot.evidence,
         )
@@ -1086,26 +1086,26 @@ def ApplyVerifiedEnrichment(
             if record.identifier not in requested:
                 continue
 
-            fresh_at = record.effective_at if snapshot.feed is IntelligenceFeed.EPSS else (
+            freshAt = record.effective_at if snapshot.feed is IntelligenceFeed.EPSS else (
                 snapshot.source.acquired_at
             )
             age = (
-                datetime.fromisoformat(observed) - datetime.fromisoformat(fresh_at)
+                datetime.fromisoformat(observed) - datetime.fromisoformat(freshAt)
             ).total_seconds()
             matched.add(record.identifier)
             matches.append({
                 "snapshot_reference": reference, "record_reference": record.Reference(),
                 "record": record.ToDict(), "source": snapshot.source.ToDict(),
                 "canonical_url": record.CanonicalUrl(), "evidence": JsonValue(snapshot.evidence),
-                "freshness_at": fresh_at, "age_seconds": age, "stale": age > max_age_seconds,
+                "freshness_at": freshAt, "age_seconds": age, "stale": age > max_age_seconds,
                 "association_state": "candidate", "review": None,
             })
 
             if len(matches) > MAX_SELECTED_RECORDS:
                 raise ValueError("selected intelligence exceeds its observation record bound")
 
-    for evidence_reference in sorted(evidence, key=CanonicalModelJson):
-        evidence_store.Read(evidence_reference)
+    for evidenceReference in sorted(evidence, key=CanonicalModelJson):
+        evidenceStore.Read(evidenceReference)
 
     attributed = replace(provenance, evidence_references=tuple(evidence))
     observation = Observation("finding-intelligence", finding_reference, {

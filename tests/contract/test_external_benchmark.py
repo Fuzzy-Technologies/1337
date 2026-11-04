@@ -65,16 +65,16 @@ def ContractObservation(pack, target, root, *, case_id="metrics.exposed",
 def WriteContractEvidence(execution, root, *, content_overrides=None):
     """Refresh synthetic bytes and hashes so mutations exercise their intended contract."""
 
-    invocation_keys = ("argv", "scanner_id", "scanner_version", "scanner_sha256", "rule_sha256",
+    invocationKeys = ("argv", "scanner_id", "scanner_version", "scanner_sha256", "rule_sha256",
                        "product_revision", "effective_budget")
-    target_keys = ("source_revision", "image_index_digest", "platform_digest", "target_url",
+    targetKeys = ("source_revision", "image_index_digest", "platform_digest", "target_url",
                    "target_instance", "reset_contract_sha256", "network_internal",
                    "published_ports")
     content = {
         "stdout": b"synthetic contract fixture; no provider executed\n", "stderr": b"",
-        "invocation": json.dumps({key: execution[key] for key in invocation_keys}).encode(),
+        "invocation": json.dumps({key: execution[key] for key in invocationKeys}).encode(),
         "findings": json.dumps(execution["findings"]).encode(),
-        "target-provenance": json.dumps({key: execution[key] for key in target_keys}).encode(),
+        "target-provenance": json.dumps({key: execution[key] for key in targetKeys}).encode(),
         "requests": json.dumps([{"method": "GET", "url": execution["target_url"]}]).encode(),
     }
     content.update(content_overrides or {})
@@ -354,13 +354,13 @@ def test_EvidenceCannotEscapeItsOwnedDirectory(available_contract_pack, tmp_path
 def test_WindowsAnchoredEvidenceFailsBeforeFilesystemAccess(monkeypatch, path):
     """Windows root, drive, and UNC paths cannot reset the owned evidence prefix."""
 
-    evidence_root = MagicMock(spec=Path)
+    evidenceRoot = MagicMock(spec=Path)
     monkeypatch.setattr(external_benchmark, "Path", PureWindowsPath)
 
     with pytest.raises(ValueError, match="beneath"):
-        external_benchmark.VerifiedEvidence({"evidence": [{"path": path}]}, evidence_root)
+        external_benchmark.VerifiedEvidence({"evidence": [{"path": path}]}, evidenceRoot)
 
-    assert evidence_root.mock_calls == [], (
+    assert evidenceRoot.mock_calls == [], (
         "Anchored evidence must fail before the evidence root is joined or accessed."
     )
 
@@ -728,13 +728,13 @@ def test_V2MixedReportPreservesV1NativeClassifications(available_contract_pack, 
 def test_V2EvidenceOversizeMetadataFailsBeforeFilesystemAccess():
     """The reader enforces 2 MiB even when called without observation schema validation."""
 
-    evidence_root = MagicMock(spec=Path)
+    evidenceRoot = MagicMock(spec=Path)
     execution = {"evidence": [{"path": "oversize.raw", "size_bytes": 2097153}]}
 
     with pytest.raises(ValueError, match="2 MiB per-file ceiling"):
-        external_benchmark.VerifiedEvidence(execution, evidence_root)
+        external_benchmark.VerifiedEvidence(execution, evidenceRoot)
 
-    assert evidence_root.mock_calls == [], "Oversize metadata must fail before any filesystem read."
+    assert evidenceRoot.mock_calls == [], "Oversize metadata must fail before any filesystem read."
 
 
 @pytest.mark.parametrize("extra_byte", [False, True])

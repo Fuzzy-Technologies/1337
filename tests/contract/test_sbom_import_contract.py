@@ -39,8 +39,8 @@ def test_ActualImportMatchesIndependentNestedInverseAliasDependencyAndLicenseOra
                if item.kind == "spdx-source-alias"}
     assert set(aliases) == set(oracle["package_keys"]), "Aliases match the independent oracle"
 
-    for source_id, key in oracle["package_keys"].items():
-        assert objects[aliases[source_id].subject_reference].identity.key == key, (
+    for sourceId, key in oracle["package_keys"].items():
+        assert objects[aliases[sourceId].subject_reference].identity.key == key, (
             "Product canonical identity must match the handwritten source-independent key"
         )
 
@@ -52,9 +52,9 @@ def test_ActualImportMatchesIndependentNestedInverseAliasDependencyAndLicenseOra
     for claim in claims:
         fields = claim.attributes
         original = source["relationships"][fields["relationship_index"]]
-        actual_coordinate = [fields["original_source_id"], fields["original_type"],
+        actualCoordinate = [fields["original_source_id"], fields["original_type"],
                              fields["original_target_id"]]
-        assert actual_coordinate == [
+        assert actualCoordinate == [
             original["spdxElementId"], original["relationshipType"], original["relatedSpdxElement"]
         ], "Actual retained graph facts must resolve original array index and inverse direction"
         assert fields["evidence_id"] == record.evidence_id and fields["document_sha256"] == (

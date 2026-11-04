@@ -48,18 +48,18 @@ def test_InstalledPluginPersistsTwoActualCasesWithoutChangingFailureEvidence(
     report = tmp_path / "owned.xml"
     assert test_progress.PrepareProgress(report), "The owned subprocess needs a fresh directory."
     root = Path(__file__).resolve().parents[2]
-    coverage_path = tmp_path / "startup-coverage.json"
+    coveragePath = tmp_path / "startup-coverage.json"
     arguments = [sys.executable, "-m", "pytest", str(source), "-o", "addopts=", "-q",
                  "-p", "tools.pytest_progress", "--1337-progress", "--junitxml", str(report),
                  "-n", "2", "--dist=load", "--cov=fuzzy1337", "--cov-branch",
-                 f"--cov-report=json:{coverage_path}"]
-    ambient_data = tmp_path / "parent.coverage"
-    ambient_data.write_bytes(b"owned-parent-coverage-marker")
-    monkeypatch.setenv("COVERAGE_FILE", str(ambient_data))
+                 f"--cov-report=json:{coveragePath}"]
+    ambientData = tmp_path / "parent.coverage"
+    ambientData.write_bytes(b"owned-parent-coverage-marker")
+    monkeypatch.setenv("COVERAGE_FILE", str(ambientData))
     environment = dict(os.environ, COVERAGE_FILE=str(tmp_path / "owned.coverage"))
     result = subprocess.run(arguments, cwd=root, check=False, shell=False, timeout=30,
                             capture_output=True, text=True, env=environment)
-    assert ambient_data.read_bytes() == b"owned-parent-coverage-marker", (
+    assert ambientData.read_bytes() == b"owned-parent-coverage-marker", (
         "The nested coverage run must never purge or overwrite its parent's measurement data."
     )
     assert result.returncode == 1, "The actual failing test must retain pytest's failure status."
@@ -82,13 +82,13 @@ def test_InstalledPluginPersistsTwoActualCasesWithoutChangingFailureEvidence(
         "Progress diagnostics must exclude parameter values and full paths."
     )
 
-    coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+    coverage = json.loads(coveragePath.read_text(encoding="utf-8"))
     entries = {key.replace("\\", "/"): entry for key, entry in coverage["files"].items()}
     for name, wanted in (("__init__.py", {"__all__"}),
                          ("test_progress.py", {"KIND", "ProgressRecorder", "ConfigureProgress"})):
-        source_path = root / "src" / "fuzzy1337" / name
+        sourcePath = root / "src" / "fuzzy1337" / name
         expected = set()
-        for node in ast.parse(source_path.read_text(encoding="utf-8")).body:
+        for node in ast.parse(sourcePath.read_text(encoding="utf-8")).body:
             if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in wanted:
                 expected.add(node.lineno)
             elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):

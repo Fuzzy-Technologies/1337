@@ -91,11 +91,11 @@ def test_ConfigureMustVerifyPrivateSubreaperParentAndEmptyOwnedChildState(monkey
 
             return 0
 
-    selected_signals = SimpleNamespace(SIGTERM=15, SIGINT=2, SIGHUP=1, SIGCHLD=17,
+    selectedSignals = SimpleNamespace(SIGTERM=15, SIGINT=2, SIGHUP=1, SIGCHLD=17,
         SIG_DFL=0, SIG_UNBLOCK=1, signal=lambda *args: None, pthread_sigmask=lambda *args: None)
-    selected_os = SimpleNamespace(getppid=lambda: 999 if mode == "parent" else 321)
-    monkeypatch.setattr(supervisor, "signal", selected_signals)
-    monkeypatch.setattr(supervisor, "os", selected_os)
+    selectedOs = SimpleNamespace(getppid=lambda: 999 if mode == "parent" else 321)
+    monkeypatch.setattr(supervisor, "signal", selectedSignals)
+    monkeypatch.setattr(supervisor, "os", selectedOs)
     monkeypatch.setattr(supervisor, "ctypes", SimpleNamespace(CDLL=lambda *args, **kwargs:
         SimpleNamespace(prctl=Prctl()), c_int=ctypes.c_int, c_ulong=ctypes.c_ulong,
         addressof=ctypes.addressof))
@@ -229,16 +229,16 @@ def test_StartGateRequiresExplicitParentAcknowledgementBeforePopen(monkeypatch, 
 def test_SupervisorControlOutcomeCannotInventWorkerCompletion(monkeypatch, mode, status):
     """Portable lifecycle doubles check report truth; they do not establish actual Linux cleanup."""
 
-    configuration_fd, configuration_write = os.pipe()
-    receipt_read, receipt_fd = os.pipe()
-    gate_fd, gate_write = os.pipe()
-    ready_read, ready_fd = os.pipe()
-    os.close(configuration_write)
-    os.write(gate_write, b"0" if mode == "gate" else b"1")
-    os.close(gate_write)
+    configurationFd, configurationWrite = os.pipe()
+    receiptRead, receiptFd = os.pipe()
+    gateFd, gateWrite = os.pipe()
+    readyRead, readyFd = os.pipe()
+    os.close(configurationWrite)
+    os.write(gateWrite, b"0" if mode == "gate" else b"1")
+    os.close(gateWrite)
     digest = "a" * 64
-    selected_os = SimpleNamespace(**vars(os))
-    original_write = os.write
+    selectedOs = SimpleNamespace(**vars(os))
+    originalWrite = os.write
     facts = {"spawned": False}
 
     class Owner:
@@ -286,10 +286,10 @@ def test_SupervisorControlOutcomeCannotInventWorkerCompletion(monkeypatch, mode,
         assert argv == ("approved-worker",) and options == {
             "env": {"A": "original"}, "close_fds": True, "start_new_session": True,
         }, "Supervisor altered invocation/environment or leaked control descriptors."
-        assert os.read(ready_read, 2) == b"1", "Worker started before readiness was published."
+        assert os.read(readyRead, 2) == b"1", "Worker started before readiness was published."
 
         with pytest.raises(OSError):
-            os.fstat(ready_fd)
+            os.fstat(readyFd)
 
         facts["spawned"] = True
 
@@ -301,28 +301,28 @@ def test_SupervisorControlOutcomeCannotInventWorkerCompletion(monkeypatch, mode,
     def Write(descriptor, raw):
         """Inject only fixed control-write failures, leaving all other private bytes untouched."""
 
-        if mode == "ready-write" and descriptor == ready_fd:
+        if mode == "ready-write" and descriptor == readyFd:
             return 0
 
-        if mode == "receipt-write" and descriptor == receipt_fd:
+        if mode == "receipt-write" and descriptor == receiptFd:
             raise OSError(5, "PRIVATE_PIPE_MARKER")
 
-        return original_write(descriptor, raw)
+        return originalWrite(descriptor, raw)
 
-    selected_os.write = Write
-    monkeypatch.setattr(supervisor, "os", selected_os)
+    selectedOs.write = Write
+    monkeypatch.setattr(supervisor, "os", selectedOs)
     monkeypatch.setattr(supervisor, "sys", SimpleNamespace(platform="linux"))
     monkeypatch.setattr(supervisor, "DescendantOwner", Owner)
     monkeypatch.setattr(supervisor, "ReadConfiguration", lambda *args:
         (("approved-worker",), {"A": "original"}, 321))
     monkeypatch.setattr(supervisor, "subprocess", SimpleNamespace(Popen=Spawn))
     monkeypatch.setattr(supervisor, "select", SimpleNamespace(
-        select=lambda *args: ((gate_fd,), (), ())))
+        select=lambda *args: ((gateFd,), (), ())))
 
     try:
-        result = supervisor.Main((str(configuration_fd), str(receipt_fd), digest,
-                                  str(gate_fd), str(ready_fd)))
-        raw = os.read(receipt_read, 513)
+        result = supervisor.Main((str(configurationFd), str(receiptFd), digest,
+                                  str(gateFd), str(readyFd)))
+        raw = os.read(receiptRead, 513)
         assert result == (owned.WrapperExit(status) if mode == "normal" else 125), (
             "Failed supervisor control was reported as completed original work."
         )
@@ -344,8 +344,8 @@ def test_SupervisorControlOutcomeCannotInventWorkerCompletion(monkeypatch, mode,
         )
 
     finally:
-        os.close(receipt_read)
-        os.close(ready_read)
+        os.close(receiptRead)
+        os.close(readyRead)
 
 
 @pytest.mark.parametrize("arguments", [(), ("1",), ("7", "8", "bad", "9", "10"),

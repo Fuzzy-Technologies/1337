@@ -72,8 +72,8 @@ def test_GrammarHasOnlyOfflineProfileAndNeverEchoesRejectedValues(arguments):
 def test_StaticHelpAndHumanOutcomeUseOnlyCallerOwnedPresentation(tmp_path):
     """Help needs no workspace and human output contains only safe acknowledgements."""
 
-    status, help_text = Run(["--help"], json_output=False)
-    assert status == 0 and "import" in help_text, "Static runtime namespace help failed"
+    status, helpText = Run(["--help"], json_output=False)
+    assert status == 0 and "import" in helpText, "Static runtime namespace help failed"
     context = Context(tmp_path)
     status, output = Run(Arguments(context), json_output=False, clock=lambda: TIME)
     assert status == 0 and "model_commit: confirmed" in output, "Human output omitted actual commit"
@@ -241,15 +241,15 @@ def test_SameViewChangedCtimeRefusesRestoredMtimeBeforeEvidencePublication(
 
     context = Context(tmp_path)
     source = context[4].absolute()
-    path_info = commands.CheckStorageEntry
-    handle_info = commands.os.fstat
+    pathInfo = commands.CheckStorageEntry
+    handleInfo = commands.os.fstat
     calls = 0
 
     def PathInfo(path, *, directory):
         """Change only the final original path's ctime after its complete read."""
 
         nonlocal calls
-        info = path_info(path, directory=directory)
+        info = pathInfo(path, directory=directory)
 
         if path == source and view == "path":
             calls += 1
@@ -263,7 +263,7 @@ def test_SameViewChangedCtimeRefusesRestoredMtimeBeforeEvidencePublication(
         """Change only the final owned handle's ctime while preserving other identity fields."""
 
         nonlocal calls
-        info = handle_info(descriptor)
+        info = handleInfo(descriptor)
 
         if view == "handle":
             calls += 1
@@ -288,12 +288,12 @@ def test_WindowsCrossViewCtimeDifferenceAllowsStableSameViewOriginalBytes(tmp_pa
 
     context = Context(tmp_path)
     original = context[4].read_bytes()
-    handle_info = commands.os.fstat
+    handleInfo = commands.os.fstat
 
     def HandleInfo(descriptor):
         """Keep the handle's full identity stable and distinct from path-view ctime."""
 
-        info = handle_info(descriptor)
+        info = handleInfo(descriptor)
 
         return Metadata(info, st_ctime_ns=info.st_ctime_ns + 1)
 
@@ -312,8 +312,8 @@ def test_EveryOriginalReadViewRequiresOnePhysicalLink(tmp_path, monkeypatch, vie
     """A second observed physical link refuses original acquisition in each later view."""
 
     context = Context(tmp_path)
-    path_info = commands.CheckStorageEntry
-    handle_info = commands.os.fstat
+    pathInfo = commands.CheckStorageEntry
+    handleInfo = commands.os.fstat
     handle_calls = 0
     path_calls = 0
 
@@ -321,7 +321,7 @@ def test_EveryOriginalReadViewRequiresOnePhysicalLink(tmp_path, monkeypatch, vie
         """Expose an independent shared-link observation only for the final selected path."""
 
         nonlocal path_calls
-        info = path_info(path, directory=directory)
+        info = pathInfo(path, directory=directory)
 
         if path == context[4].absolute():
             path_calls += 1
@@ -335,7 +335,7 @@ def test_EveryOriginalReadViewRequiresOnePhysicalLink(tmp_path, monkeypatch, vie
         """Expose one later owned-handle link count without modifying source bytes."""
 
         nonlocal handle_calls
-        info = handle_info(descriptor)
+        info = handleInfo(descriptor)
         handle_calls += 1
 
         if (view == "opened" and handle_calls == 1) or (
@@ -544,8 +544,8 @@ def test_SaveAcknowledgementLossPreservesActualIndependentOwnerState(
 
     context = Context(tmp_path) if profile == "docker-inspect" else KubernetesContext(tmp_path)
     root = context[0]
-    store_type = LocalModelStore if owner == "model" else LocalWorkspaceStore
-    original = store_type.Save
+    storeType = LocalModelStore if owner == "model" else LocalWorkspaceStore
+    original = storeType.Save
 
     def Save(self, proposal, **options):
         """Optionally commit through the actual owner, then lose only its acknowledgement."""
@@ -555,13 +555,13 @@ def test_SaveAcknowledgementLossPreservesActualIndependentOwnerState(
 
         raise error("SYNTHETIC_PRIVATE_MARKER")
 
-    monkeypatch.setattr(store_type, "Save", Save)
+    monkeypatch.setattr(storeType, "Save", Save)
     status = Main(["runtime", *Arguments(context, profile=profile), "--json"])
     outcome = json.loads(capsys.readouterr().out)
     assert status == (130 if error is KeyboardInterrupt else 4), "Lost acknowledgement hid failure"
     assert outcome[owner + "_commit"] == "unknown", "Lost acknowledgement guessed storage state"
-    expected_model = context[1].revision + int(committed if owner == "model" else True)
-    assert LocalModelStore(root).Open().revision == expected_model, "Failed save rolled back state"
+    expectedModel = context[1].revision + int(committed if owner == "model" else True)
+    assert LocalModelStore(root).Open().revision == expectedModel, "Failed save rolled back state"
     assert LocalWorkspaceStore(root).Open().revision == int(committed and owner == "workspace"), (
         "Independent workspace state was hidden or rolled back"
     )
@@ -648,8 +648,8 @@ def test_ActualCompetingOwnerCommitWinsWithoutLostUpdates(tmp_path, monkeypatch,
     """A competing actual CAS commit between verification and save refuses the stale proposal."""
 
     context = Context(tmp_path)
-    store_type = LocalModelStore if owner == "model" else LocalWorkspaceStore
-    original = store_type.Save
+    storeType = LocalModelStore if owner == "model" else LocalWorkspaceStore
+    original = storeType.Save
     competing = None
 
     def Save(self, proposal, **options):
@@ -671,11 +671,11 @@ def test_ActualCompetingOwnerCommitWinsWithoutLostUpdates(tmp_path, monkeypatch,
 
         return original(self, proposal, **options)
 
-    monkeypatch.setattr(store_type, "Save", Save)
+    monkeypatch.setattr(storeType, "Save", Save)
     status, outcome = Run(Arguments(context), clock=lambda: TIME)
     assert status == 4 and outcome["failure"] == owner + "-conflict", "Competing CAS was lost"
     assert outcome[owner + "_commit"] == "not-committed", "Stale product save claimed commitment"
-    assert store_type(context[0]).Open() == competing, "Competing actual owner's state was lost"
+    assert storeType(context[0]).Open() == competing, "Competing actual owner's state was lost"
 
 
 @pytest.mark.parametrize("role,media_type,size", [
@@ -774,9 +774,9 @@ def test_KubernetesDeclaredAnchorRefusesBeforeAnyOriginalOrRetainedBlobRead(
     monkeypatch.setattr(LocalEvidenceStore, "Read", NoRead)
     monkeypatch.setattr(commands, "ReadOwnedInspect", NoRead)
 
-    for evidence_id in (None, record.evidence_id):
+    for evidenceId in (None, record.evidence_id):
         status, outcome = Run(Arguments(context, profile="kubernetes-list",
-                                       evidence_id=evidence_id))
+                                       evidence_id=evidenceId))
         assert status == 2 and outcome["failure"] == "cluster", "Invalid cluster was inferred"
         assert outcome["acquisition_commit"] == "not-attempted", "Invalid anchor read original"
 

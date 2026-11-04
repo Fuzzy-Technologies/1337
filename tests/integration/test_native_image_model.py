@@ -94,33 +94,33 @@ def test_ExecutedOwnedPairAdmitsPersistsReopensAndReplaysAfterMove(
     ), "Original VERSION invocation must remain unchanged after observed version parsing"
     updated, delta = ApplyVerifiedNativeTrivyImages(state, version, scan, root)
     saved = LocalModelStore(root).Save(updated, expected_revision=state.revision)
-    finding_objects = tuple(item for item in saved.objects
+    findingObjects = tuple(item for item in saved.objects
                             if item.identity.kind is ObjectKind.FINDING)
-    assert bool(finding_objects) is expected_finding, "Owned oracle must match finding state"
+    assert bool(findingObjects) is expected_finding, "Owned oracle must match finding state"
     assert saved == LocalModelStore(root).Open() and delta.revision == saved.revision, (
         "Canonical CAS persistence and independent reopening must agree"
     )
     records = (*version.records, *scan.records)
-    workspace_store = LocalWorkspaceStore(root)
-    workspace = workspace_store.Open()
-    workspace_store.Save(replace(workspace,
+    workspaceStore = LocalWorkspaceStore(root)
+    workspace = workspaceStore.Open()
+    workspaceStore.Save(replace(workspace,
         object_references=tuple(sorted(item.Reference() for item in saved.objects)),
         evidence_references=tuple(record.reference for record in records),
         evidence_record_references=tuple(record.evidence_id for record in records)))
-    VerifyWorkspaceEvidence(workspace_store.Open(), store)
+    VerifyWorkspaceEvidence(workspaceStore.Open(), store)
 
-    if finding_objects:
-        finding = Finding.FromObject(finding_objects[0])
+    if findingObjects:
+        finding = Finding.FromObject(findingObjects[0])
         triaged = replace(finding, status=FindingStatus.CONFIRMED,
                           status_reason="Owned integration review")
         current, _ = saved.Apply(objects=(triaged.ToObject(saved.workspace_id),))
         saved = LocalModelStore(root).Save(current, expected_revision=saved.revision)
-        repeated, repeated_delta = ApplyVerifiedNativeTrivyImages(saved, version, scan, root)
-        assert repeated == saved and repeated_delta.revision == saved.revision, (
+        repeated, repeatedDelta = ApplyVerifiedNativeTrivyImages(saved, version, scan, root)
+        assert repeated == saved and repeatedDelta.revision == saved.revision, (
             "Native admission must preserve separately confirmed canonical finding triage"
         )
 
-    original_replay = VerifyNativeTrivyImageReplay(records, root)
+    originalReplay = VerifyNativeTrivyImageReplay(records, root)
 
     for record in records:
         assert store.Get(record.evidence_id) == record, "Original manifest must reopen unchanged"
@@ -134,7 +134,7 @@ def test_ExecutedOwnedPairAdmitsPersistsReopensAndReplaysAfterMove(
     shutil.copytree(root, moved)
     shutil.rmtree(root)
     assert LocalModelStore(moved).Open() == saved, "Relocation must retain saved identities"
-    assert VerifyNativeTrivyImageReplay(records, moved) == original_replay, (
+    assert VerifyNativeTrivyImageReplay(records, moved) == originalReplay, (
         "Portable replay must retain original VERSION/SCAN provenance without historical material"
     )
     VerifyWorkspaceEvidence(LocalWorkspaceStore(moved).Open(),

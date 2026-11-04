@@ -210,7 +210,7 @@ def test_UpdatesPreserveAttributableHistoryAndExactReplayIsIdempotent():
         (Provenance("sensor", "run:two"),),
     )
     updated, delta = first.Apply(objects=(patch,))
-    replayed, replay_delta = updated.Apply(objects=(patch,))
+    replayed, replayDelta = updated.Apply(objects=(patch,))
     entity = updated.Objects(ObjectKind.HOST)[0]
 
     assert created.previous_revision == 0 and created.revision == 1, (
@@ -222,10 +222,10 @@ def test_UpdatesPreserveAttributableHistoryAndExactReplayIsIdempotent():
     assert delta.updated == (Host().Reference(),), (
         'Model update lost patch history, provenance, or replay idempotency'
     )
-    assert replayed == updated and replay_delta.created == replay_delta.updated == (), (
+    assert replayed == updated and replayDelta.created == replayDelta.updated == (), (
         'Model update lost patch history, provenance, or replay idempotency'
     )
-    assert replay_delta.previous_revision == replay_delta.revision == 2, (
+    assert replayDelta.previous_revision == replayDelta.revision == 2, (
         'Model update lost patch history, provenance, or replay idempotency'
     )
     assert dict(entity.attributes) == {"state": "down", "reason": "synthetic"}, (
@@ -325,7 +325,7 @@ def test_SnapshotRejectsInconsistentReferencesAndWorkspaceOwnership(mutation):
 def test_ForcedDigestCollisionsAreNeverMerged(monkeypatch, operation):
     """Even an injected hash collision cannot silently conflate different immutable identities."""
 
-    real_reference = model.ModelReference
+    realReference = model.ModelReference
 
     def CollidingReference(namespace, value):
         """Inject one namespace collision while retaining real references for the others."""
@@ -333,7 +333,7 @@ def test_ForcedDigestCollisionsAreNeverMerged(monkeypatch, operation):
         if namespace == operation:
             return namespace + ":" + "a" * 64
 
-        return real_reference(namespace, value)
+        return realReference(namespace, value)
 
     monkeypatch.setattr(model, "ModelReference", CollidingReference)
 

@@ -60,8 +60,8 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(
     report.write_text("stale", encoding="utf-8")
     calls = []
 
-    test_process = Mock(return_value=0)
-    monkeypatch.setattr(dev_commands, "RunTests", test_process)
+    testProcess = Mock(return_value=0)
+    monkeypatch.setattr(dev_commands, "RunTests", testProcess)
 
     def Process(arguments, **kwargs):
         """Provide deterministic test support for process."""
@@ -94,7 +94,7 @@ def test_CheckRunsAllQualityStepsAndRemovesStaleReport(
         "fuzzy1337.coverage_gate",
         "build",
     ], "check runs all quality steps and removes stale report invariant failed."
-    test_process.assert_called_once_with(
+    testProcess.assert_called_once_with(
         "tests", dev_commands.TestOptions(fail_fast=fail_fast,
                                          suite_timeout_seconds=suite_timeout_seconds),
     )
@@ -108,14 +108,14 @@ def test_CheckSuiteBudgetPreservesFailureWithoutRetry(repository, monkeypatch, c
     """A larger full-check suite budget cannot retry failure or proceed to coverage/build."""
 
     process = Mock(return_value=subprocess.CompletedProcess([], 0))
-    test_process = Mock(return_value=code)
+    testProcess = Mock(return_value=code)
     monkeypatch.setattr(subprocess, "run", process)
-    monkeypatch.setattr(dev_commands, "RunTests", test_process)
+    monkeypatch.setattr(dev_commands, "RunTests", testProcess)
 
     assert dev_commands.Main(["check", "--suite-timeout", "900"]) == code, (
         "Full-check suite expiration or failure must retain its original exit status."
     )
-    test_process.assert_called_once_with(
+    testProcess.assert_called_once_with(
         "tests", dev_commands.TestOptions(suite_timeout_seconds=900),
     )
     assert [call.args[0][2] for call in process.call_args_list] == [
@@ -153,12 +153,12 @@ def test_CheckFailFastKeepsEveryPhaseUnlessItsActualTestInvocationFails(
     assert dev_commands.Main(["check", "--fail-fast", "--suite-timeout", "900"]) == test_code, (
         "Fail-fast must propagate the original actual test failure or complete success unchanged."
     )
-    expected_phases = ["compileall", "ruff", "mypy", "fuzzy1337.performance"]
+    expectedPhases = ["compileall", "ruff", "mypy", "fuzzy1337.performance"]
 
     if not test_code:
-        expected_phases.extend(["fuzzy1337.coverage_gate", "build"])
+        expectedPhases.extend(["fuzzy1337.coverage_gate", "build"])
 
-    assert [arguments[2] for arguments in processes] == expected_phases, (
+    assert [arguments[2] for arguments in processes] == expectedPhases, (
         "Only an actual nonzero test invocation may prevent later coverage and build phases."
     )
     assert len(invocations) == (1 if test_code else 2), (
@@ -194,8 +194,8 @@ def test_UnitRunsOnlyTheUnitSuiteAndCoverageGate(repository, monkeypatch):
         return subprocess.CompletedProcess(arguments, 0)
 
     monkeypatch.setattr(subprocess, "run", Process)
-    test_process = Mock(return_value=0)
-    monkeypatch.setattr(dev_commands, "RunTests", test_process)
+    testProcess = Mock(return_value=0)
+    monkeypatch.setattr(dev_commands, "RunTests", testProcess)
 
     assert dev_commands.Run("unit") == 0, (
         "unit runs only the unit suite and coverage gate invariant failed."
@@ -209,7 +209,7 @@ def test_UnitRunsOnlyTheUnitSuiteAndCoverageGate(repository, monkeypatch):
             "src/fuzzy1337",
         ],
     ], "unit runs only the unit suite and coverage gate invariant failed."
-    test_process.assert_called_once()
+    testProcess.assert_called_once()
 
 
 def test_SetupUsesLockedUv(repository, monkeypatch):

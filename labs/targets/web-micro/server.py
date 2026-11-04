@@ -123,9 +123,9 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
     def ReadRequestBody(self) -> bytes | None:
         """Read only a bounded local fixture body and reject invalid lengths."""
 
-        content_length = self.headers.get("Content-Length", "0")
+        contentLength = self.headers.get("Content-Length", "0")
         try:
-            size = int(content_length)
+            size = int(contentLength)
 
         except ValueError:
             self.SendJson({"error": "invalid-content-length"}, status=HTTPStatus.BAD_REQUEST)
@@ -160,17 +160,17 @@ class MicroTargetRequestHandler(BaseHTTPRequestHandler):
         """Serve a small finite error-status matrix for deterministic assertions."""
 
         try:
-            status_code = int(path.removeprefix("/status/"))
+            statusCode = int(path.removeprefix("/status/"))
 
         except ValueError:
             self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
             return
 
-        if status_code not in STATUS_ROUTES:
+        if statusCode not in STATUS_ROUTES:
             self.SendJson({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
             return
 
-        self.SendJson({"status": status_code}, status=HTTPStatus(status_code))
+        self.SendJson({"status": statusCode}, status=HTTPStatus(statusCode))
 
     def SendHtml(self, body: str) -> None:
         """Write a compact static HTML contract for form discovery."""

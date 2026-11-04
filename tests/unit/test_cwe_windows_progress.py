@@ -183,13 +183,13 @@ def test_ExistingFilesCannotBeOverwritten(tmp_path, monkeypatch):
     """Exclusive creation refuses existing final files without following or replacing them."""
 
     directory = progress.Directory(tmp_path)
-    target_file = directory / "gw0.jsonl"
-    target_file.write_text("unchanged")
+    targetFile = directory / "gw0.jsonl"
+    targetFile.write_text("unchanged")
     monkeypatch.setattr(progress, "ROOT", tmp_path)
     config = SimpleNamespace(workerinput={"workerid": "gw0"},
         pluginmanager=SimpleNamespace(register=lambda *args: pytest.fail("Existing file admitted")))
     progress.pytest_configure(config)
-    assert target_file.read_text() == "unchanged", "Existing evidence must remain intact."
+    assert targetFile.read_text() == "unchanged", "Existing evidence must remain intact."
 
 
 def test_StorageErrorsDoNotChangeTestOutcomes(tmp_path):

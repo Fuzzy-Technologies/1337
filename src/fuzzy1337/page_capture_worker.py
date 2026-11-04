@@ -253,24 +253,24 @@ def WorkerInputs(arguments: Sequence[str]) -> tuple[str, float, str, int]:
     ):
         raise ValueError("page capture worker requires four text arguments")
 
-    url, timeout_text, fixture_id, maximum_text = arguments
+    url, timeoutText, fixtureId, maximumText = arguments
 
-    if len(timeout_text) > 24 or not re.fullmatch(r"[0-9]+\.[0-9]+", timeout_text) or (
-        len(maximum_text) > 5 or not re.fullmatch(r"[1-9][0-9]*", maximum_text)
+    if len(timeoutText) > 24 or not re.fullmatch(r"[0-9]+\.[0-9]+", timeoutText) or (
+        len(maximumText) > 5 or not re.fullmatch(r"[1-9][0-9]*", maximumText)
     ):
         raise ValueError("page capture worker requires bounded canonical numeric tokens")
 
-    timeout = Seconds(float(timeout_text), 5)
-    maximum = Integer(int(maximum_text), 1, MAX_BODY_BYTES)
+    timeout = Seconds(float(timeoutText), 5)
+    maximum = Integer(int(maximumText), 1, MAX_BODY_BYTES)
     Destination(url)
-    expected = KnownSyntheticHtmlBody(fixture_id)
+    expected = KnownSyntheticHtmlBody(fixtureId)
 
-    if timeout_text != str(timeout) or maximum_text != str(maximum) or (
+    if timeoutText != str(timeout) or maximumText != str(maximum) or (
         expected.size_bytes > maximum
     ):
         raise ValueError("page capture worker input binding differs")
 
-    return url, timeout, fixture_id, maximum
+    return url, timeout, fixtureId, maximum
 
 
 def Main(argv: Sequence[str] | None = None) -> int:
@@ -285,7 +285,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
         Zero for admitted page, 64 for input, 124 for timeout, one for other fixed failures.
     """
 
-    error_code = "input"
+    errorCode = "input"
 
     try:
         if argv is None:
@@ -300,19 +300,19 @@ def Main(argv: Sequence[str] | None = None) -> int:
         result = Probe(*WorkerInputs(arguments))
 
     except (TimeoutError, socket.timeout):
-        error_code = "timeout"
+        errorCode = "timeout"
 
     except PageProtocolError:
-        error_code = "protocol"
+        errorCode = "protocol"
 
     except PageResponsePolicyError:
-        error_code = "response-policy"
+        errorCode = "response-policy"
 
     except PageBodyPolicyError:
-        error_code = "body-policy"
+        errorCode = "body-policy"
 
     except OSError:
-        error_code = "connection"
+        errorCode = "connection"
 
     except (ValueError, TypeError, UnicodeError, OverflowError):
         pass
@@ -322,9 +322,9 @@ def Main(argv: Sequence[str] | None = None) -> int:
 
         return 0
 
-    sys.stdout.buffer.write(CanonicalRecord({"schema_version": 1, "error": error_code}))
+    sys.stdout.buffer.write(CanonicalRecord({"schema_version": 1, "error": errorCode}))
 
-    return ERROR_EXITS[error_code]
+    return ERROR_EXITS[errorCode]
 
 
 if __name__ == "__main__":

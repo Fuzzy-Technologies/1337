@@ -58,7 +58,7 @@ def test_GrownOriginalOtherRoleAliasRefusesBeforeEveryRawRead(
     LocalWorkspaceStore(root).Save(replace(workspace, evidence_references=(alias,)))
     (root / "evidence" / reference.locator).write_bytes(b"x" * (1024 * 1024 + 1))
     before = LocalModelStore(root).Open()
-    workspace_before = (root / "workspace.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     monkeypatch.setattr(commands, "OpenReportInput", RefuseRead)
     monkeypatch.setattr(LocalEvidenceStore, "Read", RefuseRead)
     monkeypatch.setattr(commands, "ReadOwnedInspect", RefuseRead)
@@ -69,7 +69,7 @@ def test_GrownOriginalOtherRoleAliasRefusesBeforeEveryRawRead(
     assert status == 4 and outcome["failure"] == "integrity", "Known original reached raw access"
     assert outcome["acquisition_commit"] == "not-attempted", "Refusal acquired original bytes"
     assert LocalModelStore(root).Open() == before, "Budget refusal changed saved model truth"
-    assert (root / "workspace.json").read_bytes() == workspace_before, (
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, (
         "Budget refusal saved workspace"
     )
 
@@ -108,11 +108,11 @@ def test_FileModePreflightsEveryKnownOriginalBeforeGenericRead(
         "a-runtime-alias", reference.locator, reference.sha256, "application/json", 1024 * 1024 + 1
     )
     workspace = LocalWorkspaceStore(root).Open()
-    object_references = tuple(item.Reference() for item in LocalModelStore(root).Open().objects)
+    objectReferences = tuple(item.Reference() for item in LocalModelStore(root).Open().objects)
     LocalWorkspaceStore(root).Save(
         replace(
             workspace,
-            object_references=object_references,
+            object_references=objectReferences,
             evidence_references=(alias,),
             evidence_record_references=(record.evidence_id,) if known_by == "manifest-only" else (),
         )
@@ -148,9 +148,9 @@ def test_KnownOriginalsKeepTheirOwnScopesAndRetainedBytewiseNoop(tmp_path, profi
         str(path.relative_to(root)): path.read_bytes() for path in root.rglob("*") if path.is_file()
     }
 
-    for selected, scope_id in ((first, "owned"), (second, "another")):
+    for selected, scopeId in ((first, "owned"), (second, "another")):
         arguments = Arguments(context, profile=profile, evidence_id=selected["evidence_id"])
-        arguments[arguments.index("--scope") + 1] = scope_id
+        arguments[arguments.index("--scope") + 1] = scopeId
         status, outcome = Run(arguments)
         assert status == 0 and outcome["created"] == outcome["updated"] == 0, (
             "Old scope replay failed"
@@ -170,8 +170,8 @@ def test_SamePhysicalLocatorWrongShaAliasRefusesBeforeGenericRead(tmp_path, monk
     root = context[0]
     record = context[3].Get(first["evidence_id"])
     reference = record.reference
-    other_sha = "b" * 64 if reference.sha256 != "b" * 64 else "c" * 64
-    alias = EvidenceReference("a-runtime-alias", reference.locator, other_sha,
+    otherSha = "b" * 64 if reference.sha256 != "b" * 64 else "c" * 64
+    alias = EvidenceReference("a-runtime-alias", reference.locator, otherSha,
                               reference.media_type, reference.size_bytes)
     workspace = LocalWorkspaceStore(root).Open()
     LocalWorkspaceStore(root).Save(replace(workspace, evidence_references=(alias,)))
@@ -213,21 +213,21 @@ def test_KnownCustodyCannotReclassifyWrongRoleOriginalAsUnrelatedEvidence(
     root = context[0]
     evidence = LocalEvidenceStore(root / "evidence")
     record = evidence.Get(first["evidence_id"])
-    wrong_role = evidence.Put(b"x" * (1024 * 1024 + 1), "stdout", "application/json",
+    wrongRole = evidence.Put(b"x" * (1024 * 1024 + 1), "stdout", "application/json",
                               record.provenance)
     model = LocalModelStore(root).Open()
-    original_fact = next(item for item in model.observations
+    originalFact = next(item for item in model.observations
                          if item.kind == "runtime-import-source")
-    wrong = replace(original_fact,
-        attributes={**original_fact.attributes, "evidence_id": wrong_role.evidence_id,
-                    "source_sha256": wrong_role.reference.sha256},
-        provenance=replace(original_fact.provenance, evidence_references=(wrong_role.reference,)))
+    wrong = replace(originalFact,
+        attributes={**originalFact.attributes, "evidence_id": wrongRole.evidence_id,
+                    "source_sha256": wrongRole.reference.sha256},
+        provenance=replace(originalFact.provenance, evidence_references=(wrongRole.reference,)))
     changed, _ = model.Apply(observations=(wrong,))
     saved = LocalModelStore(root).Save(changed, expected_revision=model.revision)
     workspace = LocalWorkspaceStore(root).Open()
-    LocalWorkspaceStore(root).Save(replace(workspace, evidence_references=(wrong_role.reference,),
+    LocalWorkspaceStore(root).Save(replace(workspace, evidence_references=(wrongRole.reference,),
         evidence_record_references=() if repair_context else workspace.evidence_record_references))
-    workspace_before = (root / "workspace.json").read_bytes()
+    workspaceBefore = (root / "workspace.json").read_bytes()
     reads = []
 
     def RawRead(self, reference):
@@ -243,4 +243,4 @@ def test_KnownCustodyCannotReclassifyWrongRoleOriginalAsUnrelatedEvidence(
     assert status == 4 and outcome["failure"] == "integrity", "Custody role substitution passed"
     assert not reads and outcome["acquisition_commit"] == "not-attempted", "Wrong-role raw read"
     assert LocalModelStore(root).Open() == saved, "Custody budget validation rewrote model facts"
-    assert (root / "workspace.json").read_bytes() == workspace_before, "Custody guard saved state"
+    assert (root / "workspace.json").read_bytes() == workspaceBefore, "Custody guard saved state"

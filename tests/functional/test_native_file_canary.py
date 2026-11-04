@@ -224,8 +224,8 @@ def test_OwnedCanaryMatrixUsesActualReadsAndReopensOriginalEvidenceOffline(tmp_p
                         "File-read evidence must bind actual owned path, input and disclosed bytes."
                     )
 
-            expected_match = case["expected_private_file_disclosure"]
-            assert len(findings) == int(expected_match), (
+            expectedMatch = case["expected_private_file_disclosure"]
+            assert len(findings) == int(expectedMatch), (
                 "Persisted native Findings disagree with independent private-disclosure truth."
             )
             stdout = next(item.content for item in raw if item.role == "stdout")
@@ -254,7 +254,7 @@ def test_OwnedCanaryMatrixUsesActualReadsAndReopensOriginalEvidenceOffline(tmp_p
             )
             assert worker["body_bytes"] == len(body) and worker["body_sha256"] == (
                 hashlib.sha256(body).hexdigest()), "Original report lost response attribution."
-            assert worker["matched"] is expected_match and expected["body"].strip() not in stdout, (
+            assert worker["matched"] is expectedMatch and expected["body"].strip() not in stdout, (
                 "The predicate changed or transient response text leaked into worker output."
             )
             endpoints = model.Objects(ObjectKind.ENDPOINT)

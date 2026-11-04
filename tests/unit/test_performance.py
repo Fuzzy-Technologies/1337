@@ -121,10 +121,10 @@ def test_ReportAndRunPreserveMachineReadableEvidence(monkeypatch, tmp_path, caps
         ),
     )
     monkeypatch.setattr(performance, "Measure", lambda case: next(results))
-    report_path = tmp_path / "nested/performance.json"
+    reportPath = tmp_path / "nested/performance.json"
 
-    assert performance.Run(report_path) == 1, "performance regression exit invariant failed."
-    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert performance.Run(reportPath) == 1, "performance regression exit invariant failed."
+    report = json.loads(reportPath.read_text(encoding="utf-8"))
     assert report["schema_version"] == performance.PERFORMANCE_SCHEMA_VERSION, (
         "performance report schema invariant failed."
     )

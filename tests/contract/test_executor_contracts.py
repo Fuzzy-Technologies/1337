@@ -144,7 +144,7 @@ def test_RequestRejectsMismatchedAuthorizationAndMissingPrivileges():
 
     invocation = Invocation()
     capability = CapabilityDescriptors(ExampleDescriptor())[0]
-    wrong_authorization = ExecutionAuthorization(
+    wrongAuthorization = ExecutionAuthorization(
         authorization_id="authorization:wrong",
         scope_reference="scope:synthetic-lab",
         policy_reference="policy:unit-test",
@@ -156,10 +156,10 @@ def test_RequestRejectsMismatchedAuthorizationAndMissingPrivileges():
         LocalExecutionRequest(
             invocation=invocation,
             capability=capability,
-            authorization=wrong_authorization,
+            authorization=wrongAuthorization,
         )
 
-    without_privilege = ExecutionAuthorization(
+    withoutPrivilege = ExecutionAuthorization(
         authorization_id="authorization:missing-privilege",
         scope_reference="scope:synthetic-lab",
         policy_reference="policy:unit-test",
@@ -170,7 +170,7 @@ def test_RequestRejectsMismatchedAuthorizationAndMissingPrivileges():
         LocalExecutionRequest(
             invocation=invocation,
             capability=capability,
-            authorization=without_privilege,
+            authorization=withoutPrivilege,
         )
 
 

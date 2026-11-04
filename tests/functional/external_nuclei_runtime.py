@@ -110,18 +110,18 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
     shutil.copyfile(template, root / "prometheus-exposition.yaml")
     shutil.copyfile(configuration, root / "operator-config.yaml")
     shutil.copyfile(wheel, root / "installed.whl")
-    copied_wheel = RegularIdentity(root / "installed.whl", maximum=MAX_FILE_BYTES)
+    copiedWheel = RegularIdentity(root / "installed.whl", maximum=MAX_FILE_BYTES)
 
-    if any(copied_wheel[key] != inventory["wheel"][key] for key in ("sha256", "size_bytes")):
+    if any(copiedWheel[key] != inventory["wheel"][key] for key in ("sha256", "size_bytes")):
         raise ValueError("Whole1337 copied wheel differs from the installed inventory")
 
     inventory["whole1337_runtime_sha256"] = RegularIdentity(
         Path(__file__), maximum=MAX_FILE_BYTES)["sha256"]
     WriteJson(root / "installed-inventory.json", inventory)
     WriteJson(root / "fixture-authorization.json", authorization)
-    profile_document = ProfileDocument(root / "prometheus-exposition.yaml",
+    profileDocument = ProfileDocument(root / "prometheus-exposition.yaml",
                                        root / "operator-config.yaml")
-    WriteJson(root / "profile.json", profile_document)
+    WriteJson(root / "profile.json", profileDocument)
     profile = ReadNucleiProfile(root / "profile.json")
     target = Target(TargetKind.URL, ExactUrl(path))
     address = Target(TargetKind.IP, "127.0.0.1")
@@ -135,12 +135,12 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
     try:
         CreateWorkspace(workspace, "external-nuclei", "Owned pinned Nuclei comparison")
         now = datetime.now(UTC)
-        scope_store = LocalScopeStore(workspace)
-        scope_store.Create(ScopeSnapshot("local", "external-nuclei", ScopeAuthorization(
+        scopeStore = LocalScopeStore(workspace)
+        scopeStore.Create(ScopeSnapshot("local", "external-nuclei", ScopeAuthorization(
             AuthorizationState.GRANTED, owner, authorization["authorization_reference"],
             (now - timedelta(minutes=1)).isoformat(), (now + timedelta(minutes=5)).isoformat(),
         ), targets=(target, address), allow=(target, address)))
-        WriteJson(root / "scope.json", scope_store.Open("local").ToDict())
+        WriteJson(root / "scope.json", scopeStore.Open("local").ToDict())
         policy = ImpactPolicy("owned-external-nuclei", maximum_impact=ImpactLevel.STANDARD,
             permissions=(CapabilityPermission("web.http-template-check", "native.nuclei",
                                               ImpactLevel.STANDARD),))
@@ -152,7 +152,7 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
 
             # These are reader observations, not an invented launch-grant receipt.
             readbacks.append({"observed_at": datetime.now(UTC).isoformat(),
-                              "scope": scope_store.Open("local").ToDict(),
+                              "scope": scopeStore.Open("local").ToDict(),
                               "policy": json.loads(SerializeContract(policy))})
             WriteJson(root / "authority-readbacks.json", readbacks)
 
@@ -242,7 +242,7 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
                     continue
 
         subjects = {item.Reference(): item for item in state.Objects(ObjectKind.ENDPOINT)}
-        saved_references = []
+        savedReferences = []
 
         for finding in saved:
             subject = subjects.get(finding.subject_reference)
@@ -264,13 +264,13 @@ def RunWhole1337(root: Path, path: str, executable: Path, template: Path, config
             outcome["findings"].append({"rule_id": finding.check_id,
                 "path": urlsplit(subject.attributes["url"]).path,
                 "target_url": subject.attributes["url"]})
-            saved_references.append({"finding_reference": finding.ToObject(
+            savedReferences.append({"finding_reference": finding.ToObject(
                 state.workspace_id).Reference(), "fingerprint": finding.Fingerprint(),
                 "subject_reference": finding.subject_reference,
                 "location_key": finding.location_key,
                 "acquisition_ids": [record.evidence_id for record in records]})
 
-        WriteJson(root / "saved-finding-references.json", saved_references)
+        WriteJson(root / "saved-finding-references.json", savedReferences)
         execution = records[0].provenance.execution
         outcome["provider_duration_seconds"] = execution.duration_seconds if execution else None
         outcome["exit_code"] = execution.exit_code if execution else None

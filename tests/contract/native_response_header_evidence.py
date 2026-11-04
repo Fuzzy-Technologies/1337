@@ -245,13 +245,13 @@ def installed_header_worker(tmp_path_factory, header_evidence_run, header_platfo
     owner.Json("source-checkpoint.json", identity)
     identity["source_sha256"] = SourceHashes()
     owner.Json("source-checkpoint.json", identity)
-    wheel_root = root / "wheel"
-    wheel_root.mkdir()
+    wheelRoot = root / "wheel"
+    wheelRoot.mkdir()
     built = HeaderProcess(owner, "build", (sys.executable, "-m", "build", "--wheel",
-        "--no-isolation", "--outdir", str(wheel_root)), cwd=REPOSITORY, environment=environment,
+        "--no-isolation", "--outdir", str(wheelRoot)), cwd=REPOSITORY, environment=environment,
         timeout=40, maximum=MAX_BUILD_STREAM)
     assert built.returncode == 0, "Actual wheel build failed; raw original build evidence retained"
-    wheels = tuple(wheel_root.glob("*.whl"))
+    wheels = tuple(wheelRoot.glob("*.whl"))
     assert len(wheels) == 1, "Exactly one freshly built actual wheel is required"
     wheel, = wheels
     size = wheel.stat().st_size
@@ -274,13 +274,13 @@ def installed_header_worker(tmp_path_factory, header_evidence_run, header_platfo
 
     assert members == {name: identity["source_sha256"]["src/fuzzy1337/" + name]
         for name in SOURCE_MODULES}, "Wheel member bytes must equal the original source checkpoint"
-    status_after = HeaderProcess(owner, "source-status-after-build",
+    statusAfter = HeaderProcess(owner, "source-status-after-build",
         ("git", "status", "--porcelain"), cwd=REPOSITORY,
         environment=environment, timeout=5, maximum=MAX_BUILD_STREAM)
     after = HeaderProcess(owner, "source-checkpoint-after-build",
         ("git", "rev-parse", "HEAD", "HEAD^{tree}"), cwd=REPOSITORY,
         environment=environment, timeout=5, maximum=MAX_BUILD_STREAM)
-    assert status_after.returncode == after.returncode == 0 and status_after.stdout == b"" and (
+    assert statusAfter.returncode == after.returncode == 0 and statusAfter.stdout == b"" and (
         after.stdout == checkpoint.stdout and SourceHashes() == identity["source_sha256"]
     ), "Actual build may not inherit mixed, changed or dirty source identity"
     created = HeaderProcess(owner, "create-interpreter", (sys.executable, "-m", "venv",
@@ -372,7 +372,7 @@ def HeaderListener(owner: HeaderEvidence, wire: bytes):
     """Always retain original listener-final facts after Close/join, including exceptional paths."""
 
     listener = None
-    close_returned = False
+    closeReturned = False
     failure = None
 
     try:
@@ -385,7 +385,7 @@ def HeaderListener(owner: HeaderEvidence, wire: bytes):
             if listener is not None:
                 try:
                     listener.Close()
-                    close_returned = True
+                    closeReturned = True
 
                 except BaseException as error:
                     failure = type(error).__name__ if type(error) in (
@@ -394,4 +394,4 @@ def HeaderListener(owner: HeaderEvidence, wire: bytes):
                     raise
 
         finally:
-            owner.Json("listener-final.json", ListenerFinal(listener, close_returned, failure))
+            owner.Json("listener-final.json", ListenerFinal(listener, closeReturned, failure))

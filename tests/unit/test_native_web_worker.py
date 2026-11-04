@@ -273,16 +273,16 @@ def test_MainBypassesPlatformTextNewlineTranslation(monkeypatch, outcome):
 
     arguments = [] if outcome == "input" else ["http://127.0.0.1/", "1"]
     expected = record if outcome == "success" else {"schema_version": 1, "error": outcome}
-    expected_code = {"success": 0, "input": 64, "timeout": 124}[outcome]
+    expectedCode = {"success": 0, "input": 64, "timeout": 124}[outcome]
     monkeypatch.setattr(worker, "Probe", Probe)
 
-    with monkeypatch.context() as output_patch:
-        output_patch.setattr(worker.sys, "stdout", stream)
+    with monkeypatch.context() as outputPatch:
+        outputPatch.setattr(worker.sys, "stdout", stream)
         code = worker.Main(arguments)
         stream.flush()
         actual = output.getvalue()
 
-    assert code == expected_code, "Binary report output changed the truthful worker exit code."
+    assert code == expectedCode, "Binary report output changed the truthful worker exit code."
     assert actual == CanonicalRecord(expected), (
         "Platform text translation changed canonical worker report bytes."
     )
@@ -501,13 +501,13 @@ def test_MetricsProgressNeverRenewsDeadlineIncludingFinalEof(monkeypatch, framin
     boundary = wire.index(b"\r\n\r\n") + 4
     transport = FakeSocket([wire[:boundary], wire[boundary:]])
     now = [0.0]
-    original_receive = transport.recv
+    originalReceive = transport.recv
 
     def Receive(maximum):
         """Advance a deterministic shared clock on one selected actual I/O boundary."""
 
         before = len(transport.parts)
-        part = original_receive(maximum)
+        part = originalReceive(maximum)
 
         if (late_phase == "header" and before == 2 or
             late_phase == "body" and before == 1 or late_phase == "eof" and not part):
@@ -520,7 +520,7 @@ def test_MetricsProgressNeverRenewsDeadlineIncludingFinalEof(monkeypatch, framin
     monkeypatch.setattr(worker.time, "monotonic", lambda: now[0])
 
     if late_phase == "predicate":
-        original_check = worker.NativeWebCheckFor(NATIVE_PROMETHEUS_CHECK_ID)
+        originalCheck = worker.NativeWebCheckFor(NATIVE_PROMETHEUS_CHECK_ID)
 
         def Predicate(*_args):
             """Model bounded interpretation returning after the same original deadline."""
@@ -530,7 +530,7 @@ def test_MetricsProgressNeverRenewsDeadlineIncludingFinalEof(monkeypatch, framin
             return True
 
         monkeypatch.setattr(worker, "NativeWebCheckFor",
-                            lambda _: replace(original_check, predicate=Predicate))
+                            lambda _: replace(originalCheck, predicate=Predicate))
 
     with pytest.raises(TimeoutError):
         worker.Probe("http://127.0.0.1:8080/metrics", 1.0,

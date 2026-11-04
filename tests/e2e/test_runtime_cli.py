@@ -134,11 +134,11 @@ def test_InstalledRuntimeConsolePreservesOwnedOracleRelocationReplayTriageAndRep
                    if item.check_id == "docker.configured.privileged")
     image = next(item for item in saved.objects
                  if item.attributes.get("digest") == "sha256:" + "d" * 64)
-    image_fact = ModelProvenance("owned.image", "run:image", TIME, "scope:owned", host.Reference())
+    imageFact = ModelProvenance("owned.image", "run:image", TIME, "scope:owned", host.Reference())
     preserved = replace(image, attributes={**image.attributes,
-        "prior_image_fact": "owned-existing-image"}, provenance=(*image.provenance, image_fact))
-    image_state, _ = saved.Apply(objects=(preserved,))
-    saved = LocalModelStore(root).Save(image_state, expected_revision=saved.revision)
+        "prior_image_fact": "owned-existing-image"}, provenance=(*image.provenance, imageFact))
+    imageState, _ = saved.Apply(objects=(preserved,))
+    saved = LocalModelStore(root).Save(imageState, expected_revision=saved.revision)
     decision = ModelProvenance("owned.operator", "decision:owned", TIME,
                                "scope:owned", host.Reference())
     triaged, _ = TransitionFinding(saved, finding.ToObject(saved.workspace_id).Reference(),
@@ -151,7 +151,7 @@ def test_InstalledRuntimeConsolePreservesOwnedOracleRelocationReplayTriageAndRep
     expected = LocalModelStore(root).Open()
     correlated = next(item for item in expected.objects if item.Reference() == image.Reference())
     assert correlated.attributes["prior_image_fact"] == "owned-existing-image" and (
-        image_fact in correlated.provenance
+        imageFact in correlated.provenance
     ), "Registered refresh erased prior image correlation metadata or provenance"
     disposed = next(item for item in Findings(expected)
                     if item.Fingerprint() == finding.Fingerprint())
@@ -193,14 +193,14 @@ def test_InstalledRuntimeConsolePreservesOwnedOracleRelocationReplayTriageAndRep
         "Actual configured import fabricated physical runtime reachability evidence"
     )
 
-    for report_format in ("json", "sarif"):
-        destination = tmp_path / ("runtime-report." + report_format)
+    for reportFormat in ("json", "sarif"):
+        destination = tmp_path / ("runtime-report." + reportFormat)
         status, exported = Console(tmp_path, ["report", "export", str(moved), "--format",
-            report_format, "--output", str(destination), "--json"])
+            reportFormat, "--output", str(destination), "--json"])
         assert status == 0 and exported["output_published"] is True, "Actual report export failed"
         document = json.loads(destination.read_bytes())
 
-        if report_format == "json":
+        if reportFormat == "json":
             assert document["model"] == expected.ToDict() and (
                 document["summary"]["findings"] == 6
             ), (
@@ -360,8 +360,8 @@ def test_InstalledKubernetesRuntimePreservesOracleTriagePortableReplayAndUnknown
                  RuntimeEvidenceStore(moved / "evidence", profile="kubernetes-list"), source)
     source.unlink()
 
-    for evidence_id in (refreshed["evidence_id"], record.evidence_id):
-        status, replay = Import(tmp_path, relocated, evidence_id=evidence_id,
+    for evidenceId in (refreshed["evidence_id"], record.evidence_id):
+        status, replay = Import(tmp_path, relocated, evidence_id=evidenceId,
                                 profile="kubernetes-list")
         assert status == 0 and replay["created"] == replay["updated"] == 0 and (
             replay["model_revision"] == expected.revision
@@ -391,14 +391,14 @@ def test_InstalledKubernetesRuntimePreservesOracleTriagePortableReplayAndUnknown
         "Actual portable snapshot inferred effective authorization"
     )
 
-    for report_format in ("json", "sarif"):
-        destination = tmp_path / ("kubernetes-report." + report_format)
+    for reportFormat in ("json", "sarif"):
+        destination = tmp_path / ("kubernetes-report." + reportFormat)
         status, exported = Console(tmp_path, ["report", "export", str(moved), "--format",
-            report_format, "--output", str(destination), "--json"])
+            reportFormat, "--output", str(destination), "--json"])
         assert status == 0 and exported["output_published"] is True, "Actual report export failed"
         document = json.loads(destination.read_bytes())
 
-        if report_format == "json":
+        if reportFormat == "json":
             assert document["model"] == expected.ToDict(), "JSON lost the exact saved snapshot"
 
         else:

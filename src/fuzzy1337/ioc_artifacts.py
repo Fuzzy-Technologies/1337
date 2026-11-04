@@ -325,8 +325,8 @@ def NormalizeIpv6(value: int) -> str:
     """
 
     hextets = [(value >> shift) & 65535 for shift in range(112, -1, -16)]
-    best_start = 0
-    best_length = 1
+    bestStart = 0
+    bestLength = 1
     start = 0
 
     while start < 8:
@@ -335,18 +335,18 @@ def NormalizeIpv6(value: int) -> str:
         while end < 8 and hextets[end] == 0:
             end += 1
 
-        if end - start > best_length:
-            best_start = start
-            best_length = end - start
+        if end - start > bestLength:
+            bestStart = start
+            bestLength = end - start
 
         start = max(start + 1, end)
 
     parts = [f"{item:x}" for item in hextets]
 
-    if best_length == 1:
+    if bestLength == 1:
         return ":".join(parts)
 
-    return ":".join(parts[:best_start]) + "::" + ":".join(parts[best_start + best_length:])
+    return ":".join(parts[:bestStart]) + "::" + ":".join(parts[bestStart + bestLength:])
 
 
 def ObservationTime(observed_at: str | None, observation_timezone: str | None) -> str | None:
@@ -453,9 +453,9 @@ def ParseIocArtifact(payload: bytes, source: IocSource,
     ):
         raise ValueError("IOC payload is empty, exceeds its byte budget or differs from its pin")
 
-    line_count = payload.count(b"\n") + (not payload.endswith(b"\n"))
+    lineCount = payload.count(b"\n") + (not payload.endswith(b"\n"))
 
-    if line_count > limits.max_lines or line_count > limits.max_items:
+    if lineCount > limits.max_lines or lineCount > limits.max_items:
         raise ValueError("IOC artifact exceeds its line or item budget")
 
     candidates = []
@@ -465,8 +465,8 @@ def ParseIocArtifact(payload: bytes, source: IocSource,
     if lines[-1] == b"":
         lines.pop()
 
-    for line_number, physical in enumerate(lines, 1):
-        terminated = line_number < len(lines) or payload.endswith(b"\n")
+    for lineNumber, physical in enumerate(lines, 1):
+        terminated = lineNumber < len(lines) or payload.endswith(b"\n")
         line = physical.removesuffix(b"\r") if terminated else physical
 
         if not line or len(line) > limits.max_line_bytes or b"\r" in line:
@@ -485,7 +485,7 @@ def ParseIocArtifact(payload: bytes, source: IocSource,
         observed = parts[2] if len(parts) == 4 else None
         zone = parts[3] if len(parts) == 4 else None
         candidates.append(IocCandidate(kind, token, NormalizeToken(kind, token),
-            source.source_locator, line_number, offset + len(kind) + 1, len(token),
+            source.source_locator, lineNumber, offset + len(kind) + 1, len(token),
             observed, zone, ObservationTime(observed, zone)))
         offset += len(physical) + 1
 
@@ -675,15 +675,15 @@ def AcquireIocArtifact(workspace_root: Path, request: IocRequest, *,
         "request_sha256": RequestPin(request.source, request.limits)}
     receipt = store.Put(JsonBytes(envelope), "ioc-acquisition", "application/json", provenance)
     snapshot = None
-    snapshot_record = None
+    snapshotRecord = None
 
     if candidates is not None:
         snapshot = IocSnapshot(raw.evidence_id, receipt.evidence_id, request.source,
                                request.limits, candidates)
-        snapshot_record = store.Put(snapshot.Serialize(), "ioc-snapshot", "application/json",
+        snapshotRecord = store.Put(snapshot.Serialize(), "ioc-snapshot", "application/json",
                                     provenance)
 
-    return IocAcquisition(state, raw, receipt, snapshot_record, snapshot)
+    return IocAcquisition(state, raw, receipt, snapshotRecord, snapshot)
 
 
 def OriginalRecord(record: EvidenceRecord, workspace_id: str, store: IocEvidenceStore,
@@ -773,17 +773,17 @@ def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord,
         raise ValueError("IOC replay requires exact first-party snapshot and acquisition records")
 
     workspace = LocalWorkspaceStore(workspace_root)
-    workspace_id = workspace.Open().workspace_id
+    workspaceId = workspace.Open().workspace_id
     store = IocEvidenceStore(workspace.root / "evidence")
-    payload = OriginalRecord(snapshot_record, workspace_id, store, "ioc-snapshot")
+    payload = OriginalRecord(snapshot_record, workspaceId, store, "ioc-snapshot")
     data = Header(Metadata(payload, _ROLES["ioc-snapshot"][0]), {
         "raw_evidence_id", "acquisition_evidence_id", "source", "limits", "candidates"})
 
     if Identity(data["acquisition_evidence_id"]) != acquisition_record.evidence_id:
         raise ValueError("IOC snapshot differs from independent original acquisition anchor")
 
-    receipt_record = acquisition_record
-    receipt = Header(Metadata(OriginalRecord(receipt_record, workspace_id, store,
+    receiptRecord = acquisition_record
+    receipt = Header(Metadata(OriginalRecord(receiptRecord, workspaceId, store,
         "ioc-acquisition"), _ROLES["ioc-acquisition"][0]), {"state", "transport", "authentication",
             "raw_evidence_id", "source", "limits", "provenance", "request_sha256"})
 
@@ -791,8 +791,8 @@ def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord,
         receipt["authentication"] != "not-assessed"
         or receipt["raw_evidence_id"] != data["raw_evidence_id"]
         or receipt["source"] != data["source"] or receipt["limits"] != data["limits"]
-        or receipt["provenance"] != receipt_record.provenance.ToDict()
-        or receipt_record.provenance != snapshot_record.provenance
+        or receipt["provenance"] != receiptRecord.provenance.ToDict()
+        or receiptRecord.provenance != snapshot_record.provenance
     ):
         raise ValueError("IOC snapshot differs from its original successful acquisition receipt")
 
@@ -803,13 +803,13 @@ def ReplayIocArtifact(workspace_root: Path, snapshot_record: EvidenceRecord,
         raise ValueError("IOC original acquisition receipt has inconsistent declared selection")
 
     store = IocEvidenceStore(workspace.root / "evidence", limits.max_bytes)
-    raw_record = store.Get(Identity(receipt["raw_evidence_id"]))
-    raw = OriginalRecord(raw_record, workspace_id, store, "ioc-source")
+    rawRecord = store.Get(Identity(receipt["raw_evidence_id"]))
+    raw = OriginalRecord(rawRecord, workspaceId, store, "ioc-source")
 
-    if raw_record.provenance != receipt_record.provenance:
+    if rawRecord.provenance != receiptRecord.provenance:
         raise ValueError("IOC raw manifest differs from its original acquisition provenance")
 
-    reparsed = IocSnapshot(raw_record.evidence_id, receipt_record.evidence_id, source, limits,
+    reparsed = IocSnapshot(rawRecord.evidence_id, receiptRecord.evidence_id, source, limits,
                           ParseIocArtifact(raw, source, limits))
 
     if reparsed.Serialize() != payload:

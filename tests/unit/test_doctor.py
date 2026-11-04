@@ -167,7 +167,7 @@ def test_CollectAndRunDoctorKeepTheConfigurationBoundaryExplicit(monkeypatch):
     monkeypatch.setattr(doctor, "CheckDockerCompose", lambda: checks[3])
     monkeypatch.setattr(doctor, "CheckConfigurationBoundary", lambda: checks[4])
 
-    report = CollectDoctorReport(Path("/workspace"))
+    report = CollectDoctorReport(workingDirectory=Path("/workspace"))
     assert report.checks == checks, (
         "collect and run doctor keep the configuration boundary explicit invariant failed."
     )
