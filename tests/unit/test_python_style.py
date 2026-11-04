@@ -15,7 +15,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PYTHON_ROOTS = ("src", "tests", "labs")
 CYRILLIC_PATTERN = re.compile(r"[\u0400-\u04FF]")
 PASCAL_PATTERN = re.compile(r"[A-Z][A-Za-z0-9]*")
-SNAKE_PATTERN = re.compile(r"_?[a-z][a-z0-9]*(?:_[a-z0-9]+)*")
+# The compiler-backed naming gate owns the finite snake_case baseline.
+PARAMETER_PATTERN = re.compile(r"_?(?:[a-z][A-Za-z0-9]*|[a-z][a-z0-9]*(?:_[a-z0-9]+)+)")
 UPPER_SNAKE_PATTERN = re.compile(r"_?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*")
 TEST_FUNCTION_PATTERN = re.compile(r"test_[A-Z][A-Za-z0-9]*")
 FRAMEWORK_FUNCTIONS = {
@@ -213,7 +214,7 @@ def test_ProjectOwnedIdentifiersFollowStyleContract():
                 for argument in arguments:
                     if argument.arg in {"_", "self", "cls", *EXTERNAL_PARAMETERS}:
                         continue
-                    if not SNAKE_PATTERN.fullmatch(argument.arg):
+                    if not PARAMETER_PATTERN.fullmatch(argument.arg):
                         violations.append(
                             f"{Relative(path)}:{argument.lineno}: parameter {argument.arg}"
                         )
