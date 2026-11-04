@@ -314,16 +314,48 @@ The checkpoint is separate from final integration CI and from synthetic or
 retained-byte tests. Actual source availability and acceptance are established
 only by the executed checkpoint and independently verified original artifacts.
 
+## Verified CWE HTTPS checkpoint for the two pinned archives
+
+The installed CLI from PR #427 fetched both pinned MITRE archives over HTTPS.
+Both responses completed with HTTP 200 and matched the exact original ZIP size
+and SHA-256. The accepted change is commit
+`8479eb95f4a2237f4dd0c71fe6ce472049b5f4a4`. The hosted checkpoint ran on PR head
+`bd964ce49de397697a59294721600931807b212e`.
+[Run 41781437199, job 126413653754](https://github.com/Fuzzy-Technologies/1337/actions/runs/41781437199/job/126413653754)
+
+- CWE 5.0 decoded as schema `8.0`. The original ZIP was 2,119,263 bytes with
+  SHA-256 `bcda44c9abf61ff977f50c3c6649eea5a97a7b0626b0396c2c3ec4bfb973a3dc`.
+  The decoded XML member was 19,105,731 bytes.
+  [Pinned CWE 5.0 source](https://cwe.mitre.org/data/xml/cwec_v5.0.xml.zip)
+- CWE 4.21 decoded as schema `7.4`. The original ZIP was 2,101,714 bytes with
+  SHA-256 `5225e2b4976696b5b90b62cdad0ddab4e8898103d61350971e366a377e718862`.
+  The decoded XML member was 18,571,978 bytes.
+  [Pinned CWE 4.21 source](https://cwe.mitre.org/data/xml/cwec_v4.21.xml.zip)
+
+Independent review verified the original ZIP and decoded XML hashes, XML CRCs,
+manifest links, receipts, captured notices and exact selection output for both
+pins. After relocating each workspace, offline SDK replay revalidated each
+original envelope and the installed CLI reproduced the hosted inspection output.
+Each workspace inventory was identical
+before and after inspection, and each model revision stayed at zero. The
+original 5,233,098-byte evidence artifact has SHA-256
+`7ab97717522912cea85118ad626c53f5ba0697014f85b43e47335b6293e57b55`.
+[Artifact 13299482084](https://github.com/Fuzzy-Technologies/1337/actions/runs/41781437199/artifacts/13299482084)
+
+This evidence covers the two fixed archives and their explicit selections.
+Broader source profiles, publisher terms and assurance remain open under
+#43/#47. The retained notice bundle binds the captured publisher text to each pin.
+
 ## Selected CWE HTTPS SDK boundary
 
 The [separate HTTPS custody SDK](INTELLIGENCE_CWE_HTTPS.md) uses a fixed selected
 source family, distinct from the accepted local CWE importer. Its implementation
-and deterministic tests do not establish that either official version URL was
-successfully acquired by the installed product. A later genuine acceptance must
-retain the actual unchanged receiver invocation, complete HTTP 200 response,
-matching original pin, raw/envelope/receipt joins and independent relocated replay.
-Retained original-catalog decoding is separate from fresh HTTPS availability.
-There is no local fallback, CLI acquisition or publisher-authentication claim.
+and deterministic tests verify the SDK contract with retained inputs.
+The [genuine installed CLI checkpoint](#verified-cwe-https-checkpoint-for-the-two-pinned-archives)
+records the actual unchanged receiver invocation, complete HTTP 200 responses,
+matching original pins, raw/envelope/receipt joins and independent relocated replay.
+Decoding retained originals works offline. Publisher authenticity remains outside
+this evidence, and the HTTPS command has no local fallback.
 #43/#47 remain open.
 
 ## Publisher-prose regression
