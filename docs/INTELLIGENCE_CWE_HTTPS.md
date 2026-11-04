@@ -60,6 +60,30 @@ coverage of the complete normalized catalog.
 SDK tests against synthetic responses or retained catalog bytes do not establish
 a fresh HTTPS acquisition. Clean installed-wheel verification over retained bytes
 is recorded in [source acceptance](INTELLIGENCE_SOURCE_ACCEPTANCE.md); it does not
-establish remote availability. CLI acquisition and actual HTTPS acceptance remain
-separate work. #43/#47 remain open until their broader
-source-profile and product acceptance criteria are met.
+establish remote availability. Actual HTTPS acceptance remains separate.
+#43/#47 remain open until their broader source-profile and product acceptance
+criteria are met.
+
+## CLI acquisition and offline inspection
+
+Use an existing workspace and provide an explicit pin for the selected catalog.
+The example uses the retained CWE 5.0 source pin. Current availability of the
+fixed source URL requires separate HTTPS acceptance.
+
+```console
+1337 intel cwe https fetch workspace --catalog-version 5.0 --expected-sha256 bcda44c9abf61ff977f50c3c6649eea5a97a7b0626b0396c2c3ec4bfb973a3dc --identifier CWE-79 --identifier CWE-1000 --scope review-cwe --json
+```
+
+Use the returned selection and receipt manifest IDs in the same workspace or
+its relocated copy. Replace the two values below with those exact IDs.
+
+```console
+1337 intel cwe https inspect workspace --selection sha256:SELECTION_DIGEST --receipt sha256:RECEIPT_DIGEST --json
+```
+
+Fetch reports separate raw, selection and receipt publication acknowledgements.
+Inspect reports verified-present custody after checking the original artifacts.
+Both commands expose explicit matched, unsupported and unmatched partitions.
+The CLI stages bounded ASCII-safe output while preserving the complete notice
+and the original source bytes in evidence. Acquisition, integrity and rendering
+failures suppress usable selection output and retain known custody facts.

@@ -27648,3 +27648,80 @@ reviewClass = "technical"
 state = "missing"
 [units.translations.zh-cn]
 state = "missing"
+
+[[units]]
+id = "page:api.fuzzy1337.intelligence-cwe-https-commands"
+kind = "page"
+sourcePath = "docs/site/content/en/api/fuzzy1337.intelligence_cwe_https_commands.md"
+sourceHash = "sha256:7fa8674351d380eb84146818bac719f71d65beab9d6919a5acd3b42b82aa11d9"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_https_commands.ClearCweHttpsSelection"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_https_commands.py"
+sourceHash = "sha256:ac942a856e3a7175c48f816f9a00db6147220e637fc3ba9cef7304e88aababa1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_https_commands.CweHttpsCustodyComplete"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_https_commands.py"
+sourceHash = "sha256:7c7546a7ca0b3aac77563aaaef7878d870f965c2badc1c310ae9a9ee2353a5e5"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_https_commands.CweHttpsParser"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_https_commands.py"
+sourceHash = "sha256:5e83e8e4ed57207b87801caa930994b6e8af54afabd8e8fcec464359befa40f1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_https_commands.CweHttpsTerminal"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_https_commands.py"
+sourceHash = "sha256:4934b05a96956cc1050518909bf384a183be34250b7e35d5c770228f6e4486f1"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_https_commands.RunCweHttpsCommands"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_https_commands.py"
+sourceHash = "sha256:98bb809c1e0f0f65d08b26ae14ea9b9a52ce9ec752b325d7139d7fd141c42c4d"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"
+
+[[units]]
+id = "symbol:fuzzy1337.intelligence_cwe_https_commands.WriteCweHttpsDetails"
+kind = "symbol"
+sourcePath = "src/fuzzy1337/intelligence_cwe_https_commands.py"
+sourceHash = "sha256:f00675a3d2eda4152d40ee733fa90d8e5ffdbebe29dcb4f4c946de7a28bdef25"
+reviewClass = "technical"
+[units.translations.ru]
+state = "missing"
+[units.translations.zh-cn]
+state = "missing"

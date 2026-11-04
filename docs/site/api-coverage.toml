@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Experimental terminal facade for the separate selected CWE HTTPS family.
+module = "fuzzy1337.intelligence_cwe_https_commands"
+source = "src/fuzzy1337/intelligence_cwe_https_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cwe_https_commands.md"
+
+[[surfaces]]
 # Experimental fixed-profile HTTPS custody; no CLI or genuine-source acceptance claim.
 module = "fuzzy1337.intelligence_cwe_remote"
 source = "src/fuzzy1337/intelligence_cwe_remote.py"
