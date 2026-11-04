@@ -114,17 +114,17 @@ def Policy(raw: bytes) -> tuple[str, str, str, int, str]:
     )) or value["fixture_id"] != FIXTURE_ID or value["provider_version"] != PROVIDER_VERSION:
         raise ValueError("configuration policy requires the exact owned family/version")
 
-    caseId = value["case_id"]
+    case_id = value["case_id"]
 
-    if caseId not in CASES:
+    if case_id not in CASES:
         raise ValueError("configuration policy case is unsupported")
 
-    scanner, name, size, sha256 = CASES[caseId]
+    scanner, name, size, sha256 = CASES[case_id]
 
     if value["profile_id"] != f"synthetic.{scanner}-offline.v1":
         raise ValueError("configuration policy profile differs from the selected case")
 
-    return caseId, scanner, name, size, sha256
+    return case_id, scanner, name, size, sha256
 
 
 def Reparse(metadata: os.stat_result) -> bool:
@@ -159,14 +159,14 @@ def BindHandle(path_metadata: os.stat_result, handle_metadata: os.stat_result) -
 
     Regular(path_metadata)
     Regular(handle_metadata)
-    pathCommon = (path_metadata.st_dev, path_metadata.st_ino,
+    path_common = (path_metadata.st_dev, path_metadata.st_ino,
                    stat.S_IFMT(path_metadata.st_mode), path_metadata.st_size,
                    path_metadata.st_mtime_ns)
-    handleCommon = (handle_metadata.st_dev, handle_metadata.st_ino,
+    handle_common = (handle_metadata.st_dev, handle_metadata.st_ino,
                      stat.S_IFMT(handle_metadata.st_mode), handle_metadata.st_size,
                      handle_metadata.st_mtime_ns)
 
-    if pathCommon != handleCommon or (
+    if path_common != handle_common or (
         not IS_WINDOWS and path_metadata.st_ctime_ns != handle_metadata.st_ctime_ns
     ):
         raise ValueError("configuration file handle differs from the selected path")
@@ -203,26 +203,26 @@ def ReadFile(path: Path, limit: int) -> bytes:
     """Read bounded bytes while preserving path/handle and before/after identity guards."""
 
     Directory(path.parent)
-    beforePath = path.lstat()
-    Regular(beforePath)
+    before_path = path.lstat()
+    Regular(before_path)
 
-    if beforePath.st_size > limit:
+    if before_path.st_size > limit:
         raise ValueError("configuration input exceeds its byte bound")
 
     with path.open("rb") as source:
-        beforeHandle = os.fstat(source.fileno())
-        BindHandle(beforePath, beforeHandle)
+        before_handle = os.fstat(source.fileno())
+        BindHandle(before_path, before_handle)
         raw = source.read(limit + 1)
-        afterHandle = os.fstat(source.fileno())
-        Regular(afterHandle)
+        after_handle = os.fstat(source.fileno())
+        Regular(after_handle)
 
-        if Identity(beforeHandle) != Identity(afterHandle):
+        if Identity(before_handle) != Identity(after_handle):
             raise ValueError("configuration file changed while reading its handle")
 
-    afterPath = path.lstat()
-    BindHandle(afterPath, afterHandle)
+    after_path = path.lstat()
+    BindHandle(after_path, after_handle)
 
-    if Identity(beforePath) != Identity(afterPath) or len(raw) != beforePath.st_size or (
+    if Identity(before_path) != Identity(after_path) or len(raw) != before_path.st_size or (
         len(raw) > limit
     ):
         raise ValueError("configuration file changed while reading its selected path")
@@ -239,11 +239,11 @@ def Findings(raw: bytes, scanner: str, name: str) -> tuple[int | None, list[dict
         raise ValueError("configuration source text exceeds its structural bounds")
 
     findings = []
-    documentIndex = 0
+    document_index = 0
 
-    for lineNumber, line in enumerate(lines, start=1):
+    for line_number, line in enumerate(lines, start=1):
         if line == "---":
-            documentIndex += 1
+            document_index += 1
 
         failed = line == "USER root" if scanner == "dockerfile" else (
             line.strip() == "privileged: true"
@@ -255,16 +255,16 @@ def Findings(raw: bytes, scanner: str, name: str) -> tuple[int | None, list[dict
                 "check_id": "synthetic.configuration.dockerfile-root-user"
                 if scanner == "dockerfile" else "synthetic.configuration.privileged-container",
                 "severity": "HIGH", "outcome": "failed",
-                "start_line": lineNumber, "end_line": lineNumber,
-                "document_index": None if scanner == "dockerfile" else documentIndex,
+                "start_line": line_number, "end_line": line_number,
+                "document_index": None if scanner == "dockerfile" else document_index,
                 "resource_selector": "instruction:USER" if scanner == "dockerfile" else
                 "/spec/containers/0/securityContext/privileged",
             })
 
-    if documentIndex > 1 or len(findings) > 1:
+    if document_index > 1 or len(findings) > 1:
         raise ValueError("configuration source exceeds its supported fixture shape")
 
-    return None if scanner == "dockerfile" else documentIndex + 1, findings
+    return None if scanner == "dockerfile" else document_index + 1, findings
 
 
 def Result(arguments: list[str]) -> bytes:
@@ -298,27 +298,27 @@ def Result(arguments: list[str]) -> bytes:
 
     Directory(root / "scratch")
     SingleEntry(root / "material", "policy.json")
-    caseId, declaredScanner, name, size, expectedSha256 = Policy(
+    case_id, declared_scanner, name, size, expected_sha256 = Policy(
         ReadFile(policy, MAX_POLICY_BYTES),
     )
 
-    if scanner != declaredScanner:
+    if scanner != declared_scanner:
         raise ValueError("configuration scanner differs from its selected policy")
 
     SingleEntry(root / "input", name)
     raw = ReadFile(root / "input" / name, MAX_SOURCE_BYTES)
     sha256 = hashlib.sha256(raw).hexdigest()
 
-    if len(raw) != size or sha256 != expectedSha256:
+    if len(raw) != size or sha256 != expected_sha256:
         raise ValueError("configuration source is outside the reviewed fixture corpus")
 
-    documentCount, findings = Findings(raw, scanner, name)
+    document_count, findings = Findings(raw, scanner, name)
     result = {
         "schema_version": 1, "provider_id": "synthetic.trivy", "provider_version": PROVIDER_VERSION,
         "fixture_id": FIXTURE_ID, "profile_id": f"synthetic.{scanner}-offline.v1",
-        "case_id": caseId, "scan_completeness": "not-assessed",
+        "case_id": case_id, "scan_completeness": "not-assessed",
         "file_outcomes": [{"logical_path": name, "sha256": sha256, "size_bytes": len(raw),
-                           "configuration_type": scanner, "document_count": documentCount,
+                           "configuration_type": scanner, "document_count": document_count,
                            "outcome": "processed"}],
         "findings": findings,
     }

@@ -274,7 +274,8 @@ names such as `__name__` and framework callbacks or fixtures. Do **not** mechani
 - dynamic import entry points;
 - callback names;
 - third-party API fields;
-- compatibility contracts.
+- compatibility contracts;
+- reviewed executable sources whose exact bytes are pinned by an acceptance contract.
 
 External contract correctness has priority over cosmetic naming normalization.
 

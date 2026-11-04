@@ -135,31 +135,31 @@ def RequireInstallation(directory: Path, selected: dict) -> tuple[dict, dict]:
     prefix = PurePosixPath(python).parent.parent
     Require(python == str(prefix / "bin/python"),
         "This fixture requires its exact installed Linux Python")
-    installRoot = prefix.parent
-    wheelName = identity["wheel_name"]
-    Require(type(wheelName) is str and PurePosixPath(wheelName).name == wheelName and (
-        wheelName.endswith(".whl")),
+    install_root = prefix.parent
+    wheel_name = identity["wheel_name"]
+    Require(type(wheel_name) is str and PurePosixPath(wheel_name).name == wheel_name and (
+        wheel_name.endswith(".whl")),
         "The original wheel name must be one literal artifact basename")
-    wheel = str(installRoot / "wheel" / wheelName)
+    wheel = str(install_root / "wheel" / wheel_name)
     first = ReadJson(directory / "process-001-selected-checkpoint/invocation.json")
-    sourceRoot = first["cwd"]
-    AbsoluteRuntimePath(sourceRoot)
+    source_root = first["cwd"]
+    AbsoluteRuntimePath(source_root)
     built = ReadJson(directory / "process-004-build/invocation.json")
-    hostPython = built["argv"][0]
-    AbsoluteRuntimePath(hostPython)
+    host_python = built["argv"][0]
+    AbsoluteRuntimePath(host_python)
     rows = (
-        ("selected-checkpoint", ("git", "rev-parse", "HEAD", "HEAD^{tree}"), sourceRoot, 5),
-        ("source-status", ("git", "status", "--porcelain"), sourceRoot, 5),
-        ("source-checkpoint", ("git", "rev-parse", "HEAD", "HEAD^{tree}"), sourceRoot, 5),
-        ("build", (hostPython, "-m", "build", "--wheel", "--no-isolation", "--outdir",
-            str(installRoot / "wheel")), sourceRoot, 40),
-        ("create-interpreter", (hostPython, "-m", "venv", str(prefix)), str(installRoot), 40),
+        ("selected-checkpoint", ("git", "rev-parse", "HEAD", "HEAD^{tree}"), source_root, 5),
+        ("source-status", ("git", "status", "--porcelain"), source_root, 5),
+        ("source-checkpoint", ("git", "rev-parse", "HEAD", "HEAD^{tree}"), source_root, 5),
+        ("build", (host_python, "-m", "build", "--wheel", "--no-isolation", "--outdir",
+            str(install_root / "wheel")), source_root, 40),
+        ("create-interpreter", (host_python, "-m", "venv", str(prefix)), str(install_root), 40),
         ("install", (python, "-I", "-B", "-m", "pip", "--isolated", "install", "--no-index",
             "--no-deps", "--no-compile", "--disable-pip-version-check", wheel),
-            str(installRoot), 40),
-        ("import-probe", (python, "-I", "-B", "-c", IMPORT_PROBE), str(installRoot), 10),
-        ("source-status-final", ("git", "status", "--porcelain"), sourceRoot, 5),
-        ("source-checkpoint-final", ("git", "rev-parse", "HEAD", "HEAD^{tree}"), sourceRoot, 5),
+            str(install_root), 40),
+        ("import-probe", (python, "-I", "-B", "-c", IMPORT_PROBE), str(install_root), 10),
+        ("source-status-final", ("git", "status", "--porcelain"), source_root, 5),
+        ("source-checkpoint-final", ("git", "rev-parse", "HEAD", "HEAD^{tree}"), source_root, 5),
     )
     imported = None
 
@@ -262,8 +262,8 @@ def RequireOutcome(junit: Path, retained: Path) -> dict:
         paths["sentinel_final"] == str(local / "sentinel/content-source-final.json")
         and paths["worker_process"] == str(local / "worker/process-001-worker/process.json")),
         "Original evidence paths must join the one selected worker/source owner")
-    retainedPath = AbsoluteRuntimePath(paths["retained"])
-    Require(retainedPath.parts[-3:] == ("owned-content-sdk", case.parent.name, CASE_DIRECTORY),
+    retained_path = AbsoluteRuntimePath(paths["retained"])
+    Require(retained_path.parts[-3:] == ("owned-content-sdk", case.parent.name, CASE_DIRECTORY),
         "Original retained case identity must survive relocation of the artifact archive")
     argv = (selected["python"], "-I", "-B", "-m", "fuzzy1337.owned_content_response_worker", url)
     process, stdout, stderr = RequireProcess(worker, argv, str(local / "launch"),

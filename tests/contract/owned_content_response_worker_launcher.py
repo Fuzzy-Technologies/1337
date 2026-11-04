@@ -152,12 +152,12 @@ def Build(repository: Path, directory: Path, evidence: NativeCaseEvidence, *, co
             assert archive.getinfo(member).file_size <= MAX_MODULE_BYTES, "Oversized wheel module"
             members[name] = hashlib.sha256(archive.read(member)).hexdigest()
 
-        metadataNames = [name for name in archive.namelist()
+        metadata_names = [name for name in archive.namelist()
             if name.endswith(".dist-info/METADATA")]
-        assert len(metadataNames) == 1, "Original wheel must identify one distribution"
-        assert archive.getinfo(metadataNames[0]).file_size <= MAX_MODULE_BYTES, (
+        assert len(metadata_names) == 1, "Original wheel must identify one distribution"
+        assert archive.getinfo(metadata_names[0]).file_size <= MAX_MODULE_BYTES, (
             "Original distribution metadata must remain bounded")
-        metadata = BytesParser().parsebytes(archive.read(metadataNames[0]))
+        metadata = BytesParser().parsebytes(archive.read(metadata_names[0]))
         assert metadata["Name"] == "1337" and metadata["Version"], "Wheel distribution is foreign"
 
     assert members == sources, "Original wheel module bytes must match the exact clean checkpoint"
@@ -165,10 +165,10 @@ def Build(repository: Path, directory: Path, evidence: NativeCaseEvidence, *, co
         wheel_sha256=hashlib.sha256(wheel.read_bytes()).hexdigest(), wheel_modules_sha256=members,
         distribution_version=metadata["Version"])
     evidence.Json("wheel-identity.json", identity)
-    environmentRoot = directory / "environment"
-    Process("create-interpreter", (sys.executable, "-m", "venv", str(environmentRoot)),
+    environment_root = directory / "environment"
+    Process("create-interpreter", (sys.executable, "-m", "venv", str(environment_root)),
         cwd=directory)
-    python = environmentRoot / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    python = environment_root / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     Process("install", (str(python), "-I", "-B", "-m", "pip", "--isolated", "install",
         "--no-index", "--no-deps", "--no-compile", "--disable-pip-version-check", str(wheel)),
         cwd=directory)
@@ -184,14 +184,14 @@ def Build(repository: Path, directory: Path, evidence: NativeCaseEvidence, *, co
     AssertContentInstallation(identity, imported, commit=commit, tree=tree)
 
     for item in imported["installed_sources"].values():
-        assert Path(item["path"]).resolve().is_relative_to(environmentRoot.resolve()), (
+        assert Path(item["path"]).resolve().is_relative_to(environment_root.resolve()), (
             "Actual imports must belong to this selected clean environment, never another install")
 
-    finalStatus = Process("source-status-final", ("git", "status", "--porcelain"),
+    final_status = Process("source-status-final", ("git", "status", "--porcelain"),
         cwd=repository, timeout=5)
-    finalCheckpoint = Process("source-checkpoint-final",
+    final_checkpoint = Process("source-checkpoint-final",
         ("git", "rev-parse", "HEAD", "HEAD^{tree}"), cwd=repository, timeout=5)
-    assert finalStatus.stdout == b"" and finalCheckpoint.stdout.decode("ascii").split() == (
+    assert final_status.stdout == b"" and final_checkpoint.stdout.decode("ascii").split() == (
         [commit, tree]), "The source checkpoint must remain exact and clean after build/install"
     assert all(hashlib.sha256((repository / "src/fuzzy1337" / name).read_bytes()).hexdigest() == (
         sources[name]) for name in SOURCE_MODULES), "Source bytes changed during installation"
@@ -268,7 +268,7 @@ def Run(installed: InstalledContentWorker, name: str, address: str,
         with OwnedContentResponseTarget(main, address=address, case=name) as source:
             with OwnedContentResponseTarget(sentinel, address=address, case="missing") as other:
                 url = source.graph.Url(CASES[name].path)
-                sentinelOrigin = other.graph.origin
+                sentinel_origin = other.graph.origin
                 result = NativeProcess(worker, "worker", (str(installed.python), "-I", "-B", "-m",
                     "fuzzy1337.owned_content_response_worker", url), cwd=directory,
                     environment=environment, timeout=WORKER_TIMEOUT, maximum=131072,
@@ -285,7 +285,7 @@ def Run(installed: InstalledContentWorker, name: str, address: str,
         tree=installed.tree, python=str(installed.python), cwd=str(directory),
         timeout_seconds=WORKER_TIMEOUT)
     delivery = AssertContentSourceFacts(name, url, finals["main"], finals["sentinel"],
-        sentinel_origin=sentinelOrigin)
+        sentinel_origin=sentinel_origin)
 
     return {"installation": installed.installation, "process": process, "sources": finals,
         "source_delivery": delivery, "worker_case": name, "address": address,

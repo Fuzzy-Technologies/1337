@@ -72,10 +72,10 @@ def Setup(config: dict) -> dict:
     """Seed explicit consent plus unrelated synthetic native model/triage and original evidence."""
 
     root = Path(config["workspace"])
-    workspaceStore = LocalWorkspaceStore(root)
-    workspaceStore.Create(WorkspaceConfiguration("Owned response product oracle"), WORKSPACE)
-    modelStore = LocalModelStore(root)
-    model = modelStore.Create()
+    workspace_store = LocalWorkspaceStore(root)
+    workspace_store.Create(WorkspaceConfiguration("Owned response product oracle"), WORKSPACE)
+    model_store = LocalModelStore(root)
+    model = model_store.Create()
     now = datetime.now(timezone.utc)
     expired = config.get("negative") == "expired"
     consent = ScopeAuthorization(AuthorizationState.REVOKED if config.get("negative") == (
@@ -98,13 +98,13 @@ def Setup(config: dict) -> dict:
     finding = Finding(asset.Reference(), "owned.native-fixture", "package:unrelated",
         "Unrelated synthetic existing finding", (attribution,))
     proposed, _ = model.Apply(objects=(asset, finding.ToObject(WORKSPACE)))
-    saved = modelStore.Save(proposed, expected_revision=model.revision)
+    saved = model_store.Save(proposed, expected_revision=model.revision)
     triaged = replace(finding, status=FindingStatus.CONFIRMED,
         status_reason="Existing independent operator triage must survive response acquisition")
     proposed, _ = saved.Apply(objects=(triaged.ToObject(WORKSPACE),))
-    saved = modelStore.Save(proposed, expected_revision=saved.revision)
-    workspace = workspaceStore.Open()
-    workspaceStore.Save(replace(workspace,
+    saved = model_store.Save(proposed, expected_revision=saved.revision)
+    workspace = workspace_store.Open()
+    workspace_store.Save(replace(workspace,
         object_references=tuple(item.Reference() for item in saved.objects),
         job_references=("job:unrelated-native-fixture",), evidence_references=(original.reference,),
         evidence_record_references=(original.evidence_id,)))
@@ -132,7 +132,7 @@ def Capture(config: dict) -> dict:
     policy = Path(config["policy"])
     executions = []
     owner_reads = 0
-    originalExecute = LocalExecutor.Execute
+    original_execute = LocalExecutor.Execute
 
     def CurrentOwner():
         """Change only trusted current attribution after the initial original actor selection."""
@@ -146,7 +146,7 @@ def Capture(config: dict) -> dict:
     async def Observe(executor, request, **options):
         """Delegate actual installed worker execution and retain its original return unchanged."""
 
-        result = await originalExecute(executor, request, **options)
+        result = await original_execute(executor, request, **options)
         executions.append(OriginalExecution(request, result))
 
         return result
@@ -164,7 +164,7 @@ def Capture(config: dict) -> dict:
         result = {"summary": None, "exception_type": type(error).__name__}
 
     finally:
-        LocalExecutor.Execute = originalExecute
+        LocalExecutor.Execute = original_execute
 
     result.update(state=Inspect(root), executions=executions, owner_reads=owner_reads)
 
@@ -177,12 +177,12 @@ def Cancellation(config: dict) -> dict:
     root = Path(config["workspace"])
     ready = Path(config["request_ready"])
     executions = []
-    originalExecute = LocalExecutor.Execute
+    original_execute = LocalExecutor.Execute
 
     async def Observe(executor, request, **options):
         """Retain the genuine original terminal result after actual local process cleanup."""
 
-        result = await originalExecute(executor, request, **options)
+        result = await original_execute(executor, request, **options)
         executions.append(OriginalExecution(request, result))
 
         return result
@@ -221,7 +221,7 @@ def Cancellation(config: dict) -> dict:
         summary, settled = asyncio.run(Run())
 
     finally:
-        LocalExecutor.Execute = originalExecute
+        LocalExecutor.Execute = original_execute
 
     store = LocalEvidenceStore(root / "evidence")
     attached = {}

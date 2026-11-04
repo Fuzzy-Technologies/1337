@@ -82,9 +82,9 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
     assert case == "missing", "Expiry fixture admits only the independently served missing case"
     assert Canonical(before["workspace"]) == Canonical(after["workspace"]), (
         "No expired workspace Save or reference repair may occur")
-    workspaceId = before["workspace"]["workspace_id"]
+    workspace_id = before["workspace"]["workspace_id"]
     assert before["model"]["workspace_id"] == after["model"]["workspace_id"] == (
-        after["workspace"]["workspace_id"]) == workspaceId, (
+        after["workspace"]["workspace_id"]) == workspace_id, (
         "Original expiry invariant differs: before['model']['workspace_id'] == "
         "after['model']['workspace_id'] == after['workspace']['workspace_id'] == workspace_id"
     )
@@ -104,7 +104,7 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
     assert source["reference"] == Reference("observation", {
         key: value for key, value in source.items() if key != "reference"}), (
             "The actual original source identity must remain content-addressed")
-    endpoint = Reference("object", {"workspace_id": workspaceId, "kind": "endpoint", "key": url})
+    endpoint = Reference("object", {"workspace_id": workspace_id, "kind": "endpoint", "key": url})
     assert source["subject_reference"] == endpoint and endpoint in before["workspace"][
         "object_references"], "Actual source must own the selected attached Endpoint"
     assessments = [row for row in after["model"]["observations"] if row["kind"] == ASSESSMENT
@@ -156,12 +156,12 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
         "provenance['evidence_references'])) == sorted(map(Canonical, originals))"
     )
     scope, policy = authority["scope"], authority["policy"]
-    scopeReference = "scope:" + scope["scope_id"]
+    scope_reference = "scope:" + scope["scope_id"]
     target = "target:" + hashlib.sha256(Canonical({"kind": "url", "value": url})).hexdigest()
-    literalIp = "target:" + hashlib.sha256(Canonical({"kind": "ip",
+    literal_ip = "target:" + hashlib.sha256(Canonical({"kind": "ip",
         "value": urlsplit(url).hostname})).hexdigest()
     assert provenance["scope_reference"] == source["provenance"]["scope_reference"] == (
-        scopeReference), (
+        scope_reference), (
         "Original expiry invariant differs: provenance['scope_reference'] == "
         "source['provenance']['scope_reference'] == scope_reference"
     )
@@ -174,9 +174,9 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
         "Original expiry invariant differs: set(basis) == BASIS and basis['source_profile'] "
         '== SOURCE_PROFILE'
     )
-    expected = {"workspace_id": workspaceId, "analysis_reference": analysis,
+    expected = {"workspace_id": workspace_id, "analysis_reference": analysis,
         "original_receipt_id": receipt_id, "source_target_reference": target,
-        "literal_ip_reference": literalIp, "scope_reference": scopeReference,
+        "literal_ip_reference": literal_ip, "scope_reference": scope_reference,
         "scope_revision": scope["revision"], "scope_sha256": ContractDigest(scope),
         "policy_reference": "policy:" + policy["policy_id"], "policy_revision": policy["revision"],
         "policy_sha256": ContractDigest(policy), "owner_reference": authority["owner_reference"],
@@ -234,7 +234,7 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
         "granted_privileges": []}], (
             "The fixed fixture must use only its separate PASSIVE permission")
     consent = scope["authorization"]
-    assert scope["workspace_id"] == workspaceId and consent["state"] == "granted" and (
+    assert scope["workspace_id"] == workspace_id and consent["state"] == "granted" and (
         type(consent["authority_reference"]) is str and consent["authority_reference"] and
         consent["authority_reference"] != authority["owner_reference"] and
         type(consent["record_reference"]) is str and consent["record_reference"]), (
@@ -264,13 +264,13 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
                 'comparison(datetime.fromisoformat(consent[key]))'
             )
 
-    findingRows = [row for row in after["model"]["objects"] if row["identity"]["kind"] == "finding"
+    finding_rows = [row for row in after["model"]["objects"] if row["identity"]["kind"] == "finding"
         and row["attributes"].get("check_id") == CHECK and any(item["source_id"] == PROVIDER and
             item["run_reference"] == analysis for item in row["provenance"])]
-    assert len(findingRows) == int(absent), "Count persisted Findings, never producer counts"
-    findingReference = None
-    detectionReference = None
-    updateReference = None
+    assert len(finding_rows) == int(absent), "Count persisted Findings, never producer counts"
+    finding_reference = None
+    detection_reference = None
+    update_reference = None
     detections = [row for row in after["model"]["observations"] if row["kind"] == (
         "finding-detection") and row["provenance"]["source_id"] == PROVIDER and row[
             "provenance"]["run_reference"] == analysis]
@@ -281,49 +281,49 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
     assert len(updates) == int(absent), "One attributable Finding patch must accompany detection"
 
     if absent:
-        finding = findingRows[0]
+        finding = finding_rows[0]
         assert set(finding) == {"reference", "identity", "attributes", "provenance"}, (
             "Original expiry invariant differs: set(finding) == {'reference', 'identity', "
             "'attributes', 'provenance'}"
         )
-        findingAttrs = finding["attributes"]
+        finding_attrs = finding["attributes"]
         fingerprint = hashlib.sha256(Canonical({"namespace": "finding",
             "subject_reference": endpoint, "check_id": CHECK,
             "location_key": url + "#response-header:x-content-type-options"})).hexdigest()
-        assert finding["identity"] == {"workspace_id": workspaceId, "kind": "finding",
+        assert finding["identity"] == {"workspace_id": workspace_id, "kind": "finding",
             "key": fingerprint}, (
             "Original expiry invariant differs: finding['identity'] == {'workspace_id': "
             "workspace_id, 'kind': 'finding', 'key': fingerprint}"
         )
-        findingReference = Reference("object", finding["identity"])
-        assert finding["reference"] == findingReference and findingReference not in after[
+        finding_reference = Reference("object", finding["identity"])
+        assert finding["reference"] == finding_reference and finding_reference not in after[
             "workspace"]["object_references"], (
             "Original expiry invariant differs: finding['reference'] == finding_reference and "
             "finding_reference not in after['workspace']['object_references']"
         )
-        assert findingAttrs["schema_version"] == 1 and (
-            type(findingAttrs["schema_version"]) is int), (
+        assert finding_attrs["schema_version"] == 1 and (
+            type(finding_attrs["schema_version"]) is int), (
             "Original expiry invariant differs: finding_attrs['schema_version'] == 1 and "
             "type(finding_attrs['schema_version']) is int"
         )
-        assert set(findingAttrs) == {"schema_version", "fingerprint", "subject_reference",
+        assert set(finding_attrs) == {"schema_version", "fingerprint", "subject_reference",
             "check_id", "location_key", "summary", "severity", "confidence", "status",
             "status_reason", "remediation"}, "A persisted Finding has its complete closed schema"
-        assert findingAttrs["fingerprint"] == fingerprint and findingAttrs[
+        assert finding_attrs["fingerprint"] == fingerprint and finding_attrs[
             "subject_reference"] == endpoint, (
             "Original expiry invariant differs: finding_attrs['fingerprint'] == fingerprint "
             "and finding_attrs['subject_reference'] == endpoint"
         )
-        assert findingAttrs["location_key"] == url + "#response-header:x-content-type-options", (
+        assert finding_attrs["location_key"] == url + "#response-header:x-content-type-options", (
             "Original expiry invariant differs: finding_attrs['location_key'] == url + "
             "'#response-header:x-content-type-options'"
         )
-        assert findingAttrs["summary"] == "Captured response omitted X-Content-Type-Options", (
+        assert finding_attrs["summary"] == "Captured response omitted X-Content-Type-Options", (
             "Original expiry invariant differs: finding_attrs['summary'] == 'Captured "
             "response omitted X-Content-Type-Options'"
         )
-        assert findingAttrs["severity"] == "low" and type(
-            findingAttrs["confidence"]) is float and findingAttrs["confidence"] == 0.0, (
+        assert finding_attrs["severity"] == "low" and type(
+            finding_attrs["confidence"]) is float and finding_attrs["confidence"] == 0.0, (
             "Original expiry invariant differs: finding_attrs['severity'] == 'low' and "
             "type(finding_attrs['confidence']) is float and (finding_attrs['confidence'] "
             '==...'
@@ -332,13 +332,13 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
             "Original expiry invariant differs: Canonical(finding['provenance']) == "
             'Canonical([provenance])'
         )
-        assert findingAttrs["remediation"] == {"summary": None, "steps": [], "references": []}, (
+        assert finding_attrs["remediation"] == {"summary": None, "steps": [], "references": []}, (
             "Original expiry invariant differs: finding_attrs['remediation'] == {'summary': "
             "None, 'steps': [], 'references': []}"
         )
-        prior = ByReference(before["model"]["objects"]).get(findingReference)
+        prior = ByReference(before["model"]["objects"]).get(finding_reference)
         assert prior is None, "This fresh fixture must add a Finding without changing old triage"
-        assert findingAttrs["status"] == "open" and findingAttrs["status_reason"] is None, (
+        assert finding_attrs["status"] == "open" and finding_attrs["status_reason"] is None, (
             "Original expiry invariant differs: finding_attrs['status'] == 'open' and "
             "finding_attrs['status_reason'] is None"
         )
@@ -349,27 +349,27 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
             "Original expiry invariant differs: set(detection) == {'reference', 'kind', "
             "'subject_reference', 'attributes', 'provenance'}"
         )
-        assert detection["subject_reference"] == findingReference and Canonical(
+        assert detection["subject_reference"] == finding_reference and Canonical(
             detection["provenance"]) == Canonical(provenance), "Detector attribution differs"
-        assert Canonical(detection["attributes"]) == Canonical({**findingAttrs, "status": "open",
+        assert Canonical(detection["attributes"]) == Canonical({**finding_attrs, "status": "open",
             "status_reason": None}), (
             "The original untriaged detection is distinct from preserved current Finding triage")
-        detectionReference = Reference("observation", {
+        detection_reference = Reference("observation", {
             key: value for key, value in detection.items() if key != "reference"})
-        assert detection["reference"] == detectionReference, "Original detector fact hash differs"
+        assert detection["reference"] == detection_reference, "Original detector fact hash differs"
         update = updates[0]
         assert set(update) == {"reference", "kind", "subject_reference", "attributes",
             "provenance"}, "The Finding patch must retain its complete observation schema"
-        assert update["subject_reference"] == findingReference and Canonical(
-            update["attributes"]) == Canonical(findingAttrs) and Canonical(
+        assert update["subject_reference"] == finding_reference and Canonical(
+            update["attributes"]) == Canonical(finding_attrs) and Canonical(
             update["provenance"]) == Canonical(provenance), (
                 "The original Finding patch must match the current attributed Finding")
-        updateReference = Reference("observation", {
+        update_reference = Reference("observation", {
             key: value for key, value in update.items() if key != "reference"})
-        assert update["reference"] == updateReference, "Original Finding patch hash differs"
+        assert update["reference"] == update_reference, "Original Finding patch hash differs"
 
-    expectedOwners = ["model"]
-    assert [row["owner"] for row in saves] == expectedOwners, "Unexpected original Save attempt"
+    expected_owners = ["model"]
+    assert [row["owner"] for row in saves] == expected_owners, "Unexpected original Save attempt"
 
     for row in saves:
         owner = row["owner"]
@@ -397,7 +397,7 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
 
     for owner in ("model", "workspace"):
         assert summary[owner + "_commit"] == (
-            "acknowledged" if owner in expectedOwners else "not-attempted"), (
+            "acknowledged" if owner in expected_owners else "not-attempted"), (
             "Original expiry invariant differs: summary[owner + '_commit'] == ('acknowledged' "
             "if owner in expected_owners else 'not-attempted')"
         )
@@ -407,7 +407,7 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
             "summary[owner + '_revision'] == after[owner]['revision']"
         )
 
-        if owner not in expectedOwners:
+        if owner not in expected_owners:
             assert Canonical(before[owner]) == Canonical(after[owner]), (
                 'Original expiry invariant differs: Canonical(before[owner]) == '
                 'Canonical(after[owner])'
@@ -432,9 +432,9 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
             for key, value in old.items()), (
                 "Existing source, native state and triage cannot disappear")
         additions = ({fact["reference"], *(
-            [] if detectionReference is None else [detectionReference, updateReference])}
+            [] if detection_reference is None else [detection_reference, update_reference])}
             if field == "observations" else
-            {findingReference} if field == "objects" and findingReference is not None else set())
+            {finding_reference} if field == "objects" and finding_reference is not None else set())
         assert set(new) == set(old) | additions, "No unrelated model identities may appear"
 
     assert summary["schema_version"] == 1 and type(summary["schema_version"]) is int and (
@@ -477,7 +477,7 @@ def AssertPartialExpiry(before: dict, after: dict, summary: dict, saves: list[di
         "summary['check_id'] ==..."
     )
     identities = {"original_receipt_id": receipt_id, "analysis_reference": analysis,
-        "assessment_reference": fact["reference"], "finding_reference": findingReference,
+        "assessment_reference": fact["reference"], "finding_reference": finding_reference,
         "condition_observed": absent}
     assert all(summary[key] == value for key, value in identities.items()), (
         'Original expiry invariant differs: all((summary[key] == value for key, value in '
@@ -634,11 +634,11 @@ def RequireChildren(case: Path, helpers: dict) -> list[dict]:
     )
     from tests.contract.owned_content_response_sdk_entrypoint import BoundedRead
 
-    requiredPins = {**OLD_PINS, EXPIRY_HELPER: EXPIRY_HELPER_SHA256, PIPELINE: PIPELINE_SHA256}
+    required_pins = {**OLD_PINS, EXPIRY_HELPER: EXPIRY_HELPER_SHA256, PIPELINE: PIPELINE_SHA256}
     checker = Path(__file__).name
-    requiredPins[checker] = hashlib.sha256(BoundedRead(Path(__file__), 1024 * 1024)).hexdigest()
-    assert set(helpers) == set(requiredPins) and all(
-        helpers[name]["sha256"] == digest for name, digest in requiredPins.items()), (
+    required_pins[checker] = hashlib.sha256(BoundedRead(Path(__file__), 1024 * 1024)).hexdigest()
+    assert set(helpers) == set(required_pins) and all(
+        helpers[name]["sha256"] == digest for name, digest in required_pins.items()), (
         'Original expiry invariant differs: set(helpers) == set(required_pins) and '
         "all((helpers[name]['sha256'] == digest for name, digest in required_pins.items..."
     )
@@ -650,7 +650,7 @@ def RequireChildren(case: Path, helpers: dict) -> list[dict]:
         "('schema_version', 'source_commit', 'source_tree', 'source_modules_s..."
     )
     operations = ("fresh-setup", "capture", "inspect", OPERATION, "inspect")
-    children, selectedInstallation = [], None
+    children, selected_installation = [], None
 
     for index, operation in enumerate(operations, start=3):
         matches = list(case.glob(f"process-{index:03d}-sdk-{operation}"))
@@ -664,10 +664,10 @@ def RequireChildren(case: Path, helpers: dict) -> list[dict]:
         identity = child["installed_identity"]
         AssertContentInstallation(installation, identity,
             commit=installation["source_commit"], tree=installation["source_tree"])
-        selectedHelper = EXPIRY_HELPER if operation == OPERATION else (
+        selected_helper = EXPIRY_HELPER if operation == OPERATION else (
             "owned_content_response_sdk_entrypoint.py")
         cwd = terminal["cwd"]
-        argv = (identity["python"], "-I", "-B", helpers[selectedHelper]["path"], operation,
+        argv = (identity["python"], "-I", "-B", helpers[selected_helper]["path"], operation,
             str(Path(cwd) / f"stage-{index - 2:02d}-input.json"), "--execute")
         AssertOriginalTerminalProcess(terminal, BoundedRead(root / "stdout.bin", 2 * 1024 * 1024),
             BoundedRead(root / "stderr.bin", 1024 * 1024), argv=argv)
@@ -678,11 +678,11 @@ def RequireChildren(case: Path, helpers: dict) -> list[dict]:
             "Original expiry invariant differs: installed['manifest_sha256'] == "
             'hashlib.sha256(manifest).hexdigest()'
         )
-        assert selectedInstallation is None or installed == selectedInstallation, (
+        assert selected_installation is None or installed == selected_installation, (
             'Original expiry invariant differs: selected_installation is None or installed == '
             'selected_installation'
         )
-        selectedInstallation = installed
+        selected_installation = installed
         assert terminal["returncode"] == 0 and (root / "stderr.bin").stat().st_size == 0, (
             "Original expiry invariant differs: terminal['returncode'] == 0 and (root / "
             "'stderr.bin').stat().st_size == 0"
@@ -755,20 +755,20 @@ def RequireOutcome(junit: Path, retained: Path) -> dict:
     )
     plan = ReadJson(case / "pipeline-plan.json")
     helpers = ReadJson(case / "pipeline-helper-sources.json")
-    setupChild, captureChild, acquiredChild, expiry, afterChild = RequireChildren(case, helpers)
-    setup = setupChild["summary"]
-    acquired = acquiredChild["summary"]["original_inspection"]
-    after = afterChild["summary"]["original_inspection"]
+    setup_child, capture_child, acquired_child, expiry, after_child = RequireChildren(case, helpers)
+    setup = setup_child["summary"]
+    acquired = acquired_child["summary"]["original_inspection"]
+    after = after_child["summary"]["original_inspection"]
     capture = ReadJson(case / "sdk-capture-original.json")
     assert capture["exception_type"] is None and Canonical(capture["summary"]) == Canonical(
-        captureChild["summary"]), (
+        capture_child["summary"]), (
         "Original expiry invariant differs: capture['exception_type'] is None and "
         "Canonical(capture['summary']) == Canonical(capture_child['summary'])"
     )
     selected = ReadJson(case / "stage-04-input.json")["selection"]
-    captureSelected = ReadJson(case / "stage-02-input.json")["selection"]
-    assert captureSelected["approve_safe_content_response_capture"] is True and (
-        captureSelected["retain_response"] is True), (
+    capture_selected = ReadJson(case / "stage-02-input.json")["selection"]
+    assert capture_selected["approve_safe_content_response_capture"] is True and (
+        capture_selected["retain_response"] is True), (
         'Original expiry invariant differs: '
         "capture_selected['approve_safe_content_response_capture'] is True and "
         "capture_selected['retain_response'] is True"

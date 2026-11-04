@@ -32,7 +32,7 @@ def RequireOutcome(junit: Path, retained: Path, *, fixed: bool = False) -> dict:
     if type(fixed) is not bool:
         raise ValueError("CI outcome selection is closed to the positive and fixed identities")
 
-    selectedName = FIXED_CASE_NAME if fixed else CASE_NAME
+    selected_name = FIXED_CASE_NAME if fixed else CASE_NAME
 
     with junit.open("rb") as stream:
         raw = stream.read(1024 * 1024 + 1)
@@ -46,7 +46,7 @@ def RequireOutcome(junit: Path, retained: Path, *, fixed: bool = False) -> dict:
 
     if len(suites) != 1 or any(suites[0].get(key) != expected for key, expected in (
         ("tests", "1"), ("failures", "0"), ("errors", "0"), ("skipped", "0"))) or (
-        len(cases) != 1 or cases[0].get("name") != selectedName or
+        len(cases) != 1 or cases[0].get("name") != selected_name or
         cases[0].get("classname") != CASE_CLASS or any(
             list(document.iter(kind)) for kind in ("failure", "error", "skipped"))
     ):
@@ -66,11 +66,11 @@ def RequireOutcome(junit: Path, retained: Path, *, fixed: bool = False) -> dict:
 
     result = json.loads(raw)
 
-    expectedFindings = 0 if fixed else 1
+    expected_findings = 0 if fixed else 1
 
     if type(result) is not dict or result.get("runtime_acceptance") != "passed" or result.get(
         "state") != "checked-header-replay" or type(result.get("expected_findings")) is not int or (
-        result["expected_findings"] != expectedFindings or result.get(
+        result["expected_findings"] != expected_findings or result.get(
             "source_delivery") != "normal-eof" or type(result.get("identities")) is not dict
     ):
         raise ValueError("Original result must confirm the selected relocated header replay")

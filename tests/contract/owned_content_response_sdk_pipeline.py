@@ -182,20 +182,20 @@ def Run(plan: dict, handoff, *, enabled: bool = False) -> dict:
     receipt = summary["original_receipt_id"]
     AssertContentParts(selected["case"], selected["url"], receipt, acquired["originals"],
         summary["source_facts"], job_id=summary["original_job_id"])
-    analysisPolicy = setup["policies"]["analysis-denied" if selected["scenario"] == (
+    analysis_policy = setup["policies"]["analysis-denied" if selected["scenario"] == (
         "policy-denied") else "analysis"]
-    modelRevision = acquired["model"]["revision"]
+    model_revision = acquired["model"]["revision"]
 
     if selected["scenario"] == REVISION_SCENARIO:
-        assert type(modelRevision) is int and modelRevision > 0, (
+        assert type(model_revision) is int and model_revision > 0, (
             "A stale CAS selection requires an observed positive acquired model revision")
-        modelRevision -= 1
+        model_revision -= 1
 
     analysis = Call("analyze-offline", {"workspace": root, "url": selected["url"],
         "scope_id": plan["scope_id"], "owner_reference": plan["owner_reference"],
-        "policy": analysisPolicy["path"], "original_receipt_id": receipt,
+        "policy": analysis_policy["path"], "original_receipt_id": receipt,
         "analysis_reference": plan["analysis_reference"],
-        "expected_model_revision": modelRevision,
+        "expected_model_revision": model_revision,
         "expected_workspace_revision": acquired["workspace"]["revision"],
         "approve_passive_header_check": selected["scenario"] != "approval-denied",
         "authority_scenario": "positive" if selected["scenario"] == REVISION_SCENARIO else (
@@ -250,13 +250,13 @@ def Run(plan: dict, handoff, *, enabled: bool = False) -> dict:
         "Relocation must physically remove the original root before historical verification")
     assert not Path(root).exists() and not Path(root).is_symlink() and Path(relocated).is_dir(), (
         "Returned relocation claims cannot substitute for the physical selected roots")
-    relocatedBefore = Call("inspect", {"workspace": relocated})["state"]
-    assert Canonical(interpreted) == Canonical(relocatedBefore), "Relocation cannot repair state"
+    relocated_before = Call("inspect", {"workspace": relocated})["state"]
+    assert Canonical(interpreted) == Canonical(relocated_before), "Relocation cannot repair state"
     replay = Call("replay-offline", {"workspace": relocated, "kind": "header",
         "reference": identities["assessment_reference"]})
     AssertOffline(replay["guard"], historical=True)
-    relocatedAfter = Call("inspect", {"workspace": relocated})["state"]
-    AssertHistoricalContentHeaderReplay(relocatedBefore, relocatedAfter, replay["summary"],
+    relocated_after = Call("inspect", {"workspace": relocated})["state"]
+    AssertHistoricalContentHeaderReplay(relocated_before, relocated_after, replay["summary"],
         identities)
 
     return {"state": "checked-header-replay", "expected_findings": plan["expected_findings"],
@@ -308,13 +308,13 @@ def RunInstalled(installed, directory: Path, evidence, *, fixture_id: str, case:
         installed.installation), "The selected original installed identity must remain unchanged"
     directory.mkdir(parents=True, exist_ok=False)
     environment = NativeEnvironment(directory / "owned-state")
-    sourceStatus = NativeProcess(evidence, "pipeline-source-status",
+    source_status = NativeProcess(evidence, "pipeline-source-status",
         ("git", "status", "--porcelain"), cwd=REPOSITORY, environment=environment, timeout=5)
     checkpoint = NativeProcess(evidence, "pipeline-checkpoint",
         ("git", "rev-parse", "HEAD", "HEAD^{tree}"), cwd=REPOSITORY,
         environment=environment, timeout=5)
-    assert sourceStatus.returncode == checkpoint.returncode == 0 and (
-        sourceStatus.stdout == b"" and checkpoint.stdout.decode("ascii").split() == [
+    assert source_status.returncode == checkpoint.returncode == 0 and (
+        source_status.stdout == b"" and checkpoint.stdout.decode("ascii").split() == [
             installed.commit, installed.tree]), "Runtime requires the exact clean installed tree"
     from tests.contract import owned_content_response_sdk_entrypoint as entrypoint
 
@@ -353,18 +353,18 @@ def RunInstalled(installed, directory: Path, evidence, *, fixture_id: str, case:
 
         assert operation in ("fresh-setup", "capture", "inspect", "analyze-offline",
             "replay-offline"), "There is no arbitrary installed command dispatch"
-        inputPath = directory / f"stage-{calls:02d}-input.json"
+        input_path = directory / f"stage-{calls:02d}-input.json"
 
-        with inputPath.open("xb") as output:
+        with input_path.open("xb") as output:
             output.write(CanonicalNative(envelope))
 
         argv = (str(installed.python), "-I", "-B", sources[names[0]]["path"], operation,
-            str(inputPath), "--execute")
+            str(input_path), "--execute")
         assert NativeInstallation(installed.python) == installed.installation, (
             "The actual installed runtime identity must remain equal to the original installation "
             "receipt."
         )
-        retainedNames = (("offline-guard.json", "guard"),
+        retained_names = (("offline-guard.json", "guard"),
             ("consumer/" + operation.removesuffix("-offline") + ".json", "consumer")) if (
                 operation.endswith("-offline")) else ((operation + ".json", "original"),)
 
@@ -374,7 +374,7 @@ def RunInstalled(installed, directory: Path, evidence, *, fixture_id: str, case:
                 installation=installed.installation)
 
         finally:
-            for name, role in retainedNames:
+            for name, role in retained_names:
                 path = observations / name
                 label = "sdk-" + operation + "-" + role
                 evidence.Json(label + "-retention.json", {"observation_present": path.is_file()})
@@ -442,14 +442,14 @@ def RunInstalled(installed, directory: Path, evidence, *, fixture_id: str, case:
                     "consent_valid_from": now.isoformat(),
                     "consent_valid_until": (now + timedelta(seconds=300)).isoformat()})
                 evidence.Json("pipeline-plan.json", plan)
-                sentinelOrigin = other.graph.origin
+                sentinel_origin = other.graph.origin
                 result = Run(plan, Handoff, enabled=True)
 
     finally:
         finals = RetainSourceFinal(evidence, {"main": main, "sentinel": sentinel})
 
     delivery = AssertContentSourceFacts(case, plan["selection"]["url"], finals["main"],
-        finals["sentinel"], sentinel_origin=sentinelOrigin)
+        finals["sentinel"], sentinel_origin=sentinel_origin)
     result.update(runtime_acceptance="passed", source_delivery=delivery)
     evidence.Json("pipeline-result.json", result)
 
