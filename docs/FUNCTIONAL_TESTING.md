@@ -109,6 +109,37 @@ uv run --locked --extra dev pytest tests/contract/test_functional_metrics.py \
   tests/contract/test_web_micro_metrics.py
 ```
 
+## Comparing two saved 1337Scope functional reports
+
+The repository tool compares two explicit local `functional_metrics` version 1
+JSON files. Select the same scanner ID and declare the release and versioned
+profile for each file. The profile is a caller declaration because the input
+schema does not carry it. Run the tool from the repository checkout.
+
+```bash
+uv run --locked --extra dev python tools/compare_functional_reports.py \
+  baseline/report.json candidate/report.json --scanner native.web-check \
+  --baseline-release baseline-1 --candidate-release candidate-2 \
+  --baseline-profile owned.synthetic.v1 --candidate-profile owned.synthetic.v1
+```
+
+The tool writes JSON to stdout with the SHA-256 of each input and a row for each
+scenario ID. It derives per-check changes and finite counts from the original
+run and oracle records when both runs completed on the same declared profile
+and exact complete oracle with at least one applicable check. Missing,
+incompatible, crashed or timed-out cases retain their own state and available
+scanner durations. A declared scenario without a selected run is `not-run`.
+An absent scenario declaration is `absent-scenario`. This report format cannot
+distinguish a skipped case from other unexecuted cases and does not measure
+operator effort.
+
+Each input is limited to 8 MiB, 256 scenarios, 512 runs and 4,096 total checks,
+with up to 128 checks per scenario and 128 entries in each run item or evidence
+role list. The final path component must be a regular file. Explicit parent
+directory aliases are allowed. The tool reads no embedded paths, contacts no
+targets and leaves the reports intact. The separate native benchmark report
+with `pack_id` and `cells` uses a different schema.
+
 ## Genuine reviewed web checks
 
 The separate [reviewed web-check acceptance](NUCLEI_WEB_CHECKS.md) executes actual
