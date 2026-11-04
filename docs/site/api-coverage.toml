@@ -1,6 +1,13 @@
 schemaVersion = 1
 
 [[surfaces]]
+# Experimental fixed-profile HTTPS custody; no CLI or genuine-source acceptance claim.
+module = "fuzzy1337.intelligence_cwe_remote"
+source = "src/fuzzy1337/intelligence_cwe_remote.py"
+mode = "authored"
+page = "api/fuzzy1337.intelligence_cwe_remote.md"
+
+[[surfaces]]
 # Internal pure offline presentation; source admission remains the path command owner's contract.
 module = "fuzzy1337.path_rendering"
 source = "src/fuzzy1337/path_rendering.py"

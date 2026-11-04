@@ -30,13 +30,13 @@ def Receive(url: str, max_bytes: int, timeout_seconds: float, output: BinaryIO, 
         max_bytes: Maximum retained response-body bytes.
         timeout_seconds: Socket inactivity ceiling beneath the parent's total deadline.
         output: Parent-owned binary pipe; first line contains controlled framing metadata.
-        accept_kind: Fixed json or gzip resource preference; response-body bytes stay original.
+        accept_kind: Fixed json, gzip or zip resource preference; response-body bytes stay original.
 
     Returns:
         Explicit terminal status; nonzero status never means a complete source body.
     """
 
-    if type(accept_kind) is not str or accept_kind not in ("json", "gzip"):
+    if type(accept_kind) is not str or accept_kind not in ("json", "gzip", "zip"):
         return FORMAT_EXIT
 
     parsed = urlsplit(url)
@@ -51,7 +51,8 @@ def Receive(url: str, max_bytes: int, timeout_seconds: float, output: BinaryIO, 
 
     try:
         connection.request("GET", parsed.path, headers={
-            "Accept": "application/gzip" if accept_kind == "gzip" else "application/json",
+            "Accept": {"json": "application/json", "gzip": "application/gzip",
+                       "zip": "application/zip, application/octet-stream"}[accept_kind],
             "Accept-Encoding": "identity",
             "Connection": "close", "User-Agent": "1337-intelligence-acquisition/1",
         })
@@ -84,6 +85,20 @@ def Receive(url: str, max_bytes: int, timeout_seconds: float, output: BinaryIO, 
 
         if length is not None and length > max_bytes:
             return SIZE_EXIT
+
+        if accept_kind == "zip":
+            media_values = response.headers.get_all("Content-Type", [])
+
+            if len(media_values) != 1:
+                return FORMAT_EXIT
+
+            media = media_values[0]
+
+            if (type(media) is not str or not media.isascii() or len(media) > 128
+                or media.strip(" \t").lower() not in (
+                    "application/zip", "application/octet-stream",
+                )):
+                return FORMAT_EXIT
 
         received = 0
 
@@ -123,11 +138,11 @@ def Main() -> int:
         Terminal receiver status; no exception details or environment are exported.
     """
 
-    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] != "gzip"):
+    if len(sys.argv) not in (4, 5) or (len(sys.argv) == 5 and sys.argv[4] not in ("gzip", "zip")):
         return FORMAT_EXIT
 
     return Receive(sys.argv[1], int(sys.argv[2]), float(sys.argv[3]), sys.stdout.buffer,
-                   accept_kind="gzip" if len(sys.argv) == 5 else "json")
+                   accept_kind=sys.argv[4] if len(sys.argv) == 5 else "json")
 
 
 if __name__ == "__main__":

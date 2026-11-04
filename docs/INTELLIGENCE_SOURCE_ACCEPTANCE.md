@@ -265,6 +265,18 @@ and relocation/no-write guards remained intact. Separate strict ASCII/CP1252
 synthetic processes cover original accented and non-BMP source names. Shared CI
 must independently pass this corrected final revision before integration.
 
+## Selected CWE HTTPS SDK boundary
+
+The [separate HTTPS custody SDK](INTELLIGENCE_CWE_HTTPS.md) uses a fixed selected
+source family, distinct from the accepted local CWE importer. Its implementation
+and deterministic tests do not establish that either official version URL was
+successfully acquired by the installed product. A later genuine acceptance must
+retain the actual unchanged receiver invocation, complete HTTP 200 response,
+matching original pin, raw/envelope/receipt joins and independent relocated replay.
+Retained original-catalog decoding is separate from fresh HTTPS availability.
+There is no local fallback, CLI acquisition or publisher-authentication claim.
+#43/#47 remain open.
+
 ## Publisher-prose regression
 
 The first real import failed honestly with `parse-failed`. The selected catalog

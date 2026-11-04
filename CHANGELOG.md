@@ -8,6 +8,51 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 17 — v0.4.17 — 2026-11-04
+
+#### Digest
+
+- Add a separate bounded selected-CWE HTTPS custody SDK with original-byte
+  replay and explicit evidence publication uncertainty.
+
+#### Added
+
+- Define fixed CWE version URLs, caller-pinned source/notice declarations,
+  canonical selected requests and a separate remote envelope/receipt family.
+- Preserve raw bytes, selected partitions and finite acquisition limits across
+  verified offline relocation without changing the local importer or legacy
+  JSON/gzip source families.
+
+#### Security
+
+- Bind original source, provenance, request, transport outcome and selected
+  content; refuse mixed or corrupted custody and changed canonical limits.
+- Keep independent raw/envelope/receipt acknowledgements and truthful partial,
+  digest, parse and storage failures. Provide no retry, local fallback, CLI,
+  publisher authentication or genuine HTTPS acceptance claim.
+
+
+### Patch 16 — v0.4.16 — 2026-11-04
+
+#### Digest
+
+- Add an opt-in ZIP media gate to the internal intelligence transport as a
+  prerequisite for future bounded remote CWE acquisition.
+
+#### Added
+
+- Admit the fixed `zip` resource preference while retaining exact original
+  bytes, status-only worker framing and existing finite transport limits.
+- Exercise actual standard-library response parsing and isolated worker argv,
+  malformed protocol, partial timeout and cleanup with deterministic fixtures.
+
+#### Security
+
+- Refuse missing, duplicate, parameterized, folded, non-ASCII or oversized ZIP
+  media values before reading a response body. Preserve legacy JSON/gzip
+  headers, argv and media behavior; add no remote CWE SDK or HTTPS acceptance.
+
+
 ### Patch 13 — v0.4.13 — 2026-11-04
 
 #### Digest
