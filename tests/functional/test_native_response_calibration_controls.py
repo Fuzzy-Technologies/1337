@@ -166,10 +166,20 @@ def test_ActualNativeGitCheckRetainsTruncatedResponseFailure(tmp_path, responseC
     assert requests == [], "Read-only planning contacted the fixture."
     summary = asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", NativePolicy,
         confirmation=PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-control")))
-    assert requests == [b"GET /truncated/.git/HEAD HTTP/1.1\r\n"]
-    assert summary.ExitCode() != 0 and summary.snapshot.state is JobState.FAILED
-    assert Findings(LocalModelStore(root).Open()) == ()
+    assert requests == [b"GET /truncated/.git/HEAD HTTP/1.1\r\n"], (
+        "The truncated fixture must receive exactly the admitted GET without retries."
+    )
+    assert summary.ExitCode() != 0 and summary.snapshot.state is JobState.FAILED, (
+        "A truncated HTTP body must fail the native job instead of completing an assessment."
+    )
+    assert Findings(LocalModelStore(root).Open()) == (), (
+        "A partial Git HEAD response must not create a Finding."
+    )
     evidence = NativeRunEvidence(root, plan, summary)
-    assert {item.role for item in evidence} == {"stdout", "stderr", "invocation"}
+    assert {item.role for item in evidence} == {"stdout", "stderr", "invocation"}, (
+        "The failed attempt must retain both original worker streams and its invocation."
+    )
     report = json.loads(next(item.content for item in evidence if item.role == "stdout"))
-    assert report == {"schema_version": 1, "error": "protocol"}
+    assert report == {"schema_version": 1, "error": "protocol"}, (
+        "The original worker report must retain the fixed protocol failure code."
+    )
