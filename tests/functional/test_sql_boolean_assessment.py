@@ -1,13 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Check ordered SQL assessment using independently governed owned SQLite samples."""
+"""Check ordered SQL assessment using independently governed owned controls."""
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from threading import Thread
 
 import pytest
 
@@ -219,3 +222,90 @@ def test_AssessOnlyTheCurrentOwnedSqlJobPrefix(tmp_path, mode, control, expected
                 AssessSqlBooleanEvidence(root, before, plans, tuple(runs))
 
         assert service.Observe() == targetFacts, "Refused evidence also cannot contact the target."
+
+
+def test_StaticSqlLookalikeSupportsOnlyADifferentialCandidate(tmp_path):
+    """Reproduce the vulnerable fixture bytes on exact routes without executing SQL."""
+
+    cases = {case["sample"]: case["route"] for case in Oracle()["sql_boolean_cases"]
+             if case["mode"] == "vulnerable"}
+    routes = tuple(cases[role] for role in ("baseline", "true", "false", "baseline"))
+    rowBody = b'{"rows":["owned-public-row"]}'
+    bodies = {cases["baseline"]: rowBody, cases["true"]: rowBody, cases["false"]: b'{"rows":[]}'}
+    requests: list[str] = []
+
+    class Handler(BaseHTTPRequestHandler):
+        """Return fixed JSON bytes by exact path with no database or input evaluation."""
+
+        timeout = 2
+
+        def Get(self) -> None:
+            """Record the request and refuse every route outside the static response table."""
+
+            requests.append(self.path)
+            body = bodies.get(self.path)
+
+            if body is None:
+                self.send_error(404)
+
+                return
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_GET = Get
+
+    root = tmp_path / "workspace"
+    CreateWorkspace(root, WORKSPACE_ID, "Owned static SQL lookalike")
+    before = LocalWorkspaceStore(root).Open()
+
+    with HTTPServer(("127.0.0.1", 0), Handler) as server:
+        thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01})
+        thread.start()
+
+        try:
+            origin = f"http://127.0.0.1:{server.server_port}"
+            targets = tuple(Target(TargetKind.URL, origin + route) for route in routes)
+            allowed = (*targets[:3], Target(TargetKind.IP, "127.0.0.1"))
+            now = datetime.now(UTC)
+            LocalScopeStore(root).Create(ScopeSnapshot("local", WORKSPACE_ID, ScopeAuthorization(
+                AuthorizationState.GRANTED, OWNER, "consent:owned-static-sql-lookalike",
+                (now - timedelta(minutes=1)).isoformat(), (now + timedelta(minutes=10)).isoformat(),
+            ), targets=allowed, allow=allowed))
+            plans = tuple(PlanNativeWebScan(root, "local", target, OWNER, SamplePolicy,
+                check_id=NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID) for target in targets)
+            assert not requests, "Planning must not contact the lookalike target."
+            runs = []
+
+            for index, (target, plan) in enumerate(zip(targets, plans, strict=True)):
+                confirmation = PolicyConfirmation(plan.policy_plan.intent_sha256,
+                                                  f"approval:owned-static-sql-lookalike-{index}")
+                run = asyncio.run(RunNativeWebScan(root, "local", target, OWNER, SamplePolicy,
+                    check_id=NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID, confirmation=confirmation))
+                assert run.snapshot.state is JobState.COMPLETED, (
+                    "The confirmed worker must acquire the complete static response."
+                )
+                runs.append(run)
+
+        finally:
+            server.shutdown()
+            thread.join(timeout=3)
+            assert not thread.is_alive(), "The static SQL lookalike leaked its listener."
+
+    assert tuple(requests) == routes, "Only the four separately confirmed paths may be requested."
+    model = LocalModelStore(root).Open()
+    observed = {item.provenance.run_reference: item.attributes for item in model.observations
+                if item.kind == "native.web-response-check"}
+    assert len(observed) == len(routes) and all(
+        item["matched"] is None for item in observed.values()
+    ), "Each governed static sample must remain an observation without a verdict."
+    assert tuple(observed[run.snapshot.spec.job_id]["body_sha256"] for run in runs) == tuple(
+        hashlib.sha256(bodies[route]).hexdigest() for route in routes
+    ), "Original observations must bind the exact synthetic response bytes."
+    assert AssessSqlBooleanEvidence(root, before, plans, tuple(runs)) is (
+        SqlBooleanOutcome.DIFFERENTIAL_CANDIDATE
+    ), "A static lookalike can reproduce the digest pattern without SQL execution."
+    assert not Findings(LocalModelStore(root).Open()), "A matching digest pattern is not a Finding."
