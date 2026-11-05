@@ -1720,7 +1720,6 @@
   ["tests/unit/test_ioc_artifacts.py", "callable", "", "ioc_source"],
   ["tests/unit/test_jobs.py", "callable", "", "job_runners"],
   ["tests/unit/test_jobs.py", "callable", "", "owned_job_runners"],
-  ["tests/unit/test_jobs.py", "local", "top.test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup.Scenario", "grace_count"],
   ["tests/unit/test_jobs.py", "parameter", "top.job_runners", "owned_job_runners"],
   ["tests/unit/test_kubernetes_inventory.py", "callable", "", "context"],
   ["tests/unit/test_kubernetes_inventory.py", "parameter", "top.context", "tmp_path"],
