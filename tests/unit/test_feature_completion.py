@@ -28,12 +28,12 @@ REPOSITORY = "Fuzzy-Technologies/1337"
 
 
 def Issue(
-    number: int, issue_type: str = "Task", state: str = "closed", reason: str | None = "completed",
+    number: int, issueType: str = "Task", state: str = "closed", reason: str | None = "completed",
 ) -> dict[str, Any]:
     """Create one native REST issue fixture with an explicit repository identity."""
 
     return {
-        "number": number, "type": {"name": issue_type}, "state": state, "state_reason": reason,
+        "number": number, "type": {"name": issueType}, "state": state, "state_reason": reason,
         "url": f"https://api.github.com/repos/{REPOSITORY}/issues/{number}",
     }
 
