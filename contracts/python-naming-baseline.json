@@ -1682,7 +1682,6 @@
   ["tests/unit/test_executor_termination.py", "parameter", "top.test_KillWaitCannotHangAfterSuccessfulSignal.lambda", "process_id"],
   ["tests/unit/test_executor_termination.py", "parameter", "top.test_LiveChildDenialAndHangingWaitRemainBoundedFailures.Signal", "process_id"],
   ["tests/unit/test_executor_termination.py", "parameter", "top.test_ReapedChildCannotSuppressRemainingOrInaccessibleGroup.Signal", "process_id"],
-  ["tests/unit/test_held_peer_observation.py", "parameter", "top.FakeHeldEvent.__init__", "on_wait"],
   ["tests/unit/test_held_peer_observation.py", "parameter", "top.PureHeldListener", "tmp_path"],
   ["tests/unit/test_image_workflow_bounds.py", "callable", "", "image_runner"],
   ["tests/unit/test_image_workflow_bounds.py", "callable", "", "owned_image_runner"],
