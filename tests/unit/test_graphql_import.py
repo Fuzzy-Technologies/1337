@@ -48,18 +48,18 @@ def Changed(path: tuple[str | int, ...], value: object) -> bytes:
     return json.dumps(document).encode("utf-8")
 
 
-def Imported(value: bytes | None = None, endpoint_url: str = ENDPOINT, workspace_id: str = "owned"):
+def Imported(value: bytes | None = None, endpointUrl: str = ENDPOINT, workspaceId: str = "owned"):
     """Use the actual public offline producer with explicit fixed caller context."""
 
     return graphql.ImportGraphQl(Source() if value is None else value,
-                                workspace_id=workspace_id, endpoint_url=endpoint_url)
+                                workspace_id=workspaceId, endpoint_url=endpointUrl)
 
 
-def Preview(field_name: str = "lookup", value: bytes | None = None):
+def Preview(fieldName: str = "lookup", value: bytes | None = None):
     """Select a real source-bound operation and use the public pure preview producer."""
 
     source = Source() if value is None else value
-    operation = next(item for item in Imported(source).operations if item.field_name == field_name)
+    operation = next(item for item in Imported(source).operations if item.field_name == fieldName)
 
     return graphql.GenerateGraphQlRequest(source, operation.Reference(),
                                          workspace_id="owned", endpoint_url=ENDPOINT)
@@ -215,7 +215,7 @@ def test_EndpointContextCannotCarryRuntimeValuesOrImplicitResolution(endpoint_ur
     """A caller context must be a concrete structural HTTP(S) endpoint without extra authority."""
 
     with pytest.raises(ValueError):
-        Imported(endpoint_url=endpoint_url)
+        Imported(endpointUrl=endpoint_url)
 
 
 def test_ExactOriginalBytesWorkspaceAndEndpointBindGenerationReference():
