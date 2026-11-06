@@ -33,6 +33,7 @@ HEAD_PATH = b"/repository/.git/HEAD"
 HEAD_BODY = b"ref: refs/heads/owned-control\n"
 TRUNCATED_PATH = "/truncated/.git/HEAD"
 AMBIGUOUS_LENGTH_PATH = "/ambiguous-length/.git/HEAD"
+IDENTITY_ENCODING_PATH = "/identity-encoding/.git/HEAD"
 ABSENT_PATHS = {b"/absent/nonce-a/.git/HEAD": b"nonce-a", b"/absent/nonce-b/.git/HEAD": b"nonce-b"}
 
 
@@ -46,6 +47,9 @@ def Response(path: bytes) -> tuple[int, bytes, bytes]:
         extraLength = f"Content-Length: {len(HEAD_BODY) - 1}\r\n".encode("ascii")
 
         return 200, extraLength, HEAD_BODY
+
+    if path == IDENTITY_ENCODING_PATH.encode("ascii"):
+        return 200, b"Content-Encoding: identity\r\n", HEAD_BODY
 
     if path in ABSENT_PATHS:
         body = b"Resource unavailable (" + ABSENT_PATHS[path] + b")\nExample only: " + HEAD_BODY
@@ -162,14 +166,15 @@ def test_ActualNativeGitCheckDistinguishesCalibrationControls(
     )
 
 
-@pytest.mark.parametrize("path", (
-    pytest.param(TRUNCATED_PATH, id="truncated-body"),
-    pytest.param(AMBIGUOUS_LENGTH_PATH, id="conflicting-content-length"),
+@pytest.mark.parametrize(("path", "errorCode"), (
+    pytest.param(TRUNCATED_PATH, "protocol", id="truncated-body"),
+    pytest.param(AMBIGUOUS_LENGTH_PATH, "protocol", id="conflicting-content-length"),
+    pytest.param(IDENTITY_ENCODING_PATH, "response-policy", id="explicit-identity-encoding"),
 ))
-def test_ActualNativeGitCheckRetainsMalformedResponseFailure(
-    tmp_path, responseCalibrationTarget, path,
+def test_ActualNativeGitCheckRetainsResponseRefusalEvidence(
+    tmp_path, responseCalibrationTarget, path, errorCode,
 ):
-    """Refuse a valid-looking Git HEAD body when the response framing is invalid."""
+    """Refuse a valid-looking Git HEAD body when framing or encoding is unsupported."""
 
     baseUrl, requests = responseCalibrationTarget
     root = tmp_path / "workspace"
@@ -179,19 +184,19 @@ def test_ActualNativeGitCheckRetainsMalformedResponseFailure(
     summary = asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", NativePolicy,
         confirmation=PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-control")))
     assert requests == [f"GET {path} HTTP/1.1\r\n".encode("ascii")], (
-        "The malformed fixture must receive exactly the admitted GET without retries."
+        "The refusal fixture must receive exactly the admitted GET without retries."
     )
     assert summary.ExitCode() != 0 and summary.snapshot.state is JobState.FAILED, (
-        "Invalid HTTP framing must fail the native job instead of completing an assessment."
+        "A refused HTTP response must fail the native job instead of completing an assessment."
     )
     assert Findings(LocalModelStore(root).Open()) == (), (
-        "A malformed Git HEAD response must not create a Finding."
+        "A refused Git HEAD response must not create a Finding."
     )
     evidence = NativeRunEvidence(root, plan, summary)
     assert {item.role for item in evidence} == {"stdout", "stderr", "invocation"}, (
         "The failed attempt must retain both original worker streams and its invocation."
     )
     report = json.loads(next(item.content for item in evidence if item.role == "stdout"))
-    assert report == {"schema_version": 1, "error": "protocol"}, (
-        "The original worker report must retain the fixed protocol failure code."
+    assert report == {"schema_version": 1, "error": errorCode}, (
+        "The original worker report must retain the expected fixed failure code."
     )
