@@ -45,7 +45,10 @@ NAN_EXPOSITION = (b"# HELP observed_accuracy Current diagnostic ratio\n"
 OUTPUT = Path("_build/native-prometheus/acceptance")
 
 
-def Response(body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="text/plain"):
+def Response(
+    body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="text/plain",
+    firstChunkExtension=b"",
+):
     """Freeze synthetic transport truth independently of detector parsing and metric names."""
 
     header = f"HTTP/1.1 {status} Owned\r\nContent-Type: {media}\r\n".encode()
@@ -55,9 +58,10 @@ def Response(body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="te
 
     if framing == "chunked":
         split = len(body) // 2
+        chunkSize = f"{split:x}".encode() + firstChunkExtension
 
         return (header + b"Transfer-Encoding: chunked\r\n\r\n"
-                + f"{split:x}\r\n".encode() + body[:split] + b"\r\n"
+                + chunkSize + b"\r\n" + body[:split] + b"\r\n"
                 + f"{len(body) - split:x}\r\n".encode() + body[split:] + b"\r\n0\r\n\r\n")
 
     if framing == "length":
@@ -77,6 +81,7 @@ CASES = {
     "denied": (Response(status=403), False, True),
     "redirect": (Response(status=302), False, True),
     "truncated-chunk": (Response()[:-2], False, False),
+    "chunk-extension": (Response(firstChunkExtension=b";owned=fixture"), False, False),
     "oversized-eof": (Response(b"x" * 262145, framing="eof"), False, False),
     "ambiguous-framing": (Response().replace(b"Transfer-Encoding: chunked\r\n",
         b"Transfer-Encoding: chunked\r\nContent-Length: 1\r\n"), False, False),
@@ -196,6 +201,14 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
 
     else:
         assert set(worker) == {"schema_version", "error"}, "Failed acquisition invented assessment."
+
+        if case == "chunk-extension":
+            assert summary.snapshot.state is JobState.FAILED, (
+                "A chunk extension must fail the governed metrics job."
+            )
+            assert worker == {"schema_version": 1, "error": "protocol"}, (
+                "Original worker evidence must preserve the chunk-extension protocol refusal."
+            )
 
     assert OpenWorkspace(root)["verified_evidence_records"] == 2, "Durable reopen lost evidence."
     output = OUTPUT / case
