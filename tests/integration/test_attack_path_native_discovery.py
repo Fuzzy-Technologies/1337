@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.jobs import JobFailureCode, JobState
 from fuzzy1337.model import LocalModelStore, ObjectKind, RelationKind
 from fuzzy1337.quickscan import QuickScanSummary, RunQuickScan
 from fuzzy1337.scan_commands import OpenWorkspace
@@ -28,6 +29,7 @@ from fuzzy1337.scope import (
     AuthorizationState,
     LocalScopeStore,
     ScopeAuthorization,
+    ScopeDecisionReason,
     ScopeSnapshot,
     Target,
     TargetKind,
@@ -216,3 +218,50 @@ def test_AttackPathServicesProduceAttributedEndpointObservationsWithoutPathClaim
         kind.value: {ObjectKind.HOST: 1, ObjectKind.PORT: 3, ObjectKind.SERVICE: 3,
                      ObjectKind.ENDPOINT: 3}.get(kind, 0) for kind in ObjectKind
     }, "The observed endpoint facts must not create a Finding or a seeded business object"
+
+
+def test_ExcludedBillingEndpointLeavesNoDiscoveryEvidenceOrFacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Honor an exact Billing exclusion even with granted consent and SAFE discovery enabled."""
+
+    root = tmp_path / "workspace"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned attack-path discovery"),
+                                     WORKSPACE_ID)
+    initial = LocalModelStore(root).Create()
+    requests: list[tuple[str, str, str, bool]] = []
+    now = datetime.now(UTC)
+
+    with OwnedHealthEndpoints(monkeypatch, requests) as (_, _, billing):
+        address = Target(TargetKind.IP, "127.0.0.1")
+        members = (billing, address)
+        scopeStore = LocalScopeStore(root)
+        scopeStore.Create(ScopeSnapshot(SCOPE_ID, WORKSPACE_ID, ScopeAuthorization(
+            AuthorizationState.GRANTED, OWNER, "approval:attack-path-discovery",
+            (now - timedelta(seconds=1)).isoformat(), (now + timedelta(minutes=1)).isoformat(),
+        ), targets=members, allow=members, exclusions=(billing,)))
+        scope = scopeStore.Open(SCOPE_ID)
+        assert scope.Check(billing, at=now).reason is ScopeDecisionReason.EXCLUDED, (
+            "The exact Billing URL exclusion must take precedence over its allow rule."
+        )
+        assert scope.Check(address, at=now).Allowed(), (
+            "The literal loopback destination must remain allowed."
+        )
+
+        denied = asyncio.run(RunQuickScan(root, SCOPE_ID, (billing,), OWNER,
+                                         approve_safe_http=True, clock=lambda: now))
+        assert denied.snapshot.state is JobState.FAILED and denied.ExitCode() == 3, (
+            "Excluded Billing discovery must return a failed authorization outcome."
+        )
+        assert denied.snapshot.failure is not None and (
+            denied.snapshot.failure.code is JobFailureCode.AUTHORIZATION
+        ), "The discovery job must retain the typed authorization failure."
+        assert not denied.snapshot.artifacts, "Denied discovery must retain no acquisitions."
+
+    assert not requests, "Excluded Billing discovery must not contact any owned listener."
+    assert LocalModelStore(root).Open() == initial, (
+        "Offline reopen must retain the empty model without Findings or reachability facts."
+    )
+    assert OpenWorkspace(root)["verified_evidence_records"] == 0 and not any(
+        item.is_file() for item in (root / "evidence").rglob("*")
+    ), "Offline reopen must find no evidence records or worker files."
