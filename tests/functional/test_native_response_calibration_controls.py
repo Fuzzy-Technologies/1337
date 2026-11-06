@@ -31,13 +31,14 @@ ORACLE = json.loads((Path(__file__).resolve().parents[1] / "fixtures" / "respons
                      "oracle.v1.json").read_text(encoding="utf-8"))
 HEAD_PATH = b"/repository/.git/HEAD"
 HEAD_BODY = b"ref: refs/heads/owned-control\n"
+TRUNCATED_PATH = "/truncated/.git/HEAD"
 ABSENT_PATHS = {b"/absent/nonce-a/.git/HEAD": b"nonce-a", b"/absent/nonce-b/.git/HEAD": b"nonce-b"}
 
 
 def Response(path: bytes) -> tuple[int, bytes, bytes]:
     """Serve only the finite fixture routes without consulting the expected-result oracle."""
 
-    if path == HEAD_PATH:
+    if path in (HEAD_PATH, TRUNCATED_PATH.encode("ascii")):
         return 200, b"", HEAD_BODY
 
     if path in ABSENT_PATHS:
@@ -90,8 +91,13 @@ def ResponseCalibrationTarget():
                 return
 
             status, extraHeader, body = Response(parts[1])
+            contentLength = len(body)
+
+            if parts[1] == TRUNCATED_PATH.encode("ascii"):
+                contentLength += 1
+
             headers = (f"HTTP/1.1 {status} Fixture\r\nContent-Type: text/plain\r\n"
-                       f"Content-Length: {len(body)}\r\nConnection: close\r\n").encode("ascii")
+                       f"Content-Length: {contentLength}\r\nConnection: close\r\n").encode("ascii")
             self.wfile.write(headers + extraHeader + b"\r\n" + body)
 
         handle = Handle
@@ -147,4 +153,33 @@ def test_ActualNativeGitCheckDistinguishesCalibrationControls(
     )
     assert OpenWorkspace(root)["verified_evidence_records"] == 2, (
         "Reopening the workspace did not verify both original worker streams."
+    )
+
+
+def test_ActualNativeGitCheckRetainsTruncatedResponseFailure(tmp_path, responseCalibrationTarget):
+    """Refuse a valid-looking Git HEAD body when the wire ends before Content-Length."""
+
+    baseUrl, requests = responseCalibrationTarget
+    root = tmp_path / "workspace"
+    target = NativeWorkspace(root, baseUrl + TRUNCATED_PATH)
+    plan = PlanNativeWebScan(root, "local", target, "operator:owned", NativePolicy)
+    assert requests == [], "Read-only planning contacted the fixture."
+    summary = asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", NativePolicy,
+        confirmation=PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-control")))
+    assert requests == [b"GET /truncated/.git/HEAD HTTP/1.1\r\n"], (
+        "The truncated fixture must receive exactly the admitted GET without retries."
+    )
+    assert summary.ExitCode() != 0 and summary.snapshot.state is JobState.FAILED, (
+        "A truncated HTTP body must fail the native job instead of completing an assessment."
+    )
+    assert Findings(LocalModelStore(root).Open()) == (), (
+        "A partial Git HEAD response must not create a Finding."
+    )
+    evidence = NativeRunEvidence(root, plan, summary)
+    assert {item.role for item in evidence} == {"stdout", "stderr", "invocation"}, (
+        "The failed attempt must retain both original worker streams and its invocation."
+    )
+    report = json.loads(next(item.content for item in evidence if item.role == "stdout"))
+    assert report == {"schema_version": 1, "error": "protocol"}, (
+        "The original worker report must retain the fixed protocol failure code."
     )
