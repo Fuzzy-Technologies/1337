@@ -32,6 +32,7 @@ ORACLE = json.loads((Path(__file__).resolve().parents[1] / "fixtures" / "respons
 HEAD_PATH = b"/repository/.git/HEAD"
 HEAD_BODY = b"ref: refs/heads/owned-control\n"
 TRUNCATED_PATH = "/truncated/.git/HEAD"
+AMBIGUOUS_LENGTH_PATH = "/ambiguous-length/.git/HEAD"
 ABSENT_PATHS = {b"/absent/nonce-a/.git/HEAD": b"nonce-a", b"/absent/nonce-b/.git/HEAD": b"nonce-b"}
 
 
@@ -40,6 +41,11 @@ def Response(path: bytes) -> tuple[int, bytes, bytes]:
 
     if path in (HEAD_PATH, TRUNCATED_PATH.encode("ascii")):
         return 200, b"", HEAD_BODY
+
+    if path == AMBIGUOUS_LENGTH_PATH.encode("ascii"):
+        extraLength = f"Content-Length: {len(HEAD_BODY) - 1}\r\n".encode("ascii")
+
+        return 200, extraLength, HEAD_BODY
 
     if path in ABSENT_PATHS:
         body = b"Resource unavailable (" + ABSENT_PATHS[path] + b")\nExample only: " + HEAD_BODY
@@ -156,24 +162,30 @@ def test_ActualNativeGitCheckDistinguishesCalibrationControls(
     )
 
 
-def test_ActualNativeGitCheckRetainsTruncatedResponseFailure(tmp_path, responseCalibrationTarget):
-    """Refuse a valid-looking Git HEAD body when the wire ends before Content-Length."""
+@pytest.mark.parametrize("path", (
+    pytest.param(TRUNCATED_PATH, id="truncated-body"),
+    pytest.param(AMBIGUOUS_LENGTH_PATH, id="conflicting-content-length"),
+))
+def test_ActualNativeGitCheckRetainsMalformedResponseFailure(
+    tmp_path, responseCalibrationTarget, path,
+):
+    """Refuse a valid-looking Git HEAD body when the response framing is invalid."""
 
     baseUrl, requests = responseCalibrationTarget
     root = tmp_path / "workspace"
-    target = NativeWorkspace(root, baseUrl + TRUNCATED_PATH)
+    target = NativeWorkspace(root, baseUrl + path)
     plan = PlanNativeWebScan(root, "local", target, "operator:owned", NativePolicy)
     assert requests == [], "Read-only planning contacted the fixture."
     summary = asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", NativePolicy,
         confirmation=PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-control")))
-    assert requests == [b"GET /truncated/.git/HEAD HTTP/1.1\r\n"], (
-        "The truncated fixture must receive exactly the admitted GET without retries."
+    assert requests == [f"GET {path} HTTP/1.1\r\n".encode("ascii")], (
+        "The malformed fixture must receive exactly the admitted GET without retries."
     )
     assert summary.ExitCode() != 0 and summary.snapshot.state is JobState.FAILED, (
-        "A truncated HTTP body must fail the native job instead of completing an assessment."
+        "Invalid HTTP framing must fail the native job instead of completing an assessment."
     )
     assert Findings(LocalModelStore(root).Open()) == (), (
-        "A partial Git HEAD response must not create a Finding."
+        "A malformed Git HEAD response must not create a Finding."
     )
     evidence = NativeRunEvidence(root, plan, summary)
     assert {item.role for item in evidence} == {"stdout", "stderr", "invocation"}, (
