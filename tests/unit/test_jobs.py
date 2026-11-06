@@ -463,7 +463,7 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
         waitFor = asyncio.wait_for
         graceEntered = (asyncio.Event(), asyncio.Event())
         graceFinished = (asyncio.Event(), asyncio.Event())
-        grace_count = 0
+        graceCount = 0
         entered = asyncio.Event()
         cleanupStarted = asyncio.Event()
         releaseCleanup = asyncio.Event()
@@ -477,9 +477,9 @@ def test_ConcurrentForcedCancellationDoesNotInterruptProviderCleanup(
         async def ObserveGrace(awaitable: Awaitable[None], timeout: float) -> None:
             """Observe the real grace timeout without substituting its cancellation behavior."""
 
-            nonlocal grace_count
-            index = grace_count
-            grace_count += 1
+            nonlocal graceCount
+            index = graceCount
+            graceCount += 1
             graceEntered[index].set()
 
             try:
