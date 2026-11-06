@@ -47,7 +47,7 @@ OUTPUT = Path("_build/native-prometheus/acceptance")
 
 def Response(
     body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="text/plain",
-    firstChunkExtension=b"",
+    firstChunkExtension=b"", trailer=b"",
 ):
     """Freeze synthetic transport truth independently of detector parsing and metric names."""
 
@@ -62,7 +62,8 @@ def Response(
 
         return (header + b"Transfer-Encoding: chunked\r\n\r\n"
                 + chunkSize + b"\r\n" + body[:split] + b"\r\n"
-                + f"{len(body) - split:x}\r\n".encode() + body[split:] + b"\r\n0\r\n\r\n")
+                + f"{len(body) - split:x}\r\n".encode() + body[split:] + b"\r\n0\r\n"
+                + trailer + b"\r\n")
 
     if framing == "length":
         return header + f"Content-Length: {len(body)}\r\n\r\n".encode() + body
@@ -82,6 +83,7 @@ CASES = {
     "redirect": (Response(status=302), False, True),
     "truncated-chunk": (Response()[:-2], False, False),
     "chunk-extension": (Response(firstChunkExtension=b";owned=fixture"), False, False),
+    "chunk-trailer": (Response(trailer=b"X-Owned-Trailer: fixture\r\n"), False, False),
     "oversized-eof": (Response(b"x" * 262145, framing="eof"), False, False),
     "ambiguous-framing": (Response().replace(b"Transfer-Encoding: chunked\r\n",
         b"Transfer-Encoding: chunked\r\nContent-Length: 1\r\n"), False, False),
@@ -202,12 +204,12 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
     else:
         assert set(worker) == {"schema_version", "error"}, "Failed acquisition invented assessment."
 
-        if case == "chunk-extension":
+        if case in {"chunk-extension", "chunk-trailer"}:
             assert summary.snapshot.state is JobState.FAILED, (
-                "A chunk extension must fail the governed metrics job."
+                f"The {case} response must fail the governed metrics job."
             )
             assert worker == {"schema_version": 1, "error": "protocol"}, (
-                "Original worker evidence must preserve the chunk-extension protocol refusal."
+                f"Original worker evidence must preserve the {case} protocol refusal."
             )
 
     assert OpenWorkspace(root)["verified_evidence_records"] == 2, "Durable reopen lost evidence."
