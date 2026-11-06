@@ -10,6 +10,7 @@ import hashlib
 import json
 import shutil
 import time
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -40,7 +41,12 @@ from fuzzy1337.native_web import (
     PlanNativeWebScan,
     RunNativeWebScan,
 )
-from fuzzy1337.policy import CapabilityPermission, ImpactPolicy, PolicyConfirmation
+from fuzzy1337.policy import (
+    CapabilityPermission,
+    ImpactPolicy,
+    PolicyConfirmation,
+    PolicyDeniedError,
+)
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.requests import (
     BodyKind,
@@ -57,6 +63,7 @@ from fuzzy1337.scope import (
     AuthorizationState,
     LocalScopeStore,
     ScopeAuthorization,
+    ScopeDecisionReason,
     ScopeSnapshot,
     Target,
     TargetKind,
@@ -364,6 +371,41 @@ def test_CanaryConfirmationCannotSubstituteAnotherExplicitlyScopedQuery(tmp_path
         )
         assert service.Observe()["requests"] == [], "An intent mismatch reached the owned fixture."
         assert Findings(LocalModelStore(root).Open()) == (), "Mismatched intent invented Findings."
+
+
+def test_CanaryRejectsConsentRevocationAfterExactConfirmation(tmp_path):
+    """Deny an exactly confirmed private canary query when current consent was revoked."""
+
+    with OwnedWebFileAccessTarget(tmp_path / "target") as service:
+        root = tmp_path / "workspace"
+        url = service.Url("private-traversal")
+        target = CanaryWorkspace(root, url)
+        plan = PlanNativeWebScan(root, "local", target, "operator:owned", CanaryPolicy,
+                                check_id=CHECK_ID, clock=AuthorityClock)
+        assert plan.policy_plan.confirmation_required and (
+            plan.invocation.request.parameters["url"] == url
+        ), "The approval must bind the exact private traversal query."
+        approval = PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:revoked-canary")
+        store = LocalScopeStore(root)
+        scope = store.Open("local")
+        store.Save(replace(scope, authorization=replace(scope.authorization,
+            state=AuthorizationState.REVOKED)))
+
+        with pytest.raises(PolicyDeniedError) as denied:
+            asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", CanaryPolicy,
+                check_id=CHECK_ID, confirmation=approval, clock=AuthorityClock))
+
+        assert denied.value.scope_reason is ScopeDecisionReason.AUTHORIZATION_REVOKED, (
+            "Current consent revocation must deny the previously approved query."
+        )
+        observed = service.Observe()
+        assert observed["requests"] == [] and observed["file_reads"] == [], (
+            "A revoked canary query must neither reach the listener nor read an owned file."
+        )
+        assert Findings(LocalModelStore(root).Open()) == (), "Revoked canary work created Findings."
+        assert OpenWorkspace(root)["verified_evidence_records"] == 0 and not any(
+            item.is_file() for item in (root / "evidence").rglob("*")
+        ), "A pre-launch denial must leave no worker evidence records or files."
 
 
 def test_CanaryExecutionPreservesPriorEndpointTemplatesAndOperatorData(tmp_path):
