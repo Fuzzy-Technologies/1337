@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 from dataclasses import replace
+from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Event, Thread
 
@@ -40,10 +41,15 @@ from fuzzy1337.native_web import (
     PlanNativeWebScan,
     RunNativeWebScan,
 )
-from fuzzy1337.policy import CapabilityPermission, ImpactPolicy, PolicyConfirmation
+from fuzzy1337.policy import (
+    CapabilityPermission,
+    ImpactPolicy,
+    PolicyConfirmation,
+    PolicyDeniedError,
+)
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.scan_commands import OpenWorkspace
-from fuzzy1337.scope import AuthorizationState, LocalScopeStore
+from fuzzy1337.scope import AuthorizationState, LocalScopeStore, ScopeDecisionReason
 from tests.functional.test_native_web_checks import NativeRunEvidence, NativeWorkspace
 
 PACK = Path(__file__).resolve().parents[2] / "labs/targets/directory-index"
@@ -257,6 +263,41 @@ def test_NewCheckStillRequiresItsOwnCapabilityCurrentConsentAndOperator(
 
     assert server.Observe()["requests"] == [], "Denied directory work contacted the target."
     assert Findings(LocalModelStore(root).Open()) == (), "Denied work fabricated a Finding."
+
+
+def test_DirectoryIndexRejectsExactConfirmationAtConsentExpiry(tmp_path, directory_target):
+    """Recheck persisted consent before running an exactly confirmed directory index query."""
+
+    server, baseUrl = directory_target
+    root = tmp_path / "workspace"
+    url = baseUrl + "/listing/listed/"
+    target = NativeWorkspace(root, url)
+    validUntil = LocalScopeStore(root).Open("local").authorization.valid_until
+    assert validUntil is not None, "The owned consent must have a finite expiry."
+    expiry = datetime.fromisoformat(validUntil)
+    plan = PlanNativeWebScan(root, "local", target, "operator:owned", DirectoryPolicy,
+        check_id=NATIVE_DIRECTORY_INDEX_CHECK_ID, clock=lambda: expiry - timedelta(seconds=1))
+    assert plan.policy_plan.confirmation_required and (
+        plan.invocation.request.parameters["url"] == url
+    ), "The approval must bind the exact listed directory URL."
+    approval = PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:expiring-index")
+
+    with pytest.raises(PolicyDeniedError) as denied:
+        asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", DirectoryPolicy,
+            check_id=NATIVE_DIRECTORY_INDEX_CHECK_ID, confirmation=approval,
+            clock=lambda: expiry))
+
+    assert denied.value.scope_reason is ScopeDecisionReason.AUTHORIZATION_EXPIRED, (
+        "Current consent must deny the previously approved query at its expiry."
+    )
+    observed = server.Observe()
+    assert observed["requests"] == [] and observed["directory_reads"] == [], (
+        "Expired consent must prevent both listener contact and an owned directory read."
+    )
+    assert Findings(LocalModelStore(root).Open()) == (), "Expired consent produced a Finding."
+    assert OpenWorkspace(root)["verified_evidence_records"] == 0 and not any(
+        item.is_file() for item in (root / "evidence").rglob("*")
+    ), "The pre-launch denial must leave no worker evidence records or files."
 
 
 def DirectoryCli(arguments):
