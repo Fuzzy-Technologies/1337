@@ -15,6 +15,7 @@ from threading import Thread
 import pytest
 
 from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.jobs import JobFailureCode
 from fuzzy1337.model import LocalModelStore, ObjectKind
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests import proxy_regression_helpers as helpers
@@ -78,6 +79,22 @@ def test_OrdinaryProductDenialsContactNeitherFrontendNorBackend(tmp_path, condit
         ), "Denied proxy scan made network contact or fabricated successful acquisition"
 
 
+def SafeJobFailureCode(summary: object) -> str:
+    """Select only a canonical job failure code for the assertion diagnostic."""
+
+    if not isinstance(summary, dict):
+        return "unknown"
+
+    job = summary.get("job")
+    failure = job.get("failure") if isinstance(job, dict) else None
+    code = failure.get("code") if isinstance(failure, dict) else None
+
+    if isinstance(code, str) and code in JobFailureCode:
+        return JobFailureCode(code).value
+
+    return "unknown"
+
+
 def test_HandlerBlockedResponseIsObservedWithoutInventingBlockedReachability(tmp_path):
     """The fixture's declared 403 affects only original endpoint response facts."""
 
@@ -87,7 +104,10 @@ def test_HandlerBlockedResponseIsObservedWithoutInventingBlockedReachability(tmp
         root = tmp_path / "workspace"
         Setup(root, (lab.Url(case),))
         status, summary = Product(Scan(root, (lab.Url(case),)))
-        assert status == 0, "A bounded observed HTTP error became a failed discovery workflow"
+        assert status == 0, (
+            "A bounded observed HTTP error became a failed discovery workflow "
+            f"(job failure: {SafeJobFailureCode(summary)})"
+        )
         Verify(root, summary, case, lab)
 
 
