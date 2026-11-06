@@ -82,12 +82,12 @@ class FakeHeldAcceptor:
 class FakeHeldEvent:
     """Model one bounded original Event wait without sleeping or starting a thread."""
 
-    def __init__(self, on_wait=None):
+    def __init__(self, onWait=None):
         """Retain finite fake wait durations and one explicit interleaving callback."""
 
         self.ready = False
         self.waits = []
-        self.on_wait = on_wait
+        self.on_wait = onWait
 
     def Wait(self, timeout):
         """Run only the selected fake receive interleaving and return actual modeled state."""
