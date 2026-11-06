@@ -34,6 +34,8 @@ HEAD_BODY = b"ref: refs/heads/owned-control\n"
 TRUNCATED_PATH = "/truncated/.git/HEAD"
 AMBIGUOUS_LENGTH_PATH = "/ambiguous-length/.git/HEAD"
 IDENTITY_ENCODING_PATH = "/identity-encoding/.git/HEAD"
+OVER_CAP_PATH = "/over-cap/.git/HEAD"
+GIT_HEAD_BODY_CAP_BYTES = 4096
 ABSENT_PATHS = {b"/absent/nonce-a/.git/HEAD": b"nonce-a", b"/absent/nonce-b/.git/HEAD": b"nonce-b"}
 
 
@@ -50,6 +52,9 @@ def Response(path: bytes) -> tuple[int, bytes, bytes]:
 
     if path == IDENTITY_ENCODING_PATH.encode("ascii"):
         return 200, b"Content-Encoding: identity\r\n", HEAD_BODY
+
+    if path == OVER_CAP_PATH.encode("ascii"):
+        return 200, b"", HEAD_BODY.ljust(GIT_HEAD_BODY_CAP_BYTES + 1, b"x")
 
     if path in ABSENT_PATHS:
         body = b"Resource unavailable (" + ABSENT_PATHS[path] + b")\nExample only: " + HEAD_BODY
@@ -170,11 +175,12 @@ def test_ActualNativeGitCheckDistinguishesCalibrationControls(
     pytest.param(TRUNCATED_PATH, "protocol", id="truncated-body"),
     pytest.param(AMBIGUOUS_LENGTH_PATH, "protocol", id="conflicting-content-length"),
     pytest.param(IDENTITY_ENCODING_PATH, "response-policy", id="explicit-identity-encoding"),
+    pytest.param(OVER_CAP_PATH, "protocol", id="body-cap-plus-one"),
 ))
 def test_ActualNativeGitCheckRetainsResponseRefusalEvidence(
     tmp_path, responseCalibrationTarget, path, errorCode,
 ):
-    """Refuse a valid-looking Git HEAD body when framing or encoding is unsupported."""
+    """Refuse a valid-looking Git HEAD body outside the closed response profile."""
 
     baseUrl, requests = responseCalibrationTarget
     root = tmp_path / "workspace"
