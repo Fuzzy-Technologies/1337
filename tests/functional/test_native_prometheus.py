@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
 import hashlib
 import json
 import shutil
@@ -47,7 +48,7 @@ OUTPUT = Path("_build/native-prometheus/acceptance")
 
 def Response(
     body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="text/plain",
-    firstChunkExtension=b"", trailer=b"",
+    firstChunkExtension=b"", trailer=b"", contentEncoding=b"",
 ):
     """Freeze synthetic transport truth independently of detector parsing and metric names."""
 
@@ -55,6 +56,9 @@ def Response(
 
     if status == 302:
         header += b"Location: /unselected\r\n"
+
+    if contentEncoding:
+        header += b"Content-Encoding: " + contentEncoding + b"\r\n"
 
     if framing == "chunked":
         split = len(body) // 2
@@ -74,6 +78,9 @@ def Response(
 CASES = {
     "length-positive": (Response(framing="length"), True, True),
     "chunked-positive": (Response(), True, True),
+    "gzip-content-encoding": (
+        Response(gzip.compress(PADDED_EXPOSITION, mtime=0), contentEncoding=b"gzip"), False, False,
+    ),
     "eof-positive": (Response(framing="eof"), True, True),
     "nan-spelling-positive": (Response(NAN_EXPOSITION), True, True),
     "plain-prose-decoy": (Response(b"This page describes Prometheus metrics\n"), False, True),
@@ -210,6 +217,14 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
             )
             assert worker == {"schema_version": 1, "error": "protocol"}, (
                 f"Original worker evidence must preserve the {case} protocol refusal."
+            )
+
+        if case == "gzip-content-encoding":
+            assert summary.snapshot.state is JobState.FAILED, (
+                "The gzip response must fail the governed metrics job."
+            )
+            assert worker == {"schema_version": 1, "error": "response-policy"}, (
+                "Original worker evidence must identify the gzip response policy refusal."
             )
 
     assert OpenWorkspace(root)["verified_evidence_records"] == 2, "Durable reopen lost evidence."
