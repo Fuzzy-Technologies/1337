@@ -167,8 +167,9 @@ def test_ActualNativeJobsDistinguishFilesystemIndexControlsAndUnassessedTranspor
             DirectoryOracle()["configuration"]["owned_entries"]
         ], "Actual filesystem names differ from the independent fixture contract."
 
-    assert (summary.snapshot.state is JobState.COMPLETED) is case["assessed"], (
-        "A failed/incomplete transport became an assessed negative or an assessed result failed."
+    expectedState = JobState.COMPLETED if case["assessed"] else JobState.FAILED
+    assert summary.snapshot.state is expectedState, (
+        f"The {case['id']} job must end in the terminal state specified by the owned case."
     )
     assert summary.ExitCode() == (0 if case["assessed"] else 4), "Native exit truth changed."
     findings = Findings(LocalModelStore(root).Open())
@@ -207,7 +208,9 @@ def test_ActualNativeJobsDistinguishFilesystemIndexControlsAndUnassessedTranspor
         assert metrics["fp"] == metrics["fn"] == 0, "Finite target classification regressed."
 
     else:
-        assert set(worker) == {"schema_version", "error"}, "Transport failure invented assessment."
+        assert worker == {"schema_version": 1, "error": "protocol"}, (
+            f"Original worker evidence must preserve the {case['id']} protocol refusal."
+        )
         assert report["runs"][0]["run"]["status"] == "crashed", (
             "The failed cell was omitted or presented as a completed true negative."
         )
@@ -216,14 +219,14 @@ def test_ActualNativeJobsDistinguishFilesystemIndexControlsAndUnassessedTranspor
         "Original evidence did not reopen."
     )
 
-    if case["expected_match"]:
+    if case["expected_match"] or not case["assessed"]:
         relocated = tmp_path / "relocated"
         shutil.copytree(root, relocated)
         assert OpenWorkspace(relocated)["verified_evidence_records"] == 2, (
             "Relocated workspace did not verify its original worker acquisitions."
         )
-        assert len(Findings(LocalModelStore(relocated).Open())) == 1, (
-            "The original index Finding did not survive offline relocation."
+        assert len(Findings(LocalModelStore(relocated).Open())) == int(case["expected_match"]), (
+            "Offline relocation changed the original index Finding count."
         )
         assert server.Observe()["requests"] == [case["route"]], (
             "Offline replay contacted the target."
