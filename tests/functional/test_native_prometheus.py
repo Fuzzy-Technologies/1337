@@ -75,9 +75,26 @@ def Response(
     return header + b"\r\n" + body
 
 
+def ChunkCountResponse(chunkCount):
+    """Split the positive body into the selected number of nonempty chunks."""
+
+    header = Response().split(b"\r\n\r\n", 1)[0]
+    singleByteChunks = b"".join(
+        b"1\r\n" + PADDED_EXPOSITION[index:index + 1] + b"\r\n"
+        for index in range(chunkCount - 1)
+    )
+    remaining = PADDED_EXPOSITION[chunkCount - 1:]
+    assert remaining, "The last data chunk must be nonempty."
+
+    return (header + b"\r\n\r\n" + singleByteChunks
+            + f"{len(remaining):x}\r\n".encode() + remaining + b"\r\n0\r\n\r\n")
+
+
 CASES = {
     "length-positive": (Response(framing="length"), True, True),
     "chunked-positive": (Response(), True, True),
+    "chunk-count-at-limit": (ChunkCountResponse(4096), True, True),
+    "chunk-count-over-limit": (ChunkCountResponse(4097), False, False),
     "gzip-content-encoding": (
         Response(gzip.compress(PADDED_EXPOSITION, mtime=0), contentEncoding=b"gzip"), False, False,
     ),
@@ -211,7 +228,7 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
     else:
         assert set(worker) == {"schema_version", "error"}, "Failed acquisition invented assessment."
 
-        if case in {"chunk-extension", "chunk-trailer"}:
+        if case in {"chunk-extension", "chunk-trailer", "chunk-count-over-limit"}:
             assert summary.snapshot.state is JobState.FAILED, (
                 f"The {case} response must fail the governed metrics job."
             )
