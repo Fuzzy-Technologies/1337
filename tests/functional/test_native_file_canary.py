@@ -373,8 +373,12 @@ def test_CanaryConfirmationCannotSubstituteAnotherExplicitlyScopedQuery(tmp_path
         assert Findings(LocalModelStore(root).Open()) == (), "Mismatched intent invented Findings."
 
 
-def test_CanaryRejectsConsentRevocationAfterExactConfirmation(tmp_path):
-    """Deny an exactly confirmed private canary query when current consent was revoked."""
+@pytest.mark.parametrize("reason", (
+    pytest.param(ScopeDecisionReason.AUTHORIZATION_REVOKED, id="revoked"),
+    pytest.param(ScopeDecisionReason.EXCLUDED, id="excluded"),
+))
+def test_CanaryRechecksCurrentScopeAfterExactConfirmation(tmp_path, reason):
+    """Deny an exactly confirmed private canary query when current scope no longer allows it."""
 
     with OwnedWebFileAccessTarget(tmp_path / "target") as service:
         root = tmp_path / "workspace"
@@ -385,24 +389,35 @@ def test_CanaryRejectsConsentRevocationAfterExactConfirmation(tmp_path):
         assert plan.policy_plan.confirmation_required and (
             plan.invocation.request.parameters["url"] == url
         ), "The approval must bind the exact private traversal query."
-        approval = PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:revoked-canary")
+        approval = PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-canary")
         store = LocalScopeStore(root)
         scope = store.Open("local")
-        store.Save(replace(scope, authorization=replace(scope.authorization,
-            state=AuthorizationState.REVOKED)))
+
+        if reason is ScopeDecisionReason.AUTHORIZATION_REVOKED:
+            store.Save(replace(scope, authorization=replace(scope.authorization,
+                state=AuthorizationState.REVOKED)))
+        else:
+            store.Save(replace(scope, exclusions=(target,)))
+            updated = store.Open("local")
+            assert updated.authorization == scope.authorization and target in updated.allow, (
+                "The exclusion must preserve granted consent and the original query allow rule."
+            )
+            assert updated.Check(Target(TargetKind.IP, "127.0.0.1"), at=NOW).Allowed(), (
+                "The literal loopback destination must remain allowed after excluding the query."
+            )
 
         with pytest.raises(PolicyDeniedError) as denied:
             asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", CanaryPolicy,
                 check_id=CHECK_ID, confirmation=approval, clock=AuthorityClock))
 
-        assert denied.value.scope_reason is ScopeDecisionReason.AUTHORIZATION_REVOKED, (
-            "Current consent revocation must deny the previously approved query."
+        assert denied.value.scope_reason is reason, (
+            f"Current scope must deny the previously approved query for {reason.value}."
         )
         observed = service.Observe()
         assert observed["requests"] == [] and observed["file_reads"] == [], (
-            "A revoked canary query must neither reach the listener nor read an owned file."
+            "A denied canary query must neither reach the listener nor read an owned file."
         )
-        assert Findings(LocalModelStore(root).Open()) == (), "Revoked canary work created Findings."
+        assert Findings(LocalModelStore(root).Open()) == (), "Denied canary work created Findings."
         assert OpenWorkspace(root)["verified_evidence_records"] == 0 and not any(
             item.is_file() for item in (root / "evidence").rglob("*")
         ), "A pre-launch denial must leave no worker evidence records or files."
