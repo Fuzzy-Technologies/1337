@@ -45,11 +45,18 @@ from fuzzy1337.policy import (
     CapabilityPermission,
     ImpactPolicy,
     PolicyConfirmation,
+    PolicyDenialReason,
     PolicyDeniedError,
 )
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.scan_commands import OpenWorkspace
-from fuzzy1337.scope import AuthorizationState, LocalScopeStore, ScopeDecisionReason
+from fuzzy1337.scope import (
+    AuthorizationState,
+    LocalScopeStore,
+    ScopeDecisionReason,
+    Target,
+    TargetKind,
+)
 from tests.functional.test_native_web_checks import NativeRunEvidence, NativeWorkspace
 
 PACK = Path(__file__).resolve().parents[2] / "labs/targets/directory-index"
@@ -298,6 +305,55 @@ def test_DirectoryIndexRejectsExactConfirmationAtConsentExpiry(tmp_path, directo
         "Expired consent must prevent both listener contact and an owned directory read."
     )
     assert Findings(LocalModelStore(root).Open()) == (), "Expired consent produced a Finding."
+    assert OpenWorkspace(root)["verified_evidence_records"] == 0 and not any(
+        item.is_file() for item in (root / "evidence").rglob("*")
+    ), "The pre-launch denial must leave no worker evidence records or files."
+
+
+def test_DirectoryIndexRejectsExactConfirmationAfterPeerExclusion(tmp_path, directory_target):
+    """Recheck the literal destination after approving the exact directory URL."""
+
+    server, baseUrl = directory_target
+    root = tmp_path / "workspace"
+    url = baseUrl + "/listing/listed/"
+    target = NativeWorkspace(root, url)
+    address = Target(TargetKind.IP, "127.0.0.1")
+    store = LocalScopeStore(root)
+    scope = store.Open("local")
+    validUntil = scope.authorization.valid_until
+    assert validUntil is not None, "The owned consent must have a finite expiry."
+    now = datetime.fromisoformat(validUntil) - timedelta(seconds=1)
+    assert scope.authorization.state is AuthorizationState.GRANTED and (
+        scope.Check(target, at=now).Allowed() and scope.Check(address, at=now).Allowed()
+    ), "The exact directory URL and literal peer must be authorized at planning time."
+    plan = PlanNativeWebScan(root, "local", target, "operator:owned", DirectoryPolicy,
+        check_id=NATIVE_DIRECTORY_INDEX_CHECK_ID, clock=lambda: now)
+    assert plan.policy_plan.confirmation_required and (
+        plan.invocation.request.parameters["url"] == url
+    ), "The approval must bind the exact listed directory URL."
+    approval = PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:excluded-index-peer")
+    store.Save(replace(scope, exclusions=(address,)))
+    updated = store.Open("local")
+    assert updated.authorization == scope.authorization and updated.allow == scope.allow, (
+        "The peer exclusion must preserve consent and the exact directory URL allow rule."
+    )
+    decision = updated.Check(target, at=now)
+    assert decision.reason is ScopeDecisionReason.EXCLUDED and (
+        decision.rule_reference == address.Reference()
+    ), "The literal peer exclusion must override the registered URL's allow rule."
+
+    with pytest.raises(PolicyDeniedError) as denied:
+        asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", DirectoryPolicy,
+            check_id=NATIVE_DIRECTORY_INDEX_CHECK_ID, confirmation=approval, clock=lambda: now))
+
+    assert denied.value.reason is PolicyDenialReason.SCOPE_DENIED and (
+        denied.value.scope_reason is ScopeDecisionReason.EXCLUDED
+    ), "The saved peer exclusion must deny the exact directory URL before launch."
+    observed = server.Observe()
+    assert observed["requests"] == [] and observed["directory_reads"] == [], (
+        "The excluded peer must receive no request or owned directory read."
+    )
+    assert Findings(LocalModelStore(root).Open()) == (), "The excluded peer produced a Finding."
     assert OpenWorkspace(root)["verified_evidence_records"] == 0 and not any(
         item.is_file() for item in (root / "evidence").rglob("*")
     ), "The pre-launch denial must leave no worker evidence records or files."
