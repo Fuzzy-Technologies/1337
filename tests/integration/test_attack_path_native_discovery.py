@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 
 import pytest
 
+from fuzzy1337.adapters import ExecutionState
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.jobs import JobFailureCode, JobState
 from fuzzy1337.model import LocalModelStore, ObjectKind, RelationKind
@@ -79,6 +80,7 @@ def TrackRequests(handler: type[BaseHTTPRequestHandler],
 @contextmanager
 def OwnedHealthEndpoints(
     monkeypatch: pytest.MonkeyPatch, requests: list[tuple[str, str, str, bool]],
+    *, billingHealthWire: bytes | None = None,
 ) -> Iterator[tuple[Target, ...]]:
     """Run the original Portal, Identity and Billing handlers on owned ephemeral loopback."""
 
@@ -86,6 +88,20 @@ def OwnedHealthEndpoints(
     portal = LoadFixtureModule("portal")
     identity = LoadFixtureModule("identity")
     billing = LoadFixtureModule("billing")
+
+    if billingHealthWire is not None:
+        original = billing.BillingRequestHandler.do_GET
+
+        def ServeBillingHealth(self: BaseHTTPRequestHandler) -> None:
+            """Substitute only the selected Billing health response in this test."""
+
+            if self.path == "/health":
+                self.close_connection = True
+                self.wfile.write(billingHealthWire)
+            else:
+                original(self)
+
+        monkeypatch.setattr(billing.BillingRequestHandler, "do_GET", ServeBillingHealth)
 
     def Stop(server: ThreadingHTTPServer, thread: Thread) -> None:
         """Stop and reap one test listener before allowing offline verification."""
@@ -114,6 +130,7 @@ def OwnedHealthEndpoints(
 
 def CheckAcquisitions(
     root: Path, result: QuickScanSummary, targets: tuple[Target, ...], *, expectedExit: int = 0,
+    failedProbes: int = 0,
 ) -> None:
     """Join each exact job's original worker record to the corresponding persisted observation."""
 
@@ -124,11 +141,14 @@ def CheckAcquisitions(
     endpoints = {item.attributes["url"]: item for item in model.Objects(ObjectKind.ENDPOINT)}
     observations = {item.subject_reference: item for item in model.observations
                     if item.kind == "http.response" and item.provenance.run_reference == job}
-    assert len(result.snapshot.artifacts) == len(observations) == len(targets), (
-        "Each selected endpoint must have one current observation and original acquisition"
+    assert len(result.snapshot.artifacts) == len(targets) + failedProbes, (
+        "Each completed probe must retain its original acquisition."
+    )
+    assert len(observations) == len(targets), (
+        "Only successful probes must have an attributed HTTP observation."
     )
 
-    for target, artifact in zip(targets, result.snapshot.artifacts, strict=True):
+    for target, artifact in zip(targets, result.snapshot.artifacts[:len(targets)], strict=True):
         record = artifact.evidence
         assert artifact.job_id == job and store.Get(record.evidence_id) == record, (
             "The original worker evidence must belong to the exact executing job"
@@ -344,15 +364,25 @@ def test_LaterBillingExclusionPreservesOnlyPortalDiscovery(
     assert requests == [("portal", "GET", "/health", False)], (
         "Discovery must contact only Portal before aborting at the Billing exclusion."
     )
-    CheckAcquisitions(root, result, (portal,), expectedExit=3)
+    CheckPortalOnlyDiscovery(root, result, portal, expectedExit=3)
+
+
+def CheckPortalOnlyDiscovery(
+    root: Path, result: QuickScanSummary, portal: Target, *, expectedExit: int,
+    failedProbes: int = 0,
+) -> None:
+    """Verify that only the successful Portal probe contributed facts after offline reopen."""
+
+    CheckAcquisitions(root, result, (portal,), expectedExit=expectedExit, failedProbes=failedProbes)
     reopened = OpenWorkspace(root)
-    record = result.snapshot.artifacts[0].evidence
+    records = tuple(artifact.evidence for artifact in result.snapshot.artifacts)
+    record = records[0]
     workspace = LocalWorkspaceStore(root).Open()
     assert (
-        reopened["verified_evidence_records"] == 1
-        and workspace.evidence_record_references == (record.evidence_id,)
-        and workspace.evidence_references == (record.reference,)
-    ), "Offline reopen must verify only the original Portal acquisition."
+        reopened["verified_evidence_records"] == 1 + failedProbes
+        and set(workspace.evidence_record_references) == {item.evidence_id for item in records}
+        and set(workspace.evidence_references) == {item.reference for item in records}
+    ), "Offline reopen must verify only the original acquisitions for the probes that ran."
     assert reopened["object_counts"] == {
         kind.value: int(kind in {ObjectKind.HOST, ObjectKind.PORT, ObjectKind.SERVICE,
                                 ObjectKind.ENDPOINT}) for kind in ObjectKind
@@ -370,3 +400,53 @@ def test_LaterBillingExclusionPreservesOnlyPortalDiscovery(
     assert len(model.relations) == 3 and {item.kind for item in model.relations} == {
         RelationKind.HAS_PORT, RelationKind.HOSTS_SERVICE, RelationKind.EXPOSES,
     }, "Portal discovery must retain only its attributable edges without inferred reachability."
+
+
+def test_LaterMalformedBillingHealthPreservesOnlyPortalDiscovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep Portal facts and typed failure evidence when Billing sends an invalid status line."""
+
+    root = tmp_path / "workspace"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned attack-path discovery"),
+                                     WORKSPACE_ID)
+    LocalModelStore(root).Create()
+    requests: list[tuple[str, str, str, bool]] = []
+    now = datetime.now(UTC)
+
+    with OwnedHealthEndpoints(
+        monkeypatch, requests, billingHealthWire=b"HTTP/1.1 invalid\r\nContent-Length: 0\r\n\r\n",
+    ) as (portal, identity, billing):
+        selected = (portal, billing, identity)
+        members = (*selected, Target(TargetKind.IP, "127.0.0.1"))
+        LocalScopeStore(root).Create(ScopeSnapshot(SCOPE_ID, WORKSPACE_ID, ScopeAuthorization(
+            AuthorizationState.GRANTED, OWNER, "approval:attack-path-discovery",
+            (now - timedelta(seconds=1)).isoformat(), (now + timedelta(minutes=1)).isoformat(),
+        ), targets=members, allow=members))
+        result = asyncio.run(RunQuickScan(root, SCOPE_ID, selected, OWNER,
+                                         approve_safe_http=True, clock=lambda: now))
+
+    assert requests == [
+        ("portal", "GET", "/health", False), ("billing", "GET", "/health", False),
+    ], "Discovery must make exactly two anonymous requests and stop before Identity."
+    assert result.snapshot.state is JobState.FAILED and result.snapshot.failure is not None, (
+        "A malformed Billing response must fail the partial discovery job."
+    )
+    assert result.snapshot.failure.code is JobFailureCode.PROVIDER, (
+        "The partial job must preserve its typed worker failure."
+    )
+    CheckPortalOnlyDiscovery(root, result, portal, expectedExit=4, failedProbes=1)
+
+    failedArtifact = result.snapshot.artifacts[1]
+    record = failedArtifact.evidence
+    evidence = LocalEvidenceStore(root / "evidence")
+    assert failedArtifact.job_id == result.snapshot.spec.job_id and (
+        evidence.Get(record.evidence_id) == record
+    ), "The original Billing worker failure must remain attached to the partial job."
+    assert json.loads(evidence.Read(record.reference)) == {
+        "schema_version": 1, "error": "protocol",
+    }, "An invalid HTTP status line must retain only the original protocol error record."
+    execution = record.provenance.execution
+    assert execution is not None and execution.state is ExecutionState.FAILED and (
+        execution.exit_code == 1
+    ), "The retained error must come from the actual failed worker."
