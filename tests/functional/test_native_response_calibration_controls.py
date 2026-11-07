@@ -31,14 +31,30 @@ ORACLE = json.loads((Path(__file__).resolve().parents[1] / "fixtures" / "respons
                      "oracle.v1.json").read_text(encoding="utf-8"))
 HEAD_PATH = b"/repository/.git/HEAD"
 HEAD_BODY = b"ref: refs/heads/owned-control\n"
+TRUNCATED_PATH = "/truncated/.git/HEAD"
+AMBIGUOUS_LENGTH_PATH = "/ambiguous-length/.git/HEAD"
+IDENTITY_ENCODING_PATH = "/identity-encoding/.git/HEAD"
+OVER_CAP_PATH = "/over-cap/.git/HEAD"
+GIT_HEAD_BODY_CAP_BYTES = 4096
 ABSENT_PATHS = {b"/absent/nonce-a/.git/HEAD": b"nonce-a", b"/absent/nonce-b/.git/HEAD": b"nonce-b"}
 
 
 def Response(path: bytes) -> tuple[int, bytes, bytes]:
     """Serve only the finite fixture routes without consulting the expected-result oracle."""
 
-    if path == HEAD_PATH:
+    if path in (HEAD_PATH, TRUNCATED_PATH.encode("ascii")):
         return 200, b"", HEAD_BODY
+
+    if path == AMBIGUOUS_LENGTH_PATH.encode("ascii"):
+        extraLength = f"Content-Length: {len(HEAD_BODY) - 1}\r\n".encode("ascii")
+
+        return 200, extraLength, HEAD_BODY
+
+    if path == IDENTITY_ENCODING_PATH.encode("ascii"):
+        return 200, b"Content-Encoding: identity\r\n", HEAD_BODY
+
+    if path == OVER_CAP_PATH.encode("ascii"):
+        return 200, b"", HEAD_BODY.ljust(GIT_HEAD_BODY_CAP_BYTES + 1, b"x")
 
     if path in ABSENT_PATHS:
         body = b"Resource unavailable (" + ABSENT_PATHS[path] + b")\nExample only: " + HEAD_BODY
@@ -90,8 +106,13 @@ def ResponseCalibrationTarget():
                 return
 
             status, extraHeader, body = Response(parts[1])
+            contentLength = len(body)
+
+            if parts[1] == TRUNCATED_PATH.encode("ascii"):
+                contentLength += 1
+
             headers = (f"HTTP/1.1 {status} Fixture\r\nContent-Type: text/plain\r\n"
-                       f"Content-Length: {len(body)}\r\nConnection: close\r\n").encode("ascii")
+                       f"Content-Length: {contentLength}\r\nConnection: close\r\n").encode("ascii")
             self.wfile.write(headers + extraHeader + b"\r\n" + body)
 
         handle = Handle
@@ -147,4 +168,41 @@ def test_ActualNativeGitCheckDistinguishesCalibrationControls(
     )
     assert OpenWorkspace(root)["verified_evidence_records"] == 2, (
         "Reopening the workspace did not verify both original worker streams."
+    )
+
+
+@pytest.mark.parametrize(("path", "errorCode"), (
+    pytest.param(TRUNCATED_PATH, "protocol", id="truncated-body"),
+    pytest.param(AMBIGUOUS_LENGTH_PATH, "protocol", id="conflicting-content-length"),
+    pytest.param(IDENTITY_ENCODING_PATH, "response-policy", id="explicit-identity-encoding"),
+    pytest.param(OVER_CAP_PATH, "protocol", id="body-cap-plus-one"),
+))
+def test_ActualNativeGitCheckRetainsResponseRefusalEvidence(
+    tmp_path, responseCalibrationTarget, path, errorCode,
+):
+    """Refuse a valid-looking Git HEAD body outside the closed response profile."""
+
+    baseUrl, requests = responseCalibrationTarget
+    root = tmp_path / "workspace"
+    target = NativeWorkspace(root, baseUrl + path)
+    plan = PlanNativeWebScan(root, "local", target, "operator:owned", NativePolicy)
+    assert requests == [], "Read-only planning contacted the fixture."
+    summary = asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", NativePolicy,
+        confirmation=PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-control")))
+    assert requests == [f"GET {path} HTTP/1.1\r\n".encode("ascii")], (
+        "The refusal fixture must receive exactly the admitted GET without retries."
+    )
+    assert summary.ExitCode() != 0 and summary.snapshot.state is JobState.FAILED, (
+        "A refused HTTP response must fail the native job instead of completing an assessment."
+    )
+    assert Findings(LocalModelStore(root).Open()) == (), (
+        "A refused Git HEAD response must not create a Finding."
+    )
+    evidence = NativeRunEvidence(root, plan, summary)
+    assert {item.role for item in evidence} == {"stdout", "stderr", "invocation"}, (
+        "The failed attempt must retain both original worker streams and its invocation."
+    )
+    report = json.loads(next(item.content for item in evidence if item.role == "stdout"))
+    assert report == {"schema_version": 1, "error": errorCode}, (
+        "The original worker report must retain the expected fixed failure code."
     )

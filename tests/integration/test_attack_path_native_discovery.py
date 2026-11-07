@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+import shutil
 import sys
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
@@ -21,6 +22,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.jobs import JobFailureCode, JobState
 from fuzzy1337.model import LocalModelStore, ObjectKind, RelationKind
 from fuzzy1337.quickscan import QuickScanSummary, RunQuickScan
 from fuzzy1337.scan_commands import OpenWorkspace
@@ -28,6 +30,7 @@ from fuzzy1337.scope import (
     AuthorizationState,
     LocalScopeStore,
     ScopeAuthorization,
+    ScopeDecisionReason,
     ScopeSnapshot,
     Target,
     TargetKind,
@@ -109,10 +112,12 @@ def OwnedHealthEndpoints(
         yield tuple(targets)
 
 
-def CheckAcquisitions(root: Path, result: QuickScanSummary, targets: tuple[Target, ...]) -> None:
+def CheckAcquisitions(
+    root: Path, result: QuickScanSummary, targets: tuple[Target, ...], *, expectedExit: int = 0,
+) -> None:
     """Join each exact job's original worker record to the corresponding persisted observation."""
 
-    assert result.ExitCode() == 0, result.snapshot.failure
+    assert result.ExitCode() == expectedExit, result.snapshot.failure
     store = LocalEvidenceStore(root / "evidence")
     model = LocalModelStore(root).Open()
     job = result.snapshot.spec.job_id
@@ -216,3 +221,152 @@ def test_AttackPathServicesProduceAttributedEndpointObservationsWithoutPathClaim
         kind.value: {ObjectKind.HOST: 1, ObjectKind.PORT: 3, ObjectKind.SERVICE: 3,
                      ObjectKind.ENDPOINT: 3}.get(kind, 0) for kind in ObjectKind
     }, "The observed endpoint facts must not create a Finding or a seeded business object"
+
+    originalEvidence = LocalEvidenceStore(root / "evidence")
+    originals = tuple(
+        (artifact.evidence, originalEvidence.Read(artifact.evidence.reference))
+        for result in (first, repeated) for artifact in result.snapshot.artifacts
+    )
+    assert len({record.evidence_id for record, _ in originals}) == 6, (
+        "The two jobs must retain six separately attributed original acquisitions."
+    )
+    observedRequests = tuple(requests)
+    relocated = tmp_path / "relocated"
+    shutil.copytree(root, relocated)
+    assert OpenWorkspace(relocated) == reopened, (
+        "Offline relocation must preserve workspace metadata and all verified evidence counts."
+    )
+    assert LocalModelStore(relocated).Open() == current, (
+        "Offline relocation must preserve all objects, relations and attributed observations."
+    )
+    assert LocalWorkspaceStore(relocated).Open() == LocalWorkspaceStore(root).Open(), (
+        "Relocation must preserve exact job and relative evidence references."
+    )
+    relocatedEvidence = LocalEvidenceStore(relocated / "evidence")
+
+    for record, content in originals:
+        assert relocatedEvidence.Get(record.evidence_id) == record, (
+            "Offline relocation changed an original evidence identity or its provenance."
+        )
+        assert relocatedEvidence.Read(record.reference) == content, (
+            "Offline relocation changed the immutable original worker bytes."
+        )
+
+    CheckAcquisitions(relocated, first, targets)
+    CheckAcquisitions(relocated, repeated, targets)
+    assert tuple(requests) == observedRequests, "Offline verification must not contact any target."
+
+
+def test_ExcludedBillingEndpointLeavesNoDiscoveryEvidenceOrFacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Honor an exact Billing exclusion even with granted consent and SAFE discovery enabled."""
+
+    root = tmp_path / "workspace"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned attack-path discovery"),
+                                     WORKSPACE_ID)
+    initial = LocalModelStore(root).Create()
+    requests: list[tuple[str, str, str, bool]] = []
+    now = datetime.now(UTC)
+
+    with OwnedHealthEndpoints(monkeypatch, requests) as (_, _, billing):
+        address = Target(TargetKind.IP, "127.0.0.1")
+        members = (billing, address)
+        scopeStore = LocalScopeStore(root)
+        scopeStore.Create(ScopeSnapshot(SCOPE_ID, WORKSPACE_ID, ScopeAuthorization(
+            AuthorizationState.GRANTED, OWNER, "approval:attack-path-discovery",
+            (now - timedelta(seconds=1)).isoformat(), (now + timedelta(minutes=1)).isoformat(),
+        ), targets=members, allow=members, exclusions=(billing,)))
+        scope = scopeStore.Open(SCOPE_ID)
+        assert scope.Check(billing, at=now).reason is ScopeDecisionReason.EXCLUDED, (
+            "The exact Billing URL exclusion must take precedence over its allow rule."
+        )
+        assert scope.Check(address, at=now).Allowed(), (
+            "The literal loopback destination must remain allowed."
+        )
+
+        denied = asyncio.run(RunQuickScan(root, SCOPE_ID, (billing,), OWNER,
+                                         approve_safe_http=True, clock=lambda: now))
+        assert denied.snapshot.state is JobState.FAILED and denied.ExitCode() == 3, (
+            "Excluded Billing discovery must return a failed authorization outcome."
+        )
+        assert denied.snapshot.failure is not None and (
+            denied.snapshot.failure.code is JobFailureCode.AUTHORIZATION
+        ), "The discovery job must retain the typed authorization failure."
+        assert not denied.snapshot.artifacts, "Denied discovery must retain no acquisitions."
+
+    assert not requests, "Excluded Billing discovery must not contact any owned listener."
+    assert LocalModelStore(root).Open() == initial, (
+        "Offline reopen must retain the empty model without Findings or reachability facts."
+    )
+    assert OpenWorkspace(root)["verified_evidence_records"] == 0 and not any(
+        item.is_file() for item in (root / "evidence").rglob("*")
+    ), "Offline reopen must find no evidence records or worker files."
+
+
+def test_LaterBillingExclusionPreservesOnlyPortalDiscovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retain the verified Portal result and stop when the next selected endpoint is excluded."""
+
+    root = tmp_path / "workspace"
+    LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned attack-path discovery"),
+                                     WORKSPACE_ID)
+    LocalModelStore(root).Create()
+    requests: list[tuple[str, str, str, bool]] = []
+    now = datetime.now(UTC)
+
+    with OwnedHealthEndpoints(monkeypatch, requests) as (portal, identity, billing):
+        address = Target(TargetKind.IP, "127.0.0.1")
+        selected = (portal, billing, identity)
+        members = (*selected, address)
+        scopeStore = LocalScopeStore(root)
+        scopeStore.Create(ScopeSnapshot(SCOPE_ID, WORKSPACE_ID, ScopeAuthorization(
+            AuthorizationState.GRANTED, OWNER, "approval:attack-path-discovery",
+            (now - timedelta(seconds=1)).isoformat(), (now + timedelta(minutes=1)).isoformat(),
+        ), targets=members, allow=members, exclusions=(billing,)))
+        scope = scopeStore.Open(SCOPE_ID)
+        assert scope.Check(billing, at=now).reason is ScopeDecisionReason.EXCLUDED, (
+            "The Billing URL exclusion must take precedence over its allow rule."
+        )
+        assert all(
+            scope.Check(target, at=now).Allowed() for target in (portal, identity, address)
+        ), "Portal, Identity and the literal loopback destination must remain allowed."
+        result = asyncio.run(RunQuickScan(root, SCOPE_ID, selected, OWNER,
+                                         approve_safe_http=True, clock=lambda: now))
+        assert result.snapshot.state is JobState.FAILED and result.snapshot.failure is not None, (
+            "Partial discovery must fail when the next endpoint is excluded."
+        )
+        assert result.snapshot.failure.code is JobFailureCode.AUTHORIZATION, (
+            "The partial job must retain its typed authorization failure."
+        )
+
+    assert requests == [("portal", "GET", "/health", False)], (
+        "Discovery must contact only Portal before aborting at the Billing exclusion."
+    )
+    CheckAcquisitions(root, result, (portal,), expectedExit=3)
+    reopened = OpenWorkspace(root)
+    record = result.snapshot.artifacts[0].evidence
+    workspace = LocalWorkspaceStore(root).Open()
+    assert (
+        reopened["verified_evidence_records"] == 1
+        and workspace.evidence_record_references == (record.evidence_id,)
+        and workspace.evidence_references == (record.reference,)
+    ), "Offline reopen must verify only the original Portal acquisition."
+    assert reopened["object_counts"] == {
+        kind.value: int(kind in {ObjectKind.HOST, ObjectKind.PORT, ObjectKind.SERVICE,
+                                ObjectKind.ENDPOINT}) for kind in ObjectKind
+    }, "Only Portal discovery may contribute facts and no Finding may be inferred."
+    model = LocalModelStore(root).Open()
+    assert sum(item.kind == "http.response" for item in model.observations) == 1, (
+        "Offline reopen must retain exactly one Portal HTTP response."
+    )
+    assert all(
+        item.provenance.target_reference == portal.Reference()
+        and item.provenance.run_reference == result.snapshot.spec.job_id
+        and item.provenance.evidence_references == (record.reference,)
+        for item in model.observations
+    ), "Every persisted observation must be attributable to the original Portal acquisition."
+    assert len(model.relations) == 3 and {item.kind for item in model.relations} == {
+        RelationKind.HAS_PORT, RelationKind.HOSTS_SERVICE, RelationKind.EXPOSES,
+    }, "Portal discovery must retain only its attributable edges without inferred reachability."

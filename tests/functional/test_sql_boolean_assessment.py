@@ -224,8 +224,9 @@ def test_AssessOnlyTheCurrentOwnedSqlJobPrefix(tmp_path, mode, control, expected
         assert service.Observe() == targetFacts, "Refused evidence also cannot contact the target."
 
 
-def test_StaticSqlLookalikeSupportsOnlyADifferentialCandidate(tmp_path):
-    """Reproduce the vulnerable fixture bytes on exact routes without executing SQL."""
+@pytest.fixture(name="staticSqlLookalike")
+def StaticSqlLookalike():
+    """Serve fixed vulnerable-fixture bytes on an owned, explicitly stoppable listener."""
 
     cases = {case["sample"]: case["route"] for case in Oracle()["sql_boolean_cases"]
              if case["mode"] == "vulnerable"}
@@ -258,43 +259,62 @@ def test_StaticSqlLookalikeSupportsOnlyADifferentialCandidate(tmp_path):
 
         do_GET = Get
 
-    root = tmp_path / "workspace"
-    CreateWorkspace(root, WORKSPACE_ID, "Owned static SQL lookalike")
-    before = LocalWorkspaceStore(root).Open()
-
     with HTTPServer(("127.0.0.1", 0), Handler) as server:
         thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01})
         thread.start()
+        stopped = False
 
-        try:
-            origin = f"http://127.0.0.1:{server.server_port}"
-            targets = tuple(Target(TargetKind.URL, origin + route) for route in routes)
-            allowed = (*targets[:3], Target(TargetKind.IP, "127.0.0.1"))
-            now = datetime.now(UTC)
-            LocalScopeStore(root).Create(ScopeSnapshot("local", WORKSPACE_ID, ScopeAuthorization(
-                AuthorizationState.GRANTED, OWNER, "consent:owned-static-sql-lookalike",
-                (now - timedelta(minutes=1)).isoformat(), (now + timedelta(minutes=10)).isoformat(),
-            ), targets=allowed, allow=allowed))
-            plans = tuple(PlanNativeWebScan(root, "local", target, OWNER, SamplePolicy,
-                check_id=NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID) for target in targets)
-            assert not requests, "Planning must not contact the lookalike target."
-            runs = []
+        def Stop() -> None:
+            """Close the listener before offline assessment and tolerate fixture teardown."""
 
-            for index, (target, plan) in enumerate(zip(targets, plans, strict=True)):
-                confirmation = PolicyConfirmation(plan.policy_plan.intent_sha256,
-                                                  f"approval:owned-static-sql-lookalike-{index}")
-                run = asyncio.run(RunNativeWebScan(root, "local", target, OWNER, SamplePolicy,
-                    check_id=NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID, confirmation=confirmation))
-                assert run.snapshot.state is JobState.COMPLETED, (
-                    "The confirmed worker must acquire the complete static response."
-                )
-                runs.append(run)
+            nonlocal stopped
 
-        finally:
+            if stopped:
+                return
+
             server.shutdown()
             thread.join(timeout=3)
+            server.server_close()
+            stopped = True
             assert not thread.is_alive(), "The static SQL lookalike leaked its listener."
 
+        try:
+            yield f"http://127.0.0.1:{server.server_port}", routes, bodies, requests, Stop
+
+        finally:
+            Stop()
+
+
+def test_StaticSqlLookalikeSupportsOnlyADifferentialCandidate(tmp_path, staticSqlLookalike):
+    """Reproduce the vulnerable fixture bytes on exact routes without executing SQL."""
+
+    origin, routes, bodies, requests, stop = staticSqlLookalike
+    root = tmp_path / "workspace"
+    CreateWorkspace(root, WORKSPACE_ID, "Owned static SQL lookalike")
+    before = LocalWorkspaceStore(root).Open()
+    targets = tuple(Target(TargetKind.URL, origin + route) for route in routes)
+    allowed = (*targets[:3], Target(TargetKind.IP, "127.0.0.1"))
+    now = datetime.now(UTC)
+    LocalScopeStore(root).Create(ScopeSnapshot("local", WORKSPACE_ID, ScopeAuthorization(
+        AuthorizationState.GRANTED, OWNER, "consent:owned-static-sql-lookalike",
+        (now - timedelta(minutes=1)).isoformat(), (now + timedelta(minutes=10)).isoformat(),
+    ), targets=allowed, allow=allowed))
+    plans = tuple(PlanNativeWebScan(root, "local", target, OWNER, SamplePolicy,
+        check_id=NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID) for target in targets)
+    assert not requests, "Planning must not contact the lookalike target."
+    runs = []
+
+    for index, (target, plan) in enumerate(zip(targets, plans, strict=True)):
+        confirmation = PolicyConfirmation(plan.policy_plan.intent_sha256,
+                                          f"approval:owned-static-sql-lookalike-{index}")
+        run = asyncio.run(RunNativeWebScan(root, "local", target, OWNER, SamplePolicy,
+            check_id=NATIVE_SQL_BOOLEAN_SAMPLE_CHECK_ID, confirmation=confirmation))
+        assert run.snapshot.state is JobState.COMPLETED, (
+            "The confirmed worker must acquire the complete static response."
+        )
+        runs.append(run)
+
+    stop()
     assert tuple(requests) == routes, "Only the four separately confirmed paths may be requested."
     model = LocalModelStore(root).Open()
     observed = {item.provenance.run_reference: item.attributes for item in model.observations

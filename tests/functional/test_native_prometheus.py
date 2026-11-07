@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
 import hashlib
 import json
 import shutil
@@ -45,7 +46,10 @@ NAN_EXPOSITION = (b"# HELP observed_accuracy Current diagnostic ratio\n"
 OUTPUT = Path("_build/native-prometheus/acceptance")
 
 
-def Response(body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="text/plain"):
+def Response(
+    body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="text/plain",
+    firstChunkExtension=b"", trailer=b"", contentEncoding=b"",
+):
     """Freeze synthetic transport truth independently of detector parsing and metric names."""
 
     header = f"HTTP/1.1 {status} Owned\r\nContent-Type: {media}\r\n".encode()
@@ -53,12 +57,17 @@ def Response(body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="te
     if status == 302:
         header += b"Location: /unselected\r\n"
 
+    if contentEncoding:
+        header += b"Content-Encoding: " + contentEncoding + b"\r\n"
+
     if framing == "chunked":
         split = len(body) // 2
+        chunkSize = f"{split:x}".encode() + firstChunkExtension
 
         return (header + b"Transfer-Encoding: chunked\r\n\r\n"
-                + f"{split:x}\r\n".encode() + body[:split] + b"\r\n"
-                + f"{len(body) - split:x}\r\n".encode() + body[split:] + b"\r\n0\r\n\r\n")
+                + chunkSize + b"\r\n" + body[:split] + b"\r\n"
+                + f"{len(body) - split:x}\r\n".encode() + body[split:] + b"\r\n0\r\n"
+                + trailer + b"\r\n")
 
     if framing == "length":
         return header + f"Content-Length: {len(body)}\r\n\r\n".encode() + body
@@ -66,9 +75,29 @@ def Response(body=PADDED_EXPOSITION, *, framing="chunked", status=200, media="te
     return header + b"\r\n" + body
 
 
+def ChunkCountResponse(chunkCount):
+    """Split the positive body into the selected number of nonempty chunks."""
+
+    header = Response().split(b"\r\n\r\n", 1)[0]
+    singleByteChunks = b"".join(
+        b"1\r\n" + PADDED_EXPOSITION[index:index + 1] + b"\r\n"
+        for index in range(chunkCount - 1)
+    )
+    remaining = PADDED_EXPOSITION[chunkCount - 1:]
+    assert remaining, "The last data chunk must be nonempty."
+
+    return (header + b"\r\n\r\n" + singleByteChunks
+            + f"{len(remaining):x}\r\n".encode() + remaining + b"\r\n0\r\n\r\n")
+
+
 CASES = {
     "length-positive": (Response(framing="length"), True, True),
     "chunked-positive": (Response(), True, True),
+    "chunk-count-at-limit": (ChunkCountResponse(4096), True, True),
+    "chunk-count-over-limit": (ChunkCountResponse(4097), False, False),
+    "gzip-content-encoding": (
+        Response(gzip.compress(PADDED_EXPOSITION, mtime=0), contentEncoding=b"gzip"), False, False,
+    ),
     "eof-positive": (Response(framing="eof"), True, True),
     "nan-spelling-positive": (Response(NAN_EXPOSITION), True, True),
     "plain-prose-decoy": (Response(b"This page describes Prometheus metrics\n"), False, True),
@@ -77,6 +106,8 @@ CASES = {
     "denied": (Response(status=403), False, True),
     "redirect": (Response(status=302), False, True),
     "truncated-chunk": (Response()[:-2], False, False),
+    "chunk-extension": (Response(firstChunkExtension=b";owned=fixture"), False, False),
+    "chunk-trailer": (Response(trailer=b"X-Owned-Trailer: fixture\r\n"), False, False),
     "oversized-eof": (Response(b"x" * 262145, framing="eof"), False, False),
     "ambiguous-framing": (Response().replace(b"Transfer-Encoding: chunked\r\n",
         b"Transfer-Encoding: chunked\r\nContent-Length: 1\r\n"), False, False),
@@ -196,6 +227,22 @@ def test_ActualInstalledWorkerPersistsOnlyCorrectMetricsFindings(tmp_path, prome
 
     else:
         assert set(worker) == {"schema_version", "error"}, "Failed acquisition invented assessment."
+
+        if case in {"chunk-extension", "chunk-trailer", "chunk-count-over-limit"}:
+            assert summary.snapshot.state is JobState.FAILED, (
+                f"The {case} response must fail the governed metrics job."
+            )
+            assert worker == {"schema_version": 1, "error": "protocol"}, (
+                f"Original worker evidence must preserve the {case} protocol refusal."
+            )
+
+        if case == "gzip-content-encoding":
+            assert summary.snapshot.state is JobState.FAILED, (
+                "The gzip response must fail the governed metrics job."
+            )
+            assert worker == {"schema_version": 1, "error": "response-policy"}, (
+                "Original worker evidence must identify the gzip response policy refusal."
+            )
 
     assert OpenWorkspace(root)["verified_evidence_records"] == 2, "Durable reopen lost evidence."
     output = OUTPUT / case
