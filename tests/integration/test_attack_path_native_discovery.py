@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+import shutil
 import sys
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
@@ -220,6 +221,40 @@ def test_AttackPathServicesProduceAttributedEndpointObservationsWithoutPathClaim
         kind.value: {ObjectKind.HOST: 1, ObjectKind.PORT: 3, ObjectKind.SERVICE: 3,
                      ObjectKind.ENDPOINT: 3}.get(kind, 0) for kind in ObjectKind
     }, "The observed endpoint facts must not create a Finding or a seeded business object"
+
+    originalEvidence = LocalEvidenceStore(root / "evidence")
+    originals = tuple(
+        (artifact.evidence, originalEvidence.Read(artifact.evidence.reference))
+        for result in (first, repeated) for artifact in result.snapshot.artifacts
+    )
+    assert len({record.evidence_id for record, _ in originals}) == 6, (
+        "The two jobs must retain six separately attributed original acquisitions."
+    )
+    observedRequests = tuple(requests)
+    relocated = tmp_path / "relocated"
+    shutil.copytree(root, relocated)
+    assert OpenWorkspace(relocated) == reopened, (
+        "Offline relocation must preserve workspace metadata and all verified evidence counts."
+    )
+    assert LocalModelStore(relocated).Open() == current, (
+        "Offline relocation must preserve all objects, relations and attributed observations."
+    )
+    assert LocalWorkspaceStore(relocated).Open() == LocalWorkspaceStore(root).Open(), (
+        "Relocation must preserve exact job and relative evidence references."
+    )
+    relocatedEvidence = LocalEvidenceStore(relocated / "evidence")
+
+    for record, content in originals:
+        assert relocatedEvidence.Get(record.evidence_id) == record, (
+            "Offline relocation changed an original evidence identity or its provenance."
+        )
+        assert relocatedEvidence.Read(record.reference) == content, (
+            "Offline relocation changed the immutable original worker bytes."
+        )
+
+    CheckAcquisitions(relocated, first, targets)
+    CheckAcquisitions(relocated, repeated, targets)
+    assert tuple(requests) == observedRequests, "Offline verification must not contact any target."
 
 
 def test_ExcludedBillingEndpointLeavesNoDiscoveryEvidenceOrFacts(
