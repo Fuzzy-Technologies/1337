@@ -376,6 +376,7 @@ def test_CanaryConfirmationCannotSubstituteAnotherExplicitlyScopedQuery(tmp_path
 @pytest.mark.parametrize("reason", (
     pytest.param(ScopeDecisionReason.AUTHORIZATION_REVOKED, id="revoked"),
     pytest.param(ScopeDecisionReason.EXCLUDED, id="excluded"),
+    pytest.param(ScopeDecisionReason.AUTHORIZATION_EXPIRED, id="expired"),
 ))
 def test_CanaryRechecksCurrentScopeAfterExactConfirmation(tmp_path, reason):
     """Deny an exactly confirmed private canary query when current scope no longer allows it."""
@@ -392,11 +393,12 @@ def test_CanaryRechecksCurrentScopeAfterExactConfirmation(tmp_path, reason):
         approval = PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-canary")
         store = LocalScopeStore(root)
         scope = store.Open("local")
+        runAt = NOW
 
         if reason is ScopeDecisionReason.AUTHORIZATION_REVOKED:
             store.Save(replace(scope, authorization=replace(scope.authorization,
                 state=AuthorizationState.REVOKED)))
-        else:
+        elif reason is ScopeDecisionReason.EXCLUDED:
             store.Save(replace(scope, exclusions=(target,)))
             updated = store.Open("local")
             assert updated.authorization == scope.authorization and target in updated.allow, (
@@ -405,14 +407,25 @@ def test_CanaryRechecksCurrentScopeAfterExactConfirmation(tmp_path, reason):
             assert updated.Check(Target(TargetKind.IP, "127.0.0.1"), at=NOW).Allowed(), (
                 "The literal loopback destination must remain allowed after excluding the query."
             )
+        else:
+            address = Target(TargetKind.IP, "127.0.0.1")
+            assert scope.authorization.state is AuthorizationState.GRANTED and (
+                scope.Check(target, at=NOW).Allowed() and scope.Check(address, at=NOW).Allowed()
+            ), "The exact query and literal destination must be authorized at planning time."
+            validUntil = scope.authorization.valid_until
+            assert validUntil is not None, "The saved canary grant must have an expiry boundary."
+            runAt = datetime.fromisoformat(validUntil)
 
         with pytest.raises(PolicyDeniedError) as denied:
             asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", CanaryPolicy,
-                check_id=CHECK_ID, confirmation=approval, clock=AuthorityClock))
+                check_id=CHECK_ID, confirmation=approval, clock=lambda: runAt))
 
         assert denied.value.scope_reason is reason, (
             f"Current scope must deny the previously approved query for {reason.value}."
         )
+        if reason is ScopeDecisionReason.AUTHORIZATION_EXPIRED:
+            assert store.Open("local") == scope, "Expiry must preserve the saved grant and rules."
+
         observed = service.Observe()
         assert observed["requests"] == [] and observed["file_reads"] == [], (
             "A denied canary query must neither reach the listener nor read an owned file."
