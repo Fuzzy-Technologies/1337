@@ -45,6 +45,7 @@ from fuzzy1337.policy import (
     CapabilityPermission,
     ImpactPolicy,
     PolicyConfirmation,
+    PolicyDenialReason,
     PolicyDeniedError,
 )
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
@@ -373,12 +374,13 @@ def test_CanaryConfirmationCannotSubstituteAnotherExplicitlyScopedQuery(tmp_path
         assert Findings(LocalModelStore(root).Open()) == (), "Mismatched intent invented Findings."
 
 
-@pytest.mark.parametrize("reason", (
-    pytest.param(ScopeDecisionReason.AUTHORIZATION_REVOKED, id="revoked"),
-    pytest.param(ScopeDecisionReason.EXCLUDED, id="excluded"),
-    pytest.param(ScopeDecisionReason.AUTHORIZATION_EXPIRED, id="expired"),
+@pytest.mark.parametrize(("reason", "excludedKind"), (
+    pytest.param(ScopeDecisionReason.AUTHORIZATION_REVOKED, None, id="revoked"),
+    pytest.param(ScopeDecisionReason.EXCLUDED, TargetKind.URL, id="excluded"),
+    pytest.param(ScopeDecisionReason.EXCLUDED, TargetKind.IP, id="excluded-peer"),
+    pytest.param(ScopeDecisionReason.AUTHORIZATION_EXPIRED, None, id="expired"),
 ))
-def test_CanaryRechecksCurrentScopeAfterExactConfirmation(tmp_path, reason):
+def test_CanaryRechecksCurrentScopeAfterExactConfirmation(tmp_path, reason, excludedKind):
     """Deny an exactly confirmed private canary query when current scope no longer allows it."""
 
     with OwnedWebFileAccessTarget(tmp_path / "target") as service:
@@ -393,22 +395,27 @@ def test_CanaryRechecksCurrentScopeAfterExactConfirmation(tmp_path, reason):
         approval = PolicyConfirmation(plan.policy_plan.intent_sha256, "approval:owned-canary")
         store = LocalScopeStore(root)
         scope = store.Open("local")
+        address = Target(TargetKind.IP, "127.0.0.1")
         runAt = NOW
 
         if reason is ScopeDecisionReason.AUTHORIZATION_REVOKED:
             store.Save(replace(scope, authorization=replace(scope.authorization,
                 state=AuthorizationState.REVOKED)))
         elif reason is ScopeDecisionReason.EXCLUDED:
-            store.Save(replace(scope, exclusions=(target,)))
+            excluded = address if excludedKind is TargetKind.IP else target
+            store.Save(replace(scope, exclusions=(excluded,)))
             updated = store.Open("local")
-            assert updated.authorization == scope.authorization and target in updated.allow, (
+            assert updated.authorization == scope.authorization and updated.allow == scope.allow, (
                 "The exclusion must preserve granted consent and the original query allow rule."
             )
-            assert updated.Check(Target(TargetKind.IP, "127.0.0.1"), at=NOW).Allowed(), (
-                "The literal loopback destination must remain allowed after excluding the query."
+            decision = updated.Check(target, at=NOW)
+            assert decision.reason is ScopeDecisionReason.EXCLUDED and (
+                decision.rule_reference == excluded.Reference()
+            ), "The saved exclusion must override the exact query allow rule."
+            assert updated.Check(address, at=NOW).Allowed() is (excludedKind is TargetKind.URL), (
+                "Only excluding the literal peer must deny its IP target directly."
             )
         else:
-            address = Target(TargetKind.IP, "127.0.0.1")
             assert scope.authorization.state is AuthorizationState.GRANTED and (
                 scope.Check(target, at=NOW).Allowed() and scope.Check(address, at=NOW).Allowed()
             ), "The exact query and literal destination must be authorized at planning time."
@@ -420,7 +427,9 @@ def test_CanaryRechecksCurrentScopeAfterExactConfirmation(tmp_path, reason):
             asyncio.run(RunNativeWebScan(root, "local", target, "operator:owned", CanaryPolicy,
                 check_id=CHECK_ID, confirmation=approval, clock=lambda: runAt))
 
-        assert denied.value.scope_reason is reason, (
+        assert denied.value.reason is PolicyDenialReason.SCOPE_DENIED and (
+            denied.value.scope_reason is reason
+        ), (
             f"Current scope must deny the previously approved query for {reason.value}."
         )
         if reason is ScopeDecisionReason.AUTHORIZATION_EXPIRED:
