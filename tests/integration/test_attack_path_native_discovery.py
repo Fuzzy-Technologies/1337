@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+import re
 import shutil
 import sys
 from collections.abc import Iterator
@@ -22,7 +23,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from fuzzy1337.adapters import ExecutionState
-from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.evidence import EvidenceIntegrityError, LocalEvidenceStore
 from fuzzy1337.jobs import JobFailureCode, JobState
 from fuzzy1337.model import LocalModelStore, ObjectKind, RelationKind
 from fuzzy1337.quickscan import QuickScanSummary, RunQuickScan
@@ -274,6 +275,18 @@ def test_AttackPathServicesProduceAttributedEndpointObservationsWithoutPathClaim
 
     CheckAcquisitions(relocated, first, targets)
     CheckAcquisitions(relocated, repeated, targets)
+
+    record, content = originals[0]
+    altered = re.sub(rb'("status"\s*:\s*)200\b', rb"\g<1>201", content, count=1)
+    assert len(altered) == len(content) and json.loads(altered) == {
+        **json.loads(content), "status": 201,
+    }, "The altered response must remain valid JSON of the original length."
+    (relocated / "evidence" / record.reference.locator).write_bytes(altered)
+
+    with pytest.raises(EvidenceIntegrityError, match="raw evidence digest or length"):
+        OpenWorkspace(relocated)
+
+    assert OpenWorkspace(root) == reopened, "The original workspace must remain verifiable."
     assert tuple(requests) == observedRequests, "Offline verification must not contact any target."
 
 
