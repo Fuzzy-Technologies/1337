@@ -2,8 +2,7 @@
 
 ## Status
 
-Proposed for owner review, 2026-11-05. Advances #118 under #115. No runtime
-or public contract change is part of this proposal.
+Accepted by the owner, 2026-11-09. Advances #118 under #115.
 
 ## Context
 
@@ -15,7 +14,7 @@ Portal returns HTTP/1.0 JSON. An availability observation, a digest without
 verified bytes, or the scenario's `evidence.discovery` alias cannot substitute
 for the Portal response.
 
-## Proposed decision
+## Decision
 
 Add one fixed read-only descriptor to the repository-owned Portal fixture:
 `GET /.well-known/attack-path-mini`. Keep the original JSON route unchanged.
@@ -74,6 +73,5 @@ role/route projection and the complete #116 oracle remain separate work.
   unassessed cases and create no Finding or reachability transition.
 
 The [focused integration test](../../tests/integration/test_attack_path_portal_role_route_capture.py)
-exercises the current Portal refusal and, separately, a test-only descriptor wire
-through the existing capture and replay SDK. It does not implement or verify a
-new route in the Portal fixture.
+exercises the Portal descriptor and legacy JSON response through the existing
+capture and replay SDK.

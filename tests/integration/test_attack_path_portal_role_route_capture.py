@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Verify the existing capture boundary for the proposed attack-path Portal descriptor."""
+"""Verify the owned Portal descriptor through original capture and offline replay."""
 
 from __future__ import annotations
 
@@ -11,19 +11,20 @@ import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
-from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.client import HTTPConnection
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
 
 import pytest
 
 from fuzzy1337.adapters import ImpactLevel
-from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.evidence import EvidenceIntegrityError, LocalEvidenceStore
 from fuzzy1337.model import LocalModelStore, ObjectKind
 from fuzzy1337.owned_response_workflow import (
     OwnedResponseAuthorityDeniedError,
     OwnedResponseCaptureSummary,
+    OwnedResponseReplaySummary,
     ReplayOwnedContentResponse,
     RunOwnedContentResponseCapture,
 )
@@ -43,35 +44,16 @@ pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Capture owns a 
 
 DESCRIPTOR_PATH = "/.well-known/attack-path-mini"
 DESCRIPTOR_BODY = b"service_id=service.portal\nroute=POST /session\n"
+DESCRIPTOR_WIRE = (
+    b"HTTP/1.1 200 OK\r\n"
+    b"Content-Type: text/plain; charset=utf-8\r\n"
+    b"Content-Length: 46\r\n"
+    b"Connection: close\r\n\r\n"
+    + DESCRIPTOR_BODY
+)
 WORKSPACE_ID = "attack-path-portal-capture"
 SCOPE_ID = "owned-portal"
 OWNER = "operator:attack-path-portal"
-
-
-class DescriptorWireControl(BaseHTTPRequestHandler):
-    """Serve the proposed wire in a test-only listener, separate from the real Portal."""
-
-    protocol_version = "HTTP/1.1"
-
-    def Get(self) -> None:
-        """Send only the fixed non-secret descriptor and close the connection."""
-
-        self.close_connection = True
-
-        if self.path != DESCRIPTOR_PATH:
-            self.send_error(HTTPStatus.NOT_FOUND)
-            return
-
-        self.send_response_only(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
-        self.send_header("Content-Length", str(len(DESCRIPTOR_BODY)))
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.wfile.write(DESCRIPTOR_BODY)
-
-
-# BaseHTTPRequestHandler dispatches with an externally imposed name.
-setattr(DescriptorWireControl, "do_GET", DescriptorWireControl.Get)
 
 
 @contextmanager
@@ -92,33 +74,77 @@ def Listen(server: ThreadingHTTPServer, path: str) -> Iterator[str]:
             assert not thread.is_alive(), "The test-owned Portal listener must stop"
 
 
-def CreateWorkspace(root: Path, url: str) -> None:
+def CreateWorkspace(
+    root: Path, url: str, *, admitUrl: bool = True, admitIp: bool = True, expired: bool = False,
+) -> None:
     """Register and allow only the selected literal loopback source and its address."""
 
     LocalWorkspaceStore(root).Create(WorkspaceConfiguration("Owned Portal capture"), WORKSPACE_ID)
     LocalModelStore(root).Create()
     members = (Target(TargetKind.URL, url), Target(TargetKind.IP, "127.0.0.1"))
+    allow = tuple(target for target, allowed in zip(members, (admitUrl, admitIp), strict=True)
+                  if allowed)
     now = datetime.now(UTC)
+
+    if expired:
+        now -= timedelta(minutes=5)
+
     LocalScopeStore(root).Create(ScopeSnapshot(SCOPE_ID, WORKSPACE_ID, ScopeAuthorization(
         AuthorizationState.GRANTED, "attester:owned-portal", "consent:owned-portal",
         (now - timedelta(seconds=1)).isoformat(), (now + timedelta(minutes=2)).isoformat(),
-    ), targets=members, allow=members))
+    ), targets=members, allow=allow))
 
 
-def Capture(root: Path, url: str, *, retainResponse: bool = True) -> OwnedResponseCaptureSummary:
+def Capture(
+    root: Path, url: str, *, approve: bool = True, retainResponse: bool = True,
+    permit: bool = True,
+) -> OwnedResponseCaptureSummary:
     """Use the existing governed SDK with the explicit capability and separate retention choice."""
 
-    policy = ImpactPolicy("portal-capture", permissions=(CapabilityPermission(
+    permission = CapabilityPermission(
         "http.owned-content-response-capture", "native.loopback-content-response", ImpactLevel.SAFE,
-    ),))
+    )
+    policy = ImpactPolicy("portal-capture", permissions=(permission,) if permit else ())
     return asyncio.run(RunOwnedContentResponseCapture(root, SCOPE_ID, url, OWNER, lambda: policy,
-        approve_safe_content_response_capture=True, retain_response=retainResponse))
+        approve_safe_content_response_capture=approve, retain_response=retainResponse))
+
+
+def AdvertisedPortal(
+    root: Path, replay: OwnedResponseReplaySummary, url: str,
+) -> tuple[str, str, str, str, str] | None:
+    """Read the advertised role and route with the original custody IDs for this exact source."""
+
+    model = LocalModelStore(root).Open()
+    endpoint, = model.objects
+    source, = (item for item in model.observations if item.kind == "owned-content-response-source")
+
+    if (
+        endpoint.identity.kind is not ObjectKind.ENDPOINT or endpoint.identity.key != url
+        or source.subject_reference != endpoint.Reference()
+        or source.provenance.target_reference != Target(TargetKind.URL, url).Reference()
+        or source.provenance.run_reference != replay.original_job_id
+        or source.provenance.scope_reference != f"scope:{SCOPE_ID}"
+    ):
+        return None
+
+    body, = (item for item in replay.records if item.reference.role == "owned-response-body")
+    originalBody = LocalEvidenceStore(root / "evidence").Read(body.reference)
+    if (
+        body.reference not in source.provenance.evidence_references
+        or originalBody != DESCRIPTOR_BODY
+    ):
+        return None
+
+    service, route = originalBody.decode("ascii").splitlines()
+
+    return (service.removeprefix("service_id="), route.removeprefix("route="),
+            replay.original_receipt_id, replay.original_job_id, body.evidence_id)
 
 
 def test_AttackPathPortalJsonDoesNotBecomeAnOriginalContentSource(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Exercise one governed GET against the unmodified Portal and preserve a typed refusal."""
+    """Exercise one governed GET against the legacy JSON route and preserve a typed refusal."""
 
     monkeypatch.setitem(sys.modules, "http_common", LoadFixtureModule("http_common"))
     portal = LoadFixtureModule("portal")
@@ -145,26 +171,30 @@ def test_AttackPathPortalJsonDoesNotBecomeAnOriginalContentSource(
     assert not model.objects and not model.observations and not model.relations
 
 
-def test_AttackPathDescriptorControlReplaysOriginalBodyAfterListenerTeardown(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("advertisedRoute", ("POST /session", "GET /session"))
+def test_AttackPathPortalDescriptorReplaysOriginalBodyAfterListenerTeardown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, advertisedRoute: str,
 ) -> None:
-    """Prove original custody for the candidate wire only, without adding a Portal feature."""
+    """Replay original Portal bytes and derive the fact only from the admitted role and route."""
+
+    monkeypatch.setitem(sys.modules, "http_common", LoadFixtureModule("http_common"))
+    portal = LoadFixtureModule("portal")
+    expectedBody = f"service_id=service.portal\nroute={advertisedRoute}\n".encode("ascii")
+
+    if advertisedRoute != "POST /session":
+        monkeypatch.setattr(portal, "DESCRIPTOR_BODY", expectedBody)
 
     requests: list[tuple[str, str, str, bool]] = []
-    TrackRequests(DescriptorWireControl, requests, "test-wire", monkeypatch)
+    TrackRequests(portal.PortalRequestHandler, requests, "actual-portal", monkeypatch)
     root = tmp_path / "workspace"
-    server = ThreadingHTTPServer(("127.0.0.1", 0), DescriptorWireControl)
+    server = portal.PortalServer(("127.0.0.1", 0), portal.PortalRequestHandler)
 
     with Listen(server, DESCRIPTOR_PATH) as url:
         CreateWorkspace(root, url)
 
-        with pytest.raises(OwnedResponseAuthorityDeniedError):
-            Capture(root, url, retainResponse=False)
-
-        assert not requests and not LocalWorkspaceStore(root).Open().job_references
         captured = Capture(root, url)
 
-    assert requests == [("test-wire", "GET", DESCRIPTOR_PATH, False)]
+    assert requests == [("actual-portal", "GET", DESCRIPTOR_PATH, False)]
     assert captured.ExitCode() == 0 and captured.acquisition_outcome == "captured"
     assert captured.original_receipt_id is not None
     moved = root.rename(tmp_path / "moved")
@@ -177,14 +207,98 @@ def test_AttackPathDescriptorControlReplaysOriginalBodyAfterListenerTeardown(
                           "owned-response-body", "owned-response-wire", "owned-response-receipt"}
     store = LocalEvidenceStore(moved / "evidence")
     body = store.Get(roles["owned-response-body"].evidence_id)
-    assert store.Read(body.reference) == DESCRIPTOR_BODY
+    assert store.Read(body.reference) == expectedBody
+    assert replay.source_facts["original_role_ids"] == {
+        role: record.evidence_id for role, record in roles.items()
+    }
     model = LocalModelStore(moved).Open()
-    endpoint, = model.objects
-    assert endpoint.identity.kind is ObjectKind.ENDPOINT and endpoint.identity.key == url
-    source, = (item for item in model.observations if item.kind == "owned-content-response-source")
-    assert source.subject_reference == endpoint.Reference()
-    assert source.provenance.target_reference == Target(TargetKind.URL, url).Reference()
-    assert source.provenance.run_reference == replay.original_job_id
-    assert source.provenance.scope_reference == f"scope:{SCOPE_ID}"
-    assert body.reference in source.provenance.evidence_references
     assert not model.relations, "Original GET custody must not create a POST or a pivot"
+    assert tuple(item.identity.kind for item in model.objects) == (ObjectKind.ENDPOINT,)
+
+    if advertisedRoute != "POST /session":
+        assert AdvertisedPortal(moved, replay, url) is None
+        return
+
+    assert store.Read(roles["owned-response-wire"].reference) == DESCRIPTOR_WIRE
+    assert AdvertisedPortal(moved, replay, url) == (
+        "service.portal", "POST /session", captured.original_receipt_id,
+        captured.snapshot.spec.job_id, body.evidence_id,
+    )
+    assert AdvertisedPortal(moved, replay, url.removesuffix(DESCRIPTOR_PATH) + "/other") is None
+
+    foreign = tmp_path / "foreign"
+    CreateWorkspace(foreign, url)
+
+    with pytest.raises(ValueError, match="receipt association is unknown"):
+        ReplayOwnedContentResponse(foreign, captured.original_receipt_id)
+
+    (moved / "evidence" / body.reference.locator).write_bytes(b"!" + expectedBody[1:])
+
+    with pytest.raises(EvidenceIntegrityError):
+        ReplayOwnedContentResponse(moved, captured.original_receipt_id)
+
+
+@pytest.mark.parametrize("denial", ("approval", "retention", "capability", "url", "ip", "consent"))
+def test_AttackPathPortalDescriptorAuthorityDenialHasZeroContact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, denial: str,
+) -> None:
+    """Refuse each missing authority input before any request or original source exists."""
+
+    monkeypatch.setitem(sys.modules, "http_common", LoadFixtureModule("http_common"))
+    portal = LoadFixtureModule("portal")
+    requests: list[tuple[str, str, str, bool]] = []
+    TrackRequests(portal.PortalRequestHandler, requests, "actual-portal", monkeypatch)
+    root = tmp_path / "workspace"
+    server = portal.PortalServer(("127.0.0.1", 0), portal.PortalRequestHandler)
+
+    with Listen(server, DESCRIPTOR_PATH) as url:
+        CreateWorkspace(root, url, admitUrl=denial != "url", admitIp=denial != "ip",
+                        expired=denial == "consent")
+
+        if denial in {"approval", "retention"}:
+            with pytest.raises(OwnedResponseAuthorityDeniedError):
+                Capture(
+                    root, url, approve=denial != "approval", retainResponse=denial != "retention",
+                )
+
+            assert not LocalWorkspaceStore(root).Open().job_references
+
+        else:
+            refused = Capture(root, url, permit=denial != "capability")
+            assert refused.ExitCode() == 3
+            assert refused.original_receipt_id is None and refused.source_facts is None
+            assert not refused.records
+
+    assert not requests
+    model = LocalModelStore(root).Open()
+    assert not model.objects and not model.observations and not model.relations
+
+
+def test_AttackPathPortalDescriptorPreservesLegacyRoutes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the Portal's existing route behavior and expose only one exact descriptor path."""
+
+    monkeypatch.setitem(sys.modules, "http_common", LoadFixtureModule("http_common"))
+    portal = LoadFixtureModule("portal")
+    server = portal.PortalServer(("127.0.0.1", 0), portal.PortalRequestHandler)
+    cases = (
+        ("GET", "/", 200, b'{"routes":["POST /session"],"service_id":"service.portal"}'),
+        ("GET", "/health", 200, b'{"status":"ok","target":"attack-path-portal"}'),
+        ("GET", f"{DESCRIPTOR_PATH}?other", 404, b'{"error":"not-found"}'),
+        ("POST", DESCRIPTOR_PATH, 403, b'{"error":"authorization-required"}'),
+        ("POST", "/session", 403, b'{"error":"authorization-required"}'),
+    )
+
+    with Listen(server, "/"):
+        for method, path, status, body in cases:
+            connection = HTTPConnection("127.0.0.1", server.server_port, timeout=2)
+
+            try:
+                connection.request(method, path)
+                response = connection.getresponse()
+                assert response.version == 10 and response.status == status
+                assert response.getheader("Content-Type") == "application/json"
+                assert response.getheader("Content-Length") == str(len(body))
+                assert response.read() == body
+
+            finally:
+                connection.close()
