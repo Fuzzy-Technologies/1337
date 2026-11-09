@@ -157,18 +157,26 @@ def test_AttackPathPortalJsonDoesNotBecomeAnOriginalContentSource(
         CreateWorkspace(root, url)
         refused = Capture(root, url)
 
-    assert requests == [("actual-portal", "GET", "/", False)]
-    assert refused.ExitCode() == 4 and refused.acquisition_outcome == "refused"
-    assert refused.source_facts is None
+    assert requests == [("actual-portal", "GET", "/", False)], (
+        "The legacy route must receive one anonymous GET."
+    )
+    assert refused.ExitCode() == 4 and refused.acquisition_outcome == "refused", (
+        "Legacy JSON must return a typed capture refusal."
+    )
+    assert refused.source_facts is None, "Refused legacy content must provide no source facts."
     originals = {item.reference.role: item for item in refused.records}
-    assert set(originals) == {"stdout", "stderr", "owned-response-receipt"}
+    assert set(originals) == {"stdout", "stderr", "owned-response-receipt"}, (
+        "Legacy refusal must retain diagnostics and the receipt only."
+    )
     store = LocalEvidenceStore(root / "evidence")
     assert json.loads(store.Read(originals["stdout"].reference)) == {
         "schema_version": 1, "profile": "owned-content-response-capture.v1",
         "outcome": "refused", "error": "response-policy",
-    }
+    }, "Legacy JSON must report the response-policy diagnostic."
     model = LocalModelStore(root).Open()
-    assert not model.objects and not model.observations and not model.relations
+    assert not model.objects and not model.observations and not model.relations, (
+        "Legacy refusal must leave the model empty."
+    )
 
 
 @pytest.mark.parametrize("advertisedRoute", ("POST /session", "GET /session"))
@@ -194,37 +202,59 @@ def test_AttackPathPortalDescriptorReplaysOriginalBodyAfterListenerTeardown(
 
         captured = Capture(root, url)
 
-    assert requests == [("actual-portal", "GET", DESCRIPTOR_PATH, False)]
-    assert captured.ExitCode() == 0 and captured.acquisition_outcome == "captured"
-    assert captured.original_receipt_id is not None
+    assert requests == [("actual-portal", "GET", DESCRIPTOR_PATH, False)], (
+        "The descriptor must receive one anonymous GET."
+    )
+    assert captured.ExitCode() == 0 and captured.acquisition_outcome == "captured", (
+        "The descriptor must complete the governed capture."
+    )
+    assert captured.original_receipt_id is not None, "Capture must issue an original receipt."
     moved = root.rename(tmp_path / "moved")
     replay = ReplayOwnedContentResponse(moved, captured.original_receipt_id)
-    assert replay.original_job_id == captured.snapshot.spec.job_id
-    assert replay.original_receipt_id == captured.original_receipt_id
-    assert replay.records == captured.records and replay.source_facts == captured.source_facts
+    assert replay.original_job_id == captured.snapshot.spec.job_id, (
+        "Replay must identify the original capture job."
+    )
+    assert replay.original_receipt_id == captured.original_receipt_id, (
+        "Replay must preserve the original receipt."
+    )
+    assert replay.records == captured.records and replay.source_facts == captured.source_facts, (
+        "Replay must preserve every captured record and source fact."
+    )
     roles = {item.reference.role: item for item in replay.records}
     assert set(roles) == {"stdout", "stderr", "owned-response-request", "owned-response-headers",
-                          "owned-response-body", "owned-response-wire", "owned-response-receipt"}
+                          "owned-response-body", "owned-response-wire", "owned-response-receipt"}, (
+        "Replay must contain all seven original evidence roles."
+    )
     store = LocalEvidenceStore(moved / "evidence")
     body = store.Get(roles["owned-response-body"].evidence_id)
-    assert store.Read(body.reference) == expectedBody
+    assert store.Read(body.reference) == expectedBody, (
+        "Replay must preserve the exact advertised body."
+    )
     assert replay.source_facts["original_role_ids"] == {
         role: record.evidence_id for role, record in roles.items()
-    }
+    }, "Source facts must identify each original evidence role."
     model = LocalModelStore(moved).Open()
     assert not model.relations, "Original GET custody must not create a POST or a pivot"
-    assert tuple(item.identity.kind for item in model.objects) == (ObjectKind.ENDPOINT,)
+    assert tuple(item.identity.kind for item in model.objects) == (ObjectKind.ENDPOINT,), (
+        "Capture must record only the selected GET endpoint."
+    )
 
     if advertisedRoute != "POST /session":
-        assert AdvertisedPortal(moved, replay, url) is None
+        assert AdvertisedPortal(moved, replay, url) is None, (
+            "An altered advertised method must produce no Portal fact."
+        )
         return
 
-    assert store.Read(roles["owned-response-wire"].reference) == DESCRIPTOR_WIRE
+    assert store.Read(roles["owned-response-wire"].reference) == DESCRIPTOR_WIRE, (
+        "Replay must preserve the original HTTP/1.1 response wire."
+    )
     assert AdvertisedPortal(moved, replay, url) == (
         "service.portal", "POST /session", captured.original_receipt_id,
         captured.snapshot.spec.job_id, body.evidence_id,
+    ), "The Portal fact must retain the original receipt, job and body IDs."
+    assert AdvertisedPortal(moved, replay, url.removesuffix(DESCRIPTOR_PATH) + "/other") is None, (
+        "A different source URL must produce no Portal fact."
     )
-    assert AdvertisedPortal(moved, replay, url.removesuffix(DESCRIPTOR_PATH) + "/other") is None
 
     foreign = tmp_path / "foreign"
     CreateWorkspace(foreign, url)
@@ -261,17 +291,23 @@ def test_AttackPathPortalDescriptorAuthorityDenialHasZeroContact(
                     root, url, approve=denial != "approval", retainResponse=denial != "retention",
                 )
 
-            assert not LocalWorkspaceStore(root).Open().job_references
+            assert not LocalWorkspaceStore(root).Open().job_references, (
+                "Missing approval or retention must leave no job."
+            )
 
         else:
             refused = Capture(root, url, permit=denial != "capability")
-            assert refused.ExitCode() == 3
-            assert refused.original_receipt_id is None and refused.source_facts is None
-            assert not refused.records
+            assert refused.ExitCode() == 3, "Authority refusal must return the denial exit code."
+            assert refused.original_receipt_id is None and refused.source_facts is None, (
+                "Authority refusal must provide no original receipt or source facts."
+            )
+            assert not refused.records, "Authority refusal must retain no original records."
 
-    assert not requests
+    assert not requests, "Authority denial must stop before contacting the Portal."
     model = LocalModelStore(root).Open()
-    assert not model.objects and not model.observations and not model.relations
+    assert not model.objects and not model.observations and not model.relations, (
+        "Authority denial must leave the model empty."
+    )
 
 
 def test_AttackPathPortalDescriptorPreservesLegacyRoutes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -295,10 +331,16 @@ def test_AttackPathPortalDescriptorPreservesLegacyRoutes(monkeypatch: pytest.Mon
             try:
                 connection.request(method, path)
                 response = connection.getresponse()
-                assert response.version == 10 and response.status == status
-                assert response.getheader("Content-Type") == "application/json"
-                assert response.getheader("Content-Length") == str(len(body))
-                assert response.read() == body
+                assert response.version == 10 and response.status == status, (
+                    "Legacy HTTP version or status changed for the requested route."
+                )
+                assert response.getheader("Content-Type") == "application/json", (
+                    "Legacy routes must continue to declare JSON."
+                )
+                assert response.getheader("Content-Length") == str(len(body)), (
+                    "Legacy routes must declare the exact response length."
+                )
+                assert response.read() == body, "Legacy route response bytes changed."
 
             finally:
                 connection.close()
