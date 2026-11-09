@@ -330,7 +330,7 @@ def test_ReadReportRefusesSameSizeFileReplacement(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="report file changed before it was read"):
         comparison.ReadReport(reportPath)
 
-    assert reportPath.read_bytes() == replacementReport, "The selected path must hold the replacement."
+    assert reportPath.read_bytes() == replacementReport, "The replacement must occupy the path."
 
 
 def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_path):
