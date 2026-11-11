@@ -11,6 +11,8 @@ from http_common import LabRequestHandler
 HOST: Final = "0.0.0.0"
 PORT: Final = 8080
 PORTAL_TOKEN: Final = "portal-runtime-token-v1"
+DESCRIPTOR_PATH: Final = "/.well-known/attack-path-mini"
+DESCRIPTOR_BODY: Final = b"service_id=service.portal\nroute=POST /session\n"
 
 
 class PortalServer(ThreadingHTTPServer):
@@ -20,7 +22,7 @@ class PortalServer(ThreadingHTTPServer):
 
 
 class PortalRequestHandler(LabRequestHandler):
-    """Expose only health, session validation, remediation, and reset routes."""
+    """Expose discovery, health, session validation, remediation, and reset routes."""
 
     def do_GET(self) -> None:  # noqa: N802
         """Serve health and bounded discovery metadata."""
@@ -31,6 +33,18 @@ class PortalRequestHandler(LabRequestHandler):
 
         if self.path == "/":
             self.SendJson({"routes": ["POST /session"], "service_id": "service.portal"})
+            return
+
+        if self.path == DESCRIPTOR_PATH:
+            # Apply the capture wire only to this response and close before another request.
+            self.protocol_version = "HTTP/1.1"
+            self.close_connection = True
+            self.send_response_only(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(DESCRIPTOR_BODY)))
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(DESCRIPTOR_BODY)
             return
 
         self.SendJson({"error": "not-found"}, HTTPStatus.NOT_FOUND)
