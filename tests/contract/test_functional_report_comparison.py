@@ -302,6 +302,37 @@ def test_OversizedInputAndNonregularFileRefuseBeforeComparison(tmp_path, monkeyp
         comparison.DecodeReport(report, SCANNER, BEFORE)
 
 
+def test_ReadReportRefusesSameSizeFileReplacement(tmp_path, monkeypatch):
+    """Reject a different regular file installed after the selected path was inspected."""
+
+    reportPath = tmp_path / "report.json"
+    replacementPath = tmp_path / "replacement.json"
+    oracle = Oracle()
+    originalReport = Report((oracle,), (Run(BEFORE),))
+    replacementReport = Report((oracle,), (Run(BEFORE, duration_seconds=2.25),))
+    assert len(originalReport) == len(replacementReport), "Both reports must have the same size."
+    reportPath.write_bytes(originalReport)
+    replacementPath.write_bytes(replacementReport)
+    lstat = Path.lstat
+
+    def LstatAndReplace(path):
+        """Capture the real metadata before replacing the selected file."""
+
+        original = lstat(path)
+
+        if path == reportPath:
+            replacementPath.replace(reportPath)
+
+        return original
+
+    monkeypatch.setattr(Path, "lstat", LstatAndReplace)
+
+    with pytest.raises(ValueError, match="report file changed before it was read"):
+        comparison.ReadReport(reportPath)
+
+    assert reportPath.read_bytes() == replacementReport, "The replacement must occupy the path."
+
+
 def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_path):
     """Exercise the actual process boundary and its truthful malformed-input exit."""
 
