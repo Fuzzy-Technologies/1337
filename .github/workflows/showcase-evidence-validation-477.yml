@@ -1,0 +1,45 @@
+name: Locked showcase evidence validation
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    name: Locked pytest and Ruff for PR 477
+    if: github.event.pull_request.draft && github.head_ref == 'feature/showcase-discovery-locked-validation-477' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: '1b1c983ab202af579bee65d30b72f5d380d410cb'
+          persist-credentials: false
+      - name: Verify candidate commit
+        run: test "$(git rev-parse HEAD)" = '1b1c983ab202af579bee65d30b72f5d380d410cb'
+      - name: Select Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.13'
+      - name: Install pinned uv and synchronize the lock
+        id: sync
+        run: |
+          python --version
+          python -m pip install uv==0.11.33
+          uv --version
+          uv sync --locked --extra dev --python 3.13
+      - name: Run focused evidence tests
+        if: "${{ !cancelled() && steps.sync.outcome == 'success' }}"
+        run: |
+          uv run --locked --extra dev pytest --version
+          uv run --locked --extra dev pytest tests/integration/test_attack_path_native_discovery.py --no-cov -n 0 --timeout=120 -q
+      - name: Run Ruff on the changed test
+        if: "${{ !cancelled() && steps.sync.outcome == 'success' }}"
+        run: |
+          uv run --locked --extra dev ruff --version
+          uv run --locked --extra dev ruff check tests/integration/test_attack_path_native_discovery.py
