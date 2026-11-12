@@ -182,9 +182,15 @@ def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
         reopened, tuple(reversed(detections)), store.root,
     )
 
-    assert len(reopened.Objects(ObjectKind.FINDING)) == 2, "Distinct endpoints merged into one finding"
+    assert len(reopened.Objects(ObjectKind.FINDING)) == 2, (
+        "Distinct endpoints merged into one finding"
+    )
     assert {
-        item.subject_reference: item.provenance[0].evidence_references
+        item.subject_reference: tuple(
+            reference
+            for provenance in item.provenance
+            for reference in provenance.evidence_references
+        )
         for item in Findings(reopened)
     } == expectedEvidence, "Verified evidence was linked to a different endpoint"
     assert replayed == reopened and replayDelta.created == replayDelta.updated == (), (
