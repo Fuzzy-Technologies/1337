@@ -136,6 +136,68 @@ def test_DedupeEvidenceAndDispositionSurviveWorkspaceRelocation(tmp_path, outcom
     ), "First-party binding mutated the provider-neutral SDK envelope"
 
 
+def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
+    """Equal check and location keys retain separate evidence for separate endpoint subjects."""
+
+    store, initial, host = Context(tmp_path)
+    endpoints = tuple(
+        SecurityObject(
+            ObjectIdentity(initial.workspace_id, ObjectKind.ENDPOINT, endpointUrl),
+            {}, host.provenance,
+        )
+        for endpointUrl in ("https://one.example.invalid/health", "https://two.example.invalid/health")
+    )
+    state, delta = initial.Apply(objects=endpoints)
+    store.Save(state, expected_revision=delta.previous_revision)
+
+    evidenceStore = LocalEvidenceStore(store.root / "evidence")
+    firstPayload = b'{"fixture":"one","policy":"not-satisfied"}'
+    secondPayload = b'{"fixture":"two","policy":"not-satisfied"}'
+    detections = []
+    expectedEvidence = {}
+
+    for endpoint, payload in zip(endpoints, (firstPayload, secondPayload), strict=True):
+        evidence = evidenceStore.Put(
+            payload, "stdout", "application/json",
+            EvidenceProvenance(
+                initial.workspace_id, "scope:local", "native", "1", "fixture-1",
+                "2026-10-11T10:00:00Z", "2026-10-11T10:00:01Z",
+            ),
+        )
+        subjectReference = endpoint.Reference()
+        provenance = ModelProvenance(
+            "native", evidence.evidence_id, "2026-10-11T10:00:01Z", "scope:local",
+            subjectReference, "fixture-1", (evidence.reference,),
+        )
+        detections.append(Finding(
+            subjectReference, "transport.test-policy", "tcp/443", "Synthetic TLS policy",
+            (provenance,), FindingSeverity.MEDIUM, 0.75,
+        ))
+        expectedEvidence[subjectReference] = (evidence.reference,)
+
+    updated, delta = ApplyVerifiedFindings(store.Open(), tuple(detections), store.root)
+    store.Save(updated, expected_revision=delta.previous_revision)
+    reopened = store.Open()
+    replayed, replayDelta = ApplyVerifiedFindings(
+        reopened, tuple(reversed(detections)), store.root,
+    )
+
+    assert len(reopened.Objects(ObjectKind.FINDING)) == 2, (
+        "Distinct endpoints merged into one finding"
+    )
+    assert {
+        item.subject_reference: tuple(
+            reference
+            for provenance in item.provenance
+            for reference in provenance.evidence_references
+        )
+        for item in Findings(reopened)
+    } == expectedEvidence, "Verified evidence was linked to a different endpoint"
+    assert replayed == reopened and replayDelta.created == replayDelta.updated == (), (
+        "Replay changed stable finding identities or attributed evidence"
+    )
+
+
 @pytest.mark.parametrize("failure", ["missing", "corrupt", "wrong-size"])
 def test_VerifiedIngestionRejectsMissingOrCorruptEvidenceBeforeAnyModelChange(tmp_path, failure):
     """Verified ingestion must complete all byte checks before returning a proposed transition."""
