@@ -56,13 +56,16 @@ The table records the evidence available for #118 from the existing tests.
 | Stable discovery identity  | [Native discovery integration][discovery-test] repeats acquisition and checks that object and relation IDs remain stable while observations retain independent provenance.                                                                                             |
 | Offline evidence integrity | [Native discovery integration][discovery-test] reopens a relocated workspace and rejects an altered evidence blob. [Portal descriptor integration][descriptor-test] verifies the original receipt, job, and evidence after listener teardown and workspace relocation. |
 | Partial discovery failure  | [Native discovery integration][discovery-test] preserves the Portal observation when a later Billing check is excluded or its response is malformed.                                                                                                                   |
-| Complete pipeline          | Open. Acceptance still needs one run that matches the expected object set with declared business context, links showcase findings to verified evidence, and checks finding identity across unchanged reruns.                                                           |
+| Offline findings replay    | [Finding persistence integration][finding-test] checks that two synthetic endpoints retain separate findings with their own verified evidence and that reverse-order replay leaves their IDs and model unchanged.                                                      |
+| Copied workspace integrity | [Finding persistence integration][finding-test] verifies both evidence records after copying the workspace. Corrupting one copy blocks replay and leaves the copied model and original workspace intact.                                                               |
+| Complete pipeline          | Open. The demo must still produce its expected objects and findings from scenario inputs and declared business context, verify their evidence links, and preserve finding IDs across unchanged reruns.                                                                 |
 
 The [oracle tests][oracle-test] verify the expected fixture states. Reachability
 uses separate attributed transition evidence under [ADR 0047][reachability-adr].
 
 [discovery-test]: ../../../tests/integration/test_attack_path_native_discovery.py
 [descriptor-test]: ../../../tests/integration/test_attack_path_portal_role_route_capture.py
+[finding-test]: ../../../tests/integration/test_finding_persistence.py
 [oracle-test]: ../../../tests/functional/test_attack_path_oracle.py
 [reachability-adr]: ../../../docs/adr/0047-attributed-offline-reachability-projections.md
 
