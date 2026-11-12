@@ -194,8 +194,12 @@ def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
         reopened, tuple(reversed(detections)), copiedRoot,
     )
 
-    assert copiedEvidence.Read(firstReference) == firstPayload
-    assert copiedEvidence.Read(secondReference) == secondPayload
+    assert copiedEvidence.Read(firstReference) == firstPayload, (
+        "Copied first evidence changed during replay"
+    )
+    assert copiedEvidence.Read(secondReference) == secondPayload, (
+        "Copied second evidence changed during replay"
+    )
 
     assert len(reopened.Objects(ObjectKind.FINDING)) == 2, (
         "Distinct endpoints merged into one finding"
@@ -222,9 +226,15 @@ def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
         ApplyVerifiedFindings(reopened, tuple(detections), copiedRoot)
 
     assert copiedModel.read_bytes() == snapshotBytes, "Rejected replay changed the copied model"
-    assert copiedEvidence.Read(firstReference) == firstPayload
-    assert evidenceStore.Read(firstReference) == firstPayload
-    assert evidenceStore.Read(secondReference) == secondPayload
+    assert copiedEvidence.Read(firstReference) == firstPayload, (
+        "First copied evidence was affected by corruption of the second blob"
+    )
+    assert evidenceStore.Read(firstReference) == firstPayload, (
+        "First source evidence changed after corrupting the copy"
+    )
+    assert evidenceStore.Read(secondReference) == secondPayload, (
+        "Second source evidence changed after corrupting the copy"
+    )
     assert store.Open() == reopened, "Corrupting the copy changed the original workspace"
 
 
