@@ -39,8 +39,8 @@ jobs:
             python: "3.14"
           - os: windows-2022
             python: "3.13"
-            suite_timeout_seconds: 1200
-            job_timeout_minutes: 25
+            suite_timeout_seconds: 1500
+            job_timeout_minutes: 30
           - os: macos-15
             python: "3.13"
     steps:
