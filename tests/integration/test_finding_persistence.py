@@ -141,10 +141,9 @@ def test_DedupeEvidenceAndDispositionSurviveWorkspaceRelocation(tmp_path, outcom
     ), "First-party binding mutated the provider-neutral SDK envelope"
 
 
-def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
-    """Equal check and location keys retain separate evidence for separate endpoint subjects."""
+def EndpointSubjects(store, initial, host):
+    """Store two synthetic endpoint identities in the same workspace."""
 
-    store, initial, host = Context(tmp_path)
     endpoints = tuple(
         SecurityObject(
             ObjectIdentity(initial.workspace_id, ObjectKind.ENDPOINT, endpointUrl),
@@ -154,6 +153,15 @@ def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
     )
     state, delta = initial.Apply(objects=endpoints)
     store.Save(state, expected_revision=delta.previous_revision)
+
+    return endpoints
+
+
+def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
+    """Equal check and location keys retain separate evidence for separate endpoint subjects."""
+
+    store, initial, host = Context(tmp_path)
+    endpoints = EndpointSubjects(store, initial, host)
 
     evidenceStore = LocalEvidenceStore(store.root / "evidence")
     firstPayload = b'{"fixture":"one","policy":"not-satisfied"}'
@@ -236,6 +244,40 @@ def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
         "Second source evidence changed after corrupting the copy"
     )
     assert store.Open() == reopened, "Corrupting the copy changed the original workspace"
+
+
+def test_VerifiedFindingReplayKeepsSharedBlobAcquisitionsSeparate(tmp_path):
+    """Replay two endpoint findings whose immutable acquisitions share raw bytes."""
+
+    store, initial, host = Context(tmp_path)
+    firstEndpoint, secondEndpoint = EndpointSubjects(store, initial, host)
+    first, firstRecord, _ = Detection(store, firstEndpoint, source_id="fixture-one")
+    second, secondRecord, _ = Detection(store, secondEndpoint, source_id="fixture-two")
+    detections = tuple(
+        replace(finding, provenance=(replace(
+            finding.provenance[0], target_reference=finding.subject_reference,
+        ),))
+        for finding in (first, second)
+    )
+    updated, delta = ApplyVerifiedFindings(store.Open(), detections, store.root)
+    store.Save(updated, expected_revision=delta.previous_revision)
+    reopened = store.Open()
+    replayed, replayDelta = ApplyVerifiedFindings(
+        reopened, tuple(reversed(detections)), store.root,
+    )
+    evidenceStore = LocalEvidenceStore(store.root / "evidence")
+
+    assert firstRecord.reference == secondRecord.reference, "Equal bytes must share one blob"
+    assert firstRecord.evidence_id != secondRecord.evidence_id, "Acquisition IDs were collapsed"
+    assert evidenceStore.Get(firstRecord.evidence_id) == firstRecord, "First acquisition changed"
+    assert evidenceStore.Get(secondRecord.evidence_id) == secondRecord, "Second acquisition changed"
+    assert len(reopened.Objects(ObjectKind.FINDING)) == 2, "Shared blob merged separate findings"
+    assert {item.subject_reference: item.provenance for item in Findings(reopened)} == {
+        item.subject_reference: item.provenance for item in detections
+    }, "Shared blob replaced endpoint-specific acquisition provenance"
+    assert replayed == reopened and replayDelta.created == replayDelta.updated == (), (
+        "Shared-blob replay changed persisted finding attribution"
+    )
 
 
 @pytest.mark.parametrize("failure", ["missing", "corrupt", "wrong-size"])
