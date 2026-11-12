@@ -13,7 +13,12 @@ from pathlib import Path
 import pytest
 
 from fuzzy1337.adapters import AdapterExecution, ExecutionState, NormalizedFinding
-from fuzzy1337.evidence import EvidenceError, EvidenceProvenance, LocalEvidenceStore
+from fuzzy1337.evidence import (
+    EvidenceError,
+    EvidenceIntegrityError,
+    EvidenceProvenance,
+    LocalEvidenceStore,
+)
 from fuzzy1337.findings import (
     ApplyVerifiedFindings,
     Finding,
@@ -177,10 +182,20 @@ def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
 
     updated, delta = ApplyVerifiedFindings(store.Open(), tuple(detections), store.root)
     store.Save(updated, expected_revision=delta.previous_revision)
-    reopened = store.Open()
-    replayed, replayDelta = ApplyVerifiedFindings(
-        reopened, tuple(reversed(detections)), store.root,
+    copiedRoot = tmp_path / "copied-workspace"
+    shutil.copytree(store.root, copiedRoot)
+    copiedStore = LocalModelStore(copiedRoot)
+    reopened = copiedStore.Open()
+    copiedEvidence = LocalEvidenceStore(copiedRoot / "evidence")
+    firstReference, secondReference = (
+        expectedEvidence[endpoint.Reference()][0] for endpoint in endpoints
     )
+    replayed, replayDelta = ApplyVerifiedFindings(
+        reopened, tuple(reversed(detections)), copiedRoot,
+    )
+
+    assert copiedEvidence.Read(firstReference) == firstPayload
+    assert copiedEvidence.Read(secondReference) == secondPayload
 
     assert len(reopened.Objects(ObjectKind.FINDING)) == 2, (
         "Distinct endpoints merged into one finding"
@@ -196,6 +211,21 @@ def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
     assert replayed == reopened and replayDelta.created == replayDelta.updated == (), (
         "Replay changed stable finding identities or attributed evidence"
     )
+
+    copiedModel = copiedRoot / "state" / "model" / "model.json"
+    snapshotBytes = copiedModel.read_bytes()
+    (copiedRoot / "evidence" / secondReference.locator).write_bytes(
+        b"x" * secondReference.size_bytes
+    )
+
+    with pytest.raises(EvidenceIntegrityError, match="raw evidence digest"):
+        ApplyVerifiedFindings(reopened, tuple(detections), copiedRoot)
+
+    assert copiedModel.read_bytes() == snapshotBytes, "Rejected replay changed the copied model"
+    assert copiedEvidence.Read(firstReference) == firstPayload
+    assert evidenceStore.Read(firstReference) == firstPayload
+    assert evidenceStore.Read(secondReference) == secondPayload
+    assert store.Open() == reopened, "Corrupting the copy changed the original workspace"
 
 
 @pytest.mark.parametrize("failure", ["missing", "corrupt", "wrong-size"])
