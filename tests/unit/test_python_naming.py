@@ -15,6 +15,13 @@ def test_OwnedLocalParameterAndCallableNamesAreDistinguished() -> None:
     source = """
 from subprocess import run as run_command
 
+module_setting = 1
+
+
+class ReportState:
+    stored_value = 2
+
+
 def CollectReport(working_directory, *, maxItems):
     installed_version = 1
     _pendingValue = working_directory
