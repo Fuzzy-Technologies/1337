@@ -327,6 +327,21 @@ Neither test path fetches missing dependencies or relaxes runtime isolation. The
 both installed entry points outside the checkout. It does not contact scan targets
 or external services.
 
+## Showcase evidence and finding replay
+
+The [attack-path oracle tests](../tests/functional/test_attack_path_oracle.py)
+compare results from the checked-in scenario with its oracle. The
+[finding persistence tests](../tests/integration/test_finding_persistence.py)
+exercise verified evidence references, stable finding identities on replay, and
+rejection of missing or corrupt evidence. These checks cover different stages.
+
+For [showcase acceptance #118](https://github.com/Fuzzy-Technologies/1337/issues/118),
+compare persisted findings from the same offline showcase input with the oracle.
+Verify that each finding references readable evidence from the correct workspace.
+Replay the same input and compare the finding IDs and evidence references with
+the first import. Require the same logical findings without duplicates. See
+[ADR 0027](adr/0027-canonical-evidence-linked-findings.md) for the finding contract.
+
 Generated evidence is under `coverage/`; distributable packages are under
 `dist/`. Both are ignored by Git. Dependencies must be installed before gates
 run; package validation uses the locally built wheel and the exact runtime
