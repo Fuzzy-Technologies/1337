@@ -235,6 +235,37 @@ def test_AttackPathMetadataIsAttributableAndBusinessRelevant():
         assert impact["consequence"], "business consequence must be explicit."
 
 
+def test_DiscoveredFixtureClaimsRequireObservedEvidence():
+    """Keep observed findings and relations distinct from fixture context and inference."""
+
+    scenario = LoadJson("scenario.v1.json")
+    evidence = IndexById(scenario["evidence"])
+    observedEvidence = {
+        evidenceId: record
+        for evidenceId, record in evidence.items()
+        if record["provenance"] == "discovered"
+    }
+
+    for finding in scenario["findings"]:
+        assert finding["provenance"] == "discovered", (
+            "scenario findings must represent observed results."
+        )
+        assert any(
+            observedEvidence[evidenceId]["type"] == "finding-proof"
+            for evidenceId in finding["evidence_ids"]
+            if evidenceId in observedEvidence
+        ), "scenario findings must link to discovered finding proof."
+
+    for relation in scenario["relations"]:
+        if relation["provenance"] == "discovered":
+            assert not relation.get("inference_rule"), (
+                "a relation derived by a fixture inference rule must remain inferred."
+            )
+            assert observedEvidence.keys() & set(relation["evidence_ids"]), (
+                "discovered relations must link to discovered evidence."
+            )
+
+
 def test_AttackPathStatesMeetConfidenceEvidenceAndInferenceRules():
     """Apply the declared state contract to every phase assessment."""
 
