@@ -669,7 +669,13 @@ def Pipeline(api: Api, project: int, runner_id: int, commit: str, image: str, ap
 
     else:
         api.Object(f"/projects/{project}/pipelines/{identity}/cancel", "POST", {})
-        raise ValueError("Actual GitLab pipeline exceeded its fixed deadline")
+        lastStatus = pipeline.get("status")
+
+        if lastStatus not in ("created", "waiting_for_resource", "preparing", "waiting_for_callback",
+                              "pending", "running", "canceling", "manual", "scheduled"):
+            lastStatus = "unknown"
+
+        raise ValueError(f"Actual GitLab pipeline exceeded its fixed deadline; last status {lastStatus}")
 
     jobs = json.loads(api.Bytes(f"/projects/{project}/pipelines/{identity}/jobs"))
     api.Object(f"/runners/{runner_id}", "PUT", {"paused": True})
