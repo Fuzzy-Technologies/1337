@@ -50,6 +50,7 @@ def test_CanonicalAttackPathOracleIsExact():
     oracle = LoadJson("oracle.v1.json")
     paths = IndexById(scenario["attack_paths"])
     canonical = paths[CANONICAL_PATH_ID]
+    findings = IndexById(scenario["findings"])
 
     assert oracle["canonical_path"] == {
         "path_id": CANONICAL_PATH_ID,
@@ -57,6 +58,12 @@ def test_CanonicalAttackPathOracleIsExact():
         "node_ids": canonical["node_ids"],
         "relation_ids": canonical["relation_ids"],
     }, "canonical attack-path oracle changed unexpectedly."
+    assert canonical["finding_ids"] == ["finding.portal-session-confusion"], (
+        "canonical attack path must retain its expected finding."
+    )
+    assert findings[canonical["finding_ids"][0]]["evidence_ids"] == [
+        "evidence.finding-confirmation",
+    ], "canonical attack-path finding must retain its expected proof."
 
 
 def test_AttackPathLifecycleOracleIsExact():
