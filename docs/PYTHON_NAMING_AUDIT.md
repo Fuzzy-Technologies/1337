@@ -20,3 +20,16 @@ references are values in the developer command table. The command keys
 at `4eecc4f91fb6de68137f2fe0163517022b766742`, the base of #433. The sample
 does not establish which three names the original audit counted. Check external
 references before renaming this candidate.
+
+At `b24e8f6bfd855faa5f15fefcb9a90c0106bcdc14`, a whole-identifier search
+found no additional references to `_coverage_gate` in the files below.
+The [developer CLI tests](../tests/unit/test_dev_commands.py) assert invocation
+of the separate `fuzzy1337.coverage_gate` module, and
+[DEVELOPMENT.md](DEVELOPMENT.md) documents the coverage behavior of the
+`1337-dev unit` and `1337-dev test` commands. The sample was checked
+against Git tree blob IDs and covered the defining module,
+`src/fuzzy1337/coverage_gate.py`, `tests/unit/test_dev_commands.py`,
+`tests/unit/test_coverage_gate.py`, `tests/unit/test_python_naming.py`,
+`tools/python_naming.py`, `contracts/python-naming-baseline.json`,
+`README.md`, `docs/DEVELOPMENT.md`, and the API pages
+`docs/site/content/en/api/fuzzy1337.{dev_commands,coverage_gate}.md`.

@@ -68,7 +68,7 @@ def UvStep(*arguments: str) -> CommandStep:
     return CommandStep("uv", arguments)
 
 
-_coverage_gate = PythonStep(
+_coverageGate = PythonStep(
     "-m",
     "fuzzy1337.coverage_gate",
     "coverage/coverage.json",
@@ -81,8 +81,8 @@ COMMANDS: dict[str, tuple[CommandStep, ...]] = {
     "lint": (PythonStep("-m", "ruff", "check", "."),),
     "typecheck": (PythonStep("-m", "mypy"),),
     "performance": (PythonStep("-m", "fuzzy1337.performance"),),
-    "unit": (_coverage_gate,),
-    "test": (_coverage_gate,),
+    "unit": (_coverageGate,),
+    "test": (_coverageGate,),
     "build": (PythonStep("-m", "build", "--no-isolation"),),
 }
 COMMANDS["check"] = (
