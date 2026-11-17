@@ -210,7 +210,7 @@ def test_AttackPathMetadataIsAttributableAndBusinessRelevant():
     scenario = LoadJson("scenario.v1.json")
     endpointIds = set(IndexById(scenario["endpoints"]))
     evidenceIds = set(IndexById(scenario["evidence"]))
-    impactIds = set(IndexById(scenario["business_impacts"]))
+    impacts = IndexById(scenario["business_impacts"])
     assetIds = set(IndexById(scenario["assets"]))
 
     for finding in scenario["findings"]:
@@ -218,7 +218,7 @@ def test_AttackPathMetadataIsAttributableAndBusinessRelevant():
 
         assert finding["endpoint_id"] in endpointIds, "finding endpoint must resolve."
         assert set(finding["evidence_ids"]) <= evidenceIds, "finding evidence must resolve."
-        assert set(finding["business_impact_ids"]) <= impactIds, (
+        assert set(finding["business_impact_ids"]) <= impacts.keys(), (
             "finding business impact must resolve."
         )
         assert mitre["framework"] == "MITRE ATT&CK Enterprise", (
@@ -229,10 +229,14 @@ def test_AttackPathMetadataIsAttributableAndBusinessRelevant():
             "MITRE technique attribution URL is required."
         )
 
-    for impact in scenario["business_impacts"]:
+    for impact in impacts.values():
         assert impact["asset_id"] in assetIds, "business-impact asset must resolve."
         assert impact["business_process"], "business process must be explicit."
         assert impact["consequence"], "business consequence must be explicit."
+
+    assert impacts["impact.billing-integrity"]["provenance"] == "seeded", (
+        "billing integrity impact must remain seeded business context."
+    )
 
 
 def test_DiscoveredFixtureClaimsRequireObservedEvidence():
