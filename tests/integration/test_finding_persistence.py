@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 from dataclasses import replace
@@ -12,7 +13,12 @@ from pathlib import Path
 
 import pytest
 
-from fuzzy1337.adapters import AdapterExecution, ExecutionState, NormalizedFinding
+from fuzzy1337.adapters import (
+    AdapterExecution,
+    EvidenceReference,
+    ExecutionState,
+    NormalizedFinding,
+)
 from fuzzy1337.evidence import (
     EvidenceError,
     EvidenceIntegrityError,
@@ -155,6 +161,69 @@ def EndpointSubjects(store, initial, host):
     store.Save(state, expected_revision=delta.previous_revision)
 
     return endpoints
+
+
+def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
+    """Replay a benign topology marker against an independent persisted finding expectation."""
+
+    scenarioPath = (
+        Path(__file__).resolve().parents[2] / "labs" / "targets" / "attack-path-mini"
+        / "scenario.v1.json"
+    )
+    scenario = json.loads(scenarioPath.read_text(encoding="utf-8"))
+    seed, = [item for item in scenario["evidence"] if item["id"] == "evidence.initial-topology"]
+    marker = {key: seed[key] for key in ("id", "provenance", "type")}
+    payload = json.dumps(marker, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+    # The expected fingerprint binds the synthetic host, fixture check, and topology seed ID.
+    expectedPayload = (
+        b'{"id":"evidence.initial-topology","provenance":"seeded","type":"topology-seed"}'
+    )
+    expectedDigest = hashlib.sha256(expectedPayload).hexdigest()
+    expectedReference = EvidenceReference(
+        "fixture-marker", f"blobs/sha256/{expectedDigest}", expectedDigest,
+        "application/json", len(expectedPayload),
+    )
+    expectedFindingId = "194079f67003d052139dad7483ab63a98d4dad81d1df8f848585854113738ffb"
+    store, initial, host = Context(tmp_path, "showcase-replay")
+    evidenceStore = LocalEvidenceStore(store.root / "evidence")
+    observedAt = "2026-10-11T10:00:00Z"
+    acquisition = evidenceStore.Put(
+        payload, "fixture-marker", "application/json",
+        EvidenceProvenance(
+            initial.workspace_id, "scope:local", "showcase-fixture", "1", None,
+            observedAt, observedAt,
+        ),
+    )
+    provenance = ModelProvenance(
+        "showcase-fixture", acquisition.evidence_id, observedAt, "scope:local",
+        host.Reference(), evidence_references=(acquisition.reference,),
+    )
+    detections = (Finding(
+        host.Reference(), "showcase.fixture-marker", seed["id"], "Synthetic topology marker",
+        (provenance,), FindingSeverity.INFORMATIONAL,
+    ),)
+
+    imported, delta = ApplyVerifiedFindings(initial, detections, store.root)
+    store.Save(imported, expected_revision=delta.previous_revision)
+    first = store.Open()
+    replayed, replayDelta = ApplyVerifiedFindings(first, detections, store.root)
+    store.Save(replayed, expected_revision=replayDelta.previous_revision)
+    second = store.Open()
+
+    assert first.revision == initial.revision + 1, "The first import did not persist a transition"
+    assert replayDelta.created == replayDelta.updated == (), "Identical replay changed findings"
+    assert second == first, "Identical replay changed persisted state or observation history"
+
+    for state in (first, second):
+        entity, = state.Objects(ObjectKind.FINDING)
+        attributed, = entity.provenance
+        assert entity.identity.key == expectedFindingId, "Unexpected persisted finding fingerprint"
+        assert attributed.evidence_references == (expectedReference,), "Finding evidence changed"
+        retained = evidenceStore.Get(attributed.run_reference)
+        assert retained == acquisition, "Finding lost its original fixture acquisition"
+        assert retained.provenance.workspace_id == state.workspace_id, "Wrong evidence workspace"
+        assert evidenceStore.Read(retained.reference) == expectedPayload, "Fixture bytes changed"
 
 
 def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
