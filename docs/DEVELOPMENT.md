@@ -335,11 +335,19 @@ compare results from the checked-in scenario with its oracle. The
 exercise verified evidence references, stable finding identities on replay, and
 rejection of missing or corrupt evidence. These checks cover different stages.
 
-For [showcase acceptance #118](https://github.com/Fuzzy-Technologies/1337/issues/118),
-compare persisted findings from the same offline showcase input with the oracle.
+For the seeded showcase marker, the stock JSON report SDK regression from #503
+pins the exact finding object reference and fingerprint and checks the original
+evidence acquisition and verified evidence reference. It asserts byte-identical
+JSON after an identical replay and verifies that reporting preserves the source
+workspace file contents. See
+[`test_VerifiedFindingReplayMatchesOfflineShowcaseMarker`](../tests/integration/test_finding_persistence.py).
+
+Full [showcase acceptance #118](https://github.com/Fuzzy-Technologies/1337/issues/118)
+remains open. Compare the security objects produced by the offline showcase with
+the scenario oracle.
 Verify that each finding references readable evidence from the correct workspace.
 Replay the same input and compare the finding IDs and evidence references with
-the first import. Require the same logical findings without duplicates. See
+the first import. Require the same logical state without duplicates. See
 [ADR 0027](adr/0027-canonical-evidence-linked-findings.md) for the finding contract.
 
 Generated evidence is under `coverage/`; distributable packages are under
