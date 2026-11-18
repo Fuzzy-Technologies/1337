@@ -1,0 +1,59 @@
+name: macOS offline portability canary
+
+on:
+  push:
+    branches: [fix/118-macos-offline-canary]
+
+permissions:
+  contents: read
+
+jobs:
+  offline-portability:
+    if: >-
+      github.repository == 'Fuzzy-Technologies/1337'
+      && github.ref == 'refs/heads/fix/118-macos-offline-canary'
+      && github.event.deleted == false
+    name: macOS offline portability
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      CANARY_SOURCE_SHA: 8413b97a08aeefae1c30daeed6f1f03ba4375906
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.CANARY_SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify and record checked-out source
+        id: source
+        shell: bash
+        run: |
+          actual_sha="$(git rev-parse --verify HEAD)"
+          test "$actual_sha" = "$CANARY_SOURCE_SHA"
+          mkdir -p functional-evidence
+          printf '%s\n' "$actual_sha" | tee functional-evidence/source-commit.txt
+      - name: Select Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Synchronize locked environment
+        run: uv sync --locked --extra dev --python 3.13
+      - name: Run focused offline portability tests
+        timeout-minutes: 5
+        run: |
+          uv run --locked --extra dev pytest -q -x -n 0 --timeout=15 \
+            --timeout-method=thread -o addopts='' --strict-config --strict-markers --no-cov \
+            tests/unit/test_test_runner.py tests/unit/test_test_progress.py \
+            --junitxml=functional-evidence/macos-portability.xml
+      - name: Preserve test and source evidence
+        if: always() && steps.source.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-offline-portability
+          path: |
+            functional-evidence/macos-portability.xml
+            functional-evidence/source-commit.txt
+          if-no-files-found: error
+          retention-days: 14
