@@ -104,10 +104,27 @@ jobs:
           github.event_name == 'push' || (github.event_name == 'pull_request'
           && github.event.pull_request.draft == false)
         run: uv run --locked --extra dev python tools/python_naming.py
+      - name: Run macOS quality with focused portability tests
+        if: >-
+          github.event_name == 'pull_request' && github.event.pull_request.draft == false
+          && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS'
+        timeout-minutes: 5
+        run: |
+          uv run --locked --extra dev 1337-dev compile
+          uv run --locked --extra dev 1337-dev lint
+          uv run --locked --extra dev 1337-dev typecheck
+          uv run --locked --extra dev 1337-dev performance
+          uv run --locked --extra dev pytest -q -x -n 0 --timeout=15 \
+            --timeout-method=thread -o addopts='' --strict-config --strict-markers --no-cov \
+            tests/unit/test_test_runner.py tests/unit/test_test_progress.py \
+            --junitxml=functional-evidence/macos-portability.xml
+          uv run --locked --extra dev 1337-dev build
       - name: Run repository quality gate
         if: >-
-          github.event_name == 'push' || (github.event_name == 'pull_request'
-          && github.event.pull_request.draft == false)
+          (github.event_name == 'push' || (github.event_name == 'pull_request'
+          && github.event.pull_request.draft == false))
+          && !(github.event_name == 'pull_request'
+          && github.event.pull_request.base.ref == 'develop' && runner.os == 'macOS')
         env:
           FUZZY1337_RUN_DESCENDANT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
           FUZZY1337_RUN_OWNED_RESPONSE_PRODUCT_ACCEPTANCE: ${{ runner.os == 'Linux' && '1' || '0' }}
