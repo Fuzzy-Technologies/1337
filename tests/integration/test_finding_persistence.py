@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import pytest
@@ -40,11 +40,14 @@ from fuzzy1337.model import (
     ObjectKind,
     SecurityObject,
 )
+from fuzzy1337.report_formats import SerializeJson
+from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.workspace import (
     LocalWorkspaceStore,
     WorkspaceConfiguration,
     WorkspaceConflictError,
 )
+from tests.contract.report_export_fixture import Files
 
 
 def Context(tmp_path: Path, workspace_id="synthetic"):
@@ -164,7 +167,7 @@ def EndpointSubjects(store, initial, host):
 
 
 def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
-    """Replay a benign topology marker against an independent persisted finding expectation."""
+    """Preserve a benign marker's finding and evidence across replay and offline reporting."""
 
     scenarioPath = (
         Path(__file__).resolve().parents[2] / "labs" / "targets" / "attack-path-mini"
@@ -185,6 +188,9 @@ def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
         "application/json", len(expectedPayload),
     )
     expectedFindingId = "194079f67003d052139dad7483ab63a98d4dad81d1df8f848585854113738ffb"
+    expectedObjectReference = (
+        "object:63deebee5c6fd6bb60b49be44083dd82a4ddc66773552cacca83b6e6a230ddd7"
+    )
     store, initial, host = Context(tmp_path, "showcase-replay")
     evidenceStore = LocalEvidenceStore(store.root / "evidence")
     observedAt = "2026-10-11T10:00:00Z"
@@ -207,9 +213,16 @@ def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
     imported, delta = ApplyVerifiedFindings(initial, detections, store.root)
     store.Save(imported, expected_revision=delta.previous_revision)
     first = store.Open()
+    original = Files(store.root)
+    firstReport = SerializeJson(VerifyReportEvidence(ReportSnapshot(first), store.root))
+    assert Files(store.root) == original, "Offline reporting changed source workspace files"
+
     replayed, replayDelta = ApplyVerifiedFindings(first, detections, store.root)
     store.Save(replayed, expected_revision=replayDelta.previous_revision)
     second = store.Open()
+    secondReport = SerializeJson(VerifyReportEvidence(ReportSnapshot(second), store.root))
+    assert Files(store.root) == original, "Offline reporting after replay changed source files"
+    assert secondReport == firstReport, "Exact replay changed the offline report"
 
     assert first.revision == initial.revision + 1, "The first import did not persist a transition"
     assert replayDelta.created == replayDelta.updated == (), "Identical replay changed findings"
@@ -224,6 +237,19 @@ def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
         assert retained == acquisition, "Finding lost its original fixture acquisition"
         assert retained.provenance.workspace_id == state.workspace_id, "Wrong evidence workspace"
         assert evidenceStore.Read(retained.reference) == expectedPayload, "Fixture bytes changed"
+
+    document = json.loads(firstReport)
+    projectedFinding, = document["findings"]
+    assert projectedFinding["reference"] == expectedObjectReference
+    serializedFinding, = [item for item in document["model"]["objects"]
+                          if item["reference"] == expectedObjectReference]
+    assert serializedFinding["identity"]["key"] == expectedFindingId
+    serializedProvenance, = serializedFinding["provenance"]
+    assert serializedProvenance["run_reference"] == acquisition.evidence_id
+    expectedReportEvidence = [asdict(expectedReference)]
+    assert serializedProvenance["evidence_references"] == expectedReportEvidence
+    assert document["evidence_integrity"]["checked_references"] == expectedReportEvidence
+    assert document["evidence_integrity"]["unverified_count"] == 0
 
 
 def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
