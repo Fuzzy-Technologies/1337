@@ -64,18 +64,23 @@ When the occurrence also supplies a supported `FilePath`, require an agreeing
 file layer before returning the package attribution. A file layer comes from
 the topmost visible ordinary file at that exact image-relative POSIX path.
 Apply ordinary whiteouts and opaque directories to lower layers before applying
-writes in the current layer. Keep source package association and archive file
-supplier as distinct facts. A package-related path proves neither ownership
-of other files nor installation history.
+writes in the current layer. An ordinary file that replaces a lower-layer
+directory removes all of that directory's lower-layer descendants from the
+visible namespace. A later directory replacing that file starts with an empty
+subtree. Descendants become visible only through explicit writes in that layer
+or subsequent layers. Keep source package association and archive file supplier
+as distinct facts. A package-related path proves neither ownership of other files
+nor installation history.
 
 Use bounded in-memory tar reads with no extraction or link following. Initially
 admit ordinary files, directories and canonical empty whiteout markers. Refuse
 unsafe or conflicting archive structures, including duplicate paths within
-a layer and unsupported member types. Absent source fields, unsupported source
-paths, removed files and missing or ambiguous joins produce an explicit
-`unknown` attribution with a bounded reason. Invalid selected original custody,
-a contradictory required digest/order binding, changed saved bases or exceeded
-quotas refuse the whole projection.
+a layer, any ordinary file with a descendant member in the same layer regardless
+of member order, and unsupported member types. Absent source fields, unsupported
+source paths, hidden or absent files and missing or ambiguous joins produce an
+explicit `unknown` attribution with a bounded reason. Invalid selected original
+custody, a contradictory required digest/order binding, changed saved bases or
+exceeded quotas refuse the whole projection.
 
 Return the pinned saved revision and snapshot hash, exact original acquisition
 references and package coordinates, and, when established, layer ordinal and
@@ -94,9 +99,16 @@ scanner execution, runtime access, network requests or persisted updates.
 2. Cover a deleted file, an opaque directory with a same-layer write, a repeated
    DiffID, missing source fields and a package/file ordinal disagreement.
    Assert the individual known and unknown outcomes.
-3. Reject swapped or tampered archive/receipt bytes, corrupted config or layer
+3. Use base files `app/a.txt` and `app/sub/b.txt` and an ordinary file `app` in
+   layer 1. Assert that `app` resolves to ordinal 1 and both descendants have
+   `unknown` attribution. Add a layer 2 directory `app` and an explicit write
+   to `app/a.txt`. Assert that `app/a.txt` resolves to ordinal 2 and file
+   attribution for `app` and `app/sub/b.txt` is `unknown`. Refuse the complete
+   projection if an ordinary file `app` and `app/a.txt` occur in the same layer,
+   in either member order.
+4. Reject swapped or tampered archive/receipt bytes, corrupted config or layer
    bytes, inconsistent order, unsafe paths and each quota boundary. Assert
    that a same-value manifest or descriptor digest yields no config/layer join.
-4. Replay from a relocated saved workspace after removing the original selected
+5. Replay from a relocated saved workspace after removing the original selected
    paths. Check deterministic output, unchanged owner bytes and complete
    refusal on snapshot change. Exercise the no-write and no-network boundaries.
