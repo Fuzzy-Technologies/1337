@@ -240,16 +240,28 @@ def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
 
     document = json.loads(firstReport)
     projectedFinding, = document["findings"]
-    assert projectedFinding["reference"] == expectedObjectReference
+    assert (
+        projectedFinding["reference"] == expectedObjectReference
+    ), "Report has an unexpected finding object reference"
     serializedFinding, = [item for item in document["model"]["objects"]
                           if item["reference"] == expectedObjectReference]
-    assert serializedFinding["identity"]["key"] == expectedFindingId
+    assert (
+        serializedFinding["identity"]["key"] == expectedFindingId
+    ), "Report finding fingerprint changed"
     serializedProvenance, = serializedFinding["provenance"]
-    assert serializedProvenance["run_reference"] == acquisition.evidence_id
+    assert (
+        serializedProvenance["run_reference"] == acquisition.evidence_id
+    ), "Report lost the original evidence acquisition"
     expectedReportEvidence = [asdict(expectedReference)]
-    assert serializedProvenance["evidence_references"] == expectedReportEvidence
-    assert document["evidence_integrity"]["checked_references"] == expectedReportEvidence
-    assert document["evidence_integrity"]["unverified_count"] == 0
+    assert (
+        serializedProvenance["evidence_references"] == expectedReportEvidence
+    ), "Report finding evidence references changed"
+    assert (
+        document["evidence_integrity"]["checked_references"] == expectedReportEvidence
+    ), "Report checked evidence references changed"
+    assert (
+        document["evidence_integrity"]["unverified_count"] == 0
+    ), "Report contains unverified evidence"
 
 
 def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):
