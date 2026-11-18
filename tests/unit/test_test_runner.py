@@ -544,7 +544,7 @@ def test_SerialCollectionReportsNoTestsWithoutTreatingItAsAnError(monkeypatch):
 def test_TimeoutRetainsPartialDiagnosticsWithoutPromotingThemToJunit(
     tmp_path, monkeypatch, capsys,
 ):
-    """A hard suite cutoff retains completed phase diagnostics while the gate still fails124."""
+    """A suite timeout shows retained outcomes while the gate still fails with status 124."""
 
     from types import SimpleNamespace
 
@@ -553,16 +553,20 @@ def test_TimeoutRetainsPartialDiagnosticsWithoutPromotingThemToJunit(
     report = tmp_path / "owned.xml"
 
     def Process(arguments, **kwargs):
-        """Flush one completed case and simulate interruption before another teardown."""
+        """Flush mixed completed outcomes and simulate abrupt process termination."""
 
         recorder = test_progress.ProgressRecorder(
             test_progress.ProgressDirectory(report), "gw0", clock=lambda: 0,
         )
-        for phase in ("setup", "call", "teardown"):
-            recorder.pytest_runtest_logreport(SimpleNamespace(
-                nodeid="test_owned.py::test_Complete[PRIVATE]", when=phase,
-                outcome="passed", duration=0.01,
-            ))
+        outcomes = ("passed", "failed", "failed", "skipped", "skipped", "skipped")
+
+        for index, outcome in enumerate(outcomes):
+            for phase in ("setup", "call", "teardown"):
+                recorder.pytest_runtest_logreport(SimpleNamespace(
+                    nodeid=f"test_owned.py::test_Case{index}[PRIVATE]", when=phase,
+                    outcome=outcome if phase == "call" else "passed", duration=0.01,
+                ))
+
         recorder.Flush()
         recorder.Close()
         raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
@@ -577,12 +581,13 @@ def test_TimeoutRetainsPartialDiagnosticsWithoutPromotingThemToJunit(
         failed=1, timeout=1, duration_seconds=900,
     ), "Partial diagnostics must never alter authoritative timeout failure or elapsed duration."
     diagnostic = (test_progress.ProgressDirectory(report) / "summary.json").read_text()
-    assert '"completed":1' in diagnostic and '"truncated":true' in diagnostic, (
+    assert '"completed":6' in diagnostic and '"truncated":true' in diagnostic, (
         "The bounded snapshot must retain completed counts and the explicit worker-cap limit."
     )
-    assert "Partial pytest diagnostic (not JUnit): completed=1" in capsys.readouterr().out, (
-        "The diagnostic line must explicitly distinguish partial counts from JUnit acceptance."
-    )
+    assert capsys.readouterr().out == (
+        "Partial pytest diagnostic (not JUnit): completed=6 truncated=True unavailable=False "
+        "retained_passed=1 retained_failed=2 retained_skipped=3\n"
+    ), "The timeout line must expose only aggregate diagnostics separate from JUnit acceptance."
 
 
 def test_UnknownProgressFilesDisableOnlyDiagnosticOptIn(tmp_path, monkeypatch, capsys):
