@@ -15,7 +15,7 @@ jobs:
       && github.ref == 'refs/heads/fix/118-offline-sarif-canary'
       && github.event.deleted == false
     name: Offline report read stability
-    runs-on: ubuntu-24.04
+    runs-on: windows-2022
     timeout-minutes: 15
     env:
       CANARY_SOURCE_SHA: 6accada28e2c591588eaa3987ed227d04a6e21cc
@@ -32,8 +32,9 @@ jobs:
         run: |
           actual_sha="$(git rev-parse --verify HEAD)"
           test "$actual_sha" = "$CANARY_SOURCE_SHA"
-          mkdir -p "$RUNNER_TEMP/offline-sarif-canary"
-          printf '%s\n' "$actual_sha" | tee "$RUNNER_TEMP/offline-sarif-canary/source-commit.txt"
+          evidence_dir="$(cygpath -m "$RUNNER_TEMP")/offline-sarif-canary"
+          mkdir -p "$evidence_dir"
+          printf '%s\n' "$actual_sha" | tee "$evidence_dir/source-commit.txt"
       - name: Select Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -43,15 +44,15 @@ jobs:
         run: python -m pip install --no-deps uv==0.11.33
       - name: Synchronize locked dependencies
         shell: bash
-        run: uv sync --locked --extra dev --python "$(command -v python)" --no-install-project
+        run: uv sync --locked --extra dev --python "$(python -c 'import sys; sys.stdout.write(sys.executable)')" --no-install-project
       - name: Run the offline report read stability test
         shell: bash
         timeout-minutes: 5
         env:
           PYTHONPATH: ${{ github.workspace }}/src
         run: |
-          report="$RUNNER_TEMP/offline-sarif-canary/report-read-stability.xml"
-          .venv/bin/python -m pytest -q -x -n 0 --timeout=15 --timeout-method=signal \
+          report="$(cygpath -m "$RUNNER_TEMP")/offline-sarif-canary/report-read-stability.xml"
+          .venv/Scripts/python.exe -m pytest -q -x -n 0 --timeout=15 --timeout-method=thread \
             -o addopts='' --strict-config --strict-markers --no-cov \
             tests/contract/test_functional_report_comparison.py::test_ReadReportRefusesSameSizeInPlaceUpdate \
             --junitxml="$report"
@@ -60,7 +61,7 @@ jobs:
         if: always() && steps.source.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: offline-report-read-stability
+          name: offline-report-read-stability-windows
           path: |
             ${{ runner.temp }}/offline-sarif-canary/report-read-stability.xml
             ${{ runner.temp }}/offline-sarif-canary/source-commit.txt
