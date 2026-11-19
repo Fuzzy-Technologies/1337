@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from dataclasses import replace
@@ -331,6 +332,51 @@ def test_ReadReportRefusesSameSizeFileReplacement(tmp_path, monkeypatch):
         comparison.ReadReport(reportPath)
 
     assert reportPath.read_bytes() == replacementReport, "The replacement must occupy the path."
+
+
+def test_ReadReportRefusesSameSizeInPlaceUpdate(tmp_path, monkeypatch):
+    """Reject a same-size update to the open report before the final metadata check."""
+
+    reportPath = tmp_path / "report.json"
+    originalReport = b'{"schema_version":1,"scenarios":[],"runs":[],"matrix":{"columns":[],"rows":[]}}\n'
+    updatedReport = originalReport[:-1] + b" "
+    reportPath.write_bytes(originalReport)
+    originalStat = reportPath.stat()
+    fstat = os.fstat
+    statCalls = 0
+
+    def FstatWithReportUpdate(descriptor):
+        """Overwrite the selected report immediately before its second metadata snapshot."""
+
+        nonlocal statCalls
+        metadata = fstat(descriptor)
+
+        if not os.path.samestat(originalStat, metadata):
+            return metadata
+
+        statCalls += 1
+
+        if statCalls == 2:
+            with reportPath.open("r+b") as stream:
+                stream.write(updatedReport)
+
+            # Force a distinct modification time even on filesystems with coarse timestamps.
+            os.utime(reportPath, ns=(metadata.st_atime_ns, originalStat.st_mtime_ns - 2_000_000_000))
+            metadata = fstat(descriptor)
+
+        return metadata
+
+    with monkeypatch.context() as readPatch:
+        readPatch.setattr(comparison.os, "fstat", FstatWithReportUpdate)
+
+        with pytest.raises(ValueError, match="^report file changed during the read$"):
+            comparison.ReadReport(reportPath)
+
+    finalStat = reportPath.stat()
+    assert os.path.samestat(originalStat, finalStat), "The update must keep the original inode."
+    assert finalStat.st_size == originalStat.st_size, "The update must keep the original size."
+    assert finalStat.st_mtime_ns != originalStat.st_mtime_ns, "The modification time must change."
+    assert reportPath.read_bytes() == updatedReport, "The same-size update must reach the file."
 
 
 def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_path):
