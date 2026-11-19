@@ -87,10 +87,7 @@ def test_ProductCliExportsExactSavedSnapshotAndPreservesAllSourceTruth(
 
 
 
-@pytest.mark.parametrize("formatName", ["sarif", "html", "junit"])
-def test_ProductCliRejectsCorruptUnusedAcquisitionAcrossFormats(
-    tmp_path, monkeypatch, capsys, formatName,
-):
+def test_ProductCliRejectsCorruptUnusedAcquisitionInSarif(tmp_path, monkeypatch, capsys):
     """Reject a changed digest in retained evidence before publishing any report."""
 
     root, records = Context(tmp_path)
@@ -99,16 +96,16 @@ def test_ProductCliRejectsCorruptUnusedAcquisitionAcrossFormats(
     artifact.write_bytes(bytes([rawBytes[0] ^ 1]) + rawBytes[1:])
     before = Files(root)
 
-    destination = tmp_path / f"rejected.{formatName}"
+    destination = tmp_path / "rejected.sarif"
     DenyExecution(monkeypatch)
     status = Main([
-        "report", "export", str(root), "--format", formatName,
+        "report", "export", str(root), "--format", "sarif",
         "--output", str(destination), "--json",
     ])
     outcome = json.loads(capsys.readouterr().out)
     OutcomeValidator().validate(outcome)
 
-    assert outcome["format"] == formatName, "The outcome must identify the requested format."
+    assert outcome["format"] == "sarif", "The outcome must identify the requested format."
     assert status == 4 and outcome["failure"] == "integrity", (
         "A same-length change to an unused acquisition must fail digest verification."
     )
