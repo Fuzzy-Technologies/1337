@@ -149,6 +149,7 @@ def test_OfflineShowcaseCriticalAssetRoundTrip(tmp_path: Path):
     assert update.kind == "object-update" and update.subject_reference == expectedReference, (
         "History must describe the seeded Asset update"
     )
+    assert update.attributes == expectedAttributes, "Asset history lost the seeded attributes"
     assert update.provenance == seeded, "Asset history lost its seeded fixture attribution"
     assert update.provenance.evidence_references == () and update.provenance.execution is None, (
         "Seeded Asset update was promoted to acquisition evidence"
