@@ -521,6 +521,12 @@ Full repository validation belongs to final PR integration, under the owner's 20
 - do not duplicate the same full gate locally, in individual development agents or after the accepted merge into `develop`;
 - full-gate evidence applies only to its tested revision. Before approval or merge, verify actual required integration jobs succeeded for the final head after readiness. Skipped draft jobs and workflow-level success without executed checks are not full-gate evidence.
 
+On Ready PRs targeting `develop`, macOS runs the naming, compile, lint,
+typecheck, performance, and build phases with focused offline pytest portability
+checks in place of the complete pytest suite. The required macOS job records its
+selected JUnit evidence. The full macOS gate runs for Ready PRs targeting
+`master` and for pushes to `master`.
+
 The canonical full repository command is:
 
 ```bash
