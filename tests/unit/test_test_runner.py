@@ -567,6 +567,12 @@ def test_TimeoutRetainsPartialDiagnosticsWithoutPromotingThemToJunit(
                     outcome=outcome if phase == "call" else "passed", duration=0.01,
                 ))
 
+        for phase in ("setup", "call"):
+            recorder.pytest_runtest_logreport(SimpleNamespace(
+                nodeid="test_owned.py::test_Interrupted[PRIVATE]", when=phase,
+                outcome="failed" if phase == "call" else "passed", duration=0.01,
+            ))
+
         recorder.Flush()
         recorder.Close()
         raise subprocess.TimeoutExpired(arguments, kwargs["timeout"])
