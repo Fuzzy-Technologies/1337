@@ -17,7 +17,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 15
     env:
-      CANARY_SOURCE_SHA: a6d733d5636565cdf22cc4ffe3dfdaeac80a9aa0
+      CANARY_SOURCE_SHA: b33676ae2fb29186a45d322ca5d0ee267e9ddab5
     steps:
       - name: Check out exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
