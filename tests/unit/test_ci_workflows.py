@@ -194,30 +194,48 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
         "uv run --locked --extra dev 1337-dev check --fail-fast "
         "--suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}"
     ), "The full matrix must preserve its complete gate and original platform suite budget."
-    portability = next(step for step in steps
-                       if step.get("name") == "Run macOS quality with focused portability tests")
-    assert steps.index(naming) < steps.index(portability) < steps.index(full), (
-        "The macOS portability profile must run after the naming check."
+    portabilitySteps = steps[steps.index(naming) + 1:steps.index(full)]
+    assert [step["name"] for step in portabilitySteps] == [
+        "Run macOS quality checks before pytest",
+        "Run focused macOS portability tests",
+        "Run macOS package build",
+    ], "The macOS portability profile must run in order after the naming check."
+
+    for step in portabilitySteps:
+        assert " ".join(step["if"].split()) == MACOS_PORTABILITY_CONDITION, (
+            "Every portability step must apply only to Ready macOS PRs targeting develop."
+        )
+        assert step.get("continue-on-error", False) is False, (
+            "A failed portability step must stop subsequent quality steps."
+        )
+
+    pretest, portability, build = portabilitySteps
+    assert "timeout-minutes" not in pretest and "timeout-minutes" not in build, (
+        "Non-test phases must use the job ceiling."
     )
-    assert " ".join(portability["if"].split()) == MACOS_PORTABILITY_CONDITION, (
-        "The focused profile must apply only to ready macOS PRs targeting develop."
+    assert jobs["quality"]["timeout-minutes"] == "${{ matrix.job_timeout_minutes || 15 }}", (
+        "The quality job must retain its platform ceiling."
     )
-    assert portability["timeout-minutes"] == 5, "macOS portability needs its own finite deadline."
-    commands = portability["run"].replace("\\\n", " ").splitlines()
+    assert portability["timeout-minutes"] == 5, "Only focused pytest has a five-minute deadline."
     prefix = ["uv", "run", "--locked", "--extra", "dev"]
-    assert [shlex.split(command) for command in commands] == [
+    assert [shlex.split(command) for command in pretest["run"].splitlines()] == [
         prefix + ["1337-dev", "compile"],
         prefix + ["1337-dev", "lint"],
         prefix + ["1337-dev", "typecheck"],
         prefix + ["1337-dev", "performance"],
+    ], "The non-test checks must run in order before pytest."
+    commands = portability["run"].replace("\\\n", " ").splitlines()
+    assert [shlex.split(command) for command in commands] == [
         prefix + [
             "pytest", "-q", "-x", "-n", "0", "--timeout=15", "--timeout-method=thread",
             "-o", "addopts=", "--strict-config", "--strict-markers", "--no-cov",
             "tests/unit/test_test_runner.py", "tests/unit/test_test_progress.py",
             "--junitxml=functional-evidence/macos-portability.xml",
         ],
-        prefix + ["1337-dev", "build"],
-    ], "MacOS portability must retain the non-test phases and its exact offline test evidence."
+    ], "The focused pytest step must retain its exact offline selection and JUnit path."
+    assert build["run"] == "uv run --locked --extra dev 1337-dev build", (
+        "The package build must run after pytest."
+    )
 
     container = jobs["container-quality"]
     assert " ".join(container["if"].split()) == INTEGRATION_CONDITION, (
