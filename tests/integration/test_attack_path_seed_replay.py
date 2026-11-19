@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from fuzzy1337.model import (
     LocalModelStore,
@@ -53,7 +54,11 @@ def test_ReopeningAndReapplyingSeedPreservesSingleAsset(tmp_path: Path) -> None:
     replayStore = LocalModelStore(root)
     persisted = replayStore.Open()
     replayed, delta = persisted.Apply(objects=(seed,))
-    saved = replayStore.Save(replayed, expected_revision=persisted.revision)
+    with patch.object(
+        LocalModelStore, "WriteState",
+        side_effect=AssertionError("Identical seed replay must not rewrite model state"),
+    ):
+        saved = replayStore.Save(replayed, expected_revision=persisted.revision)
     reopened = LocalModelStore(root).Open()
 
     assert first.revision == empty.revision + 1, "Initial seed must create one revision"
