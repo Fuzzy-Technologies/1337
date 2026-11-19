@@ -87,6 +87,37 @@ def test_ProductCliExportsExactSavedSnapshotAndPreservesAllSourceTruth(
 
 
 
+@pytest.mark.parametrize("formatName", ["sarif", "html", "junit"])
+def test_ProductCliRejectsCorruptUnusedAcquisitionAcrossFormats(
+    tmp_path, monkeypatch, capsys, formatName,
+):
+    """Reject a changed digest in retained evidence before publishing any report."""
+
+    root, records = Context(tmp_path)
+    artifact = root / "evidence" / records[1].reference.locator
+    rawBytes = artifact.read_bytes()
+    artifact.write_bytes(bytes([rawBytes[0] ^ 1]) + rawBytes[1:])
+    before = Files(root)
+
+    destination = tmp_path / f"rejected.{formatName}"
+    DenyExecution(monkeypatch)
+    status = Main([
+        "report", "export", str(root), "--format", formatName,
+        "--output", str(destination), "--json",
+    ])
+    outcome = json.loads(capsys.readouterr().out)
+    OutcomeValidator().validate(outcome)
+
+    assert outcome["format"] == formatName, "The outcome must identify the requested format."
+    assert status == 4 and outcome["failure"] == "integrity", (
+        "A same-length change to an unused acquisition must fail digest verification."
+    )
+    assert outcome["output_published"] is False and not destination.exists(), (
+        "Rejected evidence must leave the selected destination absent."
+    )
+    assert Files(root) == before, "Rejected source bytes must remain unchanged."
+
+
 def test_SelectedWorkspaceRelocationPreservesReportBytes(tmp_path):
     """Report identity follows the stored logical workspace rather than its physical path."""
 
