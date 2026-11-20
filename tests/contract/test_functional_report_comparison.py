@@ -343,18 +343,22 @@ def test_ReadReportRefusesSameSizeInPlaceUpdate(tmp_path, monkeypatch):
     reportPath.write_bytes(originalReport)
     originalStat = reportPath.stat()
     fstat = os.fstat
+    openedCtime = originalStat.st_ctime_ns
     statCalls = 0
 
     def FstatWithReportUpdate(descriptor):
         """Overwrite the selected report immediately before its second metadata snapshot."""
 
-        nonlocal statCalls
+        nonlocal openedCtime, statCalls
         metadata = fstat(descriptor)
 
         if not os.path.samestat(originalStat, metadata):
             return metadata
 
         statCalls += 1
+
+        if statCalls == 1:
+            openedCtime = metadata.st_ctime_ns
 
         if statCalls == 2:
             with reportPath.open("r+b") as stream:
@@ -363,6 +367,13 @@ def test_ReadReportRefusesSameSizeInPlaceUpdate(tmp_path, monkeypatch):
             # Force a distinct modification time even on filesystems with coarse timestamps.
             os.utime(reportPath, ns=(metadata.st_atime_ns, originalStat.st_mtime_ns - 2_000_000_000))
             metadata = fstat(descriptor)
+
+            # Isolate the mtime check from unrelated ctime changes on the host.
+            return os.stat_result(metadata, {
+                "st_atime_ns": metadata.st_atime_ns,
+                "st_mtime_ns": metadata.st_mtime_ns,
+                "st_ctime_ns": openedCtime,
+            })
 
         return metadata
 
