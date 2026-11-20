@@ -95,3 +95,23 @@ def test_JoinedViewRejectsIncompatibleCrossReportEvidence(
 
     with pytest.raises(ValueError, match=error):
         JoinVerifiedReports(pack, (native, nuclei), HEAD)
+
+
+def test_JoinedViewRejectsMissingOriginalObservation(tmp_path):
+    """A completed reported cell cannot substitute for its original observation."""
+
+    pack, (native, nuclei) = SeparateContractReports(tmp_path)
+    missingIdentity = ("metrics.exposed", "external-nuclei")
+    missingObservation = next(
+        row for row in nuclei["observations"]
+        if (row["case_id"], row["scanner_track"]) == missingIdentity
+    )
+    nuclei["observations"].remove(missingObservation)
+    assert any(
+        (cell["case_id"], cell["scanner_track"]) == missingIdentity
+        and (cell["status"], cell["score"]) == ("completed", "tp")
+        for cell in nuclei["cells"]
+    ), "The reported positive must remain present after removing its observation."
+
+    with pytest.raises(ValueError, match="original observation for every selected case and track"):
+        JoinVerifiedReports(pack, (native, nuclei), HEAD)
