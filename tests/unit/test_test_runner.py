@@ -311,7 +311,9 @@ def test_RunTestsForwardsSuiteBudgetToBothInvocationsWithoutChangingPerTestDeadl
     )
 
 
-def test_RunPytestTimeoutDiscardsStaleSuccessAndPreservesExactBudget(tmp_path, monkeypatch):
+def test_RunPytestTimeoutDiscardsStaleSuccessAndPreservesExactBudget(
+    tmp_path, monkeypatch, capsys,
+):
     """A suite timeout remains failure without retrying or reading an earlier successful report."""
 
     report = tmp_path / "report.xml"
@@ -338,6 +340,10 @@ def test_RunPytestTimeoutDiscardsStaleSuccessAndPreservesExactBudget(tmp_path, m
         failed=1, timeout=1, duration_seconds=37.0,
     ), "Suite expiration must preserve timeout status and measured failed evidence."
     assert not report.exists(), "A suite timeout must never restore stale success evidence."
+    assert capsys.readouterr().out == (
+        "Partial pytest diagnostic (not JUnit): completed=0 truncated=False unavailable=True "
+        "retained_passed=0 retained_failed=0 retained_skipped=0\n"
+    ), "A pre-worker timeout must report unavailable diagnostics and zero retained outcomes."
 
 
 def test_RunPytestZeroExitWithoutNewJunitCannotReportSuccess(tmp_path, monkeypatch):
