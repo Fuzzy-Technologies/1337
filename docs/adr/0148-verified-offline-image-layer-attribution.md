@@ -23,15 +23,23 @@ The projection operates on their existing records and saved snapshot. The
 ordinary image inventory, evidence, model and execution contracts remain the
 source of truth.
 
-Select the exact retained export stdout and successful original receipt chain
-from the same workspace. Require owner checks for roles, sizes, scope,
-acquisition and execution before reading original bytes. Match the complete
-archive SHA-256 and size to the actual archive input in the original native
-SCAN receipt through the existing six-record replay owner. Require a successful,
-unrefused admitted report and the exact config image, original package occurrence
-and canonical package membership on the selected saved basis. A same-tag,
-same-package or config-only match supplies no archive association. Recheck the
-saved workspace and model bases before returning the complete projection.
+Verify two original acceptance chains in the selected workspace before using
+the retained export and report as inputs to the projection. The local image
+export owner verifies the completed inspect, save and reference recheck under
+ADR 0114, including the original stdout and its recorded scope, acquisition
+and execution. A refused, incomplete or reassigned export remains ineligible
+even if its retained stdout is a complete archive.
+
+The native image replay owner verifies the accepted original VERSION and SCAN
+receipts and all six original capture roles under ADR 0093. Require the SCAN
+receipt to bind the accepted original VERSION prerequisite. Match the complete
+retained archive's SHA-256 and byte length to the exact archive INPUT in the
+original SCAN receipt. These checks verify recorded custody and execution
+facts without seeking live authorization. Require the original admitted report,
+exact config image, original package occurrence and canonical package membership
+on the selected saved basis. A same-tag, same-package or config-only match
+supplies no archive association. Recheck the saved workspace and model bases
+before returning the complete projection.
 
 ### Digest domains and layer order
 
@@ -51,10 +59,10 @@ saved workspace and model bases before returning the complete projection.
 Use the sole Docker-save manifest entry's `Layers` array from base to top,
 paired by index with the verified config's `rootfs.diff_ids`. Require equal
 lengths and recompute each DiffID over the corresponding complete tar member.
-Any supplied report order must agree with this verified order. Keep zero-based
-ordinals and repeated DiffIDs. A digest-only source claim that matches multiple
-ordinals remains ambiguous. History entries and member enumeration supply no
-ordering authority.
+Any ordered report DiffID list supplied in this digest domain must agree with
+this verified order. Keep zero-based ordinals and repeated DiffIDs. A digest-only
+source claim that matches multiple ordinals remains ambiguous. History entries
+and member enumeration supply no ordering authority.
 
 ### Attribution and limits
 
@@ -109,6 +117,8 @@ scanner execution, runtime access, network requests or persisted updates.
 4. Reject swapped or tampered archive/receipt bytes, corrupted config or layer
    bytes, inconsistent order, unsafe paths and each quota boundary. Assert
    that a same-value manifest or descriptor digest yields no config/layer join.
+   Refuse a complete archive retained by a refused or reassigned export and
+   an archive whose length or SHA-256 differs from the original SCAN INPUT.
 5. Replay from a relocated saved workspace after removing the original selected
    paths. Check deterministic output, unchanged owner bytes and complete
    refusal on snapshot change. Exercise the no-write and no-network boundaries.
