@@ -18,7 +18,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 15
     env:
-      CANARY_SOURCE_SHA: 6accada28e2c591588eaa3987ed227d04a6e21cc
+      CANARY_SOURCE_SHA: f22dc70461361239d80f790a690e3a049fc3d660
       UV_PYTHON_DOWNLOADS: never
     steps:
       - name: Check out exact source
