@@ -283,7 +283,10 @@ def RunPytest(
             print("Partial pytest diagnostic (not JUnit): "
                   f"completed={diagnostic['completed']} "
                   f"truncated={diagnostic['truncated']} "
-                  f"unavailable={diagnostic['unavailable']}", flush=True)
+                  f"unavailable={diagnostic['unavailable']} "
+                  f"retained_passed={diagnostic['passed']} "
+                  f"retained_failed={diagnostic['failed']} "
+                  f"retained_skipped={diagnostic['skipped']}", flush=True)
         return 124, TestSummary(failed=1, timeout=1, duration_seconds=time.monotonic() - started)
 
     except OSError:
