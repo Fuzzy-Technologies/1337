@@ -390,6 +390,46 @@ def test_ReadReportRefusesSameSizeInPlaceUpdate(tmp_path, monkeypatch):
     assert reportPath.read_bytes() == updatedReport, "The same-size update must reach the file."
 
 
+def test_ReadReportRefusesChangedCtimeWithStableSizeAndMtime(tmp_path, monkeypatch):
+    """Refuse inconsistent descriptor metadata when only the reported ctime changes."""
+
+    reportPath = tmp_path / "report.json"
+    reportBytes = b"{}"
+    reportPath.write_bytes(reportBytes)
+    initial = reportPath.stat()
+    fstat = os.fstat
+    statCalls = 0
+
+    def FstatWithChangedCtime(descriptor):
+        """Change only the second ctime reported for the selected file."""
+
+        nonlocal statCalls
+        metadata = fstat(descriptor)
+
+        if not os.path.samestat(initial, metadata):
+            return metadata
+
+        statCalls += 1
+
+        if statCalls != 2:
+            return metadata
+
+        return os.stat_result(metadata, {
+            "st_atime_ns": metadata.st_atime_ns,
+            "st_mtime_ns": metadata.st_mtime_ns,
+            "st_ctime_ns": metadata.st_ctime_ns + 1,
+        })
+
+    with monkeypatch.context() as readPatch:
+        readPatch.setattr(comparison.os, "fstat", FstatWithChangedCtime)
+
+        with pytest.raises(ValueError, match="^report file changed during the read$"):
+            comparison.ReadReport(reportPath)
+
+    assert statCalls == 2, "Both descriptor snapshots must be taken."
+    assert reportPath.read_bytes() == reportBytes, "The fixture must preserve the source bytes."
+
+
 def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_path):
     """Exercise the actual process boundary and its truthful malformed-input exit."""
 
