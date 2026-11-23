@@ -20,8 +20,14 @@ from fuzzy1337.adapters.native_web import (
 from fuzzy1337.assessments import InterpretSeverity
 from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus
 from fuzzy1337.intelligence import IntelligenceFeed
-from fuzzy1337.model import CanonicalModelJson, ObjectKind, SecurityObject
-from fuzzy1337.reporting import MAX_REPORT_BYTES, REPORT_SCHEMA_VERSION, ReportSnapshot
+from fuzzy1337.model import CanonicalModelJson, ObjectKind, Observation, SecurityObject
+from fuzzy1337.reporting import (
+    MAX_REPORT_BYTES,
+    REPORT_SCHEMA_VERSION,
+    ReportSnapshot,
+    _ProjectRetainedReportRows,
+    _RetainedReportRows,
+)
 
 __all__ = ["RenderHtml", "SerializeJson", "SerializeSarif", "SerializeJunit"]
 _CSS = """
@@ -236,11 +242,11 @@ def AttributeText(entity: SecurityObject, *names: str) -> str:
     return "Not recorded"
 
 
-def ObjectTables(report: ReportSnapshot) -> str:
+def ObjectTables(rows: _RetainedReportRows) -> str:
     """Present retained objects as readable inventory without claiming discovery or reachability.
 
     Args:
-        report: Immutable canonical projection supplying objects and their saved attributes.
+        rows: Indexed canonical objects with their saved attributes.
 
     Returns:
         An offline HTML inventory section with readable tables, canonical anchors and
@@ -262,7 +268,7 @@ def ObjectTables(report: ReportSnapshot) -> str:
     )
 
     for kind, heading, fields in groups:
-        entities = report.state.Objects(kind)
+        entities = rows.assetsByKind.get(kind, ())
         lines.append(f"<h3>{heading} ({len(entities)})</h3>")
 
         if not entities:
@@ -274,8 +280,8 @@ def ObjectTables(report: ReportSnapshot) -> str:
         lines.extend(f"<th>{Html(label)}</th>" for label, _ in fields)
         lines.append("<th>Details</th></tr></thead><tbody>")
 
-        for entity in entities:
-            lines.append(f'<tr id="object-{entity.Reference()[7:]}">'
+        for reference, entity in entities:
+            lines.append(f'<tr id="object-{reference[7:]}">'
                          f"<td>{Html(entity.identity.key)}</td>")
             lines.extend(f"<td>{AttributeText(entity, *names)}</td>" for _, names in fields)
             lines.append("<td><details><summary>Technical object</summary>"
@@ -284,13 +290,14 @@ def ObjectTables(report: ReportSnapshot) -> str:
         lines.append("</tbody></table></div>")
 
     primary = {kind for kind, _, _ in groups} | {ObjectKind.FINDING}
-    others = [entity for entity in report.state.objects if entity.identity.kind not in primary]
+    others = [(reference, entity) for reference, entity in rows.objects.items()
+              if entity.identity.kind not in primary]
 
     if others:
         lines.append("<h3>Other retained objects</h3>")
 
-        for entity in others:
-            lines.append(f'<details id="object-{entity.Reference()[7:]}"><summary>'
+        for reference, entity in others:
+            lines.append(f'<details id="object-{reference[7:]}"><summary>'
                          + Html(ObjectLabel(entity)) + "</summary>"
                          + JsonBlock(JsonValue(entity)) + "</details>")
 
@@ -443,12 +450,11 @@ def SeverityScale(value: object) -> str:
     return "\n".join(lines)
 
 
-def IntelligenceDetails(report: ReportSnapshot, finding_reference: str) -> str:
+def IntelligenceDetails(observations: tuple[Observation, ...]) -> str:
     """Explain retained source assertions without assigning target applicability or risk.
 
     Args:
-        report: Immutable saved projection containing source-attributed observations.
-        finding_reference: Canonical finding reference whose retained intelligence is selected.
+        observations: Retained observations belonging to one canonical finding.
 
     Returns:
         Readable HTML for selected CVE/CWE/KEV/EPSS assertions with separate source meanings,
@@ -456,11 +462,9 @@ def IntelligenceDetails(report: ReportSnapshot, finding_reference: str) -> str:
         complete original assertions stay disclosed and no target verdict is inferred.
     """
 
-    observations = [item for item in report.state.observations
-                    if item.subject_reference == finding_reference
-                    and item.kind == "finding-intelligence"]
+    intelligence = [item for item in observations if item.kind == "finding-intelligence"]
 
-    if not observations:
+    if not intelligence:
         return "<p>No vulnerability-intelligence assertions were retained for this finding.</p>"
 
     lines = ["<h4>Vulnerability intelligence</h4>",
@@ -468,7 +472,7 @@ def IntelligenceDetails(report: ReportSnapshot, finding_reference: str) -> str:
              "association does not prove that this target is affected. CVSS describes technical "
              "severity, KEV records known exploitation, and EPSS is a source forecast.</p>"]
 
-    for observation in observations:
+    for observation in intelligence:
         attributes = cast(dict[str, object], JsonValue(observation.attributes))
         unmatched = attributes.get("unmatched_identifiers")
 
@@ -580,7 +584,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     document = report.ToDict()
     summary = cast(dict[str, object], document["summary"])
     bindings = {item.finding_reference: item for item in report.reference_bindings}
-    objects = {entity.Reference(): entity for entity in report.state.objects}
+    rows = _ProjectRetainedReportRows(report.state)
     lines = [
         '<!doctype html><html lang="en"><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width,initial-scale=1">',
@@ -600,9 +604,9 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     ]
 
     for label, value in (
-        ("Hosts", len(report.state.Objects(ObjectKind.HOST))),
-        ("Services", len(report.state.Objects(ObjectKind.SERVICE))),
-        ("Web addresses", len(report.state.Objects(ObjectKind.ENDPOINT))),
+        ("Hosts", len(rows.assetsByKind.get(ObjectKind.HOST, ()))),
+        ("Services", len(rows.assetsByKind.get(ObjectKind.SERVICE, ()))),
+        ("Web addresses", len(rows.assetsByKind.get(ObjectKind.ENDPOINT, ()))),
         ("Open or confirmed findings", summary["active_findings"]),
         ("Execution records that did not succeed", summary["failed_execution_records"]),
     ):
@@ -632,18 +636,19 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<details><summary>Snapshot identity and technical summary</summary>'
         + f"<p>Canonical snapshot: <code>{report.SnapshotDigest()}</code></p>"
         + JsonBlock(summary) + "</details></section>",
-        RetainedOperations(report, document), ObjectTables(report),
+        RetainedOperations(report, document), ObjectTables(rows),
         '<section id="findings"><h2>Findings and next actions</h2>',
     ])
 
-    if not report.state.Objects(ObjectKind.FINDING):
+    if not rows.findings:
         lines.append("<p>No finding records were retained. To assess a vulnerability, run an "
                      "appropriate authorized check and retain its evidence; opening this "
                      "report does not perform one.</p>")
 
-    for entity in report.state.Objects(ObjectKind.FINDING):
-        finding = Finding.FromObject(entity)
-        reference = entity.Reference()
+    for row in rows.findings:
+        finding = row.finding
+        reference = row.reference
+        subject = rows.objects[finding.subject_reference]
         statusExplanation = {
             FindingStatus.OPEN: "Retained interpretation awaiting an operator disposition.",
             FindingStatus.CONFIRMED: "An operator confirmed this interpretation.",
@@ -657,8 +662,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
             + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
             + f'<span class="badge">{Html(finding.status.value)}</span>'
             + f"<h3>{Html(finding.summary)}</h3>",
-            "<p>Subject: " + ObjectLink(finding.subject_reference,
-                                        ObjectLabel(objects[finding.subject_reference])) + "</p>",
+            "<p>Subject: " + ObjectLink(finding.subject_reference, ObjectLabel(subject)) + "</p>",
             f"<p>Check: {Html(finding.check_id)} · location: {Html(finding.location_key)}</p>",
             "<p>Disposition: " + statusExplanation + " Reason: "
             + Html(finding.status_reason or "No reason recorded") + "</p>",
@@ -678,11 +682,10 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                          + "; ".join(Html(item) for item in finding.remediation.references)
                          + "</p>")
 
-        lines.append(IntelligenceDetails(report, reference))
+        lines.append(IntelligenceDetails(row.observations))
         lines.append("<h4>Evidence for this interpretation</h4><ul>")
-        references = {item for record in entity.provenance for item in record.evidence_references}
 
-        for index, evidenceReference in enumerate(sorted(references, key=CanonicalModelJson), 1):
+        for index, evidenceReference in enumerate(row.evidence, 1):
             lines.append(f'<li><a href="#{EvidenceId(evidenceReference)}">'
                          f"Evidence {index}: {Html(evidenceReference.role)}</a></li>")
 
@@ -704,10 +707,9 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
             lines.append("</ul><details><summary>Reference attribution</summary>"
                          + JsonBlock(binding.ToDict()) + "</details>")
 
-        observations = [JsonValue(item) for item in report.state.observations
-                        if item.subject_reference == reference]
+        observations = [JsonValue(item) for item in row.observations]
         lines.append(f'<details id="object-{reference[7:]}"><summary>Technical finding record '
-                     "and observation history</summary>" + JsonBlock(JsonValue(entity))
+                     "and observation history</summary>" + JsonBlock(JsonValue(row.entity))
                      + JsonBlock(observations) + "</details></article>")
 
     lines.extend([
@@ -743,10 +745,10 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
 
     for relation in report.state.relations:
         lines.append("<tr><td>" + ObjectLink(relation.source_reference,
-                     ObjectLabel(objects[relation.source_reference])) + "</td>"
+                     ObjectLabel(rows.objects[relation.source_reference])) + "</td>"
                      f"<td>{Html(relation.kind.value.replace('-', ' '))}</td><td>"
                      + ObjectLink(relation.target_reference,
-                                  ObjectLabel(objects[relation.target_reference])) + "</td>"
+                                  ObjectLabel(rows.objects[relation.target_reference])) + "</td>"
                      "<td><details><summary>Relationship provenance</summary>"
                      + JsonBlock(JsonValue(relation)) + "</details></td></tr>")
 

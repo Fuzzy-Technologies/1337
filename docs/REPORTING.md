@@ -73,6 +73,10 @@ recorded stays unknown. Discovery records describe objects and responses; a zero
 finding count does not establish that a target is secure. A resolved disposition
 alone does not establish a successful repeated check.
 
+The HTML renderer groups inventory rows by stored object kind and indexes finding
+history by canonical subject reference in a single pass. Both views use the saved
+record order and source attribution.
+
 Finding-intelligence cards keep source origin, publisher, version, date,
 freshness, explicit candidate association and unmatched identifiers visible.
 CVSS technical severity, KEV known-exploitation assertions and EPSS forecasts

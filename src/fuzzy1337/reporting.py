@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from types import MappingProxyType
 
 from fuzzy1337.adapters.contracts import EvidenceReference, ExecutionState, JsonValue
 from fuzzy1337.evidence import LocalEvidenceStore
@@ -20,6 +22,7 @@ from fuzzy1337.model import (
     ModelSequence,
     ModelState,
     ObjectKind,
+    Observation,
     Relation,
     RequireModelReference,
     SecurityObject,
@@ -39,6 +42,77 @@ _IDENTIFIERS = {
     "capec": r"CAPEC-[1-9][0-9]*", "attack": r"T[0-9]{4}(?:\.[0-9]{3})?",
     "atlas": r"AML\.T[0-9]{4}(?:\.[0-9]{3})?", "owasp-top10": r"A(?:0[1-9]|10):2021",
 }
+
+
+@dataclass(frozen=True, slots=True)
+class _RetainedFindingRow:
+    """Keep the canonical finding, its linked evidence and its own observation history."""
+
+    reference: str
+    entity: SecurityObject
+    finding: Finding
+    evidence: tuple[EvidenceReference, ...]
+    observations: tuple[Observation, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _RetainedReportRows:
+    """Index canonical objects for the read-only asset and finding presentation."""
+
+    objects: Mapping[str, SecurityObject]
+    assetsByKind: Mapping[ObjectKind, tuple[tuple[str, SecurityObject], ...]]
+    findings: tuple[_RetainedFindingRow, ...]
+
+
+def _ProjectRetainedReportRows(state: ModelState) -> _RetainedReportRows:
+    """Index each object and observation once while preserving canonical content and order.
+
+    Args:
+        state: Validated immutable snapshot with the existing source attribution.
+
+    Returns:
+        Read-only rows with unmodified attributes, provenance and observation metadata.
+    """
+
+    objects: dict[str, SecurityObject] = {}
+    assetsByKind: dict[ObjectKind, list[tuple[str, SecurityObject]]] = {}
+    findingObservations: dict[str, list[Observation]] = {}
+
+    for entity in state.objects:
+        reference = entity.Reference()
+        kind = entity.identity.kind
+        objects[reference] = entity
+
+        if kind is ObjectKind.FINDING:
+            findingObservations[reference] = []
+
+        else:
+            assetsByKind.setdefault(kind, []).append((reference, entity))
+
+    if findingObservations:
+        for observation in state.observations:
+            selected = findingObservations.get(observation.subject_reference)
+
+            if selected is not None:
+                selected.append(observation)
+
+    findings: list[_RetainedFindingRow] = []
+
+    for reference, observations in findingObservations.items():
+        entity = objects[reference]
+        evidence = {
+            item for provenance in entity.provenance for item in provenance.evidence_references
+        }
+        findings.append(_RetainedFindingRow(
+            reference, entity, Finding.FromObject(entity),
+            tuple(sorted(evidence, key=CanonicalModelJson)), tuple(observations),
+        ))
+
+    return _RetainedReportRows(
+        MappingProxyType(objects),
+        MappingProxyType({kind: tuple(assets) for kind, assets in assetsByKind.items()}),
+        tuple(findings),
+    )
 
 
 def ReportText(value: object, field_name: str, limit: int = 4096) -> str:

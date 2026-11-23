@@ -8,6 +8,18 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 32 — v0.4.32 — 2026-11-23
+
+#### Digest
+
+- Reduce repeated lookups when rendering large offline reports.
+
+#### Changed
+
+- Group retained inventory by object kind and index finding history by canonical
+  subject reference for the HTML report.
+
+
 ### Patch 31 — v0.4.31 — 2026-11-04
 
 #### Digest

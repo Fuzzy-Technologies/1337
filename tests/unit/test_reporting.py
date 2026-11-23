@@ -471,6 +471,67 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
     )
 
 
+def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypatch):
+    """Keep canonical order, missing asset fields and distinct finding evidence attribution."""
+
+    state = Fixture().state
+    asset = state.Objects(ObjectKind.ASSET)[0]
+    entities = state.Objects(ObjectKind.FINDING)
+    directProvenance = next(record for record in entities[0].provenance
+                            if record.evidence_references)
+    directEvidence = directProvenance.evidence_references[0]
+    sourceEvidence = replace(directEvidence, role="source-assertion")
+    attribution = replace(directProvenance, evidence_references=(sourceEvidence,))
+    source = Observation("finding-intelligence", entities[0].Reference(), {
+        "source_assertions": [
+            {"association_state": "candidate", "record": {"feed": IntelligenceFeed.CVE.value,
+                "data": {"cvss": [{"base_score": None}]}}},
+            {"association_state": "candidate", "record": {"feed": IntelligenceFeed.EPSS.value,
+                "data": {"probability": 0.12}}},
+        ],
+    }, attribution)
+    assetObservation = Observation("asset-inventory", asset.Reference(), {}, attribution)
+    state, _ = state.Apply(observations=(source, assetObservation))
+    expected = {
+        entity.Reference(): tuple(item for item in state.observations
+                                  if item.subject_reference == entity.Reference())
+        for entity in entities
+    }
+    subjectReads = 0
+    original = Observation.__getattribute__
+
+    def CountSubjectReads(observation, fieldName):
+        """Count only canonical subject lookups during the row projection."""
+
+        nonlocal subjectReads
+
+        if fieldName == "subject_reference":
+            subjectReads += 1
+
+        return original(observation, fieldName)
+
+    with monkeypatch.context() as counting:
+        counting.setattr(Observation, "__getattribute__", CountSubjectReads)
+        rows = reporting._ProjectRetainedReportRows(state)
+
+    assert subjectReads == len(state.observations), "Projection rescanned observation history"
+    assert tuple(rows.objects.values()) == state.objects, "Canonical object order changed"
+    assert rows.assetsByKind[ObjectKind.ASSET] == ((asset.Reference(), asset),), (
+        "Asset projection changed canonical identity, provenance or missing fields"
+    )
+    assert tuple(row.entity for row in rows.findings) == entities, "Finding order changed"
+    assert {row.reference: row.observations for row in rows.findings} == expected, (
+        "Finding history lost its canonical order or acquired observations from another object"
+    )
+    assert rows.findings[0].evidence == (directEvidence,), "Direct evidence linkage changed"
+    retainedSource = next(item for item in rows.findings[0].observations
+                          if item.kind == "finding-intelligence")
+    assert retainedSource.attributes == source.attributes, "Candidate source assertion changed"
+    assert retainedSource.provenance.evidence_references == (sourceEvidence,), (
+        "Source evidence was blended with direct finding evidence"
+    )
+
+
 
 def test_HtmlNativeResponseRowsRequireAttributedEvidenceAndAnExactObservation():
     """Keep failed or ambiguous native response records in technical history only."""
