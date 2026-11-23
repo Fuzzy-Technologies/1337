@@ -342,9 +342,10 @@ def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_pa
     right = tmp_path / "candidate.json"
     left.write_bytes(before)
     right.write_bytes(after)
-    args = [sys.executable, str(TOOL), str(left), str(right), "--scanner", SCANNER,
+    commonArgs = [sys.executable, str(TOOL), str(left), str(right),
         "--baseline-release", BEFORE.release_id, "--candidate-release", AFTER.release_id,
         "--baseline-profile", PROFILE, "--candidate-profile", PROFILE]
+    args = [*commonArgs, "--scanner", SCANNER]
 
     first = subprocess.run(args, cwd=ROOT, capture_output=True, check=True, timeout=10)
     second = subprocess.run(args, cwd=ROOT, capture_output=True, check=True, timeout=10)
@@ -361,11 +362,35 @@ def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_pa
     assert b"original" not in first.stdout, "Source evidence content must not appear in output."
 
     invalid = b"private invalid input"
-    right.write_bytes(invalid)
-    failure = subprocess.run(args, cwd=ROOT, capture_output=True, check=False, timeout=10)
 
-    assert failure.returncode == 2 and not failure.stdout, (
-        "Reject invalid input with exit status 2 and no partial JSON."
+    for side, path, contents in (("baseline", left, before), ("candidate", right, after)):
+        expected = f"The {side} report is invalid or unreadable.\n".encode()
+        path.write_bytes(invalid)
+        failure = subprocess.run(args, cwd=ROOT, capture_output=True, check=False, timeout=10)
+        assert failure.returncode == 2 and not failure.stdout, (
+            "Reject malformed input with exit status 2 and no partial JSON."
+        )
+        assert failure.stderr == expected, (
+            "Identify the malformed side without disclosing the path or report contents."
+        )
+        assert path.read_bytes() == invalid, "A rejected input file must remain unchanged."
+
+        path.unlink()
+        failure = subprocess.run(args, cwd=ROOT, capture_output=True, check=False, timeout=10)
+        assert failure.returncode == 2 and not failure.stdout, (
+            "Reject a missing report with exit status 2 and no partial JSON."
+        )
+        assert failure.stderr == expected, (
+            "Identify the missing side without disclosing the path."
+        )
+        assert not path.exists(), "The comparison must not recreate a missing report."
+        path.write_bytes(contents)
+
+    shared = subprocess.run([*commonArgs, "--scanner", "private invalid scanner"],
+        cwd=ROOT, capture_output=True, check=False, timeout=10)
+    assert shared.returncode == 2 and not shared.stdout, (
+        "Reject an invalid shared scanner selection with no partial JSON."
     )
-    assert invalid not in failure.stderr, "Diagnostics must not disclose rejected file contents."
-    assert right.read_bytes() == invalid, "A rejected input file must remain unchanged."
+    assert shared.stderr == (
+        b"Cannot compare the selected functional reports: invalid or unreadable input.\n"
+    ), "A shared scanner selection failure must stay generic."
