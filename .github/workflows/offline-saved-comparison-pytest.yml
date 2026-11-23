@@ -1,0 +1,78 @@
+name: Offline saved comparison pytest
+
+on:
+  push:
+    branches: [fix/118-offline-provenance-pytest]
+
+permissions:
+  contents: read
+
+jobs:
+  comparison:
+    name: Selected offline saved comparison tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out exact Draft head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 6d16cda4e3a2bff07928432be1942d5d498b63a8
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.13"
+      - name: Install pinned uv and locked test dependencies
+        run: |
+          python -m pip install uv==0.11.33
+          uv sync --locked --extra dev --no-install-project
+      - name: Run selected saved-data tests with sockets and child processes blocked
+        timeout-minutes: 2
+        env:
+          PYTHONPATH: src
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          mkdir -p .offline-provenance-evidence
+          git rev-parse HEAD > .offline-provenance-evidence/source.sha
+          test "$(cat .offline-provenance-evidence/source.sha)" = 6d16cda4e3a2bff07928432be1942d5d498b63a8
+          .venv/bin/python - <<'PY'
+          import sys
+          import xml.etree.ElementTree as ElementTree
+
+          def RefuseExternalEffects(event, args):
+              if event.startswith("socket.") or event.startswith("subprocess.") or event in {
+                  "os.exec", "os.fork", "os.forkpty", "os.posix_spawn", "os.spawn", "os.system", "os.startfile",
+              }:
+                  raise RuntimeError(f"Offline pytest blocked {event}")
+
+          sys.addaudithook(RefuseExternalEffects)
+          import pytest
+
+          path = "tests/contract/test_external_scanner_comparison_view.py"
+          report = ".offline-provenance-evidence/results.xml"
+          result = pytest.main([
+              "-p", "pytest_cov.plugin", "-p", "xdist.plugin", "-n", "0",
+              "--strict-config", "--strict-markers",
+              "-o", "addopts=", "--no-cov", "-q",
+              f"{path}::test_JoinedViewKeepsNativeAndNucleiOutcomesAndBudgetDifferences",
+              f"{path}::test_JoinedViewRejectsMissingOriginalObservation",
+              f"--junitxml={report}",
+          ])
+          if result != pytest.ExitCode.OK:
+              sys.exit(result)
+          root = ElementTree.parse(report).getroot()
+          cases = list(root.iter("testcase"))
+          if len(cases) != 2 or any(
+              case.find(tag) is not None for case in cases for tag in ("skipped", "failure", "error")
+          ):
+              sys.exit("Both selected cases must complete successfully.")
+          PY
+      - name: Preserve exact source and test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-saved-comparison-pytest
+          path: .offline-provenance-evidence/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
