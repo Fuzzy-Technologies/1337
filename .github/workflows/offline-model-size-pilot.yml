@@ -1,0 +1,74 @@
+name: Offline model size regression pilot
+
+on:
+  push:
+    branches: [fix/55-offline-boundary-pilot]
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Focused pytest before and after
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out the previous PR revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: e34ec24e7f9e6805c65a000f8d73de89cf8fe2f6
+          path: before
+          persist-credentials: false
+      - name: Check out the consolidated PR revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ab10b6fc3c1d35182e1bd754277dc3f97d9d70c0
+          path: after
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.13"
+      - name: Install pinned uv
+        run: python -m pip install uv==0.11.33
+      - name: Check the fixed revisions with the locked environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir evidence
+          test "$(git -C before rev-parse HEAD)" = "e34ec24e7f9e6805c65a000f8d73de89cf8fe2f6"
+          test "$(git -C after rev-parse HEAD)" = "ab10b6fc3c1d35182e1bd754277dc3f97d9d70c0"
+          for revision in before after; do
+            (
+              cd "$revision"
+              git rev-parse HEAD > "$GITHUB_WORKSPACE/evidence/$revision.sha"
+              uv sync --locked --extra dev --python 3.13
+              .venv/bin/python -m pytest -o addopts= --no-cov -n 0 \
+                --strict-config --strict-markers --timeout=45 --durations=0 -q \
+                tests/unit/test_reachability.py::test_ExactEightMiBBoundariesUseIndependentCanonicalBytes \
+                tests/unit/test_reachability.py::test_OversizedCallerModelRefusesBeforeFullMaterialization \
+                --junitxml="$GITHUB_WORKSPACE/evidence/$revision.xml"
+            )
+          done
+          after/.venv/bin/ruff check after/tests/unit/test_reachability.py
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          for revision, expected in (("before", 4), ("after", 3)):
+              report = ElementTree.parse(Path("evidence") / f"{revision}.xml")
+              cases = report.findall(".//testcase")
+              outcomes = [element.tag for case in cases for element in case
+                          if element.tag in {"failure", "error", "skipped"}]
+              if len(cases) != expected or outcomes:
+                  raise SystemExit(f"{revision} collected {len(cases)} cases with outcomes {outcomes!r}")
+              print(f"{revision} passed {len(cases)} cases")
+          PY
+      - name: Preserve source revisions and JUnit results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-model-size-comparison
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
