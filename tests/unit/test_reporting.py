@@ -480,6 +480,14 @@ def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypa
     directProvenance = next(record for record in entities[0].provenance
                             if record.evidence_references)
     directEvidence = directProvenance.evidence_references[0]
+    secondEntity = entities[1]
+    secondEvidence = replace(directEvidence, role="second-finding")
+    secondProvenance = replace(directProvenance, evidence_references=(secondEvidence,))
+    secondWithEvidence = replace(secondEntity, provenance=(secondProvenance,))
+    state = replace(state, objects=tuple(
+        secondWithEvidence if entity == secondEntity else entity for entity in state.objects
+    ))
+    entities = state.Objects(ObjectKind.FINDING)
     sourceEvidence = replace(directEvidence, role="source-assertion")
     attribution = replace(directProvenance, evidence_references=(sourceEvidence,))
     source = Observation("finding-intelligence", entities[0].Reference(), {
@@ -524,6 +532,7 @@ def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypa
         "Finding history lost its canonical order or acquired observations from another object"
     )
     assert rows.findings[0].evidence == (directEvidence,), "Direct evidence linkage changed"
+    assert rows.findings[1].evidence == (secondEvidence,), "Evidence crossed finding boundaries"
     retainedSource = next(item for item in rows.findings[0].observations
                           if item.kind == "finding-intelligence")
     assert retainedSource.attributes == source.attributes, "Candidate source assertion changed"
