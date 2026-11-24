@@ -277,6 +277,7 @@ from pathlib import Path
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.model import LocalModelStore
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
+from fuzzy1337.workspace import LocalWorkspaceStore
 
 root = Path(sys.argv[1])
 snapshot = ReportSnapshot(LocalModelStore(root).Open())
@@ -309,8 +310,14 @@ if selected != {
 }:
     raise SystemExit("Saved content does not match the seeded topology marker")
 
+workspace = LocalWorkspaceStore(root).Open()
+if workspace.workspace_id != report["workspace_id"]:
+    raise SystemExit("Saved report does not match the selected workspace")
+
+registered = record.evidence_id in workspace.evidence_record_references
 print(finding["reference"], observation["reference"], record.evidence_id)
 print(selected)
+print("Registered in workspace snapshot:", "yes" if registered else "no")
 PY
 ```
 
@@ -320,6 +327,9 @@ original marker has `id` equal to `evidence.initial-topology`, `type` equal to
 the acquisition ID as its `run_reference`. Other sources can retain a job ID
 there. A shared raw digest can belong to multiple acquisitions, so leave
 attribution unresolved when the original acquisition cannot be identified.
+The third line reports whether the verified acquisition ID is registered in the
+opened workspace snapshot. The finding-replay fixture stores the acquisition
+and leaves the workspace registry empty.
 
 The evidence check verifies the integrity of the saved bytes. The recorded
 source identifies seeded fixture data, and the report keeps `scan_completeness`
