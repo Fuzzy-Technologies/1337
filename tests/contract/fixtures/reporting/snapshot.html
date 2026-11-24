@@ -29,7 +29,7 @@ summary {cursor:pointer;color:var(--green)} code,pre {overflow-wrap:anywhere}
 pre {white-space:pre-wrap;background:#101820;padding:1rem;border-radius:6px}
 .table {overflow:auto} table {border-collapse:collapse;width:100%}
 th,td {text-align:left;vertical-align:top;padding:.65rem;border-bottom:1px solid var(--border)}
-th {color:var(--cyan)}
+thead th {color:var(--cyan)} th[scope="row"] {font-weight:inherit}
 a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid var(--cyan)}
 @media print {body {background:white;color:black} a,h1,h2,h3,summary {color:black}}
 </style></head><body><main>
@@ -56,11 +56,11 @@ a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid va
 <section id="model"><h2>Retained assets and addresses</h2>
 <p>These are saved model objects. A listed address or service is not itself a vulnerability, and its presence does not establish current reachability.</p>
 <h3 id="model-host-table-heading">Hosts (1)</h3>
-<div class="table" role="region" tabindex="0" aria-labelledby="model-host-table-heading"><table><thead><tr><th>Saved identity</th>
-<th>Address</th>
-<th>Reported state</th>
-<th>Details</th></tr></thead><tbody>
-<tr id="object-e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6"><td>127.0.0.1</td>
+<div class="table" role="region" tabindex="0" aria-labelledby="model-host-table-heading"><table><thead><tr><th scope="col">Saved identity</th>
+<th scope="col">Address</th>
+<th scope="col">Reported state</th>
+<th scope="col">Details</th></tr></thead><tbody>
+<tr id="object-e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6"><th scope="row">127.0.0.1</th>
 <td>Not recorded</td>
 <td>reported</td>
 <td><details><summary>Technical object</summary><pre>{&quot;attributes&quot;:{&quot;state&quot;:&quot;reported&quot;},&quot;identity&quot;:{&quot;key&quot;:&quot;127.0.0.1&quot;,&quot;kind&quot;:&quot;host&quot;,&quot;workspace_id&quot;:&quot;synthetic&quot;},&quot;provenance&quot;:[{&quot;evidence_references&quot;:[{&quot;locator&quot;:&quot;blobs/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;,&quot;media_type&quot;:&quot;application/json&quot;,&quot;role&quot;:&quot;stdout&quot;,&quot;sha256&quot;:&quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;,&quot;size_bytes&quot;:2}],&quot;execution&quot;:{&quot;duration_seconds&quot;:0.1,&quot;exit_code&quot;:2,&quot;state&quot;:&quot;failed&quot;},&quot;observed_at&quot;:&quot;2026-10-13T00:00:00.000000+00:00&quot;,&quot;provider_version&quot;:null,&quot;run_reference&quot;:&quot;run:synthetic&quot;,&quot;scope_reference&quot;:&quot;scope:fixture&quot;,&quot;source_id&quot;:&quot;synthetic&quot;,&quot;target_reference&quot;:&quot;target:fixture&quot;}]}</pre></details></td></tr>

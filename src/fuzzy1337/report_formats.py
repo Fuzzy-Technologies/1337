@@ -57,7 +57,7 @@ summary {cursor:pointer;color:var(--green)} code,pre {overflow-wrap:anywhere}
 pre {white-space:pre-wrap;background:#101820;padding:1rem;border-radius:6px}
 .table {overflow:auto} table {border-collapse:collapse;width:100%}
 th,td {text-align:left;vertical-align:top;padding:.65rem;border-bottom:1px solid var(--border)}
-th {color:var(--cyan)}
+thead th {color:var(--cyan)} th[scope="row"] {font-weight:inherit}
 a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid var(--cyan)}
 @media print {body {background:white;color:black} a,h1,h2,h3,summary {color:black}}
 """
@@ -285,13 +285,13 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
             continue
 
-        lines.append(_TableStart(headingId) + '<th>Saved identity</th>')
-        lines.extend(f"<th>{Html(label)}</th>" for label, _ in fields)
-        lines.append("<th>Details</th></tr></thead><tbody>")
+        lines.append(_TableStart(headingId) + '<th scope="col">Saved identity</th>')
+        lines.extend(f'<th scope="col">{Html(label)}</th>' for label, _ in fields)
+        lines.append('<th scope="col">Details</th></tr></thead><tbody>')
 
         for reference, entity in entities:
             lines.append(f'<tr id="object-{reference[7:]}">'
-                         f"<td>{Html(entity.identity.key)}</td>")
+                         f'<th scope="row">{Html(entity.identity.key)}</th>')
             lines.extend(f"<td>{AttributeText(entity, *names)}</td>" for _, names in fields)
             lines.append("<td><details><summary>Technical object</summary>"
                          + JsonBlock(JsonValue(entity)) + "</details></td></tr>")

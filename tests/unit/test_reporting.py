@@ -504,8 +504,9 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
                        {"method": "GET", "status": 302}, provenance),
     )
     state, _ = original.state.Apply(objects=objects)
+    rendered = RenderHtml(replace(original, state=state)).decode("utf-8")
     dom = Dom()
-    dom.feed(RenderHtml(replace(original, state=state)).decode("utf-8"))
+    dom.feed(rendered)
     visible = " ".join(dom.primary_text)
 
     for expected in ("Hosts (1)", "Ports (1)", "Services (1)", "Web addresses (1)",
@@ -527,6 +528,30 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
     ]
     assert len(labels) == dom.tags.count("table")
     assert set(labels) <= dom.headingIds
+
+    expected = {
+        ObjectKind.HOST: (("Address", "Reported state"), ("Not recorded", "reported")),
+        ObjectKind.PORT: (("Protocol", "Number", "Reported state"), ("tcp", "8080", "open")),
+        ObjectKind.SERVICE: (("Name", "Version"), ("http", "Not recorded")),
+        ObjectKind.ENDPOINT: (("Method", "HTTP status"), ("GET", "302 Found")),
+    }
+
+    for kind, (columns, values) in expected.items():
+        tableHtml = rendered.split(f'aria-labelledby="model-{kind.value}-table-heading">', 1)[1]
+        table = ElementTree.fromstring(tableHtml.split("</table>", 1)[0] + "</table>")
+        columnHeaders = table.findall("thead/tr/*")
+        assert [(cell.tag, cell.get("scope"), cell.text) for cell in columnHeaders] == [
+            ("th", "col", column) for column in ("Saved identity", *columns, "Details")
+        ]
+        entity, = state.Objects(kind)
+        row, = table.findall("tbody/tr")
+        identity, *cells = row
+        assert row.get("id") == f"object-{entity.Reference()[7:]}"
+        assert (identity.tag, identity.get("scope"), identity.text) == (
+            "th", "row", entity.identity.key,
+        )
+        assert [cell.tag for cell in cells] == ["td"] * (len(values) + 1)
+        assert [cell.text for cell in cells[:-1]] == list(values)
 
 
 def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypatch):
