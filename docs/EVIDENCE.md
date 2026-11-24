@@ -70,19 +70,24 @@ identifies the original record ID. See [offline report export](REPORT_EXPORT.md)
 
 To check a selected acquisition, pass the existing owner workspace root and the
 full `sha256:<digest>` acquisition ID supplied with the retained evidence. From a
-checkout with the locked environment already installed, replace both arguments
-in this Bash command. It checks workspace registration, verifies the acquisition's
-manifest and bytes, and prints the two identities and registration result.
+checkout with the locked environment already installed, replace the workspace
+path and acquisition ID in the Bash command below. It checks workspace
+registration, verifies the acquisition's manifest and bytes, and prints the two
+identities and registration result.
 The selected manifest retains the recorded attribution. See
 [workspace metadata](WORKSPACES.md).
 
-For an exact comparison with a handed-off reference, insert its file path as a
-third argument before `<<'PY'`. Save the selected report `EvidenceReference` as
-a single UTF-8 JSON object with `role`, `locator`, `sha256`, `media_type`, and
-`size_bytes`.
+For an exact comparison, open the JSON report file written to `--output` by
+`report export --format json` and select the intended object in
+`evidence_integrity.linked_references`. Save that single object as UTF-8 JSON
+with all five fields (`role`, `locator`, `sha256`, `media_type`, and `size_bytes`)
+and pass its path as the third argument. Omit `path/to/expected-reference.json`
+to verify the acquisition alone, including when the report has no linked entry
+for it.
 
 ```bash
-uv run --offline --locked --no-sync python - path/to/saved-workspace 'sha256:<acquisition-digest>' <<'PY'
+uv run --offline --locked --no-sync python - path/to/saved-workspace \
+  'sha256:<acquisition-digest>' path/to/expected-reference.json <<'PY'
 import json
 import sys
 from pathlib import Path
