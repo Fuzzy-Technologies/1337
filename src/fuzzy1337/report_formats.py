@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import hashlib
 import html
+from collections.abc import Callable
+from functools import cache
 from http import HTTPStatus
 from typing import cast
 from xml.etree import ElementTree
@@ -315,13 +317,17 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
     return "\n".join(lines)
 
 
-def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> str:
+def RetainedOperations(
+    report: ReportSnapshot, document: dict[str, object],
+    evidenceId: Callable[[EvidenceReference], str],
+) -> str:
     """Explain exact execution provenance without guessing jobs, checks, scope, or completeness.
 
     Args:
         report: Owning immutable snapshot accompanying the detached report document.
         document: Validated result of that snapshot's ToDict method, including original
             execution outcomes rather than inferred jobs or successful checks.
+        evidenceId: Fragment resolver shared by all evidence links and rows in this render.
 
     Returns:
         An HTML section explaining retained outcomes and unknown coverage, with complete
@@ -390,7 +396,7 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
             continue
 
         evidenceLinks = ", ".join(
-            f'<a href="#{EvidenceId(reference)}">{Html(reference.role)}</a>'
+            f'<a href="#{evidenceId(reference)}">{Html(reference.role)}</a>'
             for reference in provenance.evidence_references
         )
         responseRows.append(f"<tr><td>{profile}</td><td>"
@@ -594,6 +600,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     summary = cast(dict[str, object], document["summary"])
     bindings = {item.finding_reference: item for item in report.reference_bindings}
     rows = _ProjectRetainedReportRows(report.state)
+    evidenceId = cache(EvidenceId)
     lines = [
         '<!doctype html><html lang="en"><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width,initial-scale=1">',
@@ -645,7 +652,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<details><summary>Snapshot identity and technical summary</summary>'
         + f"<p>Canonical snapshot: <code>{Html(document['snapshot_sha256'])}</code></p>"
         + JsonBlock(summary) + "</details></section>",
-        RetainedOperations(report, document), ObjectTables(rows),
+        RetainedOperations(report, document, evidenceId), ObjectTables(rows),
         '<section id="findings"><h2>Findings and next actions</h2>',
     ])
 
@@ -695,7 +702,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         lines.append("<h4>Evidence for this interpretation</h4><ul>")
 
         for index, evidenceReference in enumerate(row.evidence, 1):
-            lines.append(f'<li><a href="#{EvidenceId(evidenceReference)}">'
+            lines.append(f'<li><a href="#{evidenceId(evidenceReference)}">'
                          f"Evidence {index}: {Html(evidenceReference.role)}</a></li>")
 
         lines.append("</ul>")
@@ -742,7 +749,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
             "verified bytes" if CanonicalModelJson(evidenceReference) in checked
             else "not verified"
         )
-        lines.append(f'<tr id="{EvidenceId(evidenceReference)}">'
+        lines.append(f'<tr id="{evidenceId(evidenceReference)}">'
                      f'<th scope="row">Evidence {index}</th>'
                      f"<td>{Html(evidenceReference.role)}</td>"
                      f"<td>{evidenceReference.size_bytes} bytes</td><td>{integrity}</td>"

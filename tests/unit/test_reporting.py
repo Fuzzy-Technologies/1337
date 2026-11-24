@@ -326,6 +326,57 @@ def test_HtmlCalculatesCanonicalSnapshotDigestOnce(monkeypatch):
     assert calls == 1, "HTML recalculated the canonical snapshot digest"
 
 
+def test_HtmlReusesEvidenceFragmentsByCompleteReference(monkeypatch):
+    """Share anchors within one render, retaining distinct roles of the same artifact."""
+
+    report = Fixture()
+    reference, = report.EvidenceReferences()
+    alternate = replace(reference, role="stderr")
+    host, = report.state.Objects(ObjectKind.HOST)
+    provenance = replace(
+        host.provenance[0], source_id="native.web-check",
+        evidence_references=(reference, alternate),
+        execution=AdapterExecution(ExecutionState.SUCCEEDED, 0, 0.1),
+    )
+    endpoint = SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.ENDPOINT, "http://127.0.0.1/"), {}, (provenance,),
+    )
+    observation = Observation(
+        "native.web-response-check", endpoint.Reference(),
+        {"check_id": "native.html-reflection", "matched": False}, provenance,
+    )
+    state, _ = report.state.Apply(objects=(endpoint,), observations=(observation,))
+    report = replace(report, state=state)
+    evidenceId = report_formats.EvidenceId
+    fragments = {item: evidenceId(item) for item in (reference, alternate)}
+    calls = []
+
+    def CountEvidenceId(item):
+        """Count calculations while preserving canonical fragment generation."""
+
+        calls.append(item)
+
+        return evidenceId(item)
+
+    monkeypatch.setattr(report_formats, "EvidenceId", CountEvidenceId)
+    payload = RenderHtml(report)
+    assert RenderHtml(report) == payload
+    rendered = payload.decode("utf-8")
+    dom = Dom()
+    dom.feed(rendered)
+    assert len(set(fragments.values())) == 2
+
+    for item, fragment in fragments.items():
+        assert dom.ids.count(fragment) == 1
+        assert f'<a href="#{fragment}">{item.role}</a>' in rendered
+
+    assert dom.links.count(f"#{fragments[reference]}") == len(state.Objects(ObjectKind.FINDING)) + 1
+    assert dom.links.count(f"#{fragments[alternate]}") == 1
+    assert len(calls) == 4 and all(calls.count(item) == 2 for item in fragments), (
+        "Each full evidence reference must have one identity calculation per render"
+    )
+
+
 def test_HostileHtmlXmlControlsAndBidiRemainVisibleInertText():
     """Stored hostile strings cannot escape text contexts or poison XML/control rendering."""
 
