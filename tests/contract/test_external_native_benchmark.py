@@ -454,7 +454,9 @@ def test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate():
         "&& contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')")
     checkpoint += " || (" + prerequisite + ")"
     lane = jobs["external-targets"]
-    assert " ".join(lane["if"].split()) == checkpoint, (
+    assert " ".join(lane["if"].split()) == (
+        "needs.saved-report-acceptance.outputs.profile == 'full' && ( " + checkpoint + ")"
+    ), (
         "Only the existing external lane may accept its explicit draft checkpoint."
     )
     assert lane["env"]["FUZZY1337_EXTERNAL_NATIVE_BENCHMARK"] == "juice-shop", (

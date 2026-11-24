@@ -342,6 +342,28 @@ JSON after an identical replay and verifies that reporting preserves the source
 workspace file contents. See
 [`test_VerifiedFindingReplayMatchesOfflineShowcaseMarker`](../tests/integration/test_finding_persistence.py).
 
+For a `develop` PR limited to a saved report, the final reviewer runs the offline
+acceptance in the review console. The same command runs in the locked CI environment:
+
+```bash
+uv run --locked --extra dev python tools/saved_report_acceptance.py coverage/saved-report.xml
+```
+
+The 18 cases check replay and provenance through the report CLI, refusal of missing,
+corrupt or changing inputs, unpublished partial results, and byte preservation for
+all four export formats. Socket and child-process attempts during the cases fail the run.
+Eligible PRs run the accepted base revision’s tests against the proposed source.
+CI retains the JUnit results, both revisions and the pytest version. The reviewer
+records the result on the PR. The project owner does not have a manual test step.
+
+The [base revision's file list](../tools/saved_report_scope.py) limits the substitution
+for the external-target regression to regular-file modifications in the report surface.
+Changes to the acceptance tooling run its candidate suite alongside the full profile. Mixed,
+new, renamed or deleted files and release revisions keep their existing acceptance.
+The protected container check requires a successful acceptance decision before its
+own checks. An offline pass covers reading retained data. Fresh collection and
+other integration requirements have their own evidence.
+
 Full [showcase acceptance #118](https://github.com/Fuzzy-Technologies/1337/issues/118)
 remains open. Compare the security objects produced by the offline showcase with
 the scenario oracle.

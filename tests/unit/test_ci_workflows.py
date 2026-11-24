@@ -26,6 +26,7 @@ INTEGRATION_CONDITION = (
     "github.event_name == 'push' || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == false)"
 )
+CONTAINER_INTEGRATION_CONDITION = f"!cancelled() && ({INTEGRATION_CONDITION})"
 NATIVE_IMAGE_FEATURE_CONDITION = (
     INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
     "&& github.event.pull_request.draft == true "
@@ -65,10 +66,10 @@ NUCLEI_PREREQUISITE_EXECUTION_CONDITION = (
     INTEGRATION_CONDITION + " || (" + NUCLEI_PREREQUISITE_CONDITION + ")"
 )
 EXTERNAL_NATIVE_FEATURE_CONDITION = (
-    INTEGRATION_CONDITION + " || (github.event_name == 'pull_request' "
-    "&& github.event.pull_request.draft == true "
+    "needs.saved-report-acceptance.outputs.profile == 'full' && ( " + INTEGRATION_CONDITION
+    + " || (github.event_name == 'pull_request' && github.event.pull_request.draft == true "
     "&& contains(github.event.pull_request.body, '[native-external-checkpoint]'))"
-    + " || (" + NUCLEI_PREREQUISITE_CONDITION + ")"
+    + " || (" + NUCLEI_PREREQUISITE_CONDITION + "))"
 )
 NATIVE_CRAWL_PORTABILITY_JOBS = {
     "native-crawl-windows-portability", "native-crawl-container-portability",
@@ -125,7 +126,7 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
     expected = WORKFLOWS[name] | ({"deploy-pages"} if name == "documentation.yml" else set())
 
     if name == "python-quality.yml":
-        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {
+        expected |= NATIVE_CRAWL_PORTABILITY_JOBS | {"saved-report-acceptance",
             OWNED_TRAVERSAL_RATE_JOB, NUCLEI_CONTRACT_WINDOWS_JOB,
             NUCLEI_GOVERNED_PREREQUISITE_JOB, NUCLEI_APPLICATION_PRODUCT_JOB}
 
@@ -137,6 +138,7 @@ def test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate(name: str) -
         condition = " ".join(str(job.get("if", "")).split())
         expectedCondition = (
             EXTERNAL_NATIVE_FEATURE_CONDITION if jobId == "external-targets"
+            else CONTAINER_INTEGRATION_CONDITION if jobId == "container-quality"
             else BROWSER_FEATURE_CONDITION if jobId == "browser-page-quality"
             else PORTABLE_PROTOCOL_FEATURE_CONDITION if jobId == "quality"
             else NATIVE_CONFIGURATION_FEATURE_CONDITION if name == "trivy-acceptance.yml"
@@ -184,7 +186,7 @@ def test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate() -> No
         "--suite-timeout ${{ matrix.suite_timeout_seconds || 600 }}"
     ), "The full matrix must preserve its complete gate and original platform suite budget."
     container = jobs["container-quality"]
-    assert " ".join(container["if"].split()) == INTEGRATION_CONDITION, (
+    assert " ".join(container["if"].split()) == CONTAINER_INTEGRATION_CONDITION, (
         "The complete container gate must retain its original Ready/push condition."
     )
     gate = next(step for step in container["steps"]

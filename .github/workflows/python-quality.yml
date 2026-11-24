@@ -15,6 +15,105 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  saved-report-acceptance:
+    name: Saved report acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    outputs:
+      profile: ${{ steps.scope.outputs.profile }}
+    steps:
+      - name: Check out proposed source and merge base
+        if: github.event_name == 'pull_request' && github.base_ref == 'develop'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Classify the complete change using the base policy
+        id: scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          profile=full
+          accept=false
+          if [[ "$GITHUB_EVENT_NAME" == pull_request && "$GITHUB_BASE_REF" == develop ]]; then
+            [[ "$(git rev-parse HEAD)" == "$HEAD_SHA" ]]
+            ancestor=$(git merge-base --all "$BASE_SHA" "$HEAD_SHA")
+            [[ "$ancestor" =~ ^[0-9a-f]{40}$ ]]
+            git diff --no-ext-diff --raw -z --no-renames "$ancestor" "$HEAD_SHA" -- > "$RUNNER_TEMP/report-changes"
+            if git cat-file -e "$BASE_SHA:tools/saved_report_scope.py" 2>/dev/null; then
+              git show "$BASE_SHA:tools/saved_report_scope.py" > "$RUNNER_TEMP/report-scope.py"
+              profile=$(python3 -I "$RUNNER_TEMP/report-scope.py" < "$RUNNER_TEMP/report-changes")
+              [[ "$profile" == full || "$profile" == saved-report ]]
+            fi
+            if [[ "$profile" == saved-report ]]; then
+              accept=true
+            elif git diff --quiet "$ancestor" "$HEAD_SHA" -- \
+              tools/saved_report_scope.py tools/saved_report_acceptance.py \
+              tests/unit/test_saved_report_acceptance.py tests/integration/test_finding_persistence.py; then
+              accept=false
+            else
+              [[ $? == 1 ]]
+              accept=true
+            fi
+          fi
+          echo "profile=$profile" >> "$GITHUB_OUTPUT"
+          echo "accept=$accept" >> "$GITHUB_OUTPUT"
+      - name: Select Python for saved-report acceptance
+        if: steps.scope.outputs.accept == 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Prepare the locked test environment
+        if: steps.scope.outputs.accept == 'true'
+        run: |
+          python -m pip install uv==0.11.33
+          uv sync --locked --extra dev --python 3.13
+      - name: Run saved-report acceptance offline
+        if: steps.scope.outputs.accept == 'true'
+        shell: bash
+        env:
+          PROFILE: ${{ steps.scope.outputs.profile }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          evidence="$GITHUB_WORKSPACE/coverage/saved-report-acceptance"
+          mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/source.sha"
+          python="$GITHUB_WORKSPACE/.venv/bin/python"
+          "$python" -m pytest --version > "$evidence/pytest.txt"
+          if [[ "$PROFILE" == saved-report ]]; then
+            git worktree add --quiet --detach "$RUNNER_TEMP/report-oracle" "$BASE_SHA"
+            cd "$RUNNER_TEMP/report-oracle"
+          fi
+          git rev-parse HEAD > "$evidence/oracle.sha"
+          sudo -n /usr/bin/unshare --net -- /usr/bin/setpriv \
+            --reuid="$(id -u)" --regid="$(id -g)" --clear-groups --no-new-privs \
+            /usr/bin/env "PYTHONPATH=$GITHUB_WORKSPACE/src:$PWD" \
+            "$python" tools/saved_report_acceptance.py "$evidence/junit.xml"
+      - name: Check changes to the saved-report policy
+        if: steps.scope.outputs.accept == 'true' && steps.scope.outputs.profile == 'full'
+        run: |
+          .venv/bin/python -m ruff check tools/saved_report_*.py tests/unit/test_saved_report_acceptance.py
+          .venv/bin/python -m pytest -o addopts='' -q \
+            tests/unit/test_saved_report_acceptance.py \
+            tests/unit/test_ci_workflows.py::test_EveryHeavyJobWaitsForFinalReadinessWithoutWeakeningTheGate \
+            tests/unit/test_ci_workflows.py::test_ReadyFullChecksStopOnFailureWithoutNarrowingTheirSuccessfulGate \
+            tests/unit/test_ci_workflows.py::test_NucleiPrerequisiteCheckpointSuppressesEveryOldExternalMode \
+            tests/contract/test_external_native_benchmark.py::test_DraftNativeCheckpointRunsOnlyItsGenuineLaneBeforeTheFinalGate \
+            --junitxml=coverage/saved-report-acceptance/policy.xml
+      - name: Retain the source revision and actual test outcomes
+        if: always() && steps.scope.outputs.accept == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: saved-report-acceptance
+          path: coverage/saved-report-acceptance/
+          if-no-files-found: error
+          retention-days: 14
+
   quality:
     if: >-
       github.event_name == 'push' || (github.event_name == 'pull_request'
@@ -624,14 +723,18 @@ jobs:
           retention-days: 14
 
   container-quality:
+    needs: saved-report-acceptance
     if: >-
-      github.event_name == 'push' || (github.event_name == 'pull_request'
-      && github.event.pull_request.draft == false)
+      !cancelled() && (github.event_name == 'push' || (github.event_name == 'pull_request'
+      && github.event.pull_request.draft == false))
     name: Container configuration and quality
     runs-on: ubuntu-24.04
     # Complete suite attempts reached 99% at the former 900-second deadline.
     timeout-minutes: 25
     steps:
+      - name: Require the saved-report acceptance decision
+        if: needs.saved-report-acceptance.result != 'success'
+        run: exit 1
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -718,13 +821,15 @@ jobs:
           if-no-files-found: warn
 
   external-targets:
+    needs: saved-report-acceptance
     if: >-
+      needs.saved-report-acceptance.outputs.profile == 'full' && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == false)
       || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
       && contains(github.event.pull_request.body, '[native-external-checkpoint]'))
       || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]'))
+      && contains(github.event.pull_request.body, '[nuclei-prerequisite-checkpoint]')))
     name: Pinned external target regression
     runs-on: ubuntu-24.04
     timeout-minutes: 61
