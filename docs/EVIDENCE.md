@@ -58,3 +58,54 @@ hashes detect inconsistency; they do not establish cryptographic authenticity,
 prove acquisition truth, or prevent an administrator replacing both records and
 bytes. Power-loss transaction guarantees, encryption, retention, signing, remote
 storage, CLI, and interpretation/index APIs are outside this initial contract.
+
+## Verify a retained evidence handoff
+
+An exported report carries evidence references and the results of checking them
+at export time. For a fresh byte check, use the matching workspace's `evidence/`
+directory and pass the complete typed `EvidenceReference` to
+`LocalEvidenceStore.Read(reference)`. A content digest can match multiple
+acquisition records. Leave acquisition attribution unresolved until the handoff
+identifies the original record ID. See [offline report export](REPORT_EXPORT.md).
+
+To check a selected acquisition, pass the existing owner workspace root and the
+full `sha256:<digest>` acquisition ID supplied with the retained evidence. From a
+checkout with the locked environment already installed, replace both arguments
+in this Bash command. It checks workspace registration, verifies the acquisition's
+manifest and bytes, and prints the two identities and registration result.
+The selected manifest retains the recorded attribution. See
+[workspace metadata](WORKSPACES.md).
+
+```bash
+uv run --offline --locked --no-sync python - path/to/saved-workspace 'sha256:<acquisition-digest>' <<'PY'
+import json
+import sys
+from pathlib import Path
+
+from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.workspace import LocalWorkspaceStore
+
+root = Path(sys.argv[1])
+acquisitionId = sys.argv[2]
+workspace = LocalWorkspaceStore(root).Open()
+if acquisitionId not in workspace.evidence_record_references:
+    raise SystemExit("Acquisition is not registered in the selected workspace")
+
+record = LocalEvidenceStore(root / "evidence").Get(acquisitionId)
+if record.provenance.workspace_id != workspace.workspace_id:
+    raise SystemExit("Acquisition belongs to another workspace")
+
+print(json.dumps({
+    "evidence_id": record.evidence_id,
+    "content_sha256": record.reference.sha256,
+    "registered_in_workspace": True,
+}, sort_keys=True))
+PY
+```
+
+This verifies one workspace-registered acquisition. To check it against a report,
+compare the verified record's complete `reference` with the expected typed
+`EvidenceReference` from the report. An unregistered or foreign acquisition, a
+missing manifest or blob, or corrupt bytes produces a failure with no JSON result.
+If the handoff contains only an exported report, request the retained workspace
+and the original acquisition ID for independent verification.
