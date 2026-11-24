@@ -22,6 +22,10 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   navigation.
 - Build JUnit metadata from one retained report projection.
 
+#### Fixed
+
+- Match finding evidence link numbers to their rows in the HTML evidence table.
+
 
 ### Patch 31 — v0.4.31 — 2026-11-04
 

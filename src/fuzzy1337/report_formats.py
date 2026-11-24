@@ -603,6 +603,9 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     summary = cast(dict[str, object], document["summary"])
     bindings = {item.finding_reference: item for item in report.reference_bindings}
     rows = _ProjectRetainedReportRows(report.state)
+    evidenceNumbers = {
+        reference: number for number, reference in enumerate(report.EvidenceReferences(), 1)
+    }
     evidenceId = cache(EvidenceId)
     lines = [
         '<!doctype html><html lang="en"><head><meta charset="utf-8">',
@@ -704,9 +707,11 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         lines.append(IntelligenceDetails(row.observations))
         lines.append("<h4>Evidence for this interpretation</h4><ul>")
 
-        for index, evidenceReference in enumerate(row.evidence, 1):
-            lines.append(f'<li><a href="#{evidenceId(evidenceReference)}">'
-                         f"Evidence {index}: {Html(evidenceReference.role)}</a></li>")
+        for evidenceReference in row.evidence:
+            fragment = evidenceId(evidenceReference)
+            number = evidenceNumbers[evidenceReference]
+            lines.append(f'<li><a href="#{fragment}">'
+                         f"Evidence {number}: {Html(evidenceReference.role)}</a></li>")
 
         lines.append("</ul>")
         binding = bindings.get(reference)
@@ -747,13 +752,13 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         list[object], integrityMetadata["checked_references"],
     )}
 
-    for index, evidenceReference in enumerate(report.EvidenceReferences(), 1):
+    for evidenceReference, number in evidenceNumbers.items():
         integrity = (
             "verified bytes" if CanonicalModelJson(evidenceReference) in checked
             else "not verified"
         )
         lines.append(f'<tr id="{evidenceId(evidenceReference)}">'
-                     f'<th scope="row">Evidence {index}</th>'
+                     f'<th scope="row">Evidence {number}</th>'
                      f"<td>{Html(evidenceReference.role)}</td>"
                      f"<td>{evidenceReference.size_bytes} bytes</td><td>{integrity}</td>"
                      "<td><details><summary>Digest and metadata</summary>"

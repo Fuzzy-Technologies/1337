@@ -295,18 +295,20 @@ def test_HtmlTablesExposeNamedKeyboardScrollRegions():
     (False, "not verified"), (True, "verified bytes"),
 ], ids=["unverified", "verified"])
 def test_HtmlFindingLinkResolvesToEvidenceRowWithScopedHeaders(tmp_path, verify, expectedIntegrity):
-    """Bind a finding's evidence link to its highlighted row and byte-integrity context."""
+    """Match a finding's evidence number to its highlighted row and byte-integrity context."""
 
     workspaceRoot, records = ReportExportContext(tmp_path, findings=False)
-    state = LocalModelStore(workspaceRoot).Open()
+    store = LocalModelStore(workspaceRoot)
+    state = store.Open()
     host, = state.Objects(ObjectKind.HOST)
     reference = records[1].reference
     provenance = replace(host.provenance[0], run_reference=records[1].evidence_id,
                          evidence_references=(reference,))
     finding = Finding(host.Reference(), "synthetic.evidence-row", "stored",
                       "Retained interpretation", (provenance,))
-    state, _ = ApplyFindings(state, (finding,))
-    report = ReportSnapshot(state)
+    state, delta = ApplyFindings(state, (finding,))
+    store.Save(state, expected_revision=delta.previous_revision)
+    report = ReportSnapshot(store.Open())
 
     if verify:
         report = reporting.VerifyReportEvidence(report, workspaceRoot)
@@ -316,7 +318,6 @@ def test_HtmlFindingLinkResolvesToEvidenceRowWithScopedHeaders(tmp_path, verify,
     findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
     link, = (anchor for anchor in findings.findall("article//a")
              if anchor.attrib["href"].startswith("#evidence-"))
-    assert link.text == f"Evidence 1: {reference.role}"
     fragment = link.attrib["href"][1:]
     evidenceHtml = rendered.split('<section id="evidence">', 1)[1].split("</section>", 1)[0]
     tableHtml = evidenceHtml.split('aria-labelledby="evidence-table-heading">', 1)[1]
@@ -330,6 +331,9 @@ def test_HtmlFindingLinkResolvesToEvidenceRowWithScopedHeaders(tmp_path, verify,
     assert row is not None
     identity, role, size, integrity, details = row
     assert (identity.tag, identity.get("scope"), identity.text) == ("th", "row", "Evidence 2")
+    assert link.text == f"{identity.text}: {reference.role}", (
+        "The finding link must display the evidence row number and role"
+    )
     assert [cell.tag for cell in (role, size, integrity, details)] == ["td"] * 4
     assert (role.text, size.text, integrity.text) == (
         reference.role, f"{reference.size_bytes} bytes", expectedIntegrity,
@@ -367,7 +371,7 @@ def test_HtmlCalculatesCanonicalSnapshotDigestOnce(monkeypatch):
 
 
 def test_HtmlReusesEvidenceFragmentsByCompleteReference(monkeypatch):
-    """Share anchors within one render, retaining distinct roles of the same artifact."""
+    """Share anchors while keeping distinct roles and row labels for the same artifact."""
 
     report = Fixture()
     reference, = report.EvidenceReferences()
@@ -386,6 +390,9 @@ def test_HtmlReusesEvidenceFragmentsByCompleteReference(monkeypatch):
         {"check_id": "native.html-reflection", "matched": False}, provenance,
     )
     state, _ = report.state.Apply(objects=(endpoint,), observations=(observation,))
+    finding = Finding(endpoint.Reference(), "synthetic.shared-evidence", "stored",
+                      "Retained evidence with two roles", (provenance,))
+    state, _ = ApplyFindings(state, (finding,))
     report = replace(report, state=state)
     evidenceId = report_formats.EvidenceId
     fragments = {item: evidenceId(item) for item in (reference, alternate)}
@@ -406,12 +413,20 @@ def test_HtmlReusesEvidenceFragmentsByCompleteReference(monkeypatch):
     dom.feed(rendered)
     assert len(set(fragments.values())) == 2
 
-    for item, fragment in fragments.items():
+    expected = ((1, alternate, 1), (2, reference, len(state.Objects(ObjectKind.FINDING))))
+
+    for index, item, findingLinks in expected:
+        fragment = fragments[item]
         assert dom.ids.count(fragment) == 1
         assert f'<a href="#{fragment}">{item.role}</a>' in rendered
+        label = f'<a href="#{fragment}">Evidence {index}: {item.role}</a>'
+        assert rendered.count(label) == findingLinks, (
+            "Each finding link must use the display number for its complete evidence reference"
+        )
+        assert dom.links.count(f"#{fragment}") == findingLinks + 1, (
+            "Finding and operation links must target the evidence row for their retained role"
+        )
 
-    assert dom.links.count(f"#{fragments[reference]}") == len(state.Objects(ObjectKind.FINDING)) + 1
-    assert dom.links.count(f"#{fragments[alternate]}") == 1
     assert len(calls) == 4 and all(calls.count(item) == 2 for item in fragments), (
         "Each full evidence reference must have one identity calculation per render"
     )

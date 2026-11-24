@@ -80,6 +80,9 @@ record order and source attribution.
 Each table uses its visible heading as its accessible name. The scroll region
 shares that name and supports keyboard focus.
 
+A finding's evidence link uses the number on its row in the Evidence table.
+Follow the link to read the retained reference and its byte-integrity status.
+
 Finding-intelligence cards keep source origin, publisher, version, date,
 freshness, explicit candidate association and unmatched identifiers visible.
 CVSS technical severity, KEV known-exploitation assertions and EPSS forecasts

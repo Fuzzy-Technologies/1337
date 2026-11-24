@@ -24874,7 +24874,7 @@ state = "missing"
 id = "symbol:fuzzy1337.report_formats.RetainedOperations"
 kind = "symbol"
 sourcePath = "src/fuzzy1337/report_formats.py"
-sourceHash = "sha256:b8051a249f90add36778a6cb37e166a2e18aae5fe3b5d69b5bfe8d8f9b24ffe1"
+sourceHash = "sha256:fe7a020349b943c625d31dd24e2033b8d4ba70523af5901a7ea30785e28b34d8"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
