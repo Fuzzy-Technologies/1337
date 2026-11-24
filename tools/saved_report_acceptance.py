@@ -41,6 +41,7 @@ class OfflineGuard:
         """Keep the attempt visible even if the product catches the exception."""
 
         self.active = False
+        self.covered = 0
         self.attempts: set[str] = set()
 
     def Audit(self, event: str, arguments: tuple[object, ...]) -> None:
@@ -50,11 +51,12 @@ class OfflineGuard:
             self.attempts.add(event)
             raise RuntimeError(f"Offline acceptance refused runtime operation {event}")
 
-    @pytest.fixture(autouse=True, scope="session")
+    @pytest.fixture(autouse=True)
     def ProtectExecution(self) -> Iterator[None]:
         """Guard the selected cases from fixture setup through teardown."""
 
         self.active = True
+        self.covered += 1
 
         try:
             yield
@@ -87,9 +89,14 @@ def Main(receipt: Path) -> int:
     report = ElementTree.parse(receipt)
     actual = Counter((case.get("classname"), case.get("name")) for case in report.iter("testcase"))
 
-    if (actual != expected or any(report.find(f".//{tag}") is not None
-                                  for tag in ("skipped", "failure", "error")) or guard.attempts):
-        raise ValueError(f"Incomplete offline acceptance or forbidden operations: {guard.attempts}")
+    if actual != expected or guard.covered != expected.total():
+        raise ValueError("Every named case must run once with the offline guard active")
+
+    if any(report.find(f".//{tag}") is not None for tag in ("skipped", "failure", "error")):
+        raise ValueError("Offline acceptance contains a skipped or failed case")
+
+    if guard.attempts:
+        raise ValueError(f"Offline acceptance attempted forbidden operations: {guard.attempts}")
 
     return 0
 
