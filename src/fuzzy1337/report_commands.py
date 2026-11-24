@@ -143,6 +143,9 @@ class ReportInput:
     workspace: WorkspaceState
     report: ReportSnapshot
     _pinnedSnapshotDigest: str | None = field(default=None, init=False, repr=False, compare=False)
+    _checkedModelEvidenceReferenceCount: int | None = field(
+        default=None, init=False, repr=False, compare=False,
+    )
 
     def _PinSnapshotDigest(self) -> str:
         """Retain this immutable report's canonical digest for the publication check."""
@@ -201,14 +204,20 @@ def OpenReportInput(root: Path) -> ReportInput:
 
         scopeStore.Open(scopeReference[6:])
 
-    for reference in report.EvidenceReferences():
+    references = report.EvidenceReferences()
+
+    for reference in references:
         evidence.Check(reference)
 
     # The immutable references are quota-checked before this owner's second read path.
     # Its own size check also rejects growth before loading bytes, without claiming live freshness.
     verified = VerifyReportEvidence(report, root)
+    original = ReportInput(workspace, verified)
 
-    return ReportInput(workspace, verified)
+    if verified.state is report.state:
+        object.__setattr__(original, "_checkedModelEvidenceReferenceCount", len(references))
+
+    return original
 
 
 def RequireReportPath(path: Path) -> Path:
@@ -427,11 +436,15 @@ def RunReportCommands(
         destination = ReportOutputPath(options.output, root)
         phase = "integrity"
         original = OpenReportInput(root)
+        checkedEvidenceCount = original._checkedModelEvidenceReferenceCount
         outcome.update({
             "model_revision": original.report.state.revision,
             "snapshot_sha256": original._PinSnapshotDigest(),
             "verified_retained_acquisitions": len(original.workspace.evidence_record_references),
-            "checked_model_evidence_references": len(original.report.EvidenceReferences()),
+            "checked_model_evidence_references": (
+                checkedEvidenceCount if checkedEvidenceCount is not None
+                else len(original.report.EvidenceReferences())
+            ),
         })
         phase = "rendering"
 

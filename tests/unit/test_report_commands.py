@@ -46,6 +46,7 @@ def test_EmptyWorkspaceExportsWithoutScopeOrCleanScanClaim(tmp_path, monkeypatch
     status, outcome = Run(root, destination)
     document = json.loads(destination.read_bytes())
     assert status == 0 and outcome["model_revision"] == 0, "An empty saved model is exportable."
+    assert outcome["checked_model_evidence_references"] == 0
     assert document["summary"]["findings"] == 0 and document["scan_completeness"] == (
         "not-assessed"
     ), "An empty report must not become a clean scan or successful check."
@@ -164,7 +165,7 @@ def test_ChangedSavedInputIsRejectedWithoutSubstitutingNewRevision(tmp_path, mon
 
 @pytest.mark.parametrize("change", [False, True], ids=["unchanged", "same-revision-change"])
 def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkeypatch, change):
-    """Reuse the selected digest and hash the reopened model even at the same revision."""
+    """Reuse selected snapshot work and still check the reopened model at the same revision."""
 
     root, _ = Context(tmp_path, findings=False)
     modelStore = LocalModelStore(root)
@@ -172,9 +173,11 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
     changedHost = replace(selected.objects[0], attributes={"fixture": "same-revision change"})
     changed = replace(selected, objects=(changedHost,))
     snapshotDigest = commands.ReportSnapshot.SnapshotDigest
+    evidenceReferences = commands.ReportSnapshot.EvidenceReferences
     expected = commands.ReportSnapshot(selected).SnapshotDigest()
     serialize = commands.SerializeJson
     hashedReports = []
+    traversedReports = []
 
     def RecordDigest(report):
         """Count actual full canonical hashes and retain the inputs for comparison."""
@@ -182,6 +185,13 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
         hashedReports.append(report)
 
         return snapshotDigest(report)
+
+    def RecordReferences(report):
+        """Record each full traversal of an immutable model's evidence references."""
+
+        traversedReports.append(report)
+
+        return evidenceReferences(report)
 
     def SerializeThenChange(report):
         """Optionally replace the owned model with valid changed bytes at the same revision."""
@@ -195,6 +205,7 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
 
     DenyExecution(monkeypatch)
     monkeypatch.setattr(commands.ReportSnapshot, "SnapshotDigest", RecordDigest)
+    monkeypatch.setattr(commands.ReportSnapshot, "EvidenceReferences", RecordReferences)
     monkeypatch.setattr(commands, "SerializeJson", SerializeThenChange)
     destination = tmp_path / "pinned.json"
     status, outcome = Run(root, destination)
@@ -204,6 +215,11 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
     assert outcomeReport is renderedReport and reopenedReport is not outcomeReport
     assert reopenedReport.state == (changed if change else selected)
     assert outcome["snapshot_sha256"] == expected and outcome["model_revision"] == selected.revision
+    assert len(traversedReports) == 3, "Only quotas, verification, and JSON need the reference set."
+    quotaReport, verifierReport, rendererReport = traversedReports
+    assert quotaReport is verifierReport and rendererReport is outcomeReport
+    assert outcome["checked_model_evidence_references"] == 1
+    assert outcome["verified_retained_acquisitions"] == 2
 
     if change:
         assert status == 4 and outcome["failure"] == "input-changed"
