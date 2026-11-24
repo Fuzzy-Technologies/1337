@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from dataclasses import replace
@@ -331,6 +332,102 @@ def test_ReadReportRefusesSameSizeFileReplacement(tmp_path, monkeypatch):
         comparison.ReadReport(reportPath)
 
     assert reportPath.read_bytes() == replacementReport, "The replacement must occupy the path."
+
+
+def test_ReadReportRefusesSameSizeInPlaceUpdate(tmp_path, monkeypatch):
+    """Reject a same-size update to the open report before the final metadata check."""
+
+    reportPath = tmp_path / "report.json"
+    originalReport = b'{"schema_version":1,"scenarios":[],"runs":[],"matrix":{"columns":[],"rows":[]}}\n'
+    updatedReport = originalReport[:-1] + b" "
+    reportPath.write_bytes(originalReport)
+    originalStat = reportPath.stat()
+    fstat = os.fstat
+    openedCtime = originalStat.st_ctime_ns
+    statCalls = 0
+
+    def FstatWithReportUpdate(descriptor):
+        """Overwrite the selected report immediately before its second metadata snapshot."""
+
+        nonlocal openedCtime, statCalls
+        metadata = fstat(descriptor)
+
+        if not os.path.samestat(originalStat, metadata):
+            return metadata
+
+        statCalls += 1
+
+        if statCalls == 1:
+            openedCtime = metadata.st_ctime_ns
+
+        if statCalls == 2:
+            with reportPath.open("r+b") as stream:
+                stream.write(updatedReport)
+
+            # Force a distinct modification time even on filesystems with coarse timestamps.
+            os.utime(reportPath, ns=(metadata.st_atime_ns, originalStat.st_mtime_ns - 2_000_000_000))
+            metadata = fstat(descriptor)
+
+            # Isolate the mtime check from unrelated ctime changes on the host.
+            return os.stat_result(metadata, {
+                "st_atime_ns": metadata.st_atime_ns,
+                "st_mtime_ns": metadata.st_mtime_ns,
+                "st_ctime_ns": openedCtime,
+            })
+
+        return metadata
+
+    with monkeypatch.context() as readPatch:
+        readPatch.setattr(comparison.os, "fstat", FstatWithReportUpdate)
+
+        with pytest.raises(ValueError, match="^report file changed during the read$"):
+            comparison.ReadReport(reportPath)
+
+    finalStat = reportPath.stat()
+    assert os.path.samestat(originalStat, finalStat), "The update must keep the original inode."
+    assert finalStat.st_size == originalStat.st_size, "The update must keep the original size."
+    assert finalStat.st_mtime_ns != originalStat.st_mtime_ns, "The modification time must change."
+    assert reportPath.read_bytes() == updatedReport, "The same-size update must reach the file."
+
+
+def test_ReadReportRefusesChangedCtimeWithStableSizeAndMtime(tmp_path, monkeypatch):
+    """Refuse inconsistent descriptor metadata when only the reported ctime changes."""
+
+    reportPath = tmp_path / "report.json"
+    reportBytes = b"{}"
+    reportPath.write_bytes(reportBytes)
+    initial = reportPath.stat()
+    fstat = os.fstat
+    statCalls = 0
+
+    def FstatWithChangedCtime(descriptor):
+        """Change only the second ctime reported for the selected file."""
+
+        nonlocal statCalls
+        metadata = fstat(descriptor)
+
+        if not os.path.samestat(initial, metadata):
+            return metadata
+
+        statCalls += 1
+
+        if statCalls != 2:
+            return metadata
+
+        return os.stat_result(metadata, {
+            "st_atime_ns": metadata.st_atime_ns,
+            "st_mtime_ns": metadata.st_mtime_ns,
+            "st_ctime_ns": metadata.st_ctime_ns + 1,
+        })
+
+    with monkeypatch.context() as readPatch:
+        readPatch.setattr(comparison.os, "fstat", FstatWithChangedCtime)
+
+        with pytest.raises(ValueError, match="^report file changed during the read$"):
+            comparison.ReadReport(reportPath)
+
+    assert statCalls == 2, "Both descriptor snapshots must be taken."
+    assert reportPath.read_bytes() == reportBytes, "The fixture must preserve the source bytes."
 
 
 def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_path):
