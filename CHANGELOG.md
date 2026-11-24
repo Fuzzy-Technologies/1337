@@ -20,6 +20,7 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   subject reference for the HTML report.
 - Name offline report tables after their visible headings for screen reader
   navigation.
+- Build JUnit metadata from one retained report projection.
 
 
 ### Patch 31 — v0.4.31 — 2026-11-04

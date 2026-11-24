@@ -883,23 +883,28 @@ def SerializeJunit(report: ReportSnapshot) -> bytes:
         "failures": str(active), "errors": "0", "skipped": str(len(findings) - active),
     })
     properties = ElementTree.SubElement(root, "properties")
+    snapshotDigest = report.SnapshotDigest()
+    document = report.ToDict()
 
     for name, value in (
         ("report_schema_version", REPORT_SCHEMA_VERSION),
         ("workspace_id", report.state.workspace_id),
-        ("model_revision", report.state.revision), ("snapshot_sha256", report.SnapshotDigest()),
+        ("model_revision", report.state.revision), ("snapshot_sha256", snapshotDigest),
         ("scan_completeness", "not-assessed"),
         ("evidence_integrity", CanonicalModelJson(
-            report.ToDict()["evidence_integrity"],
+            document["evidence_integrity"],
         ).decode("utf-8")),
         ("execution_outcomes", CanonicalModelJson(
-            report.ToDict()["execution_outcomes"],
+            document["execution_outcomes"],
         ).decode("utf-8")),
         ("reference_context", CanonicalModelJson(
-            report.ToDict()["reference_bindings"],
+            document["reference_bindings"],
         ).decode("utf-8")),
     ):
         ElementTree.SubElement(properties, "property", {"name": name, "value": Text(value)})
+
+    # Release the complete projection before serializing per-finding details.
+    del document
 
     for entity, finding in findings:
         case = ElementTree.SubElement(root, "testcase", {

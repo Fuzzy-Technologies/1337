@@ -204,6 +204,34 @@ def test_JunitAdaptersUseFailuresAndSkipsWithoutInventingSecurityPasses():
     )
 
 
+def test_JunitProjectsReportMetadataOnce(monkeypatch):
+    """Reuse one canonical report projection for all three JUnit metadata properties."""
+
+    report = Fixture()
+    toDict = ReportSnapshot.ToDict
+    expected = toDict(report)
+    calls = 0
+
+    def CountProjection(snapshot):
+        """Count complete report projections while preserving their canonical fields."""
+
+        nonlocal calls
+        calls += 1
+
+        return toDict(snapshot)
+
+    monkeypatch.setattr(ReportSnapshot, "ToDict", CountProjection)
+    root = ElementTree.fromstring(SerializeJunit(report))
+    properties = {item.attrib["name"]: item.attrib["value"]
+                  for item in root.findall("properties/property")}
+
+    assert calls == 1, "JUnit repeated the complete report projection"
+    assert properties["snapshot_sha256"] == report.SnapshotDigest()
+    assert json.loads(properties["evidence_integrity"]) == expected["evidence_integrity"]
+    assert json.loads(properties["execution_outcomes"]) == expected["execution_outcomes"]
+    assert json.loads(properties["reference_context"]) == expected["reference_bindings"]
+
+
 def test_EmptySnapshotDoesNotClaimACompletedCleanScan():
     """Zero retained findings are explicit empty projections with no successful scan inference."""
 
