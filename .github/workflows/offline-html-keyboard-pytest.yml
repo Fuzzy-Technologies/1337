@@ -1,0 +1,69 @@
+name: Offline report keyboard markup
+on:
+  push:
+    branches: [fix/64-html-keyboard-pytest]
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: f30c1649767e4d4fdb5fb82020fa796208833c1c
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.13"
+      - name: Install locked test dependencies
+        run: |
+          python -m pip install uv==0.11.33
+          uv sync --locked --extra dev --no-install-project
+      - name: Run selected report checks without network or child processes
+        timeout-minutes: 2
+        env:
+          PYTHONPATH: src
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          mkdir evidence-output
+          git rev-parse HEAD > evidence-output/source.sha
+          test "$(cat evidence-output/source.sha)" = f30c1649767e4d4fdb5fb82020fa796208833c1c
+          .venv/bin/python - <<'PY'
+          import sys
+          from xml.etree import ElementTree
+
+          def DenyExternalEffects(event, arguments):
+              if event.startswith(("socket.", "subprocess.")) or event in {
+                  "os.exec", "os.fork", "os.forkpty", "os.posix_spawn", "os.spawn", "os.system", "os.startfile",
+              }:
+                  raise RuntimeError(f"Offline pytest blocked {event}")
+
+          sys.addaudithook(DenyExternalEffects)
+          import pytest
+
+          report = "evidence-output/results.xml"
+          code = pytest.main([
+              "--noconftest", "-p", "no:cacheprovider", "--strict-config",
+              "--strict-markers", "-o", "addopts=", "-q", f"--junitxml={report}",
+              "tests/unit/test_reporting.py::test_HtmlTablesExposeNamedKeyboardScrollRegions",
+              "tests/unit/test_reporting.py::test_EmptyHtmlExplainsUnknownCoverageAndDoesNotSuggestASecureTarget",
+              "tests/unit/test_reporting.py::test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert",
+              "tests/unit/test_reporting.py::test_HtmlNativeResponseRowsRequireAttributedEvidenceAndAnExactObservation",
+              "tests/unit/test_reporting.py::test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner",
+              "tests/contract/test_report_export_formats_contract.py::test_ExplicitFormatPublishesExactAcceptedSdkBytesAndVersionOneOutcome",
+          ])
+          if code != pytest.ExitCode.OK:
+              sys.exit(code)
+          cases = list(ElementTree.parse(report).getroot().iter("testcase"))
+          if len(cases) != 9 or any(c.find(t) is not None for c in cases for t in ("skipped", "failure", "error")):
+              sys.exit("All nine selected cases must complete successfully")
+          PY
+      - name: Retain exact source and test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-html-keyboard
+          path: evidence-output/
+          if-no-files-found: warn
+          retention-days: 7
