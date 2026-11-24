@@ -73,24 +73,80 @@ saved snapshot; it cannot rewrite the prior output.
 
 ## Review a handed-off HTML report
 
-Use the HTML export command above with `--json` and keep the original JSON
-outcome with `report.html`. The recipient can review the pair offline with the
-saved files alone. A completed HTML export exits `0` and its outcome records
-`status` as `completed`, `format` as `html` and `output_published` as `true`. In
-the directory with the received file, check that its SHA-256 matches
-`report_sha256` in the supplied outcome.
+Save the JSON outcome printed by the HTML export command above as
+`report-export.json` and hand it off with `report.html`. From the directory
+containing both files, run this check for a completed, published HTML export
+and matching file bytes.
 
 ```bash
 python - <<'PY'
 from hashlib import file_digest
+from json import loads
+from os import fstat
 from pathlib import Path
+from re import fullmatch
 
-with Path("report.html").open("rb") as stream:
-    print(file_digest(stream, "sha256").hexdigest())
+
+def UniqueFields(pairs):
+    """Read a JSON object with one value per field."""
+
+    fields = dict(pairs)
+
+    if len(fields) != len(pairs):
+        raise ValueError("Duplicate JSON field.")
+
+    return fields
+
+
+try:
+    outcome = loads(
+        Path("report-export.json").read_text(encoding="utf-8"),
+        object_pairs_hook=UniqueFields,
+    )
+
+except (OSError, ValueError, RecursionError):
+    raise SystemExit("Could not read report-export.json as JSON.")
+
+if not isinstance(outcome, dict):
+    raise SystemExit("Expected an export outcome JSON object.")
+
+schemaVersion = outcome.get("schema_version")
+
+if (
+    type(schemaVersion) is not int or schemaVersion != 1
+    or outcome.get("command") != "report.export"
+    or outcome.get("status") != "completed"
+    or outcome.get("format") != "html"
+    or outcome.get("output_published") is not True
+):
+    raise SystemExit("Expected a completed, published schema-v1 HTML export.")
+
+sizeBytes = outcome.get("size_bytes")
+reportSha256 = outcome.get("report_sha256")
+
+if type(sizeBytes) is not int or not 0 <= sizeBytes <= 32 * 1024 * 1024:
+    raise SystemExit("Invalid size_bytes in the export outcome.")
+
+if not isinstance(reportSha256, str) or not fullmatch(r"[0-9a-f]{64}", reportSha256):
+    raise SystemExit("Invalid report_sha256 in the export outcome.")
+
+try:
+    with Path("report.html").open("rb") as stream:
+        if fstat(stream.fileno()).st_size != sizeBytes:
+            raise SystemExit("report.html differs from the recorded byte size.")
+
+        if file_digest(stream, "sha256").hexdigest() != reportSha256:
+            raise SystemExit("report.html differs from the recorded SHA-256.")
+
+except OSError:
+    raise SystemExit("Could not read report.html.")
+
+print("report.html matches the export outcome's size and SHA-256.")
 PY
 ```
 
-A matching hash identifies the HTML bytes recorded in the supplied outcome.
+The check confirms byte consistency with the supplied outcome. Publisher
+authenticity requires independently trusted provenance for the files.
 Compare the report header's saved revision with `model_revision`. In **Overview**,
 open **Snapshot identity and technical summary** and compare **Canonical
 snapshot** with `snapshot_sha256`, the digest of the saved model.
