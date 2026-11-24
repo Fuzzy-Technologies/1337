@@ -52,7 +52,7 @@ jobs:
           result = pytest.main([
               "--noconftest", "-p", "no:cacheprovider",
               "--strict-config", "--strict-markers",
-              "-o", "addopts=", "--no-cov", "-q",
+              "-o", "addopts=", "-q",
               "tests/contract/test_functional_report_comparison.py::test_ReadReportRefusesSameSizeInPlaceUpdate",
               "tests/contract/test_functional_report_comparison.py::test_ReadReportRefusesChangedCtimeWithStableSizeAndMtime",
               f"--junitxml={report}",
