@@ -223,6 +223,7 @@ def RunImageSbomView(arguments: Sequence[str], output: TextIO, *, json_output: b
         "status": "failed", "failure": None}
     phase = "configuration"
     status = 4
+    textView = ""
 
     try:
         options = SbomParser().parse_args(arguments)
@@ -261,6 +262,18 @@ def RunImageSbomView(arguments: Sequence[str], output: TextIO, *, json_output: b
         if len(CanonicalModelJson(candidate)) > MAX_IMAGE_SBOM_VIEW_BYTES:
             raise SbomFailure("limit")
 
+        if not json_output:
+            textView = (
+                f"sbom.image: {candidate['status']}\n"
+                f"image_reference: {candidate['image_reference']}\n"
+                f"model_revision: {candidate['model_revision']}\n"
+                f"snapshot_sha256: {candidate['snapshot_sha256']}\n"
+                f"{CanonicalModelJson(view).decode('utf-8')}\n"
+            )
+
+            if len(textView.encode("utf-8")) > MAX_IMAGE_SBOM_VIEW_BYTES:
+                raise SbomFailure("limit")
+
         outcome = candidate
         status = 0
 
@@ -286,15 +299,11 @@ def RunImageSbomView(arguments: Sequence[str], output: TextIO, *, json_output: b
     if json_output:
         output.write(CanonicalModelJson(outcome).decode("utf-8") + "\n")
 
+    elif status == 0:
+        output.write(textView)
+
     else:
         output.write(f"sbom.image: {outcome['status']}\n")
-
-        if status == 0:
-            output.write(f"image_reference: {outcome['image_reference']}\n")
-            output.write(f"model_revision: {outcome['model_revision']}\n")
-            output.write(CanonicalModelJson(view).decode("utf-8") + "\n")
-
-        else:
-            output.write(f"failure: {outcome['failure']}\n")
+        output.write(f"failure: {outcome['failure']}\n")
 
     return status

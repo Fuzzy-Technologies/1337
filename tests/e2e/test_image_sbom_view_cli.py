@@ -23,16 +23,21 @@ from tests.runtime_helpers import Arguments as RuntimeArguments
 from tests.sbom_helpers import FIXTURES, IMAGE_DIGEST, Arguments, Context, ViewArguments
 
 
-def Console(parent, namespace, arguments):
+def Console(parent, namespace, arguments, *, jsonOutput=True):
     """Invoke the installed product entry point from outside the source tree."""
 
     executable = shutil.which("1337")
     assert executable is not None, "The package installation must expose its actual console"
-    result = subprocess.run([executable, namespace, *arguments, "--json"], cwd=parent,
-                            capture_output=True, check=False, text=True, timeout=30)
+    command = [executable, namespace, *arguments]
+
+    if jsonOutput:
+        command.append("--json")
+
+    result = subprocess.run(command, cwd=parent, capture_output=True, check=False, text=True,
+                            timeout=30)
     assert not result.stderr, "The installed product must preserve safe terminal diagnostics"
 
-    return result.returncode, json.loads(result.stdout)
+    return result.returncode, json.loads(result.stdout) if jsonOutput else result.stdout
 
 
 def test_InstalledImageViewJoinsOriginalGraphAndDockerImportsWithExplicitKinds(tmp_path):
@@ -85,6 +90,11 @@ def test_InstalledImageViewJoinsOriginalGraphAndDockerImportsWithExplicitKinds(t
         assert view["snapshot_sha256"] == digest and view["inventory_status"] == "observed", (
             "The query must identify its complete canonical source snapshot without a clean verdict"
         )
+        textStatus, textView = Console(tmp_path, "sbom", ViewArguments(owned, kind=kind),
+                                       jsonOutput=False)
+        assert textStatus == 0 and f"snapshot_sha256: {digest}" in textView.splitlines(), (
+            "The text view must expose the same verified model digest as the JSON view"
+        )
         assert {objects[item].identity.key for item in view["package_references"]} == (
             expectedPackages
         ), "Nested package inventory must match the independent handwritten source identity oracle"
@@ -121,6 +131,10 @@ def test_InstalledImageViewJoinsOriginalGraphAndDockerImportsWithExplicitKinds(t
     assert status == 4 and refusal["status"] == "failed" and (
         "package_references" not in refusal
     ), "A changed retained original must refuse the whole view without partial inventory output"
+    textStatus, textRefusal = Console(tmp_path, "sbom", ViewArguments(owned), jsonOutput=False)
+    assert textStatus == 4 and textRefusal.splitlines() == [
+        "sbom.image: failed", f"failure: {refusal['failure']}",
+    ], "The text refusal must withhold the digest and any partial inventory"
 
 
 def test_InstalledImageLicensePolicyKeepsExactSourcesRolesAndDigestKindsAfterRelocation(tmp_path):

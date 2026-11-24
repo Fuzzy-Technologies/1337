@@ -10,7 +10,7 @@ from dataclasses import replace
 import pytest
 
 import fuzzy1337.image_sbom_view as views
-from fuzzy1337.model import LocalModelStore, Relation, RelationKind
+from fuzzy1337.model import CanonicalModelJson, LocalModelStore, Relation, RelationKind
 from fuzzy1337.report_commands import ReportFailure
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.sbom_helpers import IMAGE_DIGEST, Arguments, Context, Run, ViewArguments
@@ -97,6 +97,21 @@ def test_VerificationAndOutputFailuresStayNonzeroAndSafe(tmp_path, monkeypatch, 
     assert status == (130 if mode == "interrupt" else 4), "Refused views cannot exit successfully"
     assert "PRIVATE_MARKER" not in str(outcome) and "failed" in str(outcome), (
         "Consumer failures must have safe diagnostics and never leave a success acknowledgement"
+    )
+
+
+def test_TextImageViewRefusesAnOverLimitSummaryBeforeWriting(tmp_path, monkeypatch):
+    """Measure the complete text result before printing any verified snapshot identity."""
+
+    owned = Context(tmp_path)
+    assert Run(Arguments(owned))[0] == 0, "Owned source must be saved before inspection"
+    arguments = ViewArguments(owned)
+    status, original = Run(arguments)
+    assert status == 0, "The saved view must fit the normal output bound"
+    monkeypatch.setattr(views, "MAX_IMAGE_SBOM_VIEW_BYTES", len(CanonicalModelJson(original)))
+    assert Run(arguments) == (0, original), "The JSON result must still fit its existing bound"
+    assert Run(arguments, json_output=False) == (4, "sbom.image: failed\nfailure: limit\n"), (
+        "The longer text result must refuse atomically without exposing the digest or inventory"
     )
 
 

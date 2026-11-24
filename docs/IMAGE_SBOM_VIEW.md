@@ -28,6 +28,9 @@ The successful result includes:
 | `inventory_status`                  | `observed` package membership, otherwise `unknown`             |
 | `docker_uses`                       | Existing explicit config-image/container associations          |
 
+The terminal summary also shows `snapshot_sha256` alongside `model_revision` to
+identify the same verified saved model as `--json`.
+
 Each Docker use includes `container_reference` and `relation_reference`. These
 resolve the existing [owned Docker inventory](DOCKER_INVENTORY.md) facts and their
 original evidence attribution. Runtime reachability stays `unknown`, with reason
