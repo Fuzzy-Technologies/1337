@@ -257,6 +257,75 @@ new export receipt, `output_published` is `true`, and `snapshot_sha256` and
 `reports/relocated-model.html` within the moved bundle to review the same open
 LOW Finding. These commands need no scanner, fixture or fresh approval.
 
+## Trace a saved showcase marker to its evidence
+
+Start with an existing workspace containing the seeded topology marker from the
+[showcase finding-replay fixture](../tests/integration/test_finding_persistence.py).
+From a checkout with the locked Python environment already installed, replace
+`path/to/saved-workspace` in this Bash command. It uses the
+[report SDK](REPORTING.md) to verify saved model evidence and renders the
+projection in memory. The example expects one marker and its single saved
+fixture observation.
+
+```bash
+uv run --offline --locked --no-sync python - path/to/saved-workspace <<'PY'
+import json
+import sys
+from dataclasses import asdict
+from pathlib import Path
+
+from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.model import LocalModelStore
+from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
+
+root = Path(sys.argv[1])
+snapshot = ReportSnapshot(LocalModelStore(root).Open())
+report = VerifyReportEvidence(snapshot, root).ToDict()
+finding, = (
+    item for item in report["findings"]
+    if item["normalized"]["check_id"] == "showcase.fixture-marker"
+)
+observation, = (
+    item for item in report["model"]["observations"]
+    if item["kind"] == "finding-detection"
+    and item["subject_reference"] == finding["reference"]
+    and item["provenance"]["source_id"] == "showcase-fixture"
+)
+provenance = observation["provenance"]
+store = LocalEvidenceStore(root / "evidence")
+record = store.Get(provenance["run_reference"])
+if (
+    record.provenance.workspace_id != report["workspace_id"]
+    or record.provenance.source_id != provenance["source_id"]
+    or record.provenance.scope_reference != provenance["scope_reference"]
+    or [asdict(record.reference)] != provenance["evidence_references"]
+):
+    raise SystemExit("Saved observation and acquisition do not match")
+
+marker = json.loads(store.Read(record.reference))
+selected = {key: marker[key] for key in ("id", "type", "provenance")}
+if selected != {
+    "id": "evidence.initial-topology", "type": "topology-seed", "provenance": "seeded",
+}:
+    raise SystemExit("Saved content does not match the seeded topology marker")
+
+print(finding["reference"], observation["reference"], record.evidence_id)
+print(selected)
+PY
+```
+
+The first line gives the Finding, saved observation and acquisition IDs. The
+original marker has `id` equal to `evidence.initial-topology`, `type` equal to
+`topology-seed` and `provenance` equal to `seeded`. This fixture explicitly uses
+the acquisition ID as its `run_reference`. Other sources can retain a job ID
+there. A shared raw digest can belong to multiple acquisitions, so leave
+attribution unresolved when the original acquisition cannot be identified.
+
+The evidence check verifies the integrity of the saved bytes. The recorded
+source identifies seeded fixture data, and the report keeps `scan_completeness`
+at `not-assessed`. Discovered service behavior and attack-path outcomes still
+require their own evidence.
+
 ## Failure and interruption truth
 
 | Exit status | Meaning                                                                   |
