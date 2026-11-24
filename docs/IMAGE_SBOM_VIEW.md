@@ -52,6 +52,19 @@ contains fixed categories and no partial inventory, raw source bytes or selected
 paths. Without `--json`, the command presents a concise result with the same
 inventory and correlation meanings.
 
+## Original SBOM profiles
+
+| Original document                    | Verified inventory profile                                  | Opt-in license policy                                                                             |
+| ------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [SPDX 2.3 JSON](SBOM_SPDX.md)        | Flat package inventory                                      | Image view reports `unknown` for this source profile.                                             |
+| [SPDX 2.3 JSON graph](SBOM_GRAPH.md) | Local graph with accepted nested containment                | `1337 sbom image` evaluates original declared and concluded assertions separately.                |
+| CycloneDX 1.6 JSON                   | Bounded component inventory with explicit root-hash binding | The [Internal SDK](CYCLONEDX_LICENSE_POLICY.md) evaluates original component license occurrences. |
+
+The import owners refuse other document versions. Policy projections verify retained
+original bytes and acquisition provenance against the selected image digest and kind,
+workspace, scope and source. Missing or unsupported license assertions in an admitted
+document remain `unknown` when the selected projection can represent them.
+
 ## Explicit license-expression policy
 
 An optional caller-authored policy compares **source assertions** with explicit
