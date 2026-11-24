@@ -282,16 +282,25 @@ from fuzzy1337.workspace import LocalWorkspaceStore
 root = Path(sys.argv[1])
 snapshot = ReportSnapshot(LocalModelStore(root).Open())
 report = VerifyReportEvidence(snapshot, root).ToDict()
-finding, = (
+findings = [
     item for item in report["findings"]
     if item["normalized"]["check_id"] == "showcase.fixture-marker"
-)
-observation, = (
+]
+if len(findings) != 1:
+    raise SystemExit(f"Expected one saved showcase marker Finding, found {len(findings)}.")
+finding = findings[0]
+
+observations = [
     item for item in report["model"]["observations"]
     if item["kind"] == "finding-detection"
     and item["subject_reference"] == finding["reference"]
     and item["provenance"]["source_id"] == "showcase-fixture"
-)
+]
+if len(observations) != 1:
+    raise SystemExit(
+        f"Expected one saved showcase fixture observation, found {len(observations)}."
+    )
+observation = observations[0]
 provenance = observation["provenance"]
 store = LocalEvidenceStore(root / "evidence")
 record = store.Get(provenance["run_reference"])
