@@ -1,0 +1,142 @@
+name: Offline retained SBOM view
+
+on:
+  push:
+    branches: [fix/377-offline-sbom-view-pytest]
+
+permissions:
+  contents: read
+
+jobs:
+  comparison:
+    name: Selected offline SBOM view tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out exact Draft head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 84ffe64a9636231f1f78034d196168fcfc2710e6
+          persist-credentials: false
+      - name: Select Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.13"
+      - name: Install pinned uv and locked test dependencies
+        run: |
+          python -m pip install uv==0.11.33
+          uv sync --locked --extra dev
+      - name: Run selected saved SBOM cases with only the installed local CLI allowed
+        timeout-minutes: 3
+        env:
+          PYTHONNOUSERSITE: "1"
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          mkdir -p .offline-sbom-evidence .offline-python-guard
+          git rev-parse HEAD > .offline-sbom-evidence/source.sha
+          test "$(cat .offline-sbom-evidence/source.sha)" = 84ffe64a9636231f1f78034d196168fcfc2710e6
+          export OFFLINE_WORKSPACE="$PWD"
+          export PYTHONPATH="$PWD/.offline-python-guard:$PWD/src:$PWD"
+          export PATH="$PWD/.venv/bin:$PATH"
+          unset PYTEST_ADDOPTS PYTEST_PLUGINS
+          cat > .offline-python-guard/sitecustomize.py <<'GUARD'
+          import os
+          from pathlib import Path
+          import sys
+
+          root = Path(os.environ["OFFLINE_WORKSPACE"]).resolve()
+          temporary = root / ".offline-sbom-evidence" / "tmp"
+          console = root / ".venv/bin/1337"
+          audit_log = root / ".offline-sbom-evidence" / "guard.log"
+          is_child = Path(sys.argv[0]).resolve() == console
+          ARMED = True
+
+          def Record(item):
+              with audit_log.open("a", encoding="ascii") as stream:
+                  stream.write(item + "\n")
+
+          Record("child" if is_child else "parent")
+
+          def IsLocalFixture(executable, argv, cwd, environment):
+              if is_child or environment is not None or cwd is None:
+                  return False
+              cwd = Path(cwd).resolve()
+              if not cwd.is_relative_to(temporary):
+                  return False
+              if Path(executable).resolve() != console or not isinstance(argv, (list, tuple)) or len(argv) < 4:
+                  return False
+              if Path(argv[0]).resolve() != console:
+                  return False
+              args = list(argv[1:])
+              if args[:2] == ["sbom", "image"]:
+                  for kind in ("config", "manifest"):
+                      selected = ["sbom", "image", str(cwd / "owned workspace"),
+                                  "--image-digest", "sha256:" + "a" * 64, "--image-digest-kind", kind]
+                      if args in (selected, selected + ["--json"]):
+                          return True
+                  return False
+              sources = {
+                  ("sbom", "import", "spdx-graph"): "original graph.json",
+                  ("runtime", "import", "docker-inspect"): "owned inspect.json",
+              }
+              source = sources.get(tuple(args[:3]))
+              if source is None or args[3] != str(cwd / "owned workspace") or args[-1] != "--json":
+                  return False
+              return (args.count("--file") == 1
+                      and args[args.index("--file") + 1] == str(cwd / source)
+                      and "--evidence" not in args)
+
+          def RefuseExternalEffects(event, args):
+              if event == "subprocess.Popen" and IsLocalFixture(*args):
+                  Record("spawn")
+                  return
+              if event.startswith(("socket.", "subprocess.")) or event in {
+                  "os.exec", "os.fork", "os.forkpty", "os.posix_spawn", "os.spawn", "os.system", "os.startfile",
+              }:
+                  Record("denied")
+                  raise RuntimeError(f"Offline pytest blocked {event}")
+
+          sys.addaudithook(RefuseExternalEffects)
+          GUARD
+          .venv/bin/python - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          import sys
+          import xml.etree.ElementTree as ElementTree
+          import sitecustomize
+
+          assert sitecustomize.ARMED, "Offline guard did not load"
+          import pytest
+
+          root = Path(".offline-sbom-evidence").resolve()
+          report = root / "results.xml"
+          result = pytest.main([
+              "--strict-config", "--strict-markers", "--noconftest", "-p", "no:cacheprovider",
+              "-o", "addopts=", "-q", f"--basetemp={root / 'tmp'}",
+              "tests/unit/test_image_sbom_view.py::test_TextImageViewRefusesAnOverLimitSummaryBeforeWriting",
+              "tests/e2e/test_image_sbom_view_cli.py::test_InstalledImageViewJoinsOriginalGraphAndDockerImportsWithExplicitKinds",
+              f"--junitxml={report}",
+          ])
+          if result != pytest.ExitCode.OK:
+              sys.exit(result)
+          cases = list(ElementTree.parse(report).getroot().iter("testcase"))
+          if len(cases) != 2 or any(
+              case.find(tag) is not None for case in cases for tag in ("skipped", "failure", "error")
+          ):
+              sys.exit("Both selected cases must complete successfully.")
+          events = Counter((root / "guard.log").read_text(encoding="ascii").splitlines())
+          if events != {"parent": 1, "spawn": 9, "child": 9}:
+              sys.exit(f"Unexpected process boundary evidence: {dict(events)}")
+          PY
+      - name: Preserve exact source and test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-sbom-view-pytest
+          path: |
+            .offline-sbom-evidence/source.sha
+            .offline-sbom-evidence/results.xml
+            .offline-sbom-evidence/guard.log
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
