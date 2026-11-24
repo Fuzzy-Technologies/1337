@@ -76,14 +76,35 @@ manifest and bytes, and prints the two identities and registration result.
 The selected manifest retains the recorded attribution. See
 [workspace metadata](WORKSPACES.md).
 
+For an exact comparison with a handed-off reference, insert its file path as a
+third argument before `<<'PY'`. Save the selected report `EvidenceReference` as
+a single UTF-8 JSON object with `role`, `locator`, `sha256`, `media_type`, and
+`size_bytes`.
+
 ```bash
 uv run --offline --locked --no-sync python - path/to/saved-workspace 'sha256:<acquisition-digest>' <<'PY'
 import json
 import sys
 from pathlib import Path
 
+from fuzzy1337.adapters import EvidenceReference
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.workspace import LocalWorkspaceStore
+
+
+def UniqueObject(pairs):
+    """Reject duplicate JSON fields before typed validation."""
+
+    value = dict(pairs)
+
+    if len(value) != len(pairs):
+        raise ValueError("Duplicate JSON field")
+
+    return value
+
+
+if len(sys.argv) not in (3, 4):
+    raise SystemExit("Expected a workspace, an acquisition ID, and an optional reference file")
 
 root = Path(sys.argv[1])
 acquisitionId = sys.argv[2]
@@ -95,6 +116,20 @@ record = LocalEvidenceStore(root / "evidence").Get(acquisitionId)
 if record.provenance.workspace_id != workspace.workspace_id:
     raise SystemExit("Acquisition belongs to another workspace")
 
+if len(sys.argv) == 4:
+    try:
+        expectedFields = json.loads(
+            Path(sys.argv[3]).read_text(encoding="utf-8"),
+            object_pairs_hook=UniqueObject,
+        )
+        expectedReference = EvidenceReference(**expectedFields)
+
+    except (OSError, RecursionError, TypeError, ValueError):
+        raise SystemExit("Invalid expected evidence reference JSON") from None
+
+    if record.reference != expectedReference:
+        raise SystemExit("Acquisition evidence reference does not match the expected reference")
+
 print(json.dumps({
     "evidence_id": record.evidence_id,
     "content_sha256": record.reference.sha256,
@@ -103,9 +138,10 @@ print(json.dumps({
 PY
 ```
 
-This verifies one workspace-registered acquisition. To check it against a report,
-compare the verified record's complete `reference` with the expected typed
-`EvidenceReference` from the report. An unregistered or foreign acquisition, a
-missing manifest or blob, or corrupt bytes produces a failure with no JSON result.
+This verifies one workspace-registered acquisition. When supplied, the expected
+reference must match every field of the verified record's reference. A different
+role can share the same content digest. A malformed or mismatched reference,
+an unregistered or foreign acquisition, a missing manifest or blob, or corrupt
+bytes fails with no JSON result.
 If the handoff contains only an exported report, request the retained workspace
 and the original acquisition ID for independent verification.
