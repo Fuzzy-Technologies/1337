@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections import Counter
 from dataclasses import replace
 from io import StringIO
 from pathlib import Path
@@ -605,6 +606,89 @@ def test_HardLinkedEvidenceCannotBecomeAnOwnedReportInput(tmp_path):
     )
     assert not destination.exists(), "Unsafe physical evidence ownership cannot produce output."
 
+
+
+def test_MatchingWorkspaceReferenceReusesVerifiedAcquisitionRead(tmp_path, monkeypatch):
+    """Verify every acquisition and nonidentical reference without rereading the exact match."""
+
+    root, (linked, unused) = Context(tmp_path, findings=False)
+    store = LocalEvidenceStore(root / "evidence")
+    repeated = store.Put(
+        store.Read(linked.reference), linked.reference.role, linked.reference.media_type,
+        replace(linked.provenance, tool_version="repeat"),
+    )
+    standalone = store.Put(b"standalone evidence", "stdout", "text/plain", linked.provenance)
+    otherRole = replace(linked.reference, role="stderr")
+    otherMedia = replace(unused.reference, media_type="application/octet-stream")
+    workspaceStore = LocalWorkspaceStore(root)
+    workspace = workspaceStore.Open()
+    workspaceStore.Save(replace(
+        workspace,
+        evidence_references=(linked.reference, otherRole, otherMedia, standalone.reference),
+        evidence_record_references=(*workspace.evidence_record_references, repeated.evidence_id),
+    ))
+    before = Files(root)
+    ownerRead = LocalEvidenceStore.Read
+    reads = Counter()
+
+    def ObserveRead(store, reference):
+        """Count completed owner reads by consumer and full reference."""
+
+        payload = ownerRead(store, reference)
+        reads[type(store), reference] += 1
+
+        return payload
+
+    DenyExecution(monkeypatch)
+    monkeypatch.setattr(LocalEvidenceStore, "Read", ObserveRead)
+    destination = tmp_path / "verified.json"
+    status, outcome = Run(root, destination)
+
+    assert status == 0 and outcome["output_published"], "All retained evidence is valid."
+    assert outcome["verified_retained_acquisitions"] == 3, "Check each acquisition."
+    assert outcome["checked_model_evidence_references"] == 1, "Verify the model independently."
+    bounded = commands.BoundedReportEvidenceStore
+    assert reads == {
+        (bounded, linked.reference): 2,
+        (bounded, unused.reference): 1,
+        (bounded, otherRole): 1,
+        (bounded, otherMedia): 1,
+        (bounded, standalone.reference): 1,
+        (LocalEvidenceStore, linked.reference): 1,
+    }, "Reuse only the exact direct reference while completing every other owner read."
+    assert Files(root) == before, "Evidence verification must preserve the source."
+
+
+@pytest.mark.parametrize("failure", ["missing", "corrupt"])
+def test_DirectOnlyEvidenceStillRequiresByteIntegrity(tmp_path, monkeypatch, failure):
+    """Reject a distinct invalid direct reference even with valid retained acquisitions."""
+
+    root, (linked, _) = Context(tmp_path, findings=False)
+    store = LocalEvidenceStore(root / "evidence")
+    standalone = store.Put(b"standalone evidence", "stdout", "text/plain", linked.provenance)
+    workspaceStore = LocalWorkspaceStore(root)
+    workspace = workspaceStore.Open()
+    workspaceStore.Save(replace(
+        workspace, evidence_references=(*workspace.evidence_references, standalone.reference),
+    ))
+    artifact = root / "evidence" / standalone.reference.locator
+
+    if failure == "missing":
+        artifact.unlink()
+
+    else:
+        artifact.write_bytes(b"x" * standalone.reference.size_bytes)
+
+    before = Files(root)
+    DenyExecution(monkeypatch)
+    destination = tmp_path / "invalid.json"
+    status, outcome = Run(root, destination)
+
+    assert status == 4 and outcome["failure"] == "integrity", "Reject invalid direct evidence."
+    assert not outcome["output_published"] and not destination.exists(), (
+        "Incomplete verification cannot publish."
+    )
+    assert Files(root) == before, "The command must preserve the rejected source."
 
 
 def test_AcquisitionOnlyAndModelOnlyReferencesShareTheSameReadQuotas(tmp_path, monkeypatch):

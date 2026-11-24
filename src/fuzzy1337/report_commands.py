@@ -178,12 +178,10 @@ def OpenReportInput(root: Path) -> ReportInput:
     report = ReportSnapshot(state)
     evidence = BoundedReportEvidenceStore(root / "evidence")
     scopes = set(workspace.scope_references)
+    acquisitionReferences: set[EvidenceReference] = set()
 
     if len(workspace.evidence_record_references) > MAX_EXPORT_ACQUISITIONS:
         raise ReportFailure("limit")
-
-    for reference in workspace.evidence_references:
-        evidence.Read(reference)
 
     for recordId in workspace.evidence_record_references:
         record = evidence.Get(recordId)
@@ -192,6 +190,12 @@ def OpenReportInput(root: Path) -> ReportInput:
             raise EvidenceIntegrityError("report acquisition belongs to a different workspace")
 
         scopes.add(record.provenance.scope_reference)
+        acquisitionReferences.add(record.reference)
+
+    # Each matching reference was already quota-checked and byte-verified by its acquisition Get.
+    for reference in workspace.evidence_references:
+        if reference not in acquisitionReferences:
+            evidence.Read(reference)
 
     entities: tuple[SecurityObject | Relation, ...] = (*state.objects, *state.relations)
 
