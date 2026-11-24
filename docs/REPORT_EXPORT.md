@@ -74,9 +74,11 @@ saved snapshot; it cannot rewrite the prior output.
 ## Review a handed-off HTML report
 
 Save the JSON outcome printed by the HTML export command above as
-`report-export.json` and hand it off with `report.html`. Run the check below
-from the directory containing both files. For other filenames or locations,
-use `python - 'delivery/received report.html' 'delivery/export receipt.json' <<'PY'`
+`report-export.json` and hand it off with `report.html`. Both paths must
+refer to regular files. Run the check from the directory containing them.
+
+For other filenames or locations, use
+`python - 'delivery/received report.html' 'delivery/export receipt.json' <<'PY'`
 as the first line. Pass the HTML report path first and the JSON outcome path
 second.
 
@@ -87,6 +89,7 @@ from json import loads
 from os import fstat
 from pathlib import Path
 from re import fullmatch
+from stat import S_ISREG
 from sys import argv
 
 
@@ -111,6 +114,9 @@ reportLabel = "HTML report" if paths else "report.html"
 outcomeLabel = "JSON outcome" if paths else "report-export.json"
 
 try:
+    if not S_ISREG(outcomePath.stat().st_mode):
+        raise SystemExit(f"{outcomeLabel} must be a regular file.")
+
     outcome = loads(
         outcomePath.read_text(encoding="utf-8"),
         object_pairs_hook=UniqueFields,
@@ -143,6 +149,9 @@ if not isinstance(reportSha256, str) or not fullmatch(r"[0-9a-f]{64}", reportSha
     raise SystemExit("Invalid report_sha256 in the export outcome.")
 
 try:
+    if not S_ISREG(reportPath.stat().st_mode):
+        raise SystemExit(f"{reportLabel} must be a regular file.")
+
     with reportPath.open("rb") as stream:
         if fstat(stream.fileno()).st_size != sizeBytes:
             raise SystemExit(f"{reportLabel} differs from the recorded byte size.")
