@@ -77,6 +77,9 @@ The HTML renderer groups inventory rows by stored object kind and indexes findin
 history by canonical subject reference in a single pass. Both views use the saved
 record order and source attribution.
 
+Each table uses its visible heading as its accessible name. The scroll region
+shares that name and supports keyboard focus.
+
 Finding-intelligence cards keep source origin, publisher, version, date,
 freshness, explicit candidate association and unmatched identifiers visible.
 CVSS technical severity, KEV known-exploitation assertions and EPSS forecasts

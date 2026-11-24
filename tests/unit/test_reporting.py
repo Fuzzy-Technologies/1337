@@ -45,6 +45,7 @@ class Dom(HTMLParser):
         self.text = []
         self.primary_text = []
         self.headingIds = set()
+        self.tableLabels = []
         self.tableRegions = []
         self.disclosure_depth = 0
         self.style_depth = 0
@@ -71,6 +72,9 @@ class Dom(HTMLParser):
 
         if tag == "div" and fields.get("class") == "table":
             self.tableRegions.append(fields)
+
+        if tag == "table":
+            self.tableLabels.append(fields.get("aria-labelledby"))
 
         if tag == "a":
             self.links.append(fields["href"])
@@ -243,7 +247,7 @@ def test_HtmlIsDarkOfflineInertAndEveryCanonicalFragmentResolves():
 
 
 def test_HtmlTablesExposeNamedKeyboardScrollRegions():
-    """Give keyboard users a focus stop and a visible heading for each report table."""
+    """Name each native table and its keyboard scroll region with the visible heading."""
 
     dom = Dom()
     dom.feed(RenderHtml(Fixture()).decode("utf-8"))
@@ -253,7 +257,7 @@ def test_HtmlTablesExposeNamedKeyboardScrollRegions():
         "operations-table-heading", "model-host-table-heading",
         "evidence-table-heading", "relationships-table-heading",
     ]
-    assert len(labels) == dom.tags.count("table")
+    assert dom.tableLabels == labels
     assert set(labels) <= dom.headingIds
     assert all(region.get("role") == "region" and region.get("tabindex") == "0"
                for region in dom.tableRegions)
@@ -633,7 +637,7 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
         "model-service-table-heading", "model-endpoint-table-heading", "evidence-table-heading",
         "relationships-table-heading",
     ]
-    assert len(labels) == dom.tags.count("table")
+    assert dom.tableLabels == labels
     assert set(labels) <= dom.headingIds
 
     expected = {
@@ -772,6 +776,8 @@ def test_HtmlNativeResponseRowsRequireAttributedEvidenceAndAnExactObservation():
     ), "Native response subject labels must stay inert and all evidence links must resolve."
     assert any(region.get("aria-labelledby") == "native-response-table-heading"
                and region.get("tabindex") == "0" for region in dom.tableRegions)
+    assert "native-response-table-heading" in dom.headingIds
+    assert dom.tableLabels == [region["aria-labelledby"] for region in dom.tableRegions]
 
 
 def IntelReport(assertions, *, unmatched=None):

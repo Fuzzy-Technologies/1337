@@ -248,10 +248,11 @@ def AttributeText(entity: SecurityObject, *names: str) -> str:
 
 
 def _TableStart(headingId: str) -> str:
-    """Open a keyboard-scrollable table region named by a fixed report heading ID."""
+    """Name the native table and its keyboard scroll region with the same heading."""
 
     return ('<div class="table" role="region" tabindex="0" '
-            f'aria-labelledby="{headingId}"><table><thead><tr>')
+            f'aria-labelledby="{headingId}">'
+            f'<table aria-labelledby="{headingId}"><thead><tr>')
 
 
 def ObjectTables(rows: _RetainedReportRows) -> str:

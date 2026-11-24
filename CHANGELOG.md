@@ -18,6 +18,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Group retained inventory by object kind and index finding history by canonical
   subject reference for the HTML report.
+- Name offline report tables after their visible headings for screen reader
+  navigation.
 
 
 ### Patch 31 — v0.4.31 — 2026-11-04
