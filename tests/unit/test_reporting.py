@@ -41,6 +41,8 @@ class Dom(HTMLParser):
         self.links = []
         self.text = []
         self.primary_text = []
+        self.headingIds = set()
+        self.tableRegions = []
         self.disclosure_depth = 0
         self.style_depth = 0
 
@@ -60,6 +62,12 @@ class Dom(HTMLParser):
 
         if "id" in fields:
             self.ids.append(fields["id"])
+
+            if tag in ("h2", "h3"):
+                self.headingIds.add(fields["id"])
+
+        if tag == "div" and fields.get("class") == "table":
+            self.tableRegions.append(fields)
 
         if tag == "a":
             self.links.append(fields["href"])
@@ -229,6 +237,23 @@ def test_HtmlIsDarkOfflineInertAndEveryCanonicalFragmentResolves():
     assert dom.tags.count("details") >= len(report.state.objects) + 4, (
         "Report did not expose interactive canonical/finding detail layers"
     )
+
+
+def test_HtmlTablesExposeNamedKeyboardScrollRegions():
+    """Give keyboard users a focus stop and a visible heading for each report table."""
+
+    dom = Dom()
+    dom.feed(RenderHtml(Fixture()).decode("utf-8"))
+    labels = [region["aria-labelledby"] for region in dom.tableRegions]
+
+    assert labels == [
+        "operations-table-heading", "model-host-table-heading",
+        "evidence-table-heading", "relationships-table-heading",
+    ]
+    assert len(labels) == dom.tags.count("table")
+    assert set(labels) <= dom.headingIds
+    assert all(region.get("role") == "region" and region.get("tabindex") == "0"
+               for region in dom.tableRegions)
 
 
 def test_HostileHtmlXmlControlsAndBidiRemainVisibleInertText():
@@ -436,6 +461,9 @@ def test_EmptyHtmlExplainsUnknownCoverageAndDoesNotSuggestASecureTarget():
     assert "No execution outcomes were retained" in visible, "Missing execution must remain unknown"
     assert "opening this report does not perform one" in visible, "Export cannot imply execution"
     assert "No objects of this kind were retained" in visible, "Missing inventory must be explicit"
+    assert [region["aria-labelledby"] for region in dom.tableRegions] == [
+        "evidence-table-heading", "relationships-table-heading",
+    ]
 
 
 
@@ -469,6 +497,14 @@ def test_HtmlInventoryShowsRetainedFieldsAndKeepsUntrustedAddressesInert():
     assert all(link[1:] in dom.ids for link in dom.links if link.startswith("#")), (
         "Readable inventory lost a canonical object anchor"
     )
+    labels = [region["aria-labelledby"] for region in dom.tableRegions]
+    assert labels == [
+        "operations-table-heading", "model-host-table-heading", "model-port-table-heading",
+        "model-service-table-heading", "model-endpoint-table-heading", "evidence-table-heading",
+        "relationships-table-heading",
+    ]
+    assert len(labels) == dom.tags.count("table")
+    assert set(labels) <= dom.headingIds
 
 
 def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypatch):
@@ -580,6 +616,8 @@ def test_HtmlNativeResponseRowsRequireAttributedEvidenceAndAnExactObservation():
     assert "script" not in dom.tags and all(
         link[1:] in dom.ids for link in dom.links if link.startswith("#")
     ), "Native response subject labels must stay inert and all evidence links must resolve."
+    assert any(region.get("aria-labelledby") == "native-response-table-heading"
+               and region.get("tabindex") == "0" for region in dom.tableRegions)
 
 
 def IntelReport(assertions, *, unmatched=None):

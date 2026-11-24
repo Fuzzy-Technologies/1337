@@ -57,7 +57,8 @@ summary {cursor:pointer;color:var(--green)} code,pre {overflow-wrap:anywhere}
 pre {white-space:pre-wrap;background:#101820;padding:1rem;border-radius:6px}
 .table {overflow:auto} table {border-collapse:collapse;width:100%}
 th,td {text-align:left;vertical-align:top;padding:.65rem;border-bottom:1px solid var(--border)}
-th {color:var(--cyan)} a:focus-visible,summary:focus-visible {outline:2px solid var(--cyan)}
+th {color:var(--cyan)}
+a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid var(--cyan)}
 @media print {body {background:white;color:black} a,h1,h2,h3,summary {color:black}}
 """
 
@@ -242,6 +243,13 @@ def AttributeText(entity: SecurityObject, *names: str) -> str:
     return "Not recorded"
 
 
+def _TableStart(headingId: str) -> str:
+    """Open a keyboard-scrollable table region named by a fixed report heading ID."""
+
+    return ('<div class="table" role="region" tabindex="0" '
+            f'aria-labelledby="{headingId}"><table><thead><tr>')
+
+
 def ObjectTables(rows: _RetainedReportRows) -> str:
     """Present retained objects as readable inventory without claiming discovery or reachability.
 
@@ -269,14 +277,15 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
     for kind, heading, fields in groups:
         entities = rows.assetsByKind.get(kind, ())
-        lines.append(f"<h3>{heading} ({len(entities)})</h3>")
+        headingId = f"model-{kind.value}-table-heading"
+        lines.append(f'<h3 id="{headingId}">{heading} ({len(entities)})</h3>')
 
         if not entities:
             lines.append("<p>No objects of this kind were retained.</p>")
 
             continue
 
-        lines.append('<div class="table"><table><thead><tr><th>Saved identity</th>')
+        lines.append(_TableStart(headingId) + '<th>Saved identity</th>')
         lines.extend(f"<th>{Html(label)}</th>" for label, _ in fields)
         lines.append("<th>Details</th></tr></thead><tbody>")
 
@@ -320,7 +329,7 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
     """
 
     outcomes = cast(list[dict[str, object]], document["execution_outcomes"])
-    lines = ['<section id="operations"><h2>What is recorded</h2>']
+    lines = ['<section id="operations"><h2 id="operations-table-heading">What is recorded</h2>']
 
     if not outcomes:
         lines.append("<p>No execution outcomes were retained. This snapshot cannot establish "
@@ -331,7 +340,7 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
             "<p>The table shows retained execution records, which can repeat one run for "
             "different targets. A successful tool exit does not establish that a target is "
             "safe.</p>",
-            '<div class="table"><table><thead><tr><th>Recorded source</th>'
+            _TableStart("operations-table-heading") + '<th>Recorded source</th>'
             '<th>Operation profile</th><th>Outcome</th><th>Observed at (UTC)</th>'
             '<th>Details</th></tr></thead><tbody>',
         ])
@@ -390,10 +399,10 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
 
     if responseRows:
         lines.extend([
-            "<h3>Selected native response observations</h3>",
+            '<h3 id="native-response-table-heading">Selected native response observations</h3>',
             "<p>These rows describe individual retained responses. HTML reflection does not "
             "establish browser execution. A SQL sample alone does not assess injection.</p>",
-            '<div class="table"><table><thead><tr><th>Profile</th><th>Subject</th>'
+            _TableStart("native-response-table-heading") + '<th>Profile</th><th>Subject</th>'
             '<th>Observation</th><th>Evidence</th></tr></thead><tbody>',
             *responseRows,
             "</tbody></table></div>",
@@ -713,11 +722,12 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                      + JsonBlock(observations) + "</details></article>")
 
     lines.extend([
-        '</section><section id="evidence"><h2>Evidence and byte integrity</h2>',
+        '</section><section id="evidence"><h2 id="evidence-table-heading">'
+        'Evidence and byte integrity</h2>',
         "<p>Follow a finding's evidence link to its retained reference. Byte verification "
         "checks content integrity; it does not authenticate the publisher, establish "
         "provenance, scan success, or completeness. Raw artifact bytes are not embedded.</p>",
-        '<div class="table"><table><thead><tr><th>Evidence</th><th>Role</th><th>Size</th>'
+        _TableStart("evidence-table-heading") + '<th>Evidence</th><th>Role</th><th>Size</th>'
         '<th>Integrity</th><th>Technical reference</th></tr></thead><tbody>',
     ])
     integrityMetadata = cast(dict[str, object], document["evidence_integrity"])
@@ -737,9 +747,10 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
                      + JsonBlock(JsonValue(evidenceReference)) + "</details></td></tr>")
 
     lines.extend([
-        '</tbody></table></div></section><section id="relations"><h2>Stored relationships</h2>',
+        '</tbody></table></div></section><section id="relations">'
+        '<h2 id="relationships-table-heading">Stored relationships</h2>',
         "<p>Only stored relations appear here. No reachability or attack paths are inferred.</p>",
-        '<div class="table"><table><thead><tr><th>From</th><th>Relationship</th>'
+        _TableStart("relationships-table-heading") + '<th>From</th><th>Relationship</th>'
         '<th>To</th><th>Attribution</th></tr></thead><tbody>',
     ])
 
