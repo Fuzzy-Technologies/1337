@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Never, TextIO
 
+from fuzzy1337 import reporting
 from fuzzy1337.adapters import EvidenceReference
 from fuzzy1337.evidence import (
     CheckStorageEntry,
@@ -23,7 +24,13 @@ from fuzzy1337.evidence import (
     EvidenceIntegrityError,
     LocalEvidenceStore,
 )
-from fuzzy1337.model import LocalModelStore, Relation, SecurityObject
+from fuzzy1337.model import (
+    CanonicalModelJson,
+    LocalModelStore,
+    ModelState,
+    Relation,
+    SecurityObject,
+)
 from fuzzy1337.report_formats import RenderHtml, SerializeJson, SerializeJunit, SerializeSarif
 from fuzzy1337.reporting import MAX_REPORT_BYTES, ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.scope import LocalScopeStore
@@ -314,7 +321,19 @@ def CheckReportSnapshot(root: Path, original: ReportInput) -> None:
     workspace = LocalWorkspaceStore(root).Open()
     state = LocalModelStore(root).Open()
 
-    if workspace != original.workspace or ReportSnapshot(state).SnapshotDigest() != (
+    if workspace != original.workspace:
+        raise ReportFailure("input-changed")
+
+    if not isinstance(state, ModelState):
+        raise ValueError("report state must be a ModelState")
+
+    # The recheck has no reference bindings. Use the same bytes for the model limit and digest.
+    snapshotBytes = CanonicalModelJson(state.ToDict())
+
+    if len(snapshotBytes) > reporting.MAX_MODEL_BYTES:
+        raise ValueError("report model exceeds the canonical snapshot byte limit")
+
+    if hashlib.sha256(snapshotBytes).hexdigest() != (
         original._pinnedSnapshotDigest or original.report.SnapshotDigest()
     ):
         raise ReportFailure("input-changed")

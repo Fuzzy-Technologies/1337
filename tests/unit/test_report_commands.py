@@ -15,9 +15,12 @@ from pathlib import Path
 import pytest
 
 from fuzzy1337 import report_commands as commands
+from fuzzy1337 import reporting
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.model import (
+    CanonicalModelJson,
     LocalModelStore,
+    ModelState,
     ObjectIdentity,
     ObjectKind,
     SecurityObject,
@@ -165,19 +168,56 @@ def test_ChangedSavedInputIsRejectedWithoutSubstitutingNewRevision(tmp_path, mon
 
 @pytest.mark.parametrize("change", [False, True], ids=["unchanged", "same-revision-change"])
 def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkeypatch, change):
-    """Reuse selected snapshot work and still check the reopened model at the same revision."""
+    """Build one reopened model document and hash it, including same-revision type drift."""
 
     root, _ = Context(tmp_path, findings=False)
     modelStore = LocalModelStore(root)
-    selected = modelStore.Open()
-    changedHost = replace(selected.objects[0], attributes={"fixture": "same-revision change"})
+    modelPath = root / "state" / "model"
+    initial = modelStore.Open()
+    selectedHost = replace(initial.objects[0], attributes={"fixture": 1})
+    selected = replace(initial, objects=(selectedHost,))
+    changedHost = replace(selectedHost, attributes={"fixture": True})
     changed = replace(selected, objects=(changedHost,))
+    modelStore.WriteState(modelPath, selected)
+    selectedBytes = CanonicalModelJson(selected.ToDict())
+    changedBytes = CanonicalModelJson(changed.ToDict())
+    assert selected == changed and selectedBytes != changedBytes
+
+    openModel = LocalModelStore.Open
+    modelDocument = ModelState.ToDict
+    sha256 = hashlib.sha256
     snapshotDigest = commands.ReportSnapshot.SnapshotDigest
     evidenceReferences = commands.ReportSnapshot.EvidenceReferences
     expected = commands.ReportSnapshot(selected).SnapshotDigest()
     serialize = commands.SerializeJson
+    openedModels = []
+    projectedModels = []
+    reopenedHashes = []
     hashedReports = []
     traversedReports = []
+
+    def RecordOpen(store):
+        """Retain each actual owner-opened model for identity-based accounting."""
+
+        model = openModel(store)
+        openedModels.append(model)
+
+        return model
+
+    def RecordDocument(model):
+        """Count complete model projections rather than wrapper method invocations."""
+
+        projectedModels.append(model)
+
+        return modelDocument(model)
+
+    def RecordHash(payload=b"", **options):
+        """Observe the full canonical input hashed after the second owner open."""
+
+        if len(openedModels) == 2 and payload == (changedBytes if change else selectedBytes):
+            reopenedHashes.append(payload)
+
+        return sha256(payload, **options)
 
     def RecordDigest(report):
         """Count actual full canonical hashes and retain the inputs for comparison."""
@@ -199,21 +239,27 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
         payload = serialize(report)
 
         if change:
-            modelStore.WriteState(root / "state" / "model", changed)
+            modelStore.WriteState(modelPath, changed)
 
         return payload
 
     DenyExecution(monkeypatch)
+    monkeypatch.setattr(LocalModelStore, "Open", RecordOpen)
+    monkeypatch.setattr(ModelState, "ToDict", RecordDocument)
+    monkeypatch.setattr(hashlib, "sha256", RecordHash)
     monkeypatch.setattr(commands.ReportSnapshot, "SnapshotDigest", RecordDigest)
     monkeypatch.setattr(commands.ReportSnapshot, "EvidenceReferences", RecordReferences)
     monkeypatch.setattr(commands, "SerializeJson", SerializeThenChange)
     destination = tmp_path / "pinned.json"
     status, outcome = Run(root, destination)
 
-    assert len(hashedReports) == 3, "Hash only for the outcome, renderer, and reopened model."
-    outcomeReport, renderedReport, reopenedReport = hashedReports
-    assert outcomeReport is renderedReport and reopenedReport is not outcomeReport
-    assert reopenedReport.state == (changed if change else selected)
+    selectedModel, reopenedModel = openedModels
+    assert reopenedModel is not selectedModel
+    assert sum(model is reopenedModel for model in projectedModels) == 1
+    assert reopenedHashes == [changedBytes if change else selectedBytes]
+    assert len(hashedReports) == 2, "Reuse the selected snapshot digest in the recheck."
+    outcomeReport, renderedReport = hashedReports
+    assert outcomeReport is renderedReport and outcomeReport.state is selectedModel
     assert outcome["snapshot_sha256"] == expected and outcome["model_revision"] == selected.revision
     assert len(traversedReports) == 3, "Only quotas, verification, and JSON need the reference set."
     quotaReport, verifierReport, rendererReport = traversedReports
@@ -228,6 +274,38 @@ def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkey
     else:
         assert status == 0 and outcome["output_published"]
         assert json.loads(destination.read_bytes())["snapshot_sha256"] == expected
+
+
+
+def test_ReopenedCanonicalModelByteLimitPreventsPublication(tmp_path, monkeypatch):
+    """Keep the canonical model limit at the recheck after the selected model fits exactly."""
+
+    root, _ = Context(tmp_path, findings=False)
+    modelStore = LocalModelStore(root)
+    selected = modelStore.Open()
+    selectedBytes = CanonicalModelJson(selected.ToDict())
+    largerHost = replace(selected.objects[0], attributes={"fixture": "x" * 128})
+    larger = replace(selected, objects=(largerHost,))
+    assert len(CanonicalModelJson(larger.ToDict())) > len(selectedBytes)
+    serialize = commands.SerializeJson
+
+    def SerializeThenGrow(report):
+        """Save an owner-readable but report-oversize model before publication."""
+
+        payload = serialize(report)
+        modelStore.WriteState(root / "state" / "model", larger)
+
+        return payload
+
+    DenyExecution(monkeypatch)
+    monkeypatch.setattr(reporting, "MAX_MODEL_BYTES", len(selectedBytes))
+    monkeypatch.setattr(commands, "SerializeJson", SerializeThenGrow)
+    destination = tmp_path / "oversize-reopen.json"
+    status, outcome = Run(root, destination)
+
+    assert outcome["snapshot_sha256"] == hashlib.sha256(selectedBytes).hexdigest()
+    assert status == 4 and outcome["failure"] == "integrity"
+    assert not outcome["output_published"] and not destination.exists()
 
 
 
