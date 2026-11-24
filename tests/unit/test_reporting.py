@@ -12,9 +12,11 @@ import pytest
 
 from fuzzy1337 import report_formats, reporting
 from fuzzy1337.adapters.contracts import AdapterExecution, ExecutionState
+from fuzzy1337.findings import ApplyFindings, Finding
 from fuzzy1337.intelligence import IntelligenceFeed
 from fuzzy1337.model import (
     CanonicalModelJson,
+    LocalModelStore,
     ModelState,
     ObjectIdentity,
     ObjectKind,
@@ -23,6 +25,7 @@ from fuzzy1337.model import (
 )
 from fuzzy1337.report_formats import RenderHtml, SerializeJson, SerializeJunit, SerializeSarif
 from fuzzy1337.reporting import ReportReference, ReportSnapshot
+from tests.contract.report_export_fixture import Context as ReportExportContext
 from tests.contract.reporting_fixture import Fixture
 
 EXPORTERS = (RenderHtml, SerializeJson, SerializeSarif, SerializeJunit)
@@ -254,6 +257,51 @@ def test_HtmlTablesExposeNamedKeyboardScrollRegions():
     assert set(labels) <= dom.headingIds
     assert all(region.get("role") == "region" and region.get("tabindex") == "0"
                for region in dom.tableRegions)
+
+
+@pytest.mark.parametrize("verify,expectedIntegrity", [
+    (False, "not verified"), (True, "verified bytes"),
+], ids=["unverified", "verified"])
+def test_HtmlFindingLinkResolvesToEvidenceRowWithScopedHeaders(tmp_path, verify, expectedIntegrity):
+    """Bind a finding's evidence link to the correct row and its byte-integrity context."""
+
+    workspaceRoot, records = ReportExportContext(tmp_path, findings=False)
+    state = LocalModelStore(workspaceRoot).Open()
+    host, = state.Objects(ObjectKind.HOST)
+    reference = records[1].reference
+    provenance = replace(host.provenance[0], run_reference=records[1].evidence_id,
+                         evidence_references=(reference,))
+    finding = Finding(host.Reference(), "synthetic.evidence-row", "stored",
+                      "Retained interpretation", (provenance,))
+    state, _ = ApplyFindings(state, (finding,))
+    report = ReportSnapshot(state)
+
+    if verify:
+        report = reporting.VerifyReportEvidence(report, workspaceRoot)
+
+    rendered = RenderHtml(report).decode("utf-8")
+    findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
+    findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
+    link, = (anchor for anchor in findings.findall("article//a")
+             if anchor.attrib["href"].startswith("#evidence-"))
+    assert link.text == f"Evidence 1: {reference.role}"
+    fragment = link.attrib["href"][1:]
+    tableHtml = rendered.split('aria-labelledby="evidence-table-heading">', 1)[1]
+    table = ElementTree.fromstring(tableHtml.split("</table>", 1)[0] + "</table>")
+    columns = ("Evidence", "Role", "Size", "Integrity", "Technical reference")
+    assert [(cell.tag, cell.get("scope"), cell.text) for cell in table.findall("thead/tr/*")] == [
+        ("th", "col", label) for label in columns
+    ]
+    assert len(table.findall("tbody/tr")) == 2
+    row = table.find(f'tbody/tr[@id="{fragment}"]')
+    assert row is not None
+    identity, role, size, integrity, details = row
+    assert (identity.tag, identity.get("scope"), identity.text) == ("th", "row", "Evidence 2")
+    assert [cell.tag for cell in (role, size, integrity, details)] == ["td"] * 4
+    assert (role.text, size.text, integrity.text) == (
+        reference.role, f"{reference.size_bytes} bytes", expectedIntegrity,
+    )
+    assert details.findtext("details/pre") == CanonicalModelJson(reference).decode("utf-8")
 
 
 def test_HtmlCalculatesCanonicalSnapshotDigestOnce(monkeypatch):

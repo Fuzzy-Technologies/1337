@@ -727,8 +727,10 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         "<p>Follow a finding's evidence link to its retained reference. Byte verification "
         "checks content integrity; it does not authenticate the publisher, establish "
         "provenance, scan success, or completeness. Raw artifact bytes are not embedded.</p>",
-        _TableStart("evidence-table-heading") + '<th>Evidence</th><th>Role</th><th>Size</th>'
-        '<th>Integrity</th><th>Technical reference</th></tr></thead><tbody>',
+        _TableStart("evidence-table-heading")
+        + '<th scope="col">Evidence</th><th scope="col">Role</th><th scope="col">Size</th>'
+        '<th scope="col">Integrity</th><th scope="col">Technical reference</th>'
+        '</tr></thead><tbody>',
     ])
     integrityMetadata = cast(dict[str, object], document["evidence_integrity"])
     checked = {CanonicalModelJson(item) for item in cast(
@@ -741,7 +743,8 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
             else "not verified"
         )
         lines.append(f'<tr id="{EvidenceId(evidenceReference)}">'
-                     f"<td>Evidence {index}</td><td>{Html(evidenceReference.role)}</td>"
+                     f'<th scope="row">Evidence {index}</th>'
+                     f"<td>{Html(evidenceReference.role)}</td>"
                      f"<td>{evidenceReference.size_bytes} bytes</td><td>{integrity}</td>"
                      "<td><details><summary>Digest and metadata</summary>"
                      + JsonBlock(JsonValue(evidenceReference)) + "</details></td></tr>")
