@@ -71,6 +71,43 @@ thresholds or run a CI gate. The emitted report remains a pinned historical
 artifact after later model changes. A new explicit export selects the later
 saved snapshot; it cannot rewrite the prior output.
 
+## Review a handed-off HTML report
+
+Use the HTML export command above with `--json` and keep the original JSON
+outcome with `report.html`. The recipient can review the pair offline with the
+saved files alone. A completed HTML export exits `0` and its outcome records
+`status` as `completed`, `format` as `html` and `output_published` as `true`. In
+the directory with the received file, check that its SHA-256 matches
+`report_sha256` in the supplied outcome.
+
+```bash
+python - <<'PY'
+from hashlib import file_digest
+from pathlib import Path
+
+with Path("report.html").open("rb") as stream:
+    print(file_digest(stream, "sha256").hexdigest())
+PY
+```
+
+A matching hash identifies the HTML bytes recorded in the supplied outcome.
+Compare the report header's saved revision with `model_revision`. In **Overview**,
+open **Snapshot identity and technical summary** and compare **Canonical
+snapshot** with `snapshot_sha256`, the digest of the saved model.
+
+1. Open **Recorded operations** and use **Execution attribution** for a source's
+   saved outcome. Failed records remain visible. When execution records are
+   absent, which checks ran remains unknown. In **Assets**, **Not recorded**
+   marks an unknown inventory value.
+2. In **Findings**, use a finding's **Subject** link to locate the saved object.
+   Follow a link under **Evidence for this interpretation** to its row in
+   **Evidence and byte integrity**. Evidence numbers on finding cards are local
+   to each card. Open **Digest and metadata** for the exact reference.
+3. To direct another reader to the same row, cite the evidence link's fragment
+   with this report. `verified bytes` records the integrity check at export
+   time. The row contains reference metadata. Independent acquisition
+   verification uses the workspace's [owning evidence store](EVIDENCE.md).
+
 ## Bounds and output truth
 
 The consumer accepts at most 1,024 retained acquisition manifests, 1,024 distinct
