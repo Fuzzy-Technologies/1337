@@ -12,7 +12,7 @@ import os
 import stat
 import tempfile
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Never, TextIO
 
@@ -142,6 +142,15 @@ class ReportInput:
 
     workspace: WorkspaceState
     report: ReportSnapshot
+    _pinnedSnapshotDigest: str | None = field(default=None, init=False, repr=False, compare=False)
+
+    def _PinSnapshotDigest(self) -> str:
+        """Retain this immutable report's canonical digest for the publication check."""
+
+        digest = self.report.SnapshotDigest()
+        object.__setattr__(self, "_pinnedSnapshotDigest", digest)
+
+        return digest
 
 
 def OpenReportInput(root: Path) -> ReportInput:
@@ -297,7 +306,7 @@ def CheckReportSnapshot(root: Path, original: ReportInput) -> None:
     state = LocalModelStore(root).Open()
 
     if workspace != original.workspace or ReportSnapshot(state).SnapshotDigest() != (
-        original.report.SnapshotDigest()
+        original._pinnedSnapshotDigest or original.report.SnapshotDigest()
     ):
         raise ReportFailure("input-changed")
 
@@ -420,7 +429,7 @@ def RunReportCommands(
         original = OpenReportInput(root)
         outcome.update({
             "model_revision": original.report.state.revision,
-            "snapshot_sha256": original.report.SnapshotDigest(),
+            "snapshot_sha256": original._PinSnapshotDigest(),
             "verified_retained_acquisitions": len(original.workspace.evidence_record_references),
             "checked_model_evidence_references": len(original.report.EvidenceReferences()),
         })

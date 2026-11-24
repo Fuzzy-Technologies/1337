@@ -162,6 +162,59 @@ def test_ChangedSavedInputIsRejectedWithoutSubstitutingNewRevision(tmp_path, mon
 
 
 
+@pytest.mark.parametrize("change", [False, True], ids=["unchanged", "same-revision-change"])
+def test_ReportExportPinsSelectedDigestAndChecksReopenedContent(tmp_path, monkeypatch, change):
+    """Reuse the selected digest and hash the reopened model even at the same revision."""
+
+    root, _ = Context(tmp_path, findings=False)
+    modelStore = LocalModelStore(root)
+    selected = modelStore.Open()
+    changedHost = replace(selected.objects[0], attributes={"fixture": "same-revision change"})
+    changed = replace(selected, objects=(changedHost,))
+    snapshotDigest = commands.ReportSnapshot.SnapshotDigest
+    expected = commands.ReportSnapshot(selected).SnapshotDigest()
+    serialize = commands.SerializeJson
+    hashedReports = []
+
+    def RecordDigest(report):
+        """Count actual full canonical hashes and retain the inputs for comparison."""
+
+        hashedReports.append(report)
+
+        return snapshotDigest(report)
+
+    def SerializeThenChange(report):
+        """Optionally replace the owned model with valid changed bytes at the same revision."""
+
+        payload = serialize(report)
+
+        if change:
+            modelStore.WriteState(root / "state" / "model", changed)
+
+        return payload
+
+    DenyExecution(monkeypatch)
+    monkeypatch.setattr(commands.ReportSnapshot, "SnapshotDigest", RecordDigest)
+    monkeypatch.setattr(commands, "SerializeJson", SerializeThenChange)
+    destination = tmp_path / "pinned.json"
+    status, outcome = Run(root, destination)
+
+    assert len(hashedReports) == 3, "Hash only for the outcome, renderer, and reopened model."
+    outcomeReport, renderedReport, reopenedReport = hashedReports
+    assert outcomeReport is renderedReport and reopenedReport is not outcomeReport
+    assert reopenedReport.state == (changed if change else selected)
+    assert outcome["snapshot_sha256"] == expected and outcome["model_revision"] == selected.revision
+
+    if change:
+        assert status == 4 and outcome["failure"] == "input-changed"
+        assert not outcome["output_published"] and not destination.exists()
+
+    else:
+        assert status == 0 and outcome["output_published"]
+        assert json.loads(destination.read_bytes())["snapshot_sha256"] == expected
+
+
+
 def test_ExistingOutputAndConcurrentCreatorAreNeverClobbered(tmp_path, monkeypatch):
     """The no-clobber publication boundary preserves both preexisting and racing selected files."""
 
