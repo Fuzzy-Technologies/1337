@@ -261,14 +261,16 @@ LOW Finding. These commands need no scanner, fixture or fresh approval.
 
 Start with an existing workspace containing the seeded topology marker from the
 [showcase finding-replay fixture](../tests/integration/test_finding_persistence.py).
-From a checkout with the locked Python environment already installed, replace
-`path/to/saved-workspace` in this Bash command. It uses the
-[report SDK](REPORTING.md) to verify saved model evidence and renders the
+The fixture saves its workspace as `showcase-replay/`. Run this Bash command
+from the checkout root with the locked Python environment already installed.
+Replace `path/to/saved-workspace` inside the quotes with the saved directory
+that contains `workspace.json`, `state/model/model.json` and `evidence/`.
+The [report SDK](REPORTING.md) verifies saved model evidence and renders the
 projection in memory. The example expects one marker and its single saved
 fixture observation.
 
 ```bash
-uv run --offline --locked --no-sync python - path/to/saved-workspace <<'PY'
+uv run --offline --locked --no-sync python - 'path/to/saved-workspace' <<'PY'
 import json
 import sys
 from dataclasses import asdict
