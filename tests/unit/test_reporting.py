@@ -256,6 +256,28 @@ def test_HtmlTablesExposeNamedKeyboardScrollRegions():
                for region in dom.tableRegions)
 
 
+def test_HtmlCalculatesCanonicalSnapshotDigestOnce(monkeypatch):
+    """Display the exact retained snapshot identity with one digest calculation per render."""
+
+    report = Fixture()
+    snapshotDigest = ReportSnapshot.SnapshotDigest
+    expected = snapshotDigest(report)
+    calls = 0
+
+    def CountSnapshotDigest(snapshot):
+        """Count digest calculations while using the real canonical model serializer."""
+
+        nonlocal calls
+        calls += 1
+
+        return snapshotDigest(snapshot)
+
+    monkeypatch.setattr(ReportSnapshot, "SnapshotDigest", CountSnapshotDigest)
+
+    assert f"<code>{expected}</code>".encode() in RenderHtml(report)
+    assert calls == 1, "HTML recalculated the canonical snapshot digest"
+
+
 def test_HostileHtmlXmlControlsAndBidiRemainVisibleInertText():
     """Stored hostile strings cannot escape text contexts or poison XML/control rendering."""
 

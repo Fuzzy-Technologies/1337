@@ -643,7 +643,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     lines.extend([
         "<p>Scan completeness was not assessed. Counts describe this retained snapshot.</p>",
         '<details><summary>Snapshot identity and technical summary</summary>'
-        + f"<p>Canonical snapshot: <code>{report.SnapshotDigest()}</code></p>"
+        + f"<p>Canonical snapshot: <code>{Html(document['snapshot_sha256'])}</code></p>"
         + JsonBlock(summary) + "</details></section>",
         RetainedOperations(report, document), ObjectTables(rows),
         '<section id="findings"><h2>Findings and next actions</h2>',
