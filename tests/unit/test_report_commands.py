@@ -263,6 +263,39 @@ def test_ConsumerQuotasRejectBeforeAnyReportPublication(tmp_path, monkeypatch, l
 
 
 
+def test_QuotaAccountingRetainsDistinctBytesAcrossEvidenceReads(tmp_path, monkeypatch):
+    """Count shared blobs once and preserve the budget after either quota denies a read."""
+
+    root, (first, second) = Context(tmp_path, findings=False)
+    evidenceRoot = root / "evidence"
+    owner = LocalEvidenceStore(evidenceRoot)
+    payload = owner.Read(first.reference)
+    shared = owner.Put(payload, "stderr", "text/plain", first.provenance)
+    excess = owner.Put(b"x" * (second.reference.size_bytes + 1), "stdout", "text/plain",
+                       first.provenance)
+    empty = owner.Put(b"", "stdout", "text/plain", first.provenance)
+    before = Files(root)
+    monkeypatch.setattr(commands, "MAX_EXPORT_BLOBS", 2)
+    monkeypatch.setattr(commands, "MAX_EXPORT_EVIDENCE_BYTES",
+                        first.reference.size_bytes + second.reference.size_bytes)
+    bounded = commands.BoundedReportEvidenceStore(evidenceRoot)
+
+    assert bounded.Get(first.evidence_id) == first
+    assert bounded.Get(shared.evidence_id) == shared
+
+    with pytest.raises(commands.ReportFailure, match="limit"):
+        bounded.Read(excess.reference)
+
+    assert bounded.Get(second.evidence_id) == second
+
+    with pytest.raises(commands.ReportFailure, match="limit"):
+        bounded.Read(empty.reference)
+
+    assert bounded.Read(first.reference) == payload
+    assert Files(root) == before, "Quota accounting must preserve all retained source bytes."
+
+
+
 def test_ActualOversizedStoredBlobIsRejectedBeforeOwningRead(tmp_path, monkeypatch):
     """A false declared length cannot make the owner load larger stored bytes before rejection."""
 

@@ -90,6 +90,7 @@ class BoundedReportEvidenceStore(LocalEvidenceStore):
 
         super().__init__(root)
         self.seen: dict[str, int] = {}
+        self._seenBytes = 0
 
     def Check(self, reference: EvidenceReference) -> None:
         """Bound actual stored bytes before any owning raw read, without following input links.
@@ -110,12 +111,15 @@ class BoundedReportEvidenceStore(LocalEvidenceStore):
         if metadata.st_size > MAX_EXPORT_BLOB_BYTES:
             raise ReportFailure("limit")
 
-        proposed = {**self.seen, reference.sha256: metadata.st_size}
+        priorSize = self.seen.get(reference.sha256)
+        proposedCount = len(self.seen) + (priorSize is None)
+        proposedBytes = self._seenBytes - (priorSize or 0) + metadata.st_size
 
-        if len(proposed) > MAX_EXPORT_BLOBS or sum(proposed.values()) > MAX_EXPORT_EVIDENCE_BYTES:
+        if proposedCount > MAX_EXPORT_BLOBS or proposedBytes > MAX_EXPORT_EVIDENCE_BYTES:
             raise ReportFailure("limit")
 
-        self.seen = proposed
+        self.seen[reference.sha256] = metadata.st_size
+        self._seenBytes = proposedBytes
 
     def Read(self, reference: EvidenceReference) -> bytes:
         """Apply quotas to direct reads and the owner's Get path before delegating verification.
