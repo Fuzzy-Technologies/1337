@@ -263,7 +263,7 @@ def test_HtmlTablesExposeNamedKeyboardScrollRegions():
     (False, "not verified"), (True, "verified bytes"),
 ], ids=["unverified", "verified"])
 def test_HtmlFindingLinkResolvesToEvidenceRowWithScopedHeaders(tmp_path, verify, expectedIntegrity):
-    """Bind a finding's evidence link to the correct row and its byte-integrity context."""
+    """Bind a finding's evidence link to its highlighted row and byte-integrity context."""
 
     workspaceRoot, records = ReportExportContext(tmp_path, findings=False)
     state = LocalModelStore(workspaceRoot).Open()
@@ -286,7 +286,8 @@ def test_HtmlFindingLinkResolvesToEvidenceRowWithScopedHeaders(tmp_path, verify,
              if anchor.attrib["href"].startswith("#evidence-"))
     assert link.text == f"Evidence 1: {reference.role}"
     fragment = link.attrib["href"][1:]
-    tableHtml = rendered.split('aria-labelledby="evidence-table-heading">', 1)[1]
+    evidenceHtml = rendered.split('<section id="evidence">', 1)[1].split("</section>", 1)[0]
+    tableHtml = evidenceHtml.split('aria-labelledby="evidence-table-heading">', 1)[1]
     table = ElementTree.fromstring(tableHtml.split("</table>", 1)[0] + "</table>")
     columns = ("Evidence", "Role", "Size", "Integrity", "Technical reference")
     assert [(cell.tag, cell.get("scope"), cell.text) for cell in table.findall("thead/tr/*")] == [
@@ -302,6 +303,13 @@ def test_HtmlFindingLinkResolvesToEvidenceRowWithScopedHeaders(tmp_path, verify,
         reference.role, f"{reference.size_bytes} bytes", expectedIntegrity,
     )
     assert details.findtext("details/pre") == CanonicalModelJson(reference).decode("utf-8")
+    stylesheet = rendered.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert (
+        '@media screen {#evidence tbody tr:target > * {background:#15212b}\n'
+        '#evidence tbody tr:target > th[scope="row"] '
+        '{outline:2px solid var(--cyan);outline-offset:-2px}}\n'
+        in stylesheet
+    ), "The linked evidence row needs a visible screen-only marker"
 
 
 def test_HtmlCalculatesCanonicalSnapshotDigestOnce(monkeypatch):

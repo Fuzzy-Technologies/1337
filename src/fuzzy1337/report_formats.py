@@ -61,6 +61,8 @@ pre {white-space:pre-wrap;background:#101820;padding:1rem;border-radius:6px}
 th,td {text-align:left;vertical-align:top;padding:.65rem;border-bottom:1px solid var(--border)}
 thead th {color:var(--cyan)} th[scope="row"] {font-weight:inherit}
 a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid var(--cyan)}
+@media screen {#evidence tbody tr:target > * {background:#15212b}
+#evidence tbody tr:target > th[scope="row"] {outline:2px solid var(--cyan);outline-offset:-2px}}
 @media print {body {background:white;color:black} a,h1,h2,h3,summary {color:black}}
 """
 
