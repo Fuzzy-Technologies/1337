@@ -22,6 +22,8 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   selected `1337 intel inspect` text output.
 - Show declared source/license attribution and keep source-wide CVE profiles
   ahead of unmatched identifiers in selected text inspection.
+- Show the verified original source SHA-256 when selected text inspection
+  matches a retained record.
 
 
 ### Patch 31 — v0.4.31 — 2026-11-04

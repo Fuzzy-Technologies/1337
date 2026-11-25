@@ -616,6 +616,11 @@ def RunIntelCommands(
                 output.write(f"{name}: {outcome[name]}\n")
 
         if outcome["status"] == "succeeded" and "details" in outcome:
-            WriteIntelDetails(cast(dict[str, object], outcome["details"]), output)
+            details = cast(dict[str, object], outcome["details"])
+
+            if details["records"]:
+                output.write(f"Verified original source SHA-256: {outcome['source_sha256']}\n")
+
+            WriteIntelDetails(details, output)
 
     return status

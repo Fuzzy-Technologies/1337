@@ -161,6 +161,49 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     )
 
 
+def test_ActualSelectedTextShowsVerifiedOriginalSourceDigest(tmp_path):
+    """Show the original-byte digest only after a selected record has been verified."""
+
+    model, _ = Context(tmp_path)
+    feed = IntelligenceFeed.CWE
+    source = tmp_path / "owned.xml"
+    raw = FeedBody(feed)
+    source.write_bytes(raw)
+    status, imported = Run(ImportArguments(model.root, source, feed))
+    assert status == 0, "The owned source could not be retained for offline inspection."
+    source.unlink()
+    before = Files(model.root)
+    command = [sys.executable, "-m", "fuzzy1337", "intel",
+               *Selection("inspect", model.root, imported)]
+    matched = ["--identifier", "CWE-89", "--identifier", "CWE-8888"]
+    digestLabel = "Verified original source SHA-256: "
+    digestLine = digestLabel + hashlib.sha256(raw).hexdigest()
+
+    for options, expected in (
+        (matched, [digestLine]), (["--identifier", "CWE-8888"], []), ([], []),
+    ):
+        result = subprocess.run([*command, *options], capture_output=True, text=True,
+                                timeout=15, check=False)
+        assert result.returncode == 0 and not result.stderr, "Actual text inspection failed."
+        digestLines = [line for line in result.stdout.splitlines() if line.startswith(digestLabel)]
+        assert digestLines == expected, (
+            "The terminal must show the verified source digest once for matched selections only."
+        )
+
+    assert Files(model.root) == before, "Selected inspection changed the retained workspace."
+    evidence = model.root / "evidence"
+    receipt = LocalEvidenceStore(evidence).Get(imported["receipt_id"])
+    (evidence / receipt.reference.locator).write_bytes(b"x" * receipt.reference.size_bytes)
+    beforeFailure = Files(model.root)
+    failed = subprocess.run([*command, *matched], capture_output=True, text=True,
+                            timeout=15, check=False)
+    assert failed.returncode == 4 and not failed.stderr, "Corrupted receipt did not fail closed."
+    assert failed.stdout.splitlines() == ["intel.inspect: failed", "failure: integrity"], (
+        "Failed verification printed a partial source result."
+    )
+    assert Files(model.root) == beforeFailure, "Failed inspection changed the retained workspace."
+
+
 def test_ExplicitApplyPersistsOneVerifiedObservationAndPreservesExistingTriage(tmp_path):
     """The real CLI appends attributable candidate intelligence without changing finding triage."""
 

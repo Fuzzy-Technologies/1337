@@ -83,6 +83,11 @@ records. `target_applicability="not-evaluated"` and
 `publisher_authentication="not-assessed"` remain explicit. Missing catalog
 membership is not evidence of no vulnerability, exploitation or risk. Omit
 `--json` for a source summary that explains each feed's meaning.
+
+When at least one identifier matches, the text summary shows the verified
+SHA-256 of the retained original source bytes, also available as
+`source_sha256` in JSON. The `raw_id` identifies the retained evidence manifest.
+
 For a matched EPSS record, the text summary shows the publisher's score
 timestamp normalized to UTC alongside its probability and percentile. This
 timestamp comes from the record's `effective_at` field.
