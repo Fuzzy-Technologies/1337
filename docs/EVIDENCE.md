@@ -150,3 +150,19 @@ an unregistered or foreign acquisition, a missing manifest or blob, or corrupt
 bytes fails with no JSON result.
 If the handoff contains only an exported report, request the retained workspace
 and the original acquisition ID for independent verification.
+
+## Read the checked reference
+
+A registered acquisition can be missing from the report's linked references.
+To retrieve its exact five-field reference, make a copy of the Bash example and
+replace the final `print(...)` call with this one.
+
+```python
+print(json.dumps(record.ToDict()["reference"], sort_keys=True))
+```
+
+Run the copy with the workspace path and full acquisition ID. It prints the
+reference after verifying registration, the manifest, and the retained bytes.
+Save this JSON object as the optional reference file for a later comparison.
+Keep the acquisition ID with the object. Two acquisitions can share the same
+reference when only their recorded provenance differs.
