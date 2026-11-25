@@ -405,13 +405,11 @@ def _FindingSeverityIndex(
     return "\n".join(lines)
 
 
-def _PortNumberSortKey(row: tuple[str, SecurityObject]) -> tuple[int, int]:
-    """Order retained integer port numbers before all other saved value types."""
+def _RetainedIntegerSortKey(value: object, *, descending: bool) -> tuple[int, int]:
+    """Order stored integers while keeping other values last in canonical order."""
 
-    number = row[1].attributes.get("number")
-
-    if type(number) is int:
-        return (0, number)
+    if type(value) is int:
+        return (0, -value if descending else value)
 
     return (1, 0)
 
@@ -445,22 +443,30 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
         (ObjectKind.ENDPOINT, "Web addresses", (("Method", ("method",)),
                                                ("HTTP status", ("status",)))),
     )
+    sortOptions = {
+        ObjectKind.PORT: ("number", "ascending"),
+        ObjectKind.ENDPOINT: ("status", "descending"),
+    }
     inventory = []
 
     for kind, heading, fields in groups:
         entities = rows.assetsByKind.get(kind, ())
+        sortField, sortDirection = sortOptions.get(kind, ("", ""))
 
-        if kind is ObjectKind.PORT:
-            entities = tuple(sorted(entities, key=_PortNumberSortKey))
+        if sortField:
+            entities = tuple(sorted(entities, key=lambda row: _RetainedIntegerSortKey(
+                row[1].attributes.get(sortField), descending=sortDirection == "descending",
+            )))
 
         headingId = f"model-{kind.value}-table-heading"
-        inventory.append((kind, headingId, f"{heading} ({len(entities)})", fields, entities))
+        inventory.append((headingId, f"{heading} ({len(entities)})", fields, entities,
+                          sortField, sortDirection))
 
     primary = {kind for kind, _, _ in groups} | {ObjectKind.FINDING}
     others = [(reference, entity) for reference, entity in rows.objects.items()
               if entity.identity.kind not in primary]
     otherGroup = ("model-other-objects-heading", f"Other retained objects ({len(others)})")
-    links = [(headingId, label) for _, headingId, label, _, entities in inventory if entities]
+    links = [(headingId, label) for headingId, label, _, entities, *_ in inventory if entities]
 
     if others:
         links.append(otherGroup)
@@ -502,7 +508,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
             for filterId, _, count, message in filters
         )
 
-    for kind, headingId, label, fields, entities in inventory:
+    for headingId, label, fields, entities, sortField, sortDirection in inventory:
         marker = _AssetGroupFindingsMarker(entities, findingsBySubject) if includeFilter else ""
         lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
@@ -515,8 +521,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
                      + '<th scope="col">Saved identity</th>')
 
         for column, names in fields:
-            sort = (' aria-sort="ascending"'
-                    if kind is ObjectKind.PORT and names == ("number",) else "")
+            sort = f' aria-sort="{sortDirection}"' if names == (sortField,) else ""
             lines.append(f'<th scope="col"{sort}>{Html(column)}</th>')
 
         lines.append('<th scope="col">Findings</th>'

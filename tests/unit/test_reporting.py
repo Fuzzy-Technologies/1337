@@ -967,6 +967,52 @@ def test_HtmlPortsOrderRetainedIntegersWithCanonicalTies():
     assert f'id="{fragment}"' in rendered
 
 
+def test_HtmlWebAddressesOrderSavedHttpStatuses():
+    """Bring recorded HTTP errors together while preserving unknowns and finding links."""
+
+    report = Fixture()
+    host, = report.state.Objects(ObjectKind.HOST)
+    endpoints = tuple(SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.ENDPOINT, f"https://synthetic.invalid/{path}"),
+        attributes, host.provenance,
+    ) for path, attributes in (
+        ("ok", {"status": 200}),
+        ("client-error", {"status": 404}),
+        ("server-error-a", {"status": 503}),
+        ("server-error-b", {"status": 503}),
+        ("text-status", {"status": "502"}),
+        ("missing-status", {}),
+        ("boolean-status", {"status": False}),
+    ))
+    state, _ = report.state.Apply(objects=endpoints)
+    finding = Finding(endpoints[2].Reference(), "synthetic.endpoint-order", "saved",
+                      "Endpoint finding", host.provenance)
+    state, _ = ApplyFindings(state, (finding,))
+    rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
+    modelHtml = rendered.split('<section id="model">', 1)[1].split("</section>", 1)[0]
+    model = ElementTree.fromstring(f"<section>{modelHtml}</section>")
+    table, = model.findall('.//table[@aria-labelledby="model-endpoint-table-heading"]')
+    statusHeader, = table.findall('thead/tr/th[@aria-sort="descending"]')
+    assert statusHeader.text == "HTTP status"
+    canonical = state.Objects(ObjectKind.ENDPOINT)
+    ties = [entity for entity in canonical if entity.attributes.get("status") == 503]
+    other = [entity for entity in canonical if type(entity.attributes.get("status")) is not int]
+    expected = [*ties, endpoints[1], endpoints[0], *other]
+    endpointRows = table.findall("tbody/tr")
+    assert [(row.get("id"), row.findtext("th")) for row in endpointRows] == [
+        (f"object-{entity.Reference()[7:]}", entity.identity.key) for entity in expected
+    ]
+    assert [row.findall("td")[1].text for row in endpointRows] == [
+        "503 Service Unavailable", "503 Service Unavailable", "404 Not Found", "200 OK",
+        *(str(entity.attributes.get("status", "Not recorded")) for entity in other),
+    ]
+    ownerRow, = table.findall(f'.//tr[@id="object-{endpoints[2].Reference()[7:]}"]')
+    findingLink, = ownerRow.findall("td/ul/li/a")
+    fragment = f"finding-{finding.ToObject(state.workspace_id).Reference()[7:]}"
+    assert findingLink.get("href") == f"#{fragment}"
+    assert f'id="{fragment}"' in rendered
+
+
 def test_HtmlAssetTypesJumpToPopulatedInventoryGroups():
     """Give each populated inventory group a counted, keyboard-focusable fragment target."""
 

@@ -22,6 +22,7 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
   navigation.
 - Link to populated asset groups and show their retained object counts.
 - Order the offline Ports table by saved integer port number.
+- Order the offline Web addresses table by saved integer HTTP status, highest first.
 - Group offline HTML findings by saved disposition and link directly to each group.
 - Filter offline HTML findings by saved severity, including Unknown.
 - Add a severity-ordered index of retained findings to offline HTML reports.

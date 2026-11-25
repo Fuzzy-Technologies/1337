@@ -75,9 +75,11 @@ alone does not establish a successful repeated check.
 
 The HTML renderer groups inventory rows by stored object kind and indexes finding
 history by canonical subject reference in a single pass. Inventory follows
-canonical order, with Ports ordered numerically by the saved integer Number.
-Equal numbers keep canonical order. Rows with missing or non-integer numbers
-follow the integer rows in canonical order. Missing numbers show Not recorded.
+canonical order by default. Ports show saved integer port numbers lowest first.
+Web addresses show saved integer HTTP statuses highest first so recorded HTTP
+errors appear before successful responses. Equal values keep canonical order.
+Rows with missing or non-integer values follow the integer rows in canonical
+order. Missing values show Not recorded.
 
 Use the Asset types links to jump to populated inventory groups. Each link and
 heading show the count in the retained snapshot. Each table uses its visible
