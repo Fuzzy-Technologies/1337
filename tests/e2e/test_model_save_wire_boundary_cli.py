@@ -9,7 +9,6 @@ import sys
 
 import pytest
 
-
 CONSUMER = r"""
 import json
 import sys
