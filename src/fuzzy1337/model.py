@@ -552,9 +552,10 @@ class ModelState:
             if len(set(recordReferences)) != len(recordReferences):
                 raise ValueError("model records must have unique references")
 
-            object.__setattr__(self, fieldName, tuple(sorted(
-                typedRecords, key=lambda record: record.Reference(),
-            )))
+            ordered = sorted(
+                zip(recordReferences, typedRecords, strict=True), key=lambda pair: pair[0],
+            )
+            object.__setattr__(self, fieldName, tuple(record for _, record in ordered))
 
         objectReferences = {item.Reference() for item in self.objects}
 
