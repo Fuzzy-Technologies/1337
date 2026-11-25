@@ -8,6 +8,23 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 65 — v0.4.65 — 2026-11-25
+
+#### Digest
+
+- Avoid repeating every unit for independently admitted changes to existing passive leaf tests.
+
+#### Changed
+
+- Select complete affected unit files and fixed ownership/profile regressions
+  only after exact event, ancestor, complete raw diff and tracked consumer checks.
+  Permit naming-baseline changes only for exact removed local findings.
+- Keep every product, shared-helper, configuration, tooling and unverified change
+  on the existing complete passive unit/boundary gate. Preserve master/full jobs,
+  parallel/serial execution and strict changed-production coverage.
+- Record actual selected files, measured case counts, source identities and the
+  limited coverage claim without accepting PR-supplied selectors.
+
 ### Patch 63 — v0.4.63 — 2026-11-25
 
 #### Digest
