@@ -43,15 +43,23 @@ relations. Dependency claims, license declarations and OS/layer objects do not
 supply package containment. `observed` is an inventory observation,
 not a complete inventory, clean scan, license decision or vulnerability verdict.
 
-In a workspace with multiple retained images, a nested containment reference
-can come from another image through a shared package. To confirm a nested SPDX
-relation, run the image view with `--json` and
+In a workspace with multiple retained images, a shared package does not transfer
+another image's nested containment. Each returned relation retains an exact
+provenance record also present on the selected image. Original SPDX relationship
+claims restrict only their own provenance context and must explicitly name the
+selected image. Missing or invalid image references cannot authorize that
+context. A separate canonical context attributed to the selected image remains
+eligible even if another source declares the same relation for another image.
+
+To inspect the original source of a nested SPDX relation, run the image view with `--json` and
 [export a JSON report](REPORT_EXPORT.md) from the same workspace. Check that
 both JSON results have the same `snapshot_sha256`. In the report's
 `model.observations`, find a `spdx-relationship-claim` whose `subject_reference`
 is the containment relation reference and whose `attributes.image_reference`
-matches the view's `image_reference`. Without a matching claim, the retained
-SPDX data leaves that membership unconfirmed for the selected image.
+matches the view's `image_reference`, then resolve its own provenance. An
+unclaimed canonical relation instead requires its exact provenance record to
+occur on the selected image. A foreign-only record is insufficient, including
+when the relation has no SPDX claim.
 
 Known original SBOM custody and aliases retain the four-MiB source limit before
 generic report reads. The existing report quotas govern all retained evidence.

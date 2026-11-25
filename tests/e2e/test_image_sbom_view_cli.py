@@ -10,17 +10,21 @@ import json
 import shutil
 import subprocess
 
+import pytest
+
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.model import (
     LocalModelStore,
     ModelProvenance,
     ObjectIdentity,
     ObjectKind,
+    Relation,
+    RelationKind,
     SecurityObject,
 )
 from tests.docker_helpers import Payload
 from tests.runtime_helpers import Arguments as RuntimeArguments
-from tests.sbom_helpers import FIXTURES, IMAGE_DIGEST, Arguments, Context, ViewArguments
+from tests.sbom_helpers import FIXTURES, IMAGE_DIGEST, Arguments, Context, OwnedSbom, ViewArguments
 
 
 def Console(parent, namespace, arguments, *, jsonOutput=True):
@@ -135,6 +139,69 @@ def test_InstalledImageViewJoinsOriginalGraphAndDockerImportsWithExplicitKinds(t
     assert textStatus == 4 and textRefusal.splitlines() == [
         "sbom.image: failed", f"failure: {refusal['failure']}",
     ], "The text refusal must withhold the digest and any partial inventory"
+
+
+@pytest.mark.parametrize("mode", ["foreign-unclaimed", "selected-unclaimed", "mixed-spdx"])
+def test_InstalledRelocatedViewKeepsContainmentInItsOriginalImageContext(tmp_path, mode):
+    """Read canonical compatibility edges through verified original custody after relocation."""
+
+    owned = Context(tmp_path)
+    document = json.loads(owned.source.read_bytes())
+    packages, relationships = document["packages"], document["relationships"]
+    document["packages"] = [packages[index] for index in (0, 3)]
+    document["relationships"] = [relationships[index] for index in (0, 3)]
+    owned.source.write_text(json.dumps(document), encoding="utf-8")
+    status, config = Console(tmp_path, "sbom", Arguments(owned))
+    assert status == 0, "The real config import must retain only its direct library membership"
+    owned.source.write_bytes((FIXTURES / "spdx.graph.v2.3.json").read_bytes())
+    status, manifest = Console(tmp_path, "sbom", Arguments(owned, digest_kind="manifest"))
+    assert status == 0 and config["evidence_id"] != manifest["evidence_id"], (
+        "Each digest kind must retain its own original acquisition"
+    )
+    store = LocalModelStore(owned.root)
+    basis = store.Open()
+    images = {item.attributes["digest_kind"]: item for item in basis.objects
+              if item.attributes.get("asset_type") == "image"}
+    aliases = {item.attributes["spdx_id"]: item.subject_reference for item in basis.observations
+               if item.kind == "spdx-source-alias"}
+    target = aliases["SPDXRef-Helper" if mode == "mixed-spdx" else "SPDXRef-App"]
+    provenance = images["manifest" if mode == "foreign-unclaimed" else "config"].provenance
+    edge = Relation(RelationKind.CONTAINS, aliases["SPDXRef-Lib-Alias"], target,
+                    provenance=provenance)
+    proposed, _ = basis.Apply(relations=(edge,))
+    store.Save(proposed, expected_revision=basis.revision)
+    owned.source.unlink()
+    relocated = tmp_path / "relocated image inventory"
+    owned.root.rename(relocated)
+    moved = OwnedSbom(relocated, owned.source)
+    before = {path.relative_to(relocated): path.read_bytes()
+              for path in relocated.rglob("*") if path.is_file()}
+    status, view = Console(tmp_path, "sbom", ViewArguments(moved))
+    expected = {aliases["SPDXRef-Lib-Alias"]}
+
+    if mode != "foreign-unclaimed":
+        expected.add(target)
+
+    assert status == 0 and set(view["package_references"]) == expected and (
+        edge.Reference() in view["containment_relation_references"]
+    ) == (mode != "foreign-unclaimed"), (
+        "The installed moved query must preserve exact independent attribution and exclude "
+        "foreign-only canonical containment"
+    )
+    assert view["model_revision"] == proposed.revision and view["snapshot_sha256"] == (
+        hashlib.sha256(json.dumps(proposed.ToDict(), sort_keys=True, separators=(",", ":"),
+                                 ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+    ), "The canonical edge selection must still identify its complete verified saved snapshot"
+    after = {path.relative_to(relocated): path.read_bytes()
+             for path in relocated.rglob("*") if path.is_file()}
+    assert before == after, "Relocated views cannot update model, workspace or retained evidence"
+    evidence = LocalEvidenceStore(relocated / "evidence")
+    record = evidence.Get(manifest["evidence_id"])
+    evidence.StoragePath(("blobs", "sha256", record.reference.sha256)).write_bytes(b"corrupt")
+    status, refusal = Console(tmp_path, "sbom", ViewArguments(moved))
+    assert status == 4 and refusal["status"] == "failed" and (
+        "package_references" not in refusal and "snapshot_sha256" not in refusal
+    ), "Even excluded foreign inventory requires intact retained custody before any view succeeds"
 
 
 def test_InstalledImageLicensePolicyKeepsExactSourcesRolesAndDigestKindsAfterRelocation(tmp_path):

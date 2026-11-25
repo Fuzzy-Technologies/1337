@@ -11,10 +11,20 @@ from dataclasses import replace
 import pytest
 
 import fuzzy1337.image_sbom_view as views
-from fuzzy1337.model import CanonicalModelJson, LocalModelStore, Relation, RelationKind
+from fuzzy1337.evidence import EvidenceProvenance
+from fuzzy1337.images import ApplyVerifiedCycloneDx, PackageIdentity
+from fuzzy1337.model import (
+    CanonicalModelJson,
+    LocalModelStore,
+    ModelProvenance,
+    Relation,
+    RelationKind,
+)
 from fuzzy1337.report_commands import ReportFailure
+from fuzzy1337.sbom_spdx import ApplyVerifiedSpdx
 from fuzzy1337.workspace import LocalWorkspaceStore
 from tests.sbom_helpers import FIXTURES, IMAGE_DIGEST, Arguments, Context, Run, ViewArguments
+from tests.unit.test_images import SBOM
 
 
 def PolicyArguments(owned):
@@ -155,12 +165,16 @@ def test_SharedPackageDoesNotBorrowNestedContainmentFromAnotherImage(tmp_path):
     document["packages"] = [originalPackages[index] for index in (0, 3)]
     document["relationships"] = [originalRelationships[index] for index in (0, 3)]
     owned.source.write_text(json.dumps(document), encoding="utf-8")
-    assert Run(Arguments(owned, digest_kind="config"))[0] == 0
+    assert Run(Arguments(owned, digest_kind="config"))[0] == 0, (
+        "The independently retained config graph must import before correlation"
+    )
 
     document["packages"] = [originalPackages[index] for index in (0, 3, 4)]
     document["relationships"] = [originalRelationships[index] for index in (0, 3, 5)]
     owned.source.write_text(json.dumps(document), encoding="utf-8")
-    assert Run(Arguments(owned, digest_kind="manifest"))[0] == 0
+    assert Run(Arguments(owned, digest_kind="manifest"))[0] == 0, (
+        "The manifest source must retain its own direct and nested relationships"
+    )
     model = LocalModelStore(owned.root).Open()
     config = views.ImageSbomView(model, views.ImageIdentity(IMAGE_DIGEST))
     manifest = views.ImageSbomView(model, views.ImageIdentity(IMAGE_DIGEST, "manifest"))
@@ -189,6 +203,141 @@ def test_SharedPackageDoesNotBorrowNestedContainmentFromAnotherImage(tmp_path):
     ) == claims[manifest["image_reference"]], (
         "The manifest source must retain its direct and nested package claims."
     )
+
+
+@pytest.mark.parametrize("attribution", ["foreign", "selected", "both", "other-run"])
+def test_UnclaimedContainmentRequiresTheSelectedImageSourceContext(tmp_path, attribution):
+    """Canonical nested edges retain their own image attribution without needing SPDX claims."""
+
+    owned = Context(tmp_path)
+    document = json.loads(owned.source.read_bytes())
+    packages, relationships = document["packages"], document["relationships"]
+    document["packages"] = [packages[index] for index in (0, 3)]
+    document["relationships"] = [relationships[index] for index in (0, 3)]
+    owned.source.write_text(json.dumps(document), encoding="utf-8")
+    assert Run(Arguments(owned))[0] == 0, "The config source must contain only its own library"
+    owned.source.write_bytes((FIXTURES / "spdx.graph.v2.3.json").read_bytes())
+    assert Run(Arguments(owned, digest_kind="manifest"))[0] == 0, (
+        "The foreign source must establish real image and package provenance"
+    )
+    model = LocalModelStore(owned.root).Open()
+    images = {item.attributes["digest_kind"]: item for item in model.objects
+              if item.attributes.get("asset_type") == "image"}
+    aliases = {item.attributes["spdx_id"]: item.subject_reference for item in model.observations
+               if item.kind == "spdx-source-alias"}
+    provenance = images["manifest"].provenance
+
+    if attribution == "selected":
+        provenance = images["config"].provenance
+
+    elif attribution == "both":
+        provenance = (*provenance, *images["config"].provenance)
+
+    elif attribution == "other-run":
+        provenance = (replace(images["config"].provenance[0], run_reference="run:other"),)
+
+    edge = Relation(RelationKind.CONTAINS, aliases["SPDXRef-Lib-Alias"],
+                    aliases["SPDXRef-App"], provenance=provenance)
+    proposed, _ = model.Apply(relations=(edge,))
+    result = views.ImageSbomView(proposed, views.ImageIdentity(IMAGE_DIGEST))
+    expected = {aliases["SPDXRef-Lib-Alias"]}
+
+    if attribution in ("selected", "both"):
+        expected.add(aliases["SPDXRef-App"])
+
+    assert set(result["package_references"]) == expected and (
+        edge.Reference() in result["containment_relation_references"]
+    ) == (attribution in ("selected", "both")), (
+        "An unclaimed edge requires exact selected-image provenance, beyond a shared package"
+    )
+
+
+@pytest.mark.parametrize("selectedClaim", ["absent", "missing-image", "non-string", "foreign"])
+def test_ForeignSpdxClaimCannotOverrideIndependentSelectedContainment(
+    tmp_path, selectedClaim,
+):
+    """Scope SPDX restrictions to their original attribution and reject invalid scoped claims."""
+
+    owned = Context(tmp_path)
+    document = json.loads(owned.source.read_bytes())
+    packages, relationships = document["packages"], document["relationships"]
+    document["packages"] = [packages[index] for index in (0, 3)]
+    document["relationships"] = [relationships[index] for index in (0, 3)]
+    owned.source.write_text(json.dumps(document), encoding="utf-8")
+    assert Run(Arguments(owned))[0] == 0, "The selected source must retain its direct package"
+    owned.source.write_bytes((FIXTURES / "spdx.graph.v2.3.json").read_bytes())
+    assert Run(Arguments(owned, digest_kind="manifest"))[0] == 0, (
+        "The foreign SPDX source must independently retain the nested edge"
+    )
+    model = LocalModelStore(owned.root).Open()
+    images = {item.attributes["digest_kind"]: item for item in model.objects
+              if item.attributes.get("asset_type") == "image"}
+    aliases = {item.attributes["spdx_id"]: item.subject_reference for item in model.observations
+               if item.kind == "spdx-source-alias"}
+    edge = next(item for item in model.relations if item.kind is RelationKind.CONTAINS
+                and item.source_reference == aliases["SPDXRef-Lib-Alias"]
+                and item.target_reference == aliases["SPDXRef-Helper"])
+    attributed = replace(edge, provenance=(*edge.provenance, *images["config"].provenance))
+    observations = ()
+
+    if selectedClaim != "absent":
+        foreign = next(item for item in model.observations
+                       if item.kind == "spdx-relationship-claim"
+                       and item.subject_reference == edge.Reference())
+        attributes = dict(foreign.attributes)
+
+        if selectedClaim == "missing-image":
+            del attributes["image_reference"]
+
+        elif selectedClaim == "non-string":
+            attributes["image_reference"] = 1
+
+        observations = (replace(foreign, attributes=attributes,
+                                provenance=images["config"].provenance[0]),)
+
+    proposed, _ = model.Apply(relations=(attributed,), observations=observations)
+    result = views.ImageSbomView(proposed, views.ImageIdentity(IMAGE_DIGEST))
+    expected = {aliases["SPDXRef-Lib-Alias"]}
+
+    if selectedClaim == "absent":
+        expected.add(aliases["SPDXRef-Helper"])
+
+    assert set(result["package_references"]) == expected and (
+        edge.Reference() in result["containment_relation_references"]
+    ) == (selectedClaim == "absent"), (
+        "Foreign claims cannot suppress a separate selected context, and invalid local claims "
+        "cannot authorize that context"
+    )
+
+
+@pytest.mark.parametrize("profile", ["cyclonedx", "flat-spdx"])
+@pytest.mark.parametrize("kind", ["config", "manifest"])
+def test_OriginalFlatInventoriesRetainDirectUnclaimedContainment(tmp_path, profile, kind):
+    """Existing verified flat import owners do not need graph-specific relationship observations."""
+
+    owned = Context(tmp_path)
+    basis = LocalModelStore(owned.root).Open()
+    evidence = views.SbomEvidenceStore(owned.root / "evidence")
+    raw = CanonicalModelJson(SBOM) if profile == "cyclonedx" else (
+        FIXTURES / "spdx.image.v2.3.json").read_bytes()
+    source = EvidenceProvenance(basis.workspace_id, "scope:owned", "inventory.owned-sbom", "1",
+                               None, "2026-10-13T00:00:00Z", "2026-10-13T00:00:01Z")
+    record = evidence.Put(raw, "sbom", "application/json", source)
+    provenance = ModelProvenance(source.source_id, "run:flat", source.finished_at,
+        source.scope_reference, "target:owned", evidence_references=(record.reference,))
+    image = views.ImageIdentity(IMAGE_DIGEST, kind)
+    importer = ApplyVerifiedCycloneDx if profile == "cyclonedx" else ApplyVerifiedSpdx
+    model, _ = importer(basis, record, provenance, image, owned.root)
+    package = PackageIdentity.FromPurl("pkg:pypi/owned-lib@1.0").Object(basis.workspace_id)
+    result = views.ImageSbomView(model, image)
+    expected = Relation(RelationKind.CONTAINS, image.Object(basis.workspace_id).Reference(),
+                        package.Reference(), provenance=(provenance,))
+    assert not any(item.kind == "spdx-relationship-claim" for item in model.observations), (
+        "This compatibility case must exercise actual flat owners without graph-specific claims"
+    )
+    assert result["package_references"] == [package.Reference()] and (
+        result["containment_relation_references"] == [expected.Reference()]
+    ), "Both original flat profiles must retain their exact package and original direct relation"
 
 
 def test_ViewDoesNotWriteSavedOwnersAndEmptyInventoryRemainsUnknown(tmp_path):

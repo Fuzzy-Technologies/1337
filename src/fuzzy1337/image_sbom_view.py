@@ -56,28 +56,38 @@ def ImageSbomView(model: ModelState, image: ImageIdentity) -> dict[str, object]:
     )):
         raise SbomFailure("image-identity")
 
-    claimedImages: dict[str, set[str]] = {}
+    selectedContexts = {CanonicalModelJson(item) for item in selected.provenance}
+    claimedImages: dict[tuple[str, bytes], set[str]] = {}
 
     for observation in model.observations:
         imageReference = observation.attributes.get("image_reference")
 
         if observation.kind == "spdx-relationship-claim":
-            images = claimedImages.setdefault(observation.subject_reference, set())
+            key = (observation.subject_reference, CanonicalModelJson(observation.provenance))
+            claimImages = claimedImages.setdefault(key, set())
 
             if type(imageReference) is str:
-                images.add(imageReference)
+                claimImages.add(imageReference)
 
     children: dict[str, list[tuple[str, str]]] = {}
 
     for relation in model.relations:
         relationReference = relation.Reference()
-        images = claimedImages.get(relationReference)
 
-        if relation.kind is RelationKind.CONTAINS and (
-            images is None or reference in images
-        ):
+        if relation.kind is not RelationKind.CONTAINS:
+            continue
+
+        for provenance in relation.provenance:
+            context = CanonicalModelJson(provenance)
+            images = claimedImages.get((relationReference, context))
+
+            # A canonical edge can retain independent assertions from several image sources.
+            if context not in selectedContexts or (images is not None and reference not in images):
+                continue
+
             children.setdefault(relation.source_reference, []).append(
                 (relation.target_reference, relationReference))
+            break
 
     visited = {reference}
     frontier = [reference]
