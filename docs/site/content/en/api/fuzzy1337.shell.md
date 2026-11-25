@@ -1,10 +1,5 @@
 # fuzzy1337.shell
 
-Foreground `intel preview-set|apply-set` forwards explicit original local pairs
-and interpretation inputs to the [set consumer](fuzzy1337.intelligence_set_commands.md).
-Shell context supplies no source, finding or revision; the existing private
-`intel` history boundary remains unchanged.
-
 Read-only `view model --query <file> [--json]` replays an explicit standard
 `LensQuery.ToDict()` document for one render through the unchanged typed decoder
 and lens projection. It replaces the preset without saving a preference; omitted

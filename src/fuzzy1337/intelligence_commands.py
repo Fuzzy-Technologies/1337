@@ -472,11 +472,6 @@ def RunIntelCommands(
         or 130 for interruption. A failed save may have committed; the outcome states uncertainty.
     """
 
-    if arguments and arguments[0] in ("preview-set", "apply-set"):
-        from fuzzy1337.intelligence_set_commands import RunIntelSetCommands
-
-        return RunIntelSetCommands(arguments, output, jsonOutput=json_output)
-
     if list(arguments[:2]) == ["cwe", "https"]:
         from fuzzy1337.intelligence_cwe_https_commands import RunCweHttpsCommands
 
@@ -501,9 +496,6 @@ def RunIntelCommands(
 
     if "--help" in arguments or "-h" in arguments:
         IntelParser(arguments[0] if arguments else None).print_help(file=output)
-
-        if not arguments or arguments[0] in ("--help", "-h"):
-            output.write("Source sets: intel <preview-set|apply-set> --help\n")
 
         return 0
 

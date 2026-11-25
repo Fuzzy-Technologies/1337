@@ -1,10 +1,5 @@
 # fuzzy1337.intelligence_commands
 
-The additive `preview-set|apply-set` actions delegate to the separate
-[combined original-set consumer](fuzzy1337.intelligence_set_commands.md), which
-uses the unchanged SDK for one combined candidate and one optional model CAS.
-The original single-source contracts below retain their behavior and output.
-
 This Internal module implements the explicit local `intel import`, `intel inspect`,
 `intel preview` and `intel apply` product commands. Import uses caller-selected
 local bytes and source declarations for the four supported feed formats. Inspection verifies the

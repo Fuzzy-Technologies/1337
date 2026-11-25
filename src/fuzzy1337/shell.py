@@ -577,8 +577,7 @@ class InteractiveShell(cmd.Cmd):
                 "context, demo local, "
                 "history [query], image export-local, extension validate, "
                 "lens [<name>] [--json], "
-                "intel <import|inspect|preview|apply|preview-set|apply-set>, "
-                "model <workspace-path>, palette [query], "
+                "intel <import|inspect|preview|apply>, model <workspace-path>, palette [query], "
                 "paths analyze, raw <plan|run|replay>, report export, "
                 "runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect|export-bundle|verify-bundle>, "
@@ -615,9 +614,8 @@ class InteractiveShell(cmd.Cmd):
             ),
             "history": "history [query]: search previous shell commands from newest to oldest.",
             "intel": (
-                "intel <import|inspect|preview|apply|preview-set|apply-set> <workspace>: "
-                "select local source files, original snapshot/receipt pairs, or one finding's "
-                "combined candidate enrichment."
+                "intel <import|inspect|preview|apply> <workspace>: select local source files, "
+                "verified snapshots/receipts, or one finding's enrichment."
             ),
             "lens": (
                 "lens [<name>] [--json]: select pentest, dfir, devsecops, or purple; "

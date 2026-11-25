@@ -1220,16 +1220,3 @@ Existing configuration/image profiles retain their required input contracts,
 refusal codes and no-clobber exports; native-web rejects artifact-only options.
 See [CI scanning](CI_SCAN.md) and
 [ADR 0138](adr/0138-current-run-native-web-ci-predicate.md).
-
-
-Experimental version-one `intel preview-set|apply-set` selects two to sixteen
-explicit original successful local snapshot/receipt pairs for one existing
-Finding, composing the unchanged verified enrichment SDK and model CAS.
-The distinct `local-intelligence-set-cli-v1` terminal profile returns the existing
-complete candidate preview shape plus original selection metadata. Metadata-first
-aggregate limits precede original reparse; refusal saves/presents no valid prefix.
-This adds no source/receipt/observation/Core schema or Python SDK.
-All `fuzzy1337.intelligence_set_commands` symbols remain Internal. Existing
-single-source output and separate selected ZIP/gzip/HTTPS families are unchanged.
-See [the operator guide](INTELLIGENCE_CLI.md#one-combined-preview-and-save-from-several-originals)
-and [ADR 0159](adr/0159-combined-local-intelligence-enrichment.md).
