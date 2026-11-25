@@ -7,14 +7,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import runpy
 import shutil
 import socket
 import subprocess
+import sys
 from dataclasses import replace
+from io import StringIO
+from pathlib import Path
 
 import pytest
 
 from fuzzy1337 import ioc_commands as commands
+from fuzzy1337.cli import Main
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.ioc_artifacts import LoadIocArtifact
 from tests.ioc_cli_helpers import RAW, Files, ImportArguments, InspectArguments, Owned, Run
@@ -63,8 +68,113 @@ def test_ActualImportAndRelocatedReadOnlyInspectRetainOriginals(tmp_path, monkey
     assert status == 0 and inspected["raw_id"] == result["raw_id"] and inspected[
         "evidence_commit"
     ] == "not-attempted", "Inspection rediscovered input or attempted evidence publication"
+    status, exported = Run([*InspectArguments(moved, result), "--export-candidates"])
+    assert status == 0 and exported["candidate_export"] == json.loads(parsed.Serialize()), (
+        "Offline candidate export differs from the independently replayed original snapshot"
+    )
+    output = StringIO()
+    assert commands.RunIocCommands(InspectArguments(moved, result), output) == 0
+    assert f"Original evidence manifest {raw.evidence_id}\n" in output.getvalue()
+    assert f"Source SHA-256 {hashlib.sha256(RAW).hexdigest()} ({len(RAW)} bytes)." in (
+        output.getvalue()
+    )
     assert Files(moved) == before and all(before[name] == content
         for name, content in coreBefore.items()), "IOC product workflow wrote Core/owning state"
+
+
+def test_GuideInspectsOneRetainedOccurrenceByOriginalLine(tmp_path, monkeypatch, capsys):
+    """Use the documented SDK workflow with only the original import pins and retained evidence."""
+
+    raw = (b"dns\texample.invalid\r\n"
+           b"dns\tEXAMPLE.Invalid.\t2026-11-25T10:30:00+05:30\t+05:30\r\n")
+    root, source = Owned(tmp_path, raw)
+    status, imported = Run(ImportArguments(root, source, raw))
+    assert status == 0, "The guide fixture could not acquire its original evidence"
+    moved = tmp_path / "relocated workspace"
+    root.rename(moved)
+    source.unlink()
+
+    guide = Path(__file__).resolve().parents[2] / "docs" / "IOC_ARTIFACT_CLI.md"
+    _, heading, section = guide.read_text(encoding="utf-8").partition(
+        "## Inspect one normalized occurrence\n")
+    _, start, fenced = section.partition("```python\n")
+    example, end, _ = fenced.partition("\n```")
+    assert heading and start and end, "The guide lost the executable SDK selection example"
+    script = tmp_path / "inspect_ioc_candidate.py"
+    script.write_text(example, encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [str(script), str(moved), imported["snapshot_id"],
+                                    imported["receipt_id"], "2"])
+    monkeypatch.setattr(socket, "socket", Denied)
+    monkeypatch.setattr(socket, "getaddrinfo", Denied)
+    monkeypatch.setattr(subprocess, "Popen", Denied)
+    runpy.run_path(str(script), run_name="__main__")
+
+    result = json.loads(capsys.readouterr().out)
+    assert result == {
+        "candidate": {
+            "kind": "dns", "normalized_token": "example.invalid", "raw_token": "EXAMPLE.Invalid.",
+            "line_number": 2, "byte_offset": 25, "byte_length": 16,
+            "source_locator": r"C:\owned\opaque.tsv", "observed_at": "2026-11-25T10:30:00+05:30",
+            "observation_timezone": "+05:30", "observed_at_utc": "2026-11-25T05:00:00.000000+00:00",
+        },
+        "raw_evidence_id": imported["raw_id"], "source_id": "owned.synthetic",
+        "source_version": "fixture-1", "parser_id": "ioc-artifacts", "parser_version": "1",
+    }, "The guide did not select the requested occurrence with its original attribution"
+    store = LocalEvidenceStore(moved / "evidence")
+    record = store.Get(result["raw_evidence_id"])
+    offset = result["candidate"]["byte_offset"]
+    length = result["candidate"]["byte_length"]
+    assert store.Read(record.reference)[offset:offset + length] == b"EXAMPLE.Invalid.", (
+        "The displayed coordinates did not recover the selected original token"
+    )
+
+
+def test_ConsoleLocatesEveryMatchingRetainedOccurrence(tmp_path, monkeypatch, capsys):
+    """Locate duplicate candidates in an independently verified relocated original."""
+
+    raw = RAW + b"dns\tother.invalid\n"
+    root, source = Owned(tmp_path, raw)
+    status, imported = Run(ImportArguments(root, source, raw))
+    assert status == 0, "The match fixture could not acquire its original evidence"
+    moved = tmp_path / "relocated workspace"
+    root.rename(moved)
+    source.unlink()
+    arguments = ["trace", *InspectArguments(moved, imported)]
+    before = Files(moved)
+    monkeypatch.setattr(socket, "socket", Denied)
+    monkeypatch.setattr(socket, "getaddrinfo", Denied)
+    monkeypatch.setattr(subprocess, "Popen", Denied)
+
+    match = [*arguments, "--match", "dns", "ExAmPlE.InVaLiD."]
+    assert Main(match) == 0, "The console could not locate a supplied candidate"
+    output = capsys.readouterr()
+    first = raw.index(b"EXAMPLE.Invalid.")
+    second = raw.index(b"example.invalid")
+    assert output.err == "" and output.out.splitlines() == [
+        "IOC artifact completed (exit 0).",
+        f"Original evidence manifest {imported['raw_id']}",
+        "2 matching supplied occurrences.",
+        f"Line 3, byte offset {first}, byte length 16, source-declared time unknown, "
+        "timezone unknown.",
+        f"Line 5, byte offset {second}, byte length 15, "
+        "source-declared time 2099-01-01T12:00:00+05:30, timezone +05:30.",
+    ], "Match output lost original coordinates/time or exposed source tokens and locators"
+    assert Main([*arguments, "--match", "dns", "absent.invalid"]) == 0
+    assert capsys.readouterr().out.splitlines()[-1] == "0 matching supplied occurrences."
+    assert Main([*match, "--json"]) == 2
+    machine = json.loads(capsys.readouterr().out)
+    assert machine["schema_version"] == 1 and machine["failure"] == "configuration"
+    assert Files(moved) == before, "Locating a supplied candidate changed retained state"
+
+    store = LocalEvidenceStore(moved / "evidence")
+    receipt = store.Get(imported["receipt_id"])
+    (moved / "evidence" / receipt.reference.locator).write_bytes(b"damaged receipt")
+    beforeRefusal = Files(moved)
+    assert Main(match) == 4, "Match output trusted a damaged original receipt"
+    refusal = capsys.readouterr()
+    assert refusal.out == refusal.err == "" and Files(moved) == beforeRefusal, (
+        "Receipt refusal emitted an unverified occurrence or changed retained state"
+    )
 
 
 @pytest.mark.parametrize("raw,pin,state", [(b"bad-source", None, "parse-rejected"),
@@ -94,7 +204,8 @@ def test_RefusalRetainsActualRawAndTerminalReceiptWithoutSnapshot(tmp_path, raw,
     )
 
 
-def test_CoherentAlternativeReceiptAndSnapshotCannotReplaceIndependentAnchor(tmp_path):
+@pytest.mark.parametrize("export", [False, True], ids=("summary", "candidate-export"))
+def test_CoherentAlternativeReceiptAndSnapshotCannotReplaceIndependentAnchor(tmp_path, export):
     """Rehashed metadata sharing raw bytes must not borrow a separately retained receipt pin."""
 
     root, source = Owned(tmp_path)
@@ -114,10 +225,18 @@ def test_CoherentAlternativeReceiptAndSnapshotCannotReplaceIndependentAnchor(tmp
     forgedSnapshot = store.Put(forged.Serialize(), "ioc-snapshot", "application/json",
                                 receipt.provenance)
     before = Files(root)
-    status, rejected = Run(["ioc", "inspect", str(root), "--snapshot",
-        forgedSnapshot.evidence_id, "--receipt", result["receipt_id"]])
+    arguments = ["ioc", "inspect", str(root), "--snapshot",
+                 forgedSnapshot.evidence_id, "--receipt", result["receipt_id"]]
+
+    if export:
+        arguments.append("--export-candidates")
+
+    status, rejected = Run(arguments)
     assert status == 4 and rejected["failure"] == "integrity" and Files(root) == before, (
         "Product inspect inferred its trusted receipt from coherently replaced candidate metadata"
+    )
+    assert "candidate_export" not in rejected and "forged-license" not in str(rejected), (
+        "A coherently substituted source reached candidate export despite anchor refusal"
     )
 
 
@@ -135,6 +254,35 @@ def test_OriginalChainCorruptionFailsReadOnlyInspection(tmp_path, record_key):
     assert status == 4 and rejected["failure"] == "integrity" and Files(root) == before, (
         "Product inspection ignored corrupt original chain bytes or rewrote evidence"
     )
+    output = StringIO()
+    assert commands.RunIocCommands(InspectArguments(root, result), output) == 4
+    assert output.getvalue() == (
+        "IOC artifact failed (exit 4).\n"
+        "Failure category: integrity.\n"
+    )
+
+
+@pytest.mark.parametrize("error", [OSError, KeyboardInterrupt], ids=("storage", "interrupt"))
+def test_CandidateExportWaitsForFinalOriginalVerification(tmp_path, monkeypatch, error):
+    """A late storage refusal or interruption cannot publish already replayed candidate data."""
+
+    root, source = Owned(tmp_path)
+    status, imported = Run(ImportArguments(root, source))
+    assert status == 0, "Late-refusal fixture did not acquire its original evidence"
+    before = Files(root)
+
+    def Verify(*args, **kwargs):
+        """Refuse the final owning raw-record check after independently anchored replay."""
+
+        raise error("secret-marker")
+
+    monkeypatch.setattr(commands, "OriginalRecord", Verify)
+    status, refused = Run([*InspectArguments(root, imported), "--export-candidates"])
+    assert status == (130 if error is KeyboardInterrupt else 4)
+    assert "candidate_export" not in refused and all(value not in str(refused) for value in (
+        "secret-marker", "EXAMPLE.Invalid.", "opaque.tsv"
+    )), "Late verification failure emitted candidate data or rejected exception text"
+    assert Files(root) == before, "Failed candidate export changed original evidence"
 
 
 @pytest.mark.parametrize("phase", ["raw", "receipt", "snapshot"])

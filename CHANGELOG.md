@@ -8,6 +8,40 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 33 — v0.4.33 — 2026-11-25
+
+#### Digest
+
+- Make verified retained IOC occurrences available to offline machine consumers.
+
+#### Added
+
+- Export the original normalized IOC snapshot through explicit
+  `trace ioc inspect --export-candidates --json`, preserving tokens, source/parser
+  attribution, original times, duplicate occurrences and byte coordinates after
+  independently anchored replay. Default summaries remain unchanged; refused
+  exports never contain a partial candidate payload.
+
+
+### Patch 32 — v0.4.32 — 2026-11-25
+
+#### Digest
+
+- Make retained IOC source evidence easier to locate during offline inspection.
+
+#### Added
+
+- Locate every retained occurrence of one supplied IOC by its original physical
+  line and byte range, with the source-declared time and timezone when present.
+
+#### Changed
+
+- Show the verified original evidence manifest ID, source SHA-256 and byte length
+  in the default `1337 trace ioc inspect` summary.
+- Show the fixed failure category in the default IOC summary without echoing
+  rejected values or physical paths.
+
+
 ### Patch 31 — v0.4.31 — 2026-11-04
 
 #### Digest
