@@ -11,8 +11,8 @@
     "contents": "read"
   },
   "env": {
-    "APPROVED_SOURCE_SHA": "305a695775b403c8ae223eb23626b61a3fd26467",
-    "PRODUCT_TREE": "88ea5490c9b57287c5cb738ab86c80ffde2954c8"
+    "APPROVED_SOURCE_SHA": "6781b7a3fa0521e464bd8e6bc7582a610c97085a",
+    "PRODUCT_TREE": "d9d8d09327732c704090af7dc9f919cc550bc864"
   },
   "jobs": {
     "offline-milestones": {
