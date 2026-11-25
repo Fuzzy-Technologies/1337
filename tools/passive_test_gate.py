@@ -1,14 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Timur Gilmullin and Fuzzy Technologies
 # SPDX-License-Identifier: Apache-2.0
 
-"""Measure admitted passive units or verified test-only files without claiming a global gate."""
+"""Measure complete units, reviewed offline boundaries and changed-module branch coverage."""
 
 from __future__ import annotations
 
 import argparse
-import ast
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -23,21 +21,6 @@ from _pytest.junitxml import mangle_test_address
 
 from fuzzy1337.coverage_gate import ValidateReport
 from fuzzy1337.test_runner import PytestArguments, RunPytest, TestOptions
-
-try:
-    from tools.python_naming import BASELINE, CheckSource
-
-except ModuleNotFoundError:
-    from python_naming import BASELINE, CheckSource
-
-MAX_INVENTORY_BYTES = 1024 * 1024
-TEST_ONLY_CHECKS = (
-    "tests/unit/test_python_style.py",
-    "tests/unit/test_source_documentation_headers.py",
-    "tests/unit/test_python_naming.py",
-    "tests/unit/test_passive_test_gate.py",
-    "tests/unit/test_passive_integration.py",
-)
 
 BOUNDARIES = (
     "tests/contract/test_external_scanner_comparison_view.py",
@@ -147,335 +130,50 @@ def CheckJunit(path: Path, expected: Counter[tuple[str, str]]) -> dict[str, int]
                          if owner.startswith("tests.unit."))}
 
 
-def ChangedFiles(base: str) -> tuple[str, tuple[dict[str, str], ...]]:
-    """Capture one complete regular or irregular raw diff against the actual ancestor.
+def ChangedModules(base: str) -> tuple[Path, ...]:
+    """Require the actual ancestor and enumerate every changed surviving production module.
 
     Args:
-        base: Exact reviewed integration ancestor commit.
-
-    Returns:
-        Actual head and complete raw change records, including modes and object identities.
-    """
-
-    if re.fullmatch(r"[0-9a-f]{40}", base) is None:
-        raise ValueError("Passive coverage requires an exact base commit")
-
-    command = ["git", "--no-replace-objects"]
-    head = subprocess.run([*command, "rev-parse", "--verify", "HEAD^{commit}"], check=True,
-                          capture_output=True, text=True, timeout=30).stdout.strip()
-    if re.fullmatch(r"[0-9a-f]{40}", head) is None:
-        raise ValueError("Passive head is not an exact commit")
-
-    ancestor = subprocess.run([*command, "merge-base", "--all", base, head], check=True,
-                              capture_output=True, text=True, timeout=30).stdout.strip()
-
-    if ancestor != base:
-        raise ValueError("Passive coverage base is not the actual integration ancestor")
-
-    subprocess.run([*command, "diff", "--no-ext-diff", "--no-textconv",
-                    "--ignore-submodules=none", "--quiet", "HEAD", "--"],
-                   check=True, capture_output=True, timeout=30)
-    raw = subprocess.run([*command, "diff", "--no-ext-diff", "--no-textconv",
-                          "--ignore-submodules=none", "--no-renames", "--raw",
-                          "--abbrev=40", "-z", base, head, "--"], check=True,
-                         capture_output=True, timeout=30).stdout
-
-    if len(raw) > MAX_INVENTORY_BYTES:
-        raise ValueError("Passive change inventory is oversized")
-
-    parts = raw.split(b"\0")
-
-    if parts[-1] or len(parts) % 2 != 1 or len(parts) // 2 > 512:
-        raise ValueError("Passive change inventory is malformed")
-
-    changes = []
-    seen = set()
-
-    for header, rawPath in zip(parts[:-1:2], parts[1::2], strict=True):
-        match = re.fullmatch(rb":([0-7]{6}) ([0-7]{6}) ([0-9a-f]{40}) "
-                             rb"([0-9a-f]{40}) ([AMDT])", header)
-        path = rawPath.decode("utf-8")
-
-        if match is None or path in seen or not path or path.startswith("/") or any(
-            part in {"", ".", ".."} for part in path.split("/")
-        ) or any(ord(character) < 32 or ord(character) == 127 for character in path):
-            raise ValueError("Passive change inventory contains an ambiguous path or record")
-
-        seen.add(path)
-        changes.append(dict(zip(("old_mode", "new_mode", "old_blob", "new_blob", "status"),
-                                (value.decode("ascii") for value in match.groups()),
-                                strict=True), path=path))
-
-    return head, tuple(changes)
-
-
-def ChangedModules(
-    base: str, *, changes: Sequence[dict[str, str]] | None = None,
-) -> tuple[Path, ...]:
-    """Enumerate every surviving changed production module from the same complete inventory.
-
-    Args:
-        base: Exact reviewed integration ancestor commit.
-        changes: Complete independently captured raw diff, or capture it when omitted.
+        base: Exact reviewed integration ancestor commit for the measured candidate tree.
 
     Returns:
         Sorted existing regular first-party Python modules changed since that ancestor.
     """
 
-    if changes is None:
-        _, changes = ChangedFiles(base)
+    if re.fullmatch(r"[0-9a-f]{40}", base) is None:
+        raise ValueError("Passive coverage requires an exact base commit")
+
+    ancestor = subprocess.run(["git", "merge-base", base, "HEAD"], check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    if ancestor != base:
+        raise ValueError("Passive coverage base is not the actual integration ancestor")
+
+    changed = subprocess.run(["git", "--no-replace-objects", "diff", "--no-ext-diff",
+                              "--no-renames",
+                              "--name-status", "-z", base, "HEAD", "--", "src/fuzzy1337"],
+                             check=True, capture_output=True).stdout.split(b"\0")
+
+    if changed == [b""]:
+        return ()
+
+    if changed[-1] or len(changed) % 2 != 1:
+        raise ValueError("Passive production inventory is malformed")
 
     modules = []
 
-    for change in changes:
-        path = Path(change["path"])
+    for status, name in zip(changed[:-1:2], changed[1::2], strict=True):
+        path = Path(name.decode("utf-8"))
 
-        if not path.as_posix().startswith("src/fuzzy1337/") or path.suffix != ".py":
+        if path.suffix != ".py":
             continue
 
-        if change["status"] not in {"A", "M"} or change["new_mode"] != "100644" or (
-            not path.is_file() or path.is_symlink()
-        ):
+        if status not in {b"A", b"M"} or not path.is_file() or path.is_symlink():
             raise ValueError("Passive production inventory contains a removed or aliased module")
 
         modules.append(path)
 
     return tuple(sorted(modules))
-
-
-def ReadBlob(reference: str) -> bytes:
-    """Read one bounded tracked input without executing it or trusting a working-tree substitute.
-
-    Args:
-        reference: Exact diff object identity or a head-owned tracked source path.
-
-    Returns:
-        Complete original blob bytes within the inspection ceiling.
-    """
-
-    command = ["git", "--no-replace-objects", "cat-file"]
-    size = subprocess.run([*command, "-s", reference], check=True, capture_output=True,
-                          timeout=30).stdout.strip()
-
-    if not size.isdigit() or len(size) > 8 or int(size) > MAX_INVENTORY_BYTES:
-        raise ValueError("Passive inspected blob is oversized")
-
-    raw = subprocess.run([*command, "blob", reference], check=True,
-                         capture_output=True, timeout=30).stdout
-
-    if len(raw) != int(size):
-        raise ValueError("Passive inspected blob is incomplete")
-
-    return raw
-
-
-def TestOnlyEvent(base: str, head: str) -> bool:
-    """Keep narrowing inside the already admitted Ready develop pull-request invocation.
-
-    Args:
-        base: Independently verified actual integration ancestor.
-        head: Independently verified actual checked-out commit.
-
-    Returns:
-        Whether original event metadata agrees with this exact Ready develop candidate.
-    """
-
-    if os.environ.get("GITHUB_EVENT_NAME") != "pull_request" or (
-        os.environ.get("GITHUB_BASE_REF") != "develop"
-    ):
-        return False
-
-    with Path(os.environ["GITHUB_EVENT_PATH"]).open("rb") as stream:
-        raw = stream.read(MAX_INVENTORY_BYTES + 1)
-
-    if len(raw) > MAX_INVENTORY_BYTES:
-        return False
-
-    request = json.loads(raw)["pull_request"]
-
-    return (request["draft"] is False and request["base"]["ref"] == "develop"
-            and request["base"]["sha"] == base and request["head"]["sha"] == head
-            and request["head"]["ref"].startswith("feature/passive-batch-")
-            and os.environ.get("GITHUB_HEAD_REF") == request["head"]["ref"])
-
-
-def LeafTests(files: Sequence[str], head: str) -> bool:
-    """Conservatively refuse visible imports, plugins and dynamic uses by other Python modules.
-
-    Args:
-        files: Existing reviewed unit modules proposed as complete pytest file selections.
-        head: Actual immutable candidate commit containing all possible tracked consumers.
-
-    Returns:
-        Whether bounded tracked-source inspection found no external test-module dependency.
-    """
-
-    command = ["git", "--no-replace-objects", "grep", "--no-textconv", "-l", "-z", "-F"]
-
-    for path in files:
-        command.extend(("-e", Path(path).stem))
-
-    found = subprocess.run([*command, head, "--", "*.py"], check=False,
-                           capture_output=True, timeout=30)
-
-    if found.returncode not in {0, 1} or len(found.stdout) > MAX_INVENTORY_BYTES or (
-        (found.returncode == 1) != (not found.stdout)
-    ):
-        raise ValueError("Passive consumer search failed")
-
-    if not found.stdout:
-        return True
-
-    if not found.stdout.endswith(b"\0") or found.stdout.count(b"\0") > 512:
-        raise ValueError("Passive consumer search is incomplete")
-
-    for entry in found.stdout[:-1].split(b"\0"):
-        prefix = (head + ":").encode()
-
-        if not entry.startswith(prefix):
-            raise ValueError("Passive consumer identity differs")
-
-        consumer = entry[len(prefix):].decode("utf-8")
-        tree = ast.parse(ReadBlob(head + ":" + consumer), type_comments=True)
-
-        for path in files:
-            if consumer == path:
-                continue
-
-            stem = Path(path).stem
-            module = path.removesuffix(".py").replace("/", ".")
-
-            for node in ast.walk(tree):
-                if isinstance(node, (ast.Import, ast.ImportFrom)) and (
-                    stem in (getattr(node, "module", "") or "").split(".")
-                    or any(stem in alias.name.split(".") for alias in node.names)
-                ):
-                    return False
-
-                if isinstance(node, (ast.Name, ast.Attribute)) and (
-                    getattr(node, "id", None) == stem or getattr(node, "attr", None) == stem
-                ):
-                    return False
-
-                if isinstance(node, ast.Constant) and node.value in (stem, module):
-                    return False
-
-                if isinstance(node, ast.Call) and ast.unparse(node.func) != (
-                    "pytest.mark.parametrize"
-                ) and any(isinstance(value, ast.Constant) and isinstance(value.value, str)
-                          and stem in value.value for value in ast.walk(node)):
-                    return False
-
-    return True
-
-
-def TestOnlySelection(
-    base: str, head: str, changes: Sequence[dict[str, str]],
-) -> tuple[tuple[str, ...], str]:
-    """Select complete reviewed leaf unit files, otherwise retain the existing passive gate.
-
-    Args:
-        base: Actual independently verified integration ancestor commit.
-        head: Actual independently verified candidate commit.
-        changes: Complete raw change inventory, never selectors supplied by a PR.
-
-    Returns:
-        Full file selection and reason, or an empty selection for the existing full passive gate.
-    """
-
-    try:
-        if not TestOnlyEvent(base, head):
-            return (), "ordinary-or-unverified-event"
-
-        files = tuple(change["path"] for change in changes
-                      if change["path"] != BASELINE.as_posix())
-
-        if not files or any(re.fullmatch(r"tests/unit/test_[a-z0-9_]+\.py", path) is None
-                            for path in files):
-            return (), "non-test-or-shared-change"
-
-        if any(path in TEST_ONLY_CHECKS for path in files):
-            return (), "shared-ownership-check-change"
-
-        if any(change["status"] != "M" or change["old_mode"] != "100644"
-               or change["new_mode"] != "100644"
-               or "0" * 40 in (change["old_blob"], change["new_blob"])
-               or change["old_blob"] == change["new_blob"] for change in changes):
-            return (), "not-existing-regular-modifications"
-
-        removed = Counter()
-
-        for change in changes:
-            if change["path"] == BASELINE.as_posix():
-                continue
-
-            old, new = (ReadBlob(change[key]).decode("utf-8")
-                        for key in ("old_blob", "new_blob"))
-            for source in (old, new):
-                tree = ast.parse(source, type_comments=True)
-
-                if any(getattr(node, "id", None) == "pytest_plugins"
-                       or getattr(node, "attr", None) == "pytest_plugins"
-                       or (isinstance(node, ast.Constant) and node.value == "pytest_plugins")
-                       for node in ast.walk(tree)):
-                    return (), "shared-pytest-plugin-registration"
-
-            path = Path(change["path"])
-
-            if path.is_symlink() or not path.is_file() or path.read_bytes() != new.encode("utf-8"):
-                return (), "working-source-differs"
-
-            before, after = CheckSource(old, path.as_posix()), CheckSource(new, path.as_posix())
-
-            if after - before:
-                return (), "new-naming-debt"
-
-            removed.update(before - after)
-
-        if any(kind != "local" for _, kind, _, _ in removed):
-            return (), "non-local-baseline-change"
-
-        before = ReadBlob(base + ":" + BASELINE.as_posix()).decode("utf-8")
-        after = ReadBlob(head + ":" + BASELINE.as_posix()).decode("utf-8")
-        rows = [json.loads(raw) for raw in (before, after)]
-
-        if any(not isinstance(group, list) or any(
-            not isinstance(row, list) or len(row) != 4
-            or any(not isinstance(value, str) for value in row) for row in group
-        ) for group in rows):
-            return (), "baseline-row-shape-differs"
-
-        oldRows, newRows = (Counter(tuple(row) for row in group) for group in rows)
-
-        if oldRows - newRows != removed or newRows - oldRows or any(
-            path not in files or kind != "local" for path, kind, _, _ in oldRows - newRows
-        ):
-            return (), "baseline-differs-from-local-removals"
-
-        lines = before.splitlines(keepends=True)
-        expected = []
-
-        for line in lines:
-            if line.strip().startswith("[") and line.strip() not in {"["}:
-                row = tuple(json.loads(line.strip().removesuffix(",")))
-
-                if removed[row]:
-                    removed[row] -= 1
-                    continue
-
-            expected.append(line)
-
-        if "".join(expected) != after:
-            return (), "baseline-has-other-byte-changes"
-
-        if not LeafTests(files, head):
-            return (), "shared-or-dynamic-test-module"
-
-    except (OSError, KeyError, TypeError, ValueError, SyntaxError, UnicodeError, RecursionError,
-            subprocess.SubprocessError):
-        return (), "test-only-inspection-refused"
-
-    return tuple(dict.fromkeys((*files, *TEST_ONLY_CHECKS))), "verified-leaf-unit-changes"
 
 
 def ChangedCoverage(report: dict, modules: Sequence[Path]) -> dict[str, dict]:
@@ -518,7 +216,7 @@ def ChangedCoverage(report: dict, modules: Sequence[Path]) -> dict[str, dict]:
 
 def RunSelection(
     selection: Sequence[str], options: TestOptions, *, label: str = "units",
-    append: bool = False, configuration: Path | None = None, requireFiles: bool = False,
+    append: bool = False, configuration: Path | None = None,
 ) -> dict[str, dict[str, int]]:
     """Run the complete disjoint parallel/serial selection once with fresh shared measurement.
 
@@ -528,7 +226,6 @@ def RunSelection(
         label: Explicit evidence partition name used to distinguish original JUnit results.
         append: Whether this selection extends the existing original coverage measurement.
         configuration: Optional explicit subprocess coverage configuration for owned boundaries.
-        requireFiles: Require actual collected cases from every complete quick-profile file.
 
     Returns:
         Exact measured parallel and serial case summaries after their JUnit checks pass.
@@ -551,15 +248,6 @@ def RunSelection(
 
     if not expected[False] or expected[False].keys() & expected[True].keys():
         raise ValueError("Passive test partitions are empty or overlap")
-
-    owners = {owner for cases in expected.values() for owner, _ in cases}
-
-    if requireFiles and any(not any(
-        owner == name.removesuffix(".py").replace("/", ".")
-        or owner.startswith(name.removesuffix(".py").replace("/", ".") + ".")
-        for owner in owners
-    ) for name in selection):
-        raise ValueError("Passive quick file has no collected cases")
 
     summaries = {}
 
@@ -606,29 +294,21 @@ def Main(argv: Sequence[str] | None = None) -> int:
 
     try:
         Path("coverage/passive-acceptance.json").unlink(missing_ok=True)
-        head, changes = ChangedFiles(arguments.base)
-        modules = ChangedModules(arguments.base, changes=changes)
-        selection, reason = TestOnlySelection(arguments.base, head, changes)
+        modules = ChangedModules(arguments.base)
         options = TestOptions(fail_fast=True, suite_timeout_seconds=arguments.suite_timeout)
-        summaries = {"units": RunSelection(selection, options, requireFiles=True) if selection
-                     else RunSelection(("tests/unit",), options)}
-
-        if not selection:
-            configuration = Path("coverage/passive-boundaries.coveragerc")
-            configuration.write_text(
-                "[run]\nbranch = True\nsource = fuzzy1337\nrelative_files = True\n"
-                "parallel = True\npatch = subprocess\n"
-                "[report]\nfail_under = 0\nexclude_lines =\npartial_branches =\n", encoding="utf-8",
-            )
-            summaries["boundaries"] = RunSelection(
-                BOUNDARIES, options, label="boundaries", append=True, configuration=configuration,
-            )
-
+        summaries = {"units": RunSelection(("tests/unit",), options)}
+        configuration = Path("coverage/passive-boundaries.coveragerc")
+        configuration.write_text(
+            "[run]\nbranch = True\nsource = fuzzy1337\nrelative_files = True\n"
+            "parallel = True\npatch = subprocess\n"
+            "[report]\nfail_under = 0\nexclude_lines =\npartial_branches =\n", encoding="utf-8",
+        )
+        summaries["boundaries"] = RunSelection(
+            BOUNDARIES, options, label="boundaries", append=True, configuration=configuration,
+        )
         report = json.loads(Path("coverage/coverage.json").read_text(encoding="utf-8"))
         scoped = ChangedCoverage(report, modules)
-        receipt = {"scope": "test-only" if selection else "changed-production-modules",
-                   "base": arguments.base, "head": head, "changes": changes,
-                   "selection_reason": reason, "selection": selection or ("tests/unit",),
+        receipt = {"scope": "changed-production-modules", "base": arguments.base,
                    "partitions": summaries, "modules": scoped, "global_module_gate": "not-claimed"}
         Path("coverage/passive-acceptance.json").write_text(
             json.dumps(receipt, indent=2, allow_nan=False) + "\n", encoding="utf-8",
@@ -639,8 +319,7 @@ def Main(argv: Sequence[str] | None = None) -> int:
               file=sys.stderr)
         return 1
 
-    print("Passive test-only files and required ownership regressions passed." if selection else
-          "Passive units and offline boundaries passed; changed modules are strictly above 80%.")
+    print("Passive units and offline boundaries passed; changed modules are strictly above 80%.")
     return 0
 
 
