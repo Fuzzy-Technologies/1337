@@ -713,3 +713,36 @@ def test_KubernetesModelBasisRaceFailsBeforeBatchApplication(context, monkeypatc
         ApplyKubernetes(context, record=record, provenance=provenance)
 
     assert len(reads) == 2, "Current basis was not checked both before reads and before application"
+
+
+@pytest.mark.parametrize("image", [
+    pytest.param("[2001:db8::1/owned/app:1", id="unclosed-bracket"),
+    pytest.param("2001:db8::1]/owned/app:1", id="unopened-bracket"),
+    pytest.param("[2001:db8::1]extra/owned/app:1", id="authority-suffix"),
+    pytest.param("[2001:db8::gg]/owned/app:1", id="nonhex-address"),
+    pytest.param("[2001:db8]/owned/app:1", id="incomplete-address"),
+    pytest.param("[127.0.0.1]/owned/app:1", id="bracketed-ipv4"),
+    pytest.param("[fe80::1%owned]/owned/app:1", id="machine-local-zone"),
+    pytest.param("[2001:db8::1]:named/owned/app:1", id="nonnumeric-port"),
+    pytest.param("[2001:db8::1]:/owned/app:1", id="empty-port"),
+    pytest.param("[2001:db8::1]/", id="missing-repository"),
+    pytest.param("[2001:db8::1]/owned/[app]:1", id="bracket-in-repository"),
+    pytest.param("[2001:db8::1]/owned/app@sha256:bad", id="malformed-digest"),
+    pytest.param("https://[2001:db8::1]/owned/app:1", id="uri-scheme"),
+])
+def test_KubernetesMalformedBracketedImageRefusesTheWholeCandidate(context, image):
+    """Malformed registry literals never enter a partial inventory or leak through diagnostics."""
+
+    payload = KubernetesPayload()
+    pod = KubernetesResource(payload, "Pod", "web-one", "blue")
+    pod["spec"]["containers"][0]["image"] = image
+
+    with pytest.raises(ValueError) as failure:
+        ApplyKubernetes(context, payload)
+
+    assert LocalModelStore(context[0]).Open() == context[1], (
+        "Rejected image declarations must not save any partial Kubernetes inventory"
+    )
+    assert image not in "".join(format_exception(failure.value)), (
+        "Rejected registry/image text must not enter source-derived diagnostics"
+    )
