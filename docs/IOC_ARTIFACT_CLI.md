@@ -78,6 +78,30 @@ It accepts no source/license/consent overrides. The same explicit commands work
 in the foreground shell; the protected `trace` namespace is not retained for
 history/replay, including malformed input.
 
+## Locate occurrences of a supplied IOC
+
+Use `--match KIND TOKEN` once with a known non-secret literal in text mode.
+
+```bash
+1337 trace ioc inspect /owned/case-workspace \
+  --snapshot 'sha256:<original-snapshot-manifest-digest>' \
+  --receipt 'sha256:<independently-retained-original-receipt-manifest-digest>' \
+  --match dns example.invalid
+```
+
+After verifying both manifest selections, the command compares the kind and
+normalized token using the same literal grammar as import. It prints the
+original evidence manifest ID and every matching occurrence in source order,
+including duplicates. Each occurrence gives the one-based physical line,
+zero-based byte offset and byte length of the original token. The source-declared
+time and timezone use their original spelling or appear as `unknown` when absent.
+Use the manifest ID and byte range to retrieve the exact token from the
+retained TSV.
+
+Zero matching occurrences is a successful verified lookup. An integrity refusal
+returns exit 4 with empty stdout. `--match` requires text mode. Use ordinary
+inspection with `--json` for the schema-one summary.
+
 ## Inspect one normalized occurrence
 
 Use the Python SDK with the `snapshot_id` and independent `receipt_id` saved from

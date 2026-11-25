@@ -14,6 +14,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Make retained IOC source evidence easier to locate during offline inspection.
 
+#### Added
+
+- Locate every retained occurrence of one supplied IOC by its original physical
+  line and byte range, with the source-declared time and timezone when present.
+
 #### Changed
 
 - Show the verified original evidence manifest ID, source SHA-256 and byte length

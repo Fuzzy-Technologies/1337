@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from fuzzy1337 import ioc_commands as commands
+from fuzzy1337.cli import Main
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.ioc_artifacts import LoadIocArtifact
 from tests.ioc_cli_helpers import RAW, Files, ImportArguments, InspectArguments, Owned, Run
@@ -119,6 +120,54 @@ def test_GuideInspectsOneRetainedOccurrenceByOriginalLine(tmp_path, monkeypatch,
     length = result["candidate"]["byte_length"]
     assert store.Read(record.reference)[offset:offset + length] == b"EXAMPLE.Invalid.", (
         "The displayed coordinates did not recover the selected original token"
+    )
+
+
+def test_ConsoleLocatesEveryMatchingRetainedOccurrence(tmp_path, monkeypatch, capsys):
+    """Locate duplicate candidates in an independently verified relocated original."""
+
+    raw = RAW + b"dns\tother.invalid\n"
+    root, source = Owned(tmp_path, raw)
+    status, imported = Run(ImportArguments(root, source, raw))
+    assert status == 0, "The match fixture could not acquire its original evidence"
+    moved = tmp_path / "relocated workspace"
+    root.rename(moved)
+    source.unlink()
+    arguments = ["trace", *InspectArguments(moved, imported)]
+    before = Files(moved)
+    monkeypatch.setattr(socket, "socket", Denied)
+    monkeypatch.setattr(socket, "getaddrinfo", Denied)
+    monkeypatch.setattr(subprocess, "Popen", Denied)
+
+    match = [*arguments, "--match", "dns", "ExAmPlE.InVaLiD."]
+    assert Main(match) == 0, "The console could not locate a supplied candidate"
+    output = capsys.readouterr()
+    first = raw.index(b"EXAMPLE.Invalid.")
+    second = raw.index(b"example.invalid")
+    assert output.err == "" and output.out.splitlines() == [
+        "IOC artifact completed (exit 0).",
+        f"Original evidence manifest {imported['raw_id']}",
+        "2 matching supplied occurrences.",
+        f"Line 3, byte offset {first}, byte length 16, source-declared time unknown, "
+        "timezone unknown.",
+        f"Line 5, byte offset {second}, byte length 15, "
+        "source-declared time 2099-01-01T12:00:00+05:30, timezone +05:30.",
+    ], "Match output lost original coordinates/time or exposed source tokens and locators"
+    assert Main([*arguments, "--match", "dns", "absent.invalid"]) == 0
+    assert capsys.readouterr().out.splitlines()[-1] == "0 matching supplied occurrences."
+    assert Main([*match, "--json"]) == 2
+    machine = json.loads(capsys.readouterr().out)
+    assert machine["schema_version"] == 1 and machine["failure"] == "configuration"
+    assert Files(moved) == before, "Locating a supplied candidate changed retained state"
+
+    store = LocalEvidenceStore(moved / "evidence")
+    receipt = store.Get(imported["receipt_id"])
+    (moved / "evidence" / receipt.reference.locator).write_bytes(b"damaged receipt")
+    beforeRefusal = Files(moved)
+    assert Main(match) == 4, "Match output trusted a damaged original receipt"
+    refusal = capsys.readouterr()
+    assert refusal.out == refusal.err == "" and Files(moved) == beforeRefusal, (
+        "Receipt refusal emitted an unverified occurrence or changed retained state"
     )
 
 

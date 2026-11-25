@@ -32,6 +32,7 @@ from fuzzy1337.ioc_artifacts import (
     IocSource,
     LoadIocArtifact,
     Metadata,
+    NormalizeToken,
     OriginalRecord,
     ParseIocArtifact,
     RequestPin,
@@ -100,6 +101,8 @@ def IocParser(action: str | None = None) -> argparse.ArgumentParser:
     inspector.add_argument("workspace", type=Path)
     inspector.add_argument("--snapshot", required=True)
     inspector.add_argument("--receipt", required=True)
+    inspector.add_argument("--match", action="append", nargs=2, metavar=("KIND", "TOKEN"),
+                           help="locate one supplied IOC's occurrences in text output")
 
     return actions.choices[action] if action in actions.choices else parser
 
@@ -270,6 +273,25 @@ def VerifiedAcquisition(root: Path, acquired: IocAcquisition,
             raise ValueError("IOC refusal contradicts the original declared and observed digest")
 
 
+def DescribeIocMatches(snapshot: IocSnapshot, match: tuple[str, str]) -> str:
+    """Describe every exact match in a verified original without copying its tokens."""
+
+    matches = [candidate for candidate in snapshot.candidates
+               if (candidate.kind, candidate.normalized_token) == match]
+    lines = ["IOC artifact completed (exit 0).",
+             f"Original evidence manifest {snapshot.raw_evidence_id}",
+             f"{len(matches)} matching supplied occurrences."]
+
+    for candidate in matches:
+        sourceTime = candidate.observed_at or "unknown"
+        timezone = candidate.observation_timezone or "unknown"
+        lines.append(f"Line {candidate.line_number}, byte offset {candidate.byte_offset}, "
+                     f"byte length {candidate.byte_length}, source-declared time {sourceTime}, "
+                     f"timezone {timezone}.")
+
+    return "\n".join(lines) + "\n"
+
+
 def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: bool = False) -> int:
     """Import explicit non-secret local bytes or inspect an independently anchored snapshot.
 
@@ -301,6 +323,8 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
         "core_mutation": "none"}
     status = 4
     phase = "configuration"
+    match: tuple[str, str] | None = None
+    matchOutput = ""
 
     try:
         options = parser.parse_args(arguments)
@@ -340,6 +364,13 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
             snapshot = acquired.snapshot
 
         else:
+            if options.match is not None:
+                if json_output or len(options.match) != 1:
+                    raise IocFailure("configuration", 2)
+
+                kind, token = options.match[0]
+                match = kind, NormalizeToken(kind, token)
+
             Identity(options.snapshot)
             Identity(options.receipt)
             phase = "integrity"
@@ -354,6 +385,10 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
         store = IocEvidenceStore(root / "evidence", snapshot.limits.max_bytes)
         record = store.Get(snapshot.raw_evidence_id)
         OriginalRecord(record, LocalWorkspaceStore(root).Open().workspace_id, store, "ioc-source")
+
+        if match is not None:
+            matchOutput = DescribeIocMatches(snapshot, match)
+
         outcome.update({"status": "completed", "raw_id": snapshot.raw_evidence_id,
             "acquisition_state": "succeeded", "candidate_count": len(snapshot.candidates),
             "source_sha256": record.reference.sha256, "received_bytes": record.reference.size_bytes,
@@ -377,6 +412,10 @@ def RunIocCommands(arguments: Sequence[str], output: TextIO, *, json_output: boo
 
     if json_output:
         output.write(json.dumps(outcome, sort_keys=True, allow_nan=False) + "\n")
+
+    elif match is not None:
+        if status == 0:
+            output.write(matchOutput)
 
     else:
         output.write("IOC artifact " + str(outcome["status"]) + " (exit " + str(status) + ").\n")
