@@ -135,6 +135,12 @@ directory aliases are allowed. The tool reads no embedded paths, contacts no
 targets and leaves the reports intact. The separate native benchmark report
 with `pack_id` and `cells` uses a different schema.
 
+If a saved file is invalid or unreadable, stderr identifies the baseline or
+candidate without displaying the path or report contents. An invalid release
+or profile declaration identifies the side's selection without displaying its
+value. An invalid shared scanner selection produces a generic diagnostic. All
+of these refusals exit with status 2 and leave stdout empty.
+
 The [first-party Git acceptance](../tests/functional/test_native_web_checks.py)
 exercises this tool with reports from real, policy-approved scanner jobs on the
 same [version 1 target oracle](../labs/targets/web-vulnerable/oracle.v1.json).

@@ -324,7 +324,9 @@ def BuildReport(
 
                 if run is not None and applicable:
                     state = run.status.value if run.status is not RunStatus.COMPLETED else (
-                        "detected" if any(item.identifier in detected for item in checks)
+                        "detected" if any(
+                            item.applicable and item.identifier in detected for item in checks
+                        )
                         else "not-detected"
                     )
 

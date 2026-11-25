@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import ast
 import os
+import re
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -260,6 +262,100 @@ def Workflow(name):
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+def EvaluateCondition(expression: str, context: dict[str, object]) -> bool:
+    """Interpret the declared GitHub boolean/string grammar without executing workflow code."""
+
+    expression = expression.strip().removeprefix("${{").removesuffix("}}").strip()
+    pieces = re.split(r"('(?:[^']|'')*')", expression)
+    translated = []
+
+    for index, piece in enumerate(pieces):
+        if index % 2:
+            translated.append(repr(piece[1:-1].replace("''", "'")))
+
+        else:
+            piece = piece.replace("&&", " and ").replace("||", " or ")
+            piece = re.sub(r"!(?!=)", "not ", piece)
+            piece = re.sub(r"\btrue\b", "True", piece)
+            translated.append(re.sub(r"\bfalse\b", "False", piece))
+
+    tree = ast.parse("".join(translated).strip(), mode="eval")
+    allowed = (ast.Expression, ast.BoolOp, ast.And, ast.Or, ast.UnaryOp, ast.Not,
+               ast.Constant, ast.Compare, ast.Eq, ast.NotEq, ast.Attribute,
+               ast.Name, ast.Load, ast.Call)
+
+    for node in ast.walk(tree):
+        if not isinstance(node, allowed):
+            raise ValueError("Workflow condition escaped its declared test grammar")
+
+        if isinstance(node, ast.Name) and node.id not in {
+            "github", "needs", "always", "contains", "startsWith",
+        }:
+            raise ValueError("Workflow condition contains an unsupported named value")
+
+        if isinstance(node, ast.Constant) and type(node.value) not in {str, bool}:
+            raise ValueError("Workflow condition contains an unsupported literal")
+
+        if isinstance(node, ast.Call) and (
+            not isinstance(node.func, ast.Name)
+            or node.func.id not in {"always", "contains", "startsWith"} or node.keywords
+            or len(node.args) != (0 if node.func.id == "always" else 2)
+        ):
+            raise ValueError("Workflow condition contains an unsupported function")
+
+    def Read(node):
+        """Evaluate only known nodes, with real short circuiting and case-insensitive strings."""
+
+        if isinstance(node, ast.Expression):
+            return Read(node.body)
+
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, (ast.And, ast.Or)):
+            values = (Read(value) for value in node.values)
+
+            return all(values) if isinstance(node.op, ast.And) else any(values)
+
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return not Read(node.operand)
+
+        if isinstance(node, ast.Constant) and type(node.value) in {str, bool}:
+            return node.value
+
+        if isinstance(node, ast.Attribute):
+            return context.get(ast.unparse(node), "")
+
+        if isinstance(node, ast.Compare) and len(node.ops) == len(node.comparators) == 1 and (
+            isinstance(node.ops[0], (ast.Eq, ast.NotEq))
+        ):
+            left, right = Read(node.left), Read(node.comparators[0])
+
+            if isinstance(left, str) and isinstance(right, str):
+                left, right = left.casefold(), right.casefold()
+
+            same = left == right
+
+            return same if isinstance(node.ops[0], ast.Eq) else not same
+
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and not node.keywords:
+            name = node.func.id
+
+            if name == "always" and not node.args:
+                return True
+
+            if name in {"contains", "startsWith"} and len(node.args) == 2:
+                haystack, needle = (Read(argument) for argument in node.args)
+
+                if not isinstance(haystack, str) or not isinstance(needle, str):
+                    raise ValueError("Workflow string functions require two strings")
+
+                haystack, needle = haystack.casefold(), needle.casefold()
+
+                return needle in haystack if name == "contains" else haystack.startswith(needle)
+
+        raise ValueError("Workflow condition escaped its declared test grammar")
+
+    return bool(Read(tree))
+
+
 @pytest.mark.parametrize("preflight,build,recover", [
     (first, second, third) for first in ("success", "failure", "cancelled", "skipped")
     for second in ("success", "failure", "cancelled", "skipped")
@@ -271,10 +367,9 @@ def test_PublicationHandoffRequiresOneSuccessfulProducerAndActualPreflight(
     """Execute the actual job condition against every independent terminal-result combination."""
 
     handoff = Workflow("release.yml")["jobs"]["handoff"]
-    context = SimpleNamespace(preflight=SimpleNamespace(result=preflight),
-        build=SimpleNamespace(result=build), recover=SimpleNamespace(result=recover))
-    expression = handoff["if"].replace("&&", "and").replace("||", "or")
-    observed = eval(expression, {"__builtins__": {}}, {"needs": context, "always": lambda: True})
+    context = {"needs.preflight.result": preflight, "needs.build.result": build,
+               "needs.recover.result": recover}
+    observed = EvaluateCondition(handoff["if"], context)
     expected = (preflight, build, recover) in {
         ("success", "success", "skipped"), ("success", "skipped", "success")}
     assert observed is expected and handoff["needs"] == ["preflight", "build", "recover"], (
@@ -412,14 +507,21 @@ def test_FinalizerAndPublisherWorkflowAuthorityRemainSeparate():
 
 @pytest.mark.parametrize("filename", ["owned-content-header-acceptance.yml",
                                       "zap-inert-acceptance.yml"])
-@pytest.mark.parametrize("event,draft,marker,expected", [
-    ("push", True, False, True), ("pull_request", False, False, True),
-    ("pull_request", True, False, False), ("pull_request", True, True, True),
-    ("workflow_dispatch", False, True, False)])
+@pytest.mark.parametrize("event,draft,marker,base,head,expected", [
+    ("push", True, False, "", "", True),
+    ("pull_request", False, False, "master", "release/owned", True),
+    ("pull_request", False, False, "develop", "feature/ordinary", True),
+    ("pull_request", True, False, "develop", "feature/ordinary", False),
+    ("pull_request", True, True, "develop", "feature/ordinary", True),
+    ("workflow_dispatch", False, True, "", "", False),
+    ("pull_request", False, False, "develop", "feature/passive-batch-owned", False),
+    ("pull_request", True, True, "develop", "feature/passive-batch-owned", False),
+    ("pull_request", False, False, "master", "feature/passive-batch-owned", True),
+])
 def test_ExistingAcceptanceEnrollmentPreservesDraftsAndActuallyAdmitsMaster(
-    filename, event, draft, marker, expected
+    filename, event, draft, marker, base, head, expected,
 ):
-    """Evaluate each actual workflow condition, including syntax and its draft checkpoint branch."""
+    """Execute real conditions with actual event fields, including the passive-request veto."""
 
     workflow = Workflow(filename)
     events = workflow.get("on", workflow.get(True))
@@ -431,13 +533,46 @@ def test_ExistingAcceptanceEnrollmentPreservesDraftsAndActuallyAdmitsMaster(
     assert len(jobs) == len(required), "Every named release gate must have an actual workflow job"
 
     for job in jobs:
-        context = SimpleNamespace(event_name=event, event=SimpleNamespace(
-            pull_request=SimpleNamespace(draft=draft, body=job["if"] if marker else "")))
-        expression = job["if"].replace("||", "or").replace("&&", "and").replace("false", "False")
-        observed = eval(expression, {"__builtins__": {}}, {
-            "github": context, "contains": lambda body, text: text in body})
-        assert observed is expected, (
-            "Actual jobs must admit master/ready PRs and retain explicit draft guards")
+        context = {"github.event_name": event, "github.base_ref": base, "github.head_ref": head}
+
+        if event == "pull_request":
+            markers = re.findall(
+                r"contains\(github\.event\.pull_request\.body, '([^']+)'\)", job["if"],
+            )
+            context.update({"github.event.pull_request.draft": draft,
+                            "github.event.pull_request.body": " ".join(markers) if marker else ""})
+
+        assert EvaluateCondition(job["if"], context) is expected, (
+            "Actual jobs must preserve master/ordinary gates and veto requested passive batches"
+        )
+
+
+@pytest.mark.parametrize("expression,expected", [
+    ("${{ !false && startsWith('FEATURE/passive-batch-Owned', 'feature/passive-batch-') }}", True),
+    ("contains('false || !true', '|| !') && 'Master' == 'master'", True),
+    ("contains('Tim''s', 'TIM''S') && true != false", True),
+    ("true || github.event.pull_request.draft", True),
+    ("false && github.event.pull_request.draft", False),
+    ("github.event_name == 'push' || github.event.pull_request.draft == false", True),
+])
+def test_ConditionOraclePreservesLiteralsNegationAndActualShortCircuiting(expression, expected):
+    """Preserve quoted values and correctly short circuit absent event branches."""
+
+    assert EvaluateCondition(expression, {"github.event_name": "push"}) is expected, (
+        "The bounded condition oracle must match GitHub boolean/string behavior"
+    )
+
+
+@pytest.mark.parametrize("expression", [
+    "unsupported()", "contains('one')", "startsWith(true, false)",
+    "github.event_name.lower()", "1 + 1", "true < false",
+    "true || unsupported()", "false && (1 + 1)", "true || foreign.authority",
+])
+def test_ConditionOracleRejectsUnsupportedGrammarInsteadOfGuessing(expression):
+    """Unrecognized call, operator or argument types cannot silently authorize an enrollment."""
+
+    with pytest.raises(ValueError):
+        EvaluateCondition(expression, {})
 
 
 @pytest.mark.parametrize("fault", [None, "event", "repository", "reference", "version", "attempt"])

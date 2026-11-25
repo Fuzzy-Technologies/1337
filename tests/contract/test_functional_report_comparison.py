@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from dataclasses import replace
@@ -333,6 +334,106 @@ def test_ReadReportRefusesSameSizeFileReplacement(tmp_path, monkeypatch):
     assert reportPath.read_bytes() == replacementReport, "The replacement must occupy the path."
 
 
+def test_ReadReportRefusesSameSizeInPlaceUpdate(tmp_path, monkeypatch):
+    """Reject a same-size update to the open report before the final metadata check."""
+
+    reportPath = tmp_path / "report.json"
+    originalReport = (
+        b'{"schema_version":1,"scenarios":[],"runs":[],"matrix":{"columns":[],"rows":[]}}\n'
+    )
+    updatedReport = originalReport[:-1] + b" "
+    reportPath.write_bytes(originalReport)
+    originalStat = reportPath.stat()
+    fstat = os.fstat
+    openedCtime = originalStat.st_ctime_ns
+    statCalls = 0
+
+    def FstatWithReportUpdate(descriptor):
+        """Overwrite the selected report immediately before its second metadata snapshot."""
+
+        nonlocal openedCtime, statCalls
+        metadata = fstat(descriptor)
+
+        if not os.path.samestat(originalStat, metadata):
+            return metadata
+
+        statCalls += 1
+
+        if statCalls == 1:
+            openedCtime = metadata.st_ctime_ns
+
+        if statCalls == 2:
+            with reportPath.open("r+b") as stream:
+                stream.write(updatedReport)
+
+            # Force a distinct modification time even on filesystems with coarse timestamps.
+            os.utime(reportPath, ns=(
+                metadata.st_atime_ns, originalStat.st_mtime_ns - 2_000_000_000,
+            ))
+            metadata = fstat(descriptor)
+
+            # Isolate the mtime check from unrelated ctime changes on the host.
+            return os.stat_result(metadata, {
+                "st_atime_ns": metadata.st_atime_ns,
+                "st_mtime_ns": metadata.st_mtime_ns,
+                "st_ctime_ns": openedCtime,
+            })
+
+        return metadata
+
+    with monkeypatch.context() as readPatch:
+        readPatch.setattr(comparison.os, "fstat", FstatWithReportUpdate)
+
+        with pytest.raises(ValueError, match="^report file changed during the read$"):
+            comparison.ReadReport(reportPath)
+
+    finalStat = reportPath.stat()
+    assert os.path.samestat(originalStat, finalStat), "The update must keep the original inode."
+    assert finalStat.st_size == originalStat.st_size, "The update must keep the original size."
+    assert finalStat.st_mtime_ns != originalStat.st_mtime_ns, "The modification time must change."
+    assert reportPath.read_bytes() == updatedReport, "The same-size update must reach the file."
+
+
+def test_ReadReportRefusesChangedCtimeWithStableSizeAndMtime(tmp_path, monkeypatch):
+    """Refuse inconsistent descriptor metadata when only the reported ctime changes."""
+
+    reportPath = tmp_path / "report.json"
+    reportBytes = b"{}"
+    reportPath.write_bytes(reportBytes)
+    initial = reportPath.stat()
+    fstat = os.fstat
+    statCalls = 0
+
+    def FstatWithChangedCtime(descriptor):
+        """Change only the second ctime reported for the selected file."""
+
+        nonlocal statCalls
+        metadata = fstat(descriptor)
+
+        if not os.path.samestat(initial, metadata):
+            return metadata
+
+        statCalls += 1
+
+        if statCalls != 2:
+            return metadata
+
+        return os.stat_result(metadata, {
+            "st_atime_ns": metadata.st_atime_ns,
+            "st_mtime_ns": metadata.st_mtime_ns,
+            "st_ctime_ns": metadata.st_ctime_ns + 1,
+        })
+
+    with monkeypatch.context() as readPatch:
+        readPatch.setattr(comparison.os, "fstat", FstatWithChangedCtime)
+
+        with pytest.raises(ValueError, match="^report file changed during the read$"):
+            comparison.ReadReport(reportPath)
+
+    assert statCalls == 2, "Both descriptor snapshots must be taken."
+    assert reportPath.read_bytes() == reportBytes, "The fixture must preserve the source bytes."
+
+
 def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_path):
     """Exercise the actual process boundary and its truthful malformed-input exit."""
 
@@ -342,9 +443,10 @@ def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_pa
     right = tmp_path / "candidate.json"
     left.write_bytes(before)
     right.write_bytes(after)
-    args = [sys.executable, str(TOOL), str(left), str(right), "--scanner", SCANNER,
+    commonArgs = [sys.executable, str(TOOL), str(left), str(right),
         "--baseline-release", BEFORE.release_id, "--candidate-release", AFTER.release_id,
         "--baseline-profile", PROFILE, "--candidate-profile", PROFILE]
+    args = [*commonArgs, "--scanner", SCANNER]
 
     first = subprocess.run(args, cwd=ROOT, capture_output=True, check=True, timeout=10)
     second = subprocess.run(args, cwd=ROOT, capture_output=True, check=True, timeout=10)
@@ -361,11 +463,54 @@ def test_OfflineToolRunsDeterministicallyAndLeavesOriginalInputsUntouched(tmp_pa
     assert b"original" not in first.stdout, "Source evidence content must not appear in output."
 
     invalid = b"private invalid input"
-    right.write_bytes(invalid)
-    failure = subprocess.run(args, cwd=ROOT, capture_output=True, check=False, timeout=10)
 
-    assert failure.returncode == 2 and not failure.stdout, (
-        "Reject invalid input with exit status 2 and no partial JSON."
+    for side, path, contents in (("baseline", left, before), ("candidate", right, after)):
+        expected = f"The {side} report is invalid or unreadable.\n".encode()
+        path.write_bytes(invalid)
+        failure = subprocess.run(args, cwd=ROOT, capture_output=True, check=False, timeout=10)
+        assert failure.returncode == 2 and not failure.stdout, (
+            "Reject malformed input with exit status 2 and no partial JSON."
+        )
+        assert failure.stderr == expected, (
+            "Identify the malformed side without disclosing the path or report contents."
+        )
+        assert path.read_bytes() == invalid, "A rejected input file must remain unchanged."
+
+        path.unlink()
+        failure = subprocess.run(args, cwd=ROOT, capture_output=True, check=False, timeout=10)
+        assert failure.returncode == 2 and not failure.stdout, (
+            "Reject a missing report with exit status 2 and no partial JSON."
+        )
+        assert failure.stderr == expected, (
+            "Identify the missing side without disclosing the path."
+        )
+        assert not path.exists(), "The comparison must not recreate a missing report."
+        path.write_bytes(contents)
+
+    shared = subprocess.run([*commonArgs, "--scanner", "private invalid scanner"],
+        cwd=ROOT, capture_output=True, check=False, timeout=10)
+    assert shared.returncode == 2 and not shared.stdout, (
+        "Reject an invalid shared scanner selection with no partial JSON."
     )
-    assert invalid not in failure.stderr, "Diagnostics must not disclose rejected file contents."
-    assert right.read_bytes() == invalid, "A rejected input file must remain unchanged."
+    assert shared.stderr == (
+        b"Cannot compare the selected functional reports: invalid or unreadable input.\n"
+    ), "A shared scanner selection failure must stay generic."
+
+    for side, field, value in (
+        ("baseline", "profile", "private.profile"),
+        ("candidate", "release", "private release\n"),
+    ):
+        invalidSelection = args.copy()
+        option = invalidSelection.index(f"--{side}-{field}")
+        invalidSelection[option + 1] = value
+        failure = subprocess.run(invalidSelection, cwd=ROOT, capture_output=True,
+            check=False, timeout=10)
+        assert failure.returncode == 2 and not failure.stdout, (
+            "Reject an invalid side selection without emitting partial JSON."
+        )
+        assert failure.stderr == f"The {side} report selection is invalid.\n".encode(), (
+            "Identify the rejected declaration without disclosing its value or the report path."
+        )
+        assert left.read_bytes() == before and right.read_bytes() == after, (
+            "A selection refusal must leave both valid reports unchanged."
+        )

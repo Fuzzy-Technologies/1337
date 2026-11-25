@@ -58,3 +58,111 @@ hashes detect inconsistency; they do not establish cryptographic authenticity,
 prove acquisition truth, or prevent an administrator replacing both records and
 bytes. Power-loss transaction guarantees, encryption, retention, signing, remote
 storage, CLI, and interpretation/index APIs are outside this initial contract.
+
+## Verify a retained evidence handoff
+
+An exported report carries evidence references and the results of checking them
+at export time. For a fresh byte check, use the matching workspace's `evidence/`
+directory and pass the complete typed `EvidenceReference` to
+`LocalEvidenceStore.Read(reference)`. A content digest can match multiple
+acquisition records. Leave acquisition attribution unresolved until the handoff
+identifies the original record ID. See [offline report export](REPORT_EXPORT.md).
+
+To check a selected acquisition, pass the existing owner workspace root and the
+full `sha256:<digest>` acquisition ID supplied with the retained evidence. From a
+checkout with the locked environment already installed, replace the workspace
+path and acquisition ID in the Bash command below. It checks workspace
+registration, verifies the acquisition's manifest and bytes, and prints the two
+identities and registration result.
+The selected manifest retains the recorded attribution. See
+[workspace metadata](WORKSPACES.md).
+
+For an exact comparison, open the JSON report file written to `--output` by
+`report export --format json` and select the intended object in
+`evidence_integrity.linked_references`. Save that single object as UTF-8 JSON
+with all five fields (`role`, `locator`, `sha256`, `media_type`, and `size_bytes`)
+and pass its path as the third argument. Omit `path/to/expected-reference.json`
+to verify the acquisition alone, including when the report has no linked entry
+for it.
+
+```bash
+uv run --offline --locked --no-sync python - path/to/saved-workspace \
+  'sha256:<acquisition-digest>' path/to/expected-reference.json <<'PY'
+import json
+import sys
+from pathlib import Path
+
+from fuzzy1337.adapters import EvidenceReference
+from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.workspace import LocalWorkspaceStore
+
+
+def UniqueObject(pairs):
+    """Reject duplicate JSON fields before typed validation."""
+
+    value = dict(pairs)
+
+    if len(value) != len(pairs):
+        raise ValueError("Duplicate JSON field")
+
+    return value
+
+
+if len(sys.argv) not in (3, 4):
+    raise SystemExit("Expected a workspace, an acquisition ID, and an optional reference file")
+
+root = Path(sys.argv[1])
+acquisitionId = sys.argv[2]
+workspace = LocalWorkspaceStore(root).Open()
+if acquisitionId not in workspace.evidence_record_references:
+    raise SystemExit("Acquisition is not registered in the selected workspace")
+
+record = LocalEvidenceStore(root / "evidence").Get(acquisitionId)
+if record.provenance.workspace_id != workspace.workspace_id:
+    raise SystemExit("Acquisition belongs to another workspace")
+
+if len(sys.argv) == 4:
+    try:
+        expectedFields = json.loads(
+            Path(sys.argv[3]).read_text(encoding="utf-8"),
+            object_pairs_hook=UniqueObject,
+        )
+        expectedReference = EvidenceReference(**expectedFields)
+
+    except (OSError, RecursionError, TypeError, ValueError):
+        raise SystemExit("Invalid expected evidence reference JSON") from None
+
+    if record.reference != expectedReference:
+        raise SystemExit("Acquisition evidence reference does not match the expected reference")
+
+print(json.dumps({
+    "evidence_id": record.evidence_id,
+    "content_sha256": record.reference.sha256,
+    "registered_in_workspace": True,
+}, sort_keys=True))
+PY
+```
+
+This verifies one workspace-registered acquisition. When supplied, the expected
+reference must match every field of the verified record's reference. A different
+role can share the same content digest. A malformed or mismatched reference,
+an unregistered or foreign acquisition, a missing manifest or blob, or corrupt
+bytes fails with no JSON result.
+If the handoff contains only an exported report, request the retained workspace
+and the original acquisition ID for independent verification.
+
+## Read the checked reference
+
+A registered acquisition can be missing from the report's linked references.
+To retrieve its exact five-field reference, make a copy of the Bash example and
+replace the final `print(...)` call with this one.
+
+```python
+print(json.dumps(record.ToDict()["reference"], sort_keys=True))
+```
+
+Run the copy with the workspace path and full acquisition ID. It prints the
+reference after verifying registration, the manifest, and the retained bytes.
+Save this JSON object as the optional reference file for a later comparison.
+Keep the acquisition ID with the object. Two acquisitions can share the same
+reference when only their recorded provenance differs.

@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from fuzzy1337.adapters.contracts import JsonValue
 from fuzzy1337.evidence import LocalEvidenceStore
 from fuzzy1337.findings import Finding, FindingStatus, TransitionFinding
 from fuzzy1337.intelligence import IntelligenceFeed
@@ -118,8 +119,9 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
         "Inspection silently changed source family or failed to reparse its one actual record."
     )
     identifier = "CWE-89" if feed is IntelligenceFeed.CWE else "CVE-1900-9999"
-    status, selected = Run([*Selection("inspect", model.root, imported),
-                            "--identifier", identifier, "--identifier", "CVE-1900-8888"])
+    selection = [*Selection("inspect", model.root, imported),
+                 "--identifier", identifier, "--identifier", "CVE-1900-8888"]
+    status, selected = Run(selection)
     assert status == 0 and set(selected) == set(inspected) | {"details"}, (
         "Actual selected inspection changed the default terminal output contract."
     )
@@ -131,6 +133,19 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     ]["target_applicability"] == "not-evaluated", (
         "Actual selected source absence became target applicability or disappeared."
     )
+
+    if feed is IntelligenceFeed.KEV:
+        human = subprocess.run(
+            [sys.executable, "-m", "fuzzy1337", "intel", *selection],
+            capture_output=True, text=True, timeout=15, check=False,
+        )
+        assert human.returncode == 0 and not human.stderr, (
+            "Actual selected KEV text inspection failed."
+        )
+        assert "Source remediation due date: 2026-10-31" in human.stdout.splitlines(), (
+            "Selected KEV text omitted the retained source remediation due date."
+        )
+
     assert model.Open() == beforeModel and Files(model.root) == before, (
         "Import or inspection implicitly enriched the model or mutated retained acquisitions."
     )
@@ -145,6 +160,49 @@ def test_AllFourOwnedFormatsUseActualCliImmutableStorageAndReparse(tmp_path, fee
     assert status == 0 and movedDetails["details"]["records"] == selected["details"]["records"], (
         "Workspace relocation changed selected source assertions or required reacquisition."
     )
+
+
+def test_ActualSelectedTextShowsVerifiedOriginalSourceDigest(tmp_path):
+    """Show the original-byte digest only after a selected record has been verified."""
+
+    model, _ = Context(tmp_path)
+    feed = IntelligenceFeed.CWE
+    source = tmp_path / "owned.xml"
+    raw = FeedBody(feed)
+    source.write_bytes(raw)
+    status, imported = Run(ImportArguments(model.root, source, feed))
+    assert status == 0, "The owned source could not be retained for offline inspection."
+    source.unlink()
+    before = Files(model.root)
+    command = [sys.executable, "-m", "fuzzy1337", "intel",
+               *Selection("inspect", model.root, imported)]
+    matched = ["--identifier", "CWE-89", "--identifier", "CWE-8888"]
+    digestLabel = "Verified original source SHA-256: "
+    digestLine = digestLabel + hashlib.sha256(raw).hexdigest()
+
+    for options, expected in (
+        (matched, [digestLine]), (["--identifier", "CWE-8888"], []), ([], []),
+    ):
+        result = subprocess.run([*command, *options], capture_output=True, text=True,
+                                timeout=15, check=False)
+        assert result.returncode == 0 and not result.stderr, "Actual text inspection failed."
+        digestLines = [line for line in result.stdout.splitlines() if line.startswith(digestLabel)]
+        assert digestLines == expected, (
+            "The terminal must show the verified source digest once for matched selections only."
+        )
+
+    assert Files(model.root) == before, "Selected inspection changed the retained workspace."
+    evidence = model.root / "evidence"
+    receipt = LocalEvidenceStore(evidence).Get(imported["receipt_id"])
+    (evidence / receipt.reference.locator).write_bytes(b"x" * receipt.reference.size_bytes)
+    beforeFailure = Files(model.root)
+    failed = subprocess.run([*command, *matched], capture_output=True, text=True,
+                            timeout=15, check=False)
+    assert failed.returncode == 4 and not failed.stderr, "Corrupted receipt did not fail closed."
+    assert failed.stdout.splitlines() == ["intel.inspect: failed", "failure: integrity"], (
+        "Failed verification printed a partial source result."
+    )
+    assert Files(model.root) == beforeFailure, "Failed inspection changed the retained workspace."
 
 
 def test_ExplicitApplyPersistsOneVerifiedObservationAndPreservesExistingTriage(tmp_path):
@@ -193,6 +251,87 @@ def test_ExplicitApplyPersistsOneVerifiedObservationAndPreservesExistingTriage(t
     assert Files(model.root) == beforeReplay, "Idempotent interpretation rewrote saved bytes."
 
 
+@pytest.mark.parametrize("feed", list(IntelligenceFeed))
+@pytest.mark.parametrize("maxAge", [0, 10 * 365 * 86400])
+def test_PreviewVerifiesSavedFindingMatchesFreshnessAndExactApplyWithoutSaving(
+    tmp_path, feed, maxAge,
+):
+    """Preview the real verified proposal offline, then persist precisely that observation."""
+
+    model, finding = Context(tmp_path)
+    source = tmp_path / "owned.data"
+    source.write_bytes(FeedBody(feed))
+    status, imported = Run(ImportArguments(model.root, source, feed))
+    assert status == 0, "Preview setup could not retain its explicitly selected source."
+    source.unlink()
+    relocated = tmp_path / "relocated"
+    shutil.move(model.root, relocated)
+    model = LocalModelStore(relocated)
+    arguments = ApplyArguments(model, finding, imported)
+    arguments[0] = "preview"
+    identifier = "CWE-89" if feed is IntelligenceFeed.CWE else "CVE-1900-9999"
+    arguments[arguments.index("--identifier") + 1] = identifier
+    arguments[arguments.index("--max-age-seconds") + 1] = str(maxAge)
+    arguments.extend(["--identifier", "CVE-1900-8888"])
+    before = Files(model.root)
+    state = model.Open()
+    status, outcome = Run(arguments)
+    assert status == 0 and outcome["model_commit"] == "not-attempted", (
+        "A verified offline preview attempted a model save."
+    )
+    preview = outcome["preview"]
+    observation = preview["observations"][0]
+    attributes = observation["attributes"]
+    assertion = attributes["source_assertions"][0]
+    assert preview["finding_reference"] == finding and not preview["already_applied"], (
+        "Preview lost the explicitly selected saved finding or claimed a new proposal was applied."
+    )
+    assert attributes["unmatched_identifiers"] == ["CVE-1900-8888"], (
+        "Absent source IDs became scores or vanished from the proposed observation."
+    )
+    assert assertion["record"]["identifier"] == identifier and assertion["stale"] == (
+        maxAge == 0
+    ), (
+        "Preview did not use the apply owner's exact identifier and freshness semantics."
+    )
+    freshness = assertion["record"]["effective_at"] if feed is IntelligenceFeed.EPSS else (
+        assertion["source"]["acquired_at"]
+    )
+    expectedAge = (datetime.fromisoformat(attributes["as_of"]) -
+                   datetime.fromisoformat(freshness)).total_seconds()
+    assert assertion["freshness_at"] == freshness and assertion["age_seconds"] == expectedAge, (
+        "Preview substituted acquisition time for EPSS score time or consulted a new clock."
+    )
+    assert assertion["canonical_url"] and assertion["snapshot_reference"] and assertion[
+        "evidence"
+    ]["sha256"] == imported["source_sha256"], "Preview lost verified source/evidence links."
+    assert model.Open() == state and Files(model.root) == before, (
+        "Successful preview changed saved model, triage or retained evidence bytes."
+    )
+    replayStatus, repeated = Run(arguments)
+    assert replayStatus == 0 and repeated == outcome, (
+        "Identical offline preview was nondeterministic."
+    )
+    arguments[0] = "apply"
+    status, applied = Run(arguments)
+    saved = model.Open()
+    stored = [item for item in saved.observations if item.Reference() == observation["reference"]]
+    assert status == 0 and len(stored) == 1 and JsonValue(stored[0]) == {
+        key: value for key, value in observation.items() if key != "reference"
+    }, "Actual apply persisted a different interpretation than the verified preview."
+    assert saved.Objects(ObjectKind.FINDING) == state.Objects(ObjectKind.FINDING), (
+        "Preview/application changed the saved finding rather than adding candidate assertions."
+    )
+    arguments[0] = "preview"
+    arguments[arguments.index("--expected-revision") + 1] = str(applied["model_revision"])
+    beforeReplay = Files(model.root)
+    status, replay = Run(arguments)
+    assert status == 0 and replay["preview"]["already_applied"] and replay["preview"][
+        "observations"
+    ] == [], "An already saved interpretation became a new preview observation."
+    assert Files(model.root) == beforeReplay, "Preview replay rewrote persisted state."
+
+
 @pytest.mark.parametrize("failure", ["digest", "parse", "size"])
 def test_FailedActualImportRetainsHonestTerminalAndOriginalBoundedBytes(tmp_path, failure):
     """Failed source acquisition publishes a non-success receipt without a usable snapshot."""
@@ -233,9 +372,12 @@ def test_FailedActualImportRetainsHonestTerminalAndOriginalBoundedBytes(tmp_path
 @pytest.mark.parametrize("failure", [
     "missing-raw", "corrupt-raw", "missing-receipt", "foreign-receipt", "receipt-source",
     "receipt-fields", "receipt-raw", "foreign-workspace", "stale-revision", "bad-time",
-    "missing-finding", "bad-identifier",
+    "missing-finding", "bad-identifier", "corrupt-detector", "duplicate-identifier", "bad-age",
 ])
-def test_ActualReplayAndApplyRefuseInvalidSelectionWithoutMutatingAnyBytes(tmp_path, failure):
+@pytest.mark.parametrize("action", ["apply", "preview"])
+def test_ActualReplayAndApplyRefuseInvalidSelectionWithoutMutatingAnyBytes(
+    tmp_path, failure, action,
+):
     """Exact CLI selection failures leave authoritative model and remaining evidence unchanged."""
 
     model, finding, imported = Imported(tmp_path)
@@ -243,8 +385,17 @@ def test_ActualReplayAndApplyRefuseInvalidSelectionWithoutMutatingAnyBytes(tmp_p
     raw = store.Get(imported["raw_id"])
     receipt = store.Get(imported["receipt_id"])
     arguments = ApplyArguments(model, finding, imported)
+    arguments[0] = action
 
-    if failure == "missing-raw":
+    if failure == "corrupt-detector":
+        subject = Finding.FromObject(model.Open().Objects(ObjectKind.FINDING)[0])
+        detector = subject.provenance[0].evidence_references[0]
+        (model.root / "evidence" / detector.locator).write_bytes(b"x" * detector.size_bytes)
+
+    elif failure == "duplicate-identifier":
+        arguments.extend(["--identifier", "CVE-1900-9999"])
+
+    elif failure == "missing-raw":
         (model.root / "evidence" / "records" / (raw.evidence_id[7:] + ".json")).unlink()
 
     elif failure == "corrupt-raw":
@@ -287,6 +438,7 @@ def test_ActualReplayAndApplyRefuseInvalidSelectionWithoutMutatingAnyBytes(tmp_p
             "bad-time": ("--as-of", "2000-01-01T00:00:00Z"),
             "missing-finding": ("--finding", "object:" + "0" * 64),
             "bad-identifier": ("--identifier", "cve-1900-9999"),
+            "bad-age": ("--max-age-seconds", "-1"),
         }[failure]
         arguments[arguments.index(option) + 1] = value
 
@@ -298,3 +450,4 @@ def test_ActualReplayAndApplyRefuseInvalidSelectionWithoutMutatingAnyBytes(tmp_p
     assert outcome["model_commit"] == "not-attempted" and Files(model.root) == before, (
         "Rejected CLI selection wrote authoritative state or changed retained evidence."
     )
+    assert "preview" not in outcome, "Rejected verification leaked a partial candidate proposal."

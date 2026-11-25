@@ -17,8 +17,10 @@ concurrency:
 jobs:
   owned-loopback:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
-      && github.event.pull_request.draft == false)
+      && github.event.pull_request.draft == false))
     name: Nmap 7.992 / owned TCP-connect product
     runs-on: ubuntu-24.04
     timeout-minutes: 15

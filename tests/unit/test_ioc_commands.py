@@ -263,3 +263,25 @@ def test_HumanSuccessDescribesCandidatesWithoutRawTokens(tmp_path):
     assert status == 0 and "5 supplied candidates" in output.getvalue() and "192.0.2.7" not in (
         output.getvalue()
     ), "Human IOC output failed or exposed original source tokens"
+
+
+def test_HumanFailureShowsFixedConfigurationCategoryWithoutRejectedInput():
+    """Distinguish invalid selections without reflecting rejected values."""
+
+    output = StringIO()
+    status = commands.RunIocCommands(["ioc", "apply", "secret-sentinel"], output)
+    assert status == 2, (
+        'Invalid selection must return the fixed configuration failure without '
+        'reflecting rejected input'
+    )
+    assert output.getvalue() == (
+        "IOC artifact failed (exit 2).\n"
+        "Failure category: configuration.\n"
+    ), (
+        'Invalid selection must return the fixed configuration failure without '
+        'reflecting rejected input'
+    )
+    assert "secret-sentinel" not in output.getvalue(), (
+        'Invalid selection must return the fixed configuration failure without '
+        'reflecting rejected input'
+    )

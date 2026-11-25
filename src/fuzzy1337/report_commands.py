@@ -12,10 +12,11 @@ import os
 import stat
 import tempfile
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Never, TextIO
 
+from fuzzy1337 import reporting
 from fuzzy1337.adapters import EvidenceReference
 from fuzzy1337.evidence import (
     CheckStorageEntry,
@@ -23,7 +24,13 @@ from fuzzy1337.evidence import (
     EvidenceIntegrityError,
     LocalEvidenceStore,
 )
-from fuzzy1337.model import LocalModelStore, Relation, SecurityObject
+from fuzzy1337.model import (
+    CanonicalModelJson,
+    LocalModelStore,
+    ModelState,
+    Relation,
+    SecurityObject,
+)
 from fuzzy1337.report_formats import RenderHtml, SerializeJson, SerializeJunit, SerializeSarif
 from fuzzy1337.reporting import MAX_REPORT_BYTES, ReportSnapshot, VerifyReportEvidence
 from fuzzy1337.scope import LocalScopeStore
@@ -90,6 +97,7 @@ class BoundedReportEvidenceStore(LocalEvidenceStore):
 
         super().__init__(root)
         self.seen: dict[str, int] = {}
+        self._seenBytes = 0
 
     def Check(self, reference: EvidenceReference) -> None:
         """Bound actual stored bytes before any owning raw read, without following input links.
@@ -110,12 +118,15 @@ class BoundedReportEvidenceStore(LocalEvidenceStore):
         if metadata.st_size > MAX_EXPORT_BLOB_BYTES:
             raise ReportFailure("limit")
 
-        proposed = {**self.seen, reference.sha256: metadata.st_size}
+        priorSize = self.seen.get(reference.sha256)
+        proposedCount = len(self.seen) + (priorSize is None)
+        proposedBytes = self._seenBytes - (priorSize or 0) + metadata.st_size
 
-        if len(proposed) > MAX_EXPORT_BLOBS or sum(proposed.values()) > MAX_EXPORT_EVIDENCE_BYTES:
+        if proposedCount > MAX_EXPORT_BLOBS or proposedBytes > MAX_EXPORT_EVIDENCE_BYTES:
             raise ReportFailure("limit")
 
-        self.seen = proposed
+        self.seen[reference.sha256] = metadata.st_size
+        self._seenBytes = proposedBytes
 
     def Read(self, reference: EvidenceReference) -> bytes:
         """Apply quotas to direct reads and the owner's Get path before delegating verification.
@@ -138,6 +149,42 @@ class ReportInput:
 
     workspace: WorkspaceState
     report: ReportSnapshot
+    _pinnedSnapshotDigest: str | None = field(default=None, init=False, repr=False, compare=False)
+    _checkedModelEvidenceReferenceCount: int | None = field(
+        default=None, init=False, repr=False, compare=False,
+    )
+
+    def PinSnapshotDigest(self) -> str:
+        """Retain this immutable report's canonical digest for the publication check.
+
+        Returns:
+            The exact selected report digest retained for the final source comparison.
+        """
+
+        digest = self.report.SnapshotDigest()
+        object.__setattr__(self, "_pinnedSnapshotDigest", digest)
+
+        return digest
+
+
+def OpenSavedReportModel(root: Path) -> ModelState:
+    """Classify out-of-range saved model values as input integrity failures.
+
+    Args:
+        root: Existing owner workspace containing the selected saved model.
+
+    Returns:
+        The unchanged model reopened through its owning store.
+
+    Raises:
+        ReportFailure: A stored value cannot be represented by the model reader.
+    """
+
+    try:
+        return LocalModelStore(root).Open()
+
+    except OverflowError as error:
+        raise ReportFailure("integrity") from error
 
 
 def OpenReportInput(root: Path) -> ReportInput:
@@ -151,24 +198,40 @@ def OpenReportInput(root: Path) -> ReportInput:
     """
 
     workspace = LocalWorkspaceStore(root).Open()
-    state = LocalModelStore(root).Open()
+    state = OpenSavedReportModel(root)
     report = ReportSnapshot(state)
     evidence = BoundedReportEvidenceStore(root / "evidence")
     scopes = set(workspace.scope_references)
+    pendingReferences: dict[EvidenceReference, None] = {}
+    deferredFailure = None
 
     if len(workspace.evidence_record_references) > MAX_EXPORT_ACQUISITIONS:
         raise ReportFailure("limit")
 
-    for reference in workspace.evidence_references:
+    try:
+        # Charge direct references first so acquisitions share the original quota order.
+        for reference in workspace.evidence_references:
+            evidence.Check(reference)
+            pendingReferences[reference] = None
+
+        for recordId in workspace.evidence_record_references:
+            record = evidence.Get(recordId)
+            pendingReferences.pop(record.reference, None)
+
+            if record.provenance.workspace_id != workspace.workspace_id:
+                raise EvidenceIntegrityError("report acquisition belongs to a different workspace")
+
+            scopes.add(record.provenance.scope_reference)
+
+    except ReportFailure as error:
+        # An earlier direct byte failure can still take precedence over a quota error.
+        deferredFailure = error
+
+    for reference in pendingReferences:
         evidence.Read(reference)
 
-    for recordId in workspace.evidence_record_references:
-        record = evidence.Get(recordId)
-
-        if record.provenance.workspace_id != workspace.workspace_id:
-            raise EvidenceIntegrityError("report acquisition belongs to a different workspace")
-
-        scopes.add(record.provenance.scope_reference)
+    if deferredFailure is not None:
+        raise deferredFailure
 
     entities: tuple[SecurityObject | Relation, ...] = (*state.objects, *state.relations)
 
@@ -188,14 +251,20 @@ def OpenReportInput(root: Path) -> ReportInput:
 
         scopeStore.Open(scopeReference[6:])
 
-    for reference in report.EvidenceReferences():
+    references = report.EvidenceReferences()
+
+    for reference in references:
         evidence.Check(reference)
 
     # The immutable references are quota-checked before this owner's second read path.
     # Its own size check also rejects growth before loading bytes, without claiming live freshness.
     verified = VerifyReportEvidence(report, root)
+    original = ReportInput(workspace, verified)
 
-    return ReportInput(workspace, verified)
+    if verified.state is report.state:
+        object.__setattr__(original, "_checkedModelEvidenceReferenceCount", len(references))
+
+    return original
 
 
 def RequireReportPath(path: Path) -> Path:
@@ -290,10 +359,22 @@ def CheckReportSnapshot(root: Path, original: ReportInput) -> None:
     """
 
     workspace = LocalWorkspaceStore(root).Open()
-    state = LocalModelStore(root).Open()
+    state = OpenSavedReportModel(root)
 
-    if workspace != original.workspace or ReportSnapshot(state).SnapshotDigest() != (
-        original.report.SnapshotDigest()
+    if workspace != original.workspace:
+        raise ReportFailure("input-changed")
+
+    if not isinstance(state, ModelState):
+        raise ValueError("report state must be a ModelState")
+
+    # The recheck has no reference bindings. Use the same bytes for the model limit and digest.
+    snapshotBytes = CanonicalModelJson(state.ToDict())
+
+    if len(snapshotBytes) > reporting.MAX_MODEL_BYTES:
+        raise ValueError("report model exceeds the canonical snapshot byte limit")
+
+    if hashlib.sha256(snapshotBytes).hexdigest() != (
+        original._pinnedSnapshotDigest or original.report.SnapshotDigest()
     ):
         raise ReportFailure("input-changed")
 
@@ -414,11 +495,15 @@ def RunReportCommands(
         destination = ReportOutputPath(options.output, root)
         phase = "integrity"
         original = OpenReportInput(root)
+        checkedEvidenceCount = original._checkedModelEvidenceReferenceCount
         outcome.update({
             "model_revision": original.report.state.revision,
-            "snapshot_sha256": original.report.SnapshotDigest(),
+            "snapshot_sha256": original.PinSnapshotDigest(),
             "verified_retained_acquisitions": len(original.workspace.evidence_record_references),
-            "checked_model_evidence_references": len(original.report.EvidenceReferences()),
+            "checked_model_evidence_references": (
+                checkedEvidenceCount if checkedEvidenceCount is not None
+                else len(original.report.EvidenceReferences())
+            ),
         })
         phase = "rendering"
 

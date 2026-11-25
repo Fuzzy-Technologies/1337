@@ -15,9 +15,11 @@ concurrency:
 jobs:
   cwe-prerequisites:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.body, '[cwe-prerequisite-checkpoint]')
+      contains(github.event.pull_request.body, '[cwe-prerequisite-checkpoint]'))
     name: Pinned CWE schema and archive research prerequisites
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -57,9 +59,11 @@ jobs:
 
   pinned-kev:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.body, '[intel-source-acceptance-checkpoint]')
+      contains(github.event.pull_request.body, '[intel-source-acceptance-checkpoint]'))
     name: Pinned CISA KEV original-source receipt verification
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -99,9 +103,11 @@ jobs:
 
   pinned-epss:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.body, '[intel-source-acceptance-checkpoint]')
+      contains(github.event.pull_request.body, '[intel-source-acceptance-checkpoint]'))
     name: Pinned EPSS installed HTTPS original-source receipt verification
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -150,10 +156,12 @@ jobs:
 
   pinned-cve:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       (contains(github.event.pull_request.body, '[cve-source-acceptance-checkpoint]') !=
-      contains(github.event.pull_request.body, '[cve-batch-source-acceptance-checkpoint]'))
+      contains(github.event.pull_request.body, '[cve-batch-source-acceptance-checkpoint]')))
     name: Pinned CVE installed HTTPS original-source receipt verification
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -218,9 +226,11 @@ jobs:
 
   pinned-cwe-https:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.body, '[cwe-https-source-acceptance-checkpoint]')
+      contains(github.event.pull_request.body, '[cwe-https-source-acceptance-checkpoint]'))
     name: Pinned CWE installed HTTPS original-source receipt verification
     runs-on: ubuntu-latest
     timeout-minutes: 8

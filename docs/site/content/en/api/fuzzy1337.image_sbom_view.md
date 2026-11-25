@@ -18,6 +18,11 @@ compliance result. Output is bounded to one MiB, changed saved bases refuse, and
 retained original corruption prevents a successful view. See
 [Owned SBOM commands](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/SBOM_IMPORT.md).
 
+Each containment edge requires exact selected-image provenance. Original SPDX
+relationship claims restrict only their own provenance context; a separate
+selected context remains eligible. Unclaimed foreign-only edges cannot transfer
+inventory through a shared canonical package.
+
 An explicit `--license-policy ID` adds a bounded original-SPDX-graph assertion
 projection. `ImageLicensePolicyView` reparses the exact retained acquisition,
 source context and aliases before matching declared and concluded roles

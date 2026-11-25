@@ -57,6 +57,82 @@ def test_InstalledConsoleImportsAndReopensRelocatedOriginalEvidence(tmp_path):
     )
 
 
+def test_InstalledConsoleExportsVerifiedCandidatesAfterSourceRemoval(tmp_path):
+    """Export original occurrences and provenance for an offline consumer through the console."""
+
+    root, source = Owned(tmp_path)
+    status, imported = Console(ImportArguments(root, source))
+    assert status == 0, "Candidate export fixture did not acquire its original evidence"
+    moved = tmp_path / "relocated export workspace"
+    root.rename(moved)
+    source.unlink()
+    before = Files(moved)
+    arguments = [*InspectArguments(moved, imported), "--export-candidates"]
+    status, result = Console(arguments)
+    assert status == 0 and result["evidence_commit"] == "not-attempted", (
+        "Candidate export failed or attempted to publish additional evidence"
+    )
+    exported = result["candidate_export"]
+    assert exported["schema_version"] == 1 and exported["profile"] == "ascii-ioc-tsv-v1", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert exported["parser_id"] == "ioc-artifacts" and exported["parser_version"] == "1", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert exported["raw_evidence_id"] == imported["raw_id"] and exported[
+        "acquisition_evidence_id"
+    ] == imported["receipt_id"], "Export lost its independently selected original evidence pins"
+    assert exported["source"]["source_id"] == "owned.synthetic" and exported[
+        "source"
+    ]["source_version"] == "fixture-1", "Export changed its original declared source identity"
+    candidates = exported["candidates"]
+    assert [item["normalized_token"] for item in candidates] == [
+        "192.0.2.7", "2001:db8::1", "example.invalid", "a" * 64, "example.invalid"
+    ], "Export changed canonical values or collapsed repeated original occurrences"
+    assert [item["line_number"] for item in candidates] == [1, 2, 3, 4, 5], (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[2]["raw_token"] == "EXAMPLE.Invalid.", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[-1]["observed_at"] == "2099-01-01T12:00:00+05:30", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[-1]["observation_timezone"] == "+05:30", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[-1]["observed_at_utc"] == "2099-01-01T06:30:00.000000+00:00", (
+        'Installed export lost the retained parser identity, occurrence order, or '
+        'declared timestamp'
+    )
+    assert candidates[0]["observed_at"] is None, "Export invented a source observation time"
+
+    for item in candidates:
+        start = item["byte_offset"]
+        end = start + item["byte_length"]
+        assert RAW[start:end].decode("ascii") == item["raw_token"], (
+            "Export coordinates no longer recover each exact token from retained original bytes"
+        )
+
+    store = LocalEvidenceStore(moved / "evidence")
+    original = json.loads(store.Read(store.Get(imported["snapshot_id"]).reference))
+    assert exported == original, "Export rewrote the verified original derived snapshot contract"
+    assert result["started_at"] == imported["started_at"] and result["finished_at"] == (
+        imported["finished_at"]
+    ), "Export replaced the acquisition clock with the replay clock"
+    assert result["publisher_authentication"] == "not-assessed" and result["core_mutation"] == (
+        "none"
+    ), "Export promoted candidates into authenticated sources or model mutations"
+    assert Console(arguments) == (status, result), "Repeated read-only export changed its facts"
+    assert Files(moved) == before, "Installed candidate export changed retained workspace files"
+
+
 @pytest.mark.parametrize("raw", [b"bad-source", b""], ids=("malformed", "empty"))
 def test_InstalledConsolePreservesRefusedOriginalsAndSafeTerminalTruth(tmp_path, raw):
     """Malformed actual input retains both originals without returning source content or success."""
@@ -89,8 +165,9 @@ def test_InstalledConsoleRequiresReceiptAndRejectsMetadataOverrides(tmp_path):
     )
 
 
+@pytest.mark.parametrize("export", [False, True], ids=("summary", "candidate-export"))
 @pytest.mark.parametrize("key", ["raw_id", "receipt_id", "snapshot_id"])
-def test_InstalledConsoleRejectsAnyCorruptOriginalChainRole(tmp_path, key):
+def test_InstalledConsoleRejectsAnyCorruptOriginalChainRole(tmp_path, key, export):
     """Each original owning evidence role is checked through the assembled console route."""
 
     root, source = Owned(tmp_path)
@@ -99,7 +176,15 @@ def test_InstalledConsoleRejectsAnyCorruptOriginalChainRole(tmp_path, key):
     record = LocalEvidenceStore(root / "evidence").Get(result[key])
     (root / "evidence" / record.reference.locator).write_bytes(b"corrupted")
     before = Files(root)
-    status, rejected = Console(InspectArguments(root, result))
+    arguments = InspectArguments(root, result)
+
+    if export:
+        arguments.append("--export-candidates")
+
+    status, rejected = Console(arguments)
     assert status == 4 and rejected["failure"] == "integrity" and Files(root) == before, (
         "Installed IOC inspect ignored original role corruption or wrote owning evidence"
     )
+    assert "candidate_export" not in rejected and all(token not in str(rejected) for token in (
+        "EXAMPLE.Invalid.", "192.0.2.7", "opaque.tsv"
+    )), "Integrity failure emitted unverified candidate data or declared source metadata"

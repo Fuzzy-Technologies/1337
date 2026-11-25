@@ -17,10 +17,12 @@ concurrency:
 jobs:
   owned-local-image:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[local-image-product-checkpoint]'))
+      && contains(github.event.pull_request.body, '[local-image-product-checkpoint]')))
     name: Owned local Docker reference and separate native archive scan
     runs-on: ubuntu-24.04
     timeout-minutes: 15

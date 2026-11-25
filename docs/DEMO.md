@@ -257,6 +257,200 @@ new export receipt, `output_published` is `true`, and `snapshot_sha256` and
 `reports/relocated-model.html` within the moved bundle to review the same open
 LOW Finding. These commands need no scanner, fixture or fresh approval.
 
+## Trace a saved showcase marker to its evidence
+
+Start with an existing workspace containing the seeded topology marker from the
+[showcase finding-replay fixture](../tests/integration/test_finding_persistence.py).
+The fixture saves its workspace as `showcase-replay/`. Run this Bash command
+from the checkout root with the locked Python environment already installed.
+Replace `path/to/saved-workspace` inside the quotes with the saved directory
+that contains `workspace.json`, `state/model/model.json` and `evidence/`.
+The [report SDK](REPORTING.md) verifies saved model evidence and renders the
+projection in memory. By default, the example expects one marker and its single
+saved fixture observation. The reader checks the fixture's recorded detection
+target against the Finding's subject.
+
+```bash
+uv run --offline --locked --no-sync python - 'path/to/saved-workspace' <<'PY'
+import json
+from argparse import ArgumentParser
+from dataclasses import asdict
+from pathlib import Path
+
+from fuzzy1337.evidence import LocalEvidenceStore
+from fuzzy1337.model import LocalModelStore
+from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
+from fuzzy1337.workspace import LocalWorkspaceStore
+
+
+def MatchesFindingIdentity(observation, finding):
+    """Compare the saved detection identity and target with the canonical Finding."""
+
+    normalized = finding["normalized"]
+    recordedTarget = observation["provenance"]["target_reference"]
+
+    return recordedTarget == normalized["subject_reference"] and all(
+        observation["attributes"].get(key) == normalized[key]
+        for key in ("fingerprint", "check_id", "subject_reference", "location_key")
+    )
+
+
+parser = ArgumentParser(description="Read saved showcase marker evidence.")
+parser.add_argument("workspace", type=Path)
+mode = parser.add_mutually_exclusive_group()
+mode.add_argument("--observation", metavar="REFERENCE")
+mode.add_argument("--list-observations", action="store_true")
+parser.add_argument("--finding", metavar="REFERENCE", help="Filter the observation list by Finding.")
+args = parser.parse_args()
+
+if args.finding is not None and not args.list_observations:
+    parser.error("--finding requires --list-observations")
+
+root = args.workspace
+snapshot = ReportSnapshot(LocalModelStore(root).Open())
+report = VerifyReportEvidence(snapshot, root).ToDict()
+findings = [
+    item for item in report["findings"]
+    if item["normalized"]["check_id"] == "showcase.fixture-marker"
+]
+observations = [
+    item for item in report["model"]["observations"]
+    if item["kind"] == "finding-detection"
+    and item["provenance"]["source_id"] == "showcase-fixture"
+]
+
+if args.list_observations:
+    markerFindings = {
+        item["reference"]: item for item in findings
+        if args.finding is None or item["reference"] == args.finding
+    }
+
+    if args.finding is not None and not markerFindings:
+        raise SystemExit("No saved showcase marker Finding for that reference.")
+
+    rows = []
+
+    for observation in observations:
+        finding = markerFindings.get(observation["subject_reference"])
+
+        if finding is not None and MatchesFindingIdentity(observation, finding):
+            rows.append((
+                observation["reference"], observation["provenance"]["observed_at"],
+                finding["reference"],
+            ))
+
+    if not rows:
+        raise SystemExit("No matching saved showcase fixture observations.")
+
+    for row in rows:
+        print(*row)
+
+    raise SystemExit(0)
+
+if args.observation is not None:
+    matches = [item for item in observations if item["reference"] == args.observation]
+
+    if len(matches) != 1:
+        raise SystemExit(
+            f"Expected one saved fixture observation for that reference, found {len(matches)}."
+        )
+
+    observations = matches
+    subjectReference = observations[0]["subject_reference"]
+    findings = [item for item in findings if item["reference"] == subjectReference]
+
+if len(findings) != 1:
+    raise SystemExit(f"Expected one saved showcase marker Finding, found {len(findings)}.")
+finding = findings[0]
+
+observations = [
+    item for item in observations if item["subject_reference"] == finding["reference"]
+]
+if len(observations) != 1:
+    raise SystemExit(
+        f"Expected one saved showcase fixture observation, found {len(observations)}."
+    )
+observation = observations[0]
+
+if not MatchesFindingIdentity(observation, finding):
+    raise SystemExit("Saved fixture observation and marker Finding identities do not match")
+
+provenance = observation["provenance"]
+store = LocalEvidenceStore(root / "evidence")
+record = store.Get(provenance["run_reference"])
+checkedReference = asdict(record.reference)
+if (
+    record.provenance.workspace_id != report["workspace_id"]
+    or record.provenance.source_id != provenance["source_id"]
+    or record.provenance.scope_reference != provenance["scope_reference"]
+    or [checkedReference] != provenance["evidence_references"]
+):
+    raise SystemExit("Saved observation and acquisition do not match")
+
+if (record.reference.role, record.reference.media_type) != ("fixture-marker", "application/json"):
+    raise SystemExit("Unexpected role or media type for the saved fixture marker")
+
+marker = json.loads(store.Read(record.reference))
+selected = {key: marker[key] for key in ("id", "type", "provenance")}
+if selected != {
+    "id": "evidence.initial-topology", "type": "topology-seed", "provenance": "seeded",
+}:
+    raise SystemExit("Saved content does not match the seeded topology marker")
+
+if finding["normalized"]["location_key"] != selected["id"]:
+    raise SystemExit("Saved topology marker ID does not match the Finding location")
+
+workspace = LocalWorkspaceStore(root).Open()
+if workspace.workspace_id != report["workspace_id"]:
+    raise SystemExit("Saved report does not match the selected workspace")
+
+registered = record.evidence_id in workspace.evidence_record_references
+print(finding["reference"], observation["reference"], record.evidence_id)
+print(selected)
+print("Registered in workspace snapshot:", "yes" if registered else "no")
+print(
+    "Saved model observation:", observation["kind"],
+    "from", provenance["source_id"], "at", provenance["observed_at"],
+)
+print("Scan completeness:", report["scan_completeness"])
+print(json.dumps(checkedReference, sort_keys=True))
+PY
+```
+
+To list matching saved observations, add `--list-observations` after the quoted
+workspace path and before `<<'PY'`. Each row gives the observation reference,
+its saved observation time and the linked Finding reference. Add
+`--finding 'object:…'` to `--list-observations` to see only observations for a
+specific Finding. Use the full Finding reference from the third field of a list
+row or the first field of an acquisition inspection.
+
+To verify a listed observation's acquisition, use
+`--observation 'observation:…'` after the workspace path and before `<<'PY'`,
+with the full observation reference from the row's first field.
+
+A successful acquisition inspection prints the Finding, saved observation and
+acquisition IDs on its first line. The second line shows the source declaration
+from the verified marker bytes. The acquisition uses the
+`fixture-marker` role and `application/json` media type. The marker has `id`
+equal to `evidence.initial-topology`, `type` equal to `topology-seed` and
+`provenance` equal to `seeded`. The inspection checks that ID against the Finding's
+`location_key`. This fixture explicitly uses the acquisition ID as its
+`run_reference`. Other sources can retain a job ID there. A shared raw digest
+can belong to multiple acquisitions, so leave attribution unresolved when the
+original acquisition cannot be identified.
+The third line reports whether the verified acquisition ID is registered in the
+opened workspace snapshot. The finding-replay fixture registers the acquisition
+and its retained reference in that workspace snapshot.
+
+The fourth line gives the saved model observation's kind, source and recorded
+time. The fifth line shows the report's `scan_completeness` value of
+`not-assessed`. Discovered service behavior and attack-path outcomes require
+their own evidence.
+
+The final line contains the complete checked `EvidenceReference` as one JSON
+object. Save it as UTF-8 JSON and keep it with the retained workspace and the
+full acquisition ID from the first line for a later evidence check.
+
 ## Failure and interruption truth
 
 | Exit status | Meaning                                                                   |
