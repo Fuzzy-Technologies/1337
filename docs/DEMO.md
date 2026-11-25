@@ -389,6 +389,9 @@ if selected != {
 }:
     raise SystemExit("Saved content does not match the seeded topology marker")
 
+if finding["normalized"]["location_key"] != selected["id"]:
+    raise SystemExit("Saved topology marker ID does not match the Finding location")
+
 workspace = LocalWorkspaceStore(root).Open()
 if workspace.workspace_id != report["workspace_id"]:
     raise SystemExit("Saved report does not match the selected workspace")
@@ -414,7 +417,8 @@ with the full observation reference from the row's first field.
 A successful acquisition inspection prints the Finding, saved observation and
 acquisition IDs on its first line. The original marker has `id` equal to
 `evidence.initial-topology`, `type` equal to `topology-seed` and `provenance`
-equal to `seeded`. This fixture explicitly uses the acquisition ID as its
+equal to `seeded`. The inspection checks that ID against the Finding's
+`location_key`. This fixture explicitly uses the acquisition ID as its
 `run_reference`. Other sources can retain a job ID there. A shared raw digest
 can belong to multiple acquisitions, so leave attribution unresolved when the
 original acquisition cannot be identified.
