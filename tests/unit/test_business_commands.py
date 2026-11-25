@@ -75,7 +75,7 @@ def test_RelocatedInspectionReturnsOnlyVerifiedCanonicalDeclarationRecords(
 
 @pytest.mark.parametrize("fault", [
     "not-persisted", "declaration", "membership", "definition-bytes", "asset-evidence",
-    "scope", "revision", "snapshot",
+    "definition-missing", "asset-missing", "scope", "revision", "snapshot",
 ])
 def test_ChangedOrUnpersistedFactsRefuseWithoutPartialOperatorRecords(
     tmp_path, monkeypatch, fault,
@@ -100,9 +100,15 @@ def test_ChangedOrUnpersistedFactsRefuseWithoutPartialOperatorRecords(
 
         model = LocalModelStore(root).Save(changed, expected_revision=delta.previous_revision)
 
-    elif fault in {"definition-bytes", "asset-evidence"}:
-        selected = record if fault == "definition-bytes" else support
-        (root / "evidence" / selected.reference.locator).write_bytes(b"Owned corrupt source")
+    elif fault in {"definition-bytes", "asset-evidence", "definition-missing", "asset-missing"}:
+        selected = record if fault.startswith("definition") else support
+        path = root / "evidence" / selected.reference.locator
+
+        if fault.endswith("missing"):
+            path.unlink()
+
+        else:
+            path.write_bytes(b"Owned corrupt source")
 
     arguments = Arguments(root, record, model)
 
@@ -170,6 +176,7 @@ def test_ChangedModelDuringSupportVerificationRefusesTheFinalProjection(tmp_path
 
         result = actual(store, reference)
         calls.append(reference)
+
         if len(calls) == 1:
             selected = LocalModelStore(root)
             current = selected.Open()

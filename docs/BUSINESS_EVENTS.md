@@ -101,8 +101,9 @@ uv run --locked --extra dev python -m pytest \
   tests/integration/test_business_events_model.py -n 2 --no-cov
 ```
 
-The profile adds no scanner, CLI, financial scoring or business-risk ranking. The
-dependent prioritization task remains separate from this declaration/path model.
+The original library profile adds no scanner, financial scoring or business-risk
+ranking. Prioritization remains separate from this declaration model. The
+operator interface below reopens already persisted declarations.
 
 ## Inspect a retained declaration through the product
 
