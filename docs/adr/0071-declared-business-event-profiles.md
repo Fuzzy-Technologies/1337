@@ -61,3 +61,30 @@ Failure paths cover foreign/missing source material, malformed and forged typed
 records, stale model pins, changed representation, descriptive-edge misuse,
 truncation, conflicting/stale hop attestations and unchanged findings/triage.
 The profile adds no CLI, network operation, scanner invocation or publication.
+
+## Read-only operator inspection
+
+Add Experimental `business inspect` over an explicitly selected original
+definition manifest, scope attribution and complete current model pin. Reuse
+`ReadBusinessEventDefinition` and require the existing pure `ApplyBusinessEvent`
+to return an exact no-op. Missing or changed persisted declarations and their
+descriptive memberships are refusals, never repair requests.
+
+Return only existing canonical declaration, critical-Asset and membership
+records, plus the original definition manifest and complete model pin. Verify
+the selected records' evidence references with the existing bounded report
+consumer, then repeat the owning definition/current-model read before output.
+The explicit scope remains source attribution; no current execution authority
+or new scope-registration requirement is introduced.
+
+The terminal result has Experimental schema version one and explicitly retains
+declared-unacceptable-outcome semantics. Human output describes the supplied
+owner scenario and current saved critical Assets. Refusals emit no partial
+inspection records. Console and shell share the same explicit input contract;
+neither writes evidence, model or workspace state. Existing profile fields,
+Core persistence, source identities and SDK contracts remain unchanged.
+
+This interface supplies no technical-path query, financial or risk result,
+Action Priority, inferred incident, collector, active check or analytical UI.
+It is independent of the deferred factor-combination decision in #67 and the
+broader #64 presentation work.

@@ -866,6 +866,7 @@
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_EOF"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_api"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_ci"],
+  ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_business"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_commands"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_context"],
   ["src/fuzzy1337/shell.py", "callable", "InteractiveShell", "do_demo"],

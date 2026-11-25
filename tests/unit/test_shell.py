@@ -180,6 +180,7 @@ def test_ShellPaletteSearchesLocalCommandsAndCachedContextActions():
         "cli: update",
         "cli: scan",
         "cli: raw",
+        "cli: business",
         "cli: extension",
         "cli: intel",
         "cli: ci",
@@ -254,12 +255,13 @@ def test_ShellReportsCommandsDrainsUpdatesAndExitsCleanly():
 
     assert output.getvalue().splitlines() == [
         (
-            "Interactive commands: api, ci, commands, context, demo, extension, help, history, "
+            "Interactive commands: api, business, ci, commands, context, demo, extension, help, "
+            "history, "
             "image, intel, lens, model, palette, paths, quit, raw, report, runtime, sbom, "
             "scan, scope, select, trace, update, updates, view, workspace"
         ),
         ("CLI commands: doctor, help, version, shell, update, workspace, scope, image, "
-         "scan, raw, report, extension, intel, demo, ci, paths, sbom, api, response, "
+         "scan, raw, report, business, extension, intel, demo, ci, paths, sbom, api, response, "
          "runtime, trace"),
         "[model] asset changed",
         "usage: quit",

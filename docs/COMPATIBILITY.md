@@ -241,6 +241,16 @@ Declarations remain scenarios: no incident, financial score, aggregate confidenc
 or execution authority is inferred. Identity retains the original definition
 manifest; exact replay is idempotent, and bounded query limitations remain explicit.
 
+Experimental schema-one `business inspect` exposes one already retained
+declaration through explicit original-manifest, scope-attribution and complete
+model pins. It reuses the owning definition reader and pure idempotent
+application, verifies selected provenance evidence and returns existing
+canonical model/manifest record shapes. Refusals disclose no partial records.
+The interface writes no storage and retains declared-unacceptable-outcome
+semantics without computing priority or technical paths. All
+`fuzzy1337.business_commands` helpers remain Internal; no supported Python SDK
+or Core/schema revision is introduced. See ADR 0071 and `docs/BUSINESS_EVENTS.md`.
+
 `fuzzy1337.findings` is an Experimental Python library at contract version `1`.
 ADR 0027 defines its typed, bounded subsystem contract.
 The interface grants no authority beyond an explicitly approved scope/policy.

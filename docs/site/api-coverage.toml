@@ -1083,3 +1083,11 @@ module = "fuzzy1337.retained_report_ci"
 source = "src/fuzzy1337/retained_report_ci.py"
 mode = "authored"
 page = "api/fuzzy1337.retained_report_ci.md"
+
+
+[[surfaces]]
+# Internal read-only operator transport over the accepted business-event declaration profile.
+module = "fuzzy1337.business_commands"
+source = "src/fuzzy1337/business_commands.py"
+mode = "authored"
+page = "api/fuzzy1337.business_commands.md"
