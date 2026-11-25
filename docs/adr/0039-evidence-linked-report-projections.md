@@ -59,3 +59,17 @@ use real workspace/model/evidence stores, reject foreign/corrupt evidence, and
 prove export leaves stored bytes unchanged. Exact HTML DOM assertions replace
 browser execution for this work. CLI commands, shell integration, graph analysis,
 catalog synchronization, and inferred compliance remain separate work.
+
+## Opt-in retained CI artifacts
+
+The GitLab hidden job and GitHub composite sample consume the same existing
+`report export` JSON/JUnit commands through an Internal packaged bundle owner.
+They retain both original command receipts, require matching snapshot identity
+and evidence verification counts, recheck staged bytes/receipts and publish only
+one complete bundle. They add no report schema, source acquisition, finding gate
+or repository workflow. A small stdlib platform bootstrap retires older selected
+output before importing the package, including on a missing runtime/helper.
+GitLab consumes the existing JUnit finding adapter in its Tests UI; GitHub only
+uploads a downloadable artifact. Hosted runner/upload acceptance is separate
+from local installed-wheel and exact-shell evidence. The common implementation
+`fuzzy1337.retained_report_ci` and all its helpers remain Internal.

@@ -137,6 +137,63 @@ generic saved findings do not establish those facts. This template invents no
 file/line, severity conversion or repository binding. Local template/fixture
 checks do not establish acceptance by a live GitLab runner.
 
+## Optional GitHub artifact from a saved workspace
+
+The [saved-model composite action](examples/ci/github-retained-report/action.yml)
+exports an already retained workspace in the **same existing job** that has your
+approved installed runtime and complete saved files. Copy its directory from a
+reviewed immutable revision to `ci/1337-retained-report` in the invoking
+repository. After your existing setup/download steps, explicitly call it:
+
+```yaml
+# Under your existing trusted Linux job:
+permissions:
+  contents: read
+steps:
+  # Keep your existing runtime/workspace provisioning steps here.
+  - name: Export retained model
+    id: retained
+    uses: ./ci/1337-retained-report
+    with:
+      saved_workspace: retained-workspace
+      report_key: retained-main-model
+```
+
+This is a job fragment, not a new automatic workflow. Copying the composite adds
+no trigger or job. The caller controls scheduling, trusted setup and artifact
+access/retention; the action starts no scanner/container, installs/downloads
+nothing and requests no repository write permission or `GITHUB_TOKEN`. Use
+Python 3.13 or newer with an approved installed wheel that contains the Internal
+`fuzzy1337.retained_report_ci` helper. Both retained examples share this packaged
+owner; the GitLab include needs no checkout of a separate script. Existing
+`1337` entry points and JSON/JUnit/receipt schemas are unchanged.
+
+`saved_workspace` selects complete input inside `github.workspace`; the project
+root and reserved output namespace are refused. Freeze the input during export.
+`report_key` is required and must be unique across callers and matrix jobs in a
+run: 1–64 letters, digits, underscores or hyphens, starting with a letter or digit.
+The action reserves `1337-retained-report-<run-id>-<attempt>-<key>` for output,
+retires older local output before package import, and rechecks report bytes and
+original receipts after both CLI exports. Only a complete bundle is published;
+the upload step also requires the export step to finish successfully. Unsafe keys,
+missing/corrupt source, changed snapshots and altered staged outputs fail closed.
+
+One pinned `upload-artifact` step uploads only that complete bundle, with
+`if-no-files-found: error`, no overwrite and seven-day retention. A hosted name
+collision is an error. The `artifact-id`, `artifact-url` and `artifact-digest`
+outputs are the original acknowledgements from that action. Its digest identifies
+the uploaded archive; the original `json-export.json` and `junit-export.json`
+receipts separately identify each report's byte length, SHA-256 and canonical
+snapshot. Download the artifact and compare those facts when reviewing it.
+
+GitHub presents **one downloadable artifact**. This sample does not publish JUnit
+into Checks, annotations, code scanning or a security dashboard. The retained
+finding dispositions and original source failures have the same JSON/JUnit
+meaning described above; export success adds no finding threshold. Preserve the
+complete producer workspace separately, including original evidence. Local
+installed-wheel/shell checks establish export and upload selection only; an actual
+hosted run and its upload acknowledgement remain separate acceptance evidence.
+
 ## Optional finding thresholds
 
 The demo creates no Findings and has no vulnerability threshold. For a selected

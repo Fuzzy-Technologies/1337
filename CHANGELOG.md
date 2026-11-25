@@ -8,6 +8,27 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 56 — v0.4.56 — 2026-11-25
+
+#### Digest
+
+- Export already retained models into one opt-in GitHub Actions artifact.
+
+#### Added
+
+- Provide a copyable composite action for existing saved workspaces and installed
+  runtimes, with one pinned artifact upload after successful offline JSON/JUnit
+  publication and original platform upload acknowledgements.
+
+#### Changed
+
+- Share the retained-report bundle owner with the standalone GitLab template;
+  preserve existing CLI entry points, report schemas and GitLab job selections.
+- Recheck both reports and original export receipts immediately before publishing
+  the complete bundle, refusing altered staged bytes without stale upload.
+
+
+
 ### Patch 54 — v0.4.54 — 2026-11-25
 
 #### Digest

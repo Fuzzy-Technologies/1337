@@ -1070,3 +1070,10 @@ module = "fuzzy1337.sql_boolean_assessment"
 source = "src/fuzzy1337/sql_boolean_assessment.py"
 mode = "authored"
 page = "api/fuzzy1337.sql_boolean_assessment.md"
+
+[[surfaces]]
+# Internal matched CI bundle publication through existing offline report commands.
+module = "fuzzy1337.retained_report_ci"
+source = "src/fuzzy1337/retained_report_ci.py"
+mode = "authored"
+page = "api/fuzzy1337.retained_report_ci.md"
