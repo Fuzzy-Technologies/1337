@@ -389,6 +389,45 @@ def test_HtmlFindingIndexOrdersSavedSeverityAndRetainsSubjects():
         )
 
 
+def test_HtmlFindingIndexOffersRowRangeLinksAboveFifty():
+    """Preserve every row in severity order across focusable index ranges."""
+
+    report = Fixture()
+    host, = report.state.Objects(ObjectKind.HOST)
+    detections = tuple(Finding(
+        host.Reference(), "synthetic.index-boundary", f"stored-{ordinal}",
+        "Retained finding", host.provenance, severity=FindingSeverity.HIGH,
+    ) for ordinal in range(47))
+    state, _ = ApplyFindings(report.state, detections[:-1])
+    assert b'aria-label="Finding index row ranges"' not in RenderHtml(replace(report, state=state))
+
+    state, _ = ApplyFindings(state, detections[-1:])
+    rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
+    indexHtml = rendered.split('<details class="findings-severity-index">', 1)[1]
+    index = ElementTree.fromstring("<details>" + indexHtml.split("</details>", 1)[0]
+                                   + "</details>")
+    navigation, = index.findall('nav[@aria-label="Finding index row ranges"]')
+    links = navigation.findall("a")
+    assert [(link.get("href"), link.text) for link in links] == [
+        ("#findings-severity-rows-1", "Rows 1–50"), ("#findings-severity-rows-51", "Row 51"),
+    ]
+    table, = index.findall("div/table")
+    groups = table.findall("tbody")
+    assert [len(group.findall("tr")) for group in groups] == [50, 1]
+    assert [(group.get("id"), group.get("tabindex")) for group in groups] == [
+        (link.attrib["href"][1:], "-1") for link in links
+    ]
+    entities = state.Objects(ObjectKind.FINDING)
+    severities = ("high", "low", "informational", "unknown")
+    expected = [
+        f"#finding-{entity.Reference()[7:]}"
+        for severity in severities for entity in entities
+        if entity.attributes["severity"] == severity
+    ]
+    assert [link.get("href") for link in table.findall("tbody/tr/th/a")] == expected
+    assert groups[-1].findtext("tr/td") == "Unknown"
+
+
 def test_HtmlFiltersBySavedFindingSeverityIncludingUnknown():
     """Hide nonmatching cards and empty disposition groups through native fragment state."""
 

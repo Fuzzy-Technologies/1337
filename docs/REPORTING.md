@@ -98,7 +98,8 @@ in canonical order.
 Expand Findings by saved severity to compare findings across dispositions.
 The index lists critical through informational findings before Unknown and
 keeps canonical order within each severity. Each row links to the finding card
-and the saved subject.
+and the saved subject. When the index exceeds 50 rows, use the row-range links
+to jump between groups of up to 50 rows in the same table.
 
 Use the saved severity filter to show matching cards, including Unknown when
 present. All restores the full view, as does a link to another report section or

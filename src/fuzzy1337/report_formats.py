@@ -33,6 +33,7 @@ from fuzzy1337.reporting import (
 )
 
 __all__ = ["RenderHtml", "SerializeJson", "SerializeSarif", "SerializeJunit"]
+_FINDING_INDEX_RANGE_SIZE = 50
 _CSS = """
 :root {color-scheme:dark;--bg:#07090d;--panel:#0b1117;--text:#b9dce8;
 --muted:#7f9da8;--cyan:#55e7ff;--pink:#ff5bd8;--green:#5dff8d;--border:#00eaff4d}
@@ -341,15 +342,42 @@ def _FindingSeverityIndex(
     """Compare retained severities and dispositions with links to their cards and subjects."""
 
     headingId = "findings-severity-table-heading"
+    total = len(rows.findings)
+    rangeStarts = range(1, total + 1, _FINDING_INDEX_RANGE_SIZE)
+    rangeIds: dict[int, str] = {}
     lines = [
         '<details class="findings-severity-index"><summary>'
         f'<h3 id="{headingId}">Findings by saved severity</h3></summary>',
-        _TableStart(headingId)
-        + '<th scope="col">Finding</th><th scope="col">Saved severity</th>'
-        '<th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead><tbody>',
     ]
 
-    for row in rankedFindings:
+    if len(rangeStarts) > 1:
+        lines.append('<nav aria-label="Finding index row ranges">')
+
+        for first in rangeStarts:
+            fragment = f"findings-severity-rows-{first}"
+            rangeIds[first] = fragment
+            last = min(first + _FINDING_INDEX_RANGE_SIZE - 1, total)
+            label = f"Rows {first}–{last}" if first < last else f"Row {first}"
+            lines.append(f'<a href="#{fragment}">{label}</a>')
+
+        lines.append("</nav>")
+
+    lines.append(
+        _TableStart(headingId)
+        + '<th scope="col">Finding</th><th scope="col">Saved severity</th>'
+        '<th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead>'
+        + ("" if rangeIds else "<tbody>")
+    )
+
+    for ordinal, row in enumerate(rankedFindings, 1):
+        groupId = rangeIds.get(ordinal)
+
+        if groupId is not None:
+            if ordinal > 1:
+                lines.append("</tbody>")
+
+            lines.append(f'<tbody id="{groupId}" tabindex="-1">')
+
         finding = row.finding
         subject = rows.objects[finding.subject_reference]
         subjectLink = ObjectLink(finding.subject_reference, ObjectLabel(subject))
