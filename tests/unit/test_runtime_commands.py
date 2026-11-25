@@ -314,19 +314,19 @@ def test_EveryOriginalReadViewRequiresOnePhysicalLink(tmp_path, monkeypatch, vie
     context = Context(tmp_path)
     pathInfo = commands.CheckStorageEntry
     handleInfo = commands.os.fstat
-    handle_calls = 0
-    path_calls = 0
+    handleCalls = 0
+    pathCalls = 0
 
     def PathInfo(path, *, directory):
         """Expose an independent shared-link observation only for the final selected path."""
 
-        nonlocal path_calls
+        nonlocal pathCalls
         info = pathInfo(path, directory=directory)
 
         if path == context[4].absolute():
-            path_calls += 1
+            pathCalls += 1
 
-            if view == "after" and path_calls == 2:
+            if view == "after" and pathCalls == 2:
                 return Metadata(info, st_nlink=2)
 
         return info
@@ -334,12 +334,12 @@ def test_EveryOriginalReadViewRequiresOnePhysicalLink(tmp_path, monkeypatch, vie
     def HandleInfo(descriptor):
         """Expose one later owned-handle link count without modifying source bytes."""
 
-        nonlocal handle_calls
+        nonlocal handleCalls
         info = handleInfo(descriptor)
-        handle_calls += 1
+        handleCalls += 1
 
-        if (view == "opened" and handle_calls == 1) or (
-            view == "finished" and handle_calls == 2
+        if (view == "opened" and handleCalls == 1) or (
+            view == "finished" and handleCalls == 2
         ):
             return Metadata(info, st_nlink=2)
 
