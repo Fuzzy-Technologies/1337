@@ -60,4 +60,10 @@ assessed. Broader incident/entity/process/timeline semantics remain separate wor
 See [IOC artifact commands](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/IOC_ARTIFACT_CLI.md)
 and [ADR 0080](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/adr/0080-explicit-local-ioc-cli.md).
 
+Detached `verify-bundle --export-candidates --json` explicitly exposes the same
+verified snapshot DTO without the original workspace. The separate original
+receipt and transfer digest remain mandatory; defaults retain their safe summary.
+The option adds no ingestion or Core semantics and is refused outside machine
+verification. See the [IOC transfer guide](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/IOC_EVIDENCE_BUNDLE.md).
+
 ::: fuzzy1337.ioc_commands

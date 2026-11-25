@@ -116,6 +116,8 @@ def IocParser(action: str | None = None) -> argparse.ArgumentParser:
     verifier.add_argument("file", type=Path)
     verifier.add_argument("--receipt", required=True)
     verifier.add_argument("--expected-sha256", required=True)
+    verifier.add_argument("--export-candidates", action="store_true",
+                         help="include verified original tokens and provenance with --json")
 
     return actions.choices[action] if action in actions.choices else parser
 

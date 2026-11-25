@@ -633,6 +633,12 @@ and complete transfer SHA-256; no source workspace, acquisition or Core write is
 needed. Original owning schemas and budgets remain unchanged. New-file atomic
 no-clobber publication retains the report publisher's truthful post-link failure
 semantics. `fuzzy1337.ioc_bundle` and all its helpers remain Internal.
+The additive `verify-bundle --export-candidates --json` option returns the existing
+schema-one candidate DTO only after detached original verification. Default
+outcomes, transfer bytes and trust pins are unchanged. Explicit candidate
+presentation creates no workspace/evidence/Core state; wider M8 semantics remain
+separate.
+
 
 `fuzzy1337.intelligence_acquisition` is an Experimental schema-v1 acquisition and
 receipt library under ADR 0060. Explicit local source bytes or an immutable

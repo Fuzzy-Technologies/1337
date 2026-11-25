@@ -15,4 +15,11 @@ record schemas/budgets and atomic no-clobber publication retain their meanings.
 See [the bundle guide](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/IOC_EVIDENCE_BUNDLE.md)
 and [ADR 0151](https://github.com/Fuzzy-Technologies/1337/blob/develop/docs/adr/0151-selected-ioc-evidence-bundle.md).
 
+Explicit `verify-bundle --export-candidates --json` adds the unchanged normalized
+snapshot DTO only after the same independent receipt/transfer pins and complete
+original reparse. Default summaries and transfer bytes remain unchanged. Invalid
+text/matching/export combinations fail before reads; any verification refusal
+omits candidate data. Detached presentation writes no source, evidence or Core
+state and introduces no new log, identity, process or timeline semantics.
+
 ::: fuzzy1337.ioc_bundle
