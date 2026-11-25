@@ -28464,7 +28464,7 @@ state = "missing"
 id = "page:api.fuzzy1337.business-commands"
 kind = "page"
 sourcePath = "docs/site/content/en/api/fuzzy1337.business_commands.md"
-sourceHash = "sha256:ceef40744477bc7db3f1bd67fc6844cfa96f15c560922b71e5efcff550fe1b09"
+sourceHash = "sha256:7bc4dbfe6567dfb1f159e154d23aab453b122d3a34bc4f0333ac5ec593b6c1a0"
 reviewClass = "technical"
 [units.translations.ru]
 state = "missing"
