@@ -1,0 +1,83 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "metadata": {},
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "owned",
+        "uid": "00000000-0000-0000-0000-000000000001"
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ipv6-owned",
+        "namespace": "owned",
+        "uid": "00000000-0000-0000-0000-000000000002"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "ipv6-owned"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ipv6-owned"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "with-port",
+                "image": "[2001:db8::10]:5000/owned/app:retained"
+              },
+              {
+                "name": "without-port",
+                "image": "[2001:0DB8::11]/owned/sidecar@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ordinary-owned",
+        "namespace": "owned",
+        "uid": "00000000-0000-0000-0000-000000000003"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "ordinary-owned"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ordinary-owned"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "ordinary",
+                "image": "registry.example.invalid/owned/ordinary:v1"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

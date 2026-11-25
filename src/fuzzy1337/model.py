@@ -912,6 +912,52 @@ def RequireStoredReference(value: object, expected: str) -> None:
         raise ValueError("stored model reference disagrees with canonical identity")
 
 
+def DecodeModelState(payload: bytes) -> ModelState:
+    """Internal shared decoder for the exact bytes admitted by model reads and publication.
+
+    Args:
+        payload: Complete serialized model document, including any terminal newline.
+
+    Returns:
+        Concrete immutable snapshot validated by the existing schema-one owner.
+
+    Raises:
+        ValueError: Serialized size, UTF-8, JSON or model fields are unsupported.
+    """
+
+    if len(payload) > MAX_MODEL_BYTES:
+        raise ValueError("model state exceeds the size limit")
+
+    try:
+        document = json.loads(
+            payload.decode("utf-8"), object_pairs_hook=UniqueWorkspaceObject,
+            parse_constant=RejectWorkspaceConstant,
+        )
+
+        return ModelState.FromDict(document)
+
+    except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
+        raise ValueError("model state must be bounded valid UTF-8 JSON") from error
+
+
+def PrepareModelState(state: ModelState) -> tuple[ModelState, bytes]:
+    """Internal publication admission: serialize once and validate the resulting wire bytes.
+
+    Args:
+        state: Proposed typed snapshot; inherited Python shapes receive no implicit wire grant.
+
+    Returns:
+        Decoded immutable snapshot and the same bounded bytes its owner can reopen.
+
+    Raises:
+        ValueError: Proposed metadata cannot serialize or decode as schema version one.
+    """
+
+    payload = CanonicalModelJson(state.ToDict()) + b"\n"
+
+    return DecodeModelState(payload), payload
+
+
 @dataclass(frozen=True, slots=True)
 class LocalModelStore:
     """Own a strict model snapshot beneath a validated operator-owned workspace.
@@ -995,18 +1041,7 @@ class LocalModelStore:
         with (directory / "model.json").open("rb") as stream:
             payload = stream.read(MAX_MODEL_BYTES + 1)
 
-        if len(payload) > MAX_MODEL_BYTES:
-            raise ValueError("model state exceeds the size limit")
-
-        try:
-            document = json.loads(
-                payload.decode("utf-8"), object_pairs_hook=UniqueWorkspaceObject,
-                parse_constant=RejectWorkspaceConstant,
-            )
-            state = ModelState.FromDict(document)
-
-        except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
-            raise ValueError("model state must be bounded valid UTF-8 JSON") from error
+        state = DecodeModelState(payload)
 
         if state.workspace_id != LocalWorkspaceStore(self.root).Open().workspace_id:
             raise ValueError("model belongs to another workspace")
@@ -1014,10 +1049,10 @@ class LocalModelStore:
         return state
 
     def Save(self, state: ModelState, *, expected_revision: int) -> ModelState:
-        """Commit one Apply transition under a fail-fast lock and expected-revision check.
+        """Commit one readable wire snapshot under a fail-fast lock and expected-revision check.
 
         Args:
-            state: Validated proposed snapshot returned by ModelState.Apply.
+            state: Proposed snapshot admitted through the exact byte decoder before writer locking.
             expected_revision: Revision from which the proposed transition was computed.
 
         Returns:
@@ -1034,6 +1069,7 @@ class LocalModelStore:
             raise ValueError("state must be a ModelState")
 
         RequireWorkspaceInteger(expected_revision, "expected_revision")
+        state, payload = PrepareModelState(state)
         directory = self.ValidatePaths()
         lock = directory / ".write-lock"
 
@@ -1059,7 +1095,7 @@ class LocalModelStore:
             if state.revision != current.revision + 1:
                 raise WorkspaceConflictError("model save requires exactly one Apply transition")
 
-            self.WriteState(directory, state)
+            self.WritePayload(directory, payload)
 
             return state
 
@@ -1067,21 +1103,30 @@ class LocalModelStore:
             lock.rmdir()
 
     def WriteState(self, directory: Path, state: ModelState) -> None:
-        """Write private deterministic JSON; lifecycle callers own CAS and writer locking.
+        """Prepare and write strict model bytes; lifecycle callers own CAS and writer locking.
 
         Args:
             directory: Validated owned namespace directory.
-            state: Validated proposed model snapshot.
+            state: Proposed model snapshot to admit through the same byte decoder as Open.
 
         Raises:
-            ValueError: The document exceeds its explicit size limit.
+            ValueError: Serialized size, JSON or model fields are unsupported.
             OSError: Write, synchronization, replacement, or temporary-file cleanup fails.
         """
 
-        payload = CanonicalModelJson(state.ToDict()) + b"\n"
+        _, payload = PrepareModelState(state)
+        self.WritePayload(directory, payload)
 
-        if len(payload) > MAX_MODEL_BYTES:
-            raise ValueError("model state exceeds the size limit")
+    def WritePayload(self, directory: Path, payload: bytes) -> None:
+        """Internal atomic publisher for the exact bytes already admitted by the model owner.
+
+        Args:
+            directory: Validated owned namespace directory.
+            payload: Bounded complete document returned by PrepareModelState, never reserialized.
+
+        Raises:
+            OSError: Write, synchronization, replacement, or temporary-file cleanup fails.
+        """
 
         temporaryPath: Path | None = None
 

@@ -24,6 +24,12 @@ outside normalized metadata. Unsupported item kinds, including Secret, are
 refused before resource normalization. Original evidence remains exact and is
 not redacted; callers must supply non-sensitive owned exports.
 
+Configured image text also admits a valid bracketed IPv6 registry, optionally
+followed by a numeric port. Local syntax validation retains the complete source
+spelling without registry resolution, fetching, runtime image identity or a
+digest-domain assertion. All original byte/string limits and other image
+admission rules remain unchanged; malformed literals refuse the whole candidate.
+
 The bounded original JSON scan permits escaped multiline annotation text without
 copying it into inventory. UTF-8 and per-string byte limits still apply to ignored
 strings; selected facts retain their existing single-line validation. Original

@@ -504,3 +504,72 @@ def test_InstalledKubernetesRuntimePreservesOracleTriagePortableReplayAndUnknown
             )
 
         assert b"owned-operator" not in destination.read_bytes(), "Raw Kubernetes identity leaked"
+
+
+def test_InstalledKubernetesIpv6RegistryImagesPreserveLiteralInventoryAndPortableReplay(tmp_path):
+    """Two saved workloads keep exact IPv6/ordinary image text without registry or runtime facts."""
+
+    context = ConsoleContext(tmp_path, profile="kubernetes-list")
+    root, _, cluster, evidence, source = context
+    raw = (FIXTURES / "kubernetes-ipv6-images.owned.v1.json").read_bytes()
+    source.write_bytes(raw)
+    status, imported = Import(tmp_path, context, profile="kubernetes-list")
+    assert status == 0 and all(imported[name] == "confirmed" for name in (
+        "acquisition_commit", "model_commit", "workspace_commit",
+    )), "Valid bracketed IPv6 declarations must reach all independent import acknowledgements"
+    record = evidence.Get(imported["evidence_id"])
+    saved = LocalModelStore(root).Open()
+    resources = {item.Reference(): item for item in saved.objects
+                 if item.attributes.get("asset_type") == "kubernetes-resource"}
+    assert {(item.attributes["resource_kind"], item.attributes["name"])
+            for item in resources.values()} == {
+        ("Namespace", "owned"), ("Deployment", "ipv6-owned"), ("Deployment", "ordinary-owned"),
+    }, "The actual saved List must contain exactly its declared resources"
+    declarations = [item for item in saved.objects
+                    if item.attributes.get("asset_type") == "kubernetes-container-declaration"]
+    expected = {
+        "with-port": "[2001:db8::10]:5000/owned/app:retained",
+        "without-port": "[2001:0DB8::11]/owned/sidecar@sha256:" + "a" * 64,
+        "ordinary": "registry.example.invalid/owned/ordinary:v1",
+    }
+    assert {item.attributes["container_name"]: item.attributes["configured_image"]
+            for item in declarations} == expected, (
+        "Installed import must preserve every image spelling, including IPv6 case and compression"
+    )
+    workloadNames = {item.attributes["container_name"]: resources[
+        item.attributes["resource_reference"]
+    ].attributes["name"] for item in declarations}
+    assert workloadNames == {
+        "with-port": "ipv6-owned", "without-port": "ipv6-owned", "ordinary": "ordinary-owned",
+    }, "Image declarations must remain attributed to their actual exported workload"
+    assert all(item.attributes["image_digest_kind"] is None and
+               item.attributes["effective_privileges"] is None for item in declarations), (
+        "Registry literals or configured SHA-256 text cannot establish runtime image facts"
+    )
+    assert all(part.evidence_references == (record.reference,)
+               for item in declarations for part in item.provenance), (
+        "Every declaration must retain its independently owned original List attribution"
+    )
+    assert evidence.Read(record.reference) == raw and imported["source_sha256"] == (
+        hashlib.sha256(raw).hexdigest()
+    ), "The original JSON must remain exact through the real console intake"
+    assert record.provenance.execution is None and record.provenance.invocation_sha256 is None, (
+        "Offline image declarations must not manufacture provider execution provenance"
+    )
+    moved = tmp_path / "Moved IPv6 Kubernetes Workspace"
+    root.rename(moved)
+    source.unlink()
+    relocated = (moved, saved, cluster,
+                 RuntimeEvidenceStore(moved / "evidence", profile="kubernetes-list"), source)
+    before = {path.relative_to(moved): path.read_bytes()
+              for path in moved.rglob("*") if path.is_file()}
+    status, replay = Import(tmp_path, relocated, evidence_id=record.evidence_id,
+                            profile="kubernetes-list")
+    after = {path.relative_to(moved): path.read_bytes()
+             for path in moved.rglob("*") if path.is_file()}
+    assert status == 0 and replay["created"] == replay["updated"] == 0 and before == after, (
+        "Exact retained replay must need no external file and leave every relocated owner unchanged"
+    )
+    assert LocalModelStore(moved).Open() == saved and relocated[3].Get(
+        record.evidence_id
+    ) == record, "Saved model and original manifest must survive portable rereading"

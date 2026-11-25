@@ -101,6 +101,22 @@ same-directory temporary file, file flush/fsync, atomic replacement, and POSIX
 directory synchronization. Windows retains file synchronization and atomic
 replacement without claiming POSIX directory durability.
 
+Before publication, the store serializes the proposed `ToDict()` once and checks
+the complete final UTF-8 bytes, including the terminal newline, against the
+existing size limit. The same strict JSON decoder and `ModelState.FromDict` used
+by `Open` must accept those bytes before writer-path preparation or locking.
+The exact admitted bytes are published without reserialization; the returned
+snapshot is the concrete decoded state. No runtime-class shortcut substitutes
+for checking the actual wire.
+
+Correct inherited record and scalar representations remain usable. Unknown
+serialized fields and scalar values rendered as unsupported JSON objects fail
+before durable changes. Readable JSON attributes retain their actual wire
+representation. The caller's Python object is not changed; extra Python fields
+do not define new persisted model semantics. This costs one proposed-document
+decode in addition to reading the current snapshot, while payload serialization
+still occurs once. Generic attributes remain the documented extension boundary.
+
 If writing raises after replacement, the new revision may already exist. Reopen
 before retrying. Failed saves clean owned temporary files and locks. The store
 rejects traversal, observed symlinks/reparse points, hard-linked authoritative
