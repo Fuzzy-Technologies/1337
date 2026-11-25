@@ -292,11 +292,16 @@ COMMAND_REGISTRY = CommandRegistry(
             capabilities=("runtime.owned-offline-import",),
         ),
         CommandDescriptor(
+            identifier="bridge",
+            summary="Import owned saved SARIF source assertions or inspect their original custody.",
+            usage="1337 bridge sarif <import|inspect> <workspace>",
+        ),
+        CommandDescriptor(
             identifier="trace",
             summary=(
-                "Import explicit local IOC candidates or inspect independently anchored artifacts."
+                "Import local IOC candidates or saved syslog and inspect pinned originals."
             ),
-            usage="1337 trace ioc <import|inspect|export-bundle|verify-bundle> ...",
+            usage="1337 trace <ioc|syslog> ...",
             capabilities=("trace.local-ioc-candidates",),
         ),
     )

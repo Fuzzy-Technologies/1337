@@ -1220,3 +1220,31 @@ Existing configuration/image profiles retain their required input contracts,
 refusal codes and no-clobber exports; native-web rejects artifact-only options.
 See [CI scanning](CI_SCAN.md) and
 [ADR 0138](adr/0138-current-run-native-web-ci-predicate.md).
+
+
+## Saved syslog source import
+
+The owned saved RFC 5424 version-one operation is Experimental, separately from
+the ASCII TSV IOC family. Public SDK symbols are
+`syslog_records.ParseSavedSyslog` and `syslog_artifacts.SyslogSource` (including
+`ToDict`), `SyslogAcquisition`, `ImportSavedSyslogFile` and `LoadSavedSyslog`.
+The documented source-only canonical JSON, profile-specific original/receipt and
+`trace syslog import|inspect` are Experimental version one. All other symbols and
+the `syslog_commands` transport are Internal. See
+[the source guide](SYSLOG_SAVED_IMPORT.md) and
+[ADR 0156](adr/0156-owned-saved-rfc5424.md).
+This adds no Core Event/Identity/incident/timeline or global custody contract,
+no producer/actor authentication and no live acquisition.
+
+## Saved external SARIF source import
+
+The Experimental `bridge sarif import|inspect` commands admit only ADR 0157's
+bounded saved SARIF 2.1.0 source-assertion profile. Original bytes and a separate
+`bridge-sarif-local-v1` receipt use the existing evidence store. Retained replay
+requires explicit original/receipt/SHA pins; unknown source fields remain null.
+No vendor rule, severity, suppression or baseline assigns canonical Finding,
+triage, risk, target or executor authority. URI/path/schema/help strings are
+never dereferenced. Existing model/report/export/ToolAdapter schemas are unchanged.
+`fuzzy1337.bridge_sarif`, `fuzzy1337.bridge_commands` and all their helpers are
+Internal; the distinct `bridge-sarif-source-cli-v1` terminal outcome is
+Experimental. No new public Python DTO, transport or canonical truth store is added.
