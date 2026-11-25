@@ -72,6 +72,8 @@ metadata, not new Security Object Model types.
   must not use shell interpolation.
 - A non-zero, timed-out, or cancelled executor result cannot be represented as a
   successful execution.
+- Execution duration is a non-negative finite integer or floating-point number.
+  Booleans and nonnumeric values are rejected before serialization.
 - Contract metadata is recursively immutable and serializes deterministically via
   `SerializeContract()`.
 

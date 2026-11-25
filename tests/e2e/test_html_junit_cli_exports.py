@@ -60,6 +60,7 @@ class HtmlOracle(HTMLParser):
         self.tags: list[str] = []
         self.attributes: list[tuple[str, str | None]] = []
         self.ids: list[str] = []
+        self.finding_ids: list[str] = []
         self.hrefs: list[str] = []
         self.text: list[str] = []
 
@@ -68,6 +69,10 @@ class HtmlOracle(HTMLParser):
 
         self.tags.append(tag)
         self.attributes.extend(attrs)
+        fields = dict(attrs)
+
+        if tag == "article" and fields.get("class") == "finding":
+            self.finding_ids.append(fields["id"])
 
         for name, value in attrs:
             if name == "id" and value is not None:
@@ -188,8 +193,14 @@ def CheckLiteralOracle(payload: bytes, format_name: str, model: ModelState,
             assert "<script>run()</script>" in "".join(parser.text) and (
                 b"\\u0001" in payload and b"\\u202e" in payload and b"\x01" not in payload
             ), "HTML displays hostile text and controls inertly rather than changing model data"
-            assert len([value for value in parser.ids if value.startswith("finding-")]) == 4, (
-                "HTML retains all four independent operator disposition cases"
+            expected = {
+                f"finding-{entity.Reference()[7:]}"
+                for entity in model.Objects(ObjectKind.FINDING)
+            }
+            assert len(parser.finding_ids) == count and (
+                set(parser.finding_ids) == expected
+            ), (
+                "HTML retains exactly the saved independent operator disposition cards"
             )
 
     elif format_name == "junit":

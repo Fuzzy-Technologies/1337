@@ -45,8 +45,11 @@ help opens no local state. The owning handler and its helpers remain Internal.
 verified report exports. Satisfied/violated outcomes remain distinct from
 invalid setup, authority refusal, integrity failure and cancellation.
 
-The product CLI routes explicit local `intel import|inspect|apply` commands to
-their owning evidence/model workflow. `--json` emits bounded terminal summaries;
-command preparation grants no remote acquisition or automatic enrichment.
+The product CLI routes explicit local `intel import|inspect|preview|apply`
+commands to their owning evidence/model workflow. Preview returns the verified
+candidate observation without saving; apply separately rechecks the saved
+revision before persistence. `--json` emits bounded terminal outcomes and failed
+preview verification returns no candidate payload. Command preparation grants
+no remote acquisition or automatic enrichment.
 
 ::: fuzzy1337.cli

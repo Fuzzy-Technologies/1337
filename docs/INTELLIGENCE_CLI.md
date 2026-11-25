@@ -49,9 +49,9 @@ the selected successful local receipt. It writes no state. Moving the whole
 workspace preserves these identities; copying its artifacts to a different
 workspace does not transfer ownership. Failed imports report their terminal
 state and retained record identifiers; they do not provide a successfully
-verified selection for `inspect` or `apply`.
+verified selection for `inspect`, `preview` or `apply`.
 
-Both `inspect` and `apply` first select and read the snapshot and receipt through
+`inspect`, `preview` and `apply` first select and read the snapshot and receipt through
 the existing byte-bounded store. Before explicitly retrieving the original raw
 record with `Get` or invoking the SDK's original-source reparse, selection checks
 the receipt's integer byte ceiling (1 through 16 MiB), finite receiver timeout
@@ -84,6 +84,17 @@ records. `target_applicability="not-evaluated"` and
 membership is not evidence of no vulnerability, exploitation or risk. Omit
 `--json` for a source summary that explains each feed's meaning.
 
+When at least one identifier matches, the text summary shows the verified
+SHA-256 of the retained original source bytes, also available as
+`source_sha256` in JSON. The `raw_id` identifies the retained evidence manifest.
+
+For a matched EPSS record, the text summary shows the publisher's score
+timestamp normalized to UTC alongside its probability and percentile. This
+timestamp comes from the record's `effective_at` field.
+For a matched KEV record, the text summary shows the catalog's remediation due
+date alongside the required action. The date comes from the record's `due_date`
+field.
+
 For a selected CVE Record `5.2`/`5.2.0`, `cve_source_profiles` exposes the existing
 independent inspection results without repeating snapshots:
 
@@ -108,6 +119,31 @@ CVE selection discloses no unrelated product/scoring profile.
 Inspection writes no model state and grants no applicability review or execution
 approval. It works after relocating the owning workspace and needs no network.
 
+Preview a selected snapshot against an existing evidence-linked finding before
+saving its candidate observation:
+
+```bash
+1337 intel preview ./workspace --snapshot sha256:SNAPSHOT_DIGEST \
+  --receipt sha256:RECEIPT_DIGEST --finding object:FINDING_DIGEST \
+  --identifier CVE-1900-9999 --identifier CWE-89 --expected-revision 3 \
+  --as-of 2026-10-15T00:00:00Z --max-age-seconds 86400 \
+  --scope scope:owned --run run:explicit-review --json
+```
+
+Preview verifies the original source/receipt, selected saved finding and expected
+revision, then runs the same proposal owner as apply. Its `preview` profile lists
+new candidate observations with exact source/evidence links, explicit unmatched
+IDs, age and staleness. EPSS freshness uses its score timestamp; the other feeds
+use source acquisition time. This read-only result keeps `model_commit` at
+`not-attempted` and `model_revision` at the saved revision; `proposed_revision`
+describes the unsaved proposal. A repeated unsaved preview is deterministic.
+An identical already-saved interpretation reports `already_applied=true` and no
+new observations. Excessive output fails without partial printing.
+
+Preview accepts the same original local snapshot family as apply. It works with
+retained sources after relocation and never refreshes a source. Its revision
+check reserves no future write: apply verifies the revision again before saving.
+
 Apply a selected snapshot only to an existing evidence-linked finding, with
 explicit interpretation and model concurrency inputs:
 
@@ -131,7 +167,7 @@ original evidence. An identical interpretation replay is a no-op.
 The same commands work in `1337 shell`, with complete explicit arguments. Shell
 selection never supplies a workspace, finding, source or approval implicitly.
 History retains only the `intel` namespace. Use `1337 intel import --help`,
-`inspect --help` or `apply --help` for the action's required arguments.
+`inspect --help`, `preview --help` or `apply --help` for the action's required arguments.
 
 JSON mode prints one schema-v1 terminal document. Successful commands exit zero;
 invalid setup exits two; failed acquisition, integrity or model storage exits
@@ -146,3 +182,5 @@ See [ADR 0069](adr/0069-explicit-local-intelligence-cli.md) and the
 [acquisition contract](adr/0060-bounded-intelligence-snapshot-acquisition.md).
 [ADR 0123](adr/0123-selected-intelligence-inspection.md) defines selected details
 and their finite source/output boundaries.
+[ADR 0149](adr/0149-read-only-finding-intelligence-preview.md) defines the unsaved
+finding preview and its equality with the apply proposal.

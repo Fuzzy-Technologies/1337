@@ -5,8 +5,11 @@
 
 from __future__ import annotations
 
+from io import StringIO
+
 import pytest
 
+from fuzzy1337 import ioc_commands as commands
 from tests.ioc_cli_helpers import Files, ImportArguments, Owned, Run
 
 
@@ -85,3 +88,45 @@ def test_SuccessSummaryNeverReturnsSourceTokensPhysicalPathsOrReadReferences(tmp
     assert result["publisher_authentication"] == "not-assessed" and result["core_mutation"] == (
         "none"
     ), "Supplied candidates acquired a maliciousness, publisher or Core mutation claim"
+
+
+@pytest.mark.parametrize("json_output,extra", [
+    (False, []), (True, ["--match", "dns", "example.invalid"]),
+], ids=("text-export", "mixed-match-export"))
+def test_CandidateExportRequiresExplicitMachineModeBeforeStorage(
+    tmp_path, monkeypatch, json_output, extra,
+):
+    """Candidate data requires an unambiguous explicit opt-in before any replay or file access."""
+
+    def Open(*args, **kwargs):
+        """Expose any premature workspace or evidence read after invalid export selections."""
+
+        raise AssertionError("Invalid candidate export accessed owning storage")
+
+    monkeypatch.setattr(commands, "ArtifactPathInfo", Open)
+    monkeypatch.setattr(commands, "LoadIocArtifact", Open)
+    arguments = ["ioc", "inspect", str(tmp_path), "--snapshot", "sha256:" + "a" * 64,
+                 "--receipt", "sha256:" + "b" * 64, "--export-candidates", *extra]
+    output = StringIO()
+    assert commands.RunIocCommands(arguments, output, json_output=json_output) == 2, (
+        'Candidate export must require explicit machine mode before reading retained '
+        'data'
+    )
+    assert "configuration" in output.getvalue() and "candidate_export" not in output.getvalue(), (
+        'Candidate export must require explicit machine mode before reading retained '
+        'data'
+    )
+    assert "example.invalid" not in output.getvalue(), "Invalid export echoed selected values"
+
+
+def test_ImportCannotEnableCandidateExport(tmp_path):
+    """The original import consent does not silently select a new data-bearing presentation."""
+
+    root, source = Owned(tmp_path)
+    before = Files(root)
+    status, rejected = Run([*ImportArguments(root, source), "--export-candidates"])
+    assert status == 2 and rejected["failure"] == "configuration" and Files(root) == before, (
+        'Import consent must not enable candidate export or change retained source '
+        'bytes'
+    )
+    assert "candidate_export" not in rejected, "Rejected import emitted derived candidate data"

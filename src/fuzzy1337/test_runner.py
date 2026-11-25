@@ -283,7 +283,10 @@ def RunPytest(
             print("Partial pytest diagnostic (not JUnit): "
                   f"completed={diagnostic['completed']} "
                   f"truncated={diagnostic['truncated']} "
-                  f"unavailable={diagnostic['unavailable']}", flush=True)
+                  f"unavailable={diagnostic['unavailable']} "
+                  f"retained_passed={diagnostic['passed']} "
+                  f"retained_failed={diagnostic['failed']} "
+                  f"retained_skipped={diagnostic['skipped']}", flush=True)
         return 124, TestSummary(failed=1, timeout=1, duration_seconds=time.monotonic() - started)
 
     except OSError:
@@ -311,6 +314,7 @@ def HasSerialTests(target: str) -> bool:
         True only when serial-only collection exits successfully.
 
     Raises:
+        subprocess.CalledProcessError: Collection fails instead of establishing an empty selection.
         subprocess.TimeoutExpired: Collection exceeds its process limit.
         OSError: The collection subprocess cannot be started.
     """
@@ -333,6 +337,9 @@ def HasSerialTests(target: str) -> bool:
         capture_output=True,
         text=True,
     )
+    if result.returncode not in {0, 5}:
+        raise subprocess.CalledProcessError(result.returncode, result.args)
+
     return result.returncode == 0
 
 

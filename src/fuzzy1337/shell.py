@@ -525,7 +525,7 @@ class InteractiveShell(cmd.Cmd):
             "": (
                 "api import graphql-introspection, ci scan, commands, context, demo local, "
                 "history [query], image export-local, lens [<name>] [--json], "
-                "intel <import|inspect|apply>, model <workspace-path>, palette [query], "
+                "intel <import|inspect|preview|apply>, model <workspace-path>, palette [query], "
                 "paths analyze, raw <plan|run|replay>, report export, "
                 "runtime import <docker-inspect|kubernetes-list>, "
                 "trace ioc <import|inspect>, "
@@ -554,7 +554,7 @@ class InteractiveShell(cmd.Cmd):
             ),
             "history": "history [query]: search previous shell commands from newest to oldest.",
             "intel": (
-                "intel <import|inspect|apply> <workspace>: explicitly select local source files, "
+                "intel <import|inspect|preview|apply> <workspace>: select local source files, "
                 "verified snapshots/receipts, or one finding's enrichment."
             ),
             "lens": (
@@ -835,7 +835,7 @@ class InteractiveShell(cmd.Cmd):
         """Use explicit local intelligence selections without deriving them from shell context.
 
         Args:
-            argument: Import, inspect, or apply action with its complete explicit arguments.
+            argument: Import, inspect, preview, or apply action with complete explicit arguments.
         """
 
         self.RunLocalCommand("intel", argument)

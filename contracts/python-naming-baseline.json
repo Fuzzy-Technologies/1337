@@ -829,7 +829,6 @@
   ["src/fuzzy1337/reachability.py", "parameter", "top.TimeReasons", "maximum_age"],
   ["src/fuzzy1337/report_commands.py", "parameter", "top.ConfirmReportPublication", "owned_metadata"],
   ["src/fuzzy1337/report_commands.py", "parameter", "top.RunReportCommands", "json_output"],
-  ["src/fuzzy1337/report_formats.py", "parameter", "top.IntelligenceDetails", "finding_reference"],
   ["src/fuzzy1337/reporting.py", "parameter", "top.ReportText", "field_name"],
   ["src/fuzzy1337/reporting.py", "parameter", "top.VerifyReportEvidence", "workspace_root"],
   ["src/fuzzy1337/requests.py", "parameter", "top.InjectionPoint.Reference", "request_reference"],

@@ -14,7 +14,10 @@ concurrency:
 
 jobs:
   controlled-native-pair:
-    if: ${{ github.event.pull_request.draft && contains(github.event.pull_request.body, '<!-- native-ci-diagnostic-2115 -->') }}
+    if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
+      github.event.pull_request.draft && contains(github.event.pull_request.body, '<!-- native-ci-diagnostic-2115 -->'))
     name: Controlled native CI Windows diagnostic
     runs-on: windows-2022
     timeout-minutes: 5
@@ -48,9 +51,11 @@ jobs:
           retention-days: 7
   cwe-selected-windows:
     if: >-
-      ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
+      github.event_name == 'pull_request' && github.event.pull_request.draft == true
       && github.event.pull_request.head.repo.full_name == github.repository
-      && contains(github.event.pull_request.body, '[cwe-windows-diagnostic-checkpoint]') }}
+      && contains(github.event.pull_request.body, '[cwe-windows-diagnostic-checkpoint]'))
     name: Selected CWE Windows diagnostic
     runs-on: windows-2022
     timeout-minutes: 5

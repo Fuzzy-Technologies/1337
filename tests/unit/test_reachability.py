@@ -951,33 +951,29 @@ def BoundaryModel(fixture, delta):
     unitSize = len(CanonicalModelJson(replace(original, objects=(
         *original.objects, empty,
     )).ToDict())) - baseSize
+    # Fixed-width identity keys and ASCII padding keep the calibrated byte cost additive.
     block = 60000
-    count = (MAX_MODEL_BYTES - baseSize - unitSize) // (block + unitSize)
+    paddedSize = block + unitSize
+    count = (MAX_MODEL_BYTES - baseSize - unitSize) // paddedSize
+    remainder = MAX_MODEL_BYTES + delta - (baseSize + count * paddedSize + unitSize)
+    assert 0 <= remainder < 64000, "Independent boundary fixture cannot fit one bounded attribute"
     padding = "x" * block
     full = tuple(SecurityObject(ObjectIdentity(original.workspace_id, ObjectKind.ASSET,
         f"budget:{index:04d}"), {"padding": padding}, provenance) for index in range(count))
-    blank = SecurityObject(ObjectIdentity(original.workspace_id, ObjectKind.ASSET,
-        f"budget:{count:04d}"), {"padding": ""}, provenance)
-    model = replace(original, objects=(*original.objects, *full, blank))
-    remainder = MAX_MODEL_BYTES + delta - len(CanonicalModelJson(model.ToDict()))
-    assert 0 <= remainder < 64000, "Independent boundary fixture cannot fit one bounded attribute"
-    last = replace(blank, attributes={"padding": "y" * remainder})
-    result = replace(original, objects=(*original.objects, *full, last))
-    assert len(CanonicalModelJson(result.ToDict())) == MAX_MODEL_BYTES + delta, "Boundary mismatch"
+    last = SecurityObject(ObjectIdentity(original.workspace_id, ObjectKind.ASSET,
+        f"budget:{count:04d}"), {"padding": "y" * remainder}, provenance)
 
-    return result
+    return replace(original, objects=(*original.objects, *full, last))
 
 
-@pytest.mark.parametrize("delta", [-1, 0, 1], ids=["one-byte-below", "exact", "one-byte-above"])
+@pytest.mark.parametrize("delta", [-1, 0], ids=["one-byte-below", "exact"])
 def test_ExactEightMiBBoundariesUseIndependentCanonicalBytes(fixture, delta):
-    """The complete owning size fence is inclusive and its accepted hash remains unchanged."""
+    """The owning size fence includes the exact limit and preserves accepted hashes."""
 
     model = BoundaryModel(fixture, delta)
-    if delta > 0:
-        with pytest.raises(ValueError):
-            ReachabilityModelVersion.FromModel(model)
-        return
     expected = CanonicalModelJson(model.ToDict())
+    assert len(expected) == MAX_MODEL_BYTES + delta, "Boundary mismatch"
+
     assert ModelSnapshotSize(model) == len(expected), "Exact boundary byte count changed"
     assert ReachabilityModelVersion.FromModel(model).snapshot_sha256 == hashlib.sha256(
         expected,
@@ -985,11 +981,17 @@ def test_ExactEightMiBBoundariesUseIndependentCanonicalBytes(fixture, delta):
 
 
 def test_OversizedCallerModelRefusesBeforeFullMaterialization(fixture, monkeypatch):
-    """Reject a valid oversized basis before calling ToDict, JsonValue or Reference."""
+    """Reject a basis one byte over the limit before owner materialization."""
 
     import fuzzy1337.reachability as module
 
     model = BoundaryModel(fixture, 1)
+    assert len(CanonicalModelJson(model.ToDict())) == MAX_MODEL_BYTES + 1, "Boundary mismatch"
+    with pytest.raises(ValueError):
+        ReachabilityModelVersion.FromModel(model)
+
+    # Give the instrumented call its own snapshot so it is the first admission of that instance.
+    guardedModel = replace(model)
     attempted = []
 
     def Refuse(*args, **kwargs):
@@ -1007,10 +1009,10 @@ def test_OversizedCallerModelRefusesBeforeFullMaterialization(fixture, monkeypat
         raise AssertionError("oversized model reached full canonical materialization")
 
     with monkeypatch.context() as guard:
-        guard.setattr(type(model), "ToDict", Refuse)
+        guard.setattr(type(guardedModel), "ToDict", Refuse)
         guard.setattr(module, "CanonicalModelJson", Refuse)
         for recordType in (ObjectIdentity, SecurityObject, Relation, Observation):
             guard.setattr(recordType, "Reference", Refuse)
         with pytest.raises(ValueError):
-            ReachabilityModelVersion.FromModel(model)
+            ReachabilityModelVersion.FromModel(guardedModel)
     assert not attempted, "Size admission delegated oversized caller data to an allocating owner"

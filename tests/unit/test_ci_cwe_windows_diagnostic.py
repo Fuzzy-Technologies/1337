@@ -11,6 +11,14 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/native-ci-diagnostic.yml"
+PASSIVE_VETO = (
+    "!(github.event_name == 'pull_request' && github.base_ref == 'develop' "
+    "&& startsWith(github.head_ref, 'feature/passive-batch-')) && ( "
+)
+NATIVE_PREDICATE = (
+    "github.event.pull_request.draft && "
+    "contains(github.event.pull_request.body, '<!-- native-ci-diagnostic-2115 -->')"
+)
 SELECTION = (
     "tests/unit/test_intelligence_cwe_selection.py",
     "tests/unit/test_intelligence_cwe_xml.py",
@@ -34,6 +42,17 @@ def test_ExistingNativeBaselineRemainsByteIdentical(line_ending: bytes) -> None:
     assert b"\r" not in canonical, "A lone carriage return must not enter canonical Git content."
     checkout = canonical.replace(b"\n", line_ending)
     original = checkout.replace(b"\r\n", b"\n").split(b"  cwe-selected-windows:\n", 1)[0]
+    addition = (
+        "    if: >-\n"
+        "      !(github.event_name == 'pull_request' && github.base_ref == 'develop'\n"
+        "      && startsWith(github.head_ref, 'feature/passive-batch-')) && (\n"
+        "      " + NATIVE_PREDICATE + ")\n"
+    ).encode()
+    assert original.count(addition) == 1, (
+        "Only the exact new passive veto may be inverted before historical byte comparison."
+    )
+    historical = ("    if: ${{ " + NATIVE_PREDICATE + " }}\n").encode()
+    original = original.replace(addition, historical, 1)
     assert hashlib.sha256(original).hexdigest() == (
         "0fb492d0061d73c9474c8729fd51b1599578520ec1d02e628fffc30a1ee76742"
     ), "The canonical Git bytes of the original native workflow/job must remain identical."
@@ -43,7 +62,12 @@ def test_NewDiagnosticRequiresSameRepositoryDraftAndExactMarker():
     """Neither an ordinary ready PR nor an unmarked or foreign Draft can run the subset."""
 
     job = Job()
-    assert " ".join(job["if"].split()) == (
+    condition = " ".join(job["if"].split())
+    assert condition.startswith(PASSIVE_VETO) and condition.endswith(")"), (
+        "The diagnostic must veto the exact requested passive develop branch before authorization."
+    )
+    historical = "${{ " + condition[len(PASSIVE_VETO):-1] + " }}"
+    assert historical == (
         "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true "
         "&& github.event.pull_request.head.repo.full_name == github.repository "
         "&& contains(github.event.pull_request.body, '[cwe-windows-diagnostic-checkpoint]') }}"
@@ -54,6 +78,29 @@ def test_NewDiagnosticRequiresSameRepositoryDraftAndExactMarker():
     assert "needs" not in job and not job.get("continue-on-error", False), (
         "The separate diagnostic cannot replace a full gate or suppress its own failures."
     )
+
+
+@pytest.mark.parametrize("event,base,head,blocked", [
+    ("pull_request", "develop", "feature/passive-batch-workbench", True),
+    ("pull_request", "develop", "feature/passive-batch-other", True),
+    ("pull_request", "master", "feature/passive-batch-workbench", False),
+    ("push", "develop", "feature/passive-batch-workbench", False),
+    ("pull_request", "develop", "feature/ordinary", False),
+])
+def test_PassiveVetoPrecedesBothNativeDiagnosticMarkers(event, base, head, blocked):
+    """The exact negative guard blocks passive requests without widening older authorization."""
+
+    jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+
+    for job in jobs.values():
+        condition = " ".join(job["if"].split())
+        assert condition.startswith(PASSIVE_VETO), (
+            "An existing native diagnostic marker bypasses the required passive veto."
+        )
+
+    admitted = not (event == "pull_request" and base == "develop"
+                    and head.startswith("feature/passive-batch-"))
+    assert admitted is not blocked, "The negative veto changed ordinary or passive context meaning."
 
 
 def test_ProvisioningUsesExactHeadAndPinnedLockedRuntime():

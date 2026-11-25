@@ -8,6 +8,202 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 43 — v0.4.43 — 2026-11-25
+
+#### Digest
+
+- Run the full unit suite once for reviewed offline development batches and
+  retain separate evidence for platform, packaging and container checks.
+
+#### Changed
+
+- Check the complete unit inventory in parallel, run shared-resource tests
+  separately, and measure changed production modules with offline product tests.
+- Exercise the isolated service lifecycle and its cleanup in the batch. Keep
+  the existing full validation for normal integration and stable-branch runs.
+
+#### Fixed
+
+- Surface serial-test collection errors and retain test outcomes on timeouts.
+
+
+### Patch 42 — v0.4.42 — 2026-11-25
+
+#### Digest
+
+- Reduce repeated passive page-header contract validation while preserving its boundaries.
+
+#### Changed
+
+- Replace interior header-count repetitions with explicit minimum, maximum and
+  token-width transition neighbors for both charset classes. Check each exact
+  admitted minimum and its one-byte-below refusal, plus independent worker,
+  schema and parent rejection immediately outside the supported count range.
+
+
+### Patch 41 — v0.4.41 — 2026-11-25
+
+#### Digest
+
+- Report capability detections only for checks applicable to the saved scenario.
+
+#### Fixed
+
+- Keep an inapplicable observation visible as unexpected without counting it as a
+  successful detection of another check in the same capability.
+
+
+### Patch 40 — v0.4.40 — 2026-11-25
+
+#### Digest
+
+- Preserve bounded saved-report verification while reusing verified reads.
+
+#### Fixed
+
+- Classify out-of-range saved observation timestamps as input integrity failures
+  and refuse publication without disclosing the rejected values.
+- Reuse verified acquisition reads and canonical snapshot bytes while preserving
+  evidence quotas, source-byte checks, and integrity failure ordering.
+
+
+### Patch 39 — v0.4.39 — 2026-11-25
+
+#### Digest
+
+- Keep serialized SDK execution records readable by canonical model consumers.
+
+#### Fixed
+
+- Reject boolean and nonnumeric execution durations at SDK record construction.
+
+
+### Patch 38 — v0.4.38 — 2026-11-25
+
+#### Digest
+
+- Review verified source matches and freshness for a saved finding before applying enrichment.
+
+#### Added
+
+- Add read-only `1337 intel preview` over the same source/receipt, explicit finding,
+  identifiers, revision, interpretation time and freshness budget as apply. Return
+  the exact new candidate observations, source/evidence links, unmatched IDs and
+  staleness without saving model or evidence state.
+
+
+### Patch 37 — v0.4.37 — 2026-11-25
+
+#### Digest
+
+- Surface score timing and remediation deadlines in offline inspection.
+
+#### Fixed
+
+- Show the verified UTC score timestamp alongside probability and percentile
+  in selected `1337 intel inspect` text output.
+- Show the retained KEV remediation due date beside the required action in
+  selected `1337 intel inspect` text output.
+- Show declared source/license attribution and keep source-wide CVE profiles
+  ahead of unmatched identifiers in selected text inspection.
+- Show the verified original source SHA-256 when selected text inspection
+  matches a retained record.
+
+
+### Patch 36 — v0.4.36 — 2026-11-25
+
+#### Digest
+
+- Make verified retained IOC occurrences available to offline machine consumers.
+
+#### Added
+
+- Export the original normalized IOC snapshot through explicit
+  `trace ioc inspect --export-candidates --json`, preserving tokens, source/parser
+  attribution, original times, duplicate occurrences and byte coordinates after
+  independently anchored replay. Default summaries remain unchanged; refused
+  exports never contain a partial candidate payload.
+
+
+### Patch 35 — v0.4.35 — 2026-11-25
+
+#### Digest
+
+- Make retained IOC source evidence easier to locate during offline inspection.
+
+#### Added
+
+- Locate every retained occurrence of one supplied IOC by its original physical
+  line and byte range, with the source-declared time and timezone when present.
+
+#### Changed
+
+- Show the verified original evidence manifest ID, source SHA-256 and byte length
+  in the default `1337 trace ioc inspect` summary.
+- Show the fixed failure category in the default IOC summary without echoing
+  rejected values or physical paths.
+
+
+### Patch 34 — v0.4.34 — 2026-11-25
+
+#### Digest
+
+- Keep saved nested image inventory bound to its exact source attribution.
+
+#### Fixed
+
+- Exclude unclaimed canonical containment attributed only to another image,
+  while preserving independently attributed selected-image edges even when
+  another source declares the same relation for another image.
+- Apply original SPDX relationship restrictions per complete provenance record;
+  missing or invalid image references cannot authorize that source context.
+
+
+### Patch 33 — v0.4.33 — 2026-11-25
+
+#### Digest
+
+- Distinguish saved report failures from invalid comparison selections.
+
+#### Fixed
+
+- Identify the affected baseline or candidate when a comparison rejects a
+  saved report or an invalid release or profile selection. The diagnostics
+  omit report paths, contents, and supplied selection values.
+
+
+### Patch 32 — v0.4.32 — 2026-11-23
+
+#### Digest
+
+- Reduce repeated lookups when rendering large offline reports.
+
+#### Fixed
+
+- Match finding evidence link numbers to their rows in the HTML evidence table.
+- Open the selected table when following a row-range link in the findings index.
+
+#### Changed
+
+- Group retained inventory by object kind and index finding history by canonical
+  subject reference for the HTML report.
+- Name offline report tables after their visible headings for screen reader
+  navigation.
+- Link to populated asset groups and show their retained object counts.
+- Order the offline Ports table by saved integer port number.
+- Order the offline Web addresses table by saved integer HTTP status, highest first.
+- Group offline HTML findings by saved disposition and link directly to each group.
+- Filter offline HTML findings by saved severity, including Unknown.
+- Add a severity-ordered index of retained findings to offline HTML reports.
+- Add row-range links to long indexes of findings by saved severity.
+- Paginate long saved-severity indexes with native page disclosures.
+- Page large asset tables by object kind and reveal the page for linked assets.
+- Link retained assets to finding cards by their exact saved subject references.
+- Filter offline HTML assets by direct saved finding subjects.
+- Show assets without retained findings for manual review.
+- Build JUnit metadata from one retained report projection.
+
+
 ### Patch 31 — v0.4.31 — 2026-11-04
 
 #### Digest

@@ -170,10 +170,39 @@ Do not run `1337-dev unit`, `1337-dev test` or `1337-dev check` before every
 implementation commit. Keep intermediate work in a draft PR and run a small,
 explicit selection of feature tests and relevant failure/regression paths, plus
 applicable changed-code static checks. Review fixes follow the same fast cycle.
-When the final revision is prepared, mark the PR ready for review to run the full
-gate once through shared CI. Return it to draft before intermediate follow-up
-work; this cancels any running integration gate. A new head on an already ready
+When the final revision is prepared, mark the PR ready for review to run the
+shared integration profiles once through CI. Return it to draft before
+intermediate follow-up work; this cancels any running integration gate. A new head on an already ready
 PR reruns full CI so changed code cannot inherit earlier green evidence.
+
+Ordinary Ready PRs and stable/master routes retain the complete native and
+container checks. An independently admitted passive batch to `develop` runs all
+units once on Ubuntu Python 3.13, then appends the reviewed offline boundaries.
+Its explicit changed-production-module gate requires strictly >80% combined
+statement/branch coverage; installed CLI children use the passive-only subprocess
+measurement configuration. Python 3.14 and Windows exercise runner, report and workspace compatibility;
+Windows also exercises the actual owned TLS cleanup boundary. macOS uses the
+offline runner/progress portability selection. The container exercises real
+clean-wheel installation and process/coverage integration. These compatibility
+checks retain actual JUnit reports and do not claim complete repository coverage.
+The authoritative unit job, macOS and container retain static/performance/build
+phases. See [ADR 0150](adr/0150-development-test-profiles.md).
+
+A passive branch name requests verification against the separately reviewed exact
+manifest. Missing or held routing fails required checks before container work;
+optional active/external workflows are vetoed for every such request. Their
+skipped jobs are not active scanner evidence. The required benign synthetic
+lifecycle still checks isolated health, teardown and observed resource absence.
+Ordinary saved-report acceptance and its independent external-target suppression
+remain additional requirements under #522.
+
+The passive receipt records the actual disjoint partitions and all changed
+production module measurements; it does not claim all-module coverage. Collection
+and JUnit must agree exactly, without unexpected skips. Only 11 named docs-render
+fixtures may defer to the separate hash-locked documentation job. Normal full
+checkpoints and master keep the unchanged global >80% gate for every production
+module. Verify actual checks on the final revision and do not repeat full units
+in every local agent or after merging to `develop`.
 
 Required development workflows run on pull requests to `develop` or
 `master` when ready, including the explicit `ready_for_review` event. Draft
@@ -228,6 +257,9 @@ Automatic scheduling uses `--dist=loadscope` and caps workers at
 `min(os.cpu_count(), 12)`. Tests that own a shared resource must use the explicit
 `@pytest.mark.serial` marker; the runner executes them separately with `-n 0` after
 the parallel pool. No automatic retry is configured or permitted.
+The serial collection probe accepts only success or pytest's explicit no-tests
+status 5. An import, configuration or other collection failure fails the gate;
+it cannot silently drop shared-resource tests from coverage.
 
 The same automatic worker cap applies to focused pytest commands that use
 `-n auto`. Plain `pytest` without `-n` runs sequentially. When several development
@@ -254,16 +286,21 @@ through fixed configuration diagnostics. The full `check` command permits the
 suite-budget override and `--fail-fast`; nondefault worker counts, per-test
 timeouts and serial-only selection remain rejected. Ready Python-matrix and
 container CI checks stop on the first test failure, leaving subsequent work
-unassessed. Successful checks retain every quality phase, test layer and coverage
+unassessed. Successful complete checks retain every quality phase, test layer and coverage
 requirement, with unchanged worker/per-test defaults and no retries.
 
-The Windows and container CI profiles use a 1200-second suite budget and a
-25-minute job limit. Container CI runs the complete check as
+The complete container CI profile uses a 1200-second suite budget and a
+25-minute job limit. Stable/master container CI runs the complete check as
 `docker compose --profile quality run --rm quality 1337-dev check --fail-fast --suite-timeout 1200`
 with the existing local UID/GID mapping. Two complete container attempts reached
-99% at the former 900-second deadline. The Ubuntu Python 3.13 matrix entry uses a
-900-second suite budget and a 20-minute job limit. Other quality-matrix platforms
-use a 600-second suite budget and a 15-minute job limit.
+99% at the former 900-second deadline. When the complete Python quality gate is
+selected, Ubuntu Python 3.13 uses a 900-second suite budget and a 20-minute job
+limit; Windows Python 3.13 uses a 1500-second suite budget and a 30-minute job
+limit. The Ubuntu Python 3.14 and macOS Python 3.13 complete profiles use the
+default 600-second suite budget and a 15-minute job limit.
+Admitted passive container compatibility instead has an eight-minute step ceiling
+and a 120-second per-case deadline. The macOS portability pytest step has a
+five-minute ceiling and a 15-second per-case deadline.
 
 The suite limit applies separately to each pytest invocation. The job limit also
 covers later quality phases and evidence upload. Local validation uses the CLI
@@ -341,6 +378,28 @@ evidence acquisition and verified evidence reference. It asserts byte-identical
 JSON after an identical replay and verifies that reporting preserves the source
 workspace file contents. See
 [`test_VerifiedFindingReplayMatchesOfflineShowcaseMarker`](../tests/integration/test_finding_persistence.py).
+
+For a `develop` PR limited to a saved report, the final reviewer runs the offline
+acceptance in the review console. The same command runs in the locked CI environment:
+
+```bash
+uv run --locked --extra dev python tools/saved_report_acceptance.py coverage/saved-report.xml
+```
+
+The 18 cases check replay and provenance through the report CLI, refusal of missing,
+corrupt or changing inputs, unpublished partial results, and byte preservation for
+all four export formats. Socket and child-process attempts during the cases fail the run.
+Eligible PRs run the accepted base revision’s tests against the proposed source.
+CI retains the JUnit results, both revisions and the pytest version. The reviewer
+records the result on the PR. The project owner does not have a manual test step.
+
+The [base revision's file list](../tools/saved_report_scope.py) limits the substitution
+for the external-target regression to regular-file modifications in the report surface.
+Changes to the acceptance tooling run its candidate suite alongside the full profile. Mixed,
+new, renamed or deleted files and release revisions keep their existing acceptance.
+The protected container check requires a successful acceptance decision before its
+own checks. An offline pass covers reading retained data. Fresh collection and
+other integration requirements have their own evidence.
 
 Full [showcase acceptance #118](https://github.com/Fuzzy-Technologies/1337/issues/118)
 remains open. Compare the security objects produced by the offline showcase with

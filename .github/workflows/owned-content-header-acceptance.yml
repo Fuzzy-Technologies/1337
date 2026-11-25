@@ -17,9 +17,11 @@ concurrency:
 jobs:
   installed-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-checkpoint]')))
+      contains(github.event.pull_request.body, '[owned-content-header-checkpoint]'))))
     name: Installed fresh content header and relocated replay
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -63,9 +65,11 @@ jobs:
 
   content-unit-windows-checkpoint:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == true &&
-      contains(github.event.pull_request.body, '[owned-content-unit-windows-checkpoint]')
+      contains(github.event.pull_request.body, '[owned-content-unit-windows-checkpoint]'))
     name: Focused Windows owned-content unit portability
     runs-on: windows-2022
     timeout-minutes: 8
@@ -120,9 +124,11 @@ jobs:
 
   actor-denied-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-actor-denied-checkpoint]')))
+      contains(github.event.pull_request.body, '[owned-content-header-actor-denied-checkpoint]'))))
     name: Installed controlled actor mismatch without analysis Save
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -167,9 +173,11 @@ jobs:
 
   policy-denied-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-policy-denied-checkpoint]')))
+      contains(github.event.pull_request.body, '[owned-content-header-policy-denied-checkpoint]'))))
     name: Installed content analysis policy refusal without Save
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -214,9 +222,11 @@ jobs:
 
   fixed-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-fixed-checkpoint]')))
+      contains(github.event.pull_request.body, '[owned-content-header-fixed-checkpoint]'))))
     name: Installed fixed content header and relocated negative replay
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -260,9 +270,11 @@ jobs:
 
   body-decoy-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-body-decoy-checkpoint]')))
+      contains(github.event.pull_request.body, '[owned-content-header-body-decoy-checkpoint]'))))
     name: Installed body-decoy content header and relocated replay
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -307,9 +319,11 @@ jobs:
 
   approval-denied-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request' &&
       (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.body, '[owned-content-header-approval-denied-checkpoint]')))
+      contains(github.event.pull_request.body, '[owned-content-header-approval-denied-checkpoint]'))))
     name: Installed content analysis approval refusal without Save
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -354,9 +368,11 @@ jobs:
 
   stale-model-cas-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == true &&
-      contains(github.event.pull_request.body, '[owned-content-header-stale-model-cas-checkpoint]')
+      contains(github.event.pull_request.body, '[owned-content-header-stale-model-cas-checkpoint]'))
     name: Installed stale model CAS preserves acquired content state
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -401,9 +417,11 @@ jobs:
 
   post-model-ack-expiry-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == true &&
-      contains(github.event.pull_request.body, '[owned-content-header-post-model-ack-expiry-checkpoint]')
+      contains(github.event.pull_request.body, '[owned-content-header-post-model-ack-expiry-checkpoint]'))
     name: Installed post-model-ACK expiry retains partial model state
     runs-on: ubuntu-24.04
     timeout-minutes: 6
@@ -448,9 +466,11 @@ jobs:
 
   ipv6-worker-content-header:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == true &&
-      contains(github.event.pull_request.body, '[owned-content-header-ipv6-worker-checkpoint]')
+      contains(github.event.pull_request.body, '[owned-content-header-ipv6-worker-checkpoint]'))
     name: Installed IPv6 content worker only with original wire and settled owners
     runs-on: ubuntu-24.04
     timeout-minutes: 6

@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import hashlib
 import html
+from collections.abc import Callable, Collection, Iterable
+from functools import cache
 from http import HTTPStatus
+from itertools import batched
 from typing import cast
 from xml.etree import ElementTree
 
@@ -20,10 +23,30 @@ from fuzzy1337.adapters.native_web import (
 from fuzzy1337.assessments import InterpretSeverity
 from fuzzy1337.findings import Finding, FindingSeverity, FindingStatus
 from fuzzy1337.intelligence import IntelligenceFeed
-from fuzzy1337.model import CanonicalModelJson, ObjectKind, SecurityObject
-from fuzzy1337.reporting import MAX_REPORT_BYTES, REPORT_SCHEMA_VERSION, ReportSnapshot
+from fuzzy1337.model import CanonicalModelJson, ObjectKind, Observation, SecurityObject
+from fuzzy1337.reporting import (
+    MAX_REPORT_BYTES,
+    REPORT_SCHEMA_VERSION,
+    ProjectRetainedReportRows,
+    ReportSnapshot,
+    RetainedFindingRow,
+    RetainedReportRows,
+)
 
 __all__ = ["RenderHtml", "SerializeJson", "SerializeSarif", "SerializeJunit"]
+_ASSET_TABLE_PAGE_SIZE = 50
+_ASSET_TABLE_GROUPS = (
+    (ObjectKind.HOST, "Hosts", (("Address", ("address",)), ("Reported state", ("state",)))),
+    (ObjectKind.PORT, "Ports", (("Protocol", ("protocol",)), ("Number", ("number",)),
+                               ("Reported state", ("state",)))),
+    (ObjectKind.SERVICE, "Services", (("Name", ("name",)), ("Version", ("version",)))),
+    (ObjectKind.ENDPOINT, "Web addresses", (("Method", ("method",)),
+                                           ("HTTP status", ("status",)))),
+)
+_FINDING_INDEX_RANGE_SIZE = 50
+_FINDING_INDEX_PRINT_CSS = (
+    "@media print {.findings-severity-index[data-paginated] {display:none}}\n"
+)
 _CSS = """
 :root {color-scheme:dark;--bg:#07090d;--panel:#0b1117;--text:#b9dce8;
 --muted:#7f9da8;--cyan:#55e7ff;--pink:#ff5bd8;--green:#5dff8d;--border:#00eaff4d}
@@ -36,7 +59,9 @@ a {color:var(--pink);overflow-wrap:anywhere} .brand {color:var(--green)}
 border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1rem 0}
 .card {flex:1;min-width:160px} .count {font-size:2rem;color:var(--green)}
 .finding {background:var(--panel);border:1px solid var(--border);border-left:4px solid
-var(--pink);border-radius:8px;padding:1.2rem;margin:1rem 0}.finding h3 {margin-top:0}
+var(--pink);border-radius:8px;padding:1.2rem;margin:1rem 0}.finding > h4 {margin-top:0;""" \
+    """color:var(--cyan)}
+.finding h5,.finding h6 {font-size:1em}
 .badge {display:inline-block;padding:.1rem .5rem;border:1px solid var(--border);
 border-radius:4px;font-size:.85rem}.notice {border-left:3px solid var(--cyan);padding-left:1rem}
 .meter {display:flex;gap:.25rem;align-items:end;min-height:3rem;margin:1rem 0}
@@ -48,12 +73,72 @@ caption {text-align:left;color:var(--muted);margin:.5rem 0}
 @media(max-width:600px) {main {padding:1rem .7rem}th,td {padding:.4rem}
 .cards {gap:.4rem}.card {padding:.7rem}.meter {flex-wrap:wrap}.meter div {min-width:70px}}
 summary {cursor:pointer;color:var(--green)} code,pre {overflow-wrap:anywhere}
+.findings-severity-index > summary h3 {display:inline;font-size:1em}
 pre {white-space:pre-wrap;background:#101820;padding:1rem;border-radius:6px}
 .table {overflow:auto} table {border-collapse:collapse;width:100%}
 th,td {text-align:left;vertical-align:top;padding:.65rem;border-bottom:1px solid var(--border)}
-th {color:var(--cyan)} a:focus-visible,summary:focus-visible {outline:2px solid var(--cyan)}
-@media print {body {background:white;color:black} a,h1,h2,h3,summary {color:black}}
+thead th {color:var(--cyan)} th[scope="row"] {font-weight:inherit}
+a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid var(--cyan)}
+@media screen {#evidence tbody tr:target > * {background:#15212b}
+#evidence tbody tr:target > th[scope="row"] {outline:2px solid var(--cyan);outline-offset:-2px}}
+@media print {body {background:white;color:black} a,h1,h2,h3,.finding > h4,summary {color:black}}
 """
+_ASSET_WITHOUT_FINDINGS = ' data-asset-findings="none"'
+_ASSET_WITH_FINDINGS = ' data-asset-findings="present"'
+_ASSET_FINDINGS_SELECTOR = (
+    "#model:has(> #assets-with-findings:target) [data-asset-findings]"
+    ':not([data-asset-findings="present"])'
+)
+_ASSET_NO_FINDINGS_SELECTOR = (
+    "#model:has(> #assets-without-findings:target) [data-asset-findings]"
+    ':not([data-asset-findings="none"])'
+)
+_ASSET_FINDINGS_CSS = (
+    ".asset-findings-filter[hidden],.asset-findings-selection[hidden] {display:none}\n"
+    "@media screen {\n"
+    f"@supports selector({_ASSET_FINDINGS_SELECTOR})\n"
+    f"    and selector({_ASSET_NO_FINDINGS_SELECTOR}) {{\n"
+    ".asset-findings-filter[hidden] {display:flex}\n"
+    ".asset-findings-selection[hidden]:target {display:block}\n"
+    f"{_ASSET_FINDINGS_SELECTOR} {{display:none}}\n"
+    f"{_ASSET_NO_FINDINGS_SELECTOR} {{display:none}}\n"
+    "}\n}\n"
+)
+_ASSET_UNFILTERED_VIEW = "#model:not(:has(> .asset-findings-selection:target))"
+_ASSET_PAGE_TARGET = "> .asset-table-page:target, > .asset-table-page > tr:target"
+_ASSET_SELECTED_PAGE_TABLE = f"{_ASSET_UNFILTERED_VIEW} table:has({_ASSET_PAGE_TARGET})"
+_ASSET_PAGE_CSS = (
+    ".asset-page-links[hidden] {display:none}\n"
+    "@media screen {\n"
+    f"@supports selector({_ASSET_SELECTED_PAGE_TABLE}) {{\n"
+    f"{_ASSET_UNFILTERED_VIEW} .asset-page-links[hidden] {{display:flex}}\n"
+    f"{_ASSET_UNFILTERED_VIEW} table:not(:has({_ASSET_PAGE_TARGET}))"
+    " > .asset-table-page ~ .asset-table-page {display:none}\n"
+    f"{_ASSET_SELECTED_PAGE_TABLE}"
+    " > .asset-table-page:not(:target):not(:has(> tr:target)) {display:none}\n"
+    ".asset-table-page:focus-visible > tr:first-child > th[scope=\"row\"],"
+    ".asset-table-page > tr:target > th[scope=\"row\"]"
+    " {outline:2px solid var(--cyan);outline-offset:-2px}\n"
+    "}\n}\n"
+)
+_FINDING_SEVERITY_SELECTOR = (
+    "#findings-severity-{severity}:target ~ [data-finding-severities]"
+    ':not([data-finding-severities~="{severity}"])'
+)
+_FINDING_SEVERITY_CSS = (
+    ".finding-severity-filter[hidden] {display:none}\n"
+    ".finding-severity-selection[hidden] {display:none}\n"
+    "@media screen {\n"
+    "@supports selector("
+    f"{_FINDING_SEVERITY_SELECTOR.format(severity=FindingSeverity.UNKNOWN.value)}) {{\n"
+    ".finding-severity-filter[hidden] {display:flex}\n"
+    ".finding-severity-selection[hidden]:target {display:block}\n"
+    + "".join(
+        f"{_FINDING_SEVERITY_SELECTOR.format(severity=severity.value)} {{display:none}}\n"
+        for severity in FindingSeverity
+    )
+    + "}\n}\n"
+)
 
 
 def ReportBytes(payload: bytes) -> bytes:
@@ -236,76 +321,366 @@ def AttributeText(entity: SecurityObject, *names: str) -> str:
     return "Not recorded"
 
 
-def ObjectTables(report: ReportSnapshot) -> str:
+def TableStart(headingId: str, *, assetFindingsMarker: str = "", regionId: str = "") -> str:
+    """Name the native table and its keyboard scroll region with the same heading.
+
+    Args:
+        headingId: Canonical identifier of the visible table heading.
+        assetFindingsMarker: Authored optional filter attribute for this retained group.
+        regionId: Optional canonical fragment for direct keyboard navigation.
+
+    Returns:
+        Opening HTML for the named region, table and header row.
+    """
+
+    fragment = f' id="{regionId}"' if regionId else ""
+
+    return (f'<div class="table" role="region" tabindex="0"{assetFindingsMarker}{fragment} '
+            f'aria-labelledby="{headingId}">'
+            f'<table aria-labelledby="{headingId}"><thead><tr>')
+
+
+def AssetGroupFindingsMarker(
+    entities: Collection[tuple[str, SecurityObject]], findingSubjects: Collection[str],
+) -> str:
+    """Mark a group that has rows for only one filter or neither filter.
+
+    Args:
+        entities: Canonical object references and their unchanged retained objects.
+        findingSubjects: Exact saved subject references with retained findings.
+
+    Returns:
+        An authored filter marker, or no marker when the group contains both kinds.
+    """
+
+    if not entities:
+        return ' data-asset-findings="empty"'
+
+    matchingCount = sum(reference in findingSubjects for reference, _ in entities)
+
+    if matchingCount == len(entities):
+        return _ASSET_WITH_FINDINGS
+
+    if not matchingCount:
+        return _ASSET_WITHOUT_FINDINGS
+
+    return ""
+
+
+def FindingId(reference: str) -> str:
+    """Address the readable card for a canonical finding reference.
+
+    Args:
+        reference: Canonical finding object reference from the retained snapshot.
+
+    Returns:
+        The corresponding report card fragment identifier.
+    """
+
+    return f"finding-{reference[7:]}"
+
+
+def FindingLinks(rows: list[RetainedFindingRow]) -> str:
+    """List readable links to the finding cards that name the asset as their saved subject.
+
+    Args:
+        rows: Retained finding rows already joined to their exact saved subject.
+
+    Returns:
+        An HTML list with escaped readable labels and canonical finding links.
+    """
+
+    links = []
+
+    for row in rows:
+        finding = row.finding
+        label = Html(f"{finding.summary} · {finding.status.value} · {finding.location_key}")
+        links.append(f'<li><a href="#{FindingId(row.reference)}">{label}</a></li>')
+
+    return "<ul>" + "".join(links) + "</ul>"
+
+
+def FindingIndexTable(
+    rows: RetainedReportRows, findings: Iterable[RetainedFindingRow], headingId: str, *,
+    regionId: str = "",
+) -> str:
+    """Render one named index table with saved subject and finding links.
+
+    Args:
+        rows: Indexed canonical snapshot objects used for subject labels.
+        findings: Selected retained findings in their accepted display order.
+        headingId: Visible heading identifier shared by the table and scroll region.
+        regionId: Optional direct fragment target for this bounded table page.
+
+    Returns:
+        One accessible HTML table with canonical subject and finding links.
+    """
+
+    lines = [
+        TableStart(headingId, regionId=regionId)
+        + '<th scope="col">Finding</th><th scope="col">Saved severity</th>'
+        '<th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead><tbody>',
+    ]
+
+    for row in findings:
+        finding = row.finding
+        subject = rows.objects[finding.subject_reference]
+        subjectLink = ObjectLink(finding.subject_reference, ObjectLabel(subject))
+        lines.append(
+            f'<tr><th scope="row"><a href="#{FindingId(row.reference)}">'
+            f"{Html(finding.summary)}</a></th>"
+            f"<td>{finding.severity.value.title()}</td><td>{finding.status.value.title()}</td>"
+            f"<td>{subjectLink}</td></tr>"
+        )
+
+    lines.append("</tbody></table></div>")
+
+    return "\n".join(lines)
+
+
+def FindingSeverityIndex(
+    rows: RetainedReportRows, rankedFindings: Iterable[RetainedFindingRow], *, paginated: bool,
+) -> str:
+    """Compare saved findings in one table or in consecutive native page disclosures.
+
+    Args:
+        rows: Indexed retained report rows establishing the complete finding count.
+        rankedFindings: Saved findings in deterministic severity and identity order.
+        paginated: Whether to split the accepted rows into bounded native disclosures.
+
+    Returns:
+        The saved-severity index and its optional keyboard-addressable page ranges.
+    """
+
+    headingId = "findings-severity-table-heading"
+    marker = ' data-paginated="true"' if paginated else ""
+    summary = (f'<details class="findings-severity-index"{marker}><summary>'
+               f'<h3 id="{headingId}">Findings by saved severity</h3></summary>')
+
+    if not paginated:
+        return f"{summary}\n{FindingIndexTable(rows, rankedFindings, headingId)}</details>"
+
+    total = len(rows.findings)
+    ranges = []
+    lines = [summary, '<nav aria-label="Finding index row ranges">']
+
+    for first in range(1, total + 1, _FINDING_INDEX_RANGE_SIZE):
+        fragment = f"findings-severity-rows-{first}"
+        last = min(first + _FINDING_INDEX_RANGE_SIZE - 1, total)
+        label = f"Rows {first}–{last}" if first < last else f"Row {first}"
+        ranges.append((first, fragment, label))
+        lines.append(f'<a href="#{fragment}">{label}</a>')
+
+    lines.append("</nav>")
+    pages = batched(rankedFindings, _FINDING_INDEX_RANGE_SIZE)
+
+    for (first, fragment, label), page in zip(ranges, pages, strict=True):
+        opened = ' open="open"' if first == 1 else ""
+        pageHeadingId = f"{fragment}-heading"
+        lines.append(f'<details name="findings-severity-pages"{opened}>'
+                     f'<summary id="{pageHeadingId}">{label}</summary>')
+        # Target the table region so fragment navigation reveals the closed disclosure.
+        lines.append(
+            FindingIndexTable(rows, page, pageHeadingId, regionId=fragment) + "</details>",
+        )
+
+    lines.append("</details>")
+
+    return "\n".join(lines)
+
+
+def RetainedIntegerSortKey(value: object, *, descending: bool) -> tuple[int, int]:
+    """Order stored integers while keeping other values last in canonical order.
+
+    Args:
+        value: Unmodified saved attribute value, including unknown or noninteger values.
+        descending: Whether genuine integer values should sort from largest to smallest.
+
+    Returns:
+        A stable integer-first sort key that leaves nonintegers tied in canonical order.
+    """
+
+    if type(value) is int:
+        return (0, -value if descending else value)
+
+    return (1, 0)
+
+
+def ObjectTables(rows: RetainedReportRows) -> str:
     """Present retained objects as readable inventory without claiming discovery or reachability.
 
     Args:
-        report: Immutable canonical projection supplying objects and their saved attributes.
+        rows: Indexed canonical objects with their saved attributes.
 
     Returns:
         An offline HTML inventory section with readable tables, canonical anchors and
         disclosed object metadata; no objects, relationships or reachability are inferred.
     """
 
+    findingsBySubject: dict[str, list[RetainedFindingRow]] = {}
+
+    for row in rows.findings:
+        findingsBySubject.setdefault(row.finding.subject_reference, []).append(row)
+
     lines = [
         '<section id="model"><h2>Retained assets and addresses</h2>',
         '<p>These are saved model objects. A listed address or service is not itself a '
         'vulnerability, and its presence does not establish current reachability.</p>',
     ]
-    groups = (
-        (ObjectKind.HOST, "Hosts", (("Address", ("address",)), ("Reported state", ("state",)))),
-        (ObjectKind.PORT, "Ports", (("Protocol", ("protocol",)), ("Number", ("number",)),
-                                   ("Reported state", ("state",)))),
-        (ObjectKind.SERVICE, "Services", (("Name", ("name",)), ("Version", ("version",)))),
-        (ObjectKind.ENDPOINT, "Web addresses", (("Method", ("method",)),
-                                               ("HTTP status", ("status",)))),
-    )
+    sortOptions = {
+        ObjectKind.PORT: ("number", "ascending"),
+        ObjectKind.ENDPOINT: ("status", "descending"),
+    }
+    inventory = []
 
-    for kind, heading, fields in groups:
-        entities = report.state.Objects(kind)
-        lines.append(f"<h3>{heading} ({len(entities)})</h3>")
+    for kind, heading, fields in _ASSET_TABLE_GROUPS:
+        entities = rows.assetsByKind.get(kind, ())
+        sortField, sortDirection = sortOptions.get(kind, ("", ""))
+
+        if sortField:
+            entities = tuple(sorted(entities, key=lambda row: RetainedIntegerSortKey(
+                row[1].attributes.get(sortField), descending=sortDirection == "descending",
+            )))
+
+        headingId = f"model-{kind.value}-table-heading"
+        inventory.append((headingId, f"{heading} ({len(entities)})", fields, entities,
+                          sortField, sortDirection))
+
+    primary = {kind for kind, _, _ in _ASSET_TABLE_GROUPS} | {ObjectKind.FINDING}
+    others = [(reference, entity) for reference, entity in rows.objects.items()
+              if entity.identity.kind not in primary]
+    otherGroup = ("model-other-objects-heading", f"Other retained objects ({len(others)})")
+    links = [(headingId, label) for headingId, label, _, entities, *_ in inventory if entities]
+
+    if others:
+        links.append(otherGroup)
+
+    if links:
+        lines.append('<nav aria-label="Asset types">')
+        lines.extend(f'<a href="#{headingId}">{label}</a>' for headingId, label in links)
+        lines.append("</nav>")
+
+    assetCount = len(rows.objects) - len(rows.findings)
+    subjectCount = len(findingsBySubject)
+    withoutCount = assetCount - subjectCount
+    includeFilter = withoutCount > 0
+
+    if includeFilter:
+        filters = [(
+            "assets-without-findings", "Without findings", withoutCount,
+            "without retained findings for manual review. "
+            "Security and check coverage remain unassessed.",
+        )]
+
+        if subjectCount:
+            filters.insert(0, (
+                "assets-with-findings", "With findings", subjectCount, "with retained findings.",
+            ))
+
+        lines.extend((
+            '<nav class="asset-findings-filter" aria-labelledby="asset-findings-filter-label" '
+            'hidden="hidden"><span id="asset-findings-filter-label">Filter assets</span>',
+            f'<a href="#model">All ({assetCount})</a>',
+        ))
+        lines.extend(f'<a href="#{filterId}">{label} ({count})</a>'
+                     for filterId, label, count, _ in filters)
+        lines.append("</nav>")
+        lines.extend(
+            f'<p class="asset-findings-selection" id="{filterId}" tabindex="-1" hidden="hidden">'
+            f"Showing {count} of {assetCount} objects {message} "
+            "Group counts describe the full snapshot.</p>"
+            for filterId, _, count, message in filters
+        )
+
+    for headingId, label, fields, entities, sortField, sortDirection in inventory:
+        marker = AssetGroupFindingsMarker(entities, findingsBySubject) if includeFilter else ""
+        lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
         if not entities:
-            lines.append("<p>No objects of this kind were retained.</p>")
+            lines.append(f"<p{marker}>No objects of this kind were retained.</p>")
 
             continue
 
-        lines.append('<div class="table"><table><thead><tr><th>Saved identity</th>')
-        lines.extend(f"<th>{Html(label)}</th>" for label, _ in fields)
-        lines.append("<th>Details</th></tr></thead><tbody>")
+        pageRanges = []
 
-        for entity in entities:
-            lines.append(f'<tr id="object-{entity.Reference()[7:]}">'
-                         f"<td>{Html(entity.identity.key)}</td>")
+        if len(entities) > _ASSET_TABLE_PAGE_SIZE:
+            lines.append(f'<nav class="asset-page-links" aria-label="Rows in {Html(label)}" '
+                         'hidden="hidden">')
+
+            for first in range(1, len(entities) + 1, _ASSET_TABLE_PAGE_SIZE):
+                last = min(first + _ASSET_TABLE_PAGE_SIZE - 1, len(entities))
+                fragment = f'{headingId.removesuffix("-heading")}-rows-{first}'
+                rangeLabel = f"Rows {first}–{last}" if first < last else f"Row {first}"
+                pageRanges.append((fragment, rangeLabel))
+                lines.append(f'<a href="#{fragment}">{rangeLabel}</a>')
+
+            lines.append("</nav>")
+
+        lines.append(TableStart(headingId, assetFindingsMarker=marker)
+                     + '<th scope="col">Saved identity</th>')
+
+        for column, names in fields:
+            sort = f' aria-sort="{sortDirection}"' if names == (sortField,) else ""
+            lines.append(f'<th scope="col"{sort}>{Html(column)}</th>')
+
+        lines.append('<th scope="col">Findings</th>'
+                     '<th scope="col">Details</th></tr></thead>'
+                     + ("" if pageRanges else "<tbody>"))
+        focusTarget = ' tabindex="-1"' if pageRanges else ""
+
+        for index, (reference, entity) in enumerate(entities):
+            if pageRanges and index % _ASSET_TABLE_PAGE_SIZE == 0:
+                if index:
+                    lines.append("</tbody>")
+
+                fragment, rangeLabel = pageRanges[index // _ASSET_TABLE_PAGE_SIZE]
+                lines.append(f'<tbody class="asset-table-page" id="{fragment}" '
+                             f'tabindex="-1" aria-label="{rangeLabel}">')
+
+            findings = findingsBySubject.get(reference)
+            marker = (
+                _ASSET_WITH_FINDINGS if findings else _ASSET_WITHOUT_FINDINGS
+            ) if includeFilter else ""
+            lines.append(f'<tr id="object-{reference[7:]}"{marker}{focusTarget}>'
+                         f'<th scope="row">{Html(entity.identity.key)}</th>')
             lines.extend(f"<td>{AttributeText(entity, *names)}</td>" for _, names in fields)
+            lines.append(f"<td>{FindingLinks(findings) if findings else 'None retained'}</td>")
             lines.append("<td><details><summary>Technical object</summary>"
                          + JsonBlock(JsonValue(entity)) + "</details></td></tr>")
 
         lines.append("</tbody></table></div>")
 
-    primary = {kind for kind, _, _ in groups} | {ObjectKind.FINDING}
-    others = [entity for entity in report.state.objects if entity.identity.kind not in primary]
-
     if others:
-        lines.append("<h3>Other retained objects</h3>")
+        headingId, label = otherGroup
+        marker = AssetGroupFindingsMarker(others, findingsBySubject) if includeFilter else ""
+        lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
-        for entity in others:
-            lines.append(f'<details id="object-{entity.Reference()[7:]}"><summary>'
+        for reference, entity in others:
+            findings = findingsBySubject.get(reference)
+            marker = (
+                _ASSET_WITH_FINDINGS if findings else _ASSET_WITHOUT_FINDINGS
+            ) if includeFilter else ""
+            navigation = "<p>Findings</p>" + FindingLinks(findings) if findings else ""
+            lines.append(f'<div{marker}><details id="object-{reference[7:]}"><summary>'
                          + Html(ObjectLabel(entity)) + "</summary>"
-                         + JsonBlock(JsonValue(entity)) + "</details>")
+                         + JsonBlock(JsonValue(entity)) + "</details>" + navigation + "</div>")
 
     lines.append("</section>")
 
     return "\n".join(lines)
 
 
-def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> str:
+def RetainedOperations(
+    report: ReportSnapshot, document: dict[str, object],
+    evidenceId: Callable[[EvidenceReference], str],
+) -> str:
     """Explain exact execution provenance without guessing jobs, checks, scope, or completeness.
 
     Args:
         report: Owning immutable snapshot accompanying the detached report document.
         document: Validated result of that snapshot's ToDict method, including original
             execution outcomes rather than inferred jobs or successful checks.
+        evidenceId: Fragment resolver shared by all evidence links and rows in this render.
 
     Returns:
         An HTML section explaining retained outcomes and unknown coverage, with complete
@@ -313,7 +688,7 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
     """
 
     outcomes = cast(list[dict[str, object]], document["execution_outcomes"])
-    lines = ['<section id="operations"><h2>What is recorded</h2>']
+    lines = ['<section id="operations"><h2 id="operations-table-heading">What is recorded</h2>']
 
     if not outcomes:
         lines.append("<p>No execution outcomes were retained. This snapshot cannot establish "
@@ -324,7 +699,7 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
             "<p>The table shows retained execution records, which can repeat one run for "
             "different targets. A successful tool exit does not establish that a target is "
             "safe.</p>",
-            '<div class="table"><table><thead><tr><th>Recorded source</th>'
+            TableStart("operations-table-heading") + '<th>Recorded source</th>'
             '<th>Operation profile</th><th>Outcome</th><th>Observed at (UTC)</th>'
             '<th>Details</th></tr></thead><tbody>',
         ])
@@ -374,7 +749,7 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
             continue
 
         evidenceLinks = ", ".join(
-            f'<a href="#{EvidenceId(reference)}">{Html(reference.role)}</a>'
+            f'<a href="#{evidenceId(reference)}">{Html(reference.role)}</a>'
             for reference in provenance.evidence_references
         )
         responseRows.append(f"<tr><td>{profile}</td><td>"
@@ -383,10 +758,10 @@ def RetainedOperations(report: ReportSnapshot, document: dict[str, object]) -> s
 
     if responseRows:
         lines.extend([
-            "<h3>Selected native response observations</h3>",
+            '<h3 id="native-response-table-heading">Selected native response observations</h3>',
             "<p>These rows describe individual retained responses. HTML reflection does not "
             "establish browser execution. A SQL sample alone does not assess injection.</p>",
-            '<div class="table"><table><thead><tr><th>Profile</th><th>Subject</th>'
+            TableStart("native-response-table-heading") + '<th>Profile</th><th>Subject</th>'
             '<th>Observation</th><th>Evidence</th></tr></thead><tbody>',
             *responseRows,
             "</tbody></table></div>",
@@ -443,12 +818,11 @@ def SeverityScale(value: object) -> str:
     return "\n".join(lines)
 
 
-def IntelligenceDetails(report: ReportSnapshot, finding_reference: str) -> str:
+def IntelligenceDetails(observations: tuple[Observation, ...]) -> str:
     """Explain retained source assertions without assigning target applicability or risk.
 
     Args:
-        report: Immutable saved projection containing source-attributed observations.
-        finding_reference: Canonical finding reference whose retained intelligence is selected.
+        observations: Retained observations belonging to one canonical finding.
 
     Returns:
         Readable HTML for selected CVE/CWE/KEV/EPSS assertions with separate source meanings,
@@ -456,19 +830,17 @@ def IntelligenceDetails(report: ReportSnapshot, finding_reference: str) -> str:
         complete original assertions stay disclosed and no target verdict is inferred.
     """
 
-    observations = [item for item in report.state.observations
-                    if item.subject_reference == finding_reference
-                    and item.kind == "finding-intelligence"]
+    intelligence = [item for item in observations if item.kind == "finding-intelligence"]
 
-    if not observations:
+    if not intelligence:
         return "<p>No vulnerability-intelligence assertions were retained for this finding.</p>"
 
-    lines = ["<h4>Vulnerability intelligence</h4>",
+    lines = ["<h5>Vulnerability intelligence</h5>",
              "<p>These are source assertions associated by an explicit identifier. A candidate "
              "association does not prove that this target is affected. CVSS describes technical "
              "severity, KEV records known exploitation, and EPSS is a source forecast.</p>"]
 
-    for observation in observations:
+    for observation in intelligence:
         attributes = cast(dict[str, object], JsonValue(observation.attributes))
         unmatched = attributes.get("unmatched_identifiers")
 
@@ -511,8 +883,8 @@ def IntelligenceDetails(report: ReportSnapshot, finding_reference: str) -> str:
             freshness = "stale" if stale is True else "within the selected age budget" if (
                 stale is False
             ) else "unknown"
-            lines.append('<div class="card"><h4>' + Html(record.get("identifier", "Unknown"))
-                         + " · " + Html(feed) + "</h4>"
+            lines.append('<div class="card"><h6>' + Html(record.get("identifier", "Unknown"))
+                         + " · " + Html(feed) + "</h6>"
                          + f"<p>Source origin: {Html(origin)} · Publisher: {Html(publisher)}"
                          + " · source version: "
                          + Html(record.get("catalog_version", "Not recorded")) + "</p>"
@@ -580,14 +952,27 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     document = report.ToDict()
     summary = cast(dict[str, object], document["summary"])
     bindings = {item.finding_reference: item for item in report.reference_bindings}
-    objects = {entity.Reference(): entity for entity in report.state.objects}
+    rows = ProjectRetainedReportRows(report.state)
+    paginatedAssets = any(
+        len(rows.assetsByKind.get(kind, ())) > _ASSET_TABLE_PAGE_SIZE
+        for kind, _, _ in _ASSET_TABLE_GROUPS
+    )
+    assetPageCss = _ASSET_PAGE_CSS if paginatedAssets else ""
+    paginatedFindings = len(rows.findings) > _FINDING_INDEX_RANGE_SIZE
+    findingIndexPrintCss = _FINDING_INDEX_PRINT_CSS if paginatedFindings else ""
+    evidenceNumbers = {
+        reference: number for number, reference in enumerate(report.EvidenceReferences(), 1)
+    }
+    evidenceId = cache(EvidenceId)
     lines = [
         '<!doctype html><html lang="en"><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width,initial-scale=1">',
         '<meta name="color-scheme" content="dark">',
         '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; '
         'style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">',
-        f"<title>1337 Evidence report</title><style>{_CSS}</style></head><body><main>",
+        f"<title>1337 Evidence report</title><style>{_CSS}{findingIndexPrintCss}"
+        f"{_ASSET_FINDINGS_CSS}{assetPageCss}{_FINDING_SEVERITY_CSS}</style>"
+        "</head><body><main>",
         '<p class="brand">Fuzzy Technologies · Security Workbench</p>'
         '<h1>Security assessment report</h1>',
         f"<p>Workspace: {Html(report.state.workspace_id)} · "
@@ -600,9 +985,9 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     ]
 
     for label, value in (
-        ("Hosts", len(report.state.Objects(ObjectKind.HOST))),
-        ("Services", len(report.state.Objects(ObjectKind.SERVICE))),
-        ("Web addresses", len(report.state.Objects(ObjectKind.ENDPOINT))),
+        ("Hosts", len(rows.assetsByKind.get(ObjectKind.HOST, ()))),
+        ("Services", len(rows.assetsByKind.get(ObjectKind.SERVICE, ()))),
+        ("Web addresses", len(rows.assetsByKind.get(ObjectKind.ENDPOINT, ()))),
         ("Open or confirmed findings", summary["active_findings"]),
         ("Execution records that did not succeed", summary["failed_execution_records"]),
     ):
@@ -630,123 +1015,174 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     lines.extend([
         "<p>Scan completeness was not assessed. Counts describe this retained snapshot.</p>",
         '<details><summary>Snapshot identity and technical summary</summary>'
-        + f"<p>Canonical snapshot: <code>{report.SnapshotDigest()}</code></p>"
+        + f"<p>Canonical snapshot: <code>{Html(document['snapshot_sha256'])}</code></p>"
         + JsonBlock(summary) + "</details></section>",
-        RetainedOperations(report, document), ObjectTables(report),
+        RetainedOperations(report, document, evidenceId), ObjectTables(rows),
         '<section id="findings"><h2>Findings and next actions</h2>',
     ])
 
-    if not report.state.Objects(ObjectKind.FINDING):
+    findingsByStatus: dict[FindingStatus, list[RetainedFindingRow]] = {
+        status: [] for status in FindingStatus
+    }
+    findingsBySeverity: dict[FindingSeverity, list[RetainedFindingRow]] = {
+        severity: [] for severity in FindingSeverity
+    }
+
+    for row in rows.findings:
+        findingsByStatus[row.finding.status].append(row)
+        findingsBySeverity[row.finding.severity].append(row)
+
+    findingGroups = [
+        (f"findings-{status.value}", f"{status.value.title()} ({len(group)})", group)
+        for status, group in findingsByStatus.items() if group
+    ]
+
+    if findingGroups:
+        rankedFindings = (row for group in reversed(findingsBySeverity.values()) for row in group)
+        lines.append(FindingSeverityIndex(rows, rankedFindings, paginated=paginatedFindings))
+        lines.append('<nav aria-label="Finding dispositions">')
+        lines.extend(f'<a href="#{groupId}">{label}</a>' for groupId, label, _ in findingGroups)
+        lines.append("</nav>")
+        severityFilters = [
+            (f"findings-severity-{severity.value}", f"{severity.value.title()} ({len(group)})")
+            for severity, group in reversed(findingsBySeverity.items()) if group
+        ]
+        lines.append('<nav class="finding-severity-filter" '
+                     'aria-labelledby="finding-severity-filter-label" hidden="hidden">'
+                     '<span id="finding-severity-filter-label">Filter by saved severity</span>')
+        lines.append(f'<a href="#findings">All ({len(rows.findings)})</a>')
+        lines.extend(f'<a href="#{filterId}">{label}</a>' for filterId, label in severityFilters)
+        lines.append("</nav>")
+        lines.extend(
+            f'<p class="finding-severity-selection" id="{filterId}" tabindex="-1" hidden="hidden">'
+            f"Showing {label}. Disposition counts include all retained findings.</p>"
+            for filterId, label in severityFilters
+        )
+
+    else:
         lines.append("<p>No finding records were retained. To assess a vulnerability, run an "
                      "appropriate authorized check and retain its evidence; opening this "
                      "report does not perform one.</p>")
 
-    for entity in report.state.Objects(ObjectKind.FINDING):
-        finding = Finding.FromObject(entity)
-        reference = entity.Reference()
-        statusExplanation = {
-            FindingStatus.OPEN: "Retained interpretation awaiting an operator disposition.",
-            FindingStatus.CONFIRMED: "An operator confirmed this interpretation.",
-            FindingStatus.DISMISSED: "An operator dismissed this interpretation; "
-                                     "history is retained.",
-            FindingStatus.RESOLVED: "Marked resolved by an operator; successful retesting is not "
-                                    "established by this disposition alone.",
-        }[finding.status]
-        lines.extend([
-            f'<article class="finding" id="finding-{reference[7:]}">'
-            + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
-            + f'<span class="badge">{Html(finding.status.value)}</span>'
-            + f"<h3>{Html(finding.summary)}</h3>",
-            "<p>Subject: " + ObjectLink(finding.subject_reference,
-                                        ObjectLabel(objects[finding.subject_reference])) + "</p>",
-            f"<p>Check: {Html(finding.check_id)} · location: {Html(finding.location_key)}</p>",
-            "<p>Disposition: " + statusExplanation + " Reason: "
-            + Html(finding.status_reason or "No reason recorded") + "</p>",
-            f"<p>Attributed confidence: {finding.confidence}. This retained detector metadata "
-            "is not a probability of compromise.</p>",
-            "<h4>What to do next</h4><p>" + Html(finding.remediation.summary or
-                "No remediation advice was retained. Review the evidence and determine an "
-                "appropriate correction before repeating the check.") + "</p>",
-        ])
+    for groupId, label, findings in findingGroups:
+        severities = " ".join(sorted({row.finding.severity.value for row in findings}))
+        lines.append(f'<h3 id="{groupId}" tabindex="-1" data-finding-severities="{severities}">'
+                     f"{label}</h3>")
 
-        if finding.remediation.steps:
-            lines.append("<ol>" + "".join("<li>" + Html(step) + "</li>"
-                                          for step in finding.remediation.steps) + "</ol>")
+        for row in findings:
+            finding = row.finding
+            reference = row.reference
+            subject = rows.objects[finding.subject_reference]
+            statusExplanation = {
+                FindingStatus.OPEN: "Retained interpretation awaiting an operator disposition.",
+                FindingStatus.CONFIRMED: "An operator confirmed this interpretation.",
+                FindingStatus.DISMISSED: "An operator dismissed this interpretation; "
+                                         "history is retained.",
+                FindingStatus.RESOLVED: "Marked resolved by an operator; "
+                                        "successful retesting is not established by this "
+                                        "disposition alone.",
+            }[finding.status]
+            lines.extend([
+                f'<article class="finding" id="{FindingId(reference)}" tabindex="-1" '
+                f'data-finding-severities="{finding.severity.value}">'
+                + f'<span class="badge">{Html(finding.severity.value.upper())}</span> '
+                + f'<span class="badge">{Html(finding.status.value)}</span>'
+                + f"<h4>{Html(finding.summary)}</h4>",
+                "<p>Subject: "
+                + ObjectLink(finding.subject_reference, ObjectLabel(subject)) + "</p>",
+                f"<p>Check: {Html(finding.check_id)} · location: {Html(finding.location_key)}</p>",
+                "<p>Disposition: " + statusExplanation + " Reason: "
+                + Html(finding.status_reason or "No reason recorded") + "</p>",
+                f"<p>Attributed confidence: {finding.confidence}. This retained detector metadata "
+                "is not a probability of compromise.</p>",
+                "<h5>What to do next</h5><p>" + Html(finding.remediation.summary or
+                    "No remediation advice was retained. Review the evidence and determine an "
+                    "appropriate correction before repeating the check.") + "</p>",
+            ])
 
-        if finding.remediation.references:
-            lines.append("<p>Retained advisory references (inert text): "
-                         + "; ".join(Html(item) for item in finding.remediation.references)
-                         + "</p>")
+            if finding.remediation.steps:
+                lines.append("<ol>" + "".join("<li>" + Html(step) + "</li>"
+                                              for step in finding.remediation.steps) + "</ol>")
 
-        lines.append(IntelligenceDetails(report, reference))
-        lines.append("<h4>Evidence for this interpretation</h4><ul>")
-        references = {item for record in entity.provenance for item in record.evidence_references}
+            if finding.remediation.references:
+                lines.append("<p>Retained advisory references (inert text): "
+                             + "; ".join(Html(item) for item in finding.remediation.references)
+                             + "</p>")
 
-        for index, evidenceReference in enumerate(sorted(references, key=CanonicalModelJson), 1):
-            lines.append(f'<li><a href="#{EvidenceId(evidenceReference)}">'
-                         f"Evidence {index}: {Html(evidenceReference.role)}</a></li>")
+            lines.append(IntelligenceDetails(row.observations))
+            lines.append("<h5>Evidence for this interpretation</h5><ul>")
 
-        lines.append("</ul>")
-        binding = bindings.get(reference)
+            for evidenceReference in row.evidence:
+                fragment = evidenceId(evidenceReference)
+                number = evidenceNumbers[evidenceReference]
+                lines.append(f'<li><a href="#{fragment}">'
+                             f"Evidence {number}: {Html(evidenceReference.role)}</a></li>")
 
-        if binding is not None:
-            lines.append("<h4>Attributed reference context</h4>"
-                         "<p>Context links do not prove classification, observed behavior, "
-                         "exploitability, or control fulfillment.</p><ul>")
+            lines.append("</ul>")
+            binding = bindings.get(reference)
 
-            for externalReference in binding.references:
-                lines.append(f'<li><a href="{Html(externalReference.Url())}" '
-                             'rel="noopener noreferrer">'
-                             f'{Html(externalReference.external_id)}</a>'
-                             f" · catalog {Html(externalReference.catalog_version)}"
-                             f" · {Html(externalReference.ToDict()['link_revision'])}</li>")
+            if binding is not None:
+                lines.append("<h5>Attributed reference context</h5>"
+                             "<p>Context links do not prove classification, observed behavior, "
+                             "exploitability, or control fulfillment.</p><ul>")
 
-            lines.append("</ul><details><summary>Reference attribution</summary>"
-                         + JsonBlock(binding.ToDict()) + "</details>")
+                for externalReference in binding.references:
+                    lines.append(f'<li><a href="{Html(externalReference.Url())}" '
+                                 'rel="noopener noreferrer">'
+                                 f'{Html(externalReference.external_id)}</a>'
+                                 f" · catalog {Html(externalReference.catalog_version)}"
+                                 f" · {Html(externalReference.ToDict()['link_revision'])}</li>")
 
-        observations = [JsonValue(item) for item in report.state.observations
-                        if item.subject_reference == reference]
-        lines.append(f'<details id="object-{reference[7:]}"><summary>Technical finding record '
-                     "and observation history</summary>" + JsonBlock(JsonValue(entity))
-                     + JsonBlock(observations) + "</details></article>")
+                lines.append("</ul><details><summary>Reference attribution</summary>"
+                             + JsonBlock(binding.ToDict()) + "</details>")
+
+            observations = [JsonValue(item) for item in row.observations]
+            lines.append(f'<details id="object-{reference[7:]}"><summary>Technical finding record '
+                         "and observation history</summary>" + JsonBlock(JsonValue(row.entity))
+                         + JsonBlock(observations) + "</details></article>")
 
     lines.extend([
-        '</section><section id="evidence"><h2>Evidence and byte integrity</h2>',
+        '</section><section id="evidence"><h2 id="evidence-table-heading">'
+        'Evidence and byte integrity</h2>',
         "<p>Follow a finding's evidence link to its retained reference. Byte verification "
         "checks content integrity; it does not authenticate the publisher, establish "
         "provenance, scan success, or completeness. Raw artifact bytes are not embedded.</p>",
-        '<div class="table"><table><thead><tr><th>Evidence</th><th>Role</th><th>Size</th>'
-        '<th>Integrity</th><th>Technical reference</th></tr></thead><tbody>',
+        TableStart("evidence-table-heading")
+        + '<th scope="col">Evidence</th><th scope="col">Role</th><th scope="col">Size</th>'
+        '<th scope="col">Integrity</th><th scope="col">Technical reference</th>'
+        '</tr></thead><tbody>',
     ])
     integrityMetadata = cast(dict[str, object], document["evidence_integrity"])
     checked = {CanonicalModelJson(item) for item in cast(
         list[object], integrityMetadata["checked_references"],
     )}
 
-    for index, evidenceReference in enumerate(report.EvidenceReferences(), 1):
+    for evidenceReference, number in evidenceNumbers.items():
         integrity = (
             "verified bytes" if CanonicalModelJson(evidenceReference) in checked
             else "not verified"
         )
-        lines.append(f'<tr id="{EvidenceId(evidenceReference)}">'
-                     f"<td>Evidence {index}</td><td>{Html(evidenceReference.role)}</td>"
+        lines.append(f'<tr id="{evidenceId(evidenceReference)}">'
+                     f'<th scope="row">Evidence {number}</th>'
+                     f"<td>{Html(evidenceReference.role)}</td>"
                      f"<td>{evidenceReference.size_bytes} bytes</td><td>{integrity}</td>"
                      "<td><details><summary>Digest and metadata</summary>"
                      + JsonBlock(JsonValue(evidenceReference)) + "</details></td></tr>")
 
     lines.extend([
-        '</tbody></table></div></section><section id="relations"><h2>Stored relationships</h2>',
+        '</tbody></table></div></section><section id="relations">'
+        '<h2 id="relationships-table-heading">Stored relationships</h2>',
         "<p>Only stored relations appear here. No reachability or attack paths are inferred.</p>",
-        '<div class="table"><table><thead><tr><th>From</th><th>Relationship</th>'
+        TableStart("relationships-table-heading") + '<th>From</th><th>Relationship</th>'
         '<th>To</th><th>Attribution</th></tr></thead><tbody>',
     ])
 
     for relation in report.state.relations:
         lines.append("<tr><td>" + ObjectLink(relation.source_reference,
-                     ObjectLabel(objects[relation.source_reference])) + "</td>"
+                     ObjectLabel(rows.objects[relation.source_reference])) + "</td>"
                      f"<td>{Html(relation.kind.value.replace('-', ' '))}</td><td>"
                      + ObjectLink(relation.target_reference,
-                                  ObjectLabel(objects[relation.target_reference])) + "</td>"
+                                  ObjectLabel(rows.objects[relation.target_reference])) + "</td>"
                      "<td><details><summary>Relationship provenance</summary>"
                      + JsonBlock(JsonValue(relation)) + "</details></td></tr>")
 
@@ -857,23 +1293,28 @@ def SerializeJunit(report: ReportSnapshot) -> bytes:
         "failures": str(active), "errors": "0", "skipped": str(len(findings) - active),
     })
     properties = ElementTree.SubElement(root, "properties")
+    snapshotDigest = report.SnapshotDigest()
+    document = report.ToDict()
 
     for name, value in (
         ("report_schema_version", REPORT_SCHEMA_VERSION),
         ("workspace_id", report.state.workspace_id),
-        ("model_revision", report.state.revision), ("snapshot_sha256", report.SnapshotDigest()),
+        ("model_revision", report.state.revision), ("snapshot_sha256", snapshotDigest),
         ("scan_completeness", "not-assessed"),
         ("evidence_integrity", CanonicalModelJson(
-            report.ToDict()["evidence_integrity"],
+            document["evidence_integrity"],
         ).decode("utf-8")),
         ("execution_outcomes", CanonicalModelJson(
-            report.ToDict()["execution_outcomes"],
+            document["execution_outcomes"],
         ).decode("utf-8")),
         ("reference_context", CanonicalModelJson(
-            report.ToDict()["reference_bindings"],
+            document["reference_bindings"],
         ).decode("utf-8")),
     ):
         ElementTree.SubElement(properties, "property", {"name": name, "value": Text(value)})
+
+    # Release the complete projection before serializing per-finding details.
+    del document
 
     for entity, finding in findings:
         case = ElementTree.SubElement(root, "testcase", {

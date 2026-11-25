@@ -17,12 +17,14 @@ concurrency:
 jobs:
   owned-offline:
     if: >-
+      !(github.event_name == 'pull_request' && github.base_ref == 'develop'
+      && startsWith(github.head_ref, 'feature/passive-batch-')) && (
       github.event_name == 'push' || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == false) || (github.event_name == 'pull_request'
       && github.event.pull_request.draft == true
       && contains(github.event.pull_request.body, '[native-image-feature-checkpoint]'))
       || (github.event_name == 'pull_request' && github.event.pull_request.draft == true
-      && contains(github.event.pull_request.body, '[native-configuration-compatibility-checkpoint]'))
+      && contains(github.event.pull_request.body, '[native-configuration-compatibility-checkpoint]')))
     name: Trivy 0.75.0 / owned offline archive
     runs-on: ubuntu-24.04
     timeout-minutes: 15

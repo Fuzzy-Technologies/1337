@@ -17,6 +17,11 @@ from tests.contract import owned_content_response_ci_approval_evidence as eviden
 from tests.contract.owned_content_response_ci_actor_evidence import CASE_NAME as ACTOR_CASE_NAME
 from tests.unit.test_owned_content_response_ci_actor import Fixture as ActorFixture
 
+PASSIVE_VETO = (
+    "!(github.event_name == 'pull_request' && github.base_ref == 'develop' "
+    "&& startsWith(github.head_ref, 'feature/passive-batch-')) && ( "
+)
+
 
 def Fixture(tmp_path):
     """Select explicit False approval while preserving the independently granted mock authority."""
@@ -175,7 +180,12 @@ def AssertApprovalCheckpoint(jobs):
 
     job = jobs["approval-denied-content-header"]
     marker = "[owned-content-header-approval-denied-checkpoint]"
-    assert job["if"] == ("github.event_name == 'push' || (github.event_name == 'pull_request' && "
+    condition = " ".join(job["if"].split())
+    assert condition.startswith(PASSIVE_VETO) and condition.endswith(")"), (
+        "The approval checkpoint must veto a passive request before every existing admission path."
+    )
+    historical = condition[len(PASSIVE_VETO):-1]
+    assert historical == ("github.event_name == 'push' || (github.event_name == 'pull_request' && "
         "(github.event.pull_request.draft == false || "
         f"contains(github.event.pull_request.body, '{marker}')))"), (
             "Master pushes, final ready PRs and the unique approval checkpoint must stay enrolled")
@@ -221,7 +231,8 @@ def AssertApprovalCheckpoint(jobs):
     "accepted-cohort-marker", "draft-only",
     "platform", "missing-prerequisite", "credentials", "wrong-case", "parallel", "wrong-junit",
     "skipped-execution", "skipped-checker", "continue-on-error", "overwrite-artifact",
-    "missing-failure-evidence", "job-continue-on-error", "extra-command", "upload-action"])
+    "missing-failure-evidence", "job-continue-on-error", "extra-command", "upload-action",
+    "missing-passive-veto", "passive-veto-or", "passive-veto-master", "passive-veto-other-head"])
 def test_ApprovalCheckpointRequiresItsOwnSerialCaseAndOriginalEvidence(mutation):
     """Workflow tampering cannot repeat accepted cohorts or bypass original-evidence admission."""
 
@@ -231,8 +242,21 @@ def test_ApprovalCheckpointRequiresItsOwnSerialCaseAndOriginalEvidence(mutation)
     job = jobs["approval-denied-content-header"]
     executions = [step for step in job["steps"] if "pytest" in step.get("run", "")]
 
-    if mutation == "missing-master":
-        job["if"] = job["if"].removeprefix("github.event_name == 'push' || (")[:-1]
+    if mutation == "missing-passive-veto":
+        condition = " ".join(job["if"].split())
+        job["if"] = condition[len(PASSIVE_VETO):-1]
+
+    elif mutation == "passive-veto-or":
+        job["if"] = job["if"].replace("')) && (", "')) || (", 1)
+
+    elif mutation == "passive-veto-master":
+        job["if"] = job["if"].replace("github.base_ref == 'develop'", "github.base_ref == 'master'")
+
+    elif mutation == "passive-veto-other-head":
+        job["if"] = job["if"].replace("feature/passive-batch-", "feature/other-batch-")
+
+    elif mutation == "missing-master":
+        job["if"] = job["if"].replace("github.event_name == 'push' || ", "", 1)
 
     elif mutation == "push-only":
         job["if"] = "github.event_name == 'push'"

@@ -19,6 +19,7 @@ from fuzzy1337.adapters import (
     ExecutionState,
     NormalizedFinding,
 )
+from fuzzy1337.cli import Main
 from fuzzy1337.evidence import (
     EvidenceError,
     EvidenceIntegrityError,
@@ -42,12 +43,13 @@ from fuzzy1337.model import (
 )
 from fuzzy1337.report_formats import SerializeJson
 from fuzzy1337.reporting import ReportSnapshot, VerifyReportEvidence
+from fuzzy1337.scope import LocalScopeStore, ScopeSnapshot
 from fuzzy1337.workspace import (
     LocalWorkspaceStore,
     WorkspaceConfiguration,
     WorkspaceConflictError,
 )
-from tests.contract.report_export_fixture import Files
+from tests.contract.report_export_fixture import DenyExecution, Files, OutcomeValidator
 
 
 def Context(tmp_path: Path, workspace_id="synthetic"):
@@ -166,8 +168,10 @@ def EndpointSubjects(store, initial, host):
     return endpoints
 
 
-def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
-    """Preserve a benign marker's finding and evidence across replay and offline reporting."""
+def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+):
+    """Export the replayed marker with its original acquisition and refuse a missing manifest."""
 
     scenarioPath = (
         Path(__file__).resolve().parents[2] / "labs" / "targets" / "attack-path-mini"
@@ -192,17 +196,25 @@ def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
         "object:63deebee5c6fd6bb60b49be44083dd82a4ddc66773552cacca83b6e6a230ddd7"
     )
     store, initial, host = Context(tmp_path, "showcase-replay")
+    workspaceStore = LocalWorkspaceStore(store.root)
+    scope = LocalScopeStore(store.root).Create(ScopeSnapshot("local", initial.workspace_id))
     evidenceStore = LocalEvidenceStore(store.root / "evidence")
     observedAt = "2026-10-11T10:00:00Z"
     acquisition = evidenceStore.Put(
         payload, "fixture-marker", "application/json",
         EvidenceProvenance(
-            initial.workspace_id, "scope:local", "showcase-fixture", "1", None,
+            initial.workspace_id, scope.Reference(), "showcase-fixture", "1", None,
             observedAt, observedAt,
         ),
     )
+    workspaceStore.Save(replace(
+        workspaceStore.Open(),
+        scope_references=(scope.Reference(),),
+        evidence_references=(acquisition.reference,),
+        evidence_record_references=(acquisition.evidence_id,),
+    ))
     provenance = ModelProvenance(
-        "showcase-fixture", acquisition.evidence_id, observedAt, "scope:local",
+        "showcase-fixture", acquisition.evidence_id, observedAt, scope.Reference(),
         host.Reference(), evidence_references=(acquisition.reference,),
     )
     detections = (Finding(
@@ -238,7 +250,22 @@ def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
         assert retained.provenance.workspace_id == state.workspace_id, "Wrong evidence workspace"
         assert evidenceStore.Read(retained.reference) == expectedPayload, "Fixture bytes changed"
 
-    document = json.loads(firstReport)
+    destination = tmp_path / "showcase.json"
+    arguments = ["report", "export", str(store.root), "--format", "json", "--json", "--output"]
+    DenyExecution(monkeypatch)
+    assert Main([*arguments, str(destination)]) == 0, "The saved marker must export through CLI"
+    outcome = json.loads(capsys.readouterr().out)
+    OutcomeValidator().validate(outcome)
+    assert outcome["status"] == "completed" and outcome["output_published"] is True, (
+        "The CLI must confirm publication of the selected report"
+    )
+    assert outcome["verified_retained_acquisitions"] == 1, "The original acquisition was skipped"
+    reportBytes = destination.read_bytes()
+    assert reportBytes == secondReport, "The CLI must serialize the exact verified saved snapshot"
+    assert Files(store.root) == original, "The CLI changed retained workspace files"
+    assert set(tmp_path.iterdir()) == {store.root, destination}, "The CLI wrote unexpected output"
+
+    document = json.loads(reportBytes)
     projectedFinding, = document["findings"]
     assert (
         projectedFinding["reference"] == expectedObjectReference
@@ -256,12 +283,40 @@ def test_VerifiedFindingReplayMatchesOfflineShowcaseMarker(tmp_path: Path):
     assert (
         serializedProvenance["evidence_references"] == expectedReportEvidence
     ), "Report finding evidence references changed"
+    originalObservation, = (item for item in first.observations if item.kind == "finding-detection")
+    detectionObservations = [
+        item for item in document["model"]["observations"] if item["kind"] == "finding-detection"
+    ]
+    assert detectionObservations == [{
+        "reference": originalObservation.Reference(),
+        "kind": "finding-detection",
+        "subject_reference": expectedObjectReference,
+        "attributes": projectedFinding["normalized"],
+        "provenance": serializedProvenance,
+    }], "The report must join the original observation to its finding and acquisition"
     assert (
         document["evidence_integrity"]["checked_references"] == expectedReportEvidence
     ), "Report checked evidence references changed"
     assert (
         document["evidence_integrity"]["unverified_count"] == 0
     ), "Report contains unverified evidence"
+
+    # Leave the linked bytes available so only the missing original acquisition blocks export.
+    manifestDigest = acquisition.evidence_id.removeprefix("sha256:")
+    (evidenceStore.root / "records" / f"{manifestDigest}.json").unlink()
+    assert evidenceStore.Read(expectedReference) == expectedPayload, "Raw marker must remain intact"
+    retainedFiles = Files(tmp_path)
+    refusedDestination = tmp_path / "refused.json"
+    assert Main([*arguments, str(refusedDestination)]) == 4, "Missing acquisition must block export"
+    refusal = json.loads(capsys.readouterr().out)
+    OutcomeValidator().validate(refusal)
+    assert refusal["status"] == "failed" and refusal["failure"] == "integrity", (
+        "Missing acquisition must produce the existing integrity failure"
+    )
+    assert refusal["output_published"] is False and not refusedDestination.exists(), (
+        "Integrity refusal must leave the selected destination absent"
+    )
+    assert Files(tmp_path) == retainedFiles, "Refusal wrote output or changed retained bytes"
 
 
 def test_VerifiedFindingReplayKeepsEndpointEvidenceSeparate(tmp_path):

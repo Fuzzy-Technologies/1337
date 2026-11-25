@@ -587,10 +587,15 @@ def test_BatchCheckpointRequiresOneExplicitMarkerAndExactPullRequestHead() -> No
     single = "contains(github.event.pull_request.body, '[cve-source-acceptance-checkpoint]')"
     paired = "contains(github.event.pull_request.body, '[cve-batch-source-acceptance-checkpoint]')"
     assert " ".join(job["if"].split()) == (
+        "!(github.event_name == 'pull_request' && github.base_ref == 'develop' "
+        "&& startsWith(github.head_ref, 'feature/passive-batch-')) && ( "
         "github.event.pull_request.draft && "
         "github.event.pull_request.head.repo.full_name == github.repository && "
-        f"({single} != {paired})"
-    ), "Batch and single CVE modes require mutually exclusive same-repository Draft admission"
+        f"({single} != {paired}))"
+    ), (
+        "CVE modes must exclude passive batch requests while preserving mutually exclusive "
+        "same-repository Draft admission"
+    )
     steps = job["steps"]
     assert steps[0]["with"]["ref"] == "${{ github.event.pull_request.head.sha }}", (
         "The checkpoint must build the exact requested source revision"

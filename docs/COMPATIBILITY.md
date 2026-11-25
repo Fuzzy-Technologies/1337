@@ -600,6 +600,12 @@ allowance never permits a same-view change. Inspect requires separate original
 snapshot and receipt manifest identities and accepts no source/consent override.
 Schema-one summaries contain counts, observed hash/length, acquisition times and
 confirmed evidence identifiers, without original tokens or physical paths.
+Explicit `inspect --export-candidates --json` additionally includes
+`candidate_export`, the unchanged verified schema-one snapshot document with
+original/normalized tokens, coordinates and declared source/parser attribution.
+This data-bearing opt-in requires independent original receipt-anchored replay,
+is incompatible with `--match`, and is absent from default summaries and all
+refusals under ADR 0148.
 Digest/parse refusal retains confirmed raw/receipt records; failed acknowledgement
 may leave immutable evidence with `unknown` commitment and no rollback claim.
 Neither action saves Core/workspace state, resolves names, probes hosts or grants
@@ -615,13 +621,18 @@ receiver provenance. `fuzzy1337.intelligence_transport` and acquisition helpers
 remain Internal. No publisher-signature authentication, automatic refresh,
 applicability conclusion or scan authority is provided.
 
-The Experimental `intel import|inspect|apply` CLI and shell commands expose
-explicit local acquisition, verified receipt/snapshot inspection and selected
-Finding enrichment through the existing CAS model owner. ADR 0069 and
-`docs/INTELLIGENCE_CLI.md` define bounded schema-v1 JSON outcomes, original-record
-verification, triage preservation and honest save uncertainty. The command
-implementation remains Internal; no remote scheduling or automatic refresh is
-introduced.
+The Experimental `intel import|inspect|preview|apply` CLI and shell commands expose
+explicit local acquisition, verified receipt/snapshot inspection, read-only
+Finding enrichment proposals and application through the existing CAS model owner.
+ADR 0069 and `docs/INTELLIGENCE_CLI.md` define bounded schema-v1 JSON outcomes, original-record
+verification, triage preservation and honest save uncertainty. Under ADR 0149,
+preview uses the same explicit original local snapshot, finding, identifiers,
+revision and freshness inputs as apply, but keeps `model_commit: not-attempted`
+and separates the saved `model_revision` from the unsaved `proposed_revision`.
+Failed verification, excessive output or interruption omits the candidate preview.
+Preview reserves no later write and grants no target-applicability conclusion.
+The command implementation remains Internal; no remote scheduling or automatic
+refresh is introduced.
 
 ### Read-only saved image inventory
 
