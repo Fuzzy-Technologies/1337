@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 
 import pytest
@@ -13,7 +14,7 @@ import fuzzy1337.image_sbom_view as views
 from fuzzy1337.model import CanonicalModelJson, LocalModelStore, Relation, RelationKind
 from fuzzy1337.report_commands import ReportFailure
 from fuzzy1337.workspace import LocalWorkspaceStore
-from tests.sbom_helpers import IMAGE_DIGEST, Arguments, Context, Run, ViewArguments
+from tests.sbom_helpers import FIXTURES, IMAGE_DIGEST, Arguments, Context, Run, ViewArguments
 
 
 def PolicyArguments(owned):
@@ -141,6 +142,52 @@ def test_ContradictoryIdentityAndContainmentCycleNeverInventAnotherImageInventor
         result["containment_relation_references"]
     ) and unrelated.Reference() not in result["containment_relation_references"], (
         "Traversal must be finite and report original package edges without borrowing image nodes"
+    )
+
+
+def test_SharedPackageDoesNotBorrowNestedContainmentFromAnotherImage(tmp_path):
+    """Keep nested SPDX membership scoped to the image whose source declared it."""
+
+    owned = Context(tmp_path)
+    document = json.loads((FIXTURES / "spdx.graph.v2.3.json").read_bytes())
+    originalPackages = document["packages"]
+    originalRelationships = document["relationships"]
+    document["packages"] = [originalPackages[index] for index in (0, 3)]
+    document["relationships"] = [originalRelationships[index] for index in (0, 3)]
+    owned.source.write_text(json.dumps(document), encoding="utf-8")
+    assert Run(Arguments(owned, digest_kind="config"))[0] == 0
+
+    document["packages"] = [originalPackages[index] for index in (0, 3, 4)]
+    document["relationships"] = [originalRelationships[index] for index in (0, 3, 5)]
+    owned.source.write_text(json.dumps(document), encoding="utf-8")
+    assert Run(Arguments(owned, digest_kind="manifest"))[0] == 0
+    model = LocalModelStore(owned.root).Open()
+    config = views.ImageSbomView(model, views.ImageIdentity(IMAGE_DIGEST))
+    manifest = views.ImageSbomView(model, views.ImageIdentity(IMAGE_DIGEST, "manifest"))
+    aliases = {(item.attributes["image_reference"], item.attributes["spdx_id"]):
+               item.subject_reference for item in model.observations
+               if item.kind == "spdx-source-alias"}
+    expectedConfig = {aliases[(config["image_reference"], "SPDXRef-Lib-Alias")]}
+    expectedManifest = {aliases[(manifest["image_reference"], identifier)]
+                        for identifier in ("SPDXRef-Lib-Alias", "SPDXRef-Helper")}
+    claims: dict[str, set[str]] = {}
+
+    for item in model.observations:
+        if item.kind == "spdx-relationship-claim" and (
+            item.attributes["relationship_type"] == "CONTAINS"
+        ):
+            claims.setdefault(item.attributes["image_reference"], set()).add(
+                item.subject_reference)
+
+    assert set(config["package_references"]) == expectedConfig and set(
+        config["containment_relation_references"]
+    ) == claims[config["image_reference"]], (
+        "The config source cannot borrow the manifest-only nested package claim."
+    )
+    assert set(manifest["package_references"]) == expectedManifest and set(
+        manifest["containment_relation_references"]
+    ) == claims[manifest["image_reference"]], (
+        "The manifest source must retain its direct and nested package claims."
     )
 
 

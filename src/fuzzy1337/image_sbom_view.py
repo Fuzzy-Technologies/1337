@@ -56,12 +56,28 @@ def ImageSbomView(model: ModelState, image: ImageIdentity) -> dict[str, object]:
     )):
         raise SbomFailure("image-identity")
 
+    claimedImages: dict[str, set[str]] = {}
+
+    for observation in model.observations:
+        imageReference = observation.attributes.get("image_reference")
+
+        if observation.kind == "spdx-relationship-claim":
+            images = claimedImages.setdefault(observation.subject_reference, set())
+
+            if type(imageReference) is str:
+                images.add(imageReference)
+
     children: dict[str, list[tuple[str, str]]] = {}
 
     for relation in model.relations:
-        if relation.kind is RelationKind.CONTAINS:
+        relationReference = relation.Reference()
+        images = claimedImages.get(relationReference)
+
+        if relation.kind is RelationKind.CONTAINS and (
+            images is None or reference in images
+        ):
             children.setdefault(relation.source_reference, []).append(
-                (relation.target_reference, relation.Reference()))
+                (relation.target_reference, relationReference))
 
     visited = {reference}
     frontier = [reference]
