@@ -107,3 +107,53 @@ abbreviations, unsupported actions and extra operands are rejected.
 This consumer adds no source download, latest discovery, apply or model save.
 See [ADR 0135](adr/0135-local-selected-cwe-cli.md). The broader #43/#47 source,
 assurance and licensing work remains open.
+
+## New IDs from the same retained original
+
+When a saved catalog was originally selected for one set of IDs, an operator can
+query a different explicit set without restoring the external ZIP or recording
+another acquisition:
+
+```bash
+1337 intel cwe lookup ./workspace --selection ORIGINAL_SELECTION_MANIFEST_ID \
+    --receipt ORIGINAL_RECEIPT_MANIFEST_ID \
+    --identifier CWE-20 --identifier CWE-1000 --identifier CWE-9999999 --json
+```
+
+The complete owning workspace can first be copied or relocated and the caller's
+original ZIP removed. Both exact original manifest roots remain mandatory.
+The command validates one to 64 canonical unique IDs before storage access and
+sorts them lexically like import. It accepts no replacement catalog, hash, scope,
+notice, source path or acquisition metadata.
+
+Lookup first performs the existing exact custody reopening, including complete
+notice/source/receipt joins and reparse of the original saved selection. Only
+then does the same bounded decoder reparse the verified retained full ZIP for
+the newly requested IDs. Original ZIP/XML/selection ceilings are unchanged.
+Corrupt, missing or mixed custody refuses before any on-demand result is emitted.
+Weakness matches, known unsupported Category/Grouping/View entries and genuinely
+absent IDs remain three separate source partitions.
+
+The distinct Experimental terminal profile is
+`cwe-local-original-lookup-cli`, schema one/profile one. Top-level `selection`,
+`selection_reference`, `selection_id` and `receipt_id` still describe the
+original verified saved selection and custody. The separate `lookup.selection`
+contains the on-demand decoder result; `lookup.selection_reference` is only its
+pure `cwe-selection:` content reference. It is not a stored acquisition,
+receipt, normalized snapshot or model observation. `lookup.persistence` is
+`not-attempted`. Original source version, original-byte hash, full notices,
+acquisition times and `ack_basis=verified-present` retain their earlier meaning.
+Human output explicitly labels both selections.
+
+Default `import` and `inspect` output and accepted inspection grammar remain
+unchanged. Lookup writes no workspace, evidence or model bytes and calls no
+acquisition/provider or clock. It grants no legal rights, publisher authenticity,
+target applicability or score. It does not turn unsupported or absent IDs into
+Weaknesses or zero risk.
+
+The existing finite terminal ceilings still apply. Configuration refusal is two,
+custody/lookup/presentation refusal is four and interruption is 130. A failed
+response contains no usable original or on-demand selection. A caller-stream
+failure propagates after one write attempt rather than returning false success;
+no output retry or implicit acquisition follows.
+See [ADR 0155](adr/0155-read-only-retained-cwe-lookup.md).
