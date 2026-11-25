@@ -74,7 +74,7 @@
     {
       "new_blob": null,
       "new_mode": "100644",
-      "normalized_sha256": "ad9499a2f14f14b908dce112c43a8722413ee79a8bd44b151b497827536458ca",
+      "normalized_sha256": "1f8943a99bd645ce9b08df9d827f47ab786cf5307891896be2063be21d10c521",
       "old_blob": "0000000000000000000000000000000000000000",
       "old_mode": "000000",
       "path": ".github/workflows/passive-acceptance-routing.yml"
@@ -185,14 +185,14 @@
       "path": "docs/IOC_ARTIFACT_CLI.md"
     },
     {
-      "new_blob": "a6f60696b4b3158c6bda8acb2f8b98803530787d",
+      "new_blob": "9305e8183fcd330c78a314b95fabe92fdaec5844",
       "new_mode": "100644",
       "old_blob": "0000000000000000000000000000000000000000",
       "old_mode": "000000",
       "path": "docs/PASSIVE_BATCH.md"
     },
     {
-      "new_blob": "bcaa914bac11f2d7f877f30b752879aa5b7d676c",
+      "new_blob": "c3afe8fe7a6adef421aea1f60d658b0447a1fe4e",
       "new_mode": "100644",
       "old_blob": "0000000000000000000000000000000000000000",
       "old_mode": "000000",
@@ -500,11 +500,39 @@
       "path": "tests/integration/test_security_model_integration.py"
     },
     {
+      "new_blob": "0a90c3a9d10f526af331c841bf1054dbec70f4c2",
+      "new_mode": "100644",
+      "old_blob": "f3875d3a562e1d0fa7aa5d4eabb31052ef3fdc40",
+      "old_mode": "100644",
+      "path": "tests/unit/test_ci_cwe_prerequisites.py"
+    },
+    {
+      "new_blob": "e267c4479e9df0d16e20aa10206d6926cd04b628",
+      "new_mode": "100644",
+      "old_blob": "5799a336a432f2b164d4d834113ec0c04a6d4a1e",
+      "old_mode": "100644",
+      "path": "tests/unit/test_ci_cwe_windows_diagnostic.py"
+    },
+    {
       "new_blob": "30ad76bebee53ee326ea855641165a3520336c3c",
       "new_mode": "100644",
       "old_blob": "f45cab5ef0b0fe9994ded5ab254a906357691dec",
       "old_mode": "100644",
       "path": "tests/unit/test_ci_workflows.py"
+    },
+    {
+      "new_blob": "a36f6838636fa4305c796bfb616544870c21a74e",
+      "new_mode": "100644",
+      "old_blob": "295f1a1c0ed43b5ea74f7aa2026e2cf2179bdc05",
+      "old_mode": "100644",
+      "path": "tests/unit/test_cve_https_acceptance.py"
+    },
+    {
+      "new_blob": "d5e91cb34b317758fe8b64e52e0bdc7e84c77515",
+      "new_mode": "100644",
+      "old_blob": "b526e07d4baeadf1e0ab8db6474e81459ee064bc",
+      "old_mode": "100644",
+      "path": "tests/unit/test_cwe_https_acceptance.py"
     },
     {
       "new_blob": "f7335fce93f557f559b03c7dab804ea1312fb932",
@@ -535,6 +563,13 @@
       "path": "tests/unit/test_ioc_commands.py"
     },
     {
+      "new_blob": "e6dca8367b58916d33b51f5b062ab219974fe721",
+      "new_mode": "100644",
+      "old_blob": "d0b4043e44d52b4f4631b1a7646a190156e91514",
+      "old_mode": "100644",
+      "path": "tests/unit/test_owned_content_response_ci_approval.py"
+    },
+    {
       "new_blob": "9d909f35f912fe8793e7d28f5664eb208fee5444",
       "new_mode": "100644",
       "old_blob": "0000000000000000000000000000000000000000",
@@ -542,7 +577,7 @@
       "path": "tests/unit/test_passive_integration.py"
     },
     {
-      "new_blob": "c0a1b0e49eae432c1416a187fd7a1c892620ed7b",
+      "new_blob": "dfa51881acff9d0c6f1118f097b8c8d3ad2c1459",
       "new_mode": "100644",
       "old_blob": "0000000000000000000000000000000000000000",
       "old_mode": "000000",
@@ -561,6 +596,13 @@
       "old_blob": "961ee4164f56e8a9c5f6ced9a4dd898dba7251f0",
       "old_mode": "100644",
       "path": "tests/unit/test_reachability.py"
+    },
+    {
+      "new_blob": "deb5a38b8db5cc36e6f619bfdaf1bfa6d82002be",
+      "new_mode": "100644",
+      "old_blob": "18064cd64173dbca06a4c1bc687455563a5ae0f2",
+      "old_mode": "100644",
+      "path": "tests/unit/test_release_finalize.py"
     },
     {
       "new_blob": "d80236d66c1057f5a5d921ce3ca2c430ace4a42b",
