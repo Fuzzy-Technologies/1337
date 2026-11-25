@@ -39,9 +39,19 @@ executes in a container. Empty `docker_uses` means no qualifying supplied
 association in this snapshot. It does not prove that an image is unused.
 
 Nested SPDX package membership is traversed without flattening or writing new
-relations. Dependency claims, license declarations, OS/layer objects and other
-images do not supply package containment. `observed` is an inventory observation,
+relations. Dependency claims, license declarations and OS/layer objects do not
+supply package containment. `observed` is an inventory observation,
 not a complete inventory, clean scan, license decision or vulnerability verdict.
+
+In a workspace with multiple retained images, a nested containment reference
+can come from another image through a shared package. To confirm a nested SPDX
+relation, run the image view with `--json` and
+[export a JSON report](REPORT_EXPORT.md) from the same workspace. Check that
+both JSON results have the same `snapshot_sha256`. In the report's
+`model.observations`, find a `spdx-relationship-claim` whose `subject_reference`
+is the containment relation reference and whose `attributes.image_reference`
+matches the view's `image_reference`. Without a matching claim, the retained
+SPDX data leaves that membership unconfirmed for the selected image.
 
 Known original SBOM custody and aliases retain the four-MiB source limit before
 generic report reads. The existing report quotas govern all retained evidence.
