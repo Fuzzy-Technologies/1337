@@ -14,6 +14,11 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 - Reduce repeated lookups when rendering large offline reports.
 
+#### Fixed
+
+- Match finding evidence link numbers to their rows in the HTML evidence table.
+- Open the selected table when following a row-range link in the findings index.
+
 #### Changed
 
 - Group retained inventory by object kind and index finding history by canonical
@@ -32,10 +37,6 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Filter offline HTML assets by direct saved finding subjects.
 - Show assets without retained findings for manual review.
 - Build JUnit metadata from one retained report projection.
-
-#### Fixed
-
-- Match finding evidence link numbers to their rows in the HTML evidence table.
 
 
 ### Patch 31 — v0.4.31 — 2026-11-04

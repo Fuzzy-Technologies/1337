@@ -103,9 +103,9 @@ Expand Findings by saved severity to compare findings across dispositions.
 The index lists critical through informational findings before Unknown and
 keeps canonical order within each severity. Each row links to the finding card
 and the saved subject. When the index exceeds 50 rows, it starts with the first
-page open. Row-range links focus the page headings. Use a heading to open
-or close its table of up to 50 rows. The print view uses the full finding cards
-for paginated indexes.
+page open. A row-range link opens its page and focuses the scrollable table of
+up to 50 rows. Use a page heading to open or close its table manually. The print
+view uses the full finding cards for paginated indexes.
 
 Use the saved severity filter to show matching cards, including Unknown when
 present. All restores the full view, as does a link to another report section or

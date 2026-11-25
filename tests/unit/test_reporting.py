@@ -390,7 +390,7 @@ def test_HtmlFindingIndexOrdersSavedSeverityAndRetainsSubjects():
 
 
 def test_HtmlFindingIndexPaginatesAboveFiftyWithNativeDisclosures():
-    """Keep the full finding cards alongside bounded, independently accessible index pages."""
+    """Link directly to a focusable table region inside each bounded page disclosure."""
 
     report = Fixture()
     host, = report.state.Objects(ObjectKind.HOST)
@@ -420,9 +420,10 @@ def test_HtmlFindingIndexPaginatesAboveFiftyWithNativeDisclosures():
     tables = []
 
     for link, page in zip(links, pages, strict=True):
+        fragment = link.attrib["href"][1:]
         summary, = page.findall("summary")
-        assert (summary.get("id"), summary.text) == (link.attrib["href"][1:], link.text)
-        region, = page.findall('div[@role="region"]')
+        assert (summary.get("id"), summary.text) == (f"{fragment}-heading", link.text)
+        region, = page.findall(f'div[@role="region"][@id="{fragment}"]')
         table, = region.findall("table")
         assert region.get("tabindex") == "0"
         assert region.get("aria-labelledby") == table.get("aria-labelledby") == summary.get("id")

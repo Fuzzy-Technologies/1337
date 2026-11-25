@@ -294,10 +294,12 @@ def AttributeText(entity: SecurityObject, *names: str) -> str:
     return "Not recorded"
 
 
-def _TableStart(headingId: str, *, assetFindingsMarker: str = "") -> str:
+def _TableStart(headingId: str, *, assetFindingsMarker: str = "", regionId: str = "") -> str:
     """Name the native table and its keyboard scroll region with the same heading."""
 
-    return (f'<div class="table" role="region" tabindex="0"{assetFindingsMarker} '
+    fragment = f' id="{regionId}"' if regionId else ""
+
+    return (f'<div class="table" role="region" tabindex="0"{assetFindingsMarker}{fragment} '
             f'aria-labelledby="{headingId}">'
             f'<table aria-labelledby="{headingId}"><thead><tr>')
 
@@ -341,12 +343,13 @@ def _FindingLinks(rows: list[_RetainedFindingRow]) -> str:
 
 
 def _FindingIndexTable(
-    rows: _RetainedReportRows, findings: Iterable[_RetainedFindingRow], headingId: str,
+    rows: _RetainedReportRows, findings: Iterable[_RetainedFindingRow], headingId: str, *,
+    regionId: str = "",
 ) -> str:
     """Render one named index table with saved subject and finding links."""
 
     lines = [
-        _TableStart(headingId)
+        _TableStart(headingId, regionId=regionId)
         + '<th scope="col">Finding</th><th scope="col">Saved severity</th>'
         '<th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead><tbody>',
     ]
@@ -396,9 +399,11 @@ def _FindingSeverityIndex(
 
     for (first, fragment, label), page in zip(ranges, pages, strict=True):
         opened = ' open="open"' if first == 1 else ""
+        pageHeadingId = f"{fragment}-heading"
         lines.append(f'<details name="findings-severity-pages"{opened}>'
-                     f'<summary id="{fragment}">{label}</summary>')
-        lines.append(_FindingIndexTable(rows, page, fragment) + "</details>")
+                     f'<summary id="{pageHeadingId}">{label}</summary>')
+        # Target the table region so fragment navigation reveals the closed disclosure.
+        lines.append(_FindingIndexTable(rows, page, pageHeadingId, regionId=fragment) + "</details>")
 
     lines.append("</details>")
 
