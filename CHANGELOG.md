@@ -25,6 +25,7 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 - Filter offline HTML findings by saved severity, including Unknown.
 - Link retained assets to finding cards by their exact saved subject references.
 - Filter offline HTML assets by direct saved finding subjects.
+- Show assets without retained findings for manual review.
 - Build JUnit metadata from one retained report projection.
 
 #### Fixed

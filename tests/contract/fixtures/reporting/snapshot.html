@@ -37,10 +37,12 @@ a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid va
 @media print {body {background:white;color:black} a,h1,h2,h3,.finding > h4,summary {color:black}}
 .asset-findings-filter[hidden],.asset-findings-selection[hidden] {display:none}
 @media screen {
-@supports selector(#model:has(> #assets-with-findings:target) [data-asset-findings="none"]) {
+@supports selector(#model:has(> #assets-with-findings:target) [data-asset-findings]:not([data-asset-findings="present"]))
+    and selector(#model:has(> #assets-without-findings:target) [data-asset-findings]:not([data-asset-findings="none"])) {
 .asset-findings-filter[hidden] {display:flex}
 .asset-findings-selection[hidden]:target {display:block}
-#model:has(> #assets-with-findings:target) [data-asset-findings="none"] {display:none}
+#model:has(> #assets-with-findings:target) [data-asset-findings]:not([data-asset-findings="present"]) {display:none}
+#model:has(> #assets-without-findings:target) [data-asset-findings]:not([data-asset-findings="none"]) {display:none}
 }
 }
 .finding-severity-filter[hidden] {display:none}
@@ -86,25 +88,28 @@ a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid va
 </nav>
 <nav class="asset-findings-filter" aria-labelledby="asset-findings-filter-label" hidden="hidden"><span id="asset-findings-filter-label">Filter assets</span>
 <a href="#model">All (2)</a>
-<a href="#assets-with-findings">With findings (1)</a></nav>
+<a href="#assets-with-findings">With findings (1)</a>
+<a href="#assets-without-findings">Without findings (1)</a>
+</nav>
 <p class="asset-findings-selection" id="assets-with-findings" tabindex="-1" hidden="hidden">Showing 1 of 2 objects with retained findings. Group counts describe the full snapshot.</p>
-<h3 id="model-host-table-heading" tabindex="-1">Hosts (1)</h3>
-<div class="table" role="region" tabindex="0" aria-labelledby="model-host-table-heading"><table aria-labelledby="model-host-table-heading"><thead><tr><th scope="col">Saved identity</th>
+<p class="asset-findings-selection" id="assets-without-findings" tabindex="-1" hidden="hidden">Showing 1 of 2 objects without retained findings for manual review. Security and check coverage remain unassessed. Group counts describe the full snapshot.</p>
+<h3 id="model-host-table-heading" tabindex="-1" data-asset-findings="present">Hosts (1)</h3>
+<div class="table" role="region" tabindex="0" data-asset-findings="present" aria-labelledby="model-host-table-heading"><table aria-labelledby="model-host-table-heading"><thead><tr><th scope="col">Saved identity</th>
 <th scope="col">Address</th>
 <th scope="col">Reported state</th>
 <th scope="col">Findings</th><th scope="col">Details</th></tr></thead><tbody>
-<tr id="object-e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6"><th scope="row">127.0.0.1</th>
+<tr id="object-e43f85a712adeb2ef78c3e804a7c15982375822f71967a599c531482c38fd6d6" data-asset-findings="present"><th scope="row">127.0.0.1</th>
 <td>Not recorded</td>
 <td>reported</td>
 <td><ul><li><a href="#finding-0c250ded9cc20410ac6c7edaf176ee02440d554a50923f30dad68975b4696595">Synthetic check interpretation · dismissed · tcp/445</a></li><li><a href="#finding-14b87377d2391c6188878933342439a9f3eb8fdf1833b9edfdaf5d952cc997b8">Synthetic check interpretation · open · tcp/443</a></li><li><a href="#finding-7af8781c657d09fd18dcb11ec6d197f565bf371a7c816cf0a95010f58ec723f9">Synthetic check interpretation · confirmed · tcp/444</a></li><li><a href="#finding-b761b3d8a0620e1c581f90ca1129fcb7fade0e52a53135331d4332ee5935bad9">Synthetic check interpretation · resolved · tcp/446</a></li></ul></td>
 <td><details><summary>Technical object</summary><pre>{&quot;attributes&quot;:{&quot;state&quot;:&quot;reported&quot;},&quot;identity&quot;:{&quot;key&quot;:&quot;127.0.0.1&quot;,&quot;kind&quot;:&quot;host&quot;,&quot;workspace_id&quot;:&quot;synthetic&quot;},&quot;provenance&quot;:[{&quot;evidence_references&quot;:[{&quot;locator&quot;:&quot;blobs/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;,&quot;media_type&quot;:&quot;application/json&quot;,&quot;role&quot;:&quot;stdout&quot;,&quot;sha256&quot;:&quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;,&quot;size_bytes&quot;:2}],&quot;execution&quot;:{&quot;duration_seconds&quot;:0.1,&quot;exit_code&quot;:2,&quot;state&quot;:&quot;failed&quot;},&quot;observed_at&quot;:&quot;2026-10-13T00:00:00.000000+00:00&quot;,&quot;provider_version&quot;:null,&quot;run_reference&quot;:&quot;run:synthetic&quot;,&quot;scope_reference&quot;:&quot;scope:fixture&quot;,&quot;source_id&quot;:&quot;synthetic&quot;,&quot;target_reference&quot;:&quot;target:fixture&quot;}]}</pre></details></td></tr>
 </tbody></table></div>
-<h3 id="model-port-table-heading" tabindex="-1" data-asset-findings="none">Ports (0)</h3>
-<p data-asset-findings="none">No objects of this kind were retained.</p>
-<h3 id="model-service-table-heading" tabindex="-1" data-asset-findings="none">Services (0)</h3>
-<p data-asset-findings="none">No objects of this kind were retained.</p>
-<h3 id="model-endpoint-table-heading" tabindex="-1" data-asset-findings="none">Web addresses (0)</h3>
-<p data-asset-findings="none">No objects of this kind were retained.</p>
+<h3 id="model-port-table-heading" tabindex="-1" data-asset-findings="empty">Ports (0)</h3>
+<p data-asset-findings="empty">No objects of this kind were retained.</p>
+<h3 id="model-service-table-heading" tabindex="-1" data-asset-findings="empty">Services (0)</h3>
+<p data-asset-findings="empty">No objects of this kind were retained.</p>
+<h3 id="model-endpoint-table-heading" tabindex="-1" data-asset-findings="empty">Web addresses (0)</h3>
+<p data-asset-findings="empty">No objects of this kind were retained.</p>
 <h3 id="model-other-objects-heading" tabindex="-1" data-asset-findings="none">Other retained objects (1)</h3>
 <div data-asset-findings="none"><details id="object-6b86e98ea3b650b9ae273f9e4ac42d6a774224384b696b4ede282bd3617125c1"><summary>Asset: build:synthetic</summary><pre>{&quot;attributes&quot;:{},&quot;identity&quot;:{&quot;key&quot;:&quot;build:synthetic&quot;,&quot;kind&quot;:&quot;asset&quot;,&quot;workspace_id&quot;:&quot;synthetic&quot;},&quot;provenance&quot;:[{&quot;evidence_references&quot;:[{&quot;locator&quot;:&quot;blobs/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;,&quot;media_type&quot;:&quot;application/json&quot;,&quot;role&quot;:&quot;stdout&quot;,&quot;sha256&quot;:&quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;,&quot;size_bytes&quot;:2}],&quot;execution&quot;:{&quot;duration_seconds&quot;:0.1,&quot;exit_code&quot;:2,&quot;state&quot;:&quot;failed&quot;},&quot;observed_at&quot;:&quot;2026-10-13T00:00:00.000000+00:00&quot;,&quot;provider_version&quot;:null,&quot;run_reference&quot;:&quot;run:synthetic&quot;,&quot;scope_reference&quot;:&quot;scope:fixture&quot;,&quot;source_id&quot;:&quot;synthetic&quot;,&quot;target_reference&quot;:&quot;target:fixture&quot;}]}</pre></details></div>
 </section>

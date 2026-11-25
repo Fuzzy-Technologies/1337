@@ -85,9 +85,11 @@ keyboard focus.
 Follow a link in the inventory's Findings column to open the corresponding
 finding card. Other retained objects show links when a finding names them as its
 subject. Links use the exact saved subject reference and cover all dispositions.
-Use With findings to show only objects named as finding subjects when the
-snapshot also contains other objects. All restores the full inventory. Group
-counts and the printed report describe the full snapshot.
+With findings is available when the snapshot contains both objects with saved
+findings and objects without them. Without findings is available for manual
+review whenever at least one object has no saved findings. Security and check
+coverage remain unassessed. All restores the full inventory. Group counts and
+the printed report describe the full snapshot.
 
 Use the Findings disposition links to jump to open, confirmed, dismissed or
 resolved findings. Each populated group shows its count and keeps its findings

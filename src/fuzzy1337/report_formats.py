@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import html
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from functools import cache
 from http import HTTPStatus
 from typing import cast
@@ -68,16 +68,24 @@ a:focus-visible,summary:focus-visible,.table:focus-visible {outline:2px solid va
 @media print {body {background:white;color:black} a,h1,h2,h3,.finding > h4,summary {color:black}}
 """
 _ASSET_WITHOUT_FINDINGS = ' data-asset-findings="none"'
+_ASSET_WITH_FINDINGS = ' data-asset-findings="present"'
 _ASSET_FINDINGS_SELECTOR = (
-    '#model:has(> #assets-with-findings:target) [data-asset-findings="none"]'
+    "#model:has(> #assets-with-findings:target) [data-asset-findings]"
+    ':not([data-asset-findings="present"])'
+)
+_ASSET_NO_FINDINGS_SELECTOR = (
+    "#model:has(> #assets-without-findings:target) [data-asset-findings]"
+    ':not([data-asset-findings="none"])'
 )
 _ASSET_FINDINGS_CSS = (
     ".asset-findings-filter[hidden],.asset-findings-selection[hidden] {display:none}\n"
     "@media screen {\n"
-    f"@supports selector({_ASSET_FINDINGS_SELECTOR}) {{\n"
+    f"@supports selector({_ASSET_FINDINGS_SELECTOR})\n"
+    f"    and selector({_ASSET_NO_FINDINGS_SELECTOR}) {{\n"
     ".asset-findings-filter[hidden] {display:flex}\n"
     ".asset-findings-selection[hidden]:target {display:block}\n"
     f"{_ASSET_FINDINGS_SELECTOR} {{display:none}}\n"
+    f"{_ASSET_NO_FINDINGS_SELECTOR} {{display:none}}\n"
     "}\n}\n"
 )
 _FINDING_SEVERITY_SELECTOR = (
@@ -280,14 +288,31 @@ def AttributeText(entity: SecurityObject, *names: str) -> str:
     return "Not recorded"
 
 
-def _TableStart(headingId: str, *, withoutAssetFindings: bool = False) -> str:
+def _TableStart(headingId: str, *, assetFindingsMarker: str = "") -> str:
     """Name the native table and its keyboard scroll region with the same heading."""
 
-    marker = _ASSET_WITHOUT_FINDINGS if withoutAssetFindings else ""
-
-    return ('<div class="table" role="region" tabindex="0" '
-            f'aria-labelledby="{headingId}"{marker}>'
+    return (f'<div class="table" role="region" tabindex="0"{assetFindingsMarker} '
+            f'aria-labelledby="{headingId}">'
             f'<table aria-labelledby="{headingId}"><thead><tr>')
+
+
+def _AssetGroupFindingsMarker(
+    entities: Collection[tuple[str, SecurityObject]], findingSubjects: Collection[str],
+) -> str:
+    """Mark a group that has rows for only one filter or neither filter."""
+
+    if not entities:
+        return ' data-asset-findings="empty"'
+
+    matchingCount = sum(reference in findingSubjects for reference, _ in entities)
+
+    if matchingCount == len(entities):
+        return _ASSET_WITH_FINDINGS
+
+    if not matchingCount:
+        return _ASSET_WITHOUT_FINDINGS
+
+    return ""
 
 
 def _FindingId(reference: str) -> str:
@@ -361,24 +386,38 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
     assetCount = len(rows.objects) - len(rows.findings)
     subjectCount = len(findingsBySubject)
-    includeFilter = 0 < subjectCount < assetCount
+    withoutCount = assetCount - subjectCount
+    includeFilter = withoutCount > 0
 
     if includeFilter:
+        filters = [(
+            "assets-without-findings", "Without findings", withoutCount,
+            "without retained findings for manual review. "
+            "Security and check coverage remain unassessed.",
+        )]
+
+        if subjectCount:
+            filters.insert(0, (
+                "assets-with-findings", "With findings", subjectCount, "with retained findings.",
+            ))
+
         lines.extend((
             '<nav class="asset-findings-filter" aria-labelledby="asset-findings-filter-label" '
             'hidden="hidden"><span id="asset-findings-filter-label">Filter assets</span>',
             f'<a href="#model">All ({assetCount})</a>',
-            f'<a href="#assets-with-findings">With findings ({subjectCount})</a></nav>',
-            '<p class="asset-findings-selection" id="assets-with-findings" tabindex="-1" '
-            f'hidden="hidden">Showing {subjectCount} of {assetCount} objects with retained '
-            'findings. Group counts describe the full snapshot.</p>',
         ))
+        lines.extend(f'<a href="#{filterId}">{label} ({count})</a>'
+                     for filterId, label, count, _ in filters)
+        lines.append("</nav>")
+        lines.extend(
+            f'<p class="asset-findings-selection" id="{filterId}" tabindex="-1" hidden="hidden">'
+            f"Showing {count} of {assetCount} objects {message} "
+            "Group counts describe the full snapshot.</p>"
+            for filterId, _, count, message in filters
+        )
 
     for headingId, label, fields, entities in inventory:
-        withoutFindings = includeFilter and not any(
-            reference in findingsBySubject for reference, _ in entities
-        )
-        marker = _ASSET_WITHOUT_FINDINGS if withoutFindings else ""
+        marker = _AssetGroupFindingsMarker(entities, findingsBySubject) if includeFilter else ""
         lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
         if not entities:
@@ -386,7 +425,7 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
             continue
 
-        lines.append(_TableStart(headingId, withoutAssetFindings=withoutFindings)
+        lines.append(_TableStart(headingId, assetFindingsMarker=marker)
                      + '<th scope="col">Saved identity</th>')
         lines.extend(f'<th scope="col">{Html(label)}</th>' for label, _ in fields)
         lines.append('<th scope="col">Findings</th>'
@@ -394,7 +433,9 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
         for reference, entity in entities:
             findings = findingsBySubject.get(reference)
-            marker = _ASSET_WITHOUT_FINDINGS if includeFilter and not findings else ""
+            marker = (
+                _ASSET_WITH_FINDINGS if findings else _ASSET_WITHOUT_FINDINGS
+            ) if includeFilter else ""
             lines.append(f'<tr id="object-{reference[7:]}"{marker}>'
                          f'<th scope="row">{Html(entity.identity.key)}</th>')
             lines.extend(f"<td>{AttributeText(entity, *names)}</td>" for _, names in fields)
@@ -406,15 +447,14 @@ def ObjectTables(rows: _RetainedReportRows) -> str:
 
     if others:
         headingId, label = otherGroup
-        withoutFindings = includeFilter and not any(
-            reference in findingsBySubject for reference, _ in others
-        )
-        marker = _ASSET_WITHOUT_FINDINGS if withoutFindings else ""
+        marker = _AssetGroupFindingsMarker(others, findingsBySubject) if includeFilter else ""
         lines.append(f'<h3 id="{headingId}" tabindex="-1"{marker}>{label}</h3>')
 
         for reference, entity in others:
             findings = findingsBySubject.get(reference)
-            marker = _ASSET_WITHOUT_FINDINGS if includeFilter and not findings else ""
+            marker = (
+                _ASSET_WITH_FINDINGS if findings else _ASSET_WITHOUT_FINDINGS
+            ) if includeFilter else ""
             navigation = "<p>Findings</p>" + _FindingLinks(findings) if findings else ""
             lines.append(f'<div{marker}><details id="object-{reference[7:]}"><summary>'
                          + Html(ObjectLabel(entity)) + "</summary>"

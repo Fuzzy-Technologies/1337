@@ -849,11 +849,14 @@ def test_HtmlAssetFindingsUseExactSavedSubjects():
     service = SecurityObject(
         ObjectIdentity("synthetic", ObjectKind.SERVICE, address), {}, host.provenance,
     )
+    otherEndpoint = SecurityObject(
+        ObjectIdentity("synthetic", ObjectKind.ENDPOINT, address + "other"), {}, host.provenance,
+    )
     relation = Relation(
         RelationKind.RELATED_TO, service.Reference(), endpoint.Reference(),
         provenance=host.provenance,
     )
-    state, _ = report.state.Apply(objects=(endpoint, service), relations=(relation,))
+    state, _ = report.state.Apply(objects=(endpoint, service, otherEndpoint), relations=(relation,))
     state, _ = ApplyFindings(state, tuple(
         Finding(subject.Reference(), "synthetic.test-check", "tcp/443", summary, host.provenance)
         for subject in (endpoint, asset)
@@ -871,26 +874,44 @@ def test_HtmlAssetFindingsUseExactSavedSubjects():
     filters, = inventory.findall('nav[@aria-labelledby="asset-findings-filter-label"]')
     assert filters.get("hidden") == "hidden"
     assert [(link.get("href"), link.text) for link in filters.findall("a")] == [
-        ("#model", "All (4)"), ("#assets-with-findings", "With findings (3)"),
+        ("#model", "All (5)"), ("#assets-with-findings", "With findings (3)"),
+        ("#assets-without-findings", "Without findings (2)"),
     ]
-    selected, = inventory.findall('p[@id="assets-with-findings"]')
-    assert (selected.get("hidden"), selected.get("tabindex")) == ("hidden", "-1")
-    selector = '#model:has(> #assets-with-findings:target) [data-asset-findings="none"]'
-    guard = f"@media screen {{\n@supports selector({selector}) {{\n"
+    withFindings, = inventory.findall('p[@id="assets-with-findings"]')
+    withoutFindings, = inventory.findall('p[@id="assets-without-findings"]')
+    assert (withFindings.get("hidden"), withFindings.get("tabindex")) == ("hidden", "-1")
+    assert (withoutFindings.get("hidden"), withoutFindings.get("tabindex")) == ("hidden", "-1")
+    assert withoutFindings.text == (
+        "Showing 2 of 5 objects without retained findings for manual review. "
+        "Security and check coverage remain unassessed. Group counts describe the full snapshot."
+    )
+    withSelector = (
+        "#model:has(> #assets-with-findings:target) [data-asset-findings]"
+        ':not([data-asset-findings="present"])'
+    )
+    withoutSelector = (
+        "#model:has(> #assets-without-findings:target) [data-asset-findings]"
+        ':not([data-asset-findings="none"])'
+    )
+    guard = (
+        f"@media screen {{\n@supports selector({withSelector})\n"
+        f"    and selector({withoutSelector}) {{\n"
+    )
     defaults, guardStart, conditional = rendered.partition(guard)
     assert guardStart
     assert ".asset-findings-filter[hidden],.asset-findings-selection[hidden] {display:none}" in (
         defaults
     )
     screenRules = conditional.split("\n}\n}\n", 1)[0]
-    assert f"{selector} {{display:none}}" in screenRules
+    assert f"{withSelector} {{display:none}}" in screenRules
+    assert f"{withoutSelector} {{display:none}}" in screenRules
 
     for subject in (host, endpoint, asset):
         reference = subject.Reference()
         objectId = f"object-{reference[7:]}"
         entry, = (inventory.findall(f'.//tr[@id="{objectId}"]')
                   + inventory.findall(f'.//details[@id="{objectId}"]/..'))
-        assert entry.get("data-asset-findings") is None
+        assert entry.get("data-asset-findings") == "present"
         expected = [
             (
                 f"#finding-{entity.Reference()[7:]}",
@@ -919,6 +940,14 @@ def test_HtmlAssetFindingsUseExactSavedSubjects():
     assert inventory.find('div[@aria-labelledby="model-service-table-heading"]').get(
         "data-asset-findings"
     ) == "none"
+    assert inventory.find(f'.//tr[@id="object-{otherEndpoint.Reference()[7:]}"]').get(
+        "data-asset-findings"
+    ) == "none"
+    endpointHeading, = inventory.findall('h3[@id="model-endpoint-table-heading"]')
+    assert endpointHeading.get("data-asset-findings") is None
+    assert inventory.find('div[@aria-labelledby="model-endpoint-table-heading"]').get(
+        "data-asset-findings"
+    ) is None
 
 
 def test_RetainedReportRowsIndexEveryObservationOnceAndPreserveItsOwner(monkeypatch):
