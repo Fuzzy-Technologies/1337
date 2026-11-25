@@ -10,6 +10,7 @@ import html
 from collections.abc import Callable, Collection, Iterable
 from functools import cache
 from http import HTTPStatus
+from itertools import batched
 from typing import cast
 from xml.etree import ElementTree
 
@@ -34,6 +35,9 @@ from fuzzy1337.reporting import (
 
 __all__ = ["RenderHtml", "SerializeJson", "SerializeSarif", "SerializeJunit"]
 _FINDING_INDEX_RANGE_SIZE = 50
+_FINDING_INDEX_PRINT_CSS = (
+    "@media print {.findings-severity-index[data-paginated] {display:none}}\n"
+)
 _CSS = """
 :root {color-scheme:dark;--bg:#07090d;--panel:#0b1117;--text:#b9dce8;
 --muted:#7f9da8;--cyan:#55e7ff;--pink:#ff5bd8;--green:#5dff8d;--border:#00eaff4d}
@@ -336,48 +340,18 @@ def _FindingLinks(rows: list[_RetainedFindingRow]) -> str:
     return "<ul>" + "".join(links) + "</ul>"
 
 
-def _FindingSeverityIndex(
-    rows: _RetainedReportRows, rankedFindings: Iterable[_RetainedFindingRow],
+def _FindingIndexTable(
+    rows: _RetainedReportRows, findings: Iterable[_RetainedFindingRow], headingId: str,
 ) -> str:
-    """Compare retained severities and dispositions with links to their cards and subjects."""
+    """Render one named index table with saved subject and finding links."""
 
-    headingId = "findings-severity-table-heading"
-    total = len(rows.findings)
-    rangeStarts = range(1, total + 1, _FINDING_INDEX_RANGE_SIZE)
-    rangeIds: dict[int, str] = {}
     lines = [
-        '<details class="findings-severity-index"><summary>'
-        f'<h3 id="{headingId}">Findings by saved severity</h3></summary>',
-    ]
-
-    if len(rangeStarts) > 1:
-        lines.append('<nav aria-label="Finding index row ranges">')
-
-        for first in rangeStarts:
-            fragment = f"findings-severity-rows-{first}"
-            rangeIds[first] = fragment
-            last = min(first + _FINDING_INDEX_RANGE_SIZE - 1, total)
-            label = f"Rows {first}–{last}" if first < last else f"Row {first}"
-            lines.append(f'<a href="#{fragment}">{label}</a>')
-
-        lines.append("</nav>")
-
-    lines.append(
         _TableStart(headingId)
         + '<th scope="col">Finding</th><th scope="col">Saved severity</th>'
-        '<th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead>'
-        + ("" if rangeIds else "<tbody>")
-    )
+        '<th scope="col">Disposition</th><th scope="col">Subject</th></tr></thead><tbody>',
+    ]
 
-    for ordinal, row in enumerate(rankedFindings, 1):
-        groupId = rangeIds.get(ordinal)
-
-        if groupId is not None:
-            if ordinal > 1:
-                lines.append("</tbody>")
-
-            lines.append(f'<tbody id="{groupId}" tabindex="-1">')
-
+    for row in findings:
         finding = row.finding
         subject = rows.objects[finding.subject_reference]
         subjectLink = ObjectLink(finding.subject_reference, ObjectLabel(subject))
@@ -388,7 +362,45 @@ def _FindingSeverityIndex(
             f"<td>{subjectLink}</td></tr>"
         )
 
-    lines.append("</tbody></table></div></details>")
+    lines.append("</tbody></table></div>")
+
+    return "\n".join(lines)
+
+
+def _FindingSeverityIndex(
+    rows: _RetainedReportRows, rankedFindings: Iterable[_RetainedFindingRow], *, paginated: bool,
+) -> str:
+    """Compare saved findings in one table or in consecutive native page disclosures."""
+
+    headingId = "findings-severity-table-heading"
+    marker = ' data-paginated="true"' if paginated else ""
+    summary = (f'<details class="findings-severity-index"{marker}><summary>'
+               f'<h3 id="{headingId}">Findings by saved severity</h3></summary>')
+
+    if not paginated:
+        return f"{summary}\n{_FindingIndexTable(rows, rankedFindings, headingId)}</details>"
+
+    total = len(rows.findings)
+    ranges = []
+    lines = [summary, '<nav aria-label="Finding index row ranges">']
+
+    for first in range(1, total + 1, _FINDING_INDEX_RANGE_SIZE):
+        fragment = f"findings-severity-rows-{first}"
+        last = min(first + _FINDING_INDEX_RANGE_SIZE - 1, total)
+        label = f"Rows {first}–{last}" if first < last else f"Row {first}"
+        ranges.append((first, fragment, label))
+        lines.append(f'<a href="#{fragment}">{label}</a>')
+
+    lines.append("</nav>")
+    pages = batched(rankedFindings, _FINDING_INDEX_RANGE_SIZE)
+
+    for (first, fragment, label), page in zip(ranges, pages, strict=True):
+        opened = ' open="open"' if first == 1 else ""
+        lines.append(f'<details name="findings-severity-pages"{opened}>'
+                     f'<summary id="{fragment}">{label}</summary>')
+        lines.append(_FindingIndexTable(rows, page, fragment) + "</details>")
+
+    lines.append("</details>")
 
     return "\n".join(lines)
 
@@ -807,6 +819,8 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
     summary = cast(dict[str, object], document["summary"])
     bindings = {item.finding_reference: item for item in report.reference_bindings}
     rows = _ProjectRetainedReportRows(report.state)
+    paginatedFindings = len(rows.findings) > _FINDING_INDEX_RANGE_SIZE
+    findingIndexPrintCss = _FINDING_INDEX_PRINT_CSS if paginatedFindings else ""
     evidenceNumbers = {
         reference: number for number, reference in enumerate(report.EvidenceReferences(), 1)
     }
@@ -817,8 +831,8 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
         '<meta name="color-scheme" content="dark">',
         '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; '
         'style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">',
-        f"<title>1337 Evidence report</title><style>{_CSS}{_ASSET_FINDINGS_CSS}"
-        f"{_FINDING_SEVERITY_CSS}</style>"
+        f"<title>1337 Evidence report</title><style>{_CSS}{findingIndexPrintCss}"
+        f"{_ASSET_FINDINGS_CSS}{_FINDING_SEVERITY_CSS}</style>"
         "</head><body><main>",
         '<p class="brand">Fuzzy Technologies · Security Workbench</p>'
         '<h1>Security assessment report</h1>',
@@ -886,7 +900,7 @@ def RenderHtml(report: ReportSnapshot) -> bytes:
 
     if findingGroups:
         rankedFindings = (row for group in reversed(findingsBySeverity.values()) for row in group)
-        lines.append(_FindingSeverityIndex(rows, rankedFindings))
+        lines.append(_FindingSeverityIndex(rows, rankedFindings, paginated=paginatedFindings))
         lines.append('<nav aria-label="Finding dispositions">')
         lines.extend(f'<a href="#{groupId}">{label}</a>' for groupId, label, _ in findingGroups)
         lines.append("</nav>")

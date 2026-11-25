@@ -98,13 +98,14 @@ in canonical order.
 Expand Findings by saved severity to compare findings across dispositions.
 The index lists critical through informational findings before Unknown and
 keeps canonical order within each severity. Each row links to the finding card
-and the saved subject. When the index exceeds 50 rows, use the row-range links
-to jump between groups of up to 50 rows in the same table.
+and the saved subject. When the index exceeds 50 rows, it starts with the first
+page open. Row-range links focus the page headings. Use a heading to open
+or close its table of up to 50 rows. The print view uses the full finding cards
+for paginated indexes.
 
 Use the saved severity filter to show matching cards, including Unknown when
 present. All restores the full view, as does a link to another report section or
-record. Disposition counts describe the full snapshot. Printing includes every
-finding card.
+record. Disposition counts describe the full snapshot.
 
 A finding's evidence link uses the number on its row in the Evidence table.
 Follow the link to read the retained reference and its byte-integrity status.

@@ -389,8 +389,8 @@ def test_HtmlFindingIndexOrdersSavedSeverityAndRetainsSubjects():
         )
 
 
-def test_HtmlFindingIndexOffersRowRangeLinksAboveFifty():
-    """Preserve every row in severity order across focusable index ranges."""
+def test_HtmlFindingIndexPaginatesAboveFiftyWithNativeDisclosures():
+    """Keep the full finding cards alongside bounded, independently accessible index pages."""
 
     report = Fixture()
     host, = report.state.Objects(ObjectKind.HOST)
@@ -399,24 +399,36 @@ def test_HtmlFindingIndexOffersRowRangeLinksAboveFifty():
         "Retained finding", host.provenance, severity=FindingSeverity.HIGH,
     ) for ordinal in range(47))
     state, _ = ApplyFindings(report.state, detections[:-1])
-    assert b'aria-label="Finding index row ranges"' not in RenderHtml(replace(report, state=state))
+    atLimit = RenderHtml(replace(report, state=state))
+    assert b'name="findings-severity-pages"' not in atLimit
+    assert b"data-paginated" not in atLimit
 
     state, _ = ApplyFindings(state, detections[-1:])
     rendered = RenderHtml(replace(report, state=state)).decode("utf-8")
-    indexHtml = rendered.split('<details class="findings-severity-index">', 1)[1]
-    index = ElementTree.fromstring("<details>" + indexHtml.split("</details>", 1)[0]
-                                   + "</details>")
+    findingsHtml = rendered.split('<section id="findings">', 1)[1].split("</section>", 1)[0]
+    findings = ElementTree.fromstring(f"<section>{findingsHtml}</section>")
+    index, = findings.findall('details[@class="findings-severity-index"]')
+    assert index.get("data-paginated") == "true"
+    assert index.get("open") is None
     navigation, = index.findall('nav[@aria-label="Finding index row ranges"]')
     links = navigation.findall("a")
     assert [(link.get("href"), link.text) for link in links] == [
         ("#findings-severity-rows-1", "Rows 1–50"), ("#findings-severity-rows-51", "Row 51"),
     ]
-    table, = index.findall("div/table")
-    groups = table.findall("tbody")
-    assert [len(group.findall("tr")) for group in groups] == [50, 1]
-    assert [(group.get("id"), group.get("tabindex")) for group in groups] == [
-        (link.attrib["href"][1:], "-1") for link in links
-    ]
+    pages = index.findall('details[@name="findings-severity-pages"]')
+    assert [page.get("open") for page in pages] == ["open", None]
+    tables = []
+
+    for link, page in zip(links, pages, strict=True):
+        summary, = page.findall("summary")
+        assert (summary.get("id"), summary.text) == (link.attrib["href"][1:], link.text)
+        region, = page.findall('div[@role="region"]')
+        table, = region.findall("table")
+        assert region.get("tabindex") == "0"
+        assert region.get("aria-labelledby") == table.get("aria-labelledby") == summary.get("id")
+        tables.append(table)
+
+    assert [len(table.findall("tbody/tr")) for table in tables] == [50, 1]
     entities = state.Objects(ObjectKind.FINDING)
     severities = ("high", "low", "informational", "unknown")
     expected = [
@@ -424,8 +436,15 @@ def test_HtmlFindingIndexOffersRowRangeLinksAboveFifty():
         for severity in severities for entity in entities
         if entity.attributes["severity"] == severity
     ]
-    assert [link.get("href") for link in table.findall("tbody/tr/th/a")] == expected
-    assert groups[-1].findtext("tr/td") == "Unknown"
+    assert [link.get("href") for table in tables for link in table.findall("tbody/tr/th/a")] == (
+        expected
+    )
+    assert tables[-1].findtext("tbody/tr/td") == "Unknown"
+    assert {card.get("id") for card in findings.findall("article")} == {
+        link[1:] for link in expected
+    }
+    stylesheet = rendered.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert "@media print {.findings-severity-index[data-paginated] {display:none}}" in stylesheet
 
 
 def test_HtmlFiltersBySavedFindingSeverityIncludingUnknown():
