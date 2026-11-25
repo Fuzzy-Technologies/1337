@@ -239,8 +239,10 @@ COMMAND_REGISTRY = CommandRegistry(
         ),
         CommandDescriptor(
             identifier="intel",
-            summary="Import local intelligence and inspect, preview or apply selected snapshots.",
-            usage="1337 intel <import|inspect|preview|apply> <workspace>",
+            summary=("Import local intelligence and inspect, preview or apply "
+                     "snapshots and source sets."),
+            usage=("1337 intel <import|inspect|preview|apply|preview-set|apply-set> "
+                   "<workspace>"),
             capabilities=("intelligence.local-snapshot", "intelligence.finding-enrichment"),
         ),
         CommandDescriptor(

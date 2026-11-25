@@ -8,6 +8,42 @@ Major 0 — the pre-stable 1337 Security Workbench line, establishing the Commun
 
 ## Minor 0.4
 
+### Patch 68 — v0.4.68 — 2026-11-25
+
+#### Digest
+
+- Preview several verified saved intelligence sources as one candidate and save
+  that combined interpretation with one existing model CAS.
+
+#### Added
+
+- Add explicit local `intel preview-set|apply-set` over independent original
+  snapshot/receipt pairs and the unchanged multi-source SDK. Check aggregate
+  allocations before original reparse and verify every source before output.
+  Preserve canonical assertion order, source attribution, CVSS/KEV/EPSS meanings,
+  freshness, unmatched IDs and existing operator triage.
+- Refuse invalid sets without a saved valid prefix or partial preview. Preserve
+  idempotent replay, independent save uncertainty and bounded checked terminal
+  presentation. No acquisition, applicability verdict, risk policy or new Core/
+  receipt format is introduced.
+
+
+### Patch 67 — v0.4.67 — 2026-11-25
+
+#### Digest
+
+- Reuse checked model references when ordering immutable snapshot collections.
+
+#### Changed
+
+- Sort records by the references already computed for duplicate validation.
+  Preserve the existing byte decoder, FromDict checks, serialized bytes and
+  atomic publication behavior.
+- On one runner, ten alternating pairs using the same 256 objects, 256
+  observations and 236,573-byte snapshot reduced median durable Save time
+  from 57.9085 to 51.6015 ms (10.89%); CPU medians were 57.247 and 51.114 ms.
+  All 42 SDK and 17 saved-wire outcomes matched before and after the change.
+
 ### Patch 66 — v0.4.66 — 2026-11-25
 
 #### Digest

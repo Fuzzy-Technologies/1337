@@ -1,5 +1,10 @@
 # fuzzy1337.shell
 
+Foreground `intel preview-set|apply-set` forwards explicit original local pairs
+and interpretation inputs to the [set consumer](fuzzy1337.intelligence_set_commands.md).
+Shell context supplies no source, finding or revision; the existing private
+`intel` history boundary remains unchanged.
+
 Foreground `trace syslog import|inspect` forwards explicit selections to the same
 [saved RFC 5424 handler](fuzzy1337.syslog_commands.md) as the console. Workspace,
 original file, framing, checksum and receipt are never inferred from shell context;
