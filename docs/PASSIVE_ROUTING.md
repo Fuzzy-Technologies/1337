@@ -7,8 +7,9 @@ entire actual change inventory against a separately reviewed immutable policy.
 
 The shared `passive-acceptance-routing.yml` workflow checks out candidate Git
 objects without running candidate code and independently checks out the exact
-`PASSIVE_POLICY_COMMIT`. Only the isolated helper from that policy checkout is
-executed. The policy commit contains `tools/passive_scope.py` and
+`PASSIVE_POLICY_COMMIT`. Before executing the helper, the router checks that the
+pin occurs in the history of the repository's `feature/ci-batch-policies` branch.
+The policy commit contains `tools/passive_scope.py` and
 `contracts/passive-integration-policy.json`. This supports the initial routing
 PR even when develop has no routing helper yet. A missing or placeholder pin
 cannot certify the requested batch.

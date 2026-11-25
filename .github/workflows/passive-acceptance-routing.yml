@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  PASSIVE_POLICY_COMMIT: "e66135c9b56032693215f6f79ce9e086e39a810a"
+  PASSIVE_POLICY_COMMIT: "dc4ebb3c01e36a90651f9e59a6eb2d14eacbc7b2"
 
 jobs:
   classify:
@@ -61,6 +61,7 @@ jobs:
           set -euo pipefail
           [[ "$PASSIVE_POLICY_COMMIT" =~ ^[0-9a-f]{40}$ ]]
           test "$(git -C ../trusted-policy rev-parse HEAD)" = "$PASSIVE_POLICY_COMMIT"
+          git merge-base --is-ancestor "$PASSIVE_POLICY_COMMIT" refs/remotes/origin/feature/ci-batch-policies
           test "$(git rev-parse HEAD)" = "$HEAD_COMMIT"
           ancestor="$(git merge-base "$BASE_COMMIT" "$HEAD_COMMIT")"
           test "$ancestor" = "$BASE_COMMIT"

@@ -7,12 +7,13 @@ mixed or changed infrastructure is held before active acceptance can start.
 An ordinary branch retains its established acceptance. Master pull requests and
 master pushes retain the full profile.
 
-The reviewed batch runs the complete unit partition once on Linux/Python 3.13
-through `1337-dev unit`, with bounded parallel workers, the separate serial
-partition, branch coverage and the existing coverage gate. It does not enable
-collection or provider acceptance flags. The unit fixture denies real socket
-connections. Other operating-system/runtime cells exercise explicit compatibility
-selections; they do not claim to have rerun the entire unit suite.
+The reviewed batch runs every unit test once on Linux with Python 3.13. The
+`tools/passive_test_gate.py` runner distributes parallel tests across bounded
+workers and runs any declared serial tests separately. It then measures the
+reviewed offline CLI, integration and contract tests, including their child
+processes. Every changed Python production module must exceed 80% combined
+statement and branch coverage. The unit fixture denies real socket connections.
+The other operating-system and runtime jobs exercise their compatibility tests.
 
 The required **Synthetic lab lifecycle** job starts only the safe health service
 in a uniquely named Compose project. It checks actual container ownership,

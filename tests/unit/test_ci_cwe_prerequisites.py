@@ -8,6 +8,11 @@ from pathlib import Path
 
 import yaml
 
+PASSIVE_VETO = (
+    "!(github.event_name == 'pull_request' && github.base_ref == 'develop' "
+    "&& startsWith(github.head_ref, 'feature/passive-batch-')) && ( "
+)
+
 
 def Workflow():
     """Read the real static workflow without importing or executing source research."""
@@ -23,13 +28,26 @@ def test_ResearchRequiresOwnDraftMarkerAndNeverEnrollsOtherSourceJobs():
     jobs = Workflow()["jobs"]
     marker = "[cwe-prerequisite-checkpoint]"
     condition = " ".join(jobs["cwe-prerequisites"]["if"].split())
-    assert condition == (
+    assert condition.startswith(PASSIVE_VETO) and condition.endswith(")"), (
+        "An explicit passive develop request must veto research before any original marker."
+    )
+    historical = condition[len(PASSIVE_VETO):-1]
+    assert historical == (
         "github.event.pull_request.draft && "
         "github.event.pull_request.head.repo.full_name == github.repository && "
         f"contains(github.event.pull_request.body, '{marker}')"
     ), "CWE research lost its same-repository draft and explicit-checkpoint admission"
     assert all(marker not in job.get("if", "") for name, job in jobs.items()
                if name != "cwe-prerequisites"), "Research marker launched unrelated source profiles"
+
+
+def test_PassiveRequestVetoCannotBeOverriddenByAnyOriginalSourceCheckpoint():
+    """Every source job applies the exact negative veto before its independent original marker."""
+
+    for job in Workflow()["jobs"].values():
+        assert " ".join(job["if"].split()).startswith(PASSIVE_VETO), (
+            "An original source marker can enroll external reads for a requested passive batch."
+        )
 
 
 def test_ResearchBindsHeadAndPreservesFailuresWithoutRunningFullGate():

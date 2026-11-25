@@ -347,10 +347,15 @@ def test_HostedLaneRequiresExactDraftSourceAndScopedArtifacts():
     assert len(jobs) == 1, "The fixed CWE source marker admitted unexpected jobs."
     job = jobs[0]
     assert " ".join(job["if"].split()) == (
+        "!(github.event_name == 'pull_request' && github.base_ref == 'develop' "
+        "&& startsWith(github.head_ref, 'feature/passive-batch-')) && ( "
         "github.event.pull_request.draft && "
         "github.event.pull_request.head.repo.full_name == github.repository && "
-        "contains(github.event.pull_request.body, '[cwe-https-source-acceptance-checkpoint]')"
-    ), "The hosted fetch lost its exact same-repository Draft guard."
+        "contains(github.event.pull_request.body, '[cwe-https-source-acceptance-checkpoint]'))"
+    ), (
+        "Hosted CWE fetch must exclude passive batch requests and preserve its exact "
+        "same-repository Draft guard"
+    )
     assert workflow["permissions"] == {"contents": "read"}, "Source acceptance gained authority."
     assert job["steps"][0]["with"] == {
         "ref": "${{ github.event.pull_request.head.sha }}", "persist-credentials": False,

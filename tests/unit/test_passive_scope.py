@@ -245,6 +245,11 @@ def test_SharedRouterNeverExecutesCandidateCodeAndHoldsFailures():
         "with"
     ]["persist-credentials"], "Policy checkout is not separately immutable and credential-free."
     command = next(step["run"] for step in steps if step.get("id") == "classify")
+    anchor = 'git merge-base --is-ancestor "$PASSIVE_POLICY_COMMIT" '
+    anchor += 'refs/remotes/origin/feature/ci-batch-policies'
+    assert 0 <= command.find(anchor) < command.find("python3 -I"), (
+        "The loader must establish policy-branch provenance before executing the pinned helper."
+    )
     assert "python3 -I ../trusted-policy/tools/passive_scope.py" in command and (
         "--no-ext-diff --raw -z --no-renames --abbrev=40" in command
     ), "Router executes head policy or consumes incomplete/ambiguous Git metadata."
